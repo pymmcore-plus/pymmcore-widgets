@@ -1,0 +1,22 @@
+{
+  "template": "https://github.com/tlambert03/pyrepo-cookiecutter",
+  "commit": "e9df311b673c0d8a3952fc17c2cbef91452b5ec7",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "full_name": "Federico Gasparoli",
+      "email": "federico.gasparoli@gmail.com",
+      "github_username": "fdrgsp",
+      "project_name": "pymmcore-widgets",
+      "project_slug": "pymmcore_widgets",
+      "project_short_description": "A set of widgets for the pymmcore-plus module.",
+      "pypi_username": "talley",
+      "version_control": "setuptools-scm",
+      "_copy_without_render": [
+        ".github/workflows/*"
+      ],
+      "_template": "https://github.com/tlambert03/pyrepo-cookiecutter"
+    }
+  },
+  "directory": null
+}
