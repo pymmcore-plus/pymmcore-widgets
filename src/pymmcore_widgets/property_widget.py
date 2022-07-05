@@ -169,8 +169,9 @@ class ChoiceWidget(QComboBox):
         return self.currentText()  # type: ignore
 
     def setValue(self, value: str) -> None:
+        # sourcery skip: remove-unnecessary-cast
         """Set current value."""
-        value = value
+        value = str(value)
         # while nice in theory, this check raises unnecessarily when a propertyChanged
         # signal gets emitted during system config loading...
         # if value not in self._allowed:

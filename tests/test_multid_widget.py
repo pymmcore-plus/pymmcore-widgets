@@ -1,8 +1,17 @@
-from micromanager_gui._gui_objects._mda_widget._mda_widget import MMMultiDWidget
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from pymmcore_plus import CMMCorePlus
 from useq import MDASequence
 
+from pymmcore_widgets.mda_widget.mda_widget import MMMultiDWidget
 
-def test_multid_load_state(qtbot, global_mmcore):
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
+
+
+def test_multid_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = MMMultiDWidget()
     qtbot.addWidget(wdg)
     assert wdg.stage_tableWidget.rowCount() == 0
@@ -24,4 +33,4 @@ def test_multid_load_state(qtbot, global_mmcore):
     assert wdg.time_groupBox.isChecked()
 
     # round trip
-    assert wdg.get_state() == sequence
+    assert wdg._get_state() == sequence

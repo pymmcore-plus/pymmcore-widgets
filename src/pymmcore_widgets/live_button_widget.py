@@ -1,8 +1,6 @@
 from typing import Optional, Tuple, Union
 
 from fonticon_mdi6 import MDI6
-
-# from numpy import ndarray
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtGui import QColor

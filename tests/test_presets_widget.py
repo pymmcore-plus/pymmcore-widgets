@@ -1,7 +1,16 @@
-from micromanager_gui._core_widgets._presets_widget import PresetsWidget
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from pymmcore_plus import CMMCorePlus
+
+from pymmcore_widgets.presets_widget import PresetsWidget
+
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
 
 
-def test_preset_widget(qtbot, global_mmcore):
+def test_preset_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     for group in global_mmcore.getAvailableConfigGroups():
         wdg = PresetsWidget(group)
         qtbot.addWidget(wdg)

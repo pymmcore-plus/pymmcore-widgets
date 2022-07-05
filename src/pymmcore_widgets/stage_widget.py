@@ -2,7 +2,6 @@ from itertools import chain, product, repeat
 from typing import Optional
 
 from fonticon_mdi6 import MDI6
-from micromanager_gui import _core
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import (
@@ -19,6 +18,8 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import setTextIcon
 from superqt.utils import signals_blocked
+
+from .core import get_core_singleton
 
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 PREFIX = MDI6.__name__.lower()
@@ -97,7 +98,7 @@ class StageWidget(QWidget):
 
         self.setStyleSheet(STYLE)
 
-        self._mmc = mmcore or _core.get_core_singleton()
+        self._mmc = mmcore or get_core_singleton()
         self._levels = levels
         self._device = device
         self._dtype = self._mmc.getDeviceType(self._device)

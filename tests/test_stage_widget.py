@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from micromanager_gui._core_widgets._stage_widget import StageWidget
+
+from pymmcore_widgets.stage_widget import StageWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus

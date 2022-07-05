@@ -1,14 +1,22 @@
-from micromanager_gui._core_widgets import PropertyBrowser
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from pymmcore_plus import CMMCorePlus
 
+from pymmcore_widgets.property_browser import PropertyBrowser
 
-def test_prop_browser(global_mmcore, qtbot):
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
+
+
+def test_prop_browser(global_mmcore: CMMCorePlus, qtbot: QtBot):
     pb = PropertyBrowser(mmcore=global_mmcore)
     qtbot.addWidget(pb)
     pb.show()
 
 
-def test_prop_browser_core_reset(global_mmcore: CMMCorePlus, qtbot):
+def test_prop_browser_core_reset(global_mmcore: CMMCorePlus, qtbot: QtBot):
     """test that loading and resetting doesn't cause errors."""
     global_mmcore.unloadAllDevices()
     pb = PropertyBrowser(mmcore=global_mmcore)

@@ -1,8 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
-from micromanager_gui._core_widgets import PropertyWidget
 from pymmcore_plus import CMMCorePlus, PropertyType
 
-# not sure how else to parametrize the test without instantiating here at import ...
+from pymmcore_widgets.property_widget import PropertyWidget
+
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
+
 CORE = CMMCorePlus()
 CORE.loadSystemConfiguration()
 dev_props = [
@@ -20,7 +27,7 @@ def _assert_equal(a, b):
 
 
 @pytest.mark.parametrize("dev, prop", dev_props)
-def test_property_widget(dev, prop, qtbot):
+def test_property_widget(dev, prop, qtbot: QtBot):
     wdg = PropertyWidget(dev, prop, core=CORE)
     qtbot.addWidget(wdg)
     if CORE.isPropertyReadOnly(dev, prop) or prop in (
