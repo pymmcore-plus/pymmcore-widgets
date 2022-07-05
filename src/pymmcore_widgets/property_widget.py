@@ -64,7 +64,9 @@ class IntegerWidget(QSpinBox):
     """Slider suited to managing integer values."""
 
     def setValue(self, v: Any) -> None:  # noqa: D102
-        return super().setValue(_stretch_range_to_contain(self, int(v)))  # type: ignore
+        return super().setValue(  # type: ignore [no-any-return]
+            _stretch_range_to_contain(self, int(v))
+        )
 
 
 class FloatWidget(QDoubleSpinBox):
@@ -75,7 +77,7 @@ class FloatWidget(QDoubleSpinBox):
         dec = min(str(v).rstrip("0")[::-1].find("."), 8)
         if dec > self.decimals():
             self.setDecimals(dec)
-        return super().setValue(  # type: ignore
+        return super().setValue(  # type: ignore [no-any-return]
             _stretch_range_to_contain(self, float(v))
         )
 
@@ -122,7 +124,7 @@ class IntBoolWidget(QCheckBox):
 
     def setValue(self, val: Union[str, int]) -> None:
         """Set value."""
-        return self.setChecked(bool(int(val)))  # type: ignore
+        return self.setChecked(bool(int(val)))  # type: ignore [no-any-return]
 
 
 class ChoiceWidget(QComboBox):
@@ -155,10 +157,10 @@ class ChoiceWidget(QComboBox):
 
     def _get_allowed(self) -> Tuple[str, ...]:
         if allowed := self._mmc.getAllowedPropertyValues(self._dev, self._prop):
-            return allowed  # type: ignore
+            return allowed
         if self._mmc.getDeviceType(self._dev) == DeviceType.StateDevice:
             if self._prop == LABEL:
-                return self._mmc.getStateLabels(self._dev)  # type: ignore
+                return self._mmc.getStateLabels(self._dev)
             if self._prop == STATE:
                 n_states = self._mmc.getNumberOfStates(self._dev)
                 return tuple(str(i) for i in range(n_states))
@@ -166,7 +168,7 @@ class ChoiceWidget(QComboBox):
 
     def value(self) -> str:
         """Get value."""
-        return self.currentText()  # type: ignore
+        return self.currentText()  # type: ignore [no-any-return]
 
     def setValue(self, value: str) -> None:
         # sourcery skip: remove-unnecessary-cast
@@ -190,7 +192,7 @@ class StringWidget(QLineEdit):
 
     def value(self) -> str:
         """Get value."""
-        return self.text()  # type: ignore
+        return self.text()  # type: ignore [no-any-return]
 
     def _emit_value(self) -> None:
         self.valueChanged.emit(self.value())
@@ -208,7 +210,7 @@ class ReadOnlyWidget(QLabel):
 
     def value(self) -> str:
         """Get value."""
-        return self.text()  # type: ignore
+        return self.text()  # type: ignore [no-any-return]
 
     def setValue(self, value: str) -> None:
         """Set value."""
@@ -289,15 +291,15 @@ def _creat_prop_widget(core: CMMCorePlus, dev: str, prop: str) -> PPropValueWidg
     if ptype in (PropertyType.Integer, PropertyType.Float):
         if not core.hasPropertyLimits(dev, prop):
             wdg = IntegerWidget() if ptype is PropertyType.Integer else FloatWidget()
-            return wdg  # type: ignore
+            return wdg
         wdg = (
             RangedIntegerWidget()
             if ptype is PropertyType.Integer
             else RangedFloatWidget()
         )
-        wdg.setMinimum(wdg._cast(core.getPropertyLowerLimit(dev, prop)))  # type: ignore
-        wdg.setMaximum(wdg._cast(core.getPropertyUpperLimit(dev, prop)))  # type: ignore
-        return wdg  # type: ignore
+        wdg.setMinimum(wdg._cast(core.getPropertyLowerLimit(dev, prop)))
+        wdg.setMaximum(wdg._cast(core.getPropertyUpperLimit(dev, prop)))
+        return wdg
     return cast(PPropValueWidget, StringWidget())
 
 
@@ -393,7 +395,7 @@ class PropertyWidget(QWidget):
 
     def isReadOnly(self) -> bool:
         """Return True if property is read only."""
-        return self._mmc.isPropertyReadOnly(*self._dp)  # type: ignore
+        return self._mmc.isPropertyReadOnly(*self._dp)
 
     @property
     def _dp(self) -> Tuple[str, str]:

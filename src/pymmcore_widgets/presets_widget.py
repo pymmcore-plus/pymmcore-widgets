@@ -153,7 +153,7 @@ class PresetsWidget(QWidget):
 
     def value(self) -> str:
         """Get current value."""
-        return self._combo.currentText()  # type: ignore
+        return self._combo.currentText()  # type: ignore [no-any-return]
 
     def setValue(self, value: str) -> None:
         """Set the combobox to the given value."""

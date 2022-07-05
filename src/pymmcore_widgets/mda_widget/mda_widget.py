@@ -217,7 +217,7 @@ class MMMultiDWidget(MultiDWidgetGui):
     def _add_position_row(self) -> int:
         idx = self.stage_tableWidget.rowCount()
         self.stage_tableWidget.insertRow(idx)
-        return idx  # type: ignore
+        return idx  # type: ignore [no-any-return]
 
     def _remove_position(self) -> None:
         # remove selected position
