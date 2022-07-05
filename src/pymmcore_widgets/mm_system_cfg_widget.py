@@ -2,7 +2,7 @@ from typing import Optional
 
 from qtpy import QtWidgets as QtW
 
-from ._core import load_system_config
+from .core import load_system_config
 
 
 class MMConfigurationWidget(QtW.QGroupBox):

@@ -5,7 +5,7 @@ from pymmcore_plus import DeviceType
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QListView, QWidget
 from superqt.utils import signals_blocked
 
-from ._core import get_core_singleton
+from .core import get_core_singleton
 
 
 class PresetsWidget(QWidget):

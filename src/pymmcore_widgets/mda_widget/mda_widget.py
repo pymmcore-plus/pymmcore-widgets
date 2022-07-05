@@ -8,8 +8,8 @@ from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from useq import MDASequence
 
-from .._core import get_core_singleton
-from .._mda import SEQUENCE_META, SequenceMeta
+from ..core import get_core_singleton
+from ._mda import SEQUENCE_META, SequenceMeta
 from ._mda_gui import MultiDWidgetGui
 
 if TYPE_CHECKING:

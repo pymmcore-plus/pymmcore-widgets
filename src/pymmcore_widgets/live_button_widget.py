@@ -9,7 +9,7 @@ from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QPushButton
 from superqt.fonticon import icon
 
-from ._core import get_core_singleton
+from .core import get_core_singleton
 
 COLOR_TYPE = Union[
     QColor,

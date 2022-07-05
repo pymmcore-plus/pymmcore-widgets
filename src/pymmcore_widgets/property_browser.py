@@ -18,8 +18,8 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from ._core import get_core_singleton, iter_dev_props
-from ._property_widget import PropertyWidget
+from .core import get_core_singleton, iter_dev_props
+from .property_widget import PropertyWidget
 
 
 class _PropertyTable(QTableWidget):

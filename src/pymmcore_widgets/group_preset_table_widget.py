@@ -4,9 +4,9 @@ from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QVBoxLayout
 
-from ._core import get_core_singleton
-from ._presets_widget import PresetsWidget
-from ._property_widget import PropertyWidget
+from .core import get_core_singleton
+from .presets_widget import PresetsWidget
+from .property_widget import PropertyWidget
 
 
 class _MainTable(QtW.QTableWidget):

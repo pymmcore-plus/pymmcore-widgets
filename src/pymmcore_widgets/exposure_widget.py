@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 from pymmcore import g_Keyword_CoreCamera, g_Keyword_CoreDevice
 
-from ._core import get_core_singleton
+from .core import get_core_singleton
 
 
 class ExposureWidget(QtW.QWidget):
