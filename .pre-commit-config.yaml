@@ -56,3 +56,5 @@ repos:
     hooks:
       - id: mypy
         files: "^src/"
+        additional_dependencies:
+        - pymmcore-plus
