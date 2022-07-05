@@ -67,7 +67,7 @@ class DeviceWidget(QWidget):
 
     def deviceName(self) -> str:
         """Return device name (this is *not* the device label)."""
-        return self._mmc.getDeviceName(self._device_label)  # type: ignore
+        return self._mmc.getDeviceName(self._device_label)
 
     def deviceType(self) -> DeviceType:
         """Return type of Device (`pymmcore_plus.DeviceType`)."""
@@ -170,19 +170,19 @@ class StateDeviceWidget(DeviceWidget):
 
     def state(self) -> int:
         """Return current state (index) of the device."""
-        return self._mmc.getState(self._device_label)  # type: ignore
+        return self._mmc.getState(self._device_label)
 
     def stateLabel(self) -> str:
         """Return current state (label) of the device."""
-        return self._mmc.getStateLabel(self._device_label)  # type: ignore
+        return self._mmc.getStateLabel(self._device_label)
 
     def stateLabels(self) -> Tuple[str]:
         """Return all state labels of the device."""
-        return self._mmc.getStateLabels(self._device_label)  # type: ignore
+        return self._mmc.getStateLabels(self._device_label)
 
     def currentText(self) -> str:  # noqa: D102
         # pass through the QComboBox interface
-        return self._combo.currentText()  # type: ignore
+        return self._combo.currentText()  # type: ignore [no-any-return]
 
     def setCurrentText(self, text: str) -> None:  # noqa: D102
         # pass through the QComboBox interface
@@ -192,7 +192,7 @@ class StateDeviceWidget(DeviceWidget):
 
     def currentIndex(self) -> int:  # noqa: D102
         # pass through the QComboBox interface
-        return self._combo.currentIndex()  # type: ignore
+        return self._combo.currentIndex()  # type: ignore [no-any-return]
 
     def setCurrentIndex(self, index: int) -> None:  # noqa: D102
         # pass through the QComboBox interface
