@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from useq import MDASequence
 
+from .._util import ComboMessageBox
 from ..core import get_core_singleton
 from ._mda import SEQUENCE_META, SequenceMeta
 from ._mda_gui import MultiDWidgetGui
@@ -73,6 +74,13 @@ class MMMultiDWidget(MultiDWidgetGui):
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.mda.events.sequencePauseToggled.connect(self._on_mda_paused)
         self._mmc.events.mdaEngineRegistered.connect(self._update_mda_engine)
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
+
+        self._on_sys_cfg_loaded()
+
+    def _on_sys_cfg_loaded(self) -> None:
+        if channel_group := self._mmc.getChannelGroup() or self._guess_channel_group():
+            self._mmc.setChannelGroup(channel_group)
 
     def _update_mda_engine(self, newEngine: PMDAEngine, oldEngine: PMDAEngine) -> None:
         oldEngine.events.sequenceStarted.disconnect(self._on_mda_started)
@@ -146,6 +154,21 @@ class MMMultiDWidget(MultiDWidgetGui):
 
     def _on_mda_paused(self, paused: bool) -> None:
         self.pause_Button.setText("GO" if paused else "PAUSE")
+
+    def _guess_channel_group(self) -> Union[str, None]:
+        """Try to update the list of channel group choices.
+
+        1. get a list of potential channel groups from pymmcore
+        2. if there is only one, use it, if there are > 1, show a dialog box
+        """
+        candidates = self._mmc.getOrGuessChannelGroup()
+        if len(candidates) == 1:
+            return candidates[0]
+        elif candidates:
+            dialog = ComboMessageBox(candidates, "Select Channel Group:", self)
+            if dialog.exec_() == dialog.DialogCode.Accepted:
+                return dialog._currentText()
+        return None
 
     def _add_channel(self) -> bool:
         """Add, remove or clear channel table.  Return True if anyting was changed."""

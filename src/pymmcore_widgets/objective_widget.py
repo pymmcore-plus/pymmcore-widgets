@@ -1,17 +1,9 @@
-from typing import Optional, Sequence, Union
+from typing import Optional, Union
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import (
-    QComboBox,
-    QDialog,
-    QDialogButtonBox,
-    QHBoxLayout,
-    QLabel,
-    QSizePolicy,
-    QVBoxLayout,
-    QWidget,
-)
+from qtpy.QtWidgets import QComboBox, QHBoxLayout, QLabel, QSizePolicy, QWidget
 
+from ._util import ComboMessageBox
 from .core import get_core_singleton
 from .device_widget import StateDeviceWidget
 
@@ -126,34 +118,3 @@ class MMObjectivesWidget(QWidget):
 #         zdev = self._mmc.getFocusDevice()
 #         self._mmc.setPosition(zdev, self._previous_z)
 #         self._mmc.waitForDevice(zdev)
-
-
-class ComboMessageBox(QDialog):
-    """Dialog that presents a combo box of `items`."""
-
-    def __init__(
-        self,
-        items: Sequence[str] = (),
-        text: str = "",
-        parent: Optional[QWidget] = None,
-    ) -> None:
-        super().__init__(parent)
-
-        self._combo = QComboBox()
-        self._combo.addItems(items)
-
-        btn_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel  # noqa
-        )
-        btn_box.accepted.connect(self.accept)
-        btn_box.rejected.connect(self.reject)
-
-        self.setLayout(QVBoxLayout())
-        if text:
-            self.layout().addWidget(QLabel(text))
-        self.layout().addWidget(self._combo)
-        self.layout().addWidget(btn_box)
-
-    def _currentText(self) -> str:
-        return self._combo.currentText()  # type: ignore [no-any-return]
