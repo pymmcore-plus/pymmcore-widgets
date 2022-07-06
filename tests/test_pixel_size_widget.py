@@ -1,11 +1,21 @@
-from micromanager_gui._core_widgets._set_pixel_size import PixelSizeWidget
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from pymmcore_plus import CMMCorePlus
 
+from pymmcore_widgets.set_pixel_size_widget import PixelSizeWidget
 
-def test_px_size_configurator(qtbot, global_mmcore: CMMCorePlus):
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
+
+
+def p(qtbot: QtBot, global_mmcore: CMMCorePlus):
     mmc = global_mmcore
 
     px_size_wdg = PixelSizeWidget(mmc)
+    qtbot.addWidget(px_size_wdg)
+
     assert ["Res10x", "Res20x", "Res40x"] == list(mmc.getAvailablePixelSizeConfigs())
     assert px_size_wdg.table.rowCount() == 3
 

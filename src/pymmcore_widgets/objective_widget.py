@@ -80,7 +80,7 @@ class MMObjectivesWidget(QWidget):
         elif candidates:
             dialog = ComboMessageBox(candidates, "Select Objective Device:", self)
             if dialog.exec_() == dialog.DialogCode.Accepted:
-                return dialog.currentText()  # type: ignore
+                return dialog._currentText()
         return None
 
     def _clear_previous_device_widget(self) -> None:
