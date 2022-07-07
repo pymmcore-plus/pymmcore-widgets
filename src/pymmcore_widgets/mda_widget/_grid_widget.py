@@ -2,13 +2,14 @@ from typing import Optional
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
+    QCheckBox,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QPushButton,
     QSizePolicy,
     QSpinBox,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -20,7 +21,7 @@ from pymmcore_widgets.core import get_core_singleton  # to remove
 class GridWidget(QWidget):
     """A subwidget to setup the acquisition of a grid of images."""
 
-    sendPosList = Signal(list)
+    sendPosList = Signal(list, bool)
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -36,17 +37,17 @@ class GridWidget(QWidget):
     def _create_gui(self) -> None:
 
         layout = QVBoxLayout()
-        layout.setSpacing(20)
+        layout.setSpacing(5)
         layout.setContentsMargins(10, 10, 10, 10)
         self.setLayout(layout)
+
+        self.setMaximumHeight(200)
 
         grid_settings = self._create_row_cols_overlap_group()
         layout.addWidget(grid_settings)
 
-        # TODO:
-        # create button
-        # make grid
-        # send pos list
+        button = self._create_generate_list_button()
+        layout.addWidget(button)
 
     def _create_row_cols_overlap_group(self) -> QGroupBox:
         group = QGroupBox(title="Grid Parameters")
@@ -123,6 +124,24 @@ class GridWidget(QWidget):
 
         return group
 
+    def _create_generate_list_button(self) -> QWidget:
+        wdg = QWidget()
+        wdg_layout = QHBoxLayout()
+        wdg_layout.setSpacing(10)
+        wdg_layout.setContentsMargins(0, 0, 0, 0)
+        wdg.setLayout(wdg_layout)
+
+        self.clear_checkbox = QCheckBox(text="Delete Current Position List")
+        self.clear_checkbox.setChecked(True)
+        wdg_layout.addWidget(self.clear_checkbox)
+
+        self.generate_position_btn = QPushButton(text="Generate Position List")
+        self.generate_position_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.generate_position_btn.clicked.connect(self._send_positions_grid)
+        wdg_layout.addWidget(self.generate_position_btn)
+
+        return wdg
+
     def _update_info_label(self) -> None:
         if not self._mmc.getPixelSizeUm():
             self.info_lbl.setText("_ mm x _ mm")
@@ -136,35 +155,79 @@ class GridWidget(QWidget):
         overlap_x = width * overlap_percentage / 100
         overlap_y = height * overlap_percentage / 100
 
-        y = ((px_size * height * rows) - overlap_y) / 1000  # rows
-        x = ((px_size * width * cols) - overlap_x) / 1000  # cols
+        y = ((height - overlap_y) * rows) * px_size / 1000  # rows
+        x = ((width - overlap_x) * cols) * px_size / 1000  # cols
 
         self.info_lbl.setText(f"{round(y, 3)} mm x {round(x, 3)} mm")
 
-    # add, remove, clear, move_to positions table
-    def _add_position(self) -> None:
+    def _set_grid(self) -> list[tuple[float, ...]]:
 
-        if not self._mmc.getXYStageDevice():
+        scan_size_r = self.scan_size_spinBox_r.value()
+        scan_size_c = self.scan_size_spinBox_c.value()
+
+        # get current position
+        x_pos = float(self._mmc.getXPosition())
+        y_pos = float(self._mmc.getYPosition())
+        if self._mmc.getFocusDevice():
+            z_pos = float(self._mmc.getZPosition())
+
+        # calculate initial scan position
+        _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
+
+        pixel_size = self._mmc.getPixelSizeUm()
+
+        overlap_percentage = self.ovelap_spinBox.value()
+        overlap_px_w = width - (width * overlap_percentage) / 100
+        overlap_px_h = height - (height * overlap_percentage) / 100
+
+        move_x = (width / 2) * (scan_size_c - 1) - overlap_px_w
+        move_y = (height / 2) * (scan_size_r - 1) - overlap_px_h
+
+        # to match position coordinates with center of the image
+        x_pos -= pixel_size * (move_x + width)
+        y_pos += pixel_size * (move_y + height)
+
+        # calculate position increments depending on pixle size
+        if overlap_percentage > 0:
+            increment_x = overlap_px_w * pixel_size
+            increment_y = overlap_px_h * pixel_size
+        else:
+            increment_x = width * pixel_size
+            increment_y = height * pixel_size
+
+        list_pos_order: list[tuple[float, ...]] = []
+        for r in range(scan_size_r):
+            if r % 2:  # for odd rows
+                col = scan_size_c - 1
+                for c in range(scan_size_c):
+                    if c == 0:
+                        y_pos -= increment_y
+                    if self._mmc.getFocusDevice():
+                        list_pos_order.append((x_pos, y_pos, z_pos))
+                    else:
+                        list_pos_order.append((x_pos, y_pos))
+                    if col > 0:
+                        col -= 1
+                        x_pos -= increment_x
+            else:  # for even rows
+                for c in range(scan_size_c):
+                    if r > 0 and c == 0:
+                        y_pos -= increment_y
+                    if self._mmc.getFocusDevice():
+                        list_pos_order.append((x_pos, y_pos, z_pos))
+                    else:
+                        list_pos_order.append((x_pos, y_pos))
+                    if c < scan_size_c - 1:
+                        x_pos += increment_x
+
+        return list_pos_order
+
+    def _send_positions_grid(self) -> None:
+        if self._mmc.getPixelSizeUm() == 0:
             return
-
-        if len(self._mmc.getLoadedDevices()) > 1:
-            idx = self._add_position_row()
-
-            for c, ax in enumerate("GXYZ"):
-                if ax == "G":
-                    count = self.stage_tableWidget.rowCount()
-                    item = QTableWidgetItem(f"Grid_{count:03d}")
-                    item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-                    self.stage_tableWidget.setItem(idx, c, item)
-                    continue
-
-                if not self._mmc.getFocusDevice() and ax == "Z":
-                    continue
-
-                cur = getattr(self._mmc, f"get{ax}Position")()
-                item = QTableWidgetItem(str(cur))
-                item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-                self.stage_tableWidget.setItem(idx, c, item)
+        grid = self._set_grid()
+        print(grid)
+        self.sendPosList.emit(grid, self.clear_checkbox.isChecked())
 
 
 if __name__ == "__main__":
