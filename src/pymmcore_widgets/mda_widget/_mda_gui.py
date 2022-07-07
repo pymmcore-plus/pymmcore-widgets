@@ -408,7 +408,7 @@ class MultiDWidgetGui(QWidget):
         self.stage_tableWidget.setColumnCount(3)
         self.stage_tableWidget.setRowCount(0)
         self.stage_tableWidget.setHorizontalHeaderLabels(["X", "Y", "Z"])
-        group_layout.addWidget(self.stage_tableWidget, 0, 0, 3, 1)
+        group_layout.addWidget(self.stage_tableWidget, 0, 0, 4, 1)
 
         # buttons
         btn_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -422,10 +422,14 @@ class MultiDWidgetGui(QWidget):
         self.clear_pos_Button = QPushButton(text="Clear")
         self.clear_pos_Button.setMinimumWidth(min_size)
         self.clear_pos_Button.setSizePolicy(btn_sizepolicy)
+        self.grid_Button = QPushButton(text="Grid")
+        self.grid_Button.setMinimumWidth(min_size)
+        self.grid_Button.setSizePolicy(btn_sizepolicy)
 
         group_layout.addWidget(self.add_pos_Button, 0, 1, 1, 1)
         group_layout.addWidget(self.remove_pos_Button, 1, 1, 1, 2)
         group_layout.addWidget(self.clear_pos_Button, 2, 1, 1, 2)
+        group_layout.addWidget(self.grid_Button, 3, 1, 1, 2)
 
         return group
 
