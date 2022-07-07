@@ -122,14 +122,25 @@ class MMMultiDWidget(MultiDWidgetGui):
 
     def _add_to_position_table(self, position_list: list, clear: bool) -> None:
 
+        grid_number = 0
+
         if clear:
             self._clear_positions()
+        else:
+            for r in range(self.stage_tableWidget.rowCount()):
+                pos_name = self.stage_tableWidget.item(r, 0).text()
+                grid_name = pos_name.split("_")[0]
+                if "Grid" in grid_name:
+                    grid_n = grid_name[-3:]
+                    if int(grid_n) > grid_number:
+                        grid_number = int(grid_n)
+            grid_number += 1
 
         for idx, position in enumerate(position_list):
             rows = self.stage_tableWidget.rowCount()
             self.stage_tableWidget.insertRow(rows)
 
-            item = QtW.QTableWidgetItem(f"Grid_Pos{idx:03d}")
+            item = QtW.QTableWidgetItem(f"Grid{grid_number:03d}_Pos{idx:03d}")
             item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
             x = QtW.QTableWidgetItem(str(position[0]))
             x.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
