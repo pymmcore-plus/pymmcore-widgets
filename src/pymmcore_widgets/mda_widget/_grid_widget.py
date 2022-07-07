@@ -3,6 +3,7 @@ from typing import Optional
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
+    QDialog,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -14,11 +15,10 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-# from ..core import get_core_singleton
-from pymmcore_widgets.core import get_core_singleton  # to remove
+from ..core import get_core_singleton
 
 
-class GridWidget(QWidget):
+class GridWidget(QDialog):
     """A subwidget to setup the acquisition of a grid of images."""
 
     sendPosList = Signal(list, bool)
@@ -27,8 +27,6 @@ class GridWidget(QWidget):
         super().__init__(parent)
 
         self._mmc = get_core_singleton()
-
-        self._mmc.loadSystemConfiguration()  # to remove
 
         self._create_gui()
 
@@ -223,10 +221,9 @@ class GridWidget(QWidget):
         return list_pos_order
 
     def _send_positions_grid(self) -> None:
-        if self._mmc.getPixelSizeUm() == 0:
-            return
+        if self._mmc.getPixelSizeUm() <= 0:
+            raise ValueError("Pixel Size Not Set.")
         grid = self._set_grid()
-        print(grid)
         self.sendPosList.emit(grid, self.clear_checkbox.isChecked())
 
 

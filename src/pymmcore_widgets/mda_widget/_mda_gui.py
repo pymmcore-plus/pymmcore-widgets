@@ -405,9 +405,9 @@ class MultiDWidgetGui(QWidget):
         hdr.setSectionResizeMode(hdr.Stretch)
         self.stage_tableWidget.verticalHeader().setVisible(False)
         self.stage_tableWidget.setTabKeyNavigation(True)
-        self.stage_tableWidget.setColumnCount(3)
+        self.stage_tableWidget.setColumnCount(4)
         self.stage_tableWidget.setRowCount(0)
-        self.stage_tableWidget.setHorizontalHeaderLabels(["X", "Y", "Z"])
+        self.stage_tableWidget.setHorizontalHeaderLabels(["Pos", "X", "Y", "Z"])
         group_layout.addWidget(self.stage_tableWidget, 0, 0, 4, 1)
 
         # buttons
