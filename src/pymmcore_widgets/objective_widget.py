@@ -8,7 +8,7 @@ from .core import get_core_singleton
 from .device_widget import StateDeviceWidget
 
 
-class MMObjectivesWidget(QWidget):
+class ObjectivesWidget(QWidget):
     """Objective selector widget.
 
     Parameters

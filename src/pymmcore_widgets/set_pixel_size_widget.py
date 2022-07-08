@@ -9,7 +9,7 @@ from qtpy.QtCore import Qt
 from superqt.utils import signals_blocked
 
 from .core import get_core_singleton
-from .objective_widget import MMObjectivesWidget
+from .objective_widget import ObjectivesWidget
 
 RESOLUTION_ID_PREFIX = "px_size_"
 
@@ -39,7 +39,7 @@ class PixelSizeTable(QtW.QTableWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
 
         self._objective_device = (
-            objective_device or MMObjectivesWidget()._guess_objective_device()
+            objective_device or ObjectivesWidget()._guess_objective_device()
         )
 
         self.setMinimumWidth(570)
@@ -64,7 +64,7 @@ class PixelSizeTable(QtW.QTableWidget):
 
     def _on_sys_cfg_loaded(self) -> None:
         if not self._objective_device:
-            self._objective_device = MMObjectivesWidget()._guess_objective_device()
+            self._objective_device = ObjectivesWidget()._guess_objective_device()
 
         if self._mmc.getAvailablePixelSizeConfigs():
             self._add_px_cfg_to_table(self.rowCount())

@@ -26,7 +26,7 @@ class _MainTable(QtW.QTableWidget):
         self.setHorizontalHeaderLabels(["Group", "Preset"])
 
 
-class MMGroupPresetTableWidget(QtW.QWidget):
+class GroupPresetTableWidget(QtW.QWidget):
     """Widget to get/set group presets."""
 
     def __init__(self) -> None:

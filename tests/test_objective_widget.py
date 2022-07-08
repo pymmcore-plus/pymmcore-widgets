@@ -7,7 +7,7 @@ import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QDialog
 
-from pymmcore_widgets.objective_widget import ComboMessageBox, MMObjectivesWidget
+from pymmcore_widgets.objective_widget import ComboMessageBox, ObjectivesWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 def test_objective_widget_changes_objective(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    obj_wdg = MMObjectivesWidget()
+    obj_wdg = ObjectivesWidget()
     qtbot.addWidget(obj_wdg)
 
     # start_z = 100.0
@@ -47,5 +47,5 @@ def test_guess_objectve(dialog_mock, global_mmcore: CMMCorePlus, qtbot: QtBot):
     dialog_mock.return_value = QDialog.DialogCode.Accepted
     with patch.object(global_mmcore, "guessObjectiveDevices") as mock:
         mock.return_value = ["Objective", "Obj2"]
-        obj_wdg = MMObjectivesWidget(mmcore=global_mmcore)
+        obj_wdg = ObjectivesWidget(mmcore=global_mmcore)
         qtbot.addWidget(obj_wdg)
