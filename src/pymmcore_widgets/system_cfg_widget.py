@@ -5,7 +5,7 @@ from qtpy import QtWidgets as QtW
 from .core import load_system_config
 
 
-class MMConfigurationWidget(QtW.QGroupBox):
+class ConfigurationWidget(QtW.QGroupBox):
     """Widget to select and load MM configuration."""
 
     def __init__(self, parent: Optional[QtW.QWidget] = None) -> None:

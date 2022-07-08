@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from pymmcore_plus.mda import PMDAEngine
 
 
-class MMMultiDWidget(MultiDWidgetGui):
+class MultiDWidget(MultiDWidgetGui):
     """Multi-dimensional acquisition Widget."""
 
     def __init__(self, parent: QtW.QWidget = None):

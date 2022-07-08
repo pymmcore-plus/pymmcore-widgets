@@ -5,14 +5,14 @@ from typing import TYPE_CHECKING
 from pymmcore_plus import CMMCorePlus
 from useq import MDASequence
 
-from pymmcore_widgets.mda_widget.mda_widget import MMMultiDWidget
+from pymmcore_widgets.mda_widget.mda_widget import MultiDWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
 def test_multid_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = MMMultiDWidget()
+    wdg = MultiDWidget()
     qtbot.addWidget(wdg)
     assert wdg.stage_tableWidget.rowCount() == 0
     assert wdg.channel_tableWidget.rowCount() == 0
