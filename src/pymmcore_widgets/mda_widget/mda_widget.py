@@ -10,6 +10,7 @@ from useq import MDASequence
 
 from .._util import ComboMessageBox
 from ..core import get_core_singleton
+from ._grid_widget import GridWidget
 from ._mda import SEQUENCE_META, SequenceMeta
 from ._mda_gui import MultiDWidgetGui
 
@@ -41,6 +42,8 @@ class MultiDWidget(MultiDWidgetGui):
 
         self.browse_save_Button.clicked.connect(self._set_multi_d_acq_dir)
         self.run_Button.clicked.connect(self._on_run_clicked)
+
+        self.grid_Button.clicked.connect(self._grid_widget)
 
         # connect for z stack
         self.set_top_Button.clicked.connect(self._set_top)
@@ -108,6 +111,48 @@ class MultiDWidget(MultiDWidgetGui):
             self.stack_groupBox.setEnabled(False)
         else:
             self.stack_groupBox.setEnabled(enabled)
+
+    def _grid_widget(self) -> None:
+        if not self._mmc.getXYStageDevice():
+            return
+        if not hasattr(self, "_grid_wdg"):
+            self._grid_wdg = GridWidget(self)
+            self._grid_wdg.sendPosList.connect(self._add_to_position_table)
+        self._grid_wdg.show()
+
+    def _add_to_position_table(self, position_list: list, clear: bool) -> None:
+
+        grid_number = 0
+
+        if clear:
+            self._clear_positions()
+        else:
+            for r in range(self.stage_tableWidget.rowCount()):
+                pos_name = self.stage_tableWidget.item(r, 0).text()
+                grid_name = pos_name.split("_")[0]
+                if "Grid" in grid_name:
+                    grid_n = grid_name[-3:]
+                    if int(grid_n) > grid_number:
+                        grid_number = int(grid_n)
+            grid_number += 1
+
+        for idx, position in enumerate(position_list):
+            rows = self.stage_tableWidget.rowCount()
+            self.stage_tableWidget.insertRow(rows)
+
+            item = QtW.QTableWidgetItem(f"Grid{grid_number:03d}_Pos{idx:03d}")
+            item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            x = QtW.QTableWidgetItem(str(position[0]))
+            x.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            y = QtW.QTableWidgetItem(str(position[1]))
+            y.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            z = QtW.QTableWidgetItem(str(position[2]))
+            z.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+
+            self.stage_tableWidget.setItem(rows, 0, item)
+            self.stage_tableWidget.setItem(rows, 1, x)
+            self.stage_tableWidget.setItem(rows, 2, y)
+            self.stage_tableWidget.setItem(rows, 3, z)
 
     def _set_top(self) -> None:
         self.z_top_doubleSpinBox.setValue(self._mmc.getZPosition())
@@ -227,7 +272,15 @@ class MultiDWidget(MultiDWidgetGui):
         if len(self._mmc.getLoadedDevices()) > 1:
             idx = self._add_position_row()
 
-            for c, ax in enumerate("XYZ"):
+            for c, ax in enumerate("PXYZ"):
+
+                if ax == "P":
+                    count = self.stage_tableWidget.rowCount()
+                    item = QtW.QTableWidgetItem(f"Pos{count:03d}")
+                    item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+                    self.stage_tableWidget.setItem(idx, c, item)
+                    continue
+
                 if not self._mmc.getFocusDevice() and ax == "Z":
                     continue
                 cur = getattr(self._mmc, f"get{ax}Position")()
@@ -259,9 +312,9 @@ class MultiDWidget(MultiDWidgetGui):
         if not self._mmc.getXYStageDevice():
             return
         curr_row = self.stage_tableWidget.currentRow()
-        x_val = self.stage_tableWidget.item(curr_row, 0).text()
-        y_val = self.stage_tableWidget.item(curr_row, 1).text()
-        z_val = self.stage_tableWidget.item(curr_row, 2).text()
+        x_val = self.stage_tableWidget.item(curr_row, 1).text()
+        y_val = self.stage_tableWidget.item(curr_row, 2).text()
+        z_val = self.stage_tableWidget.item(curr_row, 3).text()
         self._mmc.setXYPosition(float(x_val), float(y_val))
         self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
 
@@ -354,8 +407,12 @@ class MultiDWidget(MultiDWidgetGui):
             self.stage_pos_groupBox.setChecked(True)
             for idx, pos in enumerate(state.stage_positions):
                 self._add_position_row()
-                for c, ax in enumerate("xyz"):
-                    item = QtW.QTableWidgetItem(str(getattr(pos, ax)))
+                for c, ax in enumerate("pxyz"):
+                    if ax == "p":
+                        pos_name = pos.name or f"Pos{idx:03d}"
+                        item = QtW.QTableWidgetItem(str(pos_name))
+                    else:
+                        item = QtW.QTableWidgetItem(str(getattr(pos, ax)))
                     item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
                     self.stage_tableWidget.setItem(idx, c, item)
         else:
@@ -415,14 +472,16 @@ class MultiDWidget(MultiDWidgetGui):
             ):
                 for r in range(self.stage_tableWidget.rowCount()):
                     pos = {
-                        "x": float(self.stage_tableWidget.item(r, 0).text()),
-                        "y": float(self.stage_tableWidget.item(r, 1).text()),
+                        "name": self.stage_tableWidget.item(r, 0).text(),
+                        "x": float(self.stage_tableWidget.item(r, 1).text()),
+                        "y": float(self.stage_tableWidget.item(r, 2).text()),
                     }
                     if self._mmc.getFocusDevice():
-                        pos["z"] = float(self.stage_tableWidget.item(r, 2).text())
+                        pos["z"] = float(self.stage_tableWidget.item(r, 3).text())
                     state["stage_positions"].append(pos)
             else:
                 pos = {
+                    "name": self.stage_tableWidget.item(r, 0).text(),
                     "x": float(self._mmc.getXPosition()),
                     "y": float(self._mmc.getYPosition()),
                 }
