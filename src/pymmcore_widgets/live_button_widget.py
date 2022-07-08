@@ -28,8 +28,6 @@ class LiveButton(QPushButton):
 
     Parameters
     ----------
-    camera:
-        Camera device. If 'None' -> getCameraDevice()
     button_text_on_off : Optional[tuple[str, str]]
         Text of the QPushButton in the on and off state.
     icon_size : Optional[int]
@@ -40,7 +38,6 @@ class LiveButton(QPushButton):
 
     def __init__(
         self,
-        camera: Optional[str] = None,
         button_text_on_off: Tuple[str, str] = ("", ""),
         icon_size: int = 30,
         icon_color_on_off: Tuple[COLOR_TYPE, COLOR_TYPE] = ("", ""),
@@ -51,7 +48,7 @@ class LiveButton(QPushButton):
         super().__init__()
 
         self._mmc = mmcore or get_core_singleton()
-        self._camera = camera or self._mmc.getCameraDevice()
+        self._camera = self._mmc.getCameraDevice()
         self.button_text_on = button_text_on_off[0]
         self.button_text_off = button_text_on_off[1]
         self.icon_size = icon_size
@@ -82,8 +79,7 @@ class LiveButton(QPushButton):
         self.clicked.connect(self._toggle_live_mode)
 
     def _on_system_cfg_loaded(self) -> None:
-        if not self._camera:
-            self._camera = self._mmc.getCameraDevice()
+        self._camera = self._mmc.getCameraDevice()
         self.setEnabled(bool(self._camera))
 
     def _toggle_live_mode(self) -> None:
