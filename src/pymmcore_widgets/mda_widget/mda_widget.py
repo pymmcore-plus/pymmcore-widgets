@@ -472,14 +472,16 @@ class MultiDWidget(MultiDWidgetGui):
             ):
                 for r in range(self.stage_tableWidget.rowCount()):
                     pos = {
-                        "x": float(self.stage_tableWidget.item(r, 0).text()),
-                        "y": float(self.stage_tableWidget.item(r, 1).text()),
+                        "name": self.stage_tableWidget.item(r, 0).text(),
+                        "x": float(self.stage_tableWidget.item(r, 1).text()),
+                        "y": float(self.stage_tableWidget.item(r, 2).text()),
                     }
                     if self._mmc.getFocusDevice():
-                        pos["z"] = float(self.stage_tableWidget.item(r, 2).text())
+                        pos["z"] = float(self.stage_tableWidget.item(r, 3).text())
                     state["stage_positions"].append(pos)
             else:
                 pos = {
+                    "name": self.stage_tableWidget.item(r, 0).text(),
                     "x": float(self._mmc.getXPosition()),
                     "y": float(self._mmc.getYPosition()),
                 }
