@@ -115,10 +115,10 @@ class MMMultiDWidget(MultiDWidgetGui):
     def _grid_widget(self) -> None:
         if not self._mmc.getXYStageDevice():
             return
-        _grid_wdg = GridWidget(self)
-        _grid_wdg.sendPosList.connect(self._add_to_position_table)
-        if not hasattr(GridWidget, "_grid_wdg"):
-            _grid_wdg.show()
+        if not hasattr(self, "_grid_wdg"):
+            self._grid_wdg = GridWidget(self)
+            self._grid_wdg.sendPosList.connect(self._add_to_position_table)
+        self._grid_wdg.show()
 
     def _add_to_position_table(self, position_list: list, clear: bool) -> None:
 
