@@ -119,6 +119,7 @@ class MultiDWidget(MultiDWidgetGui):
             self._grid_wdg = GridWidget(self)
             self._grid_wdg.sendPosList.connect(self._add_to_position_table)
         self._grid_wdg.show()
+        self._grid_wdg.raise_()
 
     def _add_to_position_table(self, position_list: list, clear: bool) -> None:
 
