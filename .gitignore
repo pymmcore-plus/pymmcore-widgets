@@ -1,5 +1,3 @@
-.DS_Store
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -105,6 +103,8 @@ ENV/
 
 # IDE settings
 .vscode/
+
+.DS_Store
 
 pymmcore_widgets/_version.py
 src/pymmcore_widgets/_version.py
