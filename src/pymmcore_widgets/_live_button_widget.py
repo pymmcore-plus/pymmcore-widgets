@@ -1,12 +1,10 @@
 from typing import Optional, Tuple, Union
 
 from fonticon_mdi6 import MDI6
-
-# from numpy import ndarray
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QApplication, QPushButton
+from qtpy.QtWidgets import QPushButton
 from superqt.fonticon import icon
 
 from ._core import get_core_singleton
@@ -65,7 +63,7 @@ class LiveButton(QPushButton):
             self._on_sequence_started
         )
         self._mmc.events.stopSequenceAcquisition.connect(self._on_sequence_stopped)
-        self.destroyed.connect(self.disconnect)
+        self.destroyed.connect(self._disconnect)
 
         self._create_button()
 
@@ -73,27 +71,27 @@ class LiveButton(QPushButton):
         if len(self._mmc.getLoadedDevices()) > 1:
             self.setEnabled(True)
 
-    def _create_button(self):
+    def _create_button(self) -> None:
         if self.button_text_on:
             self.setText(self.button_text_on)
-        self.set_icon_state(False)
+        self._set_icon_state(False)
         self.setIconSize(QSize(self.icon_size, self.icon_size))
-        self.clicked.connect(self.toggle_live_mode)
+        self.clicked.connect(self._toggle_live_mode)
 
-    def _on_system_cfg_loaded(self):
+    def _on_system_cfg_loaded(self) -> None:
         self._camera = self._mmc.getCameraDevice()
         self.setEnabled(bool(self._camera))
 
-    def toggle_live_mode(self):
+    def _toggle_live_mode(self) -> None:
         """Start/stop SequenceAcquisition."""
         if self._mmc.isSequenceRunning(self._camera):
             self._mmc.stopSequenceAcquisition(self._camera)  # pymmcore-plus method
-            self.set_icon_state(False)
+            self._set_icon_state(False)
         else:
             self._mmc.startContinuousSequenceAcquisition()  # pymmcore-plus method
-            self.set_icon_state(True)
+            self._set_icon_state(True)
 
-    def set_icon_state(self, state: bool):
+    def _set_icon_state(self, state: bool) -> None:
         """Set the icon in the on or off state."""
         if state:  # set in the off mode
             self.setIcon(icon(MDI6.video_off_outline, color=self.icon_color_off))
@@ -104,13 +102,13 @@ class LiveButton(QPushButton):
             if self.button_text_on:
                 self.setText(self.button_text_on)
 
-    def _on_sequence_started(self):
-        self.set_icon_state(True)
+    def _on_sequence_started(self) -> None:
+        self._set_icon_state(True)
 
-    def _on_sequence_stopped(self, camera: str):
-        self.set_icon_state(False)
+    def _on_sequence_stopped(self, camera: str) -> None:
+        self._set_icon_state(False)
 
-    def disconnect(self):
+    def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(
             self._on_system_cfg_loaded
         )
@@ -118,12 +116,3 @@ class LiveButton(QPushButton):
             self._on_sequence_started
         )
         self._mmc.events.stopSequenceAcquisition.disconnect(self._on_sequence_stopped)
-
-
-if __name__ == "__main__":
-    import sys
-
-    app = QApplication(sys.argv)
-    win = LiveButton()
-    win.show()
-    sys.exit(app.exec_())

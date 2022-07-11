@@ -57,7 +57,7 @@ class SnapButton(QPushButton):
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_system_cfg_loaded)
         self._on_system_cfg_loaded()
-        self.destroyed.connect(self.disconnect)
+        self.destroyed.connect(self._disconnect)
 
         self._create_button()
 
@@ -65,14 +65,14 @@ class SnapButton(QPushButton):
         if len(self._mmc.getLoadedDevices()) > 1:
             self.setEnabled(True)
 
-    def _create_button(self):
+    def _create_button(self) -> None:
         if self.button_text:
             self.setText(self.button_text)
         self.setIcon(icon(MDI6.camera_outline, color=self.icon_color))
         self.setIconSize(QSize(self.icon_size, self.icon_size))
         self.clicked.connect(self._snap)
 
-    def _snap(self):
+    def _snap(self) -> None:
         if self._mmc.isSequenceRunning(self._camera):
             self._mmc.stopSequenceAcquisition(self._camera)
         if self._mmc.getAutoShutter():
@@ -81,11 +81,11 @@ class SnapButton(QPushButton):
             )
         create_worker(self._mmc.snap, _start_thread=True)
 
-    def _on_system_cfg_loaded(self):
+    def _on_system_cfg_loaded(self) -> None:
         self._camera = self._mmc.getCameraDevice()
         self.setEnabled(bool(self._camera))
 
-    def disconnect(self):
+    def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(
             self._on_system_cfg_loaded
         )

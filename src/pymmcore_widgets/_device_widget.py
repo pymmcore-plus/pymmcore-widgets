@@ -46,7 +46,7 @@ class DeviceWidget(QWidget):
         # unavailable device.
 
     @abstractmethod
-    def _disconnect(self):
+    def _disconnect(self) -> None:
         """Disconnect from core when the widget is destroyed.
 
         Must implement in subclass. (note we can't actually enforce this without
@@ -129,13 +129,13 @@ class StateDeviceWidget(DeviceWidget):
         self._mmc.events.propertyChanged.connect(self._on_prop_change)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
 
-    def _pre_change_hook(self):
+    def _pre_change_hook(self) -> None:
         pass  # for subclasses
 
-    def _post_change_hook(self):
+    def _post_change_hook(self) -> None:
         pass  # for subclasses
 
-    def _on_sys_cfg_loaded(self):
+    def _on_sys_cfg_loaded(self) -> None:
         with signals_blocked(self._combo):
             self._combo.clear()
             if self._device_label in self._mmc.getLoadedDevices():
@@ -182,7 +182,7 @@ class StateDeviceWidget(DeviceWidget):
 
     def currentText(self) -> str:  # noqa: D102
         # pass through the QComboBox interface
-        return self._combo.currentText()
+        return self._combo.currentText()  # type: ignore [no-any-return]
 
     def setCurrentText(self, text: str) -> None:  # noqa: D102
         # pass through the QComboBox interface
@@ -192,7 +192,7 @@ class StateDeviceWidget(DeviceWidget):
 
     def currentIndex(self) -> int:  # noqa: D102
         # pass through the QComboBox interface
-        return self._combo.currentIndex()
+        return self._combo.currentIndex()  # type: ignore [no-any-return]
 
     def setCurrentIndex(self, index: int) -> None:  # noqa: D102
         # pass through the QComboBox interface

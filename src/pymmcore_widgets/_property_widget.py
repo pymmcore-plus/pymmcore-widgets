@@ -26,9 +26,9 @@ LABEL = pymmcore.g_Keyword_Label
 class PSignalInstance(Protocol):
     """The protocol expected of a signal instance."""
 
-    def connect(self, callback: Callable) -> Callable: ...
-    def disconnect(self, callback: Callable) -> None: ...
-    def emit(self, *args: Any) -> None: ...
+    def connect(self, callback: Callable) -> Callable: ...  # noqa: D102 E704
+    def disconnect(self, callback: Callable) -> None: ...  # noqa: D102 E704
+    def emit(self, *args: Any) -> None: ...  # noqa: D102 E704
 
 
 class PPropValueWidget(Protocol):
@@ -36,11 +36,11 @@ class PPropValueWidget(Protocol):
 
     valueChanged: PSignalInstance
     destroyed: PSignalInstance
-    def value(self) -> Union[str, float]: ...
-    def setValue(self, val: Union[str, float]) -> None: ...
-    def setEnabled(self, enabled: bool) -> None: ...
-    def setParent(self, parent: Optional[QWidget]) -> None: ...
-    def deleteLater(self) -> None: ...
+    def value(self) -> Union[str, float]: ...  # noqa: D102 E704
+    def setValue(self, val: Union[str, float]) -> None: ...  # noqa: D102 E704
+    def setEnabled(self, enabled: bool) -> None: ...  # noqa: D102 E704
+    def setParent(self, parent: Optional[QWidget]) -> None: ...  # noqa: D102 E704
+    def deleteLater(self) -> None: ...  # noqa: D102 E704
 # fmt: on
 
 
@@ -63,26 +63,30 @@ def _stretch_range_to_contain(wdg: QLabeledDoubleSlider, val: T) -> T:
 class IntegerWidget(QSpinBox):
     """Slider suited to managing integer values."""
 
-    def setValue(self, v: Any) -> None:
-        return super().setValue(_stretch_range_to_contain(self, int(v)))
+    def setValue(self, v: Any) -> None:  # noqa: D102
+        return super().setValue(  # type: ignore [no-any-return]
+            _stretch_range_to_contain(self, int(v))
+        )
 
 
 class FloatWidget(QDoubleSpinBox):
     """Slider suited to managing float values."""
 
-    def setValue(self, v: Any) -> None:
+    def setValue(self, v: Any) -> None:  # noqa: D102
         # stretch decimals to fit value
         dec = min(str(v).rstrip("0")[::-1].find("."), 8)
         if dec > self.decimals():
             self.setDecimals(dec)
-        return super().setValue(_stretch_range_to_contain(self, float(v)))
+        return super().setValue(  # type: ignore [no-any-return]
+            _stretch_range_to_contain(self, float(v))
+        )
 
 
 class _RangedMixin:
     _cast: Union[Type[int], Type[float]] = float
 
     # prefer horizontal orientation
-    def __init__(
+    def __init__(  # type: ignore
         self, orientation=Qt.Orientation.Horizontal, parent: Optional[QWidget] = None
     ) -> None:
         super().__init__(orientation, parent)  # type: ignore
@@ -111,7 +115,7 @@ class IntBoolWidget(QCheckBox):
         super().__init__(parent)
         self.toggled.connect(self._emit)
 
-    def _emit(self, state: bool):
+    def _emit(self, state: bool) -> None:
         self.valueChanged.emit(int(state))
 
     def value(self) -> int:
@@ -119,7 +123,8 @@ class IntBoolWidget(QCheckBox):
         return int(self.isChecked())
 
     def setValue(self, val: Union[str, int]) -> None:
-        return self.setChecked(bool(int(val)))
+        """Set value."""
+        return self.setChecked(bool(int(val)))  # type: ignore [no-any-return]
 
 
 class ChoiceWidget(QComboBox):
@@ -141,10 +146,10 @@ class ChoiceWidget(QComboBox):
         self.destroyed.connect(self._disconnect)
         self._refresh_choices()
 
-    def _disconnect(self):
+    def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._refresh_choices)
 
-    def _refresh_choices(self):
+    def _refresh_choices(self) -> None:
         with utils.signals_blocked(self):
             self.clear()
             self._allowed = self._get_allowed()
@@ -163,9 +168,10 @@ class ChoiceWidget(QComboBox):
 
     def value(self) -> str:
         """Get value."""
-        return self.currentText()
+        return self.currentText()  # type: ignore [no-any-return]
 
     def setValue(self, value: str) -> None:
+        # sourcery skip: remove-unnecessary-cast
         """Set current value."""
         value = str(value)
         # while nice in theory, this check raises unnecessarily when a propertyChanged
@@ -186,14 +192,14 @@ class StringWidget(QLineEdit):
 
     def value(self) -> str:
         """Get value."""
-        return self.text()
+        return self.text()  # type: ignore [no-any-return]
 
-    def _emit_value(self):
+    def _emit_value(self) -> None:
         self.valueChanged.emit(self.value())
 
     def setValue(self, value: str) -> None:
         """Set current value."""
-        self.setText(str(value))
+        self.setText(value)
         self._emit_value()
 
 
@@ -204,10 +210,11 @@ class ReadOnlyWidget(QLabel):
 
     def value(self) -> str:
         """Get value."""
-        return self.text()
+        return self.text()  # type: ignore [no-any-return]
 
     def setValue(self, value: str) -> None:
-        self.setText(str(value))
+        """Set value."""
+        self.setText(value)
 
 
 # -----------------------------------------------------------------------
@@ -245,7 +252,7 @@ def make_property_value_widget(
     wdg.setValue(core.getProperty(dev, prop))
 
     # connect events and queue for disconnection on widget destroyed
-    def _on_core_change(dev_label, prop_name, new_val):
+    def _on_core_change(dev_label: str, prop_name: str, new_val: Any) -> None:
         if dev_label == dev and prop_name == prop:
             with utils.signals_blocked(wdg):
                 wdg.setValue(new_val)
@@ -253,12 +260,12 @@ def make_property_value_widget(
     core.events.propertyChanged.connect(_on_core_change)
 
     @wdg.destroyed.connect
-    def _disconnect(*, _core=core):
+    def _disconnect(*, _core=core):  # type: ignore
         with contextlib.suppress(RuntimeError):
             _core.events.propertyChanged.disconnect(_on_core_change)
 
     @wdg.valueChanged.connect
-    def _on_widget_change(value, _core=core) -> None:
+    def _on_widget_change(value, _core=core) -> None:  # type: ignore
         # if there's an error when updating core, reset widget value to core
         try:
             _core.setProperty(dev, prop, value)
@@ -284,15 +291,15 @@ def _creat_prop_widget(core: CMMCorePlus, dev: str, prop: str) -> PPropValueWidg
     if ptype in (PropertyType.Integer, PropertyType.Float):
         if not core.hasPropertyLimits(dev, prop):
             wdg = IntegerWidget() if ptype is PropertyType.Integer else FloatWidget()
-            return wdg  # type: ignore
+            return wdg
         wdg = (
             RangedIntegerWidget()
             if ptype is PropertyType.Integer
             else RangedFloatWidget()
         )
-        wdg.setMinimum(wdg._cast(core.getPropertyLowerLimit(dev, prop)))  # type: ignore
-        wdg.setMaximum(wdg._cast(core.getPropertyUpperLimit(dev, prop)))  # type: ignore
-        return wdg  # type: ignore
+        wdg.setMinimum(wdg._cast(core.getPropertyLowerLimit(dev, prop)))
+        wdg.setMaximum(wdg._cast(core.getPropertyUpperLimit(dev, prop)))
+        return wdg
     return cast(PPropValueWidget, StringWidget())
 
 
@@ -375,7 +382,7 @@ class PropertyWidget(QWidget):
         (If all goes well this shouldn't be necessary, but if a propertyChanged
         event is missed, this can be used).
         """
-        with utils.signals_blocked(self._value_widget):  # type: ignore
+        with utils.signals_blocked(self._value_widget):
             self._value_widget.setValue(self._mmc.getProperty(*self._dp))
 
     def propertyType(self) -> PropertyType:

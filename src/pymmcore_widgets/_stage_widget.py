@@ -19,7 +19,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import setTextIcon
 from superqt.utils import signals_blocked
 
-from . import _core
+from ._core import get_core_singleton
 
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 PREFIX = MDI6.__name__.lower()
@@ -70,18 +70,18 @@ class StageWidget(QWidget):
     # fmt: off
     BTNS = {
         # btn glyph                (r, c, xmag, ymag)
-        MDI6.chevron_triple_up:    (0, 3,  0,  3),
-        MDI6.chevron_double_up:    (1, 3,  0,  2),
-        MDI6.chevron_up:           (2, 3,  0,  1),
-        MDI6.chevron_down:         (4, 3,  0, -1),
-        MDI6.chevron_double_down:  (5, 3,  0, -2),
-        MDI6.chevron_triple_down:  (6, 3,  0, -3),
-        MDI6.chevron_triple_left:  (3, 0, -3,  0),
-        MDI6.chevron_double_left:  (3, 1, -2,  0),
-        MDI6.chevron_left:         (3, 2, -1,  0),
-        MDI6.chevron_right:        (3, 4,  1,  0),
-        MDI6.chevron_double_right: (3, 5,  2,  0),
-        MDI6.chevron_triple_right: (3, 6,  3,  0),
+        MDI6.chevron_triple_up:    (0, 3,  0,  3),  # noqa: E241
+        MDI6.chevron_double_up:    (1, 3,  0,  2),  # noqa: E241
+        MDI6.chevron_up:           (2, 3,  0,  1),  # noqa: E241
+        MDI6.chevron_down:         (4, 3,  0, -1),  # noqa: E241
+        MDI6.chevron_double_down:  (5, 3,  0, -2),  # noqa: E241
+        MDI6.chevron_triple_down:  (6, 3,  0, -3),  # noqa: E241
+        MDI6.chevron_triple_left:  (3, 0, -3,  0),  # noqa: E241
+        MDI6.chevron_double_left:  (3, 1, -2,  0),  # noqa: E241
+        MDI6.chevron_left:         (3, 2, -1,  0),  # noqa: E241
+        MDI6.chevron_right:        (3, 4,  1,  0),  # noqa: E241
+        MDI6.chevron_double_right: (3, 5,  2,  0),  # noqa: E241
+        MDI6.chevron_triple_right: (3, 6,  3,  0),  # noqa: E241
     }
     BTN_SIZE = 30
     # fmt: on
@@ -98,7 +98,7 @@ class StageWidget(QWidget):
 
         self.setStyleSheet(STYLE)
 
-        self._mmc = mmcore or _core.get_core_singleton()
+        self._mmc = mmcore or get_core_singleton()
         self._levels = levels
         self._device = device
         self._dtype = self._mmc.getDeviceType(self._device)
@@ -112,7 +112,7 @@ class StageWidget(QWidget):
 
         self.destroyed.connect(self._disconnect)
 
-    def _create_widget(self):
+    def _create_widget(self) -> None:
         self._step = QDoubleSpinBox()
         self._step.setValue(10)
         self._step.setMaximum(9999)
@@ -137,7 +137,7 @@ class StageWidget(QWidget):
             self._btns.layout().addWidget(btn, row, col, AlignCenter)
 
         self._btns.layout().addWidget(self._step, 3, 3, AlignCenter)
-        self._set_visible_levels(self._levels)
+        self._set_visible_levels(self._levels)  # type: ignore
         self._set_xy_visible()
         self._update_ttips()
 
@@ -184,7 +184,7 @@ class StageWidget(QWidget):
         self.layout().addWidget(bottom_row_1)
         self.layout().addWidget(bottom_row_2)
 
-    def _connect_events(self):
+    def _connect_events(self) -> None:
         self._mmc.events.propertyChanged.connect(self._on_prop_changed)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_system_cfg)
         if self._dtype is DeviceType.XYStage:
@@ -193,14 +193,14 @@ class StageWidget(QWidget):
             event = self._mmc.events.stagePositionChanged
         event.connect(self._update_position_label)
 
-    def _enable_wdg(self, enabled):
+    def _enable_wdg(self, enabled: bool) -> None:
         self._step.setEnabled(enabled)
         self._btns.setEnabled(enabled)
         self.snap_checkbox.setEnabled(enabled)
         self.radiobutton.setEnabled(enabled)
         self._poll_cb.setEnabled(enabled)
 
-    def _on_system_cfg(self):
+    def _on_system_cfg(self) -> None:
         if self._dtype is DeviceType.XYStage:
             if self._device not in self._mmc.getLoadedDevicesOfType(DeviceType.XYStage):
                 self._enable_and_update(False)
@@ -215,7 +215,7 @@ class StageWidget(QWidget):
 
         self._set_as_default()
 
-    def _enable_and_update(self, enable: bool):
+    def _enable_and_update(self, enable: bool) -> None:
         if enable:
             self._enable_wdg(True)
             self._update_position_label()
@@ -223,7 +223,7 @@ class StageWidget(QWidget):
             self._readout.setText(f"{self._device} not loaded.")
             self._enable_wdg(False)
 
-    def _set_as_default(self):
+    def _set_as_default(self) -> None:
         current_xy = self._mmc.getXYStageDevice()
         current_z = self._mmc.getFocusDevice()
         if self._dtype is DeviceType.XYStage and current_xy == self._device:
@@ -231,7 +231,7 @@ class StageWidget(QWidget):
         elif self._dtype is DeviceType.Stage and current_z == self._device:
             self.radiobutton.setChecked(True)
 
-    def _on_radiobutton_toggled(self, state: bool):
+    def _on_radiobutton_toggled(self, state: bool) -> None:
         if self._dtype is DeviceType.XYStage:
             if state:
                 self._mmc.setProperty("Core", "XYStage", self._device)
@@ -256,7 +256,7 @@ class StageWidget(QWidget):
             else:
                 self._mmc.setProperty("Core", "Focus", "")
 
-    def _on_prop_changed(self, dev, prop, val):
+    def _on_prop_changed(self, dev: str, prop: str, val: str) -> None:
 
         if dev != "Core":
             return
@@ -269,25 +269,25 @@ class StageWidget(QWidget):
             with signals_blocked(self.radiobutton):
                 self.radiobutton.setChecked(val == self._device)
 
-    def _toggle_poll_timer(self, on: bool):
+    def _toggle_poll_timer(self, on: bool) -> None:
         self._poll_timer.start() if on else self._poll_timer.stop()
 
-    def _update_position_label(self):
+    def _update_position_label(self) -> None:
         if (
             self._dtype is DeviceType.XYStage
             and self._device in self._mmc.getLoadedDevicesOfType(DeviceType.XYStage)
         ):
-            pos = self._mmc.getXYPosition(self._device)
+            pos = self._mmc.getXYPosition(self._device)  # type: ignore # pymmcore wrong
             p = ", ".join(str(round(x, 2)) for x in pos)
             self._readout.setText(f"{self._device}:  {p}")
         elif (
             self._dtype is DeviceType.Stage
             and self._device in self._mmc.getLoadedDevicesOfType(DeviceType.Stage)
         ):
-            p = round(self._mmc.getPosition(self._device), 2)
+            p = str(round(self._mmc.getPosition(self._device), 2))
             self._readout.setText(f"{self._device}:  {p}")
 
-    def _update_ttips(self):
+    def _update_ttips(self) -> None:
         coords = chain(zip(repeat(3), range(7)), zip(range(7), repeat(3)))
         Y = {DeviceType.XYStage: "Y"}.get(self._dtype, "Z")
 
@@ -303,14 +303,14 @@ class StageWidget(QWidget):
                     elif ymag:
                         btn.setToolTip(f"move {Y} by {self._scale(ymag)} µm")
 
-    def _set_xy_visible(self):
+    def _set_xy_visible(self) -> None:
         if self._dtype is not DeviceType.XYStage:
             btn_layout: QGridLayout = self._btns.layout()
             for c in (0, 1, 2, 4, 5, 6):
                 if item := btn_layout.itemAtPosition(3, c):
                     item.widget().hide()
 
-    def _set_visible_levels(self, levels: int):
+    def _set_visible_levels(self, levels: int) -> None:
         """Hide upper-level stage buttons as desired. Levels must be between 1-3."""
         assert 1 <= levels <= 3, "levels must be between 1-3"
         btn_layout: QGridLayout = self._btns.layout()
@@ -331,12 +331,12 @@ class StageWidget(QWidget):
                 if item := btn_layout.itemAtPosition(c, r):
                     item.widget().hide()
 
-    def _on_click(self):
+    def _on_click(self) -> None:
         btn: QPushButton = self.sender()
         xmag, ymag = self.BTNS[f"{PREFIX}.{btn.text()}"][-2:]
         self._move_stage(self._scale(xmag), self._scale(ymag))
 
-    def _move_stage(self, x, y):
+    def _move_stage(self, x: float, y: float) -> None:
         if self._dtype is DeviceType.XYStage:
             self._mmc.setRelativeXYPosition(self._device, x, y)
         else:
@@ -344,14 +344,14 @@ class StageWidget(QWidget):
         if self.snap_checkbox.isChecked():
             self._mmc.snap()
 
-    def _scale(self, mag: int):
+    def _scale(self, mag: int) -> float:
         """Convert step mag of (1, 2, 3) to absolute XY units.
 
         Can be used to step 1x field of view, etc...
         """
-        return mag * self._step.value()
+        return float(mag * self._step.value())
 
-    def _disconnect(self):
+    def _disconnect(self) -> None:
         self._mmc.events.propertyChanged.disconnect(self._on_prop_changed)
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_system_cfg)
         if self._dtype is DeviceType.XYStage:

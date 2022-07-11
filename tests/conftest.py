@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Tuple
 
 import pytest
 from pymmcore_plus import CMMCorePlus
@@ -19,5 +18,3 @@ def global_mmcore(request):
     if len(mmc.getLoadedDevices()) < 2:
         mmc.loadSystemConfiguration(str(Path(__file__).parent / "test_config.cfg"))
     return mmc
-
-

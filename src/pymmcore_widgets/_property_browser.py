@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Dict, Iterator, Optional, Set, Tuple, cast
+from typing import Dict, Optional, Set, Tuple, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtCore import Qt
@@ -18,15 +18,8 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from ._core import get_core_singleton
+from ._core import get_core_singleton, iter_dev_props
 from ._property_widget import PropertyWidget
-
-
-def iter_dev_props(mmc: CMMCorePlus) -> Iterator[Tuple[str, str]]:
-    """Iterate over (device, property) pairs."""
-    for dev in mmc.getLoadedDevices():
-        for prop in mmc.getDevicePropertyNames(dev):
-            yield dev, prop
 
 
 class _PropertyTable(QTableWidget):
@@ -46,7 +39,7 @@ class _PropertyTable(QTableWidget):
         vh.setSectionResizeMode(vh.ResizeMode.Fixed)
         vh.setDefaultSectionSize(24)
         vh.setVisible(False)
-        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)  # type: ignore
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setSelectionMode(self.SelectionMode.NoSelection)
         self.resize(500, 500)
         self._rebuild_table()
@@ -120,7 +113,7 @@ class PropertyBrowser(QDialog):
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._update_filter)
 
-    def _update_filter(self):
+    def _update_filter(self) -> None:
         filt = self._filter_text.text().lower()
         for r in range(self._prop_table.rowCount()):
             wdg = cast(PropertyWidget, self._prop_table.cellWidget(r, 1))
@@ -133,11 +126,11 @@ class PropertyBrowser(QDialog):
             else:
                 self._prop_table.showRow(r)
 
-    def _toggle_filter(self, label: str):
+    def _toggle_filter(self, label: str) -> None:
         self._filters.symmetric_difference_update(DevTypeLabels[label])
         self._update_filter()
 
-    def _make_checkboxes(self):
+    def _make_checkboxes(self) -> QWidget:
         dev_gb = QGroupBox("Device Type")
         dev_gb.setLayout(QGridLayout())
         dev_gb.layout().setSpacing(6)
@@ -145,24 +138,24 @@ class PropertyBrowser(QDialog):
         dev_gb.layout().addWidget(all_btn, 0, 0, 1, 1)
         none_btn = QPushButton("None")
         dev_gb.layout().addWidget(none_btn, 0, 1, 1, 1)
-        for i, label in enumerate(DevTypeLabels):
+        for i, (label, devtypes) in enumerate(DevTypeLabels.items()):
             cb = QCheckBox(label)
-            cb.setChecked(DevTypeLabels[label] not in self._filters)
+            cb.setChecked(devtypes[0] not in self._filters)
             cb.toggled.connect(partial(self._toggle_filter, label))
             dev_gb.layout().addWidget(cb, i + 1, 0, 1, 2)
 
-        @all_btn.clicked.connect
-        def _check_all():
+        @all_btn.clicked.connect  # type: ignore
+        def _check_all() -> None:
             for cxbx in dev_gb.findChildren(QCheckBox):
                 cxbx.setChecked(True)
 
-        @none_btn.clicked.connect
-        def _check_none():
+        @none_btn.clicked.connect  # type: ignore
+        def _check_none() -> None:
             for cxbx in dev_gb.findChildren(QCheckBox):
                 cxbx.setChecked(False)
 
         for i in dev_gb.findChildren(QWidget):
-            i.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            i.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # type: ignore
 
         ro = QCheckBox("Show read-only")
         ro.setChecked(self._show_read_only)
@@ -176,8 +169,8 @@ class PropertyBrowser(QDialog):
         c.layout().addStretch()
         return c
 
-    def _set_show_read_only(self, state: bool):
-        self._show_read_only = bool(state)
+    def _set_show_read_only(self, state: bool) -> None:
+        self._show_read_only = state
         self._update_filter()
 
 
@@ -189,4 +182,4 @@ if __name__ == "__main__":
     table = PropertyBrowser()
     table.show()
 
-    app.exec()
+    app.exec_()

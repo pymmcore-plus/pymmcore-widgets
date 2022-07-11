@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 from pymmcore import g_Keyword_CoreCamera, g_Keyword_CoreDevice
 
-from . import _core
+from ._core import get_core_singleton
 
 
 class ExposureWidget(QtW.QWidget):
@@ -19,13 +19,13 @@ class ExposureWidget(QtW.QWidget):
 
     def __init__(
         self,
-        camera: str = None,
+        camera: str = None,  # type: ignore
         *,
-        parent: Optional[Qt.QWidget] = None,
+        parent: Optional[QtW.QWidget] = None,
         core: Optional[CMMCorePlus] = None,
     ):
         super().__init__()
-        self._mmc = core or _core.get_core_singleton()
+        self._mmc = core or get_core_singleton()
         self._camera = camera or self._mmc.getCameraDevice()
 
         self.label = QtW.QLabel()
@@ -47,7 +47,7 @@ class ExposureWidget(QtW.QWidget):
 
         self.spinBox.valueChanged.connect(self._mmc.setExposure)
 
-    def setCamera(self, camera: str = None):
+    def setCamera(self, camera: str = None) -> None:  # type: ignore
         """Set which camera this widget tracks.
 
         Parameters
@@ -60,7 +60,7 @@ class ExposureWidget(QtW.QWidget):
         if orig_cam != self._camera:
             self._on_load()
 
-    def _on_load(self):
+    def _on_load(self) -> None:
         with signals_blocked(self.spinBox):
             if self._camera and self._camera in self._mmc.getLoadedDevices():
                 self.setEnabled(True)
@@ -68,12 +68,12 @@ class ExposureWidget(QtW.QWidget):
             else:
                 self.setEnabled(False)
 
-    def _on_exp_changed(self, camera: str, exposure: float):
+    def _on_exp_changed(self, camera: str, exposure: float) -> None:
         if camera == self._camera:
             with signals_blocked(self.spinBox):
                 self.spinBox.setValue(exposure)
 
-    def _on_exp_set(self, exposure: float):
+    def _on_exp_set(self, exposure: float) -> None:
         self._mmc.setExposure(self._camera, exposure)
 
 
@@ -81,14 +81,19 @@ class DefaultCameraExposureWidget(ExposureWidget):
     """Widget to get/set exposure on the default camera."""
 
     def __init__(
-        self, *, parent: Optional[Qt.QWidget] = None, core: Optional[CMMCorePlus] = None
+        self,
+        *,
+        parent: Optional[QtW.QWidget] = None,
+        core: Optional[CMMCorePlus] = None,
     ):
         super().__init__(core=core)
         self._mmc.events.devicePropertyChanged(
             g_Keyword_CoreDevice, g_Keyword_CoreCamera
         ).connect(self._camera_updated)
 
-    def setCamera(self, camera: str = None, force: bool = False):
+    def setCamera(
+        self, camera: str = None, force: bool = False  # type: ignore
+    ) -> None:
         """Set which camera this widget tracks.
 
         Using this on the ``DefaultCameraExposureWidget``widget may cause unexpected
@@ -109,7 +114,7 @@ class DefaultCameraExposureWidget(ExposureWidget):
             )
         return super().setCamera(camera)
 
-    def _camera_updated(self, value: str):
+    def _camera_updated(self, value: str) -> None:
         # This will not always fire
         # see https://github.com/micro-manager/mmCoreAndDevices/issues/181
         self._camera = value

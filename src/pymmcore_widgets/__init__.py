@@ -1,3 +1,11 @@
+"""A set of widgets for the pymmcore-plus module."""
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("pymmcore-widgets")
+except PackageNotFoundError:
+    __version__ = "uninstalled"
+
 from ._device_widget import DeviceWidget, StateDeviceWidget
 from ._exposure_widget import DefaultCameraExposureWidget, ExposureWidget
 from ._presets_widget import PresetsWidget

@@ -1,33 +1,11 @@
 import warnings
-from typing import Optional, Tuple, TYPE_CHECKING, List
+from typing import List, Optional, Tuple
 
 from pymmcore_plus import DeviceType
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QListView, QWidget
 from superqt.utils import signals_blocked
 
 from ._core import get_core_singleton
-
-if TYPE_CHECKING:
-    from pymmcore_plus import CMMCorePlus
-
-
-def get_preset_dev_prop(
-    group: str, preset: str, mmcore: Optional['CMMCorePlus'] = None
-) -> list:
-    """Return a list with (device, property) for the selected group preset."""
-    mmc = mmcore or get_core_singleton()
-    return [(k[0], k[1]) for k in mmc.getConfigData(group, preset)]
-
-
-def get_group_dev_prop(
-    group: str, preset: str, mmcore: Optional['CMMCorePlus'] = None
-) -> List[Tuple[str, str]]:
-    """Return list of all (device, prop) tuples used in the config group's presets."""
-    mmc = mmcore or get_core_singleton()
-    dev_props = []
-    for preset in mmc.getAvailableConfigs(group):
-        dev_props.extend([(k[0], k[1]) for k in mmc.getConfigData(group, preset)])
-    return dev_props
 
 
 class PresetsWidget(QWidget):
@@ -53,7 +31,7 @@ class PresetsWidget(QWidget):
         if not self._presets:
             raise ValueError(f"{self._group} group does not have presets.")
 
-        self.dev_prop = get_group_dev_prop(self._group, self._presets[0])
+        self.dev_prop = self._get_group_dev_prop(self._group, self._presets[0])
 
         self._check_if_presets_have_same_props()
 
@@ -72,14 +50,14 @@ class PresetsWidget(QWidget):
         self._combo.textActivated.connect(self._on_text_activate)
 
         self._mmc.events.configSet.connect(self._on_cfg_set)
-        self._mmc.events.systemConfigurationLoaded.connect(self.refresh)
+        self._mmc.events.systemConfigurationLoaded.connect(self._refresh)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
         # TODO: add connections once we will implement
         # 'deleteGroup'/'deletePreset signals
 
         self.destroyed.connect(self._disconnect)
 
-    def _set_combo_view(self):
+    def _set_combo_view(self) -> None:
         view = QListView()
         view_height = sum(
             self._combo.view().sizeHintForRow(i) for i in range(self._combo.count())
@@ -87,19 +65,19 @@ class PresetsWidget(QWidget):
         view.setFixedSize(self._combo.sizeHint().width(), view_height)
         self._combo.setView(view)
 
-    def _check_if_presets_have_same_props(self):
+    def _check_if_presets_have_same_props(self) -> None:
         n_prop = 0
         for idx, preset in enumerate(self._presets):
             if idx == 0:
-                n_prop = len(get_preset_dev_prop(self._group, preset))
+                n_prop = len(self._get_preset_dev_prop(self._group, preset))
                 continue
 
-            device_property = get_preset_dev_prop(self._group, preset)
+            device_property = self._get_preset_dev_prop(self._group, preset)
 
             if len(device_property) != n_prop:
                 warnings.warn(f"{self._presets} don't have the same properties")
 
-    def _on_text_activate(self, text: str):
+    def _on_text_activate(self, text: str) -> None:
         # used if there is only 1 preset and you want to set it
         self._mmc.setConfig(self._group, text)
         self._combo.setStyleSheet("")
@@ -108,7 +86,7 @@ class PresetsWidget(QWidget):
         self._mmc.setConfig(self._group, text)
         self._combo.setStyleSheet("")
 
-    def _set_if_props_match_preset(self):
+    def _set_if_props_match_preset(self) -> None:
         for preset in self._presets:
             _set_combo = True
             for (dev, prop, value) in self._mmc.getConfigData(self._group, preset):
@@ -130,11 +108,11 @@ class PresetsWidget(QWidget):
                 self._combo.setCurrentText(preset)
                 self._combo.setStyleSheet("")
         else:
-            dev_prop_list = get_group_dev_prop(group, preset)
+            dev_prop_list = self._get_group_dev_prop(group, preset)
             if any(dev_prop for dev_prop in dev_prop_list if dev_prop in self.dev_prop):
                 self._set_if_props_match_preset()
 
-    def _on_property_changed(self, device: str, property: str, value: str):
+    def _on_property_changed(self, device: str, property: str, value: str) -> None:
         if (device, property) not in self.dev_prop:
             if self._mmc.getDeviceType(device) != DeviceType.StateDevice:
                 return
@@ -144,7 +122,20 @@ class PresetsWidget(QWidget):
                 return
         self._set_if_props_match_preset()
 
-    def refresh(self) -> None:
+    def _get_preset_dev_prop(self, group: str, preset: str) -> list:
+        """Return a list with (device, property) for the selected group preset."""
+        return [(k[0], k[1]) for k in self._mmc.getConfigData(group, preset)]
+
+    def _get_group_dev_prop(self, group: str, preset: str) -> List[Tuple[str, str]]:
+        """Return list of all (device, prop) used in the config group's presets."""
+        dev_props = []
+        for preset in self._mmc.getAvailableConfigs(group):
+            dev_props.extend(
+                [(k[0], k[1]) for k in self._mmc.getConfigData(group, preset)]
+            )
+        return dev_props
+
+    def _refresh(self) -> None:
         """Refresh widget based on mmcore."""
         with signals_blocked(self._combo):
             self._combo.clear()
@@ -162,7 +153,7 @@ class PresetsWidget(QWidget):
 
     def value(self) -> str:
         """Get current value."""
-        return self._combo.currentText()
+        return self._combo.currentText()  # type: ignore [no-any-return]
 
     def setValue(self, value: str) -> None:
         """Set the combobox to the given value."""
@@ -176,12 +167,12 @@ class PresetsWidget(QWidget):
         """Return the allowed values for this widget."""
         return tuple(self._combo.itemText(i) for i in range(self._combo.count()))
 
-    def _update_tooltip(self, preset):
+    def _update_tooltip(self, preset: str) -> None:
         self._combo.setToolTip(
             str(self._mmc.getConfigData(self._group, preset)) if preset else ""
         )
 
-    def _disconnect(self):
+    def _disconnect(self) -> None:
         self._mmc.events.configSet.disconnect(self._on_cfg_set)
-        self._mmc.events.systemConfigurationLoaded.disconnect(self.refresh)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._refresh)
         self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
