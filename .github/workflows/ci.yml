@@ -27,8 +27,21 @@ jobs:
       fail-fast: false
       matrix:
         platform: [windows-latest, macos-latest]
-        python-version: ["3.8", "3.9", "3.10"]
-        backend: [pyside2, pyqt5, pyqt6, pyside6]
+        python-version: ["3.8", "3.10"]
+        backend: [pyside2, pyqt5]
+        include:
+          - platform: windows-latest
+            python-version: "3.10"
+            backend: pyside6
+          - platform: windows-latest
+            python-version: "3.10"
+            backend: pyqt6
+          - platform: windows-latest
+            python-version: "3.9"
+            backend: pyside2
+          - platform: windows-latest
+            python-version: "3.9"
+            backend: pyqt5
 
     steps:
       - name: Cancel Previous Runs
