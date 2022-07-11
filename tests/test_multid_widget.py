@@ -7,7 +7,7 @@ from pymmcore_plus import CMMCorePlus
 from useq import MDASequence
 
 from pymmcore_widgets._mda_widget._grid_widget import GridWidget
-from pymmcore_widgets._mda_widget.mda_widget import MultiDWidget
+from pymmcore_widgets._mda_widget._mda_widget import MultiDWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
