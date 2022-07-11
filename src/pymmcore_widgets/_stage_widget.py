@@ -19,7 +19,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import setTextIcon
 from superqt.utils import signals_blocked
 
-from micromanager_gui import _core
+from . import _core
 
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 PREFIX = MDI6.__name__.lower()

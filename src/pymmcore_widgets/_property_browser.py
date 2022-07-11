@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from .._core import get_core_singleton
+from ._core import get_core_singleton
 from ._property_widget import PropertyWidget
 
 

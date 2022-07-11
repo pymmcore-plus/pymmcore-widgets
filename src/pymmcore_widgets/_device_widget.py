@@ -6,7 +6,7 @@ from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QWidget
 from superqt.utils import signals_blocked
 
-from .._core import get_core_singleton
+from ._core import get_core_singleton
 
 LABEL = pymmcore.g_Keyword_Label
 

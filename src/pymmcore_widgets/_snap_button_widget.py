@@ -8,7 +8,7 @@ from qtpy.QtWidgets import QPushButton, QSizePolicy
 from superqt.fonticon import icon
 from superqt.utils import create_worker
 
-from .._core import get_core_singleton
+from ._core import get_core_singleton
 
 COLOR_TYPES = Union[
     QColor,

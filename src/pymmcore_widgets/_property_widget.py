@@ -16,7 +16,7 @@ from qtpy.QtWidgets import (
 )
 from superqt import QLabeledDoubleSlider, QLabeledSlider, utils
 
-from .._core import get_core_singleton
+from ._core import get_core_singleton
 
 STATE = pymmcore.g_Keyword_State
 LABEL = pymmcore.g_Keyword_Label

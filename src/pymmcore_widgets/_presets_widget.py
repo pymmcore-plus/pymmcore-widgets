@@ -1,12 +1,33 @@
 import warnings
-from typing import Optional, Tuple
+from typing import Optional, Tuple, TYPE_CHECKING, List
 
 from pymmcore_plus import DeviceType
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QListView, QWidget
 from superqt.utils import signals_blocked
 
-from .._core import get_core_singleton
-from .._util import get_group_dev_prop, get_preset_dev_prop
+from ._core import get_core_singleton
+
+if TYPE_CHECKING:
+    from pymmcore_plus import CMMCorePlus
+
+
+def get_preset_dev_prop(
+    group: str, preset: str, mmcore: Optional['CMMCorePlus'] = None
+) -> list:
+    """Return a list with (device, property) for the selected group preset."""
+    mmc = mmcore or get_core_singleton()
+    return [(k[0], k[1]) for k in mmc.getConfigData(group, preset)]
+
+
+def get_group_dev_prop(
+    group: str, preset: str, mmcore: Optional['CMMCorePlus'] = None
+) -> List[Tuple[str, str]]:
+    """Return list of all (device, prop) tuples used in the config group's presets."""
+    mmc = mmcore or get_core_singleton()
+    dev_props = []
+    for preset in mmc.getAvailableConfigs(group):
+        dev_props.extend([(k[0], k[1]) for k in mmc.getConfigData(group, preset)])
+    return dev_props
 
 
 class PresetsWidget(QWidget):

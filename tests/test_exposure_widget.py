@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -11,28 +10,24 @@ from pymmcore_widgets import DefaultCameraExposureWidget
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
-# not sure how else to parametrize the test without instantiating here at import ...
-CORE = CMMCorePlus()
-CORE.loadSystemConfiguration(Path(__file__).parent.parent / "test_config.cfg")
 
-
-def test_exposure_widget(qtbot: QtBot):
-    CORE.setExposure(15)
-    wdg = DefaultCameraExposureWidget(core=CORE)
+def test_exposure_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    global_mmcore.setExposure(15)
+    wdg = DefaultCameraExposureWidget(core=global_mmcore)
     qtbot.addWidget(wdg)
 
     # check that it get's whatever core is set to.
     assert wdg.spinBox.value() == 15
-    with qtbot.waitSignal(CORE.events.exposureChanged):
-        CORE.setExposure(30)
+    with qtbot.waitSignal(global_mmcore.events.exposureChanged):
+        global_mmcore.setExposure(30)
     assert wdg.spinBox.value() == 30
 
-    with qtbot.wait_signal(CORE.events.exposureChanged):
+    with qtbot.wait_signal(global_mmcore.events.exposureChanged):
         wdg.spinBox.setValue(45)
-    assert CORE.getExposure() == 45
+    assert global_mmcore.getExposure() == 45
 
     # test updating cameraDevice
-    CORE.setProperty("Core", "Camera", "")
+    global_mmcore.setProperty("Core", "Camera", "")
     assert not wdg.isEnabled()
 
     with pytest.raises(RuntimeError):
@@ -44,7 +39,7 @@ def test_exposure_widget(qtbot: QtBot):
     assert not wdg.isEnabled()
 
     # reset the camera to a working one
-    CORE.setProperty("Core", "Camera", "Camera")
-    with qtbot.wait_signal(CORE.events.exposureChanged):
+    global_mmcore.setProperty("Core", "Camera", "Camera")
+    with qtbot.wait_signal(global_mmcore.events.exposureChanged):
         wdg.spinBox.setValue(12)
-    assert CORE.getExposure() == 12
+    assert global_mmcore.getExposure() == 12

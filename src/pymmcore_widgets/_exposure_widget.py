@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 from pymmcore import g_Keyword_CoreCamera, g_Keyword_CoreDevice
 
-from micromanager_gui import _core
+from . import _core
 
 
 class ExposureWidget(QtW.QWidget):
