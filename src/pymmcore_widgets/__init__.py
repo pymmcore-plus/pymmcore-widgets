@@ -11,6 +11,7 @@ from ._exposure_widget import DefaultCameraExposureWidget, ExposureWidget
 from ._presets_widget import PresetsWidget
 from ._property_browser import PropertyBrowser, _PropertyTable
 from ._property_widget import PropertyWidget, make_property_value_widget
+from ._slider_dialog_widget import SliderDialog
 
 __all__ = [
     "DeviceWidget",
@@ -22,4 +23,5 @@ __all__ = [
     "PresetsWidget",
     "ExposureWidget",
     "DefaultCameraExposureWidget",
+    "SliderDialog",
 ]
