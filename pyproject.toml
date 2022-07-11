@@ -6,13 +6,14 @@ build-backend = "setuptools.build_meta"
 # https://peps.python.org/pep-0621/
 [project]
 name = "pymmcore-widgets"
-description = "A set of widgets for the pymmcore-plus module."
+description = "A set of Qt-based widgets onto the pymmcore-plus model"
 readme = "README.md"
 requires-python = ">=3.8"
-license = { file = "LICENSE" }
+license = { text = "BSD 3-Clause License" }
 authors = [
-    { email = "federico.gasparoli@gmail.com" },
-    { name = "Federico Gasparoli" },
+    { email = "federico.gasparoli@gmail.com", name = "Federico Gasparoli" },
+    { email = "talley.lambert@gmail.com", name = "Talley Lambert" },
+    { email = "ianhuntisaak@gmail.com", name = "Ian Hunt-Isaak" },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -36,10 +37,10 @@ dependencies = [
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
 test = ["pytest>=6.0", "pytest-cov", "pytest-qt"]
-pyside2 = ['Pyside2']
-pyqt5 = ['PyQt5']
-pyside6 = ['Pyside6']
-pyqt6 = ['PyQt6']
+pyqt5 = ["PyQt5"]
+pyside2 = ["PySide2"]
+pyqt6 = ["PyQt6"]
+pyside6 = ["PySide6"]
 dev = [
     "black",
     "cruft",
@@ -60,8 +61,8 @@ dev = [
 ]
 
 [project.urls]
-homepage = "https://github.com/fdrgsp/pymmcore-widgets"
-repository = "https://github.com/fdrgsp/pymmcore-widgets"
+homepage = "https://github.com/pymmcore-plus/pymmcore-widgets"
+repository = "https://github.com/pymmcore-plus/pymmcore-widgets"
 
 # same as console_scripts entry point
 # [project.scripts]
@@ -77,6 +78,9 @@ repository = "https://github.com/fdrgsp/pymmcore-widgets"
 zip-safe = false
 include-package-data = true
 packages = { find = { where = ["src"], exclude = [] } }
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
 
 
 # https://github.com/pypa/setuptools_scm/#pyprojecttoml-usage
