@@ -482,7 +482,7 @@ class MultiDWidget(MultiDWidgetGui):
                     state["stage_positions"].append(pos)
             else:
                 pos = {
-                    "name": self.stage_tableWidget.item(r, 0).text(),
+                    "name": "Pos_000",
                     "x": float(self._mmc.getXPosition()),
                     "y": float(self._mmc.getYPosition()),
                 }
