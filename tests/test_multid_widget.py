@@ -46,10 +46,10 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     grid_wdg = GridWidget()
     qtbot.addWidget(grid_wdg)
 
-    grid_wdg.scan_size_spinBox_r.setValue(2)
-    grid_wdg.scan_size_spinBox_c.setValue(2)
-    grid_wdg.ovelap_spinBox.setValue(50)
-    assert grid_wdg.info_lbl.text() == "0.512 mm x 0.512 mm"
+    grid_wdg.scan_size_spinBox_r.setValue(3)
+    grid_wdg.scan_size_spinBox_c.setValue(3)
+    grid_wdg.ovelap_spinBox.setValue(15)
+    assert grid_wdg.info_lbl.text() == "1.306 mm x 1.306 mm"
 
     global_mmcore.setProperty("Objective", "Label", "Objective-2")
     assert not global_mmcore.getPixelSizeUm()
@@ -69,10 +69,15 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
         [
             call(
                 [
-                    (-512.0, 512.0, 0.0),
-                    (-256.0, 512.0, 0.0),
-                    (-256.0, 256.0, 0.0),
-                    (-512.0, 256.0, 0.0),
+                    (-588.8, 588.8, 0.0),
+                    (-153.59999999999997, 588.8, 0.0),
+                    (281.6, 588.8, 0.0),
+                    (281.6, 153.59999999999997, 0.0),
+                    (-153.59999999999997, 153.59999999999997, 0.0),
+                    (-588.8, 153.59999999999997, 0.0),
+                    (-588.8, -281.6, 0.0),
+                    (-153.59999999999997, -281.6, 0.0),
+                    (281.6, -281.6, 0.0),
                 ],
                 False,
             )
