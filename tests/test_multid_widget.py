@@ -46,11 +46,6 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     grid_wdg = GridWidget()
     qtbot.addWidget(grid_wdg)
 
-    grid_wdg.scan_size_spinBox_r.setValue(3)
-    grid_wdg.scan_size_spinBox_c.setValue(3)
-    grid_wdg.ovelap_spinBox.setValue(15)
-    assert grid_wdg.info_lbl.text() == "1.306 mm x 1.306 mm"
-
     global_mmcore.setProperty("Objective", "Label", "Objective-2")
     assert not global_mmcore.getPixelSizeUm()
     grid_wdg._update_info_label()
@@ -58,8 +53,38 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     global_mmcore.setProperty("Objective", "Label", "Nikon 10X S Fluor")
 
+    # w/o overlap
+    grid_wdg.scan_size_spinBox_r.setValue(2)
+    grid_wdg.scan_size_spinBox_c.setValue(2)
+    grid_wdg.ovelap_spinBox.setValue(0)
+    assert grid_wdg.info_lbl.text() == "1.024 mm x 1.024 mm"
+
     mock = Mock()
     grid_wdg.sendPosList.connect(mock)
+
+    grid_wdg.clear_checkbox.setChecked(True)
+
+    grid_wdg._send_positions_grid()
+
+    mock.assert_has_calls(
+        [
+            call(
+                [
+                    (-256.0, 256.0, 0.0),
+                    (256.0, 256.0, 0.0),
+                    (256.0, -256.0, 0.0),
+                    (-256.0, -256.0, 0.0),
+                ],
+                True,
+            )
+        ]
+    )
+
+    # with overlap
+    grid_wdg.scan_size_spinBox_r.setValue(3)
+    grid_wdg.scan_size_spinBox_c.setValue(3)
+    grid_wdg.ovelap_spinBox.setValue(15)
+    assert grid_wdg.info_lbl.text() == "1.306 mm x 1.306 mm"
 
     grid_wdg.clear_checkbox.setChecked(False)
 
