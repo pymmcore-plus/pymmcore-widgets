@@ -55,7 +55,7 @@ class ChannelWidget(QWidget):
         elif candidates:
             dialog = ComboMessageBox(candidates, "Select Channel Group:", self)
             if dialog.exec_() == dialog.DialogCode.Accepted:
-                return str(dialog.currentText())
+                return str(dialog._currentText())
         return None
 
     def _create_channel_widget(
