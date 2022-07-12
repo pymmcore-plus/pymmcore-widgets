@@ -96,8 +96,7 @@ class ObjectivesWidget(QWidget):
 
 
 class _ObjectiveStateWidget(StateDeviceWidget):
-    """
-    Subclass of StateDeviceWidget.
+    """Subclass of StateDeviceWidget.
 
     Drops/raises stage when changing objective.
     """
