@@ -13,6 +13,7 @@ from ._live_button_widget import LiveButton
 from ._presets_widget import PresetsWidget
 from ._property_browser import PropertyBrowser
 from ._property_widget import PropertyWidget, make_property_value_widget
+from ._slider_dialog_widget import SliderDialog
 from ._snap_button_widget import SnapButton
 from ._stage_widget import StageWidget
 
@@ -25,6 +26,7 @@ __all__ = [
     "PresetsWidget",
     "ExposureWidget",
     "DefaultCameraExposureWidget",
+    "SliderDialog",
     "GroupPresetTableWidget",
     "LiveButton",
     "SnapButton",
