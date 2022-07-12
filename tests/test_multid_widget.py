@@ -51,6 +51,13 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     grid_wdg.ovelap_spinBox.setValue(50)
     assert grid_wdg.info_lbl.text() == "0.512 mm x 0.512 mm"
 
+    global_mmcore.setProperty("Objective", "Label", "Objective-2")
+    assert not global_mmcore.getPixelSizeUm()
+    grid_wdg._update_info_label()
+    assert grid_wdg.info_lbl.text() == "_ mm x _ mm"
+
+    global_mmcore.setProperty("Objective", "Label", "Nikon 10X S Fluor")
+
     mock = Mock()
     grid_wdg.sendPosList.connect(mock)
 

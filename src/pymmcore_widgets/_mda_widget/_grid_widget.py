@@ -225,14 +225,3 @@ class GridWidget(QDialog):
             raise ValueError("Pixel Size Not Set.")
         grid = self._set_grid()
         self.sendPosList.emit(grid, self.clear_checkbox.isChecked())
-
-
-if __name__ == "__main__":
-    import sys
-
-    from qtpy.QtWidgets import QApplication
-
-    app = QApplication(sys.argv)
-    win = GridWidget()
-    win.show()
-    sys.exit(app.exec_())
