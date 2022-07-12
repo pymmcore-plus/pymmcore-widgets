@@ -16,6 +16,11 @@ class SliderDialog(QDialog):
     ----------
     property_regex : str
         a regex pattern to use to select property names to show.
+
+        e.g. property_regex = "(Intensity|Power)s?" will create a slider
+        for each range-based property that contains "I(i)ntensity(s)" or
+        "P(p)ower(s)" in the property name.
+
     parent : Optional[QWidget]
         optional parent widget, by default None
     mmcore : Optional[CMMCorePlus]
