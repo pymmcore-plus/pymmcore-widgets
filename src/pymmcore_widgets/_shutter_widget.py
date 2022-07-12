@@ -6,7 +6,7 @@ from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import QSize, Qt
-from qtpy.QtGui import QColor, QIcon
+from qtpy.QtGui import QColor
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
@@ -32,8 +32,7 @@ class ShuttersWidget(QtW.QWidget):
     autoshutter: bool
         If True, a checkbox controlling the Micro-Manager autoshutter
         is added to the layout.
-    button_text_open_closed: Optional[tuple[str, str]]
-       Text of the QPushButton when the shutter is open or closed
+
     icon_size : Optional[str]
         Size of the QPushButton icon.
     icon_color_open_closed : Optional[tuple[COLOR_TYPE, COLOR_TYPE]]
@@ -43,6 +42,32 @@ class ShuttersWidget(QtW.QWidget):
     parent : Optional[QWidget]
         Optional parent widget.
 
+    Attributes
+    ----------
+    icon_open: QIcon
+        Icon of the QPushButton when the shutter is open.
+        Default = MDI6.hexagon_outline.
+    icon_color_open: COLOR_TYPE
+        Color of the QPushButton "icon_open" when the shutter is open.
+        Default = (0, 255, 0)
+    button_text_open: str
+        Text of the QPushButton when the shutter is open.
+        Default = ""
+
+    icon_closed: QIcon
+        Icon of the QPushButton when the shutter is closed.
+        Default = MDI6.hexagon_slice_6.
+    icon_color_closed: COLOR_TYPE
+        Color of the QPushButton "icon_closed" when the shutter is closed.
+        Default = "magents"
+    button_text_closed:
+        Text of the QPushButton when the shutter is closed.
+        Default = ""
+
+    icon_size:
+        Size of the QPushButton "icon_open" and "icon_closed".
+        Default = 25
+
     COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
     Tuple[int, int, int]]
     """
@@ -51,14 +76,6 @@ class ShuttersWidget(QtW.QWidget):
         self,
         shutter_device: str,
         autoshutter: bool = True,
-        button_text_open_closed: Tuple[str, str] = (None, None),  # type: ignore
-        icon_open_closed: Tuple[QIcon, QIcon] = (
-            MDI6.hexagon_outline,
-            MDI6.hexagon_slice_6,
-        ),
-        icon_size: int = 25,
-        icon_color_open_closed: tuple[COLOR_TYPE, COLOR_TYPE] = ("", ""),
-        text_color_combo: COLOR_TYPE = "",
         parent: Optional[QtW.QWidget] = None,
         *,
         mmcore: Optional[CMMCorePlus] = None,
@@ -70,14 +87,14 @@ class ShuttersWidget(QtW.QWidget):
         self.shutter_device = shutter_device
         self._is_multiShutter = False
         self.autoshutter = autoshutter
-        self.icon_open = icon_open_closed[0]
-        self.icon_closed = icon_open_closed[1]
-        self.button_text_open = button_text_open_closed[0]
-        self.button_text_closed = button_text_open_closed[1]
-        self.icon_size = icon_size
-        self.icon_color_open = icon_color_open_closed[0]
-        self.icon_color_closed = icon_color_open_closed[1]
-        self.text_color_combo = text_color_combo
+
+        self.icon_open = MDI6.hexagon_outline
+        self.icon_closed = MDI6.hexagon_slice_6
+        self.icon_color_open = (0, 255, 0)
+        self.icon_color_closed = "magenta"
+        self.icon_size = 25
+        self.button_text_open = ""
+        self.button_text_closed = ""
 
         self._create_wdg()
 

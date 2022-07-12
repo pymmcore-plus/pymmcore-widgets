@@ -11,21 +11,17 @@ if TYPE_CHECKING:
 
 def test_shutter_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
-    shutter = ShuttersWidget(
-        "Shutter",
-        button_text_open_closed=("Shutter opened", "Shutter closed"),
-        icon_color_open_closed=((0, 255, 0), "magenta"),
-        autoshutter=False,
-    )
-
-    multi_shutter = ShuttersWidget(
-        "Multi Shutter",
-        button_text_open_closed=("Multi Shutter opened", "Multi Shutter closed"),
-        icon_color_open_closed=((0, 255, 0), "magenta"),
-    )
-
+    shutter = ShuttersWidget("Shutter", autoshutter=False)
+    shutter.button_text_open = "Shutter opened"
+    shutter.button_text_closed = "Shutter closed"
     qtbot.addWidget(shutter)
+    shutter._refresh_shutter_widget()
+
+    multi_shutter = ShuttersWidget("Multi Shutter")
+    multi_shutter.button_text_open = "Multi Shutter opened"
+    multi_shutter.button_text_closed = "Multi Shutter closed"
     qtbot.addWidget(multi_shutter)
+    multi_shutter._refresh_shutter_widget()
 
     assert shutter.shutter_button.text() == "Shutter closed"
     assert not shutter.shutter_button.isEnabled()
