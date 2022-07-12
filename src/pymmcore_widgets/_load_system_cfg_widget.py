@@ -1,15 +1,23 @@
 from typing import Optional
 
+from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
 
-from ._core import load_system_config
+from ._core import get_core_singleton, load_system_config
 
 
 class ConfigurationWidget(QtW.QGroupBox):
     """Widget to select and load MM configuration."""
 
-    def __init__(self, parent: Optional[QtW.QWidget] = None) -> None:
+    def __init__(
+        self,
+        *,
+        parent: Optional[QtW.QWidget] = None,
+        mmcore: Optional[CMMCorePlus] = None,
+    ) -> None:
         super().__init__(parent)
+
+        self._mmc = mmcore or get_core_singleton()
 
         self.setTitle("Micro-Manager Configuration")
 
@@ -37,4 +45,4 @@ class ConfigurationWidget(QtW.QGroupBox):
 
     def _load_cfg(self) -> None:
         """Load the config path currently in the line_edit."""
-        load_system_config(self.cfg_LineEdit.text())
+        load_system_config(self.cfg_LineEdit.text(), self._mmc)
