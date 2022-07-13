@@ -29,3 +29,10 @@ def test_snap_button_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     ):
         snap_btn.click()
         assert not global_mmcore.isSequenceRunning()
+
+    snap_btn.icon_size = 50
+    assert snap_btn._icon_size == 50
+    snap_btn.icon_color = "Red"
+    assert snap_btn._icon_color == "Red"
+    snap_btn.button_text = "SNAP"
+    assert snap_btn.text() == "SNAP"
