@@ -56,7 +56,7 @@ class ChannelWidget(QWidget):
             dialog = ComboMessageBox(candidates, "Select Channel Group:", self)
             if dialog.exec_() == dialog.DialogCode.Accepted:
                 return str(dialog.currentText())
-        return None
+        return None  # pragma: no cover
 
     def _create_channel_widget(
         self, channel_group: Optional[str]
@@ -80,7 +80,7 @@ class ChannelWidget(QWidget):
     def _on_channel_set(self, group: str, preset: str) -> None:
         ch = self._mmc.getChannelGroup()
         if group != ch:
-            return
+            return  # pragma: no cover
         for d in self._mmc.getConfigData(ch, preset):
             _dev = d[0]
             _type = self._mmc.getDeviceType(_dev)
