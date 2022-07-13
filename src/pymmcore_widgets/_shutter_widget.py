@@ -32,19 +32,12 @@ class ShuttersWidget(QtW.QWidget):
     autoshutter: bool
         If True, a checkbox controlling the Micro-Manager autoshutter
         is added to the layout.
-
-    icon_size : Optional[str]
-        Size of the QPushButton icon.
-    icon_color_open_closed : Optional[tuple[COLOR_TYPE, COLOR_TYPE]]
-        Color of the QPushButton icon when the shutter is open or closed.
-    text_color_combo:
-        Text color of the shutter QComboBox.
     parent : Optional[QWidget]
         Optional parent widget.
 
-    Attributes
+    Properties
     ----------
-    icon_open: QIcon
+    icon_open: MDI6 (https://github.com/templarian/MaterialDesign)
         Icon of the QPushButton when the shutter is open.
         Default = MDI6.hexagon_outline.
     icon_color_open: COLOR_TYPE
@@ -54,7 +47,7 @@ class ShuttersWidget(QtW.QWidget):
         Text of the QPushButton when the shutter is open.
         Default = ""
 
-    icon_closed: QIcon
+    icon_closed: MDI6 (https://github.com/templarian/MaterialDesign)
         Icon of the QPushButton when the shutter is closed.
         Default = MDI6.hexagon_slice_6.
     icon_color_closed: COLOR_TYPE
@@ -88,13 +81,13 @@ class ShuttersWidget(QtW.QWidget):
         self._is_multiShutter = False
         self.autoshutter = autoshutter
 
-        self.icon_open = MDI6.hexagon_outline
-        self.icon_closed = MDI6.hexagon_slice_6
-        self.icon_color_open = (0, 255, 0)
-        self.icon_color_closed = "magenta"
-        self.icon_size = 25
-        self.button_text_open = ""
-        self.button_text_closed = ""
+        self._icon_open: MDI6 = MDI6.hexagon_outline
+        self._icon_closed: MDI6 = MDI6.hexagon_slice_6
+        self._icon_color_open: COLOR_TYPE = (0, 255, 0)
+        self._icon_color_closed: COLOR_TYPE = "magenta"
+        self._icon_size: int = 25
+        self._button_text_open: str = ""
+        self._button_text_closed: str = ""
 
         self._create_wdg()
 
@@ -112,19 +105,95 @@ class ShuttersWidget(QtW.QWidget):
 
         self.destroyed.connect(self._disconnect)
 
+    @property
+    def icon_open(self) -> MDI6:
+        """Set the button icon for when the shutter is open."""
+        return self._icon_open
+
+    @icon_open.setter
+    def icon_open(self, icon_o: MDI6) -> None:
+        if int(self._mmc.getProperty(self.shutter_device, "State")) == 1:
+            self.shutter_button.setIcon(icon(icon_o, color=self._icon_color_open))
+        self._icon_open = icon_o
+
+    @property
+    def icon_closed(self) -> MDI6:
+        """Set the button icon for when the shutter is closed."""
+        return self._icon_closed
+
+    @icon_closed.setter
+    def icon_closed(self, icon_c: MDI6) -> None:
+        if int(self._mmc.getProperty(self.shutter_device, "State")) == 0:
+            self.shutter_button.setIcon(icon(icon_c, color=self._icon_color_closed))
+        self._icon_closed = icon_c
+
+    @property
+    def icon_color_open(self) -> COLOR_TYPE:
+        """Set the button icon color for when the shutter is open."""
+        return self._icon_color_open
+
+    @icon_color_open.setter
+    def icon_color_open(self, color: COLOR_TYPE) -> None:
+        if int(self._mmc.getProperty(self.shutter_device, "State")) == 1:
+            self.shutter_button.setIcon(icon(self._icon_open, color=color))
+        self._icon_color_open = color
+
+    @property
+    def icon_color_closed(self) -> COLOR_TYPE:
+        """Set the button icon color for when the shutter is closed."""
+        return self._icon_color_closed
+
+    @icon_color_closed.setter
+    def icon_color_closed(self, color: COLOR_TYPE) -> None:
+        if int(self._mmc.getProperty(self.shutter_device, "State")) == 0:
+            self.shutter_button.setIcon(icon(self._icon_closed, color=color))
+        self._icon_color_closed = color
+
+    @property
+    def icon_size(self) -> int:
+        """Set the button icon size."""
+        return self._icon_size
+
+    @icon_size.setter
+    def icon_size(self, size: int) -> None:
+        self.shutter_button.setIconSize(QSize(size, size))
+        self._icon_size = size
+
+    @property
+    def button_text_open(self) -> str:
+        """Set the button text for when the shutter is open."""
+        return self._button_text_open
+
+    @button_text_open.setter
+    def button_text_open(self, text: str) -> None:
+        if int(self._mmc.getProperty(self.shutter_device, "State")) == 1:
+            self.shutter_button.setText(text)
+        self._button_text_open = text
+
+    @property
+    def button_text_closed(self) -> str:
+        """Set the button text for when the shutter is closed."""
+        return self._button_text_closed
+
+    @button_text_closed.setter
+    def button_text_closed(self, text: str) -> None:
+        if int(self._mmc.getProperty(self.shutter_device, "State")) == 0:
+            self.shutter_button.setText(text)
+        self._button_text_closed = text
+
     def _create_wdg(self) -> None:
 
         main_layout = QtW.QHBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(3)
 
-        self.shutter_button = QtW.QPushButton(text=self.button_text_closed)
+        self.shutter_button = QtW.QPushButton(text=self._button_text_closed)
         sizepolicy_btn = QtW.QSizePolicy(QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed)
         self.shutter_button.setSizePolicy(sizepolicy_btn)
         self.shutter_button.setIcon(
-            icon(self.icon_closed, color=self.icon_color_closed)
+            icon(self._icon_closed, color=self._icon_color_closed)
         )
-        self.shutter_button.setIconSize(QSize(self.icon_size, self.icon_size))
+        self.shutter_button.setIconSize(QSize(self._icon_size, self._icon_size))
         self.shutter_button.clicked.connect(self._on_shutter_btn_clicked)
         main_layout.addWidget(self.shutter_button)
 
@@ -224,15 +293,13 @@ class ShuttersWidget(QtW.QWidget):
         self._mmc.setAutoShutter(state)
 
     def _set_shutter_wdg_to_opened(self) -> None:
-        if self.button_text_open:
-            self.shutter_button.setText(self.button_text_open)
-        self.shutter_button.setIcon(icon(self.icon_open, color=self.icon_color_open))
+        self.shutter_button.setText(self._button_text_open)
+        self.shutter_button.setIcon(icon(self._icon_open, color=self._icon_color_open))
 
     def _set_shutter_wdg_to_closed(self) -> None:
-        if self.button_text_closed:
-            self.shutter_button.setText(self.button_text_closed)
+        self.shutter_button.setText(self._button_text_closed)
         self.shutter_button.setIcon(
-            icon(self.icon_closed, color=self.icon_color_closed)
+            icon(self._icon_closed, color=self._icon_color_closed)
         )
 
     def _disconnect(self) -> None:
@@ -247,3 +314,14 @@ class ShuttersWidget(QtW.QWidget):
         self._mmc.events.startSequenceAcquisition.disconnect(self._on_seq_started)
         self._mmc.events.stopSequenceAcquisition.disconnect(self._on_seq_stopped)
         self._mmc.events.imageSnapped.disconnect(self._on_seq_stopped)
+
+
+# from pymmcore_widgets._core import get_core_singleton
+# from pymmcore_widgets._shutter_widget import ShuttersWidget
+# from fonticon_mdi6 import MDI6
+# from qtpy.QtGui import QIcon
+# i = QIcon("/Users/FG/Desktop/down.png")
+# mmc = get_core_singleton()
+# mmc.loadSystemConfiguration()
+# s = ShuttersWidget('Shutter')
+# s.show()

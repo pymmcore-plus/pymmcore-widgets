@@ -114,3 +114,28 @@ def test_shutter_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
         assert shutter.shutter_button.text() == "Shutter opened"
         assert global_mmcore.getShutterOpen("Shutter")
         assert global_mmcore.getProperty("Shutter", "State") == "1"
+
+    assert shutter.icon_size == 25
+    shutter.icon_size = 30
+    assert shutter.icon_size == 30
+
+    assert shutter.icon_color_open == (0, 255, 0)
+    shutter.icon_color_open = "magenta"
+    assert shutter.icon_color_open == "magenta"
+
+    assert shutter.icon_color_closed == "magenta"
+    shutter.icon_color_closed = (0, 255, 0)
+    assert shutter.icon_color_closed == (0, 255, 0)
+
+    assert shutter.button_text_open == "Shutter opened"
+    shutter.button_text_open = "O"
+    assert shutter.button_text_open == "O"
+
+    assert shutter.button_text_closed == "Shutter closed"
+    shutter.button_text_closed = "C"
+    assert shutter.button_text_closed == "C"
+
+    global_mmcore.startContinuousSequenceAcquisition()
+    assert shutter.shutter_button.text() == "O"
+    global_mmcore.stopSequenceAcquisition()
+    assert shutter.shutter_button.text() == "C"
