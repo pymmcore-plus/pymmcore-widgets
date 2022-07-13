@@ -11,17 +11,13 @@ if TYPE_CHECKING:
 
 def test_live_button_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
-    live_btn = LiveButton(
-        button_text_on_off=("Live", "Stop"),
-        icon_size=40,
-        icon_color_on_off=("green", "magenta"),
-    )
+    live_btn = LiveButton()
 
     qtbot.addWidget(live_btn)
 
     assert live_btn.text() == "Live"
-    assert live_btn.icon_size == 40
-    assert live_btn.icon_color_on == "green"
+    assert live_btn.icon_size == 30
+    assert live_btn.icon_color_on == (0, 255, 0)
     assert live_btn.icon_color_off == "magenta"
 
     # test from direct mmcore signals
@@ -44,3 +40,17 @@ def test_live_button_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
         live_btn.click()
     assert not global_mmcore.isSequenceRunning()
     assert live_btn.text() == "Live"
+
+    live_btn.icon_size = 50
+    assert live_btn._icon_size == 50
+    live_btn.icon_color_on = "Red"
+    assert live_btn._icon_color_on == "Red"
+    live_btn.icon_color_off = "Green"
+    assert live_btn._icon_color_off == "Green"
+    live_btn.button_text_on = "LIVE"
+    assert live_btn.text() == "LIVE"
+    live_btn.button_text_off = "STOP"
+    global_mmcore.startContinuousSequenceAcquisition(0)
+    assert live_btn.text() == "STOP"
+    global_mmcore.stopSequenceAcquisition()
+    assert live_btn.text() == "LIVE"
