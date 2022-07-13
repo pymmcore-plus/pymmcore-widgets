@@ -11,6 +11,7 @@ from ._exposure_widget import DefaultCameraExposureWidget, ExposureWidget
 from ._group_preset_table_widget import GroupPresetTableWidget
 from ._live_button_widget import LiveButton
 from ._mda_widget._mda_widget import MultiDWidget
+from ._objective_widget import ObjectivesWidget
 from ._presets_widget import PresetsWidget
 from ._property_browser import PropertyBrowser
 from ._property_widget import PropertyWidget, make_property_value_widget
@@ -28,6 +29,7 @@ __all__ = [
     "ExposureWidget",
     "DefaultCameraExposureWidget",
     "MultiDWidget",
+    "ObjectivesWidget",
     "SliderDialog",
     "GroupPresetTableWidget",
     "LiveButton",
