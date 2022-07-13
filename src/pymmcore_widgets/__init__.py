@@ -6,6 +6,7 @@ try:
 except PackageNotFoundError:
     __version__ = "uninstalled"
 
+from ._channel_widget import ChannelWidget
 from ._device_widget import DeviceWidget, StateDeviceWidget
 from ._exposure_widget import DefaultCameraExposureWidget, ExposureWidget
 from ._group_preset_table_widget import GroupPresetTableWidget
@@ -27,6 +28,7 @@ __all__ = [
     "PresetsWidget",
     "ExposureWidget",
     "DefaultCameraExposureWidget",
+    "ChannelWidget",
     "ObjectivesWidget",
     "SliderDialog",
     "GroupPresetTableWidget",
