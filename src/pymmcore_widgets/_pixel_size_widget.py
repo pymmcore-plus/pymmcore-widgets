@@ -72,7 +72,7 @@ class PixelSizeTable(QtW.QTableWidget):
     def _create_widgets(self, row: int) -> list:
         self.objective_combo = QtW.QComboBox()
         self.objective_combo.setProperty("row", row)
-        self.objective_labels = self._mmc.getStateLabels(self._objective_device)
+        self.objective_labels = self._mmc.getStateLabels(self._objective_device)  # type: ignore [arg-type] # noqa: E501
         self.objective_combo.addItems(self.objective_labels)
         self.objective_combo.currentTextChanged.connect(self._guess_magnification)
 
@@ -170,7 +170,7 @@ class PixelSizeTable(QtW.QTableWidget):
     def _get_px_cfg_and_objective(self) -> list:
 
         cfg_obj = []
-        objective_labels = self._mmc.getStateLabels(self._objective_device)
+        objective_labels = self._mmc.getStateLabels(self._objective_device)  # type: ignore [arg-type] # noqa: E501
 
         for cfg in self._mmc.getAvailablePixelSizeConfigs():
             cfg_data = list(itertools.chain(*self._mmc.getPixelSizeConfigData(cfg)))
@@ -223,7 +223,7 @@ class PixelSizeTable(QtW.QTableWidget):
                 self._mmc.deletePixelSizeConfig(resolutionID)
 
             self._mmc.definePixelSizeConfig(
-                resolutionID, self._objective_device, "Label", obj_label
+                resolutionID, self._objective_device, "Label", obj_label  # type: ignore [arg-type] # noqa: E501
             )
             self._mmc.setPixelSizeUm(resolutionID, px_size_um)
 
