@@ -139,3 +139,9 @@ def test_shutter_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert shutter.shutter_button.text() == "O"
     global_mmcore.stopSequenceAcquisition()
     assert shutter.shutter_button.text() == "C"
+
+    # test refresh when loading a system cfg
+    assert multi_shutter.shutter_button.text() == "Multi Shutter closed"
+    with qtbot.waitSignal(global_mmcore.events.systemConfigurationLoaded):
+        global_mmcore.loadSystemConfiguration("MMConfig_demo.cfg")
+    assert multi_shutter.shutter_button.text() == "None"

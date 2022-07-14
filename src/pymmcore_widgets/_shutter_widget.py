@@ -316,14 +316,3 @@ class ShuttersWidget(QtW.QWidget):
         self._mmc.events.startSequenceAcquisition.disconnect(self._on_seq_started)
         self._mmc.events.stopSequenceAcquisition.disconnect(self._on_seq_stopped)
         self._mmc.events.imageSnapped.disconnect(self._on_seq_stopped)
-
-
-# from pymmcore_widgets._core import get_core_singleton
-# from pymmcore_widgets._shutter_widget import ShuttersWidget
-# from fonticon_mdi6 import MDI6
-# from qtpy.QtGui import QIcon
-# i = QIcon("/Users/FG/Desktop/down.png")
-# mmc = get_core_singleton()
-# mmc.loadSystemConfiguration()
-# s = ShuttersWidget('Shutter')
-# s.show()
