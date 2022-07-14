@@ -26,7 +26,7 @@ class LiveButton(QPushButton):
     and a pymmcore-plus signal 'startContinuousSequenceAcquisition' or
     'stopSequenceAcquisition' is emitted.
 
-    Parameters
+    Properties
     ----------
     button_text_on : str
         Text of the QPushButton in the on state.
@@ -40,8 +40,6 @@ class LiveButton(QPushButton):
     icon_color_off : COLOR_TYPE
        Color of the QPushButton icon in the off state.
        Default = "magenta".
-    icon_size : Optional[int]
-        Size of the QPushButton icon.
     """
 
     def __init__(
@@ -58,7 +56,6 @@ class LiveButton(QPushButton):
 
         self._button_text_on: str = "Live"
         self._button_text_off: str = "Stop"
-        self._icon_size: int = 30
         self._icon_color_on: COLOR_TYPE = (0, 255, 0)
         self._icon_color_off: COLOR_TYPE = "magenta"
 
@@ -122,21 +119,11 @@ class LiveButton(QPushButton):
             self.setIcon(icon(MDI6.video_off_outline, color=color))
         self._icon_color_off = color
 
-    @property
-    def icon_size(self) -> int:
-        """Set the snap button icon size."""
-        return self._icon_size
-
-    @icon_size.setter
-    def icon_size(self, size: int) -> None:
-        self.setIconSize(QSize(size, size))
-        self._icon_size = size
-
     def _create_button(self) -> None:
         if self._button_text_on:
             self.setText(self._button_text_on)
         self._set_icon_state(False)
-        self.setIconSize(QSize(self._icon_size, self._icon_size))
+        self.setIconSize(QSize(30, 30))
         self.clicked.connect(self._toggle_live_mode)
 
     def _on_system_cfg_loaded(self) -> None:

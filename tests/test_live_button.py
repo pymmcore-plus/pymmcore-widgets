@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from qtpy.QtCore import QSize
+
 from pymmcore_widgets._live_button_widget import LiveButton
 
 if TYPE_CHECKING:
@@ -16,7 +18,7 @@ def test_live_button_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(live_btn)
 
     assert live_btn.text() == "Live"
-    assert live_btn.icon_size == 30
+    assert live_btn.iconSize() == QSize(30, 30)
     assert live_btn.icon_color_on == (0, 255, 0)
     assert live_btn.icon_color_off == "magenta"
 
@@ -41,8 +43,6 @@ def test_live_button_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not global_mmcore.isSequenceRunning()
     assert live_btn.text() == "Live"
 
-    live_btn.icon_size = 50
-    assert live_btn._icon_size == 50
     live_btn.icon_color_on = "Red"
     assert live_btn._icon_color_on == "Red"
     live_btn.icon_color_off = "Green"
