@@ -197,15 +197,17 @@ class ShuttersWidget(QtW.QWidget):
         self.shutter_button.clicked.connect(self._on_shutter_btn_clicked)
         main_layout.addWidget(self.shutter_button)
 
-        if self.autoshutter:
-            self.autoshutter_checkbox = QtW.QCheckBox(text="Auto")
-            sizepolicy_checkbox = QtW.QSizePolicy(
-                QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed
-            )
-            self.autoshutter_checkbox.setSizePolicy(sizepolicy_checkbox)
-            self.autoshutter_checkbox.setChecked(False)
-            self.autoshutter_checkbox.toggled.connect(self._on_shutter_checkbox_toggled)
-            main_layout.addWidget(self.autoshutter_checkbox)
+        self.autoshutter_checkbox = QtW.QCheckBox(text="Auto")
+        sizepolicy_checkbox = QtW.QSizePolicy(
+            QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed
+        )
+        self.autoshutter_checkbox.setSizePolicy(sizepolicy_checkbox)
+        self.autoshutter_checkbox.setChecked(False)
+        self.autoshutter_checkbox.toggled.connect(self._on_shutter_checkbox_toggled)
+        main_layout.addWidget(self.autoshutter_checkbox)
+
+        if not self.autoshutter:
+            self.autoshutter_checkbox.hide()
 
         self.setLayout(main_layout)
 
