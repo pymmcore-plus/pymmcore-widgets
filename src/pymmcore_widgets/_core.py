@@ -28,7 +28,7 @@ def get_core_singleton(remote: bool = False) -> CMMCorePlus:
     return _SESSION_CORE
 
 
-def load_system_config(config: str = "") -> None:
+def load_system_config(config: str = "", mmcore: Optional[CMMCorePlus] = None) -> None:
     """Internal convenience for `loadSystemConfiguration(config)`.
 
     This also unloads all devices first and resets the STATE.
@@ -37,7 +37,7 @@ def load_system_config(config: str = "") -> None:
     `CMMCorePlus.instance().loadSystemConfiguration(...)` (instead of this function)
     and we need to handle that as well.  So this function shouldn't get too complex.
     """
-    mmc = get_core_singleton()
+    mmc = mmcore or get_core_singleton()
     mmc.unloadAllDevices()
     mmc.loadSystemConfiguration(config or "MMConfig_demo.cfg")
 
