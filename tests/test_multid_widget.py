@@ -19,6 +19,16 @@ def test_multid_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.stage_tableWidget.rowCount() == 0
     assert wdg.channel_tableWidget.rowCount() == 0
     assert not wdg.time_groupBox.isChecked()
+
+    wdg._set_enabled(False)
+    assert not wdg.save_groupBox.isEnabled()
+    assert not wdg.time_groupBox.isEnabled()
+    assert not wdg.acquisition_order_comboBox.isEnabled()
+    assert not wdg.channel_groupBox.isEnabled()
+    assert not wdg.stage_pos_groupBox.isEnabled()
+    assert not wdg.stack_groupBox.isEnabled()
+    wdg._set_enabled(True)
+
     sequence = MDASequence(
         channels=[
             {"config": "Cy5", "exposure": 20},
