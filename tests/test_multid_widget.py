@@ -40,6 +40,42 @@ def test_multid_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     # round trip
     assert wdg._get_state() == sequence
 
+    # test add grid positions
+    wdg.stage_pos_groupBox.setChecked(True)
+    wdg._clear_positions()
+    assert wdg.stage_tableWidget.rowCount() == 0
+    wdg.grid_Button.click()
+    wdg._grid_wdg.scan_size_spinBox_r.setValue(2)
+    wdg._grid_wdg.scan_size_spinBox_c.setValue(2)
+    wdg._grid_wdg.generate_position_btn.click()
+    assert wdg.stage_tableWidget.rowCount() == 4
+
+
+def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    wdg = MultiDWidget()
+    qtbot.addWidget(wdg)
+
+    assert wdg.channel_tableWidget.rowCount() == 0
+    wdg.add_ch_Button.click()
+    wdg.add_ch_Button.click()
+    assert wdg.channel_tableWidget.rowCount() == 2
+    wdg.channel_tableWidget.selectRow(0)
+    wdg.remove_ch_Button.click()
+    assert wdg.channel_tableWidget.rowCount() == 1
+    wdg.clear_ch_Button.click()
+    assert wdg.channel_tableWidget.rowCount() == 0
+
+    assert wdg.stage_tableWidget.rowCount() == 0
+    wdg.stage_pos_groupBox.setChecked(True)
+    wdg.add_pos_Button.click()
+    wdg.add_pos_Button.click()
+    assert wdg.stage_tableWidget.rowCount() == 2
+    wdg.stage_tableWidget.selectRow(0)
+    wdg.remove_pos_Button.click()
+    assert wdg.stage_tableWidget.rowCount() == 1
+    wdg.clear_pos_Button.click()
+    assert wdg.stage_tableWidget.rowCount() == 0
+
 
 def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
