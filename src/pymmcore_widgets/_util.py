@@ -37,5 +37,6 @@ class ComboMessageBox(QDialog):
         self.layout().addWidget(self._combo)
         self.layout().addWidget(btn_box)
 
-    def _currentText(self) -> str:
+    def currentText(self) -> str:
+        """Returns the current QComboBox text."""
         return self._combo.currentText()  # type: ignore [no-any-return]
