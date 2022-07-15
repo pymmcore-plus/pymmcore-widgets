@@ -213,7 +213,7 @@ class MultiDWidget(MultiDWidgetGui):
         elif candidates:
             dialog = ComboMessageBox(candidates, "Select Channel Group:", self)
             if dialog.exec_() == dialog.DialogCode.Accepted:
-                return dialog._currentText()
+                return dialog.currentText()
         return None
 
     def _add_channel(self) -> bool:
