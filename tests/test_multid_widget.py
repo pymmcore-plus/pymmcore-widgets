@@ -87,6 +87,33 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.stage_tableWidget.rowCount() == 0
 
 
+def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    wdg = MultiDWidget()
+    qtbot.addWidget(wdg)
+
+    wdg._on_mda_started()
+    assert not wdg.save_groupBox.isEnabled()
+    assert not wdg.time_groupBox.isEnabled()
+    assert not wdg.acquisition_order_comboBox.isEnabled()
+    assert not wdg.channel_groupBox.isEnabled()
+    assert not wdg.stage_pos_groupBox.isEnabled()
+    assert not wdg.stack_groupBox.isEnabled()
+    assert wdg.run_Button.isHidden()
+    assert not wdg.pause_Button.isHidden()
+    assert not wdg.cancel_Button.isHidden()
+
+    wdg._on_mda_finished()
+    assert wdg.save_groupBox.isEnabled()
+    assert wdg.time_groupBox.isEnabled()
+    assert wdg.acquisition_order_comboBox.isEnabled()
+    assert wdg.channel_groupBox.isEnabled()
+    assert wdg.stage_pos_groupBox.isEnabled()
+    assert wdg.stack_groupBox.isEnabled()
+    assert not wdg.run_Button.isHidden()
+    assert wdg.pause_Button.isHidden()
+    assert wdg.cancel_Button.isHidden()
+
+
 def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     grid_wdg = GridWidget()
