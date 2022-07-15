@@ -6,6 +6,7 @@ try:
 except PackageNotFoundError:
     __version__ = "uninstalled"
 
+from ._camera_roi_widget import CameraRoiWidget
 from ._channel_widget import ChannelWidget
 from ._device_widget import DeviceWidget, StateDeviceWidget
 from ._exposure_widget import DefaultCameraExposureWidget, ExposureWidget
@@ -37,4 +38,5 @@ __all__ = [
     "LiveButton",
     "SnapButton",
     "StageWidget",
+    "CameraRoiWidget",
 ]
