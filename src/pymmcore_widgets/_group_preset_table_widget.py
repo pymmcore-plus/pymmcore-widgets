@@ -4,9 +4,12 @@ from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QVBoxLayout
 
-from ._core import get_core_singleton
-from ._presets_widget import PresetsWidget
-from ._property_widget import PropertyWidget
+# from ._core import get_core_singleton
+# from ._presets_widget import PresetsWidget
+# from ._property_widget import PropertyWidget
+from pymmcore_widgets._core import get_core_singleton
+from pymmcore_widgets._presets_widget import PresetsWidget
+from pymmcore_widgets._property_widget import PropertyWidget
 
 
 class _MainTable(QtW.QTableWidget):
@@ -34,13 +37,92 @@ class GroupPresetTableWidget(QtW.QWidget):
 
         self._mmc = get_core_singleton()
         self._mmc.events.systemConfigurationLoaded.connect(self._populate_table)
-        self.table_wdg = _MainTable()
-        self.table_wdg.show()
-        self.setLayout(QVBoxLayout())
-        self.setContentsMargins(0, 0, 0, 0)
-        self.layout().addWidget(self.table_wdg)
+
+        self._create_gui()
 
         self._populate_table()
+
+    def _create_gui(self) -> None:
+
+        self.setLayout(QVBoxLayout())
+        self.layout().setSpacing(5)
+        self.setContentsMargins(0, 0, 0, 0)
+
+        save_btn = self._add_save_button()
+        self.layout().addWidget(save_btn)
+
+        self.table_wdg = _MainTable()
+        self.layout().addWidget(self.table_wdg)
+
+        btns = self._add_groups_presets_buttons()
+        self.layout().addWidget(btns)
+
+    def _add_groups_presets_buttons(self) -> QtW.QWidget:
+
+        main_wdg = QtW.QWidget()
+        main_wdg_layout = QtW.QHBoxLayout()
+        main_wdg_layout.setSpacing(10)
+        main_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        main_wdg.setLayout(main_wdg_layout)
+
+        lbl_sizepolicy = QtW.QSizePolicy(QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed)
+
+        # groups
+        groups_btn_wdg = QtW.QWidget()
+        groups_layout = QtW.QHBoxLayout()
+        groups_layout.setSpacing(5)
+        groups_layout.setContentsMargins(0, 0, 0, 0)
+        groups_btn_wdg.setLayout(groups_layout)
+
+        groups_lbl = QtW.QLabel(text="Group:")
+        groups_lbl.setSizePolicy(lbl_sizepolicy)
+        self.groups_add_btn = QtW.QPushButton(text="+")
+        self.groups_remove_btn = QtW.QPushButton(text="-")
+        self.groups_edit_btn = QtW.QPushButton(text="Edit")
+        groups_layout.addWidget(groups_lbl)
+        groups_layout.addWidget(self.groups_add_btn)
+        groups_layout.addWidget(self.groups_remove_btn)
+        groups_layout.addWidget(self.groups_edit_btn)
+
+        main_wdg_layout.addWidget(groups_btn_wdg)
+
+        # presets
+        presets_btn_wdg = QtW.QWidget()
+        presets_layout = QtW.QHBoxLayout()
+        presets_layout.setSpacing(5)
+        presets_layout.setContentsMargins(0, 0, 0, 0)
+        presets_btn_wdg.setLayout(presets_layout)
+
+        presets_lbl = QtW.QLabel(text="Preset:")
+        presets_lbl.setSizePolicy(lbl_sizepolicy)
+        self.presets_add_btn = QtW.QPushButton(text="+")
+        self.presets_remove_btn = QtW.QPushButton(text="-")
+        self.presets_edit_btn = QtW.QPushButton(text="Edit")
+        presets_layout.addWidget(presets_lbl)
+        presets_layout.addWidget(self.presets_add_btn)
+        presets_layout.addWidget(self.presets_remove_btn)
+        presets_layout.addWidget(self.presets_edit_btn)
+
+        main_wdg_layout.addWidget(presets_btn_wdg)
+
+        return main_wdg
+
+    def _add_save_button(self) -> QtW.QWidget:
+
+        save_btn_wdg = QtW.QWidget()
+        save_btn_layout = QtW.QHBoxLayout()
+        save_btn_layout.setSpacing(0)
+        save_btn_layout.setContentsMargins(0, 0, 0, 0)
+        save_btn_wdg.setLayout(save_btn_layout)
+
+        spacer = QtW.QSpacerItem(
+            10, 10, QtW.QSizePolicy.Expanding, QtW.QSizePolicy.Fixed
+        )
+        save_btn_layout.addItem(spacer)
+        self.save_btn = QtW.QPushButton(text="Save")
+        save_btn_layout.addWidget(self.save_btn)
+
+        return save_btn_wdg
 
     def _on_system_cfg_loaded(self) -> None:
         self._populate_table()
@@ -94,3 +176,14 @@ class GroupPresetTableWidget(QtW.QWidget):
             return PresetsWidget(group)
         else:
             return PropertyWidget(device, property)
+
+
+if __name__ == "__main__":
+    from qtpy.QtWidgets import QApplication
+
+    mmc = get_core_singleton()
+    mmc.loadSystemConfiguration()
+    app = QApplication([])
+    table = GroupPresetTableWidget()
+    table.show()
+    app.exec_()
