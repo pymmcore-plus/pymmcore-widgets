@@ -38,6 +38,10 @@ class GroupPresetTableWidget(QtW.QWidget):
         self._mmc = get_core_singleton()
         self._mmc.events.systemConfigurationLoaded.connect(self._populate_table)
 
+        # connections to the new pymmcore-plus groupDeleted signal
+        self._mmc.events.groupDeleted.connect(self._on_group_deleted)
+        # presetDeleted signal is handled by the "PresetsWidget"/"PropertyWidget"
+
         self._create_gui()
 
         self._populate_table()
@@ -77,8 +81,11 @@ class GroupPresetTableWidget(QtW.QWidget):
         groups_lbl = QtW.QLabel(text="Group:")
         groups_lbl.setSizePolicy(lbl_sizepolicy)
         self.groups_add_btn = QtW.QPushButton(text="+")
+        self.groups_add_btn.clicked.connect(self._add_group)
         self.groups_remove_btn = QtW.QPushButton(text="-")
+        self.groups_remove_btn.clicked.connect(self._delete_group)
         self.groups_edit_btn = QtW.QPushButton(text="Edit")
+        self.groups_edit_btn.clicked.connect(self._edit_group)
         groups_layout.addWidget(groups_lbl)
         groups_layout.addWidget(self.groups_add_btn)
         groups_layout.addWidget(self.groups_remove_btn)
@@ -96,8 +103,11 @@ class GroupPresetTableWidget(QtW.QWidget):
         presets_lbl = QtW.QLabel(text="Preset:")
         presets_lbl.setSizePolicy(lbl_sizepolicy)
         self.presets_add_btn = QtW.QPushButton(text="+")
+        self.presets_add_btn.clicked.connect(self._add_preset)
         self.presets_remove_btn = QtW.QPushButton(text="-")
+        self.presets_remove_btn.clicked.connect(self._delete_preset)
         self.presets_edit_btn = QtW.QPushButton(text="Edit")
+        self.presets_edit_btn.clicked.connect(self._edit_preset)
         presets_layout.addWidget(presets_lbl)
         presets_layout.addWidget(self.presets_add_btn)
         presets_layout.addWidget(self.presets_remove_btn)
@@ -136,7 +146,9 @@ class GroupPresetTableWidget(QtW.QWidget):
         for r in range(self.table_wdg.rowCount()):
             wdg = self.table_wdg.cellWidget(r, 1)
             if isinstance(wdg, PresetsWidget):
-                wdg.disconnect()
+                wdg._disconnect()
+            elif isinstance(wdg, PropertyWidget):
+                wdg._value_widget.destroy()  # type: ignore
 
     def _populate_table(self) -> None:
         self._reset_table()
@@ -172,18 +184,71 @@ class GroupPresetTableWidget(QtW.QWidget):
         device, property, _, dev_prop_val_count = self._get_cfg_data(group, presets[0])
 
         if len(presets) > 1 or dev_prop_val_count > 1:
-            # return PresetsWidget(group, text_color="white")
             return PresetsWidget(group)
         else:
             return PropertyWidget(device, property)
 
+    def _add_group(self) -> None:
+        pass
 
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
+    def _delete_group(self) -> None:
+        selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
+        for row_idx in sorted(selected_rows, reverse=True):
+            group = self.table_wdg.item(row_idx, 0).text()
+            self.table_wdg.removeRow(row_idx)
+            self._mmc.deleteConfigGroup(group)  # emitted delete group
 
-    mmc = get_core_singleton()
-    mmc.loadSystemConfiguration()
-    app = QApplication([])
-    table = GroupPresetTableWidget()
-    table.show()
-    app.exec_()
+    def _on_group_deleted(self, group: str) -> None:
+        if matching_item := self.table_wdg.findItems(group, Qt.MatchExactly):
+            self.table_wdg.removeRow(matching_item[0].row())
+
+    def _edit_group(self) -> None:
+        pass
+
+    def _add_preset(self) -> None:
+        pass
+
+    def _delete_preset(self) -> None:
+        selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
+        for row_idx in sorted(selected_rows, reverse=True):
+            group = self.table_wdg.item(row_idx, 0).text()
+            wdg = self.table_wdg.cellWidget(row_idx, 1)
+
+            if isinstance(wdg, PresetsWidget):
+                preset = wdg._combo.currentText()
+
+                if len(wdg.allowedValues()) > 1:
+                    self._mmc.deleteConfig(group, preset)  # emitted delete preset
+                else:
+                    self.table_wdg.removeRow(row_idx)
+                    self._mmc.deleteConfigGroup(group)  # emitted delete group
+
+            elif isinstance(wdg, PropertyWidget):
+                self.table_wdg.removeRow(row_idx)
+                self._mmc.deleteConfigGroup(group)  # emitted delete group
+
+    def _edit_preset(self) -> None:
+        pass
+
+
+# if __name__ == "__main__":
+#     from qtpy.QtWidgets import QApplication
+#     cfg = "/Users/FG/Dropbox/git/pymmcore-widgets/tests/test_config.cfg"
+#     mmc = get_core_singleton()
+#     mmc.loadSystemConfiguration(cfg)
+#     app = QApplication([])
+#     table = GroupPresetTableWidget()
+#     table.show()
+#     app.exec_()
+
+
+# from pymmcore_widgets._core import get_core_singleton
+# from pymmcore_widgets._group_preset_table_widget import GroupPresetTableWidget
+# from pymmcore_widgets._channel_widget import ChannelWidget
+# cfg = "/Users/FG/Dropbox/git/pymmcore-widgets/tests/test_config.cfg"
+# mmc = get_core_singleton()
+# mmc.loadSystemConfiguration(cfg)
+# gp = GroupPresetTableWidget()
+# ch = ChannelWidget()
+# gp.show()
+# ch.show()

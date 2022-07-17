@@ -52,8 +52,10 @@ class PresetsWidget(QWidget):
         self._mmc.events.configSet.connect(self._on_cfg_set)
         self._mmc.events.systemConfigurationLoaded.connect(self._refresh)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
-        # TODO: add connections once we will implement
-        # 'deleteGroup'/'deletePreset signals
+
+        # connections to the new pymmcore-plus presetDeleted
+        self._mmc.events.presetDeleted.connect(self._on_preset_deleted)
+        self._mmc.events.groupDeleted.connect(self._on_group_deleted)
 
         self.destroyed.connect(self._disconnect)
 
@@ -143,13 +145,16 @@ class PresetsWidget(QWidget):
                 self._combo.addItem(f"No group named {self._group}.")
                 self._combo.setEnabled(False)
             else:
-                presets = self._mmc.getAvailableConfigs(self._group)
-                self._combo.addItems(presets)
-                self._combo.setEnabled(True)
-                self._combo.setCurrentText(self._mmc.getCurrentConfig(self._group))
-                if len(presets) > 1:
-                    self._set_combo_view()
-                self._set_if_props_match_preset()
+                self._update_combo()
+
+    def _update_combo(self) -> None:
+        self._presets = list(self._mmc.getAvailableConfigs(self._group))
+        self._combo.addItems(self._presets)
+        self._combo.setEnabled(True)
+        self._combo.setCurrentText(self._mmc.getCurrentConfig(self._group))
+        if len(self._presets) > 1:
+            self._set_combo_view()
+        self._set_if_props_match_preset()
 
     def value(self) -> str:
         """Get current value."""
@@ -171,6 +176,19 @@ class PresetsWidget(QWidget):
         self._combo.setToolTip(
             str(self._mmc.getConfigData(self._group, preset)) if preset else ""
         )
+
+    def _on_group_deleted(self, group: str) -> None:
+        if group != self._group:
+            return
+        self._disconnect()
+        self.close()
+
+    def _on_preset_deleted(self, group: str, preset: str) -> None:
+        if group != self._group:
+            return
+        with signals_blocked(self._combo):
+            self._combo.clear()
+            self._update_combo()
 
     def _disconnect(self) -> None:
         self._mmc.events.configSet.disconnect(self._on_cfg_set)
