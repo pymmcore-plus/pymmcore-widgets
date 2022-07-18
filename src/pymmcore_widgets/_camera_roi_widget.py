@@ -339,8 +339,8 @@ class CameraRoiWidget(QWidget):
 
     def _set_start_max_value(self) -> None:
         _, _, wanted_width, wanted_height = self._get_roi_groupbox_values()
-        self.start_x.setMaximum((self.chip_size_x - wanted_width) // 2)
-        self.start_y.setMaximum((self.chip_size_y - wanted_height) // 2)
+        self.start_x.setMaximum(self.chip_size_x - wanted_width)
+        self.start_y.setMaximum(self.chip_size_y - wanted_height)
 
     def _reset_start_max(self) -> None:
         self.start_x.setMaximum(10000)
