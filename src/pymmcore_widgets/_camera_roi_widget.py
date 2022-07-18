@@ -226,21 +226,16 @@ class CameraRoiWidget(QWidget):
     def _on_roi_set(
         self, cam_label: str, x: int, y: int, width: int, height: int
     ) -> None:
-        if (
-            width != self.roi_width.value()
-            or height != self.roi_height.value()
-            or x != self.start_x.value()
-            or y != self.start_y.value()
-        ):
-            with signals_blocked(self.center_checkbox):
-                self.center_checkbox.setChecked(False)
-            with signals_blocked(self.cam_roi_combo):
-                self.cam_roi_combo.setCurrentText("ROI")
-            self.start_x.setMaximum(self.chip_size_x)
-            self.start_y.setMaximum(self.chip_size_y)
 
-            self._set_roi_groupbox_values(x, y, width, height, False)
-            self._on_roi_combobox_change("ROI")
+        with signals_blocked(self.center_checkbox):
+            self.center_checkbox.setChecked(False)
+        with signals_blocked(self.cam_roi_combo):
+            self.cam_roi_combo.setCurrentText("ROI")
+        self.start_x.setMaximum(self.chip_size_x)
+        self.start_y.setMaximum(self.chip_size_y)
+
+        self._set_roi_groupbox_values(x, y, width, height, False)
+        self._on_roi_combobox_change("ROI")
 
     def _update_lbl_info(self) -> None:
 
