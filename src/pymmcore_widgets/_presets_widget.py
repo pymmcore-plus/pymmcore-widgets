@@ -2,6 +2,8 @@ import warnings
 from typing import List, Optional, Tuple
 
 from pymmcore_plus import DeviceType
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QBrush
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QListView, QWidget
 from superqt.utils import signals_blocked
 
@@ -53,9 +55,10 @@ class PresetsWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._refresh)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
-        # connections to the new pymmcore-plus presetDeleted
+        # connections to the new pymmcore-plus presetDeleted and newGroupPreset
         self._mmc.events.presetDeleted.connect(self._on_preset_deleted)
         self._mmc.events.groupDeleted.connect(self._on_group_deleted)
+        self._mmc.events.newGroupPreset.connect(self._on_new_group_preset)
 
         self.destroyed.connect(self._disconnect)
 
@@ -64,10 +67,13 @@ class PresetsWidget(QWidget):
         view_height = sum(
             self._combo.view().sizeHintForRow(i) for i in range(self._combo.count())
         )
-        view.setFixedSize(self._combo.sizeHint().width(), view_height)
+        view.setMinimumHeight(view_height)
         self._combo.setView(view)
 
     def _check_if_presets_have_same_props(self) -> None:
+
+        # TODO: color the preset that is different
+
         n_prop = 0
         for idx, preset in enumerate(self._presets):
             if idx == 0:
@@ -77,7 +83,7 @@ class PresetsWidget(QWidget):
             device_property = self._get_preset_dev_prop(self._group, preset)
 
             if len(device_property) != n_prop:
-                warnings.warn(f"{self._presets} don't have the same properties")
+                warnings.warn(f"{self._presets} don't have the same properties!")
 
     def _on_text_activate(self, text: str) -> None:
         # used if there is only 1 preset and you want to set it
@@ -105,6 +111,7 @@ class PresetsWidget(QWidget):
         self._combo.setStyleSheet("color: magenta;")
 
     def _on_cfg_set(self, group: str, preset: str) -> None:
+
         if group == self._group and self._combo.currentText() != preset:
             with signals_blocked(self._combo):
                 self._combo.setCurrentText(preset)
@@ -186,11 +193,51 @@ class PresetsWidget(QWidget):
     def _on_preset_deleted(self, group: str, preset: str) -> None:
         if group != self._group:
             return
-        with signals_blocked(self._combo):
-            self._combo.clear()
-            self._update_combo()
+        self._refresh()
+
+    def _on_new_group_preset(
+        self, group: str, preset: str, dev_prop_val_list: List[Tuple[str, str, str]]
+    ) -> None:
+
+        if group != self._group:
+            return
+
+        if not dev_prop_val_list:
+            self._refresh()
+            return
+
+        _color = False
+
+        preset_dev_props = self._get_preset_dev_prop(self._group, preset)
+
+        # check if all [(dev, prop), ...] in the new preset are also in the other preset
+        if any(item not in self.dev_prop for item in preset_dev_props):
+            warnings.warn(
+                f"{preset} preset doesn't have the same properties "
+                "as the other presets!"
+                f"{set(self.dev_prop)} vs {set(preset_dev_props)}"
+            )
+            _color = True
+
+        elif len(preset_dev_props) != len(set(self.dev_prop)):
+            warnings.warn(
+                f"{preset} preset is missing the following properties: "
+                f"{set(self.dev_prop) - set(preset_dev_props)}"
+            )
+            _color = True
+
+        self._refresh()
+
+        idx = self._presets.index(preset)
+        if _color:
+            self._combo.setItemData(idx, QBrush(Qt.magenta), Qt.TextColorRole)
+        else:
+            self._combo.setItemData(idx, QBrush(Qt.NoBrush))
 
     def _disconnect(self) -> None:
         self._mmc.events.configSet.disconnect(self._on_cfg_set)
         self._mmc.events.systemConfigurationLoaded.disconnect(self._refresh)
         self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
+        self._mmc.events.presetDeleted.disconnect(self._on_preset_deleted)
+        self._mmc.events.groupDeleted.disconnect(self._on_group_deleted)
+        self._mmc.events.newGroupPreset.disconnect(self._on_new_group_preset)

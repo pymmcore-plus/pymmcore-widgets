@@ -4,7 +4,9 @@ from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 
-from pymmcore_widgets._group_preset_table_widget import GroupPresetTableWidget
+from pymmcore_widgets._group_preset_widget._group_preset_table_widget import (
+    GroupPresetTableWidget,
+)
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
