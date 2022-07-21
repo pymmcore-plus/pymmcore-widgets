@@ -7,7 +7,11 @@ from qtpy.QtWidgets import QVBoxLayout
 # from ._core import get_core_singleton
 # from ._presets_widget import PresetsWidget
 # from ._property_widget import PropertyWidget
+# from ._edit_preset_widget import EditPresetWidget
+# from ._add_preset_widget import AddPresetWidget
 from pymmcore_widgets._core import get_core_singleton
+from pymmcore_widgets._group_preset_widget._add_preset_widget import AddPresetWidget
+from pymmcore_widgets._group_preset_widget._edit_preset_widget import EditPresetWidget
 from pymmcore_widgets._presets_widget import PresetsWidget
 from pymmcore_widgets._property_widget import PropertyWidget
 
@@ -226,7 +230,20 @@ class GroupPresetTableWidget(QtW.QWidget):
             return
 
     def _add_preset(self) -> None:
-        pass
+        selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
+        if not selected_rows or len(selected_rows) > 1:
+            return
+
+        row = list(selected_rows)[0]
+        group = self.table_wdg.item(row, 0).text()
+        wdg = self.table_wdg.cellWidget(row, 1)
+
+        if isinstance(wdg, PropertyWidget):
+            return
+
+        if not hasattr(self, "add_preset"):
+            add_preset = AddPresetWidget(group, parent=self)
+        add_preset.show()
 
     def _delete_preset(self) -> None:
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
@@ -255,6 +272,17 @@ class GroupPresetTableWidget(QtW.QWidget):
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
         if not selected_rows or len(selected_rows) > 1:
             return
+
+        row = list(selected_rows)[0]
+        group = self.table_wdg.item(row, 0).text()
+        wdg = self.table_wdg.cellWidget(row, 1)
+        if isinstance(wdg, PropertyWidget):
+            return
+        if isinstance(wdg, PresetsWidget):
+            preset = wdg._combo.currentText()
+        if not hasattr(self, "edit_table"):
+            edit_table = EditPresetWidget(group, preset, parent=self)
+        edit_table.show()
 
     def _save_cfg(self) -> None:
         (filename, _) = QtW.QFileDialog.getSaveFileName(
