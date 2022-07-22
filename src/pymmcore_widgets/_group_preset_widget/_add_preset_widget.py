@@ -95,11 +95,14 @@ class AddPresetWidget(QDialog):
         wdg_layout.setContentsMargins(0, 0, 0, 0)
         wdg.setLayout(wdg_layout)
 
-        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.info_lbl = QLabel()
         self.add_preset_button = QPushButton(text="Add Preset")
+        self.add_preset_button.setSizePolicy(
+            QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        )
         self.add_preset_button.clicked.connect(self._add_preset)
 
-        wdg_layout.addItem(spacer)
+        wdg_layout.addWidget(self.info_lbl)
         wdg_layout.addWidget(self.add_preset_button)
 
         return wdg
@@ -131,6 +134,8 @@ class AddPresetWidget(QDialog):
 
         if preset_name in self._mmc.getAvailableConfigs(self._group):
             warnings.warn(f"There is already a preset called {preset_name}.")
+            self.info_lbl.setStyleSheet("color: magenta;")
+            self.info_lbl.setText(f"{preset_name} already exist!")
             return
 
         if not preset_name:
@@ -147,9 +152,24 @@ class AddPresetWidget(QDialog):
             value = self.table.cellWidget(row, 1).value()
             dev_prop_val.append((dev, prop, value))
 
-        self._mmc.defineConfigFromDevicePropertyValueList(  # type: ignore
+        for p in self._mmc.getAvailableConfigs(self._group):
+            dpv_preset = [
+                (k[0], k[1], k[2]) for k in self._mmc.getConfigData(self._group, p)
+            ]
+            if dpv_preset == dev_prop_val:
+                warnings.warn(
+                    "Threre is already a preset with the same "
+                    f"devices, properties and values: {p}."
+                )
+                self.info_lbl.setStyleSheet("color: magenta;")
+                self.info_lbl.setText(f"{p} already has the same properties!")
+                return
+
+        self._mmc.defineConfigFromDevicePropertyValueList(
             self._group, preset_name, dev_prop_val
         )
+        self.info_lbl.setStyleSheet("")
+        self.info_lbl.setText(f"{preset_name} has been defined!")
 
 
 class _Table(QTableWidget):

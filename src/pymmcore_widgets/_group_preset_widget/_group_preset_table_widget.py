@@ -164,7 +164,7 @@ class GroupPresetTableWidget(QtW.QWidget):
             if isinstance(wdg, PresetsWidget):
                 wdg._disconnect()
             elif isinstance(wdg, PropertyWidget):
-                wdg._value_widget.destroy()  # type: ignore
+                wdg._value_widget.destroy()
 
     def _populate_table(self) -> None:
         self._reset_table()
@@ -177,7 +177,7 @@ class GroupPresetTableWidget(QtW.QWidget):
                 if isinstance(wdg, PresetsWidget):
                     wdg = wdg._combo
                 elif isinstance(wdg, PropertyWidget):
-                    wdg = wdg._value_widget  # type: ignore
+                    wdg = wdg._value_widget
 
     def _get_cfg_data(self, group: str, preset: str) -> Tuple[str, str, str, int]:
         # Return last device-property-value for the preset and the
@@ -288,7 +288,8 @@ class GroupPresetTableWidget(QtW.QWidget):
         (filename, _) = QtW.QFileDialog.getSaveFileName(
             self, "Save Micro-Manager Configuration."
         )
-        self._mmc.saveSystemConfiguration(filename)
+        if filename:
+            self._mmc.saveSystemConfiguration(filename)
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._populate_table)

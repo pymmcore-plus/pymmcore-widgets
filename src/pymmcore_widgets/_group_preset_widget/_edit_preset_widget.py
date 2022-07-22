@@ -98,11 +98,14 @@ class EditPresetWidget(QDialog):
         wdg_layout.setContentsMargins(0, 0, 0, 0)
         wdg.setLayout(wdg_layout)
 
-        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.info_lbl = QLabel()
         self.apply_button = QPushButton(text="Apply Changes")
+        self.apply_button.setSizePolicy(
+            QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        )
         self.apply_button.clicked.connect(self._apply_changes)
 
-        wdg_layout.addItem(spacer)
+        wdg_layout.addWidget(self.info_lbl)
         wdg_layout.addWidget(self.apply_button)
 
         return wdg
@@ -135,9 +138,11 @@ class EditPresetWidget(QDialog):
 
         self._preset = self.preset_name_lineedit.text()
 
-        self._mmc.defineConfigFromDevicePropertyValueList(  # type: ignore
+        self._mmc.defineConfigFromDevicePropertyValueList(
             self._group, self._preset, dev_prop_val
         )
+
+        self.info_lbl.setText(f"{self._preset} has been modified!")
 
 
 class _Table(QTableWidget):
