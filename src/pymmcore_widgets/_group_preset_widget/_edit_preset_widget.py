@@ -131,7 +131,7 @@ class EditPresetWidget(QDialog):
             device_property = self.table.item(row, 0).text()
             dev = device_property.split("-")[0]
             prop = device_property.split("-")[1]
-            value = self.table.cellWidget(row, 1).value()
+            value = str(self.table.cellWidget(row, 1).value())
             dev_prop_val.append((dev, prop, value))
 
         self._mmc.deleteConfig(self._group, self._preset)

@@ -10,6 +10,7 @@ from qtpy.QtWidgets import QVBoxLayout
 # from ._edit_preset_widget import EditPresetWidget
 # from ._add_preset_widget import AddPresetWidget
 from pymmcore_widgets._core import get_core_singleton
+from pymmcore_widgets._group_preset_widget._add_group_widget import AddGroupWidget
 from pymmcore_widgets._group_preset_widget._add_preset_widget import AddPresetWidget
 from pymmcore_widgets._group_preset_widget._edit_preset_widget import EditPresetWidget
 from pymmcore_widgets._presets_widget import PresetsWidget
@@ -207,7 +208,14 @@ class GroupPresetTableWidget(QtW.QWidget):
             return PropertyWidget(device, property)
 
     def _add_group(self) -> None:
-        pass
+
+        if not hasattr(self, "_add_group_wdg"):
+            self._add_group_wdg = AddGroupWidget(parent=self)
+        if hasattr(self, "_edit_table_wgd"):
+            self._edit_table_wgd.close()
+        if hasattr(self, "_add_preset_wdg"):
+            self._add_preset_wdg.close()
+        self._add_group_wdg.show()
 
     def _delete_group(self) -> None:
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}

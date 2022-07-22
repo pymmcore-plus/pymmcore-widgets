@@ -1,4 +1,3 @@
-import warnings
 from typing import Optional
 
 from qtpy.QtCore import Qt
@@ -17,18 +16,30 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+# from ._core import get_core_singleton
+# from ._property_widget import PropertyWidget
+# from ._add_first_preset_widget import AddFirstPresetWidget
 from pymmcore_widgets._core import get_core_singleton
 from pymmcore_widgets._property_widget import PropertyWidget
 
 
-class AddPresetWidget(QDialog):
-    """A widget to add presets to a specified group."""
+class AddFirstPresetWidget(QDialog):
+    """A widget to create the first specified group's preset."""
 
-    def __init__(self, group: str, *, parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self,
+        group: str,
+        preset: str,
+        dev_prop_val_list: list,
+        *,
+        parent: Optional[QWidget] = None,
+    ) -> None:
         super().__init__(parent)
 
         self._mmc = get_core_singleton()
         self._group = group
+        self._preset = preset
+        self._dev_prop_val_list = dev_prop_val_list
 
         self._create_gui()
 
@@ -75,6 +86,7 @@ class AddPresetWidget(QDialog):
         ps_lbl = QLabel(text="Preset:")
         ps_lbl.setSizePolicy(lbl_sizepolicy)
         self.preset_name_lineedit = QLineEdit()
+        self.preset_name_lineedit.setText(f"{self._preset}")
 
         spacer = QSpacerItem(30, 10, QSizePolicy.Fixed, QSizePolicy.Fixed)
 
@@ -95,14 +107,14 @@ class AddPresetWidget(QDialog):
         wdg.setLayout(wdg_layout)
 
         self.info_lbl = QLabel()
-        self.add_preset_button = QPushButton(text="Add Preset")
-        self.add_preset_button.setSizePolicy(
+        self.apply_button = QPushButton(text="Create Preset")
+        self.apply_button.setSizePolicy(
             QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         )
-        self.add_preset_button.clicked.connect(self._add_preset)
+        self.apply_button.clicked.connect(self._create_first_preset)
 
         wdg_layout.addWidget(self.info_lbl)
-        wdg_layout.addWidget(self.add_preset_button)
+        wdg_layout.addWidget(self.apply_button)
 
         return wdg
 
@@ -110,38 +122,14 @@ class AddPresetWidget(QDialog):
 
         self.table.clearContents()
 
-        dev_prop = []
-        for preset in self._mmc.getAvailableConfigs(self._group):
-            dev_prop.extend(
-                [
-                    (k[0], k[1])
-                    for k in self._mmc.getConfigData(self._group, preset)
-                    if (k[0], k[1]) not in dev_prop
-                ]
-            )
-
-        self.table.setRowCount(len(dev_prop))
-        for idx, (dev, prop) in enumerate(dev_prop):
+        self.table.setRowCount(len(self._dev_prop_val_list))
+        for idx, (dev, prop, _) in enumerate(self._dev_prop_val_list):
             item = QTableWidgetItem(f"{dev}-{prop}")
             wdg = PropertyWidget(dev, prop, core=self._mmc)
             self.table.setItem(idx, 0, item)
             self.table.setCellWidget(idx, 1, wdg)
 
-    def _add_preset(self) -> None:
-
-        preset_name = self.preset_name_lineedit.text()
-
-        if preset_name in self._mmc.getAvailableConfigs(self._group):
-            warnings.warn(f"There is already a preset called {preset_name}.")
-            self.info_lbl.setStyleSheet("color: magenta;")
-            self.info_lbl.setText(f"{preset_name} already exist!")
-            return
-
-        if not preset_name:
-            idx = sum(
-                "NewPreset" in p for p in self._mmc.getAvailableConfigs(self._group)
-            )
-            preset_name = f"NewPreset_{idx}" if idx > 0 else "NewPreset"
+    def _create_first_preset(self) -> None:
 
         dev_prop_val = []
         for row in range(self.table.rowCount()):
@@ -151,24 +139,18 @@ class AddPresetWidget(QDialog):
             value = str(self.table.cellWidget(row, 1).value())
             dev_prop_val.append((dev, prop, value))
 
-        for p in self._mmc.getAvailableConfigs(self._group):
-            dpv_preset = [
-                (k[0], k[1], k[2]) for k in self._mmc.getConfigData(self._group, p)
-            ]
-            if dpv_preset == dev_prop_val:
-                warnings.warn(
-                    "Threre is already a preset with the same "
-                    f"devices, properties and values: {p}."
-                )
-                self.info_lbl.setStyleSheet("color: magenta;")
-                self.info_lbl.setText(f"{p} already has the same properties!")
-                return
+        self._preset = self.preset_name_lineedit.text()
 
         self._mmc.defineConfigFromDevicePropertyValueList(
-            self._group, preset_name, dev_prop_val
+            self._group, self._preset, dev_prop_val
         )
-        self.info_lbl.setStyleSheet("")
-        self.info_lbl.setText(f"{preset_name} has been defined!")
+
+        self.info_lbl.setText(
+            f"{self._preset} of {self._group} group has been created!"
+        )
+
+        self.close()
+        self.parent().close()
 
 
 class _Table(QTableWidget):
@@ -186,15 +168,3 @@ class _Table(QTableWidget):
         self.setEditTriggers(QTableWidget.NoEditTriggers)
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Device-Property", "Value"])
-
-
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
-
-    cfg = "/Users/FG/Dropbox/git/pymmcore-widgets/tests/test_config.cfg"
-    mmc = get_core_singleton()
-    mmc.loadSystemConfiguration(cfg)
-    app = QApplication([])
-    table = AddPresetWidget("Channel")
-    table.show()
-    app.exec_()
