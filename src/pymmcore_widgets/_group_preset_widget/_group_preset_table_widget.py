@@ -241,9 +241,11 @@ class GroupPresetTableWidget(QtW.QWidget):
         if isinstance(wdg, PropertyWidget):
             return
 
-        if not hasattr(self, "add_preset"):
-            add_preset = AddPresetWidget(group, parent=self)
-        add_preset.show()
+        if not hasattr(self, "_add_preset_wdg"):
+            self._add_preset_wdg = AddPresetWidget(group, parent=self)
+        if hasattr(self, "_edit_table_wgd"):
+            self._edit_table_wgd.close()
+        self._add_preset_wdg.show()
 
     def _delete_preset(self) -> None:
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
@@ -280,9 +282,11 @@ class GroupPresetTableWidget(QtW.QWidget):
             return
         if isinstance(wdg, PresetsWidget):
             preset = wdg._combo.currentText()
-        if not hasattr(self, "edit_table"):
-            edit_table = EditPresetWidget(group, preset, parent=self)
-        edit_table.show()
+        if not hasattr(self, "_edit_table_wgd"):
+            self._edit_table_wgd = EditPresetWidget(group, preset, parent=self)
+        if hasattr(self, "_add_preset_wdg"):
+            self._add_preset_wdg.close()
+        self._edit_table_wgd.show()
 
     def _save_cfg(self) -> None:
         (filename, _) = QtW.QFileDialog.getSaveFileName(
