@@ -115,6 +115,8 @@ class AddGroupWidget(QDialog):
         btn = self._create_button_wdg()
         main_layout.addWidget(btn)
 
+        self._set_show_read_only(False)
+
     def _create_group_lineedit_wdg(self) -> QGroupBox:
 
         wdg = QGroupBox()
@@ -142,7 +144,7 @@ class AddGroupWidget(QDialog):
         wdg.setLayout(layout)
 
         self._prop_table = _PropertyTable()
-        self._show_read_only: bool = True
+        self._show_read_only: bool = False
 
         self._filters: Set[DeviceType] = set()
         self._filter_text = QLineEdit()
