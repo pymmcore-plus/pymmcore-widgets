@@ -36,6 +36,8 @@ class AddPresetWidget(QDialog):
 
     def _create_gui(self) -> None:
 
+        self.setWindowTitle(f"Add a new Preset to the '{self._group}' Group")
+
         main_layout = QVBoxLayout()
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(10, 10, 10, 10)
@@ -59,6 +61,7 @@ class AddPresetWidget(QDialog):
         main_layout.addWidget(wdg)
 
     def _create_top_wdg(self) -> QGroupBox:
+
         wdg = QGroupBox()
         wdg_layout = QHBoxLayout()
         wdg_layout.setSpacing(5)
@@ -168,7 +171,7 @@ class AddPresetWidget(QDialog):
             self._group, preset_name, dev_prop_val
         )
         self.info_lbl.setStyleSheet("")
-        self.info_lbl.setText(f"{preset_name} has been defined!")
+        self.info_lbl.setText(f"{preset_name} has been added!")
 
 
 class _Table(QTableWidget):
@@ -186,15 +189,3 @@ class _Table(QTableWidget):
         self.setEditTriggers(QTableWidget.NoEditTriggers)
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Device-Property", "Value"])
-
-
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
-
-    cfg = "/Users/FG/Dropbox/git/pymmcore-widgets/tests/test_config.cfg"
-    mmc = get_core_singleton()
-    mmc.loadSystemConfiguration(cfg)
-    app = QApplication([])
-    table = AddPresetWidget("Channel")
-    table.show()
-    app.exec_()

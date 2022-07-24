@@ -2,9 +2,9 @@ import warnings
 from functools import partial
 from typing import Dict, Optional, Set, Tuple, cast
 
-from pymmcore_plus import CMMCorePlus, DeviceType
+from pymmcore_plus import DeviceType
 from qtpy.QtCore import Qt
-from qtpy.QtGui import QColor
+from qtpy.QtGui import QCloseEvent, QColor
 from qtpy.QtWidgets import (
     QAbstractScrollArea,
     QCheckBox,
@@ -23,14 +23,9 @@ from qtpy.QtWidgets import (
 )
 
 from pymmcore_widgets._core import get_core_singleton, iter_dev_props
-from pymmcore_widgets._group_preset_widget._add_first_preset_widget import (
-    AddFirstPresetWidget,
-)
 from pymmcore_widgets._property_widget import PropertyWidget
 
-# from ._core import get_core_singleton, iter_dev_props
-# from ._property_widget import PropertyWidget
-# from ._add_first_preset_widget import AddFirstPresetWidget
+from ._add_first_preset_widget import AddFirstPresetWidget
 
 
 class _PropertyTable(QTableWidget):
@@ -99,7 +94,15 @@ class AddGroupWidget(QDialog):
 
         self.destroyed.connect(self._disconnect)
 
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Close also 'AddFirstPresetWidget' if is open."""
+        if hasattr(self, "_first_preset_wdg"):
+            self._first_preset_wdg.close()  # type: ignore
+        event.accept()
+
     def _create_gui(self) -> None:
+
+        self.setWindowTitle("Create a new Group")
 
         main_layout = QVBoxLayout()
         main_layout.setSpacing(10)
@@ -288,15 +291,4 @@ class AddGroupWidget(QDialog):
         self._first_preset_wdg.show()
 
         self.info_lbl.setStyleSheet("")
-        self.info_lbl.setText(f"{group} group created!")
-
-
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
-
-    CMMCorePlus.instance().loadSystemConfiguration()
-    app = QApplication([])
-    table = AddGroupWidget()
-    table.show()
-
-    app.exec_()
+        self.info_lbl.setText("")

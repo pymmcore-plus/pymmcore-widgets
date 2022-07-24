@@ -209,12 +209,13 @@ class GroupPresetTableWidget(QtW.QWidget):
 
     def _add_group(self) -> None:
 
-        if not hasattr(self, "_add_group_wdg"):
-            self._add_group_wdg = AddGroupWidget(parent=self)
+        if hasattr(self, "_add_group_wdg"):
+            self._add_group_wdg.close()  # type: ignore
+        self._add_group_wdg = AddGroupWidget(parent=self)
         if hasattr(self, "_edit_table_wgd"):
-            self._edit_table_wgd.close()
+            self._edit_table_wgd.close()  # type: ignore
         if hasattr(self, "_add_preset_wdg"):
-            self._add_preset_wdg.close()
+            self._add_preset_wdg.close()  # type: ignore
         self._add_group_wdg.show()
 
     def _delete_group(self) -> None:
@@ -249,10 +250,12 @@ class GroupPresetTableWidget(QtW.QWidget):
         if isinstance(wdg, PropertyWidget):
             return
 
-        if not hasattr(self, "_add_preset_wdg"):
-            self._add_preset_wdg = AddPresetWidget(group, parent=self)
+        if hasattr(self, "_add_preset_wdg"):
+            self._add_preset_wdg.close()  # type: ignore
+        self._add_preset_wdg = AddPresetWidget(group, parent=self)
+
         if hasattr(self, "_edit_table_wgd"):
-            self._edit_table_wgd.close()
+            self._edit_table_wgd.close()  # type: ignore
         self._add_preset_wdg.show()
 
     def _delete_preset(self) -> None:
@@ -290,8 +293,9 @@ class GroupPresetTableWidget(QtW.QWidget):
             return
         if isinstance(wdg, PresetsWidget):
             preset = wdg._combo.currentText()
-        if not hasattr(self, "_edit_table_wgd"):
-            self._edit_table_wgd = EditPresetWidget(group, preset, parent=self)
+        if hasattr(self, "_edit_table_wgd"):
+            self._edit_table_wgd.close()  # type: ignore
+        self._edit_table_wgd = EditPresetWidget(group, preset, parent=self)
         if hasattr(self, "_add_preset_wdg"):
             self._add_preset_wdg.close()
         self._edit_table_wgd.show()

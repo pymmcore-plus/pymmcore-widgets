@@ -39,6 +39,10 @@ class EditPresetWidget(QDialog):
 
     def _create_gui(self) -> None:
 
+        self.setWindowTitle(
+            f"Edit the '{self._preset}' Preset from the '{self._group}' Group"
+        )
+
         main_layout = QVBoxLayout()
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(10, 10, 10, 10)
@@ -160,15 +164,3 @@ class _Table(QTableWidget):
         self.setEditTriggers(QTableWidget.NoEditTriggers)
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Device-Property", "Value"])
-
-
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
-
-    cfg = "/Users/FG/Dropbox/git/pymmcore-widgets/tests/test_config.cfg"
-    mmc = get_core_singleton()
-    mmc.loadSystemConfiguration(cfg)
-    app = QApplication([])
-    table = EditPresetWidget("Channel", "FITC")
-    table.show()
-    app.exec_()

@@ -16,9 +16,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-# from ._core import get_core_singleton
-# from ._property_widget import PropertyWidget
-# from ._add_first_preset_widget import AddFirstPresetWidget
 from pymmcore_widgets._core import get_core_singleton
 from pymmcore_widgets._property_widget import PropertyWidget
 
@@ -46,6 +43,8 @@ class AddFirstPresetWidget(QDialog):
         self._populate_table()
 
     def _create_gui(self) -> None:
+
+        self.setWindowTitle(f"Add the first Preset to the new '{self._group}' Group")
 
         main_layout = QVBoxLayout()
         main_layout.setSpacing(0)
