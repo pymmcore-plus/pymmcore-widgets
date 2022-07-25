@@ -105,14 +105,15 @@ class AddFirstPresetWidget(QDialog):
         wdg_layout.setContentsMargins(0, 0, 0, 0)
         wdg.setLayout(wdg_layout)
 
-        self.info_lbl = QLabel()
         self.apply_button = QPushButton(text="Create Preset")
         self.apply_button.setSizePolicy(
             QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         )
         self.apply_button.clicked.connect(self._create_first_preset)
 
-        wdg_layout.addWidget(self.info_lbl)
+        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        wdg_layout.addItem(spacer)
         wdg_layout.addWidget(self.apply_button)
 
         return wdg
@@ -143,10 +144,6 @@ class AddFirstPresetWidget(QDialog):
 
         self._mmc.defineConfigFromDevicePropertyValueList(
             self._group, self._preset, dev_prop_val
-        )
-
-        self.info_lbl.setText(
-            f"{self._preset} of {self._group} group has been created!"
         )
 
         self.close()
