@@ -156,6 +156,8 @@ class PresetsWidget(QWidget):
 
     def _update_combo(self) -> None:
         self._presets = list(self._mmc.getAvailableConfigs(self._group))
+        if self._presets:
+            self.dev_prop = self._get_group_dev_prop(self._group, self._presets[0])
         self._combo.addItems(self._presets)
         self._combo.setEnabled(True)
         self._combo.setCurrentText(self._mmc.getCurrentConfig(self._group))
@@ -208,10 +210,39 @@ class PresetsWidget(QWidget):
 
         _color = False
 
+        # remove any of the [(dev, prop, value), ...] in the new preset
+        # that are not in the group
+        if (
+            self._mmc.isGroupDefined(group)
+            and len(self._mmc.getAvailableConfigs(group)) > 1
+            and self.dev_prop
+        ):
+            _to_delete = [
+                (dpv[0], dpv[1])
+                for dpv in dev_prop_val_list
+                if (dpv[0], dpv[1]) not in set(self.dev_prop)
+            ]
+
+            if _to_delete:
+                warnings.warn(
+                    f"{_to_delete} are not included in the group and will not be added!"
+                )
+                self._mmc.deletePresetDeviceProperties(  # type: ignore
+                    self._group, preset, _to_delete, emit=False
+                )
+
+            # if the new preset won't have any (dev, prop, val)
+            if len(_to_delete) == len(dev_prop_val_list):
+                self._refresh()
+                return
+
         preset_dev_props = self._get_preset_dev_prop(self._group, preset)
 
         # check if all [(dev, prop), ...] in the new preset are also in the other preset
-        if any(item not in self.dev_prop for item in preset_dev_props):
+        if (
+            any(item not in self.dev_prop for item in preset_dev_props)
+            and self.dev_prop
+        ):
             warnings.warn(
                 f"{preset} preset doesn't have the same properties "
                 "as the other presets!"
@@ -219,7 +250,7 @@ class PresetsWidget(QWidget):
             )
             _color = True
 
-        elif len(preset_dev_props) != len(set(self.dev_prop)):
+        elif len(preset_dev_props) != len(set(self.dev_prop)) and self.dev_prop:
             warnings.warn(
                 f"{preset} preset is missing the following properties: "
                 f"{set(self.dev_prop) - set(preset_dev_props)}"

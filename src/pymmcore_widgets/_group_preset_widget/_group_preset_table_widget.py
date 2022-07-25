@@ -1,4 +1,5 @@
-from typing import Tuple, Union
+import warnings
+from typing import List, Tuple, Union
 
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
@@ -146,11 +147,34 @@ class GroupPresetTableWidget(QtW.QWidget):
     def _on_system_cfg_loaded(self) -> None:
         self._populate_table()
 
-    def _on_new_group_preset(self, group: str) -> None:
+    def _on_new_group_preset(
+        self, group: str, preset: str, dev_prop_val_list: List[Tuple[str, str, str]]
+    ) -> None:
+
         if matching_item := self.table_wdg.findItems(group, Qt.MatchExactly):
             row = matching_item[0].row()
+
             if isinstance(self.table_wdg.cellWidget(row, 1), PropertyWidget):
+                _presets = self._mmc.getAvailableConfigs(group)
+                if len(_presets) > 1:
+                    dev_prop_0 = [
+                        (k[0], k[1])
+                        for k in self._mmc.getConfigData(group, _presets[0])
+                    ]
+                    dev_prop_1 = [(k[0], k[1]) for k in dev_prop_val_list]
+                    if dev_prop_1 != dev_prop_0:
+                        warnings.warn(
+                            f"{dev_prop_1} are not included in the group "
+                            "and will not be added!"
+                        )
+                        self._mmc.deletePresetDeviceProperties(  # type: ignore
+                            group, preset, dev_prop_1, emit=False
+                        )
+                    else:
+                        self._mmc.deleteConfig(group, preset)
+
                 self._populate_table()
+
         else:
             self._populate_table()
 
@@ -164,8 +188,6 @@ class GroupPresetTableWidget(QtW.QWidget):
             wdg = self.table_wdg.cellWidget(r, 1)
             if isinstance(wdg, PresetsWidget):
                 wdg._disconnect()
-            elif isinstance(wdg, PropertyWidget):
-                wdg._value_widget.destroy()
 
     def _populate_table(self) -> None:
         self._reset_table()
@@ -178,7 +200,7 @@ class GroupPresetTableWidget(QtW.QWidget):
                 if isinstance(wdg, PresetsWidget):
                     wdg = wdg._combo
                 elif isinstance(wdg, PropertyWidget):
-                    wdg = wdg._value_widget
+                    wdg = wdg._value_widget  # type: ignore
 
     def _get_cfg_data(self, group: str, preset: str) -> Tuple[str, str, str, int]:
         # Return last device-property-value for the preset and the
