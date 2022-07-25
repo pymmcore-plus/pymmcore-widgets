@@ -33,7 +33,9 @@ class PresetsWidget(QWidget):
         if not self._presets:
             raise ValueError(f"{self._group} group does not have presets.")
 
-        self.dev_prop = self._get_group_dev_prop(self._group, self._presets[0])
+        self._update_presets()
+
+        self.dev_prop = self._get_group_dev_prop(self._group)
 
         self._check_if_presets_have_same_props()
 
@@ -117,7 +119,7 @@ class PresetsWidget(QWidget):
                 self._combo.setCurrentText(preset)
                 self._combo.setStyleSheet("")
         else:
-            dev_prop_list = self._get_group_dev_prop(group, preset)
+            dev_prop_list = self._get_group_dev_prop(group)
             if any(dev_prop for dev_prop in dev_prop_list if dev_prop in self.dev_prop):
                 self._set_if_props_match_preset()
 
@@ -135,7 +137,7 @@ class PresetsWidget(QWidget):
         """Return a list with (device, property) for the selected group preset."""
         return [(k[0], k[1]) for k in self._mmc.getConfigData(group, preset)]
 
-    def _get_group_dev_prop(self, group: str, preset: str) -> List[Tuple[str, str]]:
+    def _get_group_dev_prop(self, group: str) -> List[Tuple[str, str]]:
         """Return list of all (device, prop) used in the config group's presets."""
         dev_props = []
         for preset in self._mmc.getAvailableConfigs(group):
@@ -157,7 +159,7 @@ class PresetsWidget(QWidget):
     def _update_combo(self) -> None:
         self._presets = list(self._mmc.getAvailableConfigs(self._group))
         if self._presets:
-            self.dev_prop = self._get_group_dev_prop(self._group, self._presets[0])
+            self.dev_prop = self._get_group_dev_prop(self._group)
         self._combo.addItems(self._presets)
         self._combo.setEnabled(True)
         self._combo.setCurrentText(self._mmc.getCurrentConfig(self._group))
