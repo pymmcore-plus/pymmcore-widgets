@@ -106,6 +106,8 @@ class ChannelWidget(QWidget):
     def _on_new_group_preset(self, group: str) -> None:
         if group == self._channel_group:
             self._on_channel_group_changed(group)
+        elif not self._mmc.getChannelGroup():
+            self._on_channel_group_changed("")
 
     def _on_group_or_preset_deleted(self, group: str) -> None:
         if group == self._channel_group:
