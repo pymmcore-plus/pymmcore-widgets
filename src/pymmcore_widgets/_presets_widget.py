@@ -76,6 +76,7 @@ class PresetsWidget(QWidget):
         """Prevent the group to have presets containing different properties."""
         group_dev_prop = self._get_preset_dev_prop(self._group, self._presets[0])
 
+        _to_delete = []
         for preset in self._presets:
             if preset == self._presets[0]:
                 continue
@@ -83,13 +84,15 @@ class PresetsWidget(QWidget):
             device_property = self._get_preset_dev_prop(self._group, preset)
 
             if len(device_property) != len(group_dev_prop):
+                _to_delete.append(preset)
                 self._mmc.deleteConfig(self._group, preset)
-                warnings.warn(
-                    f"{preset} preset don't have all the {self._group} group "
-                    "properties and will be deleted!"
-                )
 
-        self._presets = list(self._mmc.getAvailableConfigs(self._group))
+        if _to_delete:
+            warnings.warn(
+                f"{_to_delete} presets don't have all the {self._group} group "
+                "properties and will be deleted!"
+            )
+            self._presets = list(self._mmc.getAvailableConfigs(self._group))
 
     def _on_text_activate(self, text: str) -> None:
         # used if there is only 1 preset and you want to set it
