@@ -127,6 +127,7 @@ class AddPresetWidget(QDialog):
         for idx, (dev, prop) in enumerate(dev_prop):
             item = QTableWidgetItem(f"{dev}-{prop}")
             wdg = PropertyWidget(dev, prop, core=self._mmc)
+            wdg._value_widget.valueChanged.disconnect()
             self.table.setItem(idx, 0, item)
             self.table.setCellWidget(idx, 1, wdg)
 
