@@ -33,11 +33,11 @@ class PresetsWidget(QWidget):
         if not self._presets:
             raise ValueError(f"{self._group} group does not have presets.")
 
-        self._update_presets()
+        self._delete_presets_with_different_properties()
 
-        self.dev_prop = self._get_group_dev_prop(self._group)
-
-        self._check_if_presets_have_same_props()
+        # getting (dev, prop) of the group using the first preset
+        # since they must be all the same
+        self.dev_prop = self._get_preset_dev_prop(self._group, self._presets[0])
 
         self._combo = QComboBox()
         self._combo.currentTextChanged.connect(self._update_tooltip)
@@ -72,20 +72,24 @@ class PresetsWidget(QWidget):
         view.setMinimumHeight(view_height)
         self._combo.setView(view)
 
-    def _check_if_presets_have_same_props(self) -> None:
+    def _delete_presets_with_different_properties(self) -> None:
+        """Prevent the group to have presets containing different properties."""
+        group_dev_prop = self._get_preset_dev_prop(self._group, self._presets[0])
 
-        # TODO: color the preset that is different
-
-        n_prop = 0
-        for idx, preset in enumerate(self._presets):
-            if idx == 0:
-                n_prop = len(self._get_preset_dev_prop(self._group, preset))
+        for preset in self._presets:
+            if preset == self._presets[0]:
                 continue
 
             device_property = self._get_preset_dev_prop(self._group, preset)
 
-            if len(device_property) != n_prop:
-                warnings.warn(f"{self._presets} don't have the same properties!")
+            if len(device_property) != len(group_dev_prop):
+                self._mmc.deleteConfig(self._group, preset)
+                warnings.warn(
+                    f"{preset} preset don't have all the {self._group} group "
+                    "properties and will be deleted!"
+                )
+
+        self._presets = list(self._mmc.getAvailableConfigs(self._group))
 
     def _on_text_activate(self, text: str) -> None:
         # used if there is only 1 preset and you want to set it
@@ -119,7 +123,7 @@ class PresetsWidget(QWidget):
                 self._combo.setCurrentText(preset)
                 self._combo.setStyleSheet("")
         else:
-            dev_prop_list = self._get_group_dev_prop(group)
+            dev_prop_list = self._get_preset_dev_prop(self._group, self._presets[0])
             if any(dev_prop for dev_prop in dev_prop_list if dev_prop in self.dev_prop):
                 self._set_if_props_match_preset()
 
@@ -137,15 +141,6 @@ class PresetsWidget(QWidget):
         """Return a list with (device, property) for the selected group preset."""
         return [(k[0], k[1]) for k in self._mmc.getConfigData(group, preset)]
 
-    def _get_group_dev_prop(self, group: str) -> List[Tuple[str, str]]:
-        """Return list of all (device, prop) used in the config group's presets."""
-        dev_props = []
-        for preset in self._mmc.getAvailableConfigs(group):
-            dev_props.extend(
-                [(k[0], k[1]) for k in self._mmc.getConfigData(group, preset)]
-            )
-        return dev_props
-
     def _refresh(self) -> None:
         """Refresh widget based on mmcore."""
         with signals_blocked(self._combo):
@@ -159,7 +154,7 @@ class PresetsWidget(QWidget):
     def _update_combo(self) -> None:
         self._presets = list(self._mmc.getAvailableConfigs(self._group))
         if self._presets:
-            self.dev_prop = self._get_group_dev_prop(self._group)
+            self.dev_prop = self._get_preset_dev_prop(self._group, self._presets[0])
         self._combo.addItems(self._presets)
         self._combo.setEnabled(True)
         self._combo.setCurrentText(self._mmc.getCurrentConfig(self._group))
