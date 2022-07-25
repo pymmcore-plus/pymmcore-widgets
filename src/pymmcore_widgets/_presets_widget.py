@@ -62,7 +62,7 @@ class PresetsWidget(QWidget):
         view_height = sum(
             self._combo.view().sizeHintForRow(i) for i in range(self._combo.count())
         )
-        view.setFixedSize(self._combo.sizeHint().width(), view_height)
+        view.setFixedHeight(view_height)
         self._combo.setView(view)
 
     def _check_if_presets_have_same_props(self) -> None:
