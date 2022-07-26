@@ -230,7 +230,7 @@ class PixelSizeTable(QtW.QTableWidget):
             self.parent().parent().close()
 
 
-class PixelSizeWidget(QtW.QWidget):
+class PixelSizeWidget(QtW.QDialog):
     """Make a widget to set the pixel size configuration."""
 
     def __init__(
