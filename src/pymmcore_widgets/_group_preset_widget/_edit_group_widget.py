@@ -95,7 +95,7 @@ DevTypeLabels["other devices"] = tuple(set(DeviceType) - _d)
 
 
 class EditGroupWidget(QDialog):
-    """Widget to edit the specified group."""
+    """Widget to edit the specified Group."""
 
     def __init__(self, group: str, *, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -115,15 +115,9 @@ class EditGroupWidget(QDialog):
 
         self.destroyed.connect(self._disconnect)
 
-    # def closeEvent(self, event: QCloseEvent) -> None:
-    #     """Close also 'AddFirstPresetWidget' if is open."""
-    #     if hasattr(self, "_first_preset_wdg"):
-    #         self._first_preset_wdg.close()  # type: ignore
-    #     event.accept()
-
     def _create_gui(self) -> None:
 
-        self.setWindowTitle("Create a new Group")
+        self.setWindowTitle(f"Edit the '{self._group}' Group.")
 
         main_layout = QVBoxLayout()
         main_layout.setSpacing(10)
@@ -202,7 +196,7 @@ class EditGroupWidget(QDialog):
 
         self.info_lbl = QLabel()
 
-        self.new_group_btn = QPushButton(text="Create New Group")
+        self.new_group_btn = QPushButton(text="Modify Group")
         self.new_group_btn.setSizePolicy(
             QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         )
@@ -277,39 +271,55 @@ class EditGroupWidget(QDialog):
         self._update_filter()
 
     def _add_group(self) -> None:
-        pass
-        # group = self.group_lineedit.text()
 
-        # if not group:
-        #     warnings.warn("Give a name to the group!")
-        #     self.info_lbl.setStyleSheet("color: magenta;")
-        #     self.info_lbl.setText("Give a name to the group!")
-        #     return
+        new_dev_prop: List[Tuple[str, str]] = []
+        for row in range(self._prop_table.rowCount()):
+            _checkbox = cast(QCheckBox, self._prop_table.cellWidget(row, 0))
 
-        # if group in self._mmc.getAvailableConfigGroups():
-        #     warnings.warn(f"There is already a preset called {group}.")
-        #     self.info_lbl.setStyleSheet("color: magenta;")
-        #     self.info_lbl.setText(f"{group} already exist!!")
-        #     return
+            if not _checkbox.isChecked():
+                continue
 
-        # dev_prop_val_list = []
-        # for r in range(self._prop_table.rowCount()):
-        #     checkbox = cast(QCheckBox, self._prop_table.cellWidget(r, 0))
-        #     if checkbox.isChecked():
-        #         row = checkbox.property("row")
-        #         dev_prop = self._prop_table.item(row, 1).text()
-        #         dev = dev_prop.split("-")[0]
-        #         prop = dev_prop.split("-")[1]
-        #         value = self._prop_table.cellWidget(row, 2).value()
+            device_property = self._prop_table.item(row, 1).text()
+            dev = device_property.split("-")[0]
+            prop = device_property.split("-")[1]
+            new_dev_prop.append((dev, prop))
 
-        #         dev_prop_val_list.append((dev, prop, str(value)))
+        presets = self._mmc.getAvailableConfigs(self._group)
+        preset_dev_prop = [
+            (k[0], k[1]) for k in self._mmc.getConfigData(self._group, presets[0])
+        ]
 
-        # if hasattr(self, "_first_preset_wdg"):
-        #     self._first_preset_wdg.close()  # type: ignore
-        # self._first_preset_wdg = AddFirstPresetWidget(
-        #     group, "NewPreset", dev_prop_val_list, parent=self
-        # )
-        # self._first_preset_wdg.show()
+        if preset_dev_prop == new_dev_prop:
+            return
 
-        # self.info_lbl.setStyleSheet("")
-        # self.info_lbl.setText("")
+        # get any new dev prop to add to each preset
+        _to_add: List[Tuple[str, str, str]] = []
+        for d, p in new_dev_prop:
+            if (d, p) not in preset_dev_prop:
+                value = self._mmc.getProperty(d, p)
+                _to_add.append((d, p, value))
+
+        # get the dev prop val to keep per preset
+        _prop_to_keep: List[List[Tuple[str, str, str]]] = []
+        for preset in presets:
+            preset_dev_prop_val = [
+                (k[0], k[1], k[2]) for k in self._mmc.getConfigData(self._group, preset)
+            ]
+            _to_keep = [
+                (d, p, v) for d, p, v in preset_dev_prop_val if (d, p) in new_dev_prop
+            ]
+            _prop_to_keep.append(_to_keep)
+
+        self._mmc.deleteConfigGroup(self._group)
+
+        for idx, preset in enumerate(presets):
+
+            preset_dpv = _prop_to_keep[idx]
+            if _to_add:
+                preset_dpv.extend(_to_add)
+
+            self._mmc.defineConfigFromDevicePropertyValueList(
+                self._group, preset, preset_dpv
+            )
+
+        self.info_lbl.setText(f"{self._group} Group Modified.")

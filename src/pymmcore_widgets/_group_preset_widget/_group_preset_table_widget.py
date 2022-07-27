@@ -5,11 +5,6 @@ from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QVBoxLayout
 
-# from ._core import get_core_singleton
-# from ._presets_widget import PresetsWidget
-# from ._property_widget import PropertyWidget
-# from ._edit_preset_widget import EditPresetWidget
-# from ._add_preset_widget import AddPresetWidget
 from pymmcore_widgets._core import get_core_singleton
 from pymmcore_widgets._group_preset_widget._add_group_widget import AddGroupWidget
 from pymmcore_widgets._group_preset_widget._add_preset_widget import AddPresetWidget
@@ -17,6 +12,11 @@ from pymmcore_widgets._group_preset_widget._edit_group_widget import EditGroupWi
 from pymmcore_widgets._group_preset_widget._edit_preset_widget import EditPresetWidget
 from pymmcore_widgets._presets_widget import PresetsWidget
 from pymmcore_widgets._property_widget import PropertyWidget
+
+# from ._add_group_widget import AddGroupWidget
+# from ._add_preset_widget import AddPresetWidget
+# from ._edit_group_widget import EditGroupWidget
+# from ._edit_preset_widget import EditPresetWidget
 
 
 class _MainTable(QtW.QTableWidget):
@@ -34,6 +34,7 @@ class _MainTable(QtW.QTableWidget):
         self.setEditTriggers(QtW.QTableWidget.NoEditTriggers)
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Group", "Preset"])
+        self.setMinimumHeight(200)
 
 
 class GroupPresetTableWidget(QtW.QWidget):
@@ -230,15 +231,20 @@ class GroupPresetTableWidget(QtW.QWidget):
         else:
             return PropertyWidget(device, property)
 
-    def _add_group(self) -> None:
+    def _close_if_hasattr(self) -> None:
+        attr_list = [
+            "_add_group_wdg",
+            "_edit_preset_wgd",
+            "_add_preset_wdg",
+            "_edit_group_wdg",
+        ]
+        for i in attr_list:
+            if hasattr(self, i):
+                getattr(self, i).close()
 
-        if hasattr(self, "_add_group_wdg"):
-            self._add_group_wdg.close()  # type: ignore
+    def _add_group(self) -> None:
+        self._close_if_hasattr()
         self._add_group_wdg = AddGroupWidget(parent=self)
-        if hasattr(self, "_edit_table_wgd"):
-            self._edit_table_wgd.close()  # type: ignore
-        if hasattr(self, "_add_preset_wdg"):
-            self._add_preset_wdg.close()  # type: ignore
         self._add_group_wdg.show()
 
     def _delete_group(self) -> None:
@@ -263,9 +269,7 @@ class GroupPresetTableWidget(QtW.QWidget):
 
         row = list(selected_rows)[0]
         group = self.table_wdg.item(row, 0).text()
-
-        if hasattr(self, "_edit_group_wdg"):
-            self._edit_group_wdg.close()  # type: ignore
+        self._close_if_hasattr()
         self._edit_group_wdg = EditGroupWidget(group)
         self._edit_group_wdg.show()
 
@@ -281,12 +285,8 @@ class GroupPresetTableWidget(QtW.QWidget):
         if isinstance(wdg, PropertyWidget):
             return
 
-        if hasattr(self, "_add_preset_wdg"):
-            self._add_preset_wdg.close()  # type: ignore
+        self._close_if_hasattr()
         self._add_preset_wdg = AddPresetWidget(group, parent=self)
-
-        if hasattr(self, "_edit_table_wgd"):
-            self._edit_table_wgd.close()  # type: ignore
         self._add_preset_wdg.show()
 
     def _delete_preset(self) -> None:
@@ -324,12 +324,9 @@ class GroupPresetTableWidget(QtW.QWidget):
             return
         if isinstance(wdg, PresetsWidget):
             preset = wdg._combo.currentText()
-        if hasattr(self, "_edit_table_wgd"):
-            self._edit_table_wgd.close()  # type: ignore
-        self._edit_table_wgd = EditPresetWidget(group, preset, parent=self)
-        if hasattr(self, "_add_preset_wdg"):
-            self._add_preset_wdg.close()
-        self._edit_table_wgd.show()
+        self._close_if_hasattr()
+        self._edit_preset_wgd = EditPresetWidget(group, preset, parent=self)
+        self._edit_preset_wgd.show()
 
     def _save_cfg(self) -> None:
         (filename, _) = QtW.QFileDialog.getSaveFileName(
