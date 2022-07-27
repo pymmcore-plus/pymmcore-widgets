@@ -13,6 +13,7 @@ from qtpy.QtWidgets import QVBoxLayout
 from pymmcore_widgets._core import get_core_singleton
 from pymmcore_widgets._group_preset_widget._add_group_widget import AddGroupWidget
 from pymmcore_widgets._group_preset_widget._add_preset_widget import AddPresetWidget
+from pymmcore_widgets._group_preset_widget._edit_group_widget import EditGroupWidget
 from pymmcore_widgets._group_preset_widget._edit_preset_widget import EditPresetWidget
 from pymmcore_widgets._presets_widget import PresetsWidget
 from pymmcore_widgets._property_widget import PropertyWidget
@@ -167,7 +168,7 @@ class GroupPresetTableWidget(QtW.QWidget):
                             f"{dev_prop_1} are not included in the group "
                             "and will not be added!"
                         )
-                        self._mmc.deletePresetDeviceProperties(  # type: ignore
+                        self._mmc.deletePresetDeviceProperties(
                             group, preset, dev_prop_1, emit=False
                         )
                     else:
@@ -200,7 +201,7 @@ class GroupPresetTableWidget(QtW.QWidget):
                 if isinstance(wdg, PresetsWidget):
                     wdg = wdg._combo
                 elif isinstance(wdg, PropertyWidget):
-                    wdg = wdg._value_widget  # type: ignore
+                    wdg = wdg._value_widget
 
     def _get_cfg_data(self, group: str, preset: str) -> Tuple[str, str, str, int]:
         # Return last device-property-value for the preset and the
@@ -259,6 +260,14 @@ class GroupPresetTableWidget(QtW.QWidget):
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
         if not selected_rows or len(selected_rows) > 1:
             return
+
+        row = list(selected_rows)[0]
+        group = self.table_wdg.item(row, 0).text()
+
+        if hasattr(self, "_edit_group_wdg"):
+            self._edit_group_wdg.close()  # type: ignore
+        self._edit_group_wdg = EditGroupWidget(group)
+        self._edit_group_wdg.show()
 
     def _add_preset(self) -> None:
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
