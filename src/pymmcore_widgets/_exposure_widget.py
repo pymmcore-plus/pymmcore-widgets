@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
+from pymmcore import g_Keyword_CoreCamera, g_Keyword_CoreDevice
+from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from superqt.utils import signals_blocked
-
-if TYPE_CHECKING:
-    from pymmcore_plus import CMMCorePlus
-
-from pymmcore import g_Keyword_CoreCamera, g_Keyword_CoreDevice
 
 
 class ExposureWidget(QtW.QWidget):
