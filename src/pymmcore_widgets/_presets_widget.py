@@ -1,11 +1,9 @@
 import warnings
 from typing import List, Optional, Tuple
 
-from pymmcore_plus import DeviceType
+from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QListView, QWidget
 from superqt.utils import signals_blocked
-
-from ._core import get_core_singleton
 
 
 class PresetsWidget(QWidget):
@@ -19,7 +17,7 @@ class PresetsWidget(QWidget):
 
         super().__init__(parent)
 
-        self._mmc = get_core_singleton()
+        self._mmc = CMMCorePlus.instance()
 
         self._group = group
 

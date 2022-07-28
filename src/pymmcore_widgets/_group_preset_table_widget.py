@@ -1,10 +1,10 @@
 from typing import Tuple, Union
 
+from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QVBoxLayout
 
-from ._core import get_core_singleton
 from ._presets_widget import PresetsWidget
 from ._property_widget import PropertyWidget
 
@@ -32,7 +32,7 @@ class GroupPresetTableWidget(QtW.QWidget):
     def __init__(self) -> None:
         super().__init__()
 
-        self._mmc = get_core_singleton()
+        self._mmc = CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._populate_table)
         self.table_wdg = _MainTable()
         self.table_wdg.show()

@@ -3,7 +3,7 @@ from typing import Optional
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
 
-from ._core import get_core_singleton, load_system_config
+from ._core import load_system_config
 
 
 class ConfigurationWidget(QtW.QGroupBox):
@@ -17,7 +17,7 @@ class ConfigurationWidget(QtW.QGroupBox):
     ) -> None:
         super().__init__(parent)
 
-        self._mmc = mmcore or get_core_singleton()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         self.setTitle("Micro-Manager Configuration")
 

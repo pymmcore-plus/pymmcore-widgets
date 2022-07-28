@@ -11,8 +11,6 @@ if TYPE_CHECKING:
 
 from pymmcore import g_Keyword_CoreCamera, g_Keyword_CoreDevice
 
-from ._core import get_core_singleton
-
 
 class ExposureWidget(QtW.QWidget):
     """Generic widget to get/set exposure time on a camera."""
@@ -25,7 +23,7 @@ class ExposureWidget(QtW.QWidget):
         core: Optional[CMMCorePlus] = None,
     ):
         super().__init__()
-        self._mmc = core or get_core_singleton()
+        self._mmc = core or CMMCorePlus.instance()
         self._camera = camera or self._mmc.getCameraDevice()
 
         self.label = QtW.QLabel()
