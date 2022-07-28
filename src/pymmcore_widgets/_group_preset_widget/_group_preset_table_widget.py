@@ -169,7 +169,7 @@ class GroupPresetTableWidget(QtW.QWidget):
                             f"{dev_prop_1} are not included in the group "
                             "and will not be added!"
                         )
-                        self._mmc.deletePresetDeviceProperties(
+                        self._mmc.deletePresetDeviceProperties(  # type: ignore
                             group, preset, dev_prop_1, emit=False
                         )
                     else:
@@ -202,7 +202,7 @@ class GroupPresetTableWidget(QtW.QWidget):
                 if isinstance(wdg, PresetsWidget):
                     wdg = wdg._combo
                 elif isinstance(wdg, PropertyWidget):
-                    wdg = wdg._value_widget
+                    wdg = wdg._value_widget  # type: ignore
 
     def _get_cfg_data(self, group: str, preset: str) -> Tuple[str, str, str, int]:
         # Return last device-property-value for the preset and the

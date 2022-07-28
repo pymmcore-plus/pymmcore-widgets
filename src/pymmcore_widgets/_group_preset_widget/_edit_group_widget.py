@@ -318,7 +318,7 @@ class EditGroupWidget(QDialog):
             if _to_add:
                 preset_dpv.extend(_to_add)
 
-            self._mmc.defineConfigFromDevicePropertyValueList(
+            self._mmc.defineConfigFromDevicePropertyValueList(  # type: ignore
                 self._group, preset, preset_dpv
             )
 

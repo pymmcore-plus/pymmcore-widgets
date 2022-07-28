@@ -126,7 +126,7 @@ class AddFirstPresetWidget(QDialog):
         for idx, (dev, prop, _) in enumerate(self._dev_prop_val_list):
             item = QTableWidgetItem(f"{dev}-{prop}")
             wdg = PropertyWidget(dev, prop, core=self._mmc)
-            wdg._value_widget.valueChanged.disconnect()
+            wdg._value_widget.valueChanged.disconnect()  # type: ignore
             self.table.setItem(idx, 0, item)
             self.table.setCellWidget(idx, 1, wdg)
 
@@ -142,7 +142,7 @@ class AddFirstPresetWidget(QDialog):
 
         self._preset = self.preset_name_lineedit.text()
 
-        self._mmc.defineConfigFromDevicePropertyValueList(
+        self._mmc.defineConfigFromDevicePropertyValueList(  # type: ignore
             self._group, self._preset, dev_prop_val
         )
 

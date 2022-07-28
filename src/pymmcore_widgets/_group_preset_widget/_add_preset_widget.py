@@ -127,7 +127,7 @@ class AddPresetWidget(QDialog):
         for idx, (dev, prop) in enumerate(dev_prop):
             item = QTableWidgetItem(f"{dev}-{prop}")
             wdg = PropertyWidget(dev, prop, core=self._mmc)
-            wdg._value_widget.valueChanged.disconnect()
+            wdg._value_widget.valueChanged.disconnect()  # type: ignore
             self.table.setItem(idx, 0, item)
             self.table.setCellWidget(idx, 1, wdg)
 
@@ -168,7 +168,7 @@ class AddPresetWidget(QDialog):
                 self.info_lbl.setText(f"{p} already has the same properties!")
                 return
 
-        self._mmc.defineConfigFromDevicePropertyValueList(
+        self._mmc.defineConfigFromDevicePropertyValueList(  # type: ignore
             self._group, preset_name, dev_prop_val
         )
         self.info_lbl.setStyleSheet("")
