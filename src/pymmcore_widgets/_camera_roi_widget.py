@@ -392,6 +392,6 @@ class CameraRoiWidget(QWidget):
     def _on_crop_pushed(self) -> None:
         start_x, start_y, width, height = self._get_roi_groupbox_values()
         self._mmc.setROI(start_x, start_y, width, height)
-        self._mmc.setProperty(self._mmc.getCameraDevice(), "OnCameraCCDXSize", width)
-        self._mmc.setProperty(self._mmc.getCameraDevice(), "OnCameraCCDYSize", height)
+        # self._mmc.setProperty(self._mmc.getCameraDevice(), "OnCameraCCDXSize", width)
+        # self._mmc.setProperty(self._mmc.getCameraDevice(), "OnCameraCCDYSize", height)
         self._mmc.snap()
