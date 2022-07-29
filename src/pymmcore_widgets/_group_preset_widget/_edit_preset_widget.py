@@ -1,4 +1,4 @@
-# Simple table with the properties options
+import warnings
 from typing import Optional
 
 from qtpy.QtCore import Qt
@@ -139,6 +139,19 @@ class EditPresetWidget(QDialog):
             value = str(self.table.cellWidget(row, 1).value())
             dev_prop_val.append((dev, prop, value))
 
+        for p in self._mmc.getAvailableConfigs(self._group):
+            dpv_preset = [
+                (k[0], k[1], k[2]) for k in self._mmc.getConfigData(self._group, p)
+            ]
+            if dpv_preset == dev_prop_val:
+                warnings.warn(
+                    "Threre is already a preset with the same "
+                    f"devices, properties and values: {p}."
+                )
+                self.info_lbl.setStyleSheet("color: magenta;")
+                self.info_lbl.setText(f"{p} already has the same properties!")
+                return
+
         self._mmc.deleteConfig(self._group, self._preset)
 
         self._preset = self.preset_name_lineedit.text()
@@ -147,6 +160,7 @@ class EditPresetWidget(QDialog):
             self._group, self._preset, dev_prop_val
         )
 
+        self.info_lbl.setStyleSheet("")
         self.info_lbl.setText(f"{self._preset} has been modified!")
 
 
