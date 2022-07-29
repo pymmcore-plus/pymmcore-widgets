@@ -46,7 +46,7 @@ class CameraRoiWidget(QWidget):
         self._on_sys_cfg_loaded()
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
-        self._mmc.events.propertyChanged.connect(self._on_property_changed)
+        # self._mmc.events.propertyChanged.connect(self._on_property_changed)
         self._mmc.events.pixelSizeChanged.connect(self._update_lbl_info)
         # new signal in pymmcore-plus
         self._mmc.events.camRoiSet.connect(self._on_roi_set)
@@ -207,21 +207,21 @@ class CameraRoiWidget(QWidget):
             items.append(f"{width} x {height}")
         return items
 
-    def _on_property_changed(self, device: str, property: str, value: str) -> None:
-        # TODO: test if the camera prop for the roi size is
-        # always called "OnCameraCCDXSize", "OnCameraCCDYSize" like in the demo cfg
-        if device != self._mmc.getCameraDevice():
-            return
-        if property in {"OnCameraCCDXSize", "OnCameraCCDYSize"}:
-            wdg = self.roi_width if "X" in property else self.roi_height
-            if value == wdg.value():
-                return
-            wdg.setValue(int(value))
-            with signals_blocked(self.center_checkbox):
-                self.center_checkbox.setChecked(True)
-            with signals_blocked(self.cam_roi_combo):
-                self.cam_roi_combo.setCurrentText("ROI")
-            self._on_roi_combobox_change("ROI")
+    # def _on_property_changed(self, device: str, property: str, value: str) -> None:
+    #     # TODO: test if the camera prop for the roi size is
+    #     # always called "OnCameraCCDXSize", "OnCameraCCDYSize" like in the demo cfg
+    #     if device != self._mmc.getCameraDevice():
+    #         return
+    #     if property in {"OnCameraCCDXSize", "OnCameraCCDYSize"}:
+    #         wdg = self.roi_width if "X" in property else self.roi_height
+    #         if value == wdg.value():
+    #             return
+    #         wdg.setValue(int(value))
+    #         with signals_blocked(self.center_checkbox):
+    #             self.center_checkbox.setChecked(True)
+    #         with signals_blocked(self.cam_roi_combo):
+    #             self.cam_roi_combo.setCurrentText("ROI")
+    #         self._on_roi_combobox_change("ROI")
 
     def _on_roi_set(
         self, cam_label: str, x: int, y: int, width: int, height: int
@@ -266,7 +266,7 @@ class CameraRoiWidget(QWidget):
         if value == "Full":
             self._hide_spinbox_button(spin_list, True)
             self._mmc.clearROI()
-            self._reset_OnCameraCCD_property()
+            # self._reset_OnCameraCCD_property()
             self._set_roi_groupbox_values(0, 0, self.chip_size_x, self.chip_size_y)
 
             self.roiInfo.emit(0, 0, self.chip_size_x, self.chip_size_y, "Full")
@@ -297,19 +297,19 @@ class CameraRoiWidget(QWidget):
 
         self._update_lbl_info()
 
-    def _reset_OnCameraCCD_property(self) -> None:
-        if self._mmc.getProperty(
-            self._mmc.getCameraDevice(), "OnCameraCCDXSize"
-        ) != str(self.chip_size_x):
-            self._mmc.setProperty(
-                self._mmc.getCameraDevice(), "OnCameraCCDXSize", self.chip_size_x
-            )
-        if self._mmc.getProperty(
-            self._mmc.getCameraDevice(), "OnCameraCCDYSize"
-        ) != str(self.chip_size_y):
-            self._mmc.setProperty(
-                self._mmc.getCameraDevice(), "OnCameraCCDYSize", self.chip_size_y
-            )
+    # def _reset_OnCameraCCD_property(self) -> None:
+    #     if self._mmc.getProperty(
+    #         self._mmc.getCameraDevice(), "OnCameraCCDXSize"
+    #     ) != str(self.chip_size_x):
+    #         self._mmc.setProperty(
+    #             self._mmc.getCameraDevice(), "OnCameraCCDXSize", self.chip_size_x
+    #         )
+    #     if self._mmc.getProperty(
+    #         self._mmc.getCameraDevice(), "OnCameraCCDYSize"
+    #     ) != str(self.chip_size_y):
+    #         self._mmc.setProperty(
+    #             self._mmc.getCameraDevice(), "OnCameraCCDYSize", self.chip_size_y
+    #         )
 
     def _on_roi_spinbox_changed(self) -> None:
 
