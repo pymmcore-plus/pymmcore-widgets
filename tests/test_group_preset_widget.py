@@ -86,6 +86,14 @@ def test_add_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
         cbox.setChecked(True)
         assert cbox.isChecked()
 
+    with pytest.warns(UserWarning):
+        add_gp_wdg.new_group_btn.click()
+        assert add_gp_wdg.info_lbl.text() == "Give a name to the group!"
+
+        add_gp_wdg.group_lineedit.setText("Camera")
+        add_gp_wdg.new_group_btn.click()
+        assert add_gp_wdg.info_lbl.text() == "Camera already exist!"
+
     add_gp_wdg.group_lineedit.setText("NewGroup")
 
     add_gp_wdg.new_group_btn.click()
