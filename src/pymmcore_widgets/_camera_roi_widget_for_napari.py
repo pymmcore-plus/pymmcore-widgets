@@ -2,7 +2,8 @@
 # to pair the camera roi functions with a napari layer.
 # In these example, the 'CameraRoiWidget' is stored under the variable 'cam_wdg'.
 
-# connect events
+
+# connect events (in __init__())
 # self.viewer.mouse_drag_callbacks.append(self._update_cam_roi_layer)
 # self.tab_wdg.cam_wdg.roiInfo.connect(self._on_roi_info)
 # self.tab_wdg.cam_wdg.crop_btn.clicked.connect(self._on_crop_btn)
