@@ -2,15 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pymmcore_plus import CMMCorePlus
-
 from pymmcore_widgets._util import ComboMessageBox
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
-def test_combo_message_box_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
+def test_combo_message_box_widget(qtbot: QtBot):
 
     items = ["item_1", "item_2", "item_3"]
 
