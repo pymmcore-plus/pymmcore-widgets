@@ -16,8 +16,6 @@ from qtpy.QtWidgets import (
 )
 from superqt import QLabeledDoubleSlider, QLabeledSlider, utils
 
-from ._core import get_core_singleton
-
 STATE = pymmcore.g_Keyword_State
 LABEL = pymmcore.g_Keyword_Label
 
@@ -243,7 +241,7 @@ def make_property_value_widget(
     PPropValueWidget
         A widget with a normalized PropValueWidget protocol.
     """
-    core = core or get_core_singleton()
+    core = core or CMMCorePlus.instance()
 
     # Create the widget based on property type and allowed choices
     wdg = _creat_prop_widget(core, dev, prop)
@@ -340,7 +338,7 @@ class PropertyWidget(QWidget):
         core: Optional[CMMCorePlus] = None,
     ) -> None:
         super().__init__(parent)
-        self._mmc = core or get_core_singleton()
+        self._mmc = core or CMMCorePlus.instance()
 
         if device_label not in self._mmc.getLoadedDevices():
             raise ValueError(f"Device not loaded: {device_label!r}")
