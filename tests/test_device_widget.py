@@ -1,9 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from pymmcore_plus import CMMCorePlus, DeviceType
 
 from pymmcore_widgets import DeviceWidget, StateDeviceWidget
 
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
 
-def test_state_device_widget(qtbot, global_mmcore: CMMCorePlus):
+
+def test_state_device_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     for label in global_mmcore.getLoadedDevicesOfType(DeviceType.StateDevice):
         wdg: StateDeviceWidget = DeviceWidget.for_device(label)
         qtbot.addWidget(wdg)

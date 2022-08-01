@@ -7,8 +7,6 @@ from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QPushButton, QWidget
 from superqt.fonticon import icon
 
-from ._core import get_core_singleton
-
 COLOR_TYPE = Union[
     QColor,
     int,
@@ -51,7 +49,7 @@ class LiveButton(QPushButton):
 
         super().__init__(parent)
 
-        self._mmc = mmcore or get_core_singleton()
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._camera = self._mmc.getCameraDevice()
 
         self._button_text_on: str = "Live"
