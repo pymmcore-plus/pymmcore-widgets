@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from qtpy.QtCore import QSize
+
 from pymmcore_widgets._snap_button_widget import SnapButton
 
 if TYPE_CHECKING:
@@ -11,17 +13,12 @@ if TYPE_CHECKING:
 
 def test_snap_button_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
-    snap_btn = SnapButton(
-        button_text="Snap",
-        icon_size=40,
-        icon_color="green",
-    )
+    snap_btn = SnapButton()
 
     qtbot.addWidget(snap_btn)
 
     assert snap_btn.text() == "Snap"
-    assert snap_btn.icon_size == 40
-    assert snap_btn.icon_color == "green"
+    assert snap_btn.iconSize() == QSize(30, 30)
 
     global_mmcore.startContinuousSequenceAcquisition(0)
 

@@ -4,11 +4,9 @@ from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QPushButton, QSizePolicy
+from qtpy.QtWidgets import QPushButton, QSizePolicy, QWidget
 from superqt.fonticon import icon
 from superqt.utils import create_worker
-
-from ._core import get_core_singleton
 
 COLOR_TYPES = Union[
     QColor,
@@ -25,35 +23,21 @@ class SnapButton(QPushButton):
 
     Once the button is clicked, an image is acquired and the pymmcore-plus
     'imageSnapped(image: nparray)' signal is emitted.
-
-    Parameters
-    ----------
-    button_text : Optional[str]
-        Text of the QPushButton.
-    icon_size : Optional[int]
-        Size of the QPushButton icon.
-    icon_color : Optional[COLOR_TYPE]
-       Color of the QPushButton icon in the on and off state.
     """
 
     def __init__(
         self,
-        button_text: Optional[str] = None,
-        icon_size: Optional[int] = 30,
-        icon_color: Optional[COLOR_TYPES] = "",
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
 
-        super().__init__()
+        super().__init__(parent)
 
         self.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
 
-        self._mmc = mmcore or get_core_singleton()
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._camera = self._mmc.getCameraDevice()
-        self.button_text = button_text
-        self.icon_size = icon_size
-        self.icon_color = icon_color
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_system_cfg_loaded)
         self._on_system_cfg_loaded()
@@ -66,10 +50,9 @@ class SnapButton(QPushButton):
             self.setEnabled(True)
 
     def _create_button(self) -> None:
-        if self.button_text:
-            self.setText(self.button_text)
-        self.setIcon(icon(MDI6.camera_outline, color=self.icon_color))
-        self.setIconSize(QSize(self.icon_size, self.icon_size))
+        self.setText("Snap")
+        self.setIcon(icon(MDI6.camera_outline, color=(0, 255, 0)))
+        self.setIconSize(QSize(30, 30))
         self.clicked.connect(self._snap)
 
     def _snap(self) -> None:

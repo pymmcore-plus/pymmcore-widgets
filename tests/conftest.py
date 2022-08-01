@@ -3,18 +3,18 @@ from pathlib import Path
 import pytest
 from pymmcore_plus import CMMCorePlus
 
-from pymmcore_widgets import _core
+
+# to create a new CMMCorePlus() for every test
+@pytest.fixture
+def core(monkeypatch):
+    new_core = CMMCorePlus()
+    monkeypatch.setattr("pymmcore_plus.core._mmcore_plus._instance", new_core)
+    return new_core
 
 
-@pytest.fixture(params=["local"])
-def global_mmcore(request):
-    _core._SESSION_CORE = CMMCorePlus()  # refresh singleton
-    if request.param == "remote":
-        from pymmcore_plus import server
-
-        server.try_kill_server()
-
-    mmc = _core.get_core_singleton(remote=request.param == "remote")
-    if len(mmc.getLoadedDevices()) < 2:
-        mmc.loadSystemConfiguration(str(Path(__file__).parent / "test_config.cfg"))
+@pytest.fixture()
+def global_mmcore(core):
+    mmc = CMMCorePlus.instance()
+    assert mmc == core
+    mmc.loadSystemConfiguration(str(Path(__file__).parent / "test_config.cfg"))
     return mmc
