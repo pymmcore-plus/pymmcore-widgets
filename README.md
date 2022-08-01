@@ -40,4 +40,10 @@ ObjectivesWidget, SliderDialog, LiveButton, SnapButton, StageWidget
 
 ```sh
 pip install pymmcore-widgets
+
+# note that this package does NOT include a Qt backend
+# you must install one yourself, for example:
+pip install PyQt5
+
+# package is tested against PyQt5, PyQt6, PySide2, and PySide6
 ```
