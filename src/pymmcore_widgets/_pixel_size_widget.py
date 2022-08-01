@@ -8,7 +8,6 @@ from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from superqt.utils import signals_blocked
 
-from ._core import get_core_singleton
 from ._objective_widget import ObjectivesWidget
 
 RESOLUTION_ID_PREFIX = "px_size_"
@@ -34,7 +33,7 @@ class PixelSizeTable(QtW.QTableWidget):
     ) -> None:
         super().__init__(parent)
 
-        self._mmc = mmcore or get_core_singleton()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
 
@@ -238,7 +237,7 @@ class PixelSizeWidget(QtW.QDialog):
     ) -> None:
         super().__init__(parent)
 
-        self._mmc = mmcore or get_core_singleton()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         self.table = PixelSizeTable(mmcore=self._mmc)
 
