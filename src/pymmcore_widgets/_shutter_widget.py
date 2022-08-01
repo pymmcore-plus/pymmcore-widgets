@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import Any, Optional, Tuple, Union
 
 from fonticon_mdi6 import MDI6
@@ -76,6 +77,7 @@ class ShuttersWidget(QtW.QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self.shutter_device = shutter_device
+
         self._is_multiShutter = False
         self.autoshutter = autoshutter
 
@@ -216,6 +218,7 @@ class ShuttersWidget(QtW.QWidget):
         if self.shutter_device not in self._mmc.getLoadedDevicesOfType(
             DeviceType.ShutterDevice
         ):
+            warnings.warn(f"No device with label {self.shutter_device}!")
             self.shutter_button.setText("None")
             self.shutter_button.setEnabled(False)
             if self.autoshutter:
