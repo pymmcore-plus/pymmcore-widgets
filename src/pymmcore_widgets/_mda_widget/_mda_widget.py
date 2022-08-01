@@ -4,11 +4,11 @@ import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Union
 
+from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from useq import MDASequence
 
-from .._core import get_core_singleton
 from .._util import ComboMessageBox
 from ._grid_widget import GridWidget
 from ._mda import SEQUENCE_META, SequenceMeta
@@ -27,7 +27,7 @@ class MultiDWidget(MultiDWidgetGui):
         self.pause_Button.hide()
         self.cancel_Button.hide()
 
-        self._mmc = get_core_singleton()
+        self._mmc = CMMCorePlus.instance()
 
         self.pause_Button.released.connect(lambda: self._mmc.mda.toggle_pause())
         self.cancel_Button.released.connect(lambda: self._mmc.mda.cancel())

@@ -1,5 +1,6 @@
 from typing import List, Optional, Tuple
 
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -15,8 +16,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from .._core import get_core_singleton
-
 
 class GridWidget(QDialog):
     """A subwidget to setup the acquisition of a grid of images."""
@@ -26,7 +25,7 @@ class GridWidget(QDialog):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
 
-        self._mmc = get_core_singleton()
+        self._mmc = CMMCorePlus.instance()
 
         self._create_gui()
 
