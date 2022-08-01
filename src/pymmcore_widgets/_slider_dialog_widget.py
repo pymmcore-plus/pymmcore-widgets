@@ -5,7 +5,7 @@ from pymmcore_plus import CMMCorePlus, PropertyType
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QDialog, QGridLayout, QLabel, QWidget
 
-from ._core import get_core_singleton, iter_dev_props
+from ._core import iter_dev_props
 from ._property_widget import PropertyWidget
 
 
@@ -38,7 +38,7 @@ class SliderDialog(QDialog):
         ptrn = re.compile(property_regex, re.IGNORECASE)
 
         _grid = QGridLayout()
-        core: CMMCorePlus = mmcore or get_core_singleton()
+        core: CMMCorePlus = mmcore or CMMCorePlus.instance()
         lights = [
             dp
             for dp in iter_dev_props(core)

@@ -19,8 +19,6 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import setTextIcon
 from superqt.utils import signals_blocked
 
-from ._core import get_core_singleton
-
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 PREFIX = MDI6.__name__.lower()
 STAGE_DEVICES = {DeviceType.Stage, DeviceType.XYStage}
@@ -98,7 +96,7 @@ class StageWidget(QWidget):
 
         self.setStyleSheet(STYLE)
 
-        self._mmc = mmcore or get_core_singleton()
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._levels = levels
         self._device = device
         self._dtype = self._mmc.getDeviceType(self._device)
