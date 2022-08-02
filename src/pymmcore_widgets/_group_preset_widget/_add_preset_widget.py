@@ -138,7 +138,7 @@ class AddPresetWidget(QDialog):
         if preset_name in self._mmc.getAvailableConfigs(self._group):
             warnings.warn(f"There is already a preset called {preset_name}.")
             self.info_lbl.setStyleSheet("color: magenta;")
-            self.info_lbl.setText(f"{preset_name} already exist!")
+            self.info_lbl.setText(f"'{preset_name}' already exist!")
             return
 
         if not preset_name:
@@ -165,14 +165,14 @@ class AddPresetWidget(QDialog):
                     f"devices, properties and values: {p}."
                 )
                 self.info_lbl.setStyleSheet("color: magenta;")
-                self.info_lbl.setText(f"{p} already has the same properties!")
+                self.info_lbl.setText(f"'{p}' already has the same properties!")
                 return
 
         self._mmc.defineConfigFromDevicePropertyValueList(  # type: ignore
             self._group, preset_name, dev_prop_val
         )
         self.info_lbl.setStyleSheet("")
-        self.info_lbl.setText(f"{preset_name} has been added!")
+        self.info_lbl.setText(f"'{preset_name}' has been added!")
 
 
 class _Table(QTableWidget):

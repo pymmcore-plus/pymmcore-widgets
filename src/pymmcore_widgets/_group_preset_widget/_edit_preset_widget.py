@@ -149,7 +149,7 @@ class EditPresetWidget(QDialog):
                     f"devices, properties and values: {p}."
                 )
                 self.info_lbl.setStyleSheet("color: magenta;")
-                self.info_lbl.setText(f"{p} already has the same properties!")
+                self.info_lbl.setText(f"'{p}' already has the same properties!")
                 return
 
         self._mmc.deleteConfig(self._group, self._preset)
@@ -161,7 +161,7 @@ class EditPresetWidget(QDialog):
         )
 
         self.info_lbl.setStyleSheet("")
-        self.info_lbl.setText(f"{self._preset} has been modified!")
+        self.info_lbl.setText(f"'{self._preset}' has been modified!")
 
 
 class _Table(QTableWidget):

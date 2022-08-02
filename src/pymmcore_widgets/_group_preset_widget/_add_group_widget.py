@@ -268,7 +268,7 @@ class AddGroupWidget(QDialog):
         if group in self._mmc.getAvailableConfigGroups():
             warnings.warn(f"There is already a preset called {group}.")
             self.info_lbl.setStyleSheet("color: magenta;")
-            self.info_lbl.setText(f"{group} already exist!")
+            self.info_lbl.setText(f"'{group}' already exist!")
             return
 
         dev_prop_val_list = []

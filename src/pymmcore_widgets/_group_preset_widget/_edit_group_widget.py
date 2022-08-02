@@ -322,4 +322,4 @@ class EditGroupWidget(QDialog):
                 self._group, preset, preset_dpv
             )
 
-        self.info_lbl.setText(f"{self._group} Group Modified.")
+        self.info_lbl.setText(f"'{self._group}' Group Modified.")
