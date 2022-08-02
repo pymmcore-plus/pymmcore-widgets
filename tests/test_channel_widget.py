@@ -69,3 +69,4 @@ def test_channel_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     assert isinstance(wdg.channel_wdg, PresetsWidget)
     assert len(wdg.channel_wdg.allowedValues()) == 1
+    assert global_mmcore.getChannelGroup() == "Channels"

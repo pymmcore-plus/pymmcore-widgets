@@ -68,17 +68,7 @@ class ChannelWidget(QWidget):
     ) -> Union[PresetsWidget, QComboBox]:
         if channel_group:
             channel_wdg = PresetsWidget(channel_group)
-            print(channel_wdg.allowedValues())
-
-            # self._mmc.setChannelGroup(channel_group)
-
-            # TODO: adding new groups does not extend the list of available
-            # "core", "ChannelGroup" options.
-            # self._mmc.setChannelGroup(channel_group) will give an ValueError because
-            # channel_group will not be in the ("core", "ChannelGroup") available options.  # noqa: E501
-            # see "updateAllowedChannelGroups" line 7584 of micromanager:
-            # https://github.com/micro-manager/mmCoreAndDevices/blob/9fb489f6935d0b17edc4fae939ee1aa191d6ab34/MMCore/MMCore.cpp  # noqa: E501
-
+            self._mmc.setChannelGroup(channel_group)
         else:
             channel_wdg = QComboBox()
             channel_wdg.setEnabled(False)
