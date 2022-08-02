@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from ._core import get_core_singleton, iter_dev_props
+from ._core import iter_dev_props
 from ._property_widget import PropertyWidget
 
 
@@ -27,7 +27,7 @@ class _PropertyTable(QTableWidget):
         self, mmcore: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
     ):
         super().__init__(0, 2, parent=parent)
-        self._mmc = mmcore or get_core_singleton()
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
         self.destroyed.connect(self._disconnect)
 
@@ -81,7 +81,7 @@ class PropertyBrowser(QDialog):
         self, mmcore: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
     ):
         super().__init__(parent)
-        self._mmc = mmcore or get_core_singleton()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         self._prop_table = _PropertyTable(mmcore)
         self._show_read_only: bool = True

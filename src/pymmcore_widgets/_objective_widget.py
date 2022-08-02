@@ -3,7 +3,6 @@ from typing import Optional, Union
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QLabel, QSizePolicy, QWidget
 
-from ._core import get_core_singleton
 from ._device_widget import StateDeviceWidget
 from ._util import ComboMessageBox
 
@@ -29,7 +28,7 @@ class ObjectivesWidget(QWidget):
         mmcore: Optional[CMMCorePlus] = None
     ):
         super().__init__(parent)
-        self._mmc = mmcore or get_core_singleton()
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._objective_device = objective_device or self._guess_objective_device()
         self._combo = self._create_objective_combo(objective_device)
 

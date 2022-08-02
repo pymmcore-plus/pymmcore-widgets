@@ -8,8 +8,6 @@ from qtpy.QtWidgets import QPushButton, QSizePolicy, QWidget
 from superqt.fonticon import icon
 from superqt.utils import create_worker
 
-from ._core import get_core_singleton
-
 COLOR_TYPES = Union[
     QColor,
     int,
@@ -38,7 +36,7 @@ class SnapButton(QPushButton):
 
         self.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
 
-        self._mmc = mmcore or get_core_singleton()
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._camera = self._mmc.getCameraDevice()
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_system_cfg_loaded)

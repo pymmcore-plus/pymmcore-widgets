@@ -103,7 +103,7 @@ jobs:
         run: twine upload dist/*
         env:
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.TWINE_API_KEY }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
 
       - uses: softprops/action-gh-release@v1
         with:
