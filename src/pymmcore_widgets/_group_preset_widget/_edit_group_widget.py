@@ -1,7 +1,7 @@
 from functools import partial
 from typing import Dict, List, Optional, Set, Tuple, cast
 
-from pymmcore_plus import DeviceType
+from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import (
@@ -21,7 +21,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from pymmcore_widgets._core import get_core_singleton, iter_dev_props
+from pymmcore_widgets._core import iter_dev_props
 from pymmcore_widgets._property_widget import PropertyWidget
 
 
@@ -31,7 +31,7 @@ class _PropertyTable(QTableWidget):
     ) -> None:
         super().__init__(0, 3, parent=parent)
 
-        self._mmc = get_core_singleton()
+        self._mmc = CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
         self.destroyed.connect(self._disconnect)
 
@@ -99,7 +99,7 @@ class EditGroupWidget(QDialog):
 
     def __init__(self, group: str, *, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        self._mmc = get_core_singleton()
+        self._mmc = CMMCorePlus.instance()
 
         self._group = group
 

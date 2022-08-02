@@ -1,13 +1,11 @@
 import warnings
 from typing import List, Optional, Tuple
 
-from pymmcore_plus import DeviceType
+from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QBrush
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QListView, QWidget
 from superqt.utils import signals_blocked
-
-from ._core import get_core_singleton
 
 
 class PresetsWidget(QWidget):
@@ -21,7 +19,7 @@ class PresetsWidget(QWidget):
 
         super().__init__(parent)
 
-        self._mmc = get_core_singleton()
+        self._mmc = CMMCorePlus.instance()
 
         self._group = group
 
@@ -69,7 +67,7 @@ class PresetsWidget(QWidget):
         view_height = sum(
             self._combo.view().sizeHintForRow(i) for i in range(self._combo.count())
         )
-        view.setMinimumHeight(view_height)
+        view.setFixedHeight(view_height)
         self._combo.setView(view)
 
     def _delete_presets_with_different_properties(self) -> None:

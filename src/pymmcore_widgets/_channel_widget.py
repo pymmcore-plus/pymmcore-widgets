@@ -3,7 +3,6 @@ from typing import Optional, Union
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtWidgets import QComboBox, QVBoxLayout, QWidget
 
-from ._core import get_core_singleton
 from ._presets_widget import PresetsWidget
 from ._util import ComboMessageBox
 
@@ -30,7 +29,7 @@ class ChannelWidget(QWidget):
     ) -> None:
 
         super().__init__(parent)
-        self._mmc = mmcore or get_core_singleton()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         self._channel_group = channel_group or self._get_channel_group()
 

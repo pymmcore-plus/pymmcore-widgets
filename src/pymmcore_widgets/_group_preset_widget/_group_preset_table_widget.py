@@ -1,11 +1,11 @@
 import warnings
 from typing import List, Tuple, Union
 
+from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QVBoxLayout
 
-from pymmcore_widgets._core import get_core_singleton
 from pymmcore_widgets._group_preset_widget._add_group_widget import AddGroupWidget
 from pymmcore_widgets._group_preset_widget._add_preset_widget import AddPresetWidget
 from pymmcore_widgets._group_preset_widget._edit_group_widget import EditGroupWidget
@@ -43,7 +43,7 @@ class GroupPresetTableWidget(QtW.QWidget):
     def __init__(self) -> None:
         super().__init__()
 
-        self._mmc = get_core_singleton()
+        self._mmc = CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._populate_table)
 
         # connections to the new pymmcore-plus groupDeleted signal
@@ -345,7 +345,7 @@ if __name__ == "__main__":
     from qtpy.QtWidgets import QApplication
 
     cfg = "/Users/FG/Dropbox/git/pymmcore-widgets/tests/test_config.cfg"
-    mmc = get_core_singleton()
+    mmc = CMMCorePlus.instance()
     mmc.loadSystemConfiguration(cfg)
     app = QApplication([])
     table = GroupPresetTableWidget()

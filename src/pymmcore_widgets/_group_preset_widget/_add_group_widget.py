@@ -2,7 +2,7 @@ import warnings
 from functools import partial
 from typing import Dict, Optional, Set, Tuple, cast
 
-from pymmcore_plus import DeviceType
+from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QCloseEvent, QColor
 from qtpy.QtWidgets import (
@@ -22,7 +22,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from pymmcore_widgets._core import get_core_singleton, iter_dev_props
+from pymmcore_widgets._core import iter_dev_props
 from pymmcore_widgets._property_widget import PropertyWidget
 
 from ._add_first_preset_widget import AddFirstPresetWidget
@@ -31,7 +31,7 @@ from ._add_first_preset_widget import AddFirstPresetWidget
 class _PropertyTable(QTableWidget):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(0, 3, parent=parent)
-        self._mmc = get_core_singleton()
+        self._mmc = CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
         self.destroyed.connect(self._disconnect)
 
@@ -87,7 +87,7 @@ class AddGroupWidget(QDialog):
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        self._mmc = get_core_singleton()
+        self._mmc = CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._update_filter)
 
         self._create_gui()
@@ -266,7 +266,7 @@ class AddGroupWidget(QDialog):
             return
 
         if group in self._mmc.getAvailableConfigGroups():
-            warnings.warn(f"There is already a preset called {group}.")
+            warnings.warn(f"There is already a preset called '{group}'.")
             self.info_lbl.setStyleSheet("color: magenta;")
             self.info_lbl.setText(f"'{group}' already exist!")
             return

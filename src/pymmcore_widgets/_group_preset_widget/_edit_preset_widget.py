@@ -1,6 +1,7 @@
 import warnings
 from typing import Optional
 
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QDialog,
@@ -17,7 +18,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from pymmcore_widgets._core import get_core_singleton
 from pymmcore_widgets._property_widget import PropertyWidget
 
 
@@ -29,7 +29,7 @@ class EditPresetWidget(QDialog):
     ) -> None:
         super().__init__(parent)
 
-        self._mmc = get_core_singleton()
+        self._mmc = CMMCorePlus.instance()
         self._group = group
         self._preset = preset
 
@@ -146,7 +146,7 @@ class EditPresetWidget(QDialog):
             if dpv_preset == dev_prop_val:
                 warnings.warn(
                     "Threre is already a preset with the same "
-                    f"devices, properties and values: {p}."
+                    f"devices, properties and values: '{p}'."
                 )
                 self.info_lbl.setStyleSheet("color: magenta;")
                 self.info_lbl.setText(f"'{p}' already has the same properties!")

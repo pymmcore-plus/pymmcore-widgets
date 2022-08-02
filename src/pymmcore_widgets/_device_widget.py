@@ -6,8 +6,6 @@ from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QWidget
 from superqt.utils import signals_blocked
 
-from ._core import get_core_singleton
-
 LABEL = pymmcore.g_Keyword_Label
 
 
@@ -34,7 +32,7 @@ class DeviceWidget(QWidget):
     ) -> None:
         super().__init__(parent)
         self._device_label = device_label
-        self._mmc = mmcore or get_core_singleton()
+        self._mmc = mmcore or CMMCorePlus.instance()
         self.destroyed.connect(self._disconnect)
 
         # TODO:
@@ -87,7 +85,7 @@ class DeviceWidget(QWidget):
         DeviceWidget
             Appropriate DeviceWidget subclass instance.
         """
-        dev_type = get_core_singleton().getDeviceType(device_label)
+        dev_type = CMMCorePlus.instance().getDeviceType(device_label)
         _map = {DeviceType.StateDevice: StateDeviceWidget}
         if dev_type not in _map:
             raise NotImplementedError(

@@ -92,7 +92,7 @@ def test_add_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
         add_gp_wdg.group_lineedit.setText("Camera")
         add_gp_wdg.new_group_btn.click()
-        assert add_gp_wdg.info_lbl.text() == "Camera already exist!"
+        assert add_gp_wdg.info_lbl.text() == "'Camera' already exist!"
 
     add_gp_wdg.group_lineedit.setText("NewGroup")
 
@@ -153,7 +153,7 @@ def test_edit_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert table.item(3, 1).text() == "Camera-CCDTemperature"
 
     edit_gp.new_group_btn.click()
-    assert edit_gp.info_lbl.text() == "Camera Group Modified."
+    assert edit_gp.info_lbl.text() == "'Camera' Group Modified."
 
     dp = [(k[0], k[1]) for k in mmc.getConfigData("Camera", "LowRes")]
     assert ("Camera", "CCDTemperature") in dp
@@ -199,11 +199,11 @@ def test_add_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     with pytest.warns(UserWarning):
         add_prs.add_preset_button.click()
-        assert add_prs.info_lbl.text() == "DAPI already has the same properties!"
+        assert add_prs.info_lbl.text() == "'DAPI' already has the same properties!"
 
     mode.setValue("Noise")
     add_prs.add_preset_button.click()
-    assert add_prs.info_lbl.text() == "New has been added!"
+    assert add_prs.info_lbl.text() == "'New' has been added!"
 
     assert "New" in mmc.getAvailableConfigs("Channel")
 
@@ -239,7 +239,7 @@ def test_edit_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     with pytest.warns(UserWarning):
         edit_ps.apply_button.click()
-        assert edit_ps.info_lbl.text() == "20X already has the same properties!"
+        assert edit_ps.info_lbl.text() == "'20X' already has the same properties!"
 
     wdg.setValue(5)
     edit_ps.apply_button.click()
