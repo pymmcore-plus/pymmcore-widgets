@@ -1,6 +1,7 @@
 from typing import List, Tuple
 
 from fonticon_mdi6 import MDI6
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
@@ -19,8 +20,6 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
-from ._core import get_core_singleton
-
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
 
@@ -36,7 +35,7 @@ class CameraRoiWidget(QWidget):
     def __init__(self) -> None:
         super().__init__()
 
-        self._mmc = get_core_singleton()
+        self._mmc = CMMCorePlus.instance()
 
         self._create_gui()
 
