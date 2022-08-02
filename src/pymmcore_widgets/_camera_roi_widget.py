@@ -285,6 +285,8 @@ class CameraRoiWidget(QWidget):
         else:
             self._hide_spinbox_button(spin_list, True)
 
+            self._reset_and_snap()
+
             width = int(value.split(" x ")[0])
             height = int(value.split(" x ")[1])
             start_x = (self.chip_size_x - width) // 2
@@ -318,6 +320,8 @@ class CameraRoiWidget(QWidget):
         if self.cam_roi_combo.currentText() != "ROI":
             return
 
+        self._reset_and_snap()
+
         self._set_start_max_value()
 
         start_x, start_y, width, height = self._get_roi_groupbox_values()
@@ -326,6 +330,8 @@ class CameraRoiWidget(QWidget):
     def _on_start_spinbox_changed(self) -> None:
         if not self.start_x.isEnabled() and not self.start_y.isEnabled():
             return
+
+        self._reset_and_snap()
 
         start_x, start_y, width, height = self._get_roi_groupbox_values()
         self.roiInfo.emit(
@@ -372,6 +378,8 @@ class CameraRoiWidget(QWidget):
         if not state or self.cam_roi_combo.currentText() != "ROI":
             return
 
+        self._reset_and_snap()
+
         _, _, wanted_width, wanted_height = self._get_roi_groupbox_values()
         start_x = (self.chip_size_x - wanted_width) // 2
         start_y = (self.chip_size_y - wanted_height) // 2
@@ -389,9 +397,18 @@ class CameraRoiWidget(QWidget):
             else:
                 spin.setButtonSymbols(QAbstractSpinBox.PlusMinus)
 
+    def _reset_and_snap(self) -> None:
+        self._mmc.clearROI()
+        self._mmc.snap()
+
     def _on_crop_pushed(self) -> None:
         start_x, start_y, width, height = self._get_roi_groupbox_values()
         self._mmc.setROI(start_x, start_y, width, height)
         # self._mmc.setProperty(self._mmc.getCameraDevice(), "OnCameraCCDXSize", width)
         # self._mmc.setProperty(self._mmc.getCameraDevice(), "OnCameraCCDYSize", height)
         self._mmc.snap()
+
+        # self.center_checkbox.setEnabled(False)
+        # self.custorm_roi_group.setEnabled(False)
+        # spin_list = [self.start_x, self.start_y, self.roi_width, self.roi_height]
+        # self._hide_spinbox_button(spin_list, True)
