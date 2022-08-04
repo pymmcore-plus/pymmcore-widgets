@@ -4,6 +4,7 @@ from typing import Optional
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
+    QComboBox,
     QDialog,
     QGroupBox,
     QHBoxLayout,
@@ -17,6 +18,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.utils import signals_blocked
 
 from pymmcore_widgets._property_widget import PropertyWidget
 
@@ -35,7 +37,7 @@ class EditPresetWidget(QDialog):
 
         self._create_gui()
 
-        self._populate_table()
+        self._populate_table_and_combo()
 
     def _create_gui(self) -> None:
 
@@ -65,6 +67,15 @@ class EditPresetWidget(QDialog):
 
         main_layout.addWidget(wdg)
 
+        self._resize()
+
+    def _resize(self) -> None:
+
+        self.resize(
+            self.sizeHint().width() + self._presets_combo.sizeHint().width(),
+            self.sizeHint().height(),
+        )
+
     def _create_top_wdg(self) -> QGroupBox:
         wdg = QGroupBox()
         wdg_layout = QHBoxLayout()
@@ -79,6 +90,10 @@ class EditPresetWidget(QDialog):
         group_name_lbl = QLabel(text=f"{self._group}")
         group_name_lbl.setSizePolicy(lbl_sizepolicy)
 
+        self._presets_combo = QComboBox()
+        self._presets_combo.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self._presets_combo.currentTextChanged.connect(self._on_combo_changed)
+
         ps_lbl = QLabel(text="Preset:")
         ps_lbl.setSizePolicy(lbl_sizepolicy)
         self.preset_name_lineedit = QLineEdit()
@@ -90,6 +105,7 @@ class EditPresetWidget(QDialog):
         wdg_layout.addWidget(group_name_lbl)
         wdg_layout.addItem(spacer)
         wdg_layout.addWidget(ps_lbl)
+        wdg_layout.addWidget(self._presets_combo)
         wdg_layout.addWidget(self.preset_name_lineedit)
 
         return wdg
@@ -114,20 +130,41 @@ class EditPresetWidget(QDialog):
 
         return wdg
 
-    def _populate_table(self) -> None:
+    def _update_combo(self) -> None:
+
+        presets = self._mmc.getAvailableConfigs(self._group)
+        with signals_blocked(self._presets_combo):
+            self._presets_combo.clear()
+            self._presets_combo.addItems(presets)
+            self._presets_combo.setCurrentText(self._preset)
+            self.preset_name_lineedit.setText(f"{self._preset}")
+        self._resize()
+
+    def _populate_table_and_combo(self) -> None:
+
+        self._update_combo()
 
         self.table.clearContents()
 
-        dev_prop = [
-            (k[0], k[1]) for k in self._mmc.getConfigData(self._group, self._preset)
+        dev_prop_val = [
+            (k[0], k[1], k[2])
+            for k in self._mmc.getConfigData(self._group, self._preset)
         ]
-        self.table.setRowCount(len(dev_prop))
-        for idx, (dev, prop) in enumerate(dev_prop):
+        self.table.setRowCount(len(dev_prop_val))
+        for idx, (dev, prop, val) in enumerate(dev_prop_val):
             item = QTableWidgetItem(f"{dev}-{prop}")
             wdg = PropertyWidget(dev, prop, core=self._mmc)
             wdg._value_widget.valueChanged.disconnect()  # type: ignore
+            wdg.setValue(val)
             self.table.setItem(idx, 0, item)
             self.table.setCellWidget(idx, 1, wdg)
+
+    def _on_combo_changed(self, preset: str) -> None:
+
+        self._preset = preset
+        self.info_lbl.setStyleSheet("")
+        self.info_lbl.setText("")
+        self._populate_table_and_combo()
 
     def _apply_changes(self) -> None:
 
@@ -143,7 +180,12 @@ class EditPresetWidget(QDialog):
             dpv_preset = [
                 (k[0], k[1], k[2]) for k in self._mmc.getConfigData(self._group, p)
             ]
-            if dpv_preset == dev_prop_val:
+            if (
+                dpv_preset == dev_prop_val
+                and self._preset == self.preset_name_lineedit.text()
+            ):
+                if p == self._preset:
+                    return
                 warnings.warn(
                     "Threre is already a preset with the same "
                     f"devices, properties and values: '{p}'."
@@ -159,6 +201,8 @@ class EditPresetWidget(QDialog):
         self._mmc.defineConfigFromDevicePropertyValueList(  # type: ignore
             self._group, self._preset, dev_prop_val
         )
+
+        self._update_combo()
 
         self.info_lbl.setStyleSheet("")
         self.info_lbl.setText(f"'{self._preset}' has been modified!")
