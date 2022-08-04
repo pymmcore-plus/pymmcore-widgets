@@ -270,7 +270,7 @@ class GroupPresetTableWidget(QtW.QWidget):
         row = list(selected_rows)[0]
         group = self.table_wdg.item(row, 0).text()
         self._close_if_hasattr()
-        self._edit_group_wdg = EditGroupWidget(group)
+        self._edit_group_wdg = EditGroupWidget(group, parent=self)
         self._edit_group_wdg.show()
 
     def _add_preset(self) -> None:
