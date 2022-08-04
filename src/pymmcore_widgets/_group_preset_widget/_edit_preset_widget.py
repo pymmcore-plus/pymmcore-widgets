@@ -71,7 +71,8 @@ class EditPresetWidget(QDialog):
 
     def _resize(self) -> None:
         self.resize(
-            self.sizeHint().width() + self._presets_combo.sizeHint().width(),
+            self.minimumSizeHint().width()
+            + self._presets_combo.minimumSizeHint().width(),
             self.sizeHint().height(),
         )
 
@@ -96,6 +97,9 @@ class EditPresetWidget(QDialog):
         ps_lbl = QLabel(text="Preset:")
         ps_lbl.setSizePolicy(lbl_sizepolicy)
         self.preset_name_lineedit = QLineEdit()
+        self.preset_name_lineedit.setSizePolicy(
+            QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        )
         self.preset_name_lineedit.setText(f"{self._preset}")
 
         spacer = QSpacerItem(30, 10, QSizePolicy.Fixed, QSizePolicy.Fixed)
