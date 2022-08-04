@@ -39,7 +39,7 @@ class EditPresetWidget(QDialog):
 
         self._populate_table_and_combo()
 
-    def _create_gui(self) -> None:
+    def _create_gui(self) -> None:  # sourcery skip: class-extract-method
 
         self.setWindowTitle(
             f"Edit the '{self._preset}' Preset from the '{self._group}' Group"
@@ -70,7 +70,6 @@ class EditPresetWidget(QDialog):
         self._resize()
 
     def _resize(self) -> None:
-
         self.resize(
             self.sizeHint().width() + self._presets_combo.sizeHint().width(),
             self.sizeHint().height(),
@@ -138,7 +137,13 @@ class EditPresetWidget(QDialog):
             self._presets_combo.addItems(presets)
             self._presets_combo.setCurrentText(self._preset)
             self.preset_name_lineedit.setText(f"{self._preset}")
+            self._resize_combo_height(len(presets))
         self._resize()
+
+    def _resize_combo_height(self, max_items: int) -> None:
+        self._presets_combo.setEditable(True)
+        self._presets_combo.setMaxVisibleItems(max_items)
+        self._presets_combo.setEditable(False)
 
     def _populate_table_and_combo(self) -> None:
 
