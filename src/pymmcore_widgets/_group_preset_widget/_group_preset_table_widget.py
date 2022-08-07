@@ -37,7 +37,7 @@ class _MainTable(QtW.QTableWidget):
         self.setMinimumHeight(200)
 
 
-class GroupPresetTableWidget(QtW.QWidget):
+class GroupPresetTableWidget(QtW.QGroupBox):
     """Widget to get/set group presets."""
 
     def __init__(self) -> None:
