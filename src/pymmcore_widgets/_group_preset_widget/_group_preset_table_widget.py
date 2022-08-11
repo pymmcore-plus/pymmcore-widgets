@@ -6,17 +6,13 @@ from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QVBoxLayout
 
-from pymmcore_widgets._group_preset_widget._add_group_widget import AddGroupWidget
-from pymmcore_widgets._group_preset_widget._add_preset_widget import AddPresetWidget
-from pymmcore_widgets._group_preset_widget._edit_group_widget import EditGroupWidget
-from pymmcore_widgets._group_preset_widget._edit_preset_widget import EditPresetWidget
 from pymmcore_widgets._presets_widget import PresetsWidget
 from pymmcore_widgets._property_widget import PropertyWidget
 
-# from ._add_group_widget import AddGroupWidget
-# from ._add_preset_widget import AddPresetWidget
-# from ._edit_group_widget import EditGroupWidget
-# from ._edit_preset_widget import EditPresetWidget
+from ._add_group_widget import AddGroupWidget
+from ._add_preset_widget import AddPresetWidget
+from ._edit_group_widget import EditGroupWidget
+from ._edit_preset_widget import EditPresetWidget
 
 
 class _MainTable(QtW.QTableWidget):
@@ -46,9 +42,7 @@ class GroupPresetTableWidget(QtW.QGroupBox):
         self._mmc = CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._populate_table)
 
-        # connections to the new pymmcore-plus groupDeleted signal
         self._mmc.events.groupDeleted.connect(self._on_group_deleted)
-        # presetDeleted signal is handled by the "PresetsWidget"/"PropertyWidget"
         self._mmc.events.newGroupPreset.connect(self._on_new_group_preset)
 
         self._create_gui()
@@ -256,7 +250,7 @@ class GroupPresetTableWidget(QtW.QGroupBox):
         for row_idx in sorted(selected_rows, reverse=True):
             group = self.table_wdg.item(row_idx, 0).text()
             self.table_wdg.removeRow(row_idx)
-            self._mmc.deleteConfigGroup(group)  # emitted delete group
+            self._mmc.deleteConfigGroup(group)
 
     def _on_group_deleted(self, group: str) -> None:
         if matching_item := self.table_wdg.findItems(group, Qt.MatchExactly):
@@ -303,14 +297,14 @@ class GroupPresetTableWidget(QtW.QGroupBox):
                 preset = wdg._combo.currentText()
 
                 if len(wdg.allowedValues()) > 1:
-                    self._mmc.deleteConfig(group, preset)  # emitted delete preset
+                    self._mmc.deleteConfig(group, preset)
                 else:
                     self.table_wdg.removeRow(row_idx)
-                    self._mmc.deleteConfigGroup(group)  # emitted delete group
+                    self._mmc.deleteConfigGroup(group)
 
             elif isinstance(wdg, PropertyWidget):
                 self.table_wdg.removeRow(row_idx)
-                self._mmc.deleteConfigGroup(group)  # emitted delete group
+                self._mmc.deleteConfigGroup(group)
 
     def _edit_preset(self) -> None:
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
@@ -339,15 +333,3 @@ class GroupPresetTableWidget(QtW.QGroupBox):
         self._mmc.events.systemConfigurationLoaded.disconnect(self._populate_table)
         self._mmc.events.groupDeleted.disconnect(self._on_group_deleted)
         self._mmc.events.newGroupPreset.disconnect(self._on_new_group_preset)
-
-
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
-
-    cfg = "/Users/FG/Dropbox/git/pymmcore-widgets/tests/test_config.cfg"
-    mmc = CMMCorePlus.instance()
-    mmc.loadSystemConfiguration(cfg)
-    app = QApplication([])
-    table = GroupPresetTableWidget()
-    table.show()
-    app.exec_()
