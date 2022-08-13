@@ -163,9 +163,11 @@ class GroupPresetTableWidget(QtW.QGroupBox):
                             f"{dev_prop_1} are not included in the group "
                             "and will not be added!"
                         )
-                        self._mmc.deletePresetDeviceProperties(  # type: ignore
-                            group, preset, dev_prop_1, emit=False
-                        )
+
+                        with self._mmc.events.newGroupPreset.blocked():
+                            self._mmc.deletePresetDeviceProperties(  # type: ignore
+                                group, preset, dev_prop_1
+                            )
                     else:
                         self._mmc.deleteConfig(group, preset)
 
