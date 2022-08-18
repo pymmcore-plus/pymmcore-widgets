@@ -1,4 +1,3 @@
-import warnings
 from typing import List, Tuple, Union
 
 from pymmcore_plus import CMMCorePlus
@@ -151,30 +150,18 @@ class GroupPresetTableWidget(QtW.QGroupBox):
             row = matching_item[0].row()
 
             if isinstance(self.table_wdg.cellWidget(row, 1), PropertyWidget):
-                _presets = self._mmc.getAvailableConfigs(group)
-                if len(_presets) > 1:
-                    dev_prop_0 = [
-                        (k[0], k[1])
-                        for k in self._mmc.getConfigData(group, _presets[0])
-                    ]
-                    dev_prop_1 = [(k[0], k[1]) for k in dev_prop_val_list]
-                    if dev_prop_1 != dev_prop_0:
-                        warnings.warn(
-                            f"{dev_prop_1} are not included in the group "
-                            "and will not be added!"
-                        )
 
-                        with self._mmc.events.newGroupPreset.blocked():
-                            self._mmc.deletePresetDeviceProperties(  # type: ignore
-                                group, preset, dev_prop_1
-                            )
-                    else:
-                        self._mmc.deleteConfig(group, preset)
+                dev_prop_val = [
+                    (k[0], k[1], k[2]) for k in self._mmc.getConfigData(group, preset)
+                ]
 
-                self._populate_table()
+                self._mmc.deleteConfigGroup(group)
 
-        else:
-            self._populate_table()
+                self._mmc.defineConfigFromDevicePropertyValueList(  # type: ignore
+                    group, preset, dev_prop_val + dev_prop_val_list
+                )
+
+        self._populate_table()
 
     def _reset_table(self) -> None:
         self._disconnect_wdgs()

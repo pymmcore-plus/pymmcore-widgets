@@ -31,7 +31,7 @@ class PresetsWidget(QWidget):
         if not self._presets:
             raise ValueError(f"{self._group} group does not have presets.")
 
-        self._delete_presets_with_different_properties()
+        # self._delete_presets_with_different_properties()
 
         # getting (dev, prop) of the group using the first preset
         # since they must be all the same
@@ -43,7 +43,7 @@ class PresetsWidget(QWidget):
         self._combo.setCurrentText(self._mmc.getCurrentConfig(self._group))
         if len(self._presets) > 1:
             self._set_combo_view()
-        self._set_if_props_match_preset()
+        self._set_style_if_props_not_match_preset()
 
         self.setLayout(QHBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
@@ -62,6 +62,8 @@ class PresetsWidget(QWidget):
 
         self.destroyed.connect(self._disconnect)
 
+        self._delete_presets_with_different_properties()
+
     def _set_combo_view(self) -> None:
         view = QListView()
         view_height = sum(
@@ -72,24 +74,14 @@ class PresetsWidget(QWidget):
 
     def _delete_presets_with_different_properties(self) -> None:
         """Prevent the group to have presets containing different properties."""
-        group_dev_prop = self._get_preset_dev_prop(self._group, self._presets[0])
-
-        _to_delete = []
         for preset in self._presets:
             if preset == self._presets[0]:
                 continue
 
             device_property = self._get_preset_dev_prop(self._group, preset)
 
-            if len(device_property) != len(group_dev_prop):
-                _to_delete.append(preset)
-                self._mmc.deleteConfig(self._group, preset)
+            self._on_new_group_preset(self._group, preset, device_property)
 
-        if _to_delete:
-            warnings.warn(
-                f"{_to_delete} presets don't have all the {self._group} group "
-                "properties and will be deleted!"
-            )
             self._presets = list(self._mmc.getAvailableConfigs(self._group))
 
     def _on_text_activate(self, text: str) -> None:
@@ -101,7 +93,7 @@ class PresetsWidget(QWidget):
         self._mmc.setConfig(self._group, text)
         self._combo.setStyleSheet("")
 
-    def _set_if_props_match_preset(self) -> None:
+    def _set_style_if_props_not_match_preset(self) -> None:
         for preset in self._presets:
             _set_combo = True
             for (dev, prop, value) in self._mmc.getConfigData(self._group, preset):
@@ -117,6 +109,13 @@ class PresetsWidget(QWidget):
         # if None of the presets match the current system state
         self._combo.setStyleSheet("color: magenta;")
 
+    def _set_text_color_if_diff_presets(self) -> None:
+        for preset in self._presets:
+            dev_prop = self._get_preset_dev_prop(self._group, preset)
+            if len(dev_prop) != len(self.dev_prop):
+                idx = self._presets.index(preset)
+                self._combo.setItemData(idx, QBrush(Qt.magenta), Qt.TextColorRole)
+
     def _on_cfg_set(self, group: str, preset: str) -> None:
 
         if group == self._group and self._combo.currentText() != preset:
@@ -126,7 +125,7 @@ class PresetsWidget(QWidget):
         else:
             dev_prop_list = self._get_preset_dev_prop(self._group, self._presets[0])
             if any(dev_prop for dev_prop in dev_prop_list if dev_prop in self.dev_prop):
-                self._set_if_props_match_preset()
+                self._set_style_if_props_not_match_preset()
 
     def _on_property_changed(self, device: str, property: str, value: str) -> None:
         if (device, property) not in self.dev_prop:
@@ -136,7 +135,7 @@ class PresetsWidget(QWidget):
             # in dev_prop, we check if the property "State" is in dev_prop.
             if (device, "State") not in self.dev_prop:
                 return
-        self._set_if_props_match_preset()
+        self._set_style_if_props_not_match_preset()
 
     def _get_preset_dev_prop(self, group: str, preset: str) -> list:
         """Return a list with (device, property) for the selected group preset."""
@@ -161,7 +160,8 @@ class PresetsWidget(QWidget):
         self._combo.setCurrentText(self._mmc.getCurrentConfig(self._group))
         if len(self._presets) > 1:
             self._set_combo_view()
-        self._set_if_props_match_preset()
+        self._set_style_if_props_not_match_preset()
+        self._set_text_color_if_diff_presets()
 
     def value(self) -> str:
         """Get current value."""
@@ -206,8 +206,6 @@ class PresetsWidget(QWidget):
             self._refresh()
             return
 
-        _color = False
-
         # remove any of the [(dev, prop, value), ...] in the new preset
         # that are not in the group
         if (
@@ -223,10 +221,11 @@ class PresetsWidget(QWidget):
 
             if _to_delete:
                 warnings.warn(
-                    f"{_to_delete} are not included in the group and will not be added!"
+                    f"{_to_delete} are not included in the '{self._group}' "
+                    "group and will not be added!"
                 )
                 self._mmc.deletePresetDeviceProperties(  # type: ignore
-                    self._group, preset, _to_delete, emit=False
+                    self._group, preset, _to_delete
                 )
 
             # if the new preset won't have any (dev, prop, val)
@@ -236,32 +235,14 @@ class PresetsWidget(QWidget):
 
         preset_dev_props = self._get_preset_dev_prop(self._group, preset)
 
-        # check if all [(dev, prop), ...] in the new preset are also in the other preset
-        if (
-            any(item not in self.dev_prop for item in preset_dev_props)
-            and self.dev_prop
-        ):
+        if len(preset_dev_props) != len(set(self.dev_prop)) and self.dev_prop:
+            missing_props = set(self.dev_prop) - set(preset_dev_props)
             warnings.warn(
-                f"{preset} preset doesn't have the same properties "
-                "as the other presets!"
-                f"{set(self.dev_prop)} vs {set(preset_dev_props)}"
+                f"'{preset}' preset is missing the following properties: "
+                f"{list(missing_props)}."
             )
-            _color = True
-
-        elif len(preset_dev_props) != len(set(self.dev_prop)) and self.dev_prop:
-            warnings.warn(
-                f"{preset} preset is missing the following properties: "
-                f"{set(self.dev_prop) - set(preset_dev_props)}"
-            )
-            _color = True
 
         self._refresh()
-
-        idx = self._presets.index(preset)
-        if _color:
-            self._combo.setItemData(idx, QBrush(Qt.magenta), Qt.TextColorRole)
-        else:
-            self._combo.setItemData(idx, QBrush(Qt.NoBrush))
 
     def _disconnect(self) -> None:
         self._mmc.events.configSet.disconnect(self._on_cfg_set)
