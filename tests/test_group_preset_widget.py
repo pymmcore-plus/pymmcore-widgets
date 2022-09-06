@@ -141,12 +141,17 @@ def test_edit_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     table = edit_gp._prop_table
 
-    cbox_1 = table.cellWidget(1, 0)
-    cbox_2 = table.cellWidget(2, 0)
-    assert isinstance(cbox_1, QCheckBox)
-    assert isinstance(cbox_2, QCheckBox)
-    assert cbox_1.isChecked()
-    assert cbox_2.isChecked()
+    bin_match = table.findItems("Camera-Binning", Qt.MatchExactly)
+    bin_row = bin_match[0].row()
+    bit_match = table.findItems("Camera-BitDepth", Qt.MatchExactly)
+    bit_row = bit_match[0].row()
+
+    bin_cbox = table.cellWidget(bin_row, 0)
+    bit_cbox = table.cellWidget(bit_row, 0)
+    assert isinstance(bin_cbox, QCheckBox)
+    assert isinstance(bit_cbox, QCheckBox)
+    assert bin_cbox.isChecked()
+    assert bit_cbox.isChecked()
     assert table.item(1, 1).text() == "Camera-Binning"
     assert table.item(2, 1).text() == "Camera-BitDepth"
 
