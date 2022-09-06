@@ -152,8 +152,8 @@ def test_edit_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert isinstance(bit_cbox, QCheckBox)
     assert bin_cbox.isChecked()
     assert bit_cbox.isChecked()
-    assert table.item(1, 1).text() == "Camera-Binning"
-    assert table.item(2, 1).text() == "Camera-BitDepth"
+    assert table.item(bin_row, 1).text() == "Camera-Binning"
+    assert table.item(bit_row, 1).text() == "Camera-BitDepth"
 
     edit_gp.new_group_btn.click()
     assert edit_gp.info_lbl.text() == ""
