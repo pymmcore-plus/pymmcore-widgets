@@ -158,11 +158,14 @@ def test_edit_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     edit_gp.new_group_btn.click()
     assert edit_gp.info_lbl.text() == ""
 
-    cbox_3 = table.cellWidget(3, 0)
-    assert isinstance(cbox_3, QCheckBox)
-    assert not cbox_3.isChecked()
-    cbox_3.setChecked(True)
-    assert table.item(3, 1).text() == "Camera-CCDTemperature"
+    t_match = table.findItems("Camera-CCDTemperature", Qt.MatchExactly)
+    t_row = t_match[0].row()
+
+    t_cbox = table.cellWidget(t_row, 0)
+    assert isinstance(t_cbox, QCheckBox)
+    assert not t_cbox.isChecked()
+    t_cbox.setChecked(True)
+    assert table.item(t_row, 1).text() == "Camera-CCDTemperature"
 
     edit_gp.new_group_btn.click()
     assert edit_gp.info_lbl.text() == "'Camera' Group Modified."
