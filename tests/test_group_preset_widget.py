@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, cast
 
 import pytest
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QCheckBox
 
 from pymmcore_widgets import PresetsWidget
@@ -78,10 +79,16 @@ def test_add_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     dev_prop_list = ["Camera-Binning", "Camera-BitDepth", "Camera-CCDTemperature"]
 
+    bin_match = table.findItems("Camera-Binning", Qt.MatchExactly)
+    bit_match = table.findItems("Camera-BitDepth", Qt.MatchExactly)
+    t_match = table.findItems("Camera-CCDTemperature", Qt.MatchExactly)
+
+    rows = [bin_match[0].row(), bit_match[0].row(), t_match[0].row()]
+
     for idx, i in enumerate(dev_prop_list):
-        dev_prop = table.item((idx + 1), 1).text()
+        dev_prop = table.item(rows[idx], 1).text()
         assert dev_prop == i
-        cbox = table.cellWidget((idx + 1), 0)
+        cbox = table.cellWidget(rows[idx], 0)
         assert type(cbox) == QCheckBox
         cbox.setChecked(True)
         assert cbox.isChecked()
