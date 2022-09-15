@@ -276,10 +276,11 @@ class MultiDWidget(MultiDWidgetGui):
             for c, ax in enumerate("PXYZ"):
 
                 if ax == "P":
-                    count = self.stage_tableWidget.rowCount()
+                    count = self.stage_tableWidget.rowCount() - 1
                     item = QtW.QTableWidgetItem(f"Pos{count:03d}")
                     item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
                     self.stage_tableWidget.setItem(idx, c, item)
+                    self._rename_positions(["Pos"])
                     continue
 
                 if not self._mmc.getFocusDevice() and ax == "Z":
@@ -299,9 +300,35 @@ class MultiDWidget(MultiDWidgetGui):
     def _remove_position(self) -> None:
         # remove selected position
         rows = {r.row() for r in self.stage_tableWidget.selectedIndexes()}
+        removed = []
         for idx in sorted(rows, reverse=True):
+            name = self.stage_tableWidget.item(idx, 0).text().split("_")[0]
+            if "Pos" in name:
+                if "Pos" not in removed:
+                    removed.append("Pos")
+            elif name not in removed:
+                removed.append(name)
             self.stage_tableWidget.removeRow(idx)
+        self._rename_positions(removed)
         self._toggle_checkbox_save_pos()
+
+    def _rename_positions(self, names: list) -> None:
+        for name in names:
+            grid_count = 0
+            pos_count = 0
+            for r in range(self.stage_tableWidget.rowCount()):
+                start = self.stage_tableWidget.item(r, 0).text().split("_")[0]
+                if start == name:  # Grid
+                    new_name = f"{name}_Pos{grid_count:03d}"
+                    grid_count += 1
+                elif "Pos" in start:  # Pos
+                    new_name = f"Pos{pos_count:03d}"
+                    pos_count += 1
+                else:
+                    continue
+                item = QtW.QTableWidgetItem(new_name)
+                item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+                self.stage_tableWidget.setItem(r, 0, item)
 
     def _clear_positions(self) -> None:
         # clear all positions
