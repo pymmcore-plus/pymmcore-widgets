@@ -38,7 +38,10 @@ class PixelSizeTable(QtW.QTableWidget):
         self._camera_pixel_size: float = 0.0
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
-        self._mmc.events.pixelSizeChanged.connect(self._on_sys_cfg_loaded)
+        self._mmc.events.pixelSizeSet.connect(self._on_sys_cfg_loaded)
+        self._mmc.events.pixelSizeDeleted.connect(self._on_sys_cfg_loaded)
+        self._mmc.events.pixelSizeDefined.connect(self._on_sys_cfg_loaded)
+
         self.cellChanged.connect(self._on_cell_changed)
 
         self._objective_device = (
@@ -66,6 +69,7 @@ class PixelSizeTable(QtW.QTableWidget):
         self._on_sys_cfg_loaded()
 
     def _on_sys_cfg_loaded(self) -> None:
+
         if not self._objective_device:
             self._objective_device = ObjectivesWidget()._guess_objective_device()
         if not self._objective_device:
@@ -75,6 +79,8 @@ class PixelSizeTable(QtW.QTableWidget):
         self.setRowCount(len(obj_list))
 
         obj_cfg_px = self._get_px_info()
+
+        print(obj_cfg_px)
 
         with signals_blocked(self):
             for idx, objective in enumerate(obj_list):
@@ -214,7 +220,7 @@ class PixelSizeTable(QtW.QTableWidget):
                 self.setItem(r, 1, item)
 
             if self._mmc.getAvailablePixelSizeConfigs():
-                # remove px cfg if contains obj_label in ConfigData
+                # remove resolutionID if contains obj_label in ConfigData
                 for cfg in self._mmc.getAvailablePixelSizeConfigs():
                     cfg_data = list(
                         itertools.chain(*self._mmc.getPixelSizeConfigData(cfg))
@@ -226,10 +232,12 @@ class PixelSizeTable(QtW.QTableWidget):
             if resolutionID in self._mmc.getAvailablePixelSizeConfigs():
                 self._mmc.deletePixelSizeConfig(resolutionID)
 
-            self._mmc.definePixelSizeConfig(
-                resolutionID, self._objective_device, "Label", obj_label  # type: ignore
-            )
-            self._mmc.setPixelSizeUm(resolutionID, px_size_um)
+            with self._mmc.events.pixelSizeDefined.blocked():
+                self._mmc.definePixelSizeConfig(
+                    resolutionID, self._objective_device, "Label", obj_label  # type: ignore # noqa: E501
+                )
+            with self._mmc.events.pixelSizeSet.blocked():
+                self._mmc.setPixelSizeUm(resolutionID, px_size_um)
 
 
 class PixelSizeWidget(QtW.QDialog):
