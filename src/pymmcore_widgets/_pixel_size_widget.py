@@ -38,7 +38,7 @@ class PixelSizeTable(QtW.QTableWidget):
         self._camera_pixel_size: float = 0.0
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
-        self._mmc.events.pixelSizeDefined.connect(self._on_sys_cfg_loaded)
+        self._mmc.events.pixelSizeDefined.connect(self._on_px_defined)
         self._mmc.events.pixelSizeSet.connect(self._on_px_set)
         self._mmc.events.pixelSizeDeleted.connect(self._on_px_deleted)
 
@@ -67,6 +67,14 @@ class PixelSizeTable(QtW.QTableWidget):
         )
 
         self._on_sys_cfg_loaded()
+
+    def _get_px_info(self) -> List[Tuple[str, str, float]]:
+        obj_cfg_px = []
+        for cfg in self._mmc.getAvailablePixelSizeConfigs():
+            obj = list(self._mmc.getPixelSizeConfigData(cfg))[0][2]
+            px_value = self._mmc.getPixelSizeUmByID(cfg)
+            obj_cfg_px.append((obj, cfg, px_value))
+        return obj_cfg_px
 
     def _on_sys_cfg_loaded(self) -> None:
 
@@ -125,28 +133,40 @@ class PixelSizeTable(QtW.QTableWidget):
 
                 self._set_item_in_table(idx, 3, self._camera_pixel_size)
 
-    def _get_px_info(self) -> List[Tuple[str, str, float]]:
-        obj_cfg_px = []
-        for cfg in self._mmc.getAvailablePixelSizeConfigs():
-            obj = list(self._mmc.getPixelSizeConfigData(cfg))[0][2]
-            px_value = self._mmc.getPixelSizeUmByID(cfg)
-            obj_cfg_px.append((obj, cfg, px_value))
-        return obj_cfg_px
+    def _on_px_defined(
+        self, resolutionID: str, deviceLabel: str, propName: str, objective: str
+    ) -> None:
+
+        if resolutionID in self._mmc.getAvailablePixelSizeConfigs():
+            return
+
+        # if there is a resolutionID with the same objective, do nothing.
+        resID_objective = list(self._mmc.getPixelSizeConfigData(resolutionID))[0][2]
+        if objective == resID_objective:
+            return
+
+        match = self.findItems(objective, Qt.MatchExactly)
+        row = match[0].row()
+
+        with signals_blocked(self):
+            self._set_item_in_table(row, 1, resolutionID)
 
     def _on_px_set(self, resolutionID: str, pixSize: float) -> None:
+        objective = list(self._mmc.getPixelSizeConfigData(resolutionID))[0][2]
+        match = self.findItems(objective, Qt.MatchExactly)
+        row = match[0].row()
+        with signals_blocked(self):
+            self._set_item_in_table(row, 1, resolutionID)
+            self._set_item_in_table(row, 4, pixSize)
+
+    def _on_px_deleted(self, resolutionID: str) -> None:
         match = self.findItems(resolutionID, Qt.MatchExactly)
         if not match:
             return
         row = match[0].row()
-        self._set_item_in_table(row, 4, pixSize)
-
-    def _on_px_deleted(self, resulutionID: str) -> None:
-        match = self.findItems(resulutionID, Qt.MatchExactly)
-        if not match:
-            return
-        row = match[0].row()
-        self._set_item_in_table(row, 1, "None")
-        self._set_item_in_table(row, 4, "0.0")
+        with signals_blocked(self):
+            self._set_item_in_table(row, 1, "None")
+            self._set_item_in_table(row, 4, "0.0")
 
     def _on_cell_changed(self, row: int, col: int) -> None:
 
@@ -156,13 +176,12 @@ class PixelSizeTable(QtW.QTableWidget):
 
         with signals_blocked(self):
 
-            if col == 2:
-                if float(camera_px_size) == 0.0:
-                    return
-                image_px_size = float(mag) / float(camera_px_size)
-                self._set_item_in_table(row, 4, image_px_size)
+            if col == 2:  # mag
+                if float(camera_px_size) != 0.0:
+                    image_px_size = float(camera_px_size) / float(mag)
+                    self._set_item_in_table(row, 4, image_px_size)
 
-            elif col == 3:
+            elif col == 3:  # cam px size
 
                 for r in range(self.rowCount()):
                     self._set_item_in_table(r, col, camera_px_size)
@@ -172,18 +191,17 @@ class PixelSizeTable(QtW.QTableWidget):
                     image_px_size = (
                         0.0
                         if float(mag) == 0.0 or float(camera_px_size) == 0.0
-                        else float(mag) / float(camera_px_size)
+                        else float(camera_px_size) / float(mag)
                     )
 
                     self._set_item_in_table(r, 4, image_px_size)
 
-                if float(mag) == 0.0 or float(camera_px_size) == 0.0:
-                    return
+                if float(mag) != 0.0 and float(camera_px_size) != 0.0:
 
-                image_px_size = float(mag) / float(camera_px_size)
-                self._set_item_in_table(row, 4, image_px_size)
+                    image_px_size = float(camera_px_size) / float(mag)
+                    self._set_item_in_table(row, 4, image_px_size)
 
-            elif col == 4:
+            elif col == 4:  # img px size
                 mag = (
                     0.0
                     if float(image_px_size) == 0.0 or float(camera_px_size) == 0.0
@@ -192,49 +210,48 @@ class PixelSizeTable(QtW.QTableWidget):
 
                 self._set_item_in_table(row, 2, mag)
 
+        self._apply_change(row)
+
     def _set_item_in_table(self, row: int, col: int, value: Any) -> None:
         item = QtW.QTableWidgetItem(str(value))
         item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
         self.setItem(row, col, item)
 
-    def _set_mm_pixel_size(self) -> None:
+    def _apply_change(self, row: int) -> None:
 
-        self._magnification.clear()
+        obj_label = self.item(row, 0).text()
+        resolutionID = self.item(row, 1).text()
+        mag = float(self.item(row, 2).text())
+        self._camera_pixel_size = float(self.item(row, 3).text())
+        px_size_um = float(self.item(row, 4).text())
 
-        for r in range(self.rowCount()):
-            obj_label = self.item(r, 0).text()
-            px_size_um = float(self.item(r, 4).text())
-            mag = float(self.item(r, 2).text())
+        if resolutionID == "None":
+            resolutionID = f"{RESOLUTION_ID_PREFIX}{mag}x"
+            with signals_blocked(self):
+                self._set_item_in_table(row, 1, resolutionID)
 
-            if px_size_um == 0.0 or mag == 0.0:
-                continue
+        self._delete_if_exist(resolutionID, obj_label)
+        self._define_and_set_px(resolutionID, obj_label, px_size_um)
 
-            self._camera_pixel_size = float(self.item(r, 3).text())
+    def _delete_if_exist(self, resolutionID: str, objective_label: str) -> None:
+        # remove resolutionID if contains obj_label in ConfigData
+        if self._mmc.getAvailablePixelSizeConfigs():
+            for cfg in self._mmc.getAvailablePixelSizeConfigs():
+                cfg_data = list(itertools.chain(*self._mmc.getPixelSizeConfigData(cfg)))
+                if objective_label in cfg_data:
+                    self._mmc.deletePixelSizeConfig(cfg)
+                    break
 
-            self._magnification.append((obj_label, mag))
+        if resolutionID in self._mmc.getAvailablePixelSizeConfigs():
+            self._mmc.deletePixelSizeConfig(resolutionID)
 
-            resolutionID = self.item(r, 1).text()
-            if resolutionID == "None":
-                resolutionID = f"{RESOLUTION_ID_PREFIX}{mag}x"
-                self._set_item_in_table(r, 1, resolutionID)
-
-            if self._mmc.getAvailablePixelSizeConfigs():
-                # remove resolutionID if contains obj_label in ConfigData
-                for cfg in self._mmc.getAvailablePixelSizeConfigs():
-                    cfg_data = list(
-                        itertools.chain(*self._mmc.getPixelSizeConfigData(cfg))
-                    )
-                    if obj_label in cfg_data:
-                        self._mmc.deletePixelSizeConfig(cfg)
-                        break
-
-            if resolutionID in self._mmc.getAvailablePixelSizeConfigs():
-                self._mmc.deletePixelSizeConfig(resolutionID)
-
-            self._mmc.definePixelSizeConfig(
-                resolutionID, self._objective_device, "Label", obj_label  # type: ignore # noqa: E501
-            )
-            self._mmc.setPixelSizeUm(resolutionID, px_size_um)
+    def _define_and_set_px(
+        self, resolutionID: str, objective_label: str, px_size_um: float
+    ) -> None:
+        self._mmc.definePixelSizeConfig(
+            resolutionID, self._objective_device, "Label", objective_label  # type: ignore # noqa: E501
+        )
+        self._mmc.setPixelSizeUm(resolutionID, px_size_um)
 
 
 class PixelSizeWidget(QtW.QDialog):
@@ -280,14 +297,18 @@ class PixelSizeWidget(QtW.QDialog):
             10, 10, QtW.QSizePolicy.Expanding, QtW.QSizePolicy.Minimum
         )
 
-        self._set_btn = QtW.QPushButton(text="Set Image Pixel Sizes")
-        self._set_btn.clicked.connect(self._on_set_clicked)
+        self._delete_btn = QtW.QPushButton(text="Delete Selected Configuration")
+        self._delete_btn.clicked.connect(self._delete_cfg)
 
         layout.addItem(spacer)
-        layout.addWidget(self._set_btn)
+        layout.addWidget(self._delete_btn)
 
         return wdg
 
-    def _on_set_clicked(self) -> None:
-        self.table._set_mm_pixel_size()
-        self.close()
+    def _delete_cfg(self) -> None:
+        rows = {r.row() for r in self.table.selectedIndexes()}
+        for row in rows:
+            resolutionID = self.table.item(row, 1).text()
+            if resolutionID not in self._mmc.getAvailablePixelSizeConfigs():
+                continue
+            self._mmc.deletePixelSizeConfig(resolutionID)
