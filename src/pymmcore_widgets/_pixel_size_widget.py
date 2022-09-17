@@ -1,6 +1,6 @@
 import itertools
 import re
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
@@ -38,9 +38,9 @@ class PixelSizeTable(QtW.QTableWidget):
         self._camera_pixel_size: float = 0.0
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
-        self._mmc.events.pixelSizeSet.connect(self._on_sys_cfg_loaded)
-        self._mmc.events.pixelSizeDeleted.connect(self._on_sys_cfg_loaded)
         self._mmc.events.pixelSizeDefined.connect(self._on_sys_cfg_loaded)
+        self._mmc.events.pixelSizeSet.connect(self._on_px_set)
+        self._mmc.events.pixelSizeDeleted.connect(self._on_px_deleted)
 
         self.cellChanged.connect(self._on_cell_changed)
 
@@ -80,12 +80,10 @@ class PixelSizeTable(QtW.QTableWidget):
 
         obj_cfg_px = self._get_px_info()
 
-        print(obj_cfg_px)
-
         with signals_blocked(self):
             for idx, objective in enumerate(obj_list):
                 objective_item = QtW.QTableWidgetItem(objective)
-                objective_item.setFlags(Qt.ItemIsEnabled)
+                objective_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
                 self.setItem(idx, 0, objective_item)
 
                 cfg_name = "None"
@@ -98,13 +96,8 @@ class PixelSizeTable(QtW.QTableWidget):
                         px_value = px
                         break
 
-                cfg_item = QtW.QTableWidgetItem(cfg_name)
-                px_item = QtW.QTableWidgetItem(str(px_value))
-
-                cfg_item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-                px_item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-                self.setItem(idx, 1, cfg_item)
-                self.setItem(idx, 4, px_item)
+                self._set_item_in_table(idx, 1, cfg_name)
+                self._set_item_in_table(idx, 4, px_value)
 
                 if self._magnification:
                     for m in self._magnification:
@@ -120,9 +113,7 @@ class PixelSizeTable(QtW.QTableWidget):
                     )
                     total_mag = mag_value * self._mmc.getMagnificationFactor()
 
-                mag_item = QtW.QTableWidgetItem(str(total_mag))
-                mag_item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-                self.setItem(idx, 2, mag_item)
+                self._set_item_in_table(idx, 2, total_mag)
 
                 if (
                     self._camera_pixel_size == 0.0
@@ -132,9 +123,7 @@ class PixelSizeTable(QtW.QTableWidget):
                 ):
                     self._camera_pixel_size = total_mag * px_value
 
-                cam_px_item = QtW.QTableWidgetItem(str(self._camera_pixel_size))
-                cam_px_item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-                self.setItem(idx, 3, cam_px_item)
+                self._set_item_in_table(idx, 3, self._camera_pixel_size)
 
     def _get_px_info(self) -> List[Tuple[str, str, float]]:
         obj_cfg_px = []
@@ -143,6 +132,21 @@ class PixelSizeTable(QtW.QTableWidget):
             px_value = self._mmc.getPixelSizeUmByID(cfg)
             obj_cfg_px.append((obj, cfg, px_value))
         return obj_cfg_px
+
+    def _on_px_set(self, resolutionID: str, pixSize: float) -> None:
+        match = self.findItems(resolutionID, Qt.MatchExactly)
+        if not match:
+            return
+        row = match[0].row()
+        self._set_item_in_table(row, 4, pixSize)
+
+    def _on_px_deleted(self, resulutionID: str) -> None:
+        match = self.findItems(resulutionID, Qt.MatchExactly)
+        if not match:
+            return
+        row = match[0].row()
+        self._set_item_in_table(row, 1, "None")
+        self._set_item_in_table(row, 4, "0.0")
 
     def _on_cell_changed(self, row: int, col: int) -> None:
 
@@ -156,22 +160,12 @@ class PixelSizeTable(QtW.QTableWidget):
                 if float(camera_px_size) == 0.0:
                     return
                 image_px_size = float(mag) / float(camera_px_size)
-                item = QtW.QTableWidgetItem(str(image_px_size))
-                item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-                self.setItem(row, 4, item)
+                self._set_item_in_table(row, 4, image_px_size)
 
             elif col == 3:
-                if float(mag) == 0.0 or float(camera_px_size) == 0.0:
-                    return
-                image_px_size = float(mag) / float(camera_px_size)
-                item = QtW.QTableWidgetItem(str(image_px_size))
-                item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-                self.setItem(row, 4, item)
 
                 for r in range(self.rowCount()):
-                    item = QtW.QTableWidgetItem(camera_px_size)
-                    item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-                    self.setItem(r, col, item)
+                    self._set_item_in_table(r, col, camera_px_size)
 
                     mag = self.item(r, 2).text()
 
@@ -181,9 +175,13 @@ class PixelSizeTable(QtW.QTableWidget):
                         else float(mag) / float(camera_px_size)
                     )
 
-                    item = QtW.QTableWidgetItem(str(image_px_size))
-                    item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-                    self.setItem(r, 4, item)
+                    self._set_item_in_table(r, 4, image_px_size)
+
+                if float(mag) == 0.0 or float(camera_px_size) == 0.0:
+                    return
+
+                image_px_size = float(mag) / float(camera_px_size)
+                self._set_item_in_table(row, 4, image_px_size)
 
             elif col == 4:
                 mag = (
@@ -192,9 +190,12 @@ class PixelSizeTable(QtW.QTableWidget):
                     else float(camera_px_size) / float(image_px_size)
                 )
 
-                value_item = QtW.QTableWidgetItem(str(mag))
-                value_item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-                self.setItem(row, 2, value_item)
+                self._set_item_in_table(row, 2, mag)
+
+    def _set_item_in_table(self, row: int, col: int, value: Any) -> None:
+        item = QtW.QTableWidgetItem(str(value))
+        item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+        self.setItem(row, col, item)
 
     def _set_mm_pixel_size(self) -> None:
 
@@ -215,9 +216,7 @@ class PixelSizeTable(QtW.QTableWidget):
             resolutionID = self.item(r, 1).text()
             if resolutionID == "None":
                 resolutionID = f"{RESOLUTION_ID_PREFIX}{mag}x"
-                item = QtW.QTableWidgetItem(resolutionID)
-                item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-                self.setItem(r, 1, item)
+                self._set_item_in_table(r, 1, resolutionID)
 
             if self._mmc.getAvailablePixelSizeConfigs():
                 # remove resolutionID if contains obj_label in ConfigData
@@ -232,12 +231,10 @@ class PixelSizeTable(QtW.QTableWidget):
             if resolutionID in self._mmc.getAvailablePixelSizeConfigs():
                 self._mmc.deletePixelSizeConfig(resolutionID)
 
-            with self._mmc.events.pixelSizeDefined.blocked():
-                self._mmc.definePixelSizeConfig(
-                    resolutionID, self._objective_device, "Label", obj_label  # type: ignore # noqa: E501
-                )
-            with self._mmc.events.pixelSizeSet.blocked():
-                self._mmc.setPixelSizeUm(resolutionID, px_size_um)
+            self._mmc.definePixelSizeConfig(
+                resolutionID, self._objective_device, "Label", obj_label  # type: ignore # noqa: E501
+            )
+            self._mmc.setPixelSizeUm(resolutionID, px_size_um)
 
 
 class PixelSizeWidget(QtW.QDialog):
@@ -282,6 +279,7 @@ class PixelSizeWidget(QtW.QDialog):
         spacer = QtW.QSpacerItem(
             10, 10, QtW.QSizePolicy.Expanding, QtW.QSizePolicy.Minimum
         )
+
         self._set_btn = QtW.QPushButton(text="Set Image Pixel Sizes")
         self._set_btn.clicked.connect(self._on_set_clicked)
 
