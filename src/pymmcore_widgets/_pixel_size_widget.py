@@ -34,7 +34,7 @@ class PixelSizeTable(QtW.QTableWidget):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self._magnification: List[Tuple[str, float]] = []
+        self._magnification: List[List[str, float]] = []  # type: ignore
         self._camera_pixel_size: float = 0.0
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
@@ -48,6 +48,11 @@ class PixelSizeTable(QtW.QTableWidget):
             objective_device or ObjectivesWidget()._guess_objective_device()
         )
 
+        self._set_table_property()
+
+        self._on_sys_cfg_loaded()
+
+    def _set_table_property(self) -> None:
         hdr = self.horizontalHeader()
         hdr.setSectionResizeMode(hdr.Stretch)
         hdr.setDefaultAlignment(Qt.AlignHCenter)
@@ -65,8 +70,6 @@ class PixelSizeTable(QtW.QTableWidget):
                 "Image Pixel Size (µm)",
             ]
         )
-
-        self._on_sys_cfg_loaded()
 
     def _get_px_info(self) -> List[Tuple[str, str, float]]:
         obj_cfg_px = []
@@ -107,21 +110,15 @@ class PixelSizeTable(QtW.QTableWidget):
                 self._set_item_in_table(idx, 1, cfg_name)
                 self._set_item_in_table(idx, 4, px_value)
 
-                if self._magnification:
-                    for m in self._magnification:
-                        obj, mag = m
-                        if objective == obj:
-                            total_mag = mag
-                            break
-                else:
-                    mag_value = (
-                        int(match.groups()[0])
-                        if (match := re.search(r"(\d{1,3})[xX]", objective))
-                        else 0.0
-                    )
-                    total_mag = mag_value * self._mmc.getMagnificationFactor()
+                mag_value = (
+                    int(match.groups()[0])
+                    if (match := re.search(r"(\d{1,3})[xX]", objective))
+                    else 0.0
+                )
+                total_mag = mag_value * self._mmc.getMagnificationFactor()
 
                 self._set_item_in_table(idx, 2, total_mag)
+                self._magnification.append([objective, total_mag])
 
                 if (
                     self._camera_pixel_size == 0.0
@@ -210,14 +207,14 @@ class PixelSizeTable(QtW.QTableWidget):
 
                 self._set_item_in_table(row, 2, mag)
 
-        self._apply_change(row)
+        self._apply_changes(row)
 
     def _set_item_in_table(self, row: int, col: int, value: Any) -> None:
         item = QtW.QTableWidgetItem(str(value))
         item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
         self.setItem(row, col, item)
 
-    def _apply_change(self, row: int) -> None:
+    def _apply_changes(self, row: int) -> None:
 
         obj_label = self.item(row, 0).text()
         resolutionID = self.item(row, 1).text()
@@ -230,8 +227,22 @@ class PixelSizeTable(QtW.QTableWidget):
             with signals_blocked(self):
                 self._set_item_in_table(row, 1, resolutionID)
 
+        self._update_magnification_list(obj_label, mag)
         self._delete_if_exist(resolutionID, obj_label)
         self._define_and_set_px(resolutionID, obj_label, px_size_um)
+
+    def _update_magnification_list(
+        self, oblective_label: str, magnification: float
+    ) -> None:
+
+        if self._magnification:
+            for obj_mag in self._magnification:
+                o, _ = obj_mag
+                if o == oblective_label:
+                    obj_mag[1] = magnification
+                    break
+        else:
+            self._magnification.append([oblective_label, magnification])
 
     def _delete_if_exist(self, resolutionID: str, objective_label: str) -> None:
         # remove resolutionID if contains obj_label in ConfigData
