@@ -86,6 +86,8 @@ class PixelSizeTable(QtW.QTableWidget):
         if not self._objective_device:
             return
 
+        self._magnification.clear()
+
         obj_list = self._mmc.getStateLabels(self._objective_device)
         self.setRowCount(len(obj_list))
 
@@ -134,16 +136,13 @@ class PixelSizeTable(QtW.QTableWidget):
         self, resolutionID: str, deviceLabel: str, propName: str, objective: str
     ) -> None:
 
-        if resolutionID in self._mmc.getAvailablePixelSizeConfigs():
-            return
+        match = self.findItems(objective, Qt.MatchExactly)
+        row = match[0].row()
 
         # if there is a resolutionID with the same objective, do nothing.
         resID_objective = list(self._mmc.getPixelSizeConfigData(resolutionID))[0][2]
-        if objective == resID_objective:
+        if objective == resID_objective and self.item(row, 1).text() != "None":
             return
-
-        match = self.findItems(objective, Qt.MatchExactly)
-        row = match[0].row()
 
         with signals_blocked(self):
             self._set_item_in_table(row, 1, resolutionID)
