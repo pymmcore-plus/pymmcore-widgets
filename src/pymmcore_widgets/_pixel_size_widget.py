@@ -6,6 +6,7 @@ from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import QSize, Qt
+from qtpy.QtGui import QColor
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
@@ -27,6 +28,7 @@ class PixelSizeTable(QtW.QTableWidget):
         vh.setVisible(False)
         vh.setSectionResizeMode(vh.ResizeMode.Fixed)
         self.setSelectionBehavior(QtW.QAbstractItemView.SelectItems)
+        self.setDragDropMode(QtW.QAbstractItemView.NoDragDrop)
         self.setColumnCount(5)
         self.setHorizontalHeaderLabels(
             [
@@ -216,18 +218,24 @@ class PixelSizeWidget(QtW.QDialog):
             obj_cfg_px.append((obj, cfg, px_value))
         return obj_cfg_px
 
-    def _select_item_flags(self, col: int) -> Qt.ItemFlag:
+    def _select_item_flags_and_color(self, col: int) -> Tuple[Qt.ItemFlag, str]:
+        # TODO find how to get the defalut color from parent
+        default_color = self.table.item(0, 0).background().color()
         return (
-            Qt.ItemIsEnabled | Qt.ItemIsSelectable
+            (Qt.ItemIsEnabled | Qt.ItemIsSelectable, "magenta")
             if self._is_read_only(col)
-            else Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
+            else (
+                Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable,
+                default_color,
+            )
         )
 
     def _set_item_in_table(self, row: int, col: int, value: Any) -> None:
         item = QtW.QTableWidgetItem(str(value))
         item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-        flags = self._select_item_flags(col)
+        flags, color = self._select_item_flags_and_color(col)
         item.setFlags(flags)
+        item.setForeground(QColor(color))
         self.table.setItem(row, col, item)
 
     def _on_px_defined(
@@ -253,6 +261,16 @@ class PixelSizeWidget(QtW.QDialog):
             self._set_item_in_table(row, 1, resolutionID)
             self._set_item_in_table(row, 4, pixSize)
 
+            if self.img_px_radiobtn.isChecked() or self.cam_px_radiobtn.isChecked():
+                self._calculate_and_update_camera_px_size(
+                    str(pixSize), self.table.item(row, 2).text()
+                )
+            else:
+                mag = self._calculate_magnification(
+                    self.table.item(row, 3).text(), str(pixSize)
+                )
+                self._set_item_in_table(row, 2, mag)
+
     def _on_px_deleted(self, resolutionID: str) -> None:
         match = self.table.findItems(resolutionID, Qt.MatchExactly)
         if not match:
@@ -274,12 +292,15 @@ class PixelSizeWidget(QtW.QDialog):
     def _enable_column(self, column: int, enable: bool) -> None:
         if enable:
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
+            color = ""
         else:
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
+            color = "magenta"
         with signals_blocked(self.table):
             for row in range(self.table.rowCount()):
                 item = self.table.item(row, column)
                 item.setFlags(flags)
+                item.setForeground(QColor(color))
 
     def _delete_cfg(self) -> None:
         rows = {r.row() for r in self.table.selectedIndexes()}
