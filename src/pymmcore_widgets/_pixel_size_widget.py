@@ -5,14 +5,24 @@ from typing import Any, List, Optional, Tuple
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import QMargins, QSize, Qt
 from qtpy.QtGui import QColor
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
 from ._objective_widget import ObjectivesWidget
 
+SPACING = 10
+MARGINS = QMargins(5, 5, 5, 5)
+
 RESOLUTION_ID_PREFIX = "px_size_"
+
+OBJECTIVE_LABEL = 0
+RESOLUTION_ID = 1
+CAMERA_PX_SIZE = 2
+MAGNIFICATION = 3
+IMAGE_PX_SIZE = 4
+LABEL_STATUS = 5
 
 
 class PixelSizeTable(QtW.QTableWidget):
@@ -21,22 +31,23 @@ class PixelSizeTable(QtW.QTableWidget):
     def __init__(self, parent: Optional[QtW.QWidget] = None) -> None:
         super().__init__(parent)
 
-        hdr = self.horizontalHeader()
-        hdr.setSectionResizeMode(hdr.Stretch)
-        hdr.setDefaultAlignment(Qt.AlignHCenter)
+        hh = self.horizontalHeader()
+        hh.setSectionResizeMode(hh.Stretch)
+        hh.setDefaultAlignment(Qt.AlignHCenter)
         vh = self.verticalHeader()
-        vh.setVisible(False)
         vh.setSectionResizeMode(vh.ResizeMode.Fixed)
         self.setSelectionBehavior(QtW.QAbstractItemView.SelectItems)
         self.setDragDropMode(QtW.QAbstractItemView.NoDragDrop)
-        self.setColumnCount(5)
+        self.setColumnCount(7)
         self.setHorizontalHeaderLabels(
             [
                 "Objective",
                 "Configuration Name",
-                "Magnification",
                 "Camera Pixel Size (µm)",
+                "Magnification",
                 "Image Pixel Size (µm)",
+                "Status",
+                "",
             ]
         )
 
@@ -72,11 +83,6 @@ class PixelSizeWidget(QtW.QDialog):
             objective_device or ObjectivesWidget()._guess_objective_device()
         )
 
-        main_layout = QtW.QVBoxLayout()
-        main_layout.setSpacing(10)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        self.setLayout(main_layout)
-
         self._create_wdg()
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
@@ -90,71 +96,83 @@ class PixelSizeWidget(QtW.QDialog):
 
     def _create_wdg(self) -> None:
 
-        btns = self._create_radiobtn_wdg()
-        self.layout().addWidget(btns)
+        main_layout = QtW.QVBoxLayout()
+        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(MARGINS)
+        main_layout.setAlignment(Qt.AlignCenter)
+        self.setLayout(main_layout)
 
-        self.table = PixelSizeTable()
-        self.layout().addWidget(self.table)
-
-        self.setMinimumSize(750, 300)
-
-    def _create_radiobtn_wdg(self) -> QtW.QGroupBox:
         wdg = QtW.QGroupBox()
-        layout = QtW.QHBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout = QtW.QVBoxLayout()
+        layout.setSpacing(SPACING)
+        layout.setContentsMargins(MARGINS)
         wdg.setLayout(layout)
 
-        lbl = QtW.QLabel(text="Select what to calculate from the table:")
-        self.mag_radiobtn = QtW.QRadioButton(text="magnifiction")
-        self.cam_px_radiobtn = QtW.QRadioButton(text="camera pixel size")
-        self.img_px_radiobtn = QtW.QRadioButton(text="image pixel size")
+        btns = self._create_radiobtn_wdg()
+        layout.addWidget(btns)
+
+        self.table = PixelSizeTable()
+        layout.addWidget(self.table)
+
+        self.layout().addWidget(wdg)
+
+    def _add_delete_btn(self, row: int) -> None:
+
+        self._delete_btn = QtW.QPushButton(text="Delete")
+        self._delete_btn.setSizePolicy(QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed)
+        self._delete_btn.setToolTip("Delete configuration.")
+        self._delete_btn.clicked.connect(self._delete_cfg)
+
+        self._delete_btn.setProperty("row", row)
+        self.table.setCellWidget(row, 6, self._delete_btn)
+
+    def _add_status_label(self, row: int) -> None:
+        self.status_lbl = QtW.QLabel()
+        self.status_lbl.setProperty("row", row)
+        self.status_lbl.setAlignment(Qt.AlignCenter)
+        self.table.setCellWidget(row, LABEL_STATUS, self.status_lbl)
+
+    def _create_radiobtn_wdg(self) -> QtW.QWidget:
+        self.rbt_wdg = QtW.QWidget()
+        layout = QtW.QHBoxLayout()
+        layout.setSpacing(SPACING)
+        layout.setContentsMargins(MARGINS)
+        self.rbt_wdg.setLayout(layout)
+
+        self.mag_radiobtn = QtW.QRadioButton(text="Calculate Magnifiction")
+        self.img_px_radiobtn = QtW.QRadioButton(text="Calculate Image Pixel Size")
         self.img_px_radiobtn.setChecked(True)
 
         self.mag_radiobtn.toggled.connect(self._on_mag_toggle)
-        self.cam_px_radiobtn.toggled.connect(self._on_cam_toggle)
         self.img_px_radiobtn.toggled.connect(self._on_img_toggle)
 
-        self._delete_btn = QtW.QPushButton()
-        self._delete_btn.setIcon(icon(MDI6.close_thick, color="magenta"))
-        self._delete_btn.setIconSize(QSize(20, 20))
-        self._delete_btn.setSizePolicy(QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed)
-        self._delete_btn.setToolTip("Delete selected configurations.")
+        spacer = QtW.QSpacerItem(
+            10, 10, QtW.QSizePolicy.Expanding, QtW.QSizePolicy.Minimum
+        )
+        layout.addItem(spacer)
 
-        self._delete_btn.clicked.connect(self._delete_cfg)
-
-        layout.addWidget(lbl)
         layout.addWidget(self.mag_radiobtn)
-        layout.addWidget(self.cam_px_radiobtn)
         layout.addWidget(self.img_px_radiobtn)
 
-        spacer = QtW.QSpacerItem(
-            10, 10, QtW.QSizePolicy.Expanding, QtW.QSizePolicy.Minimum
-        )
-        layout.addItem(spacer)
+        return self.rbt_wdg
 
-        layout.addWidget(self._delete_btn)
+    def _update_wdg_size(self) -> None:
+        w = sum(self.table.sizeHintForColumn(i) for i in range(7))
+        self.setMinimumWidth(int(w + (w * 30 / 100)))
+        self.setMinimumHeight(int(self.sizeHint().height() + (w * 5 / 100)))
 
-        return wdg
+    def _update_status_label(self, row: int) -> None:
 
-    def _create_btn_wdg(self) -> QtW.QWidget:
-        wdg = QtW.QWidget()
-        layout = QtW.QHBoxLayout()
-        layout.setSpacing(20)
-        layout.setContentsMargins(0, 10, 0, 10)
-        wdg.setLayout(layout)
+        resolutionID = self.table.item(row, RESOLUTION_ID).text()
+        px_size = float(self.table.item(row, IMAGE_PX_SIZE).text())
+        lbl = self.table.cellWidget(row, LABEL_STATUS)
 
-        spacer = QtW.QSpacerItem(
-            10, 10, QtW.QSizePolicy.Expanding, QtW.QSizePolicy.Minimum
-        )
-
-        self._delete_btn = QtW.QPushButton(text="Delete Selected Configuration")
-        self._delete_btn.clicked.connect(self._delete_cfg)
-
-        layout.addItem(spacer)
-        layout.addWidget(self._delete_btn)
-
-        return wdg
+        if resolutionID in self._mmc.getAvailablePixelSizeConfigs() and px_size > 0.0:
+            lbl.setPixmap(
+                icon(MDI6.check_bold, color=(0, 255, 0)).pixmap(QSize(20, 20))
+            )
+        else:
+            lbl.setPixmap(icon(MDI6.close_thick, color="magenta").pixmap(QSize(20, 20)))
 
     def _on_sys_cfg_loaded(self) -> None:
 
@@ -175,7 +193,7 @@ class PixelSizeWidget(QtW.QDialog):
             for idx, objective in enumerate(obj_list):
                 objective_item = QtW.QTableWidgetItem(objective)
                 objective_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-                self.table.setItem(idx, 0, objective_item)
+                self.table.setItem(idx, OBJECTIVE_LABEL, objective_item)
 
                 cfg_name = "None"
                 px_value = 0.0
@@ -187,8 +205,8 @@ class PixelSizeWidget(QtW.QDialog):
                         px_value = px
                         break
 
-                self._set_item_in_table(idx, 1, cfg_name)
-                self._set_item_in_table(idx, 4, px_value)
+                self._set_item_in_table(idx, RESOLUTION_ID, cfg_name)
+                self._set_item_in_table(idx, IMAGE_PX_SIZE, px_value)
 
                 mag_value = (
                     int(match.groups()[0])
@@ -197,7 +215,7 @@ class PixelSizeWidget(QtW.QDialog):
                 )
                 total_mag = mag_value * self._mmc.getMagnificationFactor()
 
-                self._set_item_in_table(idx, 2, total_mag)
+                self._set_item_in_table(idx, MAGNIFICATION, total_mag)
                 self._magnification.append([objective, total_mag])
 
                 if (
@@ -208,7 +226,14 @@ class PixelSizeWidget(QtW.QDialog):
                 ):
                     self._camera_pixel_size = total_mag * px_value
 
-                self._set_item_in_table(idx, 3, self._camera_pixel_size)
+                self._set_item_in_table(idx, CAMERA_PX_SIZE, self._camera_pixel_size)
+
+                self._add_delete_btn(idx)
+
+                self._add_status_label(idx)
+                self._update_status_label(idx)
+
+        self._update_wdg_size()
 
     def _get_px_info(self) -> List[Tuple[str, str, float]]:
         obj_cfg_px = []
@@ -247,29 +272,29 @@ class PixelSizeWidget(QtW.QDialog):
 
         # if there is a resolutionID with the same objective, do nothing.
         resID_objective = list(self._mmc.getPixelSizeConfigData(resolutionID))[0][2]
-        if objective == resID_objective and self.table.item(row, 1).text() != "None":
+        if (
+            objective == resID_objective
+            and self.table.item(row, RESOLUTION_ID).text() != "None"
+        ):
             return
 
         with signals_blocked(self.table):
-            self._set_item_in_table(row, 1, resolutionID)
+            self._set_item_in_table(row, RESOLUTION_ID, resolutionID)
 
     def _on_px_set(self, resolutionID: str, pixSize: float) -> None:
         objective = list(self._mmc.getPixelSizeConfigData(resolutionID))[0][2]
         match = self.table.findItems(objective, Qt.MatchExactly)
         row = match[0].row()
         with signals_blocked(self.table):
-            self._set_item_in_table(row, 1, resolutionID)
-            self._set_item_in_table(row, 4, pixSize)
+            self._set_item_in_table(row, RESOLUTION_ID, resolutionID)
+            self._set_item_in_table(row, IMAGE_PX_SIZE, pixSize)
 
-            if self.img_px_radiobtn.isChecked() or self.cam_px_radiobtn.isChecked():
-                self._calculate_and_update_camera_px_size(
-                    str(pixSize), self.table.item(row, 2).text()
-                )
-            else:
-                mag = self._calculate_magnification(
-                    self.table.item(row, 3).text(), str(pixSize)
-                )
-                self._set_item_in_table(row, 2, mag)
+            mag = self._calculate_magnification(
+                self.table.item(row, CAMERA_PX_SIZE).text(), str(pixSize)
+            )
+            self._set_item_in_table(row, MAGNIFICATION, mag)
+
+        self._update_status_label(row)
 
     def _on_px_deleted(self, resolutionID: str) -> None:
         match = self.table.findItems(resolutionID, Qt.MatchExactly)
@@ -277,17 +302,16 @@ class PixelSizeWidget(QtW.QDialog):
             return
         row = match[0].row()
         with signals_blocked(self.table):
-            self._set_item_in_table(row, 1, "None")
-            self._set_item_in_table(row, 4, "0.0")
+            self._set_item_in_table(row, RESOLUTION_ID, "None")
+            self._set_item_in_table(row, IMAGE_PX_SIZE, "0.0")
+
+        self._update_status_label(row)
 
     def _on_mag_toggle(self, state: bool) -> None:
-        self._enable_column(2, not state)
-
-    def _on_cam_toggle(self, state: bool) -> None:
-        self._enable_column(3, not state)
+        self._enable_column(MAGNIFICATION, not state)
 
     def _on_img_toggle(self, state: bool) -> None:
-        self._enable_column(4, not state)
+        self._enable_column(IMAGE_PX_SIZE, not state)
 
     def _enable_column(self, column: int, enable: bool) -> None:
         if enable:
@@ -303,69 +327,89 @@ class PixelSizeWidget(QtW.QDialog):
                 item.setForeground(QColor(color))
 
     def _delete_cfg(self) -> None:
-        rows = {r.row() for r in self.table.selectedIndexes()}
-        for row in rows:
-            resolutionID = self.table.item(row, 1).text()
-            if resolutionID not in self._mmc.getAvailablePixelSizeConfigs():
-                continue
-            self._mmc.deletePixelSizeConfig(resolutionID)
+        row = self.sender().property("row")
+        resolutionID = self.table.item(row, RESOLUTION_ID).text()
+        if resolutionID not in self._mmc.getAvailablePixelSizeConfigs():
+            with signals_blocked(self.table):
+                self._set_item_in_table(row, RESOLUTION_ID, "None")
+                self._set_item_in_table(row, IMAGE_PX_SIZE, "0.0")
+            return
+        self._mmc.deletePixelSizeConfig(resolutionID)
 
     def _on_cell_changed(self, row: int, col: int) -> None:
 
-        mag = self.table.item(row, 2).text()
-        camera_px_size = self.table.item(row, 3).text()
-        image_px_size = self.table.item(row, 4).text()
+        resolutionID = self.table.item(row, RESOLUTION_ID).text()
+        mag = self.table.item(row, MAGNIFICATION).text()
+        camera_px_size = self.table.item(row, CAMERA_PX_SIZE).text()
+        image_px_size = self.table.item(row, IMAGE_PX_SIZE).text()
 
         with signals_blocked(self.table):
 
-            if col == 2:  # mag
+            if col == RESOLUTION_ID:
+                if resolutionID in self._mmc.getAvailablePixelSizeConfigs():
+                    raise ValueError(
+                        f"There is already a configuration called '{resolutionID}'! "
+                        "Please choose a different name."
+                    )
 
-                if self._is_read_only(3):
-                    self._calculate_and_update_camera_px_size(image_px_size, mag)
-
-                elif self._is_read_only(4):
+                if self._is_read_only(IMAGE_PX_SIZE):
                     image_px_size = self._calculate_image_px_size(camera_px_size, mag)
-                    self._set_item_in_table(row, 4, image_px_size)
+                    self._set_item_in_table(row, IMAGE_PX_SIZE, image_px_size)
 
-            elif col == 3:  # cam px size
-
-                if self._is_read_only(2):
+                elif self._is_read_only(MAGNIFICATION):
                     mag = self._calculate_magnification(camera_px_size, image_px_size)
-                    self._set_item_in_table(row, 2, mag)
+                    self._set_item_in_table(row, MAGNIFICATION, mag)
 
-                elif self._is_read_only(4):
+                else:
+                    return
+
+            elif col == CAMERA_PX_SIZE:  # cam px size
+
+                if self._is_read_only(MAGNIFICATION):
+                    mag = self._calculate_magnification(camera_px_size, image_px_size)
+                    self._set_item_in_table(row, MAGNIFICATION, mag)
+
+                elif self._is_read_only(IMAGE_PX_SIZE):
                     image_px_size = self._calculate_image_px_size(camera_px_size, mag)
-                    self._set_item_in_table(row, 4, image_px_size)
+                    self._set_item_in_table(row, IMAGE_PX_SIZE, image_px_size)
 
                 self._update_cam_px_size(camera_px_size)
 
-            elif col == 4:  # img px size
+            elif col == MAGNIFICATION:  # mag
 
-                if self._is_read_only(2):
+                if self._is_read_only(IMAGE_PX_SIZE):
+                    image_px_size = self._calculate_image_px_size(camera_px_size, mag)
+                    self._set_item_in_table(row, IMAGE_PX_SIZE, image_px_size)
+
+            elif col == IMAGE_PX_SIZE:  # img px size
+
+                if self._is_read_only(MAGNIFICATION):
                     mag = self._calculate_magnification(camera_px_size, image_px_size)
-                    self._set_item_in_table(row, 2, mag)
+                    self._set_item_in_table(row, MAGNIFICATION, mag)
 
-                if self._is_read_only(3):
-                    self._calculate_and_update_camera_px_size(image_px_size, mag)
+            else:
+                return
 
         self._apply_changes(row)
 
     def _apply_changes(self, row: int) -> None:
 
-        obj_label = self.table.item(row, 0).text()
-        resolutionID = self.table.item(row, 1).text()
-        mag = float(self.table.item(row, 2).text())
-        self._camera_pixel_size = float(self.table.item(row, 3).text())
-        px_size_um = float(self.table.item(row, 4).text())
+        obj_label = self.table.item(row, OBJECTIVE_LABEL).text()
+        resolutionID = self.table.item(row, RESOLUTION_ID).text()
+        mag = float(self.table.item(row, MAGNIFICATION).text())
+        self._camera_pixel_size = float(self.table.item(row, CAMERA_PX_SIZE).text())
+        px_size_um = float(self.table.item(row, IMAGE_PX_SIZE).text())
 
         if resolutionID == "None":
-            resolutionID = f"{RESOLUTION_ID_PREFIX}{mag}x"
+            resolutionID = f"{RESOLUTION_ID_PREFIX}{round(mag, 1)}x"
             with signals_blocked(self.table):
-                self._set_item_in_table(row, 1, resolutionID)
+                self._set_item_in_table(row, RESOLUTION_ID, resolutionID)
 
         self._update_magnification_list(obj_label, mag)
         self._delete_if_exist(resolutionID, obj_label)
         self._define_and_set_px(resolutionID, obj_label, px_size_um)
+
+        self._update_status_label(row)
 
     def _delete_if_exist(self, resolutionID: str, objective_label: str) -> None:
         # remove resolutionID if contains obj_label in ConfigData
@@ -405,25 +449,17 @@ class PixelSizeWidget(QtW.QDialog):
             ipx = 0.0
         return ipx
 
-    def _calculate_and_update_camera_px_size(
-        self, image_px_size: str, magnification: str
-    ) -> None:
-        camera_px_size = float(image_px_size) * float(magnification)
-        self._update_cam_px_size(camera_px_size)
-
     def _update_cam_px_size(self, value: Any) -> None:
         for r in range(self.table.rowCount()):
-            cpx = self.table.item(r, 3).text()
+            cpx = self.table.item(r, CAMERA_PX_SIZE).text()
             if cpx == value:
                 continue
-            self._set_item_in_table(r, 3, value)
+            self._set_item_in_table(r, CAMERA_PX_SIZE, value)
 
     def _is_read_only(self, col: int) -> bool:
-        if col == 2:
+        if col == MAGNIFICATION:
             return self.mag_radiobtn.isChecked()  # type: ignore
-        elif col == 3:
-            return self.cam_px_radiobtn.isChecked()  # type: ignore
-        elif col == 4:
+        elif col == IMAGE_PX_SIZE:
             return self.img_px_radiobtn.isChecked()  # type: ignore
         else:
             return False
