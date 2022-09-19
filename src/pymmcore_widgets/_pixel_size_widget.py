@@ -338,6 +338,7 @@ class PixelSizeWidget(QtW.QDialog):
 
     def _on_cell_changed(self, row: int, col: int) -> None:
 
+        objective_label = self.table.item(row, OBJECTIVE_LABEL).text()
         resolutionID = self.table.item(row, RESOLUTION_ID).text()
         mag = self.table.item(row, MAGNIFICATION).text()
         camera_px_size = self.table.item(row, CAMERA_PX_SIZE).text()
@@ -347,12 +348,23 @@ class PixelSizeWidget(QtW.QDialog):
 
             if col == RESOLUTION_ID:
                 if resolutionID in self._mmc.getAvailablePixelSizeConfigs():
+
+                    id = "None"
+                    for cfg in self._mmc.getAvailablePixelSizeConfigs():
+                        cfg_data = list(
+                            itertools.chain(*self._mmc.getPixelSizeConfigData(cfg))
+                        )
+                        if objective_label in cfg_data:
+                            id = cfg
+                            break
+                    self._set_item_in_table(row, RESOLUTION_ID, id)
+
                     raise ValueError(
                         f"There is already a configuration called '{resolutionID}'! "
                         "Please choose a different name."
                     )
 
-                if self._is_read_only(IMAGE_PX_SIZE):
+                elif self._is_read_only(IMAGE_PX_SIZE):
                     image_px_size = self._calculate_image_px_size(camera_px_size, mag)
                     self._set_item_in_table(row, IMAGE_PX_SIZE, image_px_size)
 
