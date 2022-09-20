@@ -165,10 +165,8 @@ class PixelSizeWidget(QtW.QDialog):
         return self.rbt_wdg
 
     def _update_wdg_size(self) -> None:
-
-        w = self.sizeHint().width()
         h = self.sizeHint().height()
-        self.setMinimumWidth(int(w + (w * 50 / 100)))
+        self.setMinimumWidth(self.sizeHint().width() * 2)
         self.setMinimumHeight(int(h + (h * 20 / 100)))
 
     def _update_status_label(self, row: int) -> None:
