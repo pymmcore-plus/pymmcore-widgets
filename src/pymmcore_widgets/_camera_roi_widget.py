@@ -48,7 +48,7 @@ class CameraRoiWidget(QWidget):
         # self._mmc.events.propertyChanged.connect(self._on_property_changed)
         self._mmc.events.pixelSizeChanged.connect(self._update_lbl_info)
         # new signal in pymmcore-plus
-        self._mmc.events.camRoiSet.connect(self._on_roi_set)
+        self._mmc.events.roiSet.connect(self._on_roi_set)
 
     def _create_gui(self) -> None:  # sourcery skip: class-extract-method
 

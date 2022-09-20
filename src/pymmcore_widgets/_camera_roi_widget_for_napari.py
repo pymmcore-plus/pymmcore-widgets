@@ -90,4 +90,4 @@
 #                 y = y - ((y + height) - y_max)
 
 #             cam = self._mmc.getCameraDevice()
-#             self._mmc.events.camRoiSet.emit(cam, x, y, width, height)
+#             self._mmc.events.roiSet.emit(cam, x, y, width, height)
