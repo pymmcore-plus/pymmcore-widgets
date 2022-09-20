@@ -33,35 +33,6 @@ class ShuttersWidget(QtW.QWidget):
         is added to the layout.
     parent : Optional[QWidget]
         Optional parent widget.
-
-    Properties
-    ----------
-    icon_open: MDI6 (https://github.com/templarian/MaterialDesign)
-        Icon of the QPushButton when the shutter is open.
-        Default = MDI6.hexagon_outline.
-    icon_color_open: COLOR_TYPE
-        Color of the QPushButton "icon_open" when the shutter is open.
-        Default = (0, 255, 0)
-    button_text_open: str
-        Text of the QPushButton when the shutter is open.
-        Default = ""
-
-    icon_closed: MDI6 (https://github.com/templarian/MaterialDesign)
-        Icon of the QPushButton when the shutter is closed.
-        Default = MDI6.hexagon_slice_6.
-    icon_color_closed: COLOR_TYPE
-        Color of the QPushButton "icon_closed" when the shutter is closed.
-        Default = "magents"
-    button_text_closed:
-        Text of the QPushButton when the shutter is closed.
-        Default = ""
-
-    icon_size:
-        Size of the QPushButton "icon_open" and "icon_closed".
-        Default = 25
-
-    COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
-    Tuple[int, int, int]]
     """
 
     def __init__(
@@ -81,8 +52,8 @@ class ShuttersWidget(QtW.QWidget):
         self._is_multiShutter = False
         self.autoshutter = autoshutter
 
-        self._icon_open: MDI6 = MDI6.hexagon_outline
-        self._icon_closed: MDI6 = MDI6.hexagon_slice_6
+        self._icon_open: str = MDI6.hexagon_outline
+        self._icon_closed: str = MDI6.hexagon_slice_6
         self._icon_color_open: COLOR_TYPE = (0, 255, 0)
         self._icon_color_closed: COLOR_TYPE = "magenta"
         self._icon_size: int = 25
@@ -106,30 +77,52 @@ class ShuttersWidget(QtW.QWidget):
         self.destroyed.connect(self._disconnect)
 
     @property
-    def icon_open(self) -> MDI6:
-        """Set the button icon for when the shutter is open."""
+    def icon_open(self) -> str:
+        """
+        Set the icon of the QPushButton when the shutter is open.
+
+        The icon_open.setter icon string should be any key recognizeable as
+        a superqt fonticon (e.g. mdi6.abacus).
+        Default = MDI6.hexagon_outline (https://github.com/templarian/MaterialDesign).
+        Note that MDI6 is installed by default, you must install other fonts
+        if you want to use them.
+        """
         return self._icon_open
 
     @icon_open.setter
-    def icon_open(self, icon_o: MDI6) -> None:
+    def icon_open(self, icon_o: str) -> None:
         if int(self._mmc.getProperty(self.shutter_device, "State")) == 1:
             self.shutter_button.setIcon(icon(icon_o, color=self._icon_color_open))
         self._icon_open = icon_o
 
     @property
-    def icon_closed(self) -> MDI6:
-        """Set the button icon for when the shutter is closed."""
+    def icon_closed(self) -> str:
+        """
+        Set the icon of the QPushButton when the shutter is closed.
+
+        The icon_closed.setter icon string should be any key recognizeable as
+        a superqt fonticon (e.g. mdi6.abacus).
+        Default = MDI6.hexagon_slice_6 (https://github.com/templarian/MaterialDesign).
+        Note that MDI6 is installed by default, you must install other fonts
+        if you want to use them.
+        """
         return self._icon_closed
 
     @icon_closed.setter
-    def icon_closed(self, icon_c: MDI6) -> None:
+    def icon_closed(self, icon_c: str) -> None:
         if int(self._mmc.getProperty(self.shutter_device, "State")) == 0:
             self.shutter_button.setIcon(icon(icon_c, color=self._icon_color_closed))
         self._icon_closed = icon_c
 
     @property
     def icon_color_open(self) -> COLOR_TYPE:
-        """Set the button icon color for when the shutter is open."""
+        """
+        Set the button icon color for when the shutter is open.
+
+        Default = (0, 255, 0)
+        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
+        Tuple[int, int, int]]
+        """
         return self._icon_color_open
 
     @icon_color_open.setter
@@ -140,7 +133,13 @@ class ShuttersWidget(QtW.QWidget):
 
     @property
     def icon_color_closed(self) -> COLOR_TYPE:
-        """Set the button icon color for when the shutter is closed."""
+        """
+        Set the button icon color for when the shutter is closed.
+
+        Default = 'magenta'
+        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
+        Tuple[int, int, int]]
+        """
         return self._icon_color_closed
 
     @icon_color_closed.setter
@@ -151,7 +150,11 @@ class ShuttersWidget(QtW.QWidget):
 
     @property
     def icon_size(self) -> int:
-        """Set the button icon size."""
+        """
+        Set the button icon size.
+
+        Default = 25
+        """
         return self._icon_size
 
     @icon_size.setter
@@ -161,7 +164,11 @@ class ShuttersWidget(QtW.QWidget):
 
     @property
     def button_text_open(self) -> str:
-        """Set the button text for when the shutter is open."""
+        """
+        Set the button text for when the shutter is open.
+
+        Default = ''
+        """
         return self._button_text_open
 
     @button_text_open.setter
@@ -172,7 +179,11 @@ class ShuttersWidget(QtW.QWidget):
 
     @property
     def button_text_closed(self) -> str:
-        """Set the button text for when the shutter is closed."""
+        """
+        Set the button text for when the shutter is closed.
+
+        Default = ''
+        """
         return self._button_text_closed
 
     @button_text_closed.setter
