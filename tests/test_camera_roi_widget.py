@@ -19,7 +19,7 @@ def test_camera_roi_widget(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mock_1 = Mock()
     cam.roiInfo.connect(mock_1)
     mock_2 = Mock()
-    mmc.events.camRoiSet.connect(mock_2)
+    mmc.events.roiSet.connect(mock_2)
 
     cam_x = cam.start_x  # QSpinbox
     cam_y = cam.start_y  # QSpinbox
