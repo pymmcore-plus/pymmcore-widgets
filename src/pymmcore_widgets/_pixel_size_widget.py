@@ -32,11 +32,11 @@ class PixelSizeTable(QtW.QTableWidget):
         super().__init__(parent)
 
         hh = self.horizontalHeader()
-        hh.setSectionResizeMode(hh.ResizeToContents)
+        hh.setSectionResizeMode(hh.Stretch)
         hh.setDefaultAlignment(Qt.AlignHCenter)
         vh = self.verticalHeader()
         vh.setVisible(False)
-        vh.setSectionResizeMode(hh.ResizeToContents)
+        vh.setSectionResizeMode(hh.Stretch)
         self.setSelectionBehavior(QtW.QAbstractItemView.SelectItems)
         self.setDragDropMode(QtW.QAbstractItemView.NoDragDrop)
         self.setColumnCount(7)
@@ -117,6 +117,12 @@ class PixelSizeWidget(QtW.QDialog):
         self.layout().addWidget(wdg)
 
     def _add_delete_btn(self, row: int) -> None:
+        wdg = QtW.QWidget()
+        layout = QtW.QHBoxLayout()
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setAlignment(Qt.AlignCenter)
+        wdg.setLayout(layout)
         self._delete_btn = QtW.QPushButton(text="Delete")
         self._delete_btn.setFixedWidth(70)
         self._delete_btn.setSizePolicy(QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed)
@@ -124,7 +130,9 @@ class PixelSizeWidget(QtW.QDialog):
         self._delete_btn.clicked.connect(self._delete_cfg)
 
         self._delete_btn.setProperty("row", row)
-        self.table.setCellWidget(row, 6, self._delete_btn)
+
+        layout.addWidget(self._delete_btn)
+        self.table.setCellWidget(row, 6, wdg)
 
     def _add_status_label(self, row: int) -> None:
         self.status_lbl = QtW.QLabel()
@@ -157,15 +165,11 @@ class PixelSizeWidget(QtW.QDialog):
         return self.rbt_wdg
 
     def _update_wdg_size(self) -> None:
-        self._update_wdg_width()
-        self.setFixedHeight(
-            sum(self.table.rowHeight(i) for i in range(5))
-            + self.rbt_wdg.sizeHint().height()
-        )
 
-    def _update_wdg_width(self) -> None:
-        w = sum(self.table.columnWidth(i) for i in range(6))
-        self.setFixedWidth(w + 100)
+        w = self.sizeHint().width()
+        h = self.sizeHint().height()
+        self.setMinimumWidth(int(w + (w * 50 / 100)))
+        self.setMinimumHeight(int(h + (h * 20 / 100)))
 
     def _update_status_label(self, row: int) -> None:
         resolutionID = self.table.item(row, RESOLUTION_ID).text()
@@ -249,7 +253,8 @@ class PixelSizeWidget(QtW.QDialog):
 
     def _select_item_flags_and_color(self, col: int) -> Tuple[Qt.ItemFlag, str]:
         # TODO find how to get the defalut color from parent
-        default_color = self.table.item(0, 0).background().color()
+        # default_color = self.table.item(0, 0).foreground().color()
+        default_color = ""
         return (
             (Qt.ItemIsEnabled | Qt.ItemIsSelectable, "magenta")
             if self._is_read_only(col)
@@ -284,8 +289,6 @@ class PixelSizeWidget(QtW.QDialog):
         with signals_blocked(self.table):
             self._set_item_in_table(row, RESOLUTION_ID, resolutionID)
 
-        self._update_wdg_width()
-
     def _on_px_set(self, resolutionID: str, pixSize: float) -> None:
         objective = list(self._mmc.getPixelSizeConfigData(resolutionID))[0][2]
         match = self.table.findItems(objective, Qt.MatchExactly)
@@ -300,7 +303,6 @@ class PixelSizeWidget(QtW.QDialog):
             self._set_item_in_table(row, MAGNIFICATION, mag)
 
         self._update_status_label(row)
-        self._update_wdg_width()
 
     def _on_px_deleted(self, resolutionID: str) -> None:
         match = self.table.findItems(resolutionID, Qt.MatchExactly)
@@ -312,7 +314,6 @@ class PixelSizeWidget(QtW.QDialog):
             self._set_item_in_table(row, IMAGE_PX_SIZE, "0.0")
 
         self._update_status_label(row)
-        self._update_wdg_width()
 
     def _on_mag_toggle(self, state: bool) -> None:
         self._enable_column(MAGNIFICATION, not state)
@@ -324,8 +325,8 @@ class PixelSizeWidget(QtW.QDialog):
         if enable:
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
             # TODO find how to get the defalut color from parent
-            color = self.table.item(0, 0).background().color()
-            # color = ""
+            # color = self.table.item(0, 0).foreground().color()
+            color = ""
         else:
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
             color = "magenta"
@@ -425,7 +426,6 @@ class PixelSizeWidget(QtW.QDialog):
         self._define_and_set_px(resolutionID, obj_label, px_size_um)
 
         self._update_status_label(row)
-        self._update_wdg_width()
 
     def _delete_if_exist(self, resolutionID: str, objective_label: str) -> None:
         # remove resolutionID if contains obj_label in ConfigData
