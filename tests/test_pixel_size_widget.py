@@ -3,6 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QColor
+from qtpy.QtWidgets import QTableWidgetItem
 
 from pymmcore_widgets._pixel_size_widget import PixelSizeWidget
 
@@ -10,68 +13,142 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
+OBJECTIVE_LABEL = 0
+RESOLUTION_ID = 1
+CAMERA_PX_SIZE = 2
+MAGNIFICATION = 3
+IMAGE_PX_SIZE = 4
+LABEL_STATUS = 5
+
+
 def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     mmc = global_mmcore
 
-    px_size_wdg = PixelSizeWidget(mmc)
+    px_size_wdg = PixelSizeWidget("", mmcore=mmc)
+    table = px_size_wdg.table
+    obj = px_size_wdg._objective_device
     qtbot.addWidget(px_size_wdg)
 
     assert ["Res10x", "Res20x", "Res40x"] == list(mmc.getAvailablePixelSizeConfigs())
-    assert px_size_wdg.table.rowCount() == 3
+    assert px_size_wdg.table.rowCount() == len(mmc.getStateLabels(obj))
 
-    obj_wdg_row_3 = px_size_wdg.table.cellWidget(2, 0)
-    mag_wdg_row_3 = px_size_wdg.table.cellWidget(2, 1)
-    assert obj_wdg_row_3.currentText() == "Nikon 40X Plan Fluor ELWD"
-    assert mag_wdg_row_3.value() == 40
+    assert not px_size_wdg.mag_radiobtn.isChecked()
+    assert px_size_wdg.img_px_radiobtn.isChecked()
 
-    px_size_wdg.new_row_button.click()
-    assert px_size_wdg.table.rowCount() == 4
-    obj_wdg_row_1 = px_size_wdg.table.cellWidget(1, 0)
-    assert obj_wdg_row_1.property("row") == 1
+    match = table.findItems("Res40x", Qt.MatchExactly)
+    row = match[0].row()
 
-    px_size_wdg._delete_selected_row(1)
-    px_size_wdg.new_row_button.click()
-    rows = px_size_wdg.table.rowCount()
-    obj_wdg_last_row = px_size_wdg.table.cellWidget(rows - 1, 0)
-    assert obj_wdg_last_row.property("row") == 3
+    row_1_obj = table.item(row, OBJECTIVE_LABEL).text()
+    assert row_1_obj == "Nikon 40X Plan Fluor ELWD"
+    row_1_cfg = table.item(row, RESOLUTION_ID).text()
+    assert row_1_cfg == "Res40x"
+    row_1_mag = table.item(row, MAGNIFICATION).text()
+    assert row_1_mag == "40.0"
+    row_1_cam_px = table.item(row, CAMERA_PX_SIZE).text()
+    assert row_1_cam_px == "10.0"
+    row_1_img_px = table.item(row, IMAGE_PX_SIZE)
+    assert row_1_img_px.text() == "0.25"
+    assert row_1_img_px.foreground().color() == QColor("magenta")
 
-    mag_wdg_row_2 = px_size_wdg.table.cellWidget(2, 1)
-    cam_px_size_wdg_row_2 = px_size_wdg.table.cellWidget(2, 2)
-    img_px_size_wdg_row_2 = px_size_wdg.table.cellWidget(2, 3)
+    for r in range(table.rowCount()):
+        cam_px = table.item(r, CAMERA_PX_SIZE).text()
+        assert cam_px == "10.0"
 
-    mag_wdg_row_2.setValue(20)
-    cam_px_size_wdg_row_2.setValue(6.5000)
-    assert img_px_size_wdg_row_2.value() == 6.500 * mmc.getMagnificationFactor() / 20
+    # change mag
+    new_mag = QTableWidgetItem("50.0")
+    with qtbot.waitSignal(table.cellChanged):
+        table.setItem(row, MAGNIFICATION, new_mag)
+    assert table.item(row, CAMERA_PX_SIZE).text() == "10.0"
+    assert table.item(row, IMAGE_PX_SIZE).text() == str(10 / 50)
 
-    for r in range(3):
-        px_size_wdg._delete_selected_row(r)
-    assert px_size_wdg.table.rowCount() == 2
+    assert "Res40x" in mmc.getAvailablePixelSizeConfigs()
+    assert mmc.getPixelSizeUmByID("Res40x") == 10 / 50
 
-    obj_wdg_row_1 = px_size_wdg.table.cellWidget(0, 0)
-    mag_wdg_row_1 = px_size_wdg.table.cellWidget(0, 1)
-    cam_px_size_wdg_row_1 = px_size_wdg.table.cellWidget(0, 2)
-    img_px_size_wdg_row_1 = px_size_wdg.table.cellWidget(0, 3)
+    # change cam px size
+    new_cam_px = QTableWidgetItem("6.0")
+    with qtbot.waitSignal(table.cellChanged):
+        table.setItem(row, CAMERA_PX_SIZE, new_cam_px)
+    assert table.item(row, MAGNIFICATION).text() == "50.0"
+    assert table.item(row, IMAGE_PX_SIZE).text() == str(6 / 50)
 
-    obj_wdg_row_1.setCurrentText("Nikon 10X S Fluor")
-    assert mag_wdg_row_1.value() == 10
-    cam_px_size_wdg_row_1.setValue(6.5000)
-    assert img_px_size_wdg_row_1.value() == (6.500 * mmc.getMagnificationFactor() / 10)
+    assert "Res40x" in mmc.getAvailablePixelSizeConfigs()
+    assert mmc.getPixelSizeUmByID("Res40x") == 6 / 50
 
-    obj_wdg_row_2 = px_size_wdg.table.cellWidget(1, 0)
-    mag_wdg_row_2 = px_size_wdg.table.cellWidget(1, 1)
-    cam_px_size_wdg_row_2 = px_size_wdg.table.cellWidget(1, 2)
-    img_px_size_wdg_row_2 = px_size_wdg.table.cellWidget(1, 3)
+    # change img px size
+    px_size_wdg.mag_radiobtn.setChecked(True)
+    assert px_size_wdg.mag_radiobtn.isChecked()
+    assert not px_size_wdg.img_px_radiobtn.isChecked()
+    new_img_px = QTableWidgetItem("1.0")
+    with qtbot.waitSignal(table.cellChanged):
+        table.setItem(row, IMAGE_PX_SIZE, new_img_px)
+        assert table.item(row, IMAGE_PX_SIZE).foreground().color() == QColor("")
+    assert table.item(row, CAMERA_PX_SIZE).text() == "6.0"
+    assert table.item(row, MAGNIFICATION).text() == str(6 / 1)
+    assert table.item(row, MAGNIFICATION).foreground().color() == QColor("magenta")
 
-    obj_wdg_row_2.setCurrentText("Nikon 20X Plan Fluor ELWD")
-    assert mag_wdg_row_2.value() == 20
-    cam_px_size_wdg_row_2.setValue(6.5000)
-    assert img_px_size_wdg_row_2.value() == (6.500 * mmc.getMagnificationFactor() / 20)
+    assert "Res40x" in mmc.getAvailablePixelSizeConfigs()
+    assert mmc.getPixelSizeUmByID("Res40x") == 1
 
-    assert px_size_wdg.table.rowCount() == 2
+    for r in range(table.rowCount()):
+        cam_px = table.item(r, CAMERA_PX_SIZE).text()
+        assert cam_px == "6.0"
 
-    px_size_wdg.table._set_mm_pixel_size()
+    # test delete btn
+    del_btn = px_size_wdg._delete_btn
+    del_btn.setProperty("row", row)
+    with qtbot.waitSignal(mmc.events.pixelSizeDeleted):
+        del_btn.click()
+    assert table.item(row, RESOLUTION_ID).text() == "None"
+    assert table.item(row, MAGNIFICATION).text() == "6.0"
+    assert table.item(row, CAMERA_PX_SIZE).text() == "6.0"
+    assert table.item(row, IMAGE_PX_SIZE).text() == "0.0"
 
-    available_px_cfg = list(mmc.getAvailablePixelSizeConfigs())
-    assert len(available_px_cfg) == 3
+    assert "Res40x" not in mmc.getAvailablePixelSizeConfigs()
 
-    assert ["Res40x", "px_size_10x", "px_size_20x"] == available_px_cfg
+    # ResolutionID
+    px_size_wdg.img_px_radiobtn.setChecked(True)
+    assert not px_size_wdg.mag_radiobtn.isChecked()
+    assert px_size_wdg.img_px_radiobtn.isChecked()
+    with qtbot.waitSignal(table.cellChanged):
+        table.setItem(0, RESOLUTION_ID, QTableWidgetItem("new_Res40x"))
+    assert table.item(row, RESOLUTION_ID).text() == "new_Res40x"
+    assert table.item(row, MAGNIFICATION).text() == "6.0"
+    assert table.item(row, CAMERA_PX_SIZE).text() == "6.0"
+    assert table.item(row, IMAGE_PX_SIZE).text() == "1.0"
+
+    assert "new_Res40x" in mmc.getAvailablePixelSizeConfigs()
+    assert mmc.getPixelSizeUmByID("new_Res40x") == 1
+
+    # pixelSizeDeleted signal
+    match = table.findItems("Res10x", Qt.MatchExactly)
+    row = match[0].row()
+    with qtbot.waitSignal(mmc.events.pixelSizeDeleted):
+        mmc.deletePixelSizeConfig("Res10x")
+    assert table.item(row, RESOLUTION_ID).text() == "None"
+    assert table.item(row, MAGNIFICATION).text() == "10.0"
+    assert table.item(row, CAMERA_PX_SIZE).text() == "6.0"
+    assert table.item(row, IMAGE_PX_SIZE).text() == "0.0"
+
+    assert "Res10x" not in mmc.getAvailablePixelSizeConfigs()
+
+    # pixelSizeDefined signal
+    with qtbot.waitSignal(mmc.events.pixelSizeDefined):
+        mmc.definePixelSizeConfig(
+            "new_Res10x", "Objective", "Label", "Nikon 10X S Fluor"
+        )
+    assert table.item(row, RESOLUTION_ID).text() == "new_Res10x"
+    assert table.item(row, MAGNIFICATION).text() == "10.0"
+    assert table.item(row, CAMERA_PX_SIZE).text() == "6.0"
+    assert table.item(row, IMAGE_PX_SIZE).text() == "0.0"
+
+    assert "new_Res10x" in mmc.getAvailablePixelSizeConfigs()
+    assert mmc.getPixelSizeUmByID("new_Res10x") == 0.0
+
+    # pixelSizeSet signal
+    with qtbot.waitSignal(mmc.events.pixelSizeSet):
+        mmc.setPixelSizeUm("new_Res10x", 2.0)
+    assert table.item(row, RESOLUTION_ID).text() == "new_Res10x"
+    assert table.item(row, MAGNIFICATION).text() == str(6.0 / 2.0)
+    assert table.item(row, CAMERA_PX_SIZE).text() == "6.0"
+    assert table.item(row, IMAGE_PX_SIZE).text() == "2.0"
+    assert mmc.getPixelSizeUmByID("new_Res10x") == 2.0
