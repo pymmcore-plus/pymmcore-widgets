@@ -32,10 +32,11 @@ class PixelSizeTable(QtW.QTableWidget):
         super().__init__(parent)
 
         hh = self.horizontalHeader()
-        hh.setSectionResizeMode(hh.Stretch)
+        hh.setSectionResizeMode(hh.ResizeToContents)
         hh.setDefaultAlignment(Qt.AlignHCenter)
         vh = self.verticalHeader()
-        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
+        vh.setVisible(False)
+        vh.setSectionResizeMode(hh.ResizeToContents)
         self.setSelectionBehavior(QtW.QAbstractItemView.SelectItems)
         self.setDragDropMode(QtW.QAbstractItemView.NoDragDrop)
         self.setColumnCount(7)
@@ -95,7 +96,6 @@ class PixelSizeWidget(QtW.QDialog):
         self._on_sys_cfg_loaded()
 
     def _create_wdg(self) -> None:
-
         main_layout = QtW.QVBoxLayout()
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(MARGINS)
@@ -117,8 +117,8 @@ class PixelSizeWidget(QtW.QDialog):
         self.layout().addWidget(wdg)
 
     def _add_delete_btn(self, row: int) -> None:
-
         self._delete_btn = QtW.QPushButton(text="Delete")
+        self._delete_btn.setFixedWidth(70)
         self._delete_btn.setSizePolicy(QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed)
         self._delete_btn.setToolTip("Delete configuration.")
         self._delete_btn.clicked.connect(self._delete_cfg)
@@ -157,12 +157,14 @@ class PixelSizeWidget(QtW.QDialog):
         return self.rbt_wdg
 
     def _update_wdg_size(self) -> None:
-        w = sum(self.table.sizeHintForColumn(i) for i in range(7))
-        self.setMinimumWidth(int(w + (w * 30 / 100)))
-        self.setMinimumHeight(int(self.sizeHint().height() + (w * 5 / 100)))
+        w = sum(self.table.columnWidth(i) for i in range(6))
+        self.setFixedWidth(w + 100)
+        self.setFixedHeight(
+            sum(self.table.rowHeight(i) for i in range(5))
+            + self.rbt_wdg.sizeHint().height()
+        )
 
     def _update_status_label(self, row: int) -> None:
-
         resolutionID = self.table.item(row, RESOLUTION_ID).text()
         px_size = float(self.table.item(row, IMAGE_PX_SIZE).text())
         lbl = self.table.cellWidget(row, LABEL_STATUS)
@@ -175,7 +177,6 @@ class PixelSizeWidget(QtW.QDialog):
             lbl.setPixmap(icon(MDI6.close_thick, color="magenta").pixmap(QSize(20, 20)))
 
     def _on_sys_cfg_loaded(self) -> None:
-
         if not self._objective_device:
             self._objective_device = ObjectivesWidget()._guess_objective_device()
         if not self._objective_device:
@@ -266,7 +267,6 @@ class PixelSizeWidget(QtW.QDialog):
     def _on_px_defined(
         self, resolutionID: str, deviceLabel: str, propName: str, objective: str
     ) -> None:
-
         match = self.table.findItems(objective, Qt.MatchExactly)
         row = match[0].row()
 
@@ -337,7 +337,6 @@ class PixelSizeWidget(QtW.QDialog):
         self._mmc.deletePixelSizeConfig(resolutionID)
 
     def _on_cell_changed(self, row: int, col: int) -> None:
-
         objective_label = self.table.item(row, OBJECTIVE_LABEL).text()
         resolutionID = self.table.item(row, RESOLUTION_ID).text()
         mag = self.table.item(row, MAGNIFICATION).text()
@@ -345,19 +344,18 @@ class PixelSizeWidget(QtW.QDialog):
         image_px_size = self.table.item(row, IMAGE_PX_SIZE).text()
 
         with signals_blocked(self.table):
-
             if col == RESOLUTION_ID:
                 if resolutionID in self._mmc.getAvailablePixelSizeConfigs():
 
-                    id = "None"
+                    _id = "None"
                     for cfg in self._mmc.getAvailablePixelSizeConfigs():
                         cfg_data = list(
                             itertools.chain(*self._mmc.getPixelSizeConfigData(cfg))
                         )
                         if objective_label in cfg_data:
-                            id = cfg
+                            _id = cfg
                             break
-                    self._set_item_in_table(row, RESOLUTION_ID, id)
+                    self._set_item_in_table(row, RESOLUTION_ID, _id)
 
                     raise ValueError(
                         f"There is already a configuration called '{resolutionID}'! "
@@ -376,7 +374,6 @@ class PixelSizeWidget(QtW.QDialog):
                     return
 
             elif col == CAMERA_PX_SIZE:  # cam px size
-
                 if self._is_read_only(MAGNIFICATION):
                     mag = self._calculate_magnification(camera_px_size, image_px_size)
                     self._set_item_in_table(row, MAGNIFICATION, mag)
@@ -388,13 +385,11 @@ class PixelSizeWidget(QtW.QDialog):
                 self._update_cam_px_size(camera_px_size)
 
             elif col == MAGNIFICATION:  # mag
-
                 if self._is_read_only(IMAGE_PX_SIZE):
                     image_px_size = self._calculate_image_px_size(camera_px_size, mag)
                     self._set_item_in_table(row, IMAGE_PX_SIZE, image_px_size)
 
             elif col == IMAGE_PX_SIZE:  # img px size
-
                 if self._is_read_only(MAGNIFICATION):
                     mag = self._calculate_magnification(camera_px_size, image_px_size)
                     self._set_item_in_table(row, MAGNIFICATION, mag)
@@ -405,7 +400,6 @@ class PixelSizeWidget(QtW.QDialog):
         self._apply_changes(row)
 
     def _apply_changes(self, row: int) -> None:
-
         obj_label = self.table.item(row, OBJECTIVE_LABEL).text()
         resolutionID = self.table.item(row, RESOLUTION_ID).text()
         mag = float(self.table.item(row, MAGNIFICATION).text())
