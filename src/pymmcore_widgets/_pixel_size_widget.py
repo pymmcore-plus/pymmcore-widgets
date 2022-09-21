@@ -111,7 +111,7 @@ class PixelSizeWidget(QtW.QDialog):
         btns = self._create_radiobtn_wdg()
         layout.addWidget(btns)
 
-        self.table = PixelSizeTable()
+        self.table = PixelSizeTable(parent=self)
         layout.addWidget(self.table)
 
         self.layout().addWidget(wdg)
