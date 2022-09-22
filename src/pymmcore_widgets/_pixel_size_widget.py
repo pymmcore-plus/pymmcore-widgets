@@ -258,10 +258,10 @@ class PixelSizeWidget(QtW.QDialog):
             input_validator = QRegExpValidator(regex, item)
             item.setValidator(input_validator)
 
-        item.editingFinished.connect(self._on_text_changed)
+        item.editingFinished.connect(self._on_text_edited)
         self.table.setCellWidget(row, col, item)
 
-    def _on_text_changed(self) -> None:
+    def _on_text_edited(self) -> None:
         try:
             row = self.sender().property("row")
             col = self.sender().property("col")
