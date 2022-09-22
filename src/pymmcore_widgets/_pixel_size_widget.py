@@ -564,7 +564,7 @@ class PixelSizeWidget(QtW.QDialog):
                 continue
             self.table.cellWidget(r, CAMERA_PX_SIZE).setText(str(value))
             self._on_cell_changed(r, CAMERA_PX_SIZE)
-        self._camera_pixel_size = float(cpx)
+        self._camera_pixel_size = float(value)
 
     def _is_read_only(self, col: int) -> bool:
         if col == MAGNIFICATION:
