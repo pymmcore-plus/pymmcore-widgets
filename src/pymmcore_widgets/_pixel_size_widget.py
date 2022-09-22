@@ -5,8 +5,8 @@ from typing import Any, List, Optional, Tuple
 
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
-from qtpy.QtCore import QRegExp, Qt
-from qtpy.QtGui import QRegExpValidator
+from qtpy.QtCore import QRegularExpression, Qt
+from qtpy.QtGui import QRegularExpressionValidator
 from superqt.utils import signals_blocked
 
 from ._objective_widget import ObjectivesWidget
@@ -254,8 +254,8 @@ class PixelSizeWidget(QtW.QDialog):
             item.setStyleSheet("")
 
         if col in {2, 3, 4}:
-            regex = QRegExp(FLOAT_REGEX)
-            input_validator = QRegExpValidator(regex, item)
+            regex = QRegularExpression(FLOAT_REGEX)
+            input_validator = QRegularExpressionValidator(regex, item)
             item.setValidator(input_validator)
 
         item.editingFinished.connect(self._on_text_edited)
