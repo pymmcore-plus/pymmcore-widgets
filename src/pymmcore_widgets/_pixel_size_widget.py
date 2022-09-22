@@ -72,7 +72,6 @@ class PixelSizeWidget(QtW.QDialog):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._magnification: List[List[str, float]] = []  # type: ignore
-        self._camera_pixel_size: float = 0.0
 
         self._objective_device = (
             objective_device or ObjectivesWidget()._guess_objective_device()
@@ -179,12 +178,13 @@ class PixelSizeWidget(QtW.QDialog):
             return
 
         self._magnification.clear()
-        self._camera_pixel_size = 0.0
 
         obj_list = self._mmc.getStateLabels(self._objective_device)
         self.table.setRowCount(len(obj_list))
 
         obj_cfg_px = self._get_px_info()
+
+        cam_px_guess = "0.0"
 
         for idx, objective in enumerate(obj_list):
             objective_item = QtW.QTableWidgetItem(objective)
@@ -217,18 +217,18 @@ class PixelSizeWidget(QtW.QDialog):
             self._set_item_in_table(idx, MAGNIFICATION, total_mag)
             self._magnification.append([objective, total_mag])
 
-            if (
-                self._camera_pixel_size == 0.0
-                and total_mag != 0.0
-                and px_value != 0.0
-                and cfg_name
-            ):
-                self._camera_pixel_size = total_mag * px_value
+            self._set_item_in_table(idx, CAMERA_PX_SIZE, 0.0)
 
-            self._set_item_in_table(idx, CAMERA_PX_SIZE, self._camera_pixel_size)
+            if total_mag != 0.0 and px_value != 0.0 and cfg_name:
+                cam_px_guess = str(total_mag * px_value)
 
             self._add_delete_btn(idx)
             self._update_status(idx)
+
+        for r in range(self.table.rowCount()):
+            cam_px = self.table.cellWidget(r, CAMERA_PX_SIZE)
+            with signals_blocked(cam_px):
+                cam_px.setText(cam_px_guess)
 
         self._update_wdg_size()
 
@@ -503,9 +503,6 @@ class PixelSizeWidget(QtW.QDialog):
         obj_label = self.table.item(row, OBJECTIVE_LABEL).text()
         resolutionID = self.table.cellWidget(row, RESOLUTION_ID).text()
         mag = float(self.table.cellWidget(row, MAGNIFICATION).text())
-        self._camera_pixel_size = float(
-            self.table.cellWidget(row, CAMERA_PX_SIZE).text()
-        )
         px_size_um = float(self.table.cellWidget(row, IMAGE_PX_SIZE).text())
 
         self._update_magnification_list(obj_label, mag)
@@ -564,7 +561,6 @@ class PixelSizeWidget(QtW.QDialog):
                 continue
             self.table.cellWidget(r, CAMERA_PX_SIZE).setText(str(value))
             self._on_cell_changed(r, CAMERA_PX_SIZE)
-        self._camera_pixel_size = float(value)
 
     def _is_read_only(self, col: int) -> bool:
         if col == MAGNIFICATION:
