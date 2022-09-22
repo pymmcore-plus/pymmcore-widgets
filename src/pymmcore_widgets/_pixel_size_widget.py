@@ -1,10 +1,12 @@
 import itertools
 import re
+import warnings
 from typing import Any, List, Optional, Tuple
 
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
-from qtpy.QtCore import Qt
+from qtpy.QtCore import QRegExp, Qt
+from qtpy.QtGui import QRegExpValidator
 from superqt.utils import signals_blocked
 
 from ._objective_widget import ObjectivesWidget
@@ -14,6 +16,8 @@ RESOLUTION_ID = 1
 CAMERA_PX_SIZE = 2
 MAGNIFICATION = 3
 IMAGE_PX_SIZE = 4
+
+FLOAT_REGEX = "[0-9]+.?[0-9]{,2}"
 
 
 class PixelSizeTable(QtW.QTableWidget):
@@ -248,6 +252,11 @@ class PixelSizeWidget(QtW.QDialog):
             item.setReadOnly(False)
             item.setStyleSheet("")
 
+        if col in {2, 3, 4}:
+            regex = QRegExp(FLOAT_REGEX)
+            input_validator = QRegExpValidator(regex, item)
+            item.setValidator(input_validator)
+
         item.editingFinished.connect(self._on_text_changed)
         self.table.setCellWidget(row, col, item)
 
@@ -268,15 +277,27 @@ class PixelSizeWidget(QtW.QDialog):
         match = self.table.findItems(objective, Qt.MatchExactly)
         row = match[0].row()
 
-        # if there is a resolutionID with the same objective, do nothing.
-        resID_objective = list(self._mmc.getPixelSizeConfigData(resolutionID))[0][2]
-        res_ID_item = self.table.cellWidget(row, RESOLUTION_ID)
+        ResID = self.table.cellWidget(row, RESOLUTION_ID)
 
-        if objective == resID_objective and res_ID_item.text() == "None":
+        if ResID.property("resID") == resolutionID or resolutionID == "None":
             return
 
-        with signals_blocked(res_ID_item):
-            self.table.cellWidget(row, RESOLUTION_ID).setText(resolutionID)
+        # if there is a resolutionID with the same objective, delete it.
+        for cfg in self._mmc.getAvailablePixelSizeConfigs():
+            cfg_data = list(itertools.chain(self._mmc.getPixelSizeConfigData(cfg)))
+            _obj = cfg_data[0][2]
+            if objective == _obj:
+                self._mmc.deletePixelSizeConfig(resolutionID)
+                warnings.warn(
+                    f"There is already a configuration for '{objective}' named '{cfg}'."
+                )
+                return
+
+        with signals_blocked(ResID):
+            ResID.setText(resolutionID)
+            ResID.setProperty("resID", resolutionID)
+
+        self._update_status(row)
 
     def _on_px_set(self, resolutionID: str, pixSize: float) -> None:
 
@@ -291,6 +312,7 @@ class PixelSizeWidget(QtW.QDialog):
 
         with signals_blocked(res_ID_item):
             res_ID_item.setText(resolutionID)
+            res_ID_item.setProperty("resID", resolutionID)
         with signals_blocked(img_px_item):
             img_px_item.setText(str(pixSize))
 
@@ -308,6 +330,7 @@ class PixelSizeWidget(QtW.QDialog):
             if res_id_item.text() == resolutionID:
                 with signals_blocked(res_id_item):
                     res_id_item.setText("None")
+                    res_id_item.setProperty("resID", "None")
                 with signals_blocked(im_px_item):
                     im_px_item.setText("0.0")
                 row = r
@@ -485,12 +508,14 @@ class PixelSizeWidget(QtW.QDialog):
         px_size_um = float(self.table.cellWidget(row, IMAGE_PX_SIZE).text())
 
         self._update_magnification_list(obj_label, mag)
-        self._delete_if_exist(resolutionID, obj_label)
+        self._delete_if_exist(row, resolutionID, obj_label)
         self._define_and_set_px(resolutionID, obj_label, px_size_um)
 
         self._update_status(row)
 
-    def _delete_if_exist(self, resolutionID: str, objective_label: str) -> None:
+    def _delete_if_exist(
+        self, row: int, resolutionID: str, objective_label: str
+    ) -> None:
         # remove resolutionID if contains obj_label in ConfigData
         if self._mmc.getAvailablePixelSizeConfigs():
             for cfg in self._mmc.getAvailablePixelSizeConfigs():
@@ -502,9 +527,12 @@ class PixelSizeWidget(QtW.QDialog):
         if resolutionID in self._mmc.getAvailablePixelSizeConfigs():
             self._mmc.deletePixelSizeConfig(resolutionID)
 
+        self.table.cellWidget(row, RESOLUTION_ID).setProperty("resID", resolutionID)
+
     def _define_and_set_px(
         self, resolutionID: str, objective_label: str, px_size_um: float
     ) -> None:
+
         self._mmc.definePixelSizeConfig(
             resolutionID, self._objective_device, "Label", objective_label  # type: ignore # noqa: E501
         )
@@ -535,6 +563,7 @@ class PixelSizeWidget(QtW.QDialog):
                 continue
             self.table.cellWidget(r, CAMERA_PX_SIZE).setText(str(value))
             self._on_cell_changed(r, CAMERA_PX_SIZE)
+        self._camera_pixel_size = float(cpx)
 
     def _is_read_only(self, col: int) -> bool:
         if col == MAGNIFICATION:
