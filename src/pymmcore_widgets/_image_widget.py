@@ -33,14 +33,14 @@ class ImagePreview(QWidget):
 
         self._connect()
 
-        self.canvas = scene.SceneCanvas(keys="interactive", show=True, size=(512, 512))
-        self.view = self.canvas.central_widget.add_view(camera="panzoom")
+        self._canvas = scene.SceneCanvas(keys="interactive", show=True, size=(512, 512))
+        self.view = self._canvas.central_widget.add_view(camera="panzoom")
         self.view.camera.aspect = 1
 
         self.image = None
         self.setLayout(QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().addWidget(self.canvas.native)
+        self.layout().addWidget(self._canvas.native)
 
     def _connect(self) -> None:
         ev = self._mmc.events
