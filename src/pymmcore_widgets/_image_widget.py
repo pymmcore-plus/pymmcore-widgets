@@ -10,8 +10,8 @@ if TYPE_CHECKING:
 
 class ImagePreview(QWidget):
     """Widget that displays the last image snapped by core.
-    
-    This widget will automatically update when the core snaps an image or when 
+
+    This widget will automatically update when the core snaps an image or when
     the core starts streaming.
     """
 
@@ -85,7 +85,8 @@ class ImagePreview(QWidget):
 
 if __name__ == "__main__":
     # example
-    from qtpy.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout
+    from qtpy.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout, QWidget
+
     from pymmcore_widgets._live_button_widget import LiveButton
     from pymmcore_widgets._snap_button_widget import SnapButton
 

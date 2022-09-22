@@ -1,11 +1,12 @@
 from typing import TYPE_CHECKING
+
 import numpy as np
 
 from pymmcore_widgets import ImagePreview
 
 if TYPE_CHECKING:
-    from pytestqt.qtbot import QtBot
     from pymmcore_plus import CMMCorePlus
+    from pytestqt.qtbot import QtBot
 
 
 def test_exposure_widget(qtbot: "QtBot", global_mmcore: "CMMCorePlus"):
