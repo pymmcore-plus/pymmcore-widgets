@@ -41,6 +41,8 @@ pyqt5 = ["PyQt5"]
 pyside2 = ["PySide2"]
 pyqt6 = ["PyQt6"]
 pyside6 = ["PySide6"]
+image = ['vispy']
+
 dev = [
     "black",
     "cruft",
