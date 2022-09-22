@@ -122,6 +122,7 @@ class PixelSizeWidget(QtW.QDialog):
         self._delete_btn.clicked.connect(self._delete_cfg)
 
         self._delete_btn.setProperty("row", row)
+        self._delete_btn.setAutoDefault(False)
 
         layout.addWidget(self._delete_btn)
         self.table.setCellWidget(row, 5, wdg)
@@ -286,7 +287,7 @@ class PixelSizeWidget(QtW.QDialog):
         for cfg in self._mmc.getAvailablePixelSizeConfigs():
             cfg_data = list(itertools.chain(self._mmc.getPixelSizeConfigData(cfg)))
             _obj = cfg_data[0][2]
-            if objective == _obj:
+            if objective == _obj and cfg != resolutionID:
                 self._mmc.deletePixelSizeConfig(resolutionID)
                 warnings.warn(
                     f"There is already a configuration for '{objective}' named '{cfg}'."
@@ -338,6 +339,18 @@ class PixelSizeWidget(QtW.QDialog):
         if row >= 0:
             self._update_status(row)
 
+    def _delete_cfg(self) -> None:
+        row = self.sender().property("row")
+        res_ID_item = self.table.cellWidget(row, RESOLUTION_ID)
+        if res_ID_item.text() not in self._mmc.getAvailablePixelSizeConfigs():
+            with signals_blocked(res_ID_item):
+                res_ID_item.setText("None")
+            im_px_item = self.table.cellWidget(row, IMAGE_PX_SIZE)
+            with signals_blocked(im_px_item):
+                im_px_item.setText("0.0")
+            return
+        self._mmc.deletePixelSizeConfig(res_ID_item.text())
+
     def _on_mag_toggle(self, state: bool) -> None:
         self._enable_column(MAGNIFICATION, not state)
 
@@ -355,18 +368,6 @@ class PixelSizeWidget(QtW.QDialog):
                     item.setReadOnly(True)
                     item.setStyleSheet("color:magenta")
                 self._update_status(row)
-
-    def _delete_cfg(self) -> None:
-        row = self.sender().property("row")
-        res_ID_item = self.table.cellWidget(row, RESOLUTION_ID)
-        if res_ID_item.text() not in self._mmc.getAvailablePixelSizeConfigs():
-            with signals_blocked(res_ID_item):
-                res_ID_item.setText("None")
-            im_px_item = self.table.cellWidget(row, IMAGE_PX_SIZE)
-            with signals_blocked(im_px_item):
-                im_px_item.setText("0.0")
-            return
-        self._mmc.deletePixelSizeConfig(res_ID_item.text())
 
     def _on_cell_changed(self, row: int, col: int) -> None:
         objective_label = self.table.item(row, OBJECTIVE_LABEL)
