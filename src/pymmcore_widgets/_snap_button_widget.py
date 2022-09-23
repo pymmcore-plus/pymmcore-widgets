@@ -37,7 +37,6 @@ class SnapButton(QPushButton):
         self.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
 
         self._mmc = mmcore or CMMCorePlus.instance()
-        self._camera = self._mmc.getCameraDevice()
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_system_cfg_loaded)
         self._on_system_cfg_loaded()
@@ -56,8 +55,8 @@ class SnapButton(QPushButton):
         self.clicked.connect(self._snap)
 
     def _snap(self) -> None:
-        if self._mmc.isSequenceRunning(self._camera):
-            self._mmc.stopSequenceAcquisition(self._camera)
+        if self._mmc.isSequenceRunning():
+            self._mmc.stopSequenceAcquisition()
         if self._mmc.getAutoShutter():
             self._mmc.events.propertyChanged.emit(
                 self._mmc.getShutterDevice(), "State", True
@@ -65,8 +64,7 @@ class SnapButton(QPushButton):
         create_worker(self._mmc.snap, _start_thread=True)
 
     def _on_system_cfg_loaded(self) -> None:
-        self._camera = self._mmc.getCameraDevice()
-        self.setEnabled(bool(self._camera))
+        self.setEnabled(bool(self._mmc.getCameraDevice()))
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(
