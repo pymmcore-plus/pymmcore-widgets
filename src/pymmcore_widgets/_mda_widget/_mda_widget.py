@@ -40,7 +40,7 @@ class MultiDWidget(MultiDWidgetGui):
         self.remove_ch_Button.clicked.connect(self._remove_channel)
         self.clear_ch_Button.clicked.connect(self._clear_channel)
 
-        self.browse_save_Button.clicked.connect(self._set_multi_d_acq_dir)
+        # self.browse_save_Button.clicked.connect(self._set_multi_d_acq_dir)
         self.run_Button.clicked.connect(self._on_run_clicked)
 
         self.grid_Button.clicked.connect(self._grid_widget)
@@ -66,7 +66,7 @@ class MultiDWidget(MultiDWidgetGui):
         self.stack_groupBox.toggled.connect(self._update_n_images)
 
         # toggle connect
-        self.save_groupBox.toggled.connect(self._toggle_checkbox_save_pos)
+        # self.save_groupBox.toggled.connect(self._toggle_checkbox_save_pos)
         self.stage_pos_groupBox.toggled.connect(self._toggle_checkbox_save_pos)
 
         # connect position table double click
@@ -95,7 +95,7 @@ class MultiDWidget(MultiDWidgetGui):
         newEngine.events.sequencePauseToggled.connect(self._on_mda_paused)
 
     def _set_enabled(self, enabled: bool) -> None:
-        self.save_groupBox.setEnabled(enabled)
+        # self.save_groupBox.setEnabled(enabled)
         self.time_groupBox.setEnabled(enabled)
         self.acquisition_order_comboBox.setEnabled(enabled)
         self.channel_groupBox.setEnabled(enabled)
@@ -346,13 +346,13 @@ class MultiDWidget(MultiDWidgetGui):
         self._mmc.setXYPosition(float(x_val), float(y_val))
         self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
 
-    def _set_multi_d_acq_dir(self) -> None:
-        # set the directory
-        self.dir = QtW.QFileDialog(self)
-        self.dir.setFileMode(QtW.QFileDialog.DirectoryOnly)
-        self.save_dir = QtW.QFileDialog.getExistingDirectory(self.dir)
-        self.dir_lineEdit.setText(self.save_dir)
-        self.parent_path = Path(self.save_dir)
+    # def _set_multi_d_acq_dir(self) -> None:
+    #     # set the directory
+    #     self.dir = QtW.QFileDialog(self)
+    #     self.dir.setFileMode(QtW.QFileDialog.DirectoryOnly)
+    #     self.save_dir = QtW.QFileDialog.getExistingDirectory(self.dir)
+    #     self.dir_lineEdit.setText(self.save_dir)
+    #     self.parent_path = Path(self.save_dir)
 
     def set_state(self, state: dict | MDASequence | str | Path) -> None:
         """Set current state of MDA widget.
@@ -544,9 +544,9 @@ class MultiDWidget(MultiDWidgetGui):
         SEQUENCE_META[experiment] = SequenceMeta(
             mode="mda",
             split_channels=self.checkBox_split_channels.isChecked(),
-            should_save=self.save_groupBox.isChecked(),
-            file_name=self.fname_lineEdit.text(),
-            save_dir=self.dir_lineEdit.text(),
+            # should_save=self.save_groupBox.isChecked(),
+            # file_name=self.fname_lineEdit.text(),
+            # save_dir=self.dir_lineEdit.text(),
             save_pos=self.checkBox_save_pos.isChecked(),
         )
         self._mmc.run_mda(experiment)  # run the MDA experiment asynchronously
