@@ -20,7 +20,8 @@ class ImagePreview(QWidget):
             from vispy import scene
         except ImportError as e:
             raise ImportError(
-                "vispy is required for ImagePreview. Please run `pip install pymmcore-widgets[image]`"
+                "vispy is required for ImagePreview. "
+                "Please run `pip install pymmcore-widgets[image]`"
             ) from e
 
         super().__init__(parent)
@@ -85,7 +86,7 @@ class ImagePreview(QWidget):
 
 if __name__ == "__main__":
     # example
-    from qtpy.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout, QWidget
+    from qtpy.QtWidgets import QApplication, QHBoxLayout, QWidget
 
     from pymmcore_widgets._live_button_widget import LiveButton
     from pymmcore_widgets._snap_button_widget import SnapButton
