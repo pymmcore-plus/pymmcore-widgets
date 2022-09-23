@@ -28,3 +28,10 @@ def test_exposure_widget(qtbot: "QtBot", global_mmcore: "CMMCorePlus"):
     img2 = widget._canvas.render()
 
     assert not np.allclose(img, img2)
+
+    assert not widget.streaming_timer.isActive()
+    global_mmcore.startContinuousSequenceAcquisition(1)
+    assert widget.streaming_timer.isActive()
+    global_mmcore.stopSequenceAcquisition()
+    assert not widget.streaming_timer.isActive()
+

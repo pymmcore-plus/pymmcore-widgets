@@ -82,28 +82,3 @@ class ImagePreview(QWidget):
         else:
             self.image.set_data(img)
             self.image.clim = clim
-
-
-if __name__ == "__main__":
-    # example
-    from qtpy.QtWidgets import QApplication, QHBoxLayout, QWidget
-
-    from pymmcore_widgets._live_button_widget import LiveButton
-    from pymmcore_widgets._snap_button_widget import SnapButton
-
-    core = CMMCorePlus.instance()
-    core.loadSystemConfiguration()
-    app = QApplication([])
-
-    btns = QWidget()
-    btns.setLayout(QHBoxLayout())
-    btns.layout().addWidget(LiveButton())
-    btns.layout().addWidget(SnapButton())
-
-    main = QWidget()
-    main.setLayout(QVBoxLayout())
-    main.layout().addWidget(ImagePreview())
-    main.layout().addWidget(btns)
-    main.show()
-
-    app.exec_()
