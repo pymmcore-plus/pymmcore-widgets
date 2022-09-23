@@ -35,3 +35,4 @@ def test_exposure_widget(qtbot: "QtBot", global_mmcore: "CMMCorePlus"):
     global_mmcore.stopSequenceAcquisition()
     assert not widget.streaming_timer.isActive()
 
+    widget._disconnect()
