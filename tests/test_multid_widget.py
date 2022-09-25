@@ -21,7 +21,6 @@ def test_multid_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not wdg.time_groupBox.isChecked()
 
     wdg._set_enabled(False)
-    assert not wdg.save_groupBox.isEnabled()
     assert not wdg.time_groupBox.isEnabled()
     assert not wdg.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_groupBox.isEnabled()
@@ -92,7 +91,6 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(wdg)
 
     wdg._on_mda_started()
-    assert not wdg.save_groupBox.isEnabled()
     assert not wdg.time_groupBox.isEnabled()
     assert not wdg.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_groupBox.isEnabled()
@@ -103,7 +101,6 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not wdg.cancel_Button.isHidden()
 
     wdg._on_mda_finished()
-    assert wdg.save_groupBox.isEnabled()
     assert wdg.time_groupBox.isEnabled()
     assert wdg.acquisition_order_comboBox.isEnabled()
     assert wdg.channel_groupBox.isEnabled()
