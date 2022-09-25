@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Literal, Optional, Tuple, Union
 
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
@@ -21,13 +21,18 @@ if TYPE_CHECKING:
 class MultiDWidget(MultiDWidgetGui):
     """Multi-dimensional acquisition Widget."""
 
-    def __init__(self, parent: QtW.QWidget = None):
+    def __init__(
+        self,
+        parent: Optional[QtW.QWidget] = None,
+        *,
+        mmcore: Optional[CMMCorePlus] = None,
+    ) -> None:
         super().__init__(parent)
 
         self.pause_Button.hide()
         self.cancel_Button.hide()
 
-        self._mmc = CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         self.pause_Button.released.connect(lambda: self._mmc.mda.toggle_pause())
         self.cancel_Button.released.connect(lambda: self._mmc.mda.cancel())
@@ -67,10 +72,29 @@ class MultiDWidget(MultiDWidgetGui):
 
         # toggle connect
         # self.save_groupBox.toggled.connect(self._toggle_checkbox_save_pos)
-        self.stage_pos_groupBox.toggled.connect(self._toggle_checkbox_save_pos)
+        # self.stage_pos_groupBox.toggled.connect(self._toggle_checkbox_save_pos)
+        self.time_groupBox.toggled.connect(self._calculate_total_time)
+        self.stack_groupBox.toggled.connect(self._calculate_total_time)
+        self.stage_pos_groupBox.toggled.connect(self._calculate_total_time)
 
         # connect position table double click
         self.stage_tableWidget.cellDoubleClicked.connect(self._move_to_position)
+
+        # self.duration_spinBox.valueChanged.connect(
+        #     self._on_duration_or_interval_changed
+        # )
+        # self.time_comboBox_1.currentIndexChanged.connect(
+        #     self._on_duration_or_interval_changed
+        # )
+        # self.interval_spinBox.valueChanged.connect(
+        #     self._on_duration_or_interval_changed
+        # )
+        # self.time_comboBox.currentIndexChanged.connect(self._on_timepoints_changed)
+        # self.timepoints_spinBox.valueChanged.connect(self._on_timepoints_changed)
+
+        # self.duration_spinBox.valueChanged.connect(self._calculate_total_time)
+        self.interval_spinBox.valueChanged.connect(self._calculate_total_time)
+        self.timepoints_spinBox.valueChanged.connect(self._calculate_total_time)
 
         # events
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
@@ -185,6 +209,79 @@ class MultiDWidget(MultiDWidgetGui):
             _range = self.z_range_abovebelow_doubleSpinBox.value()
 
         self.n_images_label.setText(f"Number of Images: {round((_range / step) + 1)}")
+        self._calculate_total_time()
+
+    def _time_in_sec(
+        self, value: float, input_unit: Literal["ms", "min", "hours"]
+    ) -> float:
+        if input_unit == "ms":
+            return value / 1000
+        elif input_unit == "min":
+            return value * 60
+        elif input_unit == "hours":
+            return value * 3600
+
+    def _select_output_unit(self, duration: float) -> Tuple[float, str]:
+        if duration < 1.0:
+            return duration * 1000, "ms"
+        elif duration < 60.0:
+            return duration, "sec"
+        elif duration < 3600.0:
+            return duration / 60, "min"
+        else:
+            return duration / 3600, "hours"
+
+    def _calculate_total_time(self) -> None:
+
+        # channel
+        exp: list = []
+        ch = self.channel_tableWidget.rowCount()
+        if ch > 0:
+            exp.extend(
+                self.channel_tableWidget.cellWidget(r, 1).value() for r in range(ch)
+            )
+        else:
+            exp = []
+
+        # time
+        if self.time_groupBox.isChecked():
+            timepoints = self.timepoints_spinBox.value()
+            interval = self.interval_spinBox.value()
+            int_unit = self.time_comboBox.currentText()
+            if int_unit != "sec":
+                interval = self._time_in_sec(interval, int_unit)
+            tot_interval = interval * timepoints  # sec
+        else:
+            timepoints = 1
+            tot_interval = 0
+
+        # z stack
+        if self.stack_groupBox.isChecked():
+            n_z_images = int(self.n_images_label.text()[18:])
+        else:
+            n_z_images = 1
+
+        # positions
+        if self.stage_pos_groupBox.isChecked():
+            n_pos = self.stage_tableWidget.rowCount() or 1
+        else:
+            n_pos = 1
+
+        if not ch or not exp:
+            self._total_time_lbl.setText(
+                "Select at least one channel and exposure time."
+            )
+            return
+
+        # total acq time
+        t = 0  # ms
+        for e in exp:
+            t = t + (e * n_z_images * n_pos * timepoints)
+        tot_time_sec = (t / 1000) + tot_interval  # sec
+        tot_time, unit = self._select_output_unit(tot_time_sec)
+        self._total_time_lbl.setText(
+            f"Total Acquisition time: > {tot_time:.2f} {unit}."
+        )
 
     def _on_mda_started(self) -> None:
         self._set_enabled(False)
@@ -233,6 +330,7 @@ class MultiDWidget(MultiDWidgetGui):
         channel_exp_spinBox = QtW.QSpinBox(self)
         channel_exp_spinBox.setRange(0, 10000)
         channel_exp_spinBox.setValue(100)
+        channel_exp_spinBox.valueChanged.connect(self._calculate_total_time)
 
         if channel_group := self._mmc.getChannelGroup():
             channel_list = list(self._mmc.getAvailableConfigs(channel_group))
@@ -240,6 +338,9 @@ class MultiDWidget(MultiDWidgetGui):
 
         self.channel_tableWidget.setCellWidget(idx, 0, channel_comboBox)
         self.channel_tableWidget.setCellWidget(idx, 1, channel_exp_spinBox)
+
+        self._calculate_total_time()
+
         return True
 
     def _remove_channel(self) -> None:
@@ -248,21 +349,25 @@ class MultiDWidget(MultiDWidgetGui):
         for idx in sorted(rows, reverse=True):
             self.channel_tableWidget.removeRow(idx)
 
+        self._calculate_total_time()
+
     def _clear_channel(self) -> None:
         # clear all positions
         self.channel_tableWidget.clearContents()
         self.channel_tableWidget.setRowCount(0)
 
-    def _toggle_checkbox_save_pos(self) -> None:
-        if (
-            self.stage_pos_groupBox.isChecked()
-            and self.stage_tableWidget.rowCount() > 0
-        ):
-            self.checkBox_save_pos.setEnabled(True)
+        self._calculate_total_time()
 
-        else:
-            self.checkBox_save_pos.setCheckState(Qt.CheckState.Unchecked)
-            self.checkBox_save_pos.setEnabled(False)
+    # def _toggle_checkbox_save_pos(self) -> None:
+    #     if (
+    #         self.stage_pos_groupBox.isChecked()
+    #         and self.stage_tableWidget.rowCount() > 0
+    #     ):
+    #         self.checkBox_save_pos.setEnabled(True)
+
+    #     else:
+    #         self.checkBox_save_pos.setCheckState(Qt.CheckState.Unchecked)
+    #         self.checkBox_save_pos.setEnabled(False)
 
     # add, remove, clear, move_to positions table
     def _add_position(self) -> None:
@@ -290,7 +395,8 @@ class MultiDWidget(MultiDWidgetGui):
                 item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
                 self.stage_tableWidget.setItem(idx, c, item)
 
-            self._toggle_checkbox_save_pos()
+            # self._toggle_checkbox_save_pos()
+            self._calculate_total_time()
 
     def _add_position_row(self) -> int:
         idx = self.stage_tableWidget.rowCount()
@@ -310,7 +416,8 @@ class MultiDWidget(MultiDWidgetGui):
                 removed.append(name)
             self.stage_tableWidget.removeRow(idx)
         self._rename_positions(removed)
-        self._toggle_checkbox_save_pos()
+        # self._toggle_checkbox_save_pos()
+        self._calculate_total_time()
 
     def _rename_positions(self, names: list) -> None:
         for name in names:
@@ -334,7 +441,8 @@ class MultiDWidget(MultiDWidgetGui):
         # clear all positions
         self.stage_tableWidget.clearContents()
         self.stage_tableWidget.setRowCount(0)
-        self._toggle_checkbox_save_pos()
+        # self._toggle_checkbox_save_pos()
+        self._calculate_total_time()
 
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():
@@ -534,10 +642,10 @@ class MultiDWidget(MultiDWidgetGui):
                 "Select at least one position" "or deselect the position groupbox."
             )
 
-        if self.save_groupBox.isChecked() and not (
-            self.fname_lineEdit.text() and Path(self.dir_lineEdit.text()).is_dir()
-        ):
-            raise ValueError("Select a filename and a valid directory.")
+        # if self.save_groupBox.isChecked() and not (
+        #     self.fname_lineEdit.text() and Path(self.dir_lineEdit.text()).is_dir()
+        # ):
+        #     raise ValueError("Select a filename and a valid directory.")
 
         experiment = self._get_state()
 
@@ -547,7 +655,7 @@ class MultiDWidget(MultiDWidgetGui):
             # should_save=self.save_groupBox.isChecked(),
             # file_name=self.fname_lineEdit.text(),
             # save_dir=self.dir_lineEdit.text(),
-            save_pos=self.checkBox_save_pos.isChecked(),
+            # save_pos=self.checkBox_save_pos.isChecked(),
         )
         self._mmc.run_mda(experiment)  # run the MDA experiment asynchronously
         return

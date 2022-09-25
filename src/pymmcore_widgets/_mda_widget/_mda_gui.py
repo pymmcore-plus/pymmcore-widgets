@@ -32,7 +32,7 @@ class MultiDWidgetGui(QWidget):
         super().__init__(parent)
 
         self.setLayout(QVBoxLayout())
-        self.layout().setSpacing(0)
+        self.layout().setSpacing(10)
         self.layout().setContentsMargins(10, 10, 10, 10)
 
         # general scroll area
@@ -42,6 +42,9 @@ class MultiDWidgetGui(QWidget):
         self.explorer_wdg = self._create_gui()
         self._scroll.setWidget(self.explorer_wdg)
         self.layout().addWidget(self._scroll)
+
+        lbl = self._create_label()
+        self.layout().addWidget(lbl)
 
         # acq order and buttons wdg
         self.bottom_wdg = self._create_bottom_wdg()
@@ -177,8 +180,9 @@ class MultiDWidgetGui(QWidget):
         group.setCheckable(True)
         group.setChecked(False)
         group.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
-        group_layout = QHBoxLayout()
-        group_layout.setSpacing(20)
+        # group_layout = QHBoxLayout()
+        group_layout = QGridLayout()
+        group_layout.setSpacing(5)
         group_layout.setContentsMargins(10, 10, 10, 10)
         group.setLayout(group_layout)
 
@@ -194,11 +198,14 @@ class MultiDWidgetGui(QWidget):
         lbl.setSizePolicy(lbl_sizepolicy)
         self.timepoints_spinBox = QSpinBox()
         self.timepoints_spinBox.setMinimum(1)
-        self.timepoints_spinBox.setMaximum(10000)
+        self.timepoints_spinBox.setMaximum(1000000)
+        self.timepoints_spinBox.setSizePolicy(
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        )
         self.timepoints_spinBox.setAlignment(Qt.AlignCenter)
         wdg_lay.addWidget(lbl)
         wdg_lay.addWidget(self.timepoints_spinBox)
-        group_layout.addWidget(wdg)
+        group_layout.addWidget(wdg, 0, 1)
 
         # Interval
         wdg1 = QWidget()
@@ -206,11 +213,14 @@ class MultiDWidgetGui(QWidget):
         wdg1_lay.setSpacing(5)
         wdg1_lay.setContentsMargins(0, 0, 0, 0)
         wdg1.setLayout(wdg1_lay)
-        lbl1 = QLabel(text="Interval:")
+        lbl1 = QLabel(text="Interval:  ")
         lbl1.setSizePolicy(lbl_sizepolicy)
-        self.interval_spinBox = QSpinBox()
+        self.interval_spinBox = QDoubleSpinBox()
         self.interval_spinBox.setMinimum(0)
-        self.interval_spinBox.setMaximum(10000)
+        self.interval_spinBox.setMaximum(100000)
+        self.interval_spinBox.setSizePolicy(
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        )
         self.interval_spinBox.setAlignment(Qt.AlignCenter)
         wdg1_lay.addWidget(lbl1)
         wdg1_lay.addWidget(self.interval_spinBox)
@@ -220,8 +230,9 @@ class MultiDWidgetGui(QWidget):
         self.time_comboBox.setSizePolicy(
             QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         )
-        self.time_comboBox.addItems(["ms", "sec", "min"])
-        group_layout.addWidget(self.time_comboBox)
+        self.time_comboBox.addItems(["ms", "sec", "min", "hours"])
+        wdg1_lay.addWidget(self.time_comboBox)
+        group_layout.addWidget(wdg1, 0, 0)
 
         return group
 
@@ -431,6 +442,23 @@ class MultiDWidgetGui(QWidget):
 
         return group
 
+    def _create_label(self) -> QGroupBox:
+
+        wdg = QGroupBox()
+        wdg_lay = QHBoxLayout()
+        wdg_lay.setSpacing(5)
+        wdg_lay.setContentsMargins(10, 5, 10, 5)
+        wdg_lay.setAlignment(Qt.AlignLeft)
+        wdg.setLayout(wdg_lay)
+        self._total_time_lbl = QLabel()
+        self._total_time_lbl.setAlignment(Qt.AlignLeft)
+        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self._total_time_lbl.setSizePolicy(lbl_sizepolicy)
+
+        wdg_lay.addWidget(self._total_time_lbl)
+
+        return wdg
+
     def _create_bottom_wdg(self) -> QWidget:
 
         wdg = QWidget()
@@ -438,7 +466,7 @@ class MultiDWidgetGui(QWidget):
         wdg_layout = QHBoxLayout()
         wdg_layout.setAlignment(Qt.AlignVCenter)
         wdg_layout.setSpacing(10)
-        wdg_layout.setContentsMargins(10, 15, 10, 10)
+        wdg_layout.setContentsMargins(10, 5, 10, 10)
         wdg.setLayout(wdg_layout)
 
         acq_wdg = QWidget()
