@@ -46,7 +46,6 @@ class LiveButton(QPushButton):
         super().__init__()
 
         self._mmc = mmcore or CMMCorePlus.instance()
-        self._camera = self._mmc.getCameraDevice()
         self.button_text_on = button_text_on_off[0]
         self.button_text_off = button_text_on_off[1]
         self.icon_size = icon_size
@@ -77,13 +76,12 @@ class LiveButton(QPushButton):
         self.clicked.connect(self._toggle_live_mode)
 
     def _on_system_cfg_loaded(self) -> None:
-        self._camera = self._mmc.getCameraDevice()
-        self.setEnabled(bool(self._camera))
+        self.setEnabled(bool(self._mmc.getCameraDevice()))
 
     def _toggle_live_mode(self) -> None:
         """Start/stop SequenceAcquisition."""
-        if self._mmc.isSequenceRunning(self._camera):
-            self._mmc.stopSequenceAcquisition(self._camera)  # pymmcore-plus method
+        if self._mmc.isSequenceRunning():
+            self._mmc.stopSequenceAcquisition()
             self._set_icon_state(False)
         else:
             self._mmc.startContinuousSequenceAcquisition()  # pymmcore-plus method
