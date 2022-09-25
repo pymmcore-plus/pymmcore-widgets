@@ -6,12 +6,11 @@ from typing import TYPE_CHECKING, Literal, Optional, Tuple, Union
 
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Signal
 from useq import MDASequence
 
 from .._util import ComboMessageBox
 from ._grid_widget import GridWidget
-from ._mda import SEQUENCE_META, SequenceMeta
 from ._mda_gui import MultiDWidgetGui
 
 if TYPE_CHECKING:
@@ -20,6 +19,8 @@ if TYPE_CHECKING:
 
 class MultiDWidget(MultiDWidgetGui):
     """Multi-dimensional acquisition Widget."""
+
+    metadataInfo = Signal(dict)
 
     def __init__(
         self,
@@ -44,10 +45,8 @@ class MultiDWidget(MultiDWidgetGui):
         self.add_ch_Button.clicked.connect(self._add_channel)
         self.remove_ch_Button.clicked.connect(self._remove_channel)
         self.clear_ch_Button.clicked.connect(self._clear_channel)
-
-        # self.browse_save_Button.clicked.connect(self._set_multi_d_acq_dir)
+        self.browse_save_Button.clicked.connect(self._set_multi_d_acq_dir)
         self.run_Button.clicked.connect(self._on_run_clicked)
-
         self.grid_Button.clicked.connect(self._grid_widget)
 
         # connect for z stack
@@ -55,12 +54,9 @@ class MultiDWidget(MultiDWidgetGui):
         self.set_bottom_Button.clicked.connect(self._set_bottom)
         self.z_top_doubleSpinBox.valueChanged.connect(self._update_topbottom_range)
         self.z_bottom_doubleSpinBox.valueChanged.connect(self._update_topbottom_range)
-
         self.zrange_spinBox.valueChanged.connect(self._update_rangearound_label)
-
         self.above_doubleSpinBox.valueChanged.connect(self._update_abovebelow_range)
         self.below_doubleSpinBox.valueChanged.connect(self._update_abovebelow_range)
-
         self.z_range_abovebelow_doubleSpinBox.valueChanged.connect(
             self._update_n_images
         )
@@ -71,30 +67,16 @@ class MultiDWidget(MultiDWidgetGui):
         self.stack_groupBox.toggled.connect(self._update_n_images)
 
         # toggle connect
-        # self.save_groupBox.toggled.connect(self._toggle_checkbox_save_pos)
-        # self.stage_pos_groupBox.toggled.connect(self._toggle_checkbox_save_pos)
+        self.save_groupBox.toggled.connect(self._toggle_checkbox_save_pos)
+        self.stage_pos_groupBox.toggled.connect(self._toggle_checkbox_save_pos)
         self.time_groupBox.toggled.connect(self._calculate_total_time)
+        self.interval_spinBox.valueChanged.connect(self._calculate_total_time)
+        self.timepoints_spinBox.valueChanged.connect(self._calculate_total_time)
         self.stack_groupBox.toggled.connect(self._calculate_total_time)
         self.stage_pos_groupBox.toggled.connect(self._calculate_total_time)
 
         # connect position table double click
         self.stage_tableWidget.cellDoubleClicked.connect(self._move_to_position)
-
-        # self.duration_spinBox.valueChanged.connect(
-        #     self._on_duration_or_interval_changed
-        # )
-        # self.time_comboBox_1.currentIndexChanged.connect(
-        #     self._on_duration_or_interval_changed
-        # )
-        # self.interval_spinBox.valueChanged.connect(
-        #     self._on_duration_or_interval_changed
-        # )
-        # self.time_comboBox.currentIndexChanged.connect(self._on_timepoints_changed)
-        # self.timepoints_spinBox.valueChanged.connect(self._on_timepoints_changed)
-
-        # self.duration_spinBox.valueChanged.connect(self._calculate_total_time)
-        self.interval_spinBox.valueChanged.connect(self._calculate_total_time)
-        self.timepoints_spinBox.valueChanged.connect(self._calculate_total_time)
 
         # events
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
@@ -119,7 +101,7 @@ class MultiDWidget(MultiDWidgetGui):
         newEngine.events.sequencePauseToggled.connect(self._on_mda_paused)
 
     def _set_enabled(self, enabled: bool) -> None:
-        # self.save_groupBox.setEnabled(enabled)
+        self.save_groupBox.setEnabled(enabled)
         self.time_groupBox.setEnabled(enabled)
         self.acquisition_order_comboBox.setEnabled(enabled)
         self.channel_groupBox.setEnabled(enabled)
@@ -358,16 +340,16 @@ class MultiDWidget(MultiDWidgetGui):
 
         self._calculate_total_time()
 
-    # def _toggle_checkbox_save_pos(self) -> None:
-    #     if (
-    #         self.stage_pos_groupBox.isChecked()
-    #         and self.stage_tableWidget.rowCount() > 0
-    #     ):
-    #         self.checkBox_save_pos.setEnabled(True)
+    def _toggle_checkbox_save_pos(self) -> None:
+        if (
+            self.stage_pos_groupBox.isChecked()
+            and self.stage_tableWidget.rowCount() > 0
+        ):
+            self.checkBox_save_pos.setEnabled(True)
 
-    #     else:
-    #         self.checkBox_save_pos.setCheckState(Qt.CheckState.Unchecked)
-    #         self.checkBox_save_pos.setEnabled(False)
+        else:
+            self.checkBox_save_pos.setCheckState(Qt.CheckState.Unchecked)
+            self.checkBox_save_pos.setEnabled(False)
 
     # add, remove, clear, move_to positions table
     def _add_position(self) -> None:
@@ -395,7 +377,7 @@ class MultiDWidget(MultiDWidgetGui):
                 item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
                 self.stage_tableWidget.setItem(idx, c, item)
 
-            # self._toggle_checkbox_save_pos()
+            self._toggle_checkbox_save_pos()
             self._calculate_total_time()
 
     def _add_position_row(self) -> int:
@@ -416,7 +398,7 @@ class MultiDWidget(MultiDWidgetGui):
                 removed.append(name)
             self.stage_tableWidget.removeRow(idx)
         self._rename_positions(removed)
-        # self._toggle_checkbox_save_pos()
+        self._toggle_checkbox_save_pos()
         self._calculate_total_time()
 
     def _rename_positions(self, names: list) -> None:
@@ -441,7 +423,7 @@ class MultiDWidget(MultiDWidgetGui):
         # clear all positions
         self.stage_tableWidget.clearContents()
         self.stage_tableWidget.setRowCount(0)
-        # self._toggle_checkbox_save_pos()
+        self._toggle_checkbox_save_pos()
         self._calculate_total_time()
 
     def _move_to_position(self) -> None:
@@ -454,13 +436,13 @@ class MultiDWidget(MultiDWidgetGui):
         self._mmc.setXYPosition(float(x_val), float(y_val))
         self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
 
-    # def _set_multi_d_acq_dir(self) -> None:
-    #     # set the directory
-    #     self.dir = QtW.QFileDialog(self)
-    #     self.dir.setFileMode(QtW.QFileDialog.DirectoryOnly)
-    #     self.save_dir = QtW.QFileDialog.getExistingDirectory(self.dir)
-    #     self.dir_lineEdit.setText(self.save_dir)
-    #     self.parent_path = Path(self.save_dir)
+    def _set_multi_d_acq_dir(self) -> None:
+        # set the directory
+        self.dir = QtW.QFileDialog(self)
+        self.dir.setFileMode(QtW.QFileDialog.DirectoryOnly)
+        self.save_dir = QtW.QFileDialog.getExistingDirectory(self.dir)
+        self.dir_lineEdit.setText(self.save_dir)
+        self.parent_path = Path(self.save_dir)
 
     def set_state(self, state: dict | MDASequence | str | Path) -> None:
         """Set current state of MDA widget.
@@ -642,20 +624,23 @@ class MultiDWidget(MultiDWidgetGui):
                 "Select at least one position" "or deselect the position groupbox."
             )
 
-        # if self.save_groupBox.isChecked() and not (
-        #     self.fname_lineEdit.text() and Path(self.dir_lineEdit.text()).is_dir()
-        # ):
-        #     raise ValueError("Select a filename and a valid directory.")
+        if self.save_groupBox.isChecked() and not (
+            self.fname_lineEdit.text() and Path(self.dir_lineEdit.text()).is_dir()
+        ):
+            raise ValueError("Select a filename and a valid directory.")
 
         experiment = self._get_state()
 
-        SEQUENCE_META[experiment] = SequenceMeta(
-            mode="mda",
-            split_channels=self.checkBox_split_channels.isChecked(),
-            # should_save=self.save_groupBox.isChecked(),
-            # file_name=self.fname_lineEdit.text(),
-            # save_dir=self.dir_lineEdit.text(),
-            # save_pos=self.checkBox_save_pos.isChecked(),
-        )
+        meta = {
+            "sequence": experiment,
+            "mode": "mda",
+            "split_channels": self.checkBox_split_channels.isChecked(),
+            "should_save": self.save_groupBox.isChecked(),
+            "file_name": self.fname_lineEdit.text(),
+            "save_dir": self.dir_lineEdit.text(),
+            "save_pos": self.checkBox_save_pos.isChecked(),
+        }
+        self.metadataInfo.emit(meta)
+
         self._mmc.run_mda(experiment)  # run the MDA experiment asynchronously
         return
