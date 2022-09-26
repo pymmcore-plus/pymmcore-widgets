@@ -257,7 +257,7 @@ class CameraRoiWidget(QWidget):
         with signals_blocked(self.center_checkbox):
             self.center_checkbox.setChecked(value != "ROI")
 
-        if snap:
+        if snap and self._mmc.getCameraDevice():
             self._mmc.snap()
 
         spin_list = [self.start_x, self.start_y, self.roi_width, self.roi_height]
