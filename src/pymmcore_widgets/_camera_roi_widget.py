@@ -325,6 +325,9 @@ class CameraRoiWidget(QWidget):
         if roi_width < self.chip_size_x or roi_height < self.chip_size_y:
             self._reset_and_snap()
 
+        if self.center_checkbox.isChecked():
+            self._on_center_checkbox(True)
+
         self._set_start_max_value()
 
         start_x, start_y, width, height = self._get_roi_groupbox_values()
@@ -385,7 +388,11 @@ class CameraRoiWidget(QWidget):
         if not state or self.cam_roi_combo.currentText() != "ROI":
             return
 
-        self._reset_and_snap()
+        x, y, w, h = self._mmc.getROI()
+        roi_width = x + w
+        roi_height = y + h
+        if roi_width < self.chip_size_x or roi_height < self.chip_size_y:
+            self._reset_and_snap()
 
         _, _, wanted_width, wanted_height = self._get_roi_groupbox_values()
         start_x = (self.chip_size_x - wanted_width) // 2
