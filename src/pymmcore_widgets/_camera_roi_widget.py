@@ -319,7 +319,11 @@ class CameraRoiWidget(QWidget):
         if self.cam_roi_combo.currentText() != "ROI":
             return
 
-        self._reset_and_snap()
+        x, y, w, h = self._mmc.getROI()
+        roi_width = x + w
+        roi_height = y + h
+        if roi_width < self.chip_size_x or roi_height < self.chip_size_y:
+            self._reset_and_snap()
 
         self._set_start_max_value()
 
@@ -330,7 +334,11 @@ class CameraRoiWidget(QWidget):
         if not self.start_x.isEnabled() and not self.start_y.isEnabled():
             return
 
-        self._reset_and_snap()
+        x, y, w, h = self._mmc.getROI()
+        roi_width = x + w
+        roi_height = y + h
+        if roi_width < self.chip_size_x or roi_height < self.chip_size_y:
+            self._reset_and_snap()
 
         start_x, start_y, width, height = self._get_roi_groupbox_values()
         self.roiInfo.emit(
