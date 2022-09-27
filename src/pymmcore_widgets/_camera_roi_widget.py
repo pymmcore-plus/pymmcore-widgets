@@ -257,14 +257,13 @@ class CameraRoiWidget(QWidget):
         with signals_blocked(self.center_checkbox):
             self.center_checkbox.setChecked(value != "ROI")
 
-        if snap and self._mmc.getCameraDevice():
-            self._mmc.snap()
-
         spin_list = [self.start_x, self.start_y, self.roi_width, self.roi_height]
 
         if value == "Full":
             self._hide_spinbox_button(spin_list, True)
             self._mmc.clearROI()
+            if snap and self._mmc.getCameraDevice():
+                self._mmc.snap()
             # self._reset_OnCameraCCD_property()
             self._set_roi_groupbox_values(0, 0, self.chip_size_x, self.chip_size_y)
 
@@ -284,7 +283,7 @@ class CameraRoiWidget(QWidget):
         else:
             self._hide_spinbox_button(spin_list, True)
 
-            self._reset_and_snap()
+            self._check_size_reset_snap(snap)
 
             width = int(value.split(" x ")[0])
             height = int(value.split(" x ")[1])
@@ -319,11 +318,7 @@ class CameraRoiWidget(QWidget):
         if self.cam_roi_combo.currentText() != "ROI":
             return
 
-        x, y, w, h = self._mmc.getROI()
-        roi_width = x + w
-        roi_height = y + h
-        if roi_width < self.chip_size_x or roi_height < self.chip_size_y:
-            self._reset_and_snap()
+        self._check_size_reset_snap()
 
         if self.center_checkbox.isChecked():
             self._on_center_checkbox(True)
@@ -337,11 +332,7 @@ class CameraRoiWidget(QWidget):
         if not self.start_x.isEnabled() and not self.start_y.isEnabled():
             return
 
-        x, y, w, h = self._mmc.getROI()
-        roi_width = x + w
-        roi_height = y + h
-        if roi_width < self.chip_size_x or roi_height < self.chip_size_y:
-            self._reset_and_snap()
+        self._check_size_reset_snap()
 
         start_x, start_y, width, height = self._get_roi_groupbox_values()
         self.roiInfo.emit(
@@ -388,11 +379,7 @@ class CameraRoiWidget(QWidget):
         if not state or self.cam_roi_combo.currentText() != "ROI":
             return
 
-        x, y, w, h = self._mmc.getROI()
-        roi_width = x + w
-        roi_height = y + h
-        if roi_width < self.chip_size_x or roi_height < self.chip_size_y:
-            self._reset_and_snap()
+        self._check_size_reset_snap()
 
         _, _, wanted_width, wanted_height = self._get_roi_groupbox_values()
         start_x = (self.chip_size_x - wanted_width) // 2
@@ -411,9 +398,13 @@ class CameraRoiWidget(QWidget):
             else:
                 spin.setButtonSymbols(QAbstractSpinBox.PlusMinus)
 
-    def _reset_and_snap(self) -> None:
-        self._mmc.clearROI()
-        self._mmc.snap()
+    def _check_size_reset_snap(self, snap: bool = True) -> None:
+        x, y, w, h = self._mmc.getROI()
+        roi_width = x + w
+        roi_height = y + h
+        if roi_width < self.chip_size_x or roi_height < self.chip_size_y:
+            self._mmc.clearROI()
+            self._mmc.snap()
 
     def _on_crop_pushed(self) -> None:
         start_x, start_y, width, height = self._get_roi_groupbox_values()
