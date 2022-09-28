@@ -17,7 +17,7 @@ CAMERA_PX_SIZE = 2
 MAGNIFICATION = 3
 IMAGE_PX_SIZE = 4
 
-FLOAT_REGEX = "[0-9]+.?[0-9]{,2}"
+FLOAT_REGEX = r"^\d*\.?\d*$"
 
 
 class PixelSizeTable(QtW.QTableWidget):
@@ -255,7 +255,7 @@ class PixelSizeWidget(QtW.QDialog):
 
         if col in {2, 3, 4}:
             regex = QRegularExpression(FLOAT_REGEX)
-            input_validator = QRegularExpressionValidator(regex, item)
+            input_validator = QRegularExpressionValidator(regex)
             item.setValidator(input_validator)
 
         item.editingFinished.connect(self._on_text_edited)
