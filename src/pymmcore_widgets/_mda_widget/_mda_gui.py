@@ -449,11 +449,16 @@ class MultiDWidgetGui(QWidget):
         wdg_lay.setContentsMargins(10, 5, 10, 5)
         wdg_lay.setAlignment(Qt.AlignLeft)
         wdg.setLayout(wdg_lay)
+
+        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+        self._icon_lbl = QLabel()
+        self._icon_lbl.setSizePolicy(lbl_sizepolicy)
+        wdg_lay.addWidget(self._icon_lbl)
+
         self._total_time_lbl = QLabel()
         self._total_time_lbl.setAlignment(Qt.AlignLeft)
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self._total_time_lbl.setSizePolicy(lbl_sizepolicy)
-
         wdg_lay.addWidget(self._total_time_lbl)
 
         return wdg

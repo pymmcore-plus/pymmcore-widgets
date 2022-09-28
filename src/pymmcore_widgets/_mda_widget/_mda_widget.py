@@ -4,9 +4,11 @@ import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Optional, Tuple, Union
 
+from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
-from qtpy.QtCore import Qt
+from qtpy.QtCore import QSize, Qt
+from superqt.fonticon import icon
 from useq import MDASequence
 
 from .._util import ComboMessageBox
@@ -226,10 +228,9 @@ class MultiDWidget(MultiDWidgetGui):
             int_unit = self.time_comboBox.currentText()
             if int_unit != "sec":
                 interval = self._time_in_sec(interval, int_unit)
-            tot_interval = interval * (timepoints - 1)  # sec
         else:
             timepoints = 1
-            tot_interval = 0
+            interval = -1.0
 
         # z stack
         if self.stack_groupBox.isChecked():
@@ -242,20 +243,71 @@ class MultiDWidget(MultiDWidgetGui):
             n_pos = self.stage_tableWidget.rowCount() or 1
         else:
             n_pos = 1
+        n_pos = n_pos
 
+        self._total_time_lbl.setStyleSheet("")
         if not ch or not exp:
+            self._total_time_lbl.setStyleSheet("color:magenta")
             self._total_time_lbl.setText(
                 "Select at least one channel and exposure time."
             )
             return
 
-        # total acq time
-        t = 0  # ms
+        # acq time per timepoint
+        time_chs: float = 0.0  # s
         for e in exp:
-            t = t + (((e / 1000) * n_z_images * n_pos * timepoints) + tot_interval)
-        tot_time, unit = self._select_output_unit(t)
+            time_chs = time_chs + ((e / 1000) * n_z_images * n_pos)
+
+        min_aq_tp, unit_1 = self._select_output_unit(time_chs)
+
+        warning_msg = ""
+        interval_msg = ""
+
+        if interval <= 0:
+            effective_interval = 0.0
+            addition_time = 0
+            _icon = None
+            stylesheet = ""
+
+        elif interval < time_chs:
+            addition_time = 0
+            effective_interval = 0.0
+            warning_msg = (
+                "The time interval is shorter than the minumim "
+                "acquisition time per timepoint.\n"
+            )
+            interval_msg = "\nEstimated effective time interval: 0"
+            _icon = icon(MDI6.exclamation_thick, color="magenta").pixmap(QSize(30, 30))
+            stylesheet = "color:magenta"
+
+        else:
+            effective_interval, unit_3 = self._select_output_unit(
+                float(interval) - time_chs
+            )
+
+            addition_time = effective_interval * timepoints
+            interval_msg = (
+                f"\nEstimated effective time interval:"
+                f" {effective_interval:.2f} {unit_3}."
+            )
+            self._total_time_lbl.setStyleSheet("")
+            _icon = None
+            stylesheet = ""
+
+        min_tot_time, unit_4 = self._select_output_unit(
+            (time_chs * timepoints) + addition_time - effective_interval
+        )
+
+        self._icon_lbl.clear()
+        if _icon:
+            self._icon_lbl.setPixmap(_icon)
+        self._total_time_lbl.setStyleSheet(stylesheet)
+
         self._total_time_lbl.setText(
-            f"Minimun Acquisition time: {tot_time:.2f} {unit}."
+            f"{warning_msg}"
+            f"Minimum total acquisition time: {min_tot_time:.4f} {unit_4}.\n"
+            f"Minimum acquisition time per timepoint: {min_aq_tp:.4f} {unit_1}."
+            f"{interval_msg}"
         )
 
     def _on_mda_started(self) -> None:
