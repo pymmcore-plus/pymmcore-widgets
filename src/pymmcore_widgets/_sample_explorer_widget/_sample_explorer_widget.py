@@ -401,7 +401,7 @@ class SampleExplorer(ExplorerGui):
                 "The time interval is shorter than the minumim "
                 "acquisition time per timepoint.\n"
             )
-            interval_msg = "\nEstimated effective time interval: 0"
+            interval_msg = "\nEstimated effective time interval: 0."
             _icon = icon(MDI6.exclamation_thick, color="magenta").pixmap(QSize(30, 30))
             stylesheet = "color:magenta"
 
@@ -413,7 +413,7 @@ class SampleExplorer(ExplorerGui):
             addition_time = effective_interval * timepoints
             interval_msg = (
                 f"\nEstimated effective time interval:"
-                f" {effective_interval:.2f} {unit_3}."
+                f" {effective_interval:.4f} {unit_3}."
             )
             self._total_time_lbl.setStyleSheet("")
             _icon = None
