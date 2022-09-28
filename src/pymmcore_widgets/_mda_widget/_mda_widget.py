@@ -227,6 +227,8 @@ class MultiDWidget(MultiDWidgetGui):
             if int_unit != "sec":
                 interval = self._time_in_sec(interval, int_unit)
             tot_interval = interval * timepoints  # sec
+            if timepoints > 1:
+                tot_interval = tot_interval - interval
         else:
             timepoints = 1
             tot_interval = 0
