@@ -204,7 +204,7 @@ class MultiDWidgetGui(QWidget):
         self.timepoints_spinBox.setAlignment(Qt.AlignCenter)
         wdg_lay.addWidget(lbl)
         wdg_lay.addWidget(self.timepoints_spinBox)
-        group_layout.addWidget(wdg, 0, 1)
+        group_layout.addWidget(wdg, 0, 0)
 
         # Interval
         wdg1 = QWidget()
@@ -231,7 +231,7 @@ class MultiDWidgetGui(QWidget):
         )
         self.time_comboBox.addItems(["ms", "sec", "min", "hours"])
         wdg1_lay.addWidget(self.time_comboBox)
-        group_layout.addWidget(wdg1, 0, 0)
+        group_layout.addWidget(wdg1, 0, 1)
 
         return group
 
