@@ -178,3 +178,47 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
             )
         ]
     )
+
+
+def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    wdg = MultiDWidget()
+    qtbot.addWidget(wdg)
+
+    assert wdg.channel_tableWidget.rowCount() == 0
+    wdg.add_ch_Button.click()
+    assert wdg.channel_tableWidget.rowCount() == 1
+    assert wdg.channel_tableWidget.cellWidget(0, 1).value() == 100.0
+
+    txt = (
+        "Minimum total acquisition time: 100.0000 ms.\n"
+        "Minimum acquisition time per timepoint: 100.0000 ms."
+    )
+    assert wdg._total_time_lbl.text() == txt
+
+    assert not wdg.time_groupBox.isChecked()
+    wdg.time_groupBox.setChecked(True)
+
+    wdg.timepoints_spinBox.setValue(3)
+    txt = (
+        "Minimum total acquisition time: 300.0000 ms.\n"
+        "Minimum acquisition time per timepoint: 100.0000 ms."
+    )
+    assert wdg._total_time_lbl.text() == txt
+
+    wdg.interval_spinBox.setValue(10)
+    txt = (
+        "The time interval is shorter than the minumim "
+        "acquisition time per timepoint.\n"
+        "Minimum total acquisition time: 300.0000 ms.\n"
+        "Minimum acquisition time per timepoint: 100.0000 ms."
+        "\nEstimated effective time interval: 0."
+    )
+    assert wdg._total_time_lbl.text() == txt
+
+    wdg.interval_spinBox.setValue(200)
+    txt = (
+        "Minimum total acquisition time: 3.3383 min.\n"
+        "Minimum acquisition time per timepoint: 100.0000 ms."
+        "\nEstimated effective time interval: 100.0000 ms."
+    )
+    assert wdg._total_time_lbl.text() == txt
