@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 import useq
 from pymmcore_plus import CMMCorePlus
@@ -8,6 +8,7 @@ from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from useq import MDASequence
 
+from .._util import ComboMessageBox
 from ._sample_explorer_gui import ExplorerGui
 
 if TYPE_CHECKING:
@@ -19,6 +20,9 @@ class SampleExplorer(ExplorerGui):
 
     def __init__(self, parent: QtW.QWidget = None) -> None:
         super().__init__(parent)
+
+        self.cancel_scan_Button.hide()
+        self.pause_scan_Button.hide()
 
         self._mmc = CMMCorePlus.instance()
 
@@ -59,11 +63,11 @@ class SampleExplorer(ExplorerGui):
         self.stage_tableWidget.cellDoubleClicked.connect(self._move_to_position)
 
         # connect buttons
-        self.start_scan_Button.clicked.connect(self._start_scan)
         # self.move_to_Button.clicked.connect(self._move_to)
         # self.browse_save_explorer_Button.clicked.connect(self._set_explorer_dir)
-
-        self.stop_scan_Button.clicked.connect(lambda e: self._mmc.mda.cancel())
+        self.start_scan_Button.clicked.connect(self._start_scan)
+        self.cancel_scan_Button.clicked.connect(self._mmc.mda.cancel)
+        self.pause_scan_Button.clicked.connect(lambda: self._mmc.mda.toggle_pause())
 
         # self.x_lineEdit.setText(str(None))
         # self.y_lineEdit.setText(str(None))
@@ -76,6 +80,8 @@ class SampleExplorer(ExplorerGui):
 
         self._mmc.events.mdaEngineRegistered.connect(self._update_mda_engine)
 
+        self._on_sys_cfg_loaded()
+
     def _update_mda_engine(self, newEngine: PMDAEngine, oldEngine: PMDAEngine) -> None:
         oldEngine.events.sequenceStarted.disconnect(self._on_mda_started)
         oldEngine.events.sequenceFinished.disconnect(self._on_mda_finished)
@@ -85,12 +91,30 @@ class SampleExplorer(ExplorerGui):
 
     def _on_sys_cfg_loaded(self) -> None:
         self.pixel_size = self._mmc.getPixelSizeUm()
+        if channel_group := self._mmc.getChannelGroup() or self._guess_channel_group():
+            self._mmc.setChannelGroup(channel_group)
         self._clear_channel()
+
+    def _guess_channel_group(self) -> Union[str, None]:
+        """Try to update the list of channel group choices.
+
+        1. get a list of potential channel groups from pymmcore
+        2. if there is only one, use it, if there are > 1, show a dialog box
+        """
+        candidates = self._mmc.getOrGuessChannelGroup()
+        if len(candidates) == 1:
+            return candidates[0]
+        elif candidates:
+            dialog = ComboMessageBox(candidates, "Select Channel Group:", self)
+            if dialog.exec_() == dialog.DialogCode.Accepted:
+                return dialog.currentText()
+        return None
 
     def _on_mda_started(self, sequence: useq.MDASequence) -> None:
         """Block gui when mda starts."""
         self._set_enabled(False)
-        self.stop_scan_Button.show()
+        self.cancel_scan_Button.show()
+        self.pause_scan_Button.show()
         self.start_scan_Button.hide()
 
     def _on_mda_finished(self, sequence: useq.MDASequence) -> None:
@@ -109,7 +133,8 @@ class SampleExplorer(ExplorerGui):
             self.return_to_position_y = None
 
         self._set_enabled(True)
-        self.stop_scan_Button.hide()
+        self.cancel_scan_Button.hide()
+        self.pause_scan_Button.hide()
         self.start_scan_Button.show()
 
     def _set_enabled(self, enabled: bool) -> None:
@@ -121,36 +146,36 @@ class SampleExplorer(ExplorerGui):
         self.start_scan_Button.setEnabled(enabled)
         self.channel_explorer_groupBox.setEnabled(enabled)
 
-    # add, remove, clear channel table
-    def _add_channel(self) -> None:
-        dev_loaded = list(self._mmc.getLoadedDevices())
-        if len(dev_loaded) > 1:
+    def _add_channel(self) -> bool:
+        """Add, remove or clear channel table.  Return True if anyting was changed."""
+        if len(self._mmc.getLoadedDevices()) <= 1:
+            return False
 
-            if not self._mmc.getXYStageDevice():
-                return
+        channel_group = self._mmc.getChannelGroup()
+        if not channel_group:
+            return False
 
-            channel_group = self._mmc.getChannelGroup()
-            if not channel_group:
-                return
+        idx = self.channel_explorer_tableWidget.rowCount()
+        self.channel_explorer_tableWidget.insertRow(idx)
 
-            idx = self.channel_explorer_tableWidget.rowCount()
-            self.channel_explorer_tableWidget.insertRow(idx)
+        # create a combo_box for channels in the table
+        self.channel_explorer_comboBox = QtW.QComboBox(self)
+        self.channel_explorer_exp_spinBox = QtW.QSpinBox(self)
+        self.channel_explorer_exp_spinBox.setRange(0, 10000)
+        self.channel_explorer_exp_spinBox.setValue(100)
 
-            # create a combo_box for channels in the table
-            self.channel_explorer_comboBox = QtW.QComboBox(self)
-            self.channel_explorer_exp_spinBox = QtW.QSpinBox(self)
-            self.channel_explorer_exp_spinBox.setRange(0, 10000)
-            self.channel_explorer_exp_spinBox.setValue(100)
-
+        if channel_group := self._mmc.getChannelGroup():
             channel_list = list(self._mmc.getAvailableConfigs(channel_group))
             self.channel_explorer_comboBox.addItems(channel_list)
 
-            self.channel_explorer_tableWidget.setCellWidget(
-                idx, 0, self.channel_explorer_comboBox
-            )
-            self.channel_explorer_tableWidget.setCellWidget(
-                idx, 1, self.channel_explorer_exp_spinBox
-            )
+        self.channel_explorer_tableWidget.setCellWidget(
+            idx, 0, self.channel_explorer_comboBox
+        )
+        self.channel_explorer_tableWidget.setCellWidget(
+            idx, 1, self.channel_explorer_exp_spinBox
+        )
+
+        return True
 
     def _remove_channel(self) -> None:
         # remove selected position

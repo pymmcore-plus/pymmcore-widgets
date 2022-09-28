@@ -598,6 +598,10 @@ class ExplorerGui(QWidget):
         wdg_layout.setSpacing(10)
         wdg_layout.setContentsMargins(10, 5, 10, 10)
         wdg.setLayout(wdg_layout)
+
+        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Fixed)
+        wdg_layout.addItem(spacer)
+
         btn_sizepolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         icon_size = 40
         self.start_scan_Button = QPushButton(text="Start Scan")
@@ -607,13 +611,24 @@ class ExplorerGui(QWidget):
             icon(MDI6.play_circle_outline, color=(0, 255, 0))
         )
         self.start_scan_Button.setIconSize(QSize(icon_size, icon_size))
-        self.stop_scan_Button = QPushButton(text="Stop Scan")
-        self.stop_scan_Button.setStyleSheet("QPushButton { text-align: center; }")
-        self.stop_scan_Button.setSizePolicy(btn_sizepolicy)
-        self.stop_scan_Button.setIcon(icon(MDI6.stop_circle_outline, color="magenta"))
-        self.stop_scan_Button.setIconSize(QSize(icon_size, icon_size))
+
+        self.pause_scan_Button = QPushButton(text="Pause Scan")
+        self.pause_scan_Button.setStyleSheet("QPushButton { text-align: center; }")
+        self.pause_scan_Button.setSizePolicy(btn_sizepolicy)
+        self.pause_scan_Button.setIcon(
+            icon(MDI6.pause_circle_outline, color=(0, 255, 0))
+        )
+        self.pause_scan_Button.setIconSize(QSize(icon_size, icon_size))
+
+        self.cancel_scan_Button = QPushButton(text="Stop Scan")
+        self.cancel_scan_Button.setStyleSheet("QPushButton { text-align: center; }")
+        self.cancel_scan_Button.setSizePolicy(btn_sizepolicy)
+        self.cancel_scan_Button.setIcon(icon(MDI6.stop_circle_outline, color="magenta"))
+        self.cancel_scan_Button.setIconSize(QSize(icon_size, icon_size))
+
         wdg_layout.addWidget(self.start_scan_Button)
-        wdg_layout.addWidget(self.stop_scan_Button)
+        wdg_layout.addWidget(self.pause_scan_Button)
+        wdg_layout.addWidget(self.cancel_scan_Button)
 
         return wdg
 
