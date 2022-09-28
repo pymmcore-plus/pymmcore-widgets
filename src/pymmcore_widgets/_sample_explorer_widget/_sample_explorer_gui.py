@@ -32,7 +32,7 @@ class ExplorerGui(QWidget):
         super().__init__(parent)
 
         self.setLayout(QVBoxLayout())
-        self.layout().setSpacing(0)
+        self.layout().setSpacing(10)
         self.layout().setContentsMargins(10, 10, 10, 10)
 
         # general scroll area
@@ -42,6 +42,12 @@ class ExplorerGui(QWidget):
         self.explorer_wdg = self._create_gui()
         self._scroll.setWidget(self.explorer_wdg)
         self.layout().addWidget(self._scroll)
+
+        lbl = self._create_label()
+        self.layout().addWidget(lbl)
+
+        self.btns = self._create_start_stop_buttons()
+        self.layout().addWidget(self.btns)
 
     def _create_gui(self) -> QWidget:
 
@@ -66,11 +72,11 @@ class ExplorerGui(QWidget):
         # self.checkbox = self._create_display_checkbox()
         # wdg_layout.addWidget(self.checkbox)
 
-        lbl = self._create_label()
-        wdg_layout.addWidget(lbl)
+        # lbl = self._create_label()
+        # wdg_layout.addWidget(lbl)
 
-        self.btns = self._create_start_stop_buttons()
-        wdg_layout.addWidget(self.btns)
+        # self.btns = self._create_start_stop_buttons()
+        # wdg_layout.addWidget(self.btns)
 
         # self.move_to_pos = self._create_move_to_pos()
         # wdg_layout.addWidget(self.move_to_pos)
@@ -636,15 +642,20 @@ class ExplorerGui(QWidget):
 
         wdg = QGroupBox()
         wdg_lay = QHBoxLayout()
-        wdg_lay.setSpacing(5)
+        wdg_lay.setSpacing(3)
         wdg_lay.setContentsMargins(10, 5, 10, 5)
         wdg_lay.setAlignment(Qt.AlignLeft)
         wdg.setLayout(wdg_lay)
+
+        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+        self._icon_lbl = QLabel()
+        self._icon_lbl.setSizePolicy(lbl_sizepolicy)
+        wdg_lay.addWidget(self._icon_lbl)
+
         self._total_time_lbl = QLabel()
         self._total_time_lbl.setAlignment(Qt.AlignLeft)
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self._total_time_lbl.setSizePolicy(lbl_sizepolicy)
-
         wdg_lay.addWidget(self._total_time_lbl)
 
         return wdg
