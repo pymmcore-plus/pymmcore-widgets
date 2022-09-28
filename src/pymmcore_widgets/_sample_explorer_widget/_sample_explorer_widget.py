@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Literal, Optional, Tuple, Union
 
 import useq
 from pymmcore_plus import CMMCorePlus
@@ -76,6 +76,18 @@ class SampleExplorer(ExplorerGui):
 
         # self.x_lineEdit.setText(str(None))
         # self.y_lineEdit.setText(str(None))
+
+        # connect toggle
+        self.time_groupBox.toggled.connect(self._calculate_total_time)
+        self.interval_spinBox.valueChanged.connect(self._calculate_total_time)
+        self.timepoints_spinBox.valueChanged.connect(self._calculate_total_time)
+        self.stack_groupBox.toggled.connect(self._calculate_total_time)
+        self.stage_pos_groupBox.toggled.connect(self._calculate_total_time)
+
+        self.scan_size_spinBox_r.valueChanged.connect(self._calculate_total_time)
+        self.scan_size_spinBox_c.valueChanged.connect(self._calculate_total_time)
+
+        self.time_comboBox.currentIndexChanged.connect(self._calculate_total_time)
 
         # connect mmcore signals
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
@@ -168,6 +180,9 @@ class SampleExplorer(ExplorerGui):
         self.channel_explorer_exp_spinBox = QtW.QSpinBox(self)
         self.channel_explorer_exp_spinBox.setRange(0, 10000)
         self.channel_explorer_exp_spinBox.setValue(100)
+        self.channel_explorer_exp_spinBox.valueChanged.connect(
+            self._calculate_total_time
+        )
 
         if channel_group := self._mmc.getChannelGroup():
             channel_list = list(self._mmc.getAvailableConfigs(channel_group))
@@ -180,6 +195,8 @@ class SampleExplorer(ExplorerGui):
             idx, 1, self.channel_explorer_exp_spinBox
         )
 
+        self._calculate_total_time()
+
         return True
 
     def _remove_channel(self) -> None:
@@ -188,10 +205,14 @@ class SampleExplorer(ExplorerGui):
         for idx in sorted(rows, reverse=True):
             self.channel_explorer_tableWidget.removeRow(idx)
 
+        self._calculate_total_time()
+
     def _clear_channel(self) -> None:
         # clear all positions
         self.channel_explorer_tableWidget.clearContents()
         self.channel_explorer_tableWidget.setRowCount(0)
+
+        self._calculate_total_time()
 
     def _set_top(self) -> None:
         self.z_top_doubleSpinBox.setValue(self._mmc.getZPosition())
@@ -224,6 +245,8 @@ class SampleExplorer(ExplorerGui):
 
         self.n_images_label.setText(f"Number of Images: {round((_range / step) + 1)}")
 
+        self._calculate_total_time()
+
     # add, remove, clear, move_to positions table
     def _add_position(self) -> None:
 
@@ -249,6 +272,8 @@ class SampleExplorer(ExplorerGui):
                 item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
                 self.stage_tableWidget.setItem(idx, c, item)
 
+        self._calculate_total_time()
+
     def _add_position_row(self) -> int:
         idx = int(self.stage_tableWidget.rowCount())
         self.stage_tableWidget.insertRow(idx)
@@ -260,10 +285,14 @@ class SampleExplorer(ExplorerGui):
         for idx in sorted(rows, reverse=True):
             self.stage_tableWidget.removeRow(idx)
 
+        self._calculate_total_time()
+
     def _clear_positions(self) -> None:
         # clear all positions
         self.stage_tableWidget.clearContents()
         self.stage_tableWidget.setRowCount(0)
+
+        self._calculate_total_time()
 
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():
@@ -274,6 +303,83 @@ class SampleExplorer(ExplorerGui):
         z_val = self.stage_tableWidget.item(curr_row, 3).text()
         self._mmc.setXYPosition(float(x_val), float(y_val))
         self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
+
+    def _time_in_sec(
+        self, value: float, input_unit: Literal["ms", "min", "hours"]
+    ) -> float:
+        if input_unit == "ms":
+            return value / 1000
+        elif input_unit == "min":
+            return value * 60
+        elif input_unit == "hours":
+            return value * 3600
+
+    def _select_output_unit(self, duration: float) -> Tuple[float, str]:
+        if duration < 1.0:
+            return duration * 1000, "ms"
+        elif duration < 60.0:
+            return duration, "sec"
+        elif duration < 3600.0:
+            return duration / 60, "min"
+        else:
+            return duration / 3600, "hours"
+
+    def _calculate_total_time(self) -> None:
+
+        tiles = self.scan_size_spinBox_r.value() + self.scan_size_spinBox_c.value()
+
+        # channel
+        exp: list = []
+        ch = self.channel_explorer_tableWidget.rowCount()
+        if ch > 0:
+            exp.extend(
+                self.channel_explorer_tableWidget.cellWidget(r, 1).value()
+                for r in range(ch)
+            )
+        else:
+            exp = []
+
+        # time
+        if self.time_groupBox.isChecked():
+            timepoints = self.timepoints_spinBox.value()
+            interval = self.interval_spinBox.value()
+            int_unit = self.time_comboBox.currentText()
+            if int_unit != "sec":
+                interval = self._time_in_sec(interval, int_unit)
+            tot_interval = interval * (timepoints - 1)  # sec
+        else:
+            timepoints = 1
+            tot_interval = 0
+
+        # z stack
+        if self.stack_groupBox.isChecked():
+            n_z_images = int(self.n_images_label.text()[18:])
+        else:
+            n_z_images = 1
+
+        # positions
+        if self.stage_pos_groupBox.isChecked():
+            n_pos = self.stage_tableWidget.rowCount() or 1
+        else:
+            n_pos = 1
+        n_pos = n_pos
+
+        if not ch or not exp:
+            self._total_time_lbl.setText(
+                "Select at least one channel and exposure time."
+            )
+            return
+
+        # total acq time
+        t = 0  # s
+        for e in exp:
+            t = t + (
+                ((e / 1000) * n_z_images * n_pos * timepoints * tiles) + tot_interval
+            )
+        tot_time, unit = self._select_output_unit(t)
+        self._total_time_lbl.setText(
+            f"Minimun Acquisition time: {tot_time:.2f} {unit}."
+        )
 
     def _get_state(self) -> MDASequence:  # sourcery skip: merge-dict-assign
 

@@ -334,7 +334,7 @@ class ExplorerGui(QWidget):
         self.time_comboBox.setSizePolicy(
             QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         )
-        self.time_comboBox.addItems(["ms", "sec", "min"])
+        self.time_comboBox.addItems(["ms", "sec", "min", "hours"])
         group_layout.addWidget(self.time_comboBox)
 
         return group
@@ -579,16 +579,16 @@ class ExplorerGui(QWidget):
 
     #     return group
 
-    def _toggle_checkboxes(self, state: bool) -> None:
-        if self.sender() == self.multid_stack_checkbox:
-            self.display_checkbox.setChecked(not state)
+    # def _toggle_checkboxes(self, state: bool) -> None:
+    #     if self.sender() == self.multid_stack_checkbox:
+    #         self.display_checkbox.setChecked(not state)
 
-        elif self.sender() == self.display_checkbox:
-            self.multid_stack_checkbox.setChecked(not state)
+    #     elif self.sender() == self.display_checkbox:
+    #         self.multid_stack_checkbox.setChecked(not state)
 
-    def _toggle_display_checkboxes(self, state: bool) -> None:
-        self.display_checkbox_real.setEnabled(state)
-        self.display_checkbox_real.setChecked(False)
+    # def _toggle_display_checkboxes(self, state: bool) -> None:
+    #     self.display_checkbox_real.setEnabled(state)
+    #     self.display_checkbox_real.setChecked(False)
 
     def _create_start_stop_buttons(self) -> QWidget:
 
@@ -640,7 +640,7 @@ class ExplorerGui(QWidget):
         wdg_lay.setContentsMargins(10, 5, 10, 5)
         wdg_lay.setAlignment(Qt.AlignLeft)
         wdg.setLayout(wdg_lay)
-        self._total_time_lbl = QLabel(text="TEST")
+        self._total_time_lbl = QLabel()
         self._total_time_lbl.setAlignment(Qt.AlignLeft)
         lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self._total_time_lbl.setSizePolicy(lbl_sizepolicy)
