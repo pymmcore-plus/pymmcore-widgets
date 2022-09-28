@@ -48,21 +48,21 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     mag = cast(QLineEdit, table.cellWidget(row, MAGNIFICATION))
     assert mag.text() == "40.0"
     cam_px = cast(QLineEdit, table.cellWidget(row, CAMERA_PX_SIZE))
-    assert cam_px.text() == "10.0"
+    assert cam_px.text() == "10.00"
     img_px = cast(QLineEdit, table.cellWidget(row, IMAGE_PX_SIZE))
-    assert img_px.text() == "0.25"
+    assert img_px.text() == "0.2500"
     assert img_px.styleSheet() == "color:magenta"
 
     for r in range(table.rowCount()):
         _cam_px = table.cellWidget(r, CAMERA_PX_SIZE).text()
-        assert _cam_px == "10.0"
+        assert _cam_px == "10.00"
 
     # change mag
     mag.setText("50.0")
     with qtbot.waitSignal(mag.editingFinished):
         mag.editingFinished.emit()
-    assert cam_px.text() == "10.0"
-    assert img_px.text() == str(10 / 50)
+    assert cam_px.text() == "10.00"
+    assert img_px.text() == f"{(10 / 50):.4f}"
 
     assert "Res40x" in mmc.getAvailablePixelSizeConfigs()
     assert mmc.getPixelSizeUmByID("Res40x") == 10 / 50
@@ -70,11 +70,11 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert ["Nikon 40X Plan Fluor ELWD", 50.0] in m
 
     # change cam px size
-    cam_px.setText("6.0")
+    cam_px.setText("6.00")
     with qtbot.waitSignal(cam_px.editingFinished):
         cam_px.editingFinished.emit()
     assert mag.text() == "50.0"
-    assert img_px.text() == str(6 / 50)
+    assert img_px.text() == f"{(6 / 50):.4f}"
 
     assert "Res40x" in mmc.getAvailablePixelSizeConfigs()
     assert mmc.getPixelSizeUmByID("Res40x") == 6 / 50
@@ -83,11 +83,11 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     px_size_wdg.mag_radiobtn.setChecked(True)
     assert px_size_wdg.mag_radiobtn.isChecked()
     assert not px_size_wdg.img_px_radiobtn.isChecked()
-    img_px.setText("1.0")
+    img_px.setText("1.0000")
     with qtbot.waitSignal(img_px.editingFinished):
         img_px.editingFinished.emit()
         assert img_px.styleSheet() == ""
-    assert cam_px.text() == "6.0"
+    assert cam_px.text() == "6.00"
     assert mag.text() == str(6 / 1)
     assert mag.styleSheet() == "color:magenta"
 
@@ -97,7 +97,7 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     for r in range(table.rowCount()):
         _cam_px = table.cellWidget(r, CAMERA_PX_SIZE).text()
-        assert _cam_px == "6.0"
+        assert _cam_px == "6.00"
 
     # test delete btn
     del_btn = px_size_wdg._delete_btn
@@ -106,7 +106,7 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
         del_btn.click()
     assert resID.text() == "None"
     assert mag.text() == "6.0"
-    assert cam_px.text() == "6.0"
+    assert cam_px.text() == "6.00"
     assert img_px.text() == "0.0"
 
     assert "Res40x" not in mmc.getAvailablePixelSizeConfigs()
@@ -120,8 +120,8 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
         resID.editingFinished.emit()
     assert resID.text() == "new_Res40x"
     assert mag.text() == "6.0"
-    assert cam_px.text() == "6.0"
-    assert img_px.text() == "1.0"
+    assert cam_px.text() == "6.00"
+    assert img_px.text() == "1.0000"
 
     assert "new_Res40x" in mmc.getAvailablePixelSizeConfigs()
     assert mmc.getPixelSizeUmByID("new_Res40x") == 1
@@ -140,7 +140,7 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
         mmc.deletePixelSizeConfig("Res10x")
     assert resID_1.text() == "None"
     assert mag_1.text() == "10.0"
-    assert cam_px_1.text() == "6.0"
+    assert cam_px_1.text() == "6.00"
     assert img_px_1.text() == "0.0"
 
     assert "Res10x" not in mmc.getAvailablePixelSizeConfigs()
@@ -152,7 +152,7 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
         )
     assert resID_1.text() == "new_Res10x"
     assert mag_1.text() == "10.0"
-    assert cam_px_1.text() == "6.0"
+    assert cam_px_1.text() == "6.00"
     assert img_px_1.text() == "0.0"
 
     assert "new_Res10x" in mmc.getAvailablePixelSizeConfigs()
@@ -165,6 +165,6 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
         mmc.setPixelSizeUm("new_Res10x", 2.0)
     assert resID_1.text() == "new_Res10x"
     assert mag_1.text() == str(6.0 / 2.0)
-    assert cam_px_1.text() == "6.0"
-    assert img_px_1.text() == "2.0"
+    assert cam_px_1.text() == "6.00"
+    assert img_px_1.text() == "2.0000"
     assert mmc.getPixelSizeUmByID("new_Res10x") == 2.0
