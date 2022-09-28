@@ -18,13 +18,18 @@ if TYPE_CHECKING:
 class SampleExplorer(ExplorerGui):
     """Widget to create/run tiled acquisitions."""
 
-    def __init__(self, parent: QtW.QWidget = None) -> None:
+    def __init__(
+        self,
+        parent: QtW.QWidget = None,
+        *,
+        mmcore: Optional[CMMCorePlus] = None,
+    ) -> None:
         super().__init__(parent)
 
         self.cancel_scan_Button.hide()
         self.pause_scan_Button.hide()
 
-        self._mmc = CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         self.pixel_size = self._mmc.getPixelSizeUm()
 
