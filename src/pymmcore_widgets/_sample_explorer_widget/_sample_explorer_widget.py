@@ -398,9 +398,10 @@ class SampleExplorer(ExplorerGui):
             addition_time = 0
             effective_interval = 0.0
             warning_msg = (
-                "Warning! The time interval is shorter than the minumim "
+                "The time interval is shorter than the minumim "
                 "acquisition time per timepoint.\n"
             )
+            interval_msg = "\nEstimated effective time interval: 0"
             _icon = icon(MDI6.exclamation_thick, color="magenta").pixmap(QSize(30, 30))
             stylesheet = "color:magenta"
 
