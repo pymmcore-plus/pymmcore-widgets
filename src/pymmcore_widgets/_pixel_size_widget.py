@@ -184,7 +184,7 @@ class PixelSizeWidget(QtW.QDialog):
 
         obj_cfg_px = self._get_px_info()
 
-        cam_px_guess = "0.0"
+        cam_px_guess = 0.0
 
         for idx, objective in enumerate(obj_list):
             objective_item = QtW.QTableWidgetItem(objective)
@@ -205,7 +205,7 @@ class PixelSizeWidget(QtW.QDialog):
             red_id_item = self.table.cellWidget(idx, RESOLUTION_ID)
             red_id_item.setProperty("resID", red_id_item.text())
 
-            self._set_item_in_table(idx, IMAGE_PX_SIZE, px_value)
+            self._set_item_in_table(idx, IMAGE_PX_SIZE, f"{px_value:.4f}")
 
             mag_value = (
                 int(match.groups()[0])
@@ -220,7 +220,7 @@ class PixelSizeWidget(QtW.QDialog):
             self._set_item_in_table(idx, CAMERA_PX_SIZE, 0.0)
 
             if total_mag != 0.0 and px_value != 0.0 and cfg_name:
-                cam_px_guess = str(total_mag * px_value)
+                cam_px_guess = total_mag * px_value
 
             self._add_delete_btn(idx)
             self._update_status(idx)
@@ -228,7 +228,7 @@ class PixelSizeWidget(QtW.QDialog):
         for r in range(self.table.rowCount()):
             cam_px = self.table.cellWidget(r, CAMERA_PX_SIZE)
             with signals_blocked(cam_px):
-                cam_px.setText(cam_px_guess)
+                cam_px.setText(f"{cam_px_guess:.2f}")
 
         self._update_wdg_size()
 
@@ -315,11 +315,11 @@ class PixelSizeWidget(QtW.QDialog):
             res_ID_item.setText(resolutionID)
             res_ID_item.setProperty("resID", resolutionID)
         with signals_blocked(img_px_item):
-            img_px_item.setText(str(pixSize))
+            img_px_item.setText(f"{pixSize:.4f}")
 
         mag = self._calculate_magnification(cam_px_item.text(), str(pixSize))
         with signals_blocked(mag_item):
-            mag_item.setText(str(mag))
+            mag_item.setText(f"{mag:.1f}")
 
         self._update_status(row)
 
@@ -435,7 +435,9 @@ class PixelSizeWidget(QtW.QDialog):
                 camera_px_size.text(), mag.text()
             )
             with signals_blocked(image_px_size):
-                self.table.cellWidget(row, IMAGE_PX_SIZE).setText(str(_image_px_size))
+                self.table.cellWidget(row, IMAGE_PX_SIZE).setText(
+                    f"{_image_px_size:.4f}"
+                )
 
         elif self._is_read_only(MAGNIFICATION):
             resolutionID.setProperty("resID", resolutionID.text())
@@ -443,7 +445,7 @@ class PixelSizeWidget(QtW.QDialog):
                 camera_px_size.text(), image_px_size.text()
             )
             with signals_blocked(mag):
-                self.table.cellWidget(row, MAGNIFICATION).setText(str(_mag))
+                self.table.cellWidget(row, MAGNIFICATION).setText(f"{_mag:.1f}")
 
     def _on_camera_px_size_changed(
         self,
@@ -458,14 +460,16 @@ class PixelSizeWidget(QtW.QDialog):
                 camera_px_size.text(), image_px_size.text()
             )
             with signals_blocked(mag):
-                self.table.cellWidget(row, MAGNIFICATION).setText(str(_mag))
+                self.table.cellWidget(row, MAGNIFICATION).setText(f"{_mag:.1f}")
 
         elif self._is_read_only(IMAGE_PX_SIZE):
             _image_px_size = self._calculate_image_px_size(
                 camera_px_size.text(), mag.text()
             )
             with signals_blocked(image_px_size):
-                self.table.cellWidget(row, IMAGE_PX_SIZE).setText(str(_image_px_size))
+                self.table.cellWidget(row, IMAGE_PX_SIZE).setText(
+                    f"{_image_px_size:.4f}"
+                )
 
         self._update_cam_px_size(camera_px_size.text())
 
@@ -482,7 +486,9 @@ class PixelSizeWidget(QtW.QDialog):
                 camera_px_size.text(), mag.text()
             )
             with signals_blocked(image_px_size):
-                self.table.cellWidget(row, IMAGE_PX_SIZE).setText(str(_image_px_size))
+                self.table.cellWidget(row, IMAGE_PX_SIZE).setText(
+                    f"{_image_px_size:.4f}"
+                )
 
     def _on_image_px_size_changed(
         self,
@@ -497,7 +503,7 @@ class PixelSizeWidget(QtW.QDialog):
                 camera_px_size.text(), image_px_size.text()
             )
             with signals_blocked(mag):
-                self.table.cellWidget(row, MAGNIFICATION).setText(str(_mag))
+                self.table.cellWidget(row, MAGNIFICATION).setText(f"{_mag:.1f}")
 
     def _apply_changes(self, row: int) -> None:
         obj_label = self.table.item(row, OBJECTIVE_LABEL).text()
@@ -559,7 +565,7 @@ class PixelSizeWidget(QtW.QDialog):
             cpx = self.table.cellWidget(r, CAMERA_PX_SIZE).text()
             if cpx == value:
                 continue
-            self.table.cellWidget(r, CAMERA_PX_SIZE).setText(str(value))
+            self.table.cellWidget(r, CAMERA_PX_SIZE).setText(f"{float(value):.2f}")
             self._on_cell_changed(r, CAMERA_PX_SIZE)
 
     def _is_read_only(self, col: int) -> bool:
