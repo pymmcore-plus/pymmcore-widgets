@@ -226,7 +226,7 @@ class MultiDWidget(MultiDWidgetGui):
             int_unit = self.time_comboBox.currentText()
             if int_unit != "sec":
                 interval = self._time_in_sec(interval, int_unit)
-            tot_interval = interval * (timepoints - 1) # sec
+            tot_interval = interval * (timepoints - 1)  # sec
         else:
             timepoints = 1
             tot_interval = 0
@@ -252,9 +252,7 @@ class MultiDWidget(MultiDWidgetGui):
         # total acq time
         t = 0  # ms
         for e in exp:
-            t = t + (
-                ((e / 1000) * n_z_images * n_pos * timepoints) + tot_interval
-            )
+            t = t + (((e / 1000) * n_z_images * n_pos * timepoints) + tot_interval)
         tot_time, unit = self._select_output_unit(t)
         self._total_time_lbl.setText(
             f"Minimun Acquisition time: {tot_time:.2f} {unit}."
