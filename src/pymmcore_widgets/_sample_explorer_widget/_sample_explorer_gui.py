@@ -24,6 +24,8 @@ from qtpy.QtWidgets import (
 from superqt import QCollapsible
 from superqt.fonticon import icon
 
+LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
 
 class ExplorerGui(QWidget):
     """Just the UI of the explorer widget. Runtime logic in MMExploreSample."""
@@ -96,7 +98,6 @@ class ExplorerGui(QWidget):
         group.setLayout(group_layout)
 
         fix_lbl_size = 80
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
         # row
         self.row_wdg = QWidget()
@@ -106,7 +107,7 @@ class ExplorerGui(QWidget):
         self.row_wdg.setLayout(row_wdg_lay)
         row_label = QLabel(text="Rows:")
         row_label.setMaximumWidth(fix_lbl_size)
-        row_label.setSizePolicy(lbl_sizepolicy)
+        row_label.setSizePolicy(LBL_SIZEPOLICY)
         self.scan_size_spinBox_r = QSpinBox()
         self.scan_size_spinBox_r.setMinimum(1)
         self.scan_size_spinBox_r.setAlignment(Qt.AlignCenter)
@@ -121,7 +122,7 @@ class ExplorerGui(QWidget):
         self.col_wdg.setLayout(col_wdg_lay)
         col_label = QLabel(text="Columns:")
         col_label.setMaximumWidth(fix_lbl_size)
-        col_label.setSizePolicy(lbl_sizepolicy)
+        col_label.setSizePolicy(LBL_SIZEPOLICY)
         self.scan_size_spinBox_c = QSpinBox()
         self.scan_size_spinBox_c.setSizePolicy
         self.scan_size_spinBox_c.setMinimum(1)
@@ -137,7 +138,7 @@ class ExplorerGui(QWidget):
         self.ovl_wdg.setLayout(ovl_wdg_lay)
         overlap_label = QLabel(text="Overlap (%):")
         overlap_label.setMaximumWidth(fix_lbl_size)
-        overlap_label.setSizePolicy(lbl_sizepolicy)
+        overlap_label.setSizePolicy(LBL_SIZEPOLICY)
         self.ovelap_spinBox = QSpinBox()
         self.ovelap_spinBox.setAlignment(Qt.AlignCenter)
         ovl_wdg_lay.addWidget(overlap_label)
@@ -297,12 +298,11 @@ class ExplorerGui(QWidget):
         group.setCheckable(True)
         group.setChecked(False)
         group.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
-        group_layout = QHBoxLayout()
-        group_layout.setSpacing(20)
+        group_layout = QGridLayout()
+        group_layout.setHorizontalSpacing(20)
+        group_layout.setVerticalSpacing(5)
         group_layout.setContentsMargins(10, 10, 10, 10)
         group.setLayout(group_layout)
-
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
         # Timepoints
         wdg = QWidget()
@@ -311,14 +311,14 @@ class ExplorerGui(QWidget):
         wdg_lay.setContentsMargins(0, 0, 0, 0)
         wdg.setLayout(wdg_lay)
         lbl = QLabel(text="Timepoints:")
-        lbl.setSizePolicy(lbl_sizepolicy)
+        lbl.setSizePolicy(LBL_SIZEPOLICY)
         self.timepoints_spinBox = QSpinBox()
         self.timepoints_spinBox.setMinimum(1)
         self.timepoints_spinBox.setMaximum(10000)
         self.timepoints_spinBox.setAlignment(Qt.AlignCenter)
         wdg_lay.addWidget(lbl)
         wdg_lay.addWidget(self.timepoints_spinBox)
-        group_layout.addWidget(wdg)
+        group_layout.addWidget(wdg, 0, 0)
 
         # Interval
         wdg1 = QWidget()
@@ -327,21 +327,38 @@ class ExplorerGui(QWidget):
         wdg1_lay.setContentsMargins(0, 0, 0, 0)
         wdg1.setLayout(wdg1_lay)
         lbl1 = QLabel(text="Interval:")
-        lbl1.setSizePolicy(lbl_sizepolicy)
+        lbl1.setSizePolicy(LBL_SIZEPOLICY)
         self.interval_spinBox = QSpinBox()
         self.interval_spinBox.setMinimum(0)
         self.interval_spinBox.setMaximum(10000)
         self.interval_spinBox.setAlignment(Qt.AlignCenter)
         wdg1_lay.addWidget(lbl1)
         wdg1_lay.addWidget(self.interval_spinBox)
-        group_layout.addWidget(wdg1)
+        group_layout.addWidget(wdg1, 0, 1)
 
         self.time_comboBox = QComboBox()
         self.time_comboBox.setSizePolicy(
             QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         )
         self.time_comboBox.addItems(["ms", "sec", "min", "hours"])
-        group_layout.addWidget(self.time_comboBox)
+        group_layout.addWidget(self.time_comboBox, 0, 2)
+
+        wdg2 = QWidget()
+        wdg2_lay = QHBoxLayout()
+        wdg2_lay.setSpacing(5)
+        wdg2_lay.setContentsMargins(0, 0, 0, 0)
+        wdg2.setLayout(wdg2_lay)
+        self._icon_lbl = QLabel()
+        self._icon_lbl.setAlignment(Qt.AlignLeft)
+        self._icon_lbl.setSizePolicy(LBL_SIZEPOLICY)
+        wdg2_lay.addWidget(self._icon_lbl)
+        self._time_lbl = QLabel()
+        self._time_lbl.setAlignment(Qt.AlignLeft)
+        self._time_lbl.setSizePolicy(LBL_SIZEPOLICY)
+        wdg2_lay.addWidget(self._time_lbl)
+        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        wdg2_lay.addItem(spacer)
+        group_layout.addWidget(wdg2, 1, 0, 1, 2)
 
         return group
 
@@ -413,8 +430,7 @@ class ExplorerGui(QWidget):
         ra.setLayout(ra_layout)
 
         lbl_range_ra = QLabel(text="Range (µm):")
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        lbl_range_ra.setSizePolicy(lbl_sizepolicy)
+        lbl_range_ra.setSizePolicy(LBL_SIZEPOLICY)
 
         self.zrange_spinBox = QSpinBox()
         self.zrange_spinBox.setValue(5)
@@ -486,8 +502,7 @@ class ExplorerGui(QWidget):
         s_layout.setContentsMargins(0, 0, 0, 0)
         s.setLayout(s_layout)
         lbl = QLabel(text="Step Size (µm):")
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        lbl.setSizePolicy(lbl_sizepolicy)
+        lbl.setSizePolicy(LBL_SIZEPOLICY)
         self.step_size_doubleSpinBox = QDoubleSpinBox()
         self.step_size_doubleSpinBox.setAlignment(Qt.AlignCenter)
         self.step_size_doubleSpinBox.setMinimum(0.05)
@@ -638,24 +653,23 @@ class ExplorerGui(QWidget):
 
         return wdg
 
-    def _create_label(self) -> QGroupBox:
+    def _create_label(self) -> QWidget:
 
-        wdg = QGroupBox()
+        # wdg = QGroupBox()
+        wdg = QWidget()
         wdg_lay = QHBoxLayout()
         wdg_lay.setSpacing(3)
         wdg_lay.setContentsMargins(10, 5, 10, 5)
         wdg_lay.setAlignment(Qt.AlignLeft)
         wdg.setLayout(wdg_lay)
 
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-
-        self._icon_lbl = QLabel()
-        self._icon_lbl.setSizePolicy(lbl_sizepolicy)
-        wdg_lay.addWidget(self._icon_lbl)
+        # self._icon_lbl = QLabel()
+        # self._icon_lbl.setSizePolicy(LBL_SIZEPOLICY)
+        # wdg_lay.addWidget(self._icon_lbl)
 
         self._total_time_lbl = QLabel()
         self._total_time_lbl.setAlignment(Qt.AlignLeft)
-        self._total_time_lbl.setSizePolicy(lbl_sizepolicy)
+        self._total_time_lbl.setSizePolicy(LBL_SIZEPOLICY)
         wdg_lay.addWidget(self._total_time_lbl)
 
         return wdg
