@@ -140,8 +140,6 @@ class SampleExplorer(ExplorerGui):
         self.start_scan_Button.hide()
 
     def _on_mda_finished(self, sequence: useq.MDASequence) -> None:
-        self.t0 = 0
-        self.t1 = 0
 
         if not hasattr(self, "return_to_position_x"):
             return

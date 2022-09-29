@@ -59,9 +59,6 @@ class ExplorerGui(QWidget):
         wdg_layout.setContentsMargins(10, 10, 10, 10)
         wdg.setLayout(wdg_layout)
 
-        # self.save_explorer_groupBox = self._create_save_group()
-        # wdg_layout.addWidget(self.save_explorer_groupBox)
-
         self.scan_props = self._create_row_cols_overlap_group()
         wdg_layout.addWidget(self.scan_props)
 
@@ -70,18 +67,6 @@ class ExplorerGui(QWidget):
 
         mda_options = self._create_mda_options()
         wdg_layout.addWidget(mda_options)
-
-        # self.checkbox = self._create_display_checkbox()
-        # wdg_layout.addWidget(self.checkbox)
-
-        # lbl = self._create_label()
-        # wdg_layout.addWidget(lbl)
-
-        # self.btns = self._create_start_stop_buttons()
-        # wdg_layout.addWidget(self.btns)
-
-        # self.move_to_pos = self._create_move_to_pos()
-        # wdg_layout.addWidget(self.move_to_pos)
 
         spacer = QSpacerItem(10, 10, QSizePolicy.Minimum, QSizePolicy.Expanding)
         wdg_layout.addItem(spacer)
@@ -191,55 +176,6 @@ class ExplorerGui(QWidget):
         group_layout.addWidget(self.clear_ch_explorer_Button, 2, 1, 1, 2)
 
         return group
-
-    # def _create_save_group(self) -> QGroupBox:
-
-    #     group = QGroupBox(title="Save Scan")
-    #     group.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
-    #     group.setCheckable(True)
-    #     group.setChecked(False)
-    #     group_layout = QVBoxLayout()
-    #     group_layout.setSpacing(10)
-    #     group_layout.setContentsMargins(10, 10, 10, 10)
-    #     group.setLayout(group_layout)
-
-    #     # directory
-    #     dir_group = QWidget()
-    #     dir_group_layout = QHBoxLayout()
-    #     dir_group_layout.setSpacing(5)
-    #     dir_group_layout.setContentsMargins(0, 10, 0, 5)
-    #     dir_group.setLayout(dir_group_layout)
-    #     lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-    #     min_lbl_size = 80
-    #     btn_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-    #     dir_lbl = QLabel(text="Directory:")
-    #     dir_lbl.setMinimumWidth(min_lbl_size)
-    #     dir_lbl.setSizePolicy(lbl_sizepolicy)
-    #     self.dir_explorer_lineEdit = QLineEdit()
-    #     self.browse_save_explorer_Button = QPushButton(text="...")
-    #     self.browse_save_explorer_Button.setSizePolicy(btn_sizepolicy)
-    #     dir_group_layout.addWidget(dir_lbl)
-    #     dir_group_layout.addWidget(self.dir_explorer_lineEdit)
-    #     dir_group_layout.addWidget(self.browse_save_explorer_Button)
-
-    #     # filename
-    #     fname_group = QWidget()
-    #     fname_group_layout = QHBoxLayout()
-    #     fname_group_layout.setSpacing(5)
-    #     fname_group_layout.setContentsMargins(0, 5, 0, 10)
-    #     fname_group.setLayout(fname_group_layout)
-    #     fname_lbl = QLabel(text="File Name:")
-    #     fname_lbl.setMinimumWidth(min_lbl_size)
-    #     fname_lbl.setSizePolicy(lbl_sizepolicy)
-    #     self.fname_explorer_lineEdit = QLineEdit()
-    #     self.fname_explorer_lineEdit.setText("Experiment")
-    #     fname_group_layout.addWidget(fname_lbl)
-    #     fname_group_layout.addWidget(self.fname_explorer_lineEdit)
-
-    #     group_layout.addWidget(dir_group)
-    #     group_layout.addWidget(fname_group)
-
-    #     return group
 
     def _spacer(self) -> QLabel:
         spacer = QLabel()
@@ -565,52 +501,6 @@ class ExplorerGui(QWidget):
 
         return group
 
-    # def _create_display_checkbox(self) -> QGroupBox:
-
-    #     group = QGroupBox(title="Display as:")
-    #     group.setChecked(False)
-    #     group_layout = QHBoxLayout()
-    #     group_layout.setSpacing(7)
-    #     group_layout.setContentsMargins(10, 15, 10, 15)
-    #     group.setLayout(group_layout)
-
-    #     fixed_policy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-
-    #     self.display_checkbox = QCheckBox(text="layers translation")
-    #     self.display_checkbox.setSizePolicy(fixed_policy)
-    #     self.display_checkbox.setChecked(True)
-    #     self.display_checkbox_real = QCheckBox(text="using stage coordinates")
-    #     self.display_checkbox_real.setSizePolicy(fixed_policy)
-    #     self.multid_stack_checkbox = QCheckBox(text="multiD stack")
-    #     self.multid_stack_checkbox.setSizePolicy(fixed_policy)
-
-    #     self.display_checkbox.toggled.connect(self._toggle_checkboxes)
-    #     self.display_checkbox.toggled.connect(self._toggle_display_checkboxes)
-    #     self.multid_stack_checkbox.toggled.connect(self._toggle_checkboxes)
-
-    #     group_layout.addWidget(self.display_checkbox)
-    #     group_layout.addWidget(self.display_checkbox_real)
-
-    #     spacer = QSpacerItem(30, 10, QSizePolicy.Fixed, QSizePolicy.Fixed)
-    #     group_layout.addItem(spacer)
-    #     group_layout.addWidget(self.multid_stack_checkbox)
-
-    #     spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding)
-    #     group_layout.addItem(spacer)
-
-    #     return group
-
-    # def _toggle_checkboxes(self, state: bool) -> None:
-    #     if self.sender() == self.multid_stack_checkbox:
-    #         self.display_checkbox.setChecked(not state)
-
-    #     elif self.sender() == self.display_checkbox:
-    #         self.multid_stack_checkbox.setChecked(not state)
-
-    # def _toggle_display_checkboxes(self, state: bool) -> None:
-    #     self.display_checkbox_real.setEnabled(state)
-    #     self.display_checkbox_real.setChecked(False)
-
     def _create_start_stop_buttons(self) -> QWidget:
 
         wdg = QWidget()
@@ -625,7 +515,7 @@ class ExplorerGui(QWidget):
 
         btn_sizepolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         icon_size = 40
-        self.start_scan_Button = QPushButton(text="Start Scan")
+        self.start_scan_Button = QPushButton(text="Run")
         self.start_scan_Button.setStyleSheet("QPushButton { text-align: center; }")
         self.start_scan_Button.setSizePolicy(btn_sizepolicy)
         self.start_scan_Button.setIcon(
@@ -633,7 +523,7 @@ class ExplorerGui(QWidget):
         )
         self.start_scan_Button.setIconSize(QSize(icon_size, icon_size))
 
-        self.pause_scan_Button = QPushButton(text="Pause Scan")
+        self.pause_scan_Button = QPushButton(text="Pause")
         self.pause_scan_Button.setStyleSheet("QPushButton { text-align: center; }")
         self.pause_scan_Button.setSizePolicy(btn_sizepolicy)
         self.pause_scan_Button.setIcon(
@@ -641,7 +531,7 @@ class ExplorerGui(QWidget):
         )
         self.pause_scan_Button.setIconSize(QSize(icon_size, icon_size))
 
-        self.cancel_scan_Button = QPushButton(text="Stop Scan")
+        self.cancel_scan_Button = QPushButton(text="Cancel")
         self.cancel_scan_Button.setStyleSheet("QPushButton { text-align: center; }")
         self.cancel_scan_Button.setSizePolicy(btn_sizepolicy)
         self.cancel_scan_Button.setIcon(icon(MDI6.stop_circle_outline, color="magenta"))
@@ -663,44 +553,12 @@ class ExplorerGui(QWidget):
         wdg_lay.setAlignment(Qt.AlignLeft)
         wdg.setLayout(wdg_lay)
 
-        # self._icon_lbl = QLabel()
-        # self._icon_lbl.setSizePolicy(LBL_SIZEPOLICY)
-        # wdg_lay.addWidget(self._icon_lbl)
-
         self._total_time_lbl = QLabel()
         self._total_time_lbl.setAlignment(Qt.AlignLeft)
         self._total_time_lbl.setSizePolicy(LBL_SIZEPOLICY)
         wdg_lay.addWidget(self._total_time_lbl)
 
         return wdg
-
-    # def _create_move_to_pos(self) -> QGroupBox:
-
-    #     group = QGroupBox(title="Move to Position")
-    #     group.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
-    #     group_layout = QHBoxLayout()
-    #     group_layout.setSpacing(10)
-    #     group_layout.setContentsMargins(10, 20, 10, 20)
-    #     group.setLayout(group_layout)
-
-    #     self.move_to_Button = QPushButton(text="Move to")
-    #     self.move_to_Button.setSizePolicy(
-    #         QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
-    #     )
-
-    #     self.x_lineEdit = QLineEdit()
-    #     self.x_lineEdit.setReadOnly(True)
-    #     self.x_lineEdit.setAlignment(QtCore.Qt.AlignCenter)
-
-    #     self.y_lineEdit = QLineEdit()
-    #     self.y_lineEdit.setReadOnly(True)
-    #     self.y_lineEdit.setAlignment(QtCore.Qt.AlignCenter)
-
-    #     group_layout.addWidget(self.move_to_Button)
-    #     group_layout.addWidget(self.x_lineEdit)
-    #     group_layout.addWidget(self.y_lineEdit)
-
-    #     return group
 
 
 if __name__ == "__main__":
