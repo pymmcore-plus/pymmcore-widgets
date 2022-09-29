@@ -245,20 +245,10 @@ class MultiDWidget(MultiDWidgetGui):
             n_pos = 1
         n_pos = n_pos
 
-        self._total_time_lbl.setStyleSheet("")
-        if not ch or not exp:
-            self._total_time_lbl.setStyleSheet("color:magenta")
-            self._total_time_lbl.setText(
-                "Select at least one channel and exposure time."
-            )
-            return
-
         # acq time per timepoint
         time_chs: float = 0.0  # s
         for e in exp:
             time_chs = time_chs + ((e / 1000) * n_z_images * n_pos)
-
-        min_aq_tp, unit_1 = self._select_output_unit(time_chs)
 
         warning_msg = ""
         interval_msg = ""
@@ -272,11 +262,7 @@ class MultiDWidget(MultiDWidgetGui):
         elif interval < time_chs:
             addition_time = 0
             effective_interval = 0.0
-            warning_msg = (
-                "The time interval is shorter than the minumim "
-                "acquisition time per timepoint.\n"
-            )
-            interval_msg = "\nEstimated effective time interval: 0."
+            warning_msg = "Interval shorter than acquisition time per timepoint."
             _icon = icon(MDI6.exclamation_thick, color="magenta").pixmap(QSize(30, 30))
             stylesheet = "color:magenta"
 
@@ -287,10 +273,9 @@ class MultiDWidget(MultiDWidgetGui):
 
             addition_time = effective_interval * timepoints
             interval_msg = (
-                f"\nEstimated effective time interval:"
+                f"Estimated effective time interval:"
                 f" {effective_interval:.4f} {unit_3}."
             )
-            self._total_time_lbl.setStyleSheet("")
             _icon = None
             stylesheet = ""
 
@@ -299,16 +284,25 @@ class MultiDWidget(MultiDWidgetGui):
         )
 
         self._icon_lbl.clear()
+        self._time_lbl.clear()
+        self._time_lbl.setStyleSheet(stylesheet)
         if _icon:
             self._icon_lbl.setPixmap(_icon)
-        self._total_time_lbl.setStyleSheet(stylesheet)
+            self._time_lbl.show()
+            self._time_lbl.setText(f"{warning_msg}")
+            self._time_lbl.adjustSize()
+        else:
+            self._icon_lbl.setText(f"{interval_msg}")
+            self._time_lbl.hide()
 
-        self._total_time_lbl.setText(
-            f"{warning_msg}"
-            f"Minimum total acquisition time: {min_tot_time:.4f} {unit_4}.\n"
-            f"Minimum acquisition time per timepoint: {min_aq_tp:.4f} {unit_1}."
-            f"{interval_msg}"
-        )
+        t_per_tp_msg = ""
+        tot_acq_msg = f"Minimum total acquisition time: {min_tot_time:.4f} {unit_4}.\n"
+        min_aq_tp, unit_1 = self._select_output_unit(time_chs)
+        if self.time_groupBox.isChecked():
+            t_per_tp_msg = (
+                f"Minimum acquisition time per timepoint: {min_aq_tp:.4f} {unit_1}."
+            )
+        self._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
 
     def _on_mda_started(self) -> None:
         self._set_enabled(False)

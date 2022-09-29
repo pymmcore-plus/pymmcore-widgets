@@ -23,6 +23,8 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 
+LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
 
 class MultiDWidgetGui(QWidget):
     """Just the UI portion of the MDA widget. Runtime logic in MMMultiDWidget."""
@@ -185,8 +187,6 @@ class MultiDWidgetGui(QWidget):
         group_layout.setContentsMargins(10, 10, 10, 10)
         group.setLayout(group_layout)
 
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-
         # Timepoints
         wdg = QWidget()
         wdg_lay = QHBoxLayout()
@@ -194,7 +194,7 @@ class MultiDWidgetGui(QWidget):
         wdg_lay.setContentsMargins(0, 0, 0, 0)
         wdg.setLayout(wdg_lay)
         lbl = QLabel(text="Timepoints:")
-        lbl.setSizePolicy(lbl_sizepolicy)
+        lbl.setSizePolicy(LBL_SIZEPOLICY)
         self.timepoints_spinBox = QSpinBox()
         self.timepoints_spinBox.setMinimum(1)
         self.timepoints_spinBox.setMaximum(1000000)
@@ -213,7 +213,7 @@ class MultiDWidgetGui(QWidget):
         wdg1_lay.setContentsMargins(0, 0, 0, 0)
         wdg1.setLayout(wdg1_lay)
         lbl1 = QLabel(text="Interval:  ")
-        lbl1.setSizePolicy(lbl_sizepolicy)
+        lbl1.setSizePolicy(LBL_SIZEPOLICY)
         self.interval_spinBox = QDoubleSpinBox()
         self.interval_spinBox.setMinimum(0)
         self.interval_spinBox.setMaximum(100000)
@@ -232,6 +232,23 @@ class MultiDWidgetGui(QWidget):
         self.time_comboBox.addItems(["ms", "sec", "min", "hours"])
         wdg1_lay.addWidget(self.time_comboBox)
         group_layout.addWidget(wdg1, 0, 1)
+
+        wdg2 = QWidget()
+        wdg2_lay = QHBoxLayout()
+        wdg2_lay.setSpacing(5)
+        wdg2_lay.setContentsMargins(0, 0, 0, 0)
+        wdg2.setLayout(wdg2_lay)
+        self._icon_lbl = QLabel()
+        self._icon_lbl.setAlignment(Qt.AlignLeft)
+        self._icon_lbl.setSizePolicy(LBL_SIZEPOLICY)
+        wdg2_lay.addWidget(self._icon_lbl)
+        self._time_lbl = QLabel()
+        self._time_lbl.setAlignment(Qt.AlignLeft)
+        self._time_lbl.setSizePolicy(LBL_SIZEPOLICY)
+        wdg2_lay.addWidget(self._time_lbl)
+        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        wdg2_lay.addItem(spacer)
+        group_layout.addWidget(wdg2, 1, 0, 1, 2)
 
         return group
 
@@ -302,8 +319,7 @@ class MultiDWidgetGui(QWidget):
         ra.setLayout(ra_layout)
 
         lbl_range_ra = QLabel(text="Range (µm):")
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        lbl_range_ra.setSizePolicy(lbl_sizepolicy)
+        lbl_range_ra.setSizePolicy(LBL_SIZEPOLICY)
 
         self.zrange_spinBox = QSpinBox()
         self.zrange_spinBox.setValue(5)
@@ -375,8 +391,7 @@ class MultiDWidgetGui(QWidget):
         s_layout.setContentsMargins(0, 0, 0, 0)
         s.setLayout(s_layout)
         lbl = QLabel(text="Step Size (µm):")
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        lbl.setSizePolicy(lbl_sizepolicy)
+        lbl.setSizePolicy(LBL_SIZEPOLICY)
         self.step_size_doubleSpinBox = QDoubleSpinBox()
         self.step_size_doubleSpinBox.setAlignment(Qt.AlignCenter)
         self.step_size_doubleSpinBox.setMinimum(0.05)
@@ -441,24 +456,18 @@ class MultiDWidgetGui(QWidget):
 
         return group
 
-    def _create_label(self) -> QGroupBox:
+    def _create_label(self) -> QWidget:
 
-        wdg = QGroupBox()
+        wdg = QWidget()
         wdg_lay = QHBoxLayout()
         wdg_lay.setSpacing(5)
         wdg_lay.setContentsMargins(10, 5, 10, 5)
         wdg_lay.setAlignment(Qt.AlignLeft)
         wdg.setLayout(wdg_lay)
 
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-
-        self._icon_lbl = QLabel()
-        self._icon_lbl.setSizePolicy(lbl_sizepolicy)
-        wdg_lay.addWidget(self._icon_lbl)
-
         self._total_time_lbl = QLabel()
         self._total_time_lbl.setAlignment(Qt.AlignLeft)
-        self._total_time_lbl.setSizePolicy(lbl_sizepolicy)
+        self._total_time_lbl.setSizePolicy(LBL_SIZEPOLICY)
         wdg_lay.addWidget(self._total_time_lbl)
 
         return wdg
@@ -479,8 +488,7 @@ class MultiDWidgetGui(QWidget):
         acq_wdg_layout.setContentsMargins(0, 0, 0, 0)
         acq_wdg.setLayout(acq_wdg_layout)
         acquisition_order_label = QLabel(text="Acquisition Order:")
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        acquisition_order_label.setSizePolicy(lbl_sizepolicy)
+        acquisition_order_label.setSizePolicy(LBL_SIZEPOLICY)
         self.acquisition_order_comboBox = QComboBox()
         self.acquisition_order_comboBox.setMinimumWidth(100)
         self.acquisition_order_comboBox.addItems(["tpcz", "tpzc", "ptzc", "ptcz"])
