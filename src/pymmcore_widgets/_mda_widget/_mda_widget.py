@@ -253,11 +253,17 @@ class MultiDWidget(MultiDWidgetGui):
         warning_msg = ""
         interval_msg = ""
 
+        min_aq_tp, unit_1 = self._select_output_unit(time_chs)
+
         if interval <= 0:
             effective_interval = 0.0
             addition_time = 0
             _icon = None
             stylesheet = ""
+            if interval == 0:
+                interval_msg = (
+                    f"Estimated minimum time interval:" f" {min_aq_tp:.4f} {unit_1}."
+                )
 
         elif interval < time_chs:
             addition_time = 0
@@ -273,7 +279,7 @@ class MultiDWidget(MultiDWidgetGui):
 
             addition_time = effective_interval * timepoints
             interval_msg = (
-                f"Estimated effective time interval:"
+                f"Estimated minimum time interval:"
                 f" {effective_interval:.4f} {unit_3}."
             )
             _icon = None
@@ -297,7 +303,6 @@ class MultiDWidget(MultiDWidgetGui):
 
         t_per_tp_msg = ""
         tot_acq_msg = f"Minimum total acquisition time: {min_tot_time:.4f} {unit_4}.\n"
-        min_aq_tp, unit_1 = self._select_output_unit(time_chs)
         if self.time_groupBox.isChecked():
             t_per_tp_msg = (
                 f"Minimum acquisition time per timepoint: {min_aq_tp:.4f} {unit_1}."
