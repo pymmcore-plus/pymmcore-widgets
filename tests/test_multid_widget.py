@@ -223,6 +223,6 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
         "Minimum total acquisition time: 3.3383 min.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
-    txt2 = "Estimated effective time interval: 100.0000 ms."
+    txt2 = "Estimated minimum time interval: 100.0000 ms."
     assert wdg._total_time_lbl.text() == txt1
     assert wdg._icon_lbl.text() == txt2
