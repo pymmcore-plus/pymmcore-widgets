@@ -188,15 +188,19 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg.add_ch_Button.click()
     assert wdg.channel_tableWidget.rowCount() == 1
     assert wdg.channel_tableWidget.cellWidget(0, 1).value() == 100.0
+    assert not wdg.time_groupBox.isChecked()
+
+    txt = "Minimum total acquisition time: 100.0000 ms.\n"
+    assert wdg._total_time_lbl.text() == txt
+
+    assert not wdg.time_groupBox.isChecked()
+    wdg.time_groupBox.setChecked(True)
 
     txt = (
         "Minimum total acquisition time: 100.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
     assert wdg._total_time_lbl.text() == txt
-
-    assert not wdg.time_groupBox.isChecked()
-    wdg.time_groupBox.setChecked(True)
 
     wdg.timepoints_spinBox.setValue(3)
     txt = (
@@ -206,19 +210,19 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg._total_time_lbl.text() == txt
 
     wdg.interval_spinBox.setValue(10)
-    txt = (
-        "The time interval is shorter than the minumim "
-        "acquisition time per timepoint.\n"
+    txt1 = (
         "Minimum total acquisition time: 300.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
-        "\nEstimated effective time interval: 0."
     )
-    assert wdg._total_time_lbl.text() == txt
+    txt2 = "Interval shorter than acquisition time per timepoint."
+    assert wdg._total_time_lbl.text() == txt1
+    assert wdg._time_lbl.text() == txt2
 
     wdg.interval_spinBox.setValue(200)
-    txt = (
+    txt1 = (
         "Minimum total acquisition time: 3.3383 min.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
-        "\nEstimated effective time interval: 100.0000 ms."
     )
-    assert wdg._total_time_lbl.text() == txt
+    txt2 = "Estimated effective time interval: 100.0000 ms."
+    assert wdg._total_time_lbl.text() == txt1
+    assert wdg._icon_lbl.text() == txt2
