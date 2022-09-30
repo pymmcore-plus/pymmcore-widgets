@@ -35,9 +35,6 @@ class LiveButton(QPushButton):
         super().__init__(parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
-
-        self._camera = self._mmc.getCameraDevice()
-
         self._button_text_on: str = "Live"
         self._button_text_off: str = "Stop"
         self._icon_color_on: COLOR_TYPE = (0, 255, 0)
@@ -70,7 +67,7 @@ class LiveButton(QPushButton):
 
     @button_text_on.setter
     def button_text_on(self, text: str) -> None:
-        if not self._mmc.isSequenceRunning(self._camera):
+        if not self._mmc.isSequenceRunning():
             self.setText(text)
         self._button_text_on = text
 
@@ -85,7 +82,7 @@ class LiveButton(QPushButton):
 
     @button_text_off.setter
     def button_text_off(self, text: str) -> None:
-        if self._mmc.isSequenceRunning(self._camera):
+        if self._mmc.isSequenceRunning():
             self.setText(text)
         self._button_text_off = text
 
@@ -100,7 +97,7 @@ class LiveButton(QPushButton):
 
     @icon_color_on.setter
     def icon_color_on(self, color: COLOR_TYPE) -> None:
-        if not self._mmc.isSequenceRunning(self._camera):
+        if not self._mmc.isSequenceRunning():
             self.setIcon(icon(MDI6.video_outline, color=color))
         self._icon_color_on = color
 
@@ -115,7 +112,7 @@ class LiveButton(QPushButton):
 
     @icon_color_off.setter
     def icon_color_off(self, color: COLOR_TYPE) -> None:
-        if self._mmc.isSequenceRunning(self._camera):
+        if self._mmc.isSequenceRunning():
             self.setIcon(icon(MDI6.video_off_outline, color=color))
         self._icon_color_off = color
 
