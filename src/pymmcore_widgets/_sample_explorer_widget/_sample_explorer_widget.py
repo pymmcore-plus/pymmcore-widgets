@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal, Optional, Tuple, Union
 
-import useq
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
@@ -27,9 +26,6 @@ class SampleExplorer(ExplorerGui):
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
         super().__init__(parent)
-
-        self.t0 = 0
-        self.t1 = 0
 
         self.cancel_scan_Button.hide()
         self.pause_scan_Button.hide()
@@ -127,14 +123,14 @@ class SampleExplorer(ExplorerGui):
                 return dialog.currentText()
         return None
 
-    def _on_mda_started(self, sequence: useq.MDASequence) -> None:
+    def _on_mda_started(self) -> None:
         """Block gui when mda starts."""
         self._set_enabled(False)
         self.cancel_scan_Button.show()
         self.pause_scan_Button.show()
         self.start_scan_Button.hide()
 
-    def _on_mda_finished(self, sequence: useq.MDASequence) -> None:
+    def _on_mda_finished(self) -> None:
 
         if not hasattr(self, "return_to_position_x"):
             return
@@ -158,8 +154,21 @@ class SampleExplorer(ExplorerGui):
         self.scan_size_spinBox_r.setEnabled(enabled)
         self.scan_size_spinBox_c.setEnabled(enabled)
         self.ovelap_spinBox.setEnabled(enabled)
-        self.start_scan_Button.setEnabled(enabled)
         self.channel_explorer_groupBox.setEnabled(enabled)
+        self.time_groupBox.setEnabled(enabled)
+        self.acquisition_order_comboBox.setEnabled(enabled)
+
+        if not self._mmc.getXYStageDevice():
+            self.stage_pos_groupBox.setChecked(False)
+            self.stage_pos_groupBox.setEnabled(False)
+        else:
+            self.stage_pos_groupBox.setEnabled(enabled)
+
+        if not self._mmc.getFocusDevice():
+            self.stack_groupBox.setChecked(False)
+            self.stack_groupBox.setEnabled(False)
+        else:
+            self.stack_groupBox.setEnabled(enabled)
 
     def _add_channel(self) -> bool:
         """Add, remove or clear channel table.  Return True if anyting was changed."""
@@ -430,7 +439,7 @@ class SampleExplorer(ExplorerGui):
         table = self.channel_explorer_tableWidget
 
         state = {
-            "axis_order": "tpzc",
+            "axis_order": self.acquisition_order_comboBox.currentText(),
             "channels": [],
             "stage_positions": [],
             "z_plan": None,
@@ -438,7 +447,7 @@ class SampleExplorer(ExplorerGui):
         }
 
         state["channels"] = [
-            {  # type: ignore
+            {
                 "config": table.cellWidget(c, 0).currentText(),
                 "group": self._mmc.getChannelGroup() or "Channel",
                 "exposure": table.cellWidget(c, 1).value(),
@@ -449,19 +458,19 @@ class SampleExplorer(ExplorerGui):
         if self.stack_groupBox.isChecked():
 
             if self.z_tabWidget.currentIndex() == 0:
-                state["z_plan"] = {  # type: ignore
+                state["z_plan"] = {
                     "top": self.z_top_doubleSpinBox.value(),
                     "bottom": self.z_bottom_doubleSpinBox.value(),
                     "step": self.step_size_doubleSpinBox.value(),
                 }
 
             elif self.z_tabWidget.currentIndex() == 1:
-                state["z_plan"] = {  # type: ignore
+                state["z_plan"] = {
                     "range": self.zrange_spinBox.value(),
                     "step": self.step_size_doubleSpinBox.value(),
                 }
             elif self.z_tabWidget.currentIndex() == 2:
-                state["z_plan"] = {  # type: ignore
+                state["z_plan"] = {
                     "above": self.above_doubleSpinBox.value(),
                     "below": self.below_doubleSpinBox.value(),
                     "step": self.step_size_doubleSpinBox.value(),
@@ -471,7 +480,7 @@ class SampleExplorer(ExplorerGui):
             unit = {"min": "minutes", "sec": "seconds", "ms": "milliseconds"}[
                 self.time_comboBox.currentText()
             ]
-            state["time_plan"] = {  # type: ignore
+            state["time_plan"] = {
                 "interval": {unit: self.interval_spinBox.value()},
                 "loops": self.timepoints_spinBox.value(),
             }
@@ -480,7 +489,7 @@ class SampleExplorer(ExplorerGui):
             pos = {"name": g[0], "x": g[1], "y": g[2]}
             if len(g) == 4:
                 pos["z"] = g[3]
-            state["stage_positions"].append(pos)  # type: ignore
+            state["stage_positions"].append(pos)
 
         return MDASequence(**state)
 

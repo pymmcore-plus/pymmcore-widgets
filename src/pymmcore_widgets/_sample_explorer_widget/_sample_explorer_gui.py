@@ -510,12 +510,28 @@ class ExplorerGui(QWidget):
         wdg_layout.setContentsMargins(10, 5, 10, 10)
         wdg.setLayout(wdg_layout)
 
+        acq_wdg = QWidget()
+        acq_wdg_layout = QHBoxLayout()
+        acq_wdg_layout.setSpacing(0)
+        acq_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        acq_wdg.setLayout(acq_wdg_layout)
+        acquisition_order_label = QLabel(text="Acquisition Order:")
+        acquisition_order_label.setSizePolicy(LBL_SIZEPOLICY)
+        self.acquisition_order_comboBox = QComboBox()
+        self.acquisition_order_comboBox.setMinimumWidth(100)
+        self.acquisition_order_comboBox.addItems(["tpcz", "tpzc", "ptzc", "ptcz"])
+        acq_wdg_layout.addWidget(acquisition_order_label)
+        acq_wdg_layout.addWidget(self.acquisition_order_comboBox)
+        wdg_layout.addWidget(acq_wdg)
+
         spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Fixed)
         wdg_layout.addItem(spacer)
 
         btn_sizepolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        min_width = 100
         icon_size = 40
         self.start_scan_Button = QPushButton(text="Run")
+        self.start_scan_Button.setMinimumWidth(min_width)
         self.start_scan_Button.setStyleSheet("QPushButton { text-align: center; }")
         self.start_scan_Button.setSizePolicy(btn_sizepolicy)
         self.start_scan_Button.setIcon(
@@ -524,12 +540,14 @@ class ExplorerGui(QWidget):
         self.start_scan_Button.setIconSize(QSize(icon_size, icon_size))
 
         self.pause_scan_Button = QPushButton(text="Pause")
+        self.pause_scan_Button.setMinimumWidth(min_width)
         self.pause_scan_Button.setStyleSheet("QPushButton { text-align: center; }")
         self.pause_scan_Button.setSizePolicy(btn_sizepolicy)
         self.pause_scan_Button.setIcon(icon(MDI6.pause_circle_outline, color="green"))
         self.pause_scan_Button.setIconSize(QSize(icon_size, icon_size))
 
         self.cancel_scan_Button = QPushButton(text="Cancel")
+        self.cancel_scan_Button.setMinimumWidth(min_width)
         self.cancel_scan_Button.setStyleSheet("QPushButton { text-align: center; }")
         self.cancel_scan_Button.setSizePolicy(btn_sizepolicy)
         self.cancel_scan_Button.setIcon(icon(MDI6.stop_circle_outline, color="magenta"))
