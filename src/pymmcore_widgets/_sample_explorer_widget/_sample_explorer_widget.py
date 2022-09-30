@@ -73,14 +73,9 @@ class SampleExplorer(ExplorerGui):
         self.stage_tableWidget.cellDoubleClicked.connect(self._move_to_position)
 
         # connect buttons
-        # self.move_to_Button.clicked.connect(self._move_to)
-        # self.browse_save_explorer_Button.clicked.connect(self._set_explorer_dir)
         self.start_scan_Button.clicked.connect(self._start_scan)
         self.cancel_scan_Button.clicked.connect(self._mmc.mda.cancel)
         self.pause_scan_Button.clicked.connect(lambda: self._mmc.mda.toggle_pause())
-
-        # self.x_lineEdit.setText(str(None))
-        # self.y_lineEdit.setText(str(None))
 
         # connect toggle
         self.time_groupBox.toggled.connect(self._calculate_total_time)
@@ -160,11 +155,9 @@ class SampleExplorer(ExplorerGui):
         self.start_scan_Button.show()
 
     def _set_enabled(self, enabled: bool) -> None:
-        # self.save_explorer_groupBox.setEnabled(enabled)
         self.scan_size_spinBox_r.setEnabled(enabled)
         self.scan_size_spinBox_c.setEnabled(enabled)
         self.ovelap_spinBox.setEnabled(enabled)
-        # self.move_to_Button.setEnabled(enabled)
         self.start_scan_Button.setEnabled(enabled)
         self.channel_explorer_groupBox.setEnabled(enabled)
 
@@ -598,51 +591,6 @@ class SampleExplorer(ExplorerGui):
 
         return full_pos_list
 
-    # def _set_explorer_dir(self) -> None:
-    #     # set the directory
-    #     self.dir = QtW.QFileDialog(self)
-    #     self.dir.setFileMode(QtW.QFileDialog.DirectoryOnly)
-    #     self.save_dir = QtW.QFileDialog.getExistingDirectory(self.dir)
-    #     self.dir_explorer_lineEdit.setText(self.save_dir)
-    #     self.parent_path = Path(self.save_dir)
-
-    # def _create_translation_points(self, rows: int, cols: int) -> list:
-
-    #     cam_size_x = self._mmc.getROI(self._mmc.getCameraDevice())[2]
-    #     cam_size_y = self._mmc.getROI(self._mmc.getCameraDevice())[3]
-    #     move_x = cam_size_x - (self.ovelap_spinBox.value() * cam_size_x) / 100
-    #     move_y = cam_size_y - (self.ovelap_spinBox.value() * cam_size_y) / 100
-    #     x = -((cols - 1) * (cam_size_x / 2))
-    #     y = (rows - 1) * (cam_size_y / 2)
-
-    #     # for 'snake' acquisition
-    #     points = []
-    #     for r in range(rows):
-    #         if r % 2:  # for odd rows
-    #             col = cols - 1
-    #             for c in range(cols):
-    #                 if c == 0:
-    #                     y -= move_y
-    #                 points.append((x, y, r, c))
-    #                 if col > 0:
-    #                     col -= 1
-    #                     x -= move_x
-    #         else:  # for even rows
-    #             for c in range(cols):
-    #                 if r > 0 and c == 0:
-    #                     y -= move_y
-    #                 points.append((x, y, r, c))
-    #                 if c < cols - 1:
-    #                     x += move_x
-    #     return points
-
-    # def _set_translate_point_list(self) -> list:
-
-    #     t_list = self._create_translation_points(self.scan_size_r, self.scan_size_c)
-    #     if self.stage_tableWidget.rowCount() > 0:
-    #         t_list = t_list * self.stage_tableWidget.rowCount()
-    #     return t_list
-
     def _start_scan(self) -> None:
 
         self.pixel_size = self._mmc.getPixelSizeUm()
@@ -656,42 +604,7 @@ class SampleExplorer(ExplorerGui):
         if self.channel_explorer_tableWidget.rowCount() <= 0:
             raise ValueError("Select at least one channel.")
 
-        # if self.save_explorer_groupBox.isChecked() and (
-        #     self.fname_explorer_lineEdit.text() == ""
-        #     or (
-        #         self.dir_explorer_lineEdit.text() == ""
-        #         or not Path.is_dir(Path(self.dir_explorer_lineEdit.text()))
-        #     )
-        # ):
-        #     raise ValueError("select a filename and a valid directory.")
-
         explore_sample = self._get_state()
-
-        # _mda.SEQUENCE_META[explore_sample] = _mda.SequenceMeta(
-        #     mode="explorer",
-        #     should_save=self.save_explorer_groupBox.isChecked(),
-        #     file_name=self.fname_explorer_lineEdit.text(),
-        #     save_dir=self.dir_explorer_lineEdit.text(),
-        #     translate_explorer=self.display_checkbox.isChecked(),
-        #     translate_explorer_real_coords=self.display_checkbox_real.isChecked(),
-        #     explorer_translation_points=self._set_translate_point_list(),
-        # )
-
-        # self.x_lineEdit.setText("None")
-        # self.y_lineEdit.setText("None")
 
         self._mmc.run_mda(explore_sample)  # run the MDA experiment asynchronously
         return
-
-    # def _move_to(self) -> None:
-
-    #     if self.pixel_size <= 0:
-    #         raise ValueError("Pixel Size not set.")
-
-    #     move_to_x = self.x_lineEdit.text()
-    #     move_to_y = self.y_lineEdit.text()
-
-    #     if move_to_x != "None" and move_to_y != "None":
-    #         move_to_x = float(move_to_x)
-    #         move_to_y = float(move_to_y)
-    #         self._mmc.setXYPosition(move_to_x, move_to_y)
