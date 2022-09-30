@@ -376,7 +376,6 @@ class SampleExplorer(ExplorerGui):
             time_chs = time_chs + ((e / 1000) * n_z_images * n_pos * tiles)
 
         warning_msg = ""
-        interval_msg = ""
 
         min_aq_tp, unit_1 = self._select_output_unit(time_chs)
 
@@ -385,10 +384,6 @@ class SampleExplorer(ExplorerGui):
             addition_time = 0
             _icon = None
             stylesheet = ""
-            if interval == 0:
-                interval_msg = (
-                    f"Estimated minimum time interval:" f" {min_aq_tp:.4f} {unit_1}."
-                )
 
         elif interval < time_chs:
             addition_time = 0
@@ -403,10 +398,6 @@ class SampleExplorer(ExplorerGui):
             )
 
             addition_time = effective_interval * timepoints
-            interval_msg = (
-                f"Estimated minimum time interval:"
-                f" {effective_interval:.4f} {unit_3}."
-            )
             _icon = None
             stylesheet = ""
 
@@ -423,7 +414,6 @@ class SampleExplorer(ExplorerGui):
             self._time_lbl.setText(f"{warning_msg}")
             self._time_lbl.adjustSize()
         else:
-            self._icon_lbl.setText(f"{interval_msg}")
             self._time_lbl.hide()
 
         t_per_tp_msg = ""
