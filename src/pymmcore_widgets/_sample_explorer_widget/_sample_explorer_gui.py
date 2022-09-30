@@ -526,9 +526,7 @@ class ExplorerGui(QWidget):
         self.pause_scan_Button = QPushButton(text="Pause")
         self.pause_scan_Button.setStyleSheet("QPushButton { text-align: center; }")
         self.pause_scan_Button.setSizePolicy(btn_sizepolicy)
-        self.pause_scan_Button.setIcon(
-            icon(MDI6.pause_circle_outline, color=(0, 255, 0))
-        )
+        self.pause_scan_Button.setIcon(icon(MDI6.pause_circle_outline, color="green"))
         self.pause_scan_Button.setIconSize(QSize(icon_size, icon_size))
 
         self.cancel_scan_Button = QPushButton(text="Cancel")
