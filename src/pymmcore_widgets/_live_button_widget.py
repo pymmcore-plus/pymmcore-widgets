@@ -50,7 +50,7 @@ class LiveButton(QPushButton):
         super().__init__(parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
-        
+
         self._camera = self._mmc.getCameraDevice()
 
         self._button_text_on: str = "Live"
