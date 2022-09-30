@@ -23,21 +23,6 @@ class LiveButton(QPushButton):
     When pressed, a 'ContinuousSequenceAcquisition' is started or stopped
     and a pymmcore-plus signal 'startContinuousSequenceAcquisition' or
     'stopSequenceAcquisition' is emitted.
-
-    Properties
-    ----------
-    button_text_on : str
-        Text of the QPushButton in the on state.
-        Default = "Live".
-    button_text_off : str
-        Text of the QPushButton in the off state.
-        Default = "Stop".
-    icon_color_on : COLOR_TYPE
-       Color of the QPushButton icon in the on state.
-       Default = (0. 255, 0).
-    icon_color_off : COLOR_TYPE
-       Color of the QPushButton icon in the off state.
-       Default = "magenta".
     """
 
     def __init__(
@@ -76,7 +61,11 @@ class LiveButton(QPushButton):
 
     @property
     def button_text_on(self) -> str:
-        """Set the live button text for when live mode is on."""
+        """
+        Set the live button text for when live mode is on.
+
+        Default = "Live."
+        """
         return self._button_text_on
 
     @button_text_on.setter
@@ -87,7 +76,11 @@ class LiveButton(QPushButton):
 
     @property
     def button_text_off(self) -> str:
-        """Set the live button text for when live mode is off."""
+        """
+        Set the live button text for when live mode is off.
+
+        Default = "Stop."
+        """
         return self._button_text_off
 
     @button_text_off.setter
@@ -98,7 +91,11 @@ class LiveButton(QPushButton):
 
     @property
     def icon_color_on(self) -> COLOR_TYPE:
-        """Set the live button color for when live mode is on."""
+        """
+        Set the live button color for when live mode is on.
+
+        Default = (0. 255, 0).
+        """
         return self._icon_color_on
 
     @icon_color_on.setter
@@ -109,7 +106,11 @@ class LiveButton(QPushButton):
 
     @property
     def icon_color_off(self) -> COLOR_TYPE:
-        """Set the live button color for when live mode is off."""
+        """
+        Set the live button color for when live mode is off.
+
+        Default = "magenta".
+        """
         return self._icon_color_off
 
     @icon_color_off.setter
