@@ -13,6 +13,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QPushButton,
     QSizePolicy,
+    QSpacerItem,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -45,20 +46,56 @@ class CameraRoiWidget(QWidget):
         self._on_sys_cfg_loaded()
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
-        # self._mmc.events.propertyChanged.connect(self._on_property_changed)
         self._mmc.events.pixelSizeChanged.connect(self._update_lbl_info)
-        # new signal in pymmcore-plus
         self._mmc.events.roiSet.connect(self._on_roi_set)
 
     def _create_gui(self) -> None:  # sourcery skip: class-extract-method
 
         layout = QVBoxLayout()
         layout.setSpacing(0)
-        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
         main_wdg = self._create_main_wdg()
         layout.addWidget(main_wdg)
+
+    def _create_main_wdg(self) -> QWidget:
+
+        wdg = QWidget()
+        layout = QGridLayout()
+        layout.setVerticalSpacing(3)
+        layout.setHorizontalSpacing(5)
+        layout.setContentsMargins(3, 3, 3, 3)
+        wdg.setLayout(layout)
+
+        crop_mode = self._create_selection_wdg()
+        layout.addWidget(crop_mode, 0, 0)
+
+        self.custorm_roi_group = self._create_custom_roi_group()
+        layout.addWidget(self.custorm_roi_group, 0, 1)
+
+        bottom_wdg = QGroupBox()
+        bottom_layout = QHBoxLayout()
+        bottom_layout.setSpacing(5)
+        bottom_layout.setContentsMargins(10, 3, 10, 3)
+        bottom_wdg.setLayout(bottom_layout)
+
+        self.lbl_info = QLabel()
+        bottom_layout.addWidget(self.lbl_info)
+
+        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Fixed)
+        bottom_layout.addItem(spacer)
+
+        self.crop_btn = QPushButton("Crop")
+        self.crop_btn.setMinimumWidth(100)
+        self.crop_btn.setIcon(icon(MDI6.crop, color=(0, 255, 0)))
+        self.crop_btn.setIconSize(QSize(30, 30))
+        self.crop_btn.clicked.connect(self._on_crop_pushed)
+        bottom_layout.addWidget(self.crop_btn)
+
+        layout.addWidget(bottom_wdg, 1, 0, 1, 2)
+
+        return wdg
 
     def _create_selection_combo_wdg(self) -> QWidget:
 
@@ -76,12 +113,13 @@ class CameraRoiWidget(QWidget):
 
         return wdg
 
-    def _create_selection_wdg(self) -> QWidget:
+    def _create_selection_wdg(self) -> QGroupBox:
 
         wdg = QGroupBox()
+        wdg.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         layout = QVBoxLayout()
         layout.setSpacing(5)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(3, 3, 3, 3)
         wdg.setLayout(layout)
 
         combo = self._create_selection_combo_wdg()
@@ -97,9 +135,8 @@ class CameraRoiWidget(QWidget):
 
         group = QGroupBox()
         layout = QGridLayout()
-        layout.setVerticalSpacing(10)
-        layout.setHorizontalSpacing(5)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)
+        layout.setContentsMargins(3, 3, 3, 3)
         group.setLayout(layout)
 
         roi_start_x_label = QLabel("Start x:")
@@ -146,32 +183,6 @@ class CameraRoiWidget(QWidget):
 
         return group
 
-    def _create_main_wdg(self) -> QWidget:
-
-        wdg = QWidget()
-        layout = QGridLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
-        wdg.setLayout(layout)
-
-        crop_mode = self._create_selection_wdg()
-        layout.addWidget(crop_mode, 0, 0)
-
-        self.custorm_roi_group = self._create_custom_roi_group()
-        layout.addWidget(self.custorm_roi_group, 0, 1)
-
-        self.crop_btn = QPushButton("Crop")
-        self.crop_btn.setIcon(icon(MDI6.crop, color=(0, 255, 0)))
-        self.crop_btn.setIconSize(QSize(30, 30))
-        self.crop_btn.clicked.connect(self._on_crop_pushed)
-        layout.addWidget(self.crop_btn, 1, 0)
-
-        self.lbl_info = QLabel()
-        self.lbl_info.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.lbl_info, 1, 1)
-
-        return wdg
-
     def _setEnabled(self, enabled: bool) -> None:
         self.cam_roi_combo.setEnabled(enabled)
         self.center_checkbox.setEnabled(enabled)
@@ -205,22 +216,6 @@ class CameraRoiWidget(QWidget):
             height = round(chip_size_y / val)
             items.append(f"{width} x {height}")
         return items
-
-    # def _on_property_changed(self, device: str, property: str, value: str) -> None:
-    #     # TODO: test if the camera prop for the roi size is
-    #     # always called "OnCameraCCDXSize", "OnCameraCCDYSize" like in the demo cfg
-    #     if device != self._mmc.getCameraDevice():
-    #         return
-    #     if property in {"OnCameraCCDXSize", "OnCameraCCDYSize"}:
-    #         wdg = self.roi_width if "X" in property else self.roi_height
-    #         if value == wdg.value():
-    #             return
-    #         wdg.setValue(int(value))
-    #         with signals_blocked(self.center_checkbox):
-    #             self.center_checkbox.setChecked(True)
-    #         with signals_blocked(self.cam_roi_combo):
-    #             self.cam_roi_combo.setCurrentText("ROI")
-    #         self._on_roi_combobox_change("ROI")
 
     def _on_roi_set(
         self, cam_label: str, x: int, y: int, width: int, height: int
@@ -264,7 +259,6 @@ class CameraRoiWidget(QWidget):
             self._mmc.clearROI()
             if snap and self._mmc.getCameraDevice():
                 self._mmc.snap()
-            # self._reset_OnCameraCCD_property()
             self._set_roi_groupbox_values(0, 0, self.chip_size_x, self.chip_size_y)
 
             self.roiInfo.emit(0, 0, self.chip_size_x, self.chip_size_y, "Full")
@@ -296,20 +290,6 @@ class CameraRoiWidget(QWidget):
             )
 
         self._update_lbl_info()
-
-    # def _reset_OnCameraCCD_property(self) -> None:
-    #     if self._mmc.getProperty(
-    #         self._mmc.getCameraDevice(), "OnCameraCCDXSize"
-    #     ) != str(self.chip_size_x):
-    #         self._mmc.setProperty(
-    #             self._mmc.getCameraDevice(), "OnCameraCCDXSize", self.chip_size_x
-    #         )
-    #     if self._mmc.getProperty(
-    #         self._mmc.getCameraDevice(), "OnCameraCCDYSize"
-    #     ) != str(self.chip_size_y):
-    #         self._mmc.setProperty(
-    #             self._mmc.getCameraDevice(), "OnCameraCCDYSize", self.chip_size_y
-    #         )
 
     def _on_roi_spinbox_changed(self) -> None:
 
@@ -409,11 +389,4 @@ class CameraRoiWidget(QWidget):
     def _on_crop_pushed(self) -> None:
         start_x, start_y, width, height = self._get_roi_groupbox_values()
         self._mmc.setROI(start_x, start_y, width, height)
-        # self._mmc.setProperty(self._mmc.getCameraDevice(), "OnCameraCCDXSize", width)
-        # self._mmc.setProperty(self._mmc.getCameraDevice(), "OnCameraCCDYSize", height)
         self._mmc.snap()
-
-        # self.center_checkbox.setEnabled(False)
-        # self.custorm_roi_group.setEnabled(False)
-        # spin_list = [self.start_x, self.start_y, self.roi_width, self.roi_height]
-        # self._hide_spinbox_button(spin_list, True)
