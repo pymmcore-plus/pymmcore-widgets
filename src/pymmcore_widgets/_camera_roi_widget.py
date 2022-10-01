@@ -201,12 +201,23 @@ class CameraRoiWidget(QWidget):
         self.roi_width.setMaximum(self.chip_size_x)
         self.roi_height.setMaximum(self.chip_size_y)
         self._reset_start_max()
+        self._initialize_wdg()
+
+    def _initialize_wdg(self) -> None:
         with signals_blocked(self.cam_roi_combo):
             items = self._cam_roi_combo_items(self.chip_size_x, self.chip_size_y)
             self.cam_roi_combo.clear()
             self.cam_roi_combo.addItems(items)
             self.cam_roi_combo.setCurrentText("Full")
-        self._on_roi_combobox_change("Full", snap=False)
+        spin_list = [self.start_x, self.start_y, self.roi_width, self.roi_height]
+        self._hide_spinbox_button(spin_list, True)
+        self._set_roi_groupbox_values(0, 0, self.chip_size_x, self.chip_size_y)
+        self.custorm_roi_group.setEnabled(False)
+        self.center_checkbox.setEnabled(False)
+        self.crop_btn.setEnabled(False)
+        with signals_blocked(self.center_checkbox):
+            self.center_checkbox.setChecked(True)
+        self._update_lbl_info()
 
     def _cam_roi_combo_items(self, chip_size_x: int, chip_size_y: int) -> list:
         items = ["Full", "ROI"]
@@ -244,7 +255,7 @@ class CameraRoiWidget(QWidget):
             f"Size: {width} px * {height} px [{width_um} µm * {height_um} µm]"
         )
 
-    def _on_roi_combobox_change(self, value: str, snap: bool = True) -> None:
+    def _on_roi_combobox_change(self, value: str) -> None:
         self.custorm_roi_group.setEnabled(value == "ROI")
         self.center_checkbox.setEnabled(value == "ROI")
         self.crop_btn.setEnabled(value != "Full")
@@ -257,8 +268,7 @@ class CameraRoiWidget(QWidget):
         if value == "Full":
             self._hide_spinbox_button(spin_list, True)
             self._mmc.clearROI()
-            if snap and self._mmc.getCameraDevice():
-                self._mmc.snap()
+            self._mmc.snap()
             self._set_roi_groupbox_values(0, 0, self.chip_size_x, self.chip_size_y)
 
             self.roiInfo.emit(0, 0, self.chip_size_x, self.chip_size_y, "Full")
@@ -277,7 +287,7 @@ class CameraRoiWidget(QWidget):
         else:
             self._hide_spinbox_button(spin_list, True)
 
-            self._check_size_reset_snap(snap)
+            self._check_size_reset_snap()
 
             width = int(value.split(" x ")[0])
             height = int(value.split(" x ")[1])
