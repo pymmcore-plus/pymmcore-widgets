@@ -159,6 +159,7 @@ ignore = [
     ".pre-commit-config.yaml",
     "tests/**/*",
     "tox.ini",
+    "examples/**/*",
 ]
 
 # https://python-semantic-release.readthedocs.io/en/latest/configuration.html
