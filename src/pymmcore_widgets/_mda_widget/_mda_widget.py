@@ -71,6 +71,7 @@ class MultiDWidget(MultiDWidgetGui):
         self.timepoints_spinBox.valueChanged.connect(self._calculate_total_time)
         self.stack_groupBox.toggled.connect(self._calculate_total_time)
         self.stage_pos_groupBox.toggled.connect(self._calculate_total_time)
+        self.time_comboBox.toggled.connect(self._calculate_total_time)
 
         # connect position table double click
         self.stage_tableWidget.cellDoubleClicked.connect(self._move_to_position)
