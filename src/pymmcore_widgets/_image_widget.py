@@ -1,10 +1,14 @@
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional, Tuple, Union
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     import numpy as np
 
 
@@ -27,6 +31,8 @@ class ImagePreview(QWidget):
         super().__init__(parent)
         self._mmc = CMMCorePlus.instance()
         self._imcls = scene.visuals.Image
+        self._clims: Union[Tuple[float, float], Literal["auto"]] = "auto"
+        self._cmap: str = "grays"
 
         self.streaming_timer = QTimer()
         self.streaming_timer.setInterval(int(self._mmc.getExposure()) or 10)
@@ -66,19 +72,57 @@ class ImagePreview(QWidget):
     def _on_exposure_changed(self, device: str, value: str) -> None:
         self.streaming_timer.setInterval(int(value))
 
-    def _on_image_snapped(self, img: Optional["np.ndarray"] = None) -> None:
+    def _on_image_snapped(self, img: Optional[np.ndarray] = None) -> None:
         if img is None:
             try:
                 img = self._mmc.getLastImage()
             except (RuntimeError, IndexError):
                 return
 
-        clim = (img.min(), img.max())
+        clim = (img.min(), img.max()) if self._clims == "auto" else self._clims
         if self.image is None:
             self.image = self._imcls(
-                img, cmap="grays", clim=clim, parent=self.view.scene
+                img, cmap=self._cmap, clim=clim, parent=self.view.scene
             )
             self.view.camera.set_range(margin=0)
         else:
             self.image.set_data(img)
             self.image.clim = clim
+
+    @property
+    def clims(self) -> Union[Tuple[float, float], Literal["auto"]]:
+        """Get the contrast limits of the image."""
+        return self._clims
+
+    @clims.setter
+    def clims(
+        self, clims: Union[Tuple[float, float], Literal["auto"]] = "auto"
+    ) -> None:
+        """Set the contrast limits of the image.
+
+        Parameters
+        ----------
+        clims : Tuple[float, float], or "auto"
+            The contrast limits to set.
+        """
+        if self.image is not None:
+            self.image.clim = clims
+        self._clims = clims
+
+    @property
+    def cmap(self) -> str:
+        """Get the colormap (lookup table) of the image."""
+        return self._cmap
+
+    @cmap.setter
+    def cmap(self, cmap: str = "grays") -> None:
+        """Set the colormap (lookup table) of the image.
+
+        Parameters
+        ----------
+        cmap : str
+            The colormap to use.
+        """
+        if self.image is not None:
+            self.image.cmap = cmap
+        self._cmap = cmap
