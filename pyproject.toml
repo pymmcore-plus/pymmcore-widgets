@@ -46,7 +46,7 @@ dev = [
     "cruft",
     "flake8-bugbear",
     "flake8-docstrings",
-    "flake8-pyprojecttoml",
+    "flake8-pyprojecttoml @ git+https://github.com/tlambert03/flake8-pyprojecttoml.git@main",
     "flake8-typing-imports",
     "flake8",
     "ipython",
