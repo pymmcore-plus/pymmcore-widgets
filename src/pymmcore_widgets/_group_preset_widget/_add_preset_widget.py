@@ -174,7 +174,7 @@ class AddPresetWidget(QDialog):
             for d, p, v in dev_prop_val:
                 self._mmc.defineConfig(self._group, preset_name, d, p, v)
 
-        self._mmc.events.newGroupPreset.emit(self._group, preset_name, d, p, v)
+        self._mmc.events.configDefined.emit(self._group, preset_name, d, p, v)
 
         self.info_lbl.setStyleSheet("")
         self.info_lbl.setText(f"'{preset_name}' has been added!")

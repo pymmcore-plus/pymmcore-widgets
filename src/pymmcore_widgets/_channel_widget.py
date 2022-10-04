@@ -44,10 +44,9 @@ class ChannelWidget(QWidget):
         self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
         self._mmc.events.configSet.connect(self._on_channel_set)
 
-        # connections to the new pymmcore-plus groupDeleted and newGroupPreset signals
         # presetDeleted signal is handled by the PresetsWidget
-        self._mmc.events.newGroupPreset.connect(self._on_new_group_preset)
-        self._mmc.events.groupDeleted.connect(self._on_group_deleted)
+        self._mmc.events.configDefined.connect(self._on_new_group_preset)
+        self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)
 
         self.destroyed.connect(self._disconnect_from_core)
         self._on_sys_cfg_loaded()
@@ -121,5 +120,5 @@ class ChannelWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
         self._mmc.events.channelGroupChanged.disconnect(self._on_channel_group_changed)
         self._mmc.events.configSet.disconnect(self._on_channel_set)
-        self._mmc.events.newGroupPreset.disconnect(self._on_new_group_preset)
-        self._mmc.events.groupDeleted.connect(self._on_group_deleted)
+        self._mmc.events.configDefined.disconnect(self._on_new_group_preset)
+        self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)

@@ -44,8 +44,8 @@ class GroupPresetTableWidget(QtW.QGroupBox):
         self._mmc = CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._populate_table)
 
-        self._mmc.events.groupDeleted.connect(self._on_group_deleted)
-        self._mmc.events.newGroupPreset.connect(self._on_new_group_preset)
+        self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)
+        self._mmc.events.configDefined.connect(self._on_new_group_preset)
 
         self._create_gui()
 
@@ -334,5 +334,5 @@ class GroupPresetTableWidget(QtW.QGroupBox):
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._populate_table)
-        self._mmc.events.groupDeleted.disconnect(self._on_group_deleted)
-        self._mmc.events.newGroupPreset.disconnect(self._on_new_group_preset)
+        self._mmc.events.configGroupDeleted.disconnect(self._on_group_deleted)
+        self._mmc.events.configDefined.disconnect(self._on_new_group_preset)

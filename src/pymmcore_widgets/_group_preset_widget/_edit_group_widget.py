@@ -324,6 +324,6 @@ class EditGroupWidget(QDialog):
                 for d, p, v in preset_dpv:
                     self._mmc.defineConfig(self._group, preset, d, p, v)
 
-            self._mmc.events.newGroupPreset.emit(self._group, preset, d, p, v)
+            self._mmc.events.configDefined.emit(self._group, preset, d, p, v)
 
         self.info_lbl.setText(f"'{self._group}' Group Modified.")

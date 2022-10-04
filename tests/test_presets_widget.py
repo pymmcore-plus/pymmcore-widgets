@@ -50,7 +50,7 @@ def test_preset_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
                 "[('Camera', 'BitDepth')]"
             )
             with pytest.warns(UserWarning, match=warning_string):
-                with qtbot.waitSignals([global_mmcore.events.newGroupPreset]):
+                with qtbot.waitSignals([global_mmcore.events.configDefined]):
                     global_mmcore.defineConfig(
                         "Camera", "test", "Camera", "Binning", "4"
                     )
@@ -65,7 +65,7 @@ def test_preset_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
                 "and will not be added!"
             )
             with pytest.warns(UserWarning, match=warning_string):
-                with qtbot.waitSignals([global_mmcore.events.newGroupPreset]):
+                with qtbot.waitSignals([global_mmcore.events.configDefined]):
                     global_mmcore.defineConfig(
                         "Camera", "test", "Dichroic", "Label", "400DCLP"
                     )

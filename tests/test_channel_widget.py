@@ -44,19 +44,19 @@ def test_channel_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert isinstance(wdg.channel_wdg, PresetsWidget)
     assert len(wdg.channel_wdg.allowedValues()) == 4
 
-    with qtbot.waitSignal(global_mmcore.events.presetDeleted):
+    with qtbot.waitSignal(global_mmcore.events.configDeleted):
         global_mmcore.deleteConfig("Channel", "DAPI")
 
     assert "DAPI" not in global_mmcore.getAvailableConfigs("Channel")
     assert "DAPI" not in wdg.channel_wdg.allowedValues()
 
-    with qtbot.waitSignal(global_mmcore.events.groupDeleted):
+    with qtbot.waitSignal(global_mmcore.events.configGroupDeleted):
         global_mmcore.deleteConfigGroup("Channel")
     assert isinstance(wdg.channel_wdg, QComboBox)
     assert wdg.channel_wdg.count() == 0
     assert global_mmcore.getChannelGroup() == ""
 
-    with qtbot.waitSignal(global_mmcore.events.newGroupPreset):
+    with qtbot.waitSignal(global_mmcore.events.configDefined):
 
         dev_prop_val = [
             ("Dichroic", "Label", "400DCLP"),
@@ -68,7 +68,7 @@ def test_channel_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
             for d, p, v in dev_prop_val:
                 global_mmcore.defineConfig("Channels", "DAPI", d, p, v)
 
-        global_mmcore.events.newGroupPreset.emit("Channels", "DAPI", d, p, v)
+        global_mmcore.events.configDefined.emit("Channels", "DAPI", d, p, v)
 
     assert isinstance(wdg.channel_wdg, PresetsWidget)
     assert len(wdg.channel_wdg.allowedValues()) == 1

@@ -213,7 +213,7 @@ class EditPresetWidget(QDialog):
             for d, p, v in dev_prop_val:
                 self._mmc.defineConfig(self._group, self._preset, d, p, v)
 
-        self._mmc.events.newGroupPreset.emit(self._group, self._preset, d, p, v)
+        self._mmc.events.configDefined.emit(self._group, self._preset, d, p, v)
 
         self._update_combo()
 

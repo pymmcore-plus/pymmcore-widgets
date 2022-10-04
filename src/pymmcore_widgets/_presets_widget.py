@@ -57,10 +57,9 @@ class PresetsWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._refresh)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
-        # connections to the new pymmcore-plus presetDeleted and newGroupPreset
-        self._mmc.events.presetDeleted.connect(self._on_preset_deleted)
-        self._mmc.events.groupDeleted.connect(self._on_group_deleted)
-        self._mmc.events.newGroupPreset.connect(self._on_new_group_preset)
+        self._mmc.events.configDeleted.connect(self._on_preset_deleted)
+        self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)
+        self._mmc.events.configDefined.connect(self._on_new_group_preset)
 
         self.destroyed.connect(self._disconnect)
 
@@ -276,6 +275,6 @@ class PresetsWidget(QWidget):
         self._mmc.events.configSet.disconnect(self._on_cfg_set)
         self._mmc.events.systemConfigurationLoaded.disconnect(self._refresh)
         self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
-        self._mmc.events.presetDeleted.disconnect(self._on_preset_deleted)
-        self._mmc.events.groupDeleted.disconnect(self._on_group_deleted)
-        self._mmc.events.newGroupPreset.disconnect(self._on_new_group_preset)
+        self._mmc.events.configDeleted.disconnect(self._on_preset_deleted)
+        self._mmc.events.configGroupDeleted.disconnect(self._on_group_deleted)
+        self._mmc.events.configDefined.disconnect(self._on_new_group_preset)

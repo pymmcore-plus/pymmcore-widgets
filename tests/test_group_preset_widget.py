@@ -114,7 +114,7 @@ def test_add_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     wdg.table.cellWidget(1, 1).setValue(8)
     wdg.table.cellWidget(2, 1).setValue(0.1)
 
-    with qtbot.waitSignal(mmc.events.newGroupPreset):
+    with qtbot.waitSignal(mmc.events.configDefined):
         wdg.apply_button.click()
 
     assert "NewGroup" in mmc.getAvailableConfigGroups()
@@ -187,7 +187,7 @@ def test_delete_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
         if group_name == "Camera":
 
-            with qtbot.waitSignal(mmc.events.groupDeleted):
+            with qtbot.waitSignal(mmc.events.configGroupDeleted):
                 mmc.deleteConfigGroup("Camera")
             break
 
@@ -282,7 +282,7 @@ def test_delete_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
             assert wdg.allowedValues() == mmc.getAvailableConfigs("Camera")
             break
 
-    with qtbot.waitSignal(mmc.events.presetDeleted):
+    with qtbot.waitSignal(mmc.events.configDeleted):
         mmc.deleteConfig("Camera", "LowRes")
 
     assert "LowRes" not in mmc.getAvailableConfigs("Camera")
