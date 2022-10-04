@@ -20,6 +20,8 @@ from qtpy.QtWidgets import (
 
 from pymmcore_widgets._property_widget import PropertyWidget
 
+from .._util import block_core
+
 
 class AddPresetWidget(QDialog):
     """A widget to add presets to a specified group."""
@@ -161,16 +163,19 @@ class AddPresetWidget(QDialog):
             ]
             if dpv_preset == dev_prop_val:
                 warnings.warn(
-                    "Threre is already a preset with the same "
+                    "There is already a preset with the same "
                     f"devices, properties and values: '{p}'."
                 )
                 self.info_lbl.setStyleSheet("color: magenta;")
                 self.info_lbl.setText(f"'{p}' already has the same properties!")
                 return
 
-        self._mmc.defineConfigFromDevicePropertyValueList(  # type: ignore
-            self._group, preset_name, dev_prop_val
-        )
+        with block_core(self._mmc.events):
+            for d, p, v in dev_prop_val:
+                self._mmc.defineConfig(self._group, preset_name, d, p, v)
+
+        self._mmc.events.newGroupPreset.emit(self._group, preset_name, d, p, v)
+
         self.info_lbl.setStyleSheet("")
         self.info_lbl.setText(f"'{preset_name}' has been added!")
 

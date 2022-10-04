@@ -19,6 +19,8 @@ from qtpy.QtWidgets import (
 
 from pymmcore_widgets._property_widget import PropertyWidget
 
+from .._util import block_core
+
 
 class AddFirstPresetWidget(QDialog):
     """A widget to create the first specified group's preset."""
@@ -142,9 +144,11 @@ class AddFirstPresetWidget(QDialog):
 
         self._preset = self.preset_name_lineedit.text()
 
-        self._mmc.defineConfigFromDevicePropertyValueList(  # type: ignore
-            self._group, self._preset, dev_prop_val
-        )
+        with block_core(self._mmc.events):
+            for d, p, v in dev_prop_val:
+                self._mmc.defineConfig(self._group, self._preset, d, p, v)
+
+        self._mmc.events.newGroupPreset.emit(self._group, self._preset, d, p, v)
 
         self.close()
         self.parent().close()

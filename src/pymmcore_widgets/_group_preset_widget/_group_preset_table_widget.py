@@ -1,4 +1,4 @@
-from typing import List, Tuple, Union
+from typing import Tuple, Union
 
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
@@ -8,10 +8,13 @@ from qtpy.QtWidgets import QVBoxLayout
 from pymmcore_widgets._presets_widget import PresetsWidget
 from pymmcore_widgets._property_widget import PropertyWidget
 
+from .._util import block_core
 from ._add_group_widget import AddGroupWidget
 from ._add_preset_widget import AddPresetWidget
 from ._edit_group_widget import EditGroupWidget
 from ._edit_preset_widget import EditPresetWidget
+
+UNNAMED_PRESET = "NewPreset"
 
 
 class _MainTable(QtW.QTableWidget):
@@ -143,8 +146,13 @@ class GroupPresetTableWidget(QtW.QGroupBox):
         self._populate_table()
 
     def _on_new_group_preset(
-        self, group: str, preset: str, dev_prop_val_list: List[Tuple[str, str, str]]
+        self, group: str, preset: str, device: str, property: str, value: str
     ) -> None:
+
+        print(group, preset, device, property, value)
+
+        if not device or not property or not value:
+            return
 
         if matching_item := self.table_wdg.findItems(group, Qt.MatchExactly):
             row = matching_item[0].row()
@@ -157,9 +165,15 @@ class GroupPresetTableWidget(QtW.QGroupBox):
 
                 self._mmc.deleteConfigGroup(group)
 
-                self._mmc.defineConfigFromDevicePropertyValueList(  # type: ignore
-                    group, preset, dev_prop_val + dev_prop_val_list
-                )
+                if not preset:
+                    idx = sum(
+                        UNNAMED_PRESET in p for p in self.getAvailableConfigs(group)
+                    )
+                    preset = f"{UNNAMED_PRESET}_{idx}" if idx > 0 else UNNAMED_PRESET
+
+                with block_core(self._mmc.events):
+                    for d, p, v in dev_prop_val:
+                        self._mmc.defineConfig(group, preset, d, p, v)
 
         self._populate_table()
 

@@ -7,6 +7,7 @@ from qtpy.QtWidgets import QComboBox
 
 from pymmcore_widgets._channel_widget import ChannelWidget
 from pymmcore_widgets._presets_widget import PresetsWidget
+from pymmcore_widgets._util import block_core
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -63,9 +64,11 @@ def test_channel_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
             ("Excitation", "Label", "Chroma-HQ570"),
         ]
 
-        global_mmcore.defineConfigFromDevicePropertyValueList(
-            "Channels", "DAPI", dev_prop_val
-        )
+        with block_core(global_mmcore.events):
+            for d, p, v in dev_prop_val:
+                global_mmcore.defineConfig("Channels", "DAPI", d, p, v)
+
+        global_mmcore.events.newGroupPreset.emit("Channels", "DAPI", d, p, v)
 
     assert isinstance(wdg.channel_wdg, PresetsWidget)
     assert len(wdg.channel_wdg.allowedValues()) == 1

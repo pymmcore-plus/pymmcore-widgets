@@ -50,7 +50,10 @@ def test_preset_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
                 "[('Camera', 'BitDepth')]"
             )
             with pytest.warns(UserWarning, match=warning_string):
-                global_mmcore.defineConfig("Camera", "test", "Camera", "Binning", "4")
+                with qtbot.waitSignals([global_mmcore.events.newGroupPreset]):
+                    global_mmcore.defineConfig(
+                        "Camera", "test", "Camera", "Binning", "4"
+                    )
                 assert len(wdg.allowedValues()) == 4
                 assert "test" in wdg.allowedValues()
                 global_mmcore.deleteConfig("Camera", "test")
@@ -62,20 +65,12 @@ def test_preset_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
                 "and will not be added!"
             )
             with pytest.warns(UserWarning, match=warning_string):
-                global_mmcore.defineConfig(
-                    "Camera", "test", "Dichroic", "Label", "400DCLP"
-                )
+                with qtbot.waitSignals([global_mmcore.events.newGroupPreset]):
+                    global_mmcore.defineConfig(
+                        "Camera", "test", "Dichroic", "Label", "400DCLP"
+                    )
                 assert len(wdg.allowedValues()) == 3
                 assert "test" not in wdg.allowedValues()
-
-            warning_string = (
-                "'HighRes' preset is missing the following properties:"
-                "[('Camera', 'Binning')]"
-            )
-            with pytest.warns(UserWarning, match=warning_string):
-                global_mmcore.deletePresetDeviceProperties(
-                    "Camera", "HighRes", [("Camera", "Binning")]
-                )
 
         wdg._disconnect()
         # once disconnected, core changes shouldn't call out to the widget

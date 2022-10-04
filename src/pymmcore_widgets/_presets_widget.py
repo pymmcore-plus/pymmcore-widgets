@@ -7,6 +7,8 @@ from qtpy.QtGui import QBrush
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QListView, QWidget
 from superqt.utils import signals_blocked
 
+from ._util import block_core
+
 
 class PresetsWidget(QWidget):
     """Create a QCombobox Widget containing the presets of the specified group."""
@@ -78,9 +80,11 @@ class PresetsWidget(QWidget):
             if preset == self._presets[0]:
                 continue
 
-            device_property = self._get_preset_dev_prop(self._group, preset)
-
-            self._on_new_group_preset(self._group, preset, device_property)
+            dpv = [
+                (k[0], k[1], k[2]) for k in self._mmc.getConfigData(self._group, preset)
+            ]
+            d, v, p = dpv[0]
+            self._on_new_group_preset(self._group, preset, d, p, v)
 
             self._presets = list(self._mmc.getAvailableConfigs(self._group))
 
@@ -195,14 +199,30 @@ class PresetsWidget(QWidget):
             return
         self._refresh()
 
+    def _find_dev_prop_to_remove(self, preset: str) -> List[Tuple[str, str]]:
+        _to_delete = []
+        group_cfg = list(self._mmc.getAvailableConfigs(self._group))
+        new_preset_dp = [
+            (k[0], k[1]) for k in self._mmc.getConfigData(self._group, preset)
+        ]
+        for dp in new_preset_dp:
+            for cfg in group_cfg:
+                if cfg == preset:
+                    continue
+                dp_1 = [(k[0], k[1]) for k in self._mmc.getConfigData(self._group, cfg)]
+                if dp not in dp_1:
+                    _to_delete.append(dp)
+                    break
+        return _to_delete
+
     def _on_new_group_preset(
-        self, group: str, preset: str, dev_prop_val_list: List[Tuple[str, str, str]]
+        self, group: str, preset: str, device: str, property: str, value: str
     ) -> None:
 
         if group != self._group:
             return
 
-        if not dev_prop_val_list:
+        if not device or not property or not value:
             self._refresh()
             return
 
@@ -213,23 +233,31 @@ class PresetsWidget(QWidget):
             and len(self._mmc.getAvailableConfigs(group)) > 1
             and self.dev_prop
         ):
-            _to_delete = [
-                (dpv[0], dpv[1])
-                for dpv in dev_prop_val_list
-                if (dpv[0], dpv[1]) not in set(self.dev_prop)
+            new_preset_dp = [
+                (k[0], k[1]) for k in self._mmc.getConfigData(self._group, preset)
             ]
+
+            _to_delete = self._find_dev_prop_to_remove(preset)
 
             if _to_delete:
                 warnings.warn(
                     f"{_to_delete} are not included in the '{self._group}' "
                     "group and will not be added!"
                 )
-                self._mmc.deletePresetDeviceProperties(  # type: ignore
-                    self._group, preset, _to_delete
-                )
+
+                dev_prop_val = [
+                    (k[0], k[1], k[2]) for k in self._mmc.getConfigData(group, preset)
+                ]
+
+                with block_core(self._mmc.events):
+                    self._mmc.deleteConfig(group, preset)
+
+                    for d, p, v in dev_prop_val:
+                        if (d, p) not in _to_delete:
+                            self._mmc.defineConfig(group, preset, d, p, v)
 
             # if the new preset won't have any (dev, prop, val)
-            if len(_to_delete) == len(dev_prop_val_list):
+            if len(_to_delete) == len(new_preset_dp):
                 self._refresh()
                 return
 

@@ -24,6 +24,8 @@ from qtpy.QtWidgets import (
 from pymmcore_widgets._core import iter_dev_props
 from pymmcore_widgets._property_widget import PropertyWidget
 
+from .._util import block_core
+
 
 class _PropertyTable(QTableWidget):
     def __init__(
@@ -318,8 +320,10 @@ class EditGroupWidget(QDialog):
             if _to_add:
                 preset_dpv.extend(_to_add)
 
-            self._mmc.defineConfigFromDevicePropertyValueList(  # type: ignore
-                self._group, preset, preset_dpv
-            )
+            with block_core(self._mmc.events):
+                for d, p, v in preset_dpv:
+                    self._mmc.defineConfig(self._group, preset, d, p, v)
+
+            self._mmc.events.newGroupPreset.emit(self._group, preset, d, p, v)
 
         self.info_lbl.setText(f"'{self._group}' Group Modified.")
