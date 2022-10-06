@@ -17,7 +17,6 @@ RESOLUTION_ID = 1
 CAMERA_PX_SIZE = 2
 MAGNIFICATION = 3
 IMAGE_PX_SIZE = 4
-LABEL_STATUS = 5
 
 
 def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
