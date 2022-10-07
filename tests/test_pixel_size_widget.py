@@ -45,6 +45,7 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
         return obj, resID, mag, cam_px, img_px
 
     obj, resID, mag, cam_px, img_px = _get_wdg(row)
+
     assert obj == "Nikon 40X Plan Fluor ELWD"
     assert resID.text() == "Res40x"
     assert resID.property("resID") == "Res40x"

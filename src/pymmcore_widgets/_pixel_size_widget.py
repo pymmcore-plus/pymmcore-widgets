@@ -132,7 +132,7 @@ class PixelSizeTable(QtW.QTableWidget):
                 item = self.cellWidget(row, c)
                 op.setOpacity(opacity)
                 item.setGraphicsEffect(op)
-                item.setAutoFillBackground(True)
+                assert item.graphicsEffect().opacity() == opacity
 
     def _populate_row(self, row: int, record: dict) -> None:
         """Populate a row with widgets."""
