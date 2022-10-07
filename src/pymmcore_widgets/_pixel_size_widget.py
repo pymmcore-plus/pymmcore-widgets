@@ -425,15 +425,11 @@ class PixelSizeWidget(QtW.QDialog):
 
             if self._is_read_only(MAGNIFICATION):
                 _mag = self._calculate_magnification(value, image_px_size.text())
-                with signals_blocked(mag):
-                    self.table.cellWidget(r, MAGNIFICATION).setText(f"{_mag:.1f}")
+                self.table.cellWidget(r, MAGNIFICATION).setText(f"{_mag:.1f}")
 
             elif self._is_read_only(IMAGE_PX_SIZE):
                 _image_px_size = self._calculate_image_px_size(value, mag.text())
-                with signals_blocked(image_px_size):
-                    self.table.cellWidget(r, IMAGE_PX_SIZE).setText(
-                        f"{_image_px_size:.4f}"
-                    )
+                self.table.cellWidget(r, IMAGE_PX_SIZE).setText(f"{_image_px_size:.4f}")
 
             self._apply_changes(r)
 
@@ -441,31 +437,23 @@ class PixelSizeWidget(QtW.QDialog):
         sender = self.sender()
         row = self.table.indexAt(sender.pos()).row()
         value = self.table.cellWidget(row, MAGNIFICATION).text()
-
         camera_px_size = self.table.cellWidget(row, CAMERA_PX_SIZE)
-        image_px_size = self.table.cellWidget(row, IMAGE_PX_SIZE)
 
         if self._is_read_only(IMAGE_PX_SIZE):
             _image_px_size = self._calculate_image_px_size(camera_px_size.text(), value)
-            with signals_blocked(image_px_size):
-                self.table.cellWidget(row, IMAGE_PX_SIZE).setText(
-                    f"{_image_px_size:.4f}"
-                )
+            self.table.cellWidget(row, IMAGE_PX_SIZE).setText(f"{_image_px_size:.4f}")
 
         self._apply_changes(row)
 
     def _on_image_px_size_changed(self) -> None:
         sender = self.sender()
         row = self.table.indexAt(sender.pos()).row()
-        value = self.table.cellWidget(row, MAGNIFICATION).text()
-
+        value = self.table.cellWidget(row, IMAGE_PX_SIZE).text()
         camera_px_size = self.table.cellWidget(row, CAMERA_PX_SIZE)
-        mag = self.table.cellWidget(row, MAGNIFICATION)
 
         if self._is_read_only(MAGNIFICATION):
             _mag = self._calculate_magnification(camera_px_size.text(), value)
-            with signals_blocked(mag):
-                self.table.cellWidget(row, MAGNIFICATION).setText(f"{_mag:.1f}")
+            self.table.cellWidget(row, MAGNIFICATION).setText(f"{_mag:.1f}")
 
         self._apply_changes(row)
 
