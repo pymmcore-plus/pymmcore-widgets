@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Literal, Optional, Tuple
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -9,7 +9,7 @@ from qtpy.QtCore import QSize, Qt
 from superqt.fonticon import icon
 from useq import MDASequence
 
-from .._util import ComboMessageBox
+from .._util import guess_channel_group
 from ._sample_explorer_gui import ExplorerGui
 
 if TYPE_CHECKING:
@@ -87,10 +87,9 @@ class SampleExplorer(ExplorerGui):
 
         # connect mmcore signals
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
-
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
+        self._mmc.mda.events.sequencePauseToggled.connect(self._on_mda_paused)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
-
         self._mmc.events.mdaEngineRegistered.connect(self._update_mda_engine)
 
         self._on_sys_cfg_loaded()
@@ -98,30 +97,17 @@ class SampleExplorer(ExplorerGui):
     def _update_mda_engine(self, newEngine: PMDAEngine, oldEngine: PMDAEngine) -> None:
         oldEngine.events.sequenceStarted.disconnect(self._on_mda_started)
         oldEngine.events.sequenceFinished.disconnect(self._on_mda_finished)
+        oldEngine.events.sequencePauseToggled.disconnect(self._on_mda_paused)
 
         newEngine.events.sequenceStarted.connect(self._on_mda_started)
         newEngine.events.sequenceFinished.connect(self._on_mda_finished)
+        newEngine.events.sequencePauseToggled.connect(self._on_mda_paused)
 
     def _on_sys_cfg_loaded(self) -> None:
         self.pixel_size = self._mmc.getPixelSizeUm()
-        if channel_group := self._mmc.getChannelGroup() or self._guess_channel_group():
+        if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
         self._clear_channel()
-
-    def _guess_channel_group(self) -> Union[str, None]:
-        """Try to update the list of channel group choices.
-
-        1. get a list of potential channel groups from pymmcore
-        2. if there is only one, use it, if there are > 1, show a dialog box
-        """
-        candidates = self._mmc.getOrGuessChannelGroup()
-        if len(candidates) == 1:
-            return candidates[0]
-        elif candidates:
-            dialog = ComboMessageBox(candidates, "Select Channel Group:", self)
-            if dialog.exec_() == dialog.DialogCode.Accepted:
-                return dialog.currentText()
-        return None
 
     def _on_mda_started(self) -> None:
         """Block gui when mda starts."""
@@ -129,6 +115,9 @@ class SampleExplorer(ExplorerGui):
         self.cancel_scan_Button.show()
         self.pause_scan_Button.show()
         self.start_scan_Button.hide()
+
+    def _on_mda_paused(self, paused: bool) -> None:
+        self.pause_scan_Button.setText("Go" if paused else "Pause")
 
     def _on_mda_finished(self) -> None:
 
