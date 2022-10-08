@@ -10,6 +10,7 @@ from ._channel_widget import ChannelWidget
 from ._device_widget import DeviceWidget, StateDeviceWidget
 from ._exposure_widget import DefaultCameraExposureWidget, ExposureWidget
 from ._group_preset_table_widget import GroupPresetTableWidget
+from ._hcs._main_hcs_widget import HCSWidget
 from ._image_widget import ImagePreview
 from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
@@ -28,6 +29,7 @@ __all__ = [
     "DeviceWidget",
     "ExposureWidget",
     "GroupPresetTableWidget",
+    "HCSWidget",
     "ImagePreview",
     "LiveButton",
     "make_property_value_widget",
