@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Literal, Optional, Tuple
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -11,7 +11,7 @@ from qtpy.QtCore import QSize, Qt
 from superqt.fonticon import icon
 from useq import MDASequence
 
-from .._util import ComboMessageBox
+from .._util import guess_channel_group
 from ._grid_widget import GridWidget
 from ._mda_gui import MultiDWidgetGui
 
@@ -86,7 +86,7 @@ class MultiDWidget(MultiDWidgetGui):
         self._on_sys_cfg_loaded()
 
     def _on_sys_cfg_loaded(self) -> None:
-        if channel_group := self._mmc.getChannelGroup() or self._guess_channel_group():
+        if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
 
     def _update_mda_engine(self, newEngine: PMDAEngine, oldEngine: PMDAEngine) -> None:
@@ -313,22 +313,7 @@ class MultiDWidget(MultiDWidgetGui):
         self.run_Button.show()
 
     def _on_mda_paused(self, paused: bool) -> None:
-        self.pause_Button.setText("GO" if paused else "PAUSE")
-
-    def _guess_channel_group(self) -> Union[str, None]:
-        """Try to update the list of channel group choices.
-
-        1. get a list of potential channel groups from pymmcore
-        2. if there is only one, use it, if there are > 1, show a dialog box
-        """
-        candidates = self._mmc.getOrGuessChannelGroup()
-        if len(candidates) == 1:
-            return candidates[0]
-        elif candidates:
-            dialog = ComboMessageBox(candidates, "Select Channel Group:", self)
-            if dialog.exec_() == dialog.DialogCode.Accepted:
-                return dialog.currentText()
-        return None
+        self.pause_Button.setText("Go" if paused else "Pause")
 
     def _add_channel(self) -> bool:
         """Add, remove or clear channel table.  Return True if anyting was changed."""
