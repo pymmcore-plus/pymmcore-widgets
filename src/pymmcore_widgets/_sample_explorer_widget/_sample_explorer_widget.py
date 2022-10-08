@@ -532,11 +532,6 @@ class SampleExplorer(ExplorerGui):
             overlap_px_w = width - (width * overlap_percentage) / 100
             overlap_px_h = height - (height * overlap_percentage) / 100
 
-            if self.scan_size_r == 1 and self.scan_size_c == 1:
-                raise ValueError(
-                    "RxC -> 1x1. Use MDA to acquire a single position image."
-                )
-
             move_x = (width / 2) * (self.scan_size_c - 1) - overlap_px_w
             move_y = (height / 2) * (self.scan_size_r - 1) - overlap_px_h
 
