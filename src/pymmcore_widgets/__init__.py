@@ -10,6 +10,7 @@ from ._channel_widget import ChannelWidget
 from ._device_widget import DeviceWidget, StateDeviceWidget
 from ._exposure_widget import DefaultCameraExposureWidget, ExposureWidget
 from ._group_preset_table_widget import GroupPresetTableWidget
+from ._image_widget import ImagePreview
 from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
 from ._objective_widget import ObjectivesWidget
@@ -22,21 +23,22 @@ from ._snap_button_widget import SnapButton
 from ._stage_widget import StageWidget
 
 __all__ = [
-    "DeviceWidget",
-    "make_property_value_widget",
-    "PropertyWidget",
-    "StateDeviceWidget",
-    "PropertyBrowser",
-    "PresetsWidget",
-    "ExposureWidget",
-    "DefaultCameraExposureWidget",
-    "ShuttersWidget",
-    "ConfigurationWidget",
     "ChannelWidget",
-    "ObjectivesWidget",
-    "SliderDialog",
+    "ConfigurationWidget",
+    "DefaultCameraExposureWidget",
+    "DeviceWidget",
+    "ExposureWidget",
     "GroupPresetTableWidget",
+    "ImagePreview",
     "LiveButton",
+    "make_property_value_widget",
+    "ObjectivesWidget",
+    "PresetsWidget",
+    "PropertyBrowser",
+    "PropertyWidget",
+    "ShuttersWidget",
+    "SliderDialog",
     "SnapButton",
     "StageWidget",
+    "StateDeviceWidget",
 ]

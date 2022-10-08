@@ -41,12 +41,14 @@ pyqt5 = ["PyQt5"]
 pyside2 = ["PySide2"]
 pyqt6 = ["PyQt6"]
 pyside6 = ["PySide6"]
+image = ['vispy']
+
 dev = [
     "black",
     "cruft",
     "flake8-bugbear",
     "flake8-docstrings",
-    "flake8-pyprojecttoml",
+    "flake8-pyprojecttoml @ git+https://github.com/tlambert03/flake8-pyprojecttoml.git@main",
     "flake8-typing-imports",
     "flake8",
     "ipython",
@@ -120,7 +122,10 @@ ignore = "D100,D213,D401,D413,D107"
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
-filterwarnings = ["error"]
+filterwarnings = [
+    "error",
+    "ignore:distutils Version classes are deprecated"
+]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
 [tool.mypy]
@@ -154,6 +159,7 @@ ignore = [
     ".pre-commit-config.yaml",
     "tests/**/*",
     "tox.ini",
+    "examples/**/*",
 ]
 
 # https://python-semantic-release.readthedocs.io/en/latest/configuration.html
