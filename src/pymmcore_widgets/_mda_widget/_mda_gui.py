@@ -27,7 +27,7 @@ LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
 
 class MultiDWidgetGui(QWidget):
-    """Just the UI portion of the MDA widget. Runtime logic in MMMultiDWidget."""
+    """Just the UI portion of the MDA widget."""
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)

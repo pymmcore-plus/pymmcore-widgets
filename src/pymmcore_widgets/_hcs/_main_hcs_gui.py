@@ -35,9 +35,12 @@ class HCSGui(QWidget):
         super().__init__(parent)
 
         layout = QVBoxLayout()
-        layout.setSpacing(0)
+        layout.setSpacing(10)
         layout.setContentsMargins(10, 10, 10, 10)
         self.setLayout(layout)
+
+        lbl = self._create_label()
+        layout.addWidget(lbl)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -45,10 +48,9 @@ class HCSGui(QWidget):
         widgets = self._add_tab_wdg()
         scroll.setWidget(widgets)
 
-        layout.addWidget(scroll)
+        # layout.addWidget(scroll)
+        layout.insertWidget(0, scroll)
 
-        # btns = self._create_btns_wdg()
-        # layout.addWidget(btns)
         bottom_wdg = self._create_bottom_wdg()
         layout.addWidget(bottom_wdg)
 
@@ -59,7 +61,7 @@ class HCSGui(QWidget):
 
         select_plate_tab = self._create_plate_and_fov_tab()
         calibration = self._create_calibration_tab()
-        self.ch_and_pos_list = MDAWidget()
+        self.ch_and_pos_list = MDAWidget(parent=self)
         # self.saving_tab = self._create_save_wdg()
 
         tab.addTab(select_plate_tab, "  Plate and FOVs Selection  ")
@@ -145,13 +147,13 @@ class HCSGui(QWidget):
 
         return wdg
 
-    def _create_oredr_and_engine_wdg(self) -> QWidget:
+    def _create_bottom_wdg(self) -> QWidget:
         wdg = QWidget()
         wdg.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
-        wdg_layout = QVBoxLayout()
+        wdg_layout = QHBoxLayout()
         wdg_layout.setAlignment(Qt.AlignVCenter)
-        wdg_layout.setSpacing(3)
-        wdg_layout.setContentsMargins(10, 15, 10, 10)
+        wdg_layout.setSpacing(10)
+        wdg_layout.setContentsMargins(10, 5, 10, 10)
         wdg.setLayout(wdg_layout)
 
         acq_wdg = QWidget()
@@ -167,32 +169,6 @@ class HCSGui(QWidget):
         self.acquisition_order_comboBox.addItems(["tpzc", "tpcz", "ptzc", "ptcz"])
         acq_wdg_layout.addWidget(acquisition_order_label)
         acq_wdg_layout.addWidget(self.acquisition_order_comboBox)
-
-        # engine_wdg = QWidget()
-        # engine_wdg_layout = QHBoxLayout()
-        # engine_wdg_layout.setSpacing(0)
-        # engine_wdg_layout.setContentsMargins(0, 0, 0, 0)
-        # engine_wdg.setLayout(engine_wdg_layout)
-        # engine_wdg_label = QLabel(text="Core Engine:")
-        # engine_wdg_label.setSizePolicy(lbl_sizepolicy)
-        # self.engine_combo = QComboBox()
-        # self.engine_combo.addItems(["MDAEngine", "Find Wells"])
-        # engine_wdg_layout.addWidget(engine_wdg_label)
-        # engine_wdg_layout.addWidget(self.engine_combo)
-
-        wdg_layout.addWidget(acq_wdg)
-        # wdg_layout.addWidget(engine_wdg)
-
-        return wdg
-
-    def _create_btns_wdg(self) -> QWidget:
-        wdg = QWidget()
-        wdg.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
-        wdg_layout = QHBoxLayout()
-        wdg_layout.setAlignment(Qt.AlignVCenter)
-        wdg_layout.setSpacing(10)
-        wdg_layout.setContentsMargins(10, 15, 10, 10)
-        wdg.setLayout(wdg_layout)
 
         btn_sizepolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         min_width = 100
@@ -220,29 +196,29 @@ class HCSGui(QWidget):
 
         spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding)
 
+        wdg_layout.addWidget(acq_wdg)
         wdg_layout.addItem(spacer)
-
         wdg_layout.addWidget(self.run_Button)
         wdg_layout.addWidget(self.pause_Button)
         wdg_layout.addWidget(self.cancel_Button)
 
         return wdg
 
-    def _create_bottom_wdg(self) -> QWidget:
+    def _create_label(self) -> QWidget:
 
         wdg = QWidget()
-        wdg.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
-        wdg_layout = QHBoxLayout()
-        wdg_layout.setAlignment(Qt.AlignVCenter)
-        wdg_layout.setSpacing(0)
-        wdg_layout.setContentsMargins(10, 15, 10, 10)
-        wdg.setLayout(wdg_layout)
+        wdg_lay = QHBoxLayout()
+        wdg_lay.setSpacing(5)
+        wdg_lay.setContentsMargins(10, 5, 10, 5)
+        wdg_lay.setAlignment(Qt.AlignLeft)
+        wdg.setLayout(wdg_lay)
 
-        combo = self._create_oredr_and_engine_wdg()
-        btns = self._create_btns_wdg()
-
-        wdg_layout.addWidget(combo)
-        wdg_layout.addWidget(btns)
+        self._total_time_lbl = QLabel(text="TEST")
+        self._total_time_lbl.setAlignment(Qt.AlignLeft)
+        self._total_time_lbl.setSizePolicy(
+            QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        )
+        wdg_lay.addWidget(self._total_time_lbl)
 
         return wdg
 

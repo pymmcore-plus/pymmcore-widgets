@@ -153,29 +153,29 @@ class PlateCalibration(QWidget):
             return
         self._update_gui(self.plate.get("id"), from_combo=text)
 
-        # # only to test
-        # self.table_1.tb.setRowCount(3)
-        # self.table_2.tb.setRowCount(3)
-        # # a1
-        # self.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
-        # self.table_1.tb.setItem(0, 1, QTableWidgetItem("-50"))
-        # self.table_1.tb.setItem(0, 2, QTableWidgetItem("0"))
-        # self.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
-        # self.table_1.tb.setItem(1, 1, QTableWidgetItem("0"))
-        # self.table_1.tb.setItem(1, 2, QTableWidgetItem("50"))
-        # self.table_1.tb.setItem(2, 0, QTableWidgetItem("Well A1_pos002"))
-        # self.table_1.tb.setItem(2, 1, QTableWidgetItem("50"))
-        # self.table_1.tb.setItem(2, 2, QTableWidgetItem("0"))
-        # # an
-        # self.table_2.tb.setItem(0, 0, QTableWidgetItem("Well A3_pos000"))
-        # self.table_2.tb.setItem(0, 1, QTableWidgetItem("1364.213562373095"))
-        # self.table_2.tb.setItem(0, 2, QTableWidgetItem("1414.2135623730949"))
-        # self.table_2.tb.setItem(1, 0, QTableWidgetItem("Well A3_pos001"))
-        # self.table_2.tb.setItem(1, 1, QTableWidgetItem("1414.213562373095"))
-        # self.table_2.tb.setItem(1, 2, QTableWidgetItem("1364.2135623730949"))
-        # self.table_2.tb.setItem(2, 0, QTableWidgetItem("Well A3_pos002"))
-        # self.table_2.tb.setItem(2, 1, QTableWidgetItem("1464.213562373095"))
-        # self.table_2.tb.setItem(2, 2, QTableWidgetItem("1414.2135623730949"))
+        # only to test
+        self.table_1.tb.setRowCount(3)
+        self.table_2.tb.setRowCount(3)
+        # a1
+        self.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
+        self.table_1.tb.setItem(0, 1, QTableWidgetItem("-50"))
+        self.table_1.tb.setItem(0, 2, QTableWidgetItem("0"))
+        self.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
+        self.table_1.tb.setItem(1, 1, QTableWidgetItem("0"))
+        self.table_1.tb.setItem(1, 2, QTableWidgetItem("50"))
+        self.table_1.tb.setItem(2, 0, QTableWidgetItem("Well A1_pos002"))
+        self.table_1.tb.setItem(2, 1, QTableWidgetItem("50"))
+        self.table_1.tb.setItem(2, 2, QTableWidgetItem("0"))
+        # an
+        self.table_2.tb.setItem(0, 0, QTableWidgetItem("Well A3_pos000"))
+        self.table_2.tb.setItem(0, 1, QTableWidgetItem("1364.213562373095"))
+        self.table_2.tb.setItem(0, 2, QTableWidgetItem("1414.2135623730949"))
+        self.table_2.tb.setItem(1, 0, QTableWidgetItem("Well A3_pos001"))
+        self.table_2.tb.setItem(1, 1, QTableWidgetItem("1414.213562373095"))
+        self.table_2.tb.setItem(1, 2, QTableWidgetItem("1364.2135623730949"))
+        self.table_2.tb.setItem(2, 0, QTableWidgetItem("Well A3_pos002"))
+        self.table_2.tb.setItem(2, 1, QTableWidgetItem("1464.213562373095"))
+        self.table_2.tb.setItem(2, 2, QTableWidgetItem("1414.2135623730949"))
 
     def _update_gui(self, plate: str, from_combo: str = "") -> None:
 

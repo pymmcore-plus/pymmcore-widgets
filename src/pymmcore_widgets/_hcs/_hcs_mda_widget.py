@@ -1,12 +1,12 @@
 from pathlib import Path
 from typing import Optional
 
+from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
-from qtpy.QtCore import Qt
+from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
-    QApplication,
     QComboBox,
     QDoubleSpinBox,
     QGridLayout,
@@ -15,6 +15,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QPushButton,
     QSizePolicy,
+    QSpacerItem,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
@@ -23,21 +24,21 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QCollapsible
+from superqt.fonticon import icon
 
-from .._util import guess_channel_group
+from .._util import _select_output_unit, _time_in_sec, guess_channel_group
 
 PLATE_DATABASE = Path(__file__).parent / "_well_plate.yaml"
 AlignCenter = Qt.AlignmentFlag.AlignCenter
+LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
 
 class MDAWidget(QWidget):
     """Widget to select channels, z-stack, time and positions."""
 
-    def __init__(
-        self, parent: Optional[QWidget] = None, *, mmcore: Optional[CMMCorePlus] = None
-    ):
+    def __init__(self, parent: QWidget, *, mmcore: Optional[CMMCorePlus] = None):
         super().__init__(parent)
-
+        self._tot_time_label_parent = parent
         self._mmc = mmcore or CMMCorePlus.instance()
 
         layout = QVBoxLayout()
@@ -56,6 +57,13 @@ class MDAWidget(QWidget):
         self.layout().addWidget(mda)
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
+
+        # toggle connect
+        self.time_groupBox.toggled.connect(self._calculate_total_time)
+        self.interval_spinBox.valueChanged.connect(self._calculate_total_time)
+        self.timepoints_spinBox.valueChanged.connect(self._calculate_total_time)
+        self.stack_groupBox.toggled.connect(self._calculate_total_time)
+        self.time_comboBox.currentIndexChanged.connect(self._calculate_total_time)
 
         self._on_sys_cfg_loaded()
 
@@ -111,8 +119,8 @@ class MDAWidget(QWidget):
         self.stage_tableWidget.setRowCount(0)
         self.stage_tableWidget.setHorizontalHeaderLabels(["Well", "X", "Y", "Z"])
         group_layout.addWidget(self.stage_tableWidget)
-
         self.stage_tableWidget.cellDoubleClicked.connect(self._move_to_position)
+        self.stage_tableWidget.model().rowsInserted.connect(self._calculate_total_time)
 
         assign_z_wdg = QWidget()
         assign_z_wdg_layout = QHBoxLayout()
@@ -220,19 +228,15 @@ class MDAWidget(QWidget):
         return group
 
     def _create_time_groupBox(self) -> QGroupBox:
-
-        self.time_group = QGroupBox()
-        self.time_group.setCheckable(True)
-        self.time_group.setChecked(False)
-        self.time_group.setSizePolicy(
-            QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
-        )
-        group_layout = QHBoxLayout()
-        group_layout.setSpacing(10)
+        group = QGroupBox(title="Time")
+        group.setCheckable(True)
+        group.setChecked(False)
+        group.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
+        # group_layout = QHBoxLayout()
+        group_layout = QGridLayout()
+        group_layout.setSpacing(5)
         group_layout.setContentsMargins(10, 10, 10, 10)
-        self.time_group.setLayout(group_layout)
-
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        group.setLayout(group_layout)
 
         # Timepoints
         wdg = QWidget()
@@ -241,14 +245,17 @@ class MDAWidget(QWidget):
         wdg_lay.setContentsMargins(0, 0, 0, 0)
         wdg.setLayout(wdg_lay)
         lbl = QLabel(text="Timepoints:")
-        lbl.setSizePolicy(lbl_sizepolicy)
+        lbl.setSizePolicy(LBL_SIZEPOLICY)
         self.timepoints_spinBox = QSpinBox()
         self.timepoints_spinBox.setMinimum(1)
-        self.timepoints_spinBox.setMaximum(10000)
+        self.timepoints_spinBox.setMaximum(1000000)
+        self.timepoints_spinBox.setSizePolicy(
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        )
         self.timepoints_spinBox.setAlignment(Qt.AlignCenter)
         wdg_lay.addWidget(lbl)
         wdg_lay.addWidget(self.timepoints_spinBox)
-        group_layout.addWidget(wdg)
+        group_layout.addWidget(wdg, 0, 0)
 
         # Interval
         wdg1 = QWidget()
@@ -256,11 +263,14 @@ class MDAWidget(QWidget):
         wdg1_lay.setSpacing(5)
         wdg1_lay.setContentsMargins(0, 0, 0, 0)
         wdg1.setLayout(wdg1_lay)
-        lbl1 = QLabel(text="Interval:")
-        lbl1.setSizePolicy(lbl_sizepolicy)
-        self.interval_spinBox = QSpinBox()
+        lbl1 = QLabel(text="Interval:  ")
+        lbl1.setSizePolicy(LBL_SIZEPOLICY)
+        self.interval_spinBox = QDoubleSpinBox()
         self.interval_spinBox.setMinimum(0)
-        self.interval_spinBox.setMaximum(10000)
+        self.interval_spinBox.setMaximum(100000)
+        self.interval_spinBox.setSizePolicy(
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        )
         self.interval_spinBox.setAlignment(Qt.AlignCenter)
         wdg1_lay.addWidget(lbl1)
         wdg1_lay.addWidget(self.interval_spinBox)
@@ -270,10 +280,97 @@ class MDAWidget(QWidget):
         self.time_comboBox.setSizePolicy(
             QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         )
-        self.time_comboBox.addItems(["ms", "sec", "min"])
-        group_layout.addWidget(self.time_comboBox)
+        self.time_comboBox.addItems(["ms", "sec", "min", "hours"])
+        wdg1_lay.addWidget(self.time_comboBox)
+        group_layout.addWidget(wdg1, 0, 1)
 
-        return self.time_group
+        wdg2 = QWidget()
+        wdg2_lay = QHBoxLayout()
+        wdg2_lay.setSpacing(5)
+        wdg2_lay.setContentsMargins(0, 0, 0, 0)
+        wdg2.setLayout(wdg2_lay)
+        self._icon_lbl = QLabel()
+        self._icon_lbl.setAlignment(Qt.AlignLeft)
+        self._icon_lbl.setSizePolicy(LBL_SIZEPOLICY)
+        wdg2_lay.addWidget(self._icon_lbl)
+        self._time_lbl = QLabel()
+        self._time_lbl.setAlignment(Qt.AlignLeft)
+        self._time_lbl.setSizePolicy(LBL_SIZEPOLICY)
+        wdg2_lay.addWidget(self._time_lbl)
+        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        wdg2_lay.addItem(spacer)
+        group_layout.addWidget(wdg2, 1, 0, 1, 2)
+
+        return group
+
+        # self.time_group = QGroupBox()
+        # self.time_group.setCheckable(True)
+        # self.time_group.setChecked(False)
+        # self.time_group.setSizePolicy(
+        #     QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        # )
+        # group_layout = QHBoxLayout()
+        # group_layout.setSpacing(10)
+        # group_layout.setContentsMargins(10, 10, 10, 10)
+        # self.time_group.setLayout(group_layout)
+
+        # # Timepoints
+        # wdg = QWidget()
+        # wdg_lay = QHBoxLayout()
+        # wdg_lay.setSpacing(5)
+        # wdg_lay.setContentsMargins(0, 0, 0, 0)
+        # wdg.setLayout(wdg_lay)
+        # lbl = QLabel(text="Timepoints:")
+        # lbl.setSizePolicy(LBL_SIZEPOLICY)
+        # self.timepoints_spinBox = QSpinBox()
+        # self.timepoints_spinBox.setMinimum(1)
+        # self.timepoints_spinBox.setMaximum(10000)
+        # self.timepoints_spinBox.setAlignment(Qt.AlignCenter)
+        # wdg_lay.addWidget(lbl)
+        # wdg_lay.addWidget(self.timepoints_spinBox)
+        # group_layout.addWidget(wdg)
+
+        # # Interval
+        # wdg1 = QWidget()
+        # wdg1_lay = QHBoxLayout()
+        # wdg1_lay.setSpacing(5)
+        # wdg1_lay.setContentsMargins(0, 0, 0, 0)
+        # wdg1.setLayout(wdg1_lay)
+        # lbl1 = QLabel(text="Interval:")
+        # lbl1.setSizePolicy(LBL_SIZEPOLICY)
+        # self.interval_spinBox = QSpinBox()
+        # self.interval_spinBox.setMinimum(0)
+        # self.interval_spinBox.setMaximum(10000)
+        # self.interval_spinBox.setAlignment(Qt.AlignCenter)
+        # wdg1_lay.addWidget(lbl1)
+        # wdg1_lay.addWidget(self.interval_spinBox)
+        # group_layout.addWidget(wdg1)
+
+        # self.time_comboBox = QComboBox()
+        # self.time_comboBox.setSizePolicy(
+        #     QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        # )
+        # self.time_comboBox.addItems(["ms", "sec", "min"])
+        # group_layout.addWidget(self.time_comboBox)
+
+        # wdg2 = QWidget()
+        # wdg2_lay = QHBoxLayout()
+        # wdg2_lay.setSpacing(5)
+        # wdg2_lay.setContentsMargins(0, 0, 0, 0)
+        # wdg2.setLayout(wdg2_lay)
+        # self._icon_lbl = QLabel()
+        # self._icon_lbl.setAlignment(Qt.AlignLeft)
+        # self._icon_lbl.setSizePolicy(LBL_SIZEPOLICY)
+        # wdg2_lay.addWidget(self._icon_lbl)
+        # self._time_lbl = QLabel()
+        # self._time_lbl.setAlignment(Qt.AlignLeft)
+        # self._time_lbl.setSizePolicy(LBL_SIZEPOLICY)
+        # wdg2_lay.addWidget(self._time_lbl)
+        # spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # wdg2_lay.addItem(spacer)
+        # group_layout.addWidget(wdg2)
+
+        # return self.time_group
 
     def _create_stack_groupBox(self) -> QGroupBox:
 
@@ -304,8 +401,7 @@ class MDAWidget(QWidget):
         ra.setLayout(ra_layout)
 
         lbl_range_ra = QLabel(text="Range (µm):")
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        lbl_range_ra.setSizePolicy(lbl_sizepolicy)
+        lbl_range_ra.setSizePolicy(LBL_SIZEPOLICY)
 
         self.zrange_spinBox = QSpinBox()
         self.zrange_spinBox.setValue(5)
@@ -377,8 +473,7 @@ class MDAWidget(QWidget):
         s_layout.setContentsMargins(0, 0, 0, 0)
         s.setLayout(s_layout)
         lbl = QLabel(text="Step Size (µm):")
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        lbl.setSizePolicy(lbl_sizepolicy)
+        lbl.setSizePolicy(LBL_SIZEPOLICY)
         self.step_size_doubleSpinBox = QDoubleSpinBox()
         self.step_size_doubleSpinBox.setAlignment(Qt.AlignCenter)
         self.step_size_doubleSpinBox.setMinimum(0.05)
@@ -430,10 +525,12 @@ class MDAWidget(QWidget):
         rows = {r.row() for r in self.stage_tableWidget.selectedIndexes()}
         for idx in sorted(rows, reverse=True):
             self.stage_tableWidget.removeRow(idx)
+        self._calculate_total_time()
 
     def _clear_positions(self) -> None:
         self.stage_tableWidget.clearContents()
         self.stage_tableWidget.setRowCount(0)
+        self._calculate_total_time()
 
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():
@@ -447,13 +544,11 @@ class MDAWidget(QWidget):
             self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
 
     def _add_channel(self) -> bool:
-        print("add")
         if len(self._mmc.getLoadedDevices()) <= 1:
             return False
 
         channel_group = self._mmc.getChannelGroup()
         if not channel_group:
-            print("not channel_group")
             return False
 
         idx = self.channel_tableWidget.rowCount()
@@ -464,6 +559,7 @@ class MDAWidget(QWidget):
         channel_exp_spinBox = QSpinBox(self)
         channel_exp_spinBox.setRange(0, 10000)
         channel_exp_spinBox.setValue(100)
+        channel_exp_spinBox.valueChanged.connect(self._calculate_total_time)
 
         if channel_group := self._mmc.getChannelGroup():
             channel_list = list(self._mmc.getAvailableConfigs(channel_group))
@@ -472,7 +568,7 @@ class MDAWidget(QWidget):
         self.channel_tableWidget.setCellWidget(idx, 0, channel_comboBox)
         self.channel_tableWidget.setCellWidget(idx, 1, channel_exp_spinBox)
 
-        # self._calculate_total_time()
+        self._calculate_total_time()
 
         return True
 
@@ -480,10 +576,12 @@ class MDAWidget(QWidget):
         rows = {r.row() for r in self.channel_tableWidget.selectedIndexes()}
         for idx in sorted(rows, reverse=True):
             self.channel_tableWidget.removeRow(idx)
+        self._calculate_total_time()
 
     def _clear_channel(self) -> None:
         self.channel_tableWidget.clearContents()
         self.channel_tableWidget.setRowCount(0)
+        self._calculate_total_time()
 
     def _update_rangearound_label(self, value: int) -> None:
         self.range_around_label.setText(f"-{value/2} µm <- z -> +{value/2} µm")
@@ -500,8 +598,8 @@ class MDAWidget(QWidget):
             _range = self.zrange_spinBox.value()
         if self.z_tabWidget.currentIndex() == 1:
             _range = self.z_range_abovebelow_doubleSpinBox.value()
-
         self.n_images_label.setText(f"Number of Images: {round((_range / step) + 1)}")
+        self._calculate_total_time()
 
     def _assign_to_wells(self) -> None:
         if self.z_combo.currentText() == "None":
@@ -512,10 +610,91 @@ class MDAWidget(QWidget):
             item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
             self.stage_tableWidget.setItem(row, 3, item)
 
+    def _calculate_total_time(self) -> None:
 
-if __name__ == "__main__":
+        # positions
+        n_pos = self.stage_tableWidget.rowCount()
+        if not n_pos:
+            self._tot_time_label_parent._total_time_lbl.clear()
+            self._icon_lbl.clear()
+            return
 
-    app = QApplication([])
-    window = MDAWidget()
-    window.show()
-    app.exec_()
+        # channel
+        exp: list = []
+        ch = self.channel_tableWidget.rowCount()
+        if ch > 0:
+            exp.extend(
+                self.channel_tableWidget.cellWidget(r, 1).value() for r in range(ch)
+            )
+        else:
+            exp = []
+
+        # time
+        if self.time_groupBox.isChecked():
+            timepoints = self.timepoints_spinBox.value()
+            interval = self.interval_spinBox.value()
+            int_unit = self.time_comboBox.currentText()
+            if int_unit != "sec":
+                interval = _time_in_sec(interval, int_unit)
+        else:
+            timepoints = 1
+            interval = -1.0
+
+        # z stack
+        if self.stack_groupBox.isChecked():
+            n_z_images = int(self.n_images_label.text()[18:])
+        else:
+            n_z_images = 1
+
+        # acq time per timepoint
+        time_chs: float = 0.0  # s
+        for e in exp:
+            time_chs = time_chs + ((e / 1000) * n_z_images * n_pos)
+
+        warning_msg = ""
+
+        min_aq_tp, unit_1 = _select_output_unit(time_chs)
+
+        if interval <= 0:
+            effective_interval = 0.0
+            addition_time = 0
+            _icon = None
+            stylesheet = ""
+
+        elif interval < time_chs:
+            addition_time = 0
+            effective_interval = 0.0
+            warning_msg = "Interval shorter than acquisition time per timepoint."
+            _icon = icon(MDI6.exclamation_thick, color="magenta").pixmap(QSize(30, 30))
+            stylesheet = "color:magenta"
+
+        else:
+            effective_interval = float(interval) - time_chs  # s
+            addition_time = effective_interval * timepoints  # s
+            _icon = None
+            stylesheet = ""
+
+        min_tot_time, unit_4 = _select_output_unit(
+            (time_chs * timepoints) + addition_time - effective_interval
+        )
+
+        self._icon_lbl.clear()
+        self._time_lbl.clear()
+        self._time_lbl.setStyleSheet(stylesheet)
+        if _icon:
+            self._icon_lbl.setPixmap(_icon)
+            self._time_lbl.show()
+            self._time_lbl.setText(f"{warning_msg}")
+            self._time_lbl.adjustSize()
+        else:
+            self._time_lbl.hide()
+
+        t_per_tp_msg = ""
+        tot_acq_msg = f"Minimum total acquisition time: {min_tot_time:.4f} {unit_4}.\n"
+        if self.time_groupBox.isChecked():
+            t_per_tp_msg = (
+                f"Minimum acquisition time per timepoint: {min_aq_tp:.4f} {unit_1}."
+            )
+        self._tot_time_label_parent._total_time_lbl.setText(
+            f"{tot_acq_msg}{t_per_tp_msg}"
+        )
