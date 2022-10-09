@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -9,7 +9,7 @@ from qtpy.QtCore import QSize, Qt
 from superqt.fonticon import icon
 from useq import MDASequence
 
-from .._util import guess_channel_group
+from .._util import _select_output_unit, _time_in_sec, guess_channel_group
 from ._sample_explorer_gui import ExplorerGui
 
 if TYPE_CHECKING:
@@ -300,26 +300,6 @@ class SampleExplorer(ExplorerGui):
         self._mmc.setXYPosition(float(x_val), float(y_val))
         self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
 
-    def _time_in_sec(
-        self, value: float, input_unit: Literal["ms", "min", "hours"]
-    ) -> float:
-        if input_unit == "ms":
-            return value / 1000
-        elif input_unit == "min":
-            return value * 60
-        elif input_unit == "hours":
-            return value * 3600
-
-    def _select_output_unit(self, duration: float) -> Tuple[float, str]:
-        if duration < 1.0:
-            return duration * 1000, "ms"
-        elif duration < 60.0:
-            return duration, "sec"
-        elif duration < 3600.0:
-            return duration / 60, "min"
-        else:
-            return duration / 3600, "hours"
-
     def _calculate_total_time(self) -> None:
 
         tiles = self.scan_size_spinBox_r.value() * self.scan_size_spinBox_c.value()
@@ -341,7 +321,7 @@ class SampleExplorer(ExplorerGui):
             interval = self.interval_spinBox.value()
             int_unit = self.time_comboBox.currentText()
             if int_unit != "sec":
-                interval = self._time_in_sec(interval, int_unit)
+                interval = _time_in_sec(interval, int_unit)
         else:
             timepoints = 1
             interval = -1.0
@@ -366,7 +346,7 @@ class SampleExplorer(ExplorerGui):
 
         warning_msg = ""
 
-        min_aq_tp, unit_1 = self._select_output_unit(time_chs)
+        min_aq_tp, unit_1 = _select_output_unit(time_chs)
 
         if interval <= 0:
             effective_interval = 0.0
@@ -387,7 +367,7 @@ class SampleExplorer(ExplorerGui):
             _icon = None
             stylesheet = ""
 
-        min_tot_time, unit_4 = self._select_output_unit(
+        min_tot_time, unit_4 = _select_output_unit(
             (time_chs * timepoints) + addition_time - effective_interval
         )
 
