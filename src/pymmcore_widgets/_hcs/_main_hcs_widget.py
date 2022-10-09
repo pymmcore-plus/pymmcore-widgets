@@ -384,7 +384,7 @@ class HCSWidget(HCSGui):
             "stage_positions": [],
         }
 
-        if self.ch_and_pos_list.time_group.isChecked():
+        if self.ch_and_pos_list.time_groupBox.isChecked():
             unit = {"min": "minutes", "sec": "seconds", "ms": "milliseconds"}[
                 self.ch_and_pos_list.time_comboBox.currentText()
             ]
