@@ -27,7 +27,7 @@ AlignCenter = Qt.AlignmentFlag.AlignCenter
 class UpdateYaml(QDialog):
     """Class to update the yaml well plate database."""
 
-    yaml_updated = Signal(object)
+    yamlUpdated = Signal(object)
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -184,7 +184,7 @@ class UpdateYaml(QDialog):
             }
             f.update(new)
             yaml.dump(f, file)
-            self.yaml_updated.emit(new)
+            self.yamlUpdated.emit(new)
 
         self._update_table()
 
@@ -210,7 +210,7 @@ class UpdateYaml(QDialog):
 
         with open(PLATE_DATABASE, "w") as file:
             yaml.dump(f, file)
-            self.yaml_updated.emit(None)
+            self.yamlUpdated.emit(None)
 
         for plate_name in plate_names:
             match = self.plate_table.findItems(plate_name, Qt.MatchExactly)

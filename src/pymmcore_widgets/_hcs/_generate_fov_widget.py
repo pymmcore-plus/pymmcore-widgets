@@ -46,9 +46,6 @@ class SelectFOV(QWidget):
         self._create_widget()
 
         self._mmc.events.pixelSizeChanged.connect(self._on_px_size_changed)
-        # TODO:
-        # on objective changed -> pixelSizeChanged is not
-        # triggered when obj is changed
 
     def _create_widget(self) -> None:
 
@@ -590,9 +587,8 @@ class SelectFOV(QWidget):
             )
 
             points_area_x = (self._scene_size_x * area_x) / self._plate_size_x
-            points_area_y = (self._scene_size_y * area_y) / self._plate_size_y
-
             min_dist_x = (self._scene_size_x * _image_size_mm_x) / area_x
+            points_area_y = (self._scene_size_y * area_y) / self._plate_size_y
             min_dist_y = (self._scene_size_y * _image_size_mm_y) / area_y
 
             points = self._random_points_in_square(
@@ -694,10 +690,10 @@ class SelectFOV(QWidget):
         min_distance: Tuple[float, float],
     ) -> bool:
 
+        x_new, y_new = new_point[0], new_point[1]
+        min_distance_x, min_distance_y = min_distance[0], min_distance[1]
         for point in points:
-            x_new, y_new = new_point[0], new_point[1]
             x, y = point[0], point[1]
-            min_distance_x, min_distance_y = min_distance[0], min_distance[1]
             x_max, x_min = max(x, x_new), min(x, x_new)
             y_max, y_min = max(y, y_new), min(y, y_new)
             if x_max - x_min < min_distance_x and y_max - y_min < min_distance_y:

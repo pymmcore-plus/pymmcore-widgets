@@ -190,7 +190,7 @@ class HCSWidget(HCSGui):
 
     def _update_plate_yaml(self) -> None:
         self.plate = UpdateYaml(self)
-        self.plate.yaml_updated.connect(
+        self.plate.yamlUpdated.connect(
             self._update_wp_combo_from_yaml
         )  # UpdateYaml() signal
         self.plate.show()
