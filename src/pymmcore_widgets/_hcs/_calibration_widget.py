@@ -5,8 +5,8 @@ from typing import List, Optional, Tuple, overload
 import numpy as np
 import yaml  # type: ignore
 from fonticon_mdi6 import MDI6
-from loguru import logger
 from pymmcore_plus import CMMCorePlus
+from pymmcore_plus._logger import logger
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractItemView,
