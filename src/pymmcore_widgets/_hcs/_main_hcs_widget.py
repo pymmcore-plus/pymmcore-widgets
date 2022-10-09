@@ -11,7 +11,6 @@ from qtpy.QtWidgets import QTableWidgetItem, QWidget
 from superqt.utils import signals_blocked
 from useq import MDASequence
 
-# from .._mda import SEQUENCE_META, SequenceMeta
 from ._graphics_items import FOVPoints, Well
 from ._main_hcs_gui import HCSGui
 from ._update_yaml_widget import UpdateYaml
@@ -33,9 +32,6 @@ class HCSWidget(HCSGui):
         super().__init__(parent)
 
         self.wp: WellPlate = None  # type: ignore
-
-        # temporary solution to get this SEQUENCE_META in napari-micromanager
-        # self._seq: SequenceMeta = None  # type: ignore
 
         # connect
         self._mmc = mmcore or CMMCorePlus.instance()
@@ -442,7 +438,6 @@ class HCSWidget(HCSGui):
         self.pause_Button.hide()
         self.cancel_Button.hide()
         self.run_Button.show()
-        # self._seq = None
 
     def _on_run_clicked(self) -> None:
 
@@ -455,31 +450,7 @@ class HCSWidget(HCSGui):
         if self.ch_and_pos_list.stage_tableWidget.rowCount() <= 0:
             raise ValueError("Select at least one position.")
 
-        # if self.save_hcs_groupBox.isChecked() and (
-        #     not self.fname_lineEdit.text()
-        #     or not self.dir_lineEdit.text()
-        #     or not Path(self.dir_lineEdit.text()).is_dir()
-        # ):
-        #     raise ValueError("Select a filename and a valid directory.")
-
         experiment = self._get_state()
 
-        # if self.engine_combo.currentText() == "MDAEngine":
-        #     engine = MDAEngine(self._mmc)
-
-        # elif self.engine_combo.currentText() == "Find Wells":
-        #     engine = FindWells(self._mmc)
-
-        # SEQUENCE_META[experiment] = SequenceMeta(
-        #     mode="hcs",  # type: ignore
-        #     should_save=self.save_hcs_groupBox.isChecked(),
-        #     file_name=self.fname_lineEdit.text(),
-        #     save_dir=self.dir_lineEdit.text(),
-        #     hcs_engine=self.engine_combo.currentText(),
-        # )
-
-        # self._seq = SEQUENCE_META[experiment]
-
-        # self._mmc.register_mda_engine(engine)
         self._mmc.run_mda(experiment)  # run the MDA experiment asynchronously
         return
