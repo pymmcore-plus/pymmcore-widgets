@@ -220,7 +220,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     wdg.interval_spinBox.setValue(200)
     txt1 = (
-        "Minimum total acquisition time: 3.3383 min.\n"
+        "Minimum total acquisition time: 500.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
     assert wdg._total_time_lbl.text() == txt1
