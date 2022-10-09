@@ -382,11 +382,8 @@ class SampleExplorer(ExplorerGui):
             stylesheet = "color:magenta"
 
         else:
-            effective_interval, unit_3 = self._select_output_unit(
-                float(interval) - time_chs
-            )
-
-            addition_time = effective_interval * timepoints
+            effective_interval = float(interval) - time_chs  # s
+            addition_time = effective_interval * timepoints  # s
             _icon = None
             stylesheet = ""
 
