@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Literal, Optional, Sequence, Tuple
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import (
@@ -60,3 +60,23 @@ def guess_channel_group(
         if dialog.exec_() == dialog.DialogCode.Accepted:
             return dialog.currentText()
     return None
+
+
+def _time_in_sec(value: float, input_unit: Literal["ms", "min", "hours"]) -> float:
+    if input_unit == "ms":
+        return value / 1000
+    elif input_unit == "min":
+        return value * 60
+    elif input_unit == "hours":
+        return value * 3600
+
+
+def _select_output_unit(duration: float) -> Tuple[float, str]:
+    if duration < 1.0:
+        return duration * 1000, "ms"
+    elif duration < 60.0:
+        return duration, "sec"
+    elif duration < 3600.0:
+        return duration / 60, "min"
+    else:
+        return duration / 3600, "hours"
