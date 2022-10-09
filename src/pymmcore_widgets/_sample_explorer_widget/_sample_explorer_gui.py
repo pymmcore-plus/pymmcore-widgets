@@ -122,7 +122,7 @@ class ExplorerGui(QWidget):
         ovl_wdg_lay.setContentsMargins(0, 0, 0, 0)
         self.ovl_wdg.setLayout(ovl_wdg_lay)
         overlap_label = QLabel(text="Overlap (%):")
-        overlap_label.setMaximumWidth(fix_lbl_size)
+        overlap_label.setMaximumWidth(100)
         overlap_label.setSizePolicy(LBL_SIZEPOLICY)
         self.ovelap_spinBox = QSpinBox()
         self.ovelap_spinBox.setAlignment(Qt.AlignCenter)
