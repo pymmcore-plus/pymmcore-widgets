@@ -72,8 +72,6 @@ class MultiDWidget(MultiDWidgetGui):
         self.stack_groupBox.toggled.connect(self._calculate_total_time)
         self.stage_pos_groupBox.toggled.connect(self._calculate_total_time)
         self.time_comboBox.currentIndexChanged.connect(self._calculate_total_time)
-
-        # connect position table double click
         self.go.clicked.connect(self._move_to_position)
 
         # events
