@@ -66,7 +66,7 @@ class SampleExplorer(ExplorerGui):
         self.add_pos_Button.clicked.connect(self._add_position)
         self.remove_pos_Button.clicked.connect(self._remove_position)
         self.clear_pos_Button.clicked.connect(self._clear_positions)
-        self.stage_tableWidget.cellDoubleClicked.connect(self._move_to_position)
+        self.go.clicked.connect(self._move_to_position)
 
         # connect buttons
         self.start_scan_Button.clicked.connect(self._start_scan)
