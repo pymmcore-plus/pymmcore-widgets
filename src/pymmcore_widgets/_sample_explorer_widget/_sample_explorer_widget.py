@@ -307,10 +307,6 @@ class SampleExplorer(ExplorerGui):
             item.setWhatsThis(new_whatisthis)
             self.stage_tableWidget.setItem(r, 0, item)
 
-        for r in range(self.stage_tableWidget.rowCount()):
-            item = self.stage_tableWidget.item(r, 0)
-            print(item.whatsThis())
-
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():
             return
@@ -474,7 +470,8 @@ class SampleExplorer(ExplorerGui):
         item = self.stage_tableWidget.item(row, 0)
         name = item.text()
         whatsthis = item.whatsThis()
-        return f"{name}_{whatsthis}" if whatsthis not in name else name  # type: ignore
+        new_name = f"{name}___{whatsthis}" if whatsthis not in name else name
+        return str(new_name)
 
     def _set_grid(self) -> list[tuple[str, float, float, Optional[float]]]:
 
@@ -488,8 +485,7 @@ class SampleExplorer(ExplorerGui):
             and self.stage_tableWidget.rowCount() > 0
         ):
             for r in range(self.stage_tableWidget.rowCount()):
-                name = self.stage_tableWidget.item(r, 0).text()
-                # name = self._get_pos_name(r)
+                name = self._get_pos_name(r)
                 x = float(self.stage_tableWidget.item(r, 1).text())
                 y = float(self.stage_tableWidget.item(r, 2).text())
                 z = float(self.stage_tableWidget.item(r, 3).text())
@@ -510,13 +506,13 @@ class SampleExplorer(ExplorerGui):
             explorer_starting_positions.append(pos_info)
 
         full_pos_list = []
-        for pe in explorer_starting_positions:
-            name, x_pos, y_pos = pe[0], pe[1], pe[2]
+        for st_pos in explorer_starting_positions:
+            name, x_pos, y_pos = st_pos[0], st_pos[1], st_pos[2]  # type: ignore
             if self._mmc.getFocusDevice():
-                z_pos = pe[3]
+                z_pos = st_pos[3]
 
-            self.return_to_position_x = x_pos
-            self.return_to_position_y = y_pos
+            self.return_to_position_x = x_pos  # type: ignore
+            self.return_to_position_y = y_pos  # type: ignore
 
             # calculate initial scan position
             _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
@@ -576,9 +572,7 @@ class SampleExplorer(ExplorerGui):
 
             full_pos_list.extend(list_pos_order)
 
-        print(full_pos_list)
-
-        return full_pos_list
+        return full_pos_list  # type: ignore
 
     def _start_scan(self) -> None:
 
