@@ -471,7 +471,6 @@ class ExplorerGui(QWidget):
         # table
         self.stage_tableWidget = QTableWidget()
         self.stage_tableWidget.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.stage_tableWidget.setMinimumHeight(90)
         hdr = self.stage_tableWidget.horizontalHeader()
         hdr.setSectionResizeMode(hdr.Stretch)
         self.stage_tableWidget.verticalHeader().setVisible(False)
@@ -479,7 +478,7 @@ class ExplorerGui(QWidget):
         self.stage_tableWidget.setColumnCount(4)
         self.stage_tableWidget.setRowCount(0)
         self.stage_tableWidget.setHorizontalHeaderLabels(["Grid #", "X", "Y", "Z"])
-        group_layout.addWidget(self.stage_tableWidget, 0, 0, 3, 1)
+        group_layout.addWidget(self.stage_tableWidget, 0, 0, 4, 1)
 
         # buttons
         btn_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -493,10 +492,14 @@ class ExplorerGui(QWidget):
         self.clear_pos_Button = QPushButton(text="Clear")
         self.clear_pos_Button.setMinimumWidth(min_size)
         self.clear_pos_Button.setSizePolicy(btn_sizepolicy)
+        self.go = QPushButton(text="Go")
+        self.go.setMinimumWidth(min_size)
+        self.go.setSizePolicy(btn_sizepolicy)
 
         group_layout.addWidget(self.add_pos_Button, 0, 1, 1, 1)
         group_layout.addWidget(self.remove_pos_Button, 1, 1, 1, 2)
         group_layout.addWidget(self.clear_pos_Button, 2, 1, 1, 2)
+        group_layout.addWidget(self.go, 3, 1, 1, 2)
 
         return group
 
