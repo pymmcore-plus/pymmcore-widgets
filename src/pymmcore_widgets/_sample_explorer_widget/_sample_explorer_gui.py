@@ -471,7 +471,6 @@ class ExplorerGui(QWidget):
         # table
         self.stage_tableWidget = QTableWidget()
         self.stage_tableWidget.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.stage_tableWidget.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.stage_tableWidget.setMinimumHeight(90)
         hdr = self.stage_tableWidget.horizontalHeader()
         hdr.setSectionResizeMode(hdr.Stretch)

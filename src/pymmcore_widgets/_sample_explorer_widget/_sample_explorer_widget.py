@@ -256,8 +256,10 @@ class SampleExplorer(ExplorerGui):
                 if ax == "G":
                     count = self.stage_tableWidget.rowCount()
                     item = QtW.QTableWidgetItem(f"Grid_{count:03d}")
+                    item.setWhatsThis(f"Grid_{count:03d}")
                     item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
                     self.stage_tableWidget.setItem(idx, c, item)
+                    self._rename_positions()
                     continue
 
                 if not self._mmc.getFocusDevice() and ax == "Z":
@@ -280,15 +282,30 @@ class SampleExplorer(ExplorerGui):
         rows = {r.row() for r in self.stage_tableWidget.selectedIndexes()}
         for idx in sorted(rows, reverse=True):
             self.stage_tableWidget.removeRow(idx)
-
+        self._rename_positions()
         self._calculate_total_time()
 
     def _clear_positions(self) -> None:
         # clear all positions
         self.stage_tableWidget.clearContents()
         self.stage_tableWidget.setRowCount(0)
-
         self._calculate_total_time()
+
+    def _rename_positions(self) -> None:
+        for grid_count, r in enumerate(range(self.stage_tableWidget.rowCount())):
+            item = self.stage_tableWidget.item(r, 0)
+            item_text = item.text()
+            item_whatisthis = item.whatsThis()
+            if item_text == item_whatisthis:
+                new_name = f"Grid_{grid_count:03d}"
+            else:
+                new_name = item_text
+            new_whatisthis = f"Grid_{grid_count:03d}"
+
+            item = QtW.QTableWidgetItem(new_name)
+            item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            item.setWhatsThis(new_whatisthis)
+            self.stage_tableWidget.setItem(r, 0, item)
 
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():
@@ -449,6 +466,13 @@ class SampleExplorer(ExplorerGui):
 
         return MDASequence(**state)
 
+    def _get_pos_name(self, row: int) -> str:
+        item = self.stage_tableWidget.item(row, 0)
+        name = item.text()
+        whatsthis = item.whatsThis()
+        new_name = f"{name}_{whatsthis}" if whatsthis not in name else name
+        return str(new_name)
+
     def _set_grid(self) -> list[tuple[str, float, float, Optional[float]]]:
 
         self.scan_size_r = self.scan_size_spinBox_r.value()
@@ -461,7 +485,7 @@ class SampleExplorer(ExplorerGui):
             and self.stage_tableWidget.rowCount() > 0
         ):
             for r in range(self.stage_tableWidget.rowCount()):
-                name = self.stage_tableWidget.item(r, 0).text()
+                name = self._get_pos_name(r)
                 x = float(self.stage_tableWidget.item(r, 1).text())
                 y = float(self.stage_tableWidget.item(r, 2).text())
                 z = float(self.stage_tableWidget.item(r, 3).text())
@@ -482,14 +506,13 @@ class SampleExplorer(ExplorerGui):
             explorer_starting_positions.append(pos_info)
 
         full_pos_list = []
-        for pe in explorer_starting_positions:
-
-            name, x_pos, y_pos = pe[0], pe[1], pe[2]
+        for st_pos in explorer_starting_positions:
+            name, x_pos, y_pos = st_pos[0], st_pos[1], st_pos[2]  # type: ignore
             if self._mmc.getFocusDevice():
-                z_pos = pe[3]
+                z_pos = st_pos[3]
 
-            self.return_to_position_x = x_pos
-            self.return_to_position_y = y_pos
+            self.return_to_position_x = x_pos  # type: ignore
+            self.return_to_position_y = y_pos  # type: ignore
 
             # calculate initial scan position
             _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
@@ -549,7 +572,7 @@ class SampleExplorer(ExplorerGui):
 
             full_pos_list.extend(list_pos_order)
 
-        return full_pos_list
+        return full_pos_list  # type: ignore
 
     def _start_scan(self) -> None:
 
