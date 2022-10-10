@@ -470,7 +470,7 @@ class SampleExplorer(ExplorerGui):
         item = self.stage_tableWidget.item(row, 0)
         name = item.text()
         whatsthis = item.whatsThis()
-        new_name = f"{name}___{whatsthis}" if whatsthis not in name else name
+        new_name = f"{name}_{whatsthis}" if whatsthis not in name else name
         return str(new_name)
 
     def _set_grid(self) -> list[tuple[str, float, float, Optional[float]]]:
