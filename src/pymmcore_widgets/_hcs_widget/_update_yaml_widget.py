@@ -147,7 +147,10 @@ class UpdateYaml(QDialog):
 
     def _update_values(self, row: int, col: int) -> None:
 
-        plate_name = self.plate_table.item(row, col).text()
+        plate = self.plate_table.item(row, col)
+        if not plate:
+            return
+        plate_name = plate.text()
 
         with open(PLATE_DATABASE) as file:
             data = yaml.safe_load(file)
