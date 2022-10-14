@@ -433,18 +433,19 @@ class SelectFOV(QWidget):
         points = self._create_grid_of_points(rows, cols, x, y, move_x, move_y)
 
         for p in points:
+            x, y, fov_row, fov_col = p
             self.scene.addItem(
                 FOVPoints(
-                    p[0],
-                    p[1],
+                    x,
+                    y,
                     self._scene_size_x,
                     self._scene_size_y,
                     self._plate_size_x,
                     self._plate_size_y,
                     _image_size_mm_x,
                     _image_size_mm_y,
-                    p[2],
-                    p[3],
+                    fov_row,
+                    fov_col,
                 )
             )
 
@@ -537,10 +538,11 @@ class SelectFOV(QWidget):
                 nFOV, diameter, center, min_dist_x, min_dist_y
             )
             for p in points:
+                x, y = p
                 self.scene.addItem(
                     FOVPoints(
-                        p[0],
-                        p[1],
+                        x,
+                        y,
                         self._scene_size_x,
                         self._scene_size_y,
                         self._plate_size_x,
@@ -601,10 +603,11 @@ class SelectFOV(QWidget):
                 min_dist_y,
             )
             for p in points:
+                x, y = p
                 self.scene.addItem(
                     FOVPoints(
-                        p[0],
-                        p[1],
+                        x,
+                        y,
                         self._scene_size_x,
                         self._scene_size_y,
                         self._plate_size_x,

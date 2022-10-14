@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
@@ -170,6 +170,7 @@ def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
     items = list(hcs.FOV_selector.scene.items())
     well_area = items[-2]
     fov_1 = items[0]
+    assert isinstance(well_area, WellArea)
     assert isinstance(fov_1, FOVPoints)
     assert ax.value() != w
     assert ay.value() != h
@@ -193,6 +194,16 @@ def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
     hcs.FOV_selector.spacing_y.setValue(500.0)
     items = list(hcs.FOV_selector.scene.items())
     assert len(items) == 11
+    well_area = items[-2]
+    assert isinstance(well_area, WellArea)
+    well_size_mm_x, well_size_mm_y = hcs.wp.get_well_size()
     fovs = items[:9]
     for fov in fovs:
         assert isinstance(fov, FOVPoints)
+        assert fov._x_size == (160 * _image_size_mm_x) / well_size_mm_x
+        assert fov._y_size == (160 * _image_size_mm_y) / well_size_mm_y
+
+    fov_1 = cast(FOVPoints, items[4])
+    fov_2 = cast(FOVPoints, items[5])
+    assert fov_1._getPositionsInfo() == (100.0, 100.0, 160, 160)
+    assert fov_2._getPositionsInfo() == (130.24, 100.0, 160, 160)
