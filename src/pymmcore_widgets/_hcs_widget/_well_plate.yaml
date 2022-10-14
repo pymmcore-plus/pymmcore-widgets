@@ -25,15 +25,6 @@ coverslip 22mm:
   well_size_y: 22.0
   well_spacing_x: 0.0
   well_spacing_y: 0.0
-rotation_test_circular:
-  circular: true
-  cols: 3
-  id: rotation_test_circular
-  rows: 3
-  well_size_x: 2.0
-  well_size_y: 2.0
-  well_spacing_x: 5.0
-  well_spacing_y: 5.0
 standard 12:
   circular: true
   cols: 4

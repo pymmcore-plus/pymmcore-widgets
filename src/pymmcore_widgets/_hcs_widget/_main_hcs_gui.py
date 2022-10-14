@@ -4,6 +4,7 @@ from typing import Optional
 from fonticon_mdi6 import MDI6
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
+    QApplication,
     QComboBox,
     QGraphicsView,
     QGroupBox,
@@ -19,10 +20,14 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 
-from ._calibration_widget import PlateCalibration
-from ._generate_fov_widget import SelectFOV
-from ._hcs_mda_widget import MDAWidget
-from ._plate_graphics_scene_widget import GraphicsScene
+# from ._calibration_widget import PlateCalibration
+# from ._generate_fov_widget import SelectFOV
+# from ._hcs_mda_widget import MDAWidget
+# from ._plate_graphics_scene_widget import GraphicsScene
+from pymmcore_widgets._hcs_widget._calibration_widget import PlateCalibration
+from pymmcore_widgets._hcs_widget._generate_fov_widget import SelectFOV
+from pymmcore_widgets._hcs_widget._hcs_mda_widget import MDAWidget
+from pymmcore_widgets._hcs_widget._plate_graphics_scene_widget import GraphicsScene
 
 PLATE_DATABASE = Path(__file__).parent / "_well_plate.yaml"
 AlignCenter = Qt.AlignmentFlag.AlignCenter
@@ -86,12 +91,12 @@ class HCSGui(QWidget):
         # well plate selector combo and clear selection QPushButton
         upper_wdg = QWidget()
         upper_wdg_layout = QHBoxLayout()
+        upper_wdg_layout.setSpacing(5)
+        upper_wdg_layout.setContentsMargins(0, 0, 0, 5)
         wp_combo_wdg = self._create_wp_combo_selector()
-        self.custom_plate = QPushButton(text="Custom Plate")
-        self.clear_button = QPushButton(text="Clear Selection")
+        btns = self._create_btns()
         upper_wdg_layout.addWidget(wp_combo_wdg)
-        upper_wdg_layout.addWidget(self.custom_plate)
-        upper_wdg_layout.addWidget(self.clear_button)
+        upper_wdg_layout.addWidget(btns)
         upper_wdg.setLayout(upper_wdg_layout)
 
         self.FOV_selector = SelectFOV()
@@ -224,12 +229,11 @@ class HCSGui(QWidget):
         combo_wdg = QWidget()
         wp_combo_layout = QHBoxLayout()
         wp_combo_layout.setContentsMargins(0, 0, 0, 0)
-        wp_combo_layout.setSpacing(0)
+        wp_combo_layout.setSpacing(5)
 
         combo_label = QLabel()
         combo_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         combo_label.setText("Plate:")
-        combo_label.setMaximumWidth(75)
 
         self.wp_combo = QComboBox()
 
@@ -238,3 +242,26 @@ class HCSGui(QWidget):
         combo_wdg.setLayout(wp_combo_layout)
 
         return combo_wdg
+
+    def _create_btns(self) -> QWidget:
+        btns_wdg = QWidget()
+        btns_layout = QHBoxLayout()
+        btns_layout.setContentsMargins(0, 0, 0, 0)
+        btns_layout.setSpacing(5)
+        btns_wdg.setLayout(btns_layout)
+
+        self.custom_plate = QPushButton(text="Custom Plate")
+        self.clear_button = QPushButton(text="Clear Selection")
+        btns_layout.addWidget(self.custom_plate)
+        btns_layout.addWidget(self.clear_button)
+
+        return btns_wdg
+
+
+if __name__ == "__main__":
+    import sys
+
+    app = QApplication(sys.argv)
+    win = HCSGui()
+    win.show()
+    sys.exit(app.exec_())
