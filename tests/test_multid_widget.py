@@ -59,6 +59,8 @@ def test_multid_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg._grid_wdg.generate_position_btn.click()
     assert wdg.stage_tableWidget.rowCount() == 4
 
+    wdg._grid_wdg.close()
+
 
 def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = MultiDWidget()

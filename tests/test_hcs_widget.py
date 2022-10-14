@@ -76,6 +76,8 @@ def test_hcs_plate_selection(qtbot: QtBot):
     items = [hcs.wp_combo.itemText(i) for i in range(hcs.wp_combo.count())]
     assert "new_plate" not in items
 
+    hcs.plate.close()
+
 
 def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
