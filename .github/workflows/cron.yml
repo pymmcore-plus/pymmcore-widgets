@@ -33,7 +33,7 @@ jobs:
           python -m pip install -U pip
           python -m pip install --pre -e .[test,image,${{ matrix.backend }}]
 
-       - name: Install Windows OpenGL
+      - name: Install Windows OpenGL
         if: runner.os == 'Windows'
         run: |
           git clone --depth 1 https://github.com/pyvista/gl-ci-helpers.git
