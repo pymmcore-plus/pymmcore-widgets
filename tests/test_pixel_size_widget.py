@@ -72,38 +72,38 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert "Res40x" in mmc.getAvailablePixelSizeConfigs()
     assert mmc.getPixelSizeUmByID("Res40x") == 10 / 50
 
-    # # change cam px size
-    # _, _, mag, cam_px, img_px = _get_wdg(row)
-    # cam_px.setText("6.00")
-    # cam_px.editingFinished.emit()
-    # with qtbot.waitSignal(cam_px.editingFinished):
-    #     cam_px.editingFinished.emit()
-    # _, _, mag, cam_px, img_px = _get_wdg(row)
-    # assert mag.text() == "50.0"
-    # assert img_px.text() == f"{(6 / 50):.4f}"
-    # assert "Res40x" in mmc.getAvailablePixelSizeConfigs()
-    # assert mmc.getPixelSizeUmByID("Res40x") == 6 / 50
-    # assert table.cellWidget(row + 1, CAMERA_PX_SIZE).text() == "6.00"
+    # change cam px size
+    _, _, mag, cam_px, img_px = _get_wdg(row)
+    cam_px.setText("6.00")
+    cam_px.editingFinished.emit()
+    with qtbot.waitSignal(cam_px.editingFinished):
+        cam_px.editingFinished.emit()
+    _, _, mag, cam_px, img_px = _get_wdg(row)
+    assert mag.text() == "50.0"
+    assert img_px.text() == f"{(6 / 50):.4f}"
+    assert "Res40x" in mmc.getAvailablePixelSizeConfigs()
+    assert mmc.getPixelSizeUmByID("Res40x") == 6 / 50
+    assert table.cellWidget(row + 1, CAMERA_PX_SIZE).text() == "6.00"
 
-    # # change img px size
-    # _, _, mag, cam_px, img_px = _get_wdg(row)
-    # px_size_wdg.mag_radiobtn.setChecked(True)
-    # assert px_size_wdg.mag_radiobtn.isChecked()
-    # assert not px_size_wdg.img_px_radiobtn.isChecked()
-    # img_px.setText("1.0000")
-    # with qtbot.waitSignals([img_px.editingFinished, mmc.events.pixelSizeChanged]):
-    #     img_px.editingFinished.emit()
-    #     assert img_px.styleSheet() == ""
-    # _, _, mag, cam_px, img_px = _get_wdg(row)
-    # assert cam_px.text() == "6.00"
-    # assert mag.text() == str(6 / 1)
-    # assert mag.styleSheet() == "color:magenta"
-    # assert "Res40x" in mmc.getAvailablePixelSizeConfigs()
-    # assert mmc.getPixelSizeUmByID("Res40x") == 1
+    # change img px size
+    _, _, mag, cam_px, img_px = _get_wdg(row)
+    px_size_wdg.mag_radiobtn.setChecked(True)
+    assert px_size_wdg.mag_radiobtn.isChecked()
+    assert not px_size_wdg.img_px_radiobtn.isChecked()
+    img_px.setText("1.0000")
+    with qtbot.waitSignals([img_px.editingFinished, mmc.events.pixelSizeChanged]):
+        img_px.editingFinished.emit()
+        assert img_px.styleSheet() == ""
+    _, _, mag, cam_px, img_px = _get_wdg(row)
+    assert cam_px.text() == "6.00"
+    assert mag.text() == str(6 / 1)
+    assert mag.styleSheet() == "color:magenta"
+    assert "Res40x" in mmc.getAvailablePixelSizeConfigs()
+    assert mmc.getPixelSizeUmByID("Res40x") == 1
 
-    # for r in range(table.rowCount()):
-    #     _cam_px = table.cellWidget(r, CAMERA_PX_SIZE).text()
-    #     assert _cam_px == "6.00"
+    for r in range(table.rowCount()):
+        _cam_px = table.cellWidget(r, CAMERA_PX_SIZE).text()
+        assert _cam_px == "6.00"
 
     # # test delete btn
     # del_btn = table.cellWidget(row, 5).children()[-1]
