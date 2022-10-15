@@ -184,13 +184,13 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert cam_px.graphicsEffect().opacity() == 0.50
     assert img_px.graphicsEffect().opacity() == 0.50
 
-    # with qtbot.waitSignal(mmc.events.pixelSizeChanged):
-    #     mmc.setPixelSizeUm("Res10x_new", 1.0)
-    # _, resID, mag, cam_px, img_px = _get_wdg(row_1)
-    # assert mag.text() == "6.0"
-    # assert cam_px.text() == "6.00"
-    # assert img_px.text() == "1.0000"
-    # assert resID.graphicsEffect().opacity() == 1.00
-    # assert mag.graphicsEffect().opacity() == 1.00
-    # assert cam_px.graphicsEffect().opacity() == 1.00
-    # assert img_px.graphicsEffect().opacity() == 1.00
+    with qtbot.waitSignal(mmc.events.pixelSizeChanged):
+        mmc.setPixelSizeUm("Res10x_new", 1.0)
+    _, resID, mag, cam_px, img_px = _get_wdg(row_1)
+    assert mag.text() == "6.0"
+    assert cam_px.text() == "6.00"
+    assert img_px.text() == "1.0000"
+    assert resID.graphicsEffect().opacity() == 1.00
+    assert mag.graphicsEffect().opacity() == 1.00
+    assert cam_px.graphicsEffect().opacity() == 1.00
+    assert img_px.graphicsEffect().opacity() == 1.00
