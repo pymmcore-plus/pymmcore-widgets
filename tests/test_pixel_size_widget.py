@@ -105,20 +105,20 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
         _cam_px = table.cellWidget(r, CAMERA_PX_SIZE).text()
         assert _cam_px == "6.00"
 
-    # # test delete btn
-    # del_btn = table.cellWidget(row, 5).children()[-1]
-    # with qtbot.waitSignal(mmc.events.pixelSizeChanged):
-    #     del_btn.click()
-    # _, resID, mag, cam_px, img_px = _get_wdg(row)
-    # assert resID.text() == "None"
-    # assert mag.text() == "6.0"
-    # assert cam_px.text() == "6.00"
-    # assert img_px.text() == "0.0000"
-    # assert "Res40x" not in mmc.getAvailablePixelSizeConfigs()
-    # assert resID.graphicsEffect().opacity() == 0.50
-    # assert mag.graphicsEffect().opacity() == 0.50
-    # assert cam_px.graphicsEffect().opacity() == 0.50
-    # assert img_px.graphicsEffect().opacity() == 0.50
+    # test delete btn
+    del_btn = table.cellWidget(row, 5).children()[-1]
+    with qtbot.waitSignal(mmc.events.pixelSizeChanged):
+        del_btn.click()
+    _, resID, mag, cam_px, img_px = _get_wdg(row)
+    assert resID.text() == "None"
+    assert mag.text() == "6.0"
+    assert cam_px.text() == "6.00"
+    assert img_px.text() == "0.0000"
+    assert "Res40x" not in mmc.getAvailablePixelSizeConfigs()
+    assert resID.graphicsEffect().opacity() == 0.50
+    assert mag.graphicsEffect().opacity() == 0.50
+    assert cam_px.graphicsEffect().opacity() == 0.50
+    assert img_px.graphicsEffect().opacity() == 0.50
 
     # # ResolutionID
     # px_size_wdg.img_px_radiobtn.setChecked(True)
