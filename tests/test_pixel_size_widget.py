@@ -168,21 +168,21 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert cam_px.graphicsEffect().opacity() == 0.50
     assert img_px.graphicsEffect().opacity() == 0.50
 
-    # with qtbot.waitSignal(mmc.events.pixelSizeChanged):
-    #     mmc.definePixelSizeConfig(
-    #         "Res10x_new", "Objective", "Label", "Nikon 10X S Fluor"
-    #     )
-    # _, resID, mag, cam_px, img_px = _get_wdg(row_1)
-    # assert "Res10x_new" in mmc.getAvailablePixelSizeConfigs()
-    # assert resID.text() == "Res10x_new"
-    # assert resID.property("resID") == "Res10x_new"
-    # assert mag.text() == "10.0"
-    # assert cam_px.text() == "6.00"
-    # assert img_px.text() == "0.0000"
-    # assert resID.graphicsEffect().opacity() == 0.50
-    # assert mag.graphicsEffect().opacity() == 0.50
-    # assert cam_px.graphicsEffect().opacity() == 0.50
-    # assert img_px.graphicsEffect().opacity() == 0.50
+    with qtbot.waitSignal(mmc.events.pixelSizeChanged):
+        mmc.definePixelSizeConfig(
+            "Res10x_new", "Objective", "Label", "Nikon 10X S Fluor"
+        )
+    _, resID, mag, cam_px, img_px = _get_wdg(row_1)
+    assert "Res10x_new" in mmc.getAvailablePixelSizeConfigs()
+    assert resID.text() == "Res10x_new"
+    assert resID.property("resID") == "Res10x_new"
+    assert mag.text() == "10.0"
+    assert cam_px.text() == "6.00"
+    assert img_px.text() == "0.0000"
+    assert resID.graphicsEffect().opacity() == 0.50
+    assert mag.graphicsEffect().opacity() == 0.50
+    assert cam_px.graphicsEffect().opacity() == 0.50
+    assert img_px.graphicsEffect().opacity() == 0.50
 
     # with qtbot.waitSignal(mmc.events.pixelSizeChanged):
     #     mmc.setPixelSizeUm("Res10x_new", 1.0)
