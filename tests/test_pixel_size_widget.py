@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING  # , cast
+from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QLineEdit
 
-# from qtpy.QtCore import Qt
-# from qtpy.QtWidgets import QLineEdit
 from pymmcore_widgets._pixel_size_widget import PixelSizeWidget
 
 if TYPE_CHECKING:
@@ -20,57 +20,57 @@ IMAGE_PX_SIZE = 4
 
 
 def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    # mmc = global_mmcore
+    mmc = global_mmcore
 
     px_size_wdg = PixelSizeWidget()
-    # table = px_size_wdg.table
-    # obj = px_size_wdg.objective_device
+    table = px_size_wdg.table
+    obj = px_size_wdg.objective_device
     qtbot.addWidget(px_size_wdg)
 
-    # assert ["Res10x", "Res20x", "Res40x"] == list(mmc.getAvailablePixelSizeConfigs())
-    # assert px_size_wdg.table.rowCount() == len(mmc.getStateLabels(obj))
+    assert ["Res10x", "Res20x", "Res40x"] == list(mmc.getAvailablePixelSizeConfigs())
+    assert px_size_wdg.table.rowCount() == len(mmc.getStateLabels(obj))
 
-    # assert not px_size_wdg.mag_radiobtn.isChecked()
-    # assert px_size_wdg.img_px_radiobtn.isChecked()
+    assert not px_size_wdg.mag_radiobtn.isChecked()
+    assert px_size_wdg.img_px_radiobtn.isChecked()
 
-    # match = table.findItems("Nikon 40X Plan Fluor ELWD", Qt.MatchExactly)
-    # row = match[0].row()
+    match = table.findItems("Nikon 40X Plan Fluor ELWD", Qt.MatchExactly)
+    row = match[0].row()
 
-    # def _get_wdg(row: int):
-    #     obj = table.item(row, OBJECTIVE_LABEL).text()
-    #     resID = cast(QLineEdit, table.cellWidget(row, RESOLUTION_ID))
-    #     mag = cast(QLineEdit, table.cellWidget(row, MAGNIFICATION))
-    #     cam_px = cast(QLineEdit, table.cellWidget(row, CAMERA_PX_SIZE))
-    #     img_px = cast(QLineEdit, table.cellWidget(row, IMAGE_PX_SIZE))
-    #     return obj, resID, mag, cam_px, img_px
+    def _get_wdg(row: int):
+        obj = table.item(row, OBJECTIVE_LABEL).text()
+        resID = cast(QLineEdit, table.cellWidget(row, RESOLUTION_ID))
+        mag = cast(QLineEdit, table.cellWidget(row, MAGNIFICATION))
+        cam_px = cast(QLineEdit, table.cellWidget(row, CAMERA_PX_SIZE))
+        img_px = cast(QLineEdit, table.cellWidget(row, IMAGE_PX_SIZE))
+        return obj, resID, mag, cam_px, img_px
 
-    # obj, resID, mag, cam_px, img_px = _get_wdg(row)
+    obj, resID, mag, cam_px, img_px = _get_wdg(row)
 
-    # assert obj == "Nikon 40X Plan Fluor ELWD"
-    # assert resID.text() == "Res40x"
-    # assert resID.property("resID") == "Res40x"
-    # assert resID.graphicsEffect().opacity() == 1.00
-    # assert mag.text() == "40.0"
-    # assert mag.graphicsEffect().opacity() == 1.00
-    # assert cam_px.text() == "10.00"
-    # assert cam_px.graphicsEffect().opacity() == 1.00
-    # assert img_px.text() == "0.2500"
-    # assert img_px.graphicsEffect().opacity() == 1.00
-    # assert img_px.styleSheet() == "color:magenta"
+    assert obj == "Nikon 40X Plan Fluor ELWD"
+    assert resID.text() == "Res40x"
+    assert resID.property("resID") == "Res40x"
+    assert resID.graphicsEffect().opacity() == 1.00
+    assert mag.text() == "40.0"
+    assert mag.graphicsEffect().opacity() == 1.00
+    assert cam_px.text() == "10.00"
+    assert cam_px.graphicsEffect().opacity() == 1.00
+    assert img_px.text() == "0.2500"
+    assert img_px.graphicsEffect().opacity() == 1.00
+    assert img_px.styleSheet() == "color:magenta"
 
-    # for r in range(table.rowCount()):
-    #     _cam_px = table.cellWidget(r, CAMERA_PX_SIZE).text()
-    #     assert _cam_px == "10.00"
+    for r in range(table.rowCount()):
+        _cam_px = table.cellWidget(r, CAMERA_PX_SIZE).text()
+        assert _cam_px == "10.00"
 
-    # # change mag
-    # mag.setText("50.0")
-    # with qtbot.waitSignals([mag.editingFinished, mmc.events.pixelSizeChanged]):
-    #     mag.editingFinished.emit()
-    # _, _, _, cam_px, img_px = _get_wdg(row)
-    # assert cam_px.text() == "10.00"
-    # assert img_px.text() == f"{(10 / 50):.4f}"
-    # assert "Res40x" in mmc.getAvailablePixelSizeConfigs()
-    # assert mmc.getPixelSizeUmByID("Res40x") == 10 / 50
+    # change mag
+    mag.setText("50.0")
+    with qtbot.waitSignals([mag.editingFinished, mmc.events.pixelSizeChanged]):
+        mag.editingFinished.emit()
+    _, _, _, cam_px, img_px = _get_wdg(row)
+    assert cam_px.text() == "10.00"
+    assert img_px.text() == f"{(10 / 50):.4f}"
+    assert "Res40x" in mmc.getAvailablePixelSizeConfigs()
+    assert mmc.getPixelSizeUmByID("Res40x") == 10 / 50
 
     # # change cam px size
     # _, _, mag, cam_px, img_px = _get_wdg(row)
