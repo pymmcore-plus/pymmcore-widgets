@@ -120,27 +120,27 @@ def test_pixel_size_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert cam_px.graphicsEffect().opacity() == 0.50
     assert img_px.graphicsEffect().opacity() == 0.50
 
-    # # ResolutionID
-    # px_size_wdg.img_px_radiobtn.setChecked(True)
-    # assert not px_size_wdg.mag_radiobtn.isChecked()
-    # assert px_size_wdg.img_px_radiobtn.isChecked()
-    # _, resID, _, _, _ = _get_wdg(row)
-    # assert resID.property("resID") == "None"
-    # resID.setText("new_Res40x")
-    # with qtbot.waitSignals([resID.editingFinished, mmc.events.pixelSizeChanged]):
-    #     resID.editingFinished.emit()
-    # _, resID, mag, cam_px, img_px = _get_wdg(row)
-    # assert resID.text() == "new_Res40x"
-    # assert resID.property("resID") == "new_Res40x"
-    # assert mag.text() == "6.0"
-    # assert cam_px.text() == "6.00"
-    # assert img_px.text() == "1.0000"
-    # assert "new_Res40x" in mmc.getAvailablePixelSizeConfigs()
-    # assert mmc.getPixelSizeUmByID("new_Res40x") == 1
-    # assert resID.graphicsEffect().opacity() == 1.00
-    # assert mag.graphicsEffect().opacity() == 1.00
-    # assert cam_px.graphicsEffect().opacity() == 1.00
-    # assert img_px.graphicsEffect().opacity() == 1.00
+    # ResolutionID
+    px_size_wdg.img_px_radiobtn.setChecked(True)
+    assert not px_size_wdg.mag_radiobtn.isChecked()
+    assert px_size_wdg.img_px_radiobtn.isChecked()
+    _, resID, _, _, _ = _get_wdg(row)
+    assert resID.property("resID") == "None"
+    resID.setText("new_Res40x")
+    with qtbot.waitSignals([resID.editingFinished, mmc.events.pixelSizeChanged]):
+        resID.editingFinished.emit()
+    _, resID, mag, cam_px, img_px = _get_wdg(row)
+    assert resID.text() == "new_Res40x"
+    assert resID.property("resID") == "new_Res40x"
+    assert mag.text() == "6.0"
+    assert cam_px.text() == "6.00"
+    assert img_px.text() == "1.0000"
+    assert "new_Res40x" in mmc.getAvailablePixelSizeConfigs()
+    assert mmc.getPixelSizeUmByID("new_Res40x") == 1
+    assert resID.graphicsEffect().opacity() == 1.00
+    assert mag.graphicsEffect().opacity() == 1.00
+    assert cam_px.graphicsEffect().opacity() == 1.00
+    assert img_px.graphicsEffect().opacity() == 1.00
 
     # # test mmc.events.pixelSizeChanged
     # match = table.findItems("Nikon 10X S Fluor", Qt.MatchExactly)
