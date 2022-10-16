@@ -297,9 +297,12 @@ class MDAWidget(QWidget):
         self._time_lbl.setAlignment(Qt.AlignLeft)
         self._time_lbl.setSizePolicy(LBL_SIZEPOLICY)
         wdg2_lay.addWidget(self._time_lbl)
-        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        spacer = QSpacerItem(10, 0, QSizePolicy.Expanding, QSizePolicy.Expanding)
         wdg2_lay.addItem(spacer)
         group_layout.addWidget(wdg2, 1, 0, 1, 2)
+
+        self._icon_lbl.hide()
+        self._time_lbl.hide()
 
         return group
 
@@ -613,12 +616,14 @@ class MDAWidget(QWidget):
         self._time_lbl.clear()
         self._time_lbl.setStyleSheet(stylesheet)
         if _icon:
+            self._icon_lbl.show()
             self._icon_lbl.setPixmap(_icon)
             self._time_lbl.show()
             self._time_lbl.setText(f"{warning_msg}")
             self._time_lbl.adjustSize()
         else:
             self._time_lbl.hide()
+            self._icon_lbl.hide()
 
         t_per_tp_msg = ""
         tot_acq_msg = f"Minimum total acquisition time: {min_tot_time:.4f} {unit_4}.\n"
