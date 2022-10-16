@@ -296,6 +296,9 @@ class ExplorerGui(QWidget):
         wdg2_lay.addItem(spacer)
         group_layout.addWidget(wdg2, 1, 0, 1, 2)
 
+        self._time_lbl.hide()
+        self._icon_lbl.hide()
+
         return group
 
     def _create_stack_groupBox(self) -> QGroupBox:
