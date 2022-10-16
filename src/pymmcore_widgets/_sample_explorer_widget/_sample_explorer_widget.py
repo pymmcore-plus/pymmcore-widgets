@@ -392,12 +392,14 @@ class SampleExplorer(ExplorerGui):
         self._time_lbl.clear()
         self._time_lbl.setStyleSheet(stylesheet)
         if _icon:
+            self._icon_lbl.show()
             self._icon_lbl.setPixmap(_icon)
             self._time_lbl.show()
             self._time_lbl.setText(f"{warning_msg}")
             self._time_lbl.adjustSize()
         else:
             self._time_lbl.hide()
+            self._icon_lbl.hide()
 
         t_per_tp_msg = ""
         tot_acq_msg = f"Minimum total acquisition time: {min_tot_time:.4f} {unit_4}.\n"

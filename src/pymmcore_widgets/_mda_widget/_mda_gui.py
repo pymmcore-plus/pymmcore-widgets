@@ -246,9 +246,12 @@ class MultiDWidgetGui(QWidget):
         self._time_lbl.setAlignment(Qt.AlignLeft)
         self._time_lbl.setSizePolicy(LBL_SIZEPOLICY)
         wdg2_lay.addWidget(self._time_lbl)
-        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        spacer = QSpacerItem(10, 0, QSizePolicy.Expanding, QSizePolicy.Expanding)
         wdg2_lay.addItem(spacer)
         group_layout.addWidget(wdg2, 1, 0, 1, 2)
+
+        self._time_lbl.hide()
+        self._icon_lbl.hide()
 
         return group
 
