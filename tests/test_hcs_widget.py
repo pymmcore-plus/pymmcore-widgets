@@ -118,8 +118,7 @@ def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert scene_height == 200
     items = list(hcs.FOV_selector.scene.items())
     assert len(items) == 2
-    fov = items[0]
-    well = items[1]
+    fov, well = items
     assert isinstance(fov, FOVPoints)
     assert isinstance(well, QGraphicsEllipseItem)
     assert fov._getPositionsInfo() == (scene_width / 2, scene_height / 2, 160, 160)
@@ -136,8 +135,8 @@ def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert _image_size_mm_y == 0.256
 
     items = list(hcs.FOV_selector.scene.items())
-    fov = items[0]
-    well = items[1]
+    assert len(items) == 2
+    fov, well = items
     assert isinstance(fov, FOVPoints)
     assert isinstance(well, QGraphicsEllipseItem)
     well_size_mm_x, well_size_mm_y = hcs.wp.get_well_size()
@@ -145,12 +144,18 @@ def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert fov._y_size == (160 * _image_size_mm_y) / well_size_mm_y
 
     hcs.wp_combo.setCurrentText("standard 384")
+    print("")
+    print(hcs.wp_combo.currentText())
+    assert hcs.wp_combo.currentText() == "standard 384"
     assert len(hcs.scene.items()) == 384
     items = list(hcs.FOV_selector.scene.items())
-    fov = items[0]
-    well = items[1]
+    assert len(items) == 2
+    for item in items:
+        print(item)
+    fov, well = items
     assert isinstance(fov, FOVPoints)
     assert isinstance(well, QGraphicsRectItem)
+    _image_size_mm_x, _image_size_mm_y = _get_image_size()
     well_size_mm_x, well_size_mm_y = hcs.wp.get_well_size()
     assert fov._x_size == (160 * _image_size_mm_x) / well_size_mm_x
     assert fov._y_size == (160 * _image_size_mm_y) / well_size_mm_y
