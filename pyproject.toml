@@ -40,8 +40,8 @@ test = ["pytest>=6.0", "pytest-cov", "pytest-qt"]
 pyqt5 = ["PyQt5"]
 pyside2 = ["PySide2"]
 pyqt6 = ["PyQt6"]
-pyside6 = ["PySide6"]
-image = ['vispy']
+pyside6 = ["PySide6!=6.4.0"]
+image = ["vispy"]
 
 dev = [
     "black",
