@@ -18,6 +18,9 @@ def test_hcs_plate_selection(qtbot: QtBot):
     hcs = HCSWidget()
     qtbot.add_widget(hcs)
 
+    assert hcs.tabwidget.currentIndex() == 0
+    assert hcs.tabwidget.tabText(0) == "  Plate and FOVs Selection  "
+
     hcs.wp_combo.setCurrentText("standard 6")
     assert hcs.wp_combo.currentText() == "standard 6"
     assert len(hcs.scene.items()) == 6
@@ -91,6 +94,9 @@ def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
         _image_size_mm_x = (_cam_x * mmc.getPixelSizeUm()) / 1000
         _image_size_mm_y = (_cam_y * mmc.getPixelSizeUm()) / 1000
         return _image_size_mm_x, _image_size_mm_y
+
+    assert hcs.tabwidget.currentIndex() == 0
+    assert hcs.tabwidget.tabText(0) == "  Plate and FOVs Selection  "
 
     hcs.wp_combo.setCurrentText("standard 6")
     assert hcs.wp_combo.currentText() == "standard 6"
@@ -229,7 +235,7 @@ def test_calibration(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not [item for item in hcs.scene.items() if item.isSelected()]
 
     hcs.tabwidget.setCurrentIndex(1)
-    assert hcs.tabwidget.tabText(1) == "Plate Calibration"
+    assert hcs.tabwidget.tabText(1) == "  Plate Calibration  "
 
     cal = hcs.calibration
 
@@ -316,5 +322,6 @@ def test_calibration(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     # TODO:
     # get coords calibration
+    # test calibration with 2 wells
     # test square plate
     # test _from_calibration
