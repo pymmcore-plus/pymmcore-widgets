@@ -145,14 +145,13 @@ def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     print("________")
     hcs.wp_combo.setCurrentText("standard 384")
-    # print(hcs.wp_combo.currentText())
     assert hcs.wp_combo.currentText() == "standard 384"
     assert len(hcs.scene.items()) == 384
     items = list(hcs.FOV_selector.scene.items())
     assert len(items) == 2
-    # for item in items:
-    #     print(item)
     fov, well = items
+    print("             ***", fov)
+    print("             ***", well)
     assert isinstance(fov, FOVPoints)
     assert isinstance(well, QGraphicsRectItem)
     _image_size_mm_x, _image_size_mm_y = _get_image_size()

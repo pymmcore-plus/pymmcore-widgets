@@ -363,6 +363,8 @@ class SelectFOV(QWidget):
                 pen,
             )
 
+        print("         ", self.scene.items()[0])
+
         self._set_spinboxes_values(self.plate_area_x, self.plate_area_y)
         self._set_spinboxes_values(self.plate_area_x_c, self.plate_area_y_c)
         self.plate_area_y.setEnabled(not self._is_circular)
