@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem
@@ -17,13 +18,10 @@ def test_hcs_plate_selection(qtbot: QtBot):
     hcs = HCSWidget()
     qtbot.add_widget(hcs)
 
-    assert hcs.wp_combo.currentText() == "VWR 24  Plastic"
-    assert len(hcs.scene.items()) == 24
-    assert not [item for item in hcs.scene.items() if item.isSelected()]
-
     hcs.wp_combo.setCurrentText("standard 6")
     assert hcs.wp_combo.currentText() == "standard 6"
     assert len(hcs.scene.items()) == 6
+    assert not [item for item in hcs.scene.items() if item.isSelected()]
 
     wells = []
     for item in reversed(hcs.scene.items()):
@@ -94,6 +92,11 @@ def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
         _image_size_mm_y = (_cam_y * mmc.getPixelSizeUm()) / 1000
         return _image_size_mm_x, _image_size_mm_y
 
+    hcs.wp_combo.setCurrentText("standard 6")
+    assert hcs.wp_combo.currentText() == "standard 6"
+    assert len(hcs.scene.items()) == 6
+    assert not [item for item in hcs.scene.items() if item.isSelected()]
+
     mmc.setProperty("Objective", "Label", "Nikon 10X S Fluor")
     assert mmc.getPixelSizeUm() == 1.0
     _image_size_mm_x, _image_size_mm_y = _get_image_size()
@@ -102,6 +105,7 @@ def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     # center
     assert hcs.FOV_selector.tab_wdg.currentIndex() == 0
+    assert hcs.FOV_selector.tab_wdg.tabText(0) == "Center"
     scene_width = hcs.FOV_selector.scene.sceneRect().width()
     scene_height = hcs.FOV_selector.scene.sceneRect().height()
     assert scene_width == 200
@@ -147,6 +151,7 @@ def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     # random
     hcs.tabwidget.setCurrentIndex(1)
+    assert hcs.FOV_selector.tab_wdg.tabText(1) == "Random"
     hcs.FOV_selector.number_of_FOV.setValue(3)
     assert len(hcs.FOV_selector.scene.items()) == 5
     items = list(hcs.FOV_selector.scene.items())
@@ -190,6 +195,7 @@ def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     # grid
     hcs.tabwidget.setCurrentIndex(2)
+    assert hcs.FOV_selector.tab_wdg.tabText(2) == "Grid"
     hcs.FOV_selector.rows.setValue(3)
     hcs.FOV_selector.cols.setValue(3)
     hcs.FOV_selector.spacing_x.setValue(500.0)
@@ -209,3 +215,106 @@ def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
     fov_2 = cast(FOVPoints, items[5])
     assert fov_1._getPositionsInfo() == (100.0, 100.0, 160, 160)
     assert fov_2._getPositionsInfo() == (130.24, 100.0, 160, 160)
+
+
+def test_calibration(qtbot: QtBot, global_mmcore: CMMCorePlus):
+
+    mmc = global_mmcore
+    hcs = HCSWidget()
+    qtbot.add_widget(hcs)
+
+    hcs.wp_combo.setCurrentText("standard 96")
+    assert hcs.wp_combo.currentText() == "standard 96"
+    assert len(hcs.scene.items()) == 96
+    assert not [item for item in hcs.scene.items() if item.isSelected()]
+
+    hcs.tabwidget.setCurrentIndex(1)
+    assert hcs.tabwidget.tabText(1) == "Plate Calibration"
+
+    cal = hcs.calibration
+
+    assert cal.cal_lbl.text() == "Plate non Calibrated!"
+
+    assert cal._calibration_combo.currentIndex() == 0
+    assert cal._calibration_combo.currentText() == "1 Well (A1)"
+    text = (
+        "Calibrate Wells: A1\n"
+        "\n"
+        "Add 3 points on the circonference of the round well "
+        "and click on 'Calibrate Plate'."
+    )
+    assert cal.info_lbl.text() == text
+
+    cal._calibration_combo.setCurrentIndex(1)
+    assert cal._calibration_combo.currentText() == "2 Wells (A1,  A12)"
+    text = (
+        "Calibrate Wells: A1,  A12\n"
+        "\n"
+        "Add 3 points on the circonference of the round well "
+        "and click on 'Calibrate Plate'."
+    )
+    assert cal.info_lbl.text() == text
+
+    hcs.wp_combo.setCurrentText("standard 384")
+    assert hcs.wp_combo.currentText() == "standard 384"
+    assert len(hcs.scene.items()) == 384
+    assert not [item for item in hcs.scene.items() if item.isSelected()]
+
+    cal._calibration_combo.setCurrentIndex(1)
+    assert cal._calibration_combo.currentText() == "2 Wells (A1,  A24)"
+
+    text = (
+        "Calibrate Wells: A1,  A24\n"
+        "\n"
+        "Add 2 points (opposite vertices) "
+        "or 4 points (1 point per side) "
+        "and click on 'Calibrate Plate'."
+    )
+    assert cal.info_lbl.text() == text
+
+    hcs.wp_combo.setCurrentText("standard 6")
+    assert hcs.wp_combo.currentText() == "standard 6"
+    assert len(hcs.scene.items()) == 6
+    assert not [item for item in hcs.scene.items() if item.isSelected()]
+
+    assert cal._calibration_combo.currentText() == "1 Well (A1)"
+
+    mmc.setXYPosition(-50.0, 0.0)
+    mmc.waitForDevice(mmc.getXYStageDevice())
+    cal.table_1._add_pos()
+    assert cal.table_1.tb.item(0, 0).text() == "Well A1_pos000"
+    assert cal.table_1.tb.item(0, 1).text() == "-49.995"
+    assert cal.table_1.tb.item(0, 2).text() == "-0.0"
+
+    mmc.setXYPosition(0.0, 50.0)
+    mmc.waitForDevice(mmc.getXYStageDevice())
+    cal.table_1._add_pos()
+    assert cal.table_1.tb.item(1, 0).text() == "Well A1_pos001"
+    assert cal.table_1.tb.item(1, 1).text() == "-0.0"
+    assert cal.table_1.tb.item(1, 2).text() == "49.995"
+
+    error = "Not enough points for Well A1. Add 3 points to the table."
+    with pytest.raises(ValueError, match=error):
+        cal._calibrate_plate()
+
+    mmc.setXYPosition(50.0, 0.0)
+    mmc.waitForDevice(mmc.getXYStageDevice())
+    cal.table_1._add_pos()
+    assert cal.table_1.tb.item(2, 0).text() == "Well A1_pos002"
+    assert cal.table_1.tb.item(2, 1).text() == "49.995"
+    assert cal.table_1.tb.item(2, 2).text() == "-0.0"
+
+    cal.table_1._add_pos()
+    assert cal.table_1.tb.rowCount() == 4
+    error = "Add only 3 points to the table."
+    with pytest.raises(ValueError, match=error):
+        cal._calibrate_plate()
+
+    cal.table_1.tb.removeRow(3)
+    cal._calibrate_plate()
+    assert cal.cal_lbl.text() == "Plate Calibrated!"
+
+    # TODO:
+    # get coords calibration
+    # test square plate
+    # test _from_calibration

@@ -66,7 +66,7 @@ class PlateCalibration(QWidget):
 
         wdg = QWidget()
         mode_layout = QHBoxLayout()
-        mode_layout.setSpacing(0)
+        mode_layout.setSpacing(5)
         wdg.setLayout(mode_layout)
         lbl = QLabel(text="Wells for the calibration:")
         lbl.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
@@ -209,7 +209,7 @@ class PlateCalibration(QWidget):
                 else:
                     well_list.append(f"A{cols}")
                     self._calibration_combo.addItems(
-                        ["1 Well (A1)", f"2 Wells (A1, A{cols})"]
+                        ["1 Well (A1)", f"2 Wells (A1,  A{cols})"]
                     )
 
             elif cols == 1:
@@ -222,7 +222,7 @@ class PlateCalibration(QWidget):
                 self._calibration_combo.addItems(
                     [
                         "1 Well (A1)",
-                        f"2 Wells (A1, A{cols})",
+                        f"2 Wells (A1,  A{cols})",
                     ]
                 )
 
@@ -232,7 +232,7 @@ class PlateCalibration(QWidget):
         n_tables = self._calibration_combo.currentText()[0]
         self._show_hide_tables(int(n_tables), well_list)
 
-        if self._calibration_combo.currentText()[0] == 1:
+        if self._calibration_combo.currentText()[0] == "1":
             wells_to_calibrate = self._calibration_combo.currentText()[8:-1]
         else:
             wells_to_calibrate = self._calibration_combo.currentText()[9:-1]
