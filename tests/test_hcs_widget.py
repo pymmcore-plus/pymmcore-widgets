@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, cast
 
 import pytest
@@ -147,6 +148,7 @@ def test_hcs_fov_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
     hcs.wp_combo.setCurrentText("standard 384")
     assert hcs.wp_combo.currentText() == "standard 384"
     assert len(hcs.scene.items()) == 384
+    time.sleep(2)
     items = list(hcs.FOV_selector.scene.items())
     assert len(items) == 2
     fov, well = items
