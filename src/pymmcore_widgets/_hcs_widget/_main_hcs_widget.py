@@ -70,7 +70,7 @@ class HCSWidget(HCSGui):
             return list(yaml.safe_load(file))
 
     def _on_combo_changed(self, value: str) -> None:
-        # print("_on_combo_changed")
+        print("_on_combo_changed")
         self.scene.clear()
         self._draw_well_plate(value)
         self.calibration._update_gui(value)
@@ -109,7 +109,7 @@ class HCSWidget(HCSGui):
         self._draw_well_plate("_from calibration")
 
     def _draw_well_plate(self, well_plate: str) -> None:
-        # print("_draw_well_plate ->", well_plate)
+        print("_draw_well_plate ->", well_plate)
         self.wp = WellPlate.set_format(well_plate)
 
         max_w = self._width - 10
