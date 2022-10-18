@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
+from unittest.mock import Mock, call
 
 import pytest
 from pymmcore_plus import CMMCorePlus
@@ -381,6 +382,53 @@ def test_calibration_one_well(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not cal.plate_rotation_matrix
 
 
+def test_calibration_one_well_square(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    hcs = HCSWidget()
+    qtbot.add_widget(hcs)
+
+    cal = hcs.calibration
+
+    hcs.tabwidget.setCurrentIndex(1)
+    assert hcs.tabwidget.tabText(1) == "  Plate Calibration  "
+
+    assert cal.cal_lbl.text() == "Plate non Calibrated!"
+
+    hcs.wp_combo.setCurrentText("standard 384")
+    assert hcs.wp_combo.currentText() == "standard 384"
+    assert len(hcs.scene.items()) == 384
+    assert not [item for item in hcs.scene.items() if item.isSelected()]
+
+    assert cal._calibration_combo.currentText() == "1 Well (A1)"
+
+    assert not cal.table_1.isHidden()
+    assert cal.table_2.isHidden()
+
+    cal.table_1.tb.insertRow(0)
+    cal.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
+    cal.table_1.tb.setItem(0, 1, QTableWidgetItem("-50.0"))
+    cal.table_1.tb.setItem(0, 2, QTableWidgetItem("50.0"))
+    assert cal.table_1.tb.rowCount() == 1
+
+    error = "Not enough points for Well A1. Add 2 or 4 points to the table."
+    with pytest.raises(ValueError, match=error):
+        cal._calibrate_plate()
+
+    cal.table_1.tb.insertRow(1)
+    cal.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
+    cal.table_1.tb.setItem(1, 1, QTableWidgetItem("50.0"))
+    cal.table_1.tb.setItem(1, 2, QTableWidgetItem("-50.0"))
+
+    assert cal.table_1.tb.rowCount() == 2
+
+    assert cal._get_well_center(cal.table_1) == (0.0, 0.0)
+
+    cal._calibrate_plate()
+    assert cal.cal_lbl.text() == "Plate Calibrated!"
+
+    assert cal.plate_angle_deg == 0.0
+    assert not cal.plate_rotation_matrix
+
+
 def test_calibration_two_wells(qtbot: QtBot, global_mmcore: CMMCorePlus):
     hcs = HCSWidget()
     qtbot.add_widget(hcs)
@@ -440,7 +488,58 @@ def test_calibration_two_wells(qtbot: QtBot, global_mmcore: CMMCorePlus):
     )
     assert cal.cal_lbl.text() == "Plate Calibrated!"
 
-    # TODO:
-    # test calibration with 2 wells
-    # test square plate
-    # test _from_calibration
+
+def test_calibration_from_calibration(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    hcs = HCSWidget()
+    qtbot.add_widget(hcs)
+
+    cal = hcs.calibration
+
+    hcs.tabwidget.setCurrentIndex(1)
+    assert hcs.tabwidget.tabText(1) == "  Plate Calibration  "
+
+    assert cal.cal_lbl.text() == "Plate non Calibrated!"
+
+    hcs.wp_combo.setCurrentText("_from calibration")
+    assert hcs.wp_combo.currentText() == "_from calibration"
+    assert len(hcs.scene.items()) == 1
+    assert len([item for item in hcs.scene.items() if item.isSelected()]) == 1
+
+    assert cal._calibration_combo.currentText() == "1 Well (A1)"
+    assert (
+        len(
+            [
+                cal._calibration_combo.itemText(i)
+                for i in range(cal._calibration_combo.count())
+            ]
+        )
+        == 1
+    )
+
+    assert not cal.table_1.isHidden()
+    assert cal.table_2.isHidden()
+
+    cal.table_1.tb.setRowCount(2)
+    cal.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
+    cal.table_1.tb.setItem(0, 1, QTableWidgetItem("-50.0"))
+    cal.table_1.tb.setItem(0, 2, QTableWidgetItem("50.0"))
+    cal.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
+    cal.table_1.tb.setItem(1, 1, QTableWidgetItem("50.0"))
+    cal.table_1.tb.setItem(1, 2, QTableWidgetItem("-50.0"))
+    assert cal.table_1.tb.rowCount() == 2
+
+    assert cal._get_well_center(cal.table_1) == (0.0, 0.0)
+
+    mock = Mock()
+    cal.PlateFromCalibration.connect(mock)
+
+    with qtbot.waitSignal(cal.PlateFromCalibration):
+        cal._calibrate_plate()
+
+    pos = cal._get_pos_from_table(cal.table_1)
+    mock.assert_has_calls([call(pos)])
+
+    assert cal.cal_lbl.text() == "Plate Calibrated!"
+
+    assert cal.plate_angle_deg == 0.0
+    assert not cal.plate_rotation_matrix
