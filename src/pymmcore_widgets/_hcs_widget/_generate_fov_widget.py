@@ -366,6 +366,9 @@ class SelectFOV(QWidget):
                 self._scene_size_y,
                 pen,
             )
+            import time
+
+            time.sleep(2.0)
             print("    2     ", self.scene.items())
 
         print("    3     ", self.scene.items())
