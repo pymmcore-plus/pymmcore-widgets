@@ -151,15 +151,6 @@ def test_hcs_fov_selection_center(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert hcs.FOV_selector.tab_wdg.tabText(0) == "Center"
 
     with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
-        hcs.wp_combo.setCurrentText("standard 6")
-    assert len(hcs.scene.items()) == 6
-    items = list(hcs.FOV_selector.scene.items())
-    assert len(items) == 2
-    fov, well = items
-    assert isinstance(fov, FOVPoints)
-    assert isinstance(well, QGraphicsEllipseItem)
-
-    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
         hcs.wp_combo.setCurrentText("standard 384")
     assert len(hcs.scene.items()) == 384
     items = list(hcs.FOV_selector.scene.items())
@@ -167,6 +158,15 @@ def test_hcs_fov_selection_center(qtbot: QtBot, global_mmcore: CMMCorePlus):
     fov, well = items
     assert isinstance(fov, FOVPoints)
     assert isinstance(well, QGraphicsRectItem)
+
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
+    assert len(hcs.scene.items()) == 6
+    items = list(hcs.FOV_selector.scene.items())
+    assert len(items) == 2
+    fov, well = items
+    assert isinstance(fov, FOVPoints)
+    assert isinstance(well, QGraphicsEllipseItem)
 
 
 def test_hcs_fov_selection_random(qtbot: QtBot, global_mmcore: CMMCorePlus):
