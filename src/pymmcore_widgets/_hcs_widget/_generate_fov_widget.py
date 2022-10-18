@@ -344,6 +344,9 @@ class SelectFOV(QWidget):
 
         pen = QPen(Qt.green)
         pen.setWidth(4)
+
+        print("    0     ", self.scene.items())
+
         if self._is_circular:
             print("     adding Ellipse")
             self.scene.addEllipse(
@@ -353,6 +356,7 @@ class SelectFOV(QWidget):
                 self._scene_size_y,
                 pen,
             )
+            print("    1     ", self.scene.items())
         else:
             print("     adding Rectangle")
             self.scene.addRect(
@@ -362,8 +366,9 @@ class SelectFOV(QWidget):
                 self._scene_size_y,
                 pen,
             )
+            print("    2     ", self.scene.items())
 
-        print("         ", self.scene.items()[0])
+        print("    3     ", self.scene.items())
 
         self._set_spinboxes_values(self.plate_area_x, self.plate_area_y)
         self._set_spinboxes_values(self.plate_area_x_c, self.plate_area_y_c)
