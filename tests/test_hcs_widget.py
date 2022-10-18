@@ -31,7 +31,8 @@ def test_hcs_plate_selection(qtbot: QtBot):
     assert hcs.tabwidget.currentIndex() == 0
     assert hcs.tabwidget.tabText(0) == "  Plate and FOVs Selection  "
 
-    hcs.wp_combo.setCurrentText("standard 6")
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
     assert hcs.wp_combo.currentText() == "standard 6"
     assert len(hcs.scene.items()) == 6
     assert not [item for item in hcs.scene.items() if item.isSelected()]
@@ -100,7 +101,8 @@ def test_hcs_fov_selection_FOVPoints_size(qtbot: QtBot, global_mmcore: CMMCorePl
     assert hcs.FOV_selector.tab_wdg.currentIndex() == 0
     assert hcs.FOV_selector.tab_wdg.tabText(0) == "Center"
 
-    hcs.wp_combo.setCurrentText("standard 6")
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
 
     scene_width = hcs.FOV_selector.scene.sceneRect().width()
     scene_height = hcs.FOV_selector.scene.sceneRect().height()
@@ -148,7 +150,8 @@ def test_hcs_fov_selection_center(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert hcs.FOV_selector.tab_wdg.currentIndex() == 0
     assert hcs.FOV_selector.tab_wdg.tabText(0) == "Center"
 
-    hcs.wp_combo.setCurrentText("standard 6")
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
     assert len(hcs.scene.items()) == 6
     items = list(hcs.FOV_selector.scene.items())
     assert len(items) == 2
@@ -156,7 +159,8 @@ def test_hcs_fov_selection_center(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert isinstance(fov, FOVPoints)
     assert isinstance(well, QGraphicsEllipseItem)
 
-    hcs.wp_combo.setCurrentText("standard 384")
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 384")
     assert len(hcs.scene.items()) == 384
     items = list(hcs.FOV_selector.scene.items())
     assert len(items) == 2
@@ -174,7 +178,8 @@ def test_hcs_fov_selection_random(qtbot: QtBot, global_mmcore: CMMCorePlus):
     hcs.tabwidget.setCurrentIndex(1)
     assert hcs.FOV_selector.tab_wdg.tabText(1) == "Random"
 
-    hcs.wp_combo.setCurrentText("standard 6")
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
     assert len(hcs.scene.items()) == 6
 
     hcs.FOV_selector.number_of_FOV.setValue(3)
@@ -229,7 +234,8 @@ def test_hcs_fov_selection_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     hcs.tabwidget.setCurrentIndex(2)
     assert hcs.FOV_selector.tab_wdg.tabText(2) == "Grid"
 
-    hcs.wp_combo.setCurrentText("standard 384")
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 384")
     assert len(hcs.scene.items()) == 384
 
     hcs.FOV_selector.rows.setValue(3)
