@@ -146,11 +146,6 @@ def test_hcs_fov_selection_center(hcs_wdg, qtbot: QtBot):
 
     assert hcs.wp_combo.currentText() == "standard 6"
     assert len(hcs.scene.items()) == 6
-    items = list(hcs.FOV_selector.scene.items())
-    assert len(items) == 2
-    fov, well = items
-    assert isinstance(fov, FOVPoints)
-    assert isinstance(well, QGraphicsEllipseItem)
 
     with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
         hcs.wp_combo.setCurrentText("standard 384")
