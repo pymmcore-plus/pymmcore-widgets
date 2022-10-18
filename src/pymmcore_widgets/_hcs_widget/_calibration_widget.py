@@ -154,7 +154,7 @@ class PlateCalibration(QWidget):
             return
         self._update_gui(self.plate.get("id"), from_combo=text)
 
-        # # only to test
+        # only to test
         # self.table_1.tb.setRowCount(3)
         # self.table_2.tb.setRowCount(3)
         # # a1

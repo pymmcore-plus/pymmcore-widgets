@@ -4,12 +4,10 @@ from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, call
 
 import pytest
-from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem, QTableWidgetItem
 
 from pymmcore_widgets._hcs_widget._graphics_items import FOVPoints, Well, WellArea
-from pymmcore_widgets._hcs_widget._main_hcs_widget import HCSWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -25,15 +23,12 @@ def _get_image_size(mmc):
     return _image_size_mm_x, _image_size_mm_y
 
 
-def test_hcs_plate_selection(qtbot: QtBot):
-    hcs = HCSWidget()
-    qtbot.add_widget(hcs)
+def test_hcs_plate_selection(hcs_wdg, qtbot: QtBot):
+    hcs, _, _ = hcs_wdg
 
     assert hcs.tabwidget.currentIndex() == 0
     assert hcs.tabwidget.tabText(0) == "  Plate and FOVs Selection  "
 
-    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
-        hcs.wp_combo.setCurrentText("standard 6")
     assert hcs.wp_combo.currentText() == "standard 6"
     assert len(hcs.scene.items()) == 6
     assert not [item for item in hcs.scene.items() if item.isSelected()]
@@ -92,18 +87,16 @@ def test_hcs_plate_selection(qtbot: QtBot):
     hcs.plate.close()
 
 
-def test_hcs_fov_selection_FOVPoints_size(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    mmc = global_mmcore
-    hcs = HCSWidget()
-    qtbot.add_widget(hcs)
+def test_hcs_fov_selection_FOVPoints_size(hcs_wdg, qtbot: QtBot):
+    hcs, mmc, _ = hcs_wdg
 
     assert hcs.tabwidget.currentIndex() == 0
     assert hcs.tabwidget.tabText(0) == "  Plate and FOVs Selection  "
     assert hcs.FOV_selector.tab_wdg.currentIndex() == 0
     assert hcs.FOV_selector.tab_wdg.tabText(0) == "Center"
 
-    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
-        hcs.wp_combo.setCurrentText("standard 6")
+    assert hcs.wp_combo.currentText() == "standard 6"
+    assert len(hcs.scene.items()) == 6
 
     scene_width = hcs.FOV_selector.scene.sceneRect().width()
     scene_height = hcs.FOV_selector.scene.sceneRect().height()
@@ -142,14 +135,21 @@ def test_hcs_fov_selection_FOVPoints_size(qtbot: QtBot, global_mmcore: CMMCorePl
     assert fov._x_size == fov._y_size == 1.1770114942528738
 
 
-def test_hcs_fov_selection_center(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    hcs = HCSWidget()
-    qtbot.add_widget(hcs)
+def test_hcs_fov_selection_center(hcs_wdg, qtbot: QtBot):
+    hcs, _, _ = hcs_wdg
 
     assert hcs.tabwidget.currentIndex() == 0
     assert hcs.tabwidget.tabText(0) == "  Plate and FOVs Selection  "
     assert hcs.FOV_selector.tab_wdg.currentIndex() == 0
     assert hcs.FOV_selector.tab_wdg.tabText(0) == "Center"
+
+    assert hcs.wp_combo.currentText() == "standard 6"
+    assert len(hcs.scene.items()) == 6
+    items = list(hcs.FOV_selector.scene.items())
+    assert len(items) == 2
+    fov, well = items
+    assert isinstance(fov, FOVPoints)
+    assert isinstance(well, QGraphicsEllipseItem)
 
     with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
         hcs.wp_combo.setCurrentText("standard 384")
@@ -160,27 +160,16 @@ def test_hcs_fov_selection_center(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert isinstance(fov, FOVPoints)
     assert isinstance(well, QGraphicsRectItem)
 
-    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
-        hcs.wp_combo.setCurrentText("standard 6")
-    assert len(hcs.scene.items()) == 6
-    items = list(hcs.FOV_selector.scene.items())
-    assert len(items) == 2
-    fov, well = items
-    assert isinstance(fov, FOVPoints)
-    assert isinstance(well, QGraphicsEllipseItem)
 
-
-def test_hcs_fov_selection_random(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    hcs = HCSWidget()
-    qtbot.add_widget(hcs)
+def test_hcs_fov_selection_random(hcs_wdg, qtbot: QtBot):
+    hcs, _, _ = hcs_wdg
 
     assert hcs.tabwidget.currentIndex() == 0
     assert hcs.tabwidget.tabText(0) == "  Plate and FOVs Selection  "
     hcs.tabwidget.setCurrentIndex(1)
     assert hcs.FOV_selector.tab_wdg.tabText(1) == "Random"
 
-    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
-        hcs.wp_combo.setCurrentText("standard 6")
+    assert hcs.wp_combo.currentText() == "standard 6"
     assert len(hcs.scene.items()) == 6
 
     hcs.FOV_selector.number_of_FOV.setValue(3)
@@ -225,10 +214,8 @@ def test_hcs_fov_selection_random(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert fov_1._y != fov_2._y
 
 
-def test_hcs_fov_selection_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    mmc = global_mmcore
-    hcs = HCSWidget()
-    qtbot.add_widget(hcs)
+def test_hcs_fov_selection_grid(hcs_wdg, qtbot: QtBot):
+    hcs, mmc, _ = hcs_wdg
 
     assert hcs.tabwidget.currentIndex() == 0
     assert hcs.tabwidget.tabText(0) == "  Plate and FOVs Selection  "
@@ -263,10 +250,8 @@ def test_hcs_fov_selection_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert (round(cx, 2), round(cy, 2), w, h) == (140.48, 100.00, 160, 160)
 
 
-def test_calibration_label(qtbot: QtBot, global_mmcore: CMMCorePlus):
-
-    hcs = HCSWidget()
-    qtbot.add_widget(hcs)
+def test_calibration_label(hcs_wdg, qtbot: QtBot):
+    hcs, _, cal = hcs_wdg
 
     hcs.wp_combo.setCurrentText("standard 96")
     assert hcs.wp_combo.currentText() == "standard 96"
@@ -275,8 +260,6 @@ def test_calibration_label(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     hcs.tabwidget.setCurrentIndex(1)
     assert hcs.tabwidget.tabText(1) == "  Plate Calibration  "
-
-    cal = hcs.calibration
 
     assert cal.cal_lbl.text() == "Plate non Calibrated!"
 
@@ -318,19 +301,14 @@ def test_calibration_label(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert cal.info_lbl.text() == text
 
 
-def test_calibration_one_well(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    mmc = global_mmcore
-    hcs = HCSWidget()
-    qtbot.add_widget(hcs)
-
-    cal = hcs.calibration
+def test_calibration_one_well(hcs_wdg, qtbot: QtBot):
+    hcs, mmc, cal = hcs_wdg
 
     hcs.tabwidget.setCurrentIndex(1)
     assert hcs.tabwidget.tabText(1) == "  Plate Calibration  "
 
     assert cal.cal_lbl.text() == "Plate non Calibrated!"
 
-    hcs.wp_combo.setCurrentText("standard 6")
     assert hcs.wp_combo.currentText() == "standard 6"
     assert len(hcs.scene.items()) == 6
     assert not [item for item in hcs.scene.items() if item.isSelected()]
@@ -382,11 +360,8 @@ def test_calibration_one_well(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not cal.plate_rotation_matrix
 
 
-def test_calibration_one_well_square(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    hcs = HCSWidget()
-    qtbot.add_widget(hcs)
-
-    cal = hcs.calibration
+def test_calibration_one_well_square(hcs_wdg, qtbot: QtBot):
+    hcs, _, cal = hcs_wdg
 
     hcs.tabwidget.setCurrentIndex(1)
     assert hcs.tabwidget.tabText(1) == "  Plate Calibration  "
@@ -429,18 +404,14 @@ def test_calibration_one_well_square(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not cal.plate_rotation_matrix
 
 
-def test_calibration_two_wells(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    hcs = HCSWidget()
-    qtbot.add_widget(hcs)
-
-    cal = hcs.calibration
+def test_calibration_two_wells(hcs_wdg, qtbot: QtBot):
+    hcs, _, cal = hcs_wdg
 
     hcs.tabwidget.setCurrentIndex(1)
     assert hcs.tabwidget.tabText(1) == "  Plate Calibration  "
 
     assert cal.cal_lbl.text() == "Plate non Calibrated!"
 
-    hcs.wp_combo.setCurrentText("standard 6")
     assert hcs.wp_combo.currentText() == "standard 6"
     assert len(hcs.scene.items()) == 6
     assert not [item for item in hcs.scene.items() if item.isSelected()]
@@ -489,11 +460,8 @@ def test_calibration_two_wells(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert cal.cal_lbl.text() == "Plate Calibrated!"
 
 
-def test_calibration_from_calibration(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    hcs = HCSWidget()
-    qtbot.add_widget(hcs)
-
-    cal = hcs.calibration
+def test_calibration_from_calibration(hcs_wdg, qtbot: QtBot):
+    hcs, _, cal = hcs_wdg
 
     hcs.tabwidget.setCurrentIndex(1)
     assert hcs.tabwidget.tabText(1) == "  Plate Calibration  "
@@ -543,3 +511,117 @@ def test_calibration_from_calibration(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     assert cal.plate_angle_deg == 0.0
     assert not cal.plate_rotation_matrix
+
+
+def test_generate_pos_list(hcs_wdg, qtbot: QtBot):
+    hcs, _, cal = hcs_wdg
+    pos_table = hcs.ch_and_pos_list.stage_tableWidget
+
+    hcs.wp_combo.setCurrentText("standard 384")
+    assert hcs.wp_combo.currentText() == "standard 384"
+    assert len(hcs.scene.items()) == 384
+
+    wells = []
+    for item in reversed(hcs.scene.items()):
+        assert isinstance(item, Well)
+        well, row, col = item._getPos()
+        if col in {0, 1} and row in {0, 1}:
+            item.setSelected(True)
+            wells.append(well)
+    assert len([item for item in hcs.scene.items() if item.isSelected()]) == 4
+    assert wells == ["A1", "A2", "B1", "B2"]
+
+    assert cal._calibration_combo.currentText() == "1 Well (A1)"
+
+    cal.table_1.tb.setRowCount(2)
+    cal.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
+    cal.table_1.tb.setItem(0, 1, QTableWidgetItem("-50.0"))
+    cal.table_1.tb.setItem(0, 2, QTableWidgetItem("50.0"))
+    cal.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
+    cal.table_1.tb.setItem(1, 1, QTableWidgetItem("50.0"))
+    cal.table_1.tb.setItem(1, 2, QTableWidgetItem("-50.0"))
+
+    cal._calibrate_plate()
+    assert cal.cal_lbl.text() == "Plate Calibrated!"
+
+    assert hcs.ch_and_pos_list.z_combo.currentText() == "Z"
+    assert not pos_table.rowCount()
+
+    # center
+    assert hcs.FOV_selector.tab_wdg.currentIndex() == 0
+    assert hcs.FOV_selector.tab_wdg.tabText(0) == "Center"
+
+    hcs._generate_pos_list()
+    assert pos_table.rowCount() == 4
+
+    table_info = []
+    for r in range(pos_table.rowCount()):
+        well_name = pos_table.item(r, 0).text()
+        _x = pos_table.item(r, 1).text()
+        _y = pos_table.item(r, 2).text()
+        _z = pos_table.item(r, 3).text()
+        table_info.append((well_name, _x, _y, _z))
+
+    assert table_info == [
+        ("A1_pos000", "0.0", "0.0", "0.0"),
+        ("A2_pos000", "4500.0", "0.0", "0.0"),
+        ("B2_pos000", "4500.0", "-4500.0", "0.0"),
+        ("B1_pos000", "0.0", "-4500.0", "0.0"),
+    ]
+
+    # random
+    hcs.tabwidget.setCurrentIndex(1)
+    assert hcs.FOV_selector.tab_wdg.tabText(1) == "Random"
+    hcs.FOV_selector.number_of_FOV.setValue(2)
+
+    hcs._generate_pos_list()
+    assert pos_table.rowCount() == 8
+
+    table_info = []
+    for r in range(pos_table.rowCount()):
+        well_name = pos_table.item(r, 0).text()
+        table_info.append(well_name)
+
+    assert table_info == [
+        "A1_pos000",
+        "A1_pos001",
+        "A2_pos000",
+        "A2_pos001",
+        "B2_pos000",
+        "B2_pos001",
+        "B1_pos000",
+        "B1_pos001",
+    ]
+
+    # grid
+    hcs.tabwidget.setCurrentIndex(2)
+    assert hcs.FOV_selector.tab_wdg.tabText(2) == "Grid"
+    hcs.FOV_selector.rows.setValue(2)
+    hcs.FOV_selector.cols.setValue(2)
+
+    hcs._generate_pos_list()
+    assert pos_table.rowCount() == 16
+
+    table_info = []
+    for r in range(pos_table.rowCount()):
+        well_name = pos_table.item(r, 0).text()
+        table_info.append(well_name)
+
+    assert table_info == [
+        "A1_pos000",
+        "A1_pos001",
+        "A1_pos002",
+        "A1_pos003",
+        "A2_pos000",
+        "A2_pos001",
+        "A2_pos002",
+        "A2_pos003",
+        "B2_pos000",
+        "B2_pos001",
+        "B2_pos002",
+        "B2_pos003",
+        "B1_pos000",
+        "B1_pos001",
+        "B1_pos002",
+        "B1_pos003",
+    ]
