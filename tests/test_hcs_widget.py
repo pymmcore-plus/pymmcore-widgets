@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem
+from qtpy.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem, QTableWidgetItem
 
 from pymmcore_widgets._hcs_widget._graphics_items import FOVPoints, Well, WellArea
 from pymmcore_widgets._hcs_widget._main_hcs_widget import HCSWidget
@@ -317,8 +317,7 @@ def test_calibration_label(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert cal.info_lbl.text() == text
 
 
-def test_calibration_1_well(qtbot: QtBot, global_mmcore: CMMCorePlus):
-
+def test_calibration_one_well(qtbot: QtBot, global_mmcore: CMMCorePlus):
     mmc = global_mmcore
     hcs = HCSWidget()
     qtbot.add_widget(hcs)
@@ -336,6 +335,9 @@ def test_calibration_1_well(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not [item for item in hcs.scene.items() if item.isSelected()]
 
     assert cal._calibration_combo.currentText() == "1 Well (A1)"
+
+    assert not cal.table_1.isHidden()
+    assert cal.table_2.isHidden()
 
     mmc.setXYPosition(-50.0, 0.0)
     mmc.waitForDevice(mmc.getXYStageDevice())
@@ -375,10 +377,70 @@ def test_calibration_1_well(qtbot: QtBot, global_mmcore: CMMCorePlus):
     cal._calibrate_plate()
     assert cal.cal_lbl.text() == "Plate Calibrated!"
 
+    assert cal.plate_angle_deg == 0.0
     assert not cal.plate_rotation_matrix
 
+
+def test_calibration_two_wells(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    hcs = HCSWidget()
+    qtbot.add_widget(hcs)
+
+    cal = hcs.calibration
+
+    hcs.tabwidget.setCurrentIndex(1)
+    assert hcs.tabwidget.tabText(1) == "  Plate Calibration  "
+
+    assert cal.cal_lbl.text() == "Plate non Calibrated!"
+
+    hcs.wp_combo.setCurrentText("standard 6")
+    assert hcs.wp_combo.currentText() == "standard 6"
+    assert len(hcs.scene.items()) == 6
+    assert not [item for item in hcs.scene.items() if item.isSelected()]
+
+    cal._calibration_combo.setCurrentText("2 Wells (A1,  A3)")
+
+    assert not cal.table_1.isHidden()
+    assert not cal.table_2.isHidden()
+
+    cal.table_1.tb.setRowCount(3)
+    cal.table_2.tb.setRowCount(3)
+    # A1
+    cal.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
+    cal.table_1.tb.setItem(0, 1, QTableWidgetItem("-50"))
+    cal.table_1.tb.setItem(0, 2, QTableWidgetItem("0"))
+    cal.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
+    cal.table_1.tb.setItem(1, 1, QTableWidgetItem("0"))
+    cal.table_1.tb.setItem(1, 2, QTableWidgetItem("50"))
+    cal.table_1.tb.setItem(2, 0, QTableWidgetItem("Well A1_pos002"))
+    cal.table_1.tb.setItem(2, 1, QTableWidgetItem("50"))
+    cal.table_1.tb.setItem(2, 2, QTableWidgetItem("0"))
+    # A3
+    cal.table_2.tb.setItem(0, 0, QTableWidgetItem("Well A3_pos000"))
+    cal.table_2.tb.setItem(0, 1, QTableWidgetItem("1364.213562373095"))
+    cal.table_2.tb.setItem(0, 2, QTableWidgetItem("1414.2135623730949"))
+    cal.table_2.tb.setItem(1, 0, QTableWidgetItem("Well A3_pos001"))
+    cal.table_2.tb.setItem(1, 1, QTableWidgetItem("1414.213562373095"))
+    cal.table_2.tb.setItem(1, 2, QTableWidgetItem("1364.2135623730949"))
+    cal.table_2.tb.setItem(2, 0, QTableWidgetItem("Well A3_pos002"))
+    cal.table_2.tb.setItem(2, 1, QTableWidgetItem("1464.213562373095"))
+    cal.table_2.tb.setItem(2, 2, QTableWidgetItem("1414.2135623730949"))
+
+    assert cal.table_1.tb.rowCount() == 3
+    assert cal.table_2.tb.rowCount() == 3
+
+    assert cal._get_well_center(cal.table_1) == (0.0, 0.0)
+    assert cal._get_well_center(cal.table_2) == (1414.0, 1414.0)
+
+    cal._calibrate_plate()
+
+    assert cal.plate_angle_deg == -45.0
+    assert (
+        str(cal.plate_rotation_matrix)
+        == "[[ 0.70710678  0.70710678]\n [-0.70710678  0.70710678]]"
+    )
+    assert cal.cal_lbl.text() == "Plate Calibrated!"
+
     # TODO:
-    # get coords calibration
     # test calibration with 2 wells
     # test square plate
     # test _from_calibration

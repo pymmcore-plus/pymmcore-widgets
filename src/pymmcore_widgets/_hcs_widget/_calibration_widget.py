@@ -49,6 +49,7 @@ class PlateCalibration(QWidget):
         self.plate = None
         self.A1_well: Tuple[str, float, float] = ()  # type: ignore
         self.plate_rotation_matrix: np.ndarray = None  # type: ignore
+        self.plate_angle_deg: float = 0.0
         self.is_calibrated = False
 
         self._create_gui()
@@ -153,29 +154,29 @@ class PlateCalibration(QWidget):
             return
         self._update_gui(self.plate.get("id"), from_combo=text)
 
-        # only to test
-        self.table_1.tb.setRowCount(3)
-        self.table_2.tb.setRowCount(3)
-        # a1
-        self.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
-        self.table_1.tb.setItem(0, 1, QTableWidgetItem("-50"))
-        self.table_1.tb.setItem(0, 2, QTableWidgetItem("0"))
-        self.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
-        self.table_1.tb.setItem(1, 1, QTableWidgetItem("0"))
-        self.table_1.tb.setItem(1, 2, QTableWidgetItem("50"))
-        self.table_1.tb.setItem(2, 0, QTableWidgetItem("Well A1_pos002"))
-        self.table_1.tb.setItem(2, 1, QTableWidgetItem("50"))
-        self.table_1.tb.setItem(2, 2, QTableWidgetItem("0"))
-        # an
-        self.table_2.tb.setItem(0, 0, QTableWidgetItem("Well A3_pos000"))
-        self.table_2.tb.setItem(0, 1, QTableWidgetItem("1364.213562373095"))
-        self.table_2.tb.setItem(0, 2, QTableWidgetItem("1414.2135623730949"))
-        self.table_2.tb.setItem(1, 0, QTableWidgetItem("Well A3_pos001"))
-        self.table_2.tb.setItem(1, 1, QTableWidgetItem("1414.213562373095"))
-        self.table_2.tb.setItem(1, 2, QTableWidgetItem("1364.2135623730949"))
-        self.table_2.tb.setItem(2, 0, QTableWidgetItem("Well A3_pos002"))
-        self.table_2.tb.setItem(2, 1, QTableWidgetItem("1464.213562373095"))
-        self.table_2.tb.setItem(2, 2, QTableWidgetItem("1414.2135623730949"))
+        # # only to test
+        # self.table_1.tb.setRowCount(3)
+        # self.table_2.tb.setRowCount(3)
+        # # a1
+        # self.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
+        # self.table_1.tb.setItem(0, 1, QTableWidgetItem("-50"))
+        # self.table_1.tb.setItem(0, 2, QTableWidgetItem("0"))
+        # self.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
+        # self.table_1.tb.setItem(1, 1, QTableWidgetItem("0"))
+        # self.table_1.tb.setItem(1, 2, QTableWidgetItem("50"))
+        # self.table_1.tb.setItem(2, 0, QTableWidgetItem("Well A1_pos002"))
+        # self.table_1.tb.setItem(2, 1, QTableWidgetItem("50"))
+        # self.table_1.tb.setItem(2, 2, QTableWidgetItem("0"))
+        # # an
+        # self.table_2.tb.setItem(0, 0, QTableWidgetItem("Well A3_pos000"))
+        # self.table_2.tb.setItem(0, 1, QTableWidgetItem("1364.213562373095"))
+        # self.table_2.tb.setItem(0, 2, QTableWidgetItem("1414.2135623730949"))
+        # self.table_2.tb.setItem(1, 0, QTableWidgetItem("Well A3_pos001"))
+        # self.table_2.tb.setItem(1, 1, QTableWidgetItem("1414.213562373095"))
+        # self.table_2.tb.setItem(1, 2, QTableWidgetItem("1364.2135623730949"))
+        # self.table_2.tb.setItem(2, 0, QTableWidgetItem("Well A3_pos002"))
+        # self.table_2.tb.setItem(2, 1, QTableWidgetItem("1464.213562373095"))
+        # self.table_2.tb.setItem(2, 2, QTableWidgetItem("1414.2135623730949"))
 
     def _update_gui(self, plate: str, from_combo: str = "") -> None:
 
@@ -265,6 +266,7 @@ class PlateCalibration(QWidget):
             self.is_calibrated = False
             self.A1_well = ()  # type: ignore
             self.plate_rotation_matrix = None  # type: ignore
+            self.plate_angle_deg = 0.0
             self.icon_lbl.setPixmap(
                 icon(MDI6.close_octagon_outline, color="magenta").pixmap(QSize(30, 30))
             )
@@ -369,12 +371,12 @@ class PlateCalibration(QWidget):
             return
 
         self.table_1._handle_error(circular_well=self.plate.get("circular"))
-        if self.table_2.isVisible():
+        if not self.table_2.isHidden():
             self.table_2._handle_error(circular_well=self.plate.get("circular"))
 
         xc_w1, yc_w1 = self._get_well_center(self.table_1)
         xy_coords = [(xc_w1, yc_w1)]
-        if self.table_2.isVisible():
+        if not self.table_2.isHidden():
             xc_w2, yc_w2 = self._get_well_center(self.table_2)
             xy_coords.append((xc_w2, yc_w2))
 
@@ -395,6 +397,7 @@ class PlateCalibration(QWidget):
 
             m = (y_2 - y_1) / (x_2 - x_1)  # slope from y = mx + q
             plate_angle_rad = -np.arctan(m)
+            self.plate_angle_deg = np.rad2deg(plate_angle_rad)
             self.plate_rotation_matrix = np.array(
                 [
                     [np.cos(plate_angle_rad), -np.sin(plate_angle_rad)],
@@ -402,8 +405,8 @@ class PlateCalibration(QWidget):
                 ]
             )
 
-            logger.info(f"plate angle: {np.rad2deg(plate_angle_rad)} deg.")
-            logger.info(f"rotation matrix: {self.plate_rotation_matrix}.")
+            logger.info(f"plate angle: {self.plate_angle_deg} deg.")
+            logger.info(f"rotation matrix: \n{self.plate_rotation_matrix}.")
 
     def _get_pos_from_table(self, table: QTableWidget) -> Tuple[Tuple[float, float]]:
         pos = ()

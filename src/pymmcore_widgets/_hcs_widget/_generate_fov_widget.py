@@ -316,7 +316,6 @@ class SelectFOV(QWidget):
         self._reset_grid_scene()
 
     def _load_plate_info(self, size_x: float, size_y: float, is_circular: bool) -> None:
-        print("_load_plate_info", "circuler:", is_circular)
         self.scene.clear()
 
         self._plate_size_x = round(size_x, 3)
@@ -345,10 +344,7 @@ class SelectFOV(QWidget):
         pen = QPen(Qt.green)
         pen.setWidth(4)
 
-        print("    0     ", self.scene.items())
-
         if self._is_circular:
-            print("     adding Ellipse")
             self.scene.addEllipse(
                 self._scene_start_x,
                 self._scene_start_y,
@@ -356,9 +352,7 @@ class SelectFOV(QWidget):
                 self._scene_size_y,
                 pen,
             )
-            print("    1     ", self.scene.items())
         else:
-            print("     adding Rectangle")
             self.scene.addRect(
                 self._scene_start_x,
                 self._scene_start_y,
@@ -366,9 +360,6 @@ class SelectFOV(QWidget):
                 self._scene_size_y,
                 pen,
             )
-            print("    2     ", self.scene.items())
-
-        print("    3     ", self.scene.items())
 
         self._set_spinboxes_values(self.plate_area_x, self.plate_area_y)
         self._set_spinboxes_values(self.plate_area_x_c, self.plate_area_y_c)
