@@ -183,8 +183,12 @@ class PixelSizeTable(QtW.QTableWidget):
         w = self.sender().parent()
         row = self.indexAt(w.pos()).row()
         resId_edit = cast("QtW.QLineEdit", self.cellWidget(row, RESOLUTION_ID))
+        img_px_edit = cast("QtW.QLineEdit", self.cellWidget(row, IMAGE_PX_SIZE))
         if resId_edit.text() in self._mmc.getAvailablePixelSizeConfigs():
             self._mmc.deletePixelSizeConfig(resId_edit.text())
+        resId_edit.setText("None")
+        img_px_edit.setText("0.0000")
+        self._update_status()
 
 
 class PixelSizeWidget(QtW.QDialog):
@@ -207,7 +211,7 @@ class PixelSizeWidget(QtW.QDialog):
         self._rebuild()
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
-        self._mmc.events.pixelSizeChanged.connect(self._rebuild)
+        self._mmc.events.pixelSizeChanged.connect(self._on_px_set)
 
     def _create_wdg(self) -> None:
         main_layout = QtW.QVBoxLayout()
@@ -273,6 +277,26 @@ class PixelSizeWidget(QtW.QDialog):
 
     def _on_sys_cfg_loaded(self) -> None:
         self.objective_device = guess_objective_or_prompt(parent=self)
+        self._rebuild()
+
+    def _on_px_set(self, value: float) -> None:
+
+        rows = []
+        for cfg in self._mmc.getAvailablePixelSizeConfigs():
+            if value == self._mmc.getPixelSizeUmByID(cfg):
+                for r in range(self.table.rowCount()):
+                    resID = self.table.cellWidget(r, RESOLUTION_ID).text()
+                    if resID == cfg:
+                        rows.append(r)
+                        break
+
+        for row in rows:
+            self.table.cellWidget(row, IMAGE_PX_SIZE).setText(f"{value:.4f}")
+            camera_px_size = self.table.cellWidget(row, CAMERA_PX_SIZE)
+            if value:
+                _mag = self._calculate_magnification(camera_px_size.text(), str(value))
+                self.table.cellWidget(row, MAGNIFICATION).setText(f"{_mag:.1f}")
+
         self._rebuild()
 
     def _rebuild(self, value: float = 0.0) -> None:
@@ -374,6 +398,7 @@ class PixelSizeWidget(QtW.QDialog):
         sender = self.sender()
         row = self.table.indexAt(sender.pos()).row()
         wdg = cast(QtW.QLineEdit, self.table.cellWidget(row, RESOLUTION_ID))
+        wdg.focusNextChild()
         value = wdg.text()
 
         if value in self._mmc.getAvailablePixelSizeConfigs():
@@ -415,7 +440,9 @@ class PixelSizeWidget(QtW.QDialog):
     def _on_camera_px_size_changed(self) -> None:
         sender = self.sender()
         row = self.table.indexAt(sender.pos()).row()
-        value = self.table.cellWidget(row, CAMERA_PX_SIZE).text()
+        wdg = self.table.cellWidget(row, CAMERA_PX_SIZE)
+        wdg.focusNextChild()
+        value = wdg.text()
 
         for r in range(self.table.rowCount()):
             self.table.cellWidget(r, CAMERA_PX_SIZE).setText(f"{float(value):.2f}")
@@ -436,7 +463,9 @@ class PixelSizeWidget(QtW.QDialog):
     def _on_magnification_changed(self) -> None:
         sender = self.sender()
         row = self.table.indexAt(sender.pos()).row()
-        value = self.table.cellWidget(row, MAGNIFICATION).text()
+        wdg = self.table.cellWidget(row, MAGNIFICATION)
+        wdg.focusNextChild()
+        value = wdg.text()
         camera_px_size = self.table.cellWidget(row, CAMERA_PX_SIZE)
 
         if self._is_read_only(IMAGE_PX_SIZE):
@@ -449,6 +478,8 @@ class PixelSizeWidget(QtW.QDialog):
         sender = self.sender()
         row = self.table.indexAt(sender.pos()).row()
         value = self.table.cellWidget(row, IMAGE_PX_SIZE).text()
+        wdg = self.table.cellWidget(row, RESOLUTION_ID)
+        wdg.setFocus()
         camera_px_size = self.table.cellWidget(row, CAMERA_PX_SIZE)
 
         if self._is_read_only(MAGNIFICATION):
@@ -467,7 +498,7 @@ class PixelSizeWidget(QtW.QDialog):
             self._mmc.definePixelSizeConfig(
                 resolutionID, self.objective_device, "Label", obj_label  # type: ignore # noqa: E501
             )
-        self._mmc.setPixelSizeUm(resolutionID, px_size_um)
+            self._mmc.setPixelSizeUm(resolutionID, px_size_um)
 
         if "None" in self._mmc.getAvailablePixelSizeConfigs():
             with block_core(self._mmc.events):

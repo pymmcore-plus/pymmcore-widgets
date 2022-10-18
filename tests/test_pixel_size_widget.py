@@ -2,10 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QLineEdit
-
-from pymmcore_widgets._pixel_size_widget import PixelSizeWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -28,16 +25,11 @@ def _get_wdg(table):
     return obj, resID, mag, cam_px, img_px
 
 
-def test_pixel_size_table(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    mmc = global_mmcore
-
-    px_size_wdg = PixelSizeWidget()
-    table = px_size_wdg.table
-    obj = px_size_wdg.objective_device
-    qtbot.addWidget(px_size_wdg)
+def test_pixel_size_table(px_wdg):
+    px_size_wdg, table, obj, mmc = px_wdg
 
     assert ["Res10x", "Res20x", "Res40x"] == list(mmc.getAvailablePixelSizeConfigs())
-    assert px_size_wdg.table.rowCount() == len(mmc.getStateLabels(obj))
+    assert table.rowCount() == len(mmc.getStateLabels(obj))
 
     assert not px_size_wdg.mag_radiobtn.isChecked()
     assert px_size_wdg.img_px_radiobtn.isChecked()
@@ -61,16 +53,13 @@ def test_pixel_size_table(qtbot: QtBot, global_mmcore: CMMCorePlus):
         assert _cam_px == "10.00"
 
 
-def test_change_magnification(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    mmc = global_mmcore
-    px_size_wdg = PixelSizeWidget()
-    table = px_size_wdg.table
-    qtbot.addWidget(px_size_wdg)
+def test_change_magnification(qtbot: QtBot, px_wdg):
+    _, table, _, mmc = px_wdg
 
     _, _, mag, cam_px, img_px = _get_wdg(table)
 
     mag.setText("50.0")
-    with qtbot.waitSignals([mag.editingFinished, mmc.events.pixelSizeChanged]):
+    with qtbot.waitSignal(mag.editingFinished):
         mag.editingFinished.emit()
     _, _, _, cam_px, img_px = _get_wdg(table)
     assert cam_px.text() == "10.00"
@@ -79,11 +68,8 @@ def test_change_magnification(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert mmc.getPixelSizeUmByID("Res40x") == 10 / 50
 
 
-def test_change_cam_pixel_size(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    mmc = global_mmcore
-    px_size_wdg = PixelSizeWidget()
-    table = px_size_wdg.table
-    qtbot.addWidget(px_size_wdg)
+def test_change_cam_pixel_size(qtbot: QtBot, px_wdg):
+    _, table, _, mmc = px_wdg
 
     _, _, mag, cam_px, img_px = _get_wdg(table)
 
@@ -99,11 +85,8 @@ def test_change_cam_pixel_size(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert table.cellWidget(ROW + 1, CAMERA_PX_SIZE).text() == "6.00"
 
 
-def test_change_img_pixel_size(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    mmc = global_mmcore
-    px_size_wdg = PixelSizeWidget()
-    table = px_size_wdg.table
-    qtbot.addWidget(px_size_wdg)
+def test_change_img_pixel_size(qtbot: QtBot, px_wdg):
+    px_size_wdg, table, _, mmc = px_wdg
 
     _, _, mag, cam_px, img_px = _get_wdg(table)
 
@@ -111,7 +94,7 @@ def test_change_img_pixel_size(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert px_size_wdg.mag_radiobtn.isChecked()
     assert not px_size_wdg.img_px_radiobtn.isChecked()
     img_px.setText("1.0000")
-    with qtbot.waitSignals([img_px.editingFinished, mmc.events.pixelSizeChanged]):
+    with qtbot.waitSignal(img_px.editingFinished):
         img_px.editingFinished.emit()
         assert img_px.styleSheet() == ""
     _, _, mag, cam_px, img_px = _get_wdg(table)
@@ -126,11 +109,35 @@ def test_change_img_pixel_size(qtbot: QtBot, global_mmcore: CMMCorePlus):
         assert _cam_px == "10.00"
 
 
-def test_delete_button(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    mmc = global_mmcore
-    px_size_wdg = PixelSizeWidget()
-    table = px_size_wdg.table
-    qtbot.addWidget(px_size_wdg)
+def test_ResolutionID(qtbot: QtBot, px_wdg):
+    px_size_wdg, table, _, mmc = px_wdg
+
+    px_size_wdg.img_px_radiobtn.setChecked(True)
+    assert not px_size_wdg.mag_radiobtn.isChecked()
+    assert px_size_wdg.img_px_radiobtn.isChecked()
+    _, resID, _, _, _ = _get_wdg(table)
+    assert resID.property("resID") == "Res40x"
+    assert resID.text() in mmc.getAvailablePixelSizeConfigs()
+    resID.setText("new_Res40x")
+    with qtbot.waitSignal(resID.editingFinished):
+        resID.editingFinished.emit()
+    _, resID, mag, cam_px, img_px = _get_wdg(table)
+    assert resID.text() == "new_Res40x"
+    assert resID.property("resID") == "new_Res40x"
+    assert mag.text() == "40.0"
+    assert cam_px.text() == "10.00"
+    assert img_px.text() == "0.2500"
+    assert "Res40x" not in mmc.getAvailablePixelSizeConfigs()
+    assert "new_Res40x" in mmc.getAvailablePixelSizeConfigs()
+    assert mmc.getPixelSizeUmByID("new_Res40x") == 0.25
+    assert resID.graphicsEffect().opacity() == 1.00
+    assert mag.graphicsEffect().opacity() == 1.00
+    assert cam_px.graphicsEffect().opacity() == 1.00
+    assert img_px.graphicsEffect().opacity() == 1.00
+
+
+def test_delete_button(qtbot: QtBot, px_wdg):
+    _, table, _, mmc = px_wdg
 
     del_btn = table.cellWidget(ROW, 5).children()[-1]
     with qtbot.waitSignal(mmc.events.pixelSizeChanged):
@@ -147,43 +154,8 @@ def test_delete_button(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert img_px.graphicsEffect().opacity() == 0.50
 
 
-def test_ResolutionID(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    mmc = global_mmcore
-    px_size_wdg = PixelSizeWidget()
-    table = px_size_wdg.table
-    qtbot.addWidget(px_size_wdg)
-
-    del_btn = table.cellWidget(ROW, 5).children()[-1]
-    with qtbot.waitSignal(mmc.events.pixelSizeChanged):
-        del_btn.click()
-
-    px_size_wdg.img_px_radiobtn.setChecked(True)
-    assert not px_size_wdg.mag_radiobtn.isChecked()
-    assert px_size_wdg.img_px_radiobtn.isChecked()
-    _, resID, _, _, _ = _get_wdg(table)
-    assert resID.property("resID") == "None"
-    resID.setText("new_Res40x")
-    with qtbot.waitSignals([resID.editingFinished, mmc.events.pixelSizeChanged]):
-        resID.editingFinished.emit()
-    _, resID, mag, cam_px, img_px = _get_wdg(table)
-    assert resID.text() == "new_Res40x"
-    assert resID.property("resID") == "new_Res40x"
-    assert mag.text() == "40.0"
-    assert cam_px.text() == "10.00"
-    assert img_px.text() == "0.2500"
-    assert "new_Res40x" in mmc.getAvailablePixelSizeConfigs()
-    assert mmc.getPixelSizeUmByID("new_Res40x") == 0.25
-    assert resID.graphicsEffect().opacity() == 1.00
-    assert mag.graphicsEffect().opacity() == 1.00
-    assert cam_px.graphicsEffect().opacity() == 1.00
-    assert img_px.graphicsEffect().opacity() == 1.00
-
-
-def test_deletePixelSizeConfig(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    mmc = global_mmcore
-    px_size_wdg = PixelSizeWidget()
-    table = px_size_wdg.table
-    qtbot.addWidget(px_size_wdg)
+def test_deletePixelSizeConfig(qtbot: QtBot, px_wdg):
+    _, table, _, mmc = px_wdg
 
     with qtbot.waitSignal(mmc.events.pixelSizeChanged):
         mmc.deletePixelSizeConfig("Res40x")
@@ -200,11 +172,8 @@ def test_deletePixelSizeConfig(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert img_px.graphicsEffect().opacity() == 0.50
 
 
-def test_definePixelSizeConfig(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    mmc = global_mmcore
-    px_size_wdg = PixelSizeWidget()
-    table = px_size_wdg.table
-    qtbot.addWidget(px_size_wdg)
+def test_definePixelSizeConfig(qtbot: QtBot, px_wdg):
+    _, table, _, mmc = px_wdg
 
     del_btn = table.cellWidget(ROW, 5).children()[-1]
     with qtbot.waitSignal(mmc.events.pixelSizeChanged):
@@ -227,11 +196,8 @@ def test_definePixelSizeConfig(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert img_px.graphicsEffect().opacity() == 0.50
 
 
-def test_setPixelSizeUm(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    mmc = global_mmcore
-    px_size_wdg = PixelSizeWidget()
-    table = px_size_wdg.table
-    qtbot.addWidget(px_size_wdg)
+def test_setPixelSizeUm(qtbot: QtBot, px_wdg):
+    _, table, _, mmc = px_wdg
 
     _, _, _, _, img_px = _get_wdg(table)
     assert img_px.text() == "0.2500"
@@ -239,10 +205,21 @@ def test_setPixelSizeUm(qtbot: QtBot, global_mmcore: CMMCorePlus):
     with qtbot.waitSignal(mmc.events.pixelSizeChanged):
         mmc.setPixelSizeUm("Res40x", 1.0)
     _, resID, mag, cam_px, img_px = _get_wdg(table)
-    assert mag.text() == "40.0"
-    assert cam_px.text() == "40.00"
+    assert mag.text() == "10.0"
+    assert cam_px.text() == "10.00"
     assert img_px.text() == "1.0000"
     assert resID.graphicsEffect().opacity() == 1.00
     assert mag.graphicsEffect().opacity() == 1.00
     assert cam_px.graphicsEffect().opacity() == 1.00
     assert img_px.graphicsEffect().opacity() == 1.00
+
+    with qtbot.waitSignal(mmc.events.pixelSizeChanged):
+        mmc.setPixelSizeUm("Res40x", 0.0)
+    _, resID, mag, cam_px, img_px = _get_wdg(table)
+    assert mag.text() == "10.0"
+    assert cam_px.text() == "10.00"
+    assert img_px.text() == "0.0000"
+    assert resID.graphicsEffect().opacity() == 0.50
+    assert mag.graphicsEffect().opacity() == 0.50
+    assert cam_px.graphicsEffect().opacity() == 0.50
+    assert img_px.graphicsEffect().opacity() == 0.50
