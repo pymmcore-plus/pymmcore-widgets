@@ -6,6 +6,7 @@ from unittest.mock import Mock, call
 import pytest
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem, QTableWidgetItem
+from useq import MDASequence
 
 from pymmcore_widgets._hcs_widget._graphics_items import FOVPoints, Well, WellArea
 
@@ -625,3 +626,84 @@ def test_generate_pos_list(hcs_wdg, qtbot: QtBot):
         "B1_pos002",
         "B1_pos003",
     ]
+
+
+def test_hcs_state(hcs_wdg, qtbot: QtBot):
+    hcs, _, cal = hcs_wdg
+    mda = hcs.ch_and_pos_list
+    pos_table = mda.stage_tableWidget
+
+    hcs.wp_combo.setCurrentText("standard 384")
+    assert hcs.wp_combo.currentText() == "standard 384"
+    assert len(hcs.scene.items()) == 384
+
+    for item in reversed(hcs.scene.items()):
+        assert isinstance(item, Well)
+        _, row, col = item._getPos()
+        if col in {0, 1} and row in {0}:
+            item.setSelected(True)
+    assert len([item for item in hcs.scene.items() if item.isSelected()]) == 2
+
+    assert cal._calibration_combo.currentText() == "1 Well (A1)"
+
+    cal.table_1.tb.setRowCount(2)
+    cal.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
+    cal.table_1.tb.setItem(0, 1, QTableWidgetItem("-50.0"))
+    cal.table_1.tb.setItem(0, 2, QTableWidgetItem("50.0"))
+    cal.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
+    cal.table_1.tb.setItem(1, 1, QTableWidgetItem("50.0"))
+    cal.table_1.tb.setItem(1, 2, QTableWidgetItem("-50.0"))
+
+    cal._calibrate_plate()
+    assert cal.cal_lbl.text() == "Plate Calibrated!"
+
+    assert mda.z_combo.currentText() == "Z"
+    assert not pos_table.rowCount()
+
+    assert hcs.FOV_selector.tab_wdg.currentIndex() == 0
+    assert hcs.FOV_selector.tab_wdg.tabText(0) == "Center"
+
+    # positions
+    hcs._generate_pos_list()
+    assert pos_table.rowCount() == 2
+
+    # channels
+    mda._add_channel()
+
+    # time
+    mda.time_groupBox.setChecked(True)
+    mda.timepoints_spinBox.setValue(2)
+    mda.interval_spinBox.setValue(1.00)
+    mda.time_comboBox.setCurrentText("sec")
+
+    # z stack
+    mda.stack_group.setChecked(True)
+    assert mda.z_tabWidget.currentIndex() == 0
+    assert mda.z_tabWidget.tabText(0) == "RangeAround"
+    mda.zrange_spinBox.setValue(2)
+    mda.step_size_doubleSpinBox.setValue(1)
+
+    state = hcs._get_state()
+
+    sequence = MDASequence(
+        channels=[
+            {
+                "config": "Cy5",
+                "group": "Channel",
+                "exposure": 100,
+            }
+        ],
+        time_plan={"interval": {"seconds": 1.0}, "loops": 2},
+        z_plan={"range": 2, "step": 1.0},
+        axis_order="tpzc",
+        stage_positions=(
+            {"name": "A1_pos000", "x": 0.0, "y": 0.0, "z": 0.0},
+            {"name": "A2_pos000", "x": 4500.0, "y": 0.0, "z": 0.0},
+        ),
+    )
+
+    assert state.channels == sequence.channels
+    assert state.time_plan == sequence.time_plan
+    assert state.z_plan == sequence.z_plan
+    assert state.axis_order == sequence.axis_order
+    assert state.stage_positions == sequence.stage_positions
