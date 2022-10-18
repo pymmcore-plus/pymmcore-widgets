@@ -154,6 +154,35 @@ def test_delete_button(qtbot: QtBot, px_wdg):
     assert img_px.graphicsEffect().opacity() == 0.50
 
 
+def test_setPixelSizeUm(qtbot: QtBot, px_wdg):
+    _, table, _, mmc = px_wdg
+
+    _, _, _, _, img_px = _get_wdg(table)
+    assert img_px.text() == "0.2500"
+
+    with qtbot.waitSignal(mmc.events.pixelSizeChanged):
+        mmc.setPixelSizeUm("Res40x", 0.0)
+    _, resID, mag, cam_px, img_px = _get_wdg(table)
+    assert mag.text() == "40.0"
+    assert cam_px.text() == "10.00"
+    assert img_px.text() == "0.0000"
+    assert resID.graphicsEffect().opacity() == 0.50
+    assert mag.graphicsEffect().opacity() == 0.50
+    assert cam_px.graphicsEffect().opacity() == 0.50
+    assert img_px.graphicsEffect().opacity() == 0.50
+
+    with qtbot.waitSignal(mmc.events.pixelSizeChanged):
+        mmc.setPixelSizeUm("Res40x", 0.2500)
+    _, resID, mag, cam_px, img_px = _get_wdg(table)
+    assert mag.text() == "40.0"
+    assert cam_px.text() == "10.00"
+    assert img_px.text() == "0.2500"
+    assert resID.graphicsEffect().opacity() == 1.00
+    assert mag.graphicsEffect().opacity() == 1.00
+    assert cam_px.graphicsEffect().opacity() == 1.00
+    assert img_px.graphicsEffect().opacity() == 1.00
+
+
 def test_deletePixelSizeConfig(qtbot: QtBot, px_wdg):
     _, table, _, mmc = px_wdg
 
@@ -194,32 +223,3 @@ def test_definePixelSizeConfig(qtbot: QtBot, px_wdg):
     assert mag.graphicsEffect().opacity() == 0.50
     assert cam_px.graphicsEffect().opacity() == 0.50
     assert img_px.graphicsEffect().opacity() == 0.50
-
-
-# def test_setPixelSizeUm(qtbot: QtBot, px_wdg):
-#     _, table, _, mmc = px_wdg
-
-#     _, _, _, _, img_px = _get_wdg(table)
-#     assert img_px.text() == "0.2500"
-
-#     with qtbot.waitSignal(mmc.events.pixelSizeChanged):
-#         mmc.setPixelSizeUm("Res40x", 0.0)
-#     _, resID, mag, cam_px, img_px = _get_wdg(table)
-#     assert mag.text() == "40.0"
-#     assert cam_px.text() == "10.00"
-#     assert img_px.text() == "0.0000"
-#     assert resID.graphicsEffect().opacity() == 0.50
-#     assert mag.graphicsEffect().opacity() == 0.50
-#     assert cam_px.graphicsEffect().opacity() == 0.50
-#     assert img_px.graphicsEffect().opacity() == 0.50
-
-#     with qtbot.waitSignal(mmc.events.pixelSizeChanged):
-#         mmc.setPixelSizeUm("Res40x", 0.2500)
-#     _, resID, mag, cam_px, img_px = _get_wdg(table)
-#     assert mag.text() == "40.0"
-#     assert cam_px.text() == "10.00"
-#     assert img_px.text() == "0.2500"
-#     assert resID.graphicsEffect().opacity() == 1.00
-#     assert mag.graphicsEffect().opacity() == 1.00
-#     assert cam_px.graphicsEffect().opacity() == 1.00
-#     assert img_px.graphicsEffect().opacity() == 1.00
