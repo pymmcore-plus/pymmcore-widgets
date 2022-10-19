@@ -1,13 +1,11 @@
 ## Overview
 
-[pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) ([github](https://github.com/pymmcore-plus/pymmcore-widgets)) is a library of [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) widgets that can be used in combination with [pymmcore-plus](https://pypi.org/project/pymmcore-plus/) ([github](https://github.com/pymmcore-plus/pymmcore-plus)) to build custom user interfaces for [micromanager](https://micro-manager.org) in a python/Qt environment.
+[pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) is a library of [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) widgets that can be used in combination with [pymmcore-plus](https://pypi.org/project/pymmcore-plus/) ([github](https://github.com/pymmcore-plus/pymmcore-plus)) to build custom user interfaces for [micromanager](https://micro-manager.org) in a python/Qt environment.
 
 ***add image***
 
 
 ## Installation
-
-from pip:
 
 ```sh
 pip install pymmcore-widgets
@@ -27,11 +25,12 @@ pip install pymmcore-widgets
 
 
 ## Usage
-detailed description and usage of each [widget](#widgets) is explained in their [respective pages](#widgets).
+See each [widget respective pages](#widgets) for a detailed description and usage.
 
 for code examples: [examples](https://github.com/pymmcore-plus/pymmcore-widgets/tree/main/examples).
 
-for a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) [github](https://github.com/pymmcore-plus/napari-micromanager).
+for a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).
+
 
 
 ## Widgets

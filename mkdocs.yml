@@ -1,4 +1,9 @@
 site_name: pymmcore-widgets
+site_url: https://github.com/pymmcore-plus/pymmcore-widgets
+
+# Repository
+repo_name: pymmcore-plus/pymmcore-widgets
+repo_url: https://github.com/pymmcore-plus/pymmcore-widgetss
 
 theme:
   icon:
