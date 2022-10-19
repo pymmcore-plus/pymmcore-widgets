@@ -1,15 +1,14 @@
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets import ChannelWidget
+from pymmcore_widgets import ObjectivesWidget
 
-# see also image_widget.py
 app = QApplication([])
 
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-ch_wdg = ChannelWidget()
-ch_wdg.show()
+obj_wdg = ObjectivesWidget()
+obj_wdg.show()
 
 app.exec_()

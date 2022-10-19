@@ -3,6 +3,7 @@ from qtpy.QtWidgets import QApplication
 
 from pymmcore_widgets import DefaultCameraExposureWidget
 
+# see also image_widget.py
 app = QApplication([])
 
 mmc = CMMCorePlus().instance()

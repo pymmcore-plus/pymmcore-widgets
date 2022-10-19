@@ -1,15 +1,14 @@
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets import ChannelWidget
+from pymmcore_widgets import GroupPresetTableWidget
 
-# see also image_widget.py
 app = QApplication([])
 
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-ch_wdg = ChannelWidget()
-ch_wdg.show()
+group_preset_wdg = GroupPresetTableWidget()
+group_preset_wdg.show()
 
 app.exec_()

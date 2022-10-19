@@ -1,7 +1,7 @@
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets import ChannelWidget
+from pymmcore_widgets import SnapButton
 
 # see also image_widget.py
 app = QApplication([])
@@ -9,7 +9,7 @@ app = QApplication([])
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-ch_wdg = ChannelWidget()
-ch_wdg.show()
+snap_btn = SnapButton()
+snap_btn.show()
 
 app.exec_()
