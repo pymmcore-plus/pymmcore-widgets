@@ -19,7 +19,7 @@ from ._objective_widget import ObjectivesWidget
 from ._presets_widget import PresetsWidget
 from ._property_browser import PropertyBrowser
 from ._property_widget import PropertyWidget, make_property_value_widget
-from ._sample_explorer_widget._sample_explorer_widget import SampleExplorer
+from ._sample_explorer_widget._sample_explorer_widget import SampleExplorerWidget
 from ._slider_dialog_widget import SliderDialog
 from ._snap_button_widget import SnapButton
 from ._stage_widget import StageWidget
@@ -40,7 +40,7 @@ __all__ = [
     "PresetsWidget",
     "PropertyBrowser",
     "PropertyWidget",
-    "SampleExplorer",
+    "SampleExplorerWidget",
     "SliderDialog",
     "SnapButton",
     "StageWidget",

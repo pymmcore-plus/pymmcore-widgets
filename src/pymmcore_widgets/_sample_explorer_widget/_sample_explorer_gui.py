@@ -27,7 +27,7 @@ from superqt.fonticon import icon
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
 
-class ExplorerGui(QWidget):
+class SampleExplorerGui(QWidget):
     """Just the UI of the explorer widget. Runtime logic in MMExploreSample."""
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
@@ -588,6 +588,6 @@ if __name__ == "__main__":
     from qtpy.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
-    win = ExplorerGui()
+    win = SampleExplorerGui()
     win.show()
     sys.exit(app.exec_())
