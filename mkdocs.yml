@@ -1,1 +1,21 @@
 site_name: pymmcore-widgets
+
+theme:
+  icon:
+    logo: material/alarm-light
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue grey
+      accent: blue grey
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to light mode
+markdown_extensions:
+  - admonition

@@ -61,7 +61,10 @@ dev = [
     "pytest",
     "rich",
 ]
-docs = ["mkdocs"]
+docs = [
+    "mkdocs",
+    "mkdocs-material"
+]
 
 [project.urls]
 homepage = "https://github.com/pymmcore-plus/pymmcore-widgets"
