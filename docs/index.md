@@ -43,9 +43,11 @@ The following widgets are currently available:
 in progress:
 
 * [*CameraRoiWidget*](./widgets/CameraRoiWidget.md)
-* [*MultiDWidget*](./widgets/MultiDWidget.md)
-* [*SampleExplorerWidget*](./widgets/SampleExplorerWidget.md)
 * [*HCSWidget*](./widgets/HCSWidget.md)
+* [*MultiDWidget*](./widgets/MultiDWidget.md)
+* [*PixelSizeWidget*](./widgets/PixelSizeWidget.md)
+* [*SampleExplorerWidget*](./widgets/SampleExplorerWidget.md)
+* [*ShutterWidget*](./widgets/ShutterWidget.md)
 
 
 ## Installation
@@ -58,9 +60,11 @@ pip install pymmcore-widgets
 
 
 ## Usage
-For a detailed description and usage of each widget, see the examples folder. ***add link***
+Detailed description and usage of each [widget](#widgets) is explained in their [respective pages](#widgets).
 
-For a pre-made user interface, check [napari-micromanager]()
+For code examples: [examples](https://github.com/pymmcore-plus/pymmcore-widgets/tree/main/examples).
+
+For a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/).
 
 
 
