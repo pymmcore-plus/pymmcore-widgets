@@ -7,7 +7,7 @@ repo_url: https://github.com/pymmcore-plus/pymmcore-widgets
 
 theme:
   icon:
-    logo: material/alarm-light
+    logo: material/book-education-outline
   name: material
   palette:
     - scheme: default
