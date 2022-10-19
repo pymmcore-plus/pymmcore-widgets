@@ -2,8 +2,6 @@
 
 [pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) is a library of [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) widgets that can be used in combination with [pymmcore-plus](https://pypi.org/project/pymmcore-plus/) ([github](https://github.com/pymmcore-plus/pymmcore-plus)) to build custom user interfaces for [micromanager](https://micro-manager.org) in a python/Qt environment.
 
-***add image***
-
 
 ## Installation
 
@@ -12,10 +10,10 @@ pip install pymmcore-widgets
 ```
 
 !!! Important
-    this package does **NOT** include a [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) backend, you must install one yourself (e.g. ```pip install PyQt5```).
+    This package does **NOT** include a [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) backend, you must install one yourself (e.g. ```pip install PyQt5```).
 
 !!! Note
-    widgets are tested on:
+    Widgets are tested on:
 
     * `macOS & Windows`
     * `Python 3.8, 3.9 & 3.10`
@@ -27,15 +25,15 @@ pip install pymmcore-widgets
 ## Usage
 See each [widget respective page](#widgets) for a detailed description and usage.
 
-for code examples: [examples](https://github.com/pymmcore-plus/pymmcore-widgets/tree/main/examples).
+For code examples: [examples](https://github.com/pymmcore-plus/pymmcore-widgets/tree/main/examples).
 
-for a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).
+For a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).
 
 
 
 ## Widgets
 
-the following widgets are currently available:
+The following widgets are currently available:
 
 * [ChannelWidget](./widgets/ChannelWidget.md)
 * [ConfigurationWidget](./widgets/ConfigurationWidget.md)
@@ -53,7 +51,7 @@ the following widgets are currently available:
 * [StageWidget](./widgets/StageWidget.md)
 * [StateDeviceWidget](./widgets/StateDeviceWidget.md)
 
-in progress:
+In progress:
 
 * [CameraRoiWidget](./widgets/CameraRoiWidget.md)
 * [HCSWidget](./widgets/HCSWidget.md)
