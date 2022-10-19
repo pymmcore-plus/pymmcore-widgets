@@ -8,7 +8,7 @@ app = QApplication([])
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-px_wdg = CameraRoiWidget()
-px_wdg.show()
+cam_roi_wdg = CameraRoiWidget()
+cam_roi_wdg.show()
 
 app.exec_()
