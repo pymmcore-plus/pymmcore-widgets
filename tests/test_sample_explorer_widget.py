@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from useq import MDASequence
 
-from pymmcore_widgets import SampleExplorer
+from pymmcore_widgets import SampleExplorerWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     # sourcery skip: remove-duplicate-set-key
 
-    s_exp = SampleExplorer()
+    s_exp = SampleExplorerWidget()
     qtbot.add_widget(s_exp)
     mmc = global_mmcore
 
@@ -110,7 +110,7 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_explorer_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = SampleExplorer()
+    wdg = SampleExplorerWidget()
     qtbot.addWidget(wdg)
 
     assert wdg.scan_size_spinBox_c.value() == 1
@@ -139,7 +139,7 @@ def test_explorer_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_explorer_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = SampleExplorer()
+    wdg = SampleExplorerWidget()
     qtbot.addWidget(wdg)
 
     wdg._on_mda_started()
@@ -164,7 +164,7 @@ def test_explorer_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = SampleExplorer()
+    wdg = SampleExplorerWidget()
     qtbot.addWidget(wdg)
 
     assert wdg.channel_explorer_tableWidget.rowCount() == 0

@@ -10,13 +10,13 @@ from superqt.fonticon import icon
 from useq import MDASequence
 
 from .._util import _select_output_unit, _time_in_sec, guess_channel_group
-from ._sample_explorer_gui import ExplorerGui
+from ._sample_explorer_gui import SampleExplorerGui
 
 if TYPE_CHECKING:
     from pymmcore_plus.mda import PMDAEngine
 
 
-class SampleExplorer(ExplorerGui):
+class SampleExplorerWidget(SampleExplorerGui):
     """Widget to create/run tiled acquisitions."""
 
     def __init__(
