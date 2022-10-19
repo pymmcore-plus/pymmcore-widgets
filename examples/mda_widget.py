@@ -5,6 +5,7 @@ from qtpy.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -27,7 +28,7 @@ class MDA(QWidget):
     def __init__(self) -> None:
         super().__init__()
 
-        self.setFixedWidth(800)
+        self.setMaximumWidth(800)
 
         mmc = CMMCorePlus.instance()
         mmc.loadSystemConfiguration()
@@ -38,11 +39,13 @@ class MDA(QWidget):
         mmc.mda.events.sequencePauseToggled.connect(self._on_pause)
 
         mda_wdg = QGroupBox()
+        mda_wdg.setMaximumWidth(500)
         mda_wdg.setLayout(QVBoxLayout())
         self.mda = MultiDWidget()
         mda_wdg.layout().addWidget(self.mda)
 
         lbl_wdg = QGroupBox()
+        lbl_wdg.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
         lbl_wdg.setLayout(QVBoxLayout())
         self.lbl_sequence = QLabel(text="\nACQUISITION SEQUENCE:")
         self.lbl_event = QLabel(text="ACQUISITION EVENT:")
