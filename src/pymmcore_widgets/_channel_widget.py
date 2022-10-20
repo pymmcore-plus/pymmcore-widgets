@@ -8,16 +8,28 @@ from ._util import ComboMessageBox
 
 
 class ChannelWidget(QWidget):
-    """Channel selector widget.
+    """
+    A QComboBox-based widget to select which micromanager channel configuration to use.
 
     Parameters
     ----------
     channel_group : Optional[str]
-        Name of the group defining the microscope channels, by default will be guessed
-        using `mmc.getOrGuessChannelGroup`, and a dialog will be presented if there are
-        multiples
+        Name of the micromanager group defining the microscope channels. By default,
+        it will be guessedusing the `CMMCorePlus`/`CMMCorePlus.instance()`
+        [getOrGuessChannelGroup](
+        https://github.com/pymmcore-plus/pymmcore-plus/blob/main/pymmcore_plus/core/_mmcore_plus.py#L487  # noqa: E501
+        ) method and a choice dialog will be presented if there are multiple options.
+        This method looks for a group configuration name matching the default regex
+        expresion `re.compile("(chan{1,2}(el)?|filt(er)?)s?", re.IGNORECASE)`.
+        A different string/regex can be set using the `CMMCorePlus`/`CMMCorePlus.instance()`
+        [channelGroup_pattern](
+        https://github.com/pymmcore-plus/pymmcore-plus/blob/main/pymmcore_plus/core/_mmcore_plus.py#L459  # noqa: E501
+        ) setter method.
     parent : Optional[QWidget]
-        Optional parent widget, by default None
+        Optional parent widget. By default, None.
+    mmcore: Optional[CMMCorePlus]
+        Optional `CMMCorePlus`/`CMMCorePlus.instance()` micromanager core. By default, None.
+        If not specified, the widget will use the active (or create a new) `CMMCorePlus.instance()`.
     """
 
     def __init__(
