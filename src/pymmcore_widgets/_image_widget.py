@@ -17,7 +17,7 @@ class ImagePreview(QWidget):
     Widget that displays the last image snapped by active core.
 
     This widget will automatically update when the active core snaps an image or when
-    the core starts streaming.
+    the active core starts streaming.
 
     Note: active core defined by `CMMCorePlus.instance()`
     """
