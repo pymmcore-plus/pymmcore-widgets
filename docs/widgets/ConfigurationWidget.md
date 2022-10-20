@@ -1,5 +1,7 @@
 # ConfigurationWidget
 
+**TODO: add image**
+
 ::: pymmcore_widgets._load_system_cfg_widget
 
 !!! Important

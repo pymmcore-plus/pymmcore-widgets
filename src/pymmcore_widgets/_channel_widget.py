@@ -20,7 +20,7 @@ class ChannelWidget(QWidget):
         https://github.com/pymmcore-plus/pymmcore-plus/blob/main/pymmcore_plus/core/_mmcore_plus.py#L487  # noqa: E501
         ) method and a choice dialog will be presented if there are multiple options.
         This method looks for a group configuration name matching the default regex
-        expresion `re.compile("(chan{1,2}(el)?|filt(er)?)s?", re.IGNORECASE)`.
+        `re.compile("(chan{1,2}(el)?|filt(er)?)s?", re.IGNORECASE)`.
         A different string/regex can be set using the `CMMCorePlus`/`CMMCorePlus.instance()`
         [channelGroup_pattern](
         https://github.com/pymmcore-plus/pymmcore-plus/blob/main/pymmcore_plus/core/_mmcore_plus.py#L459  # noqa: E501

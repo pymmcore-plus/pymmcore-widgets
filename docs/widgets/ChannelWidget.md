@@ -1,5 +1,7 @@
 # ChannelWidget
 
+**TODO: add image**
+
 ::: pymmcore_widgets._channel_widget
 
 !!! Important
@@ -33,13 +35,7 @@ from typing import Optional
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication, QGroupBox, QHBoxLayout, QVBoxLayout, QWidget
 
-from pymmcore_widgets import (
-    ChannelWidget,
-    ExposureWidget,
-    ImagePreview,
-    LiveButton,
-    SnapButton,
-)
+from pymmcore_widgets import ChannelWidget, ExposureWidget, ImagePreview, LiveButton, SnapButton
 
 
 class ImageFrame(QWidget):
