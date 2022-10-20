@@ -6,11 +6,12 @@
 
 !!! Important
     To make sure all the widgets listen to the same micromanager core, create
-    one using `CMMCorePlus.instance()` or do not specify it in the widget(s).
+    one using `CMMCorePlus.instance()` (and not simply `CMMCorePlus()`)
+    or do not specify it in the widget(s).
 
 ## Examples
 
-Simple `ObjectivesWidget`. :
+Simple `ObjectivesWidget`:
 ```sh
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication

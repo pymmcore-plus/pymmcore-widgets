@@ -6,7 +6,8 @@
 
 !!! Important
     To make sure all the widgets listen to the same micromanager core, create
-    one using `CMMCorePlus.instance()` or do not specify it in the widget(s).
+    one using `CMMCorePlus.instance()` (and not simply `CMMCorePlus()`)
+    or do not specify it in the widget(s).
 
 !!! Note
     Currently, `DeviceWidget` only supports devices of type `StateDevice`. Calling
