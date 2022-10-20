@@ -23,6 +23,7 @@ pip install pymmcore-widgets
 
 
 ## Usage
+
 See each [widget respective page](#widgets) for a detailed description and usage.
 
 For code examples: [examples](https://github.com/pymmcore-plus/pymmcore-widgets/tree/main/examples).

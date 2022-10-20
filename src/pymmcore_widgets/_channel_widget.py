@@ -28,8 +28,9 @@ class ChannelWidget(QWidget):
     parent : Optional[QWidget]
         Optional parent widget. By default, None.
     mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus`/`CMMCorePlus.instance()` micromanager core. By default, None.
-        If not specified, the widget will use the active (or create a new) `CMMCorePlus.instance()`.
+        Optional `CMMCorePlus`/`CMMCorePlus.instance()` micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new) `CMMCorePlus.instance()`.
     """
 
     def __init__(

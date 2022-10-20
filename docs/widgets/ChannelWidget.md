@@ -2,6 +2,9 @@
 
 ::: pymmcore_widgets._channel_widget
 
+!!! Important
+    To make sure all the widgets listen to the same micromanager core, create
+    one using `CMMCorePlus.instance()` or do not specify it in the widget(s).
 
 ## Examples
 
