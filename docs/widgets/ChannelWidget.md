@@ -28,6 +28,52 @@ ch_wdg.show()
 app.exec_()
 ```
 
+
+In this example the default regex (used by the core `getOrGuessChannelGroup` method)
+is replaced with a custom one before loading the `ChannelWidget`:
+```sh
+from pymmcore_plus import CMMCorePlus
+from qtpy.QtWidgets import QApplication
+
+from pymmcore_widgets import ChannelWidget
+
+app = QApplication([])
+
+mmc = CMMCorePlus().instance()
+
+# mmc will look for a group configuration name matching the string 'channel'
+# to select the 'channel_group'
+mmc.channelGroup_pattern = 'channel'
+
+mmc.loadSystemConfiguration()
+
+ch_wdg = ChannelWidget()
+ch_wdg.show()
+
+app.exec_()
+```
+
+
+In alternative, the `channel_group` can be directly specified
+when creating the `ChannelWidget`:
+```sh
+from pymmcore_plus import CMMCorePlus
+from qtpy.QtWidgets import QApplication
+
+from pymmcore_widgets import ChannelWidget
+
+app = QApplication([])
+
+mmc = CMMCorePlus().instance()
+mmc.loadSystemConfiguration()
+
+ch_wdg = ChannelWidget("Channel")
+ch_wdg.show()
+
+app.exec_()
+```
+
+
 In this example `ChannelWidget` is used in combination with other widgets:
 ```sh
 from typing import Optional

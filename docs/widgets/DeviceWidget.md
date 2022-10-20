@@ -16,7 +16,7 @@
 ## Examples
 
 In this example all the devices of type `StateDevice` that are loaded in micromanager
-are dysplaied with a `DeviceWidget`.
+are dysplaied with a `DeviceWidget`:
 
 ```sh
 from pymmcore_plus import CMMCorePlus, DeviceType
