@@ -38,6 +38,7 @@ The following widgets are currently available:
 * [ChannelWidget](./widgets/ChannelWidget.md)
 * [ConfigurationWidget](./widgets/ConfigurationWidget.md)
 * [DefaultCameraExposureWidget](./widgets/DefaultCameraExposureWidget.md)
+* [ExposureWidget](./widgets/ExposureWidget.md)
 * [DeviceWidget](./widgets/DeviceWidget.md)
 * [GroupPresetTableWidget](./widgets/GroupPresetTableWidget.md)
 * [ImagePreview](./widgets/ImagePreview.md)

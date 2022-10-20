@@ -1,3 +1,3 @@
 # DefaultCameraExposureWidget
 
-::: pymmcore_widgets._exposure_widget
+::: pymmcore_widgets._exposure_widget.DefaultCameraExposureWidget
