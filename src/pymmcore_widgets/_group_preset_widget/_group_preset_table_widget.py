@@ -1,9 +1,20 @@
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 from pymmcore_plus import CMMCorePlus
-from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QVBoxLayout
+from qtpy.QtWidgets import (
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSizePolicy,
+    QSpacerItem,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 from pymmcore_widgets._presets_widget import PresetsWidget
 from pymmcore_widgets._property_widget import PropertyWidget
@@ -17,7 +28,7 @@ from ._edit_preset_widget import EditPresetWidget
 UNNAMED_PRESET = "NewPreset"
 
 
-class _MainTable(QtW.QTableWidget):
+class _MainTable(QTableWidget):
     """Set table properties for Group and Preset TableWidget."""
 
     def __init__(self) -> None:
@@ -29,19 +40,32 @@ class _MainTable(QtW.QTableWidget):
         vh.setVisible(False)
         vh.setSectionResizeMode(vh.Fixed)
         vh.setDefaultSectionSize(24)
-        self.setEditTriggers(QtW.QTableWidget.NoEditTriggers)
+        self.setEditTriggers(QTableWidget.NoEditTriggers)
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Group", "Preset"])
         self.setMinimumHeight(200)
 
 
-class GroupPresetTableWidget(QtW.QGroupBox):
-    """Widget to get/set group presets."""
+class GroupPresetTableWidget(QGroupBox):
+    """
+    A Widget to create, edit, delete and set micromanager group presets.
 
-    def __init__(self) -> None:
-        super().__init__()
+    Parameters
+    ----------
+    parent : Optional[QWidget]
+        Optional parent widget. By default, None.
+    mmcore: Optional[CMMCorePlus]
+        Optional `CMMCorePlus`/`CMMCorePlus.instance()` micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new) `CMMCorePlus.instance()`.
+    """
 
-        self._mmc = CMMCorePlus.instance()
+    def __init__(
+        self, parent: Optional[QWidget] = None, *, mmcore: Optional[CMMCorePlus] = None
+    ) -> None:
+        super().__init__(parent)
+
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._populate_table)
 
         self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)
@@ -68,30 +92,30 @@ class GroupPresetTableWidget(QtW.QGroupBox):
         btns = self._add_groups_presets_buttons()
         self.layout().addWidget(btns)
 
-    def _add_groups_presets_buttons(self) -> QtW.QWidget:
+    def _add_groups_presets_buttons(self) -> QWidget:
 
-        main_wdg = QtW.QWidget()
-        main_wdg_layout = QtW.QHBoxLayout()
+        main_wdg = QWidget()
+        main_wdg_layout = QHBoxLayout()
         main_wdg_layout.setSpacing(10)
         main_wdg_layout.setContentsMargins(0, 0, 0, 0)
         main_wdg.setLayout(main_wdg_layout)
 
-        lbl_sizepolicy = QtW.QSizePolicy(QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed)
+        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
         # groups
-        groups_btn_wdg = QtW.QWidget()
-        groups_layout = QtW.QHBoxLayout()
+        groups_btn_wdg = QWidget()
+        groups_layout = QHBoxLayout()
         groups_layout.setSpacing(5)
         groups_layout.setContentsMargins(0, 0, 0, 0)
         groups_btn_wdg.setLayout(groups_layout)
 
-        groups_lbl = QtW.QLabel(text="Group:")
+        groups_lbl = QLabel(text="Group:")
         groups_lbl.setSizePolicy(lbl_sizepolicy)
-        self.groups_add_btn = QtW.QPushButton(text="+")
+        self.groups_add_btn = QPushButton(text="+")
         self.groups_add_btn.clicked.connect(self._add_group)
-        self.groups_remove_btn = QtW.QPushButton(text="-")
+        self.groups_remove_btn = QPushButton(text="-")
         self.groups_remove_btn.clicked.connect(self._delete_group)
-        self.groups_edit_btn = QtW.QPushButton(text="Edit")
+        self.groups_edit_btn = QPushButton(text="Edit")
         self.groups_edit_btn.clicked.connect(self._edit_group)
         groups_layout.addWidget(groups_lbl)
         groups_layout.addWidget(self.groups_add_btn)
@@ -101,19 +125,19 @@ class GroupPresetTableWidget(QtW.QGroupBox):
         main_wdg_layout.addWidget(groups_btn_wdg)
 
         # presets
-        presets_btn_wdg = QtW.QWidget()
-        presets_layout = QtW.QHBoxLayout()
+        presets_btn_wdg = QWidget()
+        presets_layout = QHBoxLayout()
         presets_layout.setSpacing(5)
         presets_layout.setContentsMargins(0, 0, 0, 0)
         presets_btn_wdg.setLayout(presets_layout)
 
-        presets_lbl = QtW.QLabel(text="Preset:")
+        presets_lbl = QLabel(text="Preset:")
         presets_lbl.setSizePolicy(lbl_sizepolicy)
-        self.presets_add_btn = QtW.QPushButton(text="+")
+        self.presets_add_btn = QPushButton(text="+")
         self.presets_add_btn.clicked.connect(self._add_preset)
-        self.presets_remove_btn = QtW.QPushButton(text="-")
+        self.presets_remove_btn = QPushButton(text="-")
         self.presets_remove_btn.clicked.connect(self._delete_preset)
-        self.presets_edit_btn = QtW.QPushButton(text="Edit")
+        self.presets_edit_btn = QPushButton(text="Edit")
         self.presets_edit_btn.clicked.connect(self._edit_preset)
         presets_layout.addWidget(presets_lbl)
         presets_layout.addWidget(self.presets_add_btn)
@@ -124,19 +148,17 @@ class GroupPresetTableWidget(QtW.QGroupBox):
 
         return main_wdg
 
-    def _add_save_button(self) -> QtW.QWidget:
+    def _add_save_button(self) -> QWidget:
 
-        save_btn_wdg = QtW.QWidget()
-        save_btn_layout = QtW.QHBoxLayout()
+        save_btn_wdg = QWidget()
+        save_btn_layout = QHBoxLayout()
         save_btn_layout.setSpacing(0)
         save_btn_layout.setContentsMargins(0, 0, 0, 0)
         save_btn_wdg.setLayout(save_btn_layout)
 
-        spacer = QtW.QSpacerItem(
-            10, 10, QtW.QSizePolicy.Expanding, QtW.QSizePolicy.Fixed
-        )
+        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Fixed)
         save_btn_layout.addItem(spacer)
-        self.save_btn = QtW.QPushButton(text="Save cfg")
+        self.save_btn = QPushButton(text="Save cfg")
         self.save_btn.clicked.connect(self._save_cfg)
         save_btn_layout.addWidget(self.save_btn)
 
@@ -193,7 +215,7 @@ class GroupPresetTableWidget(QtW.QGroupBox):
         if groups := self._mmc.getAvailableConfigGroups():
             for row, group in enumerate(groups):
                 self.table_wdg.insertRow(row)
-                self.table_wdg.setItem(row, 0, QtW.QTableWidgetItem(str(group)))
+                self.table_wdg.setItem(row, 0, QTableWidgetItem(str(group)))
                 wdg = self._create_group_widget(group)
                 self.table_wdg.setCellWidget(row, 1, wdg)
                 if isinstance(wdg, PresetsWidget):
@@ -326,7 +348,7 @@ class GroupPresetTableWidget(QtW.QGroupBox):
         self._edit_preset_wgd.show()
 
     def _save_cfg(self) -> None:
-        (filename, _) = QtW.QFileDialog.getSaveFileName(
+        (filename, _) = QFileDialog.getSaveFileName(
             self, "Save Micro-Manager Configuration."
         )
         if filename:
