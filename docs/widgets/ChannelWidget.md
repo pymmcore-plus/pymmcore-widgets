@@ -28,7 +28,7 @@ ch_wdg.show()
 app.exec_()
 ```
 
-`ChannelWidget` used in combination with other widgets:
+In this example `ChannelWidget` is used in combination with other widgets:
 ```sh
 from typing import Optional
 

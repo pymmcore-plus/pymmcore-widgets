@@ -13,9 +13,10 @@ if TYPE_CHECKING:
 
 
 class ImagePreview(QWidget):
-    """Widget that displays the last image snapped by core.
+    """
+    Widget that displays the last image snapped by active core (`CMMCorePlus.instance()`).  # noqa: E501, D400
 
-    This widget will automatically update when the core snaps an image or when
+    This widget will automatically update when the active core snaps an image or when
     the core starts streaming.
     """
 
