@@ -240,7 +240,12 @@ class CameraRoiWidget(QWidget):
         self.start_y.setMaximum(self.chip_size_y)
 
         self._set_roi_groupbox_values(x, y, width, height, False)
-        self._on_roi_combobox_change("ROI")
+
+        if (x, y, width, height) == (0, 0, self.chip_size_x, self.chip_size_y):
+            with signals_blocked(self.cam_roi_combo):
+                self.cam_roi_combo.setCurrentText("Full")
+        else:
+            self._on_roi_combobox_change("ROI")
 
     def _update_lbl_info(self) -> None:
 
@@ -270,6 +275,11 @@ class CameraRoiWidget(QWidget):
             self._mmc.clearROI()
             self._mmc.snap()
             self._set_roi_groupbox_values(0, 0, self.chip_size_x, self.chip_size_y)
+
+            # TODO: maybe add roiSet signal to mmc.clearROI()?
+            self._mmc.events.roiSet.emit(
+                self._mmc.getCameraDevice(), 0, 0, self.chip_size_x, self.chip_size_y
+            )
 
             self.roiInfo.emit(0, 0, self.chip_size_x, self.chip_size_y, "Full")
 
