@@ -244,6 +244,8 @@ class CameraRoiWidget(QWidget):
         if (x, y, width, height) == (0, 0, self.chip_size_x, self.chip_size_y):
             with signals_blocked(self.cam_roi_combo):
                 self.cam_roi_combo.setCurrentText("Full")
+            with signals_blocked(self.center_checkbox):
+                self.center_checkbox.setChecked(True)
         else:
             self._on_roi_combobox_change("ROI")
 
