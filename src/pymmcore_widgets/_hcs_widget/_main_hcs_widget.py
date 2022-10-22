@@ -40,6 +40,7 @@ class HCSWidget(HCSGui):
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.mda.events.sequencePauseToggled.connect(self._on_mda_paused)
         self._mmc.events.mdaEngineRegistered.connect(self._update_mda_engine)
+        self._mmc.events.roiSet.connect(self._on_combo_changed)
 
         self.wp_combo.currentTextChanged.connect(self._on_combo_changed)
         self.custom_plate.clicked.connect(self._update_plate_yaml)
