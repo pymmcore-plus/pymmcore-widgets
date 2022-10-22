@@ -463,7 +463,6 @@ class CalibrationTable(QWidget):
         self.tb.setRowCount(0)
         self.tb.setHorizontalHeaderLabels(["Well", "X", "Y"])
         self.tb.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.tb.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         layout.addWidget(self.tb, 0, 0, 3, 1)
 
         btn_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -495,9 +494,13 @@ class CalibrationTable(QWidget):
             for c, ax in enumerate("WXY"):
                 if ax == "W":
                     item = QTableWidgetItem(f"{self._well_name}_pos{idx:03d}")
+                    item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
                 else:
                     cur = getattr(self._mmc, f"get{ax}Position")()
                     item = QTableWidgetItem(str(cur))
+                    item.setFlags(
+                        Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
+                    )
 
                 item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
                 self.tb.setItem(idx, c, item)
