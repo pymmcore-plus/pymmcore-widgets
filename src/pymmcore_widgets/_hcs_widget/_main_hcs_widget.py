@@ -40,7 +40,7 @@ class HCSWidget(HCSGui):
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.mda.events.sequencePauseToggled.connect(self._on_mda_paused)
         self._mmc.events.mdaEngineRegistered.connect(self._update_mda_engine)
-        self._mmc.events.roiSet.connect(self._on_combo_changed)
+        self._mmc.events.roiSet.connect(self._on_roi_set)
 
         self.wp_combo.currentTextChanged.connect(self._on_combo_changed)
         self.custom_plate.clicked.connect(self._update_plate_yaml)
@@ -74,6 +74,9 @@ class HCSWidget(HCSGui):
         self.scene.clear()
         self._draw_well_plate(value)
         self.calibration._update_gui(value)
+
+    def _on_roi_set(self) -> None:
+        self._on_combo_changed(self.wp_combo.currentText())
 
     def _on_plate_from_calibration(self, coords: Tuple) -> None:
 
