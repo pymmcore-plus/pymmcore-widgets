@@ -41,6 +41,7 @@ class _MainTable(QTableWidget):
         vh.setSectionResizeMode(vh.Fixed)
         vh.setDefaultSectionSize(24)
         self.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.setSelectionBehavior(QTableWidget.SelectRows)
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Group", "Preset"])
         self.setMinimumHeight(200)
@@ -87,10 +88,13 @@ class GroupPresetTableWidget(QGroupBox):
         self.layout().addWidget(save_btn)
 
         self.table_wdg = _MainTable()
+        self.table_wdg.itemSelectionChanged.connect(self._on_table_selection_changed)
         self.layout().addWidget(self.table_wdg)
 
         btns = self._add_groups_presets_buttons()
         self.layout().addWidget(btns)
+
+        self._enable_buttons(False)
 
     def _add_groups_presets_buttons(self) -> QWidget:
 
@@ -163,6 +167,20 @@ class GroupPresetTableWidget(QGroupBox):
         save_btn_layout.addWidget(self.save_btn)
 
         return save_btn_wdg
+
+    def _on_table_selection_changed(self) -> None:
+        selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
+        if not selected_rows or len(selected_rows) > 1:
+            self._enable_buttons(False)
+        else:
+            self._enable_buttons(True)
+
+    def _enable_buttons(self, enabled: bool) -> None:
+        self.groups_remove_btn.setEnabled(enabled)
+        self.groups_edit_btn.setEnabled(enabled)
+        self.presets_add_btn.setEnabled(enabled)
+        self.presets_remove_btn.setEnabled(enabled)
+        self.presets_edit_btn.setEnabled(enabled)
 
     def _on_system_cfg_loaded(self) -> None:
         self._populate_table()
