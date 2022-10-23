@@ -80,6 +80,7 @@ class AddPresetWidget(QDialog):
         ps_lbl = QLabel(text="Preset:")
         ps_lbl.setSizePolicy(lbl_sizepolicy)
         self.preset_name_lineedit = QLineEdit()
+        self.preset_name_lineedit.setPlaceholderText("NewPreset")
 
         spacer = QSpacerItem(30, 10, QSizePolicy.Fixed, QSizePolicy.Fixed)
 
