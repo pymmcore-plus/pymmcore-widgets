@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
@@ -7,6 +7,7 @@ from qtpy.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
@@ -174,8 +175,12 @@ class GroupPresetTableWidget(QGroupBox):
 
     def _on_table_selection_changed(self) -> None:
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
-        if not selected_rows or len(selected_rows) > 1:
+        if not selected_rows:
             self._enable_buttons(False)
+        elif len(selected_rows) > 1:
+            self._enable_buttons(False)
+            self.groups_remove_btn.setEnabled(True)
+            self.presets_remove_btn.setEnabled(True)
         else:
             self._enable_buttons(True)
 
@@ -292,10 +297,25 @@ class GroupPresetTableWidget(QGroupBox):
         if not selected_rows:
             return
 
-        for row_idx in sorted(selected_rows, reverse=True):
-            group = self.table_wdg.item(row_idx, 0).text()
-            self.table_wdg.removeRow(row_idx)
-            self._mmc.deleteConfigGroup(group)
+        groups = [
+            self.table_wdg.item(row, 0).text()
+            for row in sorted(selected_rows, reverse=True)
+        ]
+
+        msg = self._msg_box(f"Delete '{',  '.join(groups)}'?")
+
+        if msg == QMessageBox.Ok:
+            for row, group in enumerate(groups):
+                self.table_wdg.removeRow(row)
+                self._mmc.deleteConfigGroup(group)
+
+    def _msg_box(self, msg: str) -> Any:
+        msgBox = QMessageBox()
+        msgBox.setIcon(QMessageBox.Warning)
+        msgBox.setWindowTitle("Delete")
+        msgBox.setText(msg)
+        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        return msgBox.exec()
 
     def _on_group_deleted(self, group: str) -> None:
         if matching_item := self.table_wdg.findItems(group, Qt.MatchExactly):
@@ -334,22 +354,34 @@ class GroupPresetTableWidget(QGroupBox):
         if not selected_rows:
             return
 
-        for row_idx in sorted(selected_rows, reverse=True):
-            group = self.table_wdg.item(row_idx, 0).text()
-            wdg = self.table_wdg.cellWidget(row_idx, 1)
+        groups_preset = [
+            (row, self.table_wdg.item(row, 0).text(), self.table_wdg.cellWidget(row, 1))
+            for row in sorted(selected_rows, reverse=True)
+        ]
 
+        _text = []
+        for _, group, wdg in groups_preset:
             if isinstance(wdg, PresetsWidget):
-                preset = wdg._combo.currentText()
+                _text.append(f"({group},  {wdg._combo.currentText()})")
+            else:
+                _text.append(f"({group})")
 
-                if len(wdg.allowedValues()) > 1:
-                    self._mmc.deleteConfig(group, preset)
-                else:
-                    self.table_wdg.removeRow(row_idx)
+        msg = self._msg_box(f"Delete '{',  '.join(_text)}'?")
+
+        if msg == QMessageBox.Ok:
+            for row, group, wdg in groups_preset:
+                if isinstance(wdg, PresetsWidget):
+                    preset = wdg._combo.currentText()
+
+                    if len(wdg.allowedValues()) > 1:
+                        self._mmc.deleteConfig(group, preset)
+                    else:
+                        self.table_wdg.removeRow(row)
+                        self._mmc.deleteConfigGroup(group)
+
+                elif isinstance(wdg, PropertyWidget):
+                    self.table_wdg.removeRow(row)
                     self._mmc.deleteConfigGroup(group)
-
-            elif isinstance(wdg, PropertyWidget):
-                self.table_wdg.removeRow(row_idx)
-                self._mmc.deleteConfigGroup(group)
 
     def _edit_preset(self) -> None:
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
