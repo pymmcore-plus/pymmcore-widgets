@@ -189,8 +189,6 @@ class GroupPresetTableWidget(QGroupBox):
         self, group: str, preset: str, device: str, property: str, value: str
     ) -> None:
 
-        print(group, preset, device, property, value)
-
         if not device or not property or not value:
             return
 

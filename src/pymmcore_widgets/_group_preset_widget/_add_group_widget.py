@@ -257,6 +257,18 @@ class AddGroupWidget(QDialog):
 
     def _add_group(self) -> None:
 
+        cbox = [
+            self._prop_table.cellWidget(r, 0)
+            for r in range(self._prop_table.rowCount())
+            if self._prop_table.cellWidget(r, 0).isChecked()
+        ]
+
+        if not cbox:
+            warnings.warn("Select at lest one property!")
+            self.info_lbl.setStyleSheet("color: magenta;")
+            self.info_lbl.setText("Select at lest one property!")
+            return
+
         group = self.group_lineedit.text()
 
         if not group:
