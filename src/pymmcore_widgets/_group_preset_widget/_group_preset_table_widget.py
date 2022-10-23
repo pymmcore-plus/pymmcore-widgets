@@ -19,6 +19,7 @@ from qtpy.QtWidgets import (
 from pymmcore_widgets._presets_widget import PresetsWidget
 from pymmcore_widgets._property_widget import PropertyWidget
 
+from .._core import load_system_config
 from .._util import block_core
 from ._add_group_widget import AddGroupWidget
 from ._add_preset_widget import AddPresetWidget
@@ -156,7 +157,7 @@ class GroupPresetTableWidget(QGroupBox):
 
         save_btn_wdg = QWidget()
         save_btn_layout = QHBoxLayout()
-        save_btn_layout.setSpacing(0)
+        save_btn_layout.setSpacing(5)
         save_btn_layout.setContentsMargins(0, 0, 0, 0)
         save_btn_wdg.setLayout(save_btn_layout)
 
@@ -165,6 +166,9 @@ class GroupPresetTableWidget(QGroupBox):
         self.save_btn = QPushButton(text="Save cfg")
         self.save_btn.clicked.connect(self._save_cfg)
         save_btn_layout.addWidget(self.save_btn)
+        self.load_btn = QPushButton(text="Load cfg")
+        self.load_btn.clicked.connect(self._load_cfg)
+        save_btn_layout.addWidget(self.load_btn)
 
         return save_btn_wdg
 
@@ -369,6 +373,14 @@ class GroupPresetTableWidget(QGroupBox):
         )
         if filename:
             self._mmc.saveSystemConfiguration(filename)
+
+    def _load_cfg(self) -> None:
+        """Open file dialog to select a config file."""
+        (filename, _) = QFileDialog.getOpenFileName(
+            self, "Select a Micro-Manager configuration file", "", "cfg(*.cfg)"
+        )
+        if filename:
+            load_system_config(filename, mmcore=self._mmc)
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._populate_table)
