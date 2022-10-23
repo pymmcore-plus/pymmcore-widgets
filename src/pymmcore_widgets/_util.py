@@ -1,5 +1,6 @@
-from typing import Optional, Sequence
+from typing import ContextManager, Optional, Sequence, Union
 
+from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
@@ -8,6 +9,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.utils import signals_blocked
 
 
 class ComboMessageBox(QDialog):
@@ -40,3 +42,11 @@ class ComboMessageBox(QDialog):
     def currentText(self) -> str:
         """Returns the current QComboBox text."""
         return self._combo.currentText()  # type: ignore [no-any-return]
+
+
+def block_core(mmcore_events: Union[CMMCoreSignaler, PCoreSignaler]) -> ContextManager:
+    """Block core signals."""
+    if isinstance(mmcore_events, CMMCoreSignaler):
+        return mmcore_events.blocked()  # type: ignore
+    elif isinstance(mmcore_events, PCoreSignaler):
+        return signals_blocked(mmcore_events)  # type: ignore

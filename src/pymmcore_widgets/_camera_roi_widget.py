@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -21,22 +21,40 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
+from ._util import block_core
+
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+FULL = "Full Chip"
+CUSTOM_ROI = "Custom ROI"
 
 
 class CameraRoiWidget(QWidget):
     """
     A Widget to control the camera device ROI.
 
-    When the ROI changes, the roiInfo Signal is emitted.
+    When the ROI changes, the roiChanged Signal is emitted.
+
+    Parameters
+    ----------
+    parent : Optional[QWidget]
+        Optional parent widget, by default None
+    mmcore: Optional[CMMCorePlus]
+        Optional `CMMCorePlus` micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new) `CMMCorePlus.instance()`.
     """
 
-    roiInfo = Signal(int, int, int, int, str)
+    roiChanged = Signal(int, int, int, int, str)
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(
+        self,
+        parent: Optional[QWidget] = None,
+        *,
+        mmcore: Optional[CMMCorePlus] = None,
+    ) -> None:
+        super().__init__(parent)
 
-        self._mmc = CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         self._create_gui()
 
@@ -208,7 +226,7 @@ class CameraRoiWidget(QWidget):
             items = self._cam_roi_combo_items(self.chip_size_x, self.chip_size_y)
             self.cam_roi_combo.clear()
             self.cam_roi_combo.addItems(items)
-            self.cam_roi_combo.setCurrentText("Full")
+            self.cam_roi_combo.setCurrentText(FULL)
         spin_list = [self.start_x, self.start_y, self.roi_width, self.roi_height]
         self._hide_spinbox_button(spin_list, True)
         self._set_roi_groupbox_values(0, 0, self.chip_size_x, self.chip_size_y)
@@ -220,7 +238,7 @@ class CameraRoiWidget(QWidget):
         self._update_lbl_info()
 
     def _cam_roi_combo_items(self, chip_size_x: int, chip_size_y: int) -> list:
-        items = ["Full", "ROI"]
+        items = [FULL, CUSTOM_ROI]
         options = [8, 6, 4, 2]
         for val in options:
             width = round(chip_size_x / val)
@@ -232,10 +250,6 @@ class CameraRoiWidget(QWidget):
         self, cam_label: str, x: int, y: int, width: int, height: int
     ) -> None:
 
-        with signals_blocked(self.center_checkbox):
-            self.center_checkbox.setChecked(False)
-        with signals_blocked(self.cam_roi_combo):
-            self.cam_roi_combo.setCurrentText("ROI")
         self.start_x.setMaximum(self.chip_size_x)
         self.start_y.setMaximum(self.chip_size_y)
 
@@ -243,15 +257,30 @@ class CameraRoiWidget(QWidget):
 
         if (x, y, width, height) == (0, 0, self.chip_size_x, self.chip_size_y):
             with signals_blocked(self.cam_roi_combo):
-                self.cam_roi_combo.setCurrentText("Full")
+                self.cam_roi_combo.setCurrentText(FULL)
             with signals_blocked(self.center_checkbox):
                 self.center_checkbox.setChecked(True)
+
         else:
-            self._on_roi_combobox_change("ROI")
+            with signals_blocked(self.cam_roi_combo):
+                self.cam_roi_combo.setCurrentText(CUSTOM_ROI)
+            self._setEnabled(True)
+            spin_list = [self.start_x, self.start_y, self.roi_width, self.roi_height]
+            self._hide_spinbox_button(spin_list, False)
+            self.center_checkbox.setChecked(False)
+
+        self._update_lbl_info()
+
+    def _reset_for_custom_roi(self, checkbox_state: bool) -> None:
+        self._setEnabled(True)
+        spin_list = [self.start_x, self.start_y, self.roi_width, self.roi_height]
+        self._hide_spinbox_button(spin_list, False)
+        with signals_blocked(self.center_checkbox):
+            self.center_checkbox.setChecked(checkbox_state)
 
     def _update_lbl_info(self) -> None:
 
-        _, _, width, height = self._get_roi_groupbox_values()
+        start_x, start_y, width, height = self._get_roi_groupbox_values()
 
         px_size = self._mmc.getPixelSizeUm() or 0
 
@@ -262,37 +291,51 @@ class CameraRoiWidget(QWidget):
             f"Size: {width} px * {height} px [{width_um} µm * {height_um} µm]"
         )
 
+        if self._mmc.getROI() == [start_x, start_y, width, height]:
+            self.lbl_info.setStyleSheet("")
+        else:
+            self.lbl_info.setStyleSheet("color: magenta;")
+
     def _on_roi_combobox_change(self, value: str) -> None:
-        self.custorm_roi_group.setEnabled(value == "ROI")
-        self.center_checkbox.setEnabled(value == "ROI")
-        self.crop_btn.setEnabled(value != "Full")
+        self.custorm_roi_group.setEnabled(value == CUSTOM_ROI)
+        self.center_checkbox.setEnabled(value == CUSTOM_ROI)
+        self.crop_btn.setEnabled(value == CUSTOM_ROI)
 
         with signals_blocked(self.center_checkbox):
-            self.center_checkbox.setChecked(value != "ROI")
+            self.center_checkbox.setChecked(value != CUSTOM_ROI)
 
         spin_list = [self.start_x, self.start_y, self.roi_width, self.roi_height]
 
-        if value == "Full":
+        if value == FULL:
             self._hide_spinbox_button(spin_list, True)
             self._mmc.clearROI()
             self._mmc.snap()
             self._set_roi_groupbox_values(0, 0, self.chip_size_x, self.chip_size_y)
 
-            # TODO: maybe add roiSet signal to mmc.clearROI()?
-            self._mmc.events.roiSet.emit(
-                self._mmc.getCameraDevice(), 0, 0, self.chip_size_x, self.chip_size_y
+            self.start_x.setMaximum(self.chip_size_x)
+            self.start_y.setMaximum(self.chip_size_y)
+
+            self._set_roi_groupbox_values(
+                0, 0, self.chip_size_x, self.chip_size_y, False
             )
 
-            self.roiInfo.emit(0, 0, self.chip_size_x, self.chip_size_y, "Full")
+            with signals_blocked(self.cam_roi_combo):
+                self.cam_roi_combo.setCurrentText(FULL)
+            with signals_blocked(self.center_checkbox):
+                self.center_checkbox.setChecked(True)
 
-        elif value == "ROI":
+            self.roiChanged.emit(0, 0, self.chip_size_x, self.chip_size_y, FULL)
+
+        elif value == CUSTOM_ROI:
+            self._mmc.clearROI()
+            self._mmc.snap()
             self._hide_spinbox_button(spin_list, False)
             self._on_center_checkbox(self.center_checkbox.isChecked())
 
             self._set_start_max_value()
 
             start_x, start_y, width, height = self._get_roi_groupbox_values()
-            self.roiInfo.emit(
+            self.roiChanged.emit(
                 start_x, start_y, width, height, self.cam_roi_combo.currentText()
             )
 
@@ -307,9 +350,10 @@ class CameraRoiWidget(QWidget):
             start_y = (self.chip_size_y - height) // 2
 
             self._set_roi_groupbox_values(start_x, start_y, width, height, False)
-            self.roiInfo.emit(
-                start_x, start_y, width, height, self.cam_roi_combo.currentText()
-            )
+
+            with block_core(self._mmc.events):
+                self._mmc.setROI(start_x, start_y, width, height)
+            self._mmc.snap()
 
         self._update_lbl_info()
 
@@ -317,7 +361,7 @@ class CameraRoiWidget(QWidget):
 
         self._update_lbl_info()
 
-        if self.cam_roi_combo.currentText() != "ROI":
+        if self.cam_roi_combo.currentText() != CUSTOM_ROI:
             return
 
         self._check_size_reset_snap()
@@ -328,7 +372,7 @@ class CameraRoiWidget(QWidget):
         self._set_start_max_value()
 
         start_x, start_y, width, height = self._get_roi_groupbox_values()
-        self.roiInfo.emit(start_x, start_y, width, height, "ROI")
+        self.roiChanged.emit(start_x, start_y, width, height, CUSTOM_ROI)
 
     def _on_start_spinbox_changed(self) -> None:
         if not self.start_x.isEnabled() and not self.start_y.isEnabled():
@@ -337,7 +381,7 @@ class CameraRoiWidget(QWidget):
         self._check_size_reset_snap()
 
         start_x, start_y, width, height = self._get_roi_groupbox_values()
-        self.roiInfo.emit(
+        self.roiChanged.emit(
             start_x, start_y, width, height, self.cam_roi_combo.currentText()
         )
 
@@ -378,7 +422,7 @@ class CameraRoiWidget(QWidget):
         self.start_y.setEnabled(not state)
         self._hide_spinbox_button([self.start_x, self.start_y], state)
 
-        if not state or self.cam_roi_combo.currentText() != "ROI":
+        if not state or self.cam_roi_combo.currentText() != CUSTOM_ROI:
             return
 
         self._check_size_reset_snap()
@@ -391,7 +435,9 @@ class CameraRoiWidget(QWidget):
         self.start_y.setValue(start_y)
 
         start_x, start_y, width, height = self._get_roi_groupbox_values()
-        self.roiInfo.emit(start_x, start_y, width, height, "ROI")
+        self.roiChanged.emit(start_x, start_y, width, height, CUSTOM_ROI)
+
+        self._update_lbl_info()
 
     def _hide_spinbox_button(self, spin_list: List[QSpinBox], hide: bool) -> None:
         for spin in spin_list:
@@ -410,5 +456,7 @@ class CameraRoiWidget(QWidget):
 
     def _on_crop_pushed(self) -> None:
         start_x, start_y, width, height = self._get_roi_groupbox_values()
-        self._mmc.setROI(start_x, start_y, width, height)
+        with block_core(self._mmc.events):
+            self._mmc.setROI(start_x, start_y, width, height)
+        self._update_lbl_info()
         self._mmc.snap()
