@@ -60,7 +60,7 @@ class GridWidget(QDialog):
         # row
         self.row_wdg = QWidget()
         row_wdg_lay = QHBoxLayout()
-        row_wdg_lay.setSpacing(0)
+        row_wdg_lay.setSpacing(3)
         row_wdg_lay.setContentsMargins(0, 0, 0, 0)
         self.row_wdg.setLayout(row_wdg_lay)
         row_label = QLabel(text="Rows:")
@@ -78,7 +78,7 @@ class GridWidget(QDialog):
         # col
         self.col_wdg = QWidget()
         col_wdg_lay = QHBoxLayout()
-        col_wdg_lay.setSpacing(0)
+        col_wdg_lay.setSpacing(3)
         col_wdg_lay.setContentsMargins(0, 0, 0, 0)
         self.col_wdg.setLayout(col_wdg_lay)
         col_label = QLabel(text="Columns:")
@@ -100,8 +100,8 @@ class GridWidget(QDialog):
         ovl_wdg_lay.setContentsMargins(0, 0, 0, 0)
         self.ovl_wdg.setLayout(ovl_wdg_lay)
         overlap_label = QLabel(text="Overlap (%):")
-        overlap_label.setMaximumWidth(fix_size)
-        overlap_label.setMinimumWidth(fix_size)
+        overlap_label.setMaximumWidth(100)
+        overlap_label.setMinimumWidth(100)
         overlap_label.setSizePolicy(lbl_sizepolicy)
         self.ovelap_spinBox = QSpinBox()
         self.ovelap_spinBox.setMinimumWidth(fix_size)
