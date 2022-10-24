@@ -241,7 +241,7 @@ class PixelSizeWidget(QtW.QDialog):
         layout.setContentsMargins(5, 5, 5, 5)
         self.rbt_wdg.setLayout(layout)
 
-        self.mag_radiobtn = QtW.QRadioButton(text="Calculate Magnifiction")
+        self.mag_radiobtn = QtW.QRadioButton(text="Calculate Magnification")
         self.img_px_radiobtn = QtW.QRadioButton(text="Calculate Image Pixel Size")
         self.img_px_radiobtn.setChecked(True)
 
