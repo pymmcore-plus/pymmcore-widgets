@@ -21,7 +21,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
-from ._util import block_core
+# from ._util import block_core
 
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 FULL = "Full Chip"
@@ -94,7 +94,7 @@ class CameraRoiWidget(QWidget):
 
         bottom_wdg = QGroupBox()
         bottom_layout = QHBoxLayout()
-        bottom_layout.setSpacing(5)
+        bottom_layout.setSpacing(10)
         bottom_layout.setContentsMargins(10, 3, 10, 3)
         bottom_wdg.setLayout(bottom_layout)
 
@@ -103,6 +103,10 @@ class CameraRoiWidget(QWidget):
 
         spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Fixed)
         bottom_layout.addItem(spacer)
+
+        self.snap_checkbox = QCheckBox(text="autoSnap")
+        self.snap_checkbox.setChecked(True)
+        bottom_layout.addWidget(self.snap_checkbox)
 
         self.crop_btn = QPushButton("Crop")
         self.crop_btn.setMinimumWidth(100)
@@ -261,6 +265,10 @@ class CameraRoiWidget(QWidget):
             with signals_blocked(self.center_checkbox):
                 self.center_checkbox.setChecked(True)
 
+        elif "x" in self.cam_roi_combo.currentText():
+            self._setEnabled(False)
+            self.cam_roi_combo.setEnabled(True)
+
         else:
             with signals_blocked(self.cam_roi_combo):
                 self.cam_roi_combo.setCurrentText(CUSTOM_ROI)
@@ -309,26 +317,28 @@ class CameraRoiWidget(QWidget):
         if value == FULL:
             self._hide_spinbox_button(spin_list, True)
             self._mmc.clearROI()
-            self._mmc.snap()
-            self._set_roi_groupbox_values(0, 0, self.chip_size_x, self.chip_size_y)
 
-            self.start_x.setMaximum(self.chip_size_x)
-            self.start_y.setMaximum(self.chip_size_y)
-
-            self._set_roi_groupbox_values(
-                0, 0, self.chip_size_x, self.chip_size_y, False
+            # TODO: add roiSet signal to mmc.clearROI()
+            self._mmc.events.roiSet.emit(
+                self._mmc.getCameraDevice(), 0, 0, self.chip_size_x, self.chip_size_y
             )
 
-            with signals_blocked(self.cam_roi_combo):
-                self.cam_roi_combo.setCurrentText(FULL)
-            with signals_blocked(self.center_checkbox):
-                self.center_checkbox.setChecked(True)
+            if self.snap_checkbox.isChecked():
+                self._mmc.snap()
 
             self.roiChanged.emit(0, 0, self.chip_size_x, self.chip_size_y, FULL)
 
         elif value == CUSTOM_ROI:
             self._mmc.clearROI()
-            self._mmc.snap()
+
+            # TODO: add roiSet signal to mmc.clearROI()
+            # Then here add::
+            # with block_core(self._mmc.events):
+            # self._mmc.clearROI()
+
+            if self.snap_checkbox.isChecked():
+                self._mmc.snap()
+
             self._hide_spinbox_button(spin_list, False)
             self._on_center_checkbox(self.center_checkbox.isChecked())
 
@@ -351,9 +361,10 @@ class CameraRoiWidget(QWidget):
 
             self._set_roi_groupbox_values(start_x, start_y, width, height, False)
 
-            with block_core(self._mmc.events):
-                self._mmc.setROI(start_x, start_y, width, height)
-            self._mmc.snap()
+            self._mmc.setROI(start_x, start_y, width, height)
+
+            if self.snap_checkbox.isChecked():
+                self._mmc.snap()
 
         self._update_lbl_info()
 
@@ -452,11 +463,12 @@ class CameraRoiWidget(QWidget):
         roi_height = y + h
         if roi_width < self.chip_size_x or roi_height < self.chip_size_y:
             self._mmc.clearROI()
-            self._mmc.snap()
+            if self.snap_checkbox.isChecked():
+                self._mmc.snap()
 
     def _on_crop_pushed(self) -> None:
         start_x, start_y, width, height = self._get_roi_groupbox_values()
-        with block_core(self._mmc.events):
-            self._mmc.setROI(start_x, start_y, width, height)
+        self._mmc.setROI(start_x, start_y, width, height)
         self._update_lbl_info()
-        self._mmc.snap()
+        if self.snap_checkbox.isChecked():
+            self._mmc.snap()
