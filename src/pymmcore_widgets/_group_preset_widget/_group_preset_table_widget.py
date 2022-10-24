@@ -310,7 +310,7 @@ class GroupPresetTableWidget(QGroupBox):
                 self._mmc.deleteConfigGroup(group)
 
     def _msg_box(self, msg: str) -> Any:
-        msgBox = QMessageBox()
+        msgBox = QMessageBox(parent=self)
         msgBox.setIcon(QMessageBox.Warning)
         msgBox.setWindowTitle("Delete")
         msgBox.setText(msg)
