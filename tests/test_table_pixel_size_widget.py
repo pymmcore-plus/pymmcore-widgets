@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
-from qtpy.QtWidgets import QLineEdit
+import pytest
+
+from pymmcore_widgets._pixel_size_widget import PixelSizeWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -16,12 +18,22 @@ IMAGE_PX_SIZE = 4
 ROW = 0  # "Nikon 40X Plan Fluor ELWD"
 
 
+@pytest.fixture()
+def px_wdg(global_mmcore, qtbot: QtBot):
+    px_size_wdg = PixelSizeWidget(mmcore=global_mmcore)
+    table = px_size_wdg.table
+    obj = px_size_wdg.objective_device
+    qtbot.addWidget(px_size_wdg)
+    mmc = global_mmcore
+    return px_size_wdg, table, obj, mmc
+
+
 def _get_wdg(table):
     obj = table.item(ROW, OBJECTIVE_LABEL).text()
-    resID = cast(QLineEdit, table.cellWidget(ROW, RESOLUTION_ID))
-    mag = cast(QLineEdit, table.cellWidget(ROW, MAGNIFICATION))
-    cam_px = cast(QLineEdit, table.cellWidget(ROW, CAMERA_PX_SIZE))
-    img_px = cast(QLineEdit, table.cellWidget(ROW, IMAGE_PX_SIZE))
+    resID = table.cellWidget(ROW, RESOLUTION_ID)
+    mag = table.cellWidget(ROW, MAGNIFICATION)
+    cam_px = table.cellWidget(ROW, CAMERA_PX_SIZE)
+    img_px = table.cellWidget(ROW, IMAGE_PX_SIZE)
     return obj, resID, mag, cam_px, img_px
 
 
