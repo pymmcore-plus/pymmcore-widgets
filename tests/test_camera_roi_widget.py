@@ -125,9 +125,9 @@ def test_camera_roi_combo_custom(camera_roi_widget):
     assert not cam.lbl_info.styleSheet()
 
     w.setValue(201)
-    assert cam.lbl_info.text() == "Size: 200 px * 210 px [200.0 µm * 210.0 µm]"
+    assert cam.lbl_info.text() == "Size: 201 px * 210 px [201.0 µm * 210.0 µm]"
     assert cam.lbl_info.styleSheet() == "color: magenta;"
-    assert mmc.getROI() == [100, 130, 200, 210]
+    assert mmc.getROI() == [0, 0, 512, 512]
 
 
 def test_camera_roi_widget_signal(camera_roi_widget):
