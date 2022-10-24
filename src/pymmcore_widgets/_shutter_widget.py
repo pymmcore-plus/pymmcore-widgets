@@ -73,6 +73,7 @@ class ShuttersWidget(QtW.QWidget):
         self._mmc.events.startSequenceAcquisition.connect(self._on_seq_started)
         self._mmc.events.stopSequenceAcquisition.connect(self._on_seq_stopped)
         self._mmc.events.imageSnapped.connect(self._on_seq_stopped)
+        self._mmc.events.configSet.connect(self._on_channel_set)
 
         self.destroyed.connect(self._disconnect)
 
@@ -272,6 +273,17 @@ class ShuttersWidget(QtW.QWidget):
                 if value != "Undefined":
                     self._mmc.events.propertyChanged.emit(value, "State", True)
 
+    def _on_channel_set(self, group: str, preset: str) -> None:
+        ch = self._mmc.getChannelGroup()
+        if group != ch:
+            return  # pragma: no cover
+        for d in self._mmc.getConfigData(ch, preset):
+            _dev = d[0]
+            _type = self._mmc.getDeviceType(_dev)
+            if _type is DeviceType.Shutter:
+                self._mmc.setProperty("Core", "Shutter", _dev)
+                break
+
     def _on_shutter_btn_clicked(self) -> None:
         if self._mmc.getShutterOpen(self.shutter_device):
             self._close_shutter(self.shutter_device)
@@ -329,3 +341,4 @@ class ShuttersWidget(QtW.QWidget):
         self._mmc.events.startSequenceAcquisition.disconnect(self._on_seq_started)
         self._mmc.events.stopSequenceAcquisition.disconnect(self._on_seq_stopped)
         self._mmc.events.imageSnapped.disconnect(self._on_seq_stopped)
+        self._mmc.events.configSet.disconnect(self._on_channel_set)
