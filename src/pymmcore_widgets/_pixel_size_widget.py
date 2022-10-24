@@ -415,6 +415,8 @@ class PixelSizeWidget(QtW.QDialog):
             with contextlib.suppress(ValueError):
                 self._mmc.deletePixelSizeConfig(wdg.property("resID"))
 
+            self.table._update_status()
+
             return
 
         else:
@@ -503,6 +505,8 @@ class PixelSizeWidget(QtW.QDialog):
         if "None" in self._mmc.getAvailablePixelSizeConfigs():
             with block_core(self._mmc.events):
                 self._mmc.deletePixelSizeConfig("None")
+
+        self.table._update_status()
 
     def _delete_if_exist(self, resolutionID: str, objective_label: str) -> None:
         # remove resolutionID if contains obj_label in ConfigData
