@@ -60,7 +60,7 @@ class GridWidget(QDialog):
         # row
         self.row_wdg = QWidget()
         row_wdg_lay = QHBoxLayout()
-        row_wdg_lay.setSpacing(3)
+        row_wdg_lay.setSpacing(0)
         row_wdg_lay.setContentsMargins(0, 0, 0, 0)
         self.row_wdg.setLayout(row_wdg_lay)
         row_label = QLabel(text="Rows:")
@@ -78,7 +78,7 @@ class GridWidget(QDialog):
         # col
         self.col_wdg = QWidget()
         col_wdg_lay = QHBoxLayout()
-        col_wdg_lay.setSpacing(3)
+        col_wdg_lay.setSpacing(0)
         col_wdg_lay.setContentsMargins(0, 0, 0, 0)
         self.col_wdg.setLayout(col_wdg_lay)
         col_label = QLabel(text="Columns:")
