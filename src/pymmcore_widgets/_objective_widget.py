@@ -4,7 +4,7 @@ from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QLabel, QSizePolicy, QWidget
 
 from ._device_widget import StateDeviceWidget
-from ._util import ComboMessageBox
+from ._util import guess_objective_or_prompt
 
 
 class ObjectivesWidget(QWidget):
@@ -41,7 +41,9 @@ class ObjectivesWidget(QWidget):
     ):
         super().__init__(parent)
         self._mmc = mmcore or CMMCorePlus.instance()
-        self._objective_device = objective_device or self._guess_objective_device()
+        self._objective_device = objective_device or guess_objective_or_prompt(
+            parent=self
+        )
         self._combo = self._create_objective_combo(objective_device)
 
         lbl = QLabel("Objectives:")
@@ -66,25 +68,10 @@ class ObjectivesWidget(QWidget):
             self._objective_device = None
         if len(loaded) > 1:
             if not self._objective_device:
-                self._objective_device = self._guess_objective_device()
+                self._objective_device = guess_objective_or_prompt(parent=self)
             self._clear_previous_device_widget()
             self._combo = self._create_objective_combo(self._objective_device)
             self.layout().addWidget(self._combo)
-
-    def _guess_objective_device(self) -> Union[str, None]:
-        """Try to update the list of objective choices.
-
-        1. get a list of potential objective devices from pymmcore
-        2. if there is only one, use it, if there are >1, show a dialog box
-        """
-        candidates = self._mmc.guessObjectiveDevices()
-        if len(candidates) == 1:
-            return candidates[0]
-        elif candidates:
-            dialog = ComboMessageBox(candidates, "Select Objective Device:", self)
-            if dialog.exec_() == dialog.DialogCode.Accepted:
-                return dialog.currentText()
-        return None
 
     def _clear_previous_device_widget(self) -> None:
         self._combo.setParent(None)
