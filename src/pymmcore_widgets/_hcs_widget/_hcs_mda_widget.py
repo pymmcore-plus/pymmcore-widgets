@@ -96,14 +96,18 @@ class MDAWidget(QWidget):
         wdg_layout.setContentsMargins(0, 0, 0, 0)
         wdg.setLayout(wdg_layout)
 
-        self.position_list_button = QPushButton(text="Create Position List")
-        self.remove_position_button = QPushButton(text="Remove Position")
+        self.position_list_button = QPushButton(text="Add Positions")
+        self.remove_position_button = QPushButton(text="Remove")
         self.remove_position_button.clicked.connect(self._remove_position)
-        self.clear_positions_button = QPushButton(text="Clear List")
+        self.clear_positions_button = QPushButton(text="Clear")
         self.clear_positions_button.clicked.connect(self._clear_positions)
+        self.save_positions_button = QPushButton(text="Save")
+        self.load_positions_button = QPushButton(text="Load")
         wdg_layout.addWidget(self.position_list_button)
         wdg_layout.addWidget(self.remove_position_button)
         wdg_layout.addWidget(self.clear_positions_button)
+        wdg_layout.addWidget(self.save_positions_button)
+        wdg_layout.addWidget(self.load_positions_button)
         group_layout.addWidget(wdg)
 
         # table
