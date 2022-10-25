@@ -14,6 +14,7 @@ from ._image_widget import ImagePreview
 from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
 from ._objective_widget import ObjectivesWidget
+from ._pixel_size_widget import PixelSizeWidget
 from ._presets_widget import PresetsWidget
 from ._property_browser import PropertyBrowser
 from ._property_widget import PropertyWidget, make_property_value_widget
@@ -33,6 +34,7 @@ __all__ = [
     "LiveButton",
     "make_property_value_widget",
     "ObjectivesWidget",
+    "PixelSizeWidget",
     "PresetsWidget",
     "PropertyBrowser",
     "PropertyWidget",

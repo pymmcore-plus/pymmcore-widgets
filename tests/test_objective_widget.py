@@ -7,7 +7,8 @@ import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QDialog
 
-from pymmcore_widgets._objective_widget import ComboMessageBox, ObjectivesWidget
+from pymmcore_widgets._objective_widget import ObjectivesWidget
+from pymmcore_widgets._util import ComboMessageBox
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
