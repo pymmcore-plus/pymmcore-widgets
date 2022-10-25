@@ -1,5 +1,6 @@
 from typing import ContextManager, Optional, Sequence, Union
 
+from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
 from qtpy.QtWidgets import (
     QComboBox,
@@ -42,6 +43,25 @@ class ComboMessageBox(QDialog):
     def currentText(self) -> str:
         """Returns the current QComboBox text."""
         return self._combo.currentText()  # type: ignore [no-any-return]
+
+
+def guess_objective_or_prompt(
+    core: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
+) -> Optional[str]:
+    """Try to update the list of objective choices.
+
+    1. get a list of potential objective devices from pymmcore
+    2. if there is only one, use it, if there are >1, show a dialog box
+    """
+    core = core or CMMCorePlus.instance()
+    candidates = core.guessObjectiveDevices()
+    if len(candidates) == 1:
+        return candidates[0]
+    elif candidates:
+        dialog = ComboMessageBox(candidates, "Select Objective Device:", parent=parent)
+        if dialog.exec_() == dialog.DialogCode.Accepted:
+            return dialog.currentText()
+    return None
 
 
 def block_core(mmcore_events: Union[CMMCoreSignaler, PCoreSignaler]) -> ContextManager:

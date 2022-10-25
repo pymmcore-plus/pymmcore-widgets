@@ -4,7 +4,7 @@ from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QPushButton
+from qtpy.QtWidgets import QPushButton, QWidget
 from superqt.fonticon import icon
 
 COLOR_TYPE = Union[
@@ -23,34 +23,22 @@ class LiveButton(QPushButton):
     When pressed, a 'ContinuousSequenceAcquisition' is started or stopped
     and a pymmcore-plus signal 'startContinuousSequenceAcquisition' or
     'stopSequenceAcquisition' is emitted.
-
-    Parameters
-    ----------
-    button_text_on_off : Optional[tuple[str, str]]
-        Text of the QPushButton in the on and off state.
-    icon_size : Optional[int]
-        Size of the QPushButton icon.
-    icon_color_on_off : Optional[tuple[COLOR_TYPE, COLOR_TYPE]]
-       Color of the QPushButton icon in the on and off state.
     """
 
     def __init__(
         self,
-        button_text_on_off: Tuple[str, str] = ("", ""),
-        icon_size: int = 30,
-        icon_color_on_off: Tuple[COLOR_TYPE, COLOR_TYPE] = ("", ""),
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
 
-        super().__init__()
+        super().__init__(parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
-        self.button_text_on = button_text_on_off[0]
-        self.button_text_off = button_text_on_off[1]
-        self.icon_size = icon_size
-        self.icon_color_on = icon_color_on_off[0]
-        self.icon_color_off = icon_color_on_off[1]
+        self._button_text_on: str = "Live"
+        self._button_text_off: str = "Stop"
+        self._icon_color_on: COLOR_TYPE = (0, 255, 0)
+        self._icon_color_off: COLOR_TYPE = "magenta"
 
         self.streaming_timer = None
 
@@ -68,11 +56,71 @@ class LiveButton(QPushButton):
         if len(self._mmc.getLoadedDevices()) > 1:
             self.setEnabled(True)
 
+    @property
+    def button_text_on(self) -> str:
+        """
+        Set the live button text for when live mode is on.
+
+        Default = "Live."
+        """
+        return self._button_text_on
+
+    @button_text_on.setter
+    def button_text_on(self, text: str) -> None:
+        if not self._mmc.isSequenceRunning():
+            self.setText(text)
+        self._button_text_on = text
+
+    @property
+    def button_text_off(self) -> str:
+        """
+        Set the live button text for when live mode is off.
+
+        Default = "Stop."
+        """
+        return self._button_text_off
+
+    @button_text_off.setter
+    def button_text_off(self, text: str) -> None:
+        if self._mmc.isSequenceRunning():
+            self.setText(text)
+        self._button_text_off = text
+
+    @property
+    def icon_color_on(self) -> COLOR_TYPE:
+        """
+        Set the live button color for when live mode is on.
+
+        Default = (0. 255, 0).
+        """
+        return self._icon_color_on
+
+    @icon_color_on.setter
+    def icon_color_on(self, color: COLOR_TYPE) -> None:
+        if not self._mmc.isSequenceRunning():
+            self.setIcon(icon(MDI6.video_outline, color=color))
+        self._icon_color_on = color
+
+    @property
+    def icon_color_off(self) -> COLOR_TYPE:
+        """
+        Set the live button color for when live mode is off.
+
+        Default = "magenta".
+        """
+        return self._icon_color_off
+
+    @icon_color_off.setter
+    def icon_color_off(self, color: COLOR_TYPE) -> None:
+        if self._mmc.isSequenceRunning():
+            self.setIcon(icon(MDI6.video_off_outline, color=color))
+        self._icon_color_off = color
+
     def _create_button(self) -> None:
-        if self.button_text_on:
-            self.setText(self.button_text_on)
+        if self._button_text_on:
+            self.setText(self._button_text_on)
         self._set_icon_state(False)
-        self.setIconSize(QSize(self.icon_size, self.icon_size))
+        self.setIconSize(QSize(30, 30))
         self.clicked.connect(self._toggle_live_mode)
 
     def _on_system_cfg_loaded(self) -> None:
@@ -90,13 +138,11 @@ class LiveButton(QPushButton):
     def _set_icon_state(self, state: bool) -> None:
         """Set the icon in the on or off state."""
         if state:  # set in the off mode
-            self.setIcon(icon(MDI6.video_off_outline, color=self.icon_color_off))
-            if self.button_text_off:
-                self.setText(self.button_text_off)
+            self.setIcon(icon(MDI6.video_off_outline, color=self._icon_color_off))
+            self.setText(self._button_text_off)
         else:  # set in the on mode
-            self.setIcon(icon(MDI6.video_outline, color=self.icon_color_on))
-            if self.button_text_on:
-                self.setText(self.button_text_on)
+            self.setIcon(icon(MDI6.video_outline, color=self._icon_color_on))
+            self.setText(self._button_text_on)
 
     def _on_sequence_started(self) -> None:
         self._set_icon_state(True)
