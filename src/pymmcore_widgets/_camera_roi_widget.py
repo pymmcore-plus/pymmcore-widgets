@@ -334,7 +334,7 @@ class CameraRoiWidget(QWidget):
             # TODO: add roiSet signal to mmc.clearROI()
             # Then here add::
             # with block_core(self._mmc.events):
-            # self._mmc.clearROI()
+            #     self._mmc.clearROI()
 
             if self.snap_checkbox.isChecked():
                 self._mmc.snap()
