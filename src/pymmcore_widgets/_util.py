@@ -1,4 +1,4 @@
-from typing import ContextManager, Optional, Sequence, Tuple, Union
+from typing import ContextManager, Literal, Optional, Sequence, Tuple, Union
 
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
