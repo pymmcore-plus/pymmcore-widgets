@@ -18,7 +18,7 @@ class MDA(QWidget):
     """
     An example widget for the MultiDWidget acquisition widget.
 
-    The MultiDWidget can beused to build a mda experiment.
+    The MultiDWidget can be used to build a mda experiment.
     The 'Run' button is linked to the pymmcore-plus 'run_mda' method.
 
     In this example, the whole acquisition sequence as well as each acquisition event
