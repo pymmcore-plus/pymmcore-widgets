@@ -1,10 +1,12 @@
+"""
+In this example all the available groups created in micromanager
+are dysplaied with a 'PresetsWidget'.
+"""
+
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication, QFormLayout, QWidget
 
 from pymmcore_widgets import PresetsWidget
-
-# In this example all the available groups created in micromanager
-# are dysplaied with a 'PresetsWidget'.
 
 app = QApplication([])
 

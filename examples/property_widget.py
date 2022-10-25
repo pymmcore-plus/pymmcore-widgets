@@ -8,16 +8,16 @@ app = QApplication([])
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-dev_prop = [
+wdg = QWidget()
+wdg.setLayout(QFormLayout())
+
+devs_pros = [
     ("Camera", "AllowMultiROI"),
     ("Camera", "Binning"),
     ("Camera", "CCDTemperature"),
 ]
 
-wdg = QWidget()
-wdg.setLayout(QFormLayout())
-
-for dev, prop in dev_prop:
+for dev, prop in devs_pros:
     prop_wdg = PropertyWidget(dev, prop)
     wdg.layout().addRow(f"{dev}-{prop}:", prop_wdg)
 

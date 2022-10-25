@@ -1,10 +1,13 @@
+"""
+In this example all the devices of type 'Stage' and 'XYStage' that are loaded
+in micromanager are dysplaied with a 'StageWidget'.
+"""
+
+
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtWidgets import QApplication, QGroupBox, QHBoxLayout, QWidget
 
 from pymmcore_widgets import StageWidget
-
-# In this example all the devices of type 'Stage' and 'XYStage' that are loaded
-# in micromanager are dysplaied with a 'StageWidget'.
 
 app = QApplication([])
 

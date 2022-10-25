@@ -1,9 +1,13 @@
+"""
+Check also the 'image_widget.py' example to see the ChannelWidget
+used in combination of other widgets.
+"""
+
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
 from pymmcore_widgets import ChannelWidget
 
-# see also image_widget.py
 app = QApplication([])
 
 mmc = CMMCorePlus().instance()

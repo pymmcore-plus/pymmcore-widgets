@@ -1,10 +1,12 @@
+"""
+In this example all the devices of type 'StateDevice' that are loaded in micromanager
+are dysplaied with a 'StateDeviceWidget'.
+"""
+
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtWidgets import QApplication, QFormLayout, QWidget
 
 from pymmcore_widgets import StateDeviceWidget
-
-# In this example all the devices of type 'StateDevice' that are loaded in micromanager
-# are dysplaied with a 'StateDeviceWidget'.
 
 app = QApplication([])
 
