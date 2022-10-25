@@ -7,7 +7,7 @@ from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.mda import PMDAEngine
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QBrush
-from qtpy.QtWidgets import QTableWidgetItem, QWidget
+from qtpy.QtWidgets import QFileDialog, QTableWidgetItem, QWidget
 from superqt.utils import signals_blocked
 from useq import MDASequence
 
@@ -54,6 +54,9 @@ class HCSWidget(HCSGui):
         )
 
         self._update_wp_combo()
+
+        self.ch_and_pos_list.save_positions_button.clicked.connect(self._save_positions)
+        self.ch_and_pos_list.load_positions_button.clicked.connect(self._load_positions)
 
     def _on_sys_cfg(self) -> None:
         self._on_combo_changed(self.wp_combo.currentText())
@@ -366,6 +369,47 @@ class HCSWidget(HCSGui):
         idx = self.ch_and_pos_list.stage_tableWidget.rowCount()
         self.ch_and_pos_list.stage_tableWidget.insertRow(idx)
         return int(idx)
+
+    def _save_positions(self) -> None:
+        (filename, _) = QFileDialog.getSaveFileName(
+            self, "Save Micro-Manager Configuration."
+        )
+        if filename:
+            print(filename)
+
+    #         positions = self._position_for_yaml()
+    #         with open(r'E:\data\store_file.yaml', 'w') as file:
+    #             documents = yaml.dump(positions, file)
+
+    # def _position_for_yaml(self) -> Dict:
+    #     rows = self.ch_and_pos_list.stage_tableWidget.rowCount()
+
+    #     if not rows:
+    #         return
+
+    #     positions = {}
+    #     for row in range(rows):
+    #         pos_name = self.ch_and_pos_list.stage_tableWidget.item(row, 0).text(),
+    #         positions[pos_name] = {
+    #             "x":
+    #               float(self.ch_and_pos_list.stage_tableWidget.item(row, 1).text()),
+    #             "y":
+    #               float(self.ch_and_pos_list.stage_tableWidget.item(row, 2).text()),
+    #         }
+    #         if self.ch_and_pos_list.z_combo.currentText() != "None":
+    #             positions["z"] = float(
+    #                 self.ch_and_pos_list.stage_tableWidget.item(row, 3).text()
+    #             )
+
+    #     return positions
+
+    def _load_positions(self) -> None:
+        """Open file dialog to select a position list file."""
+        (filename, _) = QFileDialog.getOpenFileName(
+            self, "Select a position list file", "", "yaml(*.yaml)"
+        )
+        if filename:
+            print(filename)
 
     def _get_state(self) -> MDASequence:
         ch_table = self.ch_and_pos_list.channel_tableWidget
