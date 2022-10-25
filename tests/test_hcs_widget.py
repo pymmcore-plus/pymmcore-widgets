@@ -9,9 +9,21 @@ from qtpy.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem, QTableWidget
 from useq import MDASequence
 
 from pymmcore_widgets._hcs_widget._graphics_items import FOVPoints, Well, WellArea
+from pymmcore_widgets._hcs_widget._main_hcs_widget import HCSWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
+
+
+@pytest.fixture()
+def hcs_wdg(global_mmcore, qtbot: QtBot):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    mmc = hcs._mmc
+    cal = hcs.calibration
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
+    return hcs, mmc, cal
 
 
 def _get_image_size(mmc):
