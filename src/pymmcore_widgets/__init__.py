@@ -18,6 +18,7 @@ from ._pixel_size_widget import PixelSizeWidget
 from ._presets_widget import PresetsWidget
 from ._property_browser import PropertyBrowser
 from ._property_widget import PropertyWidget, make_property_value_widget
+from ._shutter_widget import ShuttersWidget
 from ._slider_dialog_widget import SliderDialog
 from ._snap_button_widget import SnapButton
 from ._stage_widget import StageWidget
@@ -37,6 +38,7 @@ __all__ = [
     "PresetsWidget",
     "PropertyBrowser",
     "PropertyWidget",
+    "ShuttersWidget",
     "SliderDialog",
     "SnapButton",
     "StageWidget",
