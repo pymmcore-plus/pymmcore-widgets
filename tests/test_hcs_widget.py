@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, call
 
 import pytest
+import yaml
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem, QTableWidgetItem
 from useq import MDASequence
@@ -714,3 +717,84 @@ def test_hcs_state(hcs_wdg, qtbot: QtBot):
     assert state.z_plan == sequence.z_plan
     assert state.axis_order == sequence.axis_order
     assert state.stage_positions == sequence.stage_positions
+
+
+def test_save_positions(hcs_wdg, qtbot: QtBot):
+    hcs, _, cal = hcs_wdg
+    mda = hcs.ch_and_pos_list
+    cal.A1_stage_coords_center = (0.0, 0.0)
+
+    pos = [
+        ("A1_pos000", "-100", "100", "0.0"),
+        ("A1_pos001", "200", "200", "0.0"),
+        ("A1_pos002", "300", "-300", "0.0"),
+    ]
+
+    mda.stage_tableWidget.setRowCount(3)
+    for row, (pos_name, x, y, z) in enumerate(pos):
+        name = QTableWidgetItem(pos_name)
+        mda.stage_tableWidget.setItem(row, 0, name)
+        stage_x = QTableWidgetItem(x)
+        mda.stage_tableWidget.setItem(row, 1, stage_x)
+        stage_y = QTableWidgetItem(y)
+        mda.stage_tableWidget.setItem(row, 2, stage_y)
+        stage_z = QTableWidgetItem(z)
+        mda.stage_tableWidget.setItem(row, 3, stage_z)
+
+    assert mda.stage_tableWidget.rowCount() == 3
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        positions = hcs._position_for_yaml(3)
+
+        assert positions == {
+            "A1_center_coords": {"x": 0.0, "y": 0.0},
+            "A1_pos000": {"x": -100.0, "y": 100.0, "z": 0.0},
+            "A1_pos001": {"x": 200.0, "y": 200.0, "z": 0.0},
+            "A1_pos002": {"x": 300.0, "y": -300.0, "z": 0.0},
+        }
+
+        with open(f"{tmp_path}/test.yaml", "w") as file:
+            yaml.dump(positions, file)
+            assert "test.yaml" in [f.name for f in tmp_path.iterdir()]
+
+
+def test_load_positions(hcs_wdg, qtbot: QtBot):
+    hcs, _, cal = hcs_wdg
+    mda = hcs.ch_and_pos_list
+    cal.A1_stage_coords_center = (100.0, 100.0)
+
+    positions = {
+        "A1_center_coords": {"x": 0.0, "y": 0.0},
+        "A1_pos000": {"x": -100.0, "y": 100.0, "z": 0.0},
+        "A1_pos001": {"x": 200.0, "y": 200.0, "z": 0.0},
+        "A1_pos002": {"x": 300.0, "y": -300.0, "z": 0.0},
+    }
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+
+        with open(f"{tmp_path}/test.yaml", "w") as file:
+            pos_list = yaml.dump(positions, file)
+            assert "test.yaml" in [f.name for f in tmp_path.iterdir()]
+
+            with open(f"{tmp_path}/test.yaml") as file:
+                pos_list = yaml.full_load(file)
+                hcs._add_loaded_positions_and_translate(pos_list)
+                assert mda.stage_tableWidget.rowCount() == 3
+
+                pos = [
+                    (
+                        mda.stage_tableWidget.item(r, 0).text(),
+                        mda.stage_tableWidget.item(r, 1).text(),
+                        mda.stage_tableWidget.item(r, 2).text(),
+                        mda.stage_tableWidget.item(r, 3).text(),
+                    )
+                    for r in range(3)
+                ]
+
+                assert pos == [
+                    ("A1_pos000", "0.0", "200.0", "0.0"),
+                    ("A1_pos001", "300.0", "300.0", "0.0"),
+                    ("A1_pos002", "400.0", "-200.0", "0.0"),
+                ]

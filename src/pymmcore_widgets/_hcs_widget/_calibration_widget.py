@@ -51,6 +51,7 @@ class PlateCalibration(QWidget):
         self.plate_rotation_matrix: np.ndarray = None  # type: ignore
         self.plate_angle_deg: float = 0.0
         self.is_calibrated = False
+        self.A1_stage_coords_center: Tuple = ()
 
         self._create_gui()
 
@@ -267,6 +268,7 @@ class PlateCalibration(QWidget):
             self.A1_well = ()  # type: ignore
             self.plate_rotation_matrix = None  # type: ignore
             self.plate_angle_deg = 0.0
+            self.A1_stage_coords_center = ()
             self.icon_lbl.setPixmap(
                 icon(MDI6.close_octagon_outline, color="magenta").pixmap(QSize(30, 30))
             )
@@ -360,6 +362,7 @@ class PlateCalibration(QWidget):
     def _calibrate_plate(self) -> None:
 
         self._set_calibrated(False)
+        self.A1_stage_coords_center = ()
 
         if not self._mmc.getPixelSizeUm():
             raise ValueError("Pixel Size not defined! Set pixel size first.")
@@ -375,6 +378,7 @@ class PlateCalibration(QWidget):
             self.table_2._handle_error(circular_well=self.plate.get("circular"))
 
         xc_w1, yc_w1 = self._get_well_center(self.table_1)
+        self.A1_stage_coords_center = (xc_w1, yc_w1)
         xy_coords = [(xc_w1, yc_w1)]
         if not self.table_2.isHidden():
             xc_w2, yc_w2 = self._get_well_center(self.table_2)

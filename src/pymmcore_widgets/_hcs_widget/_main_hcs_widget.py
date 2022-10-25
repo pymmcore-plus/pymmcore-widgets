@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import yaml  # type: ignore
@@ -344,10 +344,15 @@ class HCSWidget(HCSGui):
         return pos_list
 
     def _add_to_table(
-        self, row: int, well_name: str, stage_coord_x: float, stage_coord_y: float
+        self,
+        row: int,
+        well_name: str,
+        stage_coord_x: float,
+        stage_coord_y: float,
+        stage_coord_z: Union[float, str] = "None",
     ) -> None:
 
-        self._add_position_row()
+        self.ch_and_pos_list.stage_tableWidget.insertRow(row)
         name = QTableWidgetItem(well_name)
         name.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
         self.ch_and_pos_list.stage_tableWidget.setItem(row, 0, name)
@@ -362,54 +367,78 @@ class HCSWidget(HCSGui):
             selected_z_stage = self.ch_and_pos_list.z_combo.currentText()
             z_pos = self._mmc.getPosition(selected_z_stage)
             item = QTableWidgetItem(str(z_pos))
-            item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-            self.ch_and_pos_list.stage_tableWidget.setItem(row, 3, item)
-
-    def _add_position_row(self) -> int:
-        idx = self.ch_and_pos_list.stage_tableWidget.rowCount()
-        self.ch_and_pos_list.stage_tableWidget.insertRow(idx)
-        return int(idx)
+        else:
+            item = QTableWidgetItem(str(stage_coord_z))
+        item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+        self.ch_and_pos_list.stage_tableWidget.setItem(row, 3, item)
 
     def _save_positions(self) -> None:
-        (filename, _) = QFileDialog.getSaveFileName(
-            self, "Save Micro-Manager Configuration."
+        rows = self.ch_and_pos_list.stage_tableWidget.rowCount()
+
+        if not rows:
+            return
+
+        (dir_file, _) = QFileDialog.getSaveFileName(
+            self, "Saving directory and filename.", "", "yaml(*.yaml)"
         )
-        if filename:
-            print(filename)
+        if dir_file:
+            positions = self._position_for_yaml(rows)
+            with open(f"{dir_file}", "w") as file:
+                yaml.dump(positions, file)
 
-    #         positions = self._position_for_yaml()
-    #         with open(r'E:\data\store_file.yaml', 'w') as file:
-    #             documents = yaml.dump(positions, file)
+    def _position_for_yaml(self, rows: int) -> dict:
 
-    # def _position_for_yaml(self) -> Dict:
-    #     rows = self.ch_and_pos_list.stage_tableWidget.rowCount()
+        positions = {
+            "A1_center_coords": {
+                "x": self.calibration.A1_stage_coords_center[0],
+                "y": self.calibration.A1_stage_coords_center[1],
+            }
+        }
 
-    #     if not rows:
-    #         return
+        for row in range(rows):
+            pos_name = self.ch_and_pos_list.stage_tableWidget.item(row, 0).text()
+            z_coord = self.ch_and_pos_list.stage_tableWidget.item(row, 3).text()
+            positions[pos_name] = {
+                "x": float(self.ch_and_pos_list.stage_tableWidget.item(row, 1).text()),
+                "y": float(self.ch_and_pos_list.stage_tableWidget.item(row, 2).text()),
+                "z": float(z_coord) if z_coord != "None" else "None",
+            }
 
-    #     positions = {}
-    #     for row in range(rows):
-    #         pos_name = self.ch_and_pos_list.stage_tableWidget.item(row, 0).text(),
-    #         positions[pos_name] = {
-    #             "x":
-    #               float(self.ch_and_pos_list.stage_tableWidget.item(row, 1).text()),
-    #             "y":
-    #               float(self.ch_and_pos_list.stage_tableWidget.item(row, 2).text()),
-    #         }
-    #         if self.ch_and_pos_list.z_combo.currentText() != "None":
-    #             positions["z"] = float(
-    #                 self.ch_and_pos_list.stage_tableWidget.item(row, 3).text()
-    #             )
-
-    #     return positions
+        return positions
 
     def _load_positions(self) -> None:
-        """Open file dialog to select a position list file."""
+        if not self.calibration.is_calibrated:
+            raise ValueError("Plate not calibrated! Calibrate it first.")
+
         (filename, _) = QFileDialog.getOpenFileName(
             self, "Select a position list file", "", "yaml(*.yaml)"
         )
         if filename:
-            print(filename)
+            with open(filename) as file:
+                pos_list = yaml.full_load(file)
+                self._add_loaded_positions_and_translate(pos_list)
+
+    def _add_loaded_positions_and_translate(self, pos_list: dict) -> None:
+        new_xc, new_yc = self.calibration.A1_stage_coords_center
+
+        self.ch_and_pos_list._clear_positions()
+
+        old_xc = pos_list["A1_center_coords"].get("x")
+        old_yc = pos_list["A1_center_coords"].get("y")
+
+        delta_x = old_xc - new_xc
+        delta_y = old_yc - new_yc
+
+        row = 0
+        for name, coords in pos_list.items():
+            if name == "A1_center_coords":
+                continue
+
+            new_x = coords.get("x") - delta_x
+            new_y = coords.get("y") - delta_y
+
+            self._add_to_table(row, name, new_x, new_y, coords.get("z"))
+            row += 1
 
     def _get_state(self) -> MDASequence:
         ch_table = self.ch_and_pos_list.channel_tableWidget
@@ -457,7 +486,7 @@ class HCSWidget(HCSGui):
                 "x": float(self.ch_and_pos_list.stage_tableWidget.item(r, 1).text()),
                 "y": float(self.ch_and_pos_list.stage_tableWidget.item(r, 2).text()),
             }
-            if self.ch_and_pos_list.z_combo.currentText() != "None":
+            if self.ch_and_pos_list.stage_tableWidget.item(r, 3).text() != "None":
                 pos["z"] = float(
                     self.ch_and_pos_list.stage_tableWidget.item(r, 3).text()
                 )
