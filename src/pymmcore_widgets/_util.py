@@ -1,8 +1,7 @@
-from typing import ContextManager, Optional, Sequence, Union, Tuple
+from typing import ContextManager, Optional, Sequence, Tuple, Union
 
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
-
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
@@ -103,7 +102,7 @@ def _select_output_unit(duration: float) -> Tuple[float, str]:
     else:
         return duration / 3600, "hours"
 
-      
+
 def block_core(mmcore_events: Union[CMMCoreSignaler, PCoreSignaler]) -> ContextManager:
     """Block core signals."""
     if isinstance(mmcore_events, CMMCoreSignaler):
