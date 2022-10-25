@@ -44,6 +44,7 @@ class CameraRoiWidget(QWidget):
         (or create a new) `CMMCorePlus.instance()`.
     """
 
+    # (x, y, width, height, comboBoxText)
     roiChanged = Signal(int, int, int, int, str)
 
     def __init__(
