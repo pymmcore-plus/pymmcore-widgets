@@ -108,7 +108,7 @@ def test_add_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert hasattr(add_gp_wdg, "_first_preset_wdg")
 
     wdg = add_gp_wdg._first_preset_wdg
-    assert wdg.preset_name_lineedit.text() == "NewPreset"
+    assert wdg.preset_name_lineedit.placeholderText() == "NewPreset"
 
     wdg.table.cellWidget(0, 1).setValue(2)
     wdg.table.cellWidget(1, 1).setValue(8)
