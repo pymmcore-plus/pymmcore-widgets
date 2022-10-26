@@ -39,6 +39,7 @@ plugins:
         python:
           import:
             - https://docs.python.org/3/objects.inv
+            - https://pymmcore-plus.readthedocs.io/en/latest/objects.inv
           selection:
             docstring_style: numpy
           rendering:
