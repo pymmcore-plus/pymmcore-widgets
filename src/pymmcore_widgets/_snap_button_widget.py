@@ -19,10 +19,10 @@ COLOR_TYPES = Union[
 
 
 class SnapButton(QPushButton):
-    """Create a snap QPushButton linked to the pymmcore-plus [snap()]() method.
+    """Create a snap QPushButton linked to the `CMMCorePlus` [snap()]() method.
 
-    Once the button is clicked, an image is acquired and the pymmcore-plus
-    'imageSnapped(image: nparray)' signal is emitted.
+    Once the button is clicked, an image is acquired and the `pymmcore-plus`
+    [imageSnapped]() signal is emitted.
 
     Parameters
     ----------

@@ -32,7 +32,7 @@ class CameraRoiWidget(QWidget):
     """
     A Widget to control the camera device ROI.
 
-    When the ROI changes, the roiChanged Signal is emitted with the current ROI
+    When the ROI changes, the `roiChanged` Signal is emitted with the current ROI
     (x, y, width, height, comboBoxText)
 
     Parameters
