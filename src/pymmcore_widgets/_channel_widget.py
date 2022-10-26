@@ -44,6 +44,10 @@ class ChannelWidget(QWidget):
         self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
         self._mmc.events.configSet.connect(self._on_channel_set)
 
+        # presetDeleted signal is handled by the PresetsWidget
+        self._mmc.events.configDefined.connect(self._on_new_group_preset)
+        self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)
+
         self.destroyed.connect(self._disconnect_from_core)
         self._on_sys_cfg_loaded()
 
@@ -62,6 +66,7 @@ class ChannelWidget(QWidget):
     ) -> Union[PresetsWidget, QComboBox]:
         if channel_group:
             channel_wdg = PresetsWidget(channel_group)
+            self._mmc.setChannelGroup(channel_group)
         else:
             channel_wdg = QComboBox()
             channel_wdg.setEnabled(False)
@@ -94,6 +99,19 @@ class ChannelWidget(QWidget):
         self.channel_wdg.deleteLater()
         self._update_widget(new_channel_group)
 
+    def _on_new_group_preset(self, group: str) -> None:
+        if group == self._channel_group:
+            self._on_channel_group_changed(group)
+        elif not self._mmc.getChannelGroup():
+            if new_channel_group := self._get_channel_group():
+                self._on_channel_group_changed(new_channel_group)
+            else:
+                self._on_channel_group_changed("")
+
+    def _on_group_deleted(self, group: str) -> None:
+        if group == self._channel_group:
+            self._on_channel_group_changed("")
+
     def _update_widget(self, channel_group: str) -> None:
         self.channel_wdg = self._create_channel_widget(channel_group)
         self.layout().addWidget(self.channel_wdg)
@@ -102,3 +120,5 @@ class ChannelWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
         self._mmc.events.channelGroupChanged.disconnect(self._on_channel_group_changed)
         self._mmc.events.configSet.disconnect(self._on_channel_set)
+        self._mmc.events.configDefined.disconnect(self._on_new_group_preset)
+        self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)
