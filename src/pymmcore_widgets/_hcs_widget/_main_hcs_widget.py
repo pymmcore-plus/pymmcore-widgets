@@ -314,6 +314,8 @@ class HCSWidget(HCSGui):
         well_x_um = well_x * 1000
         well_y_um = well_y * 1000
 
+        r_matrix = self.calibration.plate_rotation_matrix
+
         for pos in ordered_wells_list:
             well_name, center_stage_x, center_stage_y = pos
 
@@ -337,6 +339,19 @@ class HCSWidget(HCSGui):
                 # find stage coords of fov point
                 stage_coord_x = center_stage_x + (new_fx * px_val_x)
                 stage_coord_y = center_stage_y + (new_fy * px_val_y)
+
+                if r_matrix is not None:
+
+                    center = np.array([[center_stage_x], [center_stage_y]])
+
+                    coords = [[stage_coord_x], [stage_coord_y]]
+
+                    transformed = np.linalg.inv(r_matrix).dot(coords - center) + center
+
+                    x_rotated, y_rotated = transformed
+                    stage_coord_x = x_rotated[0]
+                    stage_coord_y = y_rotated[0]
+
                 pos_list.append(
                     (f"{well_name}_pos{idx:03d}", stage_coord_x, stage_coord_y)
                 )
