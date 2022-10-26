@@ -22,7 +22,7 @@ def _assert_equal(a, b):
 
 @pytest.mark.parametrize("dev, prop", dev_props)
 def test_property_widget(dev, prop, qtbot):
-    wdg = PropertyWidget(dev, prop, core=CORE)
+    wdg = PropertyWidget(dev, prop, mmcore=CORE)
     qtbot.addWidget(wdg)
     if CORE.isPropertyReadOnly(dev, prop) or prop in (
         "SimulateCrash",
@@ -62,7 +62,7 @@ def test_property_widget(dev, prop, qtbot):
 
 
 def test_reset(global_mmcore, qtbot):
-    wdg = PropertyWidget("Camera", "Binning", core=global_mmcore)
+    wdg = PropertyWidget("Camera", "Binning", mmcore=global_mmcore)
     qtbot.addWidget(wdg)
     global_mmcore.loadSystemConfiguration()
     assert wdg.value()
