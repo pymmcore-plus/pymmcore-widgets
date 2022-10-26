@@ -1,18 +1,12 @@
 # ChannelWidget
 
-**TODO: add image**
-
-::: pymmcore_widgets._channel_widget
-
-!!! Important
-    To make sure all the widgets listen to the same micromanager core, create
-    one using `CMMCorePlus.instance()` (and not simply `CMMCorePlus()`)
-    or do not specify it in the widget(s).
+::: pymmcore_widgets.ChannelWidget
 
 ## Examples
 
-Simple `ChannelWidget`:
-```sh
+### Simple `ChannelWidget`.
+
+```python
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
@@ -29,54 +23,9 @@ ch_wdg.show()
 app.exec_()
 ```
 
+### Combining `ChannelWidget` with other `pymmcore-widgets`.
 
-In this example the default regex (used by the core `getOrGuessChannelGroup` method)
-is replaced with a custom one before loading the `ChannelWidget`:
-```sh
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QApplication
-
-from pymmcore_widgets import ChannelWidget
-
-app = QApplication([])
-
-mmc = CMMCorePlus().instance()
-
-# mmc will look for a group configuration name matching the string 'channel'
-# to select the 'channel_group'
-mmc.channelGroup_pattern = 'channel'
-
-mmc.loadSystemConfiguration()
-
-ch_wdg = ChannelWidget()
-ch_wdg.show()
-
-app.exec_()
-```
-
-
-In alternative, the `channel_group` can be directly specified
-when creating the `ChannelWidget`:
-```sh
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QApplication
-
-from pymmcore_widgets import ChannelWidget
-
-app = QApplication([])
-
-mmc = CMMCorePlus().instance()
-mmc.loadSystemConfiguration()
-
-ch_wdg = ChannelWidget("Channel")
-ch_wdg.show()
-
-app.exec_()
-```
-
-
-In this example `ChannelWidget` is used in combination with other widgets:
-```sh
+```python
 from typing import Optional
 
 from pymmcore_plus import CMMCorePlus

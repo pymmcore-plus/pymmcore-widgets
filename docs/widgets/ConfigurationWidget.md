@@ -1,18 +1,10 @@
 # ConfigurationWidget
 
-**TODO: add image**
-
-::: pymmcore_widgets._load_system_cfg_widget
-
-!!! Important
-    To make sure all the widgets listen to the same micromanager core, create
-    one using `CMMCorePlus.instance()` (and not simply `CMMCorePlus()`)
-    or do not specify it in the widget(s).
+::: pymmcore_widgets.ConfigurationWidget
 
 ## Examples
 
-Simple `ConfigurationWidget`:
-```sh
+```python
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 

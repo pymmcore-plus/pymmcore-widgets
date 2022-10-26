@@ -15,20 +15,16 @@ class ChannelWidget(QWidget):
     ----------
     channel_group : Optional[str]
         Name of the micromanager group defining the microscope channels. By default,
-        it will be guessed using the `CMMCorePlus`/`CMMCorePlus.instance()`
-        [getOrGuessChannelGroup](
-        https://github.com/pymmcore-plus/pymmcore-plus/blob/main/pymmcore_plus/core/_mmcore_plus.py#L487  # noqa: E501
-        ) method and a choice dialog will be presented if there are multiple options.
+        it will be guessed using the `CMMCorePlus` [getOrGuessChannelGroup]()
+        method and a choice dialog will be presented if there are multiple options.
         This method looks for a group configuration name matching the default regex
         `re.compile("(chan{1,2}(el)?|filt(er)?)s?", re.IGNORECASE)`.
-        A different string/regex can be set using the `CMMCorePlus`/`CMMCorePlus.instance()`
-        [channelGroup_pattern](
-        https://github.com/pymmcore-plus/pymmcore-plus/blob/main/pymmcore_plus/core/_mmcore_plus.py#L459  # noqa: E501
-        ) setter method.
+        A different string/regex can be set using the `CMMCorePlus`
+        [channelGroup_pattern]() setter method.
     parent : Optional[QWidget]
         Optional parent widget. By default, None.
     mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus`/`CMMCorePlus.instance()` micromanager core.
+        Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new) `CMMCorePlus.instance()`.
     """
