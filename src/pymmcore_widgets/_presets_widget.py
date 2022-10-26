@@ -7,17 +7,31 @@ from superqt.utils import signals_blocked
 
 
 class PresetsWidget(QWidget):
-    """Create a QCombobox Widget containing the presets of the specified group."""
+    """Create a QCombobox Widget containing the presets of the specified group.
+
+    Parameters
+    ----------
+    group : str
+        Group name.
+    parent : Optional[QWidget]
+        Optional parent widget. By default, None.
+    mmcore: Optional[CMMCorePlus]
+        Optional `CMMCorePlus` micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new) `CMMCorePlus.instance()`.
+    """
 
     def __init__(
         self,
         group: str,
         parent: Optional[QWidget] = None,
+        *,
+        mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
 
         super().__init__(parent)
 
-        self._mmc = CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         self._group = group
 

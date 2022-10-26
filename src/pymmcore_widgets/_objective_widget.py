@@ -15,19 +15,16 @@ class ObjectivesWidget(QWidget):
     ----------
     objective_device : Optional[str]
         Device label for the micromanager objective device. By default, it will be
-        guessed using the `CMMCorePlus`/`CMMCorePlus.instance()`[guessObjectiveDevices](
-        https://github.com/pymmcore-plus/pymmcore-plus/blob/main/pymmcore_plus/core/_mmcore_plus.py#L470
-        ), and a dialog will be presented if there are multiple options.
+        guessed using the `CMMCorePlus` [guessObjectiveDevices]()
+        and a choice dialog will be presented if there are multiple options.
         This method looks for a micromanager device matching the default regex
         `re.compile("(.+)?(nosepiece|obj(ective)?)(turret)?s?", re.IGNORECASE)`.
         A different string/regex can be set using the
-        `CMMCorePlus`/`CMMCorePlus.instance()` [objective_device_pattern](
-        https://github.com/pymmcore-plus/pymmcore-plus/blob/main/pymmcore_plus/core/_mmcore_plus.py#L444
-        ) setter method.
+        `CMMCorePlus` [objective_device_pattern]() setter method.
     parent : Optional[QWidget]
         Optional parent widget, by default None
     mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus`/`CMMCorePlus.instance()` micromanager core.
+        Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new) `CMMCorePlus.instance()`.
     """

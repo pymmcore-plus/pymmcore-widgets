@@ -1,3 +1,3 @@
 # GroupPresetTableWidget
 
-::: pymmcore_widgets._group_preset_table_widget
+::: pymmcore_widgets.GroupPresetTableWidget

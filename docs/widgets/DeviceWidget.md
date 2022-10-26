@@ -1,13 +1,6 @@
 # DeviceWidget
 
-**TODO: add image**
-
-::: pymmcore_widgets._device_widget.DeviceWidget
-
-!!! Important
-    To make sure all the widgets listen to the same micromanager core, create
-    one using `CMMCorePlus.instance()` (and not simply `CMMCorePlus()`)
-    or do not specify it in the widget(s).
+::: pymmcore_widgets.DeviceWidget
 
 !!! Note
     Currently, `DeviceWidget` only supports devices of type `StateDevice`. Calling
@@ -16,10 +9,12 @@
 
 ## Examples
 
-In this example all the devices of type `StateDevice` that are loaded in micromanager
-are dysplaied with a `DeviceWidget`:
+### Load all devices of type `StateDevice`.
 
-```sh
+In this example all the devices of type `StateDevice` that are loaded in micromanager
+are dysplaied with a `DeviceWidget`.
+
+```python
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtWidgets import QApplication, QFormLayout, QWidget
 

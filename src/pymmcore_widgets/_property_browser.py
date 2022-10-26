@@ -53,7 +53,7 @@ class _PropertyTable(QTableWidget):
         self.setRowCount(len(props))
         for i, (dev, prop) in enumerate(props):
             item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, core=self._mmc)
+            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
             self.setItem(i, 0, item)
             self.setCellWidget(i, 1, wdg)
             if wdg.isReadOnly():
@@ -75,10 +75,20 @@ DevTypeLabels["other devices"] = tuple(set(DeviceType) - _d)
 
 
 class PropertyBrowser(QDialog):
-    """Dialog to browse and change properties of all devices."""
+    """Dialog to browse and change properties of all devices.
+
+    Parameters
+    ----------
+    parent : Optional[QWidget]
+        Optional parent widget. By default, None.
+    mmcore: Optional[CMMCorePlus]
+        Optional `CMMCorePlus` micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new) `CMMCorePlus.instance()`.
+    """
 
     def __init__(
-        self, mmcore: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
+        self, parent: Optional[QWidget] = None, *, mmcore: Optional[CMMCorePlus] = None
     ):
         super().__init__(parent)
         self._mmc = mmcore or CMMCorePlus.instance()

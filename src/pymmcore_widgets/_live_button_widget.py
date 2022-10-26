@@ -20,15 +20,24 @@ COLOR_TYPE = Union[
 class LiveButton(QPushButton):
     """Create a two-state (on-off) live mode QPushButton.
 
-    When pressed, a 'ContinuousSequenceAcquisition' is started or stopped
-    and a pymmcore-plus signal 'startContinuousSequenceAcquisition' or
-    'stopSequenceAcquisition' is emitted.
+    When pressed, a [ContinuousSequenceAcquisition]() is started or stopped
+    and a pymmcore-plus signal [startContinuousSequenceAcquisition]() or
+    [stopSequenceAcquisition]() is emitted.
+
+    Parameters
+    ----------
+    parent : Optional[QWidget]
+        Optional parent widget.
+    mmcore: Optional[CMMCorePlus]
+        Optional `CMMCorePlus` micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new) `CMMCorePlus.instance()`.
     """
 
     def __init__(
         self,
-        *,
         parent: Optional[QWidget] = None,
+        *,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
 

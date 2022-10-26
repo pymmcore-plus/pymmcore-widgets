@@ -1,18 +1,11 @@
 # StateDeviceWidget
 
-**TODO: add image**
-
 ::: pymmcore_widgets._device_widget.StateDeviceWidget
-
-!!! Important
-    To make sure all the widgets listen to the same micromanager core, create
-    one using `CMMCorePlus.instance()` (and not simply `CMMCorePlus()`)
-    or do not specify it in the widget(s).
 
 ## Examples
 
 In this example all the devices of type `StateDevice` that are loaded in micromanager
-are dysplaied with a `StateDeviceWidget`:
+are dysplaied with a `StateDeviceWidget`.
 
 ```sh
 from pymmcore_plus import CMMCorePlus, DeviceType

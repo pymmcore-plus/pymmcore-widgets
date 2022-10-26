@@ -316,9 +316,11 @@ class PropertyWidget(QWidget):
     prop_name : str
         Property name
     parent : Optional[QWidget]
-        parent widget, by default None
-    core : Optional[CMMCorePlus]
-        Optional CMMCorePlus instance, by default the global singleton.
+        Optional parent widget. By default, None.
+    mmcore: Optional[CMMCorePlus]
+        Optional `CMMCorePlus` micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new) `CMMCorePlus.instance()`.
 
     Raises
     ------
@@ -333,12 +335,12 @@ class PropertyWidget(QWidget):
         self,
         device_label: str,
         prop_name: str,
-        *,
         parent: Optional[QWidget] = None,
-        core: Optional[CMMCorePlus] = None,
+        *,
+        mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
         super().__init__(parent)
-        self._mmc = core or CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         if device_label not in self._mmc.getLoadedDevices():
             raise ValueError(f"Device not loaded: {device_label!r}")

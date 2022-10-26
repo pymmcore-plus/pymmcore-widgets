@@ -1,13 +1,12 @@
 # ImagePreview
 
-**TODO: add image**
-
-::: pymmcore_widgets._image_widget
+::: pymmcore_widgets.ImagePreview
 
 ## Examples
 
-In this example `ImagePreview` is used in combination with other widgets:
-```sh
+### Combination of `ImagePreview` with other `pymmcore-widgets`.
+
+```python
 from typing import Optional
 
 from pymmcore_plus import CMMCorePlus

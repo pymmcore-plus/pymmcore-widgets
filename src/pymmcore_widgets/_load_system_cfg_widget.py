@@ -22,15 +22,15 @@ class ConfigurationWidget(QGroupBox):
     parent : Optional[QWidget]
         Optional parent widget. By default, None.
     mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus`/`CMMCorePlus.instance()` micromanager core.
+        Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new) `CMMCorePlus.instance()`.
     """
 
     def __init__(
         self,
-        *,
         parent: Optional[QWidget] = None,
+        *,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
         super().__init__(parent)

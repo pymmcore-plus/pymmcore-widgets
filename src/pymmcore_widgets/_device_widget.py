@@ -23,7 +23,7 @@ class DeviceWidget(QWidget):
     parent : Optional[QWidget]
         Optional parent widget.
     mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus`/`CMMCorePlus.instance()` micromanager core.
+        Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new) `CMMCorePlus.instance()`.
     """
