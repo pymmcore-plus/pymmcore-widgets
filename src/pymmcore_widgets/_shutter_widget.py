@@ -125,6 +125,7 @@ class ShuttersWidget(QWidget):
         Set the button icon color for when the shutter is open.
 
         Default = (0, 255, 0)
+
         COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
         Tuple[int, int, int]]
         """
@@ -142,6 +143,7 @@ class ShuttersWidget(QWidget):
         Set the button icon color for when the shutter is closed.
 
         Default = 'magenta'
+
         COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
         Tuple[int, int, int]]
         """

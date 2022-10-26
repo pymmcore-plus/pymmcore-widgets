@@ -36,6 +36,7 @@ For a pre-made user interface, see [napari-micromanager](https://pypi.org/projec
 
 The following widgets are currently available:
 
+* [CameraRoiWidget](./widgets/CameraRoiWidget.md)
 * [ChannelWidget](./widgets/ChannelWidget.md)
 * [ConfigurationWidget](./widgets/ConfigurationWidget.md)
 * [DefaultCameraExposureWidget](./widgets/DefaultCameraExposureWidget.md)
@@ -45,9 +46,11 @@ The following widgets are currently available:
 * [ImagePreview](./widgets/ImagePreview.md)
 * [LiveButton](./widgets/LiveButton.md)
 * [ObjectivesWidget](./widgets/ObjectivesWidget.md)
+* [PixelSizeWidget](./widgets/PixelSizeWidget.md)
 * [PresetsWidget](./widgets/PresetsWidget.md)
 * [PropertyBrowser](./widgets/PropertyBrowser.md)
 * [PropertyWidget](./widgets/PropertyWidget.md)
+* [ShutterWidget](./widgets/ShutterWidget.md)
 * [SliderDialog](./widgets/SliderDialog.md)
 * [SnapButton](./widgets/SnapButton.md)
 * [StageWidget](./widgets/StageWidget.md)
@@ -55,12 +58,9 @@ The following widgets are currently available:
 
 In progress:
 
-* [CameraRoiWidget](./widgets/CameraRoiWidget.md)
 * [HCSWidget](./widgets/HCSWidget.md)
 * [MultiDWidget](./widgets/MultiDWidget.md)
-* [PixelSizeWidget](./widgets/PixelSizeWidget.md)
 * [SampleExplorerWidget](./widgets/SampleExplorerWidget.md)
-* [ShutterWidget](./widgets/ShutterWidget.md)
 
 
 
