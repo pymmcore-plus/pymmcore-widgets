@@ -164,7 +164,7 @@ class EditPresetWidget(QDialog):
         self.table.setRowCount(len(dev_prop_val))
         for idx, (dev, prop, val) in enumerate(dev_prop_val):
             item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, core=self._mmc)
+            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
             wdg._value_widget.valueChanged.disconnect()  # type: ignore
             wdg.setValue(val)
             self.table.setItem(idx, 0, item)

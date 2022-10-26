@@ -133,7 +133,7 @@ class AddPresetWidget(QDialog):
         self.table.setRowCount(len(dev_prop))
         for idx, (dev, prop) in enumerate(dev_prop):
             item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, core=self._mmc)
+            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
             wdg._value_widget.valueChanged.disconnect()  # type: ignore
             self.table.setItem(idx, 0, item)
             self.table.setCellWidget(idx, 1, wdg)
