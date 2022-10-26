@@ -28,7 +28,6 @@ class AddFirstPresetWidget(QDialog):
     def __init__(
         self,
         group: str,
-        preset: str,
         dev_prop_val_list: list,
         *,
         parent: Optional[QWidget] = None,
@@ -37,7 +36,6 @@ class AddFirstPresetWidget(QDialog):
 
         self._mmc = CMMCorePlus.instance()
         self._group = group
-        self._preset = preset
         self._dev_prop_val_list = dev_prop_val_list
 
         self._create_gui()
@@ -87,7 +85,7 @@ class AddFirstPresetWidget(QDialog):
         ps_lbl = QLabel(text="Preset:")
         ps_lbl.setSizePolicy(lbl_sizepolicy)
         self.preset_name_lineedit = QLineEdit()
-        self.preset_name_lineedit.setText(f"{self._preset}")
+        self.preset_name_lineedit.setPlaceholderText(self._get_placeholder_name())
 
         spacer = QSpacerItem(30, 10, QSizePolicy.Fixed, QSizePolicy.Fixed)
 
@@ -98,6 +96,10 @@ class AddFirstPresetWidget(QDialog):
         wdg_layout.addWidget(self.preset_name_lineedit)
 
         return wdg
+
+    def _get_placeholder_name(self) -> str:
+        idx = sum("NewPreset" in p for p in self._mmc.getAvailableConfigs(self._group))
+        return f"NewPreset_{idx}" if idx > 0 else "NewPreset"
 
     def _create_bottom_wdg(self) -> QWidget:
 
@@ -142,13 +144,15 @@ class AddFirstPresetWidget(QDialog):
             value = str(self.table.cellWidget(row, 1).value())
             dev_prop_val.append((dev, prop, value))
 
-        self._preset = self.preset_name_lineedit.text()
+        preset = self.preset_name_lineedit.text()
+        if not preset:
+            preset = self.preset_name_lineedit.placeholderText()
 
         with block_core(self._mmc.events):
             for d, p, v in dev_prop_val:
-                self._mmc.defineConfig(self._group, self._preset, d, p, v)
+                self._mmc.defineConfig(self._group, preset, d, p, v)
 
-        self._mmc.events.configDefined.emit(self._group, self._preset, d, p, v)
+        self._mmc.events.configDefined.emit(self._group, preset, d, p, v)
 
         self.close()
         self.parent().close()

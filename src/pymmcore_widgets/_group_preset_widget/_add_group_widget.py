@@ -298,7 +298,7 @@ class AddGroupWidget(QDialog):
         if hasattr(self, "_first_preset_wdg"):
             self._first_preset_wdg.close()  # type: ignore
         self._first_preset_wdg = AddFirstPresetWidget(
-            group, "NewPreset", dev_prop_val_list, parent=self
+            group, dev_prop_val_list, parent=self
         )
         self._first_preset_wdg.show()
 

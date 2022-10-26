@@ -80,7 +80,7 @@ class AddPresetWidget(QDialog):
         ps_lbl = QLabel(text="Preset:")
         ps_lbl.setSizePolicy(lbl_sizepolicy)
         self.preset_name_lineedit = QLineEdit()
-        self.preset_name_lineedit.setPlaceholderText("NewPreset")
+        self.preset_name_lineedit.setPlaceholderText(self._get_placeholder_name())
 
         spacer = QSpacerItem(30, 10, QSizePolicy.Fixed, QSizePolicy.Fixed)
 
@@ -91,6 +91,10 @@ class AddPresetWidget(QDialog):
         wdg_layout.addWidget(self.preset_name_lineedit)
 
         return wdg
+
+    def _get_placeholder_name(self) -> str:
+        idx = sum("NewPreset" in p for p in self._mmc.getAvailableConfigs(self._group))
+        return f"NewPreset_{idx}" if idx > 0 else "NewPreset"
 
     def _create_bottom_wdg(self) -> QWidget:
 
@@ -145,10 +149,7 @@ class AddPresetWidget(QDialog):
             return
 
         if not preset_name:
-            idx = sum(
-                "NewPreset" in p for p in self._mmc.getAvailableConfigs(self._group)
-            )
-            preset_name = f"NewPreset_{idx}" if idx > 0 else "NewPreset"
+            preset_name = self.preset_name_lineedit.placeholderText()
 
         dev_prop_val = []
         for row in range(self.table.rowCount()):
@@ -179,6 +180,7 @@ class AddPresetWidget(QDialog):
 
         self.info_lbl.setStyleSheet("")
         self.info_lbl.setText(f"'{preset_name}' has been added!")
+        self.preset_name_lineedit.setPlaceholderText(self._get_placeholder_name())
 
 
 class _Table(QTableWidget):
