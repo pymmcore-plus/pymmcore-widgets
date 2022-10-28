@@ -4,6 +4,8 @@
 
 ## Examples
 
+### Simple `ExposureWidget`.
+
 ```python
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
@@ -20,3 +22,7 @@ exp_wdg.show()
 
 app.exec_()
 ```
+
+### Combining `ExposureWidget` with other `pymmcore-widgets`.
+
+see [ImagePreview](ImagePreview.md#examples)
