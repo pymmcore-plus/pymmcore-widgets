@@ -63,6 +63,7 @@ class MDA(QWidget):
         self.setLayout(QHBoxLayout())
         self.layout().addWidget(mda_wdg)
         self.layout().addWidget(lbl_wdg)
+        self.resize(900, 800)
 
     def _on_start(self, sequence: MDASequence) -> None:
         """Called when the MDA sequence starts."""

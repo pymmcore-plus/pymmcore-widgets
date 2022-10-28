@@ -215,6 +215,7 @@ class MultiDWidgetGui(QWidget):
         lbl1 = QLabel(text="Interval:  ")
         lbl1.setSizePolicy(LBL_SIZEPOLICY)
         self.interval_spinBox = QDoubleSpinBox()
+        self.interval_spinBox.setValue(1.0)
         self.interval_spinBox.setMinimum(0)
         self.interval_spinBox.setMaximum(100000)
         self.interval_spinBox.setSizePolicy(
@@ -230,6 +231,7 @@ class MultiDWidgetGui(QWidget):
             QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         )
         self.time_comboBox.addItems(["ms", "sec", "min", "hours"])
+        self.time_comboBox.setCurrentText("sec")
         wdg1_lay.addWidget(self.time_comboBox)
         group_layout.addWidget(wdg1, 0, 1)
 
@@ -398,6 +400,7 @@ class MultiDWidgetGui(QWidget):
         self.step_size_doubleSpinBox = QDoubleSpinBox()
         self.step_size_doubleSpinBox.setAlignment(Qt.AlignCenter)
         self.step_size_doubleSpinBox.setMinimum(0.05)
+        self.step_size_doubleSpinBox.setValue(1)
         self.step_size_doubleSpinBox.setMaximum(10000)
         self.step_size_doubleSpinBox.setSingleStep(0.5)
         self.step_size_doubleSpinBox.setDecimals(2)

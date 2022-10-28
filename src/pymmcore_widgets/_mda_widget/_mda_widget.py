@@ -290,7 +290,7 @@ class MultiDWidget(MultiDWidgetGui):
         self.run_Button.show()
 
     def _on_mda_paused(self, paused: bool) -> None:
-        self.pause_Button.setText("Go" if paused else "Pause")
+        self.pause_Button.setText("Resume" if paused else "Pause")
 
     def _add_channel(self) -> bool:
         """Add, remove or clear channel table.  Return True if anyting was changed."""
