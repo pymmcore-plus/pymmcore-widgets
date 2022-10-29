@@ -27,7 +27,6 @@ class MDA(QWidget):
     https://github.com/pymmcore-plus/useq-schema and
     https://github.com/pymmcore-plus/pymmcore-plus.
 
-
     In this example, we've also connected callbacks to the CMMCorePlus object's `mda`
     events to print out the current state of the acquisition.
     """
