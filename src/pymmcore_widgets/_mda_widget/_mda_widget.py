@@ -20,18 +20,42 @@ if TYPE_CHECKING:
 
 
 class MultiDWidget(MultiDWidgetGui):
-    """Multi-dimensional acquisition Widget."""
+    """Multi-dimensional acquisition Widget.
+
+    Parameters
+    ----------
+    include_run_button: bool
+        By default, False. If true, a "run" button is added to the widget.
+        The acquisition defined by the `useq.MDASequence` built through the
+        widget is executed when clicked.
+    parent : Optional[QWidget]
+        Optional parent widget, by default None
+    mmcore: Optional[CMMCorePlus]
+        Optional `CMMCorePlus` micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new) `CMMCorePlus.instance()`.
+
+    The `MultiDWidget` provides a GUI to construct a `useq.MDASequence` object.
+    If the `include_run_button` parameter is set to `True`, a "run" button is added
+    to the GUI and, when clicked, the generated `useq.MDASequence` is passed to the
+    `CMMCorePlus.run_mda` method and the acquisition is executed.
+    """
 
     def __init__(
         self,
+        include_run_button: bool = False,
         parent: Optional[QtW.QWidget] = None,
         *,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
         super().__init__(parent)
 
+        self._include_run_button = include_run_button
+
         self.pause_Button.hide()
         self.cancel_Button.hide()
+        if not self._include_run_button:
+            self.run_Button.hide()
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -45,8 +69,9 @@ class MultiDWidget(MultiDWidgetGui):
         self.add_ch_Button.clicked.connect(self._add_channel)
         self.remove_ch_Button.clicked.connect(self._remove_channel)
         self.clear_ch_Button.clicked.connect(self._clear_channel)
-        self.run_Button.clicked.connect(self._on_run_clicked)
         self.grid_Button.clicked.connect(self._grid_widget)
+        if self._include_run_button:
+            self.run_Button.clicked.connect(self._on_run_clicked)
 
         # connect buttons for z stack
         self.set_top_Button.clicked.connect(self._set_top)
@@ -287,10 +312,11 @@ class MultiDWidget(MultiDWidgetGui):
         self._set_enabled(True)
         self.pause_Button.hide()
         self.cancel_Button.hide()
-        self.run_Button.show()
+        if self._include_run_button:
+            self.run_Button.show()
 
     def _on_mda_paused(self, paused: bool) -> None:
-        self.pause_Button.setText("Go" if paused else "Pause")
+        self.pause_Button.setText("Resume" if paused else "Pause")
 
     def _add_channel(self) -> bool:
         """Add, remove or clear channel table.  Return True if anyting was changed."""
@@ -512,7 +538,12 @@ class MultiDWidget(MultiDWidgetGui):
             self.stage_pos_groupBox.setChecked(False)
 
     def _get_state(self) -> MDASequence:
-        """Get current state of widget as a useq.MDASequence."""
+        """Get current state of widget and build a useq.MDASequence.
+
+        Returns
+        -------
+        useq.MDASequence
+        """
         state = {
             "axis_order": self.acquisition_order_comboBox.currentText(),
             "channels": [],
@@ -585,21 +616,9 @@ class MultiDWidget(MultiDWidgetGui):
         return MDASequence(**state)
 
     def _on_run_clicked(self) -> None:
-
-        if len(self._mmc.getLoadedDevices()) < 2:
-            raise ValueError("Load a cfg file first.")
-
-        if self.channel_tableWidget.rowCount() <= 0:
-            raise ValueError("Select at least one channel.")
-
-        if self.stage_pos_groupBox.isChecked() and (
-            self.stage_tableWidget.rowCount() <= 0
-        ):
-            raise ValueError(
-                "Select at least one position" "or deselect the position groupbox."
-            )
-
+        """Run the MDA sequence experiment."""
+        # construct a `useq.MDASequence` object from the values inserted in the widget
         experiment = self._get_state()
-
+        # run the MDA experiment asynchronously
         self._mmc.run_mda(experiment)  # run the MDA experiment asynchronously
         return
