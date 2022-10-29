@@ -13,35 +13,41 @@ from pymmcore_widgets import MultiDWidget
 
 
 class MDA(QWidget):
-    """An example of using the MultiDWidget create an useq.MDASequence.
+    """An example of using the MultiDWidget to create and acquire a useq.MDASequence.
 
-    The `MultiDWidget` itself does not "run" an experiment, it simply provides a GUI
-    to construct a `useq.MDASequence` object.  This object describes a full
-    multi-dimensional acquisition; it can be passed to the `CMMCorePlus.run_mda` to
-    actually execute the acquisition. See https://github.com/pymmcore-plus/useq-schema
-    and https://github.com/pymmcore-plus/pymmcore-plus for details of the corresponding
-    schema and methods.
+    The `MultiDWidget` provides a GUI to construct a `useq.MDASequence` object.
+    This object describes a full multi-dimensional acquisition;
 
-    In this example, we've connected callbacks to the CMMCorePlus object's `mda` events
-    to print out the current state of the acquisition.
+    In this example, we set the `MultiDWidget` parameter `include_run_button` to `True`,
+    meaning that a `run` button is added to the GUI. When pressed, a `useq.MDASequence`
+    is first built depending on the GUI values and is then passed to the
+    `CMMCorePlus.run_mda` to actually execute the acquisition.
+
+    For details of the corresponding schema and methods, see
+    https://github.com/pymmcore-plus/useq-schema and
+    https://github.com/pymmcore-plus/pymmcore-plus.
+
+
+    In this example, we've also connected callbacks to the CMMCorePlus object's `mda`
+    events to print out the current state of the acquisition.
     """
 
     def __init__(self) -> None:
         super().__init__()
 
         # get the CMMCore instance and load the default config
-        mmc = CMMCorePlus.instance()
-        mmc.loadSystemConfiguration()
+        self.mmc = CMMCorePlus.instance()
+        self.mmc.loadSystemConfiguration()
 
         # connect MDA acquisition events to local callbacks
         # in this example we're just printing the current state of the acquisition
-        mmc.mda.events.sequenceStarted.connect(self._on_start)
-        mmc.mda.events.frameReady.connect(self._on_frame)
-        mmc.mda.events.sequenceFinished.connect(self._on_end)
-        mmc.mda.events.sequencePauseToggled.connect(self._on_pause)
+        self.mmc.mda.events.sequenceStarted.connect(self._on_start)
+        self.mmc.mda.events.frameReady.connect(self._on_frame)
+        self.mmc.mda.events.sequenceFinished.connect(self._on_end)
+        self.mmc.mda.events.sequencePauseToggled.connect(self._on_pause)
 
         # instantiate the MultiDWidget, and a couple lables for feedback
-        self.mda = MultiDWidget()
+        self.mda = MultiDWidget(include_run_button=True)
         self.current_sequence = QLabel('... enter info and click "Run"')
         self.current_event = QLabel("... current event info will appear here")
 
