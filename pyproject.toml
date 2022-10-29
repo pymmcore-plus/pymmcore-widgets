@@ -25,7 +25,7 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    'pymmcore-plus @ git+https://github.com/pymmcore-plus/pymmcore-plus.git@main',
+    'pymmcore-plus>=0.5.0',
     'useq-schema >=0.1.0',
     'superqt >=0.3.1',
     'fonticon-materialdesignicons6',
@@ -98,7 +98,7 @@ src_paths = ["src/pymmcore_widgets", "tests"]
 # https://flake8.pycqa.org/en/latest/user/options.html
 # https://gitlab.com/durko/flake8-pyprojecttoml
 [tool.flake8]
-exclude = "docs,.eggs,examples,_version.py"
+exclude = "docs,.eggs,examples/*.py,_version.py"
 max-line-length = 88
 ignore = "E203"
 min-python-version = "3.8.0"

@@ -6,10 +6,11 @@ try:
 except PackageNotFoundError:
     __version__ = "uninstalled"
 
+from ._camera_roi_widget import CameraRoiWidget
 from ._channel_widget import ChannelWidget
 from ._device_widget import DeviceWidget, StateDeviceWidget
 from ._exposure_widget import DefaultCameraExposureWidget, ExposureWidget
-from ._group_preset_table_widget import GroupPresetTableWidget
+from ._group_preset_widget._group_preset_table_widget import GroupPresetTableWidget
 from ._hcs_widget._main_hcs_widget import HCSWidget
 from ._image_widget import ImagePreview
 from ._live_button_widget import LiveButton
@@ -21,11 +22,13 @@ from ._presets_widget import PresetsWidget
 from ._property_browser import PropertyBrowser
 from ._property_widget import PropertyWidget, make_property_value_widget
 from ._sample_explorer_widget._sample_explorer_widget import SampleExplorerWidget
+from ._shutter_widget import ShuttersWidget
 from ._slider_dialog_widget import SliderDialog
 from ._snap_button_widget import SnapButton
 from ._stage_widget import StageWidget
 
 __all__ = [
+    "CameraRoiWidget",
     "ChannelWidget",
     "ConfigurationWidget",
     "DefaultCameraExposureWidget",
@@ -43,6 +46,7 @@ __all__ = [
     "PropertyBrowser",
     "PropertyWidget",
     "SampleExplorerWidget",
+    "ShuttersWidget",
     "SliderDialog",
     "SnapButton",
     "StageWidget",

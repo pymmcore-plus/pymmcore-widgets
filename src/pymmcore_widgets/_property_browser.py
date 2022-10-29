@@ -29,6 +29,9 @@ class _PropertyTable(QTableWidget):
         super().__init__(0, 2, parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
+        self._mmc.events.configGroupDeleted.connect(self._rebuild_table)
+        self._mmc.events.configDeleted.connect(self._rebuild_table)
+        self._mmc.events.configDefined.connect(self._rebuild_table)
         self.destroyed.connect(self._disconnect)
 
         self.setMinimumWidth(500)
@@ -46,6 +49,9 @@ class _PropertyTable(QTableWidget):
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._rebuild_table)
+        self._mmc.events.configGroupDeleted.disconnect(self._rebuild_table)
+        self._mmc.events.configDeleted.disconnect(self._rebuild_table)
+        self._mmc.events.configDefined.disconnect(self._rebuild_table)
 
     def _rebuild_table(self) -> None:
         self.clearContents()
