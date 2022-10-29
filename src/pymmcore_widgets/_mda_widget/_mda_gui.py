@@ -361,7 +361,7 @@ class MultiDWidgetGui(QWidget):
         return group
 
     def _create_stage_pos_groupBox(self) -> QGroupBox:
-        group = QGroupBox(title="Stage Positions (double-click to move to position)")
+        group = QGroupBox(title="Stage Positions")
         group.setCheckable(True)
         group.setChecked(False)
         group.setMinimumHeight(230)
