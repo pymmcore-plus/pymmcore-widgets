@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 def test_multid_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = MultiDWidget()
+    wdg = MultiDWidget(include_run_button=True)
     qtbot.addWidget(wdg)
     assert wdg.stage_tableWidget.rowCount() == 0
     assert wdg.channel_tableWidget.rowCount() == 0
@@ -63,7 +63,7 @@ def test_multid_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = MultiDWidget()
+    wdg = MultiDWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
     assert wdg.channel_tableWidget.rowCount() == 0
@@ -89,7 +89,7 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = MultiDWidget()
+    wdg = MultiDWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
     wdg._on_mda_started()
@@ -183,7 +183,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = MultiDWidget()
+    wdg = MultiDWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
     assert wdg.channel_tableWidget.rowCount() == 0
@@ -197,6 +197,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     assert not wdg.time_groupBox.isChecked()
     wdg.time_groupBox.setChecked(True)
+    wdg.time_comboBox.setCurrentText("ms")
 
     txt = (
         "Minimum total acquisition time: 100.0000 ms.\n"

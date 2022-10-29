@@ -58,9 +58,6 @@ class MultiDWidgetGui(QWidget):
         wdg_layout.setContentsMargins(10, 10, 10, 10)
         wdg.setLayout(wdg_layout)
 
-        # self.save_groupBox = self._create_save_group()
-        # wdg_layout.addWidget(self.save_groupBox)
-
         self.channel_groupBox = self._create_channel_group()
         wdg_layout.addWidget(self.channel_groupBox)
 
@@ -75,60 +72,6 @@ class MultiDWidgetGui(QWidget):
 
         return wdg
 
-    # def _create_save_group(self) -> QGroupBox:
-    #     group = QGroupBox(title="Save MultiD Acquisition")
-    #     group.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
-    #     group.setCheckable(True)
-    #     group.setChecked(False)
-    #     group_layout = QVBoxLayout()
-    #     group_layout.setSpacing(10)
-    #     group_layout.setContentsMargins(10, 10, 10, 10)
-    #     group.setLayout(group_layout)
-
-    #     # directory
-    #     dir_group = QWidget()
-    #     dir_group_layout = QHBoxLayout()
-    #     dir_group_layout.setSpacing(5)
-    #     dir_group_layout.setContentsMargins(0, 10, 0, 5)
-    #     dir_group.setLayout(dir_group_layout)
-    #     lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-    #     min_lbl_size = 80
-    #     btn_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-    #     dir_lbl = QLabel(text="Directory:")
-    #     dir_lbl.setMinimumWidth(min_lbl_size)
-    #     dir_lbl.setSizePolicy(lbl_sizepolicy)
-    #     self.dir_lineEdit = QLineEdit()
-    #     self.browse_save_Button = QPushButton(text="...")
-    #     self.browse_save_Button.setSizePolicy(btn_sizepolicy)
-    #     dir_group_layout.addWidget(dir_lbl)
-    #     dir_group_layout.addWidget(self.dir_lineEdit)
-    #     dir_group_layout.addWidget(self.browse_save_Button)
-
-    #     # filename
-    #     fname_group = QWidget()
-    #     fname_group_layout = QHBoxLayout()
-    #     fname_group_layout.setSpacing(5)
-    #     fname_group_layout.setContentsMargins(0, 5, 0, 10)
-    #     fname_group.setLayout(fname_group_layout)
-    #     fname_lbl = QLabel(text="File Name: ")
-    #     fname_lbl.setMinimumWidth(min_lbl_size)
-    #     fname_lbl.setSizePolicy(lbl_sizepolicy)
-    #     self.fname_lineEdit = QLineEdit()
-    #     self.fname_lineEdit.setText("Experiment")
-    #     fname_group_layout.addWidget(fname_lbl)
-    #     fname_group_layout.addWidget(self.fname_lineEdit)
-
-    #     # checkbox
-    #     self.checkBox_save_pos = QCheckBox(
-    #         text="Save XY Positions in separate files (ImageJ compatibility)"
-    #     )
-
-    #     group_layout.addWidget(dir_group)
-    #     group_layout.addWidget(fname_group)
-    #     group_layout.addWidget(self.checkBox_save_pos)
-
-    #     return group
-
     def _create_channel_group(self) -> QGroupBox:
 
         group = QGroupBox(title="Channels")
@@ -141,6 +84,9 @@ class MultiDWidgetGui(QWidget):
 
         # table
         self.channel_tableWidget = QTableWidget()
+        self.channel_tableWidget.model().rowsInserted.connect(self._enable_run_btn)
+        self.channel_tableWidget.model().rowsRemoved.connect(self._enable_run_btn)
+
         self.channel_tableWidget.setMinimumHeight(90)
         hdr = self.channel_tableWidget.horizontalHeader()
         hdr.setSectionResizeMode(hdr.Stretch)
@@ -166,15 +112,14 @@ class MultiDWidgetGui(QWidget):
         self.clear_ch_Button.setMinimumWidth(min_size)
         self.clear_ch_Button.setSizePolicy(btn_sizepolicy)
 
-        # checkbox
-        # self.checkBox_split_channels = QCheckBox(text="Split Channels")
-
         group_layout.addWidget(self.add_ch_Button, 0, 1, 1, 1)
         group_layout.addWidget(self.remove_ch_Button, 1, 1, 1, 2)
         group_layout.addWidget(self.clear_ch_Button, 2, 1, 1, 2)
-        # group_layout.addWidget(self.checkBox_split_channels, 3, 0, 1, 1)
 
         return group
+
+    def _enable_run_btn(self) -> None:
+        self.run_Button.setEnabled(self.channel_tableWidget.rowCount() > 0)
 
     def _create_time_group(self) -> QGroupBox:
         group = QGroupBox(title="Time")
@@ -215,6 +160,7 @@ class MultiDWidgetGui(QWidget):
         lbl1 = QLabel(text="Interval:  ")
         lbl1.setSizePolicy(LBL_SIZEPOLICY)
         self.interval_spinBox = QDoubleSpinBox()
+        self.interval_spinBox.setValue(1.0)
         self.interval_spinBox.setMinimum(0)
         self.interval_spinBox.setMaximum(100000)
         self.interval_spinBox.setSizePolicy(
@@ -230,6 +176,7 @@ class MultiDWidgetGui(QWidget):
             QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         )
         self.time_comboBox.addItems(["ms", "sec", "min", "hours"])
+        self.time_comboBox.setCurrentText("sec")
         wdg1_lay.addWidget(self.time_comboBox)
         group_layout.addWidget(wdg1, 0, 1)
 
@@ -398,6 +345,7 @@ class MultiDWidgetGui(QWidget):
         self.step_size_doubleSpinBox = QDoubleSpinBox()
         self.step_size_doubleSpinBox.setAlignment(Qt.AlignCenter)
         self.step_size_doubleSpinBox.setMinimum(0.05)
+        self.step_size_doubleSpinBox.setValue(1)
         self.step_size_doubleSpinBox.setMaximum(10000)
         self.step_size_doubleSpinBox.setSingleStep(0.5)
         self.step_size_doubleSpinBox.setDecimals(2)
@@ -413,7 +361,7 @@ class MultiDWidgetGui(QWidget):
         return group
 
     def _create_stage_pos_groupBox(self) -> QGroupBox:
-        group = QGroupBox(title="Stage Positions (double-click to move to position)")
+        group = QGroupBox(title="Stage Positions")
         group.setCheckable(True)
         group.setChecked(False)
         group.setMinimumHeight(230)
@@ -505,6 +453,7 @@ class MultiDWidgetGui(QWidget):
         min_width = 130
         icon_size = 40
         self.run_Button = QPushButton(text="Run")
+        self.run_Button.setEnabled(False)
         self.run_Button.setMinimumWidth(min_width)
         self.run_Button.setStyleSheet("QPushButton { text-align: center; }")
         self.run_Button.setSizePolicy(btn_sizepolicy)
