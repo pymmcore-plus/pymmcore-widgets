@@ -589,14 +589,11 @@ class MultiDWidget(MultiDWidgetGui):
         if len(self._mmc.getLoadedDevices()) < 2:
             raise ValueError("Load a cfg file first.")
 
-        if self.channel_tableWidget.rowCount() <= 0:
-            raise ValueError("Select at least one channel.")
-
         if self.stage_pos_groupBox.isChecked() and (
             self.stage_tableWidget.rowCount() <= 0
         ):
             raise ValueError(
-                "Select at least one position" "or deselect the position groupbox."
+                "Select at least one position or deselect the position groupbox."
             )
 
         experiment = self._get_state()

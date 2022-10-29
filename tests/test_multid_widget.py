@@ -195,6 +195,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     assert not wdg.time_groupBox.isChecked()
     wdg.time_groupBox.setChecked(True)
+    wdg.time_comboBox.setCurrentText("ms")
 
     txt = (
         "Minimum total acquisition time: 100.0000 ms.\n"
