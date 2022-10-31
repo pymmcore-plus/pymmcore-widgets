@@ -27,22 +27,26 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - attr_list
+  - md_in_html
   - pymdownx.tabbed:
       alternate_style: true
 
+watch:
+  - src/pymmcore_widgets
+
 plugins:
   - search
+  - macros:
+      module_name: docs/_macros
   - mkdocstrings:
-      watch:
-        - src/pymmcore_widgets
       handlers:
         python:
           import:
             - https://docs.python.org/3/objects.inv
             - https://pymmcore-plus.readthedocs.io/en/latest/objects.inv
-          selection:
+          options:
             docstring_style: numpy
-          rendering:
             show_root_heading: true
             # show_root_toc_entry: true
             show_root_full_path: true
