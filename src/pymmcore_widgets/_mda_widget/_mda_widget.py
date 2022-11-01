@@ -537,7 +537,7 @@ class MultiDWidget(MultiDWidgetGui):
         else:
             self.stage_pos_groupBox.setChecked(False)
 
-    def _get_state(self) -> MDASequence:
+    def get_state(self) -> MDASequence:
         """Get current state of widget and build a useq.MDASequence.
 
         Returns
@@ -618,7 +618,7 @@ class MultiDWidget(MultiDWidgetGui):
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
         # construct a `useq.MDASequence` object from the values inserted in the widget
-        experiment = self._get_state()
+        experiment = self.get_state()
         # run the MDA experiment asynchronously
         self._mmc.run_mda(experiment)  # run the MDA experiment asynchronously
         return
