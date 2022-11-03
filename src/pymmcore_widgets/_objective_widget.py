@@ -52,10 +52,10 @@ class ObjectivesWidget(QWidget):
         self.layout().addWidget(self._combo)
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
-        self.destroyed.connect(self._disconnect_from_core)
+        self.destroyed.connect(self._disconnect)
         self._on_sys_cfg_loaded()
 
-    def _disconnect_from_core(self) -> None:
+    def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
 
     def _on_sys_cfg_loaded(self) -> None:

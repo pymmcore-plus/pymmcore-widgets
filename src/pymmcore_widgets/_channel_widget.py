@@ -57,7 +57,7 @@ class ChannelWidget(QWidget):
         self._mmc.events.configDefined.connect(self._on_new_group_preset)
         self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)
 
-        self.destroyed.connect(self._disconnect_from_core)
+        self.destroyed.connect(self._disconnect)
         self._on_sys_cfg_loaded()
 
     def _get_channel_group(self) -> Union[str, None]:
@@ -125,7 +125,7 @@ class ChannelWidget(QWidget):
         self.channel_wdg = self._create_channel_widget(channel_group)
         self.layout().addWidget(self.channel_wdg)
 
-    def _disconnect_from_core(self) -> None:
+    def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
         self._mmc.events.channelGroupChanged.disconnect(self._on_channel_group_changed)
         self._mmc.events.configSet.disconnect(self._on_channel_set)

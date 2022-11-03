@@ -238,6 +238,12 @@ class PixelSizeWidget(QDialog):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.pixelSizeChanged.connect(self._on_px_set)
 
+        self.destroyed.connect(self._disconnect)
+
+    def _disconnect(self) -> None:
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
+        self._mmc.events.pixelSizeChanged.disconnect(self._on_px_set)
+
     def _create_wdg(self) -> None:
         main_layout = QVBoxLayout()
         main_layout.setSpacing(0)

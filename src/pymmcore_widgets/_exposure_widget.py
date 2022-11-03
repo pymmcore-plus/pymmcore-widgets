@@ -55,6 +55,12 @@ class ExposureWidget(QWidget):
 
         self.spinBox.valueChanged.connect(self._mmc.setExposure)
 
+        self.destroyed.connect(self._disconnect)
+
+    def _disconnect(self) -> None:
+        self._mmc.events.exposureChanged.disconnect(self._on_exp_changed)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_load)
+
     def setCamera(self, camera: str = None) -> None:  # type: ignore
         """Set which camera this widget tracks.
 
@@ -109,6 +115,15 @@ class DefaultCameraExposureWidget(ExposureWidget):
         self._mmc.events.devicePropertyChanged(
             g_Keyword_CoreDevice, g_Keyword_CoreCamera
         ).connect(self._camera_updated)
+
+        self.destroyed.connect(self._disconnect)
+
+    def _disconnect(self) -> None:
+        self._mmc.events.exposureChanged.disconnect(self._on_exp_changed)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_load)
+        self._mmc.events.devicePropertyChanged(
+            g_Keyword_CoreDevice, g_Keyword_CoreCamera
+        ).disconnect(self._camera_updated)
 
     def setCamera(
         self, camera: str = None, force: bool = False  # type: ignore

@@ -18,19 +18,25 @@ class Shutters(QWidget):
         shutter.button_text_open = "Shutter"
         shutter.button_text_closed = "Shutter"
 
-        multishutter = ShuttersWidget("Multi Shutter")
-        multishutter.button_text_open = "Multi Shutter"
-        multishutter.button_text_closed = "Multi Shutter"
+        shutter1 = ShuttersWidget("Shutter")
+        shutter1.button_text_open = "Shutter_1"
+        shutter1.button_text_closed = "Shutter_1"
+
+        # multishutter = ShuttersWidget("Multi Shutter")
+        # multishutter.button_text_open = "Multi Shutter"
+        # multishutter.button_text_closed = "Multi Shutter"
 
         self.setLayout(QHBoxLayout())
         self.layout().setSpacing(5)
         self.layout().addWidget(shutter)
-        self.layout().addWidget(multishutter)
+        # self.layout().addWidget(multishutter)
+        self.layout().addWidget(shutter1)
 
 
 if __name__ == "__main__":
     mmc = CMMCorePlus().instance()
-    mmc.loadSystemConfiguration(CFG)
+    # mmc.loadSystemConfiguration(CFG)
+    mmc.loadSystemConfiguration()
     mmc.setConfig("Channel", "FITC")
     app = QApplication([])
     sh = Shutters()
