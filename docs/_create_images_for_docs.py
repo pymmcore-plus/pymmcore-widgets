@@ -5,38 +5,23 @@ from textwrap import indent
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mkdocs_macros.plugin import MacrosPlugin
+    pass
 
 EXAMPLES = Path(__file__).parent.parent / "examples"
 IMAGES = Path(__file__).parent / "_auto_images"
 IMAGES.mkdir(exist_ok=True, parents=True)
 
 
-def define_env(env: MacrosPlugin) -> None:
-    """Define the environment for the docs."""
-
-    @env.macro
-    def include_example(path: str, width: int | None = None, caption: str = "") -> str:
-        example = EXAMPLES / path
-        src = example.read_text().strip()
-        markdown = f"```python\n{src}\n```\n"
-
-        return markdown
-
-    @env.macro
-    def show_image(path: str, width: int | None = None, caption: str = "") -> str:
-        example = EXAMPLES / path
-        src = example.read_text().strip()
-        image = IMAGES / f"{example.stem}.png"
-        if not image.exists():
-            _make_image(src, str(image), width)
-
-        return f" ![{example.stem}](../../_auto_images/{image.name}){{ width={width}}}"
-
-
-def _make_image(source_code: str, dest: str, width=None):
+def make_image(path: str, width=None):
     """Grab the top widgets of the application."""
     from qtpy.QtWidgets import QApplication
+
+    example = EXAMPLES / path
+    source_code = example.read_text().strip()
+    image = IMAGES / f"{example.stem}.png"
+    dest = str(image)
+
+    print("MAKING IMAGE...")
 
     _to_exec = source_code.replace(
         "QApplication([])", "QApplication.instance() or QApplication([])"
@@ -61,6 +46,10 @@ def _make_image(source_code: str, dest: str, width=None):
     w.activateWindow()
     if width:
         w.setFixedWidth(width)
-    # w.setMinimumHeight(40)
     w.grab().save(dest)
     w.close()
+
+    print("IMAGE SAVED...")
+
+
+make_image("image_widget.py")

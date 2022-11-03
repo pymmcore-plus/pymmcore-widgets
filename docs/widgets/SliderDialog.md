@@ -4,19 +4,6 @@
 
 ## Examples
 
-```python
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QApplication
+{{ include_example('slider_dialog_widget.py') }}
 
-from pymmcore_widgets import SliderDialog
-
-app = QApplication([])
-
-mmc = CMMCorePlus().instance()
-mmc.loadSystemConfiguration()
-
-sl_wdg = SliderDialog("TestProperty")
-sl_wdg.show()
-
-app.exec_()
-```
+{{ show_image('slider_dialog_widget.py') }}

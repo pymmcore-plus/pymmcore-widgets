@@ -4,19 +4,6 @@
 
 ## Examples
 
-```python
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QApplication
+{{ include_example('objectives_widget.py') }}
 
-from pymmcore_widgets import ObjectivesWidget
-
-app = QApplication([])
-
-mmc = CMMCorePlus().instance()
-mmc.loadSystemConfiguration()
-
-obj_wdg = ObjectivesWidget()
-obj_wdg.show()
-
-app.exec_()
-```
+{{ show_image('objectives_widget.py') }}

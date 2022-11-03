@@ -4,19 +4,6 @@
 
 ## Examples
 
-```python
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QApplication
+{{ include_example('property_browser_widget.py') }}
 
-from pymmcore_widgets import PropertyBrowser
-
-app = QApplication([])
-
-mmc = CMMCorePlus().instance()
-mmc.loadSystemConfiguration()
-
-pb_wdg = PropertyBrowser()
-pb_wdg.show()
-
-app.exec_()
-```
+{{ show_image('property_browser_widget.py') }}

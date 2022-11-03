@@ -5,9 +5,24 @@ import warnings
 from typing import Any, Dict, List, Optional, Tuple, cast
 
 from pymmcore_plus import CMMCorePlus
-from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QDoubleValidator
+from qtpy.QtWidgets import (
+    QAbstractItemView,
+    QDialog,
+    QGraphicsOpacityEffect,
+    QGroupBox,
+    QHBoxLayout,
+    QLineEdit,
+    QPushButton,
+    QRadioButton,
+    QSizePolicy,
+    QSpacerItem,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 from superqt.utils import signals_blocked
 
 from ._util import block_core, guess_objective_or_prompt
@@ -19,7 +34,7 @@ MAGNIFICATION = 3
 IMAGE_PX_SIZE = 4
 
 
-class PixelSizeTable(QtW.QTableWidget):
+class PixelSizeTable(QTableWidget):
     """Create a Table to set pixel size configurations."""
 
     HEADERS = {
@@ -31,7 +46,7 @@ class PixelSizeTable(QtW.QTableWidget):
         "delete": "Delete",
     }
 
-    def __init__(self, core: CMMCorePlus, parent: Optional[QtW.QWidget] = None) -> None:
+    def __init__(self, core: CMMCorePlus, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._mmc = core
         hh = self.horizontalHeader()
@@ -40,8 +55,8 @@ class PixelSizeTable(QtW.QTableWidget):
         vh = self.verticalHeader()
         vh.setVisible(False)
         vh.setSectionResizeMode(hh.Stretch)
-        self.setSelectionBehavior(QtW.QAbstractItemView.SelectItems)
-        self.setDragDropMode(QtW.QAbstractItemView.NoDragDrop)
+        self.setSelectionBehavior(QAbstractItemView.SelectItems)
+        self.setDragDropMode(QAbstractItemView.NoDragDrop)
 
     def _rebuild(
         self, obj_dev: str, _cam_mag_dict: Dict[str, Tuple[float, float]] = None  # type: ignore # noqa:E501
@@ -128,7 +143,7 @@ class PixelSizeTable(QtW.QTableWidget):
                 opacity = 0.50
 
             for c in range(1, self.columnCount() - 1):
-                op = QtW.QGraphicsOpacityEffect()
+                op = QGraphicsOpacityEffect()
                 item = self.cellWidget(row, c)
                 op.setOpacity(opacity)
                 item.setGraphicsEffect(op)
@@ -148,8 +163,8 @@ class PixelSizeTable(QtW.QTableWidget):
                         wdg.setProperty("resID", record[key])
                 self.setCellWidget(row, col, wdg)
 
-    def _new_line_edit(self, value: Any) -> QtW.QLineEdit:
-        item = QtW.QLineEdit(str(value))
+    def _new_line_edit(self, value: Any) -> QLineEdit:
+        item = QLineEdit(str(value))
         item.setAlignment(Qt.AlignCenter)
         item.setFrame(False)
         if isinstance(value, (int, float)):
@@ -157,21 +172,21 @@ class PixelSizeTable(QtW.QTableWidget):
         return item
 
     def _new_table_item(self, value: Any, row: int) -> None:
-        objective_item = QtW.QTableWidgetItem(value)
+        objective_item = QTableWidgetItem(value)
         objective_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
         self.setItem(row, OBJECTIVE_LABEL, objective_item)
 
-    def _new_delete_btn(self) -> QtW.QWidget:
-        wdg = QtW.QWidget()
-        layout = QtW.QHBoxLayout()
+    def _new_delete_btn(self) -> QWidget:
+        wdg = QWidget()
+        layout = QHBoxLayout()
         layout.setSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setAlignment(Qt.AlignCenter)
         wdg.setLayout(layout)
 
-        btn = QtW.QPushButton(text="Delete")
+        btn = QPushButton(text="Delete")
         btn.setFixedWidth(70)
-        btn.setSizePolicy(QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed)
+        btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         btn.setToolTip("Delete configuration.")
         btn.clicked.connect(self._delete_cfg)
 
@@ -182,8 +197,8 @@ class PixelSizeTable(QtW.QTableWidget):
     def _delete_cfg(self) -> None:
         w = self.sender().parent()
         row = self.indexAt(w.pos()).row()
-        resId_edit = cast("QtW.QLineEdit", self.cellWidget(row, RESOLUTION_ID))
-        img_px_edit = cast("QtW.QLineEdit", self.cellWidget(row, IMAGE_PX_SIZE))
+        resId_edit = cast(QLineEdit, self.cellWidget(row, RESOLUTION_ID))
+        img_px_edit = cast(QLineEdit, self.cellWidget(row, IMAGE_PX_SIZE))
         if resId_edit.text() in self._mmc.getAvailablePixelSizeConfigs():
             self._mmc.deletePixelSizeConfig(resId_edit.text())
         resId_edit.setText("None")
@@ -191,12 +206,22 @@ class PixelSizeTable(QtW.QTableWidget):
         self._update_status()
 
 
-class PixelSizeWidget(QtW.QDialog):
-    """A widget for pixel size control."""
+class PixelSizeWidget(QDialog):
+    """A widget for pixel size control.
+
+    Parameters
+    ----------
+    parent : Optional[QWidget]
+        Optional parent widget, by default None
+    mmcore: Optional[CMMCorePlus]
+        Optional `CMMCorePlus` micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new) `CMMCorePlus.instance()`.
+    """
 
     def __init__(
         self,
-        parent: Optional[QtW.QWidget] = None,
+        parent: Optional[QWidget] = None,
         *,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
@@ -214,14 +239,14 @@ class PixelSizeWidget(QtW.QDialog):
         self._mmc.events.pixelSizeChanged.connect(self._on_px_set)
 
     def _create_wdg(self) -> None:
-        main_layout = QtW.QVBoxLayout()
+        main_layout = QVBoxLayout()
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(5, 5, 5, 5)
         main_layout.setAlignment(Qt.AlignCenter)
         self.setLayout(main_layout)
 
-        wdg = QtW.QGroupBox()
-        layout = QtW.QVBoxLayout()
+        wdg = QGroupBox()
+        layout = QVBoxLayout()
         layout.setSpacing(10)
         layout.setContentsMargins(5, 5, 5, 5)
         wdg.setLayout(layout)
@@ -234,23 +259,21 @@ class PixelSizeWidget(QtW.QDialog):
 
         self.layout().addWidget(wdg)
 
-    def _create_radiobtn_wdg(self) -> QtW.QWidget:
-        self.rbt_wdg = QtW.QWidget()
-        layout = QtW.QHBoxLayout()
+    def _create_radiobtn_wdg(self) -> QWidget:
+        self.rbt_wdg = QWidget()
+        layout = QHBoxLayout()
         layout.setSpacing(10)
         layout.setContentsMargins(5, 5, 5, 5)
         self.rbt_wdg.setLayout(layout)
 
-        self.mag_radiobtn = QtW.QRadioButton(text="Calculate Magnification")
-        self.img_px_radiobtn = QtW.QRadioButton(text="Calculate Image Pixel Size")
+        self.mag_radiobtn = QRadioButton(text="Calculate Magnification")
+        self.img_px_radiobtn = QRadioButton(text="Calculate Image Pixel Size")
         self.img_px_radiobtn.setChecked(True)
 
         self.mag_radiobtn.toggled.connect(self._on_mag_toggle)
         self.img_px_radiobtn.toggled.connect(self._on_img_toggle)
 
-        spacer = QtW.QSpacerItem(
-            10, 10, QtW.QSizePolicy.Expanding, QtW.QSizePolicy.Minimum
-        )
+        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Minimum)
         layout.addItem(spacer)
 
         layout.addWidget(self.mag_radiobtn)
@@ -267,7 +290,7 @@ class PixelSizeWidget(QtW.QDialog):
     def _enable_column(self, column: int, enable: bool) -> None:
         with signals_blocked(self.table):
             for row in range(self.table.rowCount()):
-                item = cast(QtW.QLineEdit, self.table.cellWidget(row, column))
+                item = cast(QLineEdit, self.table.cellWidget(row, column))
                 if enable:
                     item.setReadOnly(False)
                     item.setStyleSheet("")
@@ -330,7 +353,7 @@ class PixelSizeWidget(QtW.QDialog):
     def _connect_lineedit(self, state: bool) -> None:
         for col in range(1, 5):
             for row in range(self.table.rowCount()):
-                item = cast(QtW.QLineEdit, self.table.cellWidget(row, col))
+                item = cast(QLineEdit, self.table.cellWidget(row, col))
                 if state:
                     if col == RESOLUTION_ID:
                         item.editingFinished.connect(self._on_resolutioID_changed)
@@ -397,7 +420,7 @@ class PixelSizeWidget(QtW.QDialog):
     def _on_resolutioID_changed(self) -> None:
         sender = self.sender()
         row = self.table.indexAt(sender.pos()).row()
-        wdg = cast(QtW.QLineEdit, self.table.cellWidget(row, RESOLUTION_ID))
+        wdg = cast(QLineEdit, self.table.cellWidget(row, RESOLUTION_ID))
         wdg.focusNextChild()
         value = wdg.text()
 

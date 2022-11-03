@@ -6,22 +6,9 @@
 
 ### Simple `ExposureWidget`.
 
-```python
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QApplication
+{{ include_example('exposure_widget.py') }}
 
-from pymmcore_widgets import ExposureWidget
-
-app = QApplication([])
-
-mmc = CMMCorePlus().instance()
-mmc.loadSystemConfiguration()
-
-exp_wdg = ExposureWidget()
-exp_wdg.show()
-
-app.exec_()
-```
+{{ show_image('exposure_widget.py') }}
 
 ### Combining `ExposureWidget` with other `pymmcore-widgets`.
 

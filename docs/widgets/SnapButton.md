@@ -6,22 +6,9 @@
 
 ### Simple `SnapButton`.
 
-```python
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QApplication
+{{ include_example('snap_button.py') }}
 
-from pymmcore_widgets import SnapButton
-
-app = QApplication([])
-
-mmc = CMMCorePlus().instance()
-mmc.loadSystemConfiguration()
-
-snap_btn = SnapButton()
-snap_btn.show()
-
-app.exec_()
-```
+{{ show_image('snap_button.py') }}
 
 ### Combination of `SnapButton` with other `pymmcore-widgets`.
 

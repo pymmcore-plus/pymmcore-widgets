@@ -6,22 +6,9 @@
 
 ### Simple `ChannelWidget`.
 
-```python
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QApplication
+{{ include_example('channel_widget.py') }}
 
-from pymmcore_widgets import ChannelWidget
-
-app = QApplication([])
-
-mmc = CMMCorePlus().instance()
-mmc.loadSystemConfiguration()
-
-ch_wdg = ChannelWidget()
-ch_wdg.show()
-
-app.exec_()
-```
+{{ show_image('channel_widget.py') }}
 
 ### Combining `ChannelWidget` with other `pymmcore-widgets`.
 

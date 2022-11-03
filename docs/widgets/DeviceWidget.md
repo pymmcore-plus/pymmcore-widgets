@@ -14,25 +14,6 @@
 In this example all the devices of type `StateDevice` that are loaded in micromanager
 are dysplaied with a `DeviceWidget`.
 
-```python
-from pymmcore_plus import CMMCorePlus, DeviceType
-from qtpy.QtWidgets import QApplication, QFormLayout, QWidget
+{{ include_example('device_widget.py') }}
 
-from pymmcore_widgets import DeviceWidget
-
-app = QApplication([])
-
-mmc = CMMCorePlus().instance()
-mmc.loadSystemConfiguration()
-
-wdg = QWidget()
-wdg.setLayout(QFormLayout())
-
-for d in mmc.getLoadedDevicesOfType(DeviceType.StateDevice):
-    dev_wdg = DeviceWidget.for_device(d)
-    wdg.layout().addRow(f"{d}:", dev_wdg)
-
-wdg.show()
-
-app.exec_()
-```
+{{ show_image('device_widget.py') }}

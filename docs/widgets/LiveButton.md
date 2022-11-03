@@ -6,20 +6,9 @@
 
 ### Simple `LiveButton`.
 
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QApplication
+{{ include_example('live_button.py') }}
 
-from pymmcore_widgets import LiveButton
-
-app = QApplication([])
-
-mmc = CMMCorePlus().instance()
-mmc.loadSystemConfiguration()
-
-live_btn = LiveButton()
-live_btn.show()
-
-app.exec_()
+{{ show_image('live_button.py') }}
 
 ### Combination of `LiveButton` with other `pymmcore-widgets`.
 
