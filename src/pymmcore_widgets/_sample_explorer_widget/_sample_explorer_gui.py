@@ -146,6 +146,12 @@ class SampleExplorerGui(QWidget):
 
         # table
         self.channel_explorer_tableWidget = QTableWidget()
+        self.channel_explorer_tableWidget.model().rowsInserted.connect(
+            self._enable_run_btn
+        )
+        self.channel_explorer_tableWidget.model().rowsRemoved.connect(
+            self._enable_run_btn
+        )
         self.channel_explorer_tableWidget.setMinimumHeight(90)
         hdr = self.channel_explorer_tableWidget.horizontalHeader()
         hdr.setSectionResizeMode(hdr.Stretch)
@@ -176,6 +182,11 @@ class SampleExplorerGui(QWidget):
         group_layout.addWidget(self.clear_ch_explorer_Button, 2, 1, 1, 2)
 
         return group
+
+    def _enable_run_btn(self) -> None:
+        self.start_scan_Button.setEnabled(
+            self.channel_explorer_tableWidget.rowCount() > 0
+        )
 
     def _spacer(self) -> QLabel:
         spacer = QLabel()
@@ -536,6 +547,7 @@ class SampleExplorerGui(QWidget):
         min_width = 100
         icon_size = 40
         self.start_scan_Button = QPushButton(text="Run")
+        self.start_scan_Button.setEnabled(False)
         self.start_scan_Button.setMinimumWidth(min_width)
         self.start_scan_Button.setStyleSheet("QPushButton { text-align: center; }")
         self.start_scan_Button.setSizePolicy(btn_sizepolicy)
