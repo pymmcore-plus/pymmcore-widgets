@@ -65,7 +65,8 @@ docs = [
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings-python==0.7.0",
-    "mkdocstrings[python]==0.19.0"
+    "mkdocstrings[python]==0.19.0",
+    "mkdocs-macros-plugin",
 ]
 
 [project.urls]
