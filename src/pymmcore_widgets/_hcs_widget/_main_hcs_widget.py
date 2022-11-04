@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
@@ -255,15 +256,21 @@ class HCSWidget(HCSGui):
     def _generate_pos_list(self) -> None:
 
         if not self.calibration.is_calibrated:
-            raise ValueError("Plate not calibrated! Calibrate it first.")
+            # raise ValueError("Plate not calibrated! Calibrate it first.")
+            warnings.warn("Plate not calibrated! Calibrate it first.")
+            return
 
         if not self._mmc.getPixelSizeUm():
-            raise ValueError("Pixel Size not defined! Set pixel size first.")
+            # raise ValueError("Pixel Size not defined! Set pixel size first.")
+            warnings.warn("Pixel Size not defined! Set pixel size first.")
+            return
 
         well_list = self.scene._get_plate_positions()
 
         if not well_list:
-            raise ValueError("No Well selected! Select at least one well first.")
+            # raise ValueError("No Well selected! Select at least one well first.")
+            warnings.warn("No Well selected! Select at least one well first.")
+            return
 
         self.ch_and_pos_list._clear_positions()
 
@@ -451,7 +458,8 @@ class HCSWidget(HCSGui):
 
     def _load_positions(self) -> None:
         if not self.calibration.is_calibrated:
-            raise ValueError("Plate not calibrated! Calibrate it first.")
+            warnings.warn("Plate not calibrated! Calibrate it first.")
+            return
 
         (filename, _) = QFileDialog.getOpenFileName(
             self, "Select a position list file", "", "yaml(*.yaml)"

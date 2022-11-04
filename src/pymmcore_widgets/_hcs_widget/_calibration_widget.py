@@ -1,4 +1,5 @@
 import string
+import warnings
 from pathlib import Path
 from typing import List, Optional, Tuple, overload
 
@@ -365,7 +366,9 @@ class PlateCalibration(QWidget):
         self.A1_stage_coords_center = ()
 
         if not self._mmc.getPixelSizeUm():
-            raise ValueError("Pixel Size not defined! Set pixel size first.")
+            # raise ValueError("Pixel Size not defined! Set pixel size first.")
+            warnings.warn("Pixel Size not defined! Set pixel size first.")
+            return
 
         if self._mmc.isSequenceRunning():
             self._mmc.stopSequenceAcquisition()
@@ -373,9 +376,12 @@ class PlateCalibration(QWidget):
         if not self.plate:
             return
 
-        self.table_1._handle_error(circular_well=self.plate.get("circular"))
-        if not self.table_2.isHidden():
-            self.table_2._handle_error(circular_well=self.plate.get("circular"))
+        if self.table_1._handle_error(circular_well=self.plate.get("circular")):
+            return
+        if not self.table_2.isHidden() and self.table_2._handle_error(
+            circular_well=self.plate.get("circular")
+        ):
+            return
 
         xc_w1, yc_w1 = self._get_well_center(self.table_1)
         self.A1_stage_coords_center = (xc_w1, yc_w1)
@@ -552,24 +558,34 @@ class CalibrationTable(QWidget):
         well = QTableWidgetItem(well_name)
         self.tb.setHorizontalHeaderItem(0, well)
 
-    def _handle_error(self, circular_well: bool) -> None:
+    def _handle_error(self, circular_well: bool) -> bool:
 
         if circular_well:
             if self.tb.rowCount() < 3:
-                raise ValueError(
+                # raise ValueError(
+                warnings.warn(
                     f"Not enough points for {self._well_name}. "
                     "Add 3 points to the table."
                 )
+                return True
             elif self.tb.rowCount() > 3:
-                raise ValueError("Add only 3 points to the table.")
+                # raise ValueError("Add only 3 points to the table.")
+                warnings.warn("Add only 3 points to the table.")
+                return True
 
         elif self.tb.rowCount() < 2 or self.tb.rowCount() == 3:
-            raise ValueError(
+            # raise ValueError(
+            warnings.warn(
                 f"Not enough points for {self._well_name}. "
                 "Add 2 or 4 points to the table."
             )
+            return True
         elif self.tb.rowCount() > 4:
-            raise ValueError("Add 2 or 4 points to the table.")
+            # raise ValueError("Add 2 or 4 points to the table.")
+            warnings.warn("Add 2 or 4 points to the table.")
+            return True
+
+        return False
 
 
 if __name__ == "__main__":

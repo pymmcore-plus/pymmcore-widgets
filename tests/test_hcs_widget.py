@@ -344,7 +344,8 @@ def test_calibration_one_well(hcs_wdg, qtbot: QtBot):
     assert cal.table_1.tb.item(1, 2).text() == "49.995"
 
     error = "Not enough points for Well A1. Add 3 points to the table."
-    with pytest.raises(ValueError, match=error):
+    # with pytest.raises(ValueError, match=error):
+    with pytest.warns(match=error):
         cal._calibrate_plate()
 
     mmc.setXYPosition(50.0, 0.0)
@@ -357,7 +358,8 @@ def test_calibration_one_well(hcs_wdg, qtbot: QtBot):
     cal.table_1._add_pos()
     assert cal.table_1.tb.rowCount() == 4
     error = "Add only 3 points to the table."
-    with pytest.raises(ValueError, match=error):
+    # with pytest.raises(ValueError, match=error):
+    with pytest.warns(match=error):
         cal._calibrate_plate()
 
     cal.table_1.tb.removeRow(3)
@@ -396,7 +398,8 @@ def test_calibration_one_well_square(hcs_wdg, qtbot: QtBot):
     assert cal.table_1.tb.rowCount() == 1
 
     error = "Not enough points for Well A1. Add 2 or 4 points to the table."
-    with pytest.raises(ValueError, match=error):
+    # with pytest.raises(ValueError, match=error):
+    with pytest.warns(match=error):
         cal._calibrate_plate()
 
     cal.table_1.tb.insertRow(1)

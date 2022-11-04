@@ -57,7 +57,7 @@ class HCS(QWidget):
 
         # below here is just GUI layout stuff
         hcs_wdg = QGroupBox()
-        hcs_wdg.setMaximumWidth(600)
+        hcs_wdg.setMinimumWidth(650)
         hcs_wdg.setLayout(QVBoxLayout())
         hcs_wdg.layout().setContentsMargins(0, 0, 0, 0)
         hcs_wdg.layout().addWidget(self.hcs)

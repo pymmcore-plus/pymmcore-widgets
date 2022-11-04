@@ -402,7 +402,9 @@ class SelectFOV(QWidget):
             return
 
         if not self._mmc.getPixelSizeUm():
-            raise ValueError("Pixel Size not defined! Set pixel size first.")
+            # raise ValueError("Pixel Size not defined! Set pixel size first.")
+            warnings.warn("Pixel Size not defined! Set pixel size first.")
+            return
 
         cr, cc = (self._view_size / 2, self._view_size / 2)
 
@@ -480,7 +482,9 @@ class SelectFOV(QWidget):
             return
 
         if not self._mmc.getPixelSizeUm():
-            raise ValueError("Pixel Size not defined! Set pixel size first.")
+            # raise ValueError("Pixel Size not defined! Set pixel size first.")
+            warnings.warn("Pixel Size not defined! Set pixel size first.")
+            return
 
         _cam_x = self._mmc.getROI(self._mmc.getCameraDevice())[-2]
         _cam_y = self._mmc.getROI(self._mmc.getCameraDevice())[-1]
