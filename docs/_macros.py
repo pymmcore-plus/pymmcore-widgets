@@ -21,7 +21,7 @@ def define_env(env: MacrosPlugin) -> None:
     """Define the environment for the docs."""
 
     @env.macro
-    def include_example(path: str, width: int | None = None) -> str:
+    def include_example(path: str) -> str:
         example = EXAMPLES / path
         src = example.read_text().strip()
         markdown = f"```python\n{src}\n```\n"
