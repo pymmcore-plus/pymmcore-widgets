@@ -47,7 +47,7 @@ def test_multid_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.time_groupBox.isChecked()
 
     # round trip
-    assert wdg._get_state() == sequence
+    assert wdg.get_state() == sequence
 
     # test add grid positions
     wdg.stage_pos_groupBox.setChecked(True)
