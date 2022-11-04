@@ -491,7 +491,13 @@ class HCSWidget(HCSGui):
             self._add_to_table(row, name, new_x, new_y, coords.get("z"))
             row += 1
 
-    def _get_state(self) -> MDASequence:
+    def get_state(self) -> MDASequence:
+        """Get current state of widget and build a useq.MDASequence.
+
+        Returns
+        -------
+        useq.MDASequence
+        """
         ch_table = self.ch_and_pos_list.channel_tableWidget
         state = {
             "axis_order": self.acquisition_order_comboBox.currentText(),
@@ -571,7 +577,7 @@ class HCSWidget(HCSGui):
 
     def _on_run_clicked(self) -> None:
         # construct a `useq.MDASequence` object from the values inserted in the widget
-        experiment = self._get_state()
+        experiment = self.get_state()
         # run the MDA experiment asynchronously
         self._mmc.run_mda(experiment)
         return

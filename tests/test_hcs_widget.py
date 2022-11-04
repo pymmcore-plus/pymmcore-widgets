@@ -696,7 +696,7 @@ def test_hcs_state(hcs_wdg, qtbot: QtBot):
     mda.zrange_spinBox.setValue(2)
     mda.step_size_doubleSpinBox.setValue(1)
 
-    state = hcs._get_state()
+    state = hcs.get_state()
 
     sequence = MDASequence(
         channels=[
