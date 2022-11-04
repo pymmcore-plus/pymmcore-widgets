@@ -21,15 +21,42 @@ AlignCenter = Qt.AlignmentFlag.AlignCenter
 
 
 class HCSWidget(HCSGui):
-    """Main HCS widget."""
+    """HCS widget.
+
+    Parameters
+    ----------
+    include_run_button: bool
+        By default, False. If true, a "run" button is added to the widget.
+        The acquisition defined by the `useq.MDASequence` built through the
+        widget is executed when clicked.
+    parent : Optional[QWidget]
+        Optional parent widget, by default None
+    mmcore: Optional[CMMCorePlus]
+        Optional `CMMCorePlus` micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new) `CMMCorePlus.instance()`.
+
+    The `HCSWidget` provides a GUI to construct a `useq.MDASequence` object.
+    It can be used to automate the acquisition of multi-well plate
+    or custom defined areas.
+    If the `include_run_button` parameter is set to `True`, a "run" button is added
+    to the GUI and, when clicked, the generated `useq.MDASequence` is passed to the
+    `CMMCorePlus.run_mda` method and the acquisition is executed.
+    """
 
     def __init__(
         self,
+        include_run_button: bool = False,
         parent: Optional[QWidget] = None,
         *,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
         super().__init__(parent)
+
+        self._include_run_button = include_run_button
+
+        if not self._include_run_button:
+            self.run_Button.hide()
 
         self.wp: WellPlate = None  # type: ignore
 
@@ -45,7 +72,8 @@ class HCSWidget(HCSGui):
         self.wp_combo.currentTextChanged.connect(self._on_combo_changed)
         self.custom_plate.clicked.connect(self._update_plate_yaml)
         self.clear_button.clicked.connect(self.scene._clear_selection)
-        self.run_Button.clicked.connect(self._on_run_clicked)
+        if self._include_run_button:
+            self.run_Button.clicked.connect(self._on_run_clicked)
         self.pause_Button.released.connect(lambda: self._mmc.mda.toggle_pause())
         self.cancel_Button.released.connect(lambda: self._mmc.mda.cancel())
         self.calibration.PlateFromCalibration.connect(self._on_plate_from_calibration)
@@ -530,19 +558,12 @@ class HCSWidget(HCSGui):
         self.pause_Button.hide()
         self.cancel_Button.hide()
         self.run_Button.show()
+        if self._include_run_button:
+            self.run_Button.show()
 
     def _on_run_clicked(self) -> None:
-
-        if len(self._mmc.getLoadedDevices()) < 2:
-            raise ValueError("Load a cfg file first.")
-
-        if self.ch_and_pos_list.channel_tableWidget.rowCount() <= 0:
-            raise ValueError("Select at least one channel.")
-
-        if self.ch_and_pos_list.stage_tableWidget.rowCount() <= 0:
-            raise ValueError("Select at least one position.")
-
+        # construct a `useq.MDASequence` object from the values inserted in the widget
         experiment = self._get_state()
-
-        self._mmc.run_mda(experiment)  # run the MDA experiment asynchronously
+        # run the MDA experiment asynchronously
+        self._mmc.run_mda(experiment)
         return

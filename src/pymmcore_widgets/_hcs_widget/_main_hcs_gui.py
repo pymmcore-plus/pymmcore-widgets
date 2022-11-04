@@ -58,6 +58,13 @@ class HCSGui(QWidget):
         bottom_wdg = self._create_bottom_wdg()
         layout.addWidget(bottom_wdg)
 
+        self._tb = self.ch_and_pos_list.channel_tableWidget
+        self._tb.model().rowsInserted.connect(self._enable_run_btn)
+        self._tb.model().rowsRemoved.connect(self._enable_run_btn)
+
+    def _enable_run_btn(self) -> None:
+        self.run_Button.setEnabled(self._tb.rowCount() > 0)
+
     def _add_tab_wdg(self) -> QTabWidget:
 
         tab = QTabWidget()
@@ -176,6 +183,7 @@ class HCSGui(QWidget):
         min_width = 100
         icon_size = 40
         self.run_Button = QPushButton(text="Run")
+        self.run_Button.setEnabled(False)
         self.run_Button.setMinimumWidth(min_width)
         self.run_Button.setStyleSheet("QPushButton { text-align: center; }")
         self.run_Button.setSizePolicy(btn_sizepolicy)

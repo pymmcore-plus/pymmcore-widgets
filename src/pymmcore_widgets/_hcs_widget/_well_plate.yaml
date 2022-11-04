@@ -12,8 +12,8 @@ _from calibration:
   cols: 1
   id: _from calibration
   rows: 1
-  well_size_x: 0.80001
-  well_size_y: 0.80001
+  well_size_x: 10.0
+  well_size_y: 10.0
   well_spacing_x: 0
   well_spacing_y: 0
 coverslip 22mm:
