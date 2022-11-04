@@ -9,7 +9,7 @@ CFG = Path(__file__).parent.parent / "tests" / "test_config.cfg"
 
 
 class Shutters(QWidget):
-    """An example for a shutter widhet."""
+    """An example for a shutter widget."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -18,25 +18,19 @@ class Shutters(QWidget):
         shutter.button_text_open = "Shutter"
         shutter.button_text_closed = "Shutter"
 
-        shutter1 = ShuttersWidget("Shutter")
-        shutter1.button_text_open = "Shutter_1"
-        shutter1.button_text_closed = "Shutter_1"
-
-        # multishutter = ShuttersWidget("Multi Shutter")
-        # multishutter.button_text_open = "Multi Shutter"
-        # multishutter.button_text_closed = "Multi Shutter"
+        multishutter = ShuttersWidget("Multi Shutter")
+        multishutter.button_text_open = "Multi Shutter"
+        multishutter.button_text_closed = "Multi Shutter"
 
         self.setLayout(QHBoxLayout())
         self.layout().setSpacing(5)
         self.layout().addWidget(shutter)
-        # self.layout().addWidget(multishutter)
-        self.layout().addWidget(shutter1)
+        self.layout().addWidget(multishutter)
 
 
 if __name__ == "__main__":
     mmc = CMMCorePlus().instance()
-    # mmc.loadSystemConfiguration(CFG)
-    mmc.loadSystemConfiguration()
+    mmc.loadSystemConfiguration(CFG)
     mmc.setConfig("Channel", "FITC")
     app = QApplication([])
     sh = Shutters()
