@@ -17,18 +17,42 @@ if TYPE_CHECKING:
 
 
 class SampleExplorerWidget(SampleExplorerGui):
-    """Widget to create/run tiled acquisitions."""
+    """Widget to create and run grid acquisitions.
+
+    Parameters
+    ----------
+    include_run_button: bool
+        By default, False. If true, a "run" button is added to the widget.
+        The acquisition defined by the `useq.MDASequence` built through the
+        widget is executed when clicked.
+    parent : Optional[QWidget]
+        Optional parent widget, by default None
+    mmcore: Optional[CMMCorePlus]
+        Optional `CMMCorePlus` micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new) `CMMCorePlus.instance()`.
+
+    The `SampleExplorerWidget` provides a GUI to construct a `useq.MDASequence` object.
+    If the `include_run_button` parameter is set to `True`, a "run" button is added
+    to the GUI and, when clicked, the generated `useq.MDASequence` is passed to the
+    `CMMCorePlus.run_mda` method and the acquisition is executed.
+    """
 
     def __init__(
         self,
+        include_run_button: bool = False,
         parent: QtW.QWidget = None,
         *,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
         super().__init__(parent)
 
+        self._include_run_button = include_run_button
+
         self.cancel_scan_Button.hide()
         self.pause_scan_Button.hide()
+        if not self._include_run_button:
+            self.start_scan_Button.hide()
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -69,7 +93,8 @@ class SampleExplorerWidget(SampleExplorerGui):
         self.go.clicked.connect(self._move_to_position)
 
         # connect buttons
-        self.start_scan_Button.clicked.connect(self._start_scan)
+        if self._include_run_button:
+            self.start_scan_Button.clicked.connect(self._start_scan)
         self.cancel_scan_Button.clicked.connect(self._mmc.mda.cancel)
         self.pause_scan_Button.clicked.connect(lambda: self._mmc.mda.toggle_pause())
 
@@ -137,7 +162,8 @@ class SampleExplorerWidget(SampleExplorerGui):
         self._set_enabled(True)
         self.cancel_scan_Button.hide()
         self.pause_scan_Button.hide()
-        self.start_scan_Button.show()
+        if self._include_run_button:
+            self.start_scan_Button.show()
 
     def _set_enabled(self, enabled: bool) -> None:
         self.scan_size_spinBox_r.setEnabled(enabled)
@@ -409,8 +435,13 @@ class SampleExplorerWidget(SampleExplorerGui):
             )
         self._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
 
-    def _get_state(self) -> MDASequence:  # sourcery skip: merge-dict-assign
+    def get_state(self) -> MDASequence:  # sourcery skip: merge-dict-assign
+        """Get current state of widget and build a useq.MDASequence.
 
+        Returns
+        -------
+        useq.MDASequence
+        """
         table = self.channel_explorer_tableWidget
 
         state = {
@@ -579,17 +610,11 @@ class SampleExplorerWidget(SampleExplorerGui):
     def _start_scan(self) -> None:
 
         self.pixel_size = self._mmc.getPixelSizeUm()
-
-        if len(self._mmc.getLoadedDevices()) < 2:
-            raise ValueError("Load a cfg file first.")
-
-        if self.pixel_size <= 0:
+        if self._mmc.getPixelSizeUm() <= 0:
             raise ValueError("Pixel Size not set.")
 
-        if self.channel_explorer_tableWidget.rowCount() <= 0:
-            raise ValueError("Select at least one channel.")
-
-        explore_sample = self._get_state()
-
-        self._mmc.run_mda(explore_sample)  # run the MDA experiment asynchronously
+        # construct a `useq.MDASequence` object from the values inserted in the widget
+        explore_sample = self.get_state()
+        # run the MDA experiment asynchronously
+        self._mmc.run_mda(explore_sample)
         return
