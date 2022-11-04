@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     # sourcery skip: remove-duplicate-set-key
 
-    s_exp = SampleExplorerWidget()
+    s_exp = SampleExplorerWidget(include_run_button=True)
     qtbot.add_widget(s_exp)
     mmc = global_mmcore
 
@@ -47,7 +47,7 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     assert s_exp.stage_tableWidget.rowCount() == 2
 
-    state = s_exp._get_state()
+    state = s_exp.get_state()
 
     sequence = MDASequence(
         channels=[
@@ -110,7 +110,7 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_explorer_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = SampleExplorerWidget()
+    wdg = SampleExplorerWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
     assert wdg.scan_size_spinBox_c.value() == 1
@@ -139,7 +139,7 @@ def test_explorer_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_explorer_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = SampleExplorerWidget()
+    wdg = SampleExplorerWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
     wdg._on_mda_started()
@@ -164,7 +164,7 @@ def test_explorer_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = SampleExplorerWidget()
+    wdg = SampleExplorerWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
     assert wdg.channel_explorer_tableWidget.rowCount() == 0

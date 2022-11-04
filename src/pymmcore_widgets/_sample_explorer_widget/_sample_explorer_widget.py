@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Optional
 
 from fonticon_mdi6 import MDI6
@@ -610,8 +611,11 @@ class SampleExplorerWidget(SampleExplorerGui):
     def _start_scan(self) -> None:
 
         self.pixel_size = self._mmc.getPixelSizeUm()
+
         if self._mmc.getPixelSizeUm() <= 0:
-            raise ValueError("Pixel Size not set.")
+            # raise ValueError("Pixel Size not set.")
+            warnings.warn("Pixel Size not set.")
+            return
 
         # construct a `useq.MDASequence` object from the values inserted in the widget
         explore_sample = self.get_state()
