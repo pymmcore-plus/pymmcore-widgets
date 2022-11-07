@@ -49,7 +49,7 @@ The following widgets are currently available:
 | [SnapButton](./widgets/SnapButton.md)                     | My favorite widget |
 | [StageWidget](./widgets/StageWidget.md)                   | My favorite widget |
 | [StateDeviceWidget](./widgets/StateDeviceWidget.md)       | My favorite widget |
-| [MDADWidget](./widgets/MultiDWidget.md)                   | My favorite widget |
+| [MDADWidget](./widgets/MDAWidget.md)                      | My favorite widget |
 
 In progress:
 
