@@ -7,14 +7,14 @@ from pymmcore_plus import CMMCorePlus
 from useq import MDASequence
 
 from pymmcore_widgets._mda_widget._grid_widget import GridWidget
-from pymmcore_widgets._mda_widget._mda_widget import MultiDWidget
+from pymmcore_widgets._mda_widget._mda_widget import MDAWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
-def test_multid_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = MultiDWidget(include_run_button=True)
+def test_mda_widget_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
     assert wdg.stage_tableWidget.rowCount() == 0
     assert wdg.channel_tableWidget.rowCount() == 0
@@ -61,17 +61,17 @@ def test_multid_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = MultiDWidget(include_run_button=True)
+    wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
     assert wdg.channel_tableWidget.rowCount() == 0
-    wdg.add_ch_Button.click()
-    wdg.add_ch_Button.click()
+    wdg.add_ch_button.click()
+    wdg.add_ch_button.click()
     assert wdg.channel_tableWidget.rowCount() == 2
     wdg.channel_tableWidget.selectRow(0)
-    wdg.remove_ch_Button.click()
+    wdg.remove_ch_button.click()
     assert wdg.channel_tableWidget.rowCount() == 1
-    wdg.clear_ch_Button.click()
+    wdg.clear_ch_button.click()
     assert wdg.channel_tableWidget.rowCount() == 0
 
     assert wdg.stage_tableWidget.rowCount() == 0
@@ -87,7 +87,7 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = MultiDWidget(include_run_button=True)
+    wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
     wdg._on_mda_started()
@@ -181,11 +181,11 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = MultiDWidget(include_run_button=True)
+    wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
     assert wdg.channel_tableWidget.rowCount() == 0
-    wdg.add_ch_Button.click()
+    wdg.add_ch_button.click()
     assert wdg.channel_tableWidget.rowCount() == 1
     assert wdg.channel_tableWidget.cellWidget(0, 1).value() == 100.0
     assert not wdg.time_groupBox.isChecked()
