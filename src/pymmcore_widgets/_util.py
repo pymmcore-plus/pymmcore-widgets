@@ -1,4 +1,4 @@
-from typing import ContextManager, Optional, Sequence, Union
+from typing import ContextManager, Literal, Optional, Sequence, Tuple, Union
 
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
@@ -45,6 +45,25 @@ class ComboMessageBox(QDialog):
         return self._combo.currentText()  # type: ignore [no-any-return]
 
 
+def guess_channel_group(
+    core: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
+) -> Optional[str]:
+    """Try to update the list of channel group choices.
+
+    1. get a list of potential channel groups from pymmcore
+    2. if there is only one, use it, if there are > 1, show a dialog box
+    """
+    core = core or CMMCorePlus.instance()
+    candidates = core.getOrGuessChannelGroup()
+    if len(candidates) == 1:
+        return candidates[0]
+    elif candidates:
+        dialog = ComboMessageBox(candidates, "Select Channel Group:", parent=parent)
+        if dialog.exec_() == dialog.DialogCode.Accepted:
+            return dialog.currentText()
+    return None
+
+
 def guess_objective_or_prompt(
     core: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
 ) -> Optional[str]:
@@ -62,6 +81,26 @@ def guess_objective_or_prompt(
         if dialog.exec_() == dialog.DialogCode.Accepted:
             return dialog.currentText()
     return None
+
+
+def _time_in_sec(value: float, input_unit: Literal["ms", "min", "hours"]) -> float:
+    if input_unit == "ms":
+        return value / 1000
+    elif input_unit == "min":
+        return value * 60
+    elif input_unit == "hours":
+        return value * 3600
+
+
+def _select_output_unit(duration: float) -> Tuple[float, str]:
+    if duration < 1.0:
+        return duration * 1000, "ms"
+    elif duration < 60.0:
+        return duration, "sec"
+    elif duration < 3600.0:
+        return duration / 60, "min"
+    else:
+        return duration / 3600, "hours"
 
 
 def block_core(mmcore_events: Union[CMMCoreSignaler, PCoreSignaler]) -> ContextManager:

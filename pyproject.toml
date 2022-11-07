@@ -26,7 +26,7 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
     'pymmcore-plus>=0.5.0',
-    'useq-schema >=0.1.0',
+    'useq-schema >=0.1.2',
     'superqt >=0.3.1',
     'fonticon-materialdesignicons6',
     'qtpy',
@@ -40,7 +40,7 @@ test = ["pytest>=6.0", "pytest-cov", "pytest-qt"]
 pyqt5 = ["PyQt5"]
 pyside2 = ["PySide2"]
 pyqt6 = ["PyQt6"]
-pyside6 = ["PySide6!=6.4.0"]
+pyside6 = ["PySide6!=6.4.0,!=6.4.0.1"]
 image = ["vispy"]
 
 dev = [
