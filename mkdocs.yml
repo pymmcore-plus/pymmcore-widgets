@@ -37,6 +37,7 @@ watch:
 
 plugins:
   - search
+  - autorefs
   - macros:
       module_name: docs/_macros
   - mkdocstrings:
