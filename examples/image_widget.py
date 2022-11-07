@@ -1,9 +1,15 @@
 from typing import Optional
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout, QWidget
+from qtpy.QtWidgets import QApplication, QGroupBox, QHBoxLayout, QVBoxLayout, QWidget
 
-from pymmcore_widgets import ExposureWidget, ImagePreview, LiveButton, SnapButton
+from pymmcore_widgets import (
+    ChannelWidget,
+    ExposureWidget,
+    ImagePreview,
+    LiveButton,
+    SnapButton,
+)
 
 
 class ImageFrame(QWidget):
@@ -16,16 +22,36 @@ class ImageFrame(QWidget):
         self.snap_button = SnapButton()
         self.live_button = LiveButton()
         self.exposure = ExposureWidget()
+        self.channel = ChannelWidget()
 
         self.setLayout(QVBoxLayout())
 
-        buttons = QWidget()
+        buttons = QGroupBox()
         buttons.setLayout(QHBoxLayout())
         buttons.layout().addWidget(self.snap_button)
         buttons.layout().addWidget(self.live_button)
-        buttons.layout().addWidget(self.exposure)
+
+        ch_exp = QWidget()
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        ch_exp.setLayout(layout)
+
+        ch = QGroupBox()
+        ch.setTitle("Channel")
+        ch.setLayout(QHBoxLayout())
+        ch.layout().setContentsMargins(0, 0, 0, 0)
+        ch.layout().addWidget(self.channel)
+        layout.addWidget(ch)
+
+        exp = QGroupBox()
+        exp.setTitle("Exposure")
+        exp.setLayout(QHBoxLayout())
+        exp.layout().setContentsMargins(0, 0, 0, 0)
+        exp.layout().addWidget(self.exposure)
+        layout.addWidget(exp)
 
         self.layout().addWidget(self.preview)
+        self.layout().addWidget(ch_exp)
         self.layout().addWidget(buttons)
 
 
