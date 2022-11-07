@@ -22,63 +22,42 @@ pip install pymmcore-widgets
 
 
 
-## Usage
-
-See each [widget respective page](#widgets) for a detailed description and usage.
-
-For code examples: [examples](https://github.com/pymmcore-plus/pymmcore-widgets/tree/main/examples).
-
-For a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).
-
 
 
 ## Widgets
 
 The following widgets are currently available:
 
-* [CameraRoiWidget](./widgets/CameraRoiWidget.md)
-* [ChannelWidget](./widgets/ChannelWidget.md)
-* [ConfigurationWidget](./widgets/ConfigurationWidget.md)
-* [DefaultCameraExposureWidget](./widgets/DefaultCameraExposureWidget.md)
-* [ExposureWidget](./widgets/ExposureWidget.md)
-* [DeviceWidget](./widgets/DeviceWidget.md)
-* [GroupPresetTableWidget](./widgets/GroupPresetTableWidget.md)
-* [ImagePreview](./widgets/ImagePreview.md)
-* [LiveButton](./widgets/LiveButton.md)
-* [ObjectivesWidget](./widgets/ObjectivesWidget.md)
-* [PixelSizeWidget](./widgets/PixelSizeWidget.md)
-* [PresetsWidget](./widgets/PresetsWidget.md)
-* [PropertyBrowser](./widgets/PropertyBrowser.md)
-* [PropertyWidget](./widgets/PropertyWidget.md)
-* [ShutterWidget](./widgets/ShutterWidget.md)
-* [SliderDialog](./widgets/SliderDialog.md)
-* [SnapButton](./widgets/SnapButton.md)
-* [StageWidget](./widgets/StageWidget.md)
-* [StateDeviceWidget](./widgets/StateDeviceWidget.md)
+| Method      | Description                          |
+| ----------- | ------------------------------------ |
+| [CameraRoiWidget](./widgets/CameraRoiWidget.md)           | A Widget to control the camera device ROI.|
+| [ChannelWidget](./widgets/ChannelWidget.md)               | My favorite widget |
+| [ConfigurationWidget](./widgets/ConfigurationWidget.md)   | My favorite widget |
+| [DefaultCameraExposureWidget](./widgets/DefaultCameraExposureWidget.md)   | My favorite widget |
+| [ExposureWidget](./widgets/ExposureWidget.md)             | My favorite widget |
+| [DeviceWidget](./widgets/DeviceWidget.md)                 | My favorite widget |
+| [GroupPresetTableWidget](./widgets/GroupPresetTableWidget.md)             | My favorite widget |
+| [ImagePreview](./widgets/ImagePreview.md)                 | My favorite widget |
+| [LiveButton](./widgets/LiveButton.md)                     | My favorite widget |
+| [ObjectivesWidget](./widgets/ObjectivesWidget.md)         | My favorite widget |
+| [PixelSizeWidget](./widgets/PixelSizeWidget.md)           | My favorite widget |
+| [PresetsWidget](./widgets/PresetsWidget.md)               | My favorite widget |
+| [PropertyBrowser](./widgets/PropertyBrowser.md)           | My favorite widget |
+| [PropertyWidget](./widgets/PropertyWidget.md)             | My favorite widget |
+| [ShutterWidget](./widgets/ShutterWidget.md)               | My favorite widget |
+| [SliderDialog](./widgets/SliderDialog.md)                 | My favorite widget |
+| [SnapButton](./widgets/SnapButton.md)                     | My favorite widget |
+| [StageWidget](./widgets/StageWidget.md)                   | My favorite widget |
+| [StateDeviceWidget](./widgets/StateDeviceWidget.md)       | My favorite widget |
+| [MDADWidget](./widgets/MultiDWidget.md)                   | My favorite widget |
 
 In progress:
 
 * [HCSWidget](./widgets/HCSWidget.md)
-* [MultiDWidget](./widgets/MultiDWidget.md)
 * [SampleExplorerWidget](./widgets/SampleExplorerWidget.md)
 
+## Usage
 
+For code examples: [examples](https://github.com/pymmcore-plus/pymmcore-widgets/tree/main/examples).
 
-
-<!-- # Welcome to MkDocs
-
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
-
-## Commands
-
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
-
-## Project layout
-
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files. -->
+For a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).
