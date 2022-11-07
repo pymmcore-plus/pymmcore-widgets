@@ -24,12 +24,12 @@ class MultiDWidget(MultiDWidgetGui):
 
     Parameters
     ----------
+    parent : Optional[QWidget]
+        Optional parent widget, by default None
     include_run_button: bool
         By default, False. If true, a "run" button is added to the widget.
         The acquisition defined by the `useq.MDASequence` built through the
         widget is executed when clicked.
-    parent : Optional[QWidget]
-        Optional parent widget, by default None
     mmcore: Optional[CMMCorePlus]
         Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
@@ -43,9 +43,9 @@ class MultiDWidget(MultiDWidgetGui):
 
     def __init__(
         self,
-        include_run_button: bool = False,
         parent: Optional[QtW.QWidget] = None,
         *,
+        include_run_button: bool = False,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
         super().__init__(parent)
