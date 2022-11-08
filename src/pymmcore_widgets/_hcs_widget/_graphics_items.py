@@ -1,8 +1,8 @@
 import string
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 
 from qtpy.QtCore import QRectF, Qt
-from qtpy.QtGui import QBrush, QColor, QFont, QPen, QTextOption
+from qtpy.QtGui import QBrush, QColor, QFont, QPen, QTextOption, QPainter
 from qtpy.QtWidgets import QGraphicsItem
 
 ALPHABET = string.ascii_uppercase
@@ -44,10 +44,10 @@ class Well(QGraphicsItem):
 
         self.setFlag(self.ItemIsSelectable, True)
 
-    def boundingRect(self):  # noqa: D102
+    def boundingRect(self) -> QRectF:
         return self.well_shape
 
-    def paint(self, painter=None, style=None, widget=None):  # noqa: D102, E501
+    def paint(self, painter: QPainter, style: Any, widget: Any) -> None:  # type: ignore
         painter.setBrush(self.brush)
         painter.setPen(self.pen)
         if self.circular:
@@ -55,7 +55,7 @@ class Well(QGraphicsItem):
         else:
             painter.drawRect(self.well_shape)
 
-        font = QFont("Helvetica", self._text_size)
+        font = QFont("Helvetica", int(self._text_size))
         font.setWeight(QFont.Bold)
         pen = QPen(QColor(self.text_color))
         painter.setPen(pen)
@@ -103,10 +103,10 @@ class WellArea(QGraphicsItem):
 
         self.rect = QRectF(self._start_x, self._start_y, self._w, self._h)
 
-    def boundingRect(self):  # noqa: D102
+    def boundingRect(self) -> QRectF:
         return QRectF(0, 0, self._view_size, self._view_size)
 
-    def paint(self, painter=None, style=None, widget=None):  # noqa: D102, E501
+    def paint(self, painter: QPainter, style: Any = None, widget: Any = None) -> None:
         painter.setPen(self._pen)
         if self._circular:
             painter.drawEllipse(self.rect)
@@ -146,15 +146,13 @@ class FOVPoints(QGraphicsItem):
         self.scene_width = scene_size_x
         self.scene_width = scene_size_y
 
-    def boundingRect(self):  # noqa: D102
+    def boundingRect(self) -> QRectF:
         return QRectF(0, 0, self._view_size, self._view_size)
 
-    def paint(self, painter=None, style=None, widget=None):  # noqa: D102, E501
+    def paint(self, painter, style, widget) -> None:  # type: ignore
         pen = QPen()
         pen.setWidth(2)
         painter.setPen(pen)
-
-        # painter.drawPoint(self._x, self._y)
 
         start_x = self._x - (self._x_size / 2)
         start_y = self._y - (self._y_size / 2)

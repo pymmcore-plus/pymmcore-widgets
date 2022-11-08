@@ -17,6 +17,7 @@ from qtpy.QtWidgets import (
     QTableWidgetItem,
     QWidget,
 )
+
 from ._well_plate_database import PLATE_DB, WellPlate
 
 AlignCenter = Qt.AlignmentFlag.AlignCenter
