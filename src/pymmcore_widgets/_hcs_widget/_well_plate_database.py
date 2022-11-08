@@ -1,90 +1,117 @@
-from __future__ import annotations
-
-from pathlib import Path
-from typing import Tuple
-
-import yaml  # type: ignore
-
-PLATE_DATABASE = Path(__file__).parent / "_well_plate.yaml"
+from dataclasses import dataclass
 
 
+@dataclass(frozen=True)
 class WellPlate:
     """General well plates class."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    id: str
+    circular: bool
+    rows: int
+    cols: int
+    well_spacing_x: float
+    well_spacing_y: float
+    well_size_x: float
+    well_size_y: float
 
-        self.id = ""
-        self.circular = True
-        self.rows = 0
-        self.cols = 0
-        self.well_spacing_x = 0
-        self.well_spacing_y = 0
-        self.well_size_x = 0
-        self.well_size_y = 0
-
-    @classmethod
-    def set_format(cls, key: str) -> WellPlate:
-        """Set the Plate from the yaml database."""
-        return PlateFromDatabase(key)
-
-    def get_id(self) -> str:
-        """Get plate id."""
-        return self.id
-
-    def get_well_type(self) -> str:
-        """Get well type (circular or not)."""
-        return "round" if self.circular else "squared/rectangular"
-
-    def get_n_wells(self) -> int:
-        """Get total number of wells."""
+    @property
+    def well_count(self) -> int:
+        """Return the number of wells in the plate."""
         return self.rows * self.cols
 
-    def get_n_rows(self) -> int:
-        """Get number of plate rows."""
-        return self.rows
 
-    def get_n_columns(self) -> int:
-        """Get number of plate columns."""
-        return self.cols
+PLATES = [
+    WellPlate(
+        circular=True,
+        cols=6,
+        id="VWR 24  Plastic",
+        rows=4,
+        well_size_x=15.7,
+        well_size_y=15.7,
+        well_spacing_x=19.2,
+        well_spacing_y=19.2,
+    ),
+    WellPlate(
+        circular=False,
+        cols=1,
+        id="_from calibration",
+        rows=1,
+        well_size_x=10.0,
+        well_size_y=10.0,
+        well_spacing_x=0,
+        well_spacing_y=0,
+    ),
+    WellPlate(
+        circular=False,
+        cols=1,
+        id="coverslip 22mm",
+        rows=1,
+        well_size_x=22.0,
+        well_size_y=22.0,
+        well_spacing_x=0.0,
+        well_spacing_y=0.0,
+    ),
+    WellPlate(
+        circular=True,
+        cols=4,
+        id="standard 12",
+        rows=3,
+        well_size_x=22.11,
+        well_size_y=22.11,
+        well_spacing_x=26.01,
+        well_spacing_y=26.01,
+    ),
+    WellPlate(
+        circular=True,
+        cols=6,
+        id="standard 24",
+        rows=4,
+        well_size_x=15.54,
+        well_size_y=15.54,
+        well_spacing_x=19.3,
+        well_spacing_y=19.3,
+    ),
+    WellPlate(
+        circular=False,
+        cols=24,
+        id="standard 384",
+        rows=16,
+        well_size_x=4.0,
+        well_size_y=4.0,
+        well_spacing_x=4.5,
+        well_spacing_y=4.5,
+    ),
+    WellPlate(
+        circular=True,
+        cols=8,
+        id="standard 48",
+        rows=6,
+        well_size_x=11.37,
+        well_size_y=11.37,
+        well_spacing_x=13.0,
+        well_spacing_y=13.0,
+    ),
+    WellPlate(
+        circular=True,
+        cols=3,
+        id="standard 6",
+        rows=2,
+        well_size_x=34.8,
+        well_size_y=34.8,
+        well_spacing_x=39.12,
+        well_spacing_y=39.12,
+    ),
+    WellPlate(
+        circular=True,
+        cols=12,
+        id="standard 96",
+        rows=8,
+        well_size_x=6.4,
+        well_size_y=6.4,
+        well_spacing_x=9.0,
+        well_spacing_y=9.0,
+    ),
+]
 
-    def get_well_distance(self) -> Tuple[float, float]:
-        """Get well plate dimensions between wells (x and y)."""
-        return self.well_spacing_x, self.well_spacing_y
 
-    def get_well_size(self) -> Tuple[float, float]:
-        """Get well x, y size."""
-        return self.well_size_x, self.well_size_y
-
-    def getAllInfo(self) -> dict:
-        """Returns all the well pate info."""
-        return {
-            "id": self.get_id(),
-            "well_type": self.get_well_type(),
-            "n_wells": self.get_n_wells(),
-            "rows": self.get_n_rows(),
-            "cols": self.get_n_columns(),
-            "well_distance": self.get_well_distance(),
-            "well_size": self.get_well_size(),
-        }
-
-
-class PlateFromDatabase(WellPlate):
-    """Get well plates info from the yaml database."""
-
-    def __init__(self, plate_name: str) -> None:
-        super().__init__()
-
-        with open(PLATE_DATABASE) as file:
-            plate_db = yaml.safe_load(file)
-
-            plate = plate_db[plate_name]
-
-            self.id = plate.get("id")
-            self.circular = plate.get("circular")
-            self.rows = plate.get("rows")
-            self.cols = plate.get("cols")
-            self.well_spacing_x = plate.get("well_spacing_x")
-            self.well_spacing_y = plate.get("well_spacing_y")
-            self.well_size_x = plate.get("well_size_x")
-            self.well_size_y = plate.get("well_size_y")
+PLATE_DB = {plate.id: plate for plate in sorted(PLATES, key=lambda p: p.id)}
