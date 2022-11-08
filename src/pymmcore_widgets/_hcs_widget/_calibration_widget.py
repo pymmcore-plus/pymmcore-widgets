@@ -24,7 +24,6 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
-from sympy import Eq, solve, symbols
 
 from ._well_plate_database import PLATE_DB, WellPlate
 
@@ -524,40 +523,15 @@ class CalibrationTable(QWidget):
 
         return False
 
-    # Examples
-    # --------
-    # Solve the system of equations ``x0 + 2 * x1 = 1`` and ``3 * x0 + 5 * x1 = 2``:
 
-    # >>> a = np.array([[1, 2], [3, 5]])
-    # >>> b = np.array([1, 2])
-    # >>> x = np.linalg.solve(a, b)
-    # >>> x
-
-
-def _get_circle_from_3_points(a, b, c) -> Tuple[float, float]:
-    """Find the center of a round well given 3 edge points."""
-    # eq circle (x - x1)^2 + (y - y1)^2 = r^2
-    # for point a: (x - ax)^2 + (y - ay)^2 = r^2
-    # for point b: = (x - bx)^2 + (y - by)^2 = r^2
-    # for point c: = (x - cx)^2 + (y - cy)^2 = r^2
-
-    x1, y1 = a
-    x2, y2 = b
-    x3, y3 = c
-
-    x, y = symbols("x y")
-
-    eq1 = Eq(
-        (x - round(x1)) ** 2 + (y - round(y1)) ** 2,
-        (x - round(x2)) ** 2 + (y - round(y2)) ** 2,
-    )
-    eq2 = Eq(
-        (x - round(x1)) ** 2 + (y - round(y1)) ** 2,
-        (x - round(x3)) ** 2 + (y - round(y3)) ** 2,
-    )
-
-    dict_center = solve((eq1, eq2), (x, y))
-    return dict_center[x], dict_center[y]
+def _get_circle_from_3_points(
+    a: tuple[float, float], b: tuple[float, float], c: tuple[float, float]
+) -> tuple[float, float]:
+    """Return the center of the circle passing through three points."""
+    A = np.array([[*a, 1], [*b, 1], [*c, 1]])
+    B = np.array([a[0] ** 2 + a[1] ** 2, b[0] ** 2 + b[1] ** 2, c[0] ** 2 + c[1] ** 2])
+    x, y, _ = np.linalg.solve(A, B)
+    return x / 2, y / 2
 
 
 if __name__ == "__main__":

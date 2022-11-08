@@ -344,7 +344,6 @@ def test_calibration_one_well(hcs_wdg, qtbot: QtBot):
     assert cal.table_1.tb.item(1, 2).text() == "49.995"
 
     error = "Not enough points for Well A1. Add 3 points to the table."
-    # with pytest.raises(ValueError, match=error):
     with pytest.warns(match=error):
         cal._calibrate_plate()
 
@@ -358,7 +357,6 @@ def test_calibration_one_well(hcs_wdg, qtbot: QtBot):
     cal.table_1._add_pos()
     assert cal.table_1.tb.rowCount() == 4
     error = "Add only 3 points to the table."
-    # with pytest.raises(ValueError, match=error):
     with pytest.warns(match=error):
         cal._calibrate_plate()
 
@@ -398,7 +396,6 @@ def test_calibration_one_well_square(hcs_wdg, qtbot: QtBot):
     assert cal.table_1.tb.rowCount() == 1
 
     error = "Not enough points for Well A1. Add 2 or 4 points to the table."
-    # with pytest.raises(ValueError, match=error):
     with pytest.warns(match=error):
         cal._calibrate_plate()
 
@@ -462,11 +459,11 @@ def test_calibration_two_wells(hcs_wdg, qtbot: QtBot):
     assert cal.table_2.tb.rowCount() == 3
 
     assert cal._get_well_center(cal.table_1) == (0.0, 0.0)
-    assert cal._get_well_center(cal.table_2) == (1414.0, 1414.0)
+    assert cal._get_well_center(cal.table_2) == (1414.2135623730956, 1414.2135623730924)
 
     cal._calibrate_plate()
 
-    assert cal.plate_angle_deg == -45.0
+    assert round(cal.plate_angle_deg) == -45.0
     assert (
         str(cal.plate_rotation_matrix)
         == "[[ 0.70710678  0.70710678]\n [-0.70710678  0.70710678]]"
@@ -791,53 +788,3 @@ def test_load_positions(
         ("A1_pos001", "300.0", "300.0", "0.0"),
         ("A1_pos002", "400.0", "-200.0", "0.0"),
     ]
-
-
-import numpy as np
-
-
-def _get_circle_from_3_points(
-    a: tuple[float, float], b: tuple[float, float], c: tuple[float, float]
-) -> tuple[float, float]:
-    """Return the center of the circle passing through the three points.
-
-    Examples
-    --------
-    >>> a = np.array([0, 0])
-    >>> b = np.array([1, 0])
-    >>> c = np.array([0, 1])
-    >>> _get_circle_from_3_points(a, b, c)
-    (0.5, 0.5)
-    """
-    A = np.array([[a[0], a[1], 1], [b[0], b[1], 1], [c[0], c[1], 1]])
-    B = np.array([a[0] ** 2 + a[1] ** 2, b[0] ** 2 + b[1] ** 2, c[0] ** 2 + c[1] ** 2])
-    x, y, _ = np.linalg.solve(A, B)
-    return x, y
-
-    A = np.vstack((a, b, c))
-    b = np.ones(3)
-    c = np.linalg.lstsq(A, b, rcond=None)[0]
-    return c[0] / 2, c[1] / 2
-
-
-def test_circle_from_points():
-    # from pymmcore_widgets._hcs_widget._calibration_widget import (
-    #     _get_circle_from_3_points,
-    # )
-
-    a, b, c = (-50, 0), (0, 50), (50, 0)
-    center = _get_circle_from_3_points(a, b, c)
-    assert center == (0, 0)
-
-    a = np.array([0, 0])
-    b = np.array([1, 0])
-    c = np.array([0, 1])
-    assert _get_circle_from_3_points(a, b, c) == (0.5, 0.5)
-
-    a, b, c = (
-        (1364.213562373095, 1414.2135623730949),
-        (1414.213562373095, 1364.2135623730949),
-        (1464.213562373095, 1414.2135623730949),
-    )
-    center = _get_circle_from_3_points(a, b, c)
-    assert center == (1414, 1414)
