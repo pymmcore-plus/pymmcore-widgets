@@ -30,7 +30,7 @@ class MDAWidget(_MDAWidgetGui):
     Parameters
     ----------
     parent : Optional[QWidget]
-        Optional parent widget, by default None
+        Optional parent widget, by default None.
     include_run_button: bool
         By default, `False`. If `True`, a "run" button is added to the widget.
         The acquisition defined by the `useq.MDASequence` built through the
