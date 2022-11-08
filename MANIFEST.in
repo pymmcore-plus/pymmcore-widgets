@@ -1,1 +1,2 @@
 recursive-include src *.yaml
+recursive-include docs *.png
