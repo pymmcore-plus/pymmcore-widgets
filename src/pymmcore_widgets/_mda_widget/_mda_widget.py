@@ -13,39 +13,39 @@ from useq import MDASequence
 
 from .._util import _select_output_unit, _time_in_sec, guess_channel_group
 from ._grid_widget import GridWidget
-from ._mda_gui import MultiDWidgetGui
+from ._mda_gui import _MDAWidgetGui
 
 if TYPE_CHECKING:
     from pymmcore_plus.mda import PMDAEngine
 
 
-class MultiDWidget(MultiDWidgetGui):
+class MDAWidget(_MDAWidgetGui):
     """Multi-dimensional acquisition Widget.
+
+    The `MDAWidget` provides a GUI to construct a `useq.MDASequence` object.
+    If the `include_run_button` parameter is set to `True`, a "run" button is added
+    to the GUI and, when clicked, the generated `useq.MDASequence` is passed to the
+    `CMMCorePlus.run_mda` method and the acquisition is executed.
 
     Parameters
     ----------
-    include_run_button: bool
-        By default, False. If true, a "run" button is added to the widget.
-        The acquisition defined by the `useq.MDASequence` built through the
-        widget is executed when clicked.
     parent : Optional[QWidget]
         Optional parent widget, by default None
+    include_run_button: bool
+        By default, `False`. If `True`, a "run" button is added to the widget.
+        The acquisition defined by the `useq.MDASequence` built through the
+        widget is executed when clicked.
     mmcore: Optional[CMMCorePlus]
         Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new) `CMMCorePlus.instance()`.
-
-    The `MultiDWidget` provides a GUI to construct a `useq.MDASequence` object.
-    If the `include_run_button` parameter is set to `True`, a "run" button is added
-    to the GUI and, when clicked, the generated `useq.MDASequence` is passed to the
-    `CMMCorePlus.run_mda` method and the acquisition is executed.
     """
 
     def __init__(
         self,
-        include_run_button: bool = False,
         parent: Optional[QtW.QWidget] = None,
         *,
+        include_run_button: bool = False,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
         super().__init__(parent)
@@ -66,9 +66,9 @@ class MultiDWidget(MultiDWidgetGui):
         self.add_pos_Button.clicked.connect(self._add_position)
         self.remove_pos_Button.clicked.connect(self._remove_position)
         self.clear_pos_Button.clicked.connect(self._clear_positions)
-        self.add_ch_Button.clicked.connect(self._add_channel)
-        self.remove_ch_Button.clicked.connect(self._remove_channel)
-        self.clear_ch_Button.clicked.connect(self._clear_channel)
+        self.add_ch_button.clicked.connect(self._add_channel)
+        self.remove_ch_button.clicked.connect(self._remove_channel)
+        self.clear_ch_button.clicked.connect(self._clear_channel)
         self.grid_Button.clicked.connect(self._grid_widget)
         if self._include_run_button:
             self.run_Button.clicked.connect(self._on_run_clicked)
@@ -304,8 +304,9 @@ class MultiDWidget(MultiDWidgetGui):
 
     def _on_mda_started(self) -> None:
         self._set_enabled(False)
-        self.pause_Button.show()
-        self.cancel_Button.show()
+        if self._include_run_button:
+            self.pause_Button.show()
+            self.cancel_Button.show()
         self.run_Button.hide()
 
     def _on_mda_finished(self) -> None:
