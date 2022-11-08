@@ -56,7 +56,10 @@ class HCSWidget(HCSGui):
     ) -> None:
         super().__init__(parent)
 
-        self._set_enabled(False)
+        self._mmc = mmcore or CMMCorePlus.instance()
+
+        if len(self._mmc.getLoadedDevices()) <= 1:
+            self._set_enabled(False)
 
         self._include_run_button = include_run_button
 
@@ -68,7 +71,6 @@ class HCSWidget(HCSGui):
         self.wp: Optional[WellPlate] = None
 
         # connect
-        self._mmc = mmcore or CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg)
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
