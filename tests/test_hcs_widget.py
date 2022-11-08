@@ -832,7 +832,7 @@ def test_circle_from_points():
     a = np.array([0, 0])
     b = np.array([1, 0])
     c = np.array([0, 1])
-    assert _get_circle_from_3_points(a, b, c) == (0.5, 0.5) 
+    assert _get_circle_from_3_points(a, b, c) == (0.5, 0.5)
 
     a, b, c = (
         (1364.213562373095, 1414.2135623730949),
@@ -841,4 +841,3 @@ def test_circle_from_points():
     )
     center = _get_circle_from_3_points(a, b, c)
     assert center == (1414, 1414)
-

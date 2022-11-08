@@ -533,6 +533,7 @@ class CalibrationTable(QWidget):
     # >>> x = np.linalg.solve(a, b)
     # >>> x
 
+
 def _get_circle_from_3_points(a, b, c) -> Tuple[float, float]:
     """Find the center of a round well given 3 edge points."""
     # eq circle (x - x1)^2 + (y - y1)^2 = r^2
@@ -540,7 +541,6 @@ def _get_circle_from_3_points(a, b, c) -> Tuple[float, float]:
     # for point b: = (x - bx)^2 + (y - by)^2 = r^2
     # for point c: = (x - cx)^2 + (y - cy)^2 = r^2
 
-    
     x1, y1 = a
     x2, y2 = b
     x3, y3 = c
