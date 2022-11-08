@@ -60,6 +60,7 @@ def test_mda_widget_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.stage_tableWidget.rowCount() == 4
     wdg._grid_wdg.close()
 
+
 def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
