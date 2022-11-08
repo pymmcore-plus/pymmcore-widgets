@@ -20,30 +20,31 @@ if TYPE_CHECKING:
 class SampleExplorerWidget(SampleExplorerGui):
     """Widget to create and run grid acquisitions.
 
+    The `SampleExplorerWidget` provides a GUI to construct a `useq.MDASequence` object.
+    If the `include_run_button` parameter is set to `True`, a "run" button is added
+    to the GUI and, when clicked, the generated `useq.MDASequence` is passed to the
+    `CMMCorePlus.run_mda` method and the acquisition is executed.
+
     Parameters
     ----------
+    parent : Optional[QWidget]
+        Optional parent widget, by default None.
     include_run_button: bool
         By default, False. If true, a "run" button is added to the widget.
         The acquisition defined by the `useq.MDASequence` built through the
         widget is executed when clicked.
-    parent : Optional[QWidget]
-        Optional parent widget, by default None
     mmcore: Optional[CMMCorePlus]
         Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new) `CMMCorePlus.instance()`.
 
-    The `SampleExplorerWidget` provides a GUI to construct a `useq.MDASequence` object.
-    If the `include_run_button` parameter is set to `True`, a "run" button is added
-    to the GUI and, when clicked, the generated `useq.MDASequence` is passed to the
-    `CMMCorePlus.run_mda` method and the acquisition is executed.
     """
 
     def __init__(
         self,
-        include_run_button: bool = False,
         parent: QtW.QWidget = None,
         *,
+        include_run_button: bool = False,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
         super().__init__(parent)
@@ -138,8 +139,9 @@ class SampleExplorerWidget(SampleExplorerGui):
     def _on_mda_started(self) -> None:
         """Block gui when mda starts."""
         self._set_enabled(False)
-        self.cancel_scan_Button.show()
-        self.pause_scan_Button.show()
+        if self._include_run_button:
+            self.cancel_scan_Button.show()
+            self.pause_scan_Button.show()
         self.start_scan_Button.hide()
 
     def _on_mda_paused(self, paused: bool) -> None:
