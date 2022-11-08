@@ -35,6 +35,8 @@ class CameraRoiWidget(QWidget):
     When the ROI changes, the `roiChanged` Signal is emitted with the current ROI
     (x, y, width, height, comboBoxText)
 
+    [`pymmcore_plus.CMMCoreSignaler`]
+
     Parameters
     ----------
     parent : Optional[QWidget]

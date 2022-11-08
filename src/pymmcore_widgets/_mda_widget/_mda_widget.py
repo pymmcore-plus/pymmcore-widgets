@@ -22,10 +22,13 @@ if TYPE_CHECKING:
 class MDAWidget(_MDAWidgetGui):
     """A Multi-dimensional acquisition Widget.
 
-    The `MDAWidget` provides a GUI to construct a `useq.MDASequence` object.
+    The `MDAWidget` provides a GUI to construct a
+    [`useq.MDASequence`](https://github.com/tlambert03/useq-schema) object.
     If the `include_run_button` parameter is set to `True`, a "run" button is added
-    to the GUI and, when clicked, the generated `useq.MDASequence` is passed to the
-    `CMMCorePlus.run_mda` method and the acquisition is executed.
+    to the GUI and, when clicked, the generated
+    [`useq.MDASequence`](https://github.com/tlambert03/useq-schema)
+    is passed to the [`pymmcore_plus.CMMCorePlus.run_mda`][] method and the acquisition
+    is executed.
 
     Parameters
     ----------
@@ -33,12 +36,13 @@ class MDAWidget(_MDAWidgetGui):
         Optional parent widget, by default None.
     include_run_button: bool
         By default, `False`. If `True`, a "run" button is added to the widget.
-        The acquisition defined by the `useq.MDASequence` built through the
-        widget is executed when clicked.
+        The acquisition defined by the
+        [`useq.MDASequence`](https://github.com/tlambert03/useq-schema)
+        built through the widget is executed when clicked.
     mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus` micromanager core.
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) `CMMCorePlus.instance()`.
+        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
     """
 
     def __init__(
