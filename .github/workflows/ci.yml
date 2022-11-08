@@ -69,13 +69,7 @@ jobs:
           if (Test-Path -Path "C:\Windows\system32\opengl32.dll" -PathType Leaf) {Exit 0} else {Exit 1}
 
       - name: Install Micro-Manager
-        if: runner.os == 'Windows'
         run: python -m pymmcore_plus.install
-
-      - name: Install Micro-Manager
-        if: runner.os == 'macOS'
-        # need to figure out what happened on mac with the utilities
-        run: python -m pymmcore_plus.install -r 20220420
 
       - name: Test
         run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes

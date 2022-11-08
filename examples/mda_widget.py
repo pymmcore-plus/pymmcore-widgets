@@ -9,16 +9,16 @@ from qtpy.QtWidgets import (
 )
 from useq import MDAEvent, MDASequence
 
-from pymmcore_widgets import MultiDWidget
+from pymmcore_widgets import MDAWidget
 
 
 class MDA(QWidget):
-    """An example of using the MultiDWidget to create and acquire a useq.MDASequence.
+    """An example of using the MDAWidget to create and acquire a useq.MDASequence.
 
-    The `MultiDWidget` provides a GUI to construct a `useq.MDASequence` object.
+    The `MDAWidget` provides a GUI to construct a `useq.MDASequence` object.
     This object describes a full multi-dimensional acquisition;
 
-    In this example, we set the `MultiDWidget` parameter `include_run_button` to `True`,
+    In this example, we set the `MDAWidget` parameter `include_run_button` to `True`,
     meaning that a `run` button is added to the GUI. When pressed, a `useq.MDASequence`
     is first built depending on the GUI values and is then passed to the
     `CMMCorePlus.run_mda` to actually execute the acquisition.
@@ -45,8 +45,8 @@ class MDA(QWidget):
         self.mmc.mda.events.sequenceFinished.connect(self._on_end)
         self.mmc.mda.events.sequencePauseToggled.connect(self._on_pause)
 
-        # instantiate the MultiDWidget, and a couple lables for feedback
-        self.mda = MultiDWidget(include_run_button=True)
+        # instantiate the MDAWidget, and a couple lables for feedback
+        self.mda = MDAWidget(include_run_button=True)
         self.current_sequence = QLabel('... enter info and click "Run"')
         self.current_event = QLabel("... current event info will appear here")
 

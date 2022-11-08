@@ -26,8 +26,8 @@ from superqt.fonticon import icon
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
 
-class MultiDWidgetGui(QWidget):
-    """Just the UI portion of the MDA widget."""
+class _MDAWidgetGui(QWidget):
+    """Just the UI portion of the MDA widget. Runtime logic in MDAWidget."""
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -102,19 +102,19 @@ class MultiDWidgetGui(QWidget):
         # buttons
         btn_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         min_size = 100
-        self.add_ch_Button = QPushButton(text="Add")
-        self.add_ch_Button.setMinimumWidth(min_size)
-        self.add_ch_Button.setSizePolicy(btn_sizepolicy)
-        self.remove_ch_Button = QPushButton(text="Remove")
-        self.remove_ch_Button.setMinimumWidth(min_size)
-        self.remove_ch_Button.setSizePolicy(btn_sizepolicy)
-        self.clear_ch_Button = QPushButton(text="Clear")
-        self.clear_ch_Button.setMinimumWidth(min_size)
-        self.clear_ch_Button.setSizePolicy(btn_sizepolicy)
+        self.add_ch_button = QPushButton(text="Add")
+        self.add_ch_button.setMinimumWidth(min_size)
+        self.add_ch_button.setSizePolicy(btn_sizepolicy)
+        self.remove_ch_button = QPushButton(text="Remove")
+        self.remove_ch_button.setMinimumWidth(min_size)
+        self.remove_ch_button.setSizePolicy(btn_sizepolicy)
+        self.clear_ch_button = QPushButton(text="Clear")
+        self.clear_ch_button.setMinimumWidth(min_size)
+        self.clear_ch_button.setSizePolicy(btn_sizepolicy)
 
-        group_layout.addWidget(self.add_ch_Button, 0, 1, 1, 1)
-        group_layout.addWidget(self.remove_ch_Button, 1, 1, 1, 2)
-        group_layout.addWidget(self.clear_ch_Button, 2, 1, 1, 2)
+        group_layout.addWidget(self.add_ch_button, 0, 1, 1, 1)
+        group_layout.addWidget(self.remove_ch_button, 1, 1, 1, 2)
+        group_layout.addWidget(self.clear_ch_button, 2, 1, 1, 2)
 
         return group
 
@@ -487,6 +487,6 @@ if __name__ == "__main__":
     from qtpy.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
-    win = MultiDWidgetGui()
+    win = _MDAWidgetGui()
     win.show()
     sys.exit(app.exec_())
