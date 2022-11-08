@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 class MDAWidget(_MDAWidgetGui):
-    """Multi-dimensional acquisition Widget.
+    """A Multi-dimensional acquisition Widget.
 
     The `MDAWidget` provides a GUI to construct a `useq.MDASequence` object.
     If the `include_run_button` parameter is set to `True`, a "run" button is added

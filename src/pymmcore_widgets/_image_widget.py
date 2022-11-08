@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class ImagePreview(QWidget):
     """
-    Widget that displays the last image snapped by active core.
+    A Widget that displays the last image snapped by active core.
 
     This widget will automatically update when the active core snaps an image
     or when the active core starts streaming.

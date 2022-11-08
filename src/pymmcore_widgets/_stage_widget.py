@@ -53,7 +53,7 @@ QCheckBox::indicator {
 
 
 class StageWidget(QWidget):
-    """Create a widget to control a XY and/or a Z stage.
+    """A Widget to control a XY and/or a Z stage.
 
     Parameters
     ----------

@@ -35,7 +35,7 @@ IMAGE_PX_SIZE = 4
 
 
 class PixelSizeTable(QTableWidget):
-    """Create a Table to set pixel size configurations."""
+    """Create a QTableWidget to set pixel size configurations."""
 
     HEADERS = {
         "objective": "Objective",

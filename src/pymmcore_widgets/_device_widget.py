@@ -101,7 +101,7 @@ class DeviceWidget(QWidget):
 
 
 class StateDeviceWidget(DeviceWidget):
-    """Widget with a QComboBox to control the states of a StateDevice.
+    """A Widget with a QComboBox to control the states of a StateDevice.
 
     Parameters
     ----------

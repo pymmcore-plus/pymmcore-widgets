@@ -81,7 +81,7 @@ DevTypeLabels["other devices"] = tuple(set(DeviceType) - _d)
 
 
 class PropertyBrowser(QDialog):
-    """Dialog to browse and change properties of all devices.
+    """A Widget to browse and change properties of all devices.
 
     Parameters
     ----------

@@ -9,7 +9,7 @@ from ._util import guess_objective_or_prompt
 
 class ObjectivesWidget(QWidget):
     """
-    A QComboBox-based widget to select the microscope objective.
+    A QComboBox-based Widget to select the microscope objective.
 
     Parameters
     ----------

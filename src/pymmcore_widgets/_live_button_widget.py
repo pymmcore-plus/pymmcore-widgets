@@ -18,7 +18,7 @@ COLOR_TYPE = Union[
 
 
 class LiveButton(QPushButton):
-    """Create a two-state (on-off) live mode QPushButton.
+    """A Widget to create a two-state (on-off) live mode QPushButton.
 
     When pressed, a [ContinuousSequenceAcquisition]() is started or stopped
     and a pymmcore-plus signal [startContinuousSequenceAcquisition]() or

@@ -10,7 +10,7 @@ from ._property_widget import PropertyWidget
 
 
 class SliderDialog(QDialog):
-    """A Dialog that shows range-based properties (such as light sources) as sliders.
+    """A Widget that shows range-based properties (such as light sources) as sliders.
 
     Parameters
     ----------

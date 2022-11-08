@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 EXAMPLES = Path(__file__).parent.parent / "examples"
 IMAGES = Path(__file__).parent / "_auto_images"
 IMAGES.mkdir(exist_ok=True, parents=True)
-CFG = Path(__file__).parent.parent / "tests" / "test_config.cfg"
 
 
 def define_env(env: MacrosPlugin) -> None:
@@ -45,15 +44,15 @@ def _make_image(source_code: str, dest: str, width=None):
     # keep same CMMCorePlus and load configuration once for all widgets
     mmc = CMMCorePlus.instance()
     if len(mmc.getLoadedDevices()) <= 1:
-        mmc.loadSystemConfiguration(CFG)
+        mmc.loadSystemConfiguration()
         mmc.setConfig("Channel", "FITC")
         mmc.setProperty("Objective", "Label", "Nikon 20X Plan Fluor ELWD")
 
     _to_exec = source_code.replace(
         "QApplication([])", "QApplication.instance() or QApplication([])"
     )
+    _to_exec = _to_exec.replace("self.mmc.loadSystemConfiguration()", "")
     _to_exec = _to_exec.replace("mmc.loadSystemConfiguration()", "")
-    _to_exec = _to_exec.replace("mmc.loadSystemConfiguration(CFG)", "")
     _to_exec = _to_exec.replace("app.exec_()", "")
 
     if "class " in _to_exec:
@@ -70,6 +69,11 @@ def _make_image(source_code: str, dest: str, width=None):
         bottom = dedent(_to_exec[name_main_idx + 26 :])
         _to_exec = f"{top}\n{_import}\n{core}\n{bottom}"
 
+    print(" ")
+    print(dest)
+    print(_to_exec)
+    print(" ")
+
     exec(_to_exec)
 
     app = QApplication.instance() or QApplication([])
@@ -81,7 +85,6 @@ def _make_image(source_code: str, dest: str, width=None):
     with contextlib.suppress(AttributeError):
         w._disconnect()
     w.close()
-    app.quit()
 
 
 def _w(app: QApplication) -> Union[QWidget, None]:  # sourcery skip: use-next

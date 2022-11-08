@@ -11,7 +11,7 @@ from ._util import block_core
 
 
 class PresetsWidget(QWidget):
-    """Create a QCombobox Widget containing the presets of the specified group.
+    """A Widget to create a QCombobox containing the presets of the specified group.
 
     Parameters
     ----------

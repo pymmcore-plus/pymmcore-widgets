@@ -1,5 +1,6 @@
-# MultiDWidget
+# MDAWidget
 
+::: pymmcore_widgets.MDAWidget
 
 ## Example
 

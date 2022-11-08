@@ -10,7 +10,7 @@ from superqt.utils import signals_blocked
 
 
 class ExposureWidget(QWidget):
-    """Generic widget to get/set exposure time on a camera.
+    """A Widget to get/set exposure on a camera.
 
     Parameters
     ----------
@@ -93,7 +93,7 @@ class ExposureWidget(QWidget):
 
 
 class DefaultCameraExposureWidget(ExposureWidget):
-    """Widget to get/set exposure on the default camera.
+    """A Widget to get/set exposure on the default camera.
 
     Parameters
     ----------
