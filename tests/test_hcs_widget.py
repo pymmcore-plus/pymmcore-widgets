@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 @pytest.fixture()
 def hcs_wdg(global_mmcore, qtbot: QtBot):
     hcs = HCSWidget(include_run_button=True, mmcore=global_mmcore)
+    hcs._set_enabled(True)
     mmc = hcs._mmc
     cal = hcs.calibration
     qtbot.add_widget(hcs)
