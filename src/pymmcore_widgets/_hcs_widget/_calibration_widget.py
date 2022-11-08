@@ -251,13 +251,7 @@ class PlateCalibration(QWidget):
         # for point a: (x - ax)^2 + (y - ay)^2 = r^2
         # for point b: = (x - bx)^2 + (y - by)^2 = r^2
         # for point c: = (x - cx)^2 + (y - cy)^2 = r^2
-
-        try:
-            xc, yc = _get_circle_from_3_points(a, b, c)
-        except TypeError as e:
-            self._set_calibrated(False)
-            raise TypeError("Invalid Coordinates!") from e
-
+        xc, yc = _get_circle_from_3_points(a, b, c)
         return float(xc), float(yc)
 
     def _get_rect_center(self, *args: Tuple[float, ...]) -> Tuple[float, float]:
@@ -268,6 +262,7 @@ class PlateCalibration(QWidget):
         """
         # add block if wrong coords!!!
         x_list, y_list = list(zip(*args))
+        print(x_list, y_list)
         x_max, x_min = (max(x_list), min(x_list))
         y_max, y_min = (max(y_list), min(y_list))
 
@@ -370,8 +365,39 @@ class PlateCalibration(QWidget):
 
         if self.plate.circular:
             xc, yc = self._get_circle_center_(*pos)
+
+            # calculated diameter vs stored plate well_size_x
+            x0 = pos[0][0]
+            x_max, x_min = max(xc, x0), min(xc, x0)
+            diameter = (x_max - x_min) * 2
+            logger.info(
+                f"{self.plate.id}\n"
+                f"calculated diameter: {diameter} vs "
+                f"stored plate well_size_x: {self.plate.well_size_x * 1000}"
+            )
         else:
             xc, yc = self._get_rect_center(*pos)
+
+            # calculated size_x and size_y vs stored plate well_size_x and well_size_y
+            if self.plate.id != PLATE_FROM_CALIBRATION:
+                if len(pos) == 4:
+                    x0, y0 = pos[0][0], pos[0][1]
+                    x_max, x_min = max(xc, x0), min(xc, x0)
+                    y_max, y_min = max(yc, y0), min(yc, y0)
+                    size_x = (x_max - x_min) * 2
+                    size_y = (y_max - y_min) * 2
+                elif len(pos) == 2:
+                    x0, y0 = pos[0][0], pos[0][1]
+                    x1, y1 = pos[1][0], pos[1][1]
+                    size_x = abs(x0) + abs(x1)
+                    size_y = abs(y0) + abs(y1)
+                logger.info(
+                    f"{self.plate.id}\n"
+                    f"calculated well_size_x: {size_x}, "
+                    f"calculated well_size_y: {size_y} vs "
+                    f"stored plate well_size_x: {self.plate.well_size_x * 1000}, "
+                    f"stored plate well_size_y: {self.plate.well_size_y * 1000}"
+                )
 
         if table == self.table_1:
             self.A1_well = ("A1", xc, yc)
