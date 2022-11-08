@@ -26,12 +26,12 @@ class HCSWidget(HCSGui):
 
     Parameters
     ----------
+    parent : Optional[QWidget]
+        Optional parent widget, by default None
     include_run_button: bool
         By default, False. If true, a "run" button is added to the widget.
         The acquisition defined by the `useq.MDASequence` built through the
         widget is executed when clicked.
-    parent : Optional[QWidget]
-        Optional parent widget, by default None
     mmcore: Optional[CMMCorePlus]
         Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
@@ -47,15 +47,19 @@ class HCSWidget(HCSGui):
 
     def __init__(
         self,
-        include_run_button: bool = False,
         parent: Optional[QWidget] = None,
         *,
+        include_run_button: bool = False,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
         super().__init__(parent)
 
+        self._set_enabled(False)
+
         self._include_run_button = include_run_button
 
+        self.cancel_Button.hide()
+        self.pause_Button.hide()
         if not self._include_run_button:
             self.run_Button.hide()
 
@@ -88,6 +92,7 @@ class HCSWidget(HCSGui):
         self.ch_and_pos_list.load_positions_button.clicked.connect(self._load_positions)
 
     def _on_sys_cfg(self) -> None:
+        self._set_enabled(True)
         self._on_combo_changed(self.wp_combo.currentText())
 
     def _update_wp_combo(self) -> None:
@@ -560,18 +565,26 @@ class HCSWidget(HCSGui):
         newEngine.events.sequenceFinished.connect(self._on_mda_finished)
         newEngine.events.sequencePauseToggled.connect(self._on_mda_paused)
 
+    def _set_enabled(self, enabled: bool) -> None:
+        self._select_plate_tab.setEnabled(enabled)
+        self._calibration.setEnabled(enabled)
+        self.ch_and_pos_list.setEnabled(enabled)
+        self.acquisition_order_comboBox.setEnabled(enabled)
+
     def _on_mda_started(self) -> None:
-        self.pause_Button.show()
-        self.cancel_Button.show()
+        self._set_enabled(False)
+        if self._include_run_button:
+            self.pause_Button.show()
+            self.cancel_Button.show()
         self.run_Button.hide()
 
     def _on_mda_paused(self, paused: bool) -> None:
         self.pause_Button.setText("Go" if paused else "Pause")
 
     def _on_mda_finished(self) -> None:
+        self._set_enabled(True)
         self.pause_Button.hide()
         self.cancel_Button.hide()
-        self.run_Button.show()
         if self._include_run_button:
             self.run_Button.show()
 

@@ -70,12 +70,12 @@ class HCSGui(QWidget):
         tab = QTabWidget()
         tab.setTabPosition(QTabWidget.West)
 
-        select_plate_tab = self._create_plate_and_fov_tab()
-        calibration = self._create_calibration_tab()
+        self._select_plate_tab = self._create_plate_and_fov_tab()
+        self._calibration = self._create_calibration_tab()
         self.ch_and_pos_list = MDAWidget(parent=self)
 
-        tab.addTab(select_plate_tab, "  Plate and FOVs Selection  ")
-        tab.addTab(calibration, "  Plate Calibration  ")
+        tab.addTab(self._select_plate_tab, "  Plate and FOVs Selection  ")
+        tab.addTab(self._calibration, "  Plate Calibration  ")
         tab.addTab(self.ch_and_pos_list, "  Channel and Positions List  ")
 
         return tab
@@ -195,14 +195,12 @@ class HCSGui(QWidget):
         self.pause_Button.setSizePolicy(btn_sizepolicy)
         self.pause_Button.setIcon(icon(MDI6.pause_circle_outline, color="green"))
         self.pause_Button.setIconSize(QSize(icon_size, icon_size))
-        self.pause_Button.hide()
         self.cancel_Button = QPushButton("Cancel")
         self.cancel_Button.setMinimumWidth(min_width)
         self.cancel_Button.setStyleSheet("QPushButton { text-align: center; }")
         self.cancel_Button.setSizePolicy(btn_sizepolicy)
         self.cancel_Button.setIcon(icon(MDI6.stop_circle_outline, color="magenta"))
         self.cancel_Button.setIconSize(QSize(icon_size, icon_size))
-        self.cancel_Button.hide()
 
         spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding)
 
