@@ -23,16 +23,16 @@ class SnapButton(QPushButton):
 
     This button is linked to the [`pymmcore_plus.CMMCorePlus.snap`][] method.
     Once the button is clicked, an image is acquired and the `pymmcore-plus`
-    `imageSnapped` signal is emitted.
+    signal [`imageSnapped`]() is emitted.
 
     Parameters
     ----------
     parent : Optional[QWidget]
         Optional parent widget.
     mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus` micromanager core.
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) `CMMCorePlus.instance()`.
+        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
     """
 
     def __init__(

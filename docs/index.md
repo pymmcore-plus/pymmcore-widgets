@@ -43,18 +43,19 @@ The following widgets are currently available:
 | [PixelSizeWidget](./widgets/PixelSizeWidget.md)           | Create a QTableWidget to set pixel size configurations. |
 | [PresetsWidget](./widgets/PresetsWidget.md)               | A Widget to create a QCombobox containing the presets of the specified group. |
 | [PropertyBrowser](./widgets/PropertyBrowser.md)           | A Widget to browse and change properties of all devices. |
-| [PropertyWidget](./widgets/PropertyWidget.md)             | A widget that presents a view onto an mmcore device property. |
+| [PropertyWidget](./widgets/PropertyWidget.md)             | A widget to display and control a specified mmcore device property. |
 | [ShutterWidget](./widgets/ShutterWidget.md)               | A Widget for shutters and Micro-Manager autoshutter. |
-| [SliderDialog](./widgets/SliderDialog.md)                 | A Widget that shows range-based properties (such as light sources) as sliders. |
+| [SliderDialog](./widgets/SliderDialog.md)                 | A Widget to display an control range-based properties as sliders. |
 | [SnapButton](./widgets/SnapButton.md)                     | A Widget to csreate a snap QPushButton linked to the `CMMCorePlus` snap method. |
 | [StageWidget](./widgets/StageWidget.md)                   | A Widget to control a XY and/or a Z stage. |
 | [StateDeviceWidget](./widgets/StateDeviceWidget.md)       | A Widget with a QComboBox to control the states of a StateDevice. |
-| [MDAWidget](./widgets/MDAWidget.md)                      | A Multi-dimensional acquisition Widget. |
+| [MDAWidget](./widgets/MDAWidget.md)                       | A Multi-dimensional acquisition Widget. |
+| [SampleExplorerWidget](./widgets/SampleExplorerWidget.md)             | A Multi-dimensional acquisition Widget. |
+
 
 In progress:
 
 * [HCSWidget](./widgets/HCSWidget.md)
-* [SampleExplorerWidget](./widgets/SampleExplorerWidget.md)
 
 ## Usage
 

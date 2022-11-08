@@ -10,7 +10,9 @@ from ._property_widget import PropertyWidget
 
 
 class SliderDialog(QDialog):
-    """A Widget that shows range-based properties (such as light sources) as sliders.
+    """A Widget to display an control range-based properties as sliders.
+
+    For example, this widget can be used to control light sources .
 
     Parameters
     ----------
@@ -23,9 +25,9 @@ class SliderDialog(QDialog):
     parent : Optional[QWidget]
         Optional parent widget, by default None
     mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus` micromanager core.
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) `CMMCorePlus.instance()`.
+        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
     """
 
     def __init__(

@@ -42,7 +42,7 @@ class CameraRoiWidget(QWidget):
     mmcore: Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) `CMMCorePlus.instance()`.
+        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
     """
 
     # (x, y, width, height, comboBoxText)

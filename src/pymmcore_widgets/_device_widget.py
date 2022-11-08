@@ -11,9 +11,9 @@ LABEL = pymmcore.g_Keyword_Label
 
 class DeviceWidget(QWidget):
     """
-    General Device Widget.
+    A general Device Widget.
 
-    Use `DeviceWidget.for_device('device_label')` to create a device-type
+    Use `DeviceWidget.for_device('device_label')` method to create a device-type
     appropriate subclass.
 
     Parameters
@@ -23,9 +23,9 @@ class DeviceWidget(QWidget):
     parent : Optional[QWidget]
         Optional parent widget.
     mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus` micromanager core.
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) `CMMCorePlus.instance()`.
+        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
     """
 
     def __init__(
@@ -110,9 +110,9 @@ class StateDeviceWidget(DeviceWidget):
     parent : Optional[QWidget]
         Optional parent widget.
     mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus`/`CMMCorePlus.instance()` micromanager core.
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) `CMMCorePlus.instance()`.
+        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
     """
 
     def __init__(

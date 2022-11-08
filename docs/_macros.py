@@ -69,11 +69,6 @@ def _make_image(source_code: str, dest: str, width=None):
         bottom = dedent(_to_exec[name_main_idx + 26 :])
         _to_exec = f"{top}\n{_import}\n{core}\n{bottom}"
 
-    print(" ")
-    print(dest)
-    print(_to_exec)
-    print(" ")
-
     exec(_to_exec)
 
     app = QApplication.instance() or QApplication([])
