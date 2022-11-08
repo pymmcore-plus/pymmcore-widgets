@@ -26,7 +26,9 @@ class GraphicsScene(QGraphicsScene):
 
         self._selected_wells: List[QGraphicsItem] = []
 
-    def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:  # noqa: D102, E501
+    def mousePressEvent(
+        self, event: QGraphicsSceneMouseEvent
+    ) -> None:  # noqa: D102, E501
         self.originQPoint = event.screenPos()
         self.currentQRubberBand = QRubberBand(QRubberBand.Rectangle)
         self.originCropPoint = event.scenePos()
@@ -44,7 +46,9 @@ class GraphicsScene(QGraphicsScene):
                 well._setBrush(self.selected)
                 well.setSelected(True)
 
-    def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:  # noqa: D102, E501
+    def mouseMoveEvent(
+        self, event: QGraphicsSceneMouseEvent
+    ) -> None:  # noqa: D102, E501
         self.currentQRubberBand.setGeometry(QRect(self.originQPoint, event.screenPos()))
         self.currentQRubberBand.show()
         selection = self.items(QRectF(self.originCropPoint, event.scenePos()))
@@ -56,7 +60,9 @@ class GraphicsScene(QGraphicsScene):
                 item._setBrush(self.unselected)
                 item.setSelected(False)
 
-    def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:  # noqa: D102, E501
+    def mouseReleaseEvent(
+        self, event: QGraphicsSceneMouseEvent
+    ) -> None:  # noqa: D102, E501
         self.currentQRubberBand.hide()
 
     def _clear_selection(self) -> None:

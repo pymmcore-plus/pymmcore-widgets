@@ -1,8 +1,8 @@
 import string
-from typing import Optional, Tuple, Any
+from typing import Any, Optional, Tuple
 
 from qtpy.QtCore import QRectF, Qt
-from qtpy.QtGui import QBrush, QColor, QFont, QPen, QTextOption, QPainter
+from qtpy.QtGui import QBrush, QColor, QFont, QPainter, QPen, QTextOption
 from qtpy.QtWidgets import QGraphicsItem
 
 ALPHABET = string.ascii_uppercase
@@ -47,7 +47,7 @@ class Well(QGraphicsItem):
     def boundingRect(self) -> QRectF:
         return self.well_shape
 
-    def paint(self, painter: QPainter, style: Any, widget: Any) -> None:  # type: ignore
+    def paint(self, painter, style, widget) -> None:  # type: ignore
         painter.setBrush(self.brush)
         painter.setPen(self.pen)
         if self.circular:

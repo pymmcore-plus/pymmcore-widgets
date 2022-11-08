@@ -1,6 +1,6 @@
 import string
 import warnings
-from typing import List, Optional, Tuple, overload
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 from fonticon_mdi6 import MDI6
@@ -47,7 +47,7 @@ class PlateCalibration(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self.plate: Optional[WellPlate] = None
-        self.A1_well: Tuple[str, float, float] = ()
+        self.A1_well: Optional[Tuple[str, float, float]] = None
         self.plate_rotation_matrix: Optional[np.ndarray] = None
         self.plate_angle_deg: float = 0.0
         self.is_calibrated = False
@@ -125,7 +125,7 @@ class PlateCalibration(QWidget):
 
         self._show_hide_tables(n_tables)
 
-    def _show_hide_tables(self, n_tables: int, well_list: List[str] = None) -> None:
+    def _show_hide_tables(self, n_tables: int, well_list: Sequence[str] = ()) -> None:
 
         self.table_1._rename_well_column("Well A1")
         self.table_1.show()
@@ -142,47 +142,24 @@ class PlateCalibration(QWidget):
         self.table_1._clear_table()
         self.table_2._clear_table()
 
-    def _on_combo_changed(self, text: str) -> None:
+    def _on_combo_changed(self, combo_txt: str) -> None:
         if not self.plate:
             return
-        self._update_gui(self.plate.id, from_combo=text)
+        self._update_gui(self.plate.id, combo_txt=combo_txt)
 
-        # only to test
-        # self.table_1.tb.setRowCount(3)
-        # self.table_2.tb.setRowCount(3)
-        # # a1
-        # self.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
-        # self.table_1.tb.setItem(0, 1, QTableWidgetItem("-50"))
-        # self.table_1.tb.setItem(0, 2, QTableWidgetItem("0"))
-        # self.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
-        # self.table_1.tb.setItem(1, 1, QTableWidgetItem("0"))
-        # self.table_1.tb.setItem(1, 2, QTableWidgetItem("50"))
-        # self.table_1.tb.setItem(2, 0, QTableWidgetItem("Well A1_pos002"))
-        # self.table_1.tb.setItem(2, 1, QTableWidgetItem("50"))
-        # self.table_1.tb.setItem(2, 2, QTableWidgetItem("0"))
-        # # an
-        # self.table_2.tb.setItem(0, 0, QTableWidgetItem("Well A3_pos000"))
-        # self.table_2.tb.setItem(0, 1, QTableWidgetItem("1364.213562373095"))
-        # self.table_2.tb.setItem(0, 2, QTableWidgetItem("1414.2135623730949"))
-        # self.table_2.tb.setItem(1, 0, QTableWidgetItem("Well A3_pos001"))
-        # self.table_2.tb.setItem(1, 1, QTableWidgetItem("1414.213562373095"))
-        # self.table_2.tb.setItem(1, 2, QTableWidgetItem("1364.2135623730949"))
-        # self.table_2.tb.setItem(2, 0, QTableWidgetItem("Well A3_pos002"))
-        # self.table_2.tb.setItem(2, 1, QTableWidgetItem("1464.213562373095"))
-        # self.table_2.tb.setItem(2, 2, QTableWidgetItem("1414.2135623730949"))
+    def _update_gui(self, plate_id: str, combo_txt: str = "") -> None:
 
-    def _update_gui(self, plate: str, from_combo: str = "") -> None:
-
-        if self.plate and self.plate.id == plate and not from_combo:
+        if self.plate and self.plate.id == plate_id and not combo_txt:
             return
 
         self._set_calibrated(False)
         self._clear_tables()
 
         try:
-            self.plate = PLATE_DB[plate]
+            self.plate = PLATE_DB[plate_id]
         except KeyError:
             self.plate = None
+            warnings.warn(f'Plate ID "{plate_id}" not found in database.')
             return
 
         with signals_blocked(self._calibration_combo):
@@ -220,8 +197,8 @@ class PlateCalibration(QWidget):
                     ]
                 )
 
-            if from_combo:
-                self._calibration_combo.setCurrentText(from_combo)
+            if combo_txt:
+                self._calibration_combo.setCurrentText(combo_txt)
 
         n_tables = self._calibration_combo.currentText()[0]
         self._show_hide_tables(int(n_tables), well_list)
@@ -257,7 +234,7 @@ class PlateCalibration(QWidget):
             self.cal_lbl.setText("Plate Calibrated!")
         else:
             self.is_calibrated = False
-            self.A1_well = ()
+            self.A1_well = None
             self.plate_rotation_matrix = None
             self.plate_angle_deg = 0.0
             self.A1_stage_coords_center = ()
@@ -301,31 +278,14 @@ class PlateCalibration(QWidget):
 
         return float(xc), float(yc)
 
-    @overload
-    def _get_rect_center(
-        self,
-        a: Tuple[float, float],
-        b: Tuple[float, float],
-        c: Tuple[float, float],
-        d: Tuple[float, float],
-    ) -> Tuple:
-        ...
-
-    @overload
-    def _get_rect_center(
-        self, a: Tuple[float, float], b: Tuple[float, float]
-    ) -> Tuple[float, float]:
-        ...
-
-    def _get_rect_center(self, *args) -> Tuple[float, float]:
+    def _get_rect_center(self, *args: Tuple[float, ...]) -> Tuple[float, float]:
         """
         Find the center of a rectangle/square well.
 
         (given two opposite verices coordinates or 4 points on the edges).
         """
         # add block if wrong coords!!!
-        x_list = [x[0] for x in [*args]]
-        y_list = [y[1] for y in [*args]]
+        x_list, y_list = list(zip(*args))
         x_max, x_min = (max(x_list), min(x_list))
         y_max, y_min = (max(y_list), min(y_list))
 
@@ -376,7 +336,7 @@ class PlateCalibration(QWidget):
 
         xc_w1, yc_w1 = self._get_well_center(self.table_1)
         self.A1_stage_coords_center = (xc_w1, yc_w1)
-        xy_coords = [(xc_w1, yc_w1)]
+        xy_coords: List[tuple] = [(xc_w1, yc_w1)]
         if not self.table_2.isHidden():
             xc_w2, yc_w2 = self._get_well_center(self.table_2)
             xy_coords.append((xc_w2, yc_w2))
@@ -409,16 +369,20 @@ class PlateCalibration(QWidget):
             logger.info(f"plate angle: {self.plate_angle_deg} deg.")
             logger.info(f"rotation matrix: \n{self.plate_rotation_matrix}.")
 
-    def _get_pos_from_table(self, table: QTableWidget) -> Tuple[Tuple[float, float]]:
-        pos = ()
+    def _get_pos_from_table(
+        self, table: QTableWidget
+    ) -> Tuple[Tuple[float, float], ...]:
+        pos = []
         _range = table.tb.rowCount()
         for r in range(_range):
             x = float(table.tb.item(r, 1).text())
             y = float(table.tb.item(r, 2).text())
-            pos += ((x, y),)
-        return pos
+            pos.append((x, y))
+        return tuple(pos)
 
     def _get_well_center(self, table: QTableWidget) -> Tuple[float, float]:
+        if self.plate is None:
+            raise RuntimeError("Plate not defined!")
 
         pos = self._get_pos_from_table(table)
 

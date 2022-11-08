@@ -63,7 +63,7 @@ class HCSWidget(HCSGui):
         if not self._include_run_button:
             self.run_Button.hide()
 
-        self.wp: WellPlate = None
+        self.wp: Optional[WellPlate] = None
 
         # connect
         self._mmc = mmcore or CMMCorePlus.instance()
@@ -209,7 +209,7 @@ class HCSWidget(HCSGui):
         self._clear_values()
 
     def _clear_values(self) -> None:
-        self.plate._circular_checkbox.setChecked(False),
+        self.plate._circular_checkbox.setChecked(False)
         self.plate._id.setText("")
         self.plate._cols.setValue(0)
         self.plate._rows.setValue(0)
@@ -263,6 +263,9 @@ class HCSWidget(HCSGui):
     def _get_wells_stage_coords(
         self, well_list: List[Tuple[str, int, int]]
     ) -> List[Tuple[str, float, float]]:
+        if self.wp is None or self.calibration.A1_well is None:
+            return []
+
         # center stage coords of calibrated well a1
         a1_x = self.calibration.A1_well[1]
         a1_y = self.calibration.A1_well[2]
@@ -270,7 +273,6 @@ class HCSWidget(HCSGui):
         r_matrix = self.calibration.plate_rotation_matrix
 
         # distance between wells from plate database (mm)
-        x_step, y_step = self.wp.well_spacing_x, self.wp.well_spacing_y
 
         ordered_well_list = []
         original_pos_list = []
@@ -283,8 +285,8 @@ class HCSWidget(HCSGui):
                 original_pos_list.append((x, y))
 
             else:
-                x = a1_x + ((x_step * 1000) * col)
-                y = a1_y - ((y_step * 1000) * row)
+                x = a1_x + ((self.wp.well_spacing_x * 1000) * col)
+                y = a1_y - ((self.wp.well_spacing_y * 1000) * row)
                 original_pos_list.append((x, y))
 
                 if r_matrix is not None:
@@ -304,6 +306,8 @@ class HCSWidget(HCSGui):
     def _get_well_and_fovs_position_list(
         self, ordered_wells_list: List[Tuple[str, float, float]]
     ) -> List[Tuple[str, float, float]]:
+        if self.wp is None:
+            return []
 
         fovs = [
             item._getPositionsInfo()
@@ -473,7 +477,7 @@ class HCSWidget(HCSGui):
         useq.MDASequence
         """
         ch_table = self.ch_and_pos_list.channel_tableWidget
-        state = {
+        state: dict = {
             "axis_order": self.acquisition_order_comboBox.currentText(),
             "channels": [
                 {
