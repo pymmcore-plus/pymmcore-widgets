@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Optional
 
 from fonticon_mdi6 import MDI6
@@ -29,7 +28,6 @@ from pymmcore_widgets._hcs_widget._generate_fov_widget import SelectFOV
 from pymmcore_widgets._hcs_widget._hcs_mda_widget import MDAWidget
 from pymmcore_widgets._hcs_widget._plate_graphics_scene_widget import GraphicsScene
 
-PLATE_DATABASE = Path(__file__).parent / "_well_plate.yaml"
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 
 

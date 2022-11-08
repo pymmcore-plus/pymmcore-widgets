@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import tempfile
+import json
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock, call
 
 import pytest
-import yaml
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem, QTableWidgetItem
 from useq import MDASequence
@@ -40,7 +39,7 @@ def _get_image_size(mmc):
     return _image_size_mm_x, _image_size_mm_y
 
 
-def test_hcs_plate_selection(hcs_wdg, qtbot: QtBot):
+def test_hcs_plate_selection(hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot):
     hcs, _, _ = hcs_wdg
 
     assert hcs.tabwidget.currentIndex() == 0
@@ -85,7 +84,7 @@ def test_hcs_plate_selection(hcs_wdg, qtbot: QtBot):
     hcs.plate._well_size_y.setValue(2)
     hcs.plate._circular_checkbox.setChecked(True)
 
-    with qtbot.waitSignal(hcs.plate.yamlUpdated):
+    with qtbot.waitSignal(hcs.plate.plate_updated):
         hcs.plate._ok_btn.click()
 
     items = [hcs.wp_combo.itemText(i) for i in range(hcs.wp_combo.count())]
@@ -104,7 +103,9 @@ def test_hcs_plate_selection(hcs_wdg, qtbot: QtBot):
     hcs.plate.close()
 
 
-def test_hcs_fov_selection_FOVPoints_size(hcs_wdg, qtbot: QtBot):
+def test_hcs_fov_selection_FOVPoints_size(
+    hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot
+):
     hcs, mmc, _ = hcs_wdg
 
     assert hcs.tabwidget.currentIndex() == 0
@@ -128,9 +129,8 @@ def test_hcs_fov_selection_FOVPoints_size(hcs_wdg, qtbot: QtBot):
     assert isinstance(fov, FOVPoints)
     assert isinstance(well, QGraphicsEllipseItem)
     assert fov._getPositionsInfo() == (scene_width / 2, scene_height / 2, 160, 160)
-    well_size_mm_x, well_size_mm_y = hcs.wp.get_well_size()
-    assert fov._x_size == (160 * _image_size_mm_x) / well_size_mm_x
-    assert fov._y_size == (160 * _image_size_mm_y) / well_size_mm_y
+    assert fov._x_size == (160 * _image_size_mm_x) / hcs.wp.well_size_x
+    assert fov._y_size == (160 * _image_size_mm_y) / hcs.wp.well_size_y
     assert fov._x_size == fov._y_size == 2.3540229885057475
 
     mmc.setProperty("Objective", "Label", "Nikon 20X Plan Fluor ELWD")
@@ -146,9 +146,8 @@ def test_hcs_fov_selection_FOVPoints_size(hcs_wdg, qtbot: QtBot):
     assert isinstance(fov, FOVPoints)
     assert isinstance(well, QGraphicsEllipseItem)
     assert fov._getPositionsInfo() == (scene_width / 2, scene_height / 2, 160, 160)
-    well_size_mm_x, well_size_mm_y = hcs.wp.get_well_size()
-    assert fov._x_size == (160 * _image_size_mm_x) / well_size_mm_x
-    assert fov._y_size == (160 * _image_size_mm_y) / well_size_mm_y
+    assert fov._x_size == (160 * _image_size_mm_x) / hcs.wp.well_size_x
+    assert fov._y_size == (160 * _image_size_mm_y) / hcs.wp.well_size_y
     assert fov._x_size == fov._y_size == 1.1770114942528738
 
 
@@ -195,7 +194,7 @@ def test_hcs_fov_selection_random(hcs_wdg, qtbot: QtBot):
     for i in fovs:
         assert isinstance(i, FOVPoints)
 
-    w, h = hcs.wp.get_well_size()
+    w, h = hcs.wp.well_size_x, hcs.wp.well_size_y
     ax = hcs.FOV_selector.plate_area_x
     ay = hcs.FOV_selector.plate_area_y
     assert ax.value() == w
@@ -226,7 +225,7 @@ def test_hcs_fov_selection_random(hcs_wdg, qtbot: QtBot):
     assert fov_1._y != fov_2._y
 
 
-def test_hcs_fov_selection_grid(hcs_wdg, qtbot: QtBot):
+def test_hcs_fov_selection_grid(hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot):
     hcs, mmc, _ = hcs_wdg
 
     assert hcs.tabwidget.currentIndex() == 0
@@ -246,13 +245,13 @@ def test_hcs_fov_selection_grid(hcs_wdg, qtbot: QtBot):
     assert len(items) == 10
     well = items[-1]
     assert isinstance(well, QGraphicsRectItem)
-    well_size_mm_x, well_size_mm_y = hcs.wp.get_well_size()
+
     _image_size_mm_x, _image_size_mm_y = _get_image_size(mmc)
     fovs = items[:9]
     for fov in fovs:
         assert isinstance(fov, FOVPoints)
-        assert fov._x_size == (160 * _image_size_mm_x) / well_size_mm_x
-        assert fov._y_size == (160 * _image_size_mm_y) / well_size_mm_y
+        assert fov._x_size == (160 * _image_size_mm_x) / hcs.wp.well_size_x
+        assert fov._y_size == (160 * _image_size_mm_y) / hcs.wp.well_size_y
 
     fov_1 = cast(FOVPoints, items[4])
     fov_2 = cast(FOVPoints, items[5])
@@ -723,7 +722,7 @@ def test_hcs_state(hcs_wdg, qtbot: QtBot):
     assert state.stage_positions == sequence.stage_positions
 
 
-def test_save_positions(hcs_wdg, qtbot: QtBot):
+def test_save_positions(hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot):
     hcs, _, cal = hcs_wdg
     mda = hcs.ch_and_pos_list
     cal.A1_stage_coords_center = (0.0, 0.0)
@@ -746,24 +745,17 @@ def test_save_positions(hcs_wdg, qtbot: QtBot):
         mda.stage_tableWidget.setItem(row, 3, stage_z)
 
     assert mda.stage_tableWidget.rowCount() == 3
-
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        positions = hcs._position_for_yaml(3)
-
-        assert positions == {
-            "A1_center_coords": {"x": 0.0, "y": 0.0},
-            "A1_pos000": {"x": -100.0, "y": 100.0, "z": 0.0},
-            "A1_pos001": {"x": 200.0, "y": 200.0, "z": 0.0},
-            "A1_pos002": {"x": 300.0, "y": -300.0, "z": 0.0},
-        }
-
-        with open(f"{tmp_path}/test.yaml", "w") as file:
-            yaml.dump(positions, file)
-            assert "test.yaml" in [f.name for f in tmp_path.iterdir()]
+    assert hcs._get_positions(3) == {
+        "A1_center_coords": {"x": 0.0, "y": 0.0},
+        "A1_pos000": {"x": -100.0, "y": 100.0, "z": 0.0},
+        "A1_pos001": {"x": 200.0, "y": 200.0, "z": 0.0},
+        "A1_pos002": {"x": 300.0, "y": -300.0, "z": 0.0},
+    }
 
 
-def test_load_positions(hcs_wdg, qtbot: QtBot):
+def test_load_positions(
+    hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot, tmp_path: Path
+):
     hcs, _, cal = hcs_wdg
     mda = hcs.ch_and_pos_list
     cal.A1_stage_coords_center = (100.0, 100.0)
@@ -775,30 +767,27 @@ def test_load_positions(hcs_wdg, qtbot: QtBot):
         "A1_pos002": {"x": 300.0, "y": -300.0, "z": 0.0},
     }
 
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
+    saved = tmp_path / "test.json"
+    saved.write_text(json.dumps(positions))
+    assert saved.exists()
 
-        with open(f"{tmp_path}/test.yaml", "w") as file:
-            pos_list = yaml.dump(positions, file)
-            assert "test.yaml" in [f.name for f in tmp_path.iterdir()]
+    pos_list = json.loads(saved.read_text())
 
-            with open(f"{tmp_path}/test.yaml") as file:
-                pos_list = yaml.full_load(file)
-                hcs._add_loaded_positions_and_translate(pos_list)
-                assert mda.stage_tableWidget.rowCount() == 3
+    hcs._add_loaded_positions_and_translate(pos_list)
+    assert mda.stage_tableWidget.rowCount() == 3
 
-                pos = [
-                    (
-                        mda.stage_tableWidget.item(r, 0).text(),
-                        mda.stage_tableWidget.item(r, 1).text(),
-                        mda.stage_tableWidget.item(r, 2).text(),
-                        mda.stage_tableWidget.item(r, 3).text(),
-                    )
-                    for r in range(3)
-                ]
+    pos = [
+        (
+            mda.stage_tableWidget.item(r, 0).text(),
+            mda.stage_tableWidget.item(r, 1).text(),
+            mda.stage_tableWidget.item(r, 2).text(),
+            mda.stage_tableWidget.item(r, 3).text(),
+        )
+        for r in range(3)
+    ]
 
-                assert pos == [
-                    ("A1_pos000", "0.0", "200.0", "0.0"),
-                    ("A1_pos001", "300.0", "300.0", "0.0"),
-                    ("A1_pos002", "400.0", "-200.0", "0.0"),
-                ]
+    assert pos == [
+        ("A1_pos000", "0.0", "200.0", "0.0"),
+        ("A1_pos001", "300.0", "300.0", "0.0"),
+        ("A1_pos002", "400.0", "-200.0", "0.0"),
+    ]

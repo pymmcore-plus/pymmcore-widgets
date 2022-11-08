@@ -24,7 +24,7 @@ class GraphicsScene(QGraphicsScene):
 
         self._selected_wells: List[QGraphicsItem] = []
 
-    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):  # type: ignore  # noqa: D102, E501
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):  # noqa: D102, E501
         self.originQPoint = event.screenPos()
         self.currentQRubberBand = QRubberBand(QRubberBand.Rectangle)
         self.originCropPoint = event.scenePos()
@@ -42,7 +42,7 @@ class GraphicsScene(QGraphicsScene):
                 well._setBrush(self.selected)
                 well.setSelected(True)
 
-    def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):  # type: ignore  # noqa: D102, E501
+    def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):  # noqa: D102, E501
         self.currentQRubberBand.setGeometry(QRect(self.originQPoint, event.screenPos()))
         self.currentQRubberBand.show()
         selection = self.items(QRectF(self.originCropPoint, event.scenePos()))
@@ -54,7 +54,7 @@ class GraphicsScene(QGraphicsScene):
                 item._setBrush(self.unselected)
                 item.setSelected(False)
 
-    def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):  # type: ignore  # noqa: D102, E501
+    def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):  # noqa: D102, E501
         self.currentQRubberBand.hide()
 
     def _clear_selection(self) -> None:
@@ -66,7 +66,7 @@ class GraphicsScene(QGraphicsScene):
     def _get_plate_positions(self) -> List[Tuple[str, int, int]]:
         """Return a list of (well, row, column) for each well selected."""
         if not self.items():
-            return  # type: ignore
+            return
 
         well_list_to_order = [
             item._getPos() for item in reversed(self.items()) if item.isSelected()
@@ -78,7 +78,7 @@ class GraphicsScene(QGraphicsScene):
         try:
             previous_row = well_list_to_order[0][1]
         except IndexError:
-            return  # type: ignore
+            return
         current_row = 0
         for idx, wrc in enumerate(well_list_to_order):
             _, row, _ = wrc

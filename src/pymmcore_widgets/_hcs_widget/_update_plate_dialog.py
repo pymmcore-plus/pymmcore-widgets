@@ -1,7 +1,5 @@
-from pathlib import Path
 from typing import Optional
 
-import yaml  # type: ignore
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QApplication,
@@ -19,15 +17,15 @@ from qtpy.QtWidgets import (
     QTableWidgetItem,
     QWidget,
 )
+from ._well_plate_database import PLATE_DB, WellPlate
 
-PLATE_DATABASE = Path(__file__).parent / "_well_plate.yaml"
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 
 
-class UpdateYaml(QDialog):
-    """Class to update the yaml well plate database."""
+class UpdatePlateDialog(QDialog):
+    """Class to create or edit a well plate in the database."""
 
-    yamlUpdated = Signal(object)
+    plate_updated = Signal(object)
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -120,7 +118,7 @@ class UpdateYaml(QDialog):
         self._delete_btn = QPushButton(text="Delete")
         self._delete_btn.clicked.connect(self._delete_plate)
         self._ok_btn = QPushButton(text="Add/Update")
-        self._ok_btn.clicked.connect(self._update_plate_yaml)
+        self._ok_btn.clicked.connect(self._update_plate_db)
         btn_layout.addWidget(self._ok_btn)
         btn_layout.addWidget(self._delete_btn)
         btn_wdg.setLayout(btn_layout)
@@ -132,62 +130,44 @@ class UpdateYaml(QDialog):
 
         self.setLayout(main_layout)
 
-    def _plates_names_from_database(self) -> list:
-        with open(
-            PLATE_DATABASE,
-        ) as file:
-            return list(yaml.safe_load(file))
-
     def _update_table(self) -> None:
-        plates = self._plates_names_from_database()
-        self.plate_table.setRowCount(len(plates))
-        for row, p in enumerate(plates):
-            item = QTableWidgetItem(p)
+        self.plate_table.setRowCount(len(PLATE_DB))
+        for row, plate_name in enumerate(PLATE_DB):
+            item = QTableWidgetItem(plate_name)
             self.plate_table.setItem(row, 0, item)
 
     def _update_values(self, row: int, col: int) -> None:
 
-        plate = self.plate_table.item(row, col)
-        if not plate:
+        plate_item = self.plate_table.item(row, col)
+        if not plate_item:
             return
-        plate_name = plate.text()
 
-        with open(PLATE_DATABASE) as file:
-            data = yaml.safe_load(file)
+        plate = PLATE_DB[plate_item.text()]
+        self._id.setText(plate.id)
+        self._rows.setValue(plate.rows)
+        self._cols.setValue(plate.cols)
+        self._well_spacing_x.setValue(plate.well_spacing_x)
+        self._well_spacing_y.setValue(plate.well_spacing_y)
+        self._well_size_x.setValue(plate.well_size_x)
+        self._well_size_y.setValue(plate.well_size_y)
+        self._circular_checkbox.setChecked(plate.circular)
 
-            self._id.setText(data[plate_name].get("id"))
-            self._rows.setValue(data[plate_name].get("rows"))
-            self._cols.setValue(data[plate_name].get("cols"))
-            self._well_spacing_x.setValue(data[plate_name].get("well_spacing_x"))
-            self._well_spacing_y.setValue(data[plate_name].get("well_spacing_y"))
-            self._well_size_x.setValue(data[plate_name].get("well_size_x"))
-            self._well_size_y.setValue(data[plate_name].get("well_size_y"))
-            self._circular_checkbox.setChecked(data[plate_name].get("circular"))
-
-    def _update_plate_yaml(self) -> None:
-
+    def _update_plate_db(self) -> None:
         if not self._id.text():
             return
 
-        with open(PLATE_DATABASE) as file:
-            f = yaml.safe_load(file)
-
-        with open(PLATE_DATABASE, "w") as file:
-            new = {
-                f"{self._id.text()}": {
-                    "circular": self._circular_checkbox.isChecked(),
-                    "id": self._id.text(),
-                    "cols": self._cols.value(),
-                    "rows": self._rows.value(),
-                    "well_size_x": self._well_size_x.value(),
-                    "well_size_y": self._well_size_y.value(),
-                    "well_spacing_x": self._well_spacing_x.value(),
-                    "well_spacing_y": self._well_spacing_y.value(),
-                }
-            }
-            f.update(new)
-            yaml.dump(f, file)
-            self.yamlUpdated.emit(new)
+        new = WellPlate(
+            circular=self._circular_checkbox.isChecked(),
+            id=self._id.text(),
+            cols=self._cols.value(),
+            rows=self._rows.value(),
+            well_size_x=self._well_size_x.value(),
+            well_size_y=self._well_size_y.value(),
+            well_spacing_x=self._well_spacing_x.value(),
+            well_spacing_y=self._well_spacing_y.value(),
+        )
+        PLATE_DB[new.id] = new
+        self.plate_updated.emit(new)
 
         self._update_table()
 
@@ -197,27 +177,16 @@ class UpdateYaml(QDialog):
     def _delete_plate(self) -> None:
 
         selected_rows = {r.row() for r in self.plate_table.selectedIndexes()}
-
         if not selected_rows:
             return
 
         plate_names = [self.plate_table.item(r, 0).text() for r in selected_rows]
-
-        if "_from calibration" in plate_names:
-            plate_names.remove("_from calibration")
-
-        with open(PLATE_DATABASE) as file:
-            f = yaml.safe_load(file)
-            for plate_name in plate_names:
-                f.pop(plate_name)
-
-        with open(PLATE_DATABASE, "w") as file:
-            yaml.dump(f, file)
-            self.yamlUpdated.emit(None)
-
         for plate_name in plate_names:
+            PLATE_DB.pop(plate_name, None)
             match = self.plate_table.findItems(plate_name, Qt.MatchExactly)
             self.plate_table.removeRow(match[0].row())
+
+        self.plate_updated.emit(None)
 
         if self.plate_table.rowCount():
             self.plate_table.setCurrentCell(0, 0)
@@ -259,6 +228,6 @@ if __name__ == "__main__":
     import sys
 
     app = QApplication(sys.argv)
-    win = UpdateYaml()
+    win = UpdatePlateDialog()
     win.show()
     sys.exit(app.exec_())

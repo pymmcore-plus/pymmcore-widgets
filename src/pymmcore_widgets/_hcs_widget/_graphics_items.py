@@ -44,10 +44,10 @@ class Well(QGraphicsItem):
 
         self.setFlag(self.ItemIsSelectable, True)
 
-    def boundingRect(self):  # type: ignore  # noqa: D102
+    def boundingRect(self):  # noqa: D102
         return self.well_shape
 
-    def paint(self, painter=None, style=None, widget=None):  # type: ignore  # noqa: D102, E501
+    def paint(self, painter=None, style=None, widget=None):  # noqa: D102, E501
         painter.setBrush(self.brush)
         painter.setPen(self.pen)
         if self.circular:
@@ -103,10 +103,10 @@ class WellArea(QGraphicsItem):
 
         self.rect = QRectF(self._start_x, self._start_y, self._w, self._h)
 
-    def boundingRect(self):  # type: ignore  # noqa: D102
+    def boundingRect(self):  # noqa: D102
         return QRectF(0, 0, self._view_size, self._view_size)
 
-    def paint(self, painter=None, style=None, widget=None):  # type: ignore  # noqa: D102, E501
+    def paint(self, painter=None, style=None, widget=None):  # noqa: D102, E501
         painter.setPen(self._pen)
         if self._circular:
             painter.drawEllipse(self.rect)
@@ -146,10 +146,10 @@ class FOVPoints(QGraphicsItem):
         self.scene_width = scene_size_x
         self.scene_width = scene_size_y
 
-    def boundingRect(self):  # type: ignore  # noqa: D102
+    def boundingRect(self):  # noqa: D102
         return QRectF(0, 0, self._view_size, self._view_size)
 
-    def paint(self, painter=None, style=None, widget=None):  # type: ignore  # noqa: D102, E501
+    def paint(self, painter=None, style=None, widget=None):  # noqa: D102, E501
         pen = QPen()
         pen.setWidth(2)
         painter.setPen(pen)

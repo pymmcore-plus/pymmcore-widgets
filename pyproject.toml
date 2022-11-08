@@ -31,7 +31,6 @@ dependencies = [
     'fonticon-materialdesignicons6',
     'qtpy',
     'tifffile',
-    'PyYAML',
     'sympy'
 ]
 

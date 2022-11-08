@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Optional
 
 from fonticon_mdi6 import MDI6
@@ -28,7 +27,6 @@ from superqt.fonticon import icon
 
 from .._util import _select_output_unit, _time_in_sec, guess_channel_group
 
-PLATE_DATABASE = Path(__file__).parent / "_well_plate.yaml"
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 

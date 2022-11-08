@@ -1,10 +1,8 @@
 import string
 import warnings
-from pathlib import Path
 from typing import List, Optional, Tuple, overload
 
 import numpy as np
-import yaml  # type: ignore
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus._logger import logger
@@ -28,7 +26,8 @@ from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 from sympy import Eq, solve, symbols
 
-PLATE_DATABASE = Path(__file__).parent / "_well_plate.yaml"
+from ._well_plate_database import PLATE_DB, WellPlate
+
 ALPHABET = string.ascii_uppercase
 
 
@@ -47,9 +46,9 @@ class PlateCalibration(QWidget):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self.plate = None
-        self.A1_well: Tuple[str, float, float] = ()  # type: ignore
-        self.plate_rotation_matrix: np.ndarray = None  # type: ignore
+        self.plate: Optional[WellPlate] = None
+        self.A1_well: Tuple[str, float, float] = ()
+        self.plate_rotation_matrix: Optional[np.ndarray] = None
         self.plate_angle_deg: float = 0.0
         self.is_calibrated = False
         self.A1_stage_coords_center: Tuple = ()
@@ -118,12 +117,6 @@ class PlateCalibration(QWidget):
 
         layout.addWidget(bottom_group)
 
-    def _load_plate_info(self) -> dict:
-        with open(
-            PLATE_DATABASE,
-        ) as file:
-            return yaml.safe_load(file)  # type: ignore
-
     def _create_tables(self, n_tables: int) -> None:
         self.table_1 = CalibrationTable()
         self.table_2 = CalibrationTable()
@@ -132,9 +125,7 @@ class PlateCalibration(QWidget):
 
         self._show_hide_tables(n_tables)
 
-    def _show_hide_tables(
-        self, n_tables: int, well_list: List[str] = None  # type: ignore
-    ) -> None:
+    def _show_hide_tables(self, n_tables: int, well_list: List[str] = None) -> None:
 
         self.table_1._rename_well_column("Well A1")
         self.table_1.show()
@@ -154,7 +145,7 @@ class PlateCalibration(QWidget):
     def _on_combo_changed(self, text: str) -> None:
         if not self.plate:
             return
-        self._update_gui(self.plate.get("id"), from_combo=text)
+        self._update_gui(self.plate.id, from_combo=text)
 
         # only to test
         # self.table_1.tb.setRowCount(3)
@@ -182,14 +173,14 @@ class PlateCalibration(QWidget):
 
     def _update_gui(self, plate: str, from_combo: str = "") -> None:
 
-        if self.plate and self.plate.get("id") == plate and not from_combo:
+        if self.plate and self.plate.id == plate and not from_combo:
             return
 
         self._set_calibrated(False)
         self._clear_tables()
 
         try:
-            self.plate = self._load_plate_info()[plate]
+            self.plate = PLATE_DB[plate]
         except KeyError:
             self.plate = None
             return
@@ -197,13 +188,13 @@ class PlateCalibration(QWidget):
         with signals_blocked(self._calibration_combo):
             self._calibration_combo.clear()
 
-            rows = self.plate.get("rows")  # type: ignore
-            cols = self.plate.get("cols")  # type: ignore
+            rows = self.plate.rows
+            cols = self.plate.cols
             well = ALPHABET[rows - 1]
 
             well_list = []
 
-            if self.plate.get("id") == "_from calibration":  # type: ignore
+            if self.plate.id == "_from calibration":
                 self._calibration_combo.addItem("1 Well (A1)")
 
             elif rows == 1:
@@ -240,7 +231,7 @@ class PlateCalibration(QWidget):
         else:
             wells_to_calibrate = self._calibration_combo.currentText()[9:-1]
 
-        if self.plate.get("circular"):  # type: ignore
+        if self.plate.circular:
             text = (
                 f"Calibrate Wells: {wells_to_calibrate}\n"
                 "\n"
@@ -266,8 +257,8 @@ class PlateCalibration(QWidget):
             self.cal_lbl.setText("Plate Calibrated!")
         else:
             self.is_calibrated = False
-            self.A1_well = ()  # type: ignore
-            self.plate_rotation_matrix = None  # type: ignore
+            self.A1_well = ()
+            self.plate_rotation_matrix = None
             self.plate_angle_deg = 0.0
             self.A1_stage_coords_center = ()
             self.icon_lbl.setPixmap(
@@ -326,7 +317,7 @@ class PlateCalibration(QWidget):
     ) -> Tuple[float, float]:
         ...
 
-    def _get_rect_center(self, *args) -> Tuple[float, float]:  # type: ignore
+    def _get_rect_center(self, *args) -> Tuple[float, float]:
         """
         Find the center of a rectangle/square well.
 
@@ -376,10 +367,10 @@ class PlateCalibration(QWidget):
         if not self.plate:
             return
 
-        if self.table_1._handle_error(circular_well=self.plate.get("circular")):
+        if self.table_1._handle_error(circular_well=self.plate.circular):
             return
         if not self.table_2.isHidden() and self.table_2._handle_error(
-            circular_well=self.plate.get("circular")
+            circular_well=self.plate.circular
         ):
             return
 
@@ -395,7 +386,7 @@ class PlateCalibration(QWidget):
 
         self._set_calibrated(True)
 
-        if self.plate.get("id") == "_from calibration":
+        if self.plate.id == "_from calibration":
             pos = self._get_pos_from_table(self.table_1)
             self.PlateFromCalibration.emit(pos)
 
@@ -424,22 +415,22 @@ class PlateCalibration(QWidget):
         for r in range(_range):
             x = float(table.tb.item(r, 1).text())
             y = float(table.tb.item(r, 2).text())
-            pos += ((x, y),)  # type: ignore
-        return pos  # type: ignore
+            pos += ((x, y),)
+        return pos
 
     def _get_well_center(self, table: QTableWidget) -> Tuple[float, float]:
 
         pos = self._get_pos_from_table(table)
 
-        if self.plate.get("circular"):  # type: ignore
-            xc, yc = self._get_circle_center_(*pos)  # type: ignore
+        if self.plate.circular:
+            xc, yc = self._get_circle_center_(*pos)
         else:
-            xc, yc = self._get_rect_center(*pos)  # type: ignore
+            xc, yc = self._get_rect_center(*pos)
 
         if table == self.table_1:
             self.A1_well = ("A1", xc, yc)
 
-        if self.plate.get("id") == "_from calibration":  # type: ignore
+        if self.plate.id == "_from calibration":
             self.PlateFromCalibration.emit(pos)
 
         return xc, yc

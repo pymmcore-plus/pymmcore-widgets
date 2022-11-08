@@ -1,9 +1,7 @@
 import warnings
-from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
-import yaml  # type: ignore
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.mda import PMDAEngine
 from qtpy.QtCore import Qt
@@ -14,11 +12,13 @@ from useq import MDASequence
 
 from ._graphics_items import FOVPoints, Well
 from ._main_hcs_gui import HCSGui
-from ._update_yaml_widget import UpdateYaml
-from ._well_plate_database import WellPlate
+from ._update_plate_dialog import UpdatePlateDialog
+from ._well_plate_database import PLATE_DB, WellPlate
 
-PLATE_DATABASE = Path(__file__).parent / "_well_plate.yaml"
 AlignCenter = Qt.AlignmentFlag.AlignCenter
+
+
+CALIBRATED_PLATE: Optional[WellPlate] = None
 
 
 class HCSWidget(HCSGui):
@@ -63,7 +63,7 @@ class HCSWidget(HCSGui):
         if not self._include_run_button:
             self.run_Button.hide()
 
-        self.wp: WellPlate = None  # type: ignore
+        self.wp: WellPlate = None
 
         # connect
         self._mmc = mmcore or CMMCorePlus.instance()
@@ -75,7 +75,7 @@ class HCSWidget(HCSGui):
         self._mmc.events.roiSet.connect(self._on_roi_set)
 
         self.wp_combo.currentTextChanged.connect(self._on_combo_changed)
-        self.custom_plate.clicked.connect(self._update_plate_yaml)
+        self.custom_plate.clicked.connect(self._show_update_plate_dialog)
         self.clear_button.clicked.connect(self.scene._clear_selection)
         if self._include_run_button:
             self.run_Button.clicked.connect(self._on_run_clicked)
@@ -86,7 +86,7 @@ class HCSWidget(HCSGui):
             self._generate_pos_list
         )
 
-        self._update_wp_combo()
+        self._refresh_wp_combo()
 
         self.ch_and_pos_list.save_positions_button.clicked.connect(self._save_positions)
         self.ch_and_pos_list.load_positions_button.clicked.connect(self._load_positions)
@@ -95,17 +95,9 @@ class HCSWidget(HCSGui):
         self._set_enabled(True)
         self._on_combo_changed(self.wp_combo.currentText())
 
-    def _update_wp_combo(self) -> None:
-        plates = self._plates_names_from_database()
-        plates.sort()
+    def _refresh_wp_combo(self) -> None:
         self.wp_combo.clear()
-        self.wp_combo.addItems(plates)
-
-    def _plates_names_from_database(self) -> list:
-        with open(
-            PLATE_DATABASE,
-        ) as file:
-            return list(yaml.safe_load(file))
+        self.wp_combo.addItems(list(PLATE_DB))
 
     def _on_combo_changed(self, value: str) -> None:
         self.scene.clear()
@@ -116,40 +108,25 @@ class HCSWidget(HCSGui):
         self._on_combo_changed(self.wp_combo.currentText())
 
     def _on_plate_from_calibration(self, coords: Tuple) -> None:
+        global CALIBRATED_PLATE
 
-        x_list = [x[0] for x in [*coords]]
-        y_list = [y[1] for y in [*coords]]
-        x_max, x_min = (max(x_list), min(x_list))
-        y_max, y_min = (max(y_list), min(y_list))
-
-        width_mm = (x_max - x_min) / 1000
-        height_mm = (y_max - y_min) / 1000
-
-        with open(PLATE_DATABASE) as file:
-            f = yaml.safe_load(file)
-            f.pop("_from calibration")
-
-        with open(PLATE_DATABASE, "w") as file:
-            new = {
-                "_from calibration": {
-                    "circular": False,
-                    "id": "_from calibration",
-                    "cols": 1,
-                    "rows": 1,
-                    "well_size_x": width_mm,
-                    "well_size_y": height_mm,
-                    "well_spacing_x": 0,
-                    "well_spacing_y": 0,
-                }
-            }
-            f.update(new)
-            yaml.dump(f, file)
+        x_list, y_list = zip(*coords)
+        CALIBRATED_PLATE = WellPlate(
+            circular=False,
+            id="_from calibration",
+            cols=1,
+            rows=1,
+            well_size_x=(max(x_list) - min(x_list)) / 1000,
+            well_size_y=(max(y_list) - min(y_list)) / 1000,
+            well_spacing_x=0,
+            well_spacing_y=0,
+        )
 
         self.scene.clear()
-        self._draw_well_plate("_from calibration")
+        self._draw_well_plate(CALIBRATED_PLATE)
 
-    def _draw_well_plate(self, well_plate: str) -> None:
-        self.wp = WellPlate.set_format(well_plate)
+    def _draw_well_plate(self, well_plate: str | WellPlate) -> None:
+        self.wp = PLATE_DB[well_plate] if isinstance(well_plate, str) else well_plate
 
         max_w = self._width - 10
         max_h = self._height - 10
@@ -225,11 +202,9 @@ class HCSWidget(HCSGui):
             y += size_y
             x = start_x
 
-    def _update_plate_yaml(self) -> None:
-        self.plate = UpdateYaml(self)
-        self.plate.yamlUpdated.connect(
-            self._update_wp_combo_from_yaml
-        )  # UpdateYaml() signal
+    def _show_update_plate_dialog(self) -> None:
+        self.plate = UpdatePlateDialog(self)
+        self.plate.plate_updated.connect(self._update_wp_combo)
         self.plate.show()
         self._clear_values()
 
@@ -243,20 +218,17 @@ class HCSWidget(HCSGui):
         self.plate._well_spacing_x.setValue(0.0)
         self.plate._well_spacing_y.setValue(0.0)
 
-    def _update_wp_combo_from_yaml(self, new_plate: dict) -> None:
-        plates = self._plates_names_from_database()
-        plates.sort()
+    def _update_wp_combo(self, new_plate: WellPlate | None) -> None:
         with signals_blocked(self.wp_combo):
             self.wp_combo.clear()
-            self.wp_combo.addItems(plates)
-        if new_plate:
-            value = list(new_plate.keys())[0]
-            self.wp_combo.setCurrentText(value)
-            self._on_combo_changed(value)
+            self.wp_combo.addItems(list(PLATE_DB))
+
+        if new_plate is not None:
+            self.wp_combo.setCurrentText(new_plate.id)
+            self._on_combo_changed(new_plate.id)
         else:
-            items = [self.wp_combo.itemText(i) for i in range(self.wp_combo.count())]
-            self.wp_combo.setCurrentText(items[0])
-            self._on_combo_changed(items[0])
+            self.wp_combo.setCurrentIndex(0)
+            self._on_combo_changed(self.wp_combo.itemText(0))
 
     def _generate_pos_list(self) -> None:
 
@@ -279,12 +251,9 @@ class HCSWidget(HCSGui):
 
         self.ch_and_pos_list._clear_positions()
 
-        plate_info = self.wp.getAllInfo()
-
-        ordered_wells_list = self._get_wells_stage_coords(well_list, plate_info)
-
+        ordered_wells_list = self._get_wells_stage_coords(well_list)
         ordered_wells_and_fovs_list = self._get_well_and_fovs_position_list(
-            plate_info, ordered_wells_list
+            ordered_wells_list
         )
 
         for r, f in enumerate(ordered_wells_and_fovs_list):
@@ -292,7 +261,7 @@ class HCSWidget(HCSGui):
             self._add_to_table(r, well_name, stage_coord_x, stage_coord_y)
 
     def _get_wells_stage_coords(
-        self, well_list: List[Tuple[str, int, int]], plate_info: dict
+        self, well_list: List[Tuple[str, int, int]]
     ) -> List[Tuple[str, float, float]]:
         # center stage coords of calibrated well a1
         a1_x = self.calibration.A1_well[1]
@@ -301,7 +270,7 @@ class HCSWidget(HCSGui):
         r_matrix = self.calibration.plate_rotation_matrix
 
         # distance between wells from plate database (mm)
-        x_step, y_step = plate_info.get("well_distance")  # type: ignore
+        x_step, y_step = self.wp.well_spacing_x, self.wp.well_spacing_y
 
         ordered_well_list = []
         original_pos_list = []
@@ -333,7 +302,7 @@ class HCSWidget(HCSGui):
         return ordered_well_list
 
     def _get_well_and_fovs_position_list(
-        self, plate_info: dict, ordered_wells_list: List[Tuple[str, float, float]]
+        self, ordered_wells_list: List[Tuple[str, float, float]]
     ) -> List[Tuple[str, float, float]]:
 
         fovs = [
@@ -348,11 +317,9 @@ class HCSWidget(HCSGui):
         cy = 100
 
         pos_list = []
-        # well dimensions from database (mm)
-        well_x, well_y = plate_info.get("well_size")  # type: ignore
-        # well dimensions from database (um)
-        well_x_um = well_x * 1000
-        well_y_um = well_y * 1000
+        # convert well dimensions from database (mm) to um
+        well_x_um = self.wp.well_size_x * 1000
+        well_y_um = self.wp.well_size_y * 1000
 
         r_matrix = self.calibration.plate_rotation_matrix
 
@@ -434,14 +401,15 @@ class HCSWidget(HCSGui):
             return
 
         (dir_file, _) = QFileDialog.getSaveFileName(
-            self, "Saving directory and filename.", "", "yaml(*.yaml)"
+            self, "Saving directory and filename.", "", "json(*.json)"
         )
         if dir_file:
-            positions = self._position_for_yaml(rows)
-            with open(f"{dir_file}", "w") as file:
-                yaml.dump(positions, file)
+            import json
 
-    def _position_for_yaml(self, rows: int) -> dict:
+            with open(str(dir_file), "w") as file:
+                json.dump(self._get_positions(rows), file)
+
+    def _get_positions(self, rows: int) -> dict:
 
         positions = {
             "A1_center_coords": {
@@ -467,12 +435,13 @@ class HCSWidget(HCSGui):
             return
 
         (filename, _) = QFileDialog.getOpenFileName(
-            self, "Select a position list file", "", "yaml(*.yaml)"
+            self, "Select a position list file", "", "json(*.json)"
         )
         if filename:
+            import json
+
             with open(filename) as file:
-                pos_list = yaml.full_load(file)
-                self._add_loaded_positions_and_translate(pos_list)
+                self._add_loaded_positions_and_translate(json.load(file))
 
     def _add_loaded_positions_and_translate(self, pos_list: dict) -> None:
         new_xc, new_yc = self.calibration.A1_stage_coords_center

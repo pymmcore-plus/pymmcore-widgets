@@ -39,9 +39,9 @@ class SelectFOV(QWidget):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self._plate_size_x: float = None  # type: ignore
-        self._plate_size_y: float = None  # type: ignore
-        self._is_circular: bool = None  # type: ignore
+        self._plate_size_x: float = None
+        self._plate_size_y: float = None
+        self._is_circular: bool = None
 
         self._create_widget()
 
