@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from .._util import PLATE_FROM_CALIBRATION
+
 
 @dataclass(frozen=True)
 class WellPlate:
@@ -34,7 +36,7 @@ PLATES = [
     WellPlate(
         circular=False,
         cols=1,
-        id="_from calibration",
+        id=PLATE_FROM_CALIBRATION,
         rows=1,
         well_size_x=10.0,
         well_size_y=10.0,

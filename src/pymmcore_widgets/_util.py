@@ -12,6 +12,8 @@ from qtpy.QtWidgets import (
 )
 from superqt.utils import signals_blocked
 
+PLATE_FROM_CALIBRATION = "custom_from_calibration"
+
 
 class ComboMessageBox(QDialog):
     """Dialog that presents a combo box of `items`."""

@@ -12,6 +12,7 @@ from qtpy.QtWidgets import QFileDialog, QTableWidgetItem, QWidget
 from superqt.utils import signals_blocked
 from useq import MDASequence
 
+from .._util import PLATE_FROM_CALIBRATION
 from ._graphics_items import FOVPoints, Well
 from ._main_hcs_gui import HCSGui
 from ._update_plate_dialog import UpdatePlateDialog
@@ -117,7 +118,7 @@ class HCSWidget(HCSGui):
         x_list, y_list = zip(*coords)
         CALIBRATED_PLATE = WellPlate(
             circular=False,
-            id="_from calibration",
+            id=PLATE_FROM_CALIBRATION,
             cols=1,
             rows=1,
             well_size_x=(max(x_list) - min(x_list)) / 1000,

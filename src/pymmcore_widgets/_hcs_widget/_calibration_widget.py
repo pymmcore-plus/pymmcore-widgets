@@ -25,6 +25,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
+from .._util import PLATE_FROM_CALIBRATION
 from ._well_plate_database import PLATE_DB, WellPlate
 
 ALPHABET = string.ascii_uppercase
@@ -170,7 +171,7 @@ class PlateCalibration(QWidget):
 
             well_list = []
 
-            if self.plate.id == "_from calibration":
+            if self.plate.id == PLATE_FROM_CALIBRATION:
                 self._calibration_combo.addItem("1 Well (A1)")
 
             elif rows == 1:
@@ -327,7 +328,7 @@ class PlateCalibration(QWidget):
 
         self._set_calibrated(True)
 
-        if self.plate.id == "_from calibration":
+        if self.plate.id == PLATE_FROM_CALIBRATION:
             pos = self._get_pos_from_table(self.table_1)
             self.PlateFromCalibration.emit(pos)
 
@@ -375,7 +376,7 @@ class PlateCalibration(QWidget):
         if table == self.table_1:
             self.A1_well = ("A1", xc, yc)
 
-        if self.plate.id == "_from calibration":
+        if self.plate.id == PLATE_FROM_CALIBRATION:
             self.PlateFromCalibration.emit(pos)
 
         return xc, yc
