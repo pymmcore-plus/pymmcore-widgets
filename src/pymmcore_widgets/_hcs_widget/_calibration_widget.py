@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import math
 import string
 import warnings
 from typing import List, Optional, Sequence, Tuple
@@ -52,6 +55,10 @@ class PlateCalibration(QWidget):
         self.plate_angle_deg: float = 0.0
         self.is_calibrated = False
         self.A1_stage_coords_center: Tuple = ()
+        self._calculated_well_size_x: Optional[float] = None
+        self._calculated_well_size_y: Optional[float] = None
+        self._calculated_well_spacing_x: Optional[float] = None
+        self._calculated_well_spacing_y: Optional[float] = None
 
         self._create_gui()
 
@@ -117,6 +124,18 @@ class PlateCalibration(QWidget):
 
         layout.addWidget(bottom_group)
 
+    def _reset_calibration_variables(self, set_to_none: bool) -> None:
+        if set_to_none or not self.plate:
+            self._calculated_well_size_x = None
+            self._calculated_well_size_y = None
+            self._calculated_well_spacing_x = None
+            self._calculated_well_spacing_y = None
+        else:
+            self._calculated_well_size_x = self.plate.well_size_x * 1000
+            self._calculated_well_size_y = self.plate.well_size_y * 1000
+            self._calculated_well_spacing_x = self.plate.well_spacing_x * 1000
+            self._calculated_well_spacing_y = self.plate.well_spacing_y * 1000
+
     def _create_tables(self, n_tables: int) -> None:
         self.table_1 = CalibrationTable()
         self.table_2 = CalibrationTable()
@@ -144,7 +163,7 @@ class PlateCalibration(QWidget):
 
     def _on_combo_changed(self, combo_txt: str) -> None:
         if not self.plate:
-            return
+            raise RuntimeError("Plate not defined!")
         self._update_gui(self.plate.id, combo_txt=combo_txt)
 
     def _update_gui(self, plate_id: str, combo_txt: str = "") -> None:
@@ -238,6 +257,7 @@ class PlateCalibration(QWidget):
             self.plate_rotation_matrix = None
             self.plate_angle_deg = 0.0
             self.A1_stage_coords_center = ()
+            self._reset_calibration_variables(set_to_none=True)
             self.icon_lbl.setPixmap(
                 icon(MDI6.close_octagon_outline, color="magenta").pixmap(QSize(30, 30))
             )
@@ -262,7 +282,6 @@ class PlateCalibration(QWidget):
         """
         # add block if wrong coords!!!
         x_list, y_list = list(zip(*args))
-        print(x_list, y_list)
         x_max, x_min = (max(x_list), min(x_list))
         y_max, y_min = (max(y_list), min(y_list))
 
@@ -291,10 +310,8 @@ class PlateCalibration(QWidget):
     def _calibrate_plate(self) -> None:
 
         self._set_calibrated(False)
-        self.A1_stage_coords_center = ()
 
         if not self._mmc.getPixelSizeUm():
-            # raise ValueError("Pixel Size not defined! Set pixel size first.")
             warnings.warn("Pixel Size not defined! Set pixel size first.")
             return
 
@@ -302,7 +319,9 @@ class PlateCalibration(QWidget):
             self._mmc.stopSequenceAcquisition()
 
         if not self.plate:
-            return
+            raise RuntimeError("Plate not defined!")
+
+        self._reset_calibration_variables(set_to_none=False)
 
         if self.table_1._handle_error(circular_well=self.plate.circular):
             return
@@ -317,6 +336,7 @@ class PlateCalibration(QWidget):
         if not self.table_2.isHidden():
             xc_w2, yc_w2 = self._get_well_center(self.table_2)
             xy_coords.append((xc_w2, yc_w2))
+            self._calculate_and_set_well_spacing(xc_w1, yc_w1, xc_w2, yc_w2)
 
         if len(xy_coords) > 1:
             self._calculate_plate_rotation_matrix(xy_coords)
@@ -326,6 +346,29 @@ class PlateCalibration(QWidget):
         if self.plate.id == PLATE_FROM_CALIBRATION:
             pos = self._get_pos_from_table(self.table_1)
             self.PlateFromCalibration.emit(pos)
+
+    def _calculate_and_set_well_spacing(
+        self, xc_w1: float, yc_w1: float, xc_w2: float, yc_w2: float
+    ) -> None:
+
+        if not self.plate:
+            raise RuntimeError("Plate not defined!")
+
+        if yc_w1 == yc_w2:
+            spacing_x = (xc_w2 - xc_w1) / self.plate.cols
+            spacing_y = 0.0
+        else:
+            dist_x = xc_w2 - xc_w1
+            dist_y = yc_w2 - yc_w1
+            spacing_x = math.sqrt(dist_x**2 + dist_y**2)
+            if self.plate.well_spacing_x == self.plate.well_spacing_y:
+                spacing_y = spacing_x
+            else:
+                # to be changed by adding more calibration wells (for now only 2)
+                spacing_y = self.plate.well_spacing_y * 1000
+
+        self._calculated_well_spacing_x = spacing_x
+        self._calculated_well_spacing_y = spacing_y
 
     def _calculate_plate_rotation_matrix(self, xy_coord_list: List[Tuple]) -> None:
 
@@ -343,8 +386,8 @@ class PlateCalibration(QWidget):
                 ]
             )
 
-            logger.info(f"plate angle: {self.plate_angle_deg} deg.")
-            logger.info(f"rotation matrix: \n{self.plate_rotation_matrix}.")
+            logger.debug(f"plate angle: {self.plate_angle_deg} deg.")
+            logger.debug(f"rotation matrix: \n{self.plate_rotation_matrix}.")
 
     def _get_pos_from_table(
         self, table: QTableWidget
@@ -358,27 +401,33 @@ class PlateCalibration(QWidget):
         return tuple(pos)
 
     def _get_well_center(self, table: QTableWidget) -> Tuple[float, float]:
+
         if self.plate is None:
             raise RuntimeError("Plate not defined!")
 
         pos = self._get_pos_from_table(table)
 
+        size_x: float = self.plate.well_size_x
+        size_y: float = self.plate.well_size_y
+
         if self.plate.circular:
             xc, yc = self._get_circle_center_(*pos)
 
-            # calculated diameter vs stored plate well_size_x
+            # calculated well_size_x (diameter)
             x0 = pos[0][0]
             x_max, x_min = max(xc, x0), min(xc, x0)
-            diameter = (x_max - x_min) * 2
-            logger.info(
+            size_x = (x_max - x_min) * 2
+            size_y = size_x
+            logger.debug(
                 f"{self.plate.id}\n"
-                f"calculated diameter: {diameter} vs "
+                f"calculated diameter: {size_x} vs "
                 f"stored plate well_size_x: {self.plate.well_size_x * 1000}"
             )
+
         else:
             xc, yc = self._get_rect_center(*pos)
 
-            # calculated size_x and size_y vs stored plate well_size_x and well_size_y
+            # calculated well_size_x and well_size_y
             if self.plate.id != PLATE_FROM_CALIBRATION:
                 if len(pos) == 4:
                     x0, y0 = pos[0][0], pos[0][1]
@@ -391,7 +440,7 @@ class PlateCalibration(QWidget):
                     x1, y1 = pos[1][0], pos[1][1]
                     size_x = abs(x0) + abs(x1)
                     size_y = abs(y0) + abs(y1)
-                logger.info(
+                logger.debug(
                     f"{self.plate.id}\n"
                     f"calculated well_size_x: {size_x}, "
                     f"calculated well_size_y: {size_y} vs "
@@ -401,6 +450,8 @@ class PlateCalibration(QWidget):
 
         if table == self.table_1:
             self.A1_well = ("A1", xc, yc)
+            self._calculated_well_size_x = size_x
+            self._calculated_well_size_y = size_y
 
         if self.plate.id == PLATE_FROM_CALIBRATION:
             self.PlateFromCalibration.emit(pos)
@@ -525,26 +576,22 @@ class CalibrationTable(QWidget):
 
         if circular_well:
             if self.tb.rowCount() < 3:
-                # raise ValueError(
                 warnings.warn(
                     f"Not enough points for {self._well_name}. "
                     "Add 3 points to the table."
                 )
                 return True
             elif self.tb.rowCount() > 3:
-                # raise ValueError("Add only 3 points to the table.")
                 warnings.warn("Add only 3 points to the table.")
                 return True
 
         elif self.tb.rowCount() < 2 or self.tb.rowCount() == 3:
-            # raise ValueError(
             warnings.warn(
                 f"Not enough points for {self._well_name}. "
                 "Add 2 or 4 points to the table."
             )
             return True
         elif self.tb.rowCount() > 4:
-            # raise ValueError("Add 2 or 4 points to the table.")
             warnings.warn("Add 2 or 4 points to the table.")
             return True
 

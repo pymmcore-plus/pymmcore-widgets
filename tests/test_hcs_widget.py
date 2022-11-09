@@ -6,12 +6,15 @@ from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock, call
 
 import pytest
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem, QTableWidgetItem
 from useq import MDASequence
 
+from pymmcore_widgets._hcs_widget._calibration_widget import PlateCalibration
 from pymmcore_widgets._hcs_widget._graphics_items import FOVPoints, Well, WellArea
 from pymmcore_widgets._hcs_widget._main_hcs_widget import HCSWidget
+from pymmcore_widgets._util import PLATE_FROM_CALIBRATION
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -29,7 +32,7 @@ def hcs_wdg(global_mmcore, qtbot: QtBot):
     return hcs, mmc, cal
 
 
-def _get_image_size(mmc):
+def _get_image_size(mmc: CMMCorePlus):
     _cam_x = mmc.getROI(mmc.getCameraDevice())[-2]
     _cam_y = mmc.getROI(mmc.getCameraDevice())[-1]
     assert _cam_x == 512
@@ -104,7 +107,7 @@ def test_hcs_plate_selection(hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot):
 
 
 def test_hcs_fov_selection_FOVPoints_size(
-    hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot
+    hcs_wdg: tuple[HCSWidget, CMMCorePlus, Any], qtbot: QtBot
 ):
     hcs, mmc, _ = hcs_wdg
 
@@ -151,7 +154,9 @@ def test_hcs_fov_selection_FOVPoints_size(
     assert fov._x_size == fov._y_size == 1.1770114942528738
 
 
-def test_hcs_fov_selection_center(hcs_wdg, qtbot: QtBot):
+def test_hcs_fov_selection_center(
+    hcs_wdg: tuple[HCSWidget, CMMCorePlus, Any], qtbot: QtBot
+):
     hcs, _, _ = hcs_wdg
 
     assert hcs.tabwidget.currentIndex() == 0
@@ -172,7 +177,7 @@ def test_hcs_fov_selection_center(hcs_wdg, qtbot: QtBot):
     assert isinstance(well, QGraphicsRectItem)
 
 
-def test_hcs_fov_selection_random(hcs_wdg, qtbot: QtBot):
+def test_hcs_fov_selection_random(hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot):
     hcs, _, _ = hcs_wdg
 
     assert hcs.tabwidget.currentIndex() == 0
@@ -225,7 +230,9 @@ def test_hcs_fov_selection_random(hcs_wdg, qtbot: QtBot):
     assert fov_1._y != fov_2._y
 
 
-def test_hcs_fov_selection_grid(hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot):
+def test_hcs_fov_selection_grid(
+    hcs_wdg: tuple[HCSWidget, CMMCorePlus, Any], qtbot: QtBot
+):
     hcs, mmc, _ = hcs_wdg
 
     assert hcs.tabwidget.currentIndex() == 0
@@ -261,7 +268,9 @@ def test_hcs_fov_selection_grid(hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBo
     assert (round(cx, 2), round(cy, 2), w, h) == (140.48, 100.00, 160, 160)
 
 
-def test_calibration_label(hcs_wdg, qtbot: QtBot):
+def test_calibration_label(
+    hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot
+):
     hcs, _, cal = hcs_wdg
 
     hcs.wp_combo.setCurrentText("standard 96")
@@ -312,7 +321,9 @@ def test_calibration_label(hcs_wdg, qtbot: QtBot):
     assert cal.info_lbl.text() == text
 
 
-def test_calibration_one_well(hcs_wdg, qtbot: QtBot):
+def test_calibration_one_well(
+    hcs_wdg: tuple[HCSWidget, CMMCorePlus, PlateCalibration], qtbot: QtBot
+):
     hcs, mmc, cal = hcs_wdg
 
     hcs.tabwidget.setCurrentIndex(1)
@@ -371,7 +382,9 @@ def test_calibration_one_well(hcs_wdg, qtbot: QtBot):
     assert not cal.plate_rotation_matrix
 
 
-def test_calibration_one_well_square(hcs_wdg, qtbot: QtBot):
+def test_calibration_one_well_square(
+    hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot
+):
     hcs, _, cal = hcs_wdg
 
     hcs.tabwidget.setCurrentIndex(1)
@@ -415,7 +428,9 @@ def test_calibration_one_well_square(hcs_wdg, qtbot: QtBot):
     assert not cal.plate_rotation_matrix
 
 
-def test_calibration_two_wells(hcs_wdg, qtbot: QtBot):
+def test_calibration_two_wells(
+    hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot
+):
     hcs, _, cal = hcs_wdg
 
     hcs.tabwidget.setCurrentIndex(1)
@@ -471,7 +486,9 @@ def test_calibration_two_wells(hcs_wdg, qtbot: QtBot):
     assert cal.cal_lbl.text() == "Plate Calibrated!"
 
 
-def test_calibration_from_calibration(hcs_wdg, qtbot: QtBot):
+def test_calibration_from_calibration(
+    hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot
+):
     hcs, _, cal = hcs_wdg
 
     hcs.tabwidget.setCurrentIndex(1)
@@ -479,8 +496,8 @@ def test_calibration_from_calibration(hcs_wdg, qtbot: QtBot):
 
     assert cal.cal_lbl.text() == "Plate non Calibrated!"
 
-    hcs.wp_combo.setCurrentText("_from calibration")
-    assert hcs.wp_combo.currentText() == "_from calibration"
+    hcs.wp_combo.setCurrentText(PLATE_FROM_CALIBRATION)
+    assert hcs.wp_combo.currentText() == PLATE_FROM_CALIBRATION
     assert len(hcs.scene.items()) == 1
     assert len([item for item in hcs.scene.items() if item.isSelected()]) == 1
 
@@ -524,7 +541,9 @@ def test_calibration_from_calibration(hcs_wdg, qtbot: QtBot):
     assert not cal.plate_rotation_matrix
 
 
-def test_generate_pos_list(hcs_wdg, qtbot: QtBot):
+def test_generate_pos_list(
+    hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot
+):
     hcs, _, cal = hcs_wdg
     pos_table = hcs.ch_and_pos_list.stage_tableWidget
 
@@ -638,7 +657,7 @@ def test_generate_pos_list(hcs_wdg, qtbot: QtBot):
     ]
 
 
-def test_hcs_state(hcs_wdg, qtbot: QtBot):
+def test_hcs_state(hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot):
     hcs, _, cal = hcs_wdg
     mda = hcs.ch_and_pos_list
     pos_table = mda.stage_tableWidget
@@ -719,7 +738,7 @@ def test_hcs_state(hcs_wdg, qtbot: QtBot):
     assert state.stage_positions == sequence.stage_positions
 
 
-def test_save_positions(hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot):
+def test_save_positions(hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot):
     hcs, _, cal = hcs_wdg
     mda = hcs.ch_and_pos_list
     cal.A1_stage_coords_center = (0.0, 0.0)
@@ -751,7 +770,7 @@ def test_save_positions(hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot):
 
 
 def test_load_positions(
-    hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot, tmp_path: Path
+    hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot, tmp_path: Path
 ):
     hcs, _, cal = hcs_wdg
     mda = hcs.ch_and_pos_list

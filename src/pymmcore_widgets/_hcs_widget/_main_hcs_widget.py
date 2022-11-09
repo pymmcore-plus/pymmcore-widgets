@@ -238,19 +238,16 @@ class HCSWidget(HCSGui):
     def _generate_pos_list(self) -> None:
 
         if not self.calibration.is_calibrated:
-            # raise ValueError("Plate not calibrated! Calibrate it first.")
             warnings.warn("Plate not calibrated! Calibrate it first.")
             return
 
         if not self._mmc.getPixelSizeUm():
-            # raise ValueError("Pixel Size not defined! Set pixel size first.")
             warnings.warn("Pixel Size not defined! Set pixel size first.")
             return
 
         well_list = self.scene._get_plate_positions()
 
         if not well_list:
-            # raise ValueError("No Well selected! Select at least one well first.")
             warnings.warn("No Well selected! Select at least one well first.")
             return
 
@@ -269,6 +266,12 @@ class HCSWidget(HCSGui):
         self, well_list: List[Tuple[str, int, int]]
     ) -> List[Tuple[str, float, float]]:
         if self.wp is None or self.calibration.A1_well is None:
+            return []
+
+        calculated_spacing_x = self.calibration._calculated_well_spacing_x
+        calculated_spacing_y = self.calibration._calculated_well_spacing_x
+
+        if calculated_spacing_x is None or calculated_spacing_y is None:
             return []
 
         # center stage coords of calibrated well a1
@@ -290,8 +293,8 @@ class HCSWidget(HCSGui):
                 original_pos_list.append((x, y))
 
             else:
-                x = a1_x + ((self.wp.well_spacing_x * 1000) * col)
-                y = a1_y - ((self.wp.well_spacing_y * 1000) * row)
+                x = a1_x + (calculated_spacing_x * col)
+                y = a1_y - (calculated_spacing_y * row)
                 original_pos_list.append((x, y))
 
                 if r_matrix is not None:
@@ -314,6 +317,12 @@ class HCSWidget(HCSGui):
         if self.wp is None:
             return []
 
+        calculated_size_x = self.calibration._calculated_well_size_x
+        calculated_size_y = self.calibration._calculated_well_size_y
+
+        if calculated_size_x is None or calculated_size_y is None:
+            return []
+
         fovs = [
             item._getPositionsInfo()
             for item in self.FOV_selector.scene.items()
@@ -326,9 +335,6 @@ class HCSWidget(HCSGui):
         cy = 100
 
         pos_list = []
-        # convert well dimensions from database (mm) to um
-        well_x_um = self.wp.well_size_x * 1000
-        well_y_um = self.wp.well_size_y * 1000
 
         r_matrix = self.calibration.plate_rotation_matrix
 
@@ -345,8 +351,8 @@ class HCSWidget(HCSGui):
                 ) = fov
 
                 # find 1 px value in um depending on well dimension
-                px_val_x = well_x_um / w_fov_scene  # µm
-                px_val_y = well_y_um / h_fov_scene  # µm
+                px_val_x = calculated_size_x / w_fov_scene  # µm
+                px_val_y = calculated_size_y / h_fov_scene  # µm
 
                 # shift point coords in scene when center is (0, 0)
                 new_fx = center_fov_scene_x - cx
