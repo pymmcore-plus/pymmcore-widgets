@@ -461,20 +461,22 @@ def test_calibration_two_wells(
     cal.table_1.tb.setItem(2, 2, QTableWidgetItem("0"))
     # A3
     cal.table_2.tb.setItem(0, 0, QTableWidgetItem("Well A3_pos000"))
-    cal.table_2.tb.setItem(0, 1, QTableWidgetItem("1364.213562373095"))
-    cal.table_2.tb.setItem(0, 2, QTableWidgetItem("1414.2135623730949"))
+    cal.table_2.tb.setItem(0, 1, QTableWidgetItem("1364"))
+    cal.table_2.tb.setItem(0, 2, QTableWidgetItem("1414"))
     cal.table_2.tb.setItem(1, 0, QTableWidgetItem("Well A3_pos001"))
-    cal.table_2.tb.setItem(1, 1, QTableWidgetItem("1414.213562373095"))
-    cal.table_2.tb.setItem(1, 2, QTableWidgetItem("1364.2135623730949"))
+    cal.table_2.tb.setItem(1, 1, QTableWidgetItem("1414"))
+    cal.table_2.tb.setItem(1, 2, QTableWidgetItem("1364"))
     cal.table_2.tb.setItem(2, 0, QTableWidgetItem("Well A3_pos002"))
-    cal.table_2.tb.setItem(2, 1, QTableWidgetItem("1464.213562373095"))
-    cal.table_2.tb.setItem(2, 2, QTableWidgetItem("1414.2135623730949"))
+    cal.table_2.tb.setItem(2, 1, QTableWidgetItem("1464"))
+    cal.table_2.tb.setItem(2, 2, QTableWidgetItem("1414"))
 
     assert cal.table_1.tb.rowCount() == 3
     assert cal.table_2.tb.rowCount() == 3
 
-    assert cal._get_well_center(cal.table_1) == (0.0, 0.0)
-    assert cal._get_well_center(cal.table_2) == (1414.2135623730956, 1414.2135623730924)
+    x, y = cal._get_well_center(cal.table_1)
+    assert (round(x), round(y)) == (0.0, 0.0)
+    x, y = cal._get_well_center(cal.table_2)
+    assert (round(x), round(y)) == (1414, 1414)
 
     cal._calibrate_plate()
 
