@@ -56,12 +56,19 @@ class HCSGui(QWidget):
         bottom_wdg = self._create_bottom_wdg()
         layout.addWidget(bottom_wdg)
 
-        self._tb = self.ch_and_pos_list.channel_tableWidget
-        self._tb.model().rowsInserted.connect(self._enable_run_btn)
-        self._tb.model().rowsRemoved.connect(self._enable_run_btn)
+        self._channel_tb = self.ch_and_pos_list.channel_tableWidget
+        self._channel_tb.model().rowsInserted.connect(self._enable_run_btn)
+        self._channel_tb.model().rowsRemoved.connect(self._enable_run_btn)
+
+        self._pos_tb = self.ch_and_pos_list.stage_tableWidget
+        self._channel_tb.model().rowsInserted.connect(self._enable_run_btn)
+        self._channel_tb.model().rowsRemoved.connect(self._enable_run_btn)
 
     def _enable_run_btn(self) -> None:
-        self.run_Button.setEnabled(self._tb.rowCount() > 0)
+        if self._channel_tb.rowCount() > 0 and self._pos_tb.rowCount() > 0:
+            self.run_Button.setEnabled(True)
+        else:
+            self.run_Button.setEnabled(False)
 
     def _add_tab_wdg(self) -> QTabWidget:
 
