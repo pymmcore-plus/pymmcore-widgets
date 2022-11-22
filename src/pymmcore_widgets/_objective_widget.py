@@ -79,8 +79,11 @@ class ObjectivesWidget(QWidget):
         self, device_label: Union[str, None]
     ) -> Union[StateDeviceWidget, QComboBox]:
         if device_label:
-            combo = _ObjectiveStateWidget(device_label, mmcore=self._mmc)
-            combo.setMinimumWidth(285)
+            combo = (
+                _ObjectiveStateWidget(device_label, mmcore=self._mmc)
+                if self._mmc.getFocusDevice()
+                else StateDeviceWidget(device_label, mmcore=self._mmc)
+            )
             combo._combo.currentIndexChanged.connect(self._on_obj_changed)
         else:
             combo = QComboBox()
