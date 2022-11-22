@@ -21,8 +21,8 @@ class LiveButton(QPushButton):
     """Create a two-state (on-off) live mode QPushButton.
 
     When pressed, a 'ContinuousSequenceAcquisition' is started or stopped
-    and a pymmcore-plus signal 'startContinuousSequenceAcquisition' or
-    'stopSequenceAcquisition' is emitted.
+    and a pymmcore-plus signal 'continuousSequenceAcquisitionStarted' or
+    'sequenceAcquisitionStopped' is emitted.
     """
 
     def __init__(
@@ -44,10 +44,10 @@ class LiveButton(QPushButton):
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_system_cfg_loaded)
         self._on_system_cfg_loaded()
-        self._mmc.events.startContinuousSequenceAcquisition.connect(
+        self._mmc.events.continuousSequenceAcquisitionStarted.connect(
             self._on_sequence_started
         )
-        self._mmc.events.stopSequenceAcquisition.connect(self._on_sequence_stopped)
+        self._mmc.events.sequenceAcquisitionStopped.connect(self._on_sequence_stopped)
         self.destroyed.connect(self._disconnect)
 
         self._create_button()
@@ -154,7 +154,9 @@ class LiveButton(QPushButton):
         self._mmc.events.systemConfigurationLoaded.disconnect(
             self._on_system_cfg_loaded
         )
-        self._mmc.events.startContinuousSequenceAcquisition.disconnect(
+        self._mmc.events.continuousSequenceAcquisitionStarted.disconnect(
             self._on_sequence_started
         )
-        self._mmc.events.stopSequenceAcquisition.disconnect(self._on_sequence_stopped)
+        self._mmc.events.sequenceAcquisitionStopped.disconnect(
+            self._on_sequence_stopped
+        )
