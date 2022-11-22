@@ -4,7 +4,7 @@ site_description: Widgets to control micro-manager in python.
 repo_name: pymmcore-plus/pymmcore-widgets
 repo_url: https://github.com/pymmcore-plus/pymmcore-widgets
 edit_uri: edit/main/docs/
-strict: true
+# strict: true
 
 theme:
   name: "material"

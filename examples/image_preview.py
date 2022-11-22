@@ -61,4 +61,5 @@ if __name__ == "__main__":
     app = QApplication([])
     frame = ImageFrame()
     frame.show()
+    mmc.snap()
     app.exec_()
