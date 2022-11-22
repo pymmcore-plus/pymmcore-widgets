@@ -10,8 +10,7 @@ LABEL = pymmcore.g_Keyword_Label
 
 
 class DeviceWidget(QWidget):
-    """
-    A general Device Widget.
+    """A general Device Widget.
 
     Use `DeviceWidget.for_device('device_label')` method to create a device-type
     appropriate subclass.

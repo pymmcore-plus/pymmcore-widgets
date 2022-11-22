@@ -14,8 +14,7 @@ from ._core import load_system_config
 
 
 class ConfigurationWidget(QGroupBox):
-    """
-    A Widget to select and load a micromanager system configuration.
+    """A Widget to select and load a micromanager system configuration.
 
     Parameters
     ----------

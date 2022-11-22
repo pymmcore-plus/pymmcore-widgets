@@ -50,8 +50,7 @@ class _MainTable(QTableWidget):
 
 
 class GroupPresetTableWidget(QGroupBox):
-    """
-    A Widget to create, edit, delete and set micromanager group presets.
+    """A Widget to create, edit, delete and set micromanager group presets.
 
     Parameters
     ----------

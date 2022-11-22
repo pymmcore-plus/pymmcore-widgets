@@ -8,8 +8,7 @@ from ._util import ComboMessageBox
 
 
 class ChannelWidget(QWidget):
-    """
-    A QComboBox-based widget to select which micromanager channel configuration to use.
+    """A QComboBox to select which micromanager channel configuration to use.
 
     Parameters
     ----------
