@@ -1,6 +1,6 @@
 """
 In this example all the available groups created in micromanager
-are dysplaied with a 'PresetsWidget'.
+are displayed with a 'PresetsWidget'.
 """
 
 from pymmcore_plus import CMMCorePlus
