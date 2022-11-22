@@ -21,7 +21,8 @@ COLOR_TYPES = Union[
 class SnapButton(QPushButton):
     """Create a snap QPushButton.
 
-    This button is linked to the [`pymmcore_plus.CMMCorePlus.snap`][] method.
+    This button is linked to the
+    [`CMMCorePlus.snap`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.snap] method.
     Once the button is clicked, an image is acquired and the `pymmcore-plus`
     signal [`imageSnapped`]() is emitted.
 
@@ -32,7 +33,8 @@ class SnapButton(QPushButton):
     mmcore: Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance][].
 
     Examples
     --------

@@ -216,7 +216,8 @@ class PixelSizeWidget(QDialog):
     mmcore: Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance][].
     """
 
     def __init__(
