@@ -17,10 +17,10 @@ class ExposureWidget(QtW.QWidget):
         camera: str = None,  # type: ignore
         *,
         parent: Optional[QtW.QWidget] = None,
-        core: Optional[CMMCorePlus] = None,
+        mmcore: Optional[CMMCorePlus] = None,
     ):
         super().__init__()
-        self._mmc = core or CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._camera = camera or self._mmc.getCameraDevice()
 
         self.label = QtW.QLabel()
@@ -79,9 +79,9 @@ class DefaultCameraExposureWidget(ExposureWidget):
         self,
         *,
         parent: Optional[QtW.QWidget] = None,
-        core: Optional[CMMCorePlus] = None,
+        mmcore: Optional[CMMCorePlus] = None,
     ):
-        super().__init__(core=core)
+        super().__init__(mmcore=mmcore)
         self._mmc.events.devicePropertyChanged(
             g_Keyword_CoreDevice, g_Keyword_CoreCamera
         ).connect(self._camera_updated)

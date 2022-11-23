@@ -16,8 +16,8 @@ from pymmcore_plus import CMMCorePlus
 from pymmcore_widgets import StageWidget  # as an example... see below
 from qtpy.QtWidgets import QApplication
 
-core = CMMCorePlus.instance()
-core.loadSystemConfiguration()
+mmcore = CMMCorePlus.instance()
+mmcore.loadSystemConfiguration()
 
 if __name__ == '__main__':
     app = QApplication([])

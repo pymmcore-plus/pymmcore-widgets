@@ -72,7 +72,7 @@ class _PropertyTable(QTableWidget):
             if group and (dev, prop) in dev_prop:
                 _checkbox.setChecked(True)
             self.setCellWidget(i, 0, _checkbox)
-            wdg = PropertyWidget(dev, prop, core=self._mmc)
+            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
             wdg.setEnabled(False)
             self.setItem(i, 1, item)
             self.setCellWidget(i, 2, wdg)
