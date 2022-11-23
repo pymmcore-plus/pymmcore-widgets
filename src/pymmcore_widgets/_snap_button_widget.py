@@ -34,7 +34,7 @@ class SnapButton(QPushButton):
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
-        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance][].
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
 
     Examples
     --------

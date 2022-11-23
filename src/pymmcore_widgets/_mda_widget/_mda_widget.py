@@ -27,7 +27,9 @@ class MDAWidget(_MDAWidgetGui):
     If the `include_run_button` parameter is set to `True`, a "run" button is added
     to the GUI and, when clicked, the generated
     [`useq.MDASequence`](https://github.com/tlambert03/useq-schema)
-    is passed to the [`pymmcore_plus.CMMCorePlus.run_mda`][] method and the acquisition
+    is passed to the
+    [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.run_mda]
+    method and the acquisition
     is executed.
 
     Parameters
@@ -42,7 +44,8 @@ class MDAWidget(_MDAWidgetGui):
     mmcore: Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     def __init__(

@@ -19,8 +19,8 @@ class Explorer(QWidget):
 
     It can be used to create and run a useq.MDASequence for a grid acquisition.
 
-    The `SampleExplorerWidget` provides a GUI to construct a `useq.MDASequence` object.
-    This object describes a full multi-dimensional acquisition;
+    The `SampleExplorerWidget` provides a GUI to construct a [`useq.MDASequence`][]
+    object. This object describes a full multi-dimensional acquisition;
 
     In this example, we set the `SampleExplorerWidget` parameter `include_run_button`
     to `True`, meaning that a `run` button is added to the GUI. When pressed,
