@@ -29,8 +29,7 @@ CUSTOM_ROI = "Custom ROI"
 
 
 class CameraRoiWidget(QWidget):
-    """
-    A Widget to control the camera device ROI.
+    """A Widget to control the camera device ROI.
 
     When the ROI changes, the `roiChanged` Signal is emitted with the current ROI
     (x, y, width, height, comboBoxText)
@@ -44,7 +43,8 @@ class CameraRoiWidget(QWidget):
     mmcore: Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance][].
     """
 
     # (x, y, width, height, comboBoxText)

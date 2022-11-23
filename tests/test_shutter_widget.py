@@ -94,7 +94,7 @@ def test_shutter_widget_SequenceAcquisition(shutters, qtbot: QtBot):
     with qtbot.waitSignal(mmc.events.configSet):
         mmc.setConfig("Channel", "DAPI")
 
-    with qtbot.waitSignal(mmc.events.startContinuousSequenceAcquisition):
+    with qtbot.waitSignal(mmc.events.continuousSequenceAcquisitionStarted):
         mmc.startContinuousSequenceAcquisition()
         assert multi_shutter.shutter_button.text() == "Multi Shutter opened"
         assert not multi_shutter.shutter_button.isEnabled()
@@ -108,7 +108,7 @@ def test_shutter_widget_SequenceAcquisition(shutters, qtbot: QtBot):
     assert multi_shutter.shutter_button.text() == "Multi Shutter opened"
     assert shutter.shutter_button.text() == "Shutter opened"
 
-    with qtbot.waitSignal(mmc.events.stopSequenceAcquisition):
+    with qtbot.waitSignal(mmc.events.sequenceAcquisitionStopped):
         mmc.stopSequenceAcquisition()
     assert shutter.shutter_button.isEnabled()
     assert multi_shutter.shutter_button.isEnabled()
@@ -189,10 +189,10 @@ def test_shutter_widget_setters(shutters, qtbot: QtBot):
     shutter.button_text_closed = "C"
     assert shutter.button_text_closed == "C"
 
-    with qtbot.waitSignal(mmc.events.startContinuousSequenceAcquisition):
+    with qtbot.waitSignal(mmc.events.continuousSequenceAcquisitionStarted):
         mmc.startContinuousSequenceAcquisition()
     assert shutter.shutter_button.text() == "O"
-    with qtbot.waitSignal(mmc.events.stopSequenceAcquisition):
+    with qtbot.waitSignal(mmc.events.sequenceAcquisitionStopped):
         mmc.stopSequenceAcquisition()
     assert shutter.shutter_button.text() == "C"
 

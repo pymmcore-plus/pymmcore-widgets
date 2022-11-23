@@ -23,6 +23,13 @@ class ExposureWidget(QWidget):
         Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new) `CMMCorePlus.instance()`.
+
+    Examples
+    --------
+    !!! example "Combining `ExposureWidget` with other widgets"
+
+        see [ImagePreview](../ImagePreview#example)
+
     """
 
     def __init__(
@@ -102,7 +109,8 @@ class DefaultCameraExposureWidget(ExposureWidget):
     mmcore: Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance][].
     """
 
     def __init__(

@@ -1,70 +1,95 @@
 site_name: pymmcore-widgets
-site_url: https://github.com/pymmcore-plus/pymmcore-widgets
-
-# Repository
+site_url: https://pymmcore-plus.github.io/pymmcore-widgets
+site_description: Widgets to control micro-manager in python.
 repo_name: pymmcore-plus/pymmcore-widgets
 repo_url: https://github.com/pymmcore-plus/pymmcore-widgets
+edit_uri: edit/main/docs/
+# strict: true
 
 theme:
+  name: "material"
+  features:
+    - content.tabs.link
+    - navigation.tabs
+    - content.code.annotate
   icon:
-    logo: material/book-education-outline
-  name: material
+    logo: fontawesome/solid/microscope
+    repo: fontawesome/brands/github
   palette:
-    - scheme: default
-      primary: indigo
-      accent: indigo
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: dark blue
+      accent: dark blue
       toggle:
-        icon: material/toggle-switch
-        name: Switch to dark mode
-    - scheme: slate
-      primary: blue grey
-      accent: blue grey
+        icon: material/lightbulb-outline
+        name: "Switch to dark mode"
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: light green
       toggle:
-        icon: material/toggle-switch-off-outline
-        name: Switch to light mode
+        icon: material/lightbulb
+        name: "Switch to light mode"
+
+nav:
+  - pymmcore-plus: /pymmcore-plus/
+  - useq-schema: /useq-schema/
+  - pymmcore-widgets:
+      - Overview: index.md
+      - Widgets: widgets/
 
 markdown_extensions:
+  - tables
   - admonition
-  - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.snippets # lets you include code snippets from other files
+  - pymdownx.highlight
+  - pymdownx.extra
   - attr_list
   - md_in_html
   - pymdownx.tabbed:
       alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - toc:
+      permalink: "#"
 
 watch:
   - src/pymmcore_widgets
 
+hooks:
+  - docs/_hooks.py
+
 plugins:
   - search
   - autorefs
-  - macros:
-      module_name: docs/_macros
+  - literate-nav # autegenerate nav from _gen_widgets
+  - gen-files:
+      scripts:
+        - docs/_gen_widget_pages.py
   - mkdocstrings:
       handlers:
         python:
           import:
             - https://docs.python.org/3/objects.inv
-            - https://pymmcore-plus.readthedocs.io/en/latest/objects.inv
+            - https://numpy.org/doc/stable/objects.inv
+            - https://pymmcore-plus.github.io/pymmcore-plus/objects.inv
+            - https://pymmcore-plus.github.io/useq-schema/objects.inv
           options:
             docstring_style: numpy
             show_root_heading: true
-            # show_root_toc_entry: true
-            show_root_full_path: true
+            show_root_full_path: false
             # show_object_full_path: false
-            # show_root_members_full_path: false
-            # show_category_heading: false
-            # show_if_no_docstring: false
-            # show_signature: true
-            # show_signature_annotations: false
-            show_source: true
-            # show_bases: true
-            # group_by_category: true
-            # heading_level: 2
-            members_order: alphabetical  # alphabetical/source
+            # show_root_members_full_path: true
+            # show_signature: false
+            show_signature_annotations: true
+            show_source: false
+            # show_bases: false
+            # members_order: alphabetical # alphabetical/source
 
-            ## experimental
-            # separate_signature: false
-            # line_length: 60
-            # show_submodules: true
-            docstring_section_style: list  # or table/list/spacy
+            # docstring_section_style: list # or table/list/spacy
+
+extra_css:
+  - stylesheets/extra.css

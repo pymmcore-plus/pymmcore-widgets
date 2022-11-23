@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QBrush
-from qtpy.QtWidgets import QComboBox, QHBoxLayout, QListView, QWidget
+from qtpy.QtWidgets import QComboBox, QHBoxLayout, QWidget
 from superqt.utils import signals_blocked
 
 from ._util import block_core
@@ -22,7 +22,8 @@ class PresetsWidget(QWidget):
     mmcore: Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance][].
     """
 
     def __init__(
@@ -47,8 +48,6 @@ class PresetsWidget(QWidget):
         if not self._presets:
             raise ValueError(f"{self._group} group does not have presets.")
 
-        # self._delete_presets_with_different_properties()
-
         # getting (dev, prop) of the group using the first preset
         # since they must be all the same
         self.dev_prop = self._get_preset_dev_prop(self._group, self._presets[0])
@@ -57,8 +56,7 @@ class PresetsWidget(QWidget):
         self._combo.currentTextChanged.connect(self._update_tooltip)
         self._combo.addItems(self._presets)
         self._combo.setCurrentText(self._mmc.getCurrentConfig(self._group))
-        if len(self._presets) > 1:
-            self._set_combo_view()
+
         self._set_style_if_props_not_match_preset()
 
         self.setLayout(QHBoxLayout())
@@ -78,14 +76,6 @@ class PresetsWidget(QWidget):
         self.destroyed.connect(self._disconnect)
 
         self._delete_presets_with_different_properties()
-
-    def _set_combo_view(self) -> None:
-        view = QListView()
-        view_height = sum(
-            self._combo.view().sizeHintForRow(i) for i in range(self._combo.count())
-        )
-        view.setFixedHeight(view_height)
-        self._combo.setView(view)
 
     def _delete_presets_with_different_properties(self) -> None:
         """Prevent the group to have presets containing different properties."""
@@ -125,6 +115,13 @@ class PresetsWidget(QWidget):
                     return
         # if None of the presets match the current system state
         self._combo.setStyleSheet("color: magenta;")
+        # FIXME:
+        # for some reason the above method of setting the color leaves a top level
+        # widget uncleaned.  The code below fixes it, but then breaks a lot of tests
+        # that were looking for the stylesheet.
+        # p = self._combo.palette()
+        # p.setColor(self._combo.foregroundRole(), Qt.magenta)
+        # self._combo.setPalette(p)
 
     def _set_text_color_if_diff_presets(self) -> None:
         for preset in self._presets:
@@ -175,8 +172,7 @@ class PresetsWidget(QWidget):
         self._combo.addItems(self._presets)
         self._combo.setEnabled(True)
         self._combo.setCurrentText(self._mmc.getCurrentConfig(self._group))
-        if len(self._presets) > 1:
-            self._set_combo_view()
+
         self._set_style_if_props_not_match_preset()
         self._set_text_color_if_diff_presets()
 

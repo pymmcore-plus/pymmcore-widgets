@@ -57,4 +57,4 @@ repos:
       - id: mypy
         files: "^src/"
         additional_dependencies:
-        - pymmcore-plus
+          - pymmcore-plus

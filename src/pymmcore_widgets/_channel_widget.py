@@ -8,26 +8,34 @@ from ._util import ComboMessageBox
 
 
 class ChannelWidget(QWidget):
-    """
-    A QComboBox-based widget to select which micromanager channel configuration to use.
+    """A QComboBox to select which micromanager channel configuration to use.
 
     Parameters
     ----------
     channel_group : Optional[str]
         Name of the micromanager group defining the microscope channels. By default,
         it will be guessed using the
-        [`pymmcore_plus.CMMCorePlus.getOrGuessChannelGroup`][]
+        [`CMMCorePlus.getOrGuessChannelGroup`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.getOrGuessChannelGroup]
         method and a choice dialog will be presented if there are multiple options.
         This method looks for a group configuration name matching the default regex
         `re.compile("(chan{1,2}(el)?|filt(er)?)s?", re.IGNORECASE)`.
         A different string/regex can be set using the
-        [`pymmcore_plus.CMMCorePlus.channelGroup_pattern`][] method.
+        [`CMMCorePlus.channelGroup_pattern`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.channelGroup_pattern]
+        method.
     parent : Optional[QWidget]
         Optional parent widget. By default, None.
     mmcore: Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance][].
+
+    Examples
+    --------
+    !!! example "Combining `ChannelWidget` with other widgets"
+
+        see [ImagePreview](../ImagePreview#example)
+
     """
 
     def __init__(
@@ -75,7 +83,7 @@ class ChannelWidget(QWidget):
         self, channel_group: Optional[str]
     ) -> Union[PresetsWidget, QComboBox]:
         if channel_group:
-            channel_wdg = PresetsWidget(channel_group)
+            channel_wdg = PresetsWidget(channel_group, parent=self)
             self._mmc.setChannelGroup(channel_group)
         else:
             channel_wdg = QComboBox()

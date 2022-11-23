@@ -24,7 +24,7 @@ def test_snap_button_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     with qtbot.waitSignals(
         [
-            global_mmcore.events.stopSequenceAcquisition,
+            global_mmcore.events.sequenceAcquisitionStopped,
             global_mmcore.events.imageSnapped,
         ]
     ):

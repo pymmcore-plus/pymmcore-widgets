@@ -8,25 +8,26 @@ from ._util import guess_objective_or_prompt
 
 
 class ObjectivesWidget(QWidget):
-    """
-    A QComboBox-based Widget to select the microscope objective.
+    """A QComboBox-based Widget to select the microscope objective.
 
     Parameters
     ----------
     objective_device : Optional[str]
         Device label for the micromanager objective device. By default, it will be
-        guessed using the [`pymmcore_plus.CMMCorePlus.guessObjectiveDevices`][]
+        guessed using the
+        [`CMMCorePlus.guessObjectiveDevices`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.guessObjectiveDevices]
         method and a choice dialog will be presented if there are multiple options.
         This method looks for a micromanager device matching the default regex
         `re.compile("(.+)?(nosepiece|obj(ective)?)(turret)?s?", re.IGNORECASE)`.
-        A different string/regex can be set using the
-        [`pymmcore_plus.CMMCorePlus.objective_device_pattern`][] method.
+        To change the search pattern, set
+        [`CMMCorePlus.objective_device_pattern`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.objective_device_pattern].
     parent : Optional[QWidget]
         Optional parent widget, by default None
     mmcore: Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance][].
     """
 
     def __init__(
@@ -66,23 +67,22 @@ class ObjectivesWidget(QWidget):
         if len(loaded) > 1:
             if not self._objective_device:
                 self._objective_device = guess_objective_or_prompt(parent=self)
-            self._clear_previous_device_widget()
+            self._combo.setParent(QWidget())
             self._combo = self._create_objective_combo(self._objective_device)
             self.layout().addWidget(self._combo)
-
-    def _clear_previous_device_widget(self) -> None:
-        self._combo.setParent(None)
-        self._combo.deleteLater()
 
     def _create_objective_combo(
         self, device_label: Union[str, None]
     ) -> Union[StateDeviceWidget, QComboBox]:
         if device_label:
-            combo = _ObjectiveStateWidget(device_label, mmcore=self._mmc)
-            combo.setMinimumWidth(285)
+            combo = (
+                _ObjectiveStateWidget(device_label, parent=self, mmcore=self._mmc)
+                if self._mmc.getFocusDevice()
+                else StateDeviceWidget(device_label, parent=self, mmcore=self._mmc)
+            )
             combo._combo.currentIndexChanged.connect(self._on_obj_changed)
         else:
-            combo = QComboBox()
+            combo = QComboBox(parent=self)
             combo.setEnabled(False)
         return combo
 

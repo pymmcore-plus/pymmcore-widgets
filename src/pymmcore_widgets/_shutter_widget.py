@@ -36,7 +36,8 @@ class ShuttersWidget(QWidget):
     mmcore: Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance][].
     """
 
     def __init__(
@@ -71,11 +72,11 @@ class ShuttersWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._refresh_shutter_widget)
         self._mmc.events.autoShutterSet.connect(self._on_autoshutter_changed)
         self._mmc.events.propertyChanged.connect(self._on_prop_changed)
-        self._mmc.events.startContinuousSequenceAcquisition.connect(
+        self._mmc.events.continuousSequenceAcquisitionStarted.connect(
             self._on_seq_started
         )
-        self._mmc.events.startSequenceAcquisition.connect(self._on_seq_started)
-        self._mmc.events.stopSequenceAcquisition.connect(self._on_seq_stopped)
+        self._mmc.events.sequenceAcquisitionStarted.connect(self._on_seq_started)
+        self._mmc.events.sequenceAcquisitionStopped.connect(self._on_seq_stopped)
         self._mmc.events.imageSnapped.connect(self._on_seq_stopped)
         self._mmc.events.configSet.connect(self._on_channel_set)
 
@@ -339,10 +340,10 @@ class ShuttersWidget(QWidget):
         )
         self._mmc.events.autoShutterSet.disconnect(self._on_autoshutter_changed)
         self._mmc.events.propertyChanged.disconnect(self._on_prop_changed)
-        self._mmc.events.startContinuousSequenceAcquisition.disconnect(
+        self._mmc.events.continuousSequenceAcquisitionStarted.disconnect(
             self._on_seq_started
         )
-        self._mmc.events.startSequenceAcquisition.disconnect(self._on_seq_started)
-        self._mmc.events.stopSequenceAcquisition.disconnect(self._on_seq_stopped)
+        self._mmc.events.sequenceAcquisitionStarted.disconnect(self._on_seq_started)
+        self._mmc.events.sequenceAcquisitionStopped.disconnect(self._on_seq_stopped)
         self._mmc.events.imageSnapped.disconnect(self._on_seq_stopped)
         self._mmc.events.configSet.disconnect(self._on_channel_set)

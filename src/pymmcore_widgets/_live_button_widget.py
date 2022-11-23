@@ -20,9 +20,12 @@ COLOR_TYPE = Union[
 class LiveButton(QPushButton):
     """A Widget to create a two-state (on-off) live mode QPushButton.
 
-    When pressed, a micromanager `ContinuousSequenceAcquisition` is started
-    or stopped and a `pymmcore-plus` signal [startContinuousSequenceAcquisition]()
-    or [stopSequenceAcquisition]() is emitted.
+    When pressed, a 'ContinuousSequenceAcquisition' is started or stopped
+    and a pymmcore-plus signal
+    [`continuousSequenceAcquisitionStarted`][pymmcore_plus.core.events._protocol.PCoreSignaler.continuousSequenceAcquisitionStarted]
+    or
+    [`sequenceAcquisitionStopped`][pymmcore_plus.core.events._protocol.PCoreSignaler.sequenceAcquisitionStopped]
+    is emitted.
 
     Parameters
     ----------
@@ -31,7 +34,14 @@ class LiveButton(QPushButton):
     mmcore: Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance][].
+
+    Examples
+    --------
+    !!! example "Combining `LiveButton` with other widgets"
+
+        see [ImagePreview](../ImagePreview#example)
     """
 
     def __init__(
@@ -53,10 +63,10 @@ class LiveButton(QPushButton):
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_system_cfg_loaded)
         self._on_system_cfg_loaded()
-        self._mmc.events.startContinuousSequenceAcquisition.connect(
+        self._mmc.events.continuousSequenceAcquisitionStarted.connect(
             self._on_sequence_started
         )
-        self._mmc.events.stopSequenceAcquisition.connect(self._on_sequence_stopped)
+        self._mmc.events.sequenceAcquisitionStopped.connect(self._on_sequence_stopped)
         self.destroyed.connect(self._disconnect)
 
         self._create_button()
@@ -163,7 +173,9 @@ class LiveButton(QPushButton):
         self._mmc.events.systemConfigurationLoaded.disconnect(
             self._on_system_cfg_loaded
         )
-        self._mmc.events.startContinuousSequenceAcquisition.disconnect(
+        self._mmc.events.continuousSequenceAcquisitionStarted.disconnect(
             self._on_sequence_started
         )
-        self._mmc.events.stopSequenceAcquisition.disconnect(self._on_sequence_stopped)
+        self._mmc.events.sequenceAcquisitionStopped.disconnect(
+            self._on_sequence_stopped
+        )

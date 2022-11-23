@@ -13,8 +13,7 @@ if TYPE_CHECKING:
 
 
 class ImagePreview(QWidget):
-    """
-    A Widget that displays the last image snapped by active core.
+    """A Widget that displays the last image snapped by active core.
 
     This widget will automatically update when the active core snaps an image
     or when the active core starts streaming.
@@ -26,7 +25,8 @@ class ImagePreview(QWidget):
     mmcore: Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) [`pymmcore_plus.CMMCorePlus.instance`][].
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance][].
     """
 
     def __init__(
@@ -67,15 +67,15 @@ class ImagePreview(QWidget):
     def _connect(self) -> None:
         ev = self._mmc.events
         ev.imageSnapped.connect(self._on_image_snapped)
-        ev.startContinuousSequenceAcquisition.connect(self._on_streaming_start)
-        ev.stopSequenceAcquisition.connect(self._on_streaming_stop)
+        ev.continuousSequenceAcquisitionStarted.connect(self._on_streaming_start)
+        ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
         ev.exposureChanged.connect(self._on_exposure_changed)
 
     def _disconnect(self) -> None:
         ev = self._mmc.events
         ev.imageSnapped.disconnect(self._on_image_snapped)
-        ev.startContinuousSequenceAcquisition.disconnect(self._on_streaming_start)
-        ev.stopSequenceAcquisition.disconnect(self._on_streaming_stop)
+        ev.continuousSequenceAcquisitionStarted.disconnect(self._on_streaming_start)
+        ev.sequenceAcquisitionStopped.disconnect(self._on_streaming_stop)
         ev.exposureChanged.disconnect(self._on_exposure_changed)
 
     def _on_streaming_start(self) -> None:
