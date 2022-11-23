@@ -1,3 +1,0 @@
-recursive-include docs *.md
-include *.yml
-recursive-include docs *.py
