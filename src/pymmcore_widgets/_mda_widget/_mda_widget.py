@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -14,9 +14,6 @@ from useq import MDASequence
 from .._util import _select_output_unit, _time_in_sec, guess_channel_group
 from ._grid_widget import GridWidget
 from ._mda_gui import _MDAWidgetGui
-
-if TYPE_CHECKING:
-    pass
 
 
 class MDAWidget(_MDAWidgetGui):
