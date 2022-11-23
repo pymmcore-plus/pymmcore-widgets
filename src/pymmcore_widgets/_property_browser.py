@@ -59,7 +59,7 @@ class _PropertyTable(QTableWidget):
         self.setRowCount(len(props))
         for i, (dev, prop) in enumerate(props):
             item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, core=self._mmc)
+            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
             self.setItem(i, 0, item)
             self.setCellWidget(i, 1, wdg)
             if wdg.isReadOnly():

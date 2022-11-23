@@ -58,7 +58,7 @@ class _PropertyTable(QTableWidget):
             _checkbox.setProperty("row", i)
             self.setCellWidget(i, 0, _checkbox)
             item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, core=self._mmc)
+            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
             wdg.setEnabled(False)
             self.setItem(i, 1, item)
             self.setCellWidget(i, 2, wdg)
