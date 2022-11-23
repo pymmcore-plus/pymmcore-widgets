@@ -83,7 +83,7 @@ class ChannelWidget(QWidget):
         self, channel_group: Optional[str]
     ) -> Union[PresetsWidget, QComboBox]:
         if channel_group:
-            channel_wdg = PresetsWidget(channel_group)
+            channel_wdg = PresetsWidget(channel_group, parent=self)
             self._mmc.setChannelGroup(channel_group)
         else:
             channel_wdg = QComboBox()

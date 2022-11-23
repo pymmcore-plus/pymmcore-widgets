@@ -67,26 +67,22 @@ class ObjectivesWidget(QWidget):
         if len(loaded) > 1:
             if not self._objective_device:
                 self._objective_device = guess_objective_or_prompt(parent=self)
-            self._clear_previous_device_widget()
+            self._combo.setParent(QWidget())
             self._combo = self._create_objective_combo(self._objective_device)
             self.layout().addWidget(self._combo)
-
-    def _clear_previous_device_widget(self) -> None:
-        self._combo.setParent(None)
-        self._combo.deleteLater()
 
     def _create_objective_combo(
         self, device_label: Union[str, None]
     ) -> Union[StateDeviceWidget, QComboBox]:
         if device_label:
             combo = (
-                _ObjectiveStateWidget(device_label, mmcore=self._mmc)
+                _ObjectiveStateWidget(device_label, parent=self, mmcore=self._mmc)
                 if self._mmc.getFocusDevice()
-                else StateDeviceWidget(device_label, mmcore=self._mmc)
+                else StateDeviceWidget(device_label, parent=self, mmcore=self._mmc)
             )
             combo._combo.currentIndexChanged.connect(self._on_obj_changed)
         else:
-            combo = QComboBox()
+            combo = QComboBox(parent=self)
             combo.setEnabled(False)
         return combo
 

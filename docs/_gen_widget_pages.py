@@ -1,10 +1,20 @@
 from pathlib import Path
+from textwrap import dedent
 
 import mkdocs_gen_files
 
 WIDGETS = Path(__file__).parent / "widgets"
 EXAMPLES = Path(__file__).parent.parent / "examples"
 TEMPLATE = """
+<figure markdown>
+  ![{widget} widget](../{img}){{ loading=lazy, class="widget-image" }}
+  <figcaption>
+    This image generated from <a href="#example">example code below</a>.
+  </figcaption>
+</figure>
+
+
+
 ::: pymmcore_widgets.{widget}
 
 ## Example
@@ -12,8 +22,6 @@ TEMPLATE = """
 ```python linenums="1" title="{snake}.py"
 --8<-- "examples/{snake}.py"
 ```
-
-![Example](../{img})
 """
 
 
@@ -39,86 +47,58 @@ def _camel_to_snake(name: str) -> str:
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 
-GRABBED = set()
+SEEN: set[int] = set()
 
 
-def _example_screenshot(cls_name) -> str:
+def _example_screenshot(cls_name: str, dest: str) -> None:
     path = EXAMPLES / f"{_camel_to_snake(cls_name)}.py"
     if not path.exists():
-        return ""
-    from pymmcore_plus import CMMCorePlus
+        raise ValueError(f"Could not find example: {path}")
+
     from qtpy.QtWidgets import QApplication
 
     src = path.read_text().strip()
     src = src.replace("QApplication([])", "QApplication.instance() or QApplication([])")
-    src = src.replace("self.mmc.loadSystemConfiguration()", "")
-    src = src.replace("mmc.loadSystemConfiguration()", "")
     src = src.replace("app.exec_()", "")
-
-    gl = globals().copy()
-    gl["__name__"] = "__main__"
-    try:
-        exec(src, gl, gl)
-    except Exception as e:
-        print("FAIL", cls_name, e)
-        return ""
-
-    name = f"{cls_name}.png"
+    gl = {**globals().copy(), "__name__": "__main__"}
+    exec(src, gl, gl)
 
     app = QApplication.instance() or QApplication([])
-    app.topLevelWidgets()
+    new = [w for w in app.topLevelWidgets() if id(w) not in SEEN]
+    SEEN.update(id(w) for w in new)
 
-    candidates = [w for w in app.topLevelWidgets() if id(w) not in GRABBED]
-
-    GRABBED.update({id(w) for w in app.topLevelWidgets()})
-
-    if len(candidates) > 1:
-        widget = next(w for w in candidates if w.__class__.__name__ == cls_name)
-    elif len(candidates) == 1:
-        widget = candidates[0]
-
-    widget.show()
-    widget.activateWindow()
-    QApplication.processEvents()
-    QApplication.processEvents()
-    # w.setFixedWidth(width)
-    with mkdocs_gen_files.open(name, "wb") as f:
-        widget.grab().save(f.name)
-        print("saved", f.name)
+    widget = next((w for w in new if w.__class__.__name__ == cls_name), None) or next(
+        (w for w in new if w.__class__.__name__ != "QFrame"), new[0]
+    )
+    widget.setMinimumWidth(300)  # turns out this is very important for grab
+    widget.grab().save(dest)
 
     for w in app.topLevelWidgets():
-        w.close()
         w.deleteLater()
 
-    QApplication.processEvents()
-    QApplication.processEvents()
-    mmc = CMMCorePlus().instance()
-    mmc.unloadAllDevices()
-    mmc.waitForSystem()
 
-    return name
-
-
-def generate_widget_pages() -> None:
+def _generate_widget_page(widget: str) -> None:
     """Auto-Generate pages in the widgets folder."""
-    from textwrap import dedent
+    filename = f"widgets/{widget}.md"
+    snake = _camel_to_snake(widget)
 
-    for widget in _widget_list():
-        if (WIDGETS / f"{widget}.md").exists():
-            # skip existing files
-            continue
+    img = f"images/{snake}.png"
+    with mkdocs_gen_files.open(img, "wb") as f:
+        _example_screenshot(widget, f.name)
 
-        filename = f"widgets/{widget}.md"
-        snake = _camel_to_snake(widget)
+    with mkdocs_gen_files.open(filename, "w") as f:
+        f.write(dedent(TEMPLATE.format(widget=widget, snake=snake, img=img)))
 
-        img = _example_screenshot(widget)
-        if not img:
-            print("no image for ", widget)
-
-        with mkdocs_gen_files.open(filename, "w") as f:
-            f.write(dedent(TEMPLATE.format(widget=widget, snake=snake, img=img)))
-
-        mkdocs_gen_files.set_edit_path(filename, Path(__file__).name)
+    mkdocs_gen_files.set_edit_path(filename, Path(__file__).name)
 
 
-generate_widget_pages()
+def _generate_widget_pages() -> None:
+    # skip classes that have manual examples
+    widgets = [w for w in _widget_list() if not (WIDGETS / f"{w}.md").exists()]
+
+    # it would be nice to do this in parallel,
+    # but mkdocs_gen_files doesn't work well with multiprocessing
+    list(map(_generate_widget_page, widgets))
+
+
+_generate_widget_pages()
