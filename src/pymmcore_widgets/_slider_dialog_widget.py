@@ -34,11 +34,11 @@ class SliderDialog(QDialog):
     def __init__(
         self,
         property_regex: str,
-        parent: Optional[QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ):
-        super().__init__(parent)
+        super().__init__(parent=parent)
         ptrn = re.compile(property_regex, re.IGNORECASE)
 
         _grid = QGridLayout()

@@ -46,12 +46,12 @@ class SampleExplorerWidget(SampleExplorerGui):
 
     def __init__(
         self,
-        parent: QtW.QWidget = None,
         *,
+        parent: QtW.QWidget = None,
         include_run_button: bool = False,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self._include_run_button = include_run_button
 

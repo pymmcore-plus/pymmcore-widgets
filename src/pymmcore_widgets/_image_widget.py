@@ -31,8 +31,8 @@ class ImagePreview(QWidget):
 
     def __init__(
         self,
-        parent: Optional[QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ):
         try:
@@ -43,7 +43,7 @@ class ImagePreview(QWidget):
                 "Please run `pip install pymmcore-widgets[image]`"
             ) from e
 
-        super().__init__(parent)
+        super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
         self._imcls = scene.visuals.Image
         self._clims: Union[Tuple[float, float], Literal["auto"]] = "auto"

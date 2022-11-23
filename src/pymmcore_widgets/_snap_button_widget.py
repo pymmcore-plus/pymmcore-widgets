@@ -45,12 +45,12 @@ class SnapButton(QPushButton):
 
     def __init__(
         self,
-        parent: Optional[QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
 
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
 

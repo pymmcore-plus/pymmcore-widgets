@@ -30,8 +30,8 @@ LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 class SampleExplorerGui(QWidget):
     """Just the UI of the explorer widget. Runtime logic in MMExploreSample."""
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
-        super().__init__(parent)
+    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent=parent)
 
         self.setLayout(QVBoxLayout())
         self.layout().setSpacing(10)

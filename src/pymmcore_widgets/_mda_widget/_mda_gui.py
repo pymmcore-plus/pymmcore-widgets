@@ -29,8 +29,8 @@ LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 class _MDAWidgetGui(QWidget):
     """Just the UI portion of the MDA widget. Runtime logic in MDAWidget."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
-        super().__init__(parent)
+    def __init__(self, *, parent: Optional[QWidget] = None):
+        super().__init__(parent=parent)
 
         self.setLayout(QVBoxLayout())
         self.layout().setSpacing(10)

@@ -336,11 +336,11 @@ class PropertyWidget(QWidget):
         self,
         device_label: str,
         prop_name: str,
-        parent: Optional[QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
 
         if device_label not in self._mmc.getLoadedDevices():

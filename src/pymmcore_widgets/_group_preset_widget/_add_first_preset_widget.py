@@ -32,7 +32,7 @@ class AddFirstPresetWidget(QDialog):
         *,
         parent: Optional[QWidget] = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self._mmc = CMMCorePlus.instance()
         self._group = group

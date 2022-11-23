@@ -47,12 +47,12 @@ class MDAWidget(_MDAWidgetGui):
 
     def __init__(
         self,
-        parent: Optional[QtW.QWidget] = None,
         *,
+        parent: Optional[QtW.QWidget] = None,
         include_run_button: bool = False,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self._include_run_button = include_run_button
 
@@ -146,7 +146,7 @@ class MDAWidget(_MDAWidgetGui):
         if not self._mmc.getXYStageDevice():
             return
         if not hasattr(self, "_grid_wdg"):
-            self._grid_wdg = GridWidget(self)
+            self._grid_wdg = GridWidget(parent=self)
             self._grid_wdg.sendPosList.connect(self._add_to_position_table)
         self._grid_wdg.show()
         self._grid_wdg.raise_()

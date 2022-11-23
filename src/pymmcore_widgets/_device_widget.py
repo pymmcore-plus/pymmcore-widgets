@@ -38,11 +38,11 @@ class DeviceWidget(QWidget):
     def __init__(
         self,
         device_label: str,
-        parent: Optional[QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
         self._device_label = device_label
         self._mmc = mmcore or CMMCorePlus.instance()
         self.destroyed.connect(self._disconnect)
@@ -126,11 +126,11 @@ class StateDeviceWidget(DeviceWidget):
     def __init__(
         self,
         device_label: str,
-        parent: Optional[QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
-        super().__init__(device_label, parent, mmcore=mmcore)
+        super().__init__(device_label, parent=parent, mmcore=mmcore)
         assert self.deviceType() == DeviceType.StateDevice
 
         self._combo = QComboBox()

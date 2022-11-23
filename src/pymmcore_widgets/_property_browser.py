@@ -95,9 +95,9 @@ class PropertyBrowser(QDialog):
     """
 
     def __init__(
-        self, parent: Optional[QWidget] = None, *, mmcore: Optional[CMMCorePlus] = None
+        self, *, parent: Optional[QWidget] = None, mmcore: Optional[CMMCorePlus] = None
     ):
-        super().__init__(parent)
+        super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._prop_table = _PropertyTable(mmcore)

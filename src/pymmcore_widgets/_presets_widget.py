@@ -29,12 +29,12 @@ class PresetsWidget(QWidget):
     def __init__(
         self,
         group: str,
-        parent: Optional[QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
 
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 

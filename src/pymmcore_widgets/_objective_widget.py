@@ -33,11 +33,11 @@ class ObjectivesWidget(QWidget):
     def __init__(
         self,
         objective_device: str = None,  # type: ignore
-        parent: Optional[QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None
     ):
-        super().__init__(parent)
+        super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
         self._objective_device = objective_device or guess_objective_or_prompt(
             parent=self
