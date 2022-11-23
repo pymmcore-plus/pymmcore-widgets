@@ -46,9 +46,7 @@ class PixelSizeTable(QTableWidget):
         "delete": "Delete",
     }
 
-    def __init__(
-        self, mmcore: CMMCorePlus, parent: Optional[QtW.QWidget] = None
-    ) -> None:
+    def __init__(self, mmcore: CMMCorePlus, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._mmc = mmcore
         hh = self.horizontalHeader()
