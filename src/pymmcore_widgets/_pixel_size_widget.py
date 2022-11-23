@@ -46,9 +46,11 @@ class PixelSizeTable(QTableWidget):
         "delete": "Delete",
     }
 
-    def __init__(self, core: CMMCorePlus, parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self, mmcore: CMMCorePlus, parent: Optional[QtW.QWidget] = None
+    ) -> None:
         super().__init__(parent)
-        self._mmc = core
+        self._mmc = mmcore
         hh = self.horizontalHeader()
         hh.setSectionResizeMode(hh.Stretch)
         hh.setDefaultAlignment(Qt.AlignHCenter)

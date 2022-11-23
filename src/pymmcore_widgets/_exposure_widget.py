@@ -40,6 +40,7 @@ class ExposureWidget(QWidget):
         mmcore: Optional[CMMCorePlus] = None,
     ):
         super().__init__(parent=parent)
+
         self._mmc = mmcore or CMMCorePlus.instance()
         self._camera = camera or self._mmc.getCameraDevice()
 
@@ -120,6 +121,7 @@ class DefaultCameraExposureWidget(ExposureWidget):
         mmcore: Optional[CMMCorePlus] = None,
     ):
         super().__init__(parent=parent, mmcore=mmcore)
+
         self._mmc.events.devicePropertyChanged(
             g_Keyword_CoreDevice, g_Keyword_CoreCamera
         ).connect(self._camera_updated)

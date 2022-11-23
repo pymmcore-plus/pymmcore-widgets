@@ -46,15 +46,15 @@ class ComboMessageBox(QDialog):
 
 
 def guess_channel_group(
-    core: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
+    mmcore: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
 ) -> Optional[str]:
     """Try to update the list of channel group choices.
 
     1. get a list of potential channel groups from pymmcore
     2. if there is only one, use it, if there are > 1, show a dialog box
     """
-    core = core or CMMCorePlus.instance()
-    candidates = core.getOrGuessChannelGroup()
+    mmcore = mmcore or CMMCorePlus.instance()
+    candidates = mmcore.getOrGuessChannelGroup()
     if len(candidates) == 1:
         return candidates[0]
     elif candidates:
@@ -65,15 +65,15 @@ def guess_channel_group(
 
 
 def guess_objective_or_prompt(
-    core: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
+    mmcore: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
 ) -> Optional[str]:
     """Try to update the list of objective choices.
 
     1. get a list of potential objective devices from pymmcore
     2. if there is only one, use it, if there are >1, show a dialog box
     """
-    core = core or CMMCorePlus.instance()
-    candidates = core.guessObjectiveDevices()
+    mmcore = mmcore or CMMCorePlus.instance()
+    candidates = mmcore.guessObjectiveDevices()
     if len(candidates) == 1:
         return candidates[0]
     elif candidates:

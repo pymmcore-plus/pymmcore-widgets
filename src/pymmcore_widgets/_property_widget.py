@@ -131,10 +131,10 @@ class ChoiceWidget(QComboBox):
     valueChanged = Signal(str)
 
     def __init__(
-        self, core: CMMCorePlus, dev: str, prop: str, parent: Optional[QWidget] = None
+        self, mmcore: CMMCorePlus, dev: str, prop: str, parent: Optional[QWidget] = None
     ) -> None:
         super().__init__(parent)
-        self._mmc = core
+        self._mmc = mmcore
         self._dev = dev
         self._prop = prop
         self._allowed: Tuple[str, ...] = ()
@@ -221,7 +221,7 @@ class ReadOnlyWidget(QLabel):
 
 
 def make_property_value_widget(
-    dev: str, prop: str, core: Optional[CMMCorePlus] = None
+    dev: str, prop: str, mmcore: Optional[CMMCorePlus] = None
 ) -> PPropValueWidget:
     """Return a widget for device `dev`, property `prop`.
 
@@ -233,7 +233,7 @@ def make_property_value_widget(
         Device label
     prop : str
         Property name
-    core : Optional[CMMCorePlus]
+    mmcore : Optional[CMMCorePlus]
         Optional CMMCorePlus instance, by default the global singleton.
 
     Returns
@@ -241,13 +241,13 @@ def make_property_value_widget(
     PPropValueWidget
         A widget with a normalized PropValueWidget protocol.
     """
-    core = core or CMMCorePlus.instance()
+    mmcore = mmcore or CMMCorePlus.instance()
 
     # Create the widget based on property type and allowed choices
-    wdg = _creat_prop_widget(core, dev, prop)
+    wdg = _creat_prop_widget(mmcore, dev, prop)
 
     # set current value from core
-    wdg.setValue(core.getProperty(dev, prop))
+    wdg.setValue(mmcore.getProperty(dev, prop))
 
     # connect events and queue for disconnection on widget destroyed
     def _on_core_change(dev_label: str, prop_name: str, new_val: Any) -> None:
@@ -255,39 +255,39 @@ def make_property_value_widget(
             with utils.signals_blocked(wdg):
                 wdg.setValue(new_val)
 
-    core.events.propertyChanged.connect(_on_core_change)
+    mmcore.events.propertyChanged.connect(_on_core_change)
 
     @wdg.destroyed.connect
-    def _disconnect(*, _core=core):  # type: ignore
+    def _disconnect(*, _mmcore=mmcore):  # type: ignore
         with contextlib.suppress(RuntimeError):
-            _core.events.propertyChanged.disconnect(_on_core_change)
+            _mmcore.events.propertyChanged.disconnect(_on_core_change)
 
     @wdg.valueChanged.connect
-    def _on_widget_change(value, _core=core) -> None:  # type: ignore
-        # if there's an error when updating core, reset widget value to core
+    def _on_widget_change(value, _mmcore=mmcore) -> None:  # type: ignore
+        # if there's an error when updating mmcore, reset widget value to mmcore
         try:
-            _core.setProperty(dev, prop, value)
+            _mmcore.setProperty(dev, prop, value)
         except (RuntimeError, ValueError):
-            wdg.setValue(_core.getProperty(dev, prop))
+            wdg.setValue(_mmcore.getProperty(dev, prop))
 
     return wdg
 
 
-def _creat_prop_widget(core: CMMCorePlus, dev: str, prop: str) -> PPropValueWidget:
+def _creat_prop_widget(mmcore: CMMCorePlus, dev: str, prop: str) -> PPropValueWidget:
     """The type -> widget selection part used in the above function."""
-    if core.isPropertyReadOnly(dev, prop):
+    if mmcore.isPropertyReadOnly(dev, prop):
         return ReadOnlyWidget()
 
-    ptype = core.getPropertyType(dev, prop)
-    if allowed := core.getAllowedPropertyValues(dev, prop):
+    ptype = mmcore.getPropertyType(dev, prop)
+    if allowed := mmcore.getAllowedPropertyValues(dev, prop):
         if ptype is PropertyType.Integer and set(allowed) == {"0", "1"}:
             return IntBoolWidget()
-        return ChoiceWidget(core, dev, prop)
-    if prop in {STATE, LABEL} and core.getDeviceType(dev) == DeviceType.StateDevice:
+        return ChoiceWidget(mmcore, dev, prop)
+    if prop in {STATE, LABEL} and mmcore.getDeviceType(dev) == DeviceType.StateDevice:
         # TODO: This logic is very similar to StateDeviceWidget. use this in the future?
-        return ChoiceWidget(core, dev, prop)
+        return ChoiceWidget(mmcore, dev, prop)
     if ptype in (PropertyType.Integer, PropertyType.Float):
-        if not core.hasPropertyLimits(dev, prop):
+        if not mmcore.hasPropertyLimits(dev, prop):
             wdg = IntegerWidget() if ptype is PropertyType.Integer else FloatWidget()
             return wdg
         wdg = (
@@ -295,8 +295,8 @@ def _creat_prop_widget(core: CMMCorePlus, dev: str, prop: str) -> PPropValueWidg
             if ptype is PropertyType.Integer
             else RangedFloatWidget()
         )
-        wdg.setMinimum(wdg._cast(core.getPropertyLowerLimit(dev, prop)))
-        wdg.setMaximum(wdg._cast(core.getPropertyUpperLimit(dev, prop)))
+        wdg.setMinimum(wdg._cast(mmcore.getPropertyLowerLimit(dev, prop)))
+        wdg.setMaximum(wdg._cast(mmcore.getPropertyUpperLimit(dev, prop)))
         return wdg
     return cast(PPropValueWidget, StringWidget())
 
@@ -340,7 +340,9 @@ class PropertyWidget(QWidget):
         parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
+
         super().__init__(parent=parent)
+
         self._mmc = mmcore or CMMCorePlus.instance()
 
         if device_label not in self._mmc.getLoadedDevices():
@@ -363,22 +365,22 @@ class PropertyWidget(QWidget):
 
     def value(self) -> Any:
         """Get value.""" """
-        Return the current value of the *widget* (which should match core)."""
+        Return the current value of the *widget* (which should match mmcore)."""
         return self._value_widget.value()
 
     def setValue(self, value: Any) -> None:
-        """Set the current value of the *widget* (which should match core)."""
+        """Set the current value of the *widget* (which should match mmcore)."""
         self._value_widget.setValue(value)
 
     def allowedValues(self) -> Tuple[str, ...]:
         """Return tuple of allowable values if property is categorical."""
-        # this will have already been grabbed from core on creation, and will
+        # this will have already been grabbed from mmcore on creation, and will
         # have also taken into account the restrictions in the State/Label property
         # of state devices.  So check for the _allowed attribute on the widget.
         return tuple(getattr(self._value_widget, "_allowed", ()))
 
     def refresh(self) -> None:
-        """Update the value of the widget from core.
+        """Update the value of the widget from mmcore.
 
         (If all goes well this shouldn't be necessary, but if a propertyChanged
         event is missed, this can be used).
