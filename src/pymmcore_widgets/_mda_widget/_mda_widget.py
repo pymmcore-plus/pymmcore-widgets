@@ -175,13 +175,13 @@ class MDAWidget(_MDAWidgetGui):
             self.stage_tableWidget.insertRow(rows)
 
             item = QtW.QTableWidgetItem(f"Grid{grid_number:03d}_Pos{idx:03d}")
-            item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
             x = QtW.QTableWidgetItem(str(position[0]))
-            x.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            x.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
             y = QtW.QTableWidgetItem(str(position[1]))
-            y.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            y.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
             z = QtW.QTableWidgetItem(str(position[2]))
-            z.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            z.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
 
             self.stage_tableWidget.setItem(rows, 0, item)
             self.stage_tableWidget.setItem(rows, 1, x)
@@ -385,7 +385,7 @@ class MDAWidget(_MDAWidgetGui):
                 if ax == "P":
                     count = self.stage_tableWidget.rowCount() - 1
                     item = QtW.QTableWidgetItem(f"Pos{count:03d}")
-                    item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+                    item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                     self.stage_tableWidget.setItem(idx, c, item)
                     self._rename_positions(["Pos"])
                     continue
@@ -394,7 +394,7 @@ class MDAWidget(_MDAWidgetGui):
                     continue
                 cur = getattr(self._mmc, f"get{ax}Position")()
                 item = QtW.QTableWidgetItem(str(cur))
-                item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                 self.stage_tableWidget.setItem(idx, c, item)
 
             self._calculate_total_time()
@@ -434,7 +434,7 @@ class MDAWidget(_MDAWidgetGui):
                 else:
                     continue
                 item = QtW.QTableWidgetItem(new_name)
-                item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                 self.stage_tableWidget.setItem(r, 0, item)
 
     def _clear_positions(self) -> None:
@@ -540,7 +540,7 @@ class MDAWidget(_MDAWidgetGui):
                         item = QtW.QTableWidgetItem(str(pos_name))
                     else:
                         item = QtW.QTableWidgetItem(str(getattr(pos, ax)))
-                    item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+                    item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                     self.stage_tableWidget.setItem(idx, c, item)
         else:
             self.stage_pos_groupBox.setChecked(False)

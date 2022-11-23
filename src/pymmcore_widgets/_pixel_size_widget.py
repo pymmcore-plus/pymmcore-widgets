@@ -50,11 +50,11 @@ class PixelSizeTable(QTableWidget):
         super().__init__(parent)
         self._mmc = mmcore
         hh = self.horizontalHeader()
-        hh.setSectionResizeMode(hh.Stretch)
+        hh.setSectionResizeMode(hh.ResizeMode.Stretch)
         hh.setDefaultAlignment(Qt.AlignHCenter)
         vh = self.verticalHeader()
         vh.setVisible(False)
-        vh.setSectionResizeMode(hh.Stretch)
+        vh.setSectionResizeMode(hh.ResizeMode.Stretch)
         self.setSelectionBehavior(QAbstractItemView.SelectItems)
         self.setDragDropMode(QAbstractItemView.NoDragDrop)
 

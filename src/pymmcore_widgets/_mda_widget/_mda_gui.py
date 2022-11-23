@@ -89,7 +89,7 @@ class _MDAWidgetGui(QWidget):
 
         self.channel_tableWidget.setMinimumHeight(90)
         hdr = self.channel_tableWidget.horizontalHeader()
-        hdr.setSectionResizeMode(hdr.Stretch)
+        hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
         self.channel_tableWidget.verticalHeader().setVisible(False)
         self.channel_tableWidget.setTabKeyNavigation(True)
         self.channel_tableWidget.setColumnCount(2)
@@ -375,7 +375,7 @@ class _MDAWidgetGui(QWidget):
         self.stage_tableWidget = QTableWidget()
         self.stage_tableWidget.setSelectionBehavior(QAbstractItemView.SelectRows)
         hdr = self.stage_tableWidget.horizontalHeader()
-        hdr.setSectionResizeMode(hdr.Stretch)
+        hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
         self.stage_tableWidget.verticalHeader().setVisible(False)
         self.stage_tableWidget.setTabKeyNavigation(True)
         self.stage_tableWidget.setColumnCount(4)

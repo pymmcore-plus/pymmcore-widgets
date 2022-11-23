@@ -189,11 +189,11 @@ class _Table(QTableWidget):
     def __init__(self) -> None:
         super().__init__()
         hdr = self.horizontalHeader()
-        hdr.setSectionResizeMode(hdr.Stretch)
+        hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
         hdr.setDefaultAlignment(Qt.AlignHCenter)
         vh = self.verticalHeader()
         vh.setVisible(False)
-        vh.setSectionResizeMode(vh.Fixed)
+        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
         vh.setDefaultSectionSize(24)
         self.setEditTriggers(QTableWidget.NoEditTriggers)
         self.setColumnCount(2)
