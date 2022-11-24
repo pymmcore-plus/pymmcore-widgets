@@ -58,6 +58,7 @@ class PixelSizeTable(QTableWidget):
         self.setSelectionBehavior(QAbstractItemView.SelectItems)
         self.setDragDropMode(QAbstractItemView.NoDragDrop)
 
+
     def _rebuild(
         self, obj_dev: str, _cam_mag_dict: Dict[str, Tuple[float, float]] = None  # type: ignore # noqa:E501
     ) -> None:
