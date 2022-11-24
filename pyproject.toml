@@ -61,6 +61,7 @@ dev = [
     "rich",
 ]
 docs = [
+    "vispy",
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings-python",
