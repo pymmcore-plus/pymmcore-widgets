@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -12,9 +12,6 @@ from useq import MDASequence
 
 from .._util import _select_output_unit, _time_in_sec, guess_channel_group
 from ._sample_explorer_gui import SampleExplorerGui
-
-if TYPE_CHECKING:
-    from pymmcore_plus.mda import PMDAEngine
 
 
 class SampleExplorerWidget(SampleExplorerGui):
@@ -117,18 +114,8 @@ class SampleExplorerWidget(SampleExplorerGui):
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequencePauseToggled.connect(self._on_mda_paused)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
-        self._mmc.events.mdaEngineRegistered.connect(self._update_mda_engine)
 
         self._on_sys_cfg_loaded()
-
-    def _update_mda_engine(self, newEngine: PMDAEngine, oldEngine: PMDAEngine) -> None:
-        oldEngine.events.sequenceStarted.disconnect(self._on_mda_started)
-        oldEngine.events.sequenceFinished.disconnect(self._on_mda_finished)
-        oldEngine.events.sequencePauseToggled.disconnect(self._on_mda_paused)
-
-        newEngine.events.sequenceStarted.connect(self._on_mda_started)
-        newEngine.events.sequenceFinished.connect(self._on_mda_finished)
-        newEngine.events.sequencePauseToggled.connect(self._on_mda_paused)
 
     def _on_sys_cfg_loaded(self) -> None:
         self.pixel_size = self._mmc.getPixelSizeUm()
@@ -286,7 +273,7 @@ class SampleExplorerWidget(SampleExplorerGui):
                     count = self.stage_tableWidget.rowCount()
                     item = QtW.QTableWidgetItem(f"Grid_{count:03d}")
                     item.setWhatsThis(f"Grid_{count:03d}")
-                    item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+                    item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                     self.stage_tableWidget.setItem(idx, c, item)
                     self._rename_positions()
                     continue
@@ -296,7 +283,7 @@ class SampleExplorerWidget(SampleExplorerGui):
 
                 cur = getattr(self._mmc, f"get{ax}Position")()
                 item = QtW.QTableWidgetItem(str(cur))
-                item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                 self.stage_tableWidget.setItem(idx, c, item)
 
         self._calculate_total_time()
@@ -332,7 +319,7 @@ class SampleExplorerWidget(SampleExplorerGui):
             new_whatisthis = f"Grid_{grid_count:03d}"
 
             item = QtW.QTableWidgetItem(new_name)
-            item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
             item.setWhatsThis(new_whatisthis)
             self.stage_tableWidget.setItem(r, 0, item)
 

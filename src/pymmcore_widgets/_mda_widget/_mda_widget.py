@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -15,17 +15,19 @@ from .._util import _select_output_unit, _time_in_sec, guess_channel_group
 from ._grid_widget import GridWidget
 from ._mda_gui import _MDAWidgetGui
 
-if TYPE_CHECKING:
-    from pymmcore_plus.mda import PMDAEngine
-
 
 class MDAWidget(_MDAWidgetGui):
-    """Multi-dimensional acquisition Widget.
+    """A Multi-dimensional acquisition Widget.
 
-    The `MDAWidget` provides a GUI to construct a `useq.MDASequence` object.
+    The `MDAWidget` provides a GUI to construct a
+    [`useq.MDASequence`](https://github.com/tlambert03/useq-schema) object.
     If the `include_run_button` parameter is set to `True`, a "run" button is added
-    to the GUI and, when clicked, the generated `useq.MDASequence` is passed to the
-    `CMMCorePlus.run_mda` method and the acquisition is executed.
+    to the GUI and, when clicked, the generated
+    [`useq.MDASequence`](https://github.com/tlambert03/useq-schema)
+    is passed to the
+    [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.run_mda]
+    method and the acquisition
+    is executed.
 
     Parameters
     ----------
@@ -33,22 +35,24 @@ class MDAWidget(_MDAWidgetGui):
         Optional parent widget, by default None.
     include_run_button: bool
         By default, `False`. If `True`, a "run" button is added to the widget.
-        The acquisition defined by the `useq.MDASequence` built through the
-        widget is executed when clicked.
+        The acquisition defined by the
+        [`useq.MDASequence`](https://github.com/tlambert03/useq-schema)
+        built through the widget is executed when clicked.
     mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus` micromanager core.
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) `CMMCorePlus.instance()`.
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     def __init__(
         self,
-        parent: Optional[QtW.QWidget] = None,
         *,
+        parent: Optional[QtW.QWidget] = None,
         include_run_button: bool = False,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self._include_run_button = include_run_button
 
@@ -103,7 +107,6 @@ class MDAWidget(_MDAWidgetGui):
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.mda.events.sequencePauseToggled.connect(self._on_mda_paused)
-        self._mmc.events.mdaEngineRegistered.connect(self._update_mda_engine)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
 
         self._on_sys_cfg_loaded()
@@ -111,15 +114,6 @@ class MDAWidget(_MDAWidgetGui):
     def _on_sys_cfg_loaded(self) -> None:
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
-
-    def _update_mda_engine(self, newEngine: PMDAEngine, oldEngine: PMDAEngine) -> None:
-        oldEngine.events.sequenceStarted.disconnect(self._on_mda_started)
-        oldEngine.events.sequenceFinished.disconnect(self._on_mda_finished)
-        oldEngine.events.sequencePauseToggled.disconnect(self._on_mda_paused)
-
-        newEngine.events.sequenceStarted.connect(self._on_mda_started)
-        newEngine.events.sequenceFinished.connect(self._on_mda_finished)
-        newEngine.events.sequencePauseToggled.connect(self._on_mda_paused)
 
     def _set_enabled(self, enabled: bool) -> None:
         self.time_groupBox.setEnabled(enabled)
@@ -142,7 +136,7 @@ class MDAWidget(_MDAWidgetGui):
         if not self._mmc.getXYStageDevice():
             return
         if not hasattr(self, "_grid_wdg"):
-            self._grid_wdg = GridWidget(self)
+            self._grid_wdg = GridWidget(parent=self)
             self._grid_wdg.sendPosList.connect(self._add_to_position_table)
         self._grid_wdg.show()
         self._grid_wdg.raise_()
@@ -168,13 +162,13 @@ class MDAWidget(_MDAWidgetGui):
             self.stage_tableWidget.insertRow(rows)
 
             item = QtW.QTableWidgetItem(f"Grid{grid_number:03d}_Pos{idx:03d}")
-            item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
             x = QtW.QTableWidgetItem(str(position[0]))
-            x.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            x.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
             y = QtW.QTableWidgetItem(str(position[1]))
-            y.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            y.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
             z = QtW.QTableWidgetItem(str(position[2]))
-            z.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            z.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
 
             self.stage_tableWidget.setItem(rows, 0, item)
             self.stage_tableWidget.setItem(rows, 1, x)
@@ -378,7 +372,7 @@ class MDAWidget(_MDAWidgetGui):
                 if ax == "P":
                     count = self.stage_tableWidget.rowCount() - 1
                     item = QtW.QTableWidgetItem(f"Pos{count:03d}")
-                    item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+                    item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                     self.stage_tableWidget.setItem(idx, c, item)
                     self._rename_positions(["Pos"])
                     continue
@@ -387,7 +381,7 @@ class MDAWidget(_MDAWidgetGui):
                     continue
                 cur = getattr(self._mmc, f"get{ax}Position")()
                 item = QtW.QTableWidgetItem(str(cur))
-                item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                 self.stage_tableWidget.setItem(idx, c, item)
 
             self._calculate_total_time()
@@ -427,7 +421,7 @@ class MDAWidget(_MDAWidgetGui):
                 else:
                     continue
                 item = QtW.QTableWidgetItem(new_name)
-                item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                 self.stage_tableWidget.setItem(r, 0, item)
 
     def _clear_positions(self) -> None:
@@ -533,7 +527,7 @@ class MDAWidget(_MDAWidgetGui):
                         item = QtW.QTableWidgetItem(str(pos_name))
                     else:
                         item = QtW.QTableWidgetItem(str(getattr(pos, ax)))
-                    item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
+                    item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                     self.stage_tableWidget.setItem(idx, c, item)
         else:
             self.stage_pos_groupBox.setChecked(False)
