@@ -95,9 +95,7 @@ class SampleExplorerWidget(SampleExplorerGui):
         if self._include_run_button:
             self.start_scan_Button.clicked.connect(self._start_scan)
         self.cancel_scan_Button.clicked.connect(self._mmc.mda.cancel)
-        self.pause_scan_Button.clicked.connect(
-            lambda: self._mmc.mda.toggle_pause()  # type: ignore [no-untyped-call]
-        )
+        self.pause_scan_Button.clicked.connect(lambda: self._mmc.mda.toggle_pause())
 
         # connect toggle
         self.time_groupBox.toggled.connect(self._calculate_total_time)

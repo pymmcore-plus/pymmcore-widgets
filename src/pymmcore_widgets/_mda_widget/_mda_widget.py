@@ -63,12 +63,8 @@ class MDAWidget(_MDAWidgetGui):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self.pause_Button.released.connect(
-            lambda: self._mmc.mda.toggle_pause()  # type: ignore [no-untyped-call]
-        )
-        self.cancel_Button.released.connect(
-            lambda: self._mmc.mda.cancel()  # type: ignore [no-untyped-call]
-        )
+        self.pause_Button.released.connect(lambda: self._mmc.mda.toggle_pause())
+        self.cancel_Button.released.connect(lambda: self._mmc.mda.cancel())
 
         # connect buttons
         self.add_pos_Button.clicked.connect(self._add_position)
