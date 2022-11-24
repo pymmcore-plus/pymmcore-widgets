@@ -129,7 +129,9 @@ class AddGroupWidget(QDialog):
         wdg.setLayout(layout)
 
         group_lbl = QLabel(text="Group name:")
-        group_lbl.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
+        group_lbl.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        )
 
         self.group_lineedit = QLineEdit()
 
@@ -183,7 +185,7 @@ class AddGroupWidget(QDialog):
 
         self.new_group_btn = QPushButton(text="Create New Group")
         self.new_group_btn.setSizePolicy(
-            QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         )
         self.new_group_btn.clicked.connect(self._add_group)
 

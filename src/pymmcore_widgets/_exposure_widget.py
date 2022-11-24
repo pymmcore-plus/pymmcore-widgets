@@ -48,7 +48,7 @@ class ExposureWidget(QWidget):
         self.label.setText(" ms")
         self.label.setMaximumWidth(30)
         self.spinBox = QDoubleSpinBox()
-        self.spinBox.setAlignment(Qt.AlignCenter)
+        self.spinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.spinBox.setMinimum(1.0)
         self.spinBox.setMaximum(100000.0)
         self.spinBox.setKeyboardTracking(False)

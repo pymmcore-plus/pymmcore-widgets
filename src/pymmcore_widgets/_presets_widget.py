@@ -128,7 +128,9 @@ class PresetsWidget(QWidget):
             dev_prop = self._get_preset_dev_prop(self._group, preset)
             if len(dev_prop) != len(self.dev_prop):
                 idx = self._presets.index(preset)
-                self._combo.setItemData(idx, QBrush(Qt.magenta), Qt.TextColorRole)
+                self._combo.setItemData(
+                    idx, QBrush(Qt.GlobalColor.magenta), Qt.ItemDataRole.ForegroundRole
+                )
 
     def _on_cfg_set(self, group: str, preset: str) -> None:
 

@@ -85,7 +85,7 @@ class EditPresetWidget(QDialog):
         wdg_layout.setContentsMargins(5, 5, 5, 5)
         wdg.setLayout(wdg_layout)
 
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        lbl_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         gp_lbl = QLabel(text="Group:")
         gp_lbl.setSizePolicy(lbl_sizepolicy)
@@ -100,11 +100,11 @@ class EditPresetWidget(QDialog):
         ps_lbl.setSizePolicy(lbl_sizepolicy)
         self.preset_name_lineedit = QLineEdit()
         self.preset_name_lineedit.setSizePolicy(
-            QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+            QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         )
         self.preset_name_lineedit.setText(f"{self._preset}")
 
-        spacer = QSpacerItem(30, 10, QSizePolicy.Fixed, QSizePolicy.Fixed)
+        spacer = QSpacerItem(30, 10, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         wdg_layout.addWidget(gp_lbl)
         wdg_layout.addWidget(group_name_lbl)
@@ -126,7 +126,7 @@ class EditPresetWidget(QDialog):
         self.info_lbl = QLabel()
         self.apply_button = QPushButton(text="Apply Changes")
         self.apply_button.setSizePolicy(
-            QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         )
         self.apply_button.clicked.connect(self._apply_changes)
 
@@ -228,11 +228,11 @@ class _Table(QTableWidget):
         super().__init__()
         hdr = self.horizontalHeader()
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
-        hdr.setDefaultAlignment(Qt.AlignHCenter)
+        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
         vh = self.verticalHeader()
         vh.setVisible(False)
         vh.setSectionResizeMode(vh.ResizeMode.Fixed)
         vh.setDefaultSectionSize(24)
-        self.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Device-Property", "Value"])

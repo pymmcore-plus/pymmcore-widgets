@@ -52,7 +52,9 @@ class SnapButton(QPushButton):
 
         super().__init__(parent=parent)
 
-        self.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
+        self.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        )
 
         self._mmc = mmcore or CMMCorePlus.instance()
 

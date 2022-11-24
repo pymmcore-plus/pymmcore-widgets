@@ -23,7 +23,7 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 
-LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
 
 class _MDAWidgetGui(QWidget):
@@ -100,7 +100,7 @@ class _MDAWidgetGui(QWidget):
         group_layout.addWidget(self.channel_tableWidget, 0, 0, 3, 1)
 
         # buttons
-        btn_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        btn_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         min_size = 100
         self.add_ch_button = QPushButton(text="Add")
         self.add_ch_button.setMinimumWidth(min_size)
@@ -125,7 +125,9 @@ class _MDAWidgetGui(QWidget):
         group = QGroupBox(title="Time")
         group.setCheckable(True)
         group.setChecked(False)
-        group.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
+        group.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        )
         # group_layout = QHBoxLayout()
         group_layout = QGridLayout()
         group_layout.setSpacing(5)
@@ -144,9 +146,9 @@ class _MDAWidgetGui(QWidget):
         self.timepoints_spinBox.setMinimum(1)
         self.timepoints_spinBox.setMaximum(1000000)
         self.timepoints_spinBox.setSizePolicy(
-            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         )
-        self.timepoints_spinBox.setAlignment(Qt.AlignCenter)
+        self.timepoints_spinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         wdg_lay.addWidget(lbl)
         wdg_lay.addWidget(self.timepoints_spinBox)
         group_layout.addWidget(wdg, 0, 0)
@@ -164,16 +166,16 @@ class _MDAWidgetGui(QWidget):
         self.interval_spinBox.setMinimum(0)
         self.interval_spinBox.setMaximum(100000)
         self.interval_spinBox.setSizePolicy(
-            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         )
-        self.interval_spinBox.setAlignment(Qt.AlignCenter)
+        self.interval_spinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         wdg1_lay.addWidget(lbl1)
         wdg1_lay.addWidget(self.interval_spinBox)
         group_layout.addWidget(wdg1)
 
         self.time_comboBox = QComboBox()
         self.time_comboBox.setSizePolicy(
-            QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         )
         self.time_comboBox.addItems(["ms", "sec", "min", "hours"])
         self.time_comboBox.setCurrentText("sec")
@@ -186,14 +188,16 @@ class _MDAWidgetGui(QWidget):
         wdg2_lay.setContentsMargins(0, 0, 0, 0)
         wdg2.setLayout(wdg2_lay)
         self._icon_lbl = QLabel()
-        self._icon_lbl.setAlignment(Qt.AlignLeft)
+        self._icon_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self._icon_lbl.setSizePolicy(LBL_SIZEPOLICY)
         wdg2_lay.addWidget(self._icon_lbl)
         self._time_lbl = QLabel()
-        self._time_lbl.setAlignment(Qt.AlignLeft)
+        self._time_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self._time_lbl.setSizePolicy(LBL_SIZEPOLICY)
         wdg2_lay.addWidget(self._time_lbl)
-        spacer = QSpacerItem(10, 0, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        spacer = QSpacerItem(
+            10, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         wdg2_lay.addItem(spacer)
         group_layout.addWidget(wdg2, 1, 0, 1, 2)
 
@@ -206,7 +210,9 @@ class _MDAWidgetGui(QWidget):
         group = QGroupBox(title="Z Stacks")
         group.setCheckable(True)
         group.setChecked(False)
-        group.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
+        group.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        )
         group_layout = QVBoxLayout()
         group_layout.setSpacing(10)
         group_layout.setContentsMargins(10, 10, 10, 10)
@@ -230,25 +236,25 @@ class _MDAWidgetGui(QWidget):
         self.set_bottom_Button = QPushButton(text="Set Bottom")
 
         lbl_range_tb = QLabel(text="Range (µm):")
-        lbl_range_tb.setAlignment(Qt.AlignCenter)
+        lbl_range_tb.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.z_top_doubleSpinBox = QDoubleSpinBox()
-        self.z_top_doubleSpinBox.setAlignment(Qt.AlignCenter)
+        self.z_top_doubleSpinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.z_top_doubleSpinBox.setMinimum(0.0)
         self.z_top_doubleSpinBox.setMaximum(100000)
         self.z_top_doubleSpinBox.setDecimals(2)
 
         self.z_bottom_doubleSpinBox = QDoubleSpinBox()
-        self.z_bottom_doubleSpinBox.setAlignment(Qt.AlignCenter)
+        self.z_bottom_doubleSpinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.z_bottom_doubleSpinBox.setMinimum(0.0)
         self.z_bottom_doubleSpinBox.setMaximum(100000)
         self.z_bottom_doubleSpinBox.setDecimals(2)
 
         self.z_range_topbottom_doubleSpinBox = QDoubleSpinBox()
-        self.z_range_topbottom_doubleSpinBox.setAlignment(Qt.AlignCenter)
+        self.z_range_topbottom_doubleSpinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.z_range_topbottom_doubleSpinBox.setMaximum(10000000)
         self.z_range_topbottom_doubleSpinBox.setButtonSymbols(
-            QAbstractSpinBox.NoButtons
+            QAbstractSpinBox.ButtonSymbols.NoButtons
         )
         self.z_range_topbottom_doubleSpinBox.setReadOnly(True)
 
@@ -273,11 +279,11 @@ class _MDAWidgetGui(QWidget):
 
         self.zrange_spinBox = QSpinBox()
         self.zrange_spinBox.setValue(5)
-        self.zrange_spinBox.setAlignment(Qt.AlignCenter)
+        self.zrange_spinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.zrange_spinBox.setMaximum(100000)
 
         self.range_around_label = QLabel(text="-2.5 µm <- z -> +2.5 µm")
-        self.range_around_label.setAlignment(Qt.AlignCenter)
+        self.range_around_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         ra_layout.addWidget(lbl_range_ra)
         ra_layout.addWidget(self.zrange_spinBox)
@@ -292,30 +298,30 @@ class _MDAWidgetGui(QWidget):
         ab.setLayout(ab_layout)
 
         lbl_above = QLabel(text="Above (µm):")
-        lbl_above.setAlignment(Qt.AlignCenter)
+        lbl_above.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.above_doubleSpinBox = QDoubleSpinBox()
-        self.above_doubleSpinBox.setAlignment(Qt.AlignCenter)
+        self.above_doubleSpinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.above_doubleSpinBox.setMinimum(0.05)
         self.above_doubleSpinBox.setMaximum(10000)
         self.above_doubleSpinBox.setSingleStep(0.5)
         self.above_doubleSpinBox.setDecimals(2)
 
         lbl_below = QLabel(text="Below (µm):")
-        lbl_below.setAlignment(Qt.AlignCenter)
+        lbl_below.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.below_doubleSpinBox = QDoubleSpinBox()
-        self.below_doubleSpinBox.setAlignment(Qt.AlignCenter)
+        self.below_doubleSpinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.below_doubleSpinBox.setMinimum(0.05)
         self.below_doubleSpinBox.setMaximum(10000)
         self.below_doubleSpinBox.setSingleStep(0.5)
         self.below_doubleSpinBox.setDecimals(2)
 
         lbl_range = QLabel(text="Range (µm):")
-        lbl_range.setAlignment(Qt.AlignCenter)
+        lbl_range.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.z_range_abovebelow_doubleSpinBox = QDoubleSpinBox()
-        self.z_range_abovebelow_doubleSpinBox.setAlignment(Qt.AlignCenter)
+        self.z_range_abovebelow_doubleSpinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.z_range_abovebelow_doubleSpinBox.setMaximum(10000000)
         self.z_range_abovebelow_doubleSpinBox.setButtonSymbols(
-            QAbstractSpinBox.NoButtons
+            QAbstractSpinBox.ButtonSymbols.NoButtons
         )
         self.z_range_abovebelow_doubleSpinBox.setReadOnly(True)
 
@@ -343,7 +349,7 @@ class _MDAWidgetGui(QWidget):
         lbl = QLabel(text="Step Size (µm):")
         lbl.setSizePolicy(LBL_SIZEPOLICY)
         self.step_size_doubleSpinBox = QDoubleSpinBox()
-        self.step_size_doubleSpinBox.setAlignment(Qt.AlignCenter)
+        self.step_size_doubleSpinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.step_size_doubleSpinBox.setMinimum(0.05)
         self.step_size_doubleSpinBox.setValue(1)
         self.step_size_doubleSpinBox.setMaximum(10000)
@@ -373,7 +379,9 @@ class _MDAWidgetGui(QWidget):
 
         # table
         self.stage_tableWidget = QTableWidget()
-        self.stage_tableWidget.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.stage_tableWidget.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
         hdr = self.stage_tableWidget.horizontalHeader()
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
         self.stage_tableWidget.verticalHeader().setVisible(False)
@@ -384,7 +392,7 @@ class _MDAWidgetGui(QWidget):
         group_layout.addWidget(self.stage_tableWidget, 0, 0, 5, 1)
 
         # buttons
-        btn_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        btn_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         min_size = 100
         self.add_pos_Button = QPushButton(text="Add")
         self.add_pos_Button.setMinimumWidth(min_size)
@@ -416,11 +424,11 @@ class _MDAWidgetGui(QWidget):
         wdg_lay = QHBoxLayout()
         wdg_lay.setSpacing(5)
         wdg_lay.setContentsMargins(10, 5, 10, 5)
-        wdg_lay.setAlignment(Qt.AlignLeft)
+        wdg_lay.setAlignment(Qt.AlignmentFlag.AlignLeft)
         wdg.setLayout(wdg_lay)
 
         self._total_time_lbl = QLabel()
-        self._total_time_lbl.setAlignment(Qt.AlignLeft)
+        self._total_time_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self._total_time_lbl.setSizePolicy(LBL_SIZEPOLICY)
         wdg_lay.addWidget(self._total_time_lbl)
 
@@ -429,9 +437,11 @@ class _MDAWidgetGui(QWidget):
     def _create_bottom_wdg(self) -> QWidget:
 
         wdg = QWidget()
-        wdg.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
+        wdg.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        )
         wdg_layout = QHBoxLayout()
-        wdg_layout.setAlignment(Qt.AlignVCenter)
+        wdg_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         wdg_layout.setSpacing(10)
         wdg_layout.setContentsMargins(10, 5, 10, 10)
         wdg.setLayout(wdg_layout)
@@ -449,7 +459,9 @@ class _MDAWidgetGui(QWidget):
         acq_wdg_layout.addWidget(acquisition_order_label)
         acq_wdg_layout.addWidget(self.acquisition_order_comboBox)
 
-        btn_sizepolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        btn_sizepolicy = QSizePolicy(
+            QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed
+        )
         min_width = 130
         icon_size = 40
         self.run_Button = QPushButton(text="Run")
@@ -470,7 +482,9 @@ class _MDAWidgetGui(QWidget):
         self.cancel_Button.setIcon(icon(MDI6.stop_circle_outline, color="magenta"))
         self.cancel_Button.setIconSize(QSize(icon_size, icon_size))
 
-        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        spacer = QSpacerItem(
+            10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
 
         wdg_layout.addWidget(acq_wdg)
         wdg_layout.addItem(spacer)

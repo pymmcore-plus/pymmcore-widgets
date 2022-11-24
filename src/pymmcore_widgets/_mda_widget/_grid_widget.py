@@ -48,14 +48,16 @@ class GridWidget(QDialog):
 
     def _create_row_cols_overlap_group(self) -> QGroupBox:
         group = QGroupBox(title="Grid Parameters")
-        group.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
+        group.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        )
         group_layout = QGridLayout()
         group_layout.setSpacing(10)
         group_layout.setContentsMargins(10, 20, 10, 20)
         group.setLayout(group_layout)
 
         fix_size = 75
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        lbl_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         # row
         self.row_wdg = QWidget()
@@ -70,7 +72,7 @@ class GridWidget(QDialog):
         self.scan_size_spinBox_r = QSpinBox()
         self.scan_size_spinBox_r.setMinimumWidth(fix_size)
         self.scan_size_spinBox_r.setMinimum(1)
-        self.scan_size_spinBox_r.setAlignment(Qt.AlignCenter)
+        self.scan_size_spinBox_r.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.scan_size_spinBox_r.valueChanged.connect(self._update_info_label)
         row_wdg_lay.addWidget(row_label)
         row_wdg_lay.addWidget(self.scan_size_spinBox_r)
@@ -88,7 +90,7 @@ class GridWidget(QDialog):
         self.scan_size_spinBox_c = QSpinBox()
         self.scan_size_spinBox_c.setMinimumWidth(fix_size)
         self.scan_size_spinBox_c.setMinimum(1)
-        self.scan_size_spinBox_c.setAlignment(Qt.AlignCenter)
+        self.scan_size_spinBox_c.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.scan_size_spinBox_c.valueChanged.connect(self._update_info_label)
         col_wdg_lay.addWidget(col_label)
         col_wdg_lay.addWidget(self.scan_size_spinBox_c)
@@ -105,14 +107,14 @@ class GridWidget(QDialog):
         overlap_label.setSizePolicy(lbl_sizepolicy)
         self.ovelap_spinBox = QSpinBox()
         self.ovelap_spinBox.setMinimumWidth(fix_size)
-        self.ovelap_spinBox.setAlignment(Qt.AlignCenter)
+        self.ovelap_spinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.ovelap_spinBox.valueChanged.connect(self._update_info_label)
         ovl_wdg_lay.addWidget(overlap_label)
         ovl_wdg_lay.addWidget(self.ovelap_spinBox)
 
         # label info
         self.info_lbl = QLabel(text="_ µm x _ µm")
-        self.info_lbl.setAlignment(Qt.AlignCenter)
+        self.info_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         group_layout.addWidget(self.row_wdg, 0, 0)
         group_layout.addWidget(self.col_wdg, 1, 0)
@@ -133,7 +135,9 @@ class GridWidget(QDialog):
         wdg_layout.addWidget(self.clear_checkbox)
 
         self.generate_position_btn = QPushButton(text="Generate Position List")
-        self.generate_position_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.generate_position_btn.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
         self.generate_position_btn.clicked.connect(self._send_positions_grid)
         wdg_layout.addWidget(self.generate_position_btn)
 
