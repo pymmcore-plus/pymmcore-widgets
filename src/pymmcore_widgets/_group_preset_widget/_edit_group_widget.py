@@ -100,7 +100,7 @@ class EditGroupWidget(QDialog):
     """Widget to edit the specified Group."""
 
     def __init__(self, group: str, *, parent: Optional[QWidget] = None) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
         self._mmc = CMMCorePlus.instance()
 
         self._group = group

@@ -7,7 +7,7 @@ Currently, 'DeviceWidget' only supports devices of type 'StateDevice'. Calling
 for a devices of type 'StateDevice' (see also state_device_widget.py).
 
 In this example all the devices of type 'StateDevice' that are loaded in micromanager
-are dysplaied with a 'DeviceWidget'.
+are displayed with a 'DeviceWidget'.
 """
 
 

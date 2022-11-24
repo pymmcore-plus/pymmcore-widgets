@@ -60,6 +60,13 @@ dev = [
     "pytest",
     "rich",
 ]
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings-python",
+    "mkdocs-literate-nav",
+    "mkdocs-gen-files"
+]
 
 [project.urls]
 homepage = "https://github.com/pymmcore-plus/pymmcore-widgets"
@@ -157,6 +164,8 @@ ignore = [
     ".github_changelog_generator",
     ".pre-commit-config.yaml",
     "tests/**/*",
+    "docs/**/*",
+    "mkdocs.yml",
     "tox.ini",
     "examples/**/*",
 ]

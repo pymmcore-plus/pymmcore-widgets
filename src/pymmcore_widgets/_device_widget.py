@@ -10,27 +10,39 @@ LABEL = pymmcore.g_Keyword_Label
 
 
 class DeviceWidget(QWidget):
-    """Base Device Widget.
+    """A general Device Widget.
 
-    Use `DeviceWidget.for_device('someLabel')` to create a device-type
+    Use `DeviceWidget.for_device('device_label')` method to create a device-type
     appropriate subclass.
+
+    !!! Note
+
+        Currently, `DeviceWidget` only supports devices of type
+        [`StateDevice`][pymmcore_plus.core._constants.DeviceType.StateDevice]. Calling
+        `DeviceWidget.for_device("device_label")`, will create the `DeviceWidget`
+        subclass [pymmcore_widgets.StateDeviceWidget][].
 
     Parameters
     ----------
     device_label : str
         A device label for which to create a widget.
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget.
+    mmcore: CMMCorePlus | None
+        Optional [`CMMCorePlus`][pymmcore_plus.CMMCorePlus] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     def __init__(
         self,
         device_label: str,
-        parent: Optional[QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
         self._device_label = device_label
         self._mmc = mmcore or CMMCorePlus.instance()
         self.destroyed.connect(self._disconnect)
@@ -96,7 +108,7 @@ class DeviceWidget(QWidget):
 
 
 class StateDeviceWidget(DeviceWidget):
-    """Widget with a ComboBox to control the states of a StateDevice.
+    """A Widget with a QComboBox to control the states of a StateDevice.
 
     Parameters
     ----------
@@ -104,16 +116,21 @@ class StateDeviceWidget(DeviceWidget):
         A device label for which to create a widget.
     parent : Optional[QWidget]
         Optional parent widget.
+    mmcore: Optional[CMMCorePlus]
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     def __init__(
         self,
         device_label: str,
-        parent: Optional[QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
-        super().__init__(device_label, parent, mmcore=mmcore)
+        super().__init__(device_label, parent=parent, mmcore=mmcore)
         assert self.deviceType() == DeviceType.StateDevice
 
         self._combo = QComboBox()

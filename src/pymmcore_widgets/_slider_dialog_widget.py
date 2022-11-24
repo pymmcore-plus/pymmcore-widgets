@@ -10,7 +10,9 @@ from ._property_widget import PropertyWidget
 
 
 class SliderDialog(QDialog):
-    """A Dialog that shows range-based properties (such as light sources) as sliders.
+    """A Widget to display an control range-based properties as sliders.
+
+    For example, this widget can be used to control light sources .
 
     Parameters
     ----------
@@ -20,21 +22,23 @@ class SliderDialog(QDialog):
         e.g. property_regex = "(Intensity|Power)s?" will create a slider
         for each range-based property that contains "I(i)ntensity(s)" or
         "P(p)ower(s)" in the property name.
-
     parent : Optional[QWidget]
-        optional parent widget, by default None
-    mmcore : Optional[CMMCorePlus]
-        Optional mmcore instance, by default the global instance.
+        Optional parent widget, by default None
+    mmcore: Optional[CMMCorePlus]
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     def __init__(
         self,
         property_regex: str,
-        parent: Optional[QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ):
-        super().__init__(parent)
+        super().__init__(parent=parent)
         ptrn = re.compile(property_regex, re.IGNORECASE)
 
         _grid = QGridLayout()

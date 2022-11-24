@@ -81,12 +81,23 @@ DevTypeLabels["other devices"] = tuple(set(DeviceType) - _d)
 
 
 class PropertyBrowser(QDialog):
-    """Dialog to browse and change properties of all devices."""
+    """A Widget to browse and change properties of all devices.
+
+    Parameters
+    ----------
+    parent : Optional[QWidget]
+        Optional parent widget. By default, None.
+    mmcore: Optional[CMMCorePlus]
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    """
 
     def __init__(
-        self, mmcore: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
+        self, *, parent: Optional[QWidget] = None, mmcore: Optional[CMMCorePlus] = None
     ):
-        super().__init__(parent)
+        super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._prop_table = _PropertyTable(mmcore)

@@ -56,8 +56,10 @@ class ImageFrame(QWidget):
 
 
 if __name__ == "__main__":
-    CMMCorePlus().instance().loadSystemConfiguration()
+    mmc = CMMCorePlus().instance()
+    mmc.loadSystemConfiguration()
     app = QApplication([])
     frame = ImageFrame()
     frame.show()
+    mmc.snap()
     app.exec_()

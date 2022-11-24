@@ -22,8 +22,8 @@ class GridWidget(QDialog):
 
     sendPosList = Signal(list, bool)
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
-        super().__init__(parent)
+    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent=parent)
 
         self._mmc = CMMCorePlus.instance()
 

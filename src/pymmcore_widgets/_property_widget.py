@@ -307,7 +307,7 @@ def _creat_prop_widget(mmcore: CMMCorePlus, dev: str, prop: str) -> PPropValueWi
 
 
 class PropertyWidget(QWidget):
-    """A widget that presents a view onto an mmcore device property.
+    """A widget to display and control a specified mmcore device property.
 
     Parameters
     ----------
@@ -316,9 +316,12 @@ class PropertyWidget(QWidget):
     prop_name : str
         Property name
     parent : Optional[QWidget]
-        parent widget, by default None
-    mmcore : Optional[CMMCorePlus]
-        Optional CMMCorePlus instance, by default the global singleton.
+        Optional parent widget. By default, None.
+    mmcore: Optional[CMMCorePlus]
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
 
     Raises
     ------
@@ -337,7 +340,9 @@ class PropertyWidget(QWidget):
         parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
-        super().__init__(parent)
+
+        super().__init__(parent=parent)
+
         self._mmc = mmcore or CMMCorePlus.instance()
 
         if device_label not in self._mmc.getLoadedDevices():

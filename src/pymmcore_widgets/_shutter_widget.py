@@ -5,9 +5,9 @@ from typing import Any, Optional, Tuple, Union
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
-from qtpy import QtWidgets as QtW
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtGui import QColor
+from qtpy.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QSizePolicy, QWidget
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
@@ -21,7 +21,7 @@ COLOR_TYPE = Union[
 ]
 
 
-class ShuttersWidget(QtW.QWidget):
+class ShuttersWidget(QWidget):
     """A Widget for shutters and Micro-Manager autoshutter.
 
     Parameters
@@ -32,18 +32,23 @@ class ShuttersWidget(QtW.QWidget):
         If True, a checkbox controlling the Micro-Manager autoshutter
         is added to the layout.
     parent : Optional[QWidget]
-        Optional parent widget.
+        Optional parent widget. By default, None.
+    mmcore: Optional[CMMCorePlus]
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     def __init__(
         self,
         shutter_device: str,
         autoshutter: bool = True,
-        parent: Optional[QtW.QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -121,6 +126,7 @@ class ShuttersWidget(QtW.QWidget):
         Set the button icon color for when the shutter is open.
 
         Default = (0, 255, 0)
+
         COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
         Tuple[int, int, int]]
         """
@@ -138,6 +144,7 @@ class ShuttersWidget(QtW.QWidget):
         Set the button icon color for when the shutter is closed.
 
         Default = 'magenta'
+
         COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
         Tuple[int, int, int]]
         """
@@ -195,14 +202,12 @@ class ShuttersWidget(QtW.QWidget):
 
     def _create_wdg(self) -> None:
 
-        main_layout = QtW.QHBoxLayout()
+        main_layout = QHBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(3)
 
-        self.shutter_button = QtW.QPushButton(text=self._button_text_closed)
-        sizepolicy_btn = QtW.QSizePolicy(
-            QtW.QSizePolicy.Policy.Fixed, QtW.QSizePolicy.Policy.Fixed
-        )
+        self.shutter_button = QPushButton(text=self._button_text_closed)
+        sizepolicy_btn = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.shutter_button.setSizePolicy(sizepolicy_btn)
         self.shutter_button.setIcon(
             icon(self._icon_closed, color=self._icon_color_closed)
@@ -211,9 +216,9 @@ class ShuttersWidget(QtW.QWidget):
         self.shutter_button.clicked.connect(self._on_shutter_btn_clicked)
         main_layout.addWidget(self.shutter_button)
 
-        self.autoshutter_checkbox = QtW.QCheckBox(text="Auto")
-        sizepolicy_checkbox = QtW.QSizePolicy(
-            QtW.QSizePolicy.Policy.Fixed, QtW.QSizePolicy.Policy.Fixed
+        self.autoshutter_checkbox = QCheckBox(text="Auto")
+        sizepolicy_checkbox = QSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
         self.autoshutter_checkbox.setSizePolicy(sizepolicy_checkbox)
         self.autoshutter_checkbox.setChecked(False)

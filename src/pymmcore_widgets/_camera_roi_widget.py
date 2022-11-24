@@ -29,20 +29,22 @@ CUSTOM_ROI = "Custom ROI"
 
 
 class CameraRoiWidget(QWidget):
-    """
-    A Widget to control the camera device ROI.
+    """A Widget to control the camera device ROI.
 
-    When the ROI changes, the roiChanged Signal is emitted with the current ROI
+    When the ROI changes, the `roiChanged` Signal is emitted with the current ROI
     (x, y, width, height, comboBoxText)
+
+    [`pymmcore_plus.CMMCoreSignaler`]
 
     Parameters
     ----------
     parent : Optional[QWidget]
         Optional parent widget, by default None
     mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus` micromanager core.
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) `CMMCorePlus.instance()`.
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     # (x, y, width, height, comboBoxText)
@@ -50,11 +52,11 @@ class CameraRoiWidget(QWidget):
 
     def __init__(
         self,
-        parent: Optional[QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -68,6 +70,13 @@ class CameraRoiWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.pixelSizeChanged.connect(self._update_lbl_info)
         self._mmc.events.roiSet.connect(self._on_roi_set)
+
+        self.destroyed.connect(self._disconnect)
+
+    def _disconnect(self) -> None:
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
+        self._mmc.events.pixelSizeChanged.disconnect(self._update_lbl_info)
+        self._mmc.events.roiSet.disconnect(self._on_roi_set)
 
     def _create_gui(self) -> None:  # sourcery skip: class-extract-method
 

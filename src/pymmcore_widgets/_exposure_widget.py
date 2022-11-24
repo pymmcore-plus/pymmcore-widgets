@@ -4,34 +4,55 @@ from typing import Optional
 
 from pymmcore import g_Keyword_CoreCamera, g_Keyword_CoreDevice
 from pymmcore_plus import CMMCorePlus
-from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QApplication, QDoubleSpinBox, QHBoxLayout, QLabel, QWidget
 from superqt.utils import signals_blocked
 
 
-class ExposureWidget(QtW.QWidget):
-    """Generic widget to get/set exposure time on a camera."""
+class ExposureWidget(QWidget):
+    """A Widget to get/set exposure on a camera.
+
+    Parameters
+    ----------
+    camera : str
+        The camera device label. By default, None. If not specified,
+        the widget will use the current Camera device.
+    parent : Optional[QWidget]
+        Optional parent widget. By default, None.
+    mmcore: Optional[CMMCorePlus]
+        Optional `CMMCorePlus` micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new) `CMMCorePlus.instance()`.
+
+    Examples
+    --------
+    !!! example "Combining `ExposureWidget` with other widgets"
+
+        see [ImagePreview](../ImagePreview#example)
+
+    """
 
     def __init__(
         self,
         camera: str = None,  # type: ignore
         *,
-        parent: Optional[QtW.QWidget] = None,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ):
-        super().__init__()
+        super().__init__(parent=parent)
+
         self._mmc = mmcore or CMMCorePlus.instance()
         self._camera = camera or self._mmc.getCameraDevice()
 
-        self.label = QtW.QLabel()
+        self.label = QLabel()
         self.label.setText(" ms")
         self.label.setMaximumWidth(30)
-        self.spinBox = QtW.QDoubleSpinBox()
+        self.spinBox = QDoubleSpinBox()
         self.spinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.spinBox.setMinimum(1.0)
         self.spinBox.setMaximum(100000.0)
         self.spinBox.setKeyboardTracking(False)
-        layout = QtW.QHBoxLayout()
+        layout = QHBoxLayout()
         layout.addWidget(self.spinBox)
         layout.addWidget(self.label)
         self.setLayout(layout)
@@ -42,13 +63,20 @@ class ExposureWidget(QtW.QWidget):
 
         self.spinBox.valueChanged.connect(self._mmc.setExposure)
 
+        self.destroyed.connect(self._disconnect)
+
+    def _disconnect(self) -> None:
+        self._mmc.events.exposureChanged.disconnect(self._on_exp_changed)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_load)
+
     def setCamera(self, camera: str = None) -> None:  # type: ignore
         """Set which camera this widget tracks.
 
         Parameters
         ----------
         camera : str
-            The camera device label. If None then use the current Camera device.
+            The camera device label. By default, None. If not specified,
+            the widget will use the current Camera device.
         """
         orig_cam = self._camera
         self._camera = camera or self._mmc.getCameraDevice()
@@ -73,18 +101,39 @@ class ExposureWidget(QtW.QWidget):
 
 
 class DefaultCameraExposureWidget(ExposureWidget):
-    """Widget to get/set exposure on the default camera."""
+    """A Widget to get/set exposure on the default camera.
+
+    Parameters
+    ----------
+    parent : Optional[QWidget]
+            Optional parent widget. By default, None.
+    mmcore: Optional[CMMCorePlus]
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    """
 
     def __init__(
         self,
         *,
-        parent: Optional[QtW.QWidget] = None,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ):
-        super().__init__(mmcore=mmcore)
+        super().__init__(parent=parent, mmcore=mmcore)
+
         self._mmc.events.devicePropertyChanged(
             g_Keyword_CoreDevice, g_Keyword_CoreCamera
         ).connect(self._camera_updated)
+
+        self.destroyed.connect(self._disconnect)
+
+    def _disconnect(self) -> None:
+        self._mmc.events.exposureChanged.disconnect(self._on_exp_changed)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_load)
+        self._mmc.events.devicePropertyChanged(
+            g_Keyword_CoreDevice, g_Keyword_CoreCamera
+        ).disconnect(self._camera_updated)
 
     def setCamera(
         self, camera: str = None, force: bool = False  # type: ignore
@@ -97,7 +146,8 @@ class DefaultCameraExposureWidget(ExposureWidget):
         Parameters
         ----------
         camera : str
-            The camera device label. If None then use the current Camera device.
+            The camera device label. By default, None. If not specified,
+            the widget will use the current Camera device.
         force : bool
             Whether to force a change away from tracking the default camera.
         """
@@ -125,7 +175,7 @@ if __name__ == "__main__":  # pragma: no cover
     from pymmcore_plus import CMMCorePlus  # noqa
 
     CMMCorePlus.instance().loadSystemConfiguration()
-    app = QtW.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     win = DefaultCameraExposureWidget()
     win.show()
     sys.exit(app.exec_())

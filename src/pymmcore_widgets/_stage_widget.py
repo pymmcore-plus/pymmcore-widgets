@@ -53,7 +53,7 @@ QCheckBox::indicator {
 
 
 class StageWidget(QWidget):
-    """Create a widget to control a XY and/or a Z stage.
+    """A Widget to control a XY and/or a Z stage.
 
     Parameters
     ----------
@@ -62,7 +62,12 @@ class StageWidget(QWidget):
     levels: Optional[int]:
         Number of "arrow" buttons per widget per direction, by default, 2.
     parent : Optional[QWidget]
-        Optional parent widget, by default None.
+        Optional parent widget.
+    mmcore: Optional[CMMCorePlus]
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     # fmt: off
@@ -88,11 +93,11 @@ class StageWidget(QWidget):
         self,
         device: str,
         levels: Optional[int] = 2,
-        parent: Optional[QWidget] = None,
         *,
+        parent: Optional[QWidget] = None,
         mmcore: Optional[CMMCorePlus] = None,
     ):
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self.setStyleSheet(STYLE)
 

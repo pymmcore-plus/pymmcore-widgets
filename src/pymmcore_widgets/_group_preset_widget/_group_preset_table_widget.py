@@ -50,23 +50,22 @@ class _MainTable(QTableWidget):
 
 
 class GroupPresetTableWidget(QGroupBox):
-    """
-    A Widget to create, edit, delete and set micromanager group presets.
+    """A Widget to create, edit, delete and set micromanager group presets.
 
     Parameters
     ----------
     parent : Optional[QWidget]
         Optional parent widget. By default, None.
     mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus`/`CMMCorePlus.instance()` micromanager core.
+        Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new) `CMMCorePlus.instance()`.
     """
 
     def __init__(
-        self, parent: Optional[QWidget] = None, *, mmcore: Optional[CMMCorePlus] = None
+        self, *, parent: Optional[QWidget] = None, mmcore: Optional[CMMCorePlus] = None
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._populate_table)

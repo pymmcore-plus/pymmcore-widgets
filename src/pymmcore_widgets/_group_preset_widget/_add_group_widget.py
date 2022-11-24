@@ -29,7 +29,7 @@ from ._add_first_preset_widget import AddFirstPresetWidget
 
 
 class _PropertyTable(QTableWidget):
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
         super().__init__(0, 3, parent=parent)
         self._mmc = CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
@@ -85,8 +85,8 @@ DevTypeLabels["other devices"] = tuple(set(DeviceType) - _d)
 class AddGroupWidget(QDialog):
     """Widget to create a new group."""
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
-        super().__init__(parent)
+    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent=parent)
         self._mmc = CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._update_filter)
 

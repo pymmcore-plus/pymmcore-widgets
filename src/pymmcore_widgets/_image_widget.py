@@ -13,13 +13,28 @@ if TYPE_CHECKING:
 
 
 class ImagePreview(QWidget):
-    """Widget that displays the last image snapped by core.
+    """A Widget that displays the last image snapped by active core.
 
-    This widget will automatically update when the core snaps an image or when
-    the core starts streaming.
+    This widget will automatically update when the active core snaps an image
+    or when the active core starts streaming.
+
+    Parameters
+    ----------
+    parent : Optional[QWidget]
+        Optional parent widget. By default, None.
+    mmcore: Optional[CMMCorePlus]
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(
+        self,
+        *,
+        parent: Optional[QWidget] = None,
+        mmcore: Optional[CMMCorePlus] = None,
+    ):
         try:
             from vispy import scene
         except ImportError as e:
@@ -28,8 +43,8 @@ class ImagePreview(QWidget):
                 "Please run `pip install pymmcore-widgets[image]`"
             ) from e
 
-        super().__init__(parent)
-        self._mmc = CMMCorePlus.instance()
+        super().__init__(parent=parent)
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._imcls = scene.visuals.Image
         self._clims: Union[Tuple[float, float], Literal["auto"]] = "auto"
         self._cmap: str = "grays"
