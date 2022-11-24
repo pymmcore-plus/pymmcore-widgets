@@ -11,9 +11,9 @@ from qtpy.QtCore import QSize, Qt
 from superqt.fonticon import icon
 from useq import MDASequence
 
-from .._util import _select_output_unit, _time_in_sec, guess_channel_group
 from ._grid_widget import GridWidget
 from ._mda_gui import _MDAWidgetGui
+from .._util import _select_output_unit, _time_in_sec, guess_channel_group
 
 
 class MDAWidget(_MDAWidgetGui):

@@ -24,9 +24,9 @@ LABEL = pymmcore.g_Keyword_Label
 class PSignalInstance(Protocol):
     """The protocol expected of a signal instance."""
 
-    def connect(self, callback: Callable) -> Callable: ...  # noqa: D102 E704
-    def disconnect(self, callback: Callable) -> None: ...  # noqa: D102 E704
-    def emit(self, *args: Any) -> None: ...  # noqa: D102 E704
+    def connect(self, callback: Callable) -> Callable: ...
+    def disconnect(self, callback: Callable) -> None: ...
+    def emit(self, *args: Any) -> None: ...
 
 
 class PPropValueWidget(Protocol):
@@ -34,11 +34,11 @@ class PPropValueWidget(Protocol):
 
     valueChanged: PSignalInstance
     destroyed: PSignalInstance
-    def value(self) -> Union[str, float]: ...  # noqa: D102 E704
-    def setValue(self, val: Union[str, float]) -> None: ...  # noqa: D102 E704
-    def setEnabled(self, enabled: bool) -> None: ...  # noqa: D102 E704
-    def setParent(self, parent: Optional[QWidget]) -> None: ...  # noqa: D102 E704
-    def deleteLater(self) -> None: ...  # noqa: D102 E704
+    def value(self) -> Union[str, float]: ...
+    def setValue(self, val: Union[str, float]) -> None: ...
+    def setEnabled(self, enabled: bool) -> None: ...
+    def setParent(self, parent: Optional[QWidget]) -> None: ...
+    def deleteLater(self) -> None: ...
 # fmt: on
 
 
@@ -61,7 +61,7 @@ def _stretch_range_to_contain(wdg: QLabeledDoubleSlider, val: T) -> T:
 class IntegerWidget(QSpinBox):
     """Slider suited to managing integer values."""
 
-    def setValue(self, v: Any) -> None:  # noqa: D102
+    def setValue(self, v: Any) -> None:
         return super().setValue(  # type: ignore [no-any-return]
             _stretch_range_to_contain(self, int(v))
         )
@@ -70,7 +70,7 @@ class IntegerWidget(QSpinBox):
 class FloatWidget(QDoubleSpinBox):
     """Slider suited to managing float values."""
 
-    def setValue(self, v: Any) -> None:  # noqa: D102
+    def setValue(self, v: Any) -> None:
         # stretch decimals to fit value
         dec = min(str(v).rstrip("0")[::-1].find("."), 8)
         if dec > self.decimals():
@@ -364,8 +364,10 @@ class PropertyWidget(QWidget):
         self.layout().addWidget(cast(QWidget, self._value_widget))
 
     def value(self) -> Any:
-        """Get value.""" """
-        Return the current value of the *widget* (which should match mmcore)."""
+        """Get value.
+
+        Return the current value of the *widget* (which should match mmcore).
+        """
         return self._value_widget.value()
 
     def setValue(self, value: Any) -> None:

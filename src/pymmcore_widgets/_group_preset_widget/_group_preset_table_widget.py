@@ -20,12 +20,12 @@ from qtpy.QtWidgets import (
 from pymmcore_widgets._presets_widget import PresetsWidget
 from pymmcore_widgets._property_widget import PropertyWidget
 
-from .._core import load_system_config
-from .._util import block_core
 from ._add_group_widget import AddGroupWidget
 from ._add_preset_widget import AddPresetWidget
+from .._core import load_system_config
 from ._edit_group_widget import EditGroupWidget
 from ._edit_preset_widget import EditPresetWidget
+from .._util import block_core
 
 UNNAMED_PRESET = "NewPreset"
 
@@ -269,12 +269,12 @@ class GroupPresetTableWidget(QGroupBox):
 
         # use only the first preset since device
         # and property are the same for the presets
-        device, property, _, dev_prop_val_count = self._get_cfg_data(group, presets[0])
+        device, prop, _, dev_prop_val_count = self._get_cfg_data(group, presets[0])
 
         if len(presets) > 1 or dev_prop_val_count > 1 or dev_prop_val_count == 0:
             return PresetsWidget(group)
         else:
-            return PropertyWidget(device, property)
+            return PropertyWidget(device, prop)
 
     def _close_if_hasattr(self) -> None:
         attr_list = [

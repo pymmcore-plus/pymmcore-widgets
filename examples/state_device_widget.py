@@ -1,4 +1,5 @@
-"""
+"""Example usage of the StateDeviceWidget class.
+
 In this example all the devices of type 'StateDevice' that are loaded in micromanager
 are displayed with a 'StateDeviceWidget'.
 """
