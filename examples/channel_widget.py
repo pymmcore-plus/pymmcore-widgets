@@ -1,4 +1,5 @@
-"""
+"""Example usage of the ChannelWidget class.
+
 Check also the 'image_widget.py' example to see the ChannelWidget
 used in combination of other widgets.
 """

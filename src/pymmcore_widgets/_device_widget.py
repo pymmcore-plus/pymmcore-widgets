@@ -195,21 +195,21 @@ class StateDeviceWidget(DeviceWidget):
         """Return all state labels of the device."""
         return self._mmc.getStateLabels(self._device_label)
 
-    def currentText(self) -> str:  # noqa: D102
+    def currentText(self) -> str:
         # pass through the QComboBox interface
         return self._combo.currentText()  # type: ignore [no-any-return]
 
-    def setCurrentText(self, text: str) -> None:  # noqa: D102
+    def setCurrentText(self, text: str) -> None:
         # pass through the QComboBox interface
         if text not in self.stateLabels():
             raise ValueError(f"State label must be one of: {self.stateLabels()}")
         self._combo.setCurrentText(text)
 
-    def currentIndex(self) -> int:  # noqa: D102
+    def currentIndex(self) -> int:
         # pass through the QComboBox interface
         return self._combo.currentIndex()  # type: ignore [no-any-return]
 
-    def setCurrentIndex(self, index: int) -> None:  # noqa: D102
+    def setCurrentIndex(self, index: int) -> None:
         # pass through the QComboBox interface
         nstates = self._mmc.getNumberOfStates(self._device_label)
         if not (0 <= index < nstates):

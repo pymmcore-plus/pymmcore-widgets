@@ -1,4 +1,5 @@
-"""
+"""Example Usage of the PresetsWidget class.
+
 In this example all the available groups created in micromanager
 are displayed with a 'PresetsWidget'.
 """

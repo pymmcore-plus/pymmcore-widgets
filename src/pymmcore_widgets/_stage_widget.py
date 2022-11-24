@@ -73,18 +73,18 @@ class StageWidget(QWidget):
     # fmt: off
     BTNS = {
         # btn glyph                (r, c, xmag, ymag)
-        MDI6.chevron_triple_up:    (0, 3,  0,  3),  # noqa: E241
-        MDI6.chevron_double_up:    (1, 3,  0,  2),  # noqa: E241
-        MDI6.chevron_up:           (2, 3,  0,  1),  # noqa: E241
-        MDI6.chevron_down:         (4, 3,  0, -1),  # noqa: E241
-        MDI6.chevron_double_down:  (5, 3,  0, -2),  # noqa: E241
-        MDI6.chevron_triple_down:  (6, 3,  0, -3),  # noqa: E241
-        MDI6.chevron_triple_left:  (3, 0, -3,  0),  # noqa: E241
-        MDI6.chevron_double_left:  (3, 1, -2,  0),  # noqa: E241
-        MDI6.chevron_left:         (3, 2, -1,  0),  # noqa: E241
-        MDI6.chevron_right:        (3, 4,  1,  0),  # noqa: E241
-        MDI6.chevron_double_right: (3, 5,  2,  0),  # noqa: E241
-        MDI6.chevron_triple_right: (3, 6,  3,  0),  # noqa: E241
+        MDI6.chevron_triple_up:    (0, 3,  0,  3),
+        MDI6.chevron_double_up:    (1, 3,  0,  2),
+        MDI6.chevron_up:           (2, 3,  0,  1),
+        MDI6.chevron_down:         (4, 3,  0, -1),
+        MDI6.chevron_double_down:  (5, 3,  0, -2),
+        MDI6.chevron_triple_down:  (6, 3,  0, -3),
+        MDI6.chevron_triple_left:  (3, 0, -3,  0),
+        MDI6.chevron_double_left:  (3, 1, -2,  0),
+        MDI6.chevron_left:         (3, 2, -1,  0),
+        MDI6.chevron_right:        (3, 4,  1,  0),
+        MDI6.chevron_double_right: (3, 5,  2,  0),
+        MDI6.chevron_triple_right: (3, 6,  3,  0),
     }
     BTN_SIZE = 30
     # fmt: on

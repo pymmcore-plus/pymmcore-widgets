@@ -1,4 +1,5 @@
-"""
+"""Example usage of the DeviceWidget class.
+
 Currently, 'DeviceWidget' only supports devices of type 'StateDevice'. Calling
 'DeviceWidget.for_device("device_label"), will create the 'DeviceWidget' subclass
 'StateDeviceWidget'.

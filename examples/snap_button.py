@@ -1,4 +1,5 @@
-"""
+"""Example usage of the SnapButton class.
+
 Check also the 'image_widget.py' example to see the SnapButton
 used in combination of other widgets.
 """

@@ -1,4 +1,5 @@
-"""
+"""Example usage of the LiveButton class.
+
 Check also the 'image_widget.py' example to see the LiveButton
 used in combination of other widgets.
 """
