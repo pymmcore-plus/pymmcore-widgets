@@ -165,7 +165,7 @@ ignore = [
     ".pre-commit-config.yaml",
     "tests/**/*",
     "docs/**/*",
-    "mkdocks.yml",
+    "mkdocs.yml",
     "tox.ini",
     "examples/**/*",
 ]
