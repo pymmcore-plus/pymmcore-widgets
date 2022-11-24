@@ -555,14 +555,7 @@ class MDAWidget(_MDAWidgetGui):
         -------
         useq.MDASequence
         """
-        state = {
-            "axis_order": self.acquisition_order_comboBox.currentText(),
-            "channels": [],
-            "stage_positions": [],
-            "z_plan": None,
-            "time_plan": None,
-        }
-        state["channels"] = [
+        channels: list[dict] = [
             {
                 "config": self.channel_tableWidget.cellWidget(c, 0).currentText(),
                 "group": self._mmc.getChannelGroup() or "Channel",
@@ -570,36 +563,41 @@ class MDAWidget(_MDAWidgetGui):
             }
             for c in range(self.channel_tableWidget.rowCount())
         ]
-        if self.stack_groupBox.isChecked():
 
+        z_plan: dict | None = None
+        if self.stack_groupBox.isChecked():
             if self.z_tabWidget.currentIndex() == 0:
-                state["z_plan"] = {
+                z_plan = {
                     "top": self.z_top_doubleSpinBox.value(),
                     "bottom": self.z_bottom_doubleSpinBox.value(),
                     "step": self.step_size_doubleSpinBox.value(),
                 }
 
             elif self.z_tabWidget.currentIndex() == 1:
-                state["z_plan"] = {
+                z_plan = {
                     "range": self.zrange_spinBox.value(),
                     "step": self.step_size_doubleSpinBox.value(),
                 }
             elif self.z_tabWidget.currentIndex() == 2:
-                state["z_plan"] = {
+                z_plan = {
                     "above": self.above_doubleSpinBox.value(),
                     "below": self.below_doubleSpinBox.value(),
                     "step": self.step_size_doubleSpinBox.value(),
                 }
 
+        time_plan: dict | None = None
         if self.time_groupBox.isChecked():
             unit = {"min": "minutes", "sec": "seconds", "ms": "milliseconds"}[
                 self.time_comboBox.currentText()
             ]
-            state["time_plan"] = {
+            time_plan = {
                 "interval": {unit: self.interval_spinBox.value()},
                 "loops": self.timepoints_spinBox.value(),
             }
+
         # position settings
+        stage_positions: list = []
+
         if self._mmc.getXYStageDevice():
             if (
                 self.stage_pos_groupBox.isChecked()
@@ -613,7 +611,7 @@ class MDAWidget(_MDAWidgetGui):
                     }
                     if self._mmc.getFocusDevice():
                         pos["z"] = float(self.stage_tableWidget.item(r, 3).text())
-                    state["stage_positions"].append(pos)
+                    stage_positions.append(pos)
             else:
                 pos = {
                     "name": "Pos_000",
@@ -622,9 +620,15 @@ class MDAWidget(_MDAWidgetGui):
                 }
                 if self._mmc.getFocusDevice():
                     pos["z"] = float(self._mmc.getZPosition())
-                state["stage_positions"].append(pos)
+                stage_positions.append(pos)
 
-        return MDASequence(**state)
+        return MDASequence(
+            axis_order=self.acquisition_order_comboBox.currentText(),
+            channels=channels,
+            stage_positions=stage_positions,
+            z_plan=z_plan,
+            time_plan=time_plan,
+        )
 
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
