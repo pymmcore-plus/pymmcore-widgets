@@ -70,7 +70,7 @@ class AddPresetWidget(QDialog):
         wdg_layout.setContentsMargins(5, 5, 5, 5)
         wdg.setLayout(wdg_layout)
 
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        lbl_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         gp_lbl = QLabel(text="Group:")
         gp_lbl.setSizePolicy(lbl_sizepolicy)
@@ -82,7 +82,7 @@ class AddPresetWidget(QDialog):
         self.preset_name_lineedit = QLineEdit()
         self.preset_name_lineedit.setPlaceholderText(self._get_placeholder_name())
 
-        spacer = QSpacerItem(30, 10, QSizePolicy.Fixed, QSizePolicy.Fixed)
+        spacer = QSpacerItem(30, 10, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         wdg_layout.addWidget(gp_lbl)
         wdg_layout.addWidget(group_name_lbl)
@@ -107,7 +107,7 @@ class AddPresetWidget(QDialog):
         self.info_lbl = QLabel()
         self.add_preset_button = QPushButton(text="Add Preset")
         self.add_preset_button.setSizePolicy(
-            QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         )
         self.add_preset_button.clicked.connect(self._add_preset)
 
@@ -190,11 +190,11 @@ class _Table(QTableWidget):
         super().__init__()
         hdr = self.horizontalHeader()
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
-        hdr.setDefaultAlignment(Qt.AlignHCenter)
+        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
         vh = self.verticalHeader()
         vh.setVisible(False)
         vh.setSectionResizeMode(vh.ResizeMode.Fixed)
         vh.setDefaultSectionSize(24)
-        self.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Device-Property", "Value"])

@@ -200,7 +200,9 @@ class ShuttersWidget(QtW.QWidget):
         main_layout.setSpacing(3)
 
         self.shutter_button = QtW.QPushButton(text=self._button_text_closed)
-        sizepolicy_btn = QtW.QSizePolicy(QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed)
+        sizepolicy_btn = QtW.QSizePolicy(
+            QtW.QSizePolicy.Policy.Fixed, QtW.QSizePolicy.Policy.Fixed
+        )
         self.shutter_button.setSizePolicy(sizepolicy_btn)
         self.shutter_button.setIcon(
             icon(self._icon_closed, color=self._icon_color_closed)
@@ -211,7 +213,7 @@ class ShuttersWidget(QtW.QWidget):
 
         self.autoshutter_checkbox = QtW.QCheckBox(text="Auto")
         sizepolicy_checkbox = QtW.QSizePolicy(
-            QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed
+            QtW.QSizePolicy.Policy.Fixed, QtW.QSizePolicy.Policy.Fixed
         )
         self.autoshutter_checkbox.setSizePolicy(sizepolicy_checkbox)
         self.autoshutter_checkbox.setChecked(False)

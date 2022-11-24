@@ -37,13 +37,13 @@ class _MainTable(QTableWidget):
         super().__init__()
         hdr = self.horizontalHeader()
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
-        hdr.setDefaultAlignment(Qt.AlignHCenter)
+        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
         vh = self.verticalHeader()
         vh.setVisible(False)
         vh.setSectionResizeMode(vh.ResizeMode.Fixed)
         vh.setDefaultSectionSize(24)
-        self.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.setSelectionBehavior(QTableWidget.SelectRows)
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Group", "Preset"])
         self.setMinimumHeight(200)
@@ -106,7 +106,7 @@ class GroupPresetTableWidget(QGroupBox):
         main_wdg_layout.setContentsMargins(0, 0, 0, 0)
         main_wdg.setLayout(main_wdg_layout)
 
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        lbl_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         # groups
         groups_btn_wdg = QWidget()
@@ -162,7 +162,9 @@ class GroupPresetTableWidget(QGroupBox):
         save_btn_layout.setContentsMargins(0, 0, 0, 0)
         save_btn_wdg.setLayout(save_btn_layout)
 
-        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Fixed)
+        spacer = QSpacerItem(
+            10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         save_btn_layout.addItem(spacer)
         self.save_btn = QPushButton(text="Save cfg")
         self.save_btn.clicked.connect(self._save_cfg)
@@ -201,7 +203,7 @@ class GroupPresetTableWidget(QGroupBox):
         if not device or not property or not value:
             return
 
-        if matching_item := self.table_wdg.findItems(group, Qt.MatchExactly):
+        if matching_item := self.table_wdg.findItems(group, Qt.MatchFlag.MatchExactly):
             row = matching_item[0].row()
 
             if isinstance(self.table_wdg.cellWidget(row, 1), PropertyWidget):
@@ -304,21 +306,23 @@ class GroupPresetTableWidget(QGroupBox):
 
         msg = self._msg_box(f"Delete '{',  '.join(groups)}'?")
 
-        if msg == QMessageBox.Ok:
+        if msg == QMessageBox.StandardButton.Ok:
             for row, group in enumerate(groups):
                 self.table_wdg.removeRow(row)
                 self._mmc.deleteConfigGroup(group)
 
     def _msg_box(self, msg: str) -> Any:
         msgBox = QMessageBox(parent=self)
-        msgBox.setIcon(QMessageBox.Warning)
+        msgBox.setIcon(QMessageBox.Icon.Warning)
         msgBox.setWindowTitle("Delete")
         msgBox.setText(msg)
-        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        msgBox.setStandardButtons(
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
+        )
         return msgBox.exec()
 
     def _on_group_deleted(self, group: str) -> None:
-        if matching_item := self.table_wdg.findItems(group, Qt.MatchExactly):
+        if matching_item := self.table_wdg.findItems(group, Qt.MatchFlag.MatchExactly):
             self.table_wdg.removeRow(matching_item[0].row())
 
     def _edit_group(self) -> None:
@@ -368,7 +372,7 @@ class GroupPresetTableWidget(QGroupBox):
 
         msg = self._msg_box(f"Delete '{',  '.join(_text)}'?")
 
-        if msg == QMessageBox.Ok:
+        if msg == QMessageBox.StandardButton.Ok:
             for row, group, wdg in groups_preset:
                 if isinstance(wdg, PresetsWidget):
                     preset = wdg._combo.currentText()

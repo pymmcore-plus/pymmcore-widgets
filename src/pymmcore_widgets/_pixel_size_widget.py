@@ -38,12 +38,12 @@ class PixelSizeTable(QtW.QTableWidget):
         self._mmc = mmcore
         hh = self.horizontalHeader()
         hh.setSectionResizeMode(hh.ResizeMode.Stretch)
-        hh.setDefaultAlignment(Qt.AlignHCenter)
+        hh.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
         vh = self.verticalHeader()
         vh.setVisible(False)
         vh.setSectionResizeMode(hh.ResizeMode.Stretch)
-        self.setSelectionBehavior(QtW.QAbstractItemView.SelectItems)
-        self.setDragDropMode(QtW.QAbstractItemView.NoDragDrop)
+        self.setSelectionBehavior(QtW.QAbstractItemView.SelectionBehavior.SelectItems)
+        self.setDragDropMode(QtW.QAbstractItemView.DragDropMode.NoDragDrop)
 
     def _rebuild(
         self, obj_dev: str, _cam_mag_dict: Dict[str, Tuple[float, float]] = None  # type: ignore # noqa:E501
@@ -152,7 +152,7 @@ class PixelSizeTable(QtW.QTableWidget):
 
     def _new_line_edit(self, value: Any) -> QtW.QLineEdit:
         item = QtW.QLineEdit(str(value))
-        item.setAlignment(Qt.AlignCenter)
+        item.setAlignment(Qt.AlignmentFlag.AlignCenter)
         item.setFrame(False)
         if isinstance(value, (int, float)):
             item.setValidator(QDoubleValidator())
@@ -160,7 +160,9 @@ class PixelSizeTable(QtW.QTableWidget):
 
     def _new_table_item(self, value: Any, row: int) -> None:
         objective_item = QtW.QTableWidgetItem(value)
-        objective_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+        objective_item.setFlags(
+            Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
+        )
         self.setItem(row, OBJECTIVE_LABEL, objective_item)
 
     def _new_delete_btn(self) -> QtW.QWidget:
@@ -168,12 +170,12 @@ class PixelSizeTable(QtW.QTableWidget):
         layout = QtW.QHBoxLayout()
         layout.setSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setAlignment(Qt.AlignCenter)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         wdg.setLayout(layout)
 
         btn = QtW.QPushButton(text="Delete")
         btn.setFixedWidth(70)
-        btn.setSizePolicy(QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed)
+        btn.setSizePolicy(QtW.QSizePolicy.Policy.Fixed, QtW.QSizePolicy.Policy.Fixed)
         btn.setToolTip("Delete configuration.")
         btn.clicked.connect(self._delete_cfg)
 
@@ -219,7 +221,7 @@ class PixelSizeWidget(QtW.QDialog):
         main_layout = QtW.QVBoxLayout()
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(5, 5, 5, 5)
-        main_layout.setAlignment(Qt.AlignCenter)
+        main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setLayout(main_layout)
 
         wdg = QtW.QGroupBox()
@@ -251,7 +253,7 @@ class PixelSizeWidget(QtW.QDialog):
         self.img_px_radiobtn.toggled.connect(self._on_img_toggle)
 
         spacer = QtW.QSpacerItem(
-            10, 10, QtW.QSizePolicy.Expanding, QtW.QSizePolicy.Minimum
+            10, 10, QtW.QSizePolicy.Policy.Expanding, QtW.QSizePolicy.Policy.Minimum
         )
         layout.addItem(spacer)
 
