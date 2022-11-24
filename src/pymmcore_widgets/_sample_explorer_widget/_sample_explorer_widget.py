@@ -10,8 +10,8 @@ from qtpy.QtCore import QSize, Qt
 from superqt.fonticon import icon
 from useq import MDASequence
 
-from ._sample_explorer_gui import SampleExplorerGui
 from .._util import _select_output_unit, _time_in_sec, guess_channel_group
+from ._sample_explorer_gui import SampleExplorerGui
 
 
 class SampleExplorerWidget(SampleExplorerGui):
