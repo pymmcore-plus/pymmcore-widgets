@@ -23,7 +23,7 @@ from superqt.utils import signals_blocked
 
 # from ._util import block_core
 
-fixed_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 FULL = "Full Chip"
 CUSTOM_ROI = "Custom ROI"
 
@@ -103,7 +103,9 @@ class CameraRoiWidget(QWidget):
         self.lbl_info = QLabel()
         bottom_layout.addWidget(self.lbl_info)
 
-        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Fixed)
+        spacer = QSpacerItem(
+            10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         bottom_layout.addItem(spacer)
 
         self.snap_checkbox = QCheckBox(text="autoSnap")
@@ -140,7 +142,7 @@ class CameraRoiWidget(QWidget):
     def _create_selection_wdg(self) -> QGroupBox:
 
         wdg = QGroupBox()
-        wdg.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         layout = QVBoxLayout()
         layout.setSpacing(5)
         layout.setContentsMargins(3, 3, 3, 3)
@@ -168,14 +170,14 @@ class CameraRoiWidget(QWidget):
         self.start_x = QSpinBox()
         self.start_x.setMinimum(0)
         self.start_x.setMaximum(10000)
-        self.start_x.setAlignment(Qt.AlignCenter)
+        self.start_x.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.start_x.valueChanged.connect(self._on_start_spinbox_changed)
         roi_start_y_label = QLabel("Start y:")
         roi_start_y_label.setSizePolicy(fixed_sizepolicy)
         self.start_y = QSpinBox()
         self.start_y.setMinimum(0)
         self.start_y.setMaximum(10000)
-        self.start_y.setAlignment(Qt.AlignCenter)
+        self.start_y.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.start_y.valueChanged.connect(self._on_start_spinbox_changed)
 
         layout.addWidget(roi_start_x_label, 1, 0, 1, 1)
@@ -189,7 +191,7 @@ class CameraRoiWidget(QWidget):
         self.roi_width.setObjectName("roi_width")
         self.roi_width.setMinimum(1)
         self.roi_width.setMaximum(10000)
-        self.roi_width.setAlignment(Qt.AlignCenter)
+        self.roi_width.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.roi_width.valueChanged.connect(self._on_roi_spinbox_changed)
         roi_height_label = QLabel("Height:")
         roi_height_label.setSizePolicy(fixed_sizepolicy)
@@ -197,7 +199,7 @@ class CameraRoiWidget(QWidget):
         self.roi_height.setObjectName("roi_height")
         self.roi_height.setMinimum(1)
         self.roi_height.setMaximum(10000)
-        self.roi_height.setAlignment(Qt.AlignCenter)
+        self.roi_height.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.roi_height.valueChanged.connect(self._on_roi_spinbox_changed)
 
         layout.addWidget(roi_size_label, 1, 2, 1, 1)
@@ -455,9 +457,9 @@ class CameraRoiWidget(QWidget):
     def _hide_spinbox_button(self, spin_list: List[QSpinBox], hide: bool) -> None:
         for spin in spin_list:
             if hide:
-                spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
+                spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
             else:
-                spin.setButtonSymbols(QAbstractSpinBox.PlusMinus)
+                spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.PlusMinus)
 
     def _check_size_reset_snap(self, snap: bool = True) -> None:
         x, y, w, h = self._mmc.getROI()

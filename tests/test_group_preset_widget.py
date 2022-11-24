@@ -79,9 +79,9 @@ def test_add_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     dev_prop_list = ["Camera-Binning", "Camera-BitDepth", "Camera-CCDTemperature"]
 
-    bin_match = table.findItems("Camera-Binning", Qt.MatchExactly)
-    bit_match = table.findItems("Camera-BitDepth", Qt.MatchExactly)
-    t_match = table.findItems("Camera-CCDTemperature", Qt.MatchExactly)
+    bin_match = table.findItems("Camera-Binning", Qt.MatchFlag.MatchExactly)
+    bit_match = table.findItems("Camera-BitDepth", Qt.MatchFlag.MatchExactly)
+    t_match = table.findItems("Camera-CCDTemperature", Qt.MatchFlag.MatchExactly)
 
     rows = [bin_match[0].row(), bit_match[0].row(), t_match[0].row()]
 
@@ -141,9 +141,9 @@ def test_edit_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     table = edit_gp._prop_table
 
-    bin_match = table.findItems("Camera-Binning", Qt.MatchExactly)
+    bin_match = table.findItems("Camera-Binning", Qt.MatchFlag.MatchExactly)
     bin_row = bin_match[0].row()
-    bit_match = table.findItems("Camera-BitDepth", Qt.MatchExactly)
+    bit_match = table.findItems("Camera-BitDepth", Qt.MatchFlag.MatchExactly)
     bit_row = bit_match[0].row()
 
     bin_cbox = table.cellWidget(bin_row, 0)
@@ -158,7 +158,7 @@ def test_edit_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     edit_gp.new_group_btn.click()
     assert edit_gp.info_lbl.text() == ""
 
-    t_match = table.findItems("Camera-CCDTemperature", Qt.MatchExactly)
+    t_match = table.findItems("Camera-CCDTemperature", Qt.MatchFlag.MatchExactly)
     t_row = t_match[0].row()
 
     t_cbox = table.cellWidget(t_row, 0)

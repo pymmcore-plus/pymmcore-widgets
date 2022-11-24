@@ -95,7 +95,9 @@ class SampleExplorerWidget(SampleExplorerGui):
         if self._include_run_button:
             self.start_scan_Button.clicked.connect(self._start_scan)
         self.cancel_scan_Button.clicked.connect(self._mmc.mda.cancel)
-        self.pause_scan_Button.clicked.connect(lambda: self._mmc.mda.toggle_pause())
+        self.pause_scan_Button.clicked.connect(
+            lambda: self._mmc.mda.toggle_pause()  # type: ignore [no-untyped-call]
+        )
 
         # connect toggle
         self.time_groupBox.toggled.connect(self._calculate_total_time)
@@ -273,7 +275,9 @@ class SampleExplorerWidget(SampleExplorerGui):
                     count = self.stage_tableWidget.rowCount()
                     item = QtW.QTableWidgetItem(f"Grid_{count:03d}")
                     item.setWhatsThis(f"Grid_{count:03d}")
-                    item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+                    item.setTextAlignment(
+                        Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
+                    )
                     self.stage_tableWidget.setItem(idx, c, item)
                     self._rename_positions()
                     continue
@@ -283,7 +287,9 @@ class SampleExplorerWidget(SampleExplorerGui):
 
                 cur = getattr(self._mmc, f"get{ax}Position")()
                 item = QtW.QTableWidgetItem(str(cur))
-                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+                item.setTextAlignment(
+                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
+                )
                 self.stage_tableWidget.setItem(idx, c, item)
 
         self._calculate_total_time()
@@ -319,7 +325,9 @@ class SampleExplorerWidget(SampleExplorerGui):
             new_whatisthis = f"Grid_{grid_count:03d}"
 
             item = QtW.QTableWidgetItem(new_name)
-            item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+            item.setTextAlignment(
+                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
+            )
             item.setWhatsThis(new_whatisthis)
             self.stage_tableWidget.setItem(r, 0, item)
 
