@@ -82,7 +82,7 @@ class SampleExplorerGui(QWidget):
         return wdg
 
     def _enable_run_btn(self) -> None:
-        self.buttons_wdg.run_Button.setEnabled(
+        self.buttons_wdg.run_button.setEnabled(
             self.channel_groupbox.channel_tableWidget.rowCount() > 0
         )
 
@@ -199,7 +199,7 @@ class SampleExplorerGui(QWidget):
         self.pos_coll.addWidget(spacer)
         self.stage_pos_groupBox = MDAPositionTable(["Grid #", "X", "Y", "Z"])
         self.stage_pos_groupBox.setTitle("")
-        self.stage_pos_groupBox.grid_Button.hide()
+        self.stage_pos_groupBox.grid_button.hide()
         self.pos_coll.addWidget(self.stage_pos_groupBox)
 
         group_layout.addWidget(self.pos_coll)

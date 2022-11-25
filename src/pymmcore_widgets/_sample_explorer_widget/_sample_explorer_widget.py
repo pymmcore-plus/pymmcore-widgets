@@ -114,9 +114,9 @@ class SampleExplorerWidget(SampleExplorerGui):
         self.z_gp.toggled.connect(self._calculate_total_time)
 
         # connection for positions
-        self.pos_gp.add_pos_Button.clicked.connect(self._add_position)
-        self.pos_gp.remove_pos_Button.clicked.connect(self._remove_position)
-        self.pos_gp.clear_pos_Button.clicked.connect(self._clear_positions)
+        self.pos_gp.add_pos_button.clicked.connect(self._add_position)
+        self.pos_gp.remove_pos_button.clicked.connect(self._remove_position)
+        self.pos_gp.clear_pos_button.clicked.connect(self._clear_positions)
         self.pos_gp.go.clicked.connect(self._move_to_position)
         self.pos_gp.toggled.connect(self._calculate_total_time)
 
