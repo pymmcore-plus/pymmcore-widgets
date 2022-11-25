@@ -16,12 +16,12 @@ from qtpy.QtWidgets import (
 from superqt import QCollapsible
 
 from pymmcore_widgets._general_mda_widgets import (
-    MDAChannelTable,
-    MDAControlButtons,
-    MDAPositionTable,
-    MDAStackWidget,
-    MDATimeLabel,
-    MDATimeWidget,
+    _MDAChannelTable,
+    _MDAControlButtons,
+    _MDAPositionTable,
+    _MDAStackWidget,
+    _MDATimeLabel,
+    _MDATimeWidget,
 )
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -45,10 +45,10 @@ class SampleExplorerGui(QWidget):
         self._scroll.setWidget(self.explorer_wdg)
         self.layout().addWidget(self._scroll)
 
-        self.time_lbl = MDATimeLabel()
+        self.time_lbl = _MDATimeLabel()
         self.layout().addWidget(self.time_lbl)
 
-        self.buttons_wdg = MDAControlButtons()
+        self.buttons_wdg = _MDAControlButtons()
         self.layout().addWidget(self.buttons_wdg)
 
     def _create_gui(self) -> QWidget:
@@ -62,7 +62,7 @@ class SampleExplorerGui(QWidget):
         self.scan_props = self._create_row_cols_overlap_group()
         wdg_layout.addWidget(self.scan_props)
 
-        self.channel_groupbox = MDAChannelTable()
+        self.channel_groupbox = _MDAChannelTable()
         wdg_layout.addWidget(self.channel_groupbox)
         self.channel_groupbox.channel_tableWidget.model().rowsInserted.connect(
             self._enable_run_btn
@@ -173,7 +173,7 @@ class SampleExplorerGui(QWidget):
         self.time_coll.layout().setContentsMargins(0, 0, 0, 0)
         spacer = self._spacer()
         self.time_coll.addWidget(spacer)
-        self.time_groupBox = MDATimeWidget()
+        self.time_groupBox = _MDATimeWidget()
         self.time_groupBox.setTitle("")
         self.time_coll.addWidget(self.time_groupBox)
 
@@ -185,7 +185,7 @@ class SampleExplorerGui(QWidget):
         self.stack_coll.layout().setContentsMargins(0, 0, 0, 0)
         spacer = self._spacer()
         self.stack_coll.addWidget(spacer)
-        self.stack_groupBox = MDAStackWidget()
+        self.stack_groupBox = _MDAStackWidget()
         self.stack_groupBox.setTitle("")
         self.stack_coll.addWidget(self.stack_groupBox)
 
@@ -197,7 +197,7 @@ class SampleExplorerGui(QWidget):
         self.pos_coll.layout().setContentsMargins(0, 0, 0, 0)
         spacer = self._spacer()
         self.pos_coll.addWidget(spacer)
-        self.stage_pos_groupBox = MDAPositionTable(["Grid #", "X", "Y", "Z"])
+        self.stage_pos_groupBox = _MDAPositionTable(["Grid #", "X", "Y", "Z"])
         self.stage_pos_groupBox.setTitle("")
         self.stage_pos_groupBox.grid_button.hide()
         self.pos_coll.addWidget(self.stage_pos_groupBox)

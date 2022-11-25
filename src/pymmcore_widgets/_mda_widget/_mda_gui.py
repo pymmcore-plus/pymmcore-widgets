@@ -4,12 +4,12 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from pymmcore_widgets._general_mda_widgets import (
-    MDAChannelTable,
-    MDAControlButtons,
-    MDAPositionTable,
-    MDAStackWidget,
-    MDATimeLabel,
-    MDATimeWidget,
+    _MDAChannelTable,
+    _MDAControlButtons,
+    _MDAPositionTable,
+    _MDAStackWidget,
+    _MDATimeLabel,
+    _MDATimeWidget,
 )
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -33,11 +33,11 @@ class _MDAWidgetGui(QWidget):
         self._scroll.setWidget(self._wdg)
         self.layout().addWidget(self._scroll)
 
-        self.time_lbl = MDATimeLabel()
+        self.time_lbl = _MDATimeLabel()
         self.layout().addWidget(self.time_lbl)
 
         # acq order and buttons wdg
-        self.buttons_wdg = MDAControlButtons()
+        self.buttons_wdg = _MDAControlButtons()
         self.layout().addWidget(self.buttons_wdg)
 
     def _create_gui(self) -> QWidget:
@@ -47,7 +47,7 @@ class _MDAWidgetGui(QWidget):
         wdg_layout.setContentsMargins(10, 10, 10, 10)
         wdg.setLayout(wdg_layout)
 
-        self.channel_groupbox = MDAChannelTable()
+        self.channel_groupbox = _MDAChannelTable()
         wdg_layout.addWidget(self.channel_groupbox)
         self.channel_groupbox.channel_tableWidget.model().rowsInserted.connect(
             self._enable_run_btn
@@ -56,13 +56,13 @@ class _MDAWidgetGui(QWidget):
             self._enable_run_btn
         )
 
-        self.time_groupBox = MDATimeWidget()
+        self.time_groupBox = _MDATimeWidget()
         wdg_layout.addWidget(self.time_groupBox)
 
-        self.stack_groupBox = MDAStackWidget()
+        self.stack_groupBox = _MDAStackWidget()
         wdg_layout.addWidget(self.stack_groupBox)
 
-        self.stage_pos_groupBox = MDAPositionTable(["Pos", "X", "Y", "Z"])
+        self.stage_pos_groupBox = _MDAPositionTable(["Pos", "X", "Y", "Z"])
         wdg_layout.addWidget(self.stage_pos_groupBox)
 
         return wdg

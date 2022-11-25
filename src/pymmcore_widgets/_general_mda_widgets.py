@@ -24,7 +24,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 
 
-class MDAChannelTable(QGroupBox):
+class _MDAChannelTable(QGroupBox):
     def __init__(self, *, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
 
@@ -78,7 +78,7 @@ class MDAChannelTable(QGroupBox):
         group_layout.addWidget(wdg, 0, 1)
 
 
-class MDATimeWidget(QGroupBox):
+class _MDATimeWidget(QGroupBox):
     def __init__(self, *, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
 
@@ -164,7 +164,7 @@ class MDATimeWidget(QGroupBox):
         self._icon_lbl.hide()
 
 
-class MDAStackWidget(QGroupBox):
+class _MDAStackWidget(QGroupBox):
     def __init__(self, *, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
 
@@ -328,7 +328,7 @@ class MDAStackWidget(QGroupBox):
         group_layout.addWidget(step_wdg)
 
 
-class MDAPositionTable(QGroupBox):
+class _MDAPositionTable(QGroupBox):
     def __init__(self, header: List[str], *, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
 
@@ -409,7 +409,7 @@ class MDAPositionTable(QGroupBox):
         self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
 
 
-class MDAControlButtons(QWidget):
+class _MDAControlButtons(QWidget):
     def __init__(self, *, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
 
@@ -471,7 +471,7 @@ class MDAControlButtons(QWidget):
         wdg_layout.addWidget(self.cancel_button)
 
 
-class MDATimeLabel(QWidget):
+class _MDATimeLabel(QWidget):
     def __init__(self, *, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
 
