@@ -54,56 +54,77 @@ class MDAWidget(_MDAWidgetGui):
     ) -> None:
         super().__init__(parent=parent)
 
-        self._include_run_button = include_run_button
-
-        self.pause_Button.hide()
-        self.cancel_Button.hide()
-        if not self._include_run_button:
-            self.run_Button.hide()
-
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self.pause_Button.released.connect(lambda: self._mmc.mda.toggle_pause())
-        self.cancel_Button.released.connect(lambda: self._mmc.mda.cancel())
+        self._include_run_button = include_run_button
 
-        # connect buttons
-        self.add_pos_Button.clicked.connect(self._add_position)
-        self.remove_pos_Button.clicked.connect(self._remove_position)
-        self.clear_pos_Button.clicked.connect(self._clear_positions)
-        self.add_ch_button.clicked.connect(self._add_channel)
-        self.remove_ch_button.clicked.connect(self._remove_channel)
-        self.clear_ch_button.clicked.connect(self._clear_channel)
-        self.grid_Button.clicked.connect(self._grid_widget)
+        self.buttons_wdg.pause_button.hide()
+        self.buttons_wdg.cancel_button.hide()
+        if not self._include_run_button:
+            self.buttons_wdg.run_button.hide()
+
+        self.buttons_wdg.pause_button.released.connect(
+            lambda: self._mmc.mda.toggle_pause()
+        )
+        self.buttons_wdg.cancel_button.released.connect(lambda: self._mmc.mda.cancel())
+
+        self.ch_gb = self.channel_groupbox
+        self.tm_gp = self.time_groupBox
+        self.z_gp = self.stack_groupBox
+        self.pos_gp = self.stage_pos_groupBox
+
+        # connect run button
         if self._include_run_button:
-            self.run_Button.clicked.connect(self._on_run_clicked)
+            self.buttons_wdg.run_button.clicked.connect(self._on_run_clicked)
 
-        # connect buttons for z stack
-        self.set_top_Button.clicked.connect(self._set_top)
-        self.set_bottom_Button.clicked.connect(self._set_bottom)
-        self.z_top_doubleSpinBox.valueChanged.connect(self._update_topbottom_range)
-        self.z_bottom_doubleSpinBox.valueChanged.connect(self._update_topbottom_range)
-        self.zrange_spinBox.valueChanged.connect(self._update_rangearound_label)
-        self.above_doubleSpinBox.valueChanged.connect(self._update_abovebelow_range)
-        self.below_doubleSpinBox.valueChanged.connect(self._update_abovebelow_range)
-        self.z_range_abovebelow_doubleSpinBox.valueChanged.connect(
+        # connection for channel
+        self.ch_gb.add_ch_button.clicked.connect(self._add_channel)
+        self.ch_gb.remove_ch_button.clicked.connect(self._remove_channel)
+        self.ch_gb.clear_ch_button.clicked.connect(self._clear_channel)
+
+        # connection for z stack
+        self.z_gp.set_top_Button.clicked.connect(self._set_top)
+        self.z_gp.set_bottom_Button.clicked.connect(self._set_bottom)
+        self.z_gp.z_top_doubleSpinBox.valueChanged.connect(self._update_topbottom_range)
+        self.z_gp.z_bottom_doubleSpinBox.valueChanged.connect(
+            self._update_topbottom_range
+        )
+        self.z_gp.zrange_spinBox.valueChanged.connect(self._update_rangearound_label)
+        self.z_gp.above_doubleSpinBox.valueChanged.connect(
+            self._update_abovebelow_range
+        )
+        self.z_gp.below_doubleSpinBox.valueChanged.connect(
+            self._update_abovebelow_range
+        )
+        self.z_gp.z_range_abovebelow_doubleSpinBox.valueChanged.connect(
             self._update_n_images
         )
-        self.zrange_spinBox.valueChanged.connect(self._update_n_images)
-        self.z_range_topbottom_doubleSpinBox.valueChanged.connect(self._update_n_images)
-        self.step_size_doubleSpinBox.valueChanged.connect(self._update_n_images)
-        self.z_tabWidget.currentChanged.connect(self._update_n_images)
-        self.stack_groupBox.toggled.connect(self._update_n_images)
+        self.z_gp.zrange_spinBox.valueChanged.connect(self._update_n_images)
+        self.z_gp.z_range_topbottom_doubleSpinBox.valueChanged.connect(
+            self._update_n_images
+        )
+        self.z_gp.step_size_doubleSpinBox.valueChanged.connect(self._update_n_images)
+        self.z_gp.z_tabWidget.currentChanged.connect(self._update_n_images)
+        self.z_gp.toggled.connect(self._update_n_images)
+        self.z_gp.toggled.connect(self._calculate_total_time)
 
-        # toggle connect
-        self.time_groupBox.toggled.connect(self._calculate_total_time)
-        self.interval_spinBox.valueChanged.connect(self._calculate_total_time)
-        self.timepoints_spinBox.valueChanged.connect(self._calculate_total_time)
-        self.stack_groupBox.toggled.connect(self._calculate_total_time)
-        self.stage_pos_groupBox.toggled.connect(self._calculate_total_time)
-        self.time_comboBox.currentIndexChanged.connect(self._calculate_total_time)
-        self.go.clicked.connect(self._move_to_position)
+        # connection for positions
+        self.pos_gp = self.pos_gp
+        self.pos_gp.add_pos_Button.clicked.connect(self._add_position)
+        self.pos_gp.remove_pos_Button.clicked.connect(self._remove_position)
+        self.pos_gp.clear_pos_Button.clicked.connect(self._clear_positions)
+        self.pos_gp.grid_Button.clicked.connect(self._grid_widget)
+        self.pos_gp.go.clicked.connect(self._move_to_position)
+        self.pos_gp.toggled.connect(self._calculate_total_time)
 
-        # events
+        # connection for time
+        self.tm_gp = self.tm_gp
+        self.tm_gp.toggled.connect(self._calculate_total_time)
+        self.tm_gp.interval_spinBox.valueChanged.connect(self._calculate_total_time)
+        self.tm_gp.timepoints_spinBox.valueChanged.connect(self._calculate_total_time)
+        self.tm_gp.time_comboBox.currentIndexChanged.connect(self._calculate_total_time)
+
+        # connect mmcore signals
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.mda.events.sequencePauseToggled.connect(self._on_mda_paused)
@@ -116,21 +137,21 @@ class MDAWidget(_MDAWidgetGui):
             self._mmc.setChannelGroup(channel_group)
 
     def _set_enabled(self, enabled: bool) -> None:
-        self.time_groupBox.setEnabled(enabled)
-        self.acquisition_order_comboBox.setEnabled(enabled)
-        self.channel_groupBox.setEnabled(enabled)
+        self.tm_gp.setEnabled(enabled)
+        self.buttons_wdg.acquisition_order_comboBox.setEnabled(enabled)
+        self.ch_gb.setEnabled(enabled)
 
         if not self._mmc.getXYStageDevice():
-            self.stage_pos_groupBox.setChecked(False)
-            self.stage_pos_groupBox.setEnabled(False)
+            self.pos_gp.setChecked(False)
+            self.pos_gp.setEnabled(False)
         else:
-            self.stage_pos_groupBox.setEnabled(enabled)
+            self.pos_gp.setEnabled(enabled)
 
         if not self._mmc.getFocusDevice():
-            self.stack_groupBox.setChecked(False)
-            self.stack_groupBox.setEnabled(False)
+            self.z_gp.setChecked(False)
+            self.z_gp.setEnabled(False)
         else:
-            self.stack_groupBox.setEnabled(enabled)
+            self.z_gp.setEnabled(enabled)
 
     def _grid_widget(self) -> None:
         if not self._mmc.getXYStageDevice():
@@ -148,8 +169,8 @@ class MDAWidget(_MDAWidgetGui):
         if clear:
             self._clear_positions()
         else:
-            for r in range(self.stage_tableWidget.rowCount()):
-                pos_name = self.stage_tableWidget.item(r, 0).text()
+            for r in range(self.pos_gp.stage_tableWidget.rowCount()):
+                pos_name = self.pos_gp.stage_tableWidget.item(r, 0).text()
                 grid_name = pos_name.split("_")[0]
                 if "Grid" in grid_name:
                     grid_n = grid_name[-3:]
@@ -158,8 +179,8 @@ class MDAWidget(_MDAWidgetGui):
             grid_number += 1
 
         for idx, position in enumerate(position_list):
-            rows = self.stage_tableWidget.rowCount()
-            self.stage_tableWidget.insertRow(rows)
+            rows = self.pos_gp.stage_tableWidget.rowCount()
+            self.pos_gp.stage_tableWidget.insertRow(rows)
 
             item = QtW.QTableWidgetItem(f"Grid{grid_number:03d}_Pos{idx:03d}")
             item.setTextAlignment(
@@ -178,60 +199,67 @@ class MDAWidget(_MDAWidgetGui):
                 Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
             )
 
-            self.stage_tableWidget.setItem(rows, 0, item)
-            self.stage_tableWidget.setItem(rows, 1, x)
-            self.stage_tableWidget.setItem(rows, 2, y)
-            self.stage_tableWidget.setItem(rows, 3, z)
+            self.pos_gp.stage_tableWidget.setItem(rows, 0, item)
+            self.pos_gp.stage_tableWidget.setItem(rows, 1, x)
+            self.pos_gp.stage_tableWidget.setItem(rows, 2, y)
+            self.pos_gp.stage_tableWidget.setItem(rows, 3, z)
 
     def _set_top(self) -> None:
-        self.z_top_doubleSpinBox.setValue(self._mmc.getZPosition())
+        self.z_gp.z_top_doubleSpinBox.setValue(self._mmc.getZPosition())
 
     def _set_bottom(self) -> None:
-        self.z_bottom_doubleSpinBox.setValue(self._mmc.getZPosition())
+        self.z_gp.z_bottom_doubleSpinBox.setValue(self._mmc.getZPosition())
 
     def _update_topbottom_range(self) -> None:
-        self.z_range_topbottom_doubleSpinBox.setValue(
-            abs(self.z_top_doubleSpinBox.value() - self.z_bottom_doubleSpinBox.value())
+        self.z_gp.z_range_topbottom_doubleSpinBox.setValue(
+            abs(
+                self.z_gp.z_top_doubleSpinBox.value()
+                - self.z_gp.z_bottom_doubleSpinBox.value()
+            )
         )
 
     def _update_rangearound_label(self, value: int) -> None:
-        self.range_around_label.setText(f"-{value/2} µm <- z -> +{value/2} µm")
+        self.z_gp.range_around_label.setText(f"-{value/2} µm <- z -> +{value/2} µm")
 
     def _update_abovebelow_range(self) -> None:
-        self.z_range_abovebelow_doubleSpinBox.setValue(
-            self.above_doubleSpinBox.value() + self.below_doubleSpinBox.value()
+        self.z_gp.z_range_abovebelow_doubleSpinBox.setValue(
+            self.z_gp.above_doubleSpinBox.value()
+            + self.z_gp.below_doubleSpinBox.value()
         )
 
     def _update_n_images(self) -> None:
-        step = self.step_size_doubleSpinBox.value()
+        step = self.z_gp.step_size_doubleSpinBox.value()
         # set what is the range to consider depending on the z_stack mode
-        if self.z_tabWidget.currentIndex() == 0:
-            _range = self.z_range_topbottom_doubleSpinBox.value()
-        if self.z_tabWidget.currentIndex() == 1:
-            _range = self.zrange_spinBox.value()
-        if self.z_tabWidget.currentIndex() == 2:
-            _range = self.z_range_abovebelow_doubleSpinBox.value()
+        if self.z_gp.z_tabWidget.currentIndex() == 0:
+            _range = self.z_gp.z_range_topbottom_doubleSpinBox.value()
+        if self.z_gp.z_tabWidget.currentIndex() == 1:
+            _range = self.z_gp.zrange_spinBox.value()
+        if self.z_gp.z_tabWidget.currentIndex() == 2:
+            _range = self.z_gp.z_range_abovebelow_doubleSpinBox.value()
 
-        self.n_images_label.setText(f"Number of Images: {round((_range / step) + 1)}")
+        self.z_gp.n_images_label.setText(
+            f"Number of Images: {round((_range / step) + 1)}"
+        )
         self._calculate_total_time()
 
     def _calculate_total_time(self) -> None:
 
         # channel
         exp: list = []
-        ch = self.channel_tableWidget.rowCount()
+        ch = self.ch_gb.channel_tableWidget.rowCount()
         if ch > 0:
             exp.extend(
-                self.channel_tableWidget.cellWidget(r, 1).value() for r in range(ch)
+                self.ch_gb.channel_tableWidget.cellWidget(r, 1).value()
+                for r in range(ch)
             )
         else:
             exp = []
 
         # time
-        if self.time_groupBox.isChecked():
-            timepoints = self.timepoints_spinBox.value()
-            interval = self.interval_spinBox.value()
-            int_unit = self.time_comboBox.currentText()
+        if self.tm_gp.isChecked():
+            timepoints = self.tm_gp.timepoints_spinBox.value()
+            interval = self.tm_gp.interval_spinBox.value()
+            int_unit = self.tm_gp.time_comboBox.currentText()
             if int_unit != "sec":
                 interval = _time_in_sec(interval, int_unit)
         else:
@@ -239,14 +267,14 @@ class MDAWidget(_MDAWidgetGui):
             interval = -1.0
 
         # z stack
-        if self.stack_groupBox.isChecked():
-            n_z_images = int(self.n_images_label.text()[18:])
+        if self.z_gp.isChecked():
+            n_z_images = int(self.z_gp.n_images_label.text()[18:])
         else:
             n_z_images = 1
 
         # positions
-        if self.stage_pos_groupBox.isChecked():
-            n_pos = self.stage_tableWidget.rowCount() or 1
+        if self.pos_gp.isChecked():
+            n_pos = self.pos_gp.stage_tableWidget.rowCount() or 1
         else:
             n_pos = 1
         n_pos = n_pos
@@ -283,43 +311,43 @@ class MDAWidget(_MDAWidgetGui):
             (time_chs * timepoints) + addition_time - effective_interval
         )
 
-        self._icon_lbl.clear()
-        self._time_lbl.clear()
-        self._time_lbl.setStyleSheet(stylesheet)
+        self.tm_gp._icon_lbl.clear()
+        self.tm_gp._time_lbl.clear()
+        self.tm_gp._time_lbl.setStyleSheet(stylesheet)
         if _icon:
-            self._icon_lbl.show()
-            self._icon_lbl.setPixmap(_icon)
-            self._time_lbl.show()
-            self._time_lbl.setText(f"{warning_msg}")
-            self._time_lbl.adjustSize()
+            self.tm_gp._icon_lbl.show()
+            self.tm_gp._icon_lbl.setPixmap(_icon)
+            self.tm_gp._time_lbl.show()
+            self.tm_gp._time_lbl.setText(f"{warning_msg}")
+            self.tm_gp._time_lbl.adjustSize()
         else:
-            self._time_lbl.hide()
-            self._icon_lbl.hide()
+            self.tm_gp._time_lbl.hide()
+            self.tm_gp._icon_lbl.hide()
 
         t_per_tp_msg = ""
         tot_acq_msg = f"Minimum total acquisition time: {min_tot_time:.4f} {unit_4}.\n"
-        if self.time_groupBox.isChecked():
+        if self.tm_gp.isChecked():
             t_per_tp_msg = (
                 f"Minimum acquisition time per timepoint: {min_aq_tp:.4f} {unit_1}."
             )
-        self._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
+        self.time_lbl._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
 
     def _on_mda_started(self) -> None:
         self._set_enabled(False)
         if self._include_run_button:
-            self.pause_Button.show()
-            self.cancel_Button.show()
-        self.run_Button.hide()
+            self.buttons_wdg.pause_button.show()
+            self.buttons_wdg.cancel_button.show()
+        self.buttons_wdg.run_button.hide()
 
     def _on_mda_finished(self) -> None:
         self._set_enabled(True)
-        self.pause_Button.hide()
-        self.cancel_Button.hide()
+        self.buttons_wdg.pause_button.hide()
+        self.buttons_wdg.cancel_button.hide()
         if self._include_run_button:
-            self.run_Button.show()
+            self.buttons_wdg.run_button.show()
 
     def _on_mda_paused(self, paused: bool) -> None:
-        self.pause_Button.setText("Resume" if paused else "Pause")
+        self.buttons_wdg.pause_button.setText("Resume" if paused else "Pause")
 
     def _add_channel(self) -> bool:
         """Add, remove or clear channel table.  Return True if anyting was changed."""
@@ -330,8 +358,8 @@ class MDAWidget(_MDAWidgetGui):
         if not channel_group:
             return False
 
-        idx = self.channel_tableWidget.rowCount()
-        self.channel_tableWidget.insertRow(idx)
+        idx = self.ch_gb.channel_tableWidget.rowCount()
+        self.ch_gb.channel_tableWidget.insertRow(idx)
 
         # create a combo_box for channels in the table
         channel_comboBox = QtW.QComboBox(self)
@@ -344,8 +372,8 @@ class MDAWidget(_MDAWidgetGui):
             channel_list = list(self._mmc.getAvailableConfigs(channel_group))
             channel_comboBox.addItems(channel_list)
 
-        self.channel_tableWidget.setCellWidget(idx, 0, channel_comboBox)
-        self.channel_tableWidget.setCellWidget(idx, 1, channel_exp_spinBox)
+        self.ch_gb.channel_tableWidget.setCellWidget(idx, 0, channel_comboBox)
+        self.ch_gb.channel_tableWidget.setCellWidget(idx, 1, channel_exp_spinBox)
 
         self._calculate_total_time()
 
@@ -353,16 +381,16 @@ class MDAWidget(_MDAWidgetGui):
 
     def _remove_channel(self) -> None:
         # remove selected position
-        rows = {r.row() for r in self.channel_tableWidget.selectedIndexes()}
+        rows = {r.row() for r in self.ch_gb.channel_tableWidget.selectedIndexes()}
         for idx in sorted(rows, reverse=True):
-            self.channel_tableWidget.removeRow(idx)
+            self.ch_gb.channel_tableWidget.removeRow(idx)
 
         self._calculate_total_time()
 
     def _clear_channel(self) -> None:
         # clear all positions
-        self.channel_tableWidget.clearContents()
-        self.channel_tableWidget.setRowCount(0)
+        self.ch_gb.channel_tableWidget.clearContents()
+        self.ch_gb.channel_tableWidget.setRowCount(0)
 
         self._calculate_total_time()
 
@@ -378,12 +406,12 @@ class MDAWidget(_MDAWidgetGui):
             for c, ax in enumerate("PXYZ"):
 
                 if ax == "P":
-                    count = self.stage_tableWidget.rowCount() - 1
+                    count = self.pos_gp.stage_tableWidget.rowCount() - 1
                     item = QtW.QTableWidgetItem(f"Pos{count:03d}")
                     item.setTextAlignment(
                         Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
                     )
-                    self.stage_tableWidget.setItem(idx, c, item)
+                    self.pos_gp.stage_tableWidget.setItem(idx, c, item)
                     self._rename_positions(["Pos"])
                     continue
 
@@ -394,27 +422,27 @@ class MDAWidget(_MDAWidgetGui):
                 item.setTextAlignment(
                     Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
                 )
-                self.stage_tableWidget.setItem(idx, c, item)
+                self.pos_gp.stage_tableWidget.setItem(idx, c, item)
 
             self._calculate_total_time()
 
     def _add_position_row(self) -> int:
-        idx = self.stage_tableWidget.rowCount()
-        self.stage_tableWidget.insertRow(idx)
+        idx = self.pos_gp.stage_tableWidget.rowCount()
+        self.pos_gp.stage_tableWidget.insertRow(idx)
         return idx  # type: ignore [no-any-return]
 
     def _remove_position(self) -> None:
         # remove selected position
-        rows = {r.row() for r in self.stage_tableWidget.selectedIndexes()}
+        rows = {r.row() for r in self.pos_gp.stage_tableWidget.selectedIndexes()}
         removed = []
         for idx in sorted(rows, reverse=True):
-            name = self.stage_tableWidget.item(idx, 0).text().split("_")[0]
+            name = self.pos_gp.stage_tableWidget.item(idx, 0).text().split("_")[0]
             if "Pos" in name:
                 if "Pos" not in removed:
                     removed.append("Pos")
             elif name not in removed:
                 removed.append(name)
-            self.stage_tableWidget.removeRow(idx)
+            self.pos_gp.stage_tableWidget.removeRow(idx)
         self._rename_positions(removed)
         self._calculate_total_time()
 
@@ -422,8 +450,8 @@ class MDAWidget(_MDAWidgetGui):
         for name in names:
             grid_count = 0
             pos_count = 0
-            for r in range(self.stage_tableWidget.rowCount()):
-                start = self.stage_tableWidget.item(r, 0).text().split("_")[0]
+            for r in range(self.pos_gp.stage_tableWidget.rowCount()):
+                start = self.pos_gp.stage_tableWidget.item(r, 0).text().split("_")[0]
                 if start == name:  # Grid
                     new_name = f"{name}_Pos{grid_count:03d}"
                     grid_count += 1
@@ -436,21 +464,21 @@ class MDAWidget(_MDAWidgetGui):
                 item.setTextAlignment(
                     Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
                 )
-                self.stage_tableWidget.setItem(r, 0, item)
+                self.pos_gp.stage_tableWidget.setItem(r, 0, item)
 
     def _clear_positions(self) -> None:
         # clear all positions
-        self.stage_tableWidget.clearContents()
-        self.stage_tableWidget.setRowCount(0)
+        self.pos_gp.stage_tableWidget.clearContents()
+        self.pos_gp.stage_tableWidget.setRowCount(0)
         self._calculate_total_time()
 
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():
             return
-        curr_row = self.stage_tableWidget.currentRow()
-        x_val = self.stage_tableWidget.item(curr_row, 1).text()
-        y_val = self.stage_tableWidget.item(curr_row, 2).text()
-        z_val = self.stage_tableWidget.item(curr_row, 3).text()
+        curr_row = self.pos_gp.stage_tableWidget.currentRow()
+        x_val = self.pos_gp.stage_tableWidget.item(curr_row, 1).text()
+        y_val = self.pos_gp.stage_tableWidget.item(curr_row, 2).text()
+        z_val = self.pos_gp.stage_tableWidget.item(curr_row, 3).text()
         self._mmc.setXYPosition(float(x_val), float(y_val))
         self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
 
@@ -470,7 +498,7 @@ class MDAWidget(_MDAWidgetGui):
         if not isinstance(state, MDASequence):
             raise TypeError("state must be an MDASequence, dict, or yaml file")
 
-        self.acquisition_order_comboBox.setCurrentText(state.axis_order)
+        self.buttons_wdg.acquisition_order_comboBox.setCurrentText(state.axis_order)
 
         # set channel table
         self._clear_channel()
@@ -482,57 +510,61 @@ class MDAWidget(_MDAWidgetGui):
             if not self._add_channel():
                 break
             if ch.config in channel_list:
-                self.channel_tableWidget.cellWidget(idx, 0).setCurrentText(ch.config)
+                self.ch_gb.channel_tableWidget.cellWidget(idx, 0).setCurrentText(
+                    ch.config
+                )
             else:
                 warnings.warn(
                     f"Unrecognized channel: {ch.config!r}. "
                     f"Valid channels include {channel_list}"
                 )
             if ch.exposure:
-                self.channel_tableWidget.cellWidget(idx, 1).setValue(int(ch.exposure))
+                self.ch_gb.channel_tableWidget.cellWidget(idx, 1).setValue(
+                    int(ch.exposure)
+                )
 
         # set Z
         if state.z_plan:
-            self.stack_groupBox.setChecked(True)
+            self.z_gp.setChecked(True)
             if hasattr(state.z_plan, "top") and hasattr(state.z_plan, "bottom"):
-                self.z_top_doubleSpinBox.setValue(state.z_plan.top)
-                self.z_bottom_doubleSpinBox.setValue(state.z_plan.bottom)
-                self.z_tabWidget.setCurrentIndex(0)
+                self.z_gp.z_top_doubleSpinBox.setValue(state.z_plan.top)
+                self.z_gp.z_bottom_doubleSpinBox.setValue(state.z_plan.bottom)
+                self.z_gp.z_tabWidget.setCurrentIndex(0)
             elif hasattr(state.z_plan, "above") and hasattr(state.z_plan, "below"):
-                self.above_doubleSpinBox.setValue(state.z_plan.above)
-                self.below_doubleSpinBox.setValue(state.z_plan.below)
-                self.z_tabWidget.setCurrentIndex(2)
+                self.z_gp.above_doubleSpinBox.setValue(state.z_plan.above)
+                self.z_gp.below_doubleSpinBox.setValue(state.z_plan.below)
+                self.z_gp.z_tabWidget.setCurrentIndex(2)
             elif hasattr(state.z_plan, "range"):
-                self.zrange_spinBox.setValue(int(state.z_plan.range))
-                self.z_tabWidget.setCurrentIndex(1)
+                self.z_gp.zrange_spinBox.setValue(int(state.z_plan.range))
+                self.z_gp.z_tabWidget.setCurrentIndex(1)
             if hasattr(state.z_plan, "step"):
-                self.step_size_doubleSpinBox.setValue(state.z_plan.step)
+                self.z_gp.step_size_doubleSpinBox.setValue(state.z_plan.step)
         else:
-            self.stack_groupBox.setChecked(False)
+            self.z_gp.setChecked(False)
 
         # set time
         # currently only `TIntervalLoops` is supported
         if hasattr(state.time_plan, "interval") and hasattr(state.time_plan, "loops"):
-            self.time_groupBox.setChecked(True)
-            self.timepoints_spinBox.setValue(state.time_plan.loops)
+            self.tm_gp.setChecked(True)
+            self.tm_gp.timepoints_spinBox.setValue(state.time_plan.loops)
 
             sec = state.time_plan.interval.total_seconds()
             if sec >= 60:
-                self.time_comboBox.setCurrentText("min")
-                self.interval_spinBox.setValue(sec // 60)
+                self.tm_gp.time_comboBox.setCurrentText("min")
+                self.tm_gp.interval_spinBox.setValue(sec // 60)
             elif sec >= 1:
-                self.time_comboBox.setCurrentText("sec")
-                self.interval_spinBox.setValue(int(sec))
+                self.tm_gp.time_comboBox.setCurrentText("sec")
+                self.tm_gp.interval_spinBox.setValue(int(sec))
             else:
-                self.time_comboBox.setCurrentText("ms")
-                self.interval_spinBox.setValue(int(sec * 1000))
+                self.tm_gp.time_comboBox.setCurrentText("ms")
+                self.tm_gp.interval_spinBox.setValue(int(sec * 1000))
         else:
-            self.time_groupBox.setChecked(False)
+            self.tm_gp.setChecked(False)
 
         # set stage positions
         self._clear_positions()
         if state.stage_positions:
-            self.stage_pos_groupBox.setChecked(True)
+            self.pos_gp.setChecked(True)
             for idx, pos in enumerate(state.stage_positions):
                 self._add_position_row()
                 for c, ax in enumerate("pxyz"):
@@ -544,9 +576,9 @@ class MDAWidget(_MDAWidgetGui):
                     item.setTextAlignment(
                         Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
                     )
-                    self.stage_tableWidget.setItem(idx, c, item)
+                    self.pos_gp.stage_tableWidget.setItem(idx, c, item)
         else:
-            self.stage_pos_groupBox.setChecked(False)
+            self.pos_gp.setChecked(False)
 
     def get_state(self) -> MDASequence:
         """Get current state of widget and build a useq.MDASequence.
@@ -557,60 +589,57 @@ class MDAWidget(_MDAWidgetGui):
         """
         channels: list[dict] = [
             {
-                "config": self.channel_tableWidget.cellWidget(c, 0).currentText(),
+                "config": self.ch_gb.channel_tableWidget.cellWidget(c, 0).currentText(),
                 "group": self._mmc.getChannelGroup() or "Channel",
-                "exposure": self.channel_tableWidget.cellWidget(c, 1).value(),
+                "exposure": self.ch_gb.channel_tableWidget.cellWidget(c, 1).value(),
             }
-            for c in range(self.channel_tableWidget.rowCount())
+            for c in range(self.ch_gb.channel_tableWidget.rowCount())
         ]
 
         z_plan: dict | None = None
-        if self.stack_groupBox.isChecked():
-            if self.z_tabWidget.currentIndex() == 0:
+        if self.z_gp.isChecked():
+            if self.z_gp.z_tabWidget.currentIndex() == 0:
                 z_plan = {
-                    "top": self.z_top_doubleSpinBox.value(),
-                    "bottom": self.z_bottom_doubleSpinBox.value(),
-                    "step": self.step_size_doubleSpinBox.value(),
+                    "top": self.z_gp.z_top_doubleSpinBox.value(),
+                    "bottom": self.z_gp.z_bottom_doubleSpinBox.value(),
+                    "step": self.z_gp.step_size_doubleSpinBox.value(),
                 }
 
-            elif self.z_tabWidget.currentIndex() == 1:
+            elif self.z_gp.z_tabWidget.currentIndex() == 1:
                 z_plan = {
-                    "range": self.zrange_spinBox.value(),
-                    "step": self.step_size_doubleSpinBox.value(),
+                    "range": self.z_gp.zrange_spinBox.value(),
+                    "step": self.z_gp.step_size_doubleSpinBox.value(),
                 }
-            elif self.z_tabWidget.currentIndex() == 2:
+            elif self.z_gp.z_tabWidget.currentIndex() == 2:
                 z_plan = {
-                    "above": self.above_doubleSpinBox.value(),
-                    "below": self.below_doubleSpinBox.value(),
-                    "step": self.step_size_doubleSpinBox.value(),
+                    "above": self.z_gp.above_doubleSpinBox.value(),
+                    "below": self.z_gp.below_doubleSpinBox.value(),
+                    "step": self.z_gp.step_size_doubleSpinBox.value(),
                 }
 
         time_plan: dict | None = None
-        if self.time_groupBox.isChecked():
+        if self.tm_gp.isChecked():
             unit = {"min": "minutes", "sec": "seconds", "ms": "milliseconds"}[
-                self.time_comboBox.currentText()
+                self.tm_gp.time_comboBox.currentText()
             ]
             time_plan = {
-                "interval": {unit: self.interval_spinBox.value()},
-                "loops": self.timepoints_spinBox.value(),
+                "interval": {unit: self.tm_gp.interval_spinBox.value()},
+                "loops": self.tm_gp.timepoints_spinBox.value(),
             }
 
         # position settings
         stage_positions: list = []
 
         if self._mmc.getXYStageDevice():
-            if (
-                self.stage_pos_groupBox.isChecked()
-                and self.stage_tableWidget.rowCount() > 0
-            ):
-                for r in range(self.stage_tableWidget.rowCount()):
+            if self.pos_gp.isChecked() and self.pos_gp.stage_tableWidget.rowCount() > 0:
+                for r in range(self.pos_gp.stage_tableWidget.rowCount()):
                     pos = {
-                        "name": self.stage_tableWidget.item(r, 0).text(),
-                        "x": float(self.stage_tableWidget.item(r, 1).text()),
-                        "y": float(self.stage_tableWidget.item(r, 2).text()),
+                        "name": self.pos_gp.stage_tableWidget.item(r, 0).text(),
+                        "x": float(self.pos_gp.stage_tableWidget.item(r, 1).text()),
+                        "y": float(self.pos_gp.stage_tableWidget.item(r, 2).text()),
                     }
                     if self._mmc.getFocusDevice():
-                        pos["z"] = float(self.stage_tableWidget.item(r, 3).text())
+                        pos["z"] = float(self.z_gp.stage_tableWidget.item(r, 3).text())
                     stage_positions.append(pos)
             else:
                 pos = {
@@ -623,7 +652,7 @@ class MDAWidget(_MDAWidgetGui):
                 stage_positions.append(pos)
 
         return MDASequence(
-            axis_order=self.acquisition_order_comboBox.currentText(),
+            axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
             channels=channels,
             stage_positions=stage_positions,
             z_plan=z_plan,
