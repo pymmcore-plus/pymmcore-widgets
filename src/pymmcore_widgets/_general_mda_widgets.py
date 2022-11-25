@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from fonticon_mdi6 import MDI6
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QAbstractItemView,
@@ -28,17 +29,14 @@ class MDAChannelTable(QGroupBox):
         super().__init__(parent=parent)
 
         self.setTitle("Channels")
-        # self.setMinimumHeight(200)
 
-        group_layout = QHBoxLayout()
+        group_layout = QGridLayout()
         group_layout.setSpacing(15)
         group_layout.setContentsMargins(10, 10, 10, 10)
         self.setLayout(group_layout)
 
         # channel table
         self.channel_tableWidget = QTableWidget()
-
-        self.channel_tableWidget.setMinimumHeight(100)
         hdr = self.channel_tableWidget.horizontalHeader()
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
         self.channel_tableWidget.verticalHeader().setVisible(False)
@@ -48,7 +46,7 @@ class MDAChannelTable(QGroupBox):
         self.channel_tableWidget.setHorizontalHeaderLabels(
             ["Channel", "Exposure Time (ms)"]
         )
-        group_layout.addWidget(self.channel_tableWidget)
+        group_layout.addWidget(self.channel_tableWidget, 0, 0)
 
         # buttons
         wdg = QWidget()
@@ -77,7 +75,7 @@ class MDAChannelTable(QGroupBox):
         layout.addWidget(self.clear_ch_button)
         layout.addItem(spacer)
 
-        group_layout.addWidget(wdg)
+        group_layout.addWidget(wdg, 0, 1)
 
 
 class MDATimeWidget(QGroupBox):
@@ -195,8 +193,8 @@ class MDAStackWidget(QGroupBox):
         tb_layout.setContentsMargins(10, 10, 10, 10)
         tb.setLayout(tb_layout)
 
-        self.set_top_Button = QPushButton(text="Set Top")
-        self.set_bottom_Button = QPushButton(text="Set Bottom")
+        self.set_top_button = QPushButton(text="Set Top")
+        self.set_bottom_button = QPushButton(text="Set Bottom")
 
         lbl_range_tb = QLabel(text="Range (µm):")
         lbl_range_tb.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -221,9 +219,9 @@ class MDAStackWidget(QGroupBox):
         )
         self.z_range_topbottom_doubleSpinBox.setReadOnly(True)
 
-        tb_layout.addWidget(self.set_top_Button, 0, 0)
+        tb_layout.addWidget(self.set_top_button, 0, 0)
         tb_layout.addWidget(self.z_top_doubleSpinBox, 1, 0)
-        tb_layout.addWidget(self.set_bottom_Button, 0, 1)
+        tb_layout.addWidget(self.set_bottom_button, 0, 1)
         tb_layout.addWidget(self.z_bottom_doubleSpinBox, 1, 1)
         tb_layout.addWidget(lbl_range_tb, 0, 2)
         tb_layout.addWidget(self.z_range_topbottom_doubleSpinBox, 1, 2)
@@ -334,6 +332,8 @@ class MDAPositionTable(QGroupBox):
     def __init__(self, header: List[str], *, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
 
+        self._mmc = CMMCorePlus.instance()
+
         self.setTitle("Stage Positions")
 
         self.setCheckable(True)
@@ -368,19 +368,20 @@ class MDAPositionTable(QGroupBox):
 
         btn_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         min_size = 100
-        self.add_pos_Button = QPushButton(text="Add")
-        self.add_pos_Button.setMinimumWidth(min_size)
-        self.add_pos_Button.setSizePolicy(btn_sizepolicy)
-        self.remove_pos_Button = QPushButton(text="Remove")
-        self.remove_pos_Button.setMinimumWidth(min_size)
-        self.remove_pos_Button.setSizePolicy(btn_sizepolicy)
-        self.clear_pos_Button = QPushButton(text="Clear")
-        self.clear_pos_Button.setMinimumWidth(min_size)
-        self.clear_pos_Button.setSizePolicy(btn_sizepolicy)
-        self.grid_Button = QPushButton(text="Grid")
-        self.grid_Button.setMinimumWidth(min_size)
-        self.grid_Button.setSizePolicy(btn_sizepolicy)
+        self.add_pos_button = QPushButton(text="Add")
+        self.add_pos_button.setMinimumWidth(min_size)
+        self.add_pos_button.setSizePolicy(btn_sizepolicy)
+        self.remove_pos_button = QPushButton(text="Remove")
+        self.remove_pos_button.setMinimumWidth(min_size)
+        self.remove_pos_button.setSizePolicy(btn_sizepolicy)
+        self.clear_pos_button = QPushButton(text="Clear")
+        self.clear_pos_button.setMinimumWidth(min_size)
+        self.clear_pos_button.setSizePolicy(btn_sizepolicy)
+        self.grid_button = QPushButton(text="Grid")
+        self.grid_button.setMinimumWidth(min_size)
+        self.grid_button.setSizePolicy(btn_sizepolicy)
         self.go = QPushButton(text="Go")
+        self.go.clicked.connect(self._move_to_position)
         self.go.setMinimumWidth(min_size)
         self.go.setSizePolicy(btn_sizepolicy)
 
@@ -388,14 +389,24 @@ class MDAPositionTable(QGroupBox):
             10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
         )
 
-        layout.addWidget(self.add_pos_Button)
-        layout.addWidget(self.remove_pos_Button)
-        layout.addWidget(self.clear_pos_Button)
-        layout.addWidget(self.grid_Button)
+        layout.addWidget(self.add_pos_button)
+        layout.addWidget(self.remove_pos_button)
+        layout.addWidget(self.clear_pos_button)
+        layout.addWidget(self.grid_button)
         layout.addWidget(self.go)
         layout.addItem(spacer)
 
         group_layout.addWidget(wdg)
+
+    def _move_to_position(self) -> None:
+        if not self._mmc.getXYStageDevice():
+            return
+        curr_row = self.stage_tableWidget.currentRow()
+        x_val = self.stage_tableWidget.item(curr_row, 1).text()
+        y_val = self.stage_tableWidget.item(curr_row, 2).text()
+        z_val = self.stage_tableWidget.item(curr_row, 3).text()
+        self._mmc.setXYPosition(float(x_val), float(y_val))
+        self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
 
 
 class MDAControlButtons(QWidget):

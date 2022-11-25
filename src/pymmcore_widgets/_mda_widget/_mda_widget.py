@@ -83,8 +83,8 @@ class MDAWidget(_MDAWidgetGui):
         self.ch_gb.clear_ch_button.clicked.connect(self._clear_channel)
 
         # connection for z stack
-        self.z_gp.set_top_Button.clicked.connect(self._set_top)
-        self.z_gp.set_bottom_Button.clicked.connect(self._set_bottom)
+        self.z_gp.set_top_button.clicked.connect(self._set_top)
+        self.z_gp.set_bottom_button.clicked.connect(self._set_bottom)
         self.z_gp.z_top_doubleSpinBox.valueChanged.connect(self._update_topbottom_range)
         self.z_gp.z_bottom_doubleSpinBox.valueChanged.connect(
             self._update_topbottom_range
@@ -114,7 +114,6 @@ class MDAWidget(_MDAWidgetGui):
         self.pos_gp.remove_pos_button.clicked.connect(self._remove_position)
         self.pos_gp.clear_pos_button.clicked.connect(self._clear_positions)
         self.pos_gp.grid_button.clicked.connect(self._grid_widget)
-        self.pos_gp.go.clicked.connect(self._move_to_position)
         self.pos_gp.toggled.connect(self._calculate_total_time)
 
         # connection for time
@@ -313,16 +312,6 @@ class MDAWidget(_MDAWidgetGui):
         self.pos_gp.stage_tableWidget.clearContents()
         self.pos_gp.stage_tableWidget.setRowCount(0)
         self._calculate_total_time()
-
-    def _move_to_position(self) -> None:
-        if not self._mmc.getXYStageDevice():
-            return
-        curr_row = self.pos_gp.stage_tableWidget.currentRow()
-        x_val = self.pos_gp.stage_tableWidget.item(curr_row, 1).text()
-        y_val = self.pos_gp.stage_tableWidget.item(curr_row, 2).text()
-        z_val = self.pos_gp.stage_tableWidget.item(curr_row, 3).text()
-        self._mmc.setXYPosition(float(x_val), float(y_val))
-        self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
 
     def _grid_widget(self) -> None:
         if not self._mmc.getXYStageDevice():

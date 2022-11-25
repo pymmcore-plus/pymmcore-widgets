@@ -85,8 +85,8 @@ class SampleExplorerWidget(SampleExplorerGui):
         self.ch_gb.clear_ch_button.clicked.connect(self._clear_channel)
 
         # connection for z stack
-        self.z_gp.set_top_Button.clicked.connect(self._set_top)
-        self.z_gp.set_bottom_Button.clicked.connect(self._set_bottom)
+        self.z_gp.set_top_button.clicked.connect(self._set_top)
+        self.z_gp.set_bottom_button.clicked.connect(self._set_bottom)
         self.z_gp.z_top_doubleSpinBox.valueChanged.connect(self._update_topbottom_range)
         self.z_gp.z_bottom_doubleSpinBox.valueChanged.connect(
             self._update_topbottom_range
@@ -117,7 +117,6 @@ class SampleExplorerWidget(SampleExplorerGui):
         self.pos_gp.add_pos_button.clicked.connect(self._add_position)
         self.pos_gp.remove_pos_button.clicked.connect(self._remove_position)
         self.pos_gp.clear_pos_button.clicked.connect(self._clear_positions)
-        self.pos_gp.go.clicked.connect(self._move_to_position)
         self.pos_gp.toggled.connect(self._calculate_total_time)
 
         # connection for time
@@ -300,7 +299,7 @@ class SampleExplorerWidget(SampleExplorerGui):
         self._calculate_total_time()
 
     def _rename_positions(self) -> None:
-        for grid_count, r in enumerate(range(self.stage_tableWidget.rowCount())):
+        for grid_count, r in enumerate(range(self.pos_gp.stage_tableWidget.rowCount())):
             item = self.pos_gp.stage_tableWidget.item(r, 0)
             item_text = item.text()
             item_whatisthis = item.whatsThis()
@@ -316,16 +315,6 @@ class SampleExplorerWidget(SampleExplorerGui):
             )
             item.setWhatsThis(new_whatisthis)
             self.pos_gp.stage_tableWidget.setItem(r, 0, item)
-
-    def _move_to_position(self) -> None:
-        if not self._mmc.getXYStageDevice():
-            return
-        curr_row = self.pos_gp.stage_tableWidget.currentRow()
-        x_val = self.pos_gp.stage_tableWidget.item(curr_row, 1).text()
-        y_val = self.pos_gp.stage_tableWidget.item(curr_row, 2).text()
-        z_val = self.pos_gp.stage_tableWidget.item(curr_row, 3).text()
-        self._mmc.setXYPosition(float(x_val), float(y_val))
-        self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
 
     def _get_pos_name(self, row: int) -> str:
         item = self.pos_gp.stage_tableWidget.item(row, 0)
