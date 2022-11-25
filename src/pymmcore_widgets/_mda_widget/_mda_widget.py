@@ -153,6 +153,177 @@ class MDAWidget(_MDAWidgetGui):
         else:
             self.z_gp.setEnabled(enabled)
 
+    def _add_channel(self) -> bool:
+        """Add, remove or clear channel table.  Return True if anyting was changed."""
+        if len(self._mmc.getLoadedDevices()) <= 1:
+            return False
+
+        channel_group = self._mmc.getChannelGroup()
+        if not channel_group:
+            return False
+
+        idx = self.ch_gb.channel_tableWidget.rowCount()
+        self.ch_gb.channel_tableWidget.insertRow(idx)
+
+        # create a combo_box for channels in the table
+        channel_comboBox = QtW.QComboBox(self)
+        channel_exp_spinBox = QtW.QSpinBox(self)
+        channel_exp_spinBox.setRange(0, 10000)
+        channel_exp_spinBox.setValue(100)
+        channel_exp_spinBox.valueChanged.connect(self._calculate_total_time)
+
+        if channel_group := self._mmc.getChannelGroup():
+            channel_list = list(self._mmc.getAvailableConfigs(channel_group))
+            channel_comboBox.addItems(channel_list)
+
+        self.ch_gb.channel_tableWidget.setCellWidget(idx, 0, channel_comboBox)
+        self.ch_gb.channel_tableWidget.setCellWidget(idx, 1, channel_exp_spinBox)
+
+        self._calculate_total_time()
+
+        return True
+
+    def _remove_channel(self) -> None:
+        # remove selected position
+        rows = {r.row() for r in self.ch_gb.channel_tableWidget.selectedIndexes()}
+        for idx in sorted(rows, reverse=True):
+            self.ch_gb.channel_tableWidget.removeRow(idx)
+
+        self._calculate_total_time()
+
+    def _clear_channel(self) -> None:
+        # clear all positions
+        self.ch_gb.channel_tableWidget.clearContents()
+        self.ch_gb.channel_tableWidget.setRowCount(0)
+
+        self._calculate_total_time()
+
+    def _set_top(self) -> None:
+        self.z_gp.z_top_doubleSpinBox.setValue(self._mmc.getZPosition())
+
+    def _set_bottom(self) -> None:
+        self.z_gp.z_bottom_doubleSpinBox.setValue(self._mmc.getZPosition())
+
+    def _update_topbottom_range(self) -> None:
+        self.z_gp.z_range_topbottom_doubleSpinBox.setValue(
+            abs(
+                self.z_gp.z_top_doubleSpinBox.value()
+                - self.z_gp.z_bottom_doubleSpinBox.value()
+            )
+        )
+
+    def _update_rangearound_label(self, value: int) -> None:
+        self.z_gp.range_around_label.setText(f"-{value/2} µm <- z -> +{value/2} µm")
+
+    def _update_abovebelow_range(self) -> None:
+        self.z_gp.z_range_abovebelow_doubleSpinBox.setValue(
+            self.z_gp.above_doubleSpinBox.value()
+            + self.z_gp.below_doubleSpinBox.value()
+        )
+
+    def _update_n_images(self) -> None:
+        step = self.z_gp.step_size_doubleSpinBox.value()
+        # set what is the range to consider depending on the z_stack mode
+        if self.z_gp.z_tabWidget.currentIndex() == 0:
+            _range = self.z_gp.z_range_topbottom_doubleSpinBox.value()
+        if self.z_gp.z_tabWidget.currentIndex() == 1:
+            _range = self.z_gp.zrange_spinBox.value()
+        if self.z_gp.z_tabWidget.currentIndex() == 2:
+            _range = self.z_gp.z_range_abovebelow_doubleSpinBox.value()
+
+        self.z_gp.n_images_label.setText(
+            f"Number of Images: {round((_range / step) + 1)}"
+        )
+        self._calculate_total_time()
+
+    # add, remove, clear, move_to positions table
+    def _add_position(self) -> None:
+
+        if not self._mmc.getXYStageDevice():
+            return
+
+        if len(self._mmc.getLoadedDevices()) > 1:
+            idx = self._add_position_row()
+
+            for c, ax in enumerate("PXYZ"):
+
+                if ax == "P":
+                    count = self.pos_gp.stage_tableWidget.rowCount() - 1
+                    item = QtW.QTableWidgetItem(f"Pos{count:03d}")
+                    item.setTextAlignment(
+                        Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
+                    )
+                    self.pos_gp.stage_tableWidget.setItem(idx, c, item)
+                    self._rename_positions(["Pos"])
+                    continue
+
+                if not self._mmc.getFocusDevice() and ax == "Z":
+                    continue
+                cur = getattr(self._mmc, f"get{ax}Position")()
+                item = QtW.QTableWidgetItem(str(cur))
+                item.setTextAlignment(
+                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
+                )
+                self.pos_gp.stage_tableWidget.setItem(idx, c, item)
+
+            self._calculate_total_time()
+
+    def _add_position_row(self) -> int:
+        idx = self.pos_gp.stage_tableWidget.rowCount()
+        self.pos_gp.stage_tableWidget.insertRow(idx)
+        return idx  # type: ignore [no-any-return]
+
+    def _remove_position(self) -> None:
+        # remove selected position
+        rows = {r.row() for r in self.pos_gp.stage_tableWidget.selectedIndexes()}
+        removed = []
+        for idx in sorted(rows, reverse=True):
+            name = self.pos_gp.stage_tableWidget.item(idx, 0).text().split("_")[0]
+            if "Pos" in name:
+                if "Pos" not in removed:
+                    removed.append("Pos")
+            elif name not in removed:
+                removed.append(name)
+            self.pos_gp.stage_tableWidget.removeRow(idx)
+        self._rename_positions(removed)
+        self._calculate_total_time()
+
+    def _rename_positions(self, names: list) -> None:
+        for name in names:
+            grid_count = 0
+            pos_count = 0
+            for r in range(self.pos_gp.stage_tableWidget.rowCount()):
+                start = self.pos_gp.stage_tableWidget.item(r, 0).text().split("_")[0]
+                if start == name:  # Grid
+                    new_name = f"{name}_Pos{grid_count:03d}"
+                    grid_count += 1
+                elif "Pos" in start:  # Pos
+                    new_name = f"Pos{pos_count:03d}"
+                    pos_count += 1
+                else:
+                    continue
+                item = QtW.QTableWidgetItem(new_name)
+                item.setTextAlignment(
+                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
+                )
+                self.pos_gp.stage_tableWidget.setItem(r, 0, item)
+
+    def _clear_positions(self) -> None:
+        # clear all positions
+        self.pos_gp.stage_tableWidget.clearContents()
+        self.pos_gp.stage_tableWidget.setRowCount(0)
+        self._calculate_total_time()
+
+    def _move_to_position(self) -> None:
+        if not self._mmc.getXYStageDevice():
+            return
+        curr_row = self.pos_gp.stage_tableWidget.currentRow()
+        x_val = self.pos_gp.stage_tableWidget.item(curr_row, 1).text()
+        y_val = self.pos_gp.stage_tableWidget.item(curr_row, 2).text()
+        z_val = self.pos_gp.stage_tableWidget.item(curr_row, 3).text()
+        self._mmc.setXYPosition(float(x_val), float(y_val))
+        self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
+
     def _grid_widget(self) -> None:
         if not self._mmc.getXYStageDevice():
             return
@@ -203,44 +374,6 @@ class MDAWidget(_MDAWidgetGui):
             self.pos_gp.stage_tableWidget.setItem(rows, 1, x)
             self.pos_gp.stage_tableWidget.setItem(rows, 2, y)
             self.pos_gp.stage_tableWidget.setItem(rows, 3, z)
-
-    def _set_top(self) -> None:
-        self.z_gp.z_top_doubleSpinBox.setValue(self._mmc.getZPosition())
-
-    def _set_bottom(self) -> None:
-        self.z_gp.z_bottom_doubleSpinBox.setValue(self._mmc.getZPosition())
-
-    def _update_topbottom_range(self) -> None:
-        self.z_gp.z_range_topbottom_doubleSpinBox.setValue(
-            abs(
-                self.z_gp.z_top_doubleSpinBox.value()
-                - self.z_gp.z_bottom_doubleSpinBox.value()
-            )
-        )
-
-    def _update_rangearound_label(self, value: int) -> None:
-        self.z_gp.range_around_label.setText(f"-{value/2} µm <- z -> +{value/2} µm")
-
-    def _update_abovebelow_range(self) -> None:
-        self.z_gp.z_range_abovebelow_doubleSpinBox.setValue(
-            self.z_gp.above_doubleSpinBox.value()
-            + self.z_gp.below_doubleSpinBox.value()
-        )
-
-    def _update_n_images(self) -> None:
-        step = self.z_gp.step_size_doubleSpinBox.value()
-        # set what is the range to consider depending on the z_stack mode
-        if self.z_gp.z_tabWidget.currentIndex() == 0:
-            _range = self.z_gp.z_range_topbottom_doubleSpinBox.value()
-        if self.z_gp.z_tabWidget.currentIndex() == 1:
-            _range = self.z_gp.zrange_spinBox.value()
-        if self.z_gp.z_tabWidget.currentIndex() == 2:
-            _range = self.z_gp.z_range_abovebelow_doubleSpinBox.value()
-
-        self.z_gp.n_images_label.setText(
-            f"Number of Images: {round((_range / step) + 1)}"
-        )
-        self._calculate_total_time()
 
     def _calculate_total_time(self) -> None:
 
@@ -348,139 +481,6 @@ class MDAWidget(_MDAWidgetGui):
 
     def _on_mda_paused(self, paused: bool) -> None:
         self.buttons_wdg.pause_button.setText("Resume" if paused else "Pause")
-
-    def _add_channel(self) -> bool:
-        """Add, remove or clear channel table.  Return True if anyting was changed."""
-        if len(self._mmc.getLoadedDevices()) <= 1:
-            return False
-
-        channel_group = self._mmc.getChannelGroup()
-        if not channel_group:
-            return False
-
-        idx = self.ch_gb.channel_tableWidget.rowCount()
-        self.ch_gb.channel_tableWidget.insertRow(idx)
-
-        # create a combo_box for channels in the table
-        channel_comboBox = QtW.QComboBox(self)
-        channel_exp_spinBox = QtW.QSpinBox(self)
-        channel_exp_spinBox.setRange(0, 10000)
-        channel_exp_spinBox.setValue(100)
-        channel_exp_spinBox.valueChanged.connect(self._calculate_total_time)
-
-        if channel_group := self._mmc.getChannelGroup():
-            channel_list = list(self._mmc.getAvailableConfigs(channel_group))
-            channel_comboBox.addItems(channel_list)
-
-        self.ch_gb.channel_tableWidget.setCellWidget(idx, 0, channel_comboBox)
-        self.ch_gb.channel_tableWidget.setCellWidget(idx, 1, channel_exp_spinBox)
-
-        self._calculate_total_time()
-
-        return True
-
-    def _remove_channel(self) -> None:
-        # remove selected position
-        rows = {r.row() for r in self.ch_gb.channel_tableWidget.selectedIndexes()}
-        for idx in sorted(rows, reverse=True):
-            self.ch_gb.channel_tableWidget.removeRow(idx)
-
-        self._calculate_total_time()
-
-    def _clear_channel(self) -> None:
-        # clear all positions
-        self.ch_gb.channel_tableWidget.clearContents()
-        self.ch_gb.channel_tableWidget.setRowCount(0)
-
-        self._calculate_total_time()
-
-    # add, remove, clear, move_to positions table
-    def _add_position(self) -> None:
-
-        if not self._mmc.getXYStageDevice():
-            return
-
-        if len(self._mmc.getLoadedDevices()) > 1:
-            idx = self._add_position_row()
-
-            for c, ax in enumerate("PXYZ"):
-
-                if ax == "P":
-                    count = self.pos_gp.stage_tableWidget.rowCount() - 1
-                    item = QtW.QTableWidgetItem(f"Pos{count:03d}")
-                    item.setTextAlignment(
-                        Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-                    )
-                    self.pos_gp.stage_tableWidget.setItem(idx, c, item)
-                    self._rename_positions(["Pos"])
-                    continue
-
-                if not self._mmc.getFocusDevice() and ax == "Z":
-                    continue
-                cur = getattr(self._mmc, f"get{ax}Position")()
-                item = QtW.QTableWidgetItem(str(cur))
-                item.setTextAlignment(
-                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-                )
-                self.pos_gp.stage_tableWidget.setItem(idx, c, item)
-
-            self._calculate_total_time()
-
-    def _add_position_row(self) -> int:
-        idx = self.pos_gp.stage_tableWidget.rowCount()
-        self.pos_gp.stage_tableWidget.insertRow(idx)
-        return idx  # type: ignore [no-any-return]
-
-    def _remove_position(self) -> None:
-        # remove selected position
-        rows = {r.row() for r in self.pos_gp.stage_tableWidget.selectedIndexes()}
-        removed = []
-        for idx in sorted(rows, reverse=True):
-            name = self.pos_gp.stage_tableWidget.item(idx, 0).text().split("_")[0]
-            if "Pos" in name:
-                if "Pos" not in removed:
-                    removed.append("Pos")
-            elif name not in removed:
-                removed.append(name)
-            self.pos_gp.stage_tableWidget.removeRow(idx)
-        self._rename_positions(removed)
-        self._calculate_total_time()
-
-    def _rename_positions(self, names: list) -> None:
-        for name in names:
-            grid_count = 0
-            pos_count = 0
-            for r in range(self.pos_gp.stage_tableWidget.rowCount()):
-                start = self.pos_gp.stage_tableWidget.item(r, 0).text().split("_")[0]
-                if start == name:  # Grid
-                    new_name = f"{name}_Pos{grid_count:03d}"
-                    grid_count += 1
-                elif "Pos" in start:  # Pos
-                    new_name = f"Pos{pos_count:03d}"
-                    pos_count += 1
-                else:
-                    continue
-                item = QtW.QTableWidgetItem(new_name)
-                item.setTextAlignment(
-                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-                )
-                self.pos_gp.stage_tableWidget.setItem(r, 0, item)
-
-    def _clear_positions(self) -> None:
-        # clear all positions
-        self.pos_gp.stage_tableWidget.clearContents()
-        self.pos_gp.stage_tableWidget.setRowCount(0)
-        self._calculate_total_time()
-
-    def _move_to_position(self) -> None:
-        if not self._mmc.getXYStageDevice():
-            return
-        curr_row = self.pos_gp.stage_tableWidget.currentRow()
-        x_val = self.pos_gp.stage_tableWidget.item(curr_row, 1).text()
-        y_val = self.pos_gp.stage_tableWidget.item(curr_row, 2).text()
-        z_val = self.pos_gp.stage_tableWidget.item(curr_row, 3).text()
-        self._mmc.setXYPosition(float(x_val), float(y_val))
-        self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
 
     def set_state(self, state: dict | MDASequence | str | Path) -> None:
         """Set current state of MDA widget.

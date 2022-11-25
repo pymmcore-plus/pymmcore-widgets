@@ -143,38 +143,6 @@ class SampleExplorerWidget(SampleExplorerGui):
             self._mmc.setChannelGroup(channel_group)
         self._clear_channel()
 
-    def _on_mda_started(self) -> None:
-        """Block gui when mda starts."""
-        self._set_enabled(False)
-        if self._include_run_button:
-            self.buttons_wdg.cancel_button.show()
-            self.buttons_wdg.pause_button.show()
-        self.buttons_wdg.run_button.hide()
-
-    def _on_mda_paused(self, paused: bool) -> None:
-        self.buttons_wdg.pause_button.setText("Go" if paused else "Pause")
-
-    def _on_mda_finished(self) -> None:
-
-        if not hasattr(self, "return_to_position_x"):
-            return
-
-        if (
-            self.return_to_position_x is not None
-            and self.return_to_position_y is not None
-        ):
-            self._mmc.setXYPosition(
-                self.return_to_position_x, self.return_to_position_y
-            )
-            self.return_to_position_x = None
-            self.return_to_position_y = None
-
-        self._set_enabled(True)
-        self.buttons_wdg.cancel_button.hide()
-        self.buttons_wdg.pause_button.hide()
-        if self._include_run_button:
-            self.buttons_wdg.run_button.show()
-
     def _set_enabled(self, enabled: bool) -> None:
         self.scan_size_spinBox_r.setEnabled(enabled)
         self.scan_size_spinBox_c.setEnabled(enabled)
@@ -269,7 +237,7 @@ class SampleExplorerWidget(SampleExplorerGui):
         if self.z_gp.z_tabWidget.currentIndex() == 0:
             _range = self.z_gp.z_range_topbottom_doubleSpinBox.value()
         if self.z_gp.z_tabWidget.currentIndex() == 1:
-            _range = self.zrange_spinBox.value()
+            _range = self.z_gp.zrange_spinBox.value()
         if self.z_gp.z_tabWidget.currentIndex() == 2:
             _range = self.z_gp.z_range_abovebelow_doubleSpinBox.value()
 
@@ -358,162 +326,6 @@ class SampleExplorerWidget(SampleExplorerGui):
         z_val = self.pos_gp.stage_tableWidget.item(curr_row, 3).text()
         self._mmc.setXYPosition(float(x_val), float(y_val))
         self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
-
-    def _calculate_total_time(self) -> None:
-
-        tiles = self.scan_size_spinBox_r.value() * self.scan_size_spinBox_c.value()
-
-        # channel
-        exp: list = []
-        ch = self.ch_gb.channel_tableWidget.rowCount()
-        if ch > 0:
-            exp.extend(
-                self.ch_gb.channel_tableWidget.cellWidget(r, 1).value()
-                for r in range(ch)
-            )
-        else:
-            exp = []
-
-        # time
-        if self.tm_gp.isChecked():
-            timepoints = self.tm_gp.timepoints_spinBox.value()
-            interval = self.tm_gp.interval_spinBox.value()
-            int_unit = self.tm_gp.time_comboBox.currentText()
-            if int_unit != "sec":
-                interval = _time_in_sec(interval, int_unit)
-        else:
-            timepoints = 1
-            interval = -1.0
-
-        # z stack
-        if self.z_gp.isChecked():
-            n_z_images = int(self.z_gp.n_images_label.text()[18:])
-        else:
-            n_z_images = 1
-
-        # positions
-        if self.pos_gp.isChecked():
-            n_pos = self.pos_gp.stage_tableWidget.rowCount() or 1
-        else:
-            n_pos = 1
-        n_pos = n_pos
-
-        # acq time per timepoint
-        time_chs: float = 0.0  # s
-        for e in exp:
-            time_chs = time_chs + ((e / 1000) * n_z_images * n_pos * tiles)
-
-        warning_msg = ""
-
-        min_aq_tp, unit_1 = _select_output_unit(time_chs)
-
-        if interval <= 0:
-            effective_interval = 0.0
-            addition_time = 0
-            _icon = None
-            stylesheet = ""
-
-        elif interval < time_chs:
-            addition_time = 0
-            effective_interval = 0.0
-            warning_msg = "Interval shorter than acquisition time per timepoint."
-            _icon = icon(MDI6.exclamation_thick, color="magenta").pixmap(QSize(30, 30))
-            stylesheet = "color:magenta"
-
-        else:
-            effective_interval = float(interval) - time_chs  # s
-            addition_time = effective_interval * timepoints  # s
-            _icon = None
-            stylesheet = ""
-
-        min_tot_time, unit_4 = _select_output_unit(
-            (time_chs * timepoints) + addition_time - effective_interval
-        )
-
-        self.tm_gp._icon_lbl.clear()
-        self.tm_gp._time_lbl.clear()
-        self.tm_gp._time_lbl.setStyleSheet(stylesheet)
-        if _icon:
-            self.tm_gp._icon_lbl.show()
-            self.tm_gp._icon_lbl.setPixmap(_icon)
-            self.tm_gp._time_lbl.show()
-            self.tm_gp._time_lbl.setText(f"{warning_msg}")
-            self.tm_gp._time_lbl.adjustSize()
-        else:
-            self.tm_gp._time_lbl.hide()
-            self.tm_gp._icon_lbl.hide()
-
-        t_per_tp_msg = ""
-        tot_acq_msg = f"Minimum total acquisition time: {min_tot_time:.4f} {unit_4}.\n"
-        if self.tm_gp.isChecked():
-            t_per_tp_msg = (
-                f"Minimum acquisition time per timepoint: {min_aq_tp:.4f} {unit_1}."
-            )
-        self.time_lbl._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
-
-    def get_state(self) -> MDASequence:  # sourcery skip: merge-dict-assign
-        """Get current state of widget and build a useq.MDASequence.
-
-        Returns
-        -------
-        useq.MDASequence
-        """
-        table = self.ch_gb.channel_tableWidget
-
-        channels: list[dict] = [
-            {
-                "config": table.cellWidget(c, 0).currentText(),
-                "group": self._mmc.getChannelGroup() or "Channel",
-                "exposure": table.cellWidget(c, 1).value(),
-            }
-            for c in range(table.rowCount())
-        ]
-
-        z_plan: dict | None = None
-        if self.z_gp.isChecked():
-
-            if self.z_gp.z_tabWidget.currentIndex() == 0:
-                z_plan = {
-                    "top": self.z_gp.z_top_doubleSpinBox.value(),
-                    "bottom": self.z_gp.z_bottom_doubleSpinBox.value(),
-                    "step": self.z_gp.step_size_doubleSpinBox.value(),
-                }
-
-            elif self.z_gp.z_tabWidget.currentIndex() == 1:
-                z_plan = {
-                    "range": self.z_gp.zrange_spinBox.value(),
-                    "step": self.z_gp.step_size_doubleSpinBox.value(),
-                }
-            elif self.z_gp.z_tabWidget.currentIndex() == 2:
-                z_plan = {
-                    "above": self.z_gp.above_doubleSpinBox.value(),
-                    "below": self.z_gp.below_doubleSpinBox.value(),
-                    "step": self.z_gp.step_size_doubleSpinBox.value(),
-                }
-
-        time_plan: dict | None = None
-        if self.tm_gp.isChecked():
-            units = {"min": "minutes", "sec": "seconds", "ms": "milliseconds"}
-            unit = units[self.tm_gp.time_comboBox.currentText()]
-            time_plan = {
-                "interval": {unit: self.tm_gp.interval_spinBox.value()},
-                "loops": self.tm_gp.timepoints_spinBox.value(),
-            }
-
-        stage_positions: list[dict] = []
-        for g in self._set_grid():
-            pos = {"name": g[0], "x": g[1], "y": g[2]}
-            if len(g) == 4:
-                pos["z"] = g[3]
-            stage_positions.append(pos)
-
-        return MDASequence(
-            axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
-            channels=channels,
-            stage_positions=stage_positions,
-            z_plan=z_plan,
-            time_plan=time_plan,
-        )
 
     def _get_pos_name(self, row: int) -> str:
         item = self.pos_gp.stage_tableWidget.item(row, 0)
@@ -619,6 +431,194 @@ class SampleExplorerWidget(SampleExplorerGui):
             full_pos_list.extend(list_pos_order)
 
         return full_pos_list  # type: ignore
+
+    def _calculate_total_time(self) -> None:
+
+        tiles = self.scan_size_spinBox_r.value() * self.scan_size_spinBox_c.value()
+
+        # channel
+        exp: list = []
+        ch = self.ch_gb.channel_tableWidget.rowCount()
+        if ch > 0:
+            exp.extend(
+                self.ch_gb.channel_tableWidget.cellWidget(r, 1).value()
+                for r in range(ch)
+            )
+        else:
+            exp = []
+
+        # time
+        if self.tm_gp.isChecked():
+            timepoints = self.tm_gp.timepoints_spinBox.value()
+            interval = self.tm_gp.interval_spinBox.value()
+            int_unit = self.tm_gp.time_comboBox.currentText()
+            if int_unit != "sec":
+                interval = _time_in_sec(interval, int_unit)
+        else:
+            timepoints = 1
+            interval = -1.0
+
+        # z stack
+        if self.z_gp.isChecked():
+            n_z_images = int(self.z_gp.n_images_label.text()[18:])
+        else:
+            n_z_images = 1
+
+        # positions
+        if self.pos_gp.isChecked():
+            n_pos = self.pos_gp.stage_tableWidget.rowCount() or 1
+        else:
+            n_pos = 1
+        n_pos = n_pos
+
+        # acq time per timepoint
+        time_chs: float = 0.0  # s
+        for e in exp:
+            time_chs = time_chs + ((e / 1000) * n_z_images * n_pos * tiles)
+
+        warning_msg = ""
+
+        min_aq_tp, unit_1 = _select_output_unit(time_chs)
+
+        if interval <= 0:
+            effective_interval = 0.0
+            addition_time = 0
+            _icon = None
+            stylesheet = ""
+
+        elif interval < time_chs:
+            addition_time = 0
+            effective_interval = 0.0
+            warning_msg = "Interval shorter than acquisition time per timepoint."
+            _icon = icon(MDI6.exclamation_thick, color="magenta").pixmap(QSize(30, 30))
+            stylesheet = "color:magenta"
+
+        else:
+            effective_interval = float(interval) - time_chs  # s
+            addition_time = effective_interval * timepoints  # s
+            _icon = None
+            stylesheet = ""
+
+        min_tot_time, unit_4 = _select_output_unit(
+            (time_chs * timepoints) + addition_time - effective_interval
+        )
+
+        self.tm_gp._icon_lbl.clear()
+        self.tm_gp._time_lbl.clear()
+        self.tm_gp._time_lbl.setStyleSheet(stylesheet)
+        if _icon:
+            self.tm_gp._icon_lbl.show()
+            self.tm_gp._icon_lbl.setPixmap(_icon)
+            self.tm_gp._time_lbl.show()
+            self.tm_gp._time_lbl.setText(f"{warning_msg}")
+            self.tm_gp._time_lbl.adjustSize()
+        else:
+            self.tm_gp._time_lbl.hide()
+            self.tm_gp._icon_lbl.hide()
+
+        t_per_tp_msg = ""
+        tot_acq_msg = f"Minimum total acquisition time: {min_tot_time:.4f} {unit_4}.\n"
+        if self.tm_gp.isChecked():
+            t_per_tp_msg = (
+                f"Minimum acquisition time per timepoint: {min_aq_tp:.4f} {unit_1}."
+            )
+        self.time_lbl._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
+
+    def _on_mda_started(self) -> None:
+        """Block gui when mda starts."""
+        self._set_enabled(False)
+        if self._include_run_button:
+            self.buttons_wdg.cancel_button.show()
+            self.buttons_wdg.pause_button.show()
+        self.buttons_wdg.run_button.hide()
+
+    def _on_mda_finished(self) -> None:
+
+        if not hasattr(self, "return_to_position_x"):
+            return
+
+        if (
+            self.return_to_position_x is not None
+            and self.return_to_position_y is not None
+        ):
+            self._mmc.setXYPosition(
+                self.return_to_position_x, self.return_to_position_y
+            )
+            self.return_to_position_x = None
+            self.return_to_position_y = None
+
+        self._set_enabled(True)
+        self.buttons_wdg.cancel_button.hide()
+        self.buttons_wdg.pause_button.hide()
+        if self._include_run_button:
+            self.buttons_wdg.run_button.show()
+
+    def _on_mda_paused(self, paused: bool) -> None:
+        self.buttons_wdg.pause_button.setText("Go" if paused else "Pause")
+
+    def get_state(self) -> MDASequence:  # sourcery skip: merge-dict-assign
+        """Get current state of widget and build a useq.MDASequence.
+
+        Returns
+        -------
+        useq.MDASequence
+        """
+        table = self.ch_gb.channel_tableWidget
+
+        channels: list[dict] = [
+            {
+                "config": table.cellWidget(c, 0).currentText(),
+                "group": self._mmc.getChannelGroup() or "Channel",
+                "exposure": table.cellWidget(c, 1).value(),
+            }
+            for c in range(table.rowCount())
+        ]
+
+        z_plan: dict | None = None
+        if self.z_gp.isChecked():
+
+            if self.z_gp.z_tabWidget.currentIndex() == 0:
+                z_plan = {
+                    "top": self.z_gp.z_top_doubleSpinBox.value(),
+                    "bottom": self.z_gp.z_bottom_doubleSpinBox.value(),
+                    "step": self.z_gp.step_size_doubleSpinBox.value(),
+                }
+
+            elif self.z_gp.z_tabWidget.currentIndex() == 1:
+                z_plan = {
+                    "range": self.z_gp.zrange_spinBox.value(),
+                    "step": self.z_gp.step_size_doubleSpinBox.value(),
+                }
+            elif self.z_gp.z_tabWidget.currentIndex() == 2:
+                z_plan = {
+                    "above": self.z_gp.above_doubleSpinBox.value(),
+                    "below": self.z_gp.below_doubleSpinBox.value(),
+                    "step": self.z_gp.step_size_doubleSpinBox.value(),
+                }
+
+        time_plan: dict | None = None
+        if self.tm_gp.isChecked():
+            units = {"min": "minutes", "sec": "seconds", "ms": "milliseconds"}
+            unit = units[self.tm_gp.time_comboBox.currentText()]
+            time_plan = {
+                "interval": {unit: self.tm_gp.interval_spinBox.value()},
+                "loops": self.tm_gp.timepoints_spinBox.value(),
+            }
+
+        stage_positions: list[dict] = []
+        for g in self._set_grid():
+            pos = {"name": g[0], "x": g[1], "y": g[2]}
+            if len(g) == 4:
+                pos["z"] = g[3]
+            stage_positions.append(pos)
+
+        return MDASequence(
+            axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
+            channels=channels,
+            stage_positions=stage_positions,
+            z_plan=z_plan,
+            time_plan=time_plan,
+        )
 
     def _start_scan(self) -> None:
 
