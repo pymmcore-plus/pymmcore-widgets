@@ -16,16 +16,16 @@ if TYPE_CHECKING:
 def test_mda_widget_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
-    assert wdg.stage_tableWidget.rowCount() == 0
-    assert wdg.channel_tableWidget.rowCount() == 0
-    assert not wdg.time_groupBox.isChecked()
+    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 0
+    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 0
+    assert not wdg.time_groupbox.isChecked()
 
     wdg._set_enabled(False)
-    assert not wdg.time_groupBox.isEnabled()
-    assert not wdg.acquisition_order_comboBox.isEnabled()
-    assert not wdg.channel_groupBox.isEnabled()
-    assert not wdg.stage_pos_groupBox.isEnabled()
-    assert not wdg.stack_groupBox.isEnabled()
+    assert not wdg.time_groupbox.isEnabled()
+    assert not wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
+    assert not wdg.channel_groupbox.isEnabled()
+    assert not wdg.stage_pos_groupbox.isEnabled()
+    assert not wdg.stack_groupbox.isEnabled()
     wdg._set_enabled(True)
 
     sequence = MDASequence(
@@ -42,48 +42,48 @@ def test_mda_widget_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
         ),
     )
     wdg.set_state(sequence)
-    assert wdg.stage_tableWidget.rowCount() == 2
-    assert wdg.channel_tableWidget.rowCount() == 2
-    assert wdg.time_groupBox.isChecked()
+    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 2
+    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 2
+    assert wdg.time_groupbox.isChecked()
 
     # round trip
     assert wdg.get_state() == sequence
 
     # test add grid positions
-    wdg.stage_pos_groupBox.setChecked(True)
+    wdg.stage_pos_groupbox.setChecked(True)
     wdg._clear_positions()
-    assert wdg.stage_tableWidget.rowCount() == 0
-    wdg.grid_Button.click()
+    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 0
+    wdg.stage_pos_groupbox.grid_button.click()
     wdg._grid_wdg.scan_size_spinBox_r.setValue(2)
     wdg._grid_wdg.scan_size_spinBox_c.setValue(2)
     wdg._grid_wdg.generate_position_btn.click()
-    assert wdg.stage_tableWidget.rowCount() == 4
+    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 4
 
 
 def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
-    assert wdg.channel_tableWidget.rowCount() == 0
-    wdg.add_ch_button.click()
-    wdg.add_ch_button.click()
-    assert wdg.channel_tableWidget.rowCount() == 2
-    wdg.channel_tableWidget.selectRow(0)
-    wdg.remove_ch_button.click()
-    assert wdg.channel_tableWidget.rowCount() == 1
-    wdg.clear_ch_button.click()
-    assert wdg.channel_tableWidget.rowCount() == 0
+    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 0
+    wdg.channel_groupbox.add_ch_button.click()
+    wdg.channel_groupbox.add_ch_button.click()
+    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 2
+    wdg.channel_groupbox.channel_tableWidget.selectRow(0)
+    wdg.channel_groupbox.remove_ch_button.click()
+    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 1
+    wdg.channel_groupbox.clear_ch_button.click()
+    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 0
 
-    assert wdg.stage_tableWidget.rowCount() == 0
-    wdg.stage_pos_groupBox.setChecked(True)
-    wdg.add_pos_Button.click()
-    wdg.add_pos_Button.click()
-    assert wdg.stage_tableWidget.rowCount() == 2
-    wdg.stage_tableWidget.selectRow(0)
-    wdg.remove_pos_Button.click()
-    assert wdg.stage_tableWidget.rowCount() == 1
-    wdg.clear_pos_Button.click()
-    assert wdg.stage_tableWidget.rowCount() == 0
+    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 0
+    wdg.stage_pos_groupbox.setChecked(True)
+    wdg.stage_pos_groupbox.add_pos_button.click()
+    wdg.stage_pos_groupbox.add_pos_button.click()
+    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 2
+    wdg.stage_pos_groupbox.stage_tableWidget.selectRow(0)
+    wdg.stage_pos_groupbox.remove_pos_button.click()
+    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 1
+    wdg.stage_pos_groupbox.clear_pos_button.click()
+    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 0
 
 
 def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -91,24 +91,24 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(wdg)
 
     wdg._on_mda_started()
-    assert not wdg.time_groupBox.isEnabled()
-    assert not wdg.acquisition_order_comboBox.isEnabled()
-    assert not wdg.channel_groupBox.isEnabled()
-    assert not wdg.stage_pos_groupBox.isEnabled()
-    assert not wdg.stack_groupBox.isEnabled()
-    assert wdg.run_Button.isHidden()
-    assert not wdg.pause_Button.isHidden()
-    assert not wdg.cancel_Button.isHidden()
+    assert not wdg.time_groupbox.isEnabled()
+    assert not wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
+    assert not wdg.channel_groupbox.isEnabled()
+    assert not wdg.stage_pos_groupbox.isEnabled()
+    assert not wdg.stack_groupbox.isEnabled()
+    assert wdg.buttons_wdg.run_button.isHidden()
+    assert not wdg.buttons_wdg.pause_button.isHidden()
+    assert not wdg.buttons_wdg.cancel_button.isHidden()
 
     wdg._on_mda_finished()
-    assert wdg.time_groupBox.isEnabled()
-    assert wdg.acquisition_order_comboBox.isEnabled()
-    assert wdg.channel_groupBox.isEnabled()
-    assert wdg.stage_pos_groupBox.isEnabled()
-    assert wdg.stack_groupBox.isEnabled()
-    assert not wdg.run_Button.isHidden()
-    assert wdg.pause_Button.isHidden()
-    assert wdg.cancel_Button.isHidden()
+    assert wdg.time_groupbox.isEnabled()
+    assert wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
+    assert wdg.channel_groupbox.isEnabled()
+    assert wdg.stage_pos_groupbox.isEnabled()
+    assert wdg.stack_groupbox.isEnabled()
+    assert not wdg.buttons_wdg.run_button.isHidden()
+    assert wdg.buttons_wdg.pause_button.isHidden()
+    assert wdg.buttons_wdg.cancel_button.isHidden()
 
 
 def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -184,44 +184,44 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
-    assert wdg.channel_tableWidget.rowCount() == 0
-    wdg.add_ch_button.click()
-    assert wdg.channel_tableWidget.rowCount() == 1
-    assert wdg.channel_tableWidget.cellWidget(0, 1).value() == 100.0
-    assert not wdg.time_groupBox.isChecked()
+    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 0
+    wdg.channel_groupbox.add_ch_button.click()
+    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 1
+    assert wdg.channel_groupbox.channel_tableWidget.cellWidget(0, 1).value() == 100.0
+    assert not wdg.time_groupbox.isChecked()
 
     txt = "Minimum total acquisition time: 100.0000 ms.\n"
-    assert wdg._total_time_lbl.text() == txt
+    assert wdg.time_lbl._total_time_lbl.text() == txt
 
-    assert not wdg.time_groupBox.isChecked()
-    wdg.time_groupBox.setChecked(True)
-    wdg.time_comboBox.setCurrentText("ms")
+    assert not wdg.time_groupbox.isChecked()
+    wdg.time_groupbox.setChecked(True)
+    wdg.time_groupbox.time_comboBox.setCurrentText("ms")
 
     txt = (
         "Minimum total acquisition time: 100.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
-    assert wdg._total_time_lbl.text() == txt
+    assert wdg.time_lbl._total_time_lbl.text() == txt
 
-    wdg.timepoints_spinBox.setValue(3)
+    wdg.time_groupbox.timepoints_spinBox.setValue(3)
     txt = (
         "Minimum total acquisition time: 300.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
-    assert wdg._total_time_lbl.text() == txt
+    assert wdg.time_lbl._total_time_lbl.text() == txt
 
-    wdg.interval_spinBox.setValue(10)
+    wdg.time_groupbox.interval_spinBox.setValue(10)
     txt1 = (
         "Minimum total acquisition time: 300.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
     txt2 = "Interval shorter than acquisition time per timepoint."
-    assert wdg._total_time_lbl.text() == txt1
-    assert wdg._time_lbl.text() == txt2
+    assert wdg.time_lbl._total_time_lbl.text() == txt1
+    assert wdg.time_groupbox._time_lbl.text() == txt2
 
-    wdg.interval_spinBox.setValue(200)
+    wdg.time_groupbox.interval_spinBox.setValue(200)
     txt1 = (
         "Minimum total acquisition time: 500.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
-    assert wdg._total_time_lbl.text() == txt1
+    assert wdg.time_lbl._total_time_lbl.text() == txt1

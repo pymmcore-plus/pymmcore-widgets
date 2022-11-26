@@ -71,9 +71,9 @@ class SampleExplorerWidget(SampleExplorerGui):
         self.return_to_position_y = None
 
         self.ch_gb = self.channel_groupbox
-        self.tm_gp = self.time_groupBox
-        self.z_gp = self.stack_groupBox
-        self.pos_gp = self.stage_pos_groupBox
+        self.tm_gp = self.time_groupbox
+        self.z_gp = self.stack_groupbox
+        self.pos_gp = self.stage_pos_groupbox
 
         # connect run button
         if self._include_run_button:

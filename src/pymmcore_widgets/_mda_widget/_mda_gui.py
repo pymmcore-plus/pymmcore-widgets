@@ -56,14 +56,14 @@ class _MDAWidgetGui(QWidget):
             self._enable_run_btn
         )
 
-        self.time_groupBox = _MDATimeWidget()
-        wdg_layout.addWidget(self.time_groupBox)
+        self.time_groupbox = _MDATimeWidget()
+        wdg_layout.addWidget(self.time_groupbox)
 
-        self.stack_groupBox = _MDAStackWidget()
-        wdg_layout.addWidget(self.stack_groupBox)
+        self.stack_groupbox = _MDAStackWidget()
+        wdg_layout.addWidget(self.stack_groupbox)
 
-        self.stage_pos_groupBox = _MDAPositionTable(["Pos", "X", "Y", "Z"])
-        wdg_layout.addWidget(self.stage_pos_groupBox)
+        self.stage_pos_groupbox = _MDAPositionTable(["Pos", "X", "Y", "Z"])
+        wdg_layout.addWidget(self.stage_pos_groupbox)
 
         return wdg
 

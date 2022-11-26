@@ -173,9 +173,9 @@ class SampleExplorerGui(QWidget):
         self.time_coll.layout().setContentsMargins(0, 0, 0, 0)
         spacer = self._spacer()
         self.time_coll.addWidget(spacer)
-        self.time_groupBox = _MDATimeWidget()
-        self.time_groupBox.setTitle("")
-        self.time_coll.addWidget(self.time_groupBox)
+        self.time_groupbox = _MDATimeWidget()
+        self.time_groupbox.setTitle("")
+        self.time_coll.addWidget(self.time_groupbox)
 
         group_layout.addWidget(self.time_coll)
 
@@ -185,9 +185,9 @@ class SampleExplorerGui(QWidget):
         self.stack_coll.layout().setContentsMargins(0, 0, 0, 0)
         spacer = self._spacer()
         self.stack_coll.addWidget(spacer)
-        self.stack_groupBox = _MDAStackWidget()
-        self.stack_groupBox.setTitle("")
-        self.stack_coll.addWidget(self.stack_groupBox)
+        self.stack_groupbox = _MDAStackWidget()
+        self.stack_groupbox.setTitle("")
+        self.stack_coll.addWidget(self.stack_groupbox)
 
         group_layout.addWidget(self.stack_coll)
 
@@ -197,10 +197,10 @@ class SampleExplorerGui(QWidget):
         self.pos_coll.layout().setContentsMargins(0, 0, 0, 0)
         spacer = self._spacer()
         self.pos_coll.addWidget(spacer)
-        self.stage_pos_groupBox = _MDAPositionTable(["Grid #", "X", "Y", "Z"])
-        self.stage_pos_groupBox.setTitle("")
-        self.stage_pos_groupBox.grid_button.hide()
-        self.pos_coll.addWidget(self.stage_pos_groupBox)
+        self.stage_pos_groupbox = _MDAPositionTable(["Grid #", "X", "Y", "Z"])
+        self.stage_pos_groupbox.setTitle("")
+        self.stage_pos_groupbox.grid_button.hide()
+        self.pos_coll.addWidget(self.stage_pos_groupbox)
 
         group_layout.addWidget(self.pos_coll)
 

@@ -69,9 +69,9 @@ class MDAWidget(_MDAWidgetGui):
         self.buttons_wdg.cancel_button.released.connect(lambda: self._mmc.mda.cancel())
 
         self.ch_gb = self.channel_groupbox
-        self.tm_gp = self.time_groupBox
-        self.z_gp = self.stack_groupBox
-        self.pos_gp = self.stage_pos_groupBox
+        self.tm_gp = self.time_groupbox
+        self.z_gp = self.stack_groupbox
+        self.pos_gp = self.stage_pos_groupbox
 
         # connect run button
         if self._include_run_button:
@@ -628,7 +628,9 @@ class MDAWidget(_MDAWidgetGui):
                         "y": float(self.pos_gp.stage_tableWidget.item(r, 2).text()),
                     }
                     if self._mmc.getFocusDevice():
-                        pos["z"] = float(self.z_gp.stage_tableWidget.item(r, 3).text())
+                        pos["z"] = float(
+                            self.pos_gp.stage_tableWidget.item(r, 3).text()
+                        )
                     stage_positions.append(pos)
             else:
                 pos = {
