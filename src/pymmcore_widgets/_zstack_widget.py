@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Optional, Type, cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
@@ -230,15 +230,14 @@ class ZStackWidget(QGroupBox):
         self._zmode_tabs.setLayout(QVBoxLayout())
         self._zmode_tabs.layout().setSpacing(0)
         self._zmode_tabs.layout().setContentsMargins(0, 0, 0, 0)
-        self._zmode_tabs.addTab(ZTopBottomSelect(), "TopBottom")
-        self._zmode_tabs.addTab(ZRangeAroundSelect(), "RangeAround")
-        self._zmode_tabs.addTab(ZAboveBelowSelect(), "AboveBelow")
-        self._zmode_tabs.currentChanged.connect(self._update_and_emit)
         # all of the tabs have a valueChanged signal which we connect to _on_tab-change
-        for child in self._zmode_tabs.findChildren(
-            (ZTopBottomSelect, ZRangeAroundSelect, ZAboveBelowSelect)
-        ):
-            cast("ZPicker", child).valueChanged.connect(self._on_tab_change)
+        for tab_cls in [ZTopBottomSelect, ZRangeAroundSelect, ZAboveBelowSelect]:
+            tab_cls = cast(Type["ZPicker"], tab_cls)
+            wdg = tab_cls()
+            wdg.valueChanged.connect(self._on_tab_change)
+            name = tab_cls.__name__.replace("Z", "").replace("Select", "")
+            self._zmode_tabs.addTab(wdg, name)
+        self._zmode_tabs.currentChanged.connect(self._update_and_emit)
 
         # spinbox for the step size
         self._zstep_spinbox = QDoubleSpinBox()
