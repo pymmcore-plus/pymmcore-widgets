@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
@@ -25,8 +25,17 @@ from superqt.fonticon import icon
 
 
 class _MDAChannelTable(QGroupBox):
+
+    valueUpdated = Signal()
+
     def __init__(self, *, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
+
+        self._mmc = CMMCorePlus.instance()
+
+        self._create_ch_gui()
+
+    def _create_ch_gui(self) -> None:
 
         self.setTitle("Channels")
 
@@ -66,6 +75,11 @@ class _MDAChannelTable(QGroupBox):
         self.clear_ch_button = QPushButton(text="Clear")
         self.clear_ch_button.setMinimumWidth(min_size)
         self.clear_ch_button.setSizePolicy(btn_sizepolicy)
+
+        self.add_ch_button.clicked.connect(self._add_channel)
+        self.remove_ch_button.clicked.connect(self._remove_channel)
+        self.clear_ch_button.clicked.connect(self._clear_channel)
+
         spacer = QSpacerItem(
             10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
         )
@@ -77,10 +91,70 @@ class _MDAChannelTable(QGroupBox):
 
         group_layout.addWidget(wdg, 0, 1)
 
+    def _add_channel(self) -> bool:
+        """Add, remove or clear channel table.  Return True if anyting was changed."""
+        if len(self._mmc.getLoadedDevices()) <= 1:
+            return False
+
+        channel_group = self._mmc.getChannelGroup()
+        if not channel_group:
+            return False
+
+        idx = self.channel_tableWidget.rowCount()
+        self.channel_tableWidget.insertRow(idx)
+
+        # create a combo_box for channels in the table
+        channel_comboBox = QComboBox(self)
+        channel_exp_spinBox = QSpinBox(self)
+        channel_exp_spinBox.setRange(0, 10000)
+        channel_exp_spinBox.setValue(100)
+        channel_exp_spinBox.valueChanged.connect(self._on_exp_changed)
+
+        if channel_group := self._mmc.getChannelGroup():
+            channel_list = list(self._mmc.getAvailableConfigs(channel_group))
+            channel_comboBox.addItems(channel_list)
+
+        self.channel_tableWidget.setCellWidget(idx, 0, channel_comboBox)
+        self.channel_tableWidget.setCellWidget(idx, 1, channel_exp_spinBox)
+
+        self.valueUpdated.emit()
+
+        return True
+
+    def _on_exp_changed(self) -> None:
+        self.valueUpdated.emit()
+
+    def _remove_channel(self) -> None:
+        # remove selected position
+        rows = {r.row() for r in self.channel_tableWidget.selectedIndexes()}
+        for idx in sorted(rows, reverse=True):
+            self.channel_tableWidget.removeRow(idx)
+
+        self.valueUpdated.emit()
+
+    def _clear_channel(self) -> None:
+        # clear all positions
+        self.channel_tableWidget.clearContents()
+        self.channel_tableWidget.setRowCount(0)
+
+        self.valueUpdated.emit()
+
 
 class _MDATimeWidget(QGroupBox):
+
+    valueUpdated = Signal()
+
     def __init__(self, *, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
+
+        self._create_time_gui()
+
+        self.toggled.connect(self._on_value_changed)
+        self.interval_spinBox.valueChanged.connect(self._on_value_changed)
+        self.timepoints_spinBox.valueChanged.connect(self._on_value_changed)
+        self.time_comboBox.currentIndexChanged.connect(self._on_value_changed)
+
+    def _create_time_gui(self) -> None:
 
         self.setTitle("Time")
 
@@ -163,10 +237,39 @@ class _MDATimeWidget(QGroupBox):
         self._time_lbl.hide()
         self._icon_lbl.hide()
 
+    def _on_value_changed(self) -> None:
+        self.valueUpdated.emit()
+
 
 class _MDAStackWidget(QGroupBox):
+
+    valueUpdated = Signal()
+
     def __init__(self, *, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
+
+        self._mmc = CMMCorePlus.instance()
+
+        self._create_stack_gui()
+
+        self.set_top_button.clicked.connect(self._set_top)
+        self.set_bottom_button.clicked.connect(self._set_bottom)
+        self.z_top_doubleSpinBox.valueChanged.connect(self._update_topbottom_range)
+        self.z_bottom_doubleSpinBox.valueChanged.connect(self._update_topbottom_range)
+        self.zrange_spinBox.valueChanged.connect(self._update_rangearound_label)
+        self.above_doubleSpinBox.valueChanged.connect(self._update_abovebelow_range)
+        self.below_doubleSpinBox.valueChanged.connect(self._update_abovebelow_range)
+        self.z_range_abovebelow_doubleSpinBox.valueChanged.connect(
+            self._update_n_images
+        )
+        self.zrange_spinBox.valueChanged.connect(self._update_n_images)
+        self.z_range_topbottom_doubleSpinBox.valueChanged.connect(self._update_n_images)
+        self.step_size_doubleSpinBox.valueChanged.connect(self._update_n_images)
+        self.z_tabWidget.currentChanged.connect(self._update_n_images)
+        self.toggled.connect(self._update_n_images)
+        self.toggled.connect(self._on_toggle)
+
+    def _create_stack_gui(self) -> None:
 
         self.setTitle("Z Stack")
 
@@ -327,6 +430,41 @@ class _MDAStackWidget(QGroupBox):
         step_wdg_layout.addWidget(self.n_images_label)
         group_layout.addWidget(step_wdg)
 
+    def _set_top(self) -> None:
+        self.z_top_doubleSpinBox.setValue(self._mmc.getZPosition())
+
+    def _set_bottom(self) -> None:
+        self.z_bottom_doubleSpinBox.setValue(self._mmc.getZPosition())
+
+    def _update_topbottom_range(self) -> None:
+        self.z_range_topbottom_doubleSpinBox.setValue(
+            abs(self.z_top_doubleSpinBox.value() - self.z_bottom_doubleSpinBox.value())
+        )
+
+    def _update_rangearound_label(self, value: int) -> None:
+        self.range_around_label.setText(f"-{value/2} µm <- z -> +{value/2} µm")
+
+    def _update_abovebelow_range(self) -> None:
+        self.z_range_abovebelow_doubleSpinBox.setValue(
+            self.above_doubleSpinBox.value() + self.below_doubleSpinBox.value()
+        )
+
+    def _update_n_images(self) -> None:
+        step = self.step_size_doubleSpinBox.value()
+        # set what is the range to consider depending on the z_stack mode
+        if self.z_tabWidget.currentIndex() == 0:
+            _range = self.z_range_topbottom_doubleSpinBox.value()
+        if self.z_tabWidget.currentIndex() == 1:
+            _range = self.zrange_spinBox.value()
+        if self.z_tabWidget.currentIndex() == 2:
+            _range = self.z_range_abovebelow_doubleSpinBox.value()
+
+        self.n_images_label.setText(f"Number of Images: {round((_range / step) + 1)}")
+        self.valueUpdated.emit()
+
+    def _on_toggle(self) -> None:
+        self.valueUpdated.emit()
+
 
 class _MDAPositionTable(QGroupBox):
     def __init__(self, header: List[str], *, parent: Optional[QWidget] = None) -> None:
@@ -334,11 +472,16 @@ class _MDAPositionTable(QGroupBox):
 
         self._mmc = CMMCorePlus.instance()
 
+        self.header = header
+
+        self._create_pos_gui()
+
+    def _create_pos_gui(self) -> None:
+
         self.setTitle("Stage Positions")
 
         self.setCheckable(True)
         self.setChecked(False)
-        # self.setMinimumHeight(230)
 
         group_layout = QHBoxLayout()
         group_layout.setSpacing(15)
@@ -356,7 +499,7 @@ class _MDAPositionTable(QGroupBox):
         self.stage_tableWidget.setTabKeyNavigation(True)
         self.stage_tableWidget.setColumnCount(4)
         self.stage_tableWidget.setRowCount(0)
-        self.stage_tableWidget.setHorizontalHeaderLabels(header)
+        self.stage_tableWidget.setHorizontalHeaderLabels(self.header)
         group_layout.addWidget(self.stage_tableWidget)
 
         # buttons
@@ -412,6 +555,13 @@ class _MDAPositionTable(QGroupBox):
 class _MDAControlButtons(QWidget):
     def __init__(self, *, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
+
+        self._mmc = CMMCorePlus.instance()
+        self._mmc.mda.events.sequencePauseToggled.connect(self._on_mda_paused)
+
+        self._create_btns_gui()
+
+    def _create_btns_gui(self) -> None:
 
         self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         wdg_layout = QHBoxLayout()
@@ -469,6 +619,9 @@ class _MDAControlButtons(QWidget):
         wdg_layout.addWidget(self.run_button)
         wdg_layout.addWidget(self.pause_button)
         wdg_layout.addWidget(self.cancel_button)
+
+    def _on_mda_paused(self, paused: bool) -> None:
+        self.pause_button.setText("Resume" if paused else "Pause")
 
 
 class _MDATimeLabel(QWidget):

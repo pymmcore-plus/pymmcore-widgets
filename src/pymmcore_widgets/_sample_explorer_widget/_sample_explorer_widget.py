@@ -75,63 +75,29 @@ class SampleExplorerWidget(SampleExplorerGui):
         self.z_gp = self.stack_groupbox
         self.pos_gp = self.stage_pos_groupbox
 
+        # connect valueUpdated signal
+        self.ch_gb.valueUpdated.connect(self._update_total_time)
+        self.z_gp.valueUpdated.connect(self._update_total_time)
+        self.tm_gp.valueUpdated.connect(self._update_total_time)
+
         # connect run button
         if self._include_run_button:
             self.buttons_wdg.run_button.clicked.connect(self._start_scan)
-
-        # connection for channel
-        self.ch_gb.add_ch_button.clicked.connect(self._add_channel)
-        self.ch_gb.remove_ch_button.clicked.connect(self._remove_channel)
-        self.ch_gb.clear_ch_button.clicked.connect(self._clear_channel)
-
-        # connection for z stack
-        self.z_gp.set_top_button.clicked.connect(self._set_top)
-        self.z_gp.set_bottom_button.clicked.connect(self._set_bottom)
-        self.z_gp.z_top_doubleSpinBox.valueChanged.connect(self._update_topbottom_range)
-        self.z_gp.z_bottom_doubleSpinBox.valueChanged.connect(
-            self._update_topbottom_range
-        )
-
-        self.z_gp.zrange_spinBox.valueChanged.connect(self._update_rangearound_label)
-
-        self.z_gp.above_doubleSpinBox.valueChanged.connect(
-            self._update_abovebelow_range
-        )
-        self.z_gp.below_doubleSpinBox.valueChanged.connect(
-            self._update_abovebelow_range
-        )
-
-        self.z_gp.z_range_abovebelow_doubleSpinBox.valueChanged.connect(
-            self._update_n_images
-        )
-        self.z_gp.zrange_spinBox.valueChanged.connect(self._update_n_images)
-        self.z_gp.z_range_topbottom_doubleSpinBox.valueChanged.connect(
-            self._update_n_images
-        )
-        self.z_gp.step_size_doubleSpinBox.valueChanged.connect(self._update_n_images)
-        self.z_gp.z_tabWidget.currentChanged.connect(self._update_n_images)
-        self.z_gp.toggled.connect(self._update_n_images)
-        self.z_gp.toggled.connect(self._calculate_total_time)
 
         # connection for positions
         self.pos_gp.add_pos_button.clicked.connect(self._add_position)
         self.pos_gp.remove_pos_button.clicked.connect(self._remove_position)
         self.pos_gp.clear_pos_button.clicked.connect(self._clear_positions)
-        self.pos_gp.toggled.connect(self._calculate_total_time)
+        self.pos_gp.toggled.connect(self._update_total_time)
 
-        # connection for time
-        self.tm_gp.toggled.connect(self._calculate_total_time)
-        self.tm_gp.interval_spinBox.valueChanged.connect(self._calculate_total_time)
-        self.tm_gp.timepoints_spinBox.valueChanged.connect(self._calculate_total_time)
-
-        self.scan_size_spinBox_r.valueChanged.connect(self._calculate_total_time)
-        self.scan_size_spinBox_c.valueChanged.connect(self._calculate_total_time)
-        self.tm_gp.time_comboBox.currentIndexChanged.connect(self._calculate_total_time)
+        # connection for scan size
+        self.scan_size_spinBox_r.valueChanged.connect(self._update_total_time)
+        self.scan_size_spinBox_c.valueChanged.connect(self._update_total_time)
+        self.tm_gp.time_comboBox.currentIndexChanged.connect(self._update_total_time)
 
         # connect mmcore signals
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
-        self._mmc.mda.events.sequencePauseToggled.connect(self._on_mda_paused)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
 
         self._on_sys_cfg_loaded()
@@ -140,7 +106,8 @@ class SampleExplorerWidget(SampleExplorerGui):
         self.pixel_size = self._mmc.getPixelSizeUm()
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
-        self._clear_channel()
+        self.ch_gb._clear_channel()
+        self._clear_positions()
 
     def _set_enabled(self, enabled: bool) -> None:
         self.scan_size_spinBox_r.setEnabled(enabled)
@@ -161,90 +128,6 @@ class SampleExplorerWidget(SampleExplorerGui):
             self.z_gp.setEnabled(False)
         else:
             self.z_gp.setEnabled(enabled)
-
-    def _add_channel(self) -> bool:
-        """Add, remove or clear channel table.  Return True if anyting was changed."""
-        if len(self._mmc.getLoadedDevices()) <= 1:
-            return False
-
-        channel_group = self._mmc.getChannelGroup()
-        if not channel_group:
-            return False
-
-        idx = self.ch_gb.channel_tableWidget.rowCount()
-        self.ch_gb.channel_tableWidget.insertRow(idx)
-
-        # create a combo_box for channels in the table
-        channel_comboBox = QtW.QComboBox(self)
-        channel_exp_spinBox = QtW.QSpinBox(self)
-        channel_exp_spinBox.setRange(0, 10000)
-        channel_exp_spinBox.setValue(100)
-        channel_exp_spinBox.valueChanged.connect(self._calculate_total_time)
-
-        if channel_group := self._mmc.getChannelGroup():
-            channel_list = list(self._mmc.getAvailableConfigs(channel_group))
-            channel_comboBox.addItems(channel_list)
-
-        self.ch_gb.channel_tableWidget.setCellWidget(idx, 0, channel_comboBox)
-        self.ch_gb.channel_tableWidget.setCellWidget(idx, 1, channel_exp_spinBox)
-
-        self._calculate_total_time()
-
-        return True
-
-    def _remove_channel(self) -> None:
-        # remove selected position
-        rows = {r.row() for r in self.ch_gb.channel_tableWidget.selectedIndexes()}
-        for idx in sorted(rows, reverse=True):
-            self.ch_gb.channel_tableWidget.removeRow(idx)
-
-        self._calculate_total_time()
-
-    def _clear_channel(self) -> None:
-        # clear all positions
-        self.ch_gb.channel_tableWidget.clearContents()
-        self.ch_gb.channel_tableWidget.setRowCount(0)
-
-        self._calculate_total_time()
-
-    def _set_top(self) -> None:
-        self.z_gp.z_top_doubleSpinBox.setValue(self._mmc.getZPosition())
-
-    def _set_bottom(self) -> None:
-        self.z_gp.z_bottom_doubleSpinBox.setValue(self._mmc.getZPosition())
-
-    def _update_topbottom_range(self) -> None:
-        self.z_gp.z_range_topbottom_doubleSpinBox.setValue(
-            abs(
-                self.z_gp.z_top_doubleSpinBox.value()
-                - self.z_gp.z_bottom_doubleSpinBox.value()
-            )
-        )
-
-    def _update_rangearound_label(self, value: int) -> None:
-        self.z_gp.range_around_label.setText(f"-{value/2} µm <- z -> +{value/2} µm")
-
-    def _update_abovebelow_range(self) -> None:
-        self.z_gp.z_range_abovebelow_doubleSpinBox.setValue(
-            self.z_gp.above_doubleSpinBox.value()
-            + self.z_gp.below_doubleSpinBox.value()
-        )
-
-    def _update_n_images(self) -> None:
-        step = self.z_gp.step_size_doubleSpinBox.value()
-        # set what is the range to consider depending on the z_stack mode
-        if self.z_gp.z_tabWidget.currentIndex() == 0:
-            _range = self.z_gp.z_range_topbottom_doubleSpinBox.value()
-        if self.z_gp.z_tabWidget.currentIndex() == 1:
-            _range = self.z_gp.zrange_spinBox.value()
-        if self.z_gp.z_tabWidget.currentIndex() == 2:
-            _range = self.z_gp.z_range_abovebelow_doubleSpinBox.value()
-
-        self.z_gp.n_images_label.setText(
-            f"Number of Images: {round((_range / step) + 1)}"
-        )
-
-        self._calculate_total_time()
 
     # add, remove, clear, move_to positions table
     def _add_position(self) -> None:
@@ -277,7 +160,7 @@ class SampleExplorerWidget(SampleExplorerGui):
                 )
                 self.pos_gp.stage_tableWidget.setItem(idx, c, item)
 
-        self._calculate_total_time()
+        self._update_total_time()
 
     def _add_position_row(self) -> int:
         idx = int(self.pos_gp.stage_tableWidget.rowCount())
@@ -290,13 +173,13 @@ class SampleExplorerWidget(SampleExplorerGui):
         for idx in sorted(rows, reverse=True):
             self.pos_gp.stage_tableWidget.removeRow(idx)
         self._rename_positions()
-        self._calculate_total_time()
+        self._update_total_time()
 
     def _clear_positions(self) -> None:
         # clear all positions
         self.pos_gp.stage_tableWidget.clearContents()
         self.pos_gp.stage_tableWidget.setRowCount(0)
-        self._calculate_total_time()
+        self._update_total_time()
 
     def _rename_positions(self) -> None:
         for grid_count, r in enumerate(range(self.pos_gp.stage_tableWidget.rowCount())):
@@ -421,7 +304,7 @@ class SampleExplorerWidget(SampleExplorerGui):
 
         return full_pos_list  # type: ignore
 
-    def _calculate_total_time(self) -> None:
+    def _update_total_time(self) -> None:
 
         tiles = self.scan_size_spinBox_r.value() * self.scan_size_spinBox_c.value()
 
