@@ -202,7 +202,13 @@ class ZAboveBelowSelect(QWidget):
 
 
 class ZStackWidget(QGroupBox):
-    """Widget providing options for setting up a z-stack range and step size."""
+    """Widget providing options for setting up a z-stack range and step size.
+
+    Each tab represents a different way of specifying a z-stack range. The `value()`
+    method returns a dictionary with the current state of the widget, in a format that
+    matches one of the [useq-schema Z Plan
+    specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans).
+    """
 
     valueChanged = Signal(dict)
 
@@ -274,7 +280,11 @@ class ZStackWidget(QGroupBox):
         self.valueChanged.emit(self.value())
 
     def value(self) -> dict:
-        """Return the current z-stack settings."""
+        """Return the current z-stack settings.
+
+        Note that output dict will match one of the Z plans from useq schema:
+        <https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans>
+        """
         value = cast("ZPicker", self._zmode_tabs.currentWidget()).value()
         value["step"] = self._zstep_spinbox.value()
         return value
