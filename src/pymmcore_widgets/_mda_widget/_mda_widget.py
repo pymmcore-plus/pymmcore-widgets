@@ -374,13 +374,13 @@ class MDAWidget(_MDAWidgetGui):
         self.buttons_wdg.acquisition_order_comboBox.setCurrentText(state.axis_order)
 
         # set channel table
-        self._clear_channel()
+        self.ch_gb._clear_channel()
         if channel_group := self._mmc.getChannelGroup():
             channel_list = list(self._mmc.getAvailableConfigs(channel_group))
         else:
             channel_list = []
         for idx, ch in enumerate(state.channels):
-            if not self._add_channel():
+            if not self.ch_gb._add_channel():
                 break
             if ch.config in channel_list:
                 self.ch_gb.channel_tableWidget.cellWidget(idx, 0).setCurrentText(
