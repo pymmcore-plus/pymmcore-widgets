@@ -59,7 +59,7 @@ class ZTopBottomSelect(QWidget):
         # current bottom position spinbox
         self._bottom_spinbox = QDoubleSpinBox()
         self._bottom_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._top_spinbox.setRange(self._MIN_Z, self._MAX_Z)
+        self._bottom_spinbox.setRange(self._MIN_Z, self._MAX_Z)
         self._bottom_spinbox.valueChanged.connect(self._update_zrange_and_emit)
 
         # read only z range spinbox
@@ -87,6 +87,7 @@ class ZTopBottomSelect(QWidget):
 
     def _update_zrange_and_emit(self) -> None:
         self._zrange_spinbox.setValue(self.z_range())
+        print("emit value changed", self.value())
         self.valueChanged.emit(self.value())
 
     def value(self) -> dict:
@@ -160,13 +161,13 @@ class ZAboveBelowSelect(QWidget):
         self._above_spinbox.setValue(2.5)
         self._above_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._above_spinbox.setMaximum(self._MAX_RANGE // 2)
-        self._above_spinbox.valueChanged.connect(self._update_abovebelow_range)
+        self._above_spinbox.valueChanged.connect(self._on_range_changed)
 
         self._below_spinbox = QDoubleSpinBox()
         self._below_spinbox.setValue(2.5)
         self._below_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._below_spinbox.setMaximum(self._MAX_RANGE // 2)
-        self._below_spinbox.valueChanged.connect(self._update_abovebelow_range)
+        self._below_spinbox.valueChanged.connect(self._on_range_changed)
 
         # read only z range spinbox
         self._zrange_spinbox = QDoubleSpinBox()
@@ -177,7 +178,7 @@ class ZAboveBelowSelect(QWidget):
 
         center = Qt.AlignmentFlag.AlignHCenter
         grid = QGridLayout()
-        grid.setContentsMargins(10, 0, 10, 15)
+        grid.setContentsMargins(10, 4, 10, 12)  # FIXME: it's still weird...
         grid.addWidget(QLabel(f"Above ({self._UNIT}):"), 0, 0, center)
         grid.addWidget(self._above_spinbox, 1, 0)
         grid.addWidget(QLabel(f"Below ({self._UNIT}):"), 0, 1, center)
@@ -186,8 +187,9 @@ class ZAboveBelowSelect(QWidget):
         grid.addWidget(self._zrange_spinbox, 1, 2)
         self.setLayout(grid)
 
-    def _update_abovebelow_range(self) -> None:
+    def _on_range_changed(self) -> None:
         self._zrange_spinbox.setValue(self.z_range())
+        self.valueChanged.emit(self.value())
 
     def value(self) -> dict:
         return {
@@ -202,7 +204,7 @@ class ZAboveBelowSelect(QWidget):
 class ZStackWidget(QGroupBox):
     """Widget providing options for setting up a z-stack range and step size."""
 
-    valueChanged = Signal()
+    valueChanged = Signal(dict)
 
     _MAX_STEP = 100000
     _NIMG_PREFIX = "Number of Images:"
@@ -225,7 +227,12 @@ class ZStackWidget(QGroupBox):
         self._zmode_tabs.addTab(ZTopBottomSelect(), "TopBottom")
         self._zmode_tabs.addTab(ZRangeAroundSelect(), "RangeAround")
         self._zmode_tabs.addTab(ZAboveBelowSelect(), "AboveBelow")
-        self._zmode_tabs.currentChanged.connect(self._update_n_images)
+        self._zmode_tabs.currentChanged.connect(self._update_and_emit)
+        # all of the tabs have a valueChanged signal which we connect to _on_tab-change
+        for child in self._zmode_tabs.findChildren(
+            (ZTopBottomSelect, ZRangeAroundSelect, ZAboveBelowSelect)
+        ):
+            cast("ZPicker", child).valueChanged.connect(self._on_tab_change)
 
         # spinbox for the step size
         self._zstep_spinbox = QDoubleSpinBox()
@@ -234,7 +241,7 @@ class ZStackWidget(QGroupBox):
         self._zstep_spinbox.setMinimum(0.05)
         self._zstep_spinbox.setMaximum(self._MAX_STEP)
         self._zstep_spinbox.setSingleStep(0.1)
-        self._zstep_spinbox.valueChanged.connect(self._update_n_images)
+        self._zstep_spinbox.valueChanged.connect(self._update_and_emit)
 
         # readout for the number of images
         self.n_images_label = QLabel(self._NIMG_PREFIX)
@@ -256,9 +263,15 @@ class ZStackWidget(QGroupBox):
         self.layout().addWidget(self._zmode_tabs)
         self.layout().addWidget(bottom_row)
 
-    def _update_n_images(self) -> None:
+    def _on_tab_change(self) -> None:
+        """Only update the number of images when the active tab changes."""
+        if self.sender() is self._zmode_tabs.currentWidget():
+            self._update_and_emit()
+
+    def _update_and_emit(self) -> None:
+        """Update the number of images readout and emit the valueChanged signal."""
         self.n_images_label.setText(f"{self._NIMG_PREFIX} {self.n_images()}")
-        self.valueChanged.emit()
+        self.valueChanged.emit(self.value())
 
     def value(self) -> dict:
         """Return the current z-stack settings."""
@@ -296,14 +309,3 @@ class ZStackWidget(QGroupBox):
 
         if "step" in z_plan:
             self._zstep_spinbox.setValue(z_plan["step"])
-
-
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
-
-    core = CMMCorePlus.instance()
-    core.loadSystemConfiguration()
-    app = QApplication([])
-    wdg = ZStackWidget()
-    wdg.show()
-    app.exec_()
