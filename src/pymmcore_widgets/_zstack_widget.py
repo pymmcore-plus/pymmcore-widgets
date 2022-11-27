@@ -221,7 +221,6 @@ class ZStackWidget(QGroupBox):
         super().__init__(parent=parent)
         self.setTitle(title)
         self.setCheckable(True)
-        self.setChecked(False)
         self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
         self._mmc = CMMCorePlus.instance()
