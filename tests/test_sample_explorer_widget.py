@@ -33,9 +33,7 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     s_exp.time_groupbox.interval_spinBox.setValue(0)
 
     s_exp.stack_groupbox.setChecked(True)
-    s_exp.stack_groupbox.z_tabWidget.setCurrentIndex(1)
-    s_exp.stack_groupbox.zrange_spinBox.setValue(2)
-    s_exp.stack_groupbox.step_size_doubleSpinBox.setValue(1.0)
+    s_exp.stack_groupbox.set_state({"range": 2, "step": 1})
     assert s_exp.stack_groupbox.n_images_label.text() == "Number of Images: 3"
 
     s_exp.stage_pos_groupbox.setChecked(True)

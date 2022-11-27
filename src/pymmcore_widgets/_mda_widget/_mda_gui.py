@@ -7,10 +7,10 @@ from pymmcore_widgets._general_mda_widgets import (
     _MDAChannelTable,
     _MDAControlButtons,
     _MDAPositionTable,
-    _MDAStackWidget,
     _MDATimeLabel,
     _MDATimeWidget,
 )
+from pymmcore_widgets._zstack_widget import ZStackWidget
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
@@ -59,7 +59,7 @@ class _MDAWidgetGui(QWidget):
         self.time_groupbox = _MDATimeWidget()
         wdg_layout.addWidget(self.time_groupbox)
 
-        self.stack_groupbox = _MDAStackWidget()
+        self.stack_groupbox = ZStackWidget()
         wdg_layout.addWidget(self.stack_groupbox)
 
         self.stage_pos_groupbox = _MDAPositionTable(["Pos", "X", "Y", "Z"])

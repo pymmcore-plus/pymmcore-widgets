@@ -75,7 +75,7 @@ class MDAWidget(_MDAWidgetGui):
 
         # connect valueUpdated signal
         self.ch_gb.valueUpdated.connect(self._update_total_time)
-        self.z_gp.valueUpdated.connect(self._update_total_time)
+        self.z_gp.valueChanged.connect(self._update_total_time)
         self.tm_gp.valueUpdated.connect(self._update_total_time)
 
         # connect run button
@@ -273,10 +273,7 @@ class MDAWidget(_MDAWidgetGui):
             interval = -1.0
 
         # z stack
-        if self.z_gp.isChecked():
-            n_z_images = int(self.z_gp.n_images_label.text()[18:])
-        else:
-            n_z_images = 1
+        n_z_images = self.z_gp.n_images() if self.z_gp.isChecked() else 1
 
         # positions
         if self.pos_gp.isChecked():
@@ -399,19 +396,7 @@ class MDAWidget(_MDAWidgetGui):
         # set Z
         if state.z_plan:
             self.z_gp.setChecked(True)
-            if hasattr(state.z_plan, "top") and hasattr(state.z_plan, "bottom"):
-                self.z_gp.z_top_doubleSpinBox.setValue(state.z_plan.top)
-                self.z_gp.z_bottom_doubleSpinBox.setValue(state.z_plan.bottom)
-                self.z_gp.z_tabWidget.setCurrentIndex(0)
-            elif hasattr(state.z_plan, "above") and hasattr(state.z_plan, "below"):
-                self.z_gp.above_doubleSpinBox.setValue(state.z_plan.above)
-                self.z_gp.below_doubleSpinBox.setValue(state.z_plan.below)
-                self.z_gp.z_tabWidget.setCurrentIndex(2)
-            elif hasattr(state.z_plan, "range"):
-                self.z_gp.zrange_spinBox.setValue(int(state.z_plan.range))
-                self.z_gp.z_tabWidget.setCurrentIndex(1)
-            if hasattr(state.z_plan, "step"):
-                self.z_gp.step_size_doubleSpinBox.setValue(state.z_plan.step)
+            self.z_gp.set_state(state.z_plan.dict())
         else:
             self.z_gp.setChecked(False)
 
@@ -469,26 +454,7 @@ class MDAWidget(_MDAWidgetGui):
             for c in range(self.ch_gb.channel_tableWidget.rowCount())
         ]
 
-        z_plan: dict | None = None
-        if self.z_gp.isChecked():
-            if self.z_gp.z_tabWidget.currentIndex() == 0:
-                z_plan = {
-                    "top": self.z_gp.z_top_doubleSpinBox.value(),
-                    "bottom": self.z_gp.z_bottom_doubleSpinBox.value(),
-                    "step": self.z_gp.step_size_doubleSpinBox.value(),
-                }
-
-            elif self.z_gp.z_tabWidget.currentIndex() == 1:
-                z_plan = {
-                    "range": self.z_gp.zrange_spinBox.value(),
-                    "step": self.z_gp.step_size_doubleSpinBox.value(),
-                }
-            elif self.z_gp.z_tabWidget.currentIndex() == 2:
-                z_plan = {
-                    "above": self.z_gp.above_doubleSpinBox.value(),
-                    "below": self.z_gp.below_doubleSpinBox.value(),
-                    "step": self.z_gp.step_size_doubleSpinBox.value(),
-                }
+        z_plan = self.z_gp.value() if self.z_gp.isChecked() else None
 
         time_plan: dict | None = None
         if self.tm_gp.isChecked():
