@@ -60,6 +60,7 @@ class _MDAWidgetGui(QWidget):
         wdg_layout.addWidget(self.time_groupbox)
 
         self.stack_groupbox = ZStackWidget()
+        self.stack_groupbox.setChecked(False)
         wdg_layout.addWidget(self.stack_groupbox)
 
         self.stage_pos_groupbox = _MDAPositionTable(["Pos", "X", "Y", "Z"])

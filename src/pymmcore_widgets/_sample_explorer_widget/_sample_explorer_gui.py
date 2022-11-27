@@ -186,6 +186,7 @@ class SampleExplorerGui(QWidget):
         spacer = self._spacer()
         self.stack_coll.addWidget(spacer)
         self.stack_groupbox = ZStackWidget()
+        self.stack_groupbox.setChecked(False)
         self.stack_groupbox.setTitle("")
         self.stack_coll.addWidget(self.stack_groupbox)
 
