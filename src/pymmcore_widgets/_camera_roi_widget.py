@@ -80,7 +80,6 @@ class CameraRoiWidget(QWidget):
         self.destroyed.connect(self._disconnect)
 
     def _disconnect(self) -> None:
-        print("disconnecting")
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
         self._mmc.events.pixelSizeChanged.disconnect(self._update_lbl_info)
         self._mmc.events.roiSet.disconnect(self._on_roi_set)
