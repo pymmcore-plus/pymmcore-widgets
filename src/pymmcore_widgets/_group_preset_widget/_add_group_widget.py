@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Optional
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtGui import QCloseEvent
@@ -23,9 +23,8 @@ from .._device_property_table import DevicePropertyTable
 from ._add_first_preset_widget import AddFirstPresetWidget
 
 if TYPE_CHECKING:
-    from pymmcore_plus import DeviceProperty
 
-    from pymmcore_widgets import PropertyWidget
+    pass
 
 
 class AddGroupWidget(QDialog):
@@ -166,15 +165,8 @@ class AddGroupWidget(QDialog):
             self.info_lbl.setText(f"'{group}' already exist!")
             return
 
-        # list of properties to add to the group
         # [(device, property, value_to_set), ...]
-        dev_prop_val_list: list[tuple[str, str, str]] = []
-        for r in range(self._prop_table.rowCount()):
-            item = self._prop_table.item(r, 0)
-            if item.checkState():
-                prop: DeviceProperty = item.data(self._prop_table.PROP_ROLE)
-                wdg = cast("PropertyWidget", self._prop_table.cellWidget(r, 1))
-                dev_prop_val_list.append((prop.device, prop.name, str(wdg.value())))
+        dev_prop_val_list = self._prop_table.getCheckedProperties()
 
         if not dev_prop_val_list:
             warnings.warn("Select at lest one property!")

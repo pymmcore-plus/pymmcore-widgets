@@ -19,7 +19,7 @@ from pymmcore_widgets._device_type_filter import DeviceTypeFilters
 from .._util import block_core
 
 if TYPE_CHECKING:
-    from pymmcore_plus import DeviceProperty
+    pass
 
 
 class EditGroupWidget(QDialog):
@@ -150,12 +150,8 @@ class EditGroupWidget(QDialog):
 
     def _add_group(self) -> None:
 
-        new_dev_prop: List[Tuple[str, str]] = []
-        for row in range(self._prop_table.rowCount()):
-            item = self._prop_table.item(row, 0)
-            if item.checkState():
-                prop: DeviceProperty = item.data(self._prop_table.PROP_ROLE)
-                new_dev_prop.append((prop.device, prop.name))
+        # [(device, property, value), ...], need to remove the value
+        new_dev_prop = [x[:2] for x in self._prop_table.getCheckedProperties()]
 
         presets = self._mmc.getAvailableConfigs(self._group)
         preset_dev_prop = [

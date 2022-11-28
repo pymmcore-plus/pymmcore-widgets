@@ -142,6 +142,23 @@ class DevicePropertyTable(QTableWidget):
             else:
                 self.showRow(row)
 
+    def getCheckedProperties(self) -> list[tuple[str, str, str]]:
+        """Return a list of checked properties.
+
+        Each item in the list is a tuple of (device, property, value).
+        """
+        # list of properties to add to the group
+        # [(device, property, value_to_set), ...]
+        dev_prop_val_list: list[tuple[str, str, str]] = []
+        for r in range(self.rowCount()):
+            item = self.item(r, 0)
+            if item.checkState():
+                prop: DeviceProperty = item.data(self.PROP_ROLE)
+                wdg = cast("PropertyWidget", self.cellWidget(r, 1))
+                dev_prop_val_list.append((prop.device, prop.name, str(wdg.value())))
+
+        return dev_prop_val_list
+
 
 if __name__ == "__main__":
     from qtpy.QtWidgets import QApplication
