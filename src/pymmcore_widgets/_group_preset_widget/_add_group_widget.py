@@ -96,7 +96,7 @@ class AddGroupWidget(QDialog):
         self._filter_text.setPlaceholderText("Filter by device or property name...")
         self._filter_text.textChanged.connect(self._update_filter)
 
-        self._prop_table = DevicePropertyTable()
+        self._prop_table = DevicePropertyTable(enable_property_widgets=False)
         self._prop_table.setRowsCheckable(True)
         self._device_filters = DeviceTypeFilters()
         self._device_filters.filtersChanged.connect(self._update_filter)

@@ -63,7 +63,7 @@ class StageWidget(QWidget):
         Number of "arrow" buttons per widget per direction, by default, 2.
     parent : Optional[QWidget]
         Optional parent widget.
-    mmcore: Optional[CMMCorePlus]
+    mmcore : Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)

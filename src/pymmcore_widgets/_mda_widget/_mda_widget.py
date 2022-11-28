@@ -38,7 +38,7 @@ class MDAWidget(_MDAWidgetGui):
         The acquisition defined by the
         [`useq.MDASequence`](https://github.com/tlambert03/useq-schema)
         built through the widget is executed when clicked.
-    mmcore: Optional[CMMCorePlus]
+    mmcore : Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)

@@ -31,7 +31,7 @@ class LiveButton(QPushButton):
     ----------
     parent : Optional[QWidget]
         Optional parent widget.
-    mmcore: Optional[CMMCorePlus]
+    mmcore : Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)

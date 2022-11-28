@@ -21,21 +21,46 @@ ICONS: dict[DeviceType, str] = {
 
 
 class DevicePropertyTable(QTableWidget):
+    """Table of all currently loaded device properties.
+
+    This table is used by `PropertyBrowser` to display all properties in the system,
+    and by the `GroupPresetTableWidget`.
+
+    Parameters
+    ----------
+    parent : QWidget, optional
+        Parent widget, by default None
+    enable_property_widgets : bool, optional
+        Whether to enable each property widget, by default True
+    mmcore : CMMCorePlus, optional
+        CMMCore instance, by default None
+    """
 
     PROP_ROLE = QTableWidgetItem.ItemType.UserType + 1
 
     def __init__(
-        self, mmcore: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
+        self,
+        parent: Optional[QWidget] = None,
+        *,
+        enable_property_widgets: bool = True,
+        mmcore: Optional[CMMCorePlus] = None,
     ):
         rows = 0
         cols = 2
-        super().__init__(rows, cols, parent=parent)
+        super().__init__(rows, cols, parent)
+        self._rows_checkable: bool = False
+        self._prop_widgets_enabled: bool = enable_property_widgets
+
         self._mmc = mmcore or CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
 
-        self._mmc.events.configGroupDeleted.connect(self._rebuild_table)
-        self._mmc.events.configDeleted.connect(self._rebuild_table)
-        self._mmc.events.configDefined.connect(self._rebuild_table)
+        # If we enable these, then the edit group dialog will lose all of it's checks
+        # whenever modify group button is clicked.  However, We don't want this widget
+        # to have to be aware of a current group (or do we?)
+        # self._mmc.events.configGroupDeleted.connect(self._rebuild_table)
+        # self._mmc.events.configDeleted.connect(self._rebuild_table)
+        # self._mmc.events.configDefined.connect(self._rebuild_table)
+
         self.destroyed.connect(self._disconnect)
 
         self.setMinimumWidth(500)
@@ -80,6 +105,7 @@ class DevicePropertyTable(QTableWidget):
 
     def setRowsCheckable(self, checkable: bool = True) -> None:
         """Set whether individual row checkboxes are visible."""
+        self._rows_checkable = checkable
         for row in range(self.rowCount()):
             item = self.item(row, 0)
             flags = item.flags()
@@ -106,6 +132,8 @@ class DevicePropertyTable(QTableWidget):
 
             wdg = PropertyWidget(prop.device, prop.name, mmcore=self._mmc)
             self.setCellWidget(i, 1, wdg)
+            if not self._prop_widgets_enabled:
+                wdg.setEnabled(False)
 
             if prop.isReadOnly():
                 # TODO: make this more theme aware
@@ -113,6 +141,7 @@ class DevicePropertyTable(QTableWidget):
                 wdg.setStyleSheet("QLabel { background-color : #AAA }")
 
         self.resizeColumnsToContents()
+        self.setRowsCheckable(self._rows_checkable)
         # TODO: install eventFilter to prevent mouse wheel from scrolling sliders
 
     def setReadOnlyDevicesVisible(self, visible: bool = True) -> None:
@@ -128,7 +157,7 @@ class DevicePropertyTable(QTableWidget):
         exclude_devices: Iterable[DeviceType] = (),
         include_read_only: bool = True,
     ) -> None:
-        """Set whether devices of a given type are visible."""
+        """Update the table to only show devices that match the given query/filter."""
         exclude_devices = set(exclude_devices)
         for row in range(self.rowCount()):
             item = self.item(row, 0)
@@ -158,6 +187,13 @@ class DevicePropertyTable(QTableWidget):
                 dev_prop_val_list.append((prop.device, prop.name, str(wdg.value())))
 
         return dev_prop_val_list
+
+    def setPropertyWidgetsEnabled(self, enabled: bool) -> None:
+        """Set whether each widget is enabled."""
+        before, self._prop_widgets_enabled = self._prop_widgets_enabled, enabled
+        if before != enabled:
+            for row in range(self.rowCount()):
+                self.cellWidget(row, 1).setEnabled(enabled)
 
 
 if __name__ == "__main__":

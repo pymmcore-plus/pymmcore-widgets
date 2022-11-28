@@ -14,7 +14,7 @@ class PropertyBrowser(QDialog):
     ----------
     parent : Optional[QWidget]
         Optional parent widget. By default, None.
-    mmcore: Optional[CMMCorePlus]
+    mmcore : Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -27,7 +27,7 @@ class PropertyBrowser(QDialog):
         super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self._prop_table = DevicePropertyTable(mmcore)
+        self._prop_table = DevicePropertyTable(mmcore=mmcore)
         self._device_filters = DeviceTypeFilters()
         self._device_filters.filtersChanged.connect(self._update_filter)
 
