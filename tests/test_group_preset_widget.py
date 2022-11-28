@@ -86,7 +86,7 @@ def test_add_group(qtbot: QtBot):
     rows = [bin_match[0].row(), bit_match[0].row(), t_match[0].row()]
 
     for idx, i in enumerate(dev_prop_list):
-        dev_prop = table.item(rows[idx], 1).text()
+        dev_prop = table.item(rows[idx], 0).text()
         assert dev_prop == i
         cbox = table.cellWidget(rows[idx], 0)
         assert type(cbox) == QCheckBox

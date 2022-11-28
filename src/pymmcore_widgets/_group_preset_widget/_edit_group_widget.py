@@ -1,9 +1,7 @@
 from typing import List, Optional, Tuple, cast
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtGui import QColor
 from qtpy.QtWidgets import (
-    QAbstractScrollArea,
     QCheckBox,
     QDialog,
     QGroupBox,
@@ -12,76 +10,14 @@ from qtpy.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSizePolicy,
-    QTableWidget,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-from pymmcore_widgets._core import iter_dev_props
+from pymmcore_widgets._device_property_table import DevicePropertyTable
 from pymmcore_widgets._device_type_filter import DeviceTypeFilters
-from pymmcore_widgets._property_widget import PropertyWidget
 
 from .._util import block_core
-
-
-class _PropertyTable(QTableWidget):
-    def __init__(
-        self, group: str = None, *, parent: Optional[QWidget] = None  # type: ignore
-    ) -> None:
-        super().__init__(0, 3, parent=parent)
-
-        self._mmc = CMMCorePlus.instance()
-        self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
-        self.destroyed.connect(self._disconnect)
-
-        self.setHorizontalHeaderLabels([" ", "Property", "Value"])
-        self.setColumnWidth(0, 250)
-        self.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
-        vh = self.verticalHeader()
-        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
-        vh.setDefaultSectionSize(24)
-        vh.setVisible(False)
-        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.setSelectionMode(self.SelectionMode.NoSelection)
-
-        self._rebuild_table(group)
-
-    def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self._rebuild_table)
-
-    def _get_group_dev_prop(self, group: str) -> List[Tuple[str, str]]:
-        presets = self._mmc.getAvailableConfigs(group)
-        return [(k[0], k[1]) for k in self._mmc.getConfigData(group, presets[0])]
-
-    def _rebuild_table(self, group: str = None) -> None:  # type: ignore
-
-        self.clearContents()
-
-        if group:
-            dev_prop = self._get_group_dev_prop(group)
-
-        props = list(iter_dev_props(self._mmc))
-        self.setRowCount(len(props))
-        for i, (dev, prop) in enumerate(props):
-            item = QTableWidgetItem(f"{dev}-{prop}")
-            _checkbox = QCheckBox()
-            _checkbox.setProperty("row", i)
-            if group and (dev, prop) in dev_prop:
-                _checkbox.setChecked(True)
-            self.setCellWidget(i, 0, _checkbox)
-            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
-            wdg.setEnabled(False)
-            self.setItem(i, 1, item)
-            self.setCellWidget(i, 2, wdg)
-            if wdg.isReadOnly():
-                # TODO: make this more theme aware
-                item.setBackground(QColor("#AAA"))
-                wdg.setStyleSheet("QLabel { background-color : #AAA }")
-
-        self.resizeColumnsToContents()
-
-        # TODO: install eventFilter to prevent mouse wheel from scrolling sliders
 
 
 class EditGroupWidget(QDialog):
@@ -151,15 +87,18 @@ class EditGroupWidget(QDialog):
         layout.setSpacing(0)
         wdg.setLayout(layout)
 
-        self._prop_table = _PropertyTable(self._group)
-        self._device_filters = DeviceTypeFilters()
-        self._device_filters._set_show_read_only(False)
-        self._device_filters.filtersChanged.connect(self._update_filter)
-
         self._filter_text = QLineEdit()
         self._filter_text.setClearButtonEnabled(True)
         self._filter_text.setPlaceholderText("Filter by device or property name...")
         self._filter_text.textChanged.connect(self._update_filter)
+
+        self._prop_table = DevicePropertyTable()
+        self._prop_table.setRowsCheckable(True)
+        self._prop_table.checkGroup(self._group)
+        self._device_filters = DeviceTypeFilters()
+        self._device_filters.filtersChanged.connect(self._update_filter)
+        self._device_filters.setShowReadOnly(False)
+        self._device_filters._read_only_checkbox.hide()
 
         right = QWidget()
         right.setLayout(QVBoxLayout())
@@ -203,16 +142,9 @@ class EditGroupWidget(QDialog):
 
     def _update_filter(self) -> None:
         filt = self._filter_text.text().lower()
-        for r in range(self._prop_table.rowCount()):
-            wdg = cast(PropertyWidget, self._prop_table.cellWidget(r, 2))
-            if wdg.isReadOnly() and not self._device_filters.showReadOnly():
-                self._prop_table.hideRow(r)
-            elif wdg.deviceType() in self.self._device_filters.filters():
-                self._prop_table.hideRow(r)
-            elif filt and filt not in self._prop_table.item(r, 1).text().lower():
-                self._prop_table.hideRow(r)
-            else:
-                self._prop_table.showRow(r)
+        self._prop_table.filterDevices(
+            filt, self._device_filters.filters(), self._device_filters.showReadOnly()
+        )
 
     def _add_group(self) -> None:
 

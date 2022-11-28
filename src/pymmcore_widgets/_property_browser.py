@@ -1,68 +1,10 @@
-from typing import Optional, cast
+from typing import Optional
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtGui import QColor
-from qtpy.QtWidgets import (
-    QDialog,
-    QHBoxLayout,
-    QLineEdit,
-    QTableWidget,
-    QTableWidgetItem,
-    QVBoxLayout,
-    QWidget,
-)
+from qtpy.QtWidgets import QDialog, QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
 
-from ._core import iter_dev_props
+from ._device_property_table import DevicePropertyTable
 from ._device_type_filter import DeviceTypeFilters
-from ._property_widget import PropertyWidget
-
-
-class _PropertyTable(QTableWidget):
-    def __init__(
-        self, mmcore: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
-    ):
-        super().__init__(0, 2, parent=parent)
-        self._mmc = mmcore or CMMCorePlus.instance()
-        self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
-        self._mmc.events.configGroupDeleted.connect(self._rebuild_table)
-        self._mmc.events.configDeleted.connect(self._rebuild_table)
-        self._mmc.events.configDefined.connect(self._rebuild_table)
-        self.destroyed.connect(self._disconnect)
-
-        self.setMinimumWidth(500)
-        self.setHorizontalHeaderLabels(["Property", "Value"])
-        self.setColumnWidth(0, 250)
-        self.horizontalHeader().setStretchLastSection(True)
-        vh = self.verticalHeader()
-        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
-        vh.setDefaultSectionSize(24)
-        vh.setVisible(False)
-        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.setSelectionMode(self.SelectionMode.NoSelection)
-        self.resize(500, 500)
-        self._rebuild_table()
-
-    def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self._rebuild_table)
-        self._mmc.events.configGroupDeleted.disconnect(self._rebuild_table)
-        self._mmc.events.configDeleted.disconnect(self._rebuild_table)
-        self._mmc.events.configDefined.disconnect(self._rebuild_table)
-
-    def _rebuild_table(self) -> None:
-        self.clearContents()
-        props = list(iter_dev_props(self._mmc))
-        self.setRowCount(len(props))
-        for i, (dev, prop) in enumerate(props):
-            item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
-            self.setItem(i, 0, item)
-            self.setCellWidget(i, 1, wdg)
-            if wdg.isReadOnly():
-                # TODO: make this more theme aware
-                item.setBackground(QColor("#AAA"))
-                wdg.setStyleSheet("QLabel { background-color : #AAA }")
-
-        # TODO: install eventFilter to prevent mouse wheel from scrolling sliders
 
 
 class PropertyBrowser(QDialog):
@@ -85,7 +27,7 @@ class PropertyBrowser(QDialog):
         super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self._prop_table = _PropertyTable(mmcore)
+        self._prop_table = DevicePropertyTable(mmcore)
         self._device_filters = DeviceTypeFilters()
         self._device_filters.filtersChanged.connect(self._update_filter)
 
@@ -117,16 +59,9 @@ class PropertyBrowser(QDialog):
 
     def _update_filter(self) -> None:
         filt = self._filter_text.text().lower()
-        for r in range(self._prop_table.rowCount()):
-            wdg = cast(PropertyWidget, self._prop_table.cellWidget(r, 1))
-            if wdg.isReadOnly() and not self._device_filters.showReadOnly():
-                self._prop_table.hideRow(r)
-            elif wdg.deviceType() in self._device_filters.filters():
-                self._prop_table.hideRow(r)
-            elif filt and filt not in self._prop_table.item(r, 0).text().lower():
-                self._prop_table.hideRow(r)
-            else:
-                self._prop_table.showRow(r)
+        self._prop_table.filterDevices(
+            filt, self._device_filters.filters(), self._device_filters.showReadOnly()
+        )
 
 
 if __name__ == "__main__":

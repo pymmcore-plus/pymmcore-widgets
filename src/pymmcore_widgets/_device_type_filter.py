@@ -28,7 +28,6 @@ class DeviceTypeFilters(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
-        self._show_read_only: bool = True
         self._filters: set[DeviceType] = set()
 
         all_btn = QPushButton("All")
@@ -52,14 +51,13 @@ class DeviceTypeFilters(QWidget):
         for x in self._dev_gb.findChildren(QWidget):
             cast(QWidget, x).setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        ro = QCheckBox("Show read-only")
-        ro.setChecked(self._show_read_only)
-        ro.toggled.connect(self._set_show_read_only)
-        ro.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._read_only_checkbox = QCheckBox("Show read-only")
+        self._read_only_checkbox.toggled.connect(self.filtersChanged.emit)
+        self._read_only_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         layout = QVBoxLayout()
         layout.addWidget(self._dev_gb)
-        layout.addWidget(ro)
+        layout.addWidget(self._read_only_checkbox)
         layout.addStretch()
         self.setLayout(layout)
 
@@ -76,12 +74,12 @@ class DeviceTypeFilters(QWidget):
         self._filters.symmetric_difference_update(DevTypeLabels[label])
         self.filtersChanged.emit()
 
-    def _set_show_read_only(self, state: bool) -> None:
-        self._show_read_only = state
-        self.filtersChanged.emit()
-
     def filters(self) -> set[DeviceType]:
         return self._filters
 
     def showReadOnly(self) -> bool:
-        return self._show_read_only
+        return self._read_only_checkbox.isChecked()  # type: ignore
+
+    def setShowReadOnly(self, show: bool) -> None:
+        self._read_only_checkbox.setChecked(show)
+        self.filtersChanged.emit()
