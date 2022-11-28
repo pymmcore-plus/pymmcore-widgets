@@ -183,7 +183,7 @@ class DevicePropertyTable(QTableWidget):
         dev_prop_val_list: list[tuple[str, str, str]] = []
         for r in range(self.rowCount()):
             item = self.item(r, 0)
-            if item.checkState():
+            if item.checkState() == Qt.CheckState.Checked:
                 prop: DeviceProperty = item.data(self.PROP_ROLE)
                 wdg = cast("PropertyWidget", self.cellWidget(r, 1))
                 dev_prop_val_list.append((prop.device, prop.name, str(wdg.value())))

@@ -89,6 +89,12 @@ def test_add_group(qtbot: QtBot):
         assert item.text() == i
         item.setCheckState(Qt.CheckState.Checked)
 
+    assert table.getCheckedProperties() == [
+        ("Camera", "Binning", "1"),
+        ("Camera", "BitDepth", "16"),
+        ("Camera", "CCDTemperature", "0.0"),
+    ]
+
     with pytest.warns(UserWarning):
         add_gp_wdg.new_group_btn.click()
         assert add_gp_wdg.info_lbl.text() == "Give a name to the group!"
@@ -100,10 +106,10 @@ def test_add_group(qtbot: QtBot):
     add_gp_wdg.group_lineedit.setText("NewGroup")
 
     add_gp_wdg.new_group_btn.click()
-
-    assert hasattr(add_gp_wdg, "_first_preset_wdg")
-
     wdg = add_gp_wdg._first_preset_wdg
+    assert wdg.table.item(0, 0).text() == "Camera-Binning"
+    assert wdg.table.item(1, 0).text() == "Camera-BitDepth"
+
     assert wdg.preset_name_lineedit.placeholderText() == "NewPreset"
 
     wdg.table.cellWidget(0, 1).setValue(2)
@@ -152,7 +158,7 @@ def test_edit_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     t_row = t_match[0].row()
 
     item = table.item(t_row, 0)
-    assert not item.checkState()
+    assert item.checkState() != Qt.CheckState.Checked
     item.setCheckState(Qt.CheckState.Checked)
     assert table.item(t_row, 0).text() == "Camera-CCDTemperature"
 
