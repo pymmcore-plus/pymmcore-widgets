@@ -79,3 +79,9 @@ class DeviceTypeFilters(QWidget):
     def _set_show_read_only(self, state: bool) -> None:
         self._show_read_only = state
         self.filtersChanged.emit()
+
+    def filters(self) -> set[DeviceType]:
+        return self._filters
+
+    def showReadOnly(self) -> bool:
+        return self._show_read_only

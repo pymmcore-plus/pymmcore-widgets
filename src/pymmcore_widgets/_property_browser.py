@@ -119,9 +119,9 @@ class PropertyBrowser(QDialog):
         filt = self._filter_text.text().lower()
         for r in range(self._prop_table.rowCount()):
             wdg = cast(PropertyWidget, self._prop_table.cellWidget(r, 1))
-            if wdg.isReadOnly() and not self._device_filters._show_read_only:
+            if wdg.isReadOnly() and not self._device_filters.showReadOnly():
                 self._prop_table.hideRow(r)
-            elif wdg.deviceType() in self._device_filters._filters:
+            elif wdg.deviceType() in self._device_filters.filters():
                 self._prop_table.hideRow(r)
             elif filt and filt not in self._prop_table.item(r, 0).text().lower():
                 self._prop_table.hideRow(r)
