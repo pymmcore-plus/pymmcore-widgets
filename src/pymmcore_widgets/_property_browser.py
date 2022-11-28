@@ -17,6 +17,54 @@ from ._device_type_filter import DeviceTypeFilters
 from ._property_widget import PropertyWidget
 
 
+class _PropertyTable(QTableWidget):
+    def __init__(
+        self, mmcore: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
+    ):
+        super().__init__(0, 2, parent=parent)
+        self._mmc = mmcore or CMMCorePlus.instance()
+        self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
+        self._mmc.events.configGroupDeleted.connect(self._rebuild_table)
+        self._mmc.events.configDeleted.connect(self._rebuild_table)
+        self._mmc.events.configDefined.connect(self._rebuild_table)
+        self.destroyed.connect(self._disconnect)
+
+        self.setMinimumWidth(500)
+        self.setHorizontalHeaderLabels(["Property", "Value"])
+        self.setColumnWidth(0, 250)
+        self.horizontalHeader().setStretchLastSection(True)
+        vh = self.verticalHeader()
+        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
+        vh.setDefaultSectionSize(24)
+        vh.setVisible(False)
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.setSelectionMode(self.SelectionMode.NoSelection)
+        self.resize(500, 500)
+        self._rebuild_table()
+
+    def _disconnect(self) -> None:
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._rebuild_table)
+        self._mmc.events.configGroupDeleted.disconnect(self._rebuild_table)
+        self._mmc.events.configDeleted.disconnect(self._rebuild_table)
+        self._mmc.events.configDefined.disconnect(self._rebuild_table)
+
+    def _rebuild_table(self) -> None:
+        self.clearContents()
+        props = list(iter_dev_props(self._mmc))
+        self.setRowCount(len(props))
+        for i, (dev, prop) in enumerate(props):
+            item = QTableWidgetItem(f"{dev}-{prop}")
+            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
+            self.setItem(i, 0, item)
+            self.setCellWidget(i, 1, wdg)
+            if wdg.isReadOnly():
+                # TODO: make this more theme aware
+                item.setBackground(QColor("#AAA"))
+                wdg.setStyleSheet("QLabel { background-color : #AAA }")
+
+        # TODO: install eventFilter to prevent mouse wheel from scrolling sliders
+
+
 class PropertyBrowser(QDialog):
     """A Widget to browse and change properties of all devices.
 
@@ -79,54 +127,6 @@ class PropertyBrowser(QDialog):
                 self._prop_table.hideRow(r)
             else:
                 self._prop_table.showRow(r)
-
-
-class _PropertyTable(QTableWidget):
-    def __init__(
-        self, mmcore: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
-    ):
-        super().__init__(0, 2, parent=parent)
-        self._mmc = mmcore or CMMCorePlus.instance()
-        self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
-        self._mmc.events.configGroupDeleted.connect(self._rebuild_table)
-        self._mmc.events.configDeleted.connect(self._rebuild_table)
-        self._mmc.events.configDefined.connect(self._rebuild_table)
-        self.destroyed.connect(self._disconnect)
-
-        self.setMinimumWidth(500)
-        self.setHorizontalHeaderLabels(["Property", "Value"])
-        self.setColumnWidth(0, 250)
-        self.horizontalHeader().setStretchLastSection(True)
-        vh = self.verticalHeader()
-        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
-        vh.setDefaultSectionSize(24)
-        vh.setVisible(False)
-        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.setSelectionMode(self.SelectionMode.NoSelection)
-        self.resize(500, 500)
-        self._rebuild_table()
-
-    def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self._rebuild_table)
-        self._mmc.events.configGroupDeleted.disconnect(self._rebuild_table)
-        self._mmc.events.configDeleted.disconnect(self._rebuild_table)
-        self._mmc.events.configDefined.disconnect(self._rebuild_table)
-
-    def _rebuild_table(self) -> None:
-        self.clearContents()
-        props = list(iter_dev_props(self._mmc))
-        self.setRowCount(len(props))
-        for i, (dev, prop) in enumerate(props):
-            item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
-            self.setItem(i, 0, item)
-            self.setCellWidget(i, 1, wdg)
-            if wdg.isReadOnly():
-                # TODO: make this more theme aware
-                item.setBackground(QColor("#AAA"))
-                wdg.setStyleSheet("QLabel { background-color : #AAA }")
-
-        # TODO: install eventFilter to prevent mouse wheel from scrolling sliders
 
 
 if __name__ == "__main__":
