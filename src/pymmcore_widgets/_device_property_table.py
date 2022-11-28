@@ -9,8 +9,6 @@ from superqt.fonticon import icon
 
 from pymmcore_widgets._property_widget import PropertyWidget
 
-PROP_ROLE = QTableWidgetItem.ItemType.UserType + 1
-
 ICONS: dict[DeviceType, str] = {
     DeviceType.Camera: MDI6.camera,
     DeviceType.Shutter: MDI6.camera_iris,
@@ -23,6 +21,9 @@ ICONS: dict[DeviceType, str] = {
 
 
 class DevicePropertyTable(QTableWidget):
+
+    PROP_ROLE = QTableWidgetItem.ItemType.UserType + 1
+
     def __init__(
         self, mmcore: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
     ):
@@ -67,7 +68,7 @@ class DevicePropertyTable(QTableWidget):
 
         included = [tuple(c)[:2] for c in self._mmc.getConfigData(group, presets[0])]
         for row in range(self.rowCount()):
-            prop = cast(DeviceProperty, self.item(row, 0).data(PROP_ROLE))
+            prop = cast(DeviceProperty, self.item(row, 0).data(self.PROP_ROLE))
             if (prop.device, prop.name) in included:
                 self.item(row, 0).setCheckState(Qt.CheckState.Checked)
             else:
@@ -96,7 +97,7 @@ class DevicePropertyTable(QTableWidget):
         for i, prop in enumerate(props):
 
             item = QTableWidgetItem(f"{prop.device}-{prop.name}")
-            item.setData(PROP_ROLE, prop)
+            item.setData(self.PROP_ROLE, prop)
             item.setIcon(icon(ICONS[prop.deviceType()], opacity=0.5, color="blue"))
             self.setItem(i, 0, item)
 
@@ -114,7 +115,7 @@ class DevicePropertyTable(QTableWidget):
     def setReadOnlyDevicesVisible(self, visible: bool = True) -> None:
         """Set whether read-only devices are visible."""
         for row in range(self.rowCount()):
-            prop = cast(DeviceProperty, self.item(row, 0).data(PROP_ROLE))
+            prop = cast(DeviceProperty, self.item(row, 0).data(self.PROP_ROLE))
             if prop.isReadOnly():
                 self.setRowHidden(row, not visible)
 
@@ -128,7 +129,7 @@ class DevicePropertyTable(QTableWidget):
         exclude_devices = set(exclude_devices)
         for row in range(self.rowCount()):
             item = self.item(row, 0)
-            prop = cast(DeviceProperty, item.data(PROP_ROLE))
+            prop = cast(DeviceProperty, item.data(self.PROP_ROLE))
             if (
                 (prop.isReadOnly() and not include_read_only)
                 or (prop.deviceType() in exclude_devices)

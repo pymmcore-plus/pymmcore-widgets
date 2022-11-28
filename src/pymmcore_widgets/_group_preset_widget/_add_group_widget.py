@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import warnings
-from typing import Optional, cast
+from typing import TYPE_CHECKING, Optional, cast
 
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Qt
 from qtpy.QtGui import QCloseEvent
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -20,6 +23,10 @@ from pymmcore_widgets._device_type_filter import DeviceTypeFilters
 
 from .._device_property_table import DevicePropertyTable
 from ._add_first_preset_widget import AddFirstPresetWidget
+
+if TYPE_CHECKING:
+    from pymmcore_widgets import PropertyWidget
+    from pymmcore_plus import DeviceProperty
 
 
 class AddGroupWidget(QDialog):
@@ -146,18 +153,6 @@ class AddGroupWidget(QDialog):
 
     def _add_group(self) -> None:
 
-        cbox = [
-            self._prop_table.cellWidget(r, 0)
-            for r in range(self._prop_table.rowCount())
-            if self._prop_table.cellWidget(r, 0).isChecked()
-        ]
-
-        if not cbox:
-            warnings.warn("Select at lest one property!")
-            self.info_lbl.setStyleSheet("color: magenta;")
-            self.info_lbl.setText("Select at lest one property!")
-            return
-
         group = self.group_lineedit.text()
 
         if not group:
@@ -172,17 +167,22 @@ class AddGroupWidget(QDialog):
             self.info_lbl.setText(f"'{group}' already exist!")
             return
 
-        dev_prop_val_list = []
+        # list of properties to add to the group
+        # [(device, property, value_to_set), ...]
+        dev_prop_val_list: list[tuple[str, str, str]] = []
         for r in range(self._prop_table.rowCount()):
-            checkbox = cast(QCheckBox, self._prop_table.cellWidget(r, 0))
-            if checkbox.isChecked():
-                row = checkbox.property("row")
-                dev_prop = self._prop_table.item(row, 1).text()
-                dev = dev_prop.split("-")[0]
-                prop = dev_prop.split("-")[1]
-                value = self._prop_table.cellWidget(row, 2).value()
+            item = self._prop_table.item(r, 0)
+            if item.checkState() != Qt.CheckState.Unchecked:
+                prop: DeviceProperty = item.data(self._prop_table.PROP_ROLE)
+                wdg = cast('PropertyWidget', self._prop_table.cellWidget(r, 1))
+                dev_prop_val_list.append((prop.device, prop.name, str(wdg.value())))
 
-                dev_prop_val_list.append((dev, prop, str(value)))
+        print("dev_prop_val_list", dev_prop_val_list)
+        if not dev_prop_val_list:
+            warnings.warn("Select at lest one property!")
+            self.info_lbl.setStyleSheet("color: magenta;")
+            self.info_lbl.setText("Select at lest one property!")
+            return
 
         if hasattr(self, "_first_preset_wdg"):
             self._first_preset_wdg.close()  # type: ignore
