@@ -54,6 +54,7 @@ def test_mda_widget_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg._clear_positions()
     assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 0
     wdg.stage_pos_groupbox.grid_button.click()
+    qtbot.addWidget(wdg._grid_wdg)
     wdg._grid_wdg.scan_size_spinBox_r.setValue(2)
     wdg._grid_wdg.scan_size_spinBox_c.setValue(2)
     wdg._grid_wdg.generate_position_btn.click()
