@@ -108,7 +108,7 @@ def test_add_group(qtbot: QtBot):
 
     wdg.table.cellWidget(0, 1).setValue(2)
     wdg.table.cellWidget(1, 1).setValue(8)
-    wdg.table.cellWidget(2, 1).setValue(0.1)
+    wdg.table.cellWidget(2, 1).setValue("0.1")
 
     with qtbot.waitSignal(mmc.events.configDefined):
         wdg.apply_button.click()

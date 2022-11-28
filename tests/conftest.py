@@ -31,12 +31,13 @@ def _run_after_each_test(request: "FixtureRequest", qapp: "QApplication"):
     `functools.partial(self._method)` or `lambda: self._method` being used in that
     widget's code.
     """
+    nbefore = len(qapp.topLevelWidgets())
     failures_before = request.session.testsfailed
     yield
     # if the test failed, don't worry about checking widgets
     if request.session.testsfailed - failures_before:
         return
     remaining = qapp.topLevelWidgets()
-    if remaining:
+    if len(remaining) > nbefore:
         test = f"{request.node.path.name}::{request.node.originalname}"
         raise AssertionError(f"topLevelWidgets remaining after {test!r}: {remaining}")
