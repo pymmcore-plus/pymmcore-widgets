@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
-def test_mda_widget_load_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
+def test_mda_widget_load_state(qtbot: QtBot):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
     assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 0

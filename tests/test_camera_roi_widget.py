@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, call
 
-import pytest
 from pymmcore_plus import CMMCorePlus
 
 from pymmcore_widgets._camera_roi_widget import CameraRoiWidget
@@ -13,15 +12,6 @@ if TYPE_CHECKING:
 
 FULL = "Full Chip"
 CUSTOM_ROI = "Custom ROI"
-
-
-@pytest.fixture()
-def camera_roi_widget(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    cam = CameraRoiWidget(mmcore=global_mmcore)
-    qtbot.addWidget(cam)
-    mmc = global_mmcore
-    assert mmc.getProperty("Objective", "Label") == "Nikon 10X S Fluor"
-    return cam, mmc
 
 
 def _get_wdgs(cam_wdg: CameraRoiWidget):
@@ -35,8 +25,9 @@ def _get_wdgs(cam_wdg: CameraRoiWidget):
     return cam_x, cam_y, w, h, combo, cbox, crop
 
 
-def test_load_camera_roi_widget(camera_roi_widget):
-    cam, _ = camera_roi_widget
+def test_load_camera_roi_widget(qtbot: QtBot):
+    cam = CameraRoiWidget()
+    qtbot.addWidget(cam)
 
     cam_x, cam_y, w, h, combo, cbox, _ = _get_wdgs(cam)
 
@@ -51,8 +42,10 @@ def test_load_camera_roi_widget(camera_roi_widget):
     assert items == combo_items
 
 
-def test_camera_roi_combo(camera_roi_widget):
-    cam, mmc = camera_roi_widget
+def test_camera_roi_combo(qtbot: QtBot):
+    mmc = CMMCorePlus.instance()
+    cam = CameraRoiWidget()
+    qtbot.addWidget(cam)
 
     cam_x, cam_y, w, h, combo, cbox, _ = _get_wdgs(cam)
 
@@ -85,8 +78,10 @@ def test_camera_roi_combo(camera_roi_widget):
     assert mmc.getROI() == [0, 0, 512, 512]
 
 
-def test_camera_roi_combo_custom(camera_roi_widget):
-    cam, mmc = camera_roi_widget
+def test_camera_roi_combo_custom(qtbot: QtBot):
+    mmc = CMMCorePlus.instance()
+    cam = CameraRoiWidget()
+    qtbot.addWidget(cam)
 
     cam_x, cam_y, w, h, combo, cbox, crop = _get_wdgs(cam)
 
@@ -130,8 +125,9 @@ def test_camera_roi_combo_custom(camera_roi_widget):
     assert mmc.getROI() == [0, 0, 512, 512]
 
 
-def test_camera_roi_widget_signal(camera_roi_widget):
-    cam, _ = camera_roi_widget
+def test_camera_roi_widget_signal(qtbot: QtBot):
+    cam = CameraRoiWidget()
+    qtbot.addWidget(cam)
 
     cam_x, cam_y, w, h, combo, cbox, _ = _get_wdgs(cam)
 
@@ -177,8 +173,10 @@ def test_camera_roi_widget_signal(camera_roi_widget):
     assert h.value() == 300
 
 
-def test_core_setROI(camera_roi_widget):
-    cam, mmc = camera_roi_widget
+def test_core_setROI(qtbot: QtBot):
+    mmc = CMMCorePlus.instance()
+    cam = CameraRoiWidget()
+    qtbot.addWidget(cam)
 
     cam_x, cam_y, w, h, combo, cbox, _ = _get_wdgs(cam)
 

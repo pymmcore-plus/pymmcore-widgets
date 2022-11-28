@@ -62,12 +62,12 @@ def test_populating_group_preset_table(global_mmcore: CMMCorePlus, qtbot: QtBot)
             assert global_mmcore.getProperty("Camera", "TestProperty1") == "0.1000"
 
 
-def test_add_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
+def test_add_group(qtbot: QtBot):
     gp = GroupPresetTableWidget()
     qtbot.addWidget(gp)
     add_gp_wdg = AddGroupWidget()
     qtbot.addWidget(add_gp_wdg)
-    mmc = global_mmcore
+    mmc = CMMCorePlus.instance()
 
     assert "NewGroup" not in mmc.getAvailableConfigGroups()
     groups_in_table = [

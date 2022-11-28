@@ -60,7 +60,13 @@ class CameraRoiWidget(QWidget):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self._create_gui()
+        layout = QVBoxLayout()
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
+
+        main_wdg = self._create_main_wdg()
+        layout.addWidget(main_wdg)
 
         self.chip_size_x = 0
         self.chip_size_y = 0
@@ -77,16 +83,6 @@ class CameraRoiWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
         self._mmc.events.pixelSizeChanged.disconnect(self._update_lbl_info)
         self._mmc.events.roiSet.disconnect(self._on_roi_set)
-
-    def _create_gui(self) -> None:  # sourcery skip: class-extract-method
-
-        layout = QVBoxLayout()
-        layout.setSpacing(0)
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.setLayout(layout)
-
-        main_wdg = self._create_main_wdg()
-        layout.addWidget(main_wdg)
 
     def _create_main_wdg(self) -> QWidget:
 
