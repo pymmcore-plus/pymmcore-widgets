@@ -1,4 +1,6 @@
-from typing import Iterable, Optional, cast
+from __future__ import annotations
+
+from typing import Iterable, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType
@@ -40,10 +42,10 @@ class DevicePropertyTable(QTableWidget):
 
     def __init__(
         self,
-        parent: Optional[QWidget] = None,
+        parent: QWidget | None = None,
         *,
         enable_property_widgets: bool = True,
-        mmcore: Optional[CMMCorePlus] = None,
+        mmcore: CMMCorePlus | None = None,
     ):
         rows = 0
         cols = 2
