@@ -63,10 +63,8 @@ class MDAWidget(_MDAWidgetGui):
         if not self._include_run_button:
             self.buttons_wdg.run_button.hide()
 
-        self.buttons_wdg.pause_button.released.connect(
-            lambda: self._mmc.mda.toggle_pause()
-        )
-        self.buttons_wdg.cancel_button.released.connect(lambda: self._mmc.mda.cancel())
+        self.buttons_wdg.pause_button.released.connect(self._mmc.mda.toggle_pause)
+        self.buttons_wdg.cancel_button.released.connect(self._mmc.mda.cancel)
 
         self.ch_gb = self.channel_groupbox
         self.tm_gp = self.time_groupbox

@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Dict, List, Optional, Set, Tuple, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceType
@@ -227,7 +226,8 @@ class EditGroupWidget(QDialog):
             else:
                 self._prop_table.showRow(r)
 
-    def _toggle_filter(self, label: str) -> None:
+    def _toggle_filter(self, toggled: bool) -> None:
+        label = self.sender().text()
         self._filters.symmetric_difference_update(DevTypeLabels[label])
         self._update_filter()
 
@@ -242,7 +242,7 @@ class EditGroupWidget(QDialog):
         for i, (label, devtypes) in enumerate(DevTypeLabels.items()):
             cb = QCheckBox(label)
             cb.setChecked(devtypes[0] not in self._filters)
-            cb.toggled.connect(partial(self._toggle_filter, label))
+            cb.toggled.connect(self._toggle_filter)
             dev_gb.layout().addWidget(cb, i + 1, 0, 1, 2)
 
         @all_btn.clicked.connect  # type: ignore
