@@ -1,8 +1,7 @@
-from typing import List, Optional, Tuple, cast
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import (
-    QCheckBox,
     QDialog,
     QGroupBox,
     QHBoxLayout,
@@ -18,6 +17,9 @@ from pymmcore_widgets._device_property_table import DevicePropertyTable
 from pymmcore_widgets._device_type_filter import DeviceTypeFilters
 
 from .._util import block_core
+
+if TYPE_CHECKING:
+    from pymmcore_plus import DeviceProperty
 
 
 class EditGroupWidget(QDialog):
@@ -126,14 +128,14 @@ class EditGroupWidget(QDialog):
 
         self.info_lbl = QLabel()
 
-        self.new_group_btn = QPushButton(text="Modify Group")
-        self.new_group_btn.setSizePolicy(
+        self.modify_group_btn = QPushButton(text="Modify Group")
+        self.modify_group_btn.setSizePolicy(
             QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         )
-        self.new_group_btn.clicked.connect(self._add_group)
+        self.modify_group_btn.clicked.connect(self._add_group)
 
         layout.addWidget(self.info_lbl)
-        layout.addWidget(self.new_group_btn)
+        layout.addWidget(self.modify_group_btn)
 
         return wdg
 
@@ -150,15 +152,10 @@ class EditGroupWidget(QDialog):
 
         new_dev_prop: List[Tuple[str, str]] = []
         for row in range(self._prop_table.rowCount()):
-            _checkbox = cast(QCheckBox, self._prop_table.cellWidget(row, 0))
-
-            if not _checkbox.isChecked():
-                continue
-
-            device_property = self._prop_table.item(row, 1).text()
-            dev = device_property.split("-")[0]
-            prop = device_property.split("-")[1]
-            new_dev_prop.append((dev, prop))
+            item = self._prop_table.item(row, 0)
+            if item.checkState():
+                prop: DeviceProperty = item.data(self._prop_table.PROP_ROLE)
+                new_dev_prop.append((prop.device, prop.name))
 
         presets = self._mmc.getAvailableConfigs(self._group)
         preset_dev_prop = [

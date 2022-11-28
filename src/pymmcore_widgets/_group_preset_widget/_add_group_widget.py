@@ -4,10 +4,8 @@ import warnings
 from typing import TYPE_CHECKING, Optional, cast
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt
 from qtpy.QtGui import QCloseEvent
 from qtpy.QtWidgets import (
-    QCheckBox,
     QDialog,
     QGroupBox,
     QHBoxLayout,
@@ -25,8 +23,9 @@ from .._device_property_table import DevicePropertyTable
 from ._add_first_preset_widget import AddFirstPresetWidget
 
 if TYPE_CHECKING:
-    from pymmcore_widgets import PropertyWidget
     from pymmcore_plus import DeviceProperty
+
+    from pymmcore_widgets import PropertyWidget
 
 
 class AddGroupWidget(QDialog):
@@ -172,12 +171,11 @@ class AddGroupWidget(QDialog):
         dev_prop_val_list: list[tuple[str, str, str]] = []
         for r in range(self._prop_table.rowCount()):
             item = self._prop_table.item(r, 0)
-            if item.checkState() != Qt.CheckState.Unchecked:
+            if item.checkState():
                 prop: DeviceProperty = item.data(self._prop_table.PROP_ROLE)
-                wdg = cast('PropertyWidget', self._prop_table.cellWidget(r, 1))
+                wdg = cast("PropertyWidget", self._prop_table.cellWidget(r, 1))
                 dev_prop_val_list.append((prop.device, prop.name, str(wdg.value())))
 
-        print("dev_prop_val_list", dev_prop_val_list)
         if not dev_prop_val_list:
             warnings.warn("Select at lest one property!")
             self.info_lbl.setStyleSheet("color: magenta;")
