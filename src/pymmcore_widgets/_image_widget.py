@@ -51,7 +51,9 @@ class ImagePreview(QWidget):
         self._clims: Union[Tuple[float, float], Literal["auto"]] = "auto"
         self._cmap: str = "grays"
 
-        self._canvas = scene.SceneCanvas(keys="interactive", show=True, size=(512, 512))
+        self._canvas = scene.SceneCanvas(
+            keys="interactive", size=(512, 512), parent=self
+        )
         self.view = self._canvas.central_widget.add_view(camera="panzoom")
         self.view.camera.aspect = 1
 
@@ -79,7 +81,6 @@ class ImagePreview(QWidget):
         ev.continuousSequenceAcquisitionStarted.disconnect(self._on_streaming_start)
         ev.sequenceAcquisitionStopped.disconnect(self._on_streaming_stop)
         ev.exposureChanged.disconnect(self._on_exposure_changed)
-        self.streaming_timer.timeout.disconnect(self._on_image_snapped)
 
     def _on_streaming_start(self) -> None:
         self.streaming_timer.start()

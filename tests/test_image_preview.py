@@ -11,15 +11,10 @@ if TYPE_CHECKING:
 
 def test_image_preview(qtbot: "QtBot"):
     """Test that the exposure widget works."""
-    from vispy import scene
-
     mmcore = CMMCorePlus.instance()
     widget = ImagePreview()
+    qtbot.addWidget(widget)
     assert widget._mmc is mmcore
-
-    widget.show()
-
-    assert isinstance(widget._canvas, scene.SceneCanvas)
 
     with qtbot.waitSignal(mmcore.events.imageSnapped):
         mmcore.snap()
@@ -36,7 +31,3 @@ def test_image_preview(qtbot: "QtBot"):
     assert widget.streaming_timer.isActive()
     mmcore.stopSequenceAcquisition()
     assert not widget.streaming_timer.isActive()
-
-    with qtbot.waitSignal(widget.destroyed):
-        widget.close()
-        widget.deleteLater()
