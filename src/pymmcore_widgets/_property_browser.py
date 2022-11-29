@@ -30,7 +30,7 @@ class PropertyBrowser(QDialog):
 
         self._prop_table = DevicePropertyTable(mmcore=mmcore)
         self._device_filters = DeviceTypeFilters()
-        with signals_blocked(self._device_filters):
+        with signals_blocked(self._device_filters._read_only_checkbox):
             self._device_filters._read_only_checkbox.setChecked(True)
         self._device_filters.filtersChanged.connect(self._update_filter)
 
