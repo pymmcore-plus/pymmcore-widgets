@@ -19,7 +19,7 @@ from ._objective_widget import ObjectivesWidget
 from ._pixel_size_widget import PixelSizeWidget
 from ._presets_widget import PresetsWidget
 from ._property_browser import PropertyBrowser
-from ._property_widget import PropertyWidget, make_property_value_widget
+from ._property_widget import PropertyWidget
 from ._sample_explorer_widget._sample_explorer_widget import SampleExplorerWidget
 from ._shutter_widget import ShuttersWidget
 from ._slider_dialog_widget import SliderDialog
@@ -37,7 +37,6 @@ __all__ = [
     "GroupPresetTableWidget",
     "ImagePreview",
     "LiveButton",
-    "make_property_value_widget",
     "ObjectivesWidget",
     "PixelSizeWidget",
     "PresetsWidget",
