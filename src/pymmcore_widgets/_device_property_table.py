@@ -196,14 +196,3 @@ class DevicePropertyTable(QTableWidget):
         if before != enabled:
             for row in range(self.rowCount()):
                 self.cellWidget(row, 1).setEnabled(enabled)
-
-
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
-
-    CMMCorePlus.instance().loadSystemConfiguration()
-    app = QApplication([])
-    table = DevicePropertyTable()
-    table.show()
-
-    app.exec_()
