@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Union
+from typing import Any, Tuple, Union
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
@@ -16,8 +16,8 @@ COLOR_TYPE = Union[
     int,
     str,
     Qt.GlobalColor,
-    tuple[int, int, int, int],
-    tuple[int, int, int],
+    Tuple[int, int, int, int],
+    Tuple[int, int, int],
 ]
 
 
