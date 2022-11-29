@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import (
@@ -18,14 +18,11 @@ from pymmcore_widgets._device_type_filter import DeviceTypeFilters
 
 from .._util import block_core
 
-if TYPE_CHECKING:
-    pass
-
 
 class EditGroupWidget(QDialog):
     """Widget to edit the specified Group."""
 
-    def __init__(self, group: str, *, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, group: str, *, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
         self._mmc = CMMCorePlus.instance()
 
@@ -162,14 +159,14 @@ class EditGroupWidget(QDialog):
             return
 
         # get any new dev prop to add to each preset
-        _to_add: List[Tuple[str, str, str]] = []
+        _to_add: list[tuple[str, str, str]] = []
         for d, p in new_dev_prop:
             if (d, p) not in preset_dev_prop:
                 value = self._mmc.getProperty(d, p)
                 _to_add.append((d, p, value))
 
         # get the dev prop val to keep per preset
-        _prop_to_keep: List[List[Tuple[str, str, str]]] = []
+        _prop_to_keep: list[list[tuple[str, str, str]]] = []
         for preset in presets:
             preset_dev_prop_val = [
                 (k[0], k[1], k[2]) for k in self._mmc.getConfigData(self._group, preset)

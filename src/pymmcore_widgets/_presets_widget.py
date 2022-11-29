@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import warnings
-from typing import List, Optional, Tuple
 
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtCore import Qt
@@ -17,9 +18,9 @@ class PresetsWidget(QWidget):
     ----------
     group : str
         Group name.
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget. By default, None.
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -30,8 +31,8 @@ class PresetsWidget(QWidget):
         self,
         group: str,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
 
         super().__init__(parent=parent)
@@ -190,7 +191,7 @@ class PresetsWidget(QWidget):
             )
         self._combo.setCurrentText(value)
 
-    def allowedValues(self) -> Tuple[str, ...]:
+    def allowedValues(self) -> tuple[str, ...]:
         """Return the allowed values for this widget."""
         return tuple(self._combo.itemText(i) for i in range(self._combo.count()))
 
@@ -210,7 +211,7 @@ class PresetsWidget(QWidget):
             return
         self._refresh()
 
-    def _find_dev_prop_to_remove(self, preset: str) -> List[Tuple[str, str]]:
+    def _find_dev_prop_to_remove(self, preset: str) -> list[tuple[str, str]]:
         _to_delete = []
         group_cfg = list(self._mmc.getAvailableConfigs(self._group))
         new_preset_dp = [

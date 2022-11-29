@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
@@ -22,7 +22,7 @@ class GridWidget(QDialog):
 
     sendPosList = Signal(list, bool)
 
-    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, *, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
 
         self._mmc = CMMCorePlus.instance()
@@ -161,7 +161,7 @@ class GridWidget(QDialog):
 
         self.info_lbl.setText(f"{round(y, 3)} mm x {round(x, 3)} mm")
 
-    def _set_grid(self) -> List[Tuple[float, ...]]:
+    def _set_grid(self) -> list[tuple[float, ...]]:
 
         scan_size_r = self.scan_size_spinBox_r.value()
         scan_size_c = self.scan_size_spinBox_c.value()
@@ -196,7 +196,7 @@ class GridWidget(QDialog):
             increment_x = width * pixel_size
             increment_y = height * pixel_size
 
-        list_pos_order: List[Tuple[float, ...]] = []
+        list_pos_order: list[tuple[float, ...]] = []
         for r in range(scan_size_r):
             if r % 2:  # for odd rows
                 col = scan_size_c - 1

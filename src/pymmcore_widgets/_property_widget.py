@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import Any, Callable, Optional, Protocol, Tuple, Type, TypeVar, Union, cast
+from typing import Any, Callable, Protocol, TypeVar, cast
 
 import pymmcore
 from pymmcore_plus import CMMCorePlus, DeviceType, PropertyType
@@ -36,10 +36,10 @@ class PPropValueWidget(Protocol):
 
     valueChanged: PSignalInstance
     destroyed: PSignalInstance
-    def value(self) -> Union[str, float]: ...
-    def setValue(self, val: Union[str, float]) -> None: ...
+    def value(self) -> str | float: ...
+    def setValue(self, val: str | float) -> None: ...
     def setEnabled(self, enabled: bool) -> None: ...
-    def setParent(self, parent: Optional[QWidget]) -> None: ...
+    def setParent(self, parent: QWidget | None) -> None: ...
     def deleteLater(self) -> None: ...
 # fmt: on
 
@@ -83,11 +83,11 @@ class FloatWidget(QDoubleSpinBox):
 
 
 class _RangedMixin:
-    _cast: Union[Type[int], Type[float]] = float
+    _cast: type[int] | type[float] = float
 
     # prefer horizontal orientation
     def __init__(  # type: ignore
-        self, orientation=Qt.Orientation.Horizontal, parent: Optional[QWidget] = None
+        self, orientation=Qt.Orientation.Horizontal, parent: QWidget | None = None
     ) -> None:
         super().__init__(orientation, parent)  # type: ignore
 
@@ -111,7 +111,7 @@ class IntBoolWidget(QCheckBox):
 
     valueChanged = Signal(int)
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.toggled.connect(self._emit)
 
@@ -122,7 +122,7 @@ class IntBoolWidget(QCheckBox):
         """Get value."""
         return int(self.isChecked())
 
-    def setValue(self, val: Union[str, int]) -> None:
+    def setValue(self, val: str | int) -> None:
         """Set value."""
         return self.setChecked(bool(int(val)))  # type: ignore [no-any-return]
 
@@ -133,13 +133,13 @@ class ChoiceWidget(QComboBox):
     valueChanged = Signal(str)
 
     def __init__(
-        self, mmcore: CMMCorePlus, dev: str, prop: str, parent: Optional[QWidget] = None
+        self, mmcore: CMMCorePlus, dev: str, prop: str, parent: QWidget | None = None
     ) -> None:
         super().__init__(parent)
         self._mmc = mmcore
         self._dev = dev
         self._prop = prop
-        self._allowed: Tuple[str, ...] = ()
+        self._allowed: tuple[str, ...] = ()
 
         self._mmc.events.systemConfigurationLoaded.connect(self._refresh_choices)
         self.currentTextChanged.connect(self.valueChanged.emit)
@@ -155,7 +155,7 @@ class ChoiceWidget(QComboBox):
             self._allowed = self._get_allowed()
             self.addItems(self._allowed)
 
-    def _get_allowed(self) -> Tuple[str, ...]:
+    def _get_allowed(self) -> tuple[str, ...]:
         if allowed := self._mmc.getAllowedPropertyValues(self._dev, self._prop):
             return allowed
         if self._mmc.getDeviceType(self._dev) == DeviceType.StateDevice:
@@ -186,7 +186,7 @@ class StringWidget(QLineEdit):
 
     valueChanged = Signal(str)
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.editingFinished.connect(self._emit_value)
 
@@ -263,9 +263,9 @@ class PropertyWidget(QWidget):
         Device label
     prop_name : str
         Property name
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget. By default, None.
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -285,8 +285,8 @@ class PropertyWidget(QWidget):
         device_label: str,
         prop_name: str,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
 
         super().__init__(parent=parent)
@@ -368,7 +368,7 @@ class PropertyWidget(QWidget):
         """Set the current value of the *widget* (which should match mmcore)."""
         self._value_widget.setValue(value)
 
-    def allowedValues(self) -> Tuple[str, ...]:
+    def allowedValues(self) -> tuple[str, ...]:
         """Return tuple of allowable values if property is categorical."""
         # this will have already been grabbed from mmcore on creation, and will
         # have also taken into account the restrictions in the State/Label property
@@ -397,6 +397,6 @@ class PropertyWidget(QWidget):
         return self._mmc.isPropertyReadOnly(*self._dp)
 
     @property
-    def _dp(self) -> Tuple[str, str]:
+    def _dp(self) -> tuple[str, str]:
         """Commonly requested pair for mmcore calls."""
         return self._device_label, self._prop_name

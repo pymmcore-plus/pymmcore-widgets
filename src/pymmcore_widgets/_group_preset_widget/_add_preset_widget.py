@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import warnings
-from typing import Optional
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
@@ -26,7 +27,7 @@ from .._util import block_core
 class AddPresetWidget(QDialog):
     """A widget to add presets to a specified group."""
 
-    def __init__(self, group: str, *, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, group: str, *, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
 
         self._mmc = CMMCorePlus.instance()

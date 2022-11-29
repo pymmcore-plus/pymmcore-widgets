@@ -1,4 +1,4 @@
-from typing import Optional
+from __future__ import annotations
 
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
@@ -30,7 +30,7 @@ LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 class SampleExplorerGui(QWidget):
     """Just the UI of the explorer widget. Runtime logic in MMExploreSample."""
 
-    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, *, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
 
         self.setLayout(QVBoxLayout())
