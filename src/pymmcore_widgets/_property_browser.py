@@ -29,6 +29,7 @@ class PropertyBrowser(QDialog):
 
         self._prop_table = DevicePropertyTable(mmcore=mmcore)
         self._device_filters = DeviceTypeFilters()
+        self._device_filters._read_only_checkbox.setChecked(True)
         self._device_filters.filtersChanged.connect(self._update_filter)
 
         self._filter_text = QLineEdit()
@@ -73,3 +74,13 @@ if __name__ == "__main__":
     table.show()
 
     app.exec_()
+
+
+
+# from pymmcore_widgets import PropertyBrowser
+# from pymmcore_plus import CMMCorePlus
+# cfg = "C:/Users/Admin/Desktop/s15_Nikon_Ti1.cfg"
+# mmc = CMMCorePlus.instance()
+# mmc.loadSystemConfiguration()
+# pb = PropertyBrowser()
+# pb.show()
