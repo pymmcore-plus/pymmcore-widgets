@@ -116,7 +116,7 @@ class StateDeviceWidget(DeviceWidget):
         A device label for which to create a widget.
     parent : Optional[QWidget]
         Optional parent widget.
-    mmcore: Optional[CMMCorePlus]
+    mmcore : Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)

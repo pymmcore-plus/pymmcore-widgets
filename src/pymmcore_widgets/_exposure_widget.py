@@ -19,7 +19,7 @@ class ExposureWidget(QWidget):
         the widget will use the current Camera device.
     parent : Optional[QWidget]
         Optional parent widget. By default, None.
-    mmcore: Optional[CMMCorePlus]
+    mmcore : Optional[CMMCorePlus]
         Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new) `CMMCorePlus.instance()`.
@@ -107,7 +107,7 @@ class DefaultCameraExposureWidget(ExposureWidget):
     ----------
     parent : Optional[QWidget]
             Optional parent widget. By default, None.
-    mmcore: Optional[CMMCorePlus]
+    mmcore : Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)

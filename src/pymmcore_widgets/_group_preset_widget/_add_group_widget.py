@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 import warnings
-from typing import Optional, cast
+from typing import TYPE_CHECKING, Optional
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtGui import QCloseEvent, QColor
+from qtpy.QtGui import QCloseEvent
 from qtpy.QtWidgets import (
-    QAbstractScrollArea,
-    QCheckBox,
     QDialog,
     QGroupBox,
     QHBoxLayout,
@@ -13,61 +13,18 @@ from qtpy.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSizePolicy,
-    QTableWidget,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-from pymmcore_widgets._core import iter_dev_props
 from pymmcore_widgets._device_type_filter import DeviceTypeFilters
-from pymmcore_widgets._property_widget import PropertyWidget
 
+from .._device_property_table import DevicePropertyTable
 from ._add_first_preset_widget import AddFirstPresetWidget
 
+if TYPE_CHECKING:
 
-class _PropertyTable(QTableWidget):
-    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
-        super().__init__(0, 3, parent=parent)
-        self._mmc = CMMCorePlus.instance()
-        self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
-        self.destroyed.connect(self._disconnect)
-
-        self.setHorizontalHeaderLabels([" ", "Property", "Value"])
-        self.setColumnWidth(0, 250)
-        self.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
-        vh = self.verticalHeader()
-        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
-        vh.setDefaultSectionSize(24)
-        vh.setVisible(False)
-        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.setSelectionMode(self.SelectionMode.NoSelection)
-        self._rebuild_table()
-
-    def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self._rebuild_table)
-
-    def _rebuild_table(self) -> None:
-        self.clearContents()
-        props = list(iter_dev_props(self._mmc))
-        self.setRowCount(len(props))
-        for i, (dev, prop) in enumerate(props):
-            _checkbox = QCheckBox()
-            _checkbox.setProperty("row", i)
-            self.setCellWidget(i, 0, _checkbox)
-            item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
-            wdg.setEnabled(False)
-            self.setItem(i, 1, item)
-            self.setCellWidget(i, 2, wdg)
-            if wdg.isReadOnly():
-                # TODO: make this more theme aware
-                item.setBackground(QColor("#AAA"))
-                wdg.setStyleSheet("QLabel { background-color : #AAA }")
-
-        self.resizeColumnsToContents()
-
-        # TODO: install eventFilter to prevent mouse wheel from scrolling sliders
+    pass
 
 
 class AddGroupWidget(QDialog):
@@ -134,15 +91,17 @@ class AddGroupWidget(QDialog):
         layout.setSpacing(0)
         wdg.setLayout(layout)
 
-        self._prop_table = _PropertyTable()
-        self._device_filters = DeviceTypeFilters()
-        self._device_filters._set_show_read_only(False)
-        self._device_filters.filtersChanged.connect(self._update_filter)
-
         self._filter_text = QLineEdit()
         self._filter_text.setClearButtonEnabled(True)
         self._filter_text.setPlaceholderText("Filter by device or property name...")
         self._filter_text.textChanged.connect(self._update_filter)
+
+        self._prop_table = DevicePropertyTable(enable_property_widgets=False)
+        self._prop_table.setRowsCheckable(True)
+        self._device_filters = DeviceTypeFilters()
+        self._device_filters.filtersChanged.connect(self._update_filter)
+        self._device_filters.setShowReadOnly(False)
+        self._device_filters._read_only_checkbox.hide()
 
         right = QWidget()
         right.setLayout(QVBoxLayout())
@@ -186,30 +145,11 @@ class AddGroupWidget(QDialog):
 
     def _update_filter(self) -> None:
         filt = self._filter_text.text().lower()
-        for r in range(self._prop_table.rowCount()):
-            wdg = cast(PropertyWidget, self._prop_table.cellWidget(r, 2))
-            if wdg.isReadOnly() and not self._device_filters.showReadOnly():
-                self._prop_table.hideRow(r)
-            elif wdg.deviceType() in self._device_filters.filters():
-                self._prop_table.hideRow(r)
-            elif filt and filt not in self._prop_table.item(r, 1).text().lower():
-                self._prop_table.hideRow(r)
-            else:
-                self._prop_table.showRow(r)
+        self._prop_table.filterDevices(
+            filt, self._device_filters.filters(), self._device_filters.showReadOnly()
+        )
 
     def _add_group(self) -> None:
-
-        cbox = [
-            self._prop_table.cellWidget(r, 0)
-            for r in range(self._prop_table.rowCount())
-            if self._prop_table.cellWidget(r, 0).isChecked()
-        ]
-
-        if not cbox:
-            warnings.warn("Select at lest one property!")
-            self.info_lbl.setStyleSheet("color: magenta;")
-            self.info_lbl.setText("Select at lest one property!")
-            return
 
         group = self.group_lineedit.text()
 
@@ -225,17 +165,14 @@ class AddGroupWidget(QDialog):
             self.info_lbl.setText(f"'{group}' already exist!")
             return
 
-        dev_prop_val_list = []
-        for r in range(self._prop_table.rowCount()):
-            checkbox = cast(QCheckBox, self._prop_table.cellWidget(r, 0))
-            if checkbox.isChecked():
-                row = checkbox.property("row")
-                dev_prop = self._prop_table.item(row, 1).text()
-                dev = dev_prop.split("-")[0]
-                prop = dev_prop.split("-")[1]
-                value = self._prop_table.cellWidget(row, 2).value()
+        # [(device, property, value_to_set), ...]
+        dev_prop_val_list = self._prop_table.getCheckedProperties()
 
-                dev_prop_val_list.append((dev, prop, str(value)))
+        if not dev_prop_val_list:
+            warnings.warn("Select at lest one property!")
+            self.info_lbl.setStyleSheet("color: magenta;")
+            self.info_lbl.setText("Select at lest one property!")
+            return
 
         if hasattr(self, "_first_preset_wdg"):
             self._first_preset_wdg.close()  # type: ignore

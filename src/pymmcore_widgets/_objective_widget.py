@@ -23,7 +23,7 @@ class ObjectivesWidget(QWidget):
         [`CMMCorePlus.objective_device_pattern`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.objective_device_pattern].
     parent : Optional[QWidget]
         Optional parent widget, by default None
-    mmcore: Optional[CMMCorePlus]
+    mmcore : Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)

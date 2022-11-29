@@ -40,7 +40,7 @@ class CameraRoiWidget(QWidget):
     ----------
     parent : Optional[QWidget]
         Optional parent widget, by default None
-    mmcore: Optional[CMMCorePlus]
+    mmcore : Optional[CMMCorePlus]
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
