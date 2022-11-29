@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Tuple, Union
+from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, QTimer
@@ -22,9 +22,9 @@ class ImagePreview(QWidget):
 
     Parameters
     ----------
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget. By default, None.
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -34,8 +34,8 @@ class ImagePreview(QWidget):
     def __init__(
         self,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ):
         try:
             from vispy import scene
@@ -48,7 +48,7 @@ class ImagePreview(QWidget):
         super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
         self._imcls = scene.visuals.Image
-        self._clims: Union[Tuple[float, float], Literal["auto"]] = "auto"
+        self._clims: tuple[float, float] | Literal["auto"] = "auto"
         self._cmap: str = "grays"
 
         self._canvas = scene.SceneCanvas(
@@ -91,7 +91,7 @@ class ImagePreview(QWidget):
     def _on_exposure_changed(self, device: str, value: str) -> None:
         self.streaming_timer.setInterval(int(value))
 
-    def _on_image_snapped(self, img: Optional[np.ndarray] = None) -> None:
+    def _on_image_snapped(self, img: np.ndarray | None = None) -> None:
         if img is None:
             try:
                 img = self._mmc.getLastImage()
@@ -109,19 +109,17 @@ class ImagePreview(QWidget):
             self.image.clim = clim
 
     @property
-    def clims(self) -> Union[Tuple[float, float], Literal["auto"]]:
+    def clims(self) -> tuple[float, float] | Literal["auto"]:
         """Get the contrast limits of the image."""
         return self._clims
 
     @clims.setter
-    def clims(
-        self, clims: Union[Tuple[float, float], Literal["auto"]] = "auto"
-    ) -> None:
+    def clims(self, clims: tuple[float, float] | Literal["auto"] = "auto") -> None:
         """Set the contrast limits of the image.
 
         Parameters
         ----------
-        clims : Tuple[float, float], or "auto"
+        clims : tuple[float, float], or "auto"
             The contrast limits to set.
         """
         if self.image is not None:

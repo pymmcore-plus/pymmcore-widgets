@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Tuple, Union
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
@@ -31,9 +31,9 @@ class ShuttersWidget(QWidget):
     autoshutter: bool
         If True, a checkbox controlling the Micro-Manager autoshutter
         is added to the layout.
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget. By default, None.
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -45,8 +45,8 @@ class ShuttersWidget(QWidget):
         shutter_device: str,
         autoshutter: bool = True,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent=parent)
 
@@ -127,8 +127,8 @@ class ShuttersWidget(QWidget):
 
         Default = (0, 255, 0)
 
-        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
-        Tuple[int, int, int]]
+        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, tuple[int, int, int, int],
+        tuple[int, int, int]]
         """
         return self._icon_color_open
 
@@ -145,8 +145,8 @@ class ShuttersWidget(QWidget):
 
         Default = 'magenta'
 
-        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
-        Tuple[int, int, int]]
+        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, tuple[int, int, int, int],
+        tuple[int, int, int]]
         """
         return self._icon_color_closed
 

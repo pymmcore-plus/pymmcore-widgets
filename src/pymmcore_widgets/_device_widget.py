@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from abc import abstractmethod
-from typing import Any, Optional, Tuple
+from typing import Any
 
 import pymmcore
 from pymmcore_plus import CMMCorePlus, DeviceType
@@ -39,8 +41,8 @@ class DeviceWidget(QWidget):
         self,
         device_label: str,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent=parent)
         self._device_label = device_label
@@ -114,9 +116,9 @@ class StateDeviceWidget(DeviceWidget):
     ----------
     device_label : str
         A device label for which to create a widget.
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget.
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -127,8 +129,8 @@ class StateDeviceWidget(DeviceWidget):
         self,
         device_label: str,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(device_label, parent=parent, mmcore=mmcore)
         assert self.deviceType() == DeviceType.StateDevice
@@ -191,7 +193,7 @@ class StateDeviceWidget(DeviceWidget):
         """Return current state (label) of the device."""
         return self._mmc.getStateLabel(self._device_label)
 
-    def stateLabels(self) -> Tuple[str]:
+    def stateLabels(self) -> tuple[str]:
         """Return all state labels of the device."""
         return self._mmc.getStateLabels(self._device_label)
 

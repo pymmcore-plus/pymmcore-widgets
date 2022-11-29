@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from pymmcore import g_Keyword_CoreCamera, g_Keyword_CoreDevice
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
@@ -17,9 +15,9 @@ class ExposureWidget(QWidget):
     camera : str
         The camera device label. By default, None. If not specified,
         the widget will use the current Camera device.
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget. By default, None.
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new) `CMMCorePlus.instance()`.
@@ -36,8 +34,8 @@ class ExposureWidget(QWidget):
         self,
         camera: str = None,  # type: ignore
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ):
         super().__init__(parent=parent)
 
@@ -105,9 +103,9 @@ class DefaultCameraExposureWidget(ExposureWidget):
 
     Parameters
     ----------
-    parent : Optional[QWidget]
+    parent : QWidget | None
             Optional parent widget. By default, None.
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -117,8 +115,8 @@ class DefaultCameraExposureWidget(ExposureWidget):
     def __init__(
         self,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ):
         super().__init__(parent=parent, mmcore=mmcore)
 

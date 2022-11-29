@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-from typing import Optional
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -28,14 +27,14 @@ class SampleExplorerWidget(SampleExplorerGui):
 
     Parameters
     ----------
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget, by default None.
     include_run_button: bool
         By default, `False`. If `True`, a "run" button is added to the widget.
         The acquisition defined by the
         [`useq.MDASequence`](https://github.com/tlambert03/useq-schema)
         built through the widget is executed when clicked.
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -47,7 +46,7 @@ class SampleExplorerWidget(SampleExplorerGui):
         *,
         parent: QtW.QWidget = None,
         include_run_button: bool = False,
-        mmcore: Optional[CMMCorePlus] = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent=parent)
 
@@ -204,7 +203,7 @@ class SampleExplorerWidget(SampleExplorerGui):
         new_name = f"{name}_{whatsthis}" if whatsthis not in name else name
         return str(new_name)
 
-    def _set_grid(self) -> list[tuple[str, float, float, Optional[float]]]:
+    def _set_grid(self) -> list[tuple[str, float, float, float | None]]:
 
         self.scan_size_r = self.scan_size_spinBox_r.value()
         self.scan_size_c = self.scan_size_spinBox_c.value()

@@ -1,4 +1,4 @@
-from typing import Optional
+from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
@@ -30,7 +30,7 @@ class AddFirstPresetWidget(QDialog):
         group: str,
         dev_prop_val_list: list,
         *,
-        parent: Optional[QWidget] = None,
+        parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent=parent)
 
