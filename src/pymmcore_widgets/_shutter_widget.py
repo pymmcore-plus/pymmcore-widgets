@@ -127,8 +127,8 @@ class ShuttersWidget(QWidget):
 
         Default = (0, 255, 0)
 
-        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
-        Tuple[int, int, int]]
+        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, tuple[int, int, int, int],
+        tuple[int, int, int]]
         """
         return self._icon_color_open
 
@@ -145,8 +145,8 @@ class ShuttersWidget(QWidget):
 
         Default = 'magenta'
 
-        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
-        Tuple[int, int, int]]
+        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, tuple[int, int, int, int],
+        tuple[int, int, int]]
         """
         return self._icon_color_closed
 

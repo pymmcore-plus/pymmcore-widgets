@@ -119,7 +119,7 @@ class ImagePreview(QWidget):
 
         Parameters
         ----------
-        clims : Tuple[float, float], or "auto"
+        clims : tuple[float, float], or "auto"
             The contrast limits to set.
         """
         if self.image is not None:
