@@ -76,7 +76,6 @@ if __name__ == "__main__":
     app.exec_()
 
 
-
 # from pymmcore_widgets import PropertyBrowser
 # from pymmcore_plus import CMMCorePlus
 # cfg = "C:/Users/Admin/Desktop/s15_Nikon_Ti1.cfg"
