@@ -3,13 +3,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Tuple, Union
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QTimer
+from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
 if TYPE_CHECKING:
     from typing import Literal
 
     import numpy as np
+
+_DEFAULT_WAIT = 10
 
 
 class ImagePreview(QWidget):
@@ -49,11 +51,13 @@ class ImagePreview(QWidget):
         self._clims: Union[Tuple[float, float], Literal["auto"]] = "auto"
         self._cmap: str = "grays"
 
-        self.streaming_timer = QTimer()
-        self.streaming_timer.setInterval(int(self._mmc.getExposure()) or 10)
+        self.streaming_timer = QTimer(parent=self)
+        self.streaming_timer.setTimerType(Qt.TimerType.PreciseTimer)
+        self.streaming_timer.setInterval(int(self._mmc.getExposure()) or _DEFAULT_WAIT)
         self.streaming_timer.timeout.connect(self._on_image_snapped)
 
         self._connect()
+        self.destroyed.connect(self._disconnect)
 
         self._canvas = scene.SceneCanvas(keys="interactive", show=True, size=(512, 512))
         self.view = self._canvas.central_widget.add_view(camera="panzoom")
