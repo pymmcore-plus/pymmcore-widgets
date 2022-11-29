@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import (
     QDialog,
@@ -19,9 +17,6 @@ from pymmcore_widgets._device_property_table import DevicePropertyTable
 from pymmcore_widgets._device_type_filter import DeviceTypeFilters
 
 from .._util import block_core
-
-if TYPE_CHECKING:
-    pass
 
 
 class EditGroupWidget(QDialog):

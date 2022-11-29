@@ -354,7 +354,7 @@ class MDAWidget(_MDAWidgetGui):
 
         Parameters
         ----------
-        state : Union[dict, MDASequence, str, Path]
+        state : dict | MDASequence | str | Path
             MDASequence state in the form of a dict, MDASequence object, or a str or
             Path pointing to a sequence.yaml file
         """
