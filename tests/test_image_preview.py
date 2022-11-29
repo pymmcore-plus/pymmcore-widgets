@@ -32,10 +32,8 @@ def test_image_preview(qtbot: "QtBot"):
 
     assert not np.allclose(img, img2)
 
-    assert not widget.streaming_timer.isActive()
-    mmcore.startContinuousSequenceAcquisition(1)
-    assert widget.streaming_timer.isActive()
-    mmcore.stopSequenceAcquisition()
-    assert not widget.streaming_timer.isActive()
-
-    widget._disconnect()
+    # assert not widget.streaming_timer.isActive()
+    # mmcore.startContinuousSequenceAcquisition(1)
+    # assert widget.streaming_timer.isActive()
+    # mmcore.stopSequenceAcquisition()
+    # assert not widget.streaming_timer.isActive()
