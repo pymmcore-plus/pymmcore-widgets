@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QLabel, QSizePolicy, QWidget
@@ -12,7 +12,7 @@ class ObjectivesWidget(QWidget):
 
     Parameters
     ----------
-    objective_device : Optional[str]
+    objective_device : str | None
         Device label for the micromanager objective device. By default, it will be
         guessed using the
         [`CMMCorePlus.guessObjectiveDevices`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.guessObjectiveDevices]
@@ -21,9 +21,9 @@ class ObjectivesWidget(QWidget):
         `re.compile("(.+)?(nosepiece|obj(ective)?)(turret)?s?", re.IGNORECASE)`.
         To change the search pattern, set
         [`CMMCorePlus.objective_device_pattern`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.objective_device_pattern].
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget, by default None
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -34,8 +34,8 @@ class ObjectivesWidget(QWidget):
         self,
         objective_device: str = None,  # type: ignore
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ):
         super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
@@ -72,8 +72,8 @@ class ObjectivesWidget(QWidget):
             self.layout().addWidget(self._combo)
 
     def _create_objective_combo(
-        self, device_label: Union[str, None]
-    ) -> Union[StateDeviceWidget, QComboBox]:
+        self, device_label: str | None
+    ) -> StateDeviceWidget | QComboBox:
         if device_label:
             combo = (
                 _ObjectiveStateWidget(device_label, parent=self, mmcore=self._mmc)

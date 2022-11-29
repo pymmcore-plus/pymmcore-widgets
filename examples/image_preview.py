@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication, QGroupBox, QHBoxLayout, QVBoxLayout, QWidget
 
@@ -15,7 +13,7 @@ from pymmcore_widgets import (
 class ImageFrame(QWidget):
     """An example widget with a snap/live button and an image preview."""
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         self.preview = ImagePreview()

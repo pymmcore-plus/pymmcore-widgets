@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import warnings
-from typing import Optional
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
@@ -29,7 +30,7 @@ class EditPresetWidget(QDialog):
     """A widget to edit a specified group's presets."""
 
     def __init__(
-        self, group: str, preset: str, *, parent: Optional[QWidget] = None
+        self, group: str, preset: str, *, parent: QWidget | None = None
     ) -> None:
         super().__init__(parent=parent)
 

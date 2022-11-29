@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Optional
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -31,14 +30,14 @@ class MDAWidget(_MDAWidgetGui):
 
     Parameters
     ----------
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget, by default None.
     include_run_button: bool
         By default, `False`. If `True`, a "run" button is added to the widget.
         The acquisition defined by the
         [`useq.MDASequence`](https://github.com/tlambert03/useq-schema)
         built through the widget is executed when clicked.
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -48,9 +47,9 @@ class MDAWidget(_MDAWidgetGui):
     def __init__(
         self,
         *,
-        parent: Optional[QtW.QWidget] = None,
+        parent: QtW.QWidget | None = None,
         include_run_button: bool = False,
-        mmcore: Optional[CMMCorePlus] = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent=parent)
 

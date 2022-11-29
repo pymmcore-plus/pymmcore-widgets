@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from itertools import chain, product, repeat
-from typing import Optional
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
@@ -59,11 +60,11 @@ class StageWidget(QWidget):
     ----------
     device: str:
         Stage device.
-    levels: Optional[int]:
+    levels: int | None:
         Number of "arrow" buttons per widget per direction, by default, 2.
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget.
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -92,10 +93,10 @@ class StageWidget(QWidget):
     def __init__(
         self,
         device: str,
-        levels: Optional[int] = 2,
+        levels: int | None = 2,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ):
         super().__init__(parent=parent)
 

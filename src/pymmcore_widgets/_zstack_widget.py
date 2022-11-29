@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING, Optional, Type, cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
@@ -36,7 +38,7 @@ class ZTopBottomSelect(QWidget):
     _MAX_Z = 1000000
 
     def __init__(
-        self, *, parent: Optional[QWidget] = None, mmcore: Optional[CMMCorePlus] = None
+        self, *, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
     ) -> None:
         super().__init__(parent)
 
@@ -109,7 +111,7 @@ class ZRangeAroundSelect(QWidget):
     _MAX_RANGE = 100000
     _UNIT = "µm"
 
-    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, *, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         # left label
@@ -154,7 +156,7 @@ class ZAboveBelowSelect(QWidget):
     _MAX_RANGE = 1000000
     _UNIT = "µm"
 
-    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, *, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         self._above_spinbox = QDoubleSpinBox()
@@ -215,9 +217,7 @@ class ZStackWidget(QGroupBox):
     _MAX_STEP = 100000
     _NIMG_PREFIX = "Number of Images:"
 
-    def __init__(
-        self, title: str = "Z Stack", parent: Optional[QWidget] = None
-    ) -> None:
+    def __init__(self, title: str = "Z Stack", parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
         self.setTitle(title)
         self.setCheckable(True)
@@ -232,7 +232,7 @@ class ZStackWidget(QGroupBox):
         self._zmode_tabs.layout().setContentsMargins(0, 0, 0, 0)
         # all of the tabs have a valueChanged signal which we connect to _on_tab-change
         for tab_cls in [ZTopBottomSelect, ZRangeAroundSelect, ZAboveBelowSelect]:
-            tab_cls = cast(Type["ZPicker"], tab_cls)
+            tab_cls = cast(type["ZPicker"], tab_cls)
             wdg = tab_cls()
             wdg.valueChanged.connect(self._on_tab_change)
             name = tab_cls.__name__.replace("Z", "").replace("Select", "")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtGui import QCloseEvent
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 class AddGroupWidget(QDialog):
     """Widget to create a new group."""
 
-    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, *, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
         self._mmc = CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._update_filter)

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from __future__ import annotations
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -26,7 +26,7 @@ class _MDAChannelTable(QGroupBox):
 
     valueUpdated = Signal()
 
-    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, *, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
 
         self._mmc = CMMCorePlus.instance()
@@ -142,7 +142,7 @@ class _MDATimeWidget(QGroupBox):
 
     valueUpdated = Signal()
 
-    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, *, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
 
         self._create_time_gui()
@@ -240,7 +240,7 @@ class _MDATimeWidget(QGroupBox):
 
 
 class _MDAPositionTable(QGroupBox):
-    def __init__(self, header: List[str], *, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, header: list[str], *, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
 
         self._mmc = CMMCorePlus.instance()
@@ -326,7 +326,7 @@ class _MDAPositionTable(QGroupBox):
 
 
 class _MDAControlButtons(QWidget):
-    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, *, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
 
         self._mmc = CMMCorePlus.instance()
@@ -398,7 +398,7 @@ class _MDAControlButtons(QWidget):
 
 
 class _MDATimeLabel(QWidget):
-    def __init__(self, *, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, *, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
 
         wdg_lay = QHBoxLayout()

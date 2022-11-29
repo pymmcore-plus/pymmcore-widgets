@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import contextlib
 import itertools
 import re
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
@@ -46,7 +48,7 @@ class PixelSizeTable(QTableWidget):
         "delete": "Delete",
     }
 
-    def __init__(self, mmcore: CMMCorePlus, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, mmcore: CMMCorePlus, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._mmc = mmcore
         hh = self.horizontalHeader()
@@ -59,7 +61,7 @@ class PixelSizeTable(QTableWidget):
         self.setDragDropMode(QAbstractItemView.DragDropMode.NoDragDrop)
 
     def _rebuild(
-        self, obj_dev: str, _cam_mag_dict: Dict[str, Tuple[float, float]] = None  # type: ignore # noqa:E501
+        self, obj_dev: str, _cam_mag_dict: dict[str, tuple[float, float]] = None  # type: ignore # noqa:E501
     ) -> None:
         records = self._get_pixel_info(obj_dev, _cam_mag_dict)
         self.clear()
@@ -73,8 +75,8 @@ class PixelSizeTable(QTableWidget):
         self._update_status()
 
     def _get_pixel_info(
-        self, obj_dev: str, _cam_mag_dict: Dict[str, Tuple[float, float]] = None  # type: ignore # noqa:E501
-    ) -> List[Dict[str, Any]]:
+        self, obj_dev: str, _cam_mag_dict: dict[str, tuple[float, float]] = None  # type: ignore # noqa:E501
+    ) -> list[dict[str, Any]]:
         """Returns a list of records, that can be used to build a table.
 
         [
@@ -84,7 +86,7 @@ class PixelSizeTable(QTableWidget):
         """
         # e.g.
         # { 'Nikon 20X Plan Fluor ELWD': ('Res20x', 0.5) }
-        obj_cfg_px: Dict[str, Tuple[str, float]] = {}
+        obj_cfg_px: dict[str, tuple[str, float]] = {}
         for cfg in self._mmc.getAvailablePixelSizeConfigs():
             obj = next(iter(self._mmc.getPixelSizeConfigData(cfg)))[2]
             obj_cfg_px[obj] = cfg, self._mmc.getPixelSizeUmByID(cfg)
@@ -213,9 +215,9 @@ class PixelSizeWidget(QDialog):
 
     Parameters
     ----------
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget, by default None
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -225,8 +227,8 @@ class PixelSizeWidget(QDialog):
     def __init__(
         self,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent=parent)
 
@@ -346,7 +348,7 @@ class PixelSizeWidget(QDialog):
         if value:
             self._update_mag(value)
 
-    def _store_mag_cam_px_size(self) -> Dict[str, Tuple[float, float]]:
+    def _store_mag_cam_px_size(self) -> dict[str, tuple[float, float]]:
         _cam_mag_dict = {}
         for row in range(self.table.rowCount()):
             objective_label = self.table.item(row, OBJECTIVE_LABEL).text()
