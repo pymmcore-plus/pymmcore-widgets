@@ -72,13 +72,13 @@ jobs:
       - name: Install Micro-Manager
         run: python -m pymmcore_plus.install
 
-      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_camera_roi_widget.py tests/test_image_preview.py
-      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_camera_roi_widget.py tests/test_image_preview.py
-      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_camera_roi_widget.py tests/test_image_preview.py
-      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_camera_roi_widget.py tests/test_image_preview.py
-      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_camera_roi_widget.py tests/test_image_preview.py
-      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_camera_roi_widget.py tests/test_image_preview.py
-      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_camera_roi_widget.py tests/test_image_preview.py
+      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_image_preview.py
+      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_image_preview.py
+      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_image_preview.py
+      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_image_preview.py
+      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_image_preview.py
+      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_image_preview.py
+      - run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes tests/test_image_preview.py
 
       - name: Coverage
         uses: codecov/codecov-action@v3
