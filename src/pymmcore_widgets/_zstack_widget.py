@@ -232,7 +232,7 @@ class ZStackWidget(QGroupBox):
         self._zmode_tabs.layout().setContentsMargins(0, 0, 0, 0)
         # all of the tabs have a valueChanged signal which we connect to _on_tab-change
         for tab_cls in [ZTopBottomSelect, ZRangeAroundSelect, ZAboveBelowSelect]:
-            tab_cls = cast(type["ZPicker"], tab_cls)
+            tab_cls = cast("type[ZPicker]", tab_cls)
             wdg = tab_cls()
             wdg.valueChanged.connect(self._on_tab_change)
             name = tab_cls.__name__.replace("Z", "").replace("Select", "")
