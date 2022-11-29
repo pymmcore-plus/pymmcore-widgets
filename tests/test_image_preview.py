@@ -15,7 +15,6 @@ def test_image_preview(qtbot: "QtBot"):
 
     mmcore = CMMCorePlus.instance()
     widget = ImagePreview()
-    qtbot.addWidget(widget)
     assert widget._mmc is mmcore
 
     widget.show()
@@ -32,8 +31,12 @@ def test_image_preview(qtbot: "QtBot"):
 
     assert not np.allclose(img, img2)
 
-    # assert not widget.streaming_timer.isActive()
-    # mmcore.startContinuousSequenceAcquisition(1)
-    # assert widget.streaming_timer.isActive()
-    # mmcore.stopSequenceAcquisition()
-    # assert not widget.streaming_timer.isActive()
+    assert not widget.streaming_timer.isActive()
+    mmcore.startContinuousSequenceAcquisition(1)
+    assert widget.streaming_timer.isActive()
+    mmcore.stopSequenceAcquisition()
+    assert not widget.streaming_timer.isActive()
+
+    with qtbot.waitSignal(widget.destroyed):
+        widget.close()
+        widget.deleteLater()

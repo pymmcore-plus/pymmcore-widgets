@@ -51,29 +51,27 @@ class ImagePreview(QWidget):
         self._clims: Union[Tuple[float, float], Literal["auto"]] = "auto"
         self._cmap: str = "grays"
 
+        self._canvas = scene.SceneCanvas(keys="interactive", show=True, size=(512, 512))
+        self.view = self._canvas.central_widget.add_view(camera="panzoom")
+        self.view.camera.aspect = 1
+
         self.streaming_timer = QTimer(parent=self)
         self.streaming_timer.setTimerType(Qt.TimerType.PreciseTimer)
         self.streaming_timer.setInterval(int(self._mmc.getExposure()) or _DEFAULT_WAIT)
         self.streaming_timer.timeout.connect(self._on_image_snapped)
 
-        self._connect()
-        self.destroyed.connect(self._disconnect)
-
-        self._canvas = scene.SceneCanvas(keys="interactive", show=True, size=(512, 512))
-        self.view = self._canvas.central_widget.add_view(camera="panzoom")
-        self.view.camera.aspect = 1
-
-        self.image = None
-        self.setLayout(QVBoxLayout())
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().addWidget(self._canvas.native)
-
-    def _connect(self) -> None:
         ev = self._mmc.events
         ev.imageSnapped.connect(self._on_image_snapped)
         ev.continuousSequenceAcquisitionStarted.connect(self._on_streaming_start)
         ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
         ev.exposureChanged.connect(self._on_exposure_changed)
+
+        self.image: scene.visuals.Image | None = None
+        self.setLayout(QVBoxLayout())
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().addWidget(self._canvas.native)
+
+        self.destroyed.connect(self._disconnect)
 
     def _disconnect(self) -> None:
         ev = self._mmc.events
@@ -81,6 +79,7 @@ class ImagePreview(QWidget):
         ev.continuousSequenceAcquisitionStarted.disconnect(self._on_streaming_start)
         ev.sequenceAcquisitionStopped.disconnect(self._on_streaming_stop)
         ev.exposureChanged.disconnect(self._on_exposure_changed)
+        self.streaming_timer.timeout.disconnect(self._on_image_snapped)
 
     def _on_streaming_start(self) -> None:
         self.streaming_timer.start()
