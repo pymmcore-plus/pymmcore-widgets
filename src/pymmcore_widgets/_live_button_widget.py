@@ -1,4 +1,6 @@
-from typing import Optional, Tuple, Union
+from __future__ import annotations
+
+from typing import Tuple, Union
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -29,9 +31,9 @@ class LiveButton(QPushButton):
 
     Parameters
     ----------
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget.
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -47,8 +49,8 @@ class LiveButton(QPushButton):
     def __init__(
         self,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
 
         super().__init__(parent=parent)

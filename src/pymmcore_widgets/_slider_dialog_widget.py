@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import re
-from typing import Optional
 
 from pymmcore_plus import CMMCorePlus, PropertyType
 from qtpy.QtCore import Qt
@@ -22,9 +23,9 @@ class SliderDialog(QDialog):
         e.g. property_regex = "(Intensity|Power)s?" will create a slider
         for each range-based property that contains "I(i)ntensity(s)" or
         "P(p)ower(s)" in the property name.
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget, by default None
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -35,8 +36,8 @@ class SliderDialog(QDialog):
         self,
         property_regex: str,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ):
         super().__init__(parent=parent)
         ptrn = re.compile(property_regex, re.IGNORECASE)

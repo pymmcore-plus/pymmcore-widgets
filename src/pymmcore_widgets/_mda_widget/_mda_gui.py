@@ -1,4 +1,4 @@
-from typing import Optional
+from __future__ import annotations
 
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
@@ -18,7 +18,7 @@ LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 class _MDAWidgetGui(QWidget):
     """Just the UI portion of the MDA widget. Runtime logic in MDAWidget."""
 
-    def __init__(self, *, parent: Optional[QWidget] = None):
+    def __init__(self, *, parent: QWidget | None = None):
         super().__init__(parent=parent)
 
         self.setLayout(QVBoxLayout())

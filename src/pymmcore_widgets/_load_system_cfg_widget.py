@@ -1,4 +1,4 @@
-from typing import Optional
+from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import (
@@ -18,9 +18,9 @@ class ConfigurationWidget(QGroupBox):
 
     Parameters
     ----------
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget. By default, None.
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -30,8 +30,8 @@ class ConfigurationWidget(QGroupBox):
     def __init__(
         self,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent=parent)
 

@@ -1,4 +1,6 @@
-from typing import Any, Optional, Tuple, Union
+from __future__ import annotations
+
+from typing import Any
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
@@ -54,16 +56,16 @@ class GroupPresetTableWidget(QGroupBox):
 
     Parameters
     ----------
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget. By default, None.
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new) `CMMCorePlus.instance()`.
     """
 
     def __init__(
-        self, *, parent: Optional[QWidget] = None, mmcore: Optional[CMMCorePlus] = None
+        self, *, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
     ) -> None:
         super().__init__(parent=parent)
 
@@ -249,7 +251,7 @@ class GroupPresetTableWidget(QGroupBox):
                 elif isinstance(wdg, PropertyWidget):
                     wdg = wdg._value_widget  # type: ignore
 
-    def _get_cfg_data(self, group: str, preset: str) -> Tuple[str, str, str, int]:
+    def _get_cfg_data(self, group: str, preset: str) -> tuple[str, str, str, int]:
         # Return last device-property-value for the preset and the
         # total number of device-property-value included in the preset.
         data = list(self._mmc.getConfigData(group, preset))
@@ -259,7 +261,7 @@ class GroupPresetTableWidget(QGroupBox):
         dev, prop, val = data[-1]
         return dev, prop, val, len(data)
 
-    def _create_group_widget(self, group: str) -> Union[PresetsWidget, PropertyWidget]:
+    def _create_group_widget(self, group: str) -> PresetsWidget | PropertyWidget:
         """Return a widget depending on presets and device-property."""
         # get group presets
         presets = list(self._mmc.getAvailableConfigs(group))

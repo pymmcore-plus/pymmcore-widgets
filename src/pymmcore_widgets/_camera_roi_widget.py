@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -38,9 +38,9 @@ class CameraRoiWidget(QWidget):
 
     Parameters
     ----------
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget, by default None
-    mmcore : Optional[CMMCorePlus]
+    mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -53,8 +53,8 @@ class CameraRoiWidget(QWidget):
     def __init__(
         self,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent=parent)
 
@@ -429,7 +429,7 @@ class CameraRoiWidget(QWidget):
             with signals_blocked(self.roi_height):
                 self.roi_height.setValue(height)
 
-    def _get_roi_groupbox_values(self) -> Tuple:
+    def _get_roi_groupbox_values(self) -> tuple:
         start_x = self.start_x.value()
         start_y = self.start_y.value()
         width = self.roi_width.value()
@@ -459,7 +459,7 @@ class CameraRoiWidget(QWidget):
 
         self._update_lbl_info()
 
-    def _hide_spinbox_button(self, spin_list: List[QSpinBox], hide: bool) -> None:
+    def _hide_spinbox_button(self, spin_list: list[QSpinBox], hide: bool) -> None:
         for spin in spin_list:
             if hide:
                 spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
