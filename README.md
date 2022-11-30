@@ -9,6 +9,8 @@
 A set of widgets for the [pymmcore-plus](https://github.com/pymmcore-plus/pymmcore-plus) package.
 This package can be used to build custom user interfaces for micromanager in a python/Qt environment.
 
+[Documentation](https://pymmcore-plus.github.io/pymmcore-widgets)
+
 ## Usage
 
 ```python
@@ -29,11 +31,7 @@ if __name__ == '__main__':
 ![Screen Shot 2022-08-01 at 2 18 12 PM](https://user-images.githubusercontent.com/1609449/182217639-7f52a217-16f6-416a-a54f-2db63b7165c5.png)
 
 
-Other existing widgets include (not exhaustive):
-
-PropertyBrowser, GroupPresetTableWidget,
-DefaultCameraExposureWidget, ConfigurationWidget, ChannelWidget,
-ObjectivesWidget, SliderDialog, LiveButton, SnapButton, StageWidget
+See complete list of available widgets in the [documentation](https://pymmcore-plus.github.io/pymmcore-widgets/#widgets)
 
 
 ## Installation
