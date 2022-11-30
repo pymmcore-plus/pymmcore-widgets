@@ -52,7 +52,7 @@ class DeviceTypeFilters(QWidget):
             cast(QWidget, x).setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self._read_only_checkbox = QCheckBox("Show read-only")
-        self._read_only_checkbox.toggled.connect(self.filtersChanged.emit)
+        self._read_only_checkbox.toggled.connect(self._on_read_only_toggled)
         self._read_only_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         layout = QVBoxLayout()
@@ -60,6 +60,9 @@ class DeviceTypeFilters(QWidget):
         layout.addWidget(self._read_only_checkbox)
         layout.addStretch()
         self.setLayout(layout)
+
+    def _on_read_only_toggled(self) -> None:
+        self.filtersChanged.emit()
 
     def _check_all(self) -> None:
         for cxbx in self._dev_gb.findChildren(QCheckBox):
