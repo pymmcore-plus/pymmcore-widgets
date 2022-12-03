@@ -84,9 +84,9 @@ class DevicePropertyTable(QTableWidget):
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._rebuild_table)
-        self._mmc.events.configGroupDeleted.disconnect(self._rebuild_table)
-        self._mmc.events.configDeleted.disconnect(self._rebuild_table)
-        self._mmc.events.configDefined.disconnect(self._rebuild_table)
+        # self._mmc.events.configGroupDeleted.disconnect(self._rebuild_table)
+        # self._mmc.events.configDeleted.disconnect(self._rebuild_table)
+        # self._mmc.events.configDefined.disconnect(self._rebuild_table)
 
     def checkGroup(self, group: str) -> None:
         presets = self._mmc.getAvailableConfigs(group)
