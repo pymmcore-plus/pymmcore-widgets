@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QDialog, QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
-from superqt.utils import signals_blocked
 
 from ._device_property_table import DevicePropertyTable
 from ._device_type_filter import DeviceTypeFilters
@@ -30,8 +29,6 @@ class PropertyBrowser(QDialog):
 
         self._prop_table = DevicePropertyTable(mmcore=mmcore)
         self._device_filters = DeviceTypeFilters()
-        with signals_blocked(self._device_filters._read_only_checkbox):
-            self._device_filters._read_only_checkbox.setChecked(True)
         self._device_filters.filtersChanged.connect(self._update_filter)
 
         self._filter_text = QLineEdit()
