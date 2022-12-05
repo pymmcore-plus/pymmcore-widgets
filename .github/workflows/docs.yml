@@ -16,7 +16,7 @@ jobs:
         run: |
           pip install -e .[docs,image]
           pip install pyside2
-          python -m pymmcore_plus.install
+          mmcore install
 
       - name: Test docs
         if: github.event_name == 'pull_request'
