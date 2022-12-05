@@ -29,8 +29,8 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert s_exp.channel_groupbox.channel_tableWidget.rowCount() == 1
 
     s_exp.time_groupbox.setChecked(True)
-    s_exp.time_groupbox.timepoints_spinBox.setValue(2)
-    s_exp.time_groupbox.interval_spinBox.setValue(0)
+    s_exp.time_groupbox._timepoints_spinbox.setValue(2)
+    s_exp.time_groupbox._interval_spinbox.setValue(0)
 
     s_exp.stack_groupbox.setChecked(True)
     s_exp.stack_groupbox.set_state({"range": 2, "step": 1})
@@ -170,7 +170,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 1
     assert wdg.channel_groupbox.channel_tableWidget.cellWidget(0, 1).value() == 100.0
     assert not wdg.time_groupbox.isChecked()
-    wdg.time_groupbox.time_comboBox.setCurrentText("ms")
+    wdg.time_groupbox._units_combo.setCurrentText("ms")
 
     txt = "Minimum total acquisition time: 100.0000 ms.\n"
     assert wdg.time_lbl._total_time_lbl.text() == txt
@@ -184,23 +184,23 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
 
-    wdg.time_groupbox.timepoints_spinBox.setValue(3)
+    wdg.time_groupbox._timepoints_spinbox.setValue(3)
     txt = (
         "Minimum total acquisition time: 300.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
+    assert not wdg.time_groupbox._warning_widget.isVisible()
 
-    wdg.time_groupbox.interval_spinBox.setValue(10)
+    wdg.time_groupbox._interval_spinbox.setValue(10)
     txt1 = (
         "Minimum total acquisition time: 300.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
-    txt2 = "Interval shorter than acquisition time per timepoint."
     assert wdg.time_lbl._total_time_lbl.text() == txt1
-    assert wdg.time_groupbox._time_lbl.text() == txt2
+    assert wdg.time_groupbox._warning_widget.isVisible()
 
-    wdg.time_groupbox.interval_spinBox.setValue(200)
+    wdg.time_groupbox._interval_spinbox.setValue(200)
     txt1 = (
         "Minimum total acquisition time: 500.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."

@@ -6,7 +6,6 @@ from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractItemView,
     QComboBox,
-    QDoubleSpinBox,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -135,107 +134,6 @@ class _MDAChannelTable(QGroupBox):
         self.channel_tableWidget.clearContents()
         self.channel_tableWidget.setRowCount(0)
 
-        self.valueUpdated.emit()
-
-
-class _MDATimeWidget(QGroupBox):
-
-    valueUpdated = Signal()
-
-    def __init__(self, *, parent: QWidget | None = None) -> None:
-        super().__init__(parent=parent)
-
-        self._create_time_gui()
-
-        self.toggled.connect(self._on_value_changed)
-        self.interval_spinBox.valueChanged.connect(self._on_value_changed)
-        self.timepoints_spinBox.valueChanged.connect(self._on_value_changed)
-        self.time_comboBox.currentIndexChanged.connect(self._on_value_changed)
-
-    def _create_time_gui(self) -> None:
-
-        self.setTitle("Time")
-
-        self.setCheckable(True)
-        self.setChecked(False)
-        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-
-        group_layout = QGridLayout()
-        group_layout.setSpacing(5)
-        group_layout.setContentsMargins(10, 10, 10, 10)
-        self.setLayout(group_layout)
-
-        # Timepoints
-        wdg = QWidget()
-        wdg_lay = QHBoxLayout()
-        wdg_lay.setSpacing(5)
-        wdg_lay.setContentsMargins(0, 0, 0, 0)
-        wdg.setLayout(wdg_lay)
-        lbl = QLabel(text="Timepoints:")
-        lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self.timepoints_spinBox = QSpinBox()
-        self.timepoints_spinBox.setMinimum(1)
-        self.timepoints_spinBox.setMaximum(1000000)
-        self.timepoints_spinBox.setSizePolicy(
-            QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        )
-        self.timepoints_spinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        wdg_lay.addWidget(lbl)
-        wdg_lay.addWidget(self.timepoints_spinBox)
-        group_layout.addWidget(wdg, 0, 0)
-
-        # Interval
-        wdg1 = QWidget()
-        wdg1_lay = QHBoxLayout()
-        wdg1_lay.setSpacing(5)
-        wdg1_lay.setContentsMargins(0, 0, 0, 0)
-        wdg1.setLayout(wdg1_lay)
-        lbl1 = QLabel(text="Interval:  ")
-        lbl1.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self.interval_spinBox = QDoubleSpinBox()
-        self.interval_spinBox.setValue(1.0)
-        self.interval_spinBox.setMinimum(0)
-        self.interval_spinBox.setMaximum(100000)
-        self.interval_spinBox.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        self.interval_spinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        wdg1_lay.addWidget(lbl1)
-        wdg1_lay.addWidget(self.interval_spinBox)
-        group_layout.addWidget(wdg1)
-
-        self.time_comboBox = QComboBox()
-        self.time_comboBox.setSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-        )
-        self.time_comboBox.addItems(["ms", "sec", "min", "hours"])
-        self.time_comboBox.setCurrentText("sec")
-        wdg1_lay.addWidget(self.time_comboBox)
-        group_layout.addWidget(wdg1, 0, 1)
-
-        wdg2 = QWidget()
-        wdg2_lay = QHBoxLayout()
-        wdg2_lay.setSpacing(5)
-        wdg2_lay.setContentsMargins(0, 0, 0, 0)
-        wdg2.setLayout(wdg2_lay)
-        self._icon_lbl = QLabel()
-        self._icon_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self._icon_lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        wdg2_lay.addWidget(self._icon_lbl)
-        self._time_lbl = QLabel()
-        self._time_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self._time_lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        wdg2_lay.addWidget(self._time_lbl)
-        spacer = QSpacerItem(
-            10, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
-        wdg2_lay.addItem(spacer)
-        group_layout.addWidget(wdg2, 1, 0, 1, 2)
-
-        self._time_lbl.hide()
-        self._icon_lbl.hide()
-
-    def _on_value_changed(self) -> None:
         self.valueUpdated.emit()
 
 
