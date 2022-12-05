@@ -15,8 +15,8 @@ COLOR_TYPES = Union[
     int,
     str,
     Qt.GlobalColor,
-    tuple[int, int, int, int],
-    tuple[int, int, int],
+    "tuple[int, int, int, int]",
+    "tuple[int, int, int]",
 ]
 
 
