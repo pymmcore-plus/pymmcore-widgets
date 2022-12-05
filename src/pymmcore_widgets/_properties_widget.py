@@ -14,10 +14,10 @@ from ._property_widget import PropertyWidget
 
 
 class PropertiesWidget(QWidget):
-    """A container for a set of PropertyWidgets.
+    """Convenience container to control a specific set of PropertyWidgets.
 
     Properties can be filtered by a number of criteria, which are passed to
-    [`pymmcore_plus.CMMCorePlus.iterProperties`].
+    [`CMMCorePlus.iterProperties`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.iterProperties].
 
     Parameters
     ----------
@@ -41,9 +41,6 @@ class PropertiesWidget(QWidget):
     is_sequenceable : bool | None
         If provided only properties with `isPropertySequenceable` matching this
         value will be yielded.
-    as_object : bool, optional
-        If `True`, `DeviceProperty` objects will be yielded instead of
-        `(device_label, property_name)` tuples. By default False
     """
 
     def __init__(
