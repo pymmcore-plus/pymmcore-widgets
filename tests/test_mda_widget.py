@@ -184,6 +184,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
+    wdg.show()
 
     assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 0
     wdg.channel_groupbox.add_ch_button.click()
@@ -193,10 +194,12 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     txt = "Minimum total acquisition time: 100.0000 ms.\n"
     assert wdg.time_lbl._total_time_lbl.text() == txt
+    assert not wdg.time_groupbox._warning_widget.isVisible()
 
     assert not wdg.time_groupbox.isChecked()
     wdg.time_groupbox.setChecked(True)
     wdg.time_groupbox._units_combo.setCurrentText("ms")
+    assert wdg.time_groupbox._warning_widget.isVisible()
 
     txt = (
         "Minimum total acquisition time: 100.0000 ms.\n"
@@ -210,7 +213,6 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
-    assert not wdg.time_groupbox._warning_widget.isVisible()
 
     wdg.time_groupbox._interval_spinbox.setValue(10)
     txt1 = (
@@ -218,7 +220,6 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt1
-    assert wdg.time_groupbox._warning_widget.isVisible()
 
     wdg.time_groupbox._interval_spinbox.setValue(200)
     txt1 = (
@@ -226,3 +227,4 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt1
+    assert not wdg.time_groupbox._warning_widget.isVisible()
