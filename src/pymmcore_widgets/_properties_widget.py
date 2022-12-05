@@ -10,7 +10,7 @@ from typing import Iterable, cast
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QGridLayout, QLabel, QWidget
 
-from pymmcore_widgets import PropertyWidget
+from ._property_widget import PropertyWidget
 
 
 class PropertiesWidget(QWidget):

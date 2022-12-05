@@ -18,6 +18,7 @@ from ._mda_widget._mda_widget import MDAWidget
 from ._objective_widget import ObjectivesWidget
 from ._pixel_size_widget import PixelSizeWidget
 from ._presets_widget import PresetsWidget
+from ._properties_widget import PropertiesWidget
 from ._property_browser import PropertyBrowser
 from ._property_widget import PropertyWidget
 from ._sample_explorer_widget._sample_explorer_widget import SampleExplorerWidget
@@ -33,13 +34,14 @@ __all__ = [
     "DefaultCameraExposureWidget",
     "DeviceWidget",
     "ExposureWidget",
-    "MDAWidget",
     "GroupPresetTableWidget",
     "ImagePreview",
     "LiveButton",
+    "MDAWidget",
     "ObjectivesWidget",
     "PixelSizeWidget",
     "PresetsWidget",
+    "PropertiesWidget",
     "PropertyBrowser",
     "PropertyWidget",
     "SampleExplorerWidget",
