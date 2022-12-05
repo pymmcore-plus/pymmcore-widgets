@@ -20,7 +20,7 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.137
+    rev: v0.0.158
     hooks:
       - id: ruff
         args: [--fix]
@@ -41,4 +41,4 @@ repos:
       - id: mypy
         files: "^src/"
         additional_dependencies:
-          - pymmcore-plus
+          - pymmcore-plus>=0.6.3

@@ -1,7 +1,7 @@
-"""The PropertiesWidget creates a composite widget with controls for
+"""The PropertiesWidget is a container for a set of PropertyWidgets.
 
-a number of different properties, filtered based on the arguments
-to the constructor.
+It creates widgets for a set of different properties, filtered based on
+the arguments to the constructor.
 """
 from pymmcore_plus import CMMCorePlus, PropertyType
 from qtpy.QtWidgets import QApplication
