@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QComboBox,
+    QDoubleSpinBox,
     QGridLayout,
     QGroupBox,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
-    QSpinBox,
     QTableWidget,
     QVBoxLayout,
     QWidget,
@@ -65,6 +66,8 @@ class ChannelTable(QGroupBox):
         self.channel_tableWidget.setTabKeyNavigation(True)
         self.channel_tableWidget.setColumnCount(2)
         self.channel_tableWidget.setRowCount(0)
+        # TODO: we should also implement the other channel parameters
+        # e.g. z_offset, do_stack, ...
         self.channel_tableWidget.setHorizontalHeaderLabels(["Channel", "Exposure (ms)"])
         group_layout.addWidget(self.channel_tableWidget, 0, 0)
 
@@ -109,28 +112,42 @@ class ChannelTable(QGroupBox):
 
         channel_group = self._mmc.getChannelGroup()
         if not channel_group:
+            warnings.warn("First select Micro-Manager 'ChannelGroup'.")
             return False
 
-        idx = self.channel_tableWidget.rowCount()
-        self.channel_tableWidget.insertRow(idx)
+        channel_combobox = self._create_channel_combobox()
+        channel_exp_spinbox = self._create_exposure_doublespinbox()
+        self._add_widgets_to_table(channel_combobox, channel_exp_spinbox)
+        return True
 
+    def _create_channel_combobox(self, channel_group: str = "") -> QComboBox:
         channel_combobox = QComboBox(self)
-        if channel_group := self._mmc.getChannelGroup():
-            channel_list = list(self._mmc.getAvailableConfigs(channel_group))
-            channel_combobox.addItems(channel_list)
 
-        channel_exp_spinbox = QSpinBox(self)
+        if not channel_group:
+            channel_group = self._mmc.getChannelGroup()
+        if not channel_group:
+            return channel_combobox
+
+        channel_list = list(self._mmc.getAvailableConfigs(channel_group))
+        channel_combobox.addItems(channel_list)
+        return channel_combobox
+
+    def _create_exposure_doublespinbox(self) -> QDoubleSpinBox:
+        channel_exp_spinbox = QDoubleSpinBox(self)
         channel_exp_spinbox.setRange(0, 10000)
         channel_exp_spinbox.setValue(100)
         channel_exp_spinbox.setAlignment(AlignCenter)
         channel_exp_spinbox.valueChanged.connect(self.valueChanged)
+        return channel_exp_spinbox
 
-        self.channel_tableWidget.setCellWidget(idx, 0, channel_combobox)
-        self.channel_tableWidget.setCellWidget(idx, 1, channel_exp_spinbox)
-
+    def _add_widgets_to_table(
+        self, channel_combo: QComboBox, exp_dspinbox: QDoubleSpinBox
+    ) -> None:
+        idx = self.channel_tableWidget.rowCount()
+        self.channel_tableWidget.insertRow(idx)
+        self.channel_tableWidget.setCellWidget(idx, 0, channel_combo)
+        self.channel_tableWidget.setCellWidget(idx, 1, exp_dspinbox)
         self.valueChanged.emit()
-
-        return True
 
     def _remove_channel(self) -> None:
         rows = {r.row() for r in self.channel_tableWidget.selectedIndexes()}
@@ -158,19 +175,30 @@ class ChannelTable(QGroupBox):
             for c in range(self.channel_tableWidget.rowCount())
         ]
 
-    def set_state(self, channels: dict) -> None:
+    def set_state(self, channels: list[ChannelDict]) -> None:
         """Set the state of the widget from a useq channel dictionary."""
-        pass
+        self._clear_channel()
 
+        for channel in channels:
+            if "config" not in channel:
+                raise ValueError("Dictionary should contain channel 'config' name.")
 
-if __name__ == "__main__":
-    import sys
+            ch_group = channel.get("group") or ""
+            channel_combobox = self._create_channel_combobox(ch_group)
 
-    from qtpy.QtWidgets import QApplication
+            ch = channel.get("config")
+            if ch in self._mmc.getAvailableConfigs(self._mmc.getChannelGroup()):
+                channel_combobox.setCurrentText(ch)
+            else:
+                warnings.warn(
+                    f"'{ch}' config or its group doesn't exist in the "
+                    f"'{self._mmc.getChannelGroup()}' ChannelGroup!"
+                )
+                continue
 
-    mmc = CMMCorePlus.instance()
-    mmc.loadSystemConfiguration()
-    app = QApplication(sys.argv)
-    win = ChannelTable(mmcore=mmc)
-    win.show()
-    sys.exit(app.exec_())
+            channel_exp_spinbox = self._create_exposure_doublespinbox()
+            channel_exp_spinbox.setValue(
+                channel.get("exposure") or self._mmc.getExposure()
+            )
+
+            self._add_widgets_to_table(channel_combobox, channel_exp_spinbox)
