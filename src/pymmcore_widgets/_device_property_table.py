@@ -129,7 +129,7 @@ class DevicePropertyTable(QTableWidget):
             # TODO: make sure to add icons for all possible device types
             icon_string = ICONS.get(prop.deviceType(), None)
             if icon_string:
-                item.setIcon(icon(icon_string, opacity=0.5, color="blue"))
+                item.setIcon(icon(icon_string, color="Gray"))
             self.setItem(i, 0, item)
 
             wdg = PropertyWidget(prop.device, prop.name, mmcore=self._mmc)
