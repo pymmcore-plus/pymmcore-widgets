@@ -51,7 +51,9 @@ class ChannelWidget(QWidget):
 
         self._channel_group = channel_group or self._get_channel_group()
 
-        self.channel_wdg = self._create_channel_widget(self._channel_group)
+        self.channel_wdg: PresetsWidget | QComboBox
+
+        self._create_channel_widget(self._channel_group)
 
         self.setLayout(QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
@@ -79,16 +81,13 @@ class ChannelWidget(QWidget):
                 return str(dialog.currentText())
         return None  # pragma: no cover
 
-    def _create_channel_widget(
-        self, channel_group: str | None
-    ) -> PresetsWidget | QComboBox:
+    def _create_channel_widget(self, channel_group: str | None) -> None:
         if channel_group:
-            channel_wdg = PresetsWidget(channel_group, parent=self)
+            self.channel_wdg = PresetsWidget(channel_group, parent=self)
             self._mmc.setChannelGroup(channel_group)
         else:
-            channel_wdg = QComboBox()
-            channel_wdg.setEnabled(False)
-        return channel_wdg
+            self.channel_wdg = QComboBox()
+            self.channel_wdg.setEnabled(False)
 
     def _on_sys_cfg_loaded(self) -> None:
         channel_group = self._channel_group or self._get_channel_group()
@@ -131,7 +130,7 @@ class ChannelWidget(QWidget):
             self._on_channel_group_changed("")
 
     def _update_widget(self, channel_group: str) -> None:
-        self.channel_wdg = self._create_channel_widget(channel_group)
+        self._create_channel_widget(channel_group)
         self.layout().addWidget(self.channel_wdg)
 
     def _disconnect(self) -> None:
