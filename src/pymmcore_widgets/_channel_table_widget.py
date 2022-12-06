@@ -36,7 +36,7 @@ class ChannelTable(QGroupBox):
 
     The `value()` method returns a dictionary with the current state of the widget, in a
     format that matches one of the [useq-schema Channel
-    specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#Channel).
+    specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
     """
 
     valueChanged = Signal()
@@ -147,7 +147,7 @@ class ChannelTable(QGroupBox):
         """Return the current channels settings.
 
         Note that output dict will match the Channel from useq schema:
-        <https://pymmcore-plus.github.io/useq-schema/schema/axes/#Channel>
+        <https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel>
         """
         return [
             {
