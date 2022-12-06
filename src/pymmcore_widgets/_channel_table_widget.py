@@ -116,16 +116,20 @@ class ChannelTable(QGroupBox):
             return False
 
         channel_combobox = self._create_channel_combobox()
+        if not channel_combobox:
+            return False
+
         channel_exp_spinbox = self._create_exposure_doublespinbox()
+
         self._add_widgets_to_table(channel_combobox, channel_exp_spinbox)
         return True
 
-    def _create_channel_combobox(self, channel_group: str = "") -> QComboBox:
+    def _create_channel_combobox(self, channel_group: str = "") -> QComboBox | None:
         channel_combobox = QComboBox(self)
 
         ch_group = channel_group or self._mmc.getChannelGroup()
         if not ch_group:
-            return channel_combobox
+            return None
 
         channel_list = list(self._mmc.getAvailableConfigs(ch_group))
         channel_combobox.addItems(channel_list)
@@ -184,6 +188,9 @@ class ChannelTable(QGroupBox):
 
             ch_group = channel.get("group") or ""
             channel_combobox = self._create_channel_combobox(ch_group)
+            if not channel_combobox:
+                warnings.warn("ChannelGroup is not defined!")
+                continue
 
             ch = channel.get("config")
             if ch in self._mmc.getAvailableConfigs(self._mmc.getChannelGroup()):
