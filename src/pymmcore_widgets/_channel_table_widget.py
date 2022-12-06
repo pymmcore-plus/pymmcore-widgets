@@ -123,12 +123,11 @@ class ChannelTable(QGroupBox):
     def _create_channel_combobox(self, channel_group: str = "") -> QComboBox:
         channel_combobox = QComboBox(self)
 
-        if not channel_group:
-            channel_group = self._mmc.getChannelGroup()
-        if not channel_group:
+        ch_group = channel_group or self._mmc.getChannelGroup()
+        if not ch_group:
             return channel_combobox
 
-        channel_list = list(self._mmc.getAvailableConfigs(channel_group))
+        channel_list = list(self._mmc.getAvailableConfigs(ch_group))
         channel_combobox.addItems(channel_list)
         return channel_combobox
 
