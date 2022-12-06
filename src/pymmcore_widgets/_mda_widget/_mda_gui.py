@@ -3,8 +3,8 @@ from __future__ import annotations
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
+from pymmcore_widgets._channel_table_widget import ChannelTable
 from pymmcore_widgets._general_mda_widgets import (
-    _MDAChannelTable,
     _MDAControlButtons,
     _MDAPositionTable,
     _MDATimeLabel,
@@ -47,7 +47,8 @@ class _MDAWidgetGui(QWidget):
         wdg_layout.setContentsMargins(10, 10, 10, 10)
         wdg.setLayout(wdg_layout)
 
-        self.channel_groupbox = _MDAChannelTable()
+        self.channel_groupbox = ChannelTable()
+
         wdg_layout.addWidget(self.channel_groupbox)
         self.channel_groupbox.channel_tableWidget.model().rowsInserted.connect(
             self._enable_run_btn

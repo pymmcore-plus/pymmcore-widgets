@@ -15,8 +15,8 @@ from qtpy.QtWidgets import (
 )
 from superqt import QCollapsible
 
+from pymmcore_widgets._channel_table_widget import ChannelTable
 from pymmcore_widgets._general_mda_widgets import (
-    _MDAChannelTable,
     _MDAControlButtons,
     _MDAPositionTable,
     _MDATimeLabel,
@@ -62,7 +62,7 @@ class SampleExplorerGui(QWidget):
         self.scan_props = self._create_row_cols_overlap_group()
         wdg_layout.addWidget(self.scan_props)
 
-        self.channel_groupbox = _MDAChannelTable()
+        self.channel_groupbox = ChannelTable()
         wdg_layout.addWidget(self.channel_groupbox)
         self.channel_groupbox.channel_tableWidget.model().rowsInserted.connect(
             self._enable_run_btn

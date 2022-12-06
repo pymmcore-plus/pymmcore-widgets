@@ -71,7 +71,8 @@ class MDAWidget(_MDAWidgetGui):
         self.pos_gp = self.stage_pos_groupbox
 
         # connect valueUpdated signal
-        self.ch_gb.valueUpdated.connect(self._update_total_time)
+        # self.ch_gb.valueUpdated.connect(self._update_total_time)
+        self.ch_gb.valueChanged.connect(self._update_total_time)
         self.z_gp.valueChanged.connect(self._update_total_time)
         self.tm_gp.valueUpdated.connect(self._update_total_time)
 
@@ -442,14 +443,7 @@ class MDAWidget(_MDAWidgetGui):
         -------
         useq.MDASequence
         """
-        channels: list[dict] = [
-            {
-                "config": self.ch_gb.channel_tableWidget.cellWidget(c, 0).currentText(),
-                "group": self._mmc.getChannelGroup() or "Channel",
-                "exposure": self.ch_gb.channel_tableWidget.cellWidget(c, 1).value(),
-            }
-            for c in range(self.ch_gb.channel_tableWidget.rowCount())
-        ]
+        channels = self.channel_groupbox.value()
 
         z_plan = self.z_gp.value() if self.z_gp.isChecked() else None
 
