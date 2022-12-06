@@ -89,7 +89,6 @@ class ZTopBottomSelect(QWidget):
 
     def _update_zrange_and_emit(self) -> None:
         self._zrange_spinbox.setValue(self.z_range())
-        print("emit value changed", self.value())
         self.valueChanged.emit(self.value())
 
     def value(self) -> dict:
