@@ -65,7 +65,7 @@ class _MDAWidgetGui(QWidget):
 
     def _enable_run_btn(self) -> None:
         self.buttons_wdg.run_button.setEnabled(
-            self.channel_groupbox.channel_tableWidget.rowCount() > 0
+            self.channel_groupbox._table.rowCount() > 0
         )
 
 

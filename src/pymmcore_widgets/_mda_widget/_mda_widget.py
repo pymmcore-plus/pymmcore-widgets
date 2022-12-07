@@ -95,7 +95,7 @@ class MDAWidget(_MDAWidgetGui):
     def _on_sys_cfg_loaded(self) -> None:
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
-        self.ch_gb.clear_channel()
+        self.ch_gb.clear()
         self._clear_positions()
 
     def _set_enabled(self, enabled: bool) -> None:
@@ -364,7 +364,7 @@ class MDAWidget(_MDAWidgetGui):
 
         # set channel table
         if state.channels:
-            self.ch_gb.set_state([dict(c) for c in state.channels])
+            self.ch_gb.set_state([c.dict() for c in state.channels])  # type: ignore
 
         # set Z
         if state.z_plan:
