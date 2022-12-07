@@ -92,7 +92,7 @@ class ChannelTable(QGroupBox):
 
         self.add_ch_button.clicked.connect(self._add_channel)
         self.remove_ch_button.clicked.connect(self._remove_channel)
-        self.clear_ch_button.clicked.connect(self._clear_channel)
+        self.clear_ch_button.clicked.connect(self.clear_channel)
 
         spacer = QSpacerItem(
             10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
@@ -173,7 +173,8 @@ class ChannelTable(QGroupBox):
             self.channel_tableWidget.removeRow(idx)
         self.valueChanged.emit()
 
-    def _clear_channel(self) -> None:
+    def clear_channel(self) -> None:
+        """Clear the channel table."""
         self.channel_tableWidget.clearContents()
         self.channel_tableWidget.setRowCount(0)
         self.valueChanged.emit()
@@ -195,7 +196,7 @@ class ChannelTable(QGroupBox):
 
     def set_state(self, channels: list[ChannelDict] | list[dict[str, Any]]) -> None:
         """Set the state of the widget from a useq channel dictionary."""
-        self._clear_channel()
+        self.clear_channel()
 
         for channel in channels:
             if "config" not in channel:
