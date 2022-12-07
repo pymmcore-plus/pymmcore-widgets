@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
@@ -125,7 +125,7 @@ class ChannelTable(QGroupBox):
         return True
 
     def _create_channel_combobox(self, channel_group: str = "") -> QComboBox | None:
-        channel_combobox = QComboBox(self)
+        channel_combobox = QComboBox()
 
         ch_group = channel_group or self._mmc.getChannelGroup()
         if not ch_group:
@@ -136,7 +136,7 @@ class ChannelTable(QGroupBox):
         return channel_combobox
 
     def _create_exposure_doublespinbox(self) -> QDoubleSpinBox:
-        channel_exp_spinbox = QDoubleSpinBox(self)
+        channel_exp_spinbox = QDoubleSpinBox()
         channel_exp_spinbox.setRange(0, 10000)
         channel_exp_spinbox.setValue(100)
         channel_exp_spinbox.setAlignment(AlignCenter)
@@ -150,6 +150,7 @@ class ChannelTable(QGroupBox):
         self.channel_tableWidget.insertRow(idx)
         self.channel_tableWidget.setCellWidget(idx, 0, channel_combo)
         self.channel_tableWidget.setCellWidget(idx, 1, exp_dspinbox)
+
         self.valueChanged.emit()
 
     def _remove_channel(self) -> None:
@@ -178,7 +179,7 @@ class ChannelTable(QGroupBox):
             for c in range(self.channel_tableWidget.rowCount())
         ]
 
-    def set_state(self, channels: list[ChannelDict]) -> None:
+    def set_state(self, channels: list[ChannelDict] | list[dict[str, Any]]) -> None:
         """Set the state of the widget from a useq channel dictionary."""
         self._clear_channel()
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from pathlib import Path
 
 from fonticon_mdi6 import MDI6
@@ -369,27 +368,8 @@ class MDAWidget(_MDAWidgetGui):
         self.buttons_wdg.acquisition_order_comboBox.setCurrentText(state.axis_order)
 
         # set channel table
-        self.ch_gb._clear_channel()
-        if channel_group := self._mmc.getChannelGroup():
-            channel_list = list(self._mmc.getAvailableConfigs(channel_group))
-        else:
-            channel_list = []
-        for idx, ch in enumerate(state.channels):
-            if not self.ch_gb._add_channel():
-                break
-            if ch.config in channel_list:
-                self.ch_gb.channel_tableWidget.cellWidget(idx, 0).setCurrentText(
-                    ch.config
-                )
-            else:
-                warnings.warn(
-                    f"Unrecognized channel: {ch.config!r}. "
-                    f"Valid channels include {channel_list}"
-                )
-            if ch.exposure:
-                self.ch_gb.channel_tableWidget.cellWidget(idx, 1).setValue(
-                    int(ch.exposure)
-                )
+        if state.channels:
+            self.ch_gb.set_state([dict(c) for c in state.channels])
 
         # set Z
         if state.z_plan:
