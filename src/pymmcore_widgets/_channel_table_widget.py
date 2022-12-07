@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
@@ -150,8 +150,22 @@ class ChannelTable(QGroupBox):
         self.channel_tableWidget.insertRow(idx)
         self.channel_tableWidget.setCellWidget(idx, 0, channel_combo)
         self.channel_tableWidget.setCellWidget(idx, 1, exp_dspinbox)
+        channel_combo.setCurrentIndex(self._get_new_channel_index())
 
         self.valueChanged.emit()
+
+    def _get_new_channel_index(self) -> int:
+        if self.channel_tableWidget.rowCount() == 1:
+            return 0
+        combo = self.channel_tableWidget.cellWidget(0, 0)
+        items = [combo.itemText(i) for i in range(combo.count())]
+        idxs = list(range(len(items)))
+        used_idxs = []
+        for row in range(self.channel_tableWidget.rowCount()):
+            combo = cast(QComboBox, self.channel_tableWidget.cellWidget(row, 0))
+            used_idxs.append(combo.currentIndex())
+        new_idxs = list(set(idxs) - set(used_idxs))
+        return new_idxs[0] if new_idxs else 0
 
     def _remove_channel(self) -> None:
         rows = {r.row() for r in self.channel_tableWidget.selectedIndexes()}
