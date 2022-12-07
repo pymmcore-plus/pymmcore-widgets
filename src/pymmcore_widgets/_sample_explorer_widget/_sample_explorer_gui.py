@@ -63,13 +63,8 @@ class SampleExplorerGui(QWidget):
         wdg_layout.addWidget(self.scan_props)
 
         self.channel_groupbox = ChannelTable()
+        self.channel_groupbox.valueChanged.connect(self._enable_run_btn)
         wdg_layout.addWidget(self.channel_groupbox)
-        self.channel_groupbox.channel_tableWidget.model().rowsInserted.connect(
-            self._enable_run_btn
-        )
-        self.channel_groupbox.channel_tableWidget.model().rowsRemoved.connect(
-            self._enable_run_btn
-        )
 
         mda_options = self._create_mda_options()
         wdg_layout.addWidget(mda_options)

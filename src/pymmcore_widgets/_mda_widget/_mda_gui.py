@@ -48,14 +48,8 @@ class _MDAWidgetGui(QWidget):
         wdg.setLayout(wdg_layout)
 
         self.channel_groupbox = ChannelTable()
-
+        self.channel_groupbox.valueChanged.connect(self._enable_run_btn)
         wdg_layout.addWidget(self.channel_groupbox)
-        self.channel_groupbox.channel_tableWidget.model().rowsInserted.connect(
-            self._enable_run_btn
-        )
-        self.channel_groupbox.channel_tableWidget.model().rowsRemoved.connect(
-            self._enable_run_btn
-        )
 
         self.time_groupbox = _MDATimeWidget()
         wdg_layout.addWidget(self.time_groupbox)
