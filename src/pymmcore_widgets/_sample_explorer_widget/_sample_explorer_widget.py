@@ -306,11 +306,7 @@ class SampleExplorerWidget(SampleExplorerGui):
         tiles = self.scan_size_spinBox_r.value() * self.scan_size_spinBox_c.value()
 
         # channel
-        exp: list = []
-        if self.ch_gb.value():
-            exp.extend(c.get("exposure") for c in self.ch_gb.value())
-        else:
-            exp = []
+        exp: list[float] = [e for c in self.ch_gb.value() if (e := c.get("exposure"))]
 
         # time
         if self.tm_gp.isChecked():

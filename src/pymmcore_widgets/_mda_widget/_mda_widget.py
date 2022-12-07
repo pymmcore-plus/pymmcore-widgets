@@ -247,11 +247,7 @@ class MDAWidget(_MDAWidgetGui):
     def _update_total_time(self) -> None:
 
         # channel
-        exp: list = []
-        if self.ch_gb.value():
-            exp.extend(c.get("exposure") for c in self.ch_gb.value())
-        else:
-            exp = []
+        exp: list[float] = [e for c in self.ch_gb.value() if (e := c.get("exposure"))]
 
         # time
         if self.tm_gp.isChecked():
