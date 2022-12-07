@@ -161,10 +161,14 @@ class ChannelTable(QGroupBox):
         items = [combo.itemText(i) for i in range(combo.count())]
         idxs = list(range(len(items)))
         used_idxs = []
-        for row in range(self.channel_tableWidget.rowCount()):
+        for row in range(self.channel_tableWidget.rowCount() - 1):
             combo = cast(QComboBox, self.channel_tableWidget.cellWidget(row, 0))
             used_idxs.append(combo.currentIndex())
         new_idxs = list(set(idxs) - set(used_idxs))
+
+        print(idxs, used_idxs)
+        print(new_idxs)
+
         return new_idxs[0] if new_idxs else 0
 
     def _remove_channel(self) -> None:
