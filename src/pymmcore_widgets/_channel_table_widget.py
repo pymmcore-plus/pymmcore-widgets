@@ -122,6 +122,11 @@ class ChannelTable(QGroupBox):
         channel_exp_spinbox = self._create_exposure_doublespinbox()
 
         self._add_widgets_to_table(channel_combobox, channel_exp_spinbox)
+
+        channel_combobox.setCurrentIndex(self._get_new_channel_index())
+
+        self.valueChanged.emit()
+
         return True
 
     def _create_channel_combobox(self, channel_group: str = "") -> QComboBox | None:
@@ -150,9 +155,6 @@ class ChannelTable(QGroupBox):
         self.channel_tableWidget.insertRow(idx)
         self.channel_tableWidget.setCellWidget(idx, 0, channel_combo)
         self.channel_tableWidget.setCellWidget(idx, 1, exp_dspinbox)
-        channel_combo.setCurrentIndex(self._get_new_channel_index())
-
-        self.valueChanged.emit()
 
     def _get_new_channel_index(self) -> int:
         if self.channel_tableWidget.rowCount() == 1:
@@ -222,3 +224,5 @@ class ChannelTable(QGroupBox):
             )
 
             self._add_widgets_to_table(channel_combobox, channel_exp_spinbox)
+
+        self.valueChanged.emit()
