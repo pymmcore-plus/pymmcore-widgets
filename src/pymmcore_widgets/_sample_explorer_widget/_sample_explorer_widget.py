@@ -307,12 +307,8 @@ class SampleExplorerWidget(SampleExplorerGui):
 
         # channel
         exp: list = []
-        ch = self.ch_gb.channel_tableWidget.rowCount()
-        if ch > 0:
-            exp.extend(
-                self.ch_gb.channel_tableWidget.cellWidget(r, 1).value()
-                for r in range(ch)
-            )
+        if self.ch_gb.value():
+            exp.extend(c.get("exposure") for c in self.ch_gb.value())
         else:
             exp = []
 
