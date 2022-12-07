@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from pathlib import Path
 
 from fonticon_mdi6 import MDI6
@@ -71,7 +70,7 @@ class MDAWidget(_MDAWidgetGui):
         self.pos_gp = self.stage_pos_groupbox
 
         # connect valueUpdated signal
-        self.ch_gb.valueUpdated.connect(self._update_total_time)
+        self.ch_gb.valueChanged.connect(self._update_total_time)
         self.z_gp.valueChanged.connect(self._update_total_time)
         self.tm_gp.valueUpdated.connect(self._update_total_time)
 
@@ -96,7 +95,7 @@ class MDAWidget(_MDAWidgetGui):
     def _on_sys_cfg_loaded(self) -> None:
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
-        self.ch_gb._clear_channel()
+        self.ch_gb.clear()
         self._clear_positions()
 
     def _set_enabled(self, enabled: bool) -> None:
@@ -248,15 +247,7 @@ class MDAWidget(_MDAWidgetGui):
     def _update_total_time(self) -> None:
 
         # channel
-        exp: list = []
-        ch = self.ch_gb.channel_tableWidget.rowCount()
-        if ch > 0:
-            exp.extend(
-                self.ch_gb.channel_tableWidget.cellWidget(r, 1).value()
-                for r in range(ch)
-            )
-        else:
-            exp = []
+        exp: list[float] = [e for c in self.ch_gb.value() if (e := c.get("exposure"))]
 
         # time
         if self.tm_gp.isChecked():
@@ -368,27 +359,8 @@ class MDAWidget(_MDAWidgetGui):
         self.buttons_wdg.acquisition_order_comboBox.setCurrentText(state.axis_order)
 
         # set channel table
-        self.ch_gb._clear_channel()
-        if channel_group := self._mmc.getChannelGroup():
-            channel_list = list(self._mmc.getAvailableConfigs(channel_group))
-        else:
-            channel_list = []
-        for idx, ch in enumerate(state.channels):
-            if not self.ch_gb._add_channel():
-                break
-            if ch.config in channel_list:
-                self.ch_gb.channel_tableWidget.cellWidget(idx, 0).setCurrentText(
-                    ch.config
-                )
-            else:
-                warnings.warn(
-                    f"Unrecognized channel: {ch.config!r}. "
-                    f"Valid channels include {channel_list}"
-                )
-            if ch.exposure:
-                self.ch_gb.channel_tableWidget.cellWidget(idx, 1).setValue(
-                    int(ch.exposure)
-                )
+        if state.channels:
+            self.ch_gb.set_state([c.dict() for c in state.channels])  # type: ignore
 
         # set Z
         if state.z_plan:
@@ -442,14 +414,7 @@ class MDAWidget(_MDAWidgetGui):
         -------
         useq.MDASequence
         """
-        channels: list[dict] = [
-            {
-                "config": self.ch_gb.channel_tableWidget.cellWidget(c, 0).currentText(),
-                "group": self._mmc.getChannelGroup() or "Channel",
-                "exposure": self.ch_gb.channel_tableWidget.cellWidget(c, 1).value(),
-            }
-            for c in range(self.ch_gb.channel_tableWidget.rowCount())
-        ]
+        channels = self.channel_groupbox.value()
 
         z_plan = self.z_gp.value() if self.z_gp.isChecked() else None
 

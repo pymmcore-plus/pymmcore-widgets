@@ -73,7 +73,7 @@ class SampleExplorerWidget(SampleExplorerGui):
         self.pos_gp = self.stage_pos_groupbox
 
         # connect valueUpdated signal
-        self.ch_gb.valueUpdated.connect(self._update_total_time)
+        self.ch_gb.valueChanged.connect(self._update_total_time)
         self.z_gp.valueChanged.connect(self._update_total_time)
         self.tm_gp.valueUpdated.connect(self._update_total_time)
 
@@ -103,7 +103,7 @@ class SampleExplorerWidget(SampleExplorerGui):
         self.pixel_size = self._mmc.getPixelSizeUm()
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
-        self.ch_gb._clear_channel()
+        self.ch_gb.clear()
         self._clear_positions()
 
     def _set_enabled(self, enabled: bool) -> None:
@@ -306,15 +306,7 @@ class SampleExplorerWidget(SampleExplorerGui):
         tiles = self.scan_size_spinBox_r.value() * self.scan_size_spinBox_c.value()
 
         # channel
-        exp: list = []
-        ch = self.ch_gb.channel_tableWidget.rowCount()
-        if ch > 0:
-            exp.extend(
-                self.ch_gb.channel_tableWidget.cellWidget(r, 1).value()
-                for r in range(ch)
-            )
-        else:
-            exp = []
+        exp: list[float] = [e for c in self.ch_gb.value() if (e := c.get("exposure"))]
 
         # time
         if self.tm_gp.isChecked():
@@ -429,16 +421,7 @@ class SampleExplorerWidget(SampleExplorerGui):
         -------
         useq.MDASequence
         """
-        table = self.ch_gb.channel_tableWidget
-
-        channels: list[dict] = [
-            {
-                "config": table.cellWidget(c, 0).currentText(),
-                "group": self._mmc.getChannelGroup() or "Channel",
-                "exposure": table.cellWidget(c, 1).value(),
-            }
-            for c in range(table.rowCount())
-        ]
+        channels = self.channel_groupbox.value()
 
         z_plan = self.z_gp.value() if self.z_gp.isChecked() else None
 
