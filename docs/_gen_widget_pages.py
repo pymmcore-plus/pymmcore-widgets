@@ -66,7 +66,8 @@ def _example_screenshot(cls_name: str, dest: str) -> None:
     app = QApplication.instance() or QApplication([])
     new = [w for w in app.topLevelWidgets() if id(w) not in SEEN]
     SEEN.update(id(w) for w in new)
-
+    if not new:
+        return
     widget = next((w for w in new if w.__class__.__name__ == cls_name), None) or next(
         (w for w in new if w.__class__.__name__ != "QFrame"), new[0]
     )
@@ -81,7 +82,7 @@ def _generate_widget_page(widget: str) -> None:
     """Auto-Generate pages in the widgets folder."""
     filename = f"widgets/{widget}.md"
     snake = _camel_to_snake(widget)
-
+    print("Generating", filename)
     img = f"images/{snake}.png"
     with mkdocs_gen_files.open(img, "wb") as f:
         _example_screenshot(widget, f.name)
