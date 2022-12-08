@@ -339,14 +339,14 @@ class SampleExplorerWidget(MDAWidget):
             self.return_to_position_x = None
             self.return_to_position_y = None
 
-    def _update_total_time(self, tiles: int = 1) -> None:
+    def _update_total_time(self, *, tiles: int = 1) -> None:
         # use try/except because _update_total_time can be
         # called before the scan_size_spinBox_ are created.
         try:
             tiles = self.scan_size_spinBox_c.value() * self.scan_size_spinBox_r.value()
         except AttributeError:
             return
-        super()._update_total_time(tiles)
+        super()._update_total_time(tiles=tiles)
 
     def get_state(self) -> MDASequence:  # sourcery skip: merge-dict-assign
         """Get current state of widget and build a useq.MDASequence.
