@@ -11,11 +11,13 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QSizePolicy,
+    QSpacerItem,
     QSpinBox,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
+from superqt import QCollapsible
 from useq import MDASequence
 
 from pymmcore_widgets._mda_widget._mda_widget import MDAWidget
@@ -66,9 +68,44 @@ class SampleExplorerWidget(MDAWidget):
         scroll_layout = cast(QVBoxLayout, self._wdg.layout())
         scroll_layout.insertWidget(0, self._create_row_cols_overlap_group())
 
-        self.stage_pos_groupbox.setTitle("Grid Starting Positions")
+        self.channel_groupbox.setMinimumHeight(200)
 
+        # groupbox for mda option QCollapsible
+        wdg = QGroupBox()
+        wdg.setLayout(QVBoxLayout())
+        wdg.layout().setSpacing(0)
+        wdg.layout().setContentsMargins(10, 10, 10, 10)
+
+        _coll = QCollapsible(title="MDA Options")
+        _coll.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        _coll.setLayout(QVBoxLayout())
+        _coll.layout().setSpacing(0)
+        _coll.layout().setContentsMargins(0, 0, 0, 0)
+        wdg.layout().addWidget(_coll)
+
+        _coll.addWidget(self._spacer())
+
+        scroll_layout.removeWidget(self.time_groupbox)
+        _coll.addWidget(self.time_groupbox)
+
+        _coll.addWidget(self._spacer())
+
+        scroll_layout.removeWidget(self.stack_groupbox)
+        _coll.addWidget(self.stack_groupbox)
+
+        _coll.addWidget(self._spacer())
+
+        scroll_layout.removeWidget(self.stage_pos_groupbox)
+        self.stage_pos_groupbox.setTitle("Grid Starting Positions")
         self.stage_pos_groupbox.grid_button.hide()
+        _coll.addWidget(self.stage_pos_groupbox)
+
+        scroll_layout.insertWidget(2, wdg)
+
+        spacer = QSpacerItem(
+            30, 10, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
+        )
+        scroll_layout.insertItem(3, spacer)
 
         # explorer variables
         self.pixel_size = self._mmc.getPixelSizeUm()
@@ -78,6 +115,12 @@ class SampleExplorerWidget(MDAWidget):
         # connection for scan size
         self.scan_size_spinBox_r.valueChanged.connect(self._update_total_time)
         self.scan_size_spinBox_c.valueChanged.connect(self._update_total_time)
+
+    def _spacer(self) -> QLabel:
+        # spacer for QCollapsible since we cannot add a QSpacerItem
+        spacer = QLabel()
+        spacer.setFixedSize(1, 10)
+        return spacer
 
     def _create_row_cols_overlap_group(self) -> QGroupBox:
 
@@ -396,6 +439,8 @@ if __name__ == "__main__":
 
     from qtpy.QtWidgets import QApplication
 
+    mmc = CMMCorePlus.instance()
+    mmc.loadSystemConfiguration()
     app = QApplication(sys.argv)
     win = SampleExplorerWidget()
     win.show()
