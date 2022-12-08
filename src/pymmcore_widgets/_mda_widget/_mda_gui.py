@@ -78,8 +78,6 @@ class _MDAWidgetGui(QWidget):
             e for c in self.channel_groupbox.value() if (e := c.get("exposure"))
         ]
 
-        print("exp:", exp)
-
         # time
         if self.time_groupbox.isChecked():
             val = self.time_groupbox.value()
@@ -88,26 +86,21 @@ class _MDAWidgetGui(QWidget):
         else:
             timepoints = 1
             interval = -1.0
-        print("timepoints:", timepoints, "interval:", interval)
 
         # z stack
         n_z_images = (
             self.stack_groupbox.n_images() if self.stack_groupbox.isChecked() else 1
         )
-        print("n_z_images:", n_z_images, type(n_z_images))
 
         # positions
         if self.stage_pos_groupbox.isChecked():
             n_pos = self.stage_pos_groupbox.stage_tableWidget.rowCount() or 1
         else:
             n_pos = 1
-        print("n_pos:", n_pos, type(n_pos))
 
         # acq time per timepoint
         time_chs: float = 0.0  # s
         for e in exp:
-            print("e", e, e / 1000, type(e))
-            print("tiles", tiles)
             time_chs = time_chs + ((e / 1000) * n_z_images * n_pos * tiles)
 
         min_aq_tp, unit_1 = _select_output_unit(time_chs)
