@@ -24,6 +24,33 @@ LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
 
 class SampleExplorerWidget(MDAWidget):
+    """Widget to create and run grid acquisitions.
+
+    The `SampleExplorerWidget` provides a GUI to construct a
+    [`useq.MDASequence`](https://github.com/tlambert03/useq-schema) object.
+    If the `include_run_button` parameter is set to `True`, a "run" button is added
+    to the GUI and, when clicked, the generated
+    [`useq.MDASequence`](https://github.com/tlambert03/useq-schema)
+    is passed to the
+    [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.run_mda]
+    method and the acquisition is executed.
+
+    Parameters
+    ----------
+    parent : QWidget | None
+        Optional parent widget, by default None.
+    include_run_button: bool
+        By default, `False`. If `True`, a "run" button is added to the widget.
+        The acquisition defined by the
+        [`useq.MDASequence`](https://github.com/tlambert03/useq-schema)
+        built through the widget is executed when clicked.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    """
+
     def __init__(
         self,
         *,
@@ -164,6 +191,7 @@ class SampleExplorerWidget(MDAWidget):
         self._update_total_time()
 
     def _rename_positions(self, names: list = None) -> None:  # type: ignore
+        """Rename the positions to keep name's correct counter of 3digits."""
         # name arguments to match super method
         for grid_count, r in enumerate(
             range(self.stage_pos_groupbox.stage_tableWidget.rowCount())
@@ -185,13 +213,14 @@ class SampleExplorerWidget(MDAWidget):
             self.stage_pos_groupbox.stage_tableWidget.setItem(r, 0, item)
 
     def _get_pos_name(self, row: int) -> str:
+        """Get position name from table item's whatsThis property."""
         item = self.stage_pos_groupbox.stage_tableWidget.item(row, 0)
         name = item.text()
         whatsthis = item.whatsThis()
         return f"{name}_{whatsthis}" if whatsthis not in name else name  # type: ignore
 
-    def _set_grid(self) -> list[tuple[str, float, float, float | None]]:
-
+    def _create_grid_coords(self) -> list[tuple[str, float, float, float | None]]:
+        """Calculate the grid coordinates for each grid starting position."""
         scan_size_r = self.scan_size_spinBox_r.value()
         scan_size_c = self.scan_size_spinBox_c.value()
         self.pixel_size = self._mmc.getPixelSizeUm()
@@ -336,7 +365,7 @@ class SampleExplorerWidget(MDAWidget):
         )
 
         stage_positions: list[dict] = []
-        for g in self._set_grid():
+        for g in self._create_grid_coords():
             pos = {"name": g[0], "x": g[1], "y": g[2]}
             if len(g) == 4:
                 pos["z"] = g[3]
@@ -371,6 +400,3 @@ if __name__ == "__main__":
     win = SampleExplorerWidget()
     win.show()
     sys.exit(app.exec_())
-
-
-#
