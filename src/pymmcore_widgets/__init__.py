@@ -22,7 +22,6 @@ from ._properties_widget import PropertiesWidget
 from ._property_browser import PropertyBrowser
 from ._property_widget import PropertyWidget
 from ._shutter_widget import ShuttersWidget
-from ._slider_dialog_widget import SliderDialog
 from ._snap_button_widget import SnapButton
 from ._stage_widget import StageWidget
 
@@ -45,7 +44,6 @@ __all__ = [
     "PropertyWidget",
     "SampleExplorerWidget",
     "ShuttersWidget",
-    "SliderDialog",
     "SnapButton",
     "StageWidget",
     "StateDeviceWidget",
