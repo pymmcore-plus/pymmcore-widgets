@@ -6,8 +6,7 @@ from unittest.mock import Mock, call
 from pymmcore_plus import CMMCorePlus
 from useq import MDASequence
 
-from pymmcore_widgets._mda_widget._grid_widget import GridWidget
-from pymmcore_widgets._mda_widget._mda_widget import MDAWidget
+from pymmcore_widgets._mda import GridWidget, MDAWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot

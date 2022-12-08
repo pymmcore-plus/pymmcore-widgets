@@ -3,14 +3,10 @@ from __future__ import annotations
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
-from pymmcore_widgets._channel_table_widget import ChannelTable
-from pymmcore_widgets._general_mda_widgets import (
-    _MDAControlButtons,
-    _MDAPositionTable,
-    _MDATimeLabel,
-)
-from pymmcore_widgets._time_plan_widget import TimePlanWidget
-from pymmcore_widgets._zstack_widget import ZStackWidget
+from ._channel_table_widget import ChannelTable
+from ._general_mda_widgets import _MDAControlButtons, _MDAPositionTable, _MDATimeLabel
+from ._time_plan_widget import TimePlanWidget
+from ._zstack_widget import ZStackWidget
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
