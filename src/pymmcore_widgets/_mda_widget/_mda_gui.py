@@ -8,8 +8,8 @@ from pymmcore_widgets._general_mda_widgets import (
     _MDAControlButtons,
     _MDAPositionTable,
     _MDATimeLabel,
-    _MDATimeWidget,
 )
+from pymmcore_widgets._time_plan_widget import TimePlanWidget
 from pymmcore_widgets._zstack_widget import ZStackWidget
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -51,7 +51,8 @@ class _MDAWidgetGui(QWidget):
         self.channel_groupbox.valueChanged.connect(self._enable_run_btn)
         wdg_layout.addWidget(self.channel_groupbox)
 
-        self.time_groupbox = _MDATimeWidget()
+        self.time_groupbox = TimePlanWidget()
+        self.time_groupbox.setChecked(False)
         wdg_layout.addWidget(self.time_groupbox)
 
         self.stack_groupbox = ZStackWidget()

@@ -206,7 +206,9 @@ class ChannelTable(QGroupBox):
                 )
         return values
 
-    def set_state(self, channels: list[ChannelDict]) -> None:
+    # note: this really ought to be ChannelDict, but it makes typing elsewhere harder
+    # TODO: also accept actual useq objects
+    def set_state(self, channels: list[dict]) -> None:
         """Set the state of the widget from a useq channel dictionary."""
         groups: set[str] = {c["group"] for c in channels if c.get("group")}
         if len(groups) > 1:

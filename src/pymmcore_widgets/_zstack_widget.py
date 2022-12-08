@@ -216,13 +216,18 @@ class ZStackWidget(QGroupBox):
     _MAX_STEP = 100000
     _NIMG_PREFIX = "Number of Images:"
 
-    def __init__(self, title: str = "Z Stack", parent: QWidget | None = None) -> None:
-        super().__init__(parent=parent)
-        self.setTitle(title)
+    def __init__(
+        self,
+        title: str = "Z Stack",
+        parent: QWidget | None = None,
+        *,
+        mmcore: CMMCorePlus | None = None,
+    ) -> None:
+        super().__init__(title, parent=parent)
         self.setCheckable(True)
         self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
-        self._mmc = CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         # tabs for each z selection mode
         self._zmode_tabs = QTabWidget()

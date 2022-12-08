@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import ContextManager, Literal, Sequence
+from typing import ContextManager, Sequence
 
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
@@ -82,15 +82,6 @@ def guess_objective_or_prompt(
         if dialog.exec_() == dialog.DialogCode.Accepted:
             return dialog.currentText()
     return None
-
-
-def _time_in_sec(value: float, input_unit: Literal["ms", "min", "hours"]) -> float:
-    if input_unit == "ms":
-        return value / 1000
-    elif input_unit == "min":
-        return value * 60
-    elif input_unit == "hours":
-        return value * 3600
 
 
 def _select_output_unit(duration: float) -> tuple[float, str]:

@@ -20,8 +20,8 @@ from pymmcore_widgets._general_mda_widgets import (
     _MDAControlButtons,
     _MDAPositionTable,
     _MDATimeLabel,
-    _MDATimeWidget,
 )
+from pymmcore_widgets._time_plan_widget import TimePlanWidget
 from pymmcore_widgets._zstack_widget import ZStackWidget
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -168,8 +168,8 @@ class SampleExplorerGui(QWidget):
         self.time_coll.layout().setContentsMargins(0, 0, 0, 0)
         spacer = self._spacer()
         self.time_coll.addWidget(spacer)
-        self.time_groupbox = _MDATimeWidget()
-        self.time_groupbox.setTitle("")
+        self.time_groupbox = TimePlanWidget("")
+        self.time_groupbox.setChecked(False)
         self.time_coll.addWidget(self.time_groupbox)
 
         group_layout.addWidget(self.time_coll)
@@ -180,9 +180,8 @@ class SampleExplorerGui(QWidget):
         self.stack_coll.layout().setContentsMargins(0, 0, 0, 0)
         spacer = self._spacer()
         self.stack_coll.addWidget(spacer)
-        self.stack_groupbox = ZStackWidget()
+        self.stack_groupbox = ZStackWidget("")
         self.stack_groupbox.setChecked(False)
-        self.stack_groupbox.setTitle("")
         self.stack_coll.addWidget(self.stack_groupbox)
 
         group_layout.addWidget(self.stack_coll)

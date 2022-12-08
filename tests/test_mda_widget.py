@@ -185,6 +185,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     global_mmcore.setExposure(100)
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
+    wdg.show()
 
     assert wdg.channel_groupbox._table.rowCount() == 0
     wdg.channel_groupbox._add_button.click()
@@ -194,10 +195,12 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     txt = "Minimum total acquisition time: 100.0000 ms.\n"
     assert wdg.time_lbl._total_time_lbl.text() == txt
+    assert not wdg.time_groupbox._warning_widget.isVisible()
 
     assert not wdg.time_groupbox.isChecked()
     wdg.time_groupbox.setChecked(True)
-    wdg.time_groupbox.time_comboBox.setCurrentText("ms")
+    wdg.time_groupbox._units_combo.setCurrentText("ms")
+    assert wdg.time_groupbox._warning_widget.isVisible()
 
     txt = (
         "Minimum total acquisition time: 100.0000 ms.\n"
@@ -205,25 +208,24 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
 
-    wdg.time_groupbox.timepoints_spinBox.setValue(3)
+    wdg.time_groupbox._timepoints_spinbox.setValue(3)
     txt = (
         "Minimum total acquisition time: 300.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
 
-    wdg.time_groupbox.interval_spinBox.setValue(10)
+    wdg.time_groupbox._interval_spinbox.setValue(10)
     txt1 = (
         "Minimum total acquisition time: 300.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
-    txt2 = "Interval shorter than acquisition time per timepoint."
     assert wdg.time_lbl._total_time_lbl.text() == txt1
-    assert wdg.time_groupbox._time_lbl.text() == txt2
 
-    wdg.time_groupbox.interval_spinBox.setValue(200)
+    wdg.time_groupbox._interval_spinbox.setValue(200)
     txt1 = (
         "Minimum total acquisition time: 500.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt1
+    assert not wdg.time_groupbox._warning_widget.isVisible()
