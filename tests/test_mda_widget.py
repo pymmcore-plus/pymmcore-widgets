@@ -17,7 +17,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
     assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 0
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 0
+    assert wdg.channel_groupbox._table.rowCount() == 0
     assert not wdg.time_groupbox.isChecked()
 
     wdg._set_enabled(False)
@@ -43,7 +43,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
     )
     wdg.set_state(sequence)
     assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 2
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 2
+    assert wdg.channel_groupbox._table.rowCount() == 2
     assert wdg.time_groupbox.isChecked()
 
     # round trip
@@ -65,15 +65,15 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 0
-    wdg.channel_groupbox.add_ch_button.click()
-    wdg.channel_groupbox.add_ch_button.click()
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 2
-    wdg.channel_groupbox.channel_tableWidget.selectRow(0)
-    wdg.channel_groupbox.remove_ch_button.click()
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 1
-    wdg.channel_groupbox.clear_ch_button.click()
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 0
+    assert wdg.channel_groupbox._table.rowCount() == 0
+    wdg.channel_groupbox._add_button.click()
+    wdg.channel_groupbox._add_button.click()
+    assert wdg.channel_groupbox._table.rowCount() == 2
+    wdg.channel_groupbox._table.selectRow(0)
+    wdg.channel_groupbox._remove_button.click()
+    assert wdg.channel_groupbox._table.rowCount() == 1
+    wdg.channel_groupbox._clear_button.click()
+    assert wdg.channel_groupbox._table.rowCount() == 0
 
     assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 0
     wdg.stage_pos_groupbox.setChecked(True)
@@ -182,14 +182,15 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    global_mmcore.setExposure(100)
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
     wdg.show()
 
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 0
-    wdg.channel_groupbox.add_ch_button.click()
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 1
-    assert wdg.channel_groupbox.channel_tableWidget.cellWidget(0, 1).value() == 100.0
+    assert wdg.channel_groupbox._table.rowCount() == 0
+    wdg.channel_groupbox._add_button.click()
+    assert wdg.channel_groupbox._table.rowCount() == 1
+    assert wdg.channel_groupbox._table.cellWidget(0, 1).value() == 100.0
     assert not wdg.time_groupbox.isChecked()
 
     txt = "Minimum total acquisition time: 100.0000 ms.\n"

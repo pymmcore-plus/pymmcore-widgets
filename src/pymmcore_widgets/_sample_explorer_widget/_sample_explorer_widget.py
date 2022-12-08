@@ -66,7 +66,7 @@ class SampleExplorerWidget(SampleExplorerGui):
         self.return_to_position_y = None
 
         # connect valueUpdated signal
-        self.channel_groupbox.valueUpdated.connect(self._update_total_time)
+        self.channel_groupbox.valueChanged.connect(self._update_total_time)
         self.stack_groupbox.valueChanged.connect(self._update_total_time)
         self.time_groupbox.valueChanged.connect(self._update_total_time)
         self.time_groupbox.toggled.connect(self._update_total_time)
@@ -96,7 +96,7 @@ class SampleExplorerWidget(SampleExplorerGui):
         self.pixel_size = self._mmc.getPixelSizeUm()
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
-        self.channel_groupbox._clear_channel()
+        self.channel_groupbox.clear()
         self._clear_positions()
 
     def _set_enabled(self, enabled: bool) -> None:
@@ -306,15 +306,9 @@ class SampleExplorerWidget(SampleExplorerGui):
         tiles = self.scan_size_spinBox_r.value() * self.scan_size_spinBox_c.value()
 
         # channel
-        exp: list = []
-        ch = self.channel_groupbox.channel_tableWidget.rowCount()
-        if ch > 0:
-            exp.extend(
-                self.channel_groupbox.channel_tableWidget.cellWidget(r, 1).value()
-                for r in range(ch)
-            )
-        else:
-            exp = []
+        exp: list[float] = [
+            e for c in self.channel_groupbox.value() if (e := c.get("exposure"))
+        ]
 
         # time
         if self.time_groupbox.isChecked():
@@ -403,16 +397,7 @@ class SampleExplorerWidget(SampleExplorerGui):
         -------
         useq.MDASequence
         """
-        table = self.channel_groupbox.channel_tableWidget
-
-        channels: list[dict] = [
-            {
-                "config": table.cellWidget(c, 0).currentText(),
-                "group": self._mmc.getChannelGroup() or "Channel",
-                "exposure": table.cellWidget(c, 1).value(),
-            }
-            for c in range(table.rowCount())
-        ]
+        channels = self.channel_groupbox.value()
 
         z_plan = (
             self.stack_groupbox.value() if self.stack_groupbox.isChecked() else None

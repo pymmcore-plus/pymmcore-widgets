@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     # sourcery skip: remove-duplicate-set-key
-
+    global_mmcore.setExposure(100)
     s_exp = SampleExplorerWidget(include_run_button=True)
     qtbot.add_widget(s_exp)
     mmc = global_mmcore
@@ -25,8 +25,8 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     s_exp.scan_size_spinBox_r.setValue(2)
     s_exp.ovelap_spinBox.setValue(10)
 
-    s_exp.channel_groupbox.add_ch_button.click()
-    assert s_exp.channel_groupbox.channel_tableWidget.rowCount() == 1
+    s_exp.channel_groupbox._add_button.click()
+    assert s_exp.channel_groupbox._table.rowCount() == 1
 
     s_exp.time_groupbox.setChecked(True)
     s_exp.time_groupbox._timepoints_spinbox.setValue(2)
@@ -114,15 +114,15 @@ def test_explorer_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.scan_size_spinBox_c.value() == 1
     assert wdg.scan_size_spinBox_r.value() == 1
 
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 0
-    wdg.channel_groupbox.add_ch_button.click()
-    wdg.channel_groupbox.add_ch_button.click()
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 2
-    wdg.channel_groupbox.channel_tableWidget.selectRow(0)
-    wdg.channel_groupbox.remove_ch_button.click()
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 1
-    wdg.channel_groupbox.clear_ch_button.click()
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 0
+    assert wdg.channel_groupbox._table.rowCount() == 0
+    wdg.channel_groupbox._add_button.click()
+    wdg.channel_groupbox._add_button.click()
+    assert wdg.channel_groupbox._table.rowCount() == 2
+    wdg.channel_groupbox._table.selectRow(0)
+    wdg.channel_groupbox._remove_button.click()
+    assert wdg.channel_groupbox._table.rowCount() == 1
+    wdg.channel_groupbox._clear_button.click()
+    assert wdg.channel_groupbox._table.rowCount() == 0
 
     assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 0
     wdg.stage_pos_groupbox.setChecked(True)
@@ -162,14 +162,15 @@ def test_explorer_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    global_mmcore.setExposure(100)
     wdg = SampleExplorerWidget(include_run_button=True)
     qtbot.addWidget(wdg)
     wdg.show()
 
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 0
-    wdg.channel_groupbox.add_ch_button.click()
-    assert wdg.channel_groupbox.channel_tableWidget.rowCount() == 1
-    assert wdg.channel_groupbox.channel_tableWidget.cellWidget(0, 1).value() == 100.0
+    assert wdg.channel_groupbox._table.rowCount() == 0
+    wdg.channel_groupbox._add_button.click()
+    assert wdg.channel_groupbox._table.rowCount() == 1
+    assert wdg.channel_groupbox._table.cellWidget(0, 1).value() == 100.0
     assert not wdg.time_groupbox.isChecked()
     assert not wdg.time_groupbox._warning_widget.isVisible()
     wdg.time_groupbox._units_combo.setCurrentText("ms")

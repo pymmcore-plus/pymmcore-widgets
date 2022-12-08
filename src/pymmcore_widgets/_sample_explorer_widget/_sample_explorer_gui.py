@@ -15,8 +15,8 @@ from qtpy.QtWidgets import (
 )
 from superqt import QCollapsible
 
+from pymmcore_widgets._channel_table_widget import ChannelTable
 from pymmcore_widgets._general_mda_widgets import (
-    _MDAChannelTable,
     _MDAControlButtons,
     _MDAPositionTable,
     _MDATimeLabel,
@@ -62,14 +62,9 @@ class SampleExplorerGui(QWidget):
         self.scan_props = self._create_row_cols_overlap_group()
         wdg_layout.addWidget(self.scan_props)
 
-        self.channel_groupbox = _MDAChannelTable()
+        self.channel_groupbox = ChannelTable()
+        self.channel_groupbox.valueChanged.connect(self._enable_run_btn)
         wdg_layout.addWidget(self.channel_groupbox)
-        self.channel_groupbox.channel_tableWidget.model().rowsInserted.connect(
-            self._enable_run_btn
-        )
-        self.channel_groupbox.channel_tableWidget.model().rowsRemoved.connect(
-            self._enable_run_btn
-        )
 
         mda_options = self._create_mda_options()
         wdg_layout.addWidget(mda_options)
@@ -83,7 +78,7 @@ class SampleExplorerGui(QWidget):
 
     def _enable_run_btn(self) -> None:
         self.buttons_wdg.run_button.setEnabled(
-            self.channel_groupbox.channel_tableWidget.rowCount() > 0
+            self.channel_groupbox._table.rowCount() > 0
         )
 
     def _create_row_cols_overlap_group(self) -> QGroupBox:
