@@ -7,7 +7,7 @@ from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from useq import MDASequence
 
-from .._util import _select_output_unit, guess_channel_group
+from .._util import guess_channel_group
 from ._grid_widget import GridWidget
 from ._mda_gui import _MDAWidgetGui
 
@@ -247,60 +247,6 @@ class MDAWidget(_MDAWidgetGui):
             self.stage_pos_groupbox.stage_tableWidget.setItem(rows, 1, x)
             self.stage_pos_groupbox.stage_tableWidget.setItem(rows, 2, y)
             self.stage_pos_groupbox.stage_tableWidget.setItem(rows, 3, z)
-
-    def _update_total_time(self) -> None:
-        # channel
-        exp: list[float] = [
-            e for c in self.channel_groupbox.value() if (e := c.get("exposure"))
-        ]
-
-        # time
-        if self.time_groupbox.isChecked():
-            val = self.time_groupbox.value()
-            timepoints = val["loops"]
-            interval = val["interval"].total_seconds()
-        else:
-            timepoints = 1
-            interval = -1.0
-
-        # z stack
-        n_z_images = (
-            self.stack_groupbox.n_images() if self.stack_groupbox.isChecked() else 1
-        )
-
-        # positions
-        if self.stage_pos_groupbox.isChecked():
-            n_pos = self.stage_pos_groupbox.stage_tableWidget.rowCount() or 1
-        else:
-            n_pos = 1
-        n_pos = n_pos
-
-        # acq time per timepoint
-        time_chs: float = 0.0  # s
-        for e in exp:
-            time_chs = time_chs + ((e / 1000) * n_z_images * n_pos)
-
-        min_aq_tp, unit_1 = _select_output_unit(time_chs)
-
-        addition_time = 0.0
-        effective_interval = 0.0
-        if interval >= time_chs:
-            effective_interval = float(interval) - time_chs  # s
-            addition_time = effective_interval * timepoints  # s
-
-        min_tot_time, unit_4 = _select_output_unit(
-            (time_chs * timepoints) + addition_time - effective_interval
-        )
-
-        self.time_groupbox.setWarningVisible(-1 < interval < time_chs)
-
-        t_per_tp_msg = ""
-        tot_acq_msg = f"Minimum total acquisition time: {min_tot_time:.4f} {unit_4}.\n"
-        if self.time_groupbox.isChecked():
-            t_per_tp_msg = (
-                f"Minimum acquisition time per timepoint: {min_aq_tp:.4f} {unit_1}."
-            )
-        self.time_lbl._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
 
     def _on_mda_started(self) -> None:
         self._set_enabled(False)
