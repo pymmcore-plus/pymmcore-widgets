@@ -124,14 +124,3 @@ class _MDAWidgetGui(QWidget):
                 f"Minimum acquisition time per timepoint: {min_aq_tp:.4f} {unit_1}."
             )
         self.time_lbl._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
-
-
-if __name__ == "__main__":
-    import sys
-
-    from qtpy.QtWidgets import QApplication
-
-    app = QApplication(sys.argv)
-    win = _MDAWidgetGui()
-    win.show()
-    sys.exit(app.exec_())
