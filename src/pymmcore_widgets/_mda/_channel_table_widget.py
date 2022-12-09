@@ -109,6 +109,10 @@ class ChannelTable(QGroupBox):
 
         group_layout.addWidget(wdg, 0, 1)
 
+        self._mmc.events.systemConfigurationLoaded.connect(self.clear)
+
+        self.destroyed.connect(self._disconnect)
+
     def setChannelGroup(self, group: str) -> None:
         """Set current channel group."""
         if group:
@@ -235,3 +239,6 @@ class ChannelTable(QGroupBox):
                 self._create_new_row(ch, exposure)
 
         self.valueChanged.emit()
+
+    def _disconnect(self) -> None:
+        self._mmc.events.systemConfigurationLoaded.disconnect(self.clear)
