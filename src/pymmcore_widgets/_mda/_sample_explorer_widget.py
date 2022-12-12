@@ -71,6 +71,7 @@ class SampleExplorerWidget(MDAWidget):
         self.channel_groupbox.setMinimumHeight(175)
 
         # groupbox for mda option QCollapsible
+        # move Time, Z Stack and Positions in a collapsible
         wdg = QGroupBox(title="MDA Options")
         wdg.setLayout(QVBoxLayout())
         wdg.layout().setSpacing(10)
