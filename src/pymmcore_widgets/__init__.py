@@ -21,7 +21,6 @@ from ._presets_widget import PresetsWidget
 from ._properties_widget import PropertiesWidget
 from ._property_browser import PropertyBrowser
 from ._property_widget import PropertyWidget
-from ._sample_explorer_widget import SampleExplorerWidget
 from ._shutter_widget import ShuttersWidget
 from ._snap_button_widget import SnapButton
 from ._stage_widget import StageWidget

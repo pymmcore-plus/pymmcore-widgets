@@ -20,7 +20,7 @@ from qtpy.QtWidgets import (
 from superqt import QCollapsible
 from useq import MDASequence
 
-from pymmcore_widgets._mda_widget._mda_widget import MDAWidget
+from pymmcore_widgets._mda import MDAWidget
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
@@ -71,34 +71,29 @@ class SampleExplorerWidget(MDAWidget):
         self.channel_groupbox.setMinimumHeight(200)
 
         # groupbox for mda option QCollapsible
-        wdg = QGroupBox()
+        wdg = QGroupBox(title="MDA Options")
         wdg.setLayout(QVBoxLayout())
-        wdg.layout().setSpacing(0)
+        wdg.layout().setSpacing(10)
         wdg.layout().setContentsMargins(10, 10, 10, 10)
 
-        _coll = QCollapsible(title="MDA Options")
-        _coll.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-        _coll.setLayout(QVBoxLayout())
-        _coll.layout().setSpacing(0)
-        _coll.layout().setContentsMargins(0, 0, 0, 0)
-        wdg.layout().addWidget(_coll)
-
-        _coll.addWidget(self._spacer())
-
+        time_coll = self._create_collapsible(title="Time")
+        wdg.layout().addWidget(time_coll)
         scroll_layout.removeWidget(self.time_groupbox)
-        _coll.addWidget(self.time_groupbox)
+        self.time_groupbox.setTitle("")
+        time_coll.addWidget(self.time_groupbox)
 
-        _coll.addWidget(self._spacer())
-
+        stack_coll = self._create_collapsible(title="Z Stack")
+        wdg.layout().addWidget(stack_coll)
         scroll_layout.removeWidget(self.stack_groupbox)
-        _coll.addWidget(self.stack_groupbox)
+        self.stack_groupbox.setTitle("")
+        stack_coll.addWidget(self.stack_groupbox)
 
-        _coll.addWidget(self._spacer())
-
+        pos_coll = self._create_collapsible(title="Grid Starting Positions")
+        wdg.layout().addWidget(pos_coll)
         scroll_layout.removeWidget(self.stage_pos_groupbox)
-        self.stage_pos_groupbox.setTitle("Grid Starting Positions")
+        self.stage_pos_groupbox.setTitle("")
         self.stage_pos_groupbox.grid_button.hide()
-        _coll.addWidget(self.stage_pos_groupbox)
+        pos_coll.addWidget(self.stage_pos_groupbox)
 
         scroll_layout.insertWidget(2, wdg)
 
@@ -115,12 +110,6 @@ class SampleExplorerWidget(MDAWidget):
         # connection for scan size
         self.scan_size_spinBox_r.valueChanged.connect(self._update_total_time)
         self.scan_size_spinBox_c.valueChanged.connect(self._update_total_time)
-
-    def _spacer(self) -> QLabel:
-        # spacer for QCollapsible since we cannot add a QSpacerItem
-        spacer = QLabel()
-        spacer.setFixedSize(1, 10)
-        return spacer
 
     def _create_row_cols_overlap_group(self) -> QGroupBox:
 
@@ -185,11 +174,44 @@ class SampleExplorerWidget(MDAWidget):
         group_layout.addWidget(self.ovl_wdg, 0, 1)
         return group
 
+    def _create_collapsible(self, title: str) -> QCollapsible:
+        coll = QCollapsible(title=title)
+        coll.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        coll.setLayout(QVBoxLayout())
+        coll.layout().setSpacing(0)
+        coll.layout().setContentsMargins(0, 0, 0, 0)
+        return coll
+
     def _set_enabled(self, enabled: bool) -> None:
         super()._set_enabled(enabled)
         self.scan_size_spinBox_r.setEnabled(enabled)
         self.scan_size_spinBox_c.setEnabled(enabled)
         self.ovelap_spinBox.setEnabled(enabled)
+
+    def _on_mda_finished(self) -> None:
+        super()._on_mda_finished()
+
+        if not hasattr(self, "return_to_position_x"):
+            return
+
+        if (
+            self.return_to_position_x is not None
+            and self.return_to_position_y is not None
+        ):
+            self._mmc.setXYPosition(
+                self.return_to_position_x, self.return_to_position_y
+            )
+            self.return_to_position_x = None
+            self.return_to_position_y = None
+
+    def _update_total_time(self, *, tiles: int = 1) -> None:
+        # use try/except because _update_total_time could be
+        # called before the scan_size_spinBox_ are created.
+        try:
+            tiles = self.scan_size_spinBox_c.value() * self.scan_size_spinBox_r.value()
+        except AttributeError:
+            return
+        super()._update_total_time(tiles=tiles)
 
     def _add_position(self) -> None:
 
@@ -366,31 +388,6 @@ class SampleExplorerWidget(MDAWidget):
 
         return full_pos_list  # type: ignore
 
-    def _on_mda_finished(self) -> None:
-        super()._on_mda_finished()
-
-        if not hasattr(self, "return_to_position_x"):
-            return
-
-        if (
-            self.return_to_position_x is not None
-            and self.return_to_position_y is not None
-        ):
-            self._mmc.setXYPosition(
-                self.return_to_position_x, self.return_to_position_y
-            )
-            self.return_to_position_x = None
-            self.return_to_position_y = None
-
-    def _update_total_time(self, *, tiles: int = 1) -> None:
-        # use try/except because _update_total_time can be
-        # called before the scan_size_spinBox_ are created.
-        try:
-            tiles = self.scan_size_spinBox_c.value() * self.scan_size_spinBox_r.value()
-        except AttributeError:
-            return
-        super()._update_total_time(tiles=tiles)
-
     def get_state(self) -> MDASequence:  # sourcery skip: merge-dict-assign
         """Get current state of widget and build a useq.MDASequence.
 
@@ -442,6 +439,6 @@ if __name__ == "__main__":
     mmc = CMMCorePlus.instance()
     mmc.loadSystemConfiguration()
     app = QApplication(sys.argv)
-    win = SampleExplorerWidget()
+    win = SampleExplorerWidget(include_run_button=True)
     win.show()
     sys.exit(app.exec_())

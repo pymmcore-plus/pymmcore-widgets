@@ -110,7 +110,7 @@ class _MDAWidgetGui(QWidget):
             (time_chs * timepoints) + addition_time - effective_interval
         )
 
-        self.time_groupbox.setWarningVisible(-1 < interval < time_chs)
+        self.time_groupbox.setWarningVisible(0 < interval < time_chs)
 
         t_per_tp_msg = ""
         tot_acq_msg = f"Minimum total acquisition time: {min_tot_time:.4f} {unit_4}.\n"

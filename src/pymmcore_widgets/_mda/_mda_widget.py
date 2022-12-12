@@ -109,6 +109,23 @@ class MDAWidget(_MDAWidgetGui):
         else:
             self.stack_groupbox.setEnabled(enabled)
 
+    def _on_mda_started(self) -> None:
+        self._set_enabled(False)
+        if self._include_run_button:
+            self.buttons_wdg.pause_button.show()
+            self.buttons_wdg.cancel_button.show()
+        self.buttons_wdg.run_button.hide()
+
+    def _on_mda_finished(self) -> None:
+        self._set_enabled(True)
+        self.buttons_wdg.pause_button.hide()
+        self.buttons_wdg.cancel_button.hide()
+        if self._include_run_button:
+            self.buttons_wdg.run_button.show()
+
+    def _on_mda_paused(self, paused: bool) -> None:
+        self.buttons_wdg.pause_button.setText("Resume" if paused else "Pause")
+
     # add, remove, clear, move_to positions table
     def _add_position(self) -> None:
 
@@ -248,23 +265,6 @@ class MDAWidget(_MDAWidgetGui):
             self.stage_pos_groupbox.stage_tableWidget.setItem(rows, 2, y)
             self.stage_pos_groupbox.stage_tableWidget.setItem(rows, 3, z)
 
-    def _on_mda_started(self) -> None:
-        self._set_enabled(False)
-        if self._include_run_button:
-            self.buttons_wdg.pause_button.show()
-            self.buttons_wdg.cancel_button.show()
-        self.buttons_wdg.run_button.hide()
-
-    def _on_mda_finished(self) -> None:
-        self._set_enabled(True)
-        self.buttons_wdg.pause_button.hide()
-        self.buttons_wdg.cancel_button.hide()
-        if self._include_run_button:
-            self.buttons_wdg.run_button.show()
-
-    def _on_mda_paused(self, paused: bool) -> None:
-        self.buttons_wdg.pause_button.setText("Resume" if paused else "Pause")
-
     def set_state(self, state: dict | MDASequence | str | Path) -> None:
         """Set current state of MDA widget.
 
@@ -385,5 +385,5 @@ class MDAWidget(_MDAWidgetGui):
         # construct a `useq.MDASequence` object from the values inserted in the widget
         experiment = self.get_state()
         # run the MDA experiment asynchronously
-        self._mmc.run_mda(experiment)  # run the MDA experiment asynchronously
+        self._mmc.run_mda(experiment)
         return
