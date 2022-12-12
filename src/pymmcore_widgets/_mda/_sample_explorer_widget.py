@@ -68,7 +68,7 @@ class SampleExplorerWidget(MDAWidget):
         scroll_layout = cast(QVBoxLayout, self._wdg.layout())
         scroll_layout.insertWidget(0, self._create_row_cols_overlap_group())
 
-        self.channel_groupbox.setMinimumHeight(200)
+        self.channel_groupbox.setMinimumHeight(175)
 
         # groupbox for mda option QCollapsible
         wdg = QGroupBox(title="MDA Options")
@@ -100,7 +100,7 @@ class SampleExplorerWidget(MDAWidget):
         spacer = QSpacerItem(
             30, 10, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
         )
-        scroll_layout.insertItem(3, spacer)
+        scroll_layout.addItem(spacer)
 
         # explorer variables
         self.pixel_size = self._mmc.getPixelSizeUm()
@@ -177,7 +177,6 @@ class SampleExplorerWidget(MDAWidget):
     def _create_collapsible(self, title: str) -> QCollapsible:
         coll = QCollapsible(title=title)
         coll.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-        coll.setLayout(QVBoxLayout())
         coll.layout().setSpacing(0)
         coll.layout().setContentsMargins(0, 0, 0, 0)
         return coll
