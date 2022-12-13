@@ -65,7 +65,7 @@ class SampleExplorerWidget(MDAWidget):
         )
 
         # add widget elements
-        scroll_layout = cast(QVBoxLayout, self._wdg.layout())
+        scroll_layout = cast(QVBoxLayout, self._central_widget.layout())
         scroll_layout.insertWidget(0, self._create_row_cols_overlap_group())
 
         self.channel_groupbox.setMinimumHeight(175)
@@ -91,10 +91,10 @@ class SampleExplorerWidget(MDAWidget):
 
         pos_coll = self._create_collapsible(title="Grid Starting Positions")
         wdg.layout().addWidget(pos_coll)
-        scroll_layout.removeWidget(self.stage_pos_groupbox)
-        self.stage_pos_groupbox.setTitle("")
-        self.stage_pos_groupbox.grid_button.hide()
-        pos_coll.addWidget(self.stage_pos_groupbox)
+        scroll_layout.removeWidget(self.position_groupbox)
+        self.position_groupbox.setTitle("")
+        self.position_groupbox.grid_button.hide()
+        pos_coll.addWidget(self.position_groupbox)
 
         scroll_layout.insertWidget(2, wdg)
 
@@ -223,13 +223,13 @@ class SampleExplorerWidget(MDAWidget):
 
             for c, ax in enumerate("GXYZ"):
                 if ax == "G":
-                    count = self.stage_pos_groupbox.stage_tableWidget.rowCount()
+                    count = self.position_groupbox.stage_tableWidget.rowCount()
                     item = QTableWidgetItem(f"Grid_{count:03d}")
                     item.setWhatsThis(f"Grid_{count:03d}")
                     item.setTextAlignment(
                         Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
                     )
-                    self.stage_pos_groupbox.stage_tableWidget.setItem(idx, c, item)
+                    self.position_groupbox.stage_tableWidget.setItem(idx, c, item)
                     self._rename_positions()
                     continue
 
@@ -241,17 +241,17 @@ class SampleExplorerWidget(MDAWidget):
                 item.setTextAlignment(
                     Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
                 )
-                self.stage_pos_groupbox.stage_tableWidget.setItem(idx, c, item)
+                self.position_groupbox.stage_tableWidget.setItem(idx, c, item)
 
         self._update_total_time()
 
     def _remove_position(self) -> None:
         # remove selected position
         rows = {
-            r.row() for r in self.stage_pos_groupbox.stage_tableWidget.selectedIndexes()
+            r.row() for r in self.position_groupbox.stage_tableWidget.selectedIndexes()
         }
         for idx in sorted(rows, reverse=True):
-            self.stage_pos_groupbox.stage_tableWidget.removeRow(idx)
+            self.position_groupbox.stage_tableWidget.removeRow(idx)
         self._rename_positions()
         self._update_total_time()
 
@@ -259,9 +259,9 @@ class SampleExplorerWidget(MDAWidget):
         """Rename the positions to keep name's correct counter of 3digits."""
         # name arguments to match super method
         for grid_count, r in enumerate(
-            range(self.stage_pos_groupbox.stage_tableWidget.rowCount())
+            range(self.position_groupbox.stage_tableWidget.rowCount())
         ):
-            item = self.stage_pos_groupbox.stage_tableWidget.item(r, 0)
+            item = self.position_groupbox.stage_tableWidget.item(r, 0)
             item_text = item.text()
             item_whatisthis = item.whatsThis()
             if item_text == item_whatisthis:
@@ -275,11 +275,11 @@ class SampleExplorerWidget(MDAWidget):
                 Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
             )
             item.setWhatsThis(new_whatisthis)
-            self.stage_pos_groupbox.stage_tableWidget.setItem(r, 0, item)
+            self.position_groupbox.stage_tableWidget.setItem(r, 0, item)
 
     def _get_pos_name(self, row: int) -> str:
         """Get position name from table item's whatsThis property."""
-        item = self.stage_pos_groupbox.stage_tableWidget.item(row, 0)
+        item = self.position_groupbox.stage_tableWidget.item(row, 0)
         name = item.text()
         whatsthis = item.whatsThis()
         return f"{name}_{whatsthis}" if whatsthis not in name else name  # type: ignore
@@ -295,14 +295,14 @@ class SampleExplorerWidget(MDAWidget):
             list[tuple[str, float, float, float] | tuple[str, float, float]]
         ) = []
         if (
-            self.stage_pos_groupbox.isChecked()
-            and self.stage_pos_groupbox.stage_tableWidget.rowCount() > 0
+            self.position_groupbox.isChecked()
+            and self.position_groupbox.stage_tableWidget.rowCount() > 0
         ):
-            for r in range(self.stage_pos_groupbox.stage_tableWidget.rowCount()):
+            for r in range(self.position_groupbox.stage_tableWidget.rowCount()):
                 name = self._get_pos_name(r)
-                x = float(self.stage_pos_groupbox.stage_tableWidget.item(r, 1).text())
-                y = float(self.stage_pos_groupbox.stage_tableWidget.item(r, 2).text())
-                z = float(self.stage_pos_groupbox.stage_tableWidget.item(r, 3).text())
+                x = float(self.position_groupbox.stage_tableWidget.item(r, 1).text())
+                y = float(self.position_groupbox.stage_tableWidget.item(r, 2).text())
+                z = float(self.position_groupbox.stage_tableWidget.item(r, 3).text())
                 pos_info = (
                     (name, x, y, z) if self._mmc.getFocusDevice() else (name, x, y)
                 )
