@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
@@ -204,7 +205,7 @@ class MDAWidget(QWidget):
     def _add_position_row(self) -> int:
         idx = self.position_groupbox.stage_tableWidget.rowCount()
         self.position_groupbox.stage_tableWidget.insertRow(idx)
-        return idx  # type: ignore [no-any-return]
+        return cast(int, idx)
 
     def _remove_position(self) -> None:
         # remove selected position
