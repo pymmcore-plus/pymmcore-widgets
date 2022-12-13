@@ -4,7 +4,7 @@ import warnings
 from typing import cast
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QGridLayout,
     QGroupBox,
@@ -23,6 +23,74 @@ from useq import MDASequence
 from pymmcore_widgets._mda import MDAWidget
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+
+class _GridParametersWidget(QGroupBox):
+    valueChanged = Signal()
+
+    def __init__(self, title: str = "Grid Parameters", parent: QWidget | None = None):
+        super().__init__(title, parent)
+        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        # row
+        self.row_wdg = QWidget()
+        row_label = QLabel(text="Rows:")
+        row_label.setMaximumWidth(80)
+        row_label.setSizePolicy(LBL_SIZEPOLICY)
+        self.scan_size_spinBox_r = QSpinBox()
+        self.scan_size_spinBox_r.setMinimum(1)
+        self.scan_size_spinBox_r.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        row_wdg_lay = QHBoxLayout()
+        row_wdg_lay.setSpacing(0)
+        row_wdg_lay.setContentsMargins(0, 0, 0, 0)
+        row_wdg_lay.addWidget(row_label)
+        row_wdg_lay.addWidget(self.scan_size_spinBox_r)
+        self.row_wdg.setLayout(row_wdg_lay)
+
+        # col
+        self.col_wdg = QWidget()
+        col_label = QLabel(text="Columns:")
+        col_label.setMaximumWidth(80)
+        col_label.setSizePolicy(LBL_SIZEPOLICY)
+        self.scan_size_spinBox_c = QSpinBox()
+        self.scan_size_spinBox_c.setSizePolicy
+        self.scan_size_spinBox_c.setMinimum(1)
+        self.scan_size_spinBox_c.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        col_wdg_lay = QHBoxLayout()
+        col_wdg_lay.setSpacing(0)
+        col_wdg_lay.setContentsMargins(0, 0, 0, 0)
+        col_wdg_lay.addWidget(col_label)
+        col_wdg_lay.addWidget(self.scan_size_spinBox_c)
+        self.col_wdg.setLayout(col_wdg_lay)
+
+        # overlay
+        self.ovl_wdg = QWidget()
+        overlap_label = QLabel(text="Overlap (%):")
+        overlap_label.setMaximumWidth(100)
+        overlap_label.setSizePolicy(LBL_SIZEPOLICY)
+        self.overlap_spinBox = QSpinBox()
+        self.overlap_spinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ovl_wdg_lay = QHBoxLayout()
+        ovl_wdg_lay.setSpacing(0)
+        ovl_wdg_lay.setContentsMargins(0, 0, 0, 0)
+        ovl_wdg_lay.addWidget(overlap_label)
+        ovl_wdg_lay.addWidget(self.overlap_spinBox)
+        self.ovl_wdg.setLayout(ovl_wdg_lay)
+
+        grid = QGridLayout()
+        self.setLayout(grid)
+        grid.setSpacing(10)
+        grid.setContentsMargins(10, 20, 10, 20)
+        grid.addWidget(self.row_wdg, 0, 0)
+        grid.addWidget(self.col_wdg, 1, 0)
+        grid.addWidget(self.ovl_wdg, 0, 1)
+
+        self.scan_size_spinBox_r.valueChanged.connect(self.valueChanged)
+        self.scan_size_spinBox_c.valueChanged.connect(self.valueChanged)
+
+    def ntiles(self) -> int:
+        tiles = self.scan_size_spinBox_r.value() * self.scan_size_spinBox_c.value()
+        return cast(int, tiles)
 
 
 class SampleExplorerWidget(MDAWidget):
@@ -60,13 +128,15 @@ class SampleExplorerWidget(MDAWidget):
         include_run_button: bool = False,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
+        self.grid_params = _GridParametersWidget()
+
         super().__init__(
             parent=parent, include_run_button=include_run_button, mmcore=mmcore
         )
 
         # add widget elements
         scroll_layout = cast(QVBoxLayout, self._central_widget.layout())
-        scroll_layout.insertWidget(0, self._create_row_cols_overlap_group())
+        scroll_layout.insertWidget(0, self.grid_params)
 
         self.channel_groupbox.setMinimumHeight(175)
 
@@ -77,19 +147,19 @@ class SampleExplorerWidget(MDAWidget):
         wdg.layout().setSpacing(10)
         wdg.layout().setContentsMargins(10, 10, 10, 10)
 
-        time_coll = self._create_collapsible(title="Time")
+        time_coll = _TightCollapsible(title="Time")
         wdg.layout().addWidget(time_coll)
         scroll_layout.removeWidget(self.time_groupbox)
         self.time_groupbox.setTitle("")
         time_coll.addWidget(self.time_groupbox)
 
-        stack_coll = self._create_collapsible(title="Z Stack")
+        stack_coll = _TightCollapsible(title="Z Stack")
         wdg.layout().addWidget(stack_coll)
         scroll_layout.removeWidget(self.stack_groupbox)
         self.stack_groupbox.setTitle("")
         stack_coll.addWidget(self.stack_groupbox)
 
-        pos_coll = self._create_collapsible(title="Grid Starting Positions")
+        pos_coll = _TightCollapsible(title="Grid Starting Positions")
         wdg.layout().addWidget(pos_coll)
         scroll_layout.removeWidget(self.position_groupbox)
         self.position_groupbox.setTitle("")
@@ -109,84 +179,11 @@ class SampleExplorerWidget(MDAWidget):
         self.return_to_position_y = None
 
         # connection for scan size
-        self.scan_size_spinBox_r.valueChanged.connect(self._update_total_time)
-        self.scan_size_spinBox_c.valueChanged.connect(self._update_total_time)
-
-    def _create_row_cols_overlap_group(self) -> QGroupBox:
-
-        group = QGroupBox(title="Grid Parameters")
-        group.setSizePolicy(
-            QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-        )
-        group_layout = QGridLayout()
-        group_layout.setSpacing(10)
-        group_layout.setContentsMargins(10, 20, 10, 20)
-        group.setLayout(group_layout)
-
-        fix_lbl_size = 80
-
-        # row
-        self.row_wdg = QWidget()
-        row_wdg_lay = QHBoxLayout()
-        row_wdg_lay.setSpacing(0)
-        row_wdg_lay.setContentsMargins(0, 0, 0, 0)
-        self.row_wdg.setLayout(row_wdg_lay)
-        row_label = QLabel(text="Rows:")
-        row_label.setMaximumWidth(fix_lbl_size)
-        row_label.setSizePolicy(LBL_SIZEPOLICY)
-        self.scan_size_spinBox_r = QSpinBox()
-        self.scan_size_spinBox_r.setMinimum(1)
-        self.scan_size_spinBox_r.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        row_wdg_lay.addWidget(row_label)
-        row_wdg_lay.addWidget(self.scan_size_spinBox_r)
-
-        # col
-        self.col_wdg = QWidget()
-        col_wdg_lay = QHBoxLayout()
-        col_wdg_lay.setSpacing(0)
-        col_wdg_lay.setContentsMargins(0, 0, 0, 0)
-        self.col_wdg.setLayout(col_wdg_lay)
-        col_label = QLabel(text="Columns:")
-        col_label.setMaximumWidth(fix_lbl_size)
-        col_label.setSizePolicy(LBL_SIZEPOLICY)
-        self.scan_size_spinBox_c = QSpinBox()
-        self.scan_size_spinBox_c.setSizePolicy
-        self.scan_size_spinBox_c.setMinimum(1)
-        self.scan_size_spinBox_c.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        col_wdg_lay.addWidget(col_label)
-        col_wdg_lay.addWidget(self.scan_size_spinBox_c)
-
-        # overlay
-        self.ovl_wdg = QWidget()
-        ovl_wdg_lay = QHBoxLayout()
-        ovl_wdg_lay.setSpacing(0)
-        ovl_wdg_lay.setContentsMargins(0, 0, 0, 0)
-        self.ovl_wdg.setLayout(ovl_wdg_lay)
-        overlap_label = QLabel(text="Overlap (%):")
-        overlap_label.setMaximumWidth(100)
-        overlap_label.setSizePolicy(LBL_SIZEPOLICY)
-        self.ovelap_spinBox = QSpinBox()
-        self.ovelap_spinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        ovl_wdg_lay.addWidget(overlap_label)
-        ovl_wdg_lay.addWidget(self.ovelap_spinBox)
-
-        group_layout.addWidget(self.row_wdg, 0, 0)
-        group_layout.addWidget(self.col_wdg, 1, 0)
-        group_layout.addWidget(self.ovl_wdg, 0, 1)
-        return group
-
-    def _create_collapsible(self, title: str) -> QCollapsible:
-        coll = QCollapsible(title=title)
-        coll.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-        coll.layout().setSpacing(0)
-        coll.layout().setContentsMargins(0, 0, 0, 0)
-        return coll
+        self.grid_params.valueChanged.connect(self._update_total_time)
 
     def _set_enabled(self, enabled: bool) -> None:
         super()._set_enabled(enabled)
-        self.scan_size_spinBox_r.setEnabled(enabled)
-        self.scan_size_spinBox_c.setEnabled(enabled)
-        self.ovelap_spinBox.setEnabled(enabled)
+        self.grid_params.setEnabled(enabled)
 
     def _on_mda_finished(self) -> None:
         super()._on_mda_finished()
@@ -205,13 +202,7 @@ class SampleExplorerWidget(MDAWidget):
             self.return_to_position_y = None
 
     def _update_total_time(self, *, tiles: int = 1) -> None:
-        # use try/except because _update_total_time could be
-        # called before the scan_size_spinBox_ are created.
-        try:
-            tiles = self.scan_size_spinBox_c.value() * self.scan_size_spinBox_r.value()
-        except AttributeError:
-            return
-        super()._update_total_time(tiles=tiles)
+        super()._update_total_time(tiles=self.grid_params.ntiles())
 
     def _add_position(self) -> None:
 
@@ -286,8 +277,8 @@ class SampleExplorerWidget(MDAWidget):
 
     def _create_grid_coords(self) -> list[tuple[str, float, float, float | None]]:
         """Calculate the grid coordinates for each grid starting position."""
-        scan_size_r = self.scan_size_spinBox_r.value()
-        scan_size_c = self.scan_size_spinBox_c.value()
+        scan_size_r = self.grid_params.scan_size_spinBox_r.value()
+        scan_size_c = self.grid_params.scan_size_spinBox_c.value()
         self.pixel_size = self._mmc.getPixelSizeUm()
 
         # TODO: fix typing error
@@ -327,13 +318,13 @@ class SampleExplorerWidget(MDAWidget):
             if self._mmc.getFocusDevice():
                 z_pos = st_pos[3]  # type: ignore
 
-            self.return_to_position_x = x_pos
-            self.return_to_position_y = y_pos
+            self.return_to_position_x = x_pos  # type: ignore
+            self.return_to_position_y = y_pos  # type: ignore
 
             # calculate initial scan position
             _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
 
-            overlap_percentage = self.ovelap_spinBox.value()
+            overlap_percentage = self.grid_params.overlap_spinBox.value()
             overlap_px_w = width - (width * overlap_percentage) / 100
             overlap_px_h = height - (height * overlap_percentage) / 100
 
@@ -429,6 +420,14 @@ class SampleExplorerWidget(MDAWidget):
             return
 
         super()._on_run_clicked()
+
+
+class _TightCollapsible(QCollapsible):
+    def __init__(self, title: str, parent: QWidget | None = None):
+        super().__init__(title=title, parent=parent)
+        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self.layout().setSpacing(0)
+        self.layout().setContentsMargins(0, 0, 0, 0)
 
 
 if __name__ == "__main__":

@@ -21,9 +21,9 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert len(s_exp._mmc.getLoadedDevices()) > 2
     assert mmc.getChannelGroup() == "Channel"
 
-    s_exp.scan_size_spinBox_c.setValue(2)
-    s_exp.scan_size_spinBox_r.setValue(2)
-    s_exp.ovelap_spinBox.setValue(10)
+    s_exp.grid_params.scan_size_spinBox_c.setValue(2)
+    s_exp.grid_params.scan_size_spinBox_r.setValue(2)
+    s_exp.grid_params.overlap_spinBox.setValue(10)
 
     s_exp.channel_groupbox._add_button.click()
     assert s_exp.channel_groupbox._table.rowCount() == 1
@@ -111,8 +111,8 @@ def test_explorer_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = SampleExplorerWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
-    assert wdg.scan_size_spinBox_c.value() == 1
-    assert wdg.scan_size_spinBox_r.value() == 1
+    assert wdg.grid_params.scan_size_spinBox_c.value() == 1
+    assert wdg.grid_params.scan_size_spinBox_r.value() == 1
 
     assert wdg.channel_groupbox._table.rowCount() == 0
     wdg.channel_groupbox._add_button.click()
