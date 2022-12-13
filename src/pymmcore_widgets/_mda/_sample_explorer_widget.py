@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, NamedTuple, cast
+from typing import Any, cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
@@ -18,18 +18,11 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QCollapsible
-from useq import MDASequence
+from useq import MDASequence, Position
 
 from pymmcore_widgets._mda import MDAWidget
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
-
-class GridPosition(NamedTuple):
-    name: str
-    x: float
-    y: float
-    z: float | None = None
 
 
 class _GridParametersWidget(QGroupBox):
@@ -278,28 +271,38 @@ class SampleExplorerWidget(MDAWidget):
         whatsthis = item.whatsThis()
         return f"{name}_{whatsthis}" if whatsthis not in name else name
 
-    def _create_grid_coords(self) -> list[GridPosition]:
-        """Calculate the grid coordinates for each grid starting position."""
-        table = self.position_groupbox.stage_tableWidget
-        explorer_starting_positions: list[GridPosition] = []
-        if self.position_groupbox.isChecked() and table.rowCount() > 0:
-            for r in range(table.rowCount()):
-                name = self._get_pos_name(r)
-                x = float(table.item(r, 1).text())
-                y = float(table.item(r, 2).text())
-                z = (
-                    float(table.item(r, 3).text())
-                    if self._mmc.getFocusDevice()
-                    else None
-                )
-                explorer_starting_positions.append(GridPosition(name, x, y, z))
+    def _create_grid_coords(self) -> list[Position]:
+        """Calculate the grid coordinates for each grid starting position.
 
+        output should be a compatible input to MDASequence stage_positions.
+        """
+        table = self.position_groupbox.stage_tableWidget
+        explorer_starting_positions: list[Position] = []
+        if self.position_groupbox.isChecked() and table.rowCount() > 0:
+            explorer_starting_positions.extend(
+                Position(
+                    name=self._get_pos_name(r),
+                    x=float(table.item(r, 1).text()),
+                    y=float(table.item(r, 2).text()),
+                    z=(
+                        float(table.item(r, 3).text())
+                        if self._mmc.getFocusDevice()
+                        else None
+                    ),
+                )
+                for r in range(table.rowCount())
+            )
         else:
-            name = "Grid_001"
-            x = float(self._mmc.getXPosition())
-            y = float(self._mmc.getYPosition())
-            z = float(self._mmc.getZPosition()) if self._mmc.getFocusDevice() else None
-            explorer_starting_positions.append(GridPosition(name, x, y, z))
+            explorer_starting_positions.append(
+                Position(
+                    name="Grid_001",
+                    x=float(self._mmc.getXPosition()),
+                    y=float(self._mmc.getYPosition()),
+                    z=float(self._mmc.getZPosition())
+                    if self._mmc.getFocusDevice()
+                    else None,
+                )
+            )
 
         # calculate initial scan position
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
@@ -326,16 +329,15 @@ class SampleExplorerWidget(MDAWidget):
             increment_x = width * self.pixel_size
             increment_y = height * self.pixel_size
 
-        output: list[GridPosition] = []
+        output: list[Position] = []
         for st_pos in explorer_starting_positions:
-
             # XXX: why are we setting this in a for loop?
             self.return_to_position_x = st_pos.x
             self.return_to_position_y = st_pos.y
 
             # to match position coordinates with center of the image
-            x_pos = st_pos.x - move_x
-            y_pos = st_pos.y + move_y
+            x_pos = cast(float, st_pos.x) - move_x
+            y_pos = cast(float, st_pos.y) + move_y
 
             pos_count = 0
             for r in range(scan_size_r):
@@ -344,8 +346,8 @@ class SampleExplorerWidget(MDAWidget):
                     for c in range(scan_size_c):
                         if c == 0:
                             y_pos -= increment_y
-                        pos_name = f"{st_pos.name}_Pos{pos_count:03d}"
-                        output.append(GridPosition(pos_name, x_pos, y_pos, st_pos.z))
+                        name = f"{st_pos.name}_Pos{pos_count:03d}"
+                        output.append(Position(name=name, x=x_pos, y=y_pos, z=st_pos.z))
                         if col > 0:
                             col -= 1
                             x_pos -= increment_x
@@ -354,8 +356,8 @@ class SampleExplorerWidget(MDAWidget):
                     for c in range(scan_size_c):
                         if r > 0 and c == 0:
                             y_pos -= increment_y
-                        pos_name = f"{st_pos.name}_Pos{pos_count:03d}"
-                        output.append(GridPosition(pos_name, x_pos, y_pos, st_pos.z))
+                        name = f"{st_pos.name}_Pos{pos_count:03d}"
+                        output.append(Position(name=name, x=x_pos, y=y_pos, z=st_pos.z))
                         if c < scan_size_c - 1:
                             x_pos += increment_x
                         pos_count += 1
@@ -369,28 +371,14 @@ class SampleExplorerWidget(MDAWidget):
         -------
         useq.MDASequence
         """
-        channels = self.channel_groupbox.value()
-
-        z_plan = (
-            self.stack_groupbox.value() if self.stack_groupbox.isChecked() else None
-        )
-        time_plan = (
-            self.time_groupbox.value() if self.time_groupbox.isChecked() else None
-        )
-
-        stage_positions: list[dict] = []
-        for g in self._create_grid_coords():
-            pos = {"name": g[0], "x": g[1], "y": g[2]}
-            if len(g) == 4:
-                pos["z"] = g[3]
-            stage_positions.append(pos)
-
+        z = self.stack_groupbox.value() if self.stack_groupbox.isChecked() else None
+        time = self.time_groupbox.value() if self.time_groupbox.isChecked() else None
         return MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
-            channels=channels,
-            stage_positions=stage_positions,
-            z_plan=z_plan,
-            time_plan=time_plan,
+            channels=self.channel_groupbox.value(),
+            stage_positions=self._create_grid_coords(),
+            z_plan=z,
+            time_plan=time,
         )
 
     def _on_run_clicked(self) -> None:
@@ -398,7 +386,6 @@ class SampleExplorerWidget(MDAWidget):
         self.pixel_size = self._mmc.getPixelSizeUm()
 
         if self._mmc.getPixelSizeUm() <= 0:
-            # raise ValueError("Pixel Size not set.")
             warnings.warn("Pixel Size not set.")
             return
 
