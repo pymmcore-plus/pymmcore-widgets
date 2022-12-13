@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -20,6 +22,7 @@ from qtpy.QtWidgets import (
 class GridWidget(QDialog):
     """A subwidget to setup the acquisition of a grid of images."""
 
+    valueChanged = Signal()
     sendPosList = Signal(list, bool)
 
     def __init__(self, *, parent: QWidget | None = None) -> None:
@@ -30,6 +33,9 @@ class GridWidget(QDialog):
         self._create_gui()
 
         self._update_info_label()
+
+        self.scan_size_spinBox_r.valueChanged.connect(self.valueChanged)
+        self.scan_size_spinBox_c.valueChanged.connect(self.valueChanged)
 
     def _create_gui(self) -> None:
 
@@ -105,12 +111,12 @@ class GridWidget(QDialog):
         overlap_label.setMaximumWidth(100)
         overlap_label.setMinimumWidth(100)
         overlap_label.setSizePolicy(lbl_sizepolicy)
-        self.ovelap_spinBox = QSpinBox()
-        self.ovelap_spinBox.setMinimumWidth(fix_size)
-        self.ovelap_spinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.ovelap_spinBox.valueChanged.connect(self._update_info_label)
+        self.overlap_spinBox = QSpinBox()
+        self.overlap_spinBox.setMinimumWidth(fix_size)
+        self.overlap_spinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.overlap_spinBox.valueChanged.connect(self._update_info_label)
         ovl_wdg_lay.addWidget(overlap_label)
-        ovl_wdg_lay.addWidget(self.ovelap_spinBox)
+        ovl_wdg_lay.addWidget(self.overlap_spinBox)
 
         # label info
         self.info_lbl = QLabel(text="_ µm x _ µm")
@@ -152,7 +158,7 @@ class GridWidget(QDialog):
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
         rows = self.scan_size_spinBox_r.value()
         cols = self.scan_size_spinBox_c.value()
-        overlap_percentage = self.ovelap_spinBox.value()
+        overlap_percentage = self.overlap_spinBox.value()
         overlap_x = width * overlap_percentage / 100
         overlap_y = height * overlap_percentage / 100
 
@@ -177,7 +183,7 @@ class GridWidget(QDialog):
 
         pixel_size = self._mmc.getPixelSizeUm()
 
-        overlap_percentage = self.ovelap_spinBox.value()
+        overlap_percentage = self.overlap_spinBox.value()
         overlap_px_w = width - (width * overlap_percentage) / 100
         overlap_px_h = height - (height * overlap_percentage) / 100
 
@@ -228,3 +234,7 @@ class GridWidget(QDialog):
             raise ValueError("Pixel Size Not Set.")
         grid = self._set_grid()
         self.sendPosList.emit(grid, self.clear_checkbox.isChecked())
+
+    def ntiles(self) -> int:
+        tiles = self.scan_size_spinBox_r.value() * self.scan_size_spinBox_c.value()
+        return cast(int, tiles)

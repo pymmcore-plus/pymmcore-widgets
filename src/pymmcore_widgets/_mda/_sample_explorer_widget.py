@@ -4,15 +4,11 @@ import warnings
 from typing import cast
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
-    QGridLayout,
     QGroupBox,
-    QHBoxLayout,
-    QLabel,
     QSizePolicy,
     QSpacerItem,
-    QSpinBox,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
@@ -22,75 +18,9 @@ from useq import MDASequence
 
 from pymmcore_widgets._mda import MDAWidget
 
+from ._grid_widget import GridWidget
+
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
-
-class _GridParametersWidget(QGroupBox):
-    valueChanged = Signal()
-
-    def __init__(self, title: str = "Grid Parameters", parent: QWidget | None = None):
-        super().__init__(title, parent)
-        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-
-        # row
-        self.row_wdg = QWidget()
-        row_label = QLabel(text="Rows:")
-        row_label.setMaximumWidth(80)
-        row_label.setSizePolicy(LBL_SIZEPOLICY)
-        self.scan_size_spinBox_r = QSpinBox()
-        self.scan_size_spinBox_r.setMinimum(1)
-        self.scan_size_spinBox_r.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        row_wdg_lay = QHBoxLayout()
-        row_wdg_lay.setSpacing(0)
-        row_wdg_lay.setContentsMargins(0, 0, 0, 0)
-        row_wdg_lay.addWidget(row_label)
-        row_wdg_lay.addWidget(self.scan_size_spinBox_r)
-        self.row_wdg.setLayout(row_wdg_lay)
-
-        # col
-        self.col_wdg = QWidget()
-        col_label = QLabel(text="Columns:")
-        col_label.setMaximumWidth(80)
-        col_label.setSizePolicy(LBL_SIZEPOLICY)
-        self.scan_size_spinBox_c = QSpinBox()
-        self.scan_size_spinBox_c.setSizePolicy
-        self.scan_size_spinBox_c.setMinimum(1)
-        self.scan_size_spinBox_c.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        col_wdg_lay = QHBoxLayout()
-        col_wdg_lay.setSpacing(0)
-        col_wdg_lay.setContentsMargins(0, 0, 0, 0)
-        col_wdg_lay.addWidget(col_label)
-        col_wdg_lay.addWidget(self.scan_size_spinBox_c)
-        self.col_wdg.setLayout(col_wdg_lay)
-
-        # overlay
-        self.ovl_wdg = QWidget()
-        overlap_label = QLabel(text="Overlap (%):")
-        overlap_label.setMaximumWidth(100)
-        overlap_label.setSizePolicy(LBL_SIZEPOLICY)
-        self.overlap_spinBox = QSpinBox()
-        self.overlap_spinBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        ovl_wdg_lay = QHBoxLayout()
-        ovl_wdg_lay.setSpacing(0)
-        ovl_wdg_lay.setContentsMargins(0, 0, 0, 0)
-        ovl_wdg_lay.addWidget(overlap_label)
-        ovl_wdg_lay.addWidget(self.overlap_spinBox)
-        self.ovl_wdg.setLayout(ovl_wdg_lay)
-
-        grid = QGridLayout()
-        self.setLayout(grid)
-        grid.setSpacing(10)
-        grid.setContentsMargins(10, 20, 10, 20)
-        grid.addWidget(self.row_wdg, 0, 0)
-        grid.addWidget(self.col_wdg, 1, 0)
-        grid.addWidget(self.ovl_wdg, 0, 1)
-
-        self.scan_size_spinBox_r.valueChanged.connect(self.valueChanged)
-        self.scan_size_spinBox_c.valueChanged.connect(self.valueChanged)
-
-    def ntiles(self) -> int:
-        tiles = self.scan_size_spinBox_r.value() * self.scan_size_spinBox_c.value()
-        return cast(int, tiles)
 
 
 class SampleExplorerWidget(MDAWidget):
@@ -128,7 +58,7 @@ class SampleExplorerWidget(MDAWidget):
         include_run_button: bool = False,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
-        self.grid_params = _GridParametersWidget()
+        self.grid_params = GridWidget()
 
         super().__init__(
             parent=parent, include_run_button=include_run_button, mmcore=mmcore
