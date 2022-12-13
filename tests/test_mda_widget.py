@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 def test_mda_widget_load_state(qtbot: QtBot):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
-    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 0
+    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
     assert wdg.channel_groupbox._table.rowCount() == 0
     assert not wdg.time_groupbox.isChecked()
 
@@ -23,7 +23,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
     assert not wdg.time_groupbox.isEnabled()
     assert not wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_groupbox.isEnabled()
-    assert not wdg.stage_pos_groupbox.isEnabled()
+    assert not wdg.position_groupbox.isEnabled()
     assert not wdg.stack_groupbox.isEnabled()
     wdg._set_enabled(True)
 
@@ -41,7 +41,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
         ),
     )
     wdg.set_state(sequence)
-    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 2
+    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 2
     assert wdg.channel_groupbox._table.rowCount() == 2
     assert wdg.time_groupbox.isChecked()
 
@@ -49,15 +49,15 @@ def test_mda_widget_load_state(qtbot: QtBot):
     assert wdg.get_state() == sequence
 
     # test add grid positions
-    wdg.stage_pos_groupbox.setChecked(True)
+    wdg.position_groupbox.setChecked(True)
     wdg._clear_positions()
-    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 0
-    wdg.stage_pos_groupbox.grid_button.click()
+    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
+    wdg.position_groupbox.grid_button.click()
     qtbot.addWidget(wdg._grid_wdg)
     wdg._grid_wdg.scan_size_spinBox_r.setValue(2)
     wdg._grid_wdg.scan_size_spinBox_c.setValue(2)
     wdg._grid_wdg.generate_position_btn.click()
-    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 4
+    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 4
 
 
 def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -74,16 +74,16 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg.channel_groupbox._clear_button.click()
     assert wdg.channel_groupbox._table.rowCount() == 0
 
-    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 0
-    wdg.stage_pos_groupbox.setChecked(True)
-    wdg.stage_pos_groupbox.add_pos_button.click()
-    wdg.stage_pos_groupbox.add_pos_button.click()
-    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 2
-    wdg.stage_pos_groupbox.stage_tableWidget.selectRow(0)
-    wdg.stage_pos_groupbox.remove_pos_button.click()
-    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 1
-    wdg.stage_pos_groupbox.clear_pos_button.click()
-    assert wdg.stage_pos_groupbox.stage_tableWidget.rowCount() == 0
+    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
+    wdg.position_groupbox.setChecked(True)
+    wdg.position_groupbox.add_pos_button.click()
+    wdg.position_groupbox.add_pos_button.click()
+    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 2
+    wdg.position_groupbox.stage_tableWidget.selectRow(0)
+    wdg.position_groupbox.remove_pos_button.click()
+    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 1
+    wdg.position_groupbox.clear_pos_button.click()
+    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
 
 
 def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -94,7 +94,7 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not wdg.time_groupbox.isEnabled()
     assert not wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_groupbox.isEnabled()
-    assert not wdg.stage_pos_groupbox.isEnabled()
+    assert not wdg.position_groupbox.isEnabled()
     assert not wdg.stack_groupbox.isEnabled()
     assert wdg.buttons_wdg.run_button.isHidden()
     assert not wdg.buttons_wdg.pause_button.isHidden()
@@ -104,7 +104,7 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.time_groupbox.isEnabled()
     assert wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
     assert wdg.channel_groupbox.isEnabled()
-    assert wdg.stage_pos_groupbox.isEnabled()
+    assert wdg.position_groupbox.isEnabled()
     assert wdg.stack_groupbox.isEnabled()
     assert not wdg.buttons_wdg.run_button.isHidden()
     assert wdg.buttons_wdg.pause_button.isHidden()
