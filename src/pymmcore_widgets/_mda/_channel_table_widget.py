@@ -42,6 +42,18 @@ class ChannelTable(QGroupBox):
     The `value()` method returns a dictionary with the current state of the widget, in a
     format that matches one of the [useq-schema Channel
     specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+
+    Parameters
+    ----------
+    title : str
+        Title of the QGroupBox widget. Bt default, 'Channel'.
+    parent : QWidget | None
+        Optional parent widget. By default, None.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     valueChanged = Signal()
@@ -52,7 +64,6 @@ class ChannelTable(QGroupBox):
         title: str = "Channels",
         parent: QWidget | None = None,
         *,
-        # channel_group: str = "",
         mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(title, parent=parent)

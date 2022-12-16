@@ -6,7 +6,18 @@ from superqt.utils import signals_blocked
 
 
 class ChannelGroupWidget(QComboBox):
-    """A QComboBox to follow and control Micro-Manager ChannelGroup."""
+    """A QComboBox to follow and control Micro-Manager ChannelGroup.
+
+    Parameters
+    ----------
+    parent : QWidget | None
+            Optional parent widget. By default, None.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    """
 
     def __init__(
         self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
