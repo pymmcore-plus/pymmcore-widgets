@@ -54,6 +54,21 @@ def test_channel_table_widget_core_signals(global_mmcore: CMMCorePlus, qtbot: Qt
     assert ct.channel_group_combo.currentText() == "Channel"
     assert global_mmcore.getChannelGroup() == "Channel"
 
+    mmc.setProperty("Core", "ChannelGroup", "Camera")
+    assert ct.channel_group_combo.currentText() == "Camera"
+    assert mmc.getChannelGroup() == "Camera"
+
+    mmc.setProperty("Core", "ChannelGroup", "")
+    assert not mmc.getChannelGroup()
+    assert ct.channel_group_combo.currentText() == "Camera"
+    assert ct.channel_group_combo.styleSheet() == "color: magenta;"
+
+    # add when setChannelGroup emits propertyChanged in pymmcore-plus
+    # mmc.setChannelGroup("Channel")
+    # assert ct.channel_group_combo.currentText() == "Channel"
+    # assert mmc.getChannelGroup() == "Channel"
+    # assert not ct.channel_group_combo.styleSheet()
+
     mmc.deleteConfig("Channel", "Cy5")
     assert ct._table.rowCount() == 3
     ch_combo_1 = ct._table.cellWidget(0, 0)
@@ -67,17 +82,3 @@ def test_channel_table_widget_core_signals(global_mmcore: CMMCorePlus, qtbot: Qt
     mmc.deleteConfigGroup("Channel")
     assert ct._table.rowCount() == 1
     assert ct._table.cellWidget(0, 0).currentText() == "HighRes"
-
-    mmc.setProperty("Core", "ChannelGroup", "Camera")
-    assert ct.channel_group_combo.currentText() == "Camera"
-    assert mmc.getChannelGroup() == "Camera"
-
-    mmc.setProperty("Core", "ChannelGroup", "")
-    assert not mmc.getChannelGroup()
-    assert ct.channel_group_combo.currentText() == "Camera"
-    assert ct.channel_group_combo.styleSheet() == "color: magenta;"
-
-    # add when setChannelGroup is implemented in pymmcore-plus
-    # mmc.setChannelGroup("Channel")
-    # assert ct.channel_group_combo.currentText() == "Channel"
-    # assert mmc.getChannelGroup() == "Channel"
