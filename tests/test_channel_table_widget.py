@@ -72,4 +72,8 @@ def test_channel_table_widget_core_signals(global_mmcore: CMMCorePlus, qtbot: Qt
     assert ct.channel_group_combo.currentText() == "Camera"
     assert global_mmcore.getChannelGroup() == "Camera"
 
+    mmc.setProperty("Core", "ChannelGroup", "")
+    assert ct.channel_group_combo.currentText() == "Camera"
+    assert ct.channel_group_combo.styleSheet() == "color: magenta;"
+
     # TODO: add mmc.setChannelGroup() when we will implement a signal in pymmcore-plus
