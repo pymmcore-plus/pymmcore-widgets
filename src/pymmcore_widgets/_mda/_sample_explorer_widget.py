@@ -210,7 +210,8 @@ class SampleExplorerWidget(MDAWidget):
             return
 
         if len(self._mmc.getLoadedDevices()) > 1:
-            idx = self._add_position_row()
+            # idx = self._add_position_row()
+            idx = self.position_groupbox._add_position_row()
 
             for c, ax in enumerate("GXYZ"):
                 if ax == "G":
