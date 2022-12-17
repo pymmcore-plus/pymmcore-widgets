@@ -50,13 +50,13 @@ def test_mda_widget_load_state(qtbot: QtBot):
 
     # test add grid positions
     wdg.position_groupbox.setChecked(True)
-    wdg._clear_positions()
+    wdg.position_groupbox._clear_positions()
     assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
     wdg.position_groupbox.grid_button.click()
-    qtbot.addWidget(wdg._grid_wdg)
-    wdg._grid_wdg.scan_size_spinBox_r.setValue(2)
-    wdg._grid_wdg.scan_size_spinBox_c.setValue(2)
-    wdg._grid_wdg.generate_position_btn.click()
+    qtbot.addWidget(wdg.position_groupbox._grid_wdg)
+    wdg.position_groupbox._grid_wdg.scan_size_spinBox_r.setValue(2)
+    wdg.position_groupbox._grid_wdg.scan_size_spinBox_c.setValue(2)
+    wdg.position_groupbox._grid_wdg.generate_position_btn.click()
     assert wdg.position_groupbox.stage_tableWidget.rowCount() == 4
 
 

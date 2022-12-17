@@ -164,6 +164,10 @@ class SampleExplorerWidget(MDAWidget):
         scroll_layout.removeWidget(self.position_groupbox)
         self.position_groupbox.setTitle("")
         self.position_groupbox.grid_button.hide()
+        self.position_groupbox.add_pos_button.disconnect()
+        self.position_groupbox.add_pos_button.clicked.connect(self._add_position)
+        self.position_groupbox.remove_pos_button.disconnect()
+        self.position_groupbox.remove_pos_button.clicked.connect(self._remove_position)
         pos_coll.addWidget(self.position_groupbox)
 
         scroll_layout.insertWidget(2, wdg)
