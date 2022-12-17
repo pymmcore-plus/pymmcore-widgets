@@ -129,7 +129,6 @@ class MDAWidget(QWidget):
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
         self.channel_groupbox.clear()
-        self._clear_positions()
 
     def _set_enabled(self, enabled: bool) -> None:
         self.time_groupbox.setEnabled(enabled)
@@ -203,21 +202,8 @@ class MDAWidget(QWidget):
             self.time_groupbox.setChecked(False)
 
         # set stage positions
-        self.position_groupbox._clear_positions()
         if state.stage_positions:
-            self.position_groupbox.setChecked(True)
-            for idx, pos in enumerate(state.stage_positions):
-                self._add_position_row()
-                for c, ax in enumerate("pxyz"):
-                    if ax == "p":
-                        pos_name = pos.name or f"Pos{idx:03d}"
-                        item = QtW.QTableWidgetItem(str(pos_name))
-                    else:
-                        item = QtW.QTableWidgetItem(str(getattr(pos, ax)))
-                    item.setTextAlignment(
-                        Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-                    )
-                    self.position_groupbox.stage_tableWidget.setItem(idx, c, item)
+            self.position_groupbox.set_state([p.dict() for p in state.stage_positions])
         else:
             self.position_groupbox.setChecked(False)
 
