@@ -89,7 +89,6 @@ class MDAWidget(_MDAWidgetGui):
     def _on_sys_cfg_loaded(self) -> None:
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
-        self.channel_groupbox.clear()
         self._clear_positions()
 
     def _set_enabled(self, enabled: bool) -> None:

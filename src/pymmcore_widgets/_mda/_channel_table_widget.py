@@ -96,7 +96,7 @@ class ChannelTable(QGroupBox):
 
         self._add_button.clicked.connect(self._create_new_row)
         self._remove_button.clicked.connect(self._remove_selected_rows)
-        self._clear_button.clicked.connect(self.clear)
+        self._clear_button.clicked.connect(self._clear)
 
         spacer = QSpacerItem(
             10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
@@ -109,7 +109,7 @@ class ChannelTable(QGroupBox):
 
         group_layout.addWidget(wdg, 0, 1)
 
-        self._mmc.events.systemConfigurationLoaded.connect(self.clear)
+        self._mmc.events.systemConfigurationLoaded.connect(self._clear)
 
         self.destroyed.connect(self._disconnect)
 
@@ -183,7 +183,7 @@ class ChannelTable(QGroupBox):
             self._table.removeRow(idx)
         self.valueChanged.emit()
 
-    def clear(self) -> None:
+    def _clear(self) -> None:
         """Clear the channel table."""
         if self._table.rowCount():
             self._table.clearContents()
@@ -222,7 +222,7 @@ class ChannelTable(QGroupBox):
 
         avail_configs = set(self._mmc.getAvailableConfigs(self._mmc.getChannelGroup()))
 
-        self.clear()
+        self._clear()
         with signals_blocked(self):
             for channel in channels:
                 ch = channel.get("config")
@@ -241,4 +241,4 @@ class ChannelTable(QGroupBox):
         self.valueChanged.emit()
 
     def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self.clear)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._clear)
