@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
@@ -11,8 +10,8 @@ from useq import MDASequence
 
 from .._util import _select_output_unit, guess_channel_group
 from ._channel_table_widget import ChannelTable
-from ._general_mda_widgets import _MDAControlButtons, _MDAPositionTable, _MDATimeLabel
-from ._grid_widget import GridWidget
+from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
+from ._positions_table_widget import PositionTable
 from ._time_plan_widget import TimePlanWidget
 from ._zstack_widget import ZStackWidget
 
@@ -70,7 +69,8 @@ class MDAWidget(QWidget):
         self.stack_groupbox = ZStackWidget()
         self.stack_groupbox.setChecked(False)
 
-        self.position_groupbox = _MDAPositionTable(["Pos", "X", "Y", "Z"])
+        # self.position_groupbox = _MDAPositionTable(["Pos", "X", "Y", "Z"])
+        self.position_groupbox = PositionTable()
 
         # below the scroll area, some feedback widgets and buttons
         self.time_lbl = _MDATimeLabel()
@@ -112,12 +112,7 @@ class MDAWidget(QWidget):
         self.stack_groupbox.valueChanged.connect(self._update_total_time)
         self.time_groupbox.valueChanged.connect(self._update_total_time)
         self.time_groupbox.toggled.connect(self._update_total_time)
-        # connection for positions
-        self.position_groupbox.add_pos_button.clicked.connect(self._add_position)
-        self.position_groupbox.remove_pos_button.clicked.connect(self._remove_position)
-        self.position_groupbox.clear_pos_button.clicked.connect(self._clear_positions)
-        self.position_groupbox.grid_button.clicked.connect(self._grid_widget)
-        self.position_groupbox.toggled.connect(self._update_total_time)
+        self.position_groupbox.valueChanged.connect(self._update_total_time)
         # connect mmcore signals
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
@@ -170,145 +165,6 @@ class MDAWidget(QWidget):
     def _on_mda_paused(self, paused: bool) -> None:
         self.buttons_wdg.pause_button.setText("Resume" if paused else "Pause")
 
-    # add, remove, clear, move_to positions table
-    def _add_position(self) -> None:
-
-        if not self._mmc.getXYStageDevice():
-            return
-
-        if len(self._mmc.getLoadedDevices()) > 1:
-            idx = self._add_position_row()
-
-            for c, ax in enumerate("PXYZ"):
-
-                if ax == "P":
-                    count = self.position_groupbox.stage_tableWidget.rowCount() - 1
-                    item = QtW.QTableWidgetItem(f"Pos{count:03d}")
-                    item.setTextAlignment(
-                        Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-                    )
-                    self.position_groupbox.stage_tableWidget.setItem(idx, c, item)
-                    self._rename_positions(["Pos"])
-                    continue
-
-                if not self._mmc.getFocusDevice() and ax == "Z":
-                    continue
-                cur = getattr(self._mmc, f"get{ax}Position")()
-                item = QtW.QTableWidgetItem(str(cur))
-                item.setTextAlignment(
-                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-                )
-                self.position_groupbox.stage_tableWidget.setItem(idx, c, item)
-
-            self._update_total_time()
-
-    def _add_position_row(self) -> int:
-        idx = self.position_groupbox.stage_tableWidget.rowCount()
-        self.position_groupbox.stage_tableWidget.insertRow(idx)
-        return cast(int, idx)
-
-    def _remove_position(self) -> None:
-        # remove selected position
-        rows = {
-            r.row() for r in self.position_groupbox.stage_tableWidget.selectedIndexes()
-        }
-        removed = []
-        for idx in sorted(rows, reverse=True):
-            name = (
-                self.position_groupbox.stage_tableWidget.item(idx, 0)
-                .text()
-                .split("_")[0]
-            )
-            if "Pos" in name:
-                if "Pos" not in removed:
-                    removed.append("Pos")
-            elif name not in removed:
-                removed.append(name)
-            self.position_groupbox.stage_tableWidget.removeRow(idx)
-        self._rename_positions(removed)
-        self._update_total_time()
-
-    def _rename_positions(self, names: list) -> None:
-        for name in names:
-            grid_count = 0
-            pos_count = 0
-            for r in range(self.position_groupbox.stage_tableWidget.rowCount()):
-                start = (
-                    self.position_groupbox.stage_tableWidget.item(r, 0)
-                    .text()
-                    .split("_")[0]
-                )
-                if start == name:  # Grid
-                    new_name = f"{name}_Pos{grid_count:03d}"
-                    grid_count += 1
-                elif "Pos" in start:  # Pos
-                    new_name = f"Pos{pos_count:03d}"
-                    pos_count += 1
-                else:
-                    continue
-                item = QtW.QTableWidgetItem(new_name)
-                item.setTextAlignment(
-                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-                )
-                self.position_groupbox.stage_tableWidget.setItem(r, 0, item)
-
-    def _clear_positions(self) -> None:
-        # clear all positions
-        self.position_groupbox.stage_tableWidget.clearContents()
-        self.position_groupbox.stage_tableWidget.setRowCount(0)
-        self._update_total_time()
-
-    def _grid_widget(self) -> None:
-        if not self._mmc.getXYStageDevice():
-            return
-        if not hasattr(self, "_grid_wdg"):
-            self._grid_wdg = GridWidget(parent=self)
-            self._grid_wdg.sendPosList.connect(self._add_to_position_table)
-        self._grid_wdg.show()
-        self._grid_wdg.raise_()
-
-    def _add_to_position_table(self, position_list: list, clear: bool) -> None:
-
-        grid_number = 0
-
-        if clear:
-            self._clear_positions()
-        else:
-            for r in range(self.position_groupbox.stage_tableWidget.rowCount()):
-                pos_name = self.position_groupbox.stage_tableWidget.item(r, 0).text()
-                grid_name = pos_name.split("_")[0]
-                if "Grid" in grid_name:
-                    grid_n = grid_name[-3:]
-                    if int(grid_n) > grid_number:
-                        grid_number = int(grid_n)
-            grid_number += 1
-
-        for idx, position in enumerate(position_list):
-            rows = self.position_groupbox.stage_tableWidget.rowCount()
-            self.position_groupbox.stage_tableWidget.insertRow(rows)
-
-            item = QtW.QTableWidgetItem(f"Grid{grid_number:03d}_Pos{idx:03d}")
-            item.setTextAlignment(
-                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-            )
-            x = QtW.QTableWidgetItem(str(position[0]))
-            x.setTextAlignment(
-                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-            )
-            y = QtW.QTableWidgetItem(str(position[1]))
-            y.setTextAlignment(
-                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-            )
-            z = QtW.QTableWidgetItem(str(position[2]))
-            z.setTextAlignment(
-                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-            )
-
-            self.position_groupbox.stage_tableWidget.setItem(rows, 0, item)
-            self.position_groupbox.stage_tableWidget.setItem(rows, 1, x)
-            self.position_groupbox.stage_tableWidget.setItem(rows, 2, y)
-            self.position_groupbox.stage_tableWidget.setItem(rows, 3, z)
-
     def set_state(self, state: dict | MDASequence | str | Path) -> None:
         """Set current state of MDA widget.
 
@@ -347,7 +203,7 @@ class MDAWidget(QWidget):
             self.time_groupbox.setChecked(False)
 
         # set stage positions
-        self._clear_positions()
+        self.position_groupbox._clear_positions()
         if state.stage_positions:
             self.position_groupbox.setChecked(True)
             for idx, pos in enumerate(state.stage_positions):
