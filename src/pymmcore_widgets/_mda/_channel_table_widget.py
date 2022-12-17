@@ -110,8 +110,17 @@ class ChannelTable(QGroupBox):
         group_layout.addWidget(wdg, 0, 1)
 
         self._mmc.events.systemConfigurationLoaded.connect(self._clear)
+        self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)
 
         self.destroyed.connect(self._disconnect)
+
+    def _on_sys_cfg_loaded(self) -> None:
+        self._clear()
+        self.setChannelGroup(self._mmc.getChannelGroup())
+
+    def _on_group_deleted(self, group: str) -> None:
+        if group == self._channel_group:
+            self._channel_group = ""
 
     def setChannelGroup(self, group: str) -> None:
         """Set current channel group."""
@@ -241,4 +250,5 @@ class ChannelTable(QGroupBox):
         self.valueChanged.emit()
 
     def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self._clear)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
+        self._mmc.events.configGroupDeleted.disconnect(self._on_group_deleted)
