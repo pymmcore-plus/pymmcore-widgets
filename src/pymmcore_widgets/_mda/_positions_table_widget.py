@@ -129,34 +129,51 @@ class PositionTable(QGroupBox):
     def _add_position(self) -> None:
 
         if not self._mmc.getXYStageDevice():
-            return
+            raise ValueError("No XY Stage device loaded.")
 
-        if len(self._mmc.getLoadedDevices()) > 1:
-            idx = self._add_position_row()
+        count = self.stage_tableWidget.rowCount() - 1
+        name = f"Pos{count:03d}"
+        xpos = str(self._mmc.getXPosition())
+        ypos = str(self._mmc.getXPosition())
+        if self._mmc.getFocusDevice():
+            zpos = str(self._mmc.getZPosition())
 
-            for c, ax in enumerate("PXYZ"):
+        self._create_new_row(name, xpos, ypos, zpos)
 
-                if ax == "P":
-                    count = self.stage_tableWidget.rowCount() - 1
-                    item = QTableWidgetItem(f"Pos{count:03d}")
-                    item.setTextAlignment(AlignCenter)
-                    self.stage_tableWidget.setItem(idx, c, item)
-                    self._rename_positions(["Pos"])
-                    continue
+        self._rename_positions(["Pos"])
 
-                if not self._mmc.getFocusDevice() and ax == "Z":
-                    continue
-                cur = getattr(self._mmc, f"get{ax}Position")()
-                item = QTableWidgetItem(str(cur))
-                item.setTextAlignment(AlignCenter)
-                self.stage_tableWidget.setItem(idx, c, item)
+    def _create_new_row(
+        self, name: str | None, xpos: str | None, ypos: str | None, zpos: str | None
+    ) -> None:
 
+        if not self._mmc.getXYStageDevice():
+            raise ValueError("No XY Stage device loaded.")
+
+        row = self._add_position_row()
+
+        self._add_table_item(name, row, 0, True)
+        self._add_table_item(xpos, row, 1)
+        self._add_table_item(ypos, row, 2)
+        if zpos is None or not self._mmc.getFocusDevice():
             self.valueChanged.emit()
+            return
+        self._add_table_item(zpos, row, 3)
+
+        self.valueChanged.emit()
 
     def _add_position_row(self) -> int:
         idx = self.stage_tableWidget.rowCount()
         self.stage_tableWidget.insertRow(idx)
         return cast(int, idx)
+
+    def _add_table_item(
+        self, table_item: str | None, row: int, col: int, whatsthis: bool = False
+    ) -> None:
+        item = QTableWidgetItem(table_item)
+        if whatsthis:
+            item.setWhatsThis(table_item)
+        item.setTextAlignment(AlignCenter)
+        self.stage_tableWidget.setItem(row, col, item)
 
     def _remove_position(self) -> None:
 
@@ -190,6 +207,7 @@ class PositionTable(QGroupBox):
         self.valueChanged.emit()
 
     def _delete_grid_positions(self, name: list[str]) -> None:
+        """Remove all positions related to the same grid."""
         for row in reversed(range(self.stage_tableWidget.rowCount())):
             if name in self.stage_tableWidget.item(row, 0).whatsThis():
                 self.stage_tableWidget.removeRow(row)
@@ -203,9 +221,7 @@ class PositionTable(QGroupBox):
                     continue
                 new_name = f"Pos{pos_count:03d}"
                 pos_count += 1
-                item = QTableWidgetItem(new_name)
-                item.setTextAlignment(AlignCenter)
-                self.stage_tableWidget.setItem(r, 0, item)
+                self._add_table_item(new_name, r, 0)
 
     def _clear_positions(self) -> None:
         """clear all positions."""
@@ -218,11 +234,11 @@ class PositionTable(QGroupBox):
             return
         if not hasattr(self, "_grid_wdg"):
             self._grid_wdg = GridWidget(parent=self)
-            self._grid_wdg.sendPosList.connect(self._add_to_position_table)
+            self._grid_wdg.sendPosList.connect(self._add_grid_positions_to_table)
         self._grid_wdg.show()
         self._grid_wdg.raise_()
 
-    def _add_to_position_table(self, position_list: list, clear: bool) -> None:
+    def _add_grid_positions_to_table(self, position_list: list, clear: bool) -> None:
 
         grid_number = 0
 
@@ -239,41 +255,44 @@ class PositionTable(QGroupBox):
             grid_number += 1
 
         for idx, position in enumerate(position_list):
-            rows = self.stage_tableWidget.rowCount()
-            self.stage_tableWidget.insertRow(rows)
+            name = f"Grid{grid_number:03d}_Pos{idx:03d}"
+            if len(position) == 3:
+                x, y, z = position
+            else:
+                x, y = position
+                z = None
 
-            item = QTableWidgetItem(f"Grid{grid_number:03d}_Pos{idx:03d}")
-            item.setWhatsThis(f"Grid{grid_number:03d}_Pos{idx:03d}")
-            item.setTextAlignment(AlignCenter)
-            x = QTableWidgetItem(str(position[0]))
-            x.setTextAlignment(AlignCenter)
-            y = QTableWidgetItem(str(position[1]))
-            y.setTextAlignment(AlignCenter)
-            z = QTableWidgetItem(str(position[2]))
-            z.setTextAlignment(AlignCenter)
-
-            self.stage_tableWidget.setItem(rows, 0, item)
-            self.stage_tableWidget.setItem(rows, 1, x)
-            self.stage_tableWidget.setItem(rows, 2, y)
-            self.stage_tableWidget.setItem(rows, 3, z)
+            self._create_new_row(name, str(x), str(y), str(z))
 
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():
             return
         curr_row = self.stage_tableWidget.currentRow()
-        x_val = self.stage_tableWidget.item(curr_row, 1).text()
-        y_val = self.stage_tableWidget.item(curr_row, 2).text()
-        z_val = self.stage_tableWidget.item(curr_row, 3).text()
-        self._mmc.setXYPosition(float(x_val), float(y_val))
-        self._mmc.setPosition(self._mmc.getFocusDevice(), float(z_val))
+        self._mmc.setXYPosition(
+            self.value()[curr_row].get("x"), self.value()[curr_row].get("y")
+        )
+        if self._mmc.getFocusDevice() and self.value()[curr_row].get("z"):
+            self._mmc.setPosition(self.value()[curr_row].get("z"))
 
-    # def value(self) -> list[PositionDict]:
-    #     """Return the current channels settings.
+    def value(self) -> list[PositionDict]:
+        """Return the current positions settings.
 
-    #     Note that output dict will match the Positions from useq schema:
-    #     <https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position>
-    #     """
-    #     ...
+        Note that output dict will match the Positions from useq schema:
+        <https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position>
+        """
+        values: list[PositionDict] = []
+        for row in range(self.stage_tableWidget.rowCount()):
+            z_text = self.stage_tableWidget.item(row, 3).text()
+            z = float(z_text) if z_text else None
+            values.append(
+                {
+                    "name": self.stage_tableWidget.item(row, 0).text(),
+                    "x": float(self.stage_tableWidget.item(row, 1).text()),
+                    "y": float(self.stage_tableWidget.item(row, 2).text()),
+                    "z": z,
+                }
+            )
+        return values
 
     # note: this should to be PositionDict, but it makes typing elsewhere harder
     def set_state(self, positions: list[dict]) -> None:
@@ -299,23 +318,14 @@ class PositionTable(QGroupBox):
 
             self._add_position_row()
 
-            item = QTableWidgetItem(name)
-            item.setTextAlignment(AlignCenter)
-            self.stage_tableWidget.setItem(idx, 0, item)
-
-            xpos = QTableWidgetItem(str(x))
-            xpos.setTextAlignment(AlignCenter)
-            self.stage_tableWidget.setItem(idx, 1, xpos)
-
-            ypos = QTableWidgetItem(str(y))
-            ypos.setTextAlignment(AlignCenter)
-            self.stage_tableWidget.setItem(idx, 2, ypos)
-
+            self._add_table_item(name, idx, 0)
+            self._add_table_item(str(x), idx, 1)
+            self._add_table_item(str(y), idx, 2)
             if z is None or not self._mmc.getFocusDevice():
                 continue
-            zpos = QTableWidgetItem(str(z))
-            zpos.setTextAlignment(AlignCenter)
-            self.stage_tableWidget.setItem(idx, 3, zpos)
+            self._add_table_item(str(z), idx, 3)
+
+        self.valueChanged.emit()
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._clear_positions)
