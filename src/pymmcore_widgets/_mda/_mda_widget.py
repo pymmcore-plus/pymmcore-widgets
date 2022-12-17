@@ -229,41 +229,6 @@ class MDAWidget(QWidget):
             else None
         )
 
-        # position settings
-        # stage_positions: list = []
-
-        # if self._mmc.getXYStageDevice():
-        #     if (
-        #         self.position_groupbox.isChecked()
-        #         and self.position_groupbox.stage_tableWidget.rowCount() > 0
-        #     ):
-        #         for r in range(self.position_groupbox.stage_tableWidget.rowCount()):
-        #             pos = {
-        #                 "name": self.position_groupbox.stage_tableWidget.item(
-        #                     r, 0
-        #                 ).text(),
-        #                 "x": float(
-        #                     self.position_groupbox.stage_tableWidget.item(r, 1).text()
-        #                 ),
-        #                 "y": float(
-        #                     self.position_groupbox.stage_tableWidget.item(r, 2).text()
-        #                 ),
-        #             }
-        #             if self._mmc.getFocusDevice():
-        #                 pos["z"] = float(
-        #                     self.position_groupbox.stage_tableWidget.item(r, 3).text()
-        #                 )
-        #             stage_positions.append(pos)
-        #     else:
-        #         pos = {
-        #             "name": "Pos_000",
-        #             "x": float(self._mmc.getXPosition()),
-        #             "y": float(self._mmc.getYPosition()),
-        #         }
-        #         if self._mmc.getFocusDevice():
-        #             pos["z"] = float(self._mmc.getZPosition())
-        #         stage_positions.append(pos)
-
         return MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
             channels=channels,
