@@ -69,7 +69,6 @@ class MDAWidget(QWidget):
         self.stack_groupbox = ZStackWidget()
         self.stack_groupbox.setChecked(False)
 
-        # self.position_groupbox = _MDAPositionTable(["Pos", "X", "Y", "Z"])
         self.position_groupbox = PositionTable()
 
         # below the scroll area, some feedback widgets and buttons
