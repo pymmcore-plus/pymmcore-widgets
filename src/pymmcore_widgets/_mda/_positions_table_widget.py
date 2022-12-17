@@ -99,10 +99,9 @@ class PositionTable(QGroupBox):
         self.grid_button = QPushButton(text="Grid")
         self.grid_button.setMinimumWidth(min_size)
         self.grid_button.setSizePolicy(btn_sizepolicy)
-        self.go = QPushButton(text="Go")
-        self.go.clicked.connect(self._move_to_position)
-        self.go.setMinimumWidth(min_size)
-        self.go.setSizePolicy(btn_sizepolicy)
+        self.go_button = QPushButton(text="Go")
+        self.go_button.setMinimumWidth(min_size)
+        self.go_button.setSizePolicy(btn_sizepolicy)
 
         spacer = QSpacerItem(
             10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
@@ -112,7 +111,7 @@ class PositionTable(QGroupBox):
         layout.addWidget(self.remove_pos_button)
         layout.addWidget(self.clear_pos_button)
         layout.addWidget(self.grid_button)
-        layout.addWidget(self.go)
+        layout.addWidget(self.go_button)
         layout.addItem(spacer)
 
         group_layout.addWidget(wdg)
@@ -121,10 +120,19 @@ class PositionTable(QGroupBox):
         self.remove_pos_button.clicked.connect(self._remove_position)
         self.clear_pos_button.clicked.connect(self._clear_positions)
         self.grid_button.clicked.connect(self._grid_widget)
+        self.go_button.clicked.connect(self._move_to_position)
+
+        self.stage_tableWidget.selectionModel().selectionChanged.connect(
+            self._enable_go_button
+        )
 
         self._mmc.events.systemConfigurationLoaded.connect(self._clear_positions)
 
         self.destroyed.connect(self._disconnect)
+
+    def _enable_go_button(self) -> None:
+        rows = {r.row() for r in self.stage_tableWidget.selectedIndexes()}
+        self.go_button.setEnabled(len(rows) == 1)
 
     def _add_position(self) -> None:
 
