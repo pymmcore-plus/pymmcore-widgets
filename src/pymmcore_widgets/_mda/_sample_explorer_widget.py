@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import cast
+from typing import Any, cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QCollapsible
-from useq import MDASequence
+from useq import MDASequence, Position
 
 from pymmcore_widgets._mda import MDAWidget
 
@@ -129,6 +129,8 @@ class SampleExplorerWidget(MDAWidget):
         mmcore: CMMCorePlus | None = None,
     ) -> None:
         self.grid_params = _GridParametersWidget()
+        self.return_to_position_x: float | None = None
+        self.return_to_position_y: float | None = None
 
         super().__init__(
             parent=parent, include_run_button=include_run_button, mmcore=mmcore
@@ -175,8 +177,6 @@ class SampleExplorerWidget(MDAWidget):
 
         # explorer variables
         self.pixel_size = self._mmc.getPixelSizeUm()
-        self.return_to_position_x = None
-        self.return_to_position_y = None
 
         # connection for scan size
         self.grid_params.valueChanged.connect(self._update_total_time)
@@ -187,10 +187,6 @@ class SampleExplorerWidget(MDAWidget):
 
     def _on_mda_finished(self) -> None:
         super()._on_mda_finished()
-
-        if not hasattr(self, "return_to_position_x"):
-            return
-
         if (
             self.return_to_position_x is not None
             and self.return_to_position_y is not None
@@ -246,7 +242,7 @@ class SampleExplorerWidget(MDAWidget):
         self._rename_positions()
         self._update_total_time()
 
-    def _rename_positions(self, names: list = None) -> None:  # type: ignore
+    def _rename_positions(self, _: Any = None) -> None:
         """Rename the positions to keep name's correct counter of 3digits."""
         # name arguments to match super method
         for grid_count, r in enumerate(
@@ -271,81 +267,78 @@ class SampleExplorerWidget(MDAWidget):
     def _get_pos_name(self, row: int) -> str:
         """Get position name from table item's whatsThis property."""
         item = self.position_groupbox.stage_tableWidget.item(row, 0)
-        name = item.text()
+        name = str(item.text())
         whatsthis = item.whatsThis()
-        return f"{name}_{whatsthis}" if whatsthis not in name else name  # type: ignore
+        return f"{name}_{whatsthis}" if whatsthis not in name else name
 
-    def _create_grid_coords(self) -> list[tuple[str, float, float, float | None]]:
-        """Calculate the grid coordinates for each grid starting position."""
+    def _create_grid_coords(self) -> list[Position]:
+        """Calculate the grid coordinates for each grid starting position.
+
+        output should be a compatible input to MDASequence stage_positions.
+        """
+        table = self.position_groupbox.stage_tableWidget
+        explorer_starting_positions: list[Position] = []
+        if self.position_groupbox.isChecked() and table.rowCount() > 0:
+            explorer_starting_positions.extend(
+                Position(
+                    name=self._get_pos_name(r),
+                    x=float(table.item(r, 1).text()),
+                    y=float(table.item(r, 2).text()),
+                    z=(
+                        float(table.item(r, 3).text())
+                        if self._mmc.getFocusDevice()
+                        else None
+                    ),
+                )
+                for r in range(table.rowCount())
+            )
+        else:
+            explorer_starting_positions.append(
+                Position(
+                    name="Grid_001",
+                    x=float(self._mmc.getXPosition()),
+                    y=float(self._mmc.getYPosition()),
+                    z=float(self._mmc.getZPosition())
+                    if self._mmc.getFocusDevice()
+                    else None,
+                )
+            )
+
+        # calculate initial scan position
+        _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
+
+        # prepare overlaps and shifts
         scan_size_r = self.grid_params.scan_size_spinBox_r.value()
         scan_size_c = self.grid_params.scan_size_spinBox_c.value()
         self.pixel_size = self._mmc.getPixelSizeUm()
 
-        # TODO: fix typing error
-        explorer_starting_positions: (
-            list[tuple[str, float, float, float] | tuple[str, float, float]]
-        ) = []
-        if (
-            self.position_groupbox.isChecked()
-            and self.position_groupbox.stage_tableWidget.rowCount() > 0
-        ):
-            for r in range(self.position_groupbox.stage_tableWidget.rowCount()):
-                name = self._get_pos_name(r)
-                x = float(self.position_groupbox.stage_tableWidget.item(r, 1).text())
-                y = float(self.position_groupbox.stage_tableWidget.item(r, 2).text())
-                z = float(self.position_groupbox.stage_tableWidget.item(r, 3).text())
-                pos_info = (
-                    (name, x, y, z) if self._mmc.getFocusDevice() else (name, x, y)
-                )
-                explorer_starting_positions.append(pos_info)  # type: ignore
+        overlap_percentage = self.grid_params.overlap_spinBox.value()
+        overlap_px_w = width - (width * overlap_percentage) / 100
+        overlap_px_h = height - (height * overlap_percentage) / 100
+        move_x = (width / 2) * (scan_size_c - 1) - overlap_px_w
+        move_x = self.pixel_size * (move_x + width)
 
+        move_y = (height / 2) * (scan_size_r - 1) - overlap_px_h
+        move_y = self.pixel_size * (move_y + height)
+
+        # calculate position increments depending on pixel size
+        if overlap_percentage > 0:
+            increment_x = overlap_px_w * self.pixel_size
+            increment_y = overlap_px_h * self.pixel_size
         else:
-            name = "Grid_001"
-            x = float(self._mmc.getXPosition())
-            y = float(self._mmc.getYPosition())
-            if self._mmc.getFocusDevice():
-                z = float(self._mmc.getZPosition())
-                pos_info = (name, x, y, z)
-            else:
-                pos_info = (name, x, y)
-            explorer_starting_positions.append(pos_info)  # type: ignore
+            increment_x = width * self.pixel_size
+            increment_y = height * self.pixel_size
 
-        full_pos_list: (
-            list[list[tuple[str, float, float, float]] | list[tuple[str, float, float]]]
-        ) = []
+        output: list[Position] = []
         for st_pos in explorer_starting_positions:
-            name, x_pos, y_pos = st_pos[0], st_pos[1], st_pos[2]
-            if self._mmc.getFocusDevice():
-                z_pos = st_pos[3]  # type: ignore
-
-            self.return_to_position_x = x_pos  # type: ignore
-            self.return_to_position_y = y_pos  # type: ignore
-
-            # calculate initial scan position
-            _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
-
-            overlap_percentage = self.grid_params.overlap_spinBox.value()
-            overlap_px_w = width - (width * overlap_percentage) / 100
-            overlap_px_h = height - (height * overlap_percentage) / 100
-
-            move_x = (width / 2) * (scan_size_c - 1) - overlap_px_w
-            move_y = (height / 2) * (scan_size_r - 1) - overlap_px_h
+            # XXX: why are we setting this in a for loop?
+            self.return_to_position_x = st_pos.x
+            self.return_to_position_y = st_pos.y
 
             # to match position coordinates with center of the image
-            x_pos -= self.pixel_size * (move_x + width)
-            y_pos += self.pixel_size * (move_y + height)
+            x_pos = cast(float, st_pos.x) - move_x
+            y_pos = cast(float, st_pos.y) + move_y
 
-            # calculate position increments depending on pixle size
-            if overlap_percentage > 0:
-                increment_x = overlap_px_w * self.pixel_size
-                increment_y = overlap_px_h * self.pixel_size
-            else:
-                increment_x = width * self.pixel_size
-                increment_y = height * self.pixel_size
-
-            list_pos_order: (
-                list[tuple[str, float, float, float] | tuple[str, float, float]]
-            ) = []
             pos_count = 0
             for r in range(scan_size_r):
                 if r % 2:  # for odd rows
@@ -353,11 +346,8 @@ class SampleExplorerWidget(MDAWidget):
                     for c in range(scan_size_c):
                         if c == 0:
                             y_pos -= increment_y
-                        pos_name = f"{name}_Pos{pos_count:03d}"
-                        if self._mmc.getFocusDevice():
-                            list_pos_order.append((pos_name, x_pos, y_pos, z_pos))
-                        else:
-                            list_pos_order.append((pos_name, x_pos, y_pos))
+                        name = f"{st_pos.name}_Pos{pos_count:03d}"
+                        output.append(Position(name=name, x=x_pos, y=y_pos, z=st_pos.z))
                         if col > 0:
                             col -= 1
                             x_pos -= increment_x
@@ -366,18 +356,13 @@ class SampleExplorerWidget(MDAWidget):
                     for c in range(scan_size_c):
                         if r > 0 and c == 0:
                             y_pos -= increment_y
-                        pos_name = f"{name}_Pos{pos_count:03d}"
-                        if self._mmc.getFocusDevice():
-                            list_pos_order.append((pos_name, x_pos, y_pos, z_pos))
-                        else:
-                            list_pos_order.append((pos_name, x_pos, y_pos))
+                        name = f"{st_pos.name}_Pos{pos_count:03d}"
+                        output.append(Position(name=name, x=x_pos, y=y_pos, z=st_pos.z))
                         if c < scan_size_c - 1:
                             x_pos += increment_x
                         pos_count += 1
 
-            full_pos_list.extend(list_pos_order)  # type: ignore
-
-        return full_pos_list  # type: ignore
+        return output
 
     def get_state(self) -> MDASequence:  # sourcery skip: merge-dict-assign
         """Get current state of widget and build a useq.MDASequence.
@@ -386,28 +371,14 @@ class SampleExplorerWidget(MDAWidget):
         -------
         useq.MDASequence
         """
-        channels = self.channel_groupbox.value()
-
-        z_plan = (
-            self.stack_groupbox.value() if self.stack_groupbox.isChecked() else None
-        )
-        time_plan = (
-            self.time_groupbox.value() if self.time_groupbox.isChecked() else None
-        )
-
-        stage_positions: list[dict] = []
-        for g in self._create_grid_coords():
-            pos = {"name": g[0], "x": g[1], "y": g[2]}
-            if len(g) == 4:
-                pos["z"] = g[3]
-            stage_positions.append(pos)
-
+        z = self.stack_groupbox.value() if self.stack_groupbox.isChecked() else None
+        time = self.time_groupbox.value() if self.time_groupbox.isChecked() else None
         return MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
-            channels=channels,
-            stage_positions=stage_positions,
-            z_plan=z_plan,
-            time_plan=time_plan,
+            channels=self.channel_groupbox.value(),
+            stage_positions=self._create_grid_coords(),
+            z_plan=z,
+            time_plan=time,
         )
 
     def _on_run_clicked(self) -> None:
@@ -415,7 +386,6 @@ class SampleExplorerWidget(MDAWidget):
         self.pixel_size = self._mmc.getPixelSizeUm()
 
         if self._mmc.getPixelSizeUm() <= 0:
-            # raise ValueError("Pixel Size not set.")
             warnings.warn("Pixel Size not set.")
             return
 
