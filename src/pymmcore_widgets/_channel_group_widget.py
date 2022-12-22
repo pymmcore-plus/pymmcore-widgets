@@ -33,6 +33,7 @@ class ChannelGroupWidget(QComboBox):
         self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
         self._mmc.events.configGroupDeleted.connect(self._update_channel_group_combo)
+        self._mmc.events.configDefined.connect(self._update_channel_group_combo)
 
         self.currentTextChanged.connect(self._mmc.setChannelGroup)
 
