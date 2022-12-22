@@ -34,7 +34,7 @@ class ChannelGroupWidget(QComboBox):
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
         self._mmc.events.configGroupDeleted.connect(self._update_channel_group_combo)
 
-        self.currentTextChanged.connect(self._on_channel_group_combo_changed)
+        self.currentTextChanged.connect(self._mmc.setChannelGroup)
 
         self.destroyed.connect(self._disconnect)
 
@@ -50,10 +50,6 @@ class ChannelGroupWidget(QComboBox):
             else:
                 self.setStyleSheet("color: magenta;")
 
-    def _on_channel_group_combo_changed(self, group: str) -> None:
-        # use setProperty because setChannelGroup deos not emit a signal
-        self._mmc.setProperty("Core", "ChannelGroup", group)
-
     def _on_property_changed(self, device: str, property: str, value: str) -> None:
         if device != "Core" or property != "ChannelGroup":
             return
@@ -65,7 +61,7 @@ class ChannelGroupWidget(QComboBox):
                 self.setStyleSheet("color: magenta;")
 
     def _on_channel_group_changed(self, group: str) -> None:
-        if group in [self.currentText(), self._mmc.getChannelGroup()]:
+        if group == self.currentText():
             return
         self._update_channel_group_combo()
 
