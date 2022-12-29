@@ -109,7 +109,7 @@ class ChannelTable(QGroupBox):
 
         group_layout.addWidget(wdg, 0, 1)
 
-        self._mmc.events.systemConfigurationLoaded.connect(self._clear)
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)
 
         self.destroyed.connect(self._disconnect)
