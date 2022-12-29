@@ -222,11 +222,7 @@ class MDAWidget(QWidget):
             self.time_groupbox.value() if self.time_groupbox.isChecked() else None
         )
 
-        stage_positions = (
-            self.position_groupbox.value()
-            if self.position_groupbox.isChecked()
-            else None
-        )
+        stage_positions = self.position_groupbox.value()
 
         return MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
