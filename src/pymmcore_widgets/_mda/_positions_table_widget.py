@@ -294,9 +294,9 @@ class PositionTable(QGroupBox):
             z = float(z_text) if z_text else None
             values.append(
                 {
-                    "name": self.stage_tableWidget.item(row, 0).text(),
-                    "x": float(self.stage_tableWidget.item(row, 1).text()),
-                    "y": float(self.stage_tableWidget.item(row, 2).text()),
+                    "name": self.stage_tableWidget.item(row, 0).text() or None,
+                    "x": float(self.stage_tableWidget.item(row, 1).text()) or None,
+                    "y": float(self.stage_tableWidget.item(row, 2).text()) or None,
                     "z": z,
                 }
             )
