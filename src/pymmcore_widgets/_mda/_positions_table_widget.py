@@ -182,6 +182,7 @@ class PositionTable(QGroupBox):
         # even when the user changed the name in the table.
         if whatsthis:
             item.setWhatsThis(table_item)
+            item.setToolTip(table_item)
         item.setTextAlignment(AlignCenter)
         self.stage_tableWidget.setItem(row, col, item)
 
@@ -196,7 +197,6 @@ class PositionTable(QGroupBox):
             if "Grid" in whatsthis:
                 grid_name = whatsthis.split("_")[0]
                 grid_to_delete.append(grid_name)
-
             else:
                 self.stage_tableWidget.removeRow(idx)
 
@@ -225,7 +225,9 @@ class PositionTable(QGroupBox):
                 # new whatsthis property based on row
                 if "Grid" not in whatsthis:  # whatsthis = Posnnn
                     single_pos_rows.append(row)
-                    self.stage_tableWidget.item(row, 0).setWhatsThis(f"Pos{row:03d}")
+                    new_whatsthis = f"Pos{row:03d}"
+                    self.stage_tableWidget.item(row, 0).setWhatsThis(new_whatsthis)
+                    self.stage_tableWidget.item(row, 0).setToolTip(new_whatsthis)
                 continue
 
             # rename single positions
