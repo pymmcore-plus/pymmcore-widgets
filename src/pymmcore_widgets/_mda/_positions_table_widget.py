@@ -100,6 +100,7 @@ class PositionTable(QGroupBox):
         self.grid_button.setMinimumWidth(min_size)
         self.grid_button.setSizePolicy(btn_sizepolicy)
         self.go_button = QPushButton(text="Go")
+        self.go_button.setEnabled(False)
         self.go_button.setMinimumWidth(min_size)
         self.go_button.setSizePolicy(btn_sizepolicy)
 
@@ -139,8 +140,7 @@ class PositionTable(QGroupBox):
         if not self._mmc.getXYStageDevice():
             raise ValueError("No XY Stage device loaded.")
 
-        count = self.stage_tableWidget.rowCount() - 1
-        name = f"Pos{count:03d}"
+        name = f"Pos{self.stage_tableWidget.rowCount():03d}"
         xpos = str(self._mmc.getXPosition())
         ypos = str(self._mmc.getXPosition())
         if self._mmc.getFocusDevice():
@@ -148,7 +148,7 @@ class PositionTable(QGroupBox):
 
         self._create_new_row(name, xpos, ypos, zpos)
 
-        self._rename_positions(["Pos"])
+        self._rename_positions()
 
     def _create_new_row(
         self, name: str | None, xpos: str | None, ypos: str | None, zpos: str | None
@@ -178,6 +178,8 @@ class PositionTable(QGroupBox):
         self, table_item: str | None, row: int, col: int, whatsthis: bool = False
     ) -> None:
         item = QTableWidgetItem(table_item)
+        # whatsthis is used to keep track of grid and/or position
+        # even when the user changed the name in the table.
         if whatsthis:
             item.setWhatsThis(table_item)
         item.setTextAlignment(AlignCenter)
@@ -186,7 +188,6 @@ class PositionTable(QGroupBox):
     def _remove_position(self) -> None:
 
         rows = {r.row() for r in self.stage_tableWidget.selectedIndexes()}
-        removed = []
         grid_to_delete = []
 
         for idx in sorted(rows, reverse=True):
@@ -197,21 +198,12 @@ class PositionTable(QGroupBox):
                 grid_to_delete.append(grid_name)
 
             else:
-                name = self.stage_tableWidget.item(idx, 0).text().split("_")[0]
-
-                if "Pos" in name:
-                    if "Pos" not in removed:
-                        removed.append("Pos")
-
-                elif name not in removed:
-                    removed.append(name)
-
                 self.stage_tableWidget.removeRow(idx)
 
         for gridname in grid_to_delete:
             self._delete_grid_positions(gridname)
 
-        self._rename_positions(removed)
+        self._rename_positions()
         self.valueChanged.emit()
 
     def _delete_grid_positions(self, name: list[str]) -> None:
@@ -220,16 +212,37 @@ class PositionTable(QGroupBox):
             if name in self.stage_tableWidget.item(row, 0).whatsThis():
                 self.stage_tableWidget.removeRow(row)
 
-    def _rename_positions(self, names: list) -> None:
-        for _ in names:
-            pos_count = 0
-            for r in range(self.stage_tableWidget.rowCount()):
-                name = self.stage_tableWidget.item(r, 0).text()
-                if "Grid" in name or "Pos" not in name:
-                    continue
-                new_name = f"Pos{pos_count:03d}"
-                pos_count += 1
-                self._add_table_item(new_name, r, 0)
+    def _rename_positions(self) -> None:
+        single_pos_count = 0
+        single_pos_rows = []
+        for row in range(self.stage_tableWidget.rowCount()):
+            name = self.stage_tableWidget.item(row, 0).text()
+            whatsthis = self.stage_tableWidget.item(row, 0).whatsThis()
+
+            if name != whatsthis:
+                # if the user changed the name in the table,
+                # store single pos number from table row and set
+                # new whatsthis property based on row
+                if "Grid" not in whatsthis:  # whatsthis = Posnnn
+                    single_pos_rows.append(row)
+                    self.stage_tableWidget.item(row, 0).setWhatsThis(f"Pos{row:03d}")
+                continue
+
+            # rename single positions
+            if "Grid" not in name:  # name = Posnnn
+                pos_number = self._update_number(single_pos_count, single_pos_rows)
+                new_name = f"Pos{pos_number:03d}"
+                single_pos_count = pos_number + 1
+                self._add_table_item(new_name, row, 0, True)
+
+    def _update_number(self, number: int, exixting_numbers: list[int]) -> int:
+        loop = True
+        while loop:
+            if number in exixting_numbers:
+                number += 1
+            else:
+                loop = False
+        return number
 
     def _clear_positions(self) -> None:
         """clear all positions."""
@@ -248,7 +261,7 @@ class PositionTable(QGroupBox):
 
     def _add_grid_positions_to_table(self, position_list: list, clear: bool) -> None:
 
-        grid_number = 0
+        grid_number = -1
 
         if clear:
             self._clear_positions()
@@ -260,7 +273,8 @@ class PositionTable(QGroupBox):
                     grid_n = grid_name[-3:]
                     if int(grid_n) > grid_number:
                         grid_number = int(grid_n)
-            grid_number += 1
+
+        grid_number = 0 if grid_number < 0 else grid_number + 1
 
         for idx, position in enumerate(position_list):
             name = f"Grid{grid_number:03d}_Pos{idx:03d}"
