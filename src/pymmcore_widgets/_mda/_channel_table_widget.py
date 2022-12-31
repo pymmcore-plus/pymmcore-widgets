@@ -148,10 +148,6 @@ class ChannelTable(QGroupBox):
                 if self._mmc.getChannelGroup() != config:
                     combo.setCurrentText(self._mmc.getChannelGroup())
 
-    def channelGroup(self) -> str:
-        """Return current channel group."""
-        return self._channel_group
-
     def _pick_first_unused_channel(self, available: tuple[str, ...]) -> str:
         """Return index of first unused channel."""
         used = set()
