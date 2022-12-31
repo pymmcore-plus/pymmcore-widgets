@@ -57,7 +57,6 @@ class ChannelTable(QGroupBox):
     """
 
     valueChanged = Signal()
-    _channel_group: str
 
     def __init__(
         self,
