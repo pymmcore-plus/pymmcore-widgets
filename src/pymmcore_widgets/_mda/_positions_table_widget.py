@@ -7,6 +7,8 @@ from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractItemView,
+    QAbstractSpinBox,
+    QDoubleSpinBox,
     QGroupBox,
     QHBoxLayout,
     QPushButton,
@@ -137,35 +139,38 @@ class PositionTable(QGroupBox):
 
     def _add_position(self) -> None:
 
-        if not self._mmc.getXYStageDevice():
-            raise ValueError("No XY Stage device loaded.")
+        if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
+            raise ValueError("No XY and Z Stage devices loaded.")
 
         name = f"Pos{self.stage_tableWidget.rowCount():03d}"
-        xpos = str(self._mmc.getXPosition())
-        ypos = str(self._mmc.getXPosition())
-        if self._mmc.getFocusDevice():
-            zpos = str(self._mmc.getZPosition())
+        xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
+        ypos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
+        zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
 
         self._create_new_row(name, xpos, ypos, zpos)
 
         self._rename_positions()
 
     def _create_new_row(
-        self, name: str | None, xpos: str | None, ypos: str | None, zpos: str | None
+        self,
+        name: str | None,
+        xpos: float | None,
+        ypos: float | None,
+        zpos: float | None,
     ) -> None:
 
-        if not self._mmc.getXYStageDevice():
-            raise ValueError("No XY Stage device loaded.")
+        if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
+            raise ValueError("No XY and Z Stage devices loaded.")
 
         row = self._add_position_row()
 
         self._add_table_item(name, row, 0, True)
-        self._add_table_item(xpos, row, 1)
-        self._add_table_item(ypos, row, 2)
+        self._add_table_value(xpos, row, 1)
+        self._add_table_value(ypos, row, 2)
         if zpos is None or not self._mmc.getFocusDevice():
             self.valueChanged.emit()
             return
-        self._add_table_item(zpos, row, 3)
+        self._add_table_value(zpos, row, 3)
 
         self.valueChanged.emit()
 
@@ -173,6 +178,17 @@ class PositionTable(QGroupBox):
         idx = self.stage_tableWidget.rowCount()
         self.stage_tableWidget.insertRow(idx)
         return cast(int, idx)
+
+    def _add_table_value(self, value: float | None, row: int, col: int) -> None:
+        if value is None:
+            return
+        spin = QDoubleSpinBox()
+        spin.setAlignment(AlignCenter)
+        spin.setMaximum(1000000.0)
+        spin.setMinimum(-1000000.0)
+        spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        spin.setValue(value)
+        self.stage_tableWidget.setCellWidget(row, col, spin)
 
     def _add_table_item(
         self, table_item: str | None, row: int, col: int, whatsthis: bool = False
@@ -213,6 +229,7 @@ class PositionTable(QGroupBox):
                 self.stage_tableWidget.removeRow(row)
 
     def _rename_positions(self) -> None:
+        # TODO: add rename aldo for Gridnnn_Posnnn
         single_pos_count = 0
         single_pos_rows = []
         for row in range(self.stage_tableWidget.rowCount()):
@@ -261,7 +278,9 @@ class PositionTable(QGroupBox):
         self._grid_wdg.show()
         self._grid_wdg.raise_()
 
-    def _add_grid_positions_to_table(self, position_list: list, clear: bool) -> None:
+    def _add_grid_positions_to_table(
+        self, position_list: list[tuple[float, ...]], clear: bool
+    ) -> None:
 
         grid_number = -1
 
@@ -286,7 +305,7 @@ class PositionTable(QGroupBox):
                 x, y = position
                 z = None
 
-            self._create_new_row(name, str(x), str(y), str(z))
+            self._create_new_row(name, x, y, z)
 
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():
@@ -304,30 +323,32 @@ class PositionTable(QGroupBox):
         Note that output dict will match the Positions from useq schema:
         <https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position>
         """
-        values: list[PositionDict] = []
-        for row in range(self.stage_tableWidget.rowCount()):
-            z_text = self.stage_tableWidget.item(row, 3).text()
-            x = float(self.stage_tableWidget.item(row, 1).text())
-            y = float(self.stage_tableWidget.item(row, 2).text())
-            z = float(z_text) if z_text else None
-
-            values.append(
-                {
-                    "name": self.stage_tableWidget.item(row, 0).text() or None,
-                    "x": x if abs(x) >= 0.0 else None,
-                    "y": y if abs(y) >= 0.0 else None,
-                    "z": z,
-                }
-            )
+        values: list[PositionDict] = [
+            {
+                "name": self.stage_tableWidget.item(row, 0).text() or None,
+                "x": self._get_table_value(row, 1),
+                "y": self._get_table_value(row, 2),
+                "z": self._get_table_value(row, 3),
+            }
+            for row in range(self.stage_tableWidget.rowCount())
+        ]
         return values
+
+    def _get_table_value(self, row: int, col: int) -> float | None:
+        try:
+            wdg = cast(QDoubleSpinBox, self.stage_tableWidget.cellWidget(row, col))
+            value = wdg.value()
+        except AttributeError:
+            value = None
+        return value  # type: ignore
 
     # note: this should to be PositionDict, but it makes typing elsewhere harder
     def set_state(self, positions: list[dict]) -> None:
         """Set the state of the widget from a useq position dictionary."""
         self._clear_positions()
 
-        if not self._mmc.getXYStageDevice():
-            raise ValueError("No XY Stage device loaded.")
+        if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
+            raise ValueError("No XY and Z Stage devices loaded.")
 
         self.setChecked(True)
 
@@ -337,20 +358,20 @@ class PositionTable(QGroupBox):
             y = pos.get("y")
             z = pos.get("z")
 
-            if x is None or y is None:
-                continue
+            if (x is not None or y is not None) and not self._mmc.getXYStageDevice():
+                x, y = (None, None)
+                warnings.warn("No XY Stage device loaded.")
 
             if z and not self._mmc.getFocusDevice():
+                z = None
                 warnings.warn("No Focus device loaded.")
 
             self._add_position_row()
 
             self._add_table_item(name, idx, 0)
-            self._add_table_item(str(x), idx, 1)
-            self._add_table_item(str(y), idx, 2)
-            if z is None or not self._mmc.getFocusDevice():
-                continue
-            self._add_table_item(str(z), idx, 3)
+            self._add_table_value(x, idx, 1)
+            self._add_table_value(y, idx, 2)
+            self._add_table_value(z, idx, 3)
 
         self.valueChanged.emit()
 
