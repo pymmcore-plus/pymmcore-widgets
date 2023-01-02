@@ -90,15 +90,15 @@ class PositionTable(QGroupBox):
 
         btn_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         min_size = 100
-        self.add_pos_button = QPushButton(text="Add")
-        self.add_pos_button.setMinimumWidth(min_size)
-        self.add_pos_button.setSizePolicy(btn_sizepolicy)
-        self.remove_pos_button = QPushButton(text="Remove")
-        self.remove_pos_button.setMinimumWidth(min_size)
-        self.remove_pos_button.setSizePolicy(btn_sizepolicy)
-        self.clear_pos_button = QPushButton(text="Clear")
-        self.clear_pos_button.setMinimumWidth(min_size)
-        self.clear_pos_button.setSizePolicy(btn_sizepolicy)
+        self.add_button = QPushButton(text="Add")
+        self.add_button.setMinimumWidth(min_size)
+        self.add_button.setSizePolicy(btn_sizepolicy)
+        self.remove_button = QPushButton(text="Remove")
+        self.remove_button.setMinimumWidth(min_size)
+        self.remove_button.setSizePolicy(btn_sizepolicy)
+        self.clear_button = QPushButton(text="Clear")
+        self.clear_button.setMinimumWidth(min_size)
+        self.clear_button.setSizePolicy(btn_sizepolicy)
         self.grid_button = QPushButton(text="Grid")
         self.grid_button.setMinimumWidth(min_size)
         self.grid_button.setSizePolicy(btn_sizepolicy)
@@ -111,18 +111,18 @@ class PositionTable(QGroupBox):
             10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
         )
 
-        layout.addWidget(self.add_pos_button)
-        layout.addWidget(self.remove_pos_button)
-        layout.addWidget(self.clear_pos_button)
+        layout.addWidget(self.add_button)
+        layout.addWidget(self.remove_button)
+        layout.addWidget(self.clear_button)
         layout.addWidget(self.grid_button)
         layout.addWidget(self.go_button)
         layout.addItem(spacer)
 
         group_layout.addWidget(wdg)
 
-        self.add_pos_button.clicked.connect(self._add_position)
-        self.remove_pos_button.clicked.connect(self._remove_position)
-        self.clear_pos_button.clicked.connect(self._clear_positions)
+        self.add_button.clicked.connect(self._add_position)
+        self.remove_button.clicked.connect(self._remove_position)
+        self.clear_button.clicked.connect(self._clear_positions)
         self.grid_button.clicked.connect(self._grid_widget)
         self.go_button.clicked.connect(self._move_to_position)
 
@@ -145,7 +145,7 @@ class PositionTable(QGroupBox):
 
         name = f"Pos{self.stage_tableWidget.rowCount():03d}"
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
-        ypos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
+        ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
 
         self._create_new_row(name, xpos, ypos, zpos)
