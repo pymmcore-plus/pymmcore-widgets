@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from itertools import groupby
 from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import CMMCorePlus
@@ -164,7 +165,7 @@ class PositionTable(QGroupBox):
 
         row = self._add_position_row()
 
-        self._add_table_item(name, row, 0, True)
+        self._add_table_item(name, row, 0)
         self._add_table_value(xpos, row, 1)
         self._add_table_value(ypos, row, 2)
         if zpos is None or not self._mmc.getFocusDevice():
@@ -190,15 +191,12 @@ class PositionTable(QGroupBox):
         spin.setValue(value)
         self.stage_tableWidget.setCellWidget(row, col, spin)
 
-    def _add_table_item(
-        self, table_item: str | None, row: int, col: int, whatsthis: bool = False
-    ) -> None:
+    def _add_table_item(self, table_item: str | None, row: int, col: int) -> None:
         item = QTableWidgetItem(table_item)
         # whatsthis is used to keep track of grid and/or position
         # even when the user changed the name in the table.
-        if whatsthis:
-            item.setWhatsThis(table_item)
-            item.setToolTip(table_item)
+        item.setWhatsThis(table_item)
+        item.setToolTip(table_item)
         item.setTextAlignment(AlignCenter)
         self.stage_tableWidget.setItem(row, col, item)
 
@@ -229,30 +227,40 @@ class PositionTable(QGroupBox):
                 self.stage_tableWidget.removeRow(row)
 
     def _rename_positions(self) -> None:
-        # TODO: add rename aldo for Gridnnn_Posnnn
         single_pos_count = 0
-        single_pos_rows = []
+        single_pos_rows: list[int] = []
+        grid_info: list[tuple[str, str, int]] = []
         for row in range(self.stage_tableWidget.rowCount()):
             name = self.stage_tableWidget.item(row, 0).text()
             whatsthis = self.stage_tableWidget.item(row, 0).whatsThis()
 
-            if name != whatsthis:
-                # if the user changed the name in the table,
-                # store single pos number from table row and set
-                # new whatsthis property based on row
-                if "Grid" not in whatsthis:  # whatsthis = Posnnn
-                    single_pos_rows.append(row)
-                    new_whatsthis = f"Pos{row:03d}"
-                    self.stage_tableWidget.item(row, 0).setWhatsThis(new_whatsthis)
-                    self.stage_tableWidget.item(row, 0).setToolTip(new_whatsthis)
+            if "Grid" in whatsthis.split("_")[0]:
+                grid_info.append((name, whatsthis, row))
                 continue
 
-            # rename single positions
-            if "Grid" not in name:  # name = Posnnn
+            if name == whatsthis:  # name = Posnnn
                 pos_number = self._update_number(single_pos_count, single_pos_rows)
                 new_name = f"Pos{pos_number:03d}"
                 single_pos_count = pos_number + 1
-                self._add_table_item(new_name, row, 0, True)
+                self._update_table_item(new_name, row, 0)
+
+            elif "Grid" not in whatsthis:  # whatsthis = Posnnn
+                single_pos_rows.append(row)
+                new_whatsthis = f"Pos{row:03d}"
+                self._update_table_item(new_whatsthis, row, 0, False)
+
+        if not grid_info:
+            return
+
+        self._rename_grid_positions(grid_info)
+
+    def _update_table_item(
+        self, name: str, row: int, col: int, update_name: bool = True
+    ) -> None:
+        if update_name:
+            self.stage_tableWidget.item(row, col).setText(name)
+        self.stage_tableWidget.item(row, col).setWhatsThis(name)
+        self.stage_tableWidget.item(row, col).setToolTip(name)
 
     def _update_number(self, number: int, exixting_numbers: list[int]) -> int:
         loop = True
@@ -262,6 +270,34 @@ class PositionTable(QGroupBox):
             else:
                 loop = False
         return number
+
+    def _rename_grid_positions(self, grid_info: list[tuple[str, str, int]]) -> None:
+        """Rename postions created with the GridWidget.
+
+        grid_info = [(name, whatsthis, row), ...].
+        By default, name is 'Gridnnn_Posnnn' but users can rename.
+
+        Example
+        -------
+        grid_info = [
+            (Grid000_Pos000, Grid000_Pos000, 1),
+            (Grid000_Pos001, Grid000_Pos001, 2),
+            (test0, Grid001_Pos000, 3),
+            (test1, Grid001_Pos001, 4),
+        ]
+        """
+        # first create a new list with items grouped by grid WhatsThis property
+        ordered_by_grid_n = [
+            list(grid_n)
+            for _, grid_n in groupby(grid_info, lambda x: x[1].split("_")[0])
+        ]
+
+        # then rename each grid with new neame and new whatsthis
+        for idx, i in enumerate(ordered_by_grid_n):
+            for pos_idx, n in enumerate(i):
+                name, whatsthis, row = n
+                new_name = f"Grid{idx:03d}_Pos{pos_idx:03d}"
+                self._update_table_item(new_name, row, 0, name == whatsthis)
 
     def _clear_positions(self) -> None:
         """clear all positions."""
