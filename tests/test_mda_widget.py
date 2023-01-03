@@ -76,13 +76,13 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
     wdg.position_groupbox.setChecked(True)
-    wdg.position_groupbox.add_pos_button.click()
-    wdg.position_groupbox.add_pos_button.click()
+    wdg.position_groupbox.add_button.click()
+    wdg.position_groupbox.add_button.click()
     assert wdg.position_groupbox.stage_tableWidget.rowCount() == 2
     wdg.position_groupbox.stage_tableWidget.selectRow(0)
-    wdg.position_groupbox.remove_pos_button.click()
+    wdg.position_groupbox.remove_button.click()
     assert wdg.position_groupbox.stage_tableWidget.rowCount() == 1
-    wdg.position_groupbox.clear_pos_button.click()
+    wdg.position_groupbox.clear_button.click()
     assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
 
 
