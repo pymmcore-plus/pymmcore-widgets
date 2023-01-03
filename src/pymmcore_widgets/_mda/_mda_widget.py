@@ -77,6 +77,7 @@ class MDAWidget(QWidget):
         self.buttons_wdg = _MDAControlButtons()
         self.buttons_wdg.pause_button.hide()
         self.buttons_wdg.cancel_button.hide()
+        self.buttons_wdg.run_button.hide()
 
         # LAYOUT
 
@@ -120,7 +121,7 @@ class MDAWidget(QWidget):
         # connect run button
         if self._include_run_button:
             self.buttons_wdg.run_button.clicked.connect(self._on_run_clicked)
-            self.buttons_wdg.run_button.hide()
+            self.buttons_wdg.run_button.show()
 
         self._on_sys_cfg_loaded()
 
