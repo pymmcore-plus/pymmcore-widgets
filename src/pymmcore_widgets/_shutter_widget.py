@@ -97,7 +97,6 @@ class ShuttersWidget(QWidget):
 
     @icon_open.setter
     def icon_open(self, icon_o: str) -> None:
-        # if int(self._mmc.getProperty(self.shutter_device, "State")) == 1:
         if self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setIcon(icon(icon_o, color=self._icon_color_open))
         self._icon_open = icon_o
@@ -117,7 +116,6 @@ class ShuttersWidget(QWidget):
 
     @icon_closed.setter
     def icon_closed(self, icon_c: str) -> None:
-        # if int(self._mmc.getProperty(self.shutter_device, "State")) == 0:
         if not self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setIcon(icon(icon_c, color=self._icon_color_closed))
         self._icon_closed = icon_c
