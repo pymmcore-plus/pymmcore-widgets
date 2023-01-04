@@ -317,11 +317,25 @@ class ShuttersWidget(QWidget):
 
     def _close_shutter(self, shutter: str) -> None:
         self._set_shutter_wdg_to_closed()
-        self._mmc.setProperty(shutter, "State", False)
+        self._mmc.setShutterOpen(shutter, False)
+
+        # TO REMOVE
+        print(" ")
+        print(shutter, self._mmc.getShutterOpen(shutter))
+        if "State Device" in self._mmc.getDevicePropertyNames(self.shutter_device):
+            shutter = self._mmc.getProperty(self.shutter_device, "State Device")
+            print(shutter, self._mmc.getProperty(shutter, "State"))
 
     def _open_shutter(self, shutter: str) -> None:
         self._set_shutter_wdg_to_opened()
-        self._mmc.setProperty(shutter, "State", True)
+        self._mmc.setShutterOpen(shutter, True)
+
+        # TO REMOVE
+        print(" ")
+        print(shutter, self._mmc.getShutterOpen(shutter))
+        if "State Device" in self._mmc.getDevicePropertyNames(self.shutter_device):
+            shutter = self._mmc.getProperty(self.shutter_device, "State Device")
+            print(shutter, self._mmc.getProperty(shutter, "State"))
 
     def _on_shutter_checkbox_toggled(self, state: bool) -> None:
         self._mmc.setAutoShutter(state)

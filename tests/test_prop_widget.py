@@ -3,13 +3,21 @@ from pymmcore_plus import CMMCorePlus, PropertyType
 
 from pymmcore_widgets import PropertyWidget
 
+
 # not sure how else to parametrize the test without instantiating here at import ...
+# NOTE: in the default 'MMConfig_demo.cgf', the device called 'LED'
+# is a mock State Device (DStateDevice) device from the 'DemoCamera DHub.
+# We are excluding the dev-prop 'LED-Number of positions' because
+# it is not an actual property of the device, but it is used only to set the number
+# of states (dy default, 10) that the mock device can have during the
+# micromanager "Hardwre Confoguration Wizard".
 CORE = CMMCorePlus()
 CORE.loadSystemConfiguration()
 dev_props = [
     (dev, prop)
     for dev in CORE.getLoadedDevices()
     for prop in CORE.getDevicePropertyNames(dev)
+    if dev != "LED" and prop != "Number of positions"
 ]
 
 
