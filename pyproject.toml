@@ -102,7 +102,7 @@ extend-select = [
     "F",    # flakes
     "D",    # pydocstyle
     "I001", # isort
-    "U",    # pyupgrade
+    "UP",    # pyupgrade
     # "N",  # pep8-naming
     # "S",  # bandit
     "C",    # flake8-comprehensions
