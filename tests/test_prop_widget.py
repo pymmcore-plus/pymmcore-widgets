@@ -3,7 +3,6 @@ from pymmcore_plus import CMMCorePlus, PropertyType
 
 from pymmcore_widgets import PropertyWidget
 
-
 # not sure how else to parametrize the test without instantiating here at import ...
 # NOTE: in the default 'MMConfig_demo.cgf', the device called 'LED'
 # is a mock State Device (DStateDevice) device from the 'DemoCamera DHub.
