@@ -170,8 +170,6 @@ class DefaultCameraExposureWidget(ExposureWidget):
 if __name__ == "__main__":  # pragma: no cover
     import sys
 
-    from pymmcore_plus import CMMCorePlus
-
     CMMCorePlus.instance().loadSystemConfiguration()
     app = QApplication(sys.argv)
     win = DefaultCameraExposureWidget()
