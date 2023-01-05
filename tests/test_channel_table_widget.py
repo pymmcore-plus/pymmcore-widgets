@@ -8,6 +8,11 @@ from pymmcore_widgets._mda import ChannelTable
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
+    from qtpy.QtWidgets import QComboBox
+
+
+def get_combo_values(combo: QComboBox):
+    return [combo.itemText(idx) for idx in range(combo.count())]
 
 
 def test_channel_table_widget_btns(global_mmcore: CMMCorePlus, qtbot: QtBot):
@@ -72,18 +77,49 @@ def test_channel_table_widget_core_signals(global_mmcore: CMMCorePlus, qtbot: Qt
     assert ct._table.rowCount() == 3
     ch_combo_1 = ct._table.cellWidget(0, 0)
     assert ch_combo_1.currentText() == "DAPI"
-    assert "Cy5" not in [ch_combo_1.itemText(idx) for idx in range(ch_combo_1.count())]
+    assert "Cy5" not in get_combo_values(ch_combo_1)
 
     ch_combo_2 = ct._table.cellWidget(1, 0)
     assert ch_combo_2.currentText() == "DAPI"
-    assert "Cy5" not in [ch_combo_1.itemText(idx) for idx in range(ch_combo_2.count())]
+    assert "Cy5" not in get_combo_values(ch_combo_1)
 
     mmc.deleteConfigGroup("Channel")
     assert ct._table.rowCount() == 1
     assert ct._table.cellWidget(0, 0).currentText() == "HighRes"
 
     mmc.defineConfig("test_group", "test_preset")
-    assert "test_group" in [
-        ct.channel_group_combo.itemText(idx)
-        for idx in range(ct.channel_group_combo.count())
-    ]
+    assert "test_group" in get_combo_values(ct.channel_group_combo)
+
+
+def test_channel_table_widget_disconnected(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    ct = ChannelTable(connect_core=False)
+    qtbot.addWidget(ct)
+    mmc = global_mmcore
+
+    combo_groups = get_combo_values(ct.channel_group_combo)
+
+    assert combo_groups == list(mmc.getAvailableConfigGroups())
+
+    assert mmc.getChannelGroup() == "Channel"
+
+    ct.channel_group_combo.setCurrentText("Camera")
+    assert ct.channel_group_combo.currentText() == "Camera"
+    assert mmc.getChannelGroup() != "Camera"
+    assert mmc.getChannelGroup() == "Channel"
+
+    mmc.setProperty("Core", "ChannelGroup", "Objective")
+    assert mmc.getChannelGroup() == "Objective"
+    assert mmc.getChannelGroup() != "Camera"
+    assert ct.channel_group_combo.currentText() == "Camera"
+
+    mmc.setChannelGroup("LightPath")
+    assert mmc.getChannelGroup() == "LightPath"
+    assert ct.channel_group_combo.currentText() == "Camera"
+
+    mmc.deleteConfigGroup("Channel")
+    combo_groups = get_combo_values(ct.channel_group_combo)
+    assert "Channel" in combo_groups
+
+    mmc.defineConfig("new_group", "new_preset")
+    combo_groups = get_combo_values(ct.channel_group_combo)
+    assert "new_group" not in combo_groups

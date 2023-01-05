@@ -47,6 +47,9 @@ class ChannelTable(QGroupBox):
     ----------
     title : str
         Title of the QGroupBox widget. Bt default, 'Channel'.
+    connect_core : bool
+        By default, `True`. If set to `False`, the `ChannelGroupWidget`
+        will be disconnected from the core.
     parent : QWidget | None
         Optional parent widget. By default, None.
     mmcore : CMMCorePlus | None
@@ -61,6 +64,7 @@ class ChannelTable(QGroupBox):
     def __init__(
         self,
         title: str = "Channels",
+        connect_core: bool = True,
         parent: QWidget | None = None,
         *,
         mmcore: CMMCorePlus | None = None,
@@ -68,6 +72,7 @@ class ChannelTable(QGroupBox):
         super().__init__(title, parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
+        self._connect_core = connect_core
 
         group_layout = QGridLayout()
         group_layout.setSpacing(15)
@@ -95,7 +100,7 @@ class ChannelTable(QGroupBox):
         layout.setContentsMargins(0, 0, 0, 0)
         wdg.setLayout(layout)
 
-        self.channel_group_combo = ChannelGroupWidget()
+        self.channel_group_combo = ChannelGroupWidget(connect_core)
         layout.addWidget(self.channel_group_combo)
 
         min_size = 100
@@ -174,7 +179,7 @@ class ChannelTable(QGroupBox):
             warnings.warn("No devices loaded.")
             return
 
-        _channel_group = channel_group or self._mmc.getChannelGroup()
+        _channel_group = channel_group or self.channel_group_combo.currentText()
 
         if not _channel_group:
             warnings.warn("First select Micro-Manager 'ChannelGroup'.")
@@ -251,7 +256,7 @@ class ChannelTable(QGroupBox):
                 if not ch:
                     raise ValueError("Dictionary should contain channel 'config' name.")
                 avail_configs = self._mmc.getAvailableConfigs(
-                    group or self._mmc.getChannelGroup()
+                    group or self.channel_group_combo.currentText()
                 )
                 if ch not in avail_configs:
                     warnings.warn(
