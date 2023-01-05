@@ -10,8 +10,11 @@ class ChannelGroupWidget(QComboBox):
 
     Parameters
     ----------
+    connect_core : bool
+        By default, `True`. If set to `False`, this widget will be disconnected
+        from the core.
     parent : QWidget | None
-            Optional parent widget. By default, None.
+        Optional parent widget. By default, None.
     mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
@@ -20,24 +23,31 @@ class ChannelGroupWidget(QComboBox):
     """
 
     def __init__(
-        self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
+        self,
+        connect_core: bool = True,
+        parent: QWidget | None = None,
+        *,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
         # connect mmcore events
-        self._mmc.events.systemConfigurationLoaded.connect(
-            self._update_channel_group_combo
-        )
-        self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
-        self._mmc.events.propertyChanged.connect(self._on_property_changed)
-        self._mmc.events.configGroupDeleted.connect(self._update_channel_group_combo)
-        self._mmc.events.configDefined.connect(self._update_channel_group_combo)
+        if connect_core:
+            self._mmc.events.systemConfigurationLoaded.connect(
+                self._update_channel_group_combo
+            )
+            self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
+            self._mmc.events.propertyChanged.connect(self._on_property_changed)
+            self._mmc.events.configGroupDeleted.connect(
+                self._update_channel_group_combo
+            )
+            self._mmc.events.configDefined.connect(self._update_channel_group_combo)
 
-        self.currentTextChanged.connect(self._mmc.setChannelGroup)
+            self.destroyed.connect(self._disconnect)
 
-        self.destroyed.connect(self._disconnect)
+            self.currentTextChanged.connect(self._mmc.setChannelGroup)
 
         self._update_channel_group_combo()
 
