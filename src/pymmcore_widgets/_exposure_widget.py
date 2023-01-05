@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pymmcore import g_Keyword_CoreCamera, g_Keyword_CoreDevice
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QApplication, QDoubleSpinBox, QHBoxLayout, QLabel, QWidget
 from superqt.utils import signals_blocked
@@ -168,8 +169,6 @@ class DefaultCameraExposureWidget(ExposureWidget):
 
 if __name__ == "__main__":  # pragma: no cover
     import sys
-
-    from pymmcore_plus import CMMCorePlus
 
     CMMCorePlus.instance().loadSystemConfiguration()
     app = QApplication(sys.argv)
