@@ -265,7 +265,7 @@ class PositionTable(QGroupBox):
     ) -> None:
 
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage devices loaded.")
+            raise ValueError("No XY and Z Stage selected.")
 
         if row is None:
             row = self._add_position_row()
