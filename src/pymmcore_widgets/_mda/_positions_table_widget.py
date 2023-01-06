@@ -213,7 +213,6 @@ class PositionTable(QGroupBox):
                 self.stage_tableWidget.setColumnHidden(c, True)
             stage = ""
         self._mmc.setFocusDevice(stage)
-        self._mmc.setFocusDevice
 
     def _enable_go_replace_button(self) -> None:
         rows = {r.row() for r in self.stage_tableWidget.selectedIndexes()}
