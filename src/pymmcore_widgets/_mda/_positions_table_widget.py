@@ -216,12 +216,15 @@ class PositionTable(QGroupBox):
         for idx in sorted(rows, reverse=True):
 
             whatsthis = self.stage_tableWidget.item(idx, 0).whatsThis()
+            # store grid name if is a grid position
             if "Grid" in whatsthis:
                 grid_name = whatsthis.split("_")[0]
                 grid_to_delete.append(grid_name)
             else:
+                # remove if is a single position
                 self.stage_tableWidget.removeRow(idx)
 
+        # remove grid positions
         for gridname in grid_to_delete:
             self._delete_grid_positions(gridname)
 
@@ -246,7 +249,7 @@ class PositionTable(QGroupBox):
                 grid_info.append((name, whatsthis, row))
                 continue
 
-            if name == whatsthis:  # name = Posnnn
+            if name == whatsthis:  # name = Posnnn and whatsthis = Posnnn
                 pos_number = self._update_number(single_pos_count, single_pos_rows)
                 new_name = f"Pos{pos_number:03d}"
                 single_pos_count = pos_number + 1
@@ -333,7 +336,7 @@ class PositionTable(QGroupBox):
         else:
             for r in range(self.stage_tableWidget.rowCount()):
                 pos_name = self.stage_tableWidget.item(r, 0).whatsThis()
-                grid_name = pos_name.split("_")[0]
+                grid_name = pos_name.split("_")[0]  # e.g. Grid000
                 if "Grid" in grid_name:
                     grid_n = grid_name[-3:]
                     if int(grid_n) > grid_number:
