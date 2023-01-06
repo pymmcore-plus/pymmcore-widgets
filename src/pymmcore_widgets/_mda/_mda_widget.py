@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
@@ -14,6 +15,18 @@ from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
 from ._positions_table_widget import PositionTable
 from ._time_plan_widget import TimePlanWidget
 from ._zstack_widget import ZStackWidget
+
+if TYPE_CHECKING:
+    from typing_extensions import TypedDict
+
+    class PositionDict(TypedDict, total=False):
+        """Position dictionary."""
+
+        x: float | None
+        y: float | None
+        z: float | None
+        name: str | None
+
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
@@ -223,7 +236,7 @@ class MDAWidget(QWidget):
             self.time_groupbox.value() if self.time_groupbox.isChecked() else None
         )
 
-        stage_positions = self.position_groupbox.value()
+        stage_positions = self.position_groupbox.value() or self._get_current_position()
 
         return MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
@@ -232,6 +245,20 @@ class MDAWidget(QWidget):
             z_plan=z_plan,
             time_plan=time_plan,
         )
+
+    def _get_current_position(self) -> list[PositionDict]:
+        return [
+            {
+                "name": "Pos000",
+                "x": (
+                    self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
+                ),
+                "y": (
+                    self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
+                ),
+                "z": (self._mmc.getZPosition() if self._mmc.getFocusDevice() else None),
+            }
+        ]
 
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
