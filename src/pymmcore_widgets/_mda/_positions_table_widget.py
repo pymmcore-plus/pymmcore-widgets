@@ -489,16 +489,19 @@ class PositionTable(QGroupBox):
         Note that output dict will match the Positions from useq schema:
         <https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position>
         """
-        values: list[PositionDict] = [
-            {
-                "name": self.stage_tableWidget.item(row, 0).text() or None,
-                "x": self._get_table_value(row, 1),
-                "y": self._get_table_value(row, 2),
-                "z": self._get_table_value(row, self._get_z_stage_column()),
-            }
-            for row in range(self.stage_tableWidget.rowCount())
-        ]
-        return values
+        return (
+            [
+                {
+                    "name": self.stage_tableWidget.item(row, 0).text() or None,
+                    "x": self._get_table_value(row, 1),
+                    "y": self._get_table_value(row, 2),
+                    "z": self._get_table_value(row, self._get_z_stage_column()),
+                }
+                for row in range(self.stage_tableWidget.rowCount())
+            ]
+            if self.isChecked()
+            else []
+        )
 
     def _get_table_value(self, row: int, col: int | None) -> float | None:
         try:
