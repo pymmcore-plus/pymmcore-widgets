@@ -94,6 +94,7 @@ class PositionTable(QGroupBox):
         self.add_button.setMinimumWidth(min_size)
         self.add_button.setSizePolicy(btn_sizepolicy)
         self.remove_button = QPushButton(text="Remove")
+        self.remove_button.setEnabled(False)
         self.remove_button.setMinimumWidth(min_size)
         self.remove_button.setSizePolicy(btn_sizepolicy)
         self.clear_button = QPushButton(text="Clear")
@@ -129,6 +130,9 @@ class PositionTable(QGroupBox):
         self.stage_tableWidget.selectionModel().selectionChanged.connect(
             self._enable_go_button
         )
+        self.stage_tableWidget.selectionModel().selectionChanged.connect(
+            self._enable_remove_button
+        )
 
         self._mmc.events.systemConfigurationLoaded.connect(self._clear_positions)
 
@@ -137,6 +141,10 @@ class PositionTable(QGroupBox):
     def _enable_go_button(self) -> None:
         rows = {r.row() for r in self.stage_tableWidget.selectedIndexes()}
         self.go_button.setEnabled(len(rows) == 1)
+
+    def _enable_remove_button(self) -> None:
+        rows = {r.row() for r in self.stage_tableWidget.selectedIndexes()}
+        self.remove_button.setEnabled(len(rows) >= 1)
 
     def _add_position(self) -> None:
 
