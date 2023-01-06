@@ -88,7 +88,7 @@ class PositionTable(QGroupBox):
         self.stage_tableWidget.setTabKeyNavigation(True)
         self.stage_tableWidget.setColumnCount(4)
         self.stage_tableWidget.setRowCount(0)
-        self.stage_tableWidget.setHorizontalHeaderLabels(["Pos", "X", "Y", "Z"])
+        self._set_table_header()
         table_and_btns_layout.addWidget(self.stage_tableWidget)
 
         # buttons
@@ -239,6 +239,7 @@ class PositionTable(QGroupBox):
                 continue
             if self._mmc.getFocusDevice() != c:
                 self.stage_tableWidget.setColumnHidden(idx, True)
+                self.stage_tableWidget.isColumnHidden(idx)
 
     def _add_position(self) -> None:
 

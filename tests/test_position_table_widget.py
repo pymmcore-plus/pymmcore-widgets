@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pymmcore_plus import CMMCorePlus
+from pymmcore_plus import CMMCorePlus, DeviceType
 
 from pymmcore_widgets._mda import PositionTable
 
@@ -161,3 +161,33 @@ def test_rename_grid_pos_after_delete(global_mmcore: CMMCorePlus, qtbot: QtBot):
         if row in {1, 3}:
             grid_n += 1
             pos = 0
+
+
+def test_position_table(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    p = PositionTable()
+    qtbot.addWidget(p)
+
+    p.setChecked(True)
+    mmc = global_mmcore
+    tb = p.stage_tableWidget
+
+    assert [tb.horizontalHeaderItem(i).text() for i in range(tb.columnCount())] == [
+        "Pos",
+        "X",
+        "Y",
+        "Z",
+        "Z1",
+    ]
+    assert len(mmc.getLoadedDevicesOfType(DeviceType.Stage)) == 2
+    assert ["Z", "Z1"] == list(mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
+    assert mmc.getFocusDevice() == "Z"
+
+    assert p.z_stage_combo.currentText() == "Z"
+
+    assert not tb.isColumnHidden(3)  # "Z"
+    assert tb.isColumnHidden(4)  # "Z1"
+
+    p.z_stage_combo.setCurrentText("Z1")
+    assert mmc.getFocusDevice() == "Z1"
+    assert not tb.isColumnHidden(4)  # "Z1"
+    assert tb.isColumnHidden(3)  # "Z"
