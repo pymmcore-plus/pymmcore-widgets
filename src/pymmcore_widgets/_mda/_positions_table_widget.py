@@ -271,14 +271,7 @@ class PositionTable(QGroupBox):
         for idx, c in enumerate(header):
 
             if c == "Pos" and (
-                self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
-                or self._mmc.getFocusDevice()
-            ):
-                continue
-
-            if (
-                c == "Pos"
-                and not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+                not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
                 and not self._mmc.getFocusDevice()
             ):
                 self.stage_tableWidget.setColumnHidden(idx, True)
@@ -288,7 +281,7 @@ class PositionTable(QGroupBox):
             ):
                 self.stage_tableWidget.setColumnHidden(idx, True)
 
-            elif c not in {"X", "Y"}:
+            elif c not in {"Pos", "X", "Y"}:
                 self.stage_tableWidget.setColumnHidden(
                     idx, self._mmc.getFocusDevice() != c
                 )
@@ -296,7 +289,7 @@ class PositionTable(QGroupBox):
     def _add_position(self) -> None:
 
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage devices loaded.")
+            raise ValueError("No XY and/or Z Stage selected.")
 
         name = f"Pos{self.stage_tableWidget.rowCount():03d}"
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
@@ -317,7 +310,7 @@ class PositionTable(QGroupBox):
     ) -> None:
 
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage selected.")
+            raise ValueError("No XY and/or Z Stage selected.")
 
         if row is None:
             row = self._add_position_row()
