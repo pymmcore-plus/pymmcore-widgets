@@ -186,17 +186,25 @@ class PositionTable(QGroupBox):
         self._populate_stage_combo()
 
     def _on_prop_changed(self, device: str, prop: str, value: str) -> None:
-        if device == "Core" and prop == "Focus":
+        if device != "Core" or prop != "Focus":
+            return
 
-            with signals_blocked(self.z_stage_combo):
-                self.z_stage_combo.setCurrentText(value or "None")
+        with signals_blocked(self.z_stage_combo):
+            self.z_stage_combo.setCurrentText(value or "None")
 
-            for i in range(3, self.stage_tableWidget.columnCount()):
-                if not value:
-                    self.stage_tableWidget.setColumnHidden(i, True)
-                else:
-                    col_name = self.stage_tableWidget.horizontalHeaderItem(i).text()
-                    self.stage_tableWidget.setColumnHidden(i, col_name != value)
+        if not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice):
+            _range = (0, self.stage_tableWidget.columnCount())
+        else:
+            _range = (3, self.stage_tableWidget.columnCount())
+
+        for i in range(_range[0], _range[1]):
+            if not value:
+                self.stage_tableWidget.setColumnHidden(i, True)
+            elif i == 0:
+                self.stage_tableWidget.setColumnHidden(i, False)
+            else:
+                col_name = self.stage_tableWidget.horizontalHeaderItem(i).text()
+                self.stage_tableWidget.setColumnHidden(i, col_name != value)
 
     def _populate_stage_combo(self) -> None:
         with signals_blocked(self.z_stage_combo):
@@ -209,9 +217,16 @@ class PositionTable(QGroupBox):
 
     def _on_z_stage_combo_changed(self, stage: str) -> None:
         if stage == "None":
-            for c in range(3, self.stage_tableWidget.columnCount()):
+            _range = (
+                (3, self.stage_tableWidget.columnCount())
+                if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+                else (0, self.stage_tableWidget.columnCount())
+            )
+            for c in range(_range[0], _range[1]):
                 self.stage_tableWidget.setColumnHidden(c, True)
+
             stage = ""
+
         self._mmc.setFocusDevice(stage)
 
     def _enable_go_replace_button(self) -> None:
@@ -229,17 +244,54 @@ class PositionTable(QGroupBox):
         self.remove_button.setEnabled(len(rows) >= 1)
 
     def _set_table_header(self) -> None:
-        header = ["Pos", "X", "Y"] + list(
-            self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice)
+
+        self.stage_tableWidget.setColumnCount(0)
+
+        if not self._mmc.getLoadedDevicesOfType(
+            DeviceType.XYStageDevice
+        ) and not self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice):
+            self._clear_positions()
+            return
+
+        header = (
+            ["Pos"]
+            + (
+                ["X", "Y"]
+                if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+                else []
+            )
+            + list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
         )
+
         self.stage_tableWidget.setColumnCount(len(header))
         self.stage_tableWidget.setHorizontalHeaderLabels(header)
+
         for idx, c in enumerate(header):
-            if idx <= 2:
+
+            if c == "Pos" and (
+                self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+                or self._mmc.getFocusDevice()
+            ):
                 continue
-            if self._mmc.getFocusDevice() != c:
+
+            if (
+                c == "Pos"
+                and not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+                and not self._mmc.getFocusDevice()
+            ):
                 self.stage_tableWidget.setColumnHidden(idx, True)
-                self.stage_tableWidget.isColumnHidden(idx)
+
+            elif c in {"X", "Y"} and not self._mmc.getLoadedDevicesOfType(
+                DeviceType.XYStageDevice
+            ):
+                self.stage_tableWidget.setColumnHidden(idx, True)
+
+            # elif c not in {"X", "Y"} and self._mmc.getFocusDevice() != c:
+            #     self.stage_tableWidget.setColumnHidden(idx, True)
+            elif c not in {"X", "Y"}:
+                self.stage_tableWidget.setColumnHidden(
+                    idx, self._mmc.getFocusDevice() != c
+                )
 
     def _add_position(self) -> None:
 
