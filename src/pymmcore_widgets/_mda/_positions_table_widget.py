@@ -265,8 +265,9 @@ class PositionTable(QGroupBox):
 
         self.stage_tableWidget.setColumnCount(len(header))
         self.stage_tableWidget.setHorizontalHeaderLabels(header)
+        self._hide_header_columns(header)
 
-        # TODO: find a more organized way
+    def _hide_header_columns(self, header: list[str]) -> None:
         for idx, c in enumerate(header):
 
             if c == "Pos" and (
