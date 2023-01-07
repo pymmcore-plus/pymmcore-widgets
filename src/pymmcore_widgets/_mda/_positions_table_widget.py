@@ -266,6 +266,7 @@ class PositionTable(QGroupBox):
         self.stage_tableWidget.setColumnCount(len(header))
         self.stage_tableWidget.setHorizontalHeaderLabels(header)
 
+        # TODO: find a more organized way
         for idx, c in enumerate(header):
 
             if c == "Pos" and (
@@ -286,8 +287,6 @@ class PositionTable(QGroupBox):
             ):
                 self.stage_tableWidget.setColumnHidden(idx, True)
 
-            # elif c not in {"X", "Y"} and self._mmc.getFocusDevice() != c:
-            #     self.stage_tableWidget.setColumnHidden(idx, True)
             elif c not in {"X", "Y"}:
                 self.stage_tableWidget.setColumnHidden(
                     idx, self._mmc.getFocusDevice() != c
