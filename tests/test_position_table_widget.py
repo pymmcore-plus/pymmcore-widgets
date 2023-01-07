@@ -191,3 +191,19 @@ def test_position_table(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert mmc.getFocusDevice() == "Z1"
     assert not tb.isColumnHidden(4)  # "Z1"
     assert tb.isColumnHidden(3)  # "Z"
+
+    mmc.unloadDevice("XY")
+    p.z_stage_combo.setCurrentText("None")
+    for c in range(tb.columnCount()):
+        assert tb.isColumnHidden(c)
+
+    p.z_stage_combo.setCurrentText("Z")
+    assert tb.columnCount() == 5
+
+    assert tb.horizontalHeaderItem(0).text() == "Pos"
+    assert tb.horizontalHeaderItem(3).text() == "Z"
+    for c in range(tb.columnCount()):
+        if c in {0, 3}:
+            assert not tb.isColumnHidden(c)
+        else:
+            assert tb.isColumnHidden(c)
