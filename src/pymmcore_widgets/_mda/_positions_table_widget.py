@@ -174,6 +174,7 @@ class PositionTable(QGroupBox):
         lbl = QLabel("Z Stage:")
         lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.z_stage_combo = QComboBox()
+        self.z_stage_combo.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.z_stage_combo.currentTextChanged.connect(self._on_z_stage_combo_changed)
         cbox_wdg_layout.addWidget(lbl)
         cbox_wdg_layout.addWidget(self.z_stage_combo)
