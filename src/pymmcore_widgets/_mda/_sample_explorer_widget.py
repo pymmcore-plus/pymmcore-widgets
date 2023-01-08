@@ -166,6 +166,10 @@ class SampleExplorerWidget(MDAWidget):
         scroll_layout.removeWidget(self.position_groupbox)
         self.position_groupbox.setTitle("")
         self.position_groupbox.grid_button.hide()
+        self.position_groupbox.add_button.clicked.disconnect()
+        self.position_groupbox.add_button.clicked.connect(self._add_position)
+        self.position_groupbox.remove_button.clicked.disconnect()
+        self.position_groupbox.remove_button.clicked.connect(self._remove_position)
         pos_coll.addWidget(self.position_groupbox)
 
         scroll_layout.insertWidget(2, wdg)
@@ -206,7 +210,8 @@ class SampleExplorerWidget(MDAWidget):
             return
 
         if len(self._mmc.getLoadedDevices()) > 1:
-            idx = self._add_position_row()
+            # idx = self._add_position_row()
+            idx = self.position_groupbox._add_position_row()
 
             for c, ax in enumerate("GXYZ"):
                 if ax == "G":
