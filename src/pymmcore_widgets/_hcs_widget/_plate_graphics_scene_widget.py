@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Tuple
-
 from qtpy.QtCore import QRect, QRectF, Qt
 from qtpy.QtGui import QBrush, QTransform
 from qtpy.QtWidgets import (
@@ -12,7 +10,7 @@ from qtpy.QtWidgets import (
 )
 
 
-class GraphicsScene(QGraphicsScene):
+class HCSGraphicsScene(QGraphicsScene):
     """Custom QGraphicsScene to control the plate/well selection."""
 
     def __init__(self) -> None:
@@ -24,11 +22,9 @@ class GraphicsScene(QGraphicsScene):
         self.well_pos = 0
         self.new_well_pos = 0
 
-        self._selected_wells: List[QGraphicsItem] = []
+        self._selected_wells: list[QGraphicsItem] = []
 
-    def mousePressEvent(
-        self, event: QGraphicsSceneMouseEvent
-    ) -> None:  # noqa: D102, E501
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         self.originQPoint = event.screenPos()
         self.currentQRubberBand = QRubberBand(QRubberBand.Rectangle)
         self.originCropPoint = event.scenePos()
@@ -46,9 +42,7 @@ class GraphicsScene(QGraphicsScene):
                 well._setBrush(self.selected)
                 well.setSelected(True)
 
-    def mouseMoveEvent(
-        self, event: QGraphicsSceneMouseEvent
-    ) -> None:  # noqa: D102, E501
+    def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         self.currentQRubberBand.setGeometry(QRect(self.originQPoint, event.screenPos()))
         self.currentQRubberBand.show()
         selection = self.items(QRectF(self.originCropPoint, event.scenePos()))
@@ -60,9 +54,7 @@ class GraphicsScene(QGraphicsScene):
                 item._setBrush(self.unselected)
                 item.setSelected(False)
 
-    def mouseReleaseEvent(
-        self, event: QGraphicsSceneMouseEvent
-    ) -> None:  # noqa: D102, E501
+    def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         self.currentQRubberBand.hide()
 
     def _clear_selection(self) -> None:
@@ -71,7 +63,7 @@ class GraphicsScene(QGraphicsScene):
                 item.setSelected(False)
                 item._setBrush(self.unselected)
 
-    def _get_plate_positions(self) -> List[Tuple[str, int, int]] | None:
+    def _get_plate_positions(self) -> list[tuple[str, int, int]] | None:
         """Return a list of (well, row, column) for each well selected."""
         if not self.items():
             return None

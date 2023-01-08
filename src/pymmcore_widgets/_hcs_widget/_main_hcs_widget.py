@@ -6,23 +6,38 @@ import numpy as np
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QBrush
-from qtpy.QtWidgets import QFileDialog, QTableWidgetItem, QWidget
+from qtpy.QtWidgets import (
+    QComboBox,
+    QFileDialog,
+    QGraphicsView,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QSpacerItem,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 from superqt.utils import signals_blocked
-from useq import MDASequence
 
-from .._util import PLATE_FROM_CALIBRATION
-from ._graphics_items import FOVPoints, Well
-from ._main_hcs_gui import HCSGui
-from ._update_plate_dialog import UpdatePlateDialog
-from ._well_plate_database import PLATE_DB, WellPlate
+from pymmcore_widgets._hcs_widget._calibration_widget import PlateCalibration
+from pymmcore_widgets._hcs_widget._generate_fov_widget import SelectFOV
+from pymmcore_widgets._hcs_widget._graphics_items import FOVPoints, Well
+from pymmcore_widgets._hcs_widget._plate_graphics_scene_widget import HCSGraphicsScene
+from pymmcore_widgets._hcs_widget._update_plate_dialog import UpdatePlateDialog
+from pymmcore_widgets._hcs_widget._well_plate_database import PLATE_DB, WellPlate
+from pymmcore_widgets._mda._mda_widget import MDAWidget
+from pymmcore_widgets._util import PLATE_FROM_CALIBRATION
 
 AlignCenter = Qt.AlignmentFlag.AlignCenter
-
 
 CALIBRATED_PLATE: WellPlate | None = None
 
 
-class HCSWidget(HCSGui):
+class HCSWidget(QWidget):
     """HCS widget.
 
     Parameters
@@ -50,48 +65,165 @@ class HCSWidget(HCSGui):
         self,
         parent: QWidget | None = None,
         *,
-        include_run_button: bool = False,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        if len(self._mmc.getLoadedDevices()) <= 1:
-            self._set_enabled(False)
+        layout = QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        self.setLayout(layout)
 
-        self._include_run_button = include_run_button
+        # scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setAlignment(AlignCenter)
+        layout.addWidget(scroll)
 
-        self.cancel_Button.hide()
-        self.pause_Button.hide()
-        if not self._include_run_button:
-            self.run_Button.hide()
+        # tabwidget
+        self.tabwidget = QTabWidget()
+        self.tabwidget.setTabPosition(QTabWidget.West)
 
-        self.wp: WellPlate | None = None
+        self._select_plate_tab = self._create_plate_and_fov_tab()
+
+        self._calibration = self._create_calibration_tab()
+
+        self._mda = HCSMDA()
+        self._mda.add_positions_button.clicked.connect(self._generate_pos_list)
+        self._mda.load_positions_button.clicked.connect(self._load_positions)
+        self._mda.save_positions_button.clicked.connect(self._save_positions)
+
+        self.tabwidget.addTab(self._select_plate_tab, "  Plate and FOVs Selection  ")
+        self.tabwidget.addTab(self._calibration, "  Plate Calibration  ")
+        self.tabwidget.addTab(self._mda, "  MDA  ")
+        scroll.setWidget(self.tabwidget)
 
         # connect
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg)
-        self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
-        self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
-        self._mmc.mda.events.sequencePauseToggled.connect(self._on_mda_paused)
         self._mmc.events.roiSet.connect(self._on_roi_set)
 
         self.wp_combo.currentTextChanged.connect(self._on_combo_changed)
         self.custom_plate.clicked.connect(self._show_update_plate_dialog)
         self.clear_button.clicked.connect(self.scene._clear_selection)
-        if self._include_run_button:
-            self.run_Button.clicked.connect(self._on_run_clicked)
-        self.pause_Button.released.connect(lambda: self._mmc.mda.toggle_pause())
-        self.cancel_Button.released.connect(lambda: self._mmc.mda.cancel())
         self.calibration.PlateFromCalibration.connect(self._on_plate_from_calibration)
-        self.ch_and_pos_list.position_list_button.clicked.connect(
-            self._generate_pos_list
-        )
+        self._mda.add_positions_button.clicked.connect(self._generate_pos_list)
 
         self._refresh_wp_combo()
 
-        self.ch_and_pos_list.save_positions_button.clicked.connect(self._save_positions)
-        self.ch_and_pos_list.load_positions_button.clicked.connect(self._load_positions)
+    def _create_plate_and_fov_tab(self) -> QWidget:
+
+        wdg = QWidget()
+        wdg_layout = QVBoxLayout()
+        wdg_layout.setSpacing(20)
+        wdg_layout.setContentsMargins(10, 10, 10, 10)
+        wdg.setLayout(wdg_layout)
+
+        self.scene = HCSGraphicsScene()
+        self.view = QGraphicsView(self.scene, self)
+        self.view.setStyleSheet("background:grey;")
+        self._width = 500
+        self._height = 300
+        self.view.setMinimumSize(self._width, self._height)
+
+        # well plate selector combo and clear selection QPushButton
+        upper_wdg = QWidget()
+        upper_wdg_layout = QHBoxLayout()
+        upper_wdg_layout.setSpacing(5)
+        upper_wdg_layout.setContentsMargins(0, 0, 0, 5)
+        wp_combo_wdg = self._create_wp_combo_selector()
+        btns = self._create_btns()
+        upper_wdg_layout.addWidget(wp_combo_wdg)
+        upper_wdg_layout.addWidget(btns)
+        upper_wdg.setLayout(upper_wdg_layout)
+
+        self.FOV_selector = SelectFOV()
+
+        # add widgets
+        view_group = QGroupBox()
+        view_group.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
+        view_gp_layout = QVBoxLayout()
+        view_gp_layout.setSpacing(0)
+        view_gp_layout.setContentsMargins(10, 10, 10, 10)
+        view_group.setLayout(view_gp_layout)
+        view_gp_layout.addWidget(upper_wdg)
+        view_gp_layout.addWidget(self.view)
+        wdg_layout.addWidget(view_group)
+
+        FOV_group = QGroupBox()
+        FOV_group.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        FOV_gp_layout = QVBoxLayout()
+        FOV_gp_layout.setSpacing(0)
+        FOV_gp_layout.setContentsMargins(10, 10, 10, 10)
+        FOV_group.setLayout(FOV_gp_layout)
+        FOV_gp_layout.addWidget(self.FOV_selector)
+        wdg_layout.addWidget(FOV_group)
+
+        verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        wdg_layout.addItem(verticalSpacer)
+
+        return wdg
+
+    def _create_wp_combo_selector(self) -> QWidget:
+
+        combo_wdg = QWidget()
+        wp_combo_layout = QHBoxLayout()
+        wp_combo_layout.setContentsMargins(0, 0, 0, 0)
+        wp_combo_layout.setSpacing(5)
+
+        combo_label = QLabel()
+        combo_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        combo_label.setText("Plate:")
+
+        self.wp_combo = QComboBox()
+
+        wp_combo_layout.addWidget(combo_label)
+        wp_combo_layout.addWidget(self.wp_combo)
+        combo_wdg.setLayout(wp_combo_layout)
+
+        return combo_wdg
+
+    def _create_btns(self) -> QWidget:
+        btns_wdg = QWidget()
+        btns_layout = QHBoxLayout()
+        btns_layout.setContentsMargins(0, 0, 0, 0)
+        btns_layout.setSpacing(5)
+        btns_wdg.setLayout(btns_layout)
+
+        self.custom_plate = QPushButton(text="Custom Plate")
+        self.clear_button = QPushButton(text="Clear Selection")
+        btns_layout.addWidget(self.custom_plate)
+        btns_layout.addWidget(self.clear_button)
+
+        return btns_wdg
+
+    def _create_calibration_tab(self) -> QWidget:
+
+        wdg = QWidget()
+        wdg_layout = QVBoxLayout()
+        wdg_layout.setSpacing(20)
+        wdg_layout.setContentsMargins(10, 10, 10, 10)
+        wdg.setLayout(wdg_layout)
+
+        cal_group = QGroupBox()
+        cal_group.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed))
+        cal_group_layout = QVBoxLayout()
+        cal_group_layout.setSpacing(0)
+        cal_group_layout.setContentsMargins(10, 20, 10, 10)
+        cal_group.setLayout(cal_group_layout)
+        self.calibration = PlateCalibration()
+        cal_group_layout.addWidget(self.calibration)
+        wdg_layout.addWidget(cal_group)
+
+        verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        wdg_layout.addItem(verticalSpacer)
+
+        return wdg
+
+    def _set_enabled(self, enabled: bool) -> None:
+        self._select_plate_tab.setEnabled(enabled)
+        self._calibration.setEnabled(enabled)
+        self._mda.setEnabled(enabled)
 
     def _on_sys_cfg(self) -> None:
         self._set_enabled(True)
@@ -248,16 +380,20 @@ class HCSWidget(HCSGui):
             warnings.warn("No Well selected! Select at least one well first.")
             return
 
-        self.ch_and_pos_list._clear_positions()
+        self._mda.position_groupbox._clear_positions()
 
         ordered_wells_list = self._get_wells_stage_coords(well_list)
         ordered_wells_and_fovs_list = self._get_well_and_fovs_position_list(
             ordered_wells_list
         )
 
-        for r, f in enumerate(ordered_wells_and_fovs_list):
+        for f in ordered_wells_and_fovs_list:
             well_name, stage_coord_x, stage_coord_y = f
-            self._add_to_table(r, well_name, stage_coord_x, stage_coord_y)
+            zpos = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
+            # TODO: make _create_row public in PositionTable
+            self._mda.position_groupbox._create_row(
+                well_name, stage_coord_x, stage_coord_y, zpos
+            )
 
     def _get_wells_stage_coords(
         self, well_list: list[tuple[str, int, int]]
@@ -278,7 +414,6 @@ class HCSWidget(HCSGui):
         r_matrix = self.calibration.plate_rotation_matrix
 
         # distance between wells from plate database (mm)
-
         ordered_well_list = []
         original_pos_list = []
         for pos in well_list:
@@ -377,69 +512,28 @@ class HCSWidget(HCSGui):
 
         return pos_list
 
-    def _add_to_table(
-        self,
-        row: int,
-        well_name: str,
-        stage_coord_x: float,
-        stage_coord_y: float,
-        stage_coord_z: float | str = "None",
-    ) -> None:
-
-        self.ch_and_pos_list.stage_tableWidget.insertRow(row)
-        name = QTableWidgetItem(well_name)
-        name.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-        self.ch_and_pos_list.stage_tableWidget.setItem(row, 0, name)
-        stage_x = QTableWidgetItem(str(stage_coord_x))
-        stage_x.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-        self.ch_and_pos_list.stage_tableWidget.setItem(row, 1, stage_x)
-        stage_y = QTableWidgetItem(str(stage_coord_y))
-        stage_y.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-        self.ch_and_pos_list.stage_tableWidget.setItem(row, 2, stage_y)
-
-        if self.ch_and_pos_list.z_combo.currentText() != "None":
-            selected_z_stage = self.ch_and_pos_list.z_combo.currentText()
-            z_pos = self._mmc.getPosition(selected_z_stage)
-            item = QTableWidgetItem(str(z_pos))
-        else:
-            item = QTableWidgetItem(str(stage_coord_z))
-        item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-        self.ch_and_pos_list.stage_tableWidget.setItem(row, 3, item)
-
     def _save_positions(self) -> None:
-        rows = self.ch_and_pos_list.stage_tableWidget.rowCount()
-
-        if not rows:
+        if not self._mda.position_groupbox.stage_tableWidget.rowCount():
             return
 
         (dir_file, _) = QFileDialog.getSaveFileName(
             self, "Saving directory and filename.", "", "json(*.json)"
         )
-        if dir_file:
-            import json
+        if not dir_file:
+            return
 
-            with open(str(dir_file), "w") as file:
-                json.dump(self._get_positions(rows), file)
+        import json
 
-    def _get_positions(self, rows: int) -> dict:
-
-        positions = {
-            "A1_center_coords": {
-                "x": self.calibration.A1_stage_coords_center[0],
-                "y": self.calibration.A1_stage_coords_center[1],
-            }
+        save_file = self._mda.position_groupbox.value()
+        center_coords = {
+            "name": "A1_center_coords",
+            "x": self.calibration.A1_stage_coords_center[0],
+            "y": self.calibration.A1_stage_coords_center[1],
         }
+        save_file.insert(0, center_coords)  # type: ignore
 
-        for row in range(rows):
-            pos_name = self.ch_and_pos_list.stage_tableWidget.item(row, 0).text()
-            z_coord = self.ch_and_pos_list.stage_tableWidget.item(row, 3).text()
-            positions[pos_name] = {
-                "x": float(self.ch_and_pos_list.stage_tableWidget.item(row, 1).text()),
-                "y": float(self.ch_and_pos_list.stage_tableWidget.item(row, 2).text()),
-                "z": float(z_coord) if z_coord != "None" else "None",
-            }
-
-        return positions
+        with open(str(dir_file), "w") as file:
+            json.dump(save_file, file)
 
     def _load_positions(self) -> None:
         if not self.calibration.is_calibrated:
@@ -455,114 +549,71 @@ class HCSWidget(HCSGui):
             with open(filename) as file:
                 self._add_loaded_positions_and_translate(json.load(file))
 
-    def _add_loaded_positions_and_translate(self, pos_list: dict) -> None:
+    def _add_loaded_positions_and_translate(self, pos_list: list) -> None:
+
         new_xc, new_yc = self.calibration.A1_stage_coords_center
 
-        self.ch_and_pos_list._clear_positions()
+        self._mda.position_groupbox._clear_positions()
 
-        old_xc = pos_list["A1_center_coords"].get("x")
-        old_yc = pos_list["A1_center_coords"].get("y")
+        delta_x, delta_y = (0.0, 0.0)
+        for pos in pos_list:
 
-        delta_x = old_xc - new_xc
-        delta_y = old_yc - new_yc
+            name = pos.get("name")
 
-        row = 0
-        for name, coords in pos_list.items():
             if name == "A1_center_coords":
+                old_xc = pos.get("x")
+                old_yc = pos.get("y")
+                delta_x = old_xc - new_xc
+                delta_y = old_yc - new_yc
                 continue
 
-            new_x = coords.get("x") - delta_x
-            new_y = coords.get("y") - delta_y
+            new_x = pos.get("x") - delta_x
+            new_y = pos.get("y") - delta_y
+            zpos = pos.get("z")
 
-            self._add_to_table(row, name, new_x, new_y, coords.get("z"))
-            row += 1
+            # TODO: make _create_row public in PositionTable
+            self._mda.position_groupbox._create_row(name, new_x, new_y, zpos)
 
-    def get_state(self) -> MDASequence:
-        """Get current state of widget and build a useq.MDASequence.
 
-        Returns
-        -------
-        useq.MDASequence
-        """
-        ch_table = self.ch_and_pos_list.channel_tableWidget
-        state: dict = {
-            "axis_order": self.acquisition_order_comboBox.currentText(),
-            "channels": [
-                {
-                    "config": ch_table.cellWidget(c, 0).currentText(),
-                    "group": self._mmc.getChannelGroup() or "Channel",
-                    "exposure": ch_table.cellWidget(c, 1).value(),
-                }
-                for c in range(ch_table.rowCount())
-            ],
-            "time_plan": None,
-            "z_plan": None,
-            "stage_positions": [],
-        }
+class HCSMDA(MDAWidget):
+    """Subclass of MDAWidget to modify PositionTable."""
 
-        if self.ch_and_pos_list.time_groupBox.isChecked():
-            unit = {"min": "minutes", "sec": "seconds", "ms": "milliseconds"}[
-                self.ch_and_pos_list.time_comboBox.currentText()
-            ]
-            state["time_plan"] = {
-                "interval": {unit: self.ch_and_pos_list.interval_spinBox.value()},
-                "loops": self.ch_and_pos_list.timepoints_spinBox.value(),
-            }
+    def __init__(
+        self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
+    ) -> None:
+        super().__init__(parent=parent, include_run_button=True, mmcore=mmcore)
 
-        if self.ch_and_pos_list.stack_group.isChecked():
+        self._mmc = mmcore or CMMCorePlus.instance()
 
-            if self.ch_and_pos_list.z_tabWidget.currentIndex() == 0:
-                state["z_plan"] = {
-                    "range": self.ch_and_pos_list.zrange_spinBox.value(),
-                    "step": self.ch_and_pos_list.step_size_doubleSpinBox.value(),
-                }
-            elif self.ch_and_pos_list.z_tabWidget.currentIndex() == 1:
-                state["z_plan"] = {
-                    "above": self.ch_and_pos_list.above_doubleSpinBox.value(),
-                    "below": self.ch_and_pos_list.below_doubleSpinBox.value(),
-                    "step": self.ch_and_pos_list.step_size_doubleSpinBox.value(),
-                }
+        self.channel_groupbox.setMaximumHeight(200)
 
-        for r in range(self.ch_and_pos_list.stage_tableWidget.rowCount()):
-            pos = {
-                "name": self.ch_and_pos_list.stage_tableWidget.item(r, 0).text(),
-                "x": float(self.ch_and_pos_list.stage_tableWidget.item(r, 1).text()),
-                "y": float(self.ch_and_pos_list.stage_tableWidget.item(r, 2).text()),
-            }
-            if self.ch_and_pos_list.stage_tableWidget.item(r, 3).text() != "None":
-                pos["z"] = float(
-                    self.ch_and_pos_list.stage_tableWidget.item(r, 3).text()
-                )
-            state["stage_positions"].append(pos)
+        # modufy position table widget
+        self._central_widget.layout().removeWidget(self.position_groupbox)
+        self._central_widget.layout().insertWidget(0, self.position_groupbox)
+        self.position_groupbox.setMinimumHeight(300)
+        self.position_groupbox.setCheckable(False)
+        self.position_groupbox.setEnabled(True)
+        self.position_groupbox.grid_button.hide()
 
-        return MDASequence(**state)
+        # add add, save and load buttons
+        pos_tb_wdg = self.position_groupbox.layout().itemAt(0).widget()
+        btns_wdg = pos_tb_wdg.layout().itemAt(1).widget()
+        self.position_groupbox.add_button.hide()
+        self.add_positions_button = QPushButton(text="Add")
+        self.save_positions_button = QPushButton(text="Save")
+        self.load_positions_button = QPushButton(text="Load")
+        btns_wdg.layout().insertWidget(0, self.add_positions_button)
+        btns_wdg.layout().insertWidget(7, self.save_positions_button)
+        btns_wdg.layout().insertWidget(8, self.load_positions_button)
 
-    def _set_enabled(self, enabled: bool) -> None:
-        self._select_plate_tab.setEnabled(enabled)
-        self._calibration.setEnabled(enabled)
-        self.ch_and_pos_list.setEnabled(enabled)
-        self.acquisition_order_comboBox.setEnabled(enabled)
 
-    def _on_mda_started(self) -> None:
-        self._set_enabled(False)
-        if self._include_run_button:
-            self.pause_Button.show()
-            self.cancel_Button.show()
-        self.run_Button.hide()
+if __name__ == "__main__":
+    import sys
 
-    def _on_mda_paused(self, paused: bool) -> None:
-        self.pause_Button.setText("Go" if paused else "Pause")
+    from qtpy.QtWidgets import QApplication
 
-    def _on_mda_finished(self) -> None:
-        self._set_enabled(True)
-        self.pause_Button.hide()
-        self.cancel_Button.hide()
-        if self._include_run_button:
-            self.run_Button.show()
-
-    def _on_run_clicked(self) -> None:
-        # construct a `useq.MDASequence` object from the values inserted in the widget
-        experiment = self.get_state()
-        # run the MDA experiment asynchronously
-        self._mmc.run_mda(experiment)
-        return
+    CMMCorePlus.instance().loadSystemConfiguration()
+    app = QApplication(sys.argv)
+    win = HCSWidget()
+    win.show()
+    sys.exit(app.exec_())
