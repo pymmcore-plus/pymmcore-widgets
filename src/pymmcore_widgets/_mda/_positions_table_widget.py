@@ -11,6 +11,7 @@ from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QComboBox,
     QDoubleSpinBox,
+    QFileDialog,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -121,6 +122,12 @@ class PositionTable(QGroupBox):
         self.go_button.setEnabled(False)
         self.go_button.setMinimumWidth(min_size)
         self.go_button.setSizePolicy(btn_sizepolicy)
+        self.save_positions_button = QPushButton(text="Save")
+        self.save_positions_button.setMinimumWidth(min_size)
+        self.save_positions_button.setSizePolicy(btn_sizepolicy)
+        self.load_positions_button = QPushButton(text="Load")
+        self.load_positions_button.setMinimumWidth(min_size)
+        self.load_positions_button.setSizePolicy(btn_sizepolicy)
 
         spacer = QSpacerItem(
             10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
@@ -132,6 +139,8 @@ class PositionTable(QGroupBox):
         layout.addWidget(self.clear_button)
         layout.addWidget(self.grid_button)
         layout.addWidget(self.go_button)
+        layout.addWidget(self.save_positions_button)
+        layout.addWidget(self.load_positions_button)
         layout.addItem(spacer)
 
         table_and_btns_layout.addWidget(wdg)
@@ -142,6 +151,8 @@ class PositionTable(QGroupBox):
         self.clear_button.clicked.connect(self._clear_positions)
         self.grid_button.clicked.connect(self._grid_widget)
         self.go_button.clicked.connect(self._move_to_position)
+        self.save_positions_button.clicked.connect(self._save_positions)
+        self.load_positions_button.clicked.connect(self._load_positions)
 
         # bottom widget
         bottom_wdg = QWidget()
@@ -297,11 +308,11 @@ class PositionTable(QGroupBox):
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
 
-        self._create_row(name, xpos, ypos, zpos)
+        self.create_row(name, xpos, ypos, zpos)
 
         self._rename_positions()
 
-    def _create_row(
+    def create_row(
         self,
         name: str | None,
         xpos: float | None,
@@ -309,7 +320,7 @@ class PositionTable(QGroupBox):
         zpos: float | None,
         row: int | None = None,
     ) -> None:
-
+        """Create a new table row."""
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
             raise ValueError("No XY and/or Z Stage selected.")
 
@@ -371,7 +382,7 @@ class PositionTable(QGroupBox):
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
 
-        self._create_row(name, xpos, ypos, zpos, rows[0])
+        self.create_row(name, xpos, ypos, zpos, rows[0])
 
     def _remove_position(self) -> None:
 
@@ -517,7 +528,7 @@ class PositionTable(QGroupBox):
                 x, y = position
                 z = None
 
-            self._create_row(name, x, y, z)
+            self.create_row(name, x, y, z)
 
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():
@@ -552,6 +563,31 @@ class PositionTable(QGroupBox):
         except (AttributeError, TypeError):
             value = None
         return value  # type: ignore
+
+    def _save_positions(self) -> None:
+        if not self.stage_tableWidget.rowCount():
+            return
+
+        (dir_file, _) = QFileDialog.getSaveFileName(
+            self, "Saving directory and filename.", "", "json(*.json)"
+        )
+        if not dir_file:
+            return
+
+        import json
+
+        with open(str(dir_file), "w") as file:
+            json.dump(self.value(), file)
+
+    def _load_positions(self) -> None:
+        (filename, _) = QFileDialog.getOpenFileName(
+            self, "Select a position list file", "", "json(*.json)"
+        )
+        if filename:
+            import json
+
+            with open(filename) as file:
+                self.set_state(json.load(file))
 
     # note: this should to be PositionDict, but it makes typing elsewhere harder
     def set_state(self, positions: list[dict]) -> None:
