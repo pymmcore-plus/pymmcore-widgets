@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import string
 import warnings
-from typing import List, Optional, Sequence, Tuple
+from typing import Sequence
 
 import numpy as np
 from fonticon_mdi6 import MDI6
@@ -41,24 +41,24 @@ class PlateCalibration(QWidget):
 
     def __init__(
         self,
-        parent: Optional[QWidget] = None,
+        parent: QWidget | None = None,
         *,
-        mmcore: Optional[CMMCorePlus] = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self.plate: Optional[WellPlate] = None
-        self.A1_well: Optional[Tuple[str, float, float]] = None
-        self.plate_rotation_matrix: Optional[np.ndarray] = None
+        self.plate: WellPlate | None = None
+        self.A1_well: tuple[str, float, float] | None = None
+        self.plate_rotation_matrix: np.ndarray | None = None
         self.plate_angle_deg: float = 0.0
         self.is_calibrated = False
-        self.A1_stage_coords_center: Tuple = ()
-        self._calculated_well_size_x: Optional[float] = None
-        self._calculated_well_size_y: Optional[float] = None
-        self._calculated_well_spacing_x: Optional[float] = None
-        self._calculated_well_spacing_y: Optional[float] = None
+        self.A1_stage_coords_center: tuple = ()
+        self._calculated_well_size_x: float | None = None
+        self._calculated_well_size_y: float | None = None
+        self._calculated_well_spacing_x: float | None = None
+        self._calculated_well_spacing_y: float | None = None
 
         self._create_gui()
 
@@ -264,8 +264,8 @@ class PlateCalibration(QWidget):
             self.cal_lbl.setText("Plate non Calibrated!")
 
     def _get_circle_center_(
-        self, a: Tuple[float, float], b: Tuple[float, float], c: Tuple[float, float]
-    ) -> Tuple[float, float]:
+        self, a: tuple[float, float], b: tuple[float, float], c: tuple[float, float]
+    ) -> tuple[float, float]:
         """Find the center of a round well given 3 edge points."""
         # eq circle (x - x1)^2 + (y - y1)^2 = r^2
         # for point a: (x - ax)^2 + (y - ay)^2 = r^2
@@ -274,7 +274,7 @@ class PlateCalibration(QWidget):
         xc, yc = _get_circle_from_3_points(a, b, c)
         return float(xc), float(yc)
 
-    def _get_rect_center(self, *args: Tuple[float, ...]) -> Tuple[float, float]:
+    def _get_rect_center(self, *args: tuple[float, ...]) -> tuple[float, float]:
         """
         Find the center of a rectangle/square well.
 
@@ -332,7 +332,7 @@ class PlateCalibration(QWidget):
 
         xc_w1, yc_w1 = self._get_well_center(self.table_1)
         self.A1_stage_coords_center = (xc_w1, yc_w1)
-        xy_coords: List[tuple] = [(xc_w1, yc_w1)]
+        xy_coords: list[tuple] = [(xc_w1, yc_w1)]
         if not self.table_2.isHidden():
             xc_w2, yc_w2 = self._get_well_center(self.table_2)
             xy_coords.append((xc_w2, yc_w2))
@@ -370,7 +370,7 @@ class PlateCalibration(QWidget):
         self._calculated_well_spacing_x = spacing_x
         self._calculated_well_spacing_y = spacing_y
 
-    def _calculate_plate_rotation_matrix(self, xy_coord_list: List[Tuple]) -> None:
+    def _calculate_plate_rotation_matrix(self, xy_coord_list: list[tuple]) -> None:
 
         if len(xy_coord_list) == 2:
             x_1, y_1 = xy_coord_list[0]
@@ -391,7 +391,7 @@ class PlateCalibration(QWidget):
 
     def _get_pos_from_table(
         self, table: QTableWidget
-    ) -> Tuple[Tuple[float, float], ...]:
+    ) -> tuple[tuple[float, float], ...]:
         pos = []
         _range = table.tb.rowCount()
         for r in range(_range):
@@ -400,7 +400,7 @@ class PlateCalibration(QWidget):
             pos.append((x, y))
         return tuple(pos)
 
-    def _get_well_center(self, table: QTableWidget) -> Tuple[float, float]:
+    def _get_well_center(self, table: QTableWidget) -> tuple[float, float]:
 
         if self.plate is None:
             raise RuntimeError("Plate not defined!")
@@ -462,7 +462,7 @@ class PlateCalibration(QWidget):
 class CalibrationTable(QWidget):
     """Table for the calibration widget."""
 
-    def __init__(self, *, mmcore: Optional[CMMCorePlus] = None) -> None:
+    def __init__(self, *, mmcore: CMMCorePlus | None = None) -> None:
         super().__init__()
 
         self._mmc = mmcore or CMMCorePlus.instance()
