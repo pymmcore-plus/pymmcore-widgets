@@ -1,4 +1,4 @@
-from typing import Optional
+from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
@@ -30,9 +30,9 @@ class AddFirstPresetWidget(QDialog):
         group: str,
         dev_prop_val_list: list,
         *,
-        parent: Optional[QWidget] = None,
+        parent: QWidget | None = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self._mmc = CMMCorePlus.instance()
         self._group = group
@@ -75,7 +75,7 @@ class AddFirstPresetWidget(QDialog):
         wdg_layout.setContentsMargins(5, 5, 5, 5)
         wdg.setLayout(wdg_layout)
 
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        lbl_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         gp_lbl = QLabel(text="Group:")
         gp_lbl.setSizePolicy(lbl_sizepolicy)
@@ -87,7 +87,7 @@ class AddFirstPresetWidget(QDialog):
         self.preset_name_lineedit = QLineEdit()
         self.preset_name_lineedit.setPlaceholderText(self._get_placeholder_name())
 
-        spacer = QSpacerItem(30, 10, QSizePolicy.Fixed, QSizePolicy.Fixed)
+        spacer = QSpacerItem(30, 10, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         wdg_layout.addWidget(gp_lbl)
         wdg_layout.addWidget(group_name_lbl)
@@ -111,11 +111,13 @@ class AddFirstPresetWidget(QDialog):
 
         self.apply_button = QPushButton(text="Create Preset")
         self.apply_button.setSizePolicy(
-            QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         )
         self.apply_button.clicked.connect(self._create_first_preset)
 
-        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Fixed)
+        spacer = QSpacerItem(
+            10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
 
         wdg_layout.addItem(spacer)
         wdg_layout.addWidget(self.apply_button)
@@ -129,7 +131,7 @@ class AddFirstPresetWidget(QDialog):
         self.table.setRowCount(len(self._dev_prop_val_list))
         for idx, (dev, prop, _) in enumerate(self._dev_prop_val_list):
             item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, core=self._mmc)
+            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
             wdg._value_widget.valueChanged.disconnect()  # type: ignore
             self.table.setItem(idx, 0, item)
             self.table.setCellWidget(idx, 1, wdg)
@@ -164,12 +166,12 @@ class _Table(QTableWidget):
     def __init__(self) -> None:
         super().__init__()
         hdr = self.horizontalHeader()
-        hdr.setSectionResizeMode(hdr.Stretch)
-        hdr.setDefaultAlignment(Qt.AlignHCenter)
+        hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
+        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
         vh = self.verticalHeader()
         vh.setVisible(False)
-        vh.setSectionResizeMode(vh.Fixed)
+        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
         vh.setDefaultSectionSize(24)
-        self.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Device-Property", "Value"])

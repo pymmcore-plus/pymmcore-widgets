@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import warnings
-from typing import Optional
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
@@ -26,8 +27,8 @@ from .._util import block_core
 class AddPresetWidget(QDialog):
     """A widget to add presets to a specified group."""
 
-    def __init__(self, group: str, *, parent: Optional[QWidget] = None) -> None:
-        super().__init__(parent)
+    def __init__(self, group: str, *, parent: QWidget | None = None) -> None:
+        super().__init__(parent=parent)
 
         self._mmc = CMMCorePlus.instance()
         self._group = group
@@ -70,7 +71,7 @@ class AddPresetWidget(QDialog):
         wdg_layout.setContentsMargins(5, 5, 5, 5)
         wdg.setLayout(wdg_layout)
 
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        lbl_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         gp_lbl = QLabel(text="Group:")
         gp_lbl.setSizePolicy(lbl_sizepolicy)
@@ -82,7 +83,7 @@ class AddPresetWidget(QDialog):
         self.preset_name_lineedit = QLineEdit()
         self.preset_name_lineedit.setPlaceholderText(self._get_placeholder_name())
 
-        spacer = QSpacerItem(30, 10, QSizePolicy.Fixed, QSizePolicy.Fixed)
+        spacer = QSpacerItem(30, 10, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         wdg_layout.addWidget(gp_lbl)
         wdg_layout.addWidget(group_name_lbl)
@@ -107,7 +108,7 @@ class AddPresetWidget(QDialog):
         self.info_lbl = QLabel()
         self.add_preset_button = QPushButton(text="Add Preset")
         self.add_preset_button.setSizePolicy(
-            QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         )
         self.add_preset_button.clicked.connect(self._add_preset)
 
@@ -133,7 +134,7 @@ class AddPresetWidget(QDialog):
         self.table.setRowCount(len(dev_prop))
         for idx, (dev, prop) in enumerate(dev_prop):
             item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, core=self._mmc)
+            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
             wdg._value_widget.valueChanged.disconnect()  # type: ignore
             self.table.setItem(idx, 0, item)
             self.table.setCellWidget(idx, 1, wdg)
@@ -189,12 +190,12 @@ class _Table(QTableWidget):
     def __init__(self) -> None:
         super().__init__()
         hdr = self.horizontalHeader()
-        hdr.setSectionResizeMode(hdr.Stretch)
-        hdr.setDefaultAlignment(Qt.AlignHCenter)
+        hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
+        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
         vh = self.verticalHeader()
         vh.setVisible(False)
-        vh.setSectionResizeMode(vh.Fixed)
+        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
         vh.setDefaultSectionSize(24)
-        self.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Device-Property", "Value"])

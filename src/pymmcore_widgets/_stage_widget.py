@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from itertools import chain, product, repeat
-from typing import Optional
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
@@ -53,33 +54,38 @@ QCheckBox::indicator {
 
 
 class StageWidget(QWidget):
-    """Create a widget to control a XY and/or a Z stage.
+    """A Widget to control a XY and/or a Z stage.
 
     Parameters
     ----------
     device: str:
         Stage device.
-    levels: Optional[int]:
+    levels: int | None:
         Number of "arrow" buttons per widget per direction, by default, 2.
-    parent : Optional[QWidget]
-        Optional parent widget, by default None.
+    parent : QWidget | None
+        Optional parent widget.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     # fmt: off
     BTNS = {
         # btn glyph                (r, c, xmag, ymag)
-        MDI6.chevron_triple_up:    (0, 3,  0,  3),  # noqa: E241
-        MDI6.chevron_double_up:    (1, 3,  0,  2),  # noqa: E241
-        MDI6.chevron_up:           (2, 3,  0,  1),  # noqa: E241
-        MDI6.chevron_down:         (4, 3,  0, -1),  # noqa: E241
-        MDI6.chevron_double_down:  (5, 3,  0, -2),  # noqa: E241
-        MDI6.chevron_triple_down:  (6, 3,  0, -3),  # noqa: E241
-        MDI6.chevron_triple_left:  (3, 0, -3,  0),  # noqa: E241
-        MDI6.chevron_double_left:  (3, 1, -2,  0),  # noqa: E241
-        MDI6.chevron_left:         (3, 2, -1,  0),  # noqa: E241
-        MDI6.chevron_right:        (3, 4,  1,  0),  # noqa: E241
-        MDI6.chevron_double_right: (3, 5,  2,  0),  # noqa: E241
-        MDI6.chevron_triple_right: (3, 6,  3,  0),  # noqa: E241
+        MDI6.chevron_triple_up:    (0, 3,  0,  3),
+        MDI6.chevron_double_up:    (1, 3,  0,  2),
+        MDI6.chevron_up:           (2, 3,  0,  1),
+        MDI6.chevron_down:         (4, 3,  0, -1),
+        MDI6.chevron_double_down:  (5, 3,  0, -2),
+        MDI6.chevron_triple_down:  (6, 3,  0, -3),
+        MDI6.chevron_triple_left:  (3, 0, -3,  0),
+        MDI6.chevron_double_left:  (3, 1, -2,  0),
+        MDI6.chevron_left:         (3, 2, -1,  0),
+        MDI6.chevron_right:        (3, 4,  1,  0),
+        MDI6.chevron_double_right: (3, 5,  2,  0),
+        MDI6.chevron_triple_right: (3, 6,  3,  0),
     }
     BTN_SIZE = 30
     # fmt: on
@@ -87,12 +93,12 @@ class StageWidget(QWidget):
     def __init__(
         self,
         device: str,
-        levels: Optional[int] = 2,
-        parent: Optional[QWidget] = None,
+        levels: int | None = 2,
         *,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ):
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self.setStyleSheet(STYLE)
 

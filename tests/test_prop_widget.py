@@ -4,12 +4,19 @@ from pymmcore_plus import CMMCorePlus, PropertyType
 from pymmcore_widgets import PropertyWidget
 
 # not sure how else to parametrize the test without instantiating here at import ...
+# NOTE: in the default 'MMConfig_demo.cgf', the device called 'LED'
+# is a mock State Device (DStateDevice) device from the 'DemoCamera DHub.
+# We are excluding the dev-prop 'LED-Number of positions' because
+# it is not an actual property of the device, but it is only used
+# in the micromanager "Hardwre Confoguration Wizard" to set the number
+# of states (by default, 10) that the mock device can have.
 CORE = CMMCorePlus()
 CORE.loadSystemConfiguration()
 dev_props = [
     (dev, prop)
     for dev in CORE.getLoadedDevices()
     for prop in CORE.getDevicePropertyNames(dev)
+    if dev != "LED" and prop != "Number of positions"
 ]
 
 
@@ -22,7 +29,7 @@ def _assert_equal(a, b):
 
 @pytest.mark.parametrize("dev, prop", dev_props)
 def test_property_widget(dev, prop, qtbot):
-    wdg = PropertyWidget(dev, prop, core=CORE)
+    wdg = PropertyWidget(dev, prop, mmcore=CORE)
     qtbot.addWidget(wdg)
     if CORE.isPropertyReadOnly(dev, prop) or prop in (
         "SimulateCrash",
@@ -62,7 +69,7 @@ def test_property_widget(dev, prop, qtbot):
 
 
 def test_reset(global_mmcore, qtbot):
-    wdg = PropertyWidget("Camera", "Binning", core=global_mmcore)
+    wdg = PropertyWidget("Camera", "Binning", mmcore=global_mmcore)
     qtbot.addWidget(wdg)
     global_mmcore.loadSystemConfiguration()
     assert wdg.value()

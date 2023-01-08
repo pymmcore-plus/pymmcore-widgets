@@ -1,92 +1,32 @@
-import warnings
-from functools import partial
-from typing import Dict, Optional, Set, Tuple, cast
+from __future__ import annotations
 
-from pymmcore_plus import CMMCorePlus, DeviceType
-from qtpy.QtCore import Qt
-from qtpy.QtGui import QCloseEvent, QColor
+import warnings
+
+from pymmcore_plus import CMMCorePlus
+from qtpy.QtGui import QCloseEvent
 from qtpy.QtWidgets import (
-    QAbstractScrollArea,
-    QCheckBox,
     QDialog,
-    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
     QSizePolicy,
-    QTableWidget,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-from pymmcore_widgets._core import iter_dev_props
-from pymmcore_widgets._property_widget import PropertyWidget
+from pymmcore_widgets._device_type_filter import DeviceTypeFilters
 
+from .._device_property_table import DevicePropertyTable
 from ._add_first_preset_widget import AddFirstPresetWidget
-
-
-class _PropertyTable(QTableWidget):
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
-        super().__init__(0, 3, parent=parent)
-        self._mmc = CMMCorePlus.instance()
-        self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
-        self.destroyed.connect(self._disconnect)
-
-        self.setHorizontalHeaderLabels([" ", "Property", "Value"])
-        self.setColumnWidth(0, 250)
-        self.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
-        vh = self.verticalHeader()
-        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
-        vh.setDefaultSectionSize(24)
-        vh.setVisible(False)
-        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.setSelectionMode(self.SelectionMode.NoSelection)
-        self._rebuild_table()
-
-    def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self._rebuild_table)
-
-    def _rebuild_table(self) -> None:
-        self.clearContents()
-        props = list(iter_dev_props(self._mmc))
-        self.setRowCount(len(props))
-        for i, (dev, prop) in enumerate(props):
-            _checkbox = QCheckBox()
-            _checkbox.setProperty("row", i)
-            self.setCellWidget(i, 0, _checkbox)
-            item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, core=self._mmc)
-            wdg.setEnabled(False)
-            self.setItem(i, 1, item)
-            self.setCellWidget(i, 2, wdg)
-            if wdg.isReadOnly():
-                # TODO: make this more theme aware
-                item.setBackground(QColor("#AAA"))
-                wdg.setStyleSheet("QLabel { background-color : #AAA }")
-
-        self.resizeColumnsToContents()
-
-        # TODO: install eventFilter to prevent mouse wheel from scrolling sliders
-
-
-DevTypeLabels: Dict[str, Tuple[DeviceType, ...]] = {
-    "cameras": (DeviceType.CameraDevice,),
-    "shutters": (DeviceType.ShutterDevice,),
-    "stages": (DeviceType.StageDevice,),
-    "wheels, turrets, etc.": (DeviceType.StateDevice,),
-}
-_d: Set[DeviceType] = set.union(*(set(i) for i in DevTypeLabels.values()))
-DevTypeLabels["other devices"] = tuple(set(DeviceType) - _d)
 
 
 class AddGroupWidget(QDialog):
     """Widget to create a new group."""
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
-        super().__init__(parent)
+    def __init__(self, *, parent: QWidget | None = None) -> None:
+        super().__init__(parent=parent)
         self._mmc = CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._update_filter)
 
@@ -118,8 +58,6 @@ class AddGroupWidget(QDialog):
         btn = self._create_button_wdg()
         main_layout.addWidget(btn)
 
-        self._set_show_read_only(False)
-
     def _create_group_lineedit_wdg(self) -> QGroupBox:
 
         wdg = QGroupBox()
@@ -129,7 +67,9 @@ class AddGroupWidget(QDialog):
         wdg.setLayout(layout)
 
         group_lbl = QLabel(text="Group name:")
-        group_lbl.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
+        group_lbl.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        )
 
         self.group_lineedit = QLineEdit()
 
@@ -146,14 +86,17 @@ class AddGroupWidget(QDialog):
         layout.setSpacing(0)
         wdg.setLayout(layout)
 
-        self._prop_table = _PropertyTable()
-        self._show_read_only: bool = False
-
-        self._filters: Set[DeviceType] = set()
         self._filter_text = QLineEdit()
         self._filter_text.setClearButtonEnabled(True)
         self._filter_text.setPlaceholderText("Filter by device or property name...")
         self._filter_text.textChanged.connect(self._update_filter)
+
+        self._prop_table = DevicePropertyTable(enable_property_widgets=False)
+        self._prop_table.setRowsCheckable(True)
+        self._device_filters = DeviceTypeFilters()
+        self._device_filters.filtersChanged.connect(self._update_filter)
+        self._device_filters.setShowReadOnly(False)
+        self._device_filters._read_only_checkbox.hide()
 
         right = QWidget()
         right.setLayout(QVBoxLayout())
@@ -162,7 +105,7 @@ class AddGroupWidget(QDialog):
 
         left = QWidget()
         left.setLayout(QVBoxLayout())
-        left.layout().addWidget(self._make_checkboxes())
+        left.layout().addWidget(self._device_filters)
 
         self.layout().addWidget(left)
         self.layout().addWidget(right)
@@ -183,7 +126,7 @@ class AddGroupWidget(QDialog):
 
         self.new_group_btn = QPushButton(text="Create New Group")
         self.new_group_btn.setSizePolicy(
-            QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         )
         self.new_group_btn.clicked.connect(self._add_group)
 
@@ -197,77 +140,11 @@ class AddGroupWidget(QDialog):
 
     def _update_filter(self) -> None:
         filt = self._filter_text.text().lower()
-        for r in range(self._prop_table.rowCount()):
-            wdg = cast(PropertyWidget, self._prop_table.cellWidget(r, 2))
-            if wdg.isReadOnly() and not self._show_read_only:  # sourcery skip
-                self._prop_table.hideRow(r)
-            elif wdg.deviceType() in self._filters:
-                self._prop_table.hideRow(r)
-            elif filt and filt not in self._prop_table.item(r, 1).text().lower():
-                self._prop_table.hideRow(r)
-            else:
-                self._prop_table.showRow(r)
-
-    def _toggle_filter(self, label: str) -> None:
-        self._filters.symmetric_difference_update(DevTypeLabels[label])
-        self._update_filter()
-
-    def _make_checkboxes(self) -> QWidget:
-        dev_gb = QGroupBox("Device Type")
-        dev_gb.setLayout(QGridLayout())
-        dev_gb.layout().setSpacing(6)
-        all_btn = QPushButton("All")
-        dev_gb.layout().addWidget(all_btn, 0, 0, 1, 1)
-        none_btn = QPushButton("None")
-        dev_gb.layout().addWidget(none_btn, 0, 1, 1, 1)
-        for i, (label, devtypes) in enumerate(DevTypeLabels.items()):
-            cb = QCheckBox(label)
-            cb.setChecked(devtypes[0] not in self._filters)
-            cb.toggled.connect(partial(self._toggle_filter, label))
-            dev_gb.layout().addWidget(cb, i + 1, 0, 1, 2)
-
-        @all_btn.clicked.connect  # type: ignore
-        def _check_all() -> None:
-            for cxbx in dev_gb.findChildren(QCheckBox):
-                cxbx.setChecked(True)
-
-        @none_btn.clicked.connect  # type: ignore
-        def _check_none() -> None:
-            for cxbx in dev_gb.findChildren(QCheckBox):
-                cxbx.setChecked(False)
-
-        for i in dev_gb.findChildren(QWidget):
-            i.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # type: ignore
-
-        ro = QCheckBox("Show read-only")
-        ro.setChecked(self._show_read_only)
-        ro.toggled.connect(self._set_show_read_only)
-        ro.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-
-        c = QWidget()
-        c.setLayout(QVBoxLayout())
-        c.layout().addWidget(dev_gb)
-        c.layout().addWidget(ro)
-        c.layout().addStretch()
-        return c
-
-    def _set_show_read_only(self, state: bool) -> None:
-        self._show_read_only = state
-        self._update_filter()
+        self._prop_table.filterDevices(
+            filt, self._device_filters.filters(), self._device_filters.showReadOnly()
+        )
 
     def _add_group(self) -> None:
-
-        cbox = [
-            self._prop_table.cellWidget(r, 0)
-            for r in range(self._prop_table.rowCount())
-            if self._prop_table.cellWidget(r, 0).isChecked()
-        ]
-
-        if not cbox:
-            warnings.warn("Select at lest one property!")
-            self.info_lbl.setStyleSheet("color: magenta;")
-            self.info_lbl.setText("Select at lest one property!")
-            return
 
         group = self.group_lineedit.text()
 
@@ -283,17 +160,14 @@ class AddGroupWidget(QDialog):
             self.info_lbl.setText(f"'{group}' already exist!")
             return
 
-        dev_prop_val_list = []
-        for r in range(self._prop_table.rowCount()):
-            checkbox = cast(QCheckBox, self._prop_table.cellWidget(r, 0))
-            if checkbox.isChecked():
-                row = checkbox.property("row")
-                dev_prop = self._prop_table.item(row, 1).text()
-                dev = dev_prop.split("-")[0]
-                prop = dev_prop.split("-")[1]
-                value = self._prop_table.cellWidget(row, 2).value()
+        # [(device, property, value_to_set), ...]
+        dev_prop_val_list = self._prop_table.getCheckedProperties()
 
-                dev_prop_val_list.append((dev, prop, str(value)))
+        if not dev_prop_val_list:
+            warnings.warn("Select at lest one property!")
+            self.info_lbl.setStyleSheet("color: magenta;")
+            self.info_lbl.setText("Select at lest one property!")
+            return
 
         if hasattr(self, "_first_preset_wdg"):
             self._first_preset_wdg.close()  # type: ignore

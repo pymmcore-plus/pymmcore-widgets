@@ -1,4 +1,6 @@
-from typing import ContextManager, Literal, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import ContextManager, Literal, Sequence
 
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
@@ -22,7 +24,7 @@ class ComboMessageBox(QDialog):
         self,
         items: Sequence[str] = (),
         text: str = "",
-        parent: Optional[QWidget] = None,
+        parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
 
@@ -30,8 +32,7 @@ class ComboMessageBox(QDialog):
         self._combo.addItems(items)
 
         btn_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel  # noqa
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
         btn_box.accepted.connect(self.accept)
         btn_box.rejected.connect(self.reject)
@@ -48,15 +49,15 @@ class ComboMessageBox(QDialog):
 
 
 def guess_channel_group(
-    core: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
-) -> Optional[str]:
+    mmcore: CMMCorePlus | None = None, parent: QWidget | None = None
+) -> str | None:
     """Try to update the list of channel group choices.
 
     1. get a list of potential channel groups from pymmcore
     2. if there is only one, use it, if there are > 1, show a dialog box
     """
-    core = core or CMMCorePlus.instance()
-    candidates = core.getOrGuessChannelGroup()
+    mmcore = mmcore or CMMCorePlus.instance()
+    candidates = mmcore.getOrGuessChannelGroup()
     if len(candidates) == 1:
         return candidates[0]
     elif candidates:
@@ -67,15 +68,15 @@ def guess_channel_group(
 
 
 def guess_objective_or_prompt(
-    core: Optional[CMMCorePlus] = None, parent: Optional[QWidget] = None
-) -> Optional[str]:
+    mmcore: CMMCorePlus | None = None, parent: QWidget | None = None
+) -> str | None:
     """Try to update the list of objective choices.
 
     1. get a list of potential objective devices from pymmcore
     2. if there is only one, use it, if there are >1, show a dialog box
     """
-    core = core or CMMCorePlus.instance()
-    candidates = core.guessObjectiveDevices()
+    mmcore = mmcore or CMMCorePlus.instance()
+    candidates = mmcore.guessObjectiveDevices()
     if len(candidates) == 1:
         return candidates[0]
     elif candidates:
@@ -94,7 +95,7 @@ def _time_in_sec(value: float, input_unit: Literal["ms", "min", "hours"]) -> flo
         return value * 3600
 
 
-def _select_output_unit(duration: float) -> Tuple[float, str]:
+def _select_output_unit(duration: float) -> tuple[float, str]:
     if duration < 1.0:
         return duration * 1000, "ms"
     elif duration < 60.0:
@@ -105,7 +106,7 @@ def _select_output_unit(duration: float) -> Tuple[float, str]:
         return duration / 3600, "hours"
 
 
-def block_core(mmcore_events: Union[CMMCoreSignaler, PCoreSignaler]) -> ContextManager:
+def block_core(mmcore_events: CMMCoreSignaler | PCoreSignaler) -> ContextManager:
     """Block core signals."""
     if isinstance(mmcore_events, CMMCoreSignaler):
         return mmcore_events.blocked()  # type: ignore

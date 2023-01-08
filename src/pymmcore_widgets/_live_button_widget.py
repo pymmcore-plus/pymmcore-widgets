@@ -1,4 +1,6 @@
-from typing import Optional, Tuple, Union
+from __future__ import annotations
+
+from typing import Union
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -12,27 +14,46 @@ COLOR_TYPE = Union[
     int,
     str,
     Qt.GlobalColor,
-    Tuple[int, int, int, int],
-    Tuple[int, int, int],
+    "tuple[int, int, int, int]",
+    "tuple[int, int, int]",
 ]
 
 
 class LiveButton(QPushButton):
-    """Create a two-state (on-off) live mode QPushButton.
+    """A Widget to create a two-state (on-off) live mode QPushButton.
 
     When pressed, a 'ContinuousSequenceAcquisition' is started or stopped
-    and a pymmcore-plus signal 'startContinuousSequenceAcquisition' or
-    'stopSequenceAcquisition' is emitted.
+    and a pymmcore-plus signal
+    [`continuousSequenceAcquisitionStarted`][pymmcore_plus.core.events._protocol.PCoreSignaler.continuousSequenceAcquisitionStarted]
+    or
+    [`sequenceAcquisitionStopped`][pymmcore_plus.core.events._protocol.PCoreSignaler.sequenceAcquisitionStopped]
+    is emitted.
+
+    Parameters
+    ----------
+    parent : QWidget | None
+        Optional parent widget.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+
+    Examples
+    --------
+    !!! example "Combining `LiveButton` with other widgets"
+
+        see [ImagePreview](../ImagePreview#example)
     """
 
     def __init__(
         self,
         *,
-        parent: Optional[QWidget] = None,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
 
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
         self._button_text_on: str = "Live"
@@ -44,10 +65,10 @@ class LiveButton(QPushButton):
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_system_cfg_loaded)
         self._on_system_cfg_loaded()
-        self._mmc.events.startContinuousSequenceAcquisition.connect(
+        self._mmc.events.continuousSequenceAcquisitionStarted.connect(
             self._on_sequence_started
         )
-        self._mmc.events.stopSequenceAcquisition.connect(self._on_sequence_stopped)
+        self._mmc.events.sequenceAcquisitionStopped.connect(self._on_sequence_stopped)
         self.destroyed.connect(self._disconnect)
 
         self._create_button()
@@ -154,7 +175,9 @@ class LiveButton(QPushButton):
         self._mmc.events.systemConfigurationLoaded.disconnect(
             self._on_system_cfg_loaded
         )
-        self._mmc.events.startContinuousSequenceAcquisition.disconnect(
+        self._mmc.events.continuousSequenceAcquisitionStarted.disconnect(
             self._on_sequence_started
         )
-        self._mmc.events.stopSequenceAcquisition.disconnect(self._on_sequence_stopped)
+        self._mmc.events.sequenceAcquisitionStopped.disconnect(
+            self._on_sequence_stopped
+        )

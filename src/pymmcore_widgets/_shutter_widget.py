@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Union
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
-from qtpy import QtWidgets as QtW
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtGui import QColor
+from qtpy.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QSizePolicy, QWidget
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
@@ -16,12 +16,12 @@ COLOR_TYPE = Union[
     int,
     str,
     Qt.GlobalColor,
-    Tuple[int, int, int, int],
-    Tuple[int, int, int],
+    "tuple[int, int, int, int]",
+    "tuple[int, int, int]",
 ]
 
 
-class ShuttersWidget(QtW.QWidget):
+class ShuttersWidget(QWidget):
     """A Widget for shutters and Micro-Manager autoshutter.
 
     Parameters
@@ -31,19 +31,24 @@ class ShuttersWidget(QtW.QWidget):
     autoshutter: bool
         If True, a checkbox controlling the Micro-Manager autoshutter
         is added to the layout.
-    parent : Optional[QWidget]
-        Optional parent widget.
+    parent : QWidget | None
+        Optional parent widget. By default, None.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     def __init__(
         self,
         shutter_device: str,
         autoshutter: bool = True,
-        parent: Optional[QtW.QWidget] = None,
         *,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -67,11 +72,11 @@ class ShuttersWidget(QtW.QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._refresh_shutter_widget)
         self._mmc.events.autoShutterSet.connect(self._on_autoshutter_changed)
         self._mmc.events.propertyChanged.connect(self._on_prop_changed)
-        self._mmc.events.startContinuousSequenceAcquisition.connect(
+        self._mmc.events.continuousSequenceAcquisitionStarted.connect(
             self._on_seq_started
         )
-        self._mmc.events.startSequenceAcquisition.connect(self._on_seq_started)
-        self._mmc.events.stopSequenceAcquisition.connect(self._on_seq_stopped)
+        self._mmc.events.sequenceAcquisitionStarted.connect(self._on_seq_started)
+        self._mmc.events.sequenceAcquisitionStopped.connect(self._on_seq_stopped)
         self._mmc.events.imageSnapped.connect(self._on_seq_stopped)
         self._mmc.events.configSet.connect(self._on_channel_set)
 
@@ -92,7 +97,7 @@ class ShuttersWidget(QtW.QWidget):
 
     @icon_open.setter
     def icon_open(self, icon_o: str) -> None:
-        if int(self._mmc.getProperty(self.shutter_device, "State")) == 1:
+        if self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setIcon(icon(icon_o, color=self._icon_color_open))
         self._icon_open = icon_o
 
@@ -111,7 +116,7 @@ class ShuttersWidget(QtW.QWidget):
 
     @icon_closed.setter
     def icon_closed(self, icon_c: str) -> None:
-        if int(self._mmc.getProperty(self.shutter_device, "State")) == 0:
+        if not self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setIcon(icon(icon_c, color=self._icon_color_closed))
         self._icon_closed = icon_c
 
@@ -121,14 +126,15 @@ class ShuttersWidget(QtW.QWidget):
         Set the button icon color for when the shutter is open.
 
         Default = (0, 255, 0)
-        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
-        Tuple[int, int, int]]
+
+        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, tuple[int, int, int, int],
+        tuple[int, int, int]]
         """
         return self._icon_color_open
 
     @icon_color_open.setter
     def icon_color_open(self, color: COLOR_TYPE) -> None:
-        if int(self._mmc.getProperty(self.shutter_device, "State")) == 1:
+        if self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setIcon(icon(self._icon_open, color=color))
         self._icon_color_open = color
 
@@ -138,14 +144,15 @@ class ShuttersWidget(QtW.QWidget):
         Set the button icon color for when the shutter is closed.
 
         Default = 'magenta'
-        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, Tuple[int, int, int, int],
-        Tuple[int, int, int]]
+
+        COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, tuple[int, int, int, int],
+        tuple[int, int, int]]
         """
         return self._icon_color_closed
 
     @icon_color_closed.setter
     def icon_color_closed(self, color: COLOR_TYPE) -> None:
-        if int(self._mmc.getProperty(self.shutter_device, "State")) == 0:
+        if not self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setIcon(icon(self._icon_closed, color=color))
         self._icon_color_closed = color
 
@@ -174,7 +181,7 @@ class ShuttersWidget(QtW.QWidget):
 
     @button_text_open.setter
     def button_text_open(self, text: str) -> None:
-        if int(self._mmc.getProperty(self.shutter_device, "State")) == 1:
+        if self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setText(text)
         self._button_text_open = text
 
@@ -189,18 +196,18 @@ class ShuttersWidget(QtW.QWidget):
 
     @button_text_closed.setter
     def button_text_closed(self, text: str) -> None:
-        if int(self._mmc.getProperty(self.shutter_device, "State")) == 0:
+        if not self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setText(text)
         self._button_text_closed = text
 
     def _create_wdg(self) -> None:
 
-        main_layout = QtW.QHBoxLayout()
+        main_layout = QHBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(3)
 
-        self.shutter_button = QtW.QPushButton(text=self._button_text_closed)
-        sizepolicy_btn = QtW.QSizePolicy(QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed)
+        self.shutter_button = QPushButton(text=self._button_text_closed)
+        sizepolicy_btn = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.shutter_button.setSizePolicy(sizepolicy_btn)
         self.shutter_button.setIcon(
             icon(self._icon_closed, color=self._icon_color_closed)
@@ -209,9 +216,9 @@ class ShuttersWidget(QtW.QWidget):
         self.shutter_button.clicked.connect(self._on_shutter_btn_clicked)
         main_layout.addWidget(self.shutter_button)
 
-        self.autoshutter_checkbox = QtW.QCheckBox(text="Auto")
-        sizepolicy_checkbox = QtW.QSizePolicy(
-            QtW.QSizePolicy.Fixed, QtW.QSizePolicy.Fixed
+        self.autoshutter_checkbox = QCheckBox(text="Auto")
+        sizepolicy_checkbox = QSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
         self.autoshutter_checkbox.setSizePolicy(sizepolicy_checkbox)
         self.autoshutter_checkbox.setChecked(False)
@@ -310,11 +317,11 @@ class ShuttersWidget(QtW.QWidget):
 
     def _close_shutter(self, shutter: str) -> None:
         self._set_shutter_wdg_to_closed()
-        self._mmc.setProperty(shutter, "State", False)
+        self._mmc.setShutterOpen(shutter, False)
 
     def _open_shutter(self, shutter: str) -> None:
         self._set_shutter_wdg_to_opened()
-        self._mmc.setProperty(shutter, "State", True)
+        self._mmc.setShutterOpen(shutter, True)
 
     def _on_shutter_checkbox_toggled(self, state: bool) -> None:
         self._mmc.setAutoShutter(state)
@@ -335,10 +342,10 @@ class ShuttersWidget(QtW.QWidget):
         )
         self._mmc.events.autoShutterSet.disconnect(self._on_autoshutter_changed)
         self._mmc.events.propertyChanged.disconnect(self._on_prop_changed)
-        self._mmc.events.startContinuousSequenceAcquisition.disconnect(
+        self._mmc.events.continuousSequenceAcquisitionStarted.disconnect(
             self._on_seq_started
         )
-        self._mmc.events.startSequenceAcquisition.disconnect(self._on_seq_started)
-        self._mmc.events.stopSequenceAcquisition.disconnect(self._on_seq_stopped)
+        self._mmc.events.sequenceAcquisitionStarted.disconnect(self._on_seq_started)
+        self._mmc.events.sequenceAcquisitionStopped.disconnect(self._on_seq_stopped)
         self._mmc.events.imageSnapped.disconnect(self._on_seq_stopped)
         self._mmc.events.configSet.disconnect(self._on_channel_set)

@@ -1,6 +1,7 @@
-"""
+"""Example usage of the StageWidget class.
+
 In this example all the devices of type 'Stage' and 'XYStage' that are loaded
-in micromanager are dysplaied with a 'StageWidget'.
+in micromanager are displayed with a 'StageWidget'.
 """
 
 

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     # sourcery skip: remove-duplicate-set-key
-
+    global_mmcore.setExposure(100)
     s_exp = SampleExplorerWidget(include_run_button=True)
     qtbot.add_widget(s_exp)
     mmc = global_mmcore
@@ -21,31 +21,29 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert len(s_exp._mmc.getLoadedDevices()) > 2
     assert mmc.getChannelGroup() == "Channel"
 
-    s_exp.scan_size_spinBox_c.setValue(2)
-    s_exp.scan_size_spinBox_r.setValue(2)
-    s_exp.ovelap_spinBox.setValue(10)
+    s_exp.grid_params.scan_size_spinBox_c.setValue(2)
+    s_exp.grid_params.scan_size_spinBox_r.setValue(2)
+    s_exp.grid_params.overlap_spinBox.setValue(10)
 
-    s_exp.add_ch_explorer_Button.click()
-    assert s_exp.channel_explorer_tableWidget.rowCount() == 1
+    s_exp.channel_groupbox._add_button.click()
+    assert s_exp.channel_groupbox._table.rowCount() == 1
 
-    s_exp.time_groupBox.setChecked(True)
-    s_exp.timepoints_spinBox.setValue(2)
-    s_exp.interval_spinBox.setValue(0)
+    s_exp.time_groupbox.setChecked(True)
+    s_exp.time_groupbox._timepoints_spinbox.setValue(2)
+    s_exp.time_groupbox._interval_spinbox.setValue(0)
 
-    s_exp.stack_groupBox.setChecked(True)
-    s_exp.z_tabWidget.setCurrentIndex(1)
-    s_exp.zrange_spinBox.setValue(2)
-    s_exp.step_size_doubleSpinBox.setValue(1.0)
-    assert s_exp.n_images_label.text() == "Number of Images: 3"
+    s_exp.stack_groupbox.setChecked(True)
+    s_exp.stack_groupbox.set_state({"range": 2, "step": 1})
+    assert s_exp.stack_groupbox.n_images_label.text() == "Number of Images: 3"
 
-    s_exp.stage_pos_groupBox.setChecked(True)
-    s_exp.add_pos_Button.click()
-    assert s_exp.stage_tableWidget.rowCount() == 1
+    s_exp.position_groupbox.setChecked(True)
+    s_exp.position_groupbox.add_pos_button.click()
+    assert s_exp.position_groupbox.stage_tableWidget.rowCount() == 1
     mmc.setXYPosition(2000.0, 2000.0)
     mmc.waitForSystem()
-    s_exp.add_pos_Button.click()
+    s_exp.position_groupbox.add_pos_button.click()
 
-    assert s_exp.stage_tableWidget.rowCount() == 2
+    assert s_exp.position_groupbox.stage_tableWidget.rowCount() == 2
 
     state = s_exp.get_state()
 
@@ -113,29 +111,29 @@ def test_explorer_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = SampleExplorerWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
-    assert wdg.scan_size_spinBox_c.value() == 1
-    assert wdg.scan_size_spinBox_r.value() == 1
+    assert wdg.grid_params.scan_size_spinBox_c.value() == 1
+    assert wdg.grid_params.scan_size_spinBox_r.value() == 1
 
-    assert wdg.channel_explorer_tableWidget.rowCount() == 0
-    wdg.add_ch_explorer_Button.click()
-    wdg.add_ch_explorer_Button.click()
-    assert wdg.channel_explorer_tableWidget.rowCount() == 2
-    wdg.channel_explorer_tableWidget.selectRow(0)
-    wdg.remove_ch_explorer_Button.click()
-    assert wdg.channel_explorer_tableWidget.rowCount() == 1
-    wdg.clear_ch_explorer_Button.click()
-    assert wdg.channel_explorer_tableWidget.rowCount() == 0
+    assert wdg.channel_groupbox._table.rowCount() == 0
+    wdg.channel_groupbox._add_button.click()
+    wdg.channel_groupbox._add_button.click()
+    assert wdg.channel_groupbox._table.rowCount() == 2
+    wdg.channel_groupbox._table.selectRow(0)
+    wdg.channel_groupbox._remove_button.click()
+    assert wdg.channel_groupbox._table.rowCount() == 1
+    wdg.channel_groupbox._clear_button.click()
+    assert wdg.channel_groupbox._table.rowCount() == 0
 
-    assert wdg.stage_tableWidget.rowCount() == 0
-    wdg.stage_pos_groupBox.setChecked(True)
-    wdg.add_pos_Button.click()
-    wdg.add_pos_Button.click()
-    assert wdg.stage_tableWidget.rowCount() == 2
-    wdg.stage_tableWidget.selectRow(0)
-    wdg.remove_pos_Button.click()
-    assert wdg.stage_tableWidget.rowCount() == 1
-    wdg.clear_pos_Button.click()
-    assert wdg.stage_tableWidget.rowCount() == 0
+    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
+    wdg.position_groupbox.setChecked(True)
+    wdg.position_groupbox.add_pos_button.click()
+    wdg.position_groupbox.add_pos_button.click()
+    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 2
+    wdg.position_groupbox.stage_tableWidget.selectRow(0)
+    wdg.position_groupbox.remove_pos_button.click()
+    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 1
+    wdg.position_groupbox.clear_pos_button.click()
+    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
 
 
 def test_explorer_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -143,67 +141,71 @@ def test_explorer_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(wdg)
 
     wdg._on_mda_started()
-    assert not wdg.time_groupBox.isEnabled()
-    assert not wdg.acquisition_order_comboBox.isEnabled()
-    assert not wdg.channel_explorer_groupBox.isEnabled()
-    assert not wdg.stage_pos_groupBox.isEnabled()
-    assert not wdg.stack_groupBox.isEnabled()
-    assert wdg.start_scan_Button.isHidden()
-    assert not wdg.pause_scan_Button.isHidden()
-    assert not wdg.cancel_scan_Button.isHidden()
+    assert not wdg.time_groupbox.isEnabled()
+    assert not wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
+    assert not wdg.channel_groupbox.isEnabled()
+    assert not wdg.position_groupbox.isEnabled()
+    assert not wdg.stack_groupbox.isEnabled()
+    assert wdg.buttons_wdg.run_button.isHidden()
+    assert not wdg.buttons_wdg.pause_button.isHidden()
+    assert not wdg.buttons_wdg.cancel_button.isHidden()
 
     wdg._on_mda_finished()
-    assert wdg.time_groupBox.isEnabled()
-    assert wdg.acquisition_order_comboBox.isEnabled()
-    assert wdg.channel_explorer_groupBox.isEnabled()
-    assert wdg.stage_pos_groupBox.isEnabled()
-    assert wdg.stack_groupBox.isEnabled()
-    assert not wdg.start_scan_Button.isHidden()
-    assert wdg.pause_scan_Button.isHidden()
-    assert wdg.cancel_scan_Button.isHidden()
+    assert wdg.time_groupbox.isEnabled()
+    assert wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
+    assert wdg.channel_groupbox.isEnabled()
+    assert wdg.position_groupbox.isEnabled()
+    assert wdg.stack_groupbox.isEnabled()
+    assert not wdg.buttons_wdg.run_button.isHidden()
+    assert wdg.buttons_wdg.pause_button.isHidden()
+    assert wdg.buttons_wdg.cancel_button.isHidden()
 
 
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    global_mmcore.setExposure(100)
     wdg = SampleExplorerWidget(include_run_button=True)
     qtbot.addWidget(wdg)
+    wdg.show()
 
-    assert wdg.channel_explorer_tableWidget.rowCount() == 0
-    wdg.add_ch_explorer_Button.click()
-    assert wdg.channel_explorer_tableWidget.rowCount() == 1
-    assert wdg.channel_explorer_tableWidget.cellWidget(0, 1).value() == 100.0
-    assert not wdg.time_groupBox.isChecked()
+    assert wdg.channel_groupbox._table.rowCount() == 0
+    wdg.channel_groupbox._add_button.click()
+    assert wdg.channel_groupbox._table.rowCount() == 1
+    assert wdg.channel_groupbox._table.cellWidget(0, 1).value() == 100.0
+    assert not wdg.time_groupbox.isChecked()
+    assert not wdg.time_groupbox._warning_widget.isVisible()
+    wdg.time_groupbox._units_combo.setCurrentText("ms")
 
     txt = "Minimum total acquisition time: 100.0000 ms.\n"
-    assert wdg._total_time_lbl.text() == txt
+    assert wdg.time_lbl._total_time_lbl.text() == txt
 
-    assert not wdg.time_groupBox.isChecked()
-    wdg.time_groupBox.setChecked(True)
+    assert not wdg.time_groupbox.isChecked()
+    wdg.time_groupbox.setChecked(True)
+    assert wdg.time_groupbox._warning_widget.isVisible()
 
     txt = (
         "Minimum total acquisition time: 100.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
-    assert wdg._total_time_lbl.text() == txt
+    assert wdg.time_lbl._total_time_lbl.text() == txt
 
-    wdg.timepoints_spinBox.setValue(3)
+    wdg.time_groupbox._timepoints_spinbox.setValue(3)
     txt = (
         "Minimum total acquisition time: 300.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
-    assert wdg._total_time_lbl.text() == txt
+    assert wdg.time_lbl._total_time_lbl.text() == txt
 
-    wdg.interval_spinBox.setValue(10)
+    wdg.time_groupbox._interval_spinbox.setValue(10)
     txt1 = (
         "Minimum total acquisition time: 300.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
-    txt2 = "Interval shorter than acquisition time per timepoint."
-    assert wdg._total_time_lbl.text() == txt1
-    assert wdg._time_lbl.text() == txt2
+    assert wdg.time_lbl._total_time_lbl.text() == txt1
 
-    wdg.interval_spinBox.setValue(200)
+    wdg.time_groupbox._interval_spinbox.setValue(200)
     txt1 = (
         "Minimum total acquisition time: 500.0000 ms.\n"
         "Minimum acquisition time per timepoint: 100.0000 ms."
     )
-    assert wdg._total_time_lbl.text() == txt1
+    assert wdg.time_lbl._total_time_lbl.text() == txt1
+    assert not wdg.time_groupbox._warning_widget.isVisible()

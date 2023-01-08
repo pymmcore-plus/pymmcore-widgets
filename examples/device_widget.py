@@ -1,4 +1,5 @@
-"""
+"""Example usage of the DeviceWidget class.
+
 Currently, 'DeviceWidget' only supports devices of type 'StateDevice'. Calling
 'DeviceWidget.for_device("device_label"), will create the 'DeviceWidget' subclass
 'StateDeviceWidget'.
@@ -7,7 +8,7 @@ Currently, 'DeviceWidget' only supports devices of type 'StateDevice'. Calling
 for a devices of type 'StateDevice' (see also state_device_widget.py).
 
 In this example all the devices of type 'StateDevice' that are loaded in micromanager
-are dysplaied with a 'DeviceWidget'.
+are displayed with a 'DeviceWidget'.
 """
 
 

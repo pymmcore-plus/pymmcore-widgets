@@ -1,0 +1,27 @@
+name: docs
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+jobs:
+  deploy:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install dependencies
+        run: |
+          pip install -e .[docs,image]
+          pip install pyside2
+          mmcore install
+
+      - name: Test docs
+        if: github.event_name == 'pull_request'
+        run: mkdocs build --strict
+
+      - name: Deploy docs
+        if: github.ref == 'refs/heads/main'
+        run: mkdocs gh-deploy --force

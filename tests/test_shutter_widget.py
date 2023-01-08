@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from pymmcore_plus import CMMCorePlus
 
 from pymmcore_widgets._shutter_widget import ShuttersWidget
 
@@ -10,39 +11,41 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
-@pytest.fixture()
-def shutters(global_mmcore, qtbot: QtBot):
-    shutter = ShuttersWidget("Shutter", autoshutter=False, mmcore=global_mmcore)
-    shutter.button_text_open = "Shutter opened"
-    shutter.button_text_closed = "Shutter closed"
-    qtbot.addWidget(shutter)
-    shutter._refresh_shutter_widget()
+def _make_shutters(
+    qtbot: QtBot,
+) -> tuple[ShuttersWidget, ShuttersWidget, ShuttersWidget]:
+    _shutters = []
+    for name, auto in [
+        ("Shutter", False),
+        ("StateDev Shutter", False),
+        ("Multi Shutter", True),
+    ]:
+        shutter = ShuttersWidget(name, autoshutter=auto)
+        shutter.button_text_open = f"{name} opened"
+        shutter.button_text_closed = f"{name} closed"
+        shutter._refresh_shutter_widget()
+        _shutters.append(shutter)
+        qtbot.addWidget(shutter)
+    return tuple(_shutters)  # type: ignore
 
-    multi_shutter = ShuttersWidget("Multi Shutter", mmcore=global_mmcore)
-    multi_shutter.button_text_open = "Multi Shutter opened"
-    multi_shutter.button_text_closed = "Multi Shutter closed"
-    qtbot.addWidget(multi_shutter)
-    multi_shutter._refresh_shutter_widget()
 
-    mmc = global_mmcore
+def test_create_shutter_widgets(qtbot: QtBot):
 
-    return shutter, multi_shutter, mmc
-
-
-def test_create_shutter_widgets(shutters, qtbot: QtBot):
-
-    shutter, multi_shutter, _ = shutters
+    shutter, state_dev_shutter, multi_shutter = _make_shutters(qtbot)
 
     assert shutter.shutter_button.text() == "Shutter closed"
     assert not shutter.shutter_button.isEnabled()
+    assert state_dev_shutter.shutter_button.text() == "StateDev Shutter closed"
+    assert not state_dev_shutter.shutter_button.isEnabled()
     assert multi_shutter.shutter_button.text() == "Multi Shutter closed"
     assert multi_shutter.autoshutter_checkbox.isChecked()
     assert not multi_shutter.shutter_button.isEnabled()
 
 
-def test_shutter_widget_propertyChanged(shutters, qtbot: QtBot):
+def test_shutter_widget_propertyChanged(qtbot: QtBot):
 
-    shutter, multi_shutter, mmc = shutters
+    shutter, _, multi_shutter = _make_shutters(qtbot)
+    mmc = CMMCorePlus.instance()
 
     with qtbot.waitSignal(mmc.events.propertyChanged):
         mmc.setProperty("Shutter", "State", True)
@@ -56,22 +59,26 @@ def test_shutter_widget_propertyChanged(shutters, qtbot: QtBot):
     assert mmc.getProperty("Multi Shutter", "State") == "0"
 
 
-def test_shutter_widget_autoShutterSet(shutters, qtbot: QtBot):
+def test_shutter_widget_autoShutterSet(qtbot: QtBot):
 
-    shutter, multi_shutter, mmc = shutters
+    shutter, state_dev_shutter, multi_shutter = _make_shutters(qtbot)
+    mmc = CMMCorePlus.instance()
 
     with qtbot.waitSignal(mmc.events.autoShutterSet):
         mmc.setAutoShutter(False)
     assert shutter.shutter_button.isEnabled()
+    assert state_dev_shutter.shutter_button.isEnabled()
     assert multi_shutter.shutter_button.isEnabled()
     mmc.setAutoShutter(True)
     assert not shutter.shutter_button.isEnabled()
+    assert not state_dev_shutter.shutter_button.isEnabled()
     assert not multi_shutter.shutter_button.isEnabled()
 
 
-def test_shutter_widget_configSet(shutters, qtbot: QtBot):
+def test_shutter_widget_configSet(qtbot: QtBot):
 
-    shutter, multi_shutter, mmc = shutters
+    shutter, state_dev_shutter, multi_shutter = _make_shutters(qtbot)
+    mmc = CMMCorePlus.instance()
 
     with qtbot.waitSignals(
         [
@@ -83,59 +90,75 @@ def test_shutter_widget_configSet(shutters, qtbot: QtBot):
         mmc.setShutterOpen("Multi Shutter", True)
     assert multi_shutter.shutter_button.text() == "Multi Shutter opened"
     assert mmc.getProperty("Multi Shutter", "State") == "1"
+    assert mmc.getShutterOpen("Multi Shutter")
     assert shutter.shutter_button.text() == "Shutter opened"
     assert mmc.getProperty("Shutter", "State") == "1"
+    assert mmc.getShutterOpen("Shutter")
+    assert state_dev_shutter.shutter_button.text() == "StateDev Shutter opened"
+    assert mmc.getShutterOpen("StateDev Shutter")
+    assert mmc.getProperty("StateDev", "Label") == "State-1"
 
 
-def test_shutter_widget_SequenceAcquisition(shutters, qtbot: QtBot):
+def test_shutter_widget_SequenceAcquisition(qtbot: QtBot):
 
-    shutter, multi_shutter, mmc = shutters
+    shutter, state_dev_shutter, multi_shutter = _make_shutters(qtbot)
+    mmc = CMMCorePlus.instance()
 
     with qtbot.waitSignal(mmc.events.configSet):
         mmc.setConfig("Channel", "DAPI")
 
-    with qtbot.waitSignal(mmc.events.startContinuousSequenceAcquisition):
+    with qtbot.waitSignal(mmc.events.continuousSequenceAcquisitionStarted):
         mmc.startContinuousSequenceAcquisition()
         assert multi_shutter.shutter_button.text() == "Multi Shutter opened"
         assert not multi_shutter.shutter_button.isEnabled()
         assert shutter.shutter_button.text() == "Shutter opened"
         assert not shutter.shutter_button.isEnabled()
+        assert state_dev_shutter.shutter_button.text() == "StateDev Shutter opened"
+        assert not state_dev_shutter.shutter_button.isEnabled()
 
     with qtbot.waitSignal(mmc.events.autoShutterSet):
         mmc.setAutoShutter(False)
     assert shutter.shutter_button.isEnabled()
+    assert state_dev_shutter.shutter_button.isEnabled()
     assert multi_shutter.shutter_button.isEnabled()
     assert multi_shutter.shutter_button.text() == "Multi Shutter opened"
     assert shutter.shutter_button.text() == "Shutter opened"
+    assert state_dev_shutter.shutter_button.text() == "StateDev Shutter opened"
 
-    with qtbot.waitSignal(mmc.events.stopSequenceAcquisition):
+    with qtbot.waitSignal(mmc.events.sequenceAcquisitionStopped):
         mmc.stopSequenceAcquisition()
     assert shutter.shutter_button.isEnabled()
+    assert state_dev_shutter.shutter_button.isEnabled()
     assert multi_shutter.shutter_button.isEnabled()
     assert multi_shutter.shutter_button.text() == "Multi Shutter closed"
     assert shutter.shutter_button.text() == "Shutter closed"
+    assert state_dev_shutter.shutter_button.text() == "StateDev Shutter closed"
 
 
-def test_shutter_widget_autoshutter(shutters, qtbot: QtBot):
+def test_shutter_widget_autoshutter(qtbot: QtBot):
 
-    shutter, multi_shutter, mmc = shutters
+    shutter, state_dev_shutter, multi_shutter = _make_shutters(qtbot)
+    mmc = CMMCorePlus.instance()
 
     assert multi_shutter.autoshutter_checkbox.isChecked()
 
     with qtbot.waitSignal(mmc.events.autoShutterSet):
         multi_shutter.autoshutter_checkbox.setChecked(False)
     assert shutter.shutter_button.isEnabled()
+    assert state_dev_shutter.shutter_button.isEnabled()
     assert multi_shutter.shutter_button.isEnabled()
 
     with qtbot.waitSignal(mmc.events.autoShutterSet):
         multi_shutter.autoshutter_checkbox.setChecked(True)
     assert not shutter.shutter_button.isEnabled()
+    assert not state_dev_shutter.shutter_button.isEnabled()
     assert not multi_shutter.shutter_button.isEnabled()
 
 
-def test_shutter_widget_button(shutters, qtbot: QtBot):
+def test_shutter_widget_button(qtbot: QtBot):
 
-    shutter, multi_shutter, mmc = shutters
+    shutter, state_dev_shutter, multi_shutter = _make_shutters(qtbot)
+    mmc = CMMCorePlus.instance()
 
     with qtbot.waitSignal(mmc.events.configSet):
         mmc.setConfig("Channel", "DAPI")
@@ -156,6 +179,18 @@ def test_shutter_widget_button(shutters, qtbot: QtBot):
     assert mmc.getProperty("Shutter", "State") == "0"
 
     with qtbot.waitSignal(mmc.events.propertyChanged):
+        state_dev_shutter.shutter_button.click()
+    assert state_dev_shutter.shutter_button.text() == "StateDev Shutter opened"
+    assert mmc.getShutterOpen("StateDev Shutter")
+    assert mmc.getProperty("StateDev", "Label") == "State-1"
+
+    with qtbot.waitSignal(mmc.events.propertyChanged):
+        state_dev_shutter.shutter_button.click()
+    assert state_dev_shutter.shutter_button.text() == "StateDev Shutter closed"
+    assert not mmc.getShutterOpen("StateDev Shutter")
+    assert mmc.getProperty("StateDev", "Label") == "State-1"
+
+    with qtbot.waitSignal(mmc.events.propertyChanged):
         multi_shutter.shutter_button.click()
     assert multi_shutter.shutter_button.text() == "Multi Shutter opened"
     assert mmc.getShutterOpen("Multi Shutter")
@@ -163,11 +198,14 @@ def test_shutter_widget_button(shutters, qtbot: QtBot):
     assert shutter.shutter_button.text() == "Shutter opened"
     assert mmc.getShutterOpen("Shutter")
     assert mmc.getProperty("Shutter", "State") == "1"
+    assert mmc.getShutterOpen("StateDev Shutter")
+    assert mmc.getProperty("StateDev", "Label") == "State-1"
 
 
-def test_shutter_widget_setters(shutters, qtbot: QtBot):
+def test_shutter_widget_setters(qtbot: QtBot):
 
-    shutter, _, mmc = shutters
+    shutter, _, _ = _make_shutters(qtbot)
+    mmc = CMMCorePlus.instance()
 
     assert shutter.icon_size == 25
     shutter.icon_size = 30
@@ -189,17 +227,18 @@ def test_shutter_widget_setters(shutters, qtbot: QtBot):
     shutter.button_text_closed = "C"
     assert shutter.button_text_closed == "C"
 
-    with qtbot.waitSignal(mmc.events.startContinuousSequenceAcquisition):
+    with qtbot.waitSignal(mmc.events.continuousSequenceAcquisitionStarted):
         mmc.startContinuousSequenceAcquisition()
     assert shutter.shutter_button.text() == "O"
-    with qtbot.waitSignal(mmc.events.stopSequenceAcquisition):
+    with qtbot.waitSignal(mmc.events.sequenceAcquisitionStopped):
         mmc.stopSequenceAcquisition()
     assert shutter.shutter_button.text() == "C"
 
 
-def test_shutter_widget_UserWarning(shutters, qtbot: QtBot):
+def test_shutter_widget_UserWarning(qtbot: QtBot):
 
-    _, multi_shutter, mmc = shutters
+    _, _, multi_shutter = _make_shutters(qtbot)
+    mmc = CMMCorePlus.instance()
 
     assert multi_shutter.shutter_button.text() == "Multi Shutter closed"
     with qtbot.waitSignal(mmc.events.systemConfigurationLoaded):

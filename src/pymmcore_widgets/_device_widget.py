@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from abc import abstractmethod
-from typing import Any, Optional, Tuple
+from typing import Any
 
 import pymmcore
 from pymmcore_plus import CMMCorePlus, DeviceType
@@ -10,27 +12,39 @@ LABEL = pymmcore.g_Keyword_Label
 
 
 class DeviceWidget(QWidget):
-    """Base Device Widget.
+    """A general Device Widget.
 
-    Use `DeviceWidget.for_device('someLabel')` to create a device-type
+    Use `DeviceWidget.for_device('device_label')` method to create a device-type
     appropriate subclass.
+
+    !!! Note
+
+        Currently, `DeviceWidget` only supports devices of type
+        [`StateDevice`][pymmcore_plus.core._constants.DeviceType.StateDevice]. Calling
+        `DeviceWidget.for_device("device_label")`, will create the `DeviceWidget`
+        subclass [pymmcore_widgets.StateDeviceWidget][].
 
     Parameters
     ----------
     device_label : str
         A device label for which to create a widget.
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget.
+    mmcore: CMMCorePlus | None
+        Optional [`CMMCorePlus`][pymmcore_plus.CMMCorePlus] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     def __init__(
         self,
         device_label: str,
-        parent: Optional[QWidget] = None,
         *,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
         self._device_label = device_label
         self._mmc = mmcore or CMMCorePlus.instance()
         self.destroyed.connect(self._disconnect)
@@ -96,24 +110,29 @@ class DeviceWidget(QWidget):
 
 
 class StateDeviceWidget(DeviceWidget):
-    """Widget with a ComboBox to control the states of a StateDevice.
+    """A Widget with a QComboBox to control the states of a StateDevice.
 
     Parameters
     ----------
     device_label : str
         A device label for which to create a widget.
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     def __init__(
         self,
         device_label: str,
-        parent: Optional[QWidget] = None,
         *,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
-        super().__init__(device_label, parent, mmcore=mmcore)
+        super().__init__(device_label, parent=parent, mmcore=mmcore)
         assert self.deviceType() == DeviceType.StateDevice
 
         self._combo = QComboBox()
@@ -174,25 +193,25 @@ class StateDeviceWidget(DeviceWidget):
         """Return current state (label) of the device."""
         return self._mmc.getStateLabel(self._device_label)
 
-    def stateLabels(self) -> Tuple[str]:
+    def stateLabels(self) -> tuple[str]:
         """Return all state labels of the device."""
         return self._mmc.getStateLabels(self._device_label)
 
-    def currentText(self) -> str:  # noqa: D102
+    def currentText(self) -> str:
         # pass through the QComboBox interface
         return self._combo.currentText()  # type: ignore [no-any-return]
 
-    def setCurrentText(self, text: str) -> None:  # noqa: D102
+    def setCurrentText(self, text: str) -> None:
         # pass through the QComboBox interface
         if text not in self.stateLabels():
             raise ValueError(f"State label must be one of: {self.stateLabels()}")
         self._combo.setCurrentText(text)
 
-    def currentIndex(self) -> int:  # noqa: D102
+    def currentIndex(self) -> int:
         # pass through the QComboBox interface
         return self._combo.currentIndex()  # type: ignore [no-any-return]
 
-    def setCurrentIndex(self, index: int) -> None:  # noqa: D102
+    def setCurrentIndex(self, index: int) -> None:
         # pass through the QComboBox interface
         nstates = self._mmc.getNumberOfStates(self._device_label)
         if not (0 <= index < nstates):

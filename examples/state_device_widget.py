@@ -1,6 +1,7 @@
-"""
+"""Example usage of the StateDeviceWidget class.
+
 In this example all the devices of type 'StateDevice' that are loaded in micromanager
-are dysplaied with a 'StateDeviceWidget'.
+are displayed with a 'StateDeviceWidget'.
 """
 
 from pymmcore_plus import CMMCorePlus, DeviceType

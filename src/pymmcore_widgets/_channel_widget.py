@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtWidgets import QComboBox, QVBoxLayout, QWidget
@@ -8,32 +8,52 @@ from ._util import ComboMessageBox
 
 
 class ChannelWidget(QWidget):
-    """Channel selector widget.
+    """A QComboBox to select which micromanager channel configuration to use.
 
     Parameters
     ----------
-    channel_group : Optional[str]
-        Name of the group defining the microscope channels, by default will be guessed
-        using `mmc.getOrGuessChannelGroup`, and a dialog will be presented if there are
-        multiples
-    parent : Optional[QWidget]
-        Optional parent widget, by default None
+    channel_group : str | None
+        Name of the micromanager group defining the microscope channels. By default,
+        it will be guessed using the
+        [`CMMCorePlus.getOrGuessChannelGroup`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.getOrGuessChannelGroup]
+        method and a choice dialog will be presented if there are multiple options.
+        This method looks for a group configuration name matching the default regex
+        `re.compile("(chan{1,2}(el)?|filt(er)?)s?", re.IGNORECASE)`.
+        A different string/regex can be set using the
+        [`CMMCorePlus.channelGroup_pattern`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.channelGroup_pattern]
+        method.
+    parent : QWidget | None
+        Optional parent widget. By default, None.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+
+    Examples
+    --------
+    !!! example "Combining `ChannelWidget` with other widgets"
+
+        see [ImagePreview](../ImagePreview#example)
+
     """
 
     def __init__(
         self,
-        channel_group: Optional[str] = None,
-        parent: Optional[QWidget] = None,
+        channel_group: str | None = None,
         *,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
 
-        super().__init__(parent)
+        super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._channel_group = channel_group or self._get_channel_group()
 
-        self.channel_wdg = self._create_channel_widget(self._channel_group)
+        self.channel_wdg: PresetsWidget | QComboBox
+
+        self._create_channel_widget(self._channel_group)
 
         self.setLayout(QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
@@ -48,10 +68,10 @@ class ChannelWidget(QWidget):
         self._mmc.events.configDefined.connect(self._on_new_group_preset)
         self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)
 
-        self.destroyed.connect(self._disconnect_from_core)
+        self.destroyed.connect(self._disconnect)
         self._on_sys_cfg_loaded()
 
-    def _get_channel_group(self) -> Union[str, None]:
+    def _get_channel_group(self) -> str | None:
         candidates = self._mmc.getOrGuessChannelGroup()
         if len(candidates) == 1:
             return candidates[0]
@@ -61,16 +81,13 @@ class ChannelWidget(QWidget):
                 return str(dialog.currentText())
         return None  # pragma: no cover
 
-    def _create_channel_widget(
-        self, channel_group: Optional[str]
-    ) -> Union[PresetsWidget, QComboBox]:
+    def _create_channel_widget(self, channel_group: str | None) -> None:
         if channel_group:
-            channel_wdg = PresetsWidget(channel_group)
+            self.channel_wdg = PresetsWidget(channel_group, parent=self)
             self._mmc.setChannelGroup(channel_group)
         else:
-            channel_wdg = QComboBox()
-            channel_wdg.setEnabled(False)
-        return channel_wdg
+            self.channel_wdg = QComboBox()
+            self.channel_wdg.setEnabled(False)
 
     def _on_sys_cfg_loaded(self) -> None:
         channel_group = self._channel_group or self._get_channel_group()
@@ -113,10 +130,10 @@ class ChannelWidget(QWidget):
             self._on_channel_group_changed("")
 
     def _update_widget(self, channel_group: str) -> None:
-        self.channel_wdg = self._create_channel_widget(channel_group)
+        self._create_channel_widget(channel_group)
         self.layout().addWidget(self.channel_wdg)
 
-    def _disconnect_from_core(self) -> None:
+    def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
         self._mmc.events.channelGroupChanged.disconnect(self._on_channel_group_changed)
         self._mmc.events.configSet.disconnect(self._on_channel_set)

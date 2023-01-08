@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, cast
 import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QCheckBox
 
 from pymmcore_widgets import PresetsWidget
 from pymmcore_widgets._group_preset_widget._add_group_widget import AddGroupWidget
@@ -62,12 +61,12 @@ def test_populating_group_preset_table(global_mmcore: CMMCorePlus, qtbot: QtBot)
             assert global_mmcore.getProperty("Camera", "TestProperty1") == "0.1000"
 
 
-def test_add_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
+def test_add_group(qtbot: QtBot):
     gp = GroupPresetTableWidget()
     qtbot.addWidget(gp)
     add_gp_wdg = AddGroupWidget()
     qtbot.addWidget(add_gp_wdg)
-    mmc = global_mmcore
+    mmc = CMMCorePlus.instance()
 
     assert "NewGroup" not in mmc.getAvailableConfigGroups()
     groups_in_table = [
@@ -79,19 +78,22 @@ def test_add_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     dev_prop_list = ["Camera-Binning", "Camera-BitDepth", "Camera-CCDTemperature"]
 
-    bin_match = table.findItems("Camera-Binning", Qt.MatchExactly)
-    bit_match = table.findItems("Camera-BitDepth", Qt.MatchExactly)
-    t_match = table.findItems("Camera-CCDTemperature", Qt.MatchExactly)
+    bin_match = table.findItems("Camera-Binning", Qt.MatchFlag.MatchExactly)
+    bit_match = table.findItems("Camera-BitDepth", Qt.MatchFlag.MatchExactly)
+    t_match = table.findItems("Camera-CCDTemperature", Qt.MatchFlag.MatchExactly)
 
     rows = [bin_match[0].row(), bit_match[0].row(), t_match[0].row()]
 
     for idx, i in enumerate(dev_prop_list):
-        dev_prop = table.item(rows[idx], 1).text()
-        assert dev_prop == i
-        cbox = table.cellWidget(rows[idx], 0)
-        assert type(cbox) == QCheckBox
-        cbox.setChecked(True)
-        assert cbox.isChecked()
+        item = table.item(rows[idx], 0)
+        assert item.text() == i
+        item.setCheckState(Qt.CheckState.Checked)
+
+    assert table.getCheckedProperties() == [
+        ("Camera", "Binning", "1"),
+        ("Camera", "BitDepth", "16"),
+        ("Camera", "CCDTemperature", "0.0"),
+    ]
 
     with pytest.warns(UserWarning):
         add_gp_wdg.new_group_btn.click()
@@ -104,15 +106,15 @@ def test_add_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     add_gp_wdg.group_lineedit.setText("NewGroup")
 
     add_gp_wdg.new_group_btn.click()
-
-    assert hasattr(add_gp_wdg, "_first_preset_wdg")
-
     wdg = add_gp_wdg._first_preset_wdg
+    assert wdg.table.item(0, 0).text() == "Camera-Binning"
+    assert wdg.table.item(1, 0).text() == "Camera-BitDepth"
+
     assert wdg.preset_name_lineedit.placeholderText() == "NewPreset"
 
     wdg.table.cellWidget(0, 1).setValue(2)
     wdg.table.cellWidget(1, 1).setValue(8)
-    wdg.table.cellWidget(2, 1).setValue(0.1)
+    wdg.table.cellWidget(2, 1).setValue("0.1")
 
     with qtbot.waitSignal(mmc.events.configDefined):
         wdg.apply_button.click()
@@ -141,36 +143,29 @@ def test_edit_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     table = edit_gp._prop_table
 
-    bin_match = table.findItems("Camera-Binning", Qt.MatchExactly)
+    bin_match = table.findItems("Camera-Binning", Qt.MatchFlag.MatchExactly)
     bin_row = bin_match[0].row()
-    bit_match = table.findItems("Camera-BitDepth", Qt.MatchExactly)
+    bit_match = table.findItems("Camera-BitDepth", Qt.MatchFlag.MatchExactly)
     bit_row = bit_match[0].row()
 
-    bin_cbox = table.cellWidget(bin_row, 0)
-    bit_cbox = table.cellWidget(bit_row, 0)
-    assert isinstance(bin_cbox, QCheckBox)
-    assert isinstance(bit_cbox, QCheckBox)
-    assert bin_cbox.isChecked()
-    assert bit_cbox.isChecked()
-    assert table.item(bin_row, 1).text() == "Camera-Binning"
-    assert table.item(bit_row, 1).text() == "Camera-BitDepth"
+    assert table.item(bin_row, 0).text() == "Camera-Binning"
+    assert table.item(bit_row, 0).text() == "Camera-BitDepth"
 
-    edit_gp.new_group_btn.click()
+    edit_gp.modify_group_btn.click()
     assert edit_gp.info_lbl.text() == ""
 
-    t_match = table.findItems("Camera-CCDTemperature", Qt.MatchExactly)
+    t_match = table.findItems("Camera-CCDTemperature", Qt.MatchFlag.MatchExactly)
     t_row = t_match[0].row()
 
-    t_cbox = table.cellWidget(t_row, 0)
-    assert isinstance(t_cbox, QCheckBox)
-    assert not t_cbox.isChecked()
-    t_cbox.setChecked(True)
-    assert table.item(t_row, 1).text() == "Camera-CCDTemperature"
+    item = table.item(t_row, 0)
+    assert item.checkState() != Qt.CheckState.Checked
+    item.setCheckState(Qt.CheckState.Checked)
+    assert table.item(t_row, 0).text() == "Camera-CCDTemperature"
 
-    edit_gp.new_group_btn.click()
+    edit_gp.modify_group_btn.click()
     assert edit_gp.info_lbl.text() == "'Camera' Group Modified."
 
-    dp = [(k[0], k[1]) for k in mmc.getConfigData("Camera", "LowRes")]
+    dp = [k[:2] for k in mmc.getConfigData("Camera", "LowRes")]
     assert ("Camera", "CCDTemperature") in dp
 
 
@@ -207,16 +202,22 @@ def test_add_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     add_prs.preset_name_lineedit.setText("New")
 
-    mode = add_prs.table.cellWidget(3, 1)
-    mode.setValue("Color Test Pattern")
-    wdg = add_prs.table.cellWidget(5, 1)
-    wdg.setValue("Shutter")
+    dapi_values = []
+    for k in mmc.getConfigData("Channel", "DAPI").dict().values():
+        values = list(k.values())
+        if len(values) > 1:
+            dapi_values.extend(iter(values))
+        else:
+            dapi_values.append(values[0])
+
+    for i in range(add_prs.table.rowCount()):
+        add_prs.table.cellWidget(i, 1).setValue(dapi_values[i])
 
     with pytest.warns(UserWarning):
         add_prs.add_preset_button.click()
         assert add_prs.info_lbl.text() == "'DAPI' already has the same properties!"
 
-    mode.setValue("Noise")
+    add_prs.table.cellWidget(3, 1).setValue("Noise")
     add_prs.add_preset_button.click()
     assert add_prs.info_lbl.text() == "'New' has been added!"
 
@@ -230,8 +231,10 @@ def test_add_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
         ("Camera", "Mode", "Noise"),
         ("Multi Shutter", "Physical Shutter 1", "Undefined"),
         ("Multi Shutter", "Physical Shutter 2", "Shutter"),
-        ("Multi Shutter", "Physical Shutter 3", "Undefined"),
+        ("Multi Shutter", "Physical Shutter 3", "StateDev Shutter"),
         ("Multi Shutter", "Physical Shutter 4", "Undefined"),
+        ("StateDev Shutter", "State Device", "StateDev"),
+        ("StateDev", "Label", "State-1"),
     ]
 
     for r in range(gp.table_wdg.rowCount()):

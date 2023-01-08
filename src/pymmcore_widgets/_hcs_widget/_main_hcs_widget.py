@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import warnings
-from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from pymmcore_plus import CMMCorePlus
-from pymmcore_plus.mda import PMDAEngine
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QBrush
 from qtpy.QtWidgets import QFileDialog, QTableWidgetItem, QWidget
@@ -21,7 +19,7 @@ from ._well_plate_database import PLATE_DB, WellPlate
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 
 
-CALIBRATED_PLATE: Optional[WellPlate] = None
+CALIBRATED_PLATE: WellPlate | None = None
 
 
 class HCSWidget(HCSGui):
@@ -50,10 +48,10 @@ class HCSWidget(HCSGui):
 
     def __init__(
         self,
-        parent: Optional[QWidget] = None,
+        parent: QWidget | None = None,
         *,
         include_run_button: bool = False,
-        mmcore: Optional[CMMCorePlus] = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent)
 
@@ -69,14 +67,13 @@ class HCSWidget(HCSGui):
         if not self._include_run_button:
             self.run_Button.hide()
 
-        self.wp: Optional[WellPlate] = None
+        self.wp: WellPlate | None = None
 
         # connect
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg)
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.mda.events.sequencePauseToggled.connect(self._on_mda_paused)
-        self._mmc.events.mdaEngineRegistered.connect(self._update_mda_engine)
         self._mmc.events.roiSet.connect(self._on_roi_set)
 
         self.wp_combo.currentTextChanged.connect(self._on_combo_changed)
@@ -112,7 +109,7 @@ class HCSWidget(HCSGui):
     def _on_roi_set(self) -> None:
         self._on_combo_changed(self.wp_combo.currentText())
 
-    def _on_plate_from_calibration(self, coords: Tuple) -> None:
+    def _on_plate_from_calibration(self, coords: tuple) -> None:
         global CALIBRATED_PLATE
 
         x_list, y_list = zip(*coords)
@@ -263,8 +260,8 @@ class HCSWidget(HCSGui):
             self._add_to_table(r, well_name, stage_coord_x, stage_coord_y)
 
     def _get_wells_stage_coords(
-        self, well_list: List[Tuple[str, int, int]]
-    ) -> List[Tuple[str, float, float]]:
+        self, well_list: list[tuple[str, int, int]]
+    ) -> list[tuple[str, float, float]]:
         if self.wp is None or self.calibration.A1_well is None:
             return []
 
@@ -312,8 +309,8 @@ class HCSWidget(HCSGui):
         return ordered_well_list
 
     def _get_well_and_fovs_position_list(
-        self, ordered_wells_list: List[Tuple[str, float, float]]
-    ) -> List[Tuple[str, float, float]]:
+        self, ordered_wells_list: list[tuple[str, float, float]]
+    ) -> list[tuple[str, float, float]]:
         if self.wp is None:
             return []
 
@@ -386,7 +383,7 @@ class HCSWidget(HCSGui):
         well_name: str,
         stage_coord_x: float,
         stage_coord_y: float,
-        stage_coord_z: Union[float, str] = "None",
+        stage_coord_z: float | str = "None",
     ) -> None:
 
         self.ch_and_pos_list.stage_tableWidget.insertRow(row)
@@ -539,15 +536,6 @@ class HCSWidget(HCSGui):
             state["stage_positions"].append(pos)
 
         return MDASequence(**state)
-
-    def _update_mda_engine(self, newEngine: PMDAEngine, oldEngine: PMDAEngine) -> None:
-        oldEngine.events.sequenceStarted.disconnect(self._on_mda_started)
-        oldEngine.events.sequenceFinished.disconnect(self._on_mda_finished)
-        oldEngine.events.sequencePauseToggled.disconnect(self._on_mda_paused)
-
-        newEngine.events.sequenceStarted.connect(self._on_mda_started)
-        newEngine.events.sequenceFinished.connect(self._on_mda_finished)
-        newEngine.events.sequencePauseToggled.connect(self._on_mda_paused)
 
     def _set_enabled(self, enabled: bool) -> None:
         self._select_plate_tab.setEnabled(enabled)

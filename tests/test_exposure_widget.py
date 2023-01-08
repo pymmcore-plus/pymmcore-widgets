@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 def test_exposure_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     global_mmcore.setExposure(15)
-    wdg = DefaultCameraExposureWidget(core=global_mmcore)
+    wdg = DefaultCameraExposureWidget(mmcore=global_mmcore)
     qtbot.addWidget(wdg)
 
     # check that it get's whatever core is set to.

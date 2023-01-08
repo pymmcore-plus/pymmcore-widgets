@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import warnings
-from typing import Optional
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
@@ -29,9 +30,9 @@ class EditPresetWidget(QDialog):
     """A widget to edit a specified group's presets."""
 
     def __init__(
-        self, group: str, preset: str, *, parent: Optional[QWidget] = None
+        self, group: str, preset: str, *, parent: QWidget | None = None
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self._mmc = CMMCorePlus.instance()
         self._group = group
@@ -85,7 +86,7 @@ class EditPresetWidget(QDialog):
         wdg_layout.setContentsMargins(5, 5, 5, 5)
         wdg.setLayout(wdg_layout)
 
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        lbl_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         gp_lbl = QLabel(text="Group:")
         gp_lbl.setSizePolicy(lbl_sizepolicy)
@@ -100,11 +101,11 @@ class EditPresetWidget(QDialog):
         ps_lbl.setSizePolicy(lbl_sizepolicy)
         self.preset_name_lineedit = QLineEdit()
         self.preset_name_lineedit.setSizePolicy(
-            QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+            QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         )
         self.preset_name_lineedit.setText(f"{self._preset}")
 
-        spacer = QSpacerItem(30, 10, QSizePolicy.Fixed, QSizePolicy.Fixed)
+        spacer = QSpacerItem(30, 10, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         wdg_layout.addWidget(gp_lbl)
         wdg_layout.addWidget(group_name_lbl)
@@ -126,7 +127,7 @@ class EditPresetWidget(QDialog):
         self.info_lbl = QLabel()
         self.apply_button = QPushButton(text="Apply Changes")
         self.apply_button.setSizePolicy(
-            QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         )
         self.apply_button.clicked.connect(self._apply_changes)
 
@@ -164,7 +165,7 @@ class EditPresetWidget(QDialog):
         self.table.setRowCount(len(dev_prop_val))
         for idx, (dev, prop, val) in enumerate(dev_prop_val):
             item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, core=self._mmc)
+            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
             wdg._value_widget.valueChanged.disconnect()  # type: ignore
             wdg.setValue(val)
             self.table.setItem(idx, 0, item)
@@ -227,12 +228,12 @@ class _Table(QTableWidget):
     def __init__(self) -> None:
         super().__init__()
         hdr = self.horizontalHeader()
-        hdr.setSectionResizeMode(hdr.Stretch)
-        hdr.setDefaultAlignment(Qt.AlignHCenter)
+        hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
+        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
         vh = self.verticalHeader()
         vh.setVisible(False)
-        vh.setSectionResizeMode(vh.Fixed)
+        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
         vh.setDefaultSectionSize(24)
-        self.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Device-Property", "Value"])

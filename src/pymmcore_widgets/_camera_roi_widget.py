@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -23,26 +23,28 @@ from superqt.utils import signals_blocked
 
 # from ._util import block_core
 
-fixed_sizepolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 FULL = "Full Chip"
 CUSTOM_ROI = "Custom ROI"
 
 
 class CameraRoiWidget(QWidget):
-    """
-    A Widget to control the camera device ROI.
+    """A Widget to control the camera device ROI.
 
-    When the ROI changes, the roiChanged Signal is emitted with the current ROI
+    When the ROI changes, the `roiChanged` Signal is emitted with the current ROI
     (x, y, width, height, comboBoxText)
+
+    [`pymmcore_plus.CMMCoreSignaler`]
 
     Parameters
     ----------
-    parent : Optional[QWidget]
+    parent : QWidget | None
         Optional parent widget, by default None
-    mmcore: Optional[CMMCorePlus]
-        Optional `CMMCorePlus` micromanager core.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) `CMMCorePlus.instance()`.
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     # (x, y, width, height, comboBoxText)
@@ -50,15 +52,21 @@ class CameraRoiWidget(QWidget):
 
     def __init__(
         self,
-        parent: Optional[QWidget] = None,
         *,
-        mmcore: Optional[CMMCorePlus] = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self._create_gui()
+        layout = QVBoxLayout()
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
+
+        main_wdg = self._create_main_wdg()
+        layout.addWidget(main_wdg)
 
         self.chip_size_x = 0
         self.chip_size_y = 0
@@ -69,15 +77,12 @@ class CameraRoiWidget(QWidget):
         self._mmc.events.pixelSizeChanged.connect(self._update_lbl_info)
         self._mmc.events.roiSet.connect(self._on_roi_set)
 
-    def _create_gui(self) -> None:  # sourcery skip: class-extract-method
+        self.destroyed.connect(self._disconnect)
 
-        layout = QVBoxLayout()
-        layout.setSpacing(0)
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.setLayout(layout)
-
-        main_wdg = self._create_main_wdg()
-        layout.addWidget(main_wdg)
+    def _disconnect(self) -> None:
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
+        self._mmc.events.pixelSizeChanged.disconnect(self._update_lbl_info)
+        self._mmc.events.roiSet.disconnect(self._on_roi_set)
 
     def _create_main_wdg(self) -> QWidget:
 
@@ -103,7 +108,9 @@ class CameraRoiWidget(QWidget):
         self.lbl_info = QLabel()
         bottom_layout.addWidget(self.lbl_info)
 
-        spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Fixed)
+        spacer = QSpacerItem(
+            10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         bottom_layout.addItem(spacer)
 
         self.snap_checkbox = QCheckBox(text="autoSnap")
@@ -140,7 +147,7 @@ class CameraRoiWidget(QWidget):
     def _create_selection_wdg(self) -> QGroupBox:
 
         wdg = QGroupBox()
-        wdg.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         layout = QVBoxLayout()
         layout.setSpacing(5)
         layout.setContentsMargins(3, 3, 3, 3)
@@ -168,14 +175,14 @@ class CameraRoiWidget(QWidget):
         self.start_x = QSpinBox()
         self.start_x.setMinimum(0)
         self.start_x.setMaximum(10000)
-        self.start_x.setAlignment(Qt.AlignCenter)
+        self.start_x.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.start_x.valueChanged.connect(self._on_start_spinbox_changed)
         roi_start_y_label = QLabel("Start y:")
         roi_start_y_label.setSizePolicy(fixed_sizepolicy)
         self.start_y = QSpinBox()
         self.start_y.setMinimum(0)
         self.start_y.setMaximum(10000)
-        self.start_y.setAlignment(Qt.AlignCenter)
+        self.start_y.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.start_y.valueChanged.connect(self._on_start_spinbox_changed)
 
         layout.addWidget(roi_start_x_label, 1, 0, 1, 1)
@@ -189,7 +196,7 @@ class CameraRoiWidget(QWidget):
         self.roi_width.setObjectName("roi_width")
         self.roi_width.setMinimum(1)
         self.roi_width.setMaximum(10000)
-        self.roi_width.setAlignment(Qt.AlignCenter)
+        self.roi_width.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.roi_width.valueChanged.connect(self._on_roi_spinbox_changed)
         roi_height_label = QLabel("Height:")
         roi_height_label.setSizePolicy(fixed_sizepolicy)
@@ -197,7 +204,7 @@ class CameraRoiWidget(QWidget):
         self.roi_height.setObjectName("roi_height")
         self.roi_height.setMinimum(1)
         self.roi_height.setMaximum(10000)
-        self.roi_height.setAlignment(Qt.AlignCenter)
+        self.roi_height.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.roi_height.valueChanged.connect(self._on_roi_spinbox_changed)
 
         layout.addWidget(roi_size_label, 1, 2, 1, 1)
@@ -422,7 +429,7 @@ class CameraRoiWidget(QWidget):
             with signals_blocked(self.roi_height):
                 self.roi_height.setValue(height)
 
-    def _get_roi_groupbox_values(self) -> Tuple:
+    def _get_roi_groupbox_values(self) -> tuple:
         start_x = self.start_x.value()
         start_y = self.start_y.value()
         width = self.roi_width.value()
@@ -452,12 +459,12 @@ class CameraRoiWidget(QWidget):
 
         self._update_lbl_info()
 
-    def _hide_spinbox_button(self, spin_list: List[QSpinBox], hide: bool) -> None:
+    def _hide_spinbox_button(self, spin_list: list[QSpinBox], hide: bool) -> None:
         for spin in spin_list:
             if hide:
-                spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
+                spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
             else:
-                spin.setButtonSymbols(QAbstractSpinBox.PlusMinus)
+                spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.PlusMinus)
 
     def _check_size_reset_snap(self, snap: bool = True) -> None:
         x, y, w, h = self._mmc.getROI()
