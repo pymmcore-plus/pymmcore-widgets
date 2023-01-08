@@ -91,8 +91,12 @@ class HCSWidget(QWidget):
 
         self._mda = HCSMDA()
         self._mda.add_positions_button.clicked.connect(self._generate_pos_list)
-        self._mda.load_positions_button.clicked.connect(self._load_positions)
-        self._mda.save_positions_button.clicked.connect(self._save_positions)
+        self._mda.position_groupbox.load_positions_button.clicked.connect(
+            self._load_positions
+        )
+        self._mda.position_groupbox.save_positions_button.clicked.connect(
+            self._save_positions
+        )
 
         self.tabwidget.addTab(self._select_plate_tab, "  Plate and FOVs Selection  ")
         self.tabwidget.addTab(self._calibration, "  Plate Calibration  ")
@@ -595,16 +599,22 @@ class HCSMDA(MDAWidget):
         self.position_groupbox.setEnabled(True)
         self.position_groupbox.grid_button.hide()
 
-        # add add, save and load buttons
+        # replace add button
         pos_tb_wdg = self.position_groupbox.layout().itemAt(0).widget()
         btns_wdg = pos_tb_wdg.layout().itemAt(1).widget()
         self.position_groupbox.add_button.hide()
         self.add_positions_button = QPushButton(text="Add")
-        self.save_positions_button = QPushButton(text="Save")
-        self.load_positions_button = QPushButton(text="Load")
         btns_wdg.layout().insertWidget(0, self.add_positions_button)
-        btns_wdg.layout().insertWidget(7, self.save_positions_button)
-        btns_wdg.layout().insertWidget(8, self.load_positions_button)
+
+        # disconnect save and load buttons
+        self.position_groupbox.save_positions_button.clicked.disconnect()
+        self.position_groupbox.load_positions_button.clicked.disconnect()
+
+    def _enable_run_btn(self) -> None:
+        self.buttons_wdg.run_button.setEnabled(
+            self.channel_groupbox._table.rowCount() > 0
+            and self.position_groupbox.stage_tableWidget.rowCount() > 0
+        )
 
 
 if __name__ == "__main__":
