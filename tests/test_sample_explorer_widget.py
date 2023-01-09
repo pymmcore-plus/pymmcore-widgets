@@ -38,12 +38,12 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     s_exp.position_groupbox.setChecked(True)
     s_exp.position_groupbox.add_button.click()
-    assert s_exp.position_groupbox.stage_tableWidget.rowCount() == 1
+    assert s_exp.position_groupbox._table.rowCount() == 1
     mmc.setXYPosition(2000.0, 2000.0)
     mmc.waitForSystem()
     s_exp.position_groupbox.add_button.click()
 
-    assert s_exp.position_groupbox.stage_tableWidget.rowCount() == 2
+    assert s_exp.position_groupbox._table.rowCount() == 2
 
     state = s_exp.get_state()
 
@@ -124,16 +124,16 @@ def test_explorer_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg.channel_groupbox._clear_button.click()
     assert wdg.channel_groupbox._table.rowCount() == 0
 
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
+    assert wdg.position_groupbox._table.rowCount() == 0
     wdg.position_groupbox.setChecked(True)
     wdg.position_groupbox.add_button.click()
     wdg.position_groupbox.add_button.click()
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 2
-    wdg.position_groupbox.stage_tableWidget.selectRow(0)
+    assert wdg.position_groupbox._table.rowCount() == 2
+    wdg.position_groupbox._table.selectRow(0)
     wdg.position_groupbox.remove_button.click()
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 1
+    assert wdg.position_groupbox._table.rowCount() == 1
     wdg.position_groupbox.clear_button.click()
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
+    assert wdg.position_groupbox._table.rowCount() == 0
 
 
 def test_explorer_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):

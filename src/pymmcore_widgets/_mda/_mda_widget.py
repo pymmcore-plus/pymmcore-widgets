@@ -83,6 +83,7 @@ class MDAWidget(QWidget):
         self.stack_groupbox.setChecked(False)
 
         self.position_groupbox = PositionTable()
+        self.position_groupbox.setChecked(False)
 
         # below the scroll area, some feedback widgets and buttons
         self.time_lbl = _MDATimeLabel()

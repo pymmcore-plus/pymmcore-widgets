@@ -215,13 +215,13 @@ class SampleExplorerWidget(MDAWidget):
 
             for c, ax in enumerate("GXYZ"):
                 if ax == "G":
-                    count = self.position_groupbox.stage_tableWidget.rowCount()
+                    count = self.position_groupbox._table.rowCount()
                     item = QTableWidgetItem(f"Grid_{count:03d}")
                     item.setWhatsThis(f"Grid_{count:03d}")
                     item.setTextAlignment(
                         Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
                     )
-                    self.position_groupbox.stage_tableWidget.setItem(idx, c, item)
+                    self.position_groupbox._table.setItem(idx, c, item)
                     self._rename_positions()
                     continue
 
@@ -233,27 +233,23 @@ class SampleExplorerWidget(MDAWidget):
                 item.setTextAlignment(
                     Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
                 )
-                self.position_groupbox.stage_tableWidget.setItem(idx, c, item)
+                self.position_groupbox._table.setItem(idx, c, item)
 
         self._update_total_time()
 
     def _remove_position(self) -> None:
         # remove selected position
-        rows = {
-            r.row() for r in self.position_groupbox.stage_tableWidget.selectedIndexes()
-        }
+        rows = {r.row() for r in self.position_groupbox._table.selectedIndexes()}
         for idx in sorted(rows, reverse=True):
-            self.position_groupbox.stage_tableWidget.removeRow(idx)
+            self.position_groupbox._table.removeRow(idx)
         self._rename_positions()
         self._update_total_time()
 
     def _rename_positions(self, _: Any = None) -> None:
         """Rename the positions to keep name's correct counter of 3digits."""
         # name arguments to match super method
-        for grid_count, r in enumerate(
-            range(self.position_groupbox.stage_tableWidget.rowCount())
-        ):
-            item = self.position_groupbox.stage_tableWidget.item(r, 0)
+        for grid_count, r in enumerate(range(self.position_groupbox._table.rowCount())):
+            item = self.position_groupbox._table.item(r, 0)
             item_text = item.text()
             item_whatisthis = item.whatsThis()
             if item_text == item_whatisthis:
@@ -267,11 +263,11 @@ class SampleExplorerWidget(MDAWidget):
                 Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
             )
             item.setWhatsThis(new_whatisthis)
-            self.position_groupbox.stage_tableWidget.setItem(r, 0, item)
+            self.position_groupbox._table.setItem(r, 0, item)
 
     def _get_pos_name(self, row: int) -> str:
         """Get position name from table item's whatsThis property."""
-        item = self.position_groupbox.stage_tableWidget.item(row, 0)
+        item = self.position_groupbox._table.item(row, 0)
         name = str(item.text())
         whatsthis = item.whatsThis()
         return f"{name}_{whatsthis}" if whatsthis not in name else name
@@ -281,7 +277,7 @@ class SampleExplorerWidget(MDAWidget):
 
         output should be a compatible input to MDASequence stage_positions.
         """
-        table = self.position_groupbox.stage_tableWidget
+        table = self.position_groupbox._table
         explorer_starting_positions: list[Position] = []
         if self.position_groupbox.isChecked() and table.rowCount() > 0:
             explorer_starting_positions.extend(
