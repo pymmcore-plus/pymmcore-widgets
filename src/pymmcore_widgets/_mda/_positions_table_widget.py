@@ -64,7 +64,6 @@ class PositionTable(QGroupBox):
         self.setTitle(title)
 
         self.setCheckable(True)
-        self.setChecked(False)
 
         self.main_layout = QVBoxLayout()
         self.main_layout.setSpacing(15)
@@ -79,18 +78,16 @@ class PositionTable(QGroupBox):
         self.main_layout.addWidget(table_and_btns)
 
         # table
-        self.stage_tableWidget = QTableWidget()
-        self.stage_tableWidget.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectRows
-        )
-        hdr = self.stage_tableWidget.horizontalHeader()
+        self._table = QTableWidget()
+        self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        hdr = self._table.horizontalHeader()
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
-        self.stage_tableWidget.verticalHeader().setVisible(False)
-        self.stage_tableWidget.setTabKeyNavigation(True)
-        self.stage_tableWidget.setColumnCount(4)
-        self.stage_tableWidget.setRowCount(0)
+        self._table.verticalHeader().setVisible(False)
+        self._table.setTabKeyNavigation(True)
+        self._table.setColumnCount(4)
+        self._table.setRowCount(0)
         self._set_table_header()
-        table_and_btns_layout.addWidget(self.stage_tableWidget)
+        table_and_btns_layout.addWidget(self._table)
 
         # buttons
         wdg = QWidget()
@@ -180,10 +177,10 @@ class PositionTable(QGroupBox):
         cbox_wdg_layout.addWidget(self.z_stage_combo)
         self._populate_stage_combo()
 
-        self.stage_tableWidget.selectionModel().selectionChanged.connect(
+        self._table.selectionModel().selectionChanged.connect(
             self._enable_go_replace_button
         )
-        self.stage_tableWidget.selectionModel().selectionChanged.connect(
+        self._table.selectionModel().selectionChanged.connect(
             self._enable_remove_button
         )
 
@@ -205,18 +202,18 @@ class PositionTable(QGroupBox):
             self.z_stage_combo.setCurrentText(value or "None")
 
         if not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice):
-            _range = (0, self.stage_tableWidget.columnCount())
+            _range = (0, self._table.columnCount())
         else:
-            _range = (3, self.stage_tableWidget.columnCount())
+            _range = (3, self._table.columnCount())
 
         for i in range(_range[0], _range[1]):
             if not value:
-                self.stage_tableWidget.setColumnHidden(i, True)
+                self._table.setColumnHidden(i, True)
             elif i == 0:
-                self.stage_tableWidget.setColumnHidden(i, False)
+                self._table.setColumnHidden(i, False)
             else:
-                col_name = self.stage_tableWidget.horizontalHeaderItem(i).text()
-                self.stage_tableWidget.setColumnHidden(i, col_name != value)
+                col_name = self._table.horizontalHeaderItem(i).text()
+                self._table.setColumnHidden(i, col_name != value)
 
     def _populate_stage_combo(self) -> None:
         with signals_blocked(self.z_stage_combo):
@@ -230,34 +227,31 @@ class PositionTable(QGroupBox):
     def _on_z_stage_combo_changed(self, stage: str) -> None:
         if stage == "None":
             _range = (
-                (3, self.stage_tableWidget.columnCount())
+                (3, self._table.columnCount())
                 if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
-                else (0, self.stage_tableWidget.columnCount())
+                else (0, self._table.columnCount())
             )
             for c in range(_range[0], _range[1]):
-                self.stage_tableWidget.setColumnHidden(c, True)
+                self._table.setColumnHidden(c, True)
 
             stage = ""
 
         self._mmc.setFocusDevice(stage)
 
     def _enable_go_replace_button(self) -> None:
-        rows = {r.row() for r in self.stage_tableWidget.selectedIndexes()}
+        rows = {r.row() for r in self._table.selectedIndexes()}
         self.go_button.setEnabled(len(rows) == 1)
         self.replace_button.setEnabled(len(rows) == 1)
-        if (
-            len(rows) == 1
-            and "Grid" in self.stage_tableWidget.item(list(rows)[0], 0).whatsThis()
-        ):
+        if len(rows) == 1 and "Grid" in self._table.item(list(rows)[0], 0).whatsThis():
             self.replace_button.setEnabled(False)
 
     def _enable_remove_button(self) -> None:
-        rows = {r.row() for r in self.stage_tableWidget.selectedIndexes()}
+        rows = {r.row() for r in self._table.selectedIndexes()}
         self.remove_button.setEnabled(len(rows) >= 1)
 
     def _set_table_header(self) -> None:
 
-        self.stage_tableWidget.setColumnCount(0)
+        self._table.setColumnCount(0)
 
         if not self._mmc.getLoadedDevicesOfType(
             DeviceType.XYStageDevice
@@ -275,8 +269,8 @@ class PositionTable(QGroupBox):
             + list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
         )
 
-        self.stage_tableWidget.setColumnCount(len(header))
-        self.stage_tableWidget.setHorizontalHeaderLabels(header)
+        self._table.setColumnCount(len(header))
+        self._table.setHorizontalHeaderLabels(header)
         self._hide_header_columns(header)
 
     def _hide_header_columns(self, header: list[str]) -> None:
@@ -286,24 +280,22 @@ class PositionTable(QGroupBox):
                 not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
                 and not self._mmc.getFocusDevice()
             ):
-                self.stage_tableWidget.setColumnHidden(idx, True)
+                self._table.setColumnHidden(idx, True)
 
             elif c in {"X", "Y"} and not self._mmc.getLoadedDevicesOfType(
                 DeviceType.XYStageDevice
             ):
-                self.stage_tableWidget.setColumnHidden(idx, True)
+                self._table.setColumnHidden(idx, True)
 
             elif c not in {"Pos", "X", "Y"}:
-                self.stage_tableWidget.setColumnHidden(
-                    idx, self._mmc.getFocusDevice() != c
-                )
+                self._table.setColumnHidden(idx, self._mmc.getFocusDevice() != c)
 
     def _add_position(self) -> None:
 
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
             raise ValueError("No XY and/or Z Stage selected.")
 
-        name = f"Pos{self.stage_tableWidget.rowCount():03d}"
+        name = f"Pos{self._table.rowCount():03d}"
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
@@ -338,15 +330,15 @@ class PositionTable(QGroupBox):
         self.valueChanged.emit()
 
     def _get_z_stage_column(self) -> int | None:
-        for i in range(self.stage_tableWidget.columnCount()):
-            col_name = self.stage_tableWidget.horizontalHeaderItem(i).text()
+        for i in range(self._table.columnCount()):
+            col_name = self._table.horizontalHeaderItem(i).text()
             if col_name == self._mmc.getFocusDevice():
                 return i
         return None
 
     def _add_position_row(self) -> int:
-        idx = self.stage_tableWidget.rowCount()
-        self.stage_tableWidget.insertRow(idx)
+        idx = self._table.rowCount()
+        self._table.insertRow(idx)
         return cast(int, idx)
 
     def _add_table_value(
@@ -360,7 +352,7 @@ class PositionTable(QGroupBox):
         spin.setMinimum(-1000000.0)
         spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         spin.setValue(value)
-        self.stage_tableWidget.setCellWidget(row, col, spin)
+        self._table.setCellWidget(row, col, spin)
 
     def _add_table_item(self, table_item: str | None, row: int, col: int) -> None:
         item = QTableWidgetItem(table_item)
@@ -369,15 +361,15 @@ class PositionTable(QGroupBox):
         item.setWhatsThis(table_item)
         item.setToolTip(table_item)
         item.setTextAlignment(AlignCenter)
-        self.stage_tableWidget.setItem(row, col, item)
+        self._table.setItem(row, col, item)
 
     def _replace_position(self) -> None:
 
-        rows = [r.row() for r in self.stage_tableWidget.selectedIndexes()]
+        rows = [r.row() for r in self._table.selectedIndexes()]
         if len(set(rows)) > 1:
             return
 
-        name = self.stage_tableWidget.item(rows[0], 0).text()
+        name = self._table.item(rows[0], 0).text()
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
@@ -386,19 +378,19 @@ class PositionTable(QGroupBox):
 
     def _remove_position(self) -> None:
 
-        rows = {r.row() for r in self.stage_tableWidget.selectedIndexes()}
+        rows = {r.row() for r in self._table.selectedIndexes()}
         grid_to_delete = []
 
         for idx in sorted(rows, reverse=True):
 
-            whatsthis = self.stage_tableWidget.item(idx, 0).whatsThis()
+            whatsthis = self._table.item(idx, 0).whatsThis()
             # store grid name if is a grid position
             if "Grid" in whatsthis:
                 grid_name = whatsthis.split("_")[0]
                 grid_to_delete.append(grid_name)
             else:
                 # remove if is a single position
-                self.stage_tableWidget.removeRow(idx)
+                self._table.removeRow(idx)
 
         # remove grid positions
         for gridname in grid_to_delete:
@@ -409,17 +401,17 @@ class PositionTable(QGroupBox):
 
     def _delete_grid_positions(self, name: list[str]) -> None:
         """Remove all positions related to the same grid."""
-        for row in reversed(range(self.stage_tableWidget.rowCount())):
-            if name in self.stage_tableWidget.item(row, 0).whatsThis():
-                self.stage_tableWidget.removeRow(row)
+        for row in reversed(range(self._table.rowCount())):
+            if name in self._table.item(row, 0).whatsThis():
+                self._table.removeRow(row)
 
     def _rename_positions(self) -> None:
         single_pos_count = 0
         single_pos_rows: list[int] = []
         grid_info: list[tuple[str, str, int]] = []
-        for row in range(self.stage_tableWidget.rowCount()):
-            name = self.stage_tableWidget.item(row, 0).text()
-            whatsthis = self.stage_tableWidget.item(row, 0).whatsThis()
+        for row in range(self._table.rowCount()):
+            name = self._table.item(row, 0).text()
+            whatsthis = self._table.item(row, 0).whatsThis()
 
             if "Grid" in whatsthis.split("_")[0]:
                 grid_info.append((name, whatsthis, row))
@@ -445,9 +437,9 @@ class PositionTable(QGroupBox):
         self, name: str, row: int, col: int, update_name: bool = True
     ) -> None:
         if update_name:
-            self.stage_tableWidget.item(row, col).setText(name)
-        self.stage_tableWidget.item(row, col).setWhatsThis(name)
-        self.stage_tableWidget.item(row, col).setToolTip(name)
+            self._table.item(row, col).setText(name)
+        self._table.item(row, col).setWhatsThis(name)
+        self._table.item(row, col).setToolTip(name)
 
     def _update_number(self, number: int, exixting_numbers: list[int]) -> int:
         loop = True
@@ -488,8 +480,8 @@ class PositionTable(QGroupBox):
 
     def _clear_positions(self) -> None:
         """clear all positions."""
-        self.stage_tableWidget.clearContents()
-        self.stage_tableWidget.setRowCount(0)
+        self._table.clearContents()
+        self._table.setRowCount(0)
         self.valueChanged.emit()
 
     def _grid_widget(self) -> None:
@@ -510,8 +502,8 @@ class PositionTable(QGroupBox):
         if clear:
             self._clear_positions()
         else:
-            for r in range(self.stage_tableWidget.rowCount()):
-                pos_name = self.stage_tableWidget.item(r, 0).whatsThis()
+            for r in range(self._table.rowCount()):
+                pos_name = self._table.item(r, 0).whatsThis()
                 grid_name = pos_name.split("_")[0]  # e.g. Grid000
                 if "Grid" in grid_name:
                     grid_n = grid_name[-3:]
@@ -533,7 +525,7 @@ class PositionTable(QGroupBox):
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():
             return
-        curr_row = self.stage_tableWidget.currentRow()
+        curr_row = self._table.currentRow()
         self._mmc.setXYPosition(
             self.value()[curr_row].get("x"), self.value()[curr_row].get("y")
         )
@@ -548,24 +540,24 @@ class PositionTable(QGroupBox):
         """
         return [
             {
-                "name": self.stage_tableWidget.item(row, 0).text() or None,
+                "name": self._table.item(row, 0).text() or None,
                 "x": self._get_table_value(row, 1),
                 "y": self._get_table_value(row, 2),
                 "z": self._get_table_value(row, self._get_z_stage_column()),
             }
-            for row in range(self.stage_tableWidget.rowCount())
+            for row in range(self._table.rowCount())
         ]
 
     def _get_table_value(self, row: int, col: int | None) -> float | None:
         try:
-            wdg = cast(QDoubleSpinBox, self.stage_tableWidget.cellWidget(row, col))
+            wdg = cast(QDoubleSpinBox, self._table.cellWidget(row, col))
             value = wdg.value()
         except (AttributeError, TypeError):
             value = None
         return value  # type: ignore
 
     def _save_positions(self) -> None:
-        if not self.stage_tableWidget.rowCount():
+        if not self._table.rowCount():
             return
 
         (dir_file, _) = QFileDialog.getSaveFileName(
