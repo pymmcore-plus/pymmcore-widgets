@@ -8,7 +8,11 @@ from unittest.mock import Mock, call
 import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem, QTableWidgetItem
+from qtpy.QtWidgets import (
+    QGraphicsEllipseItem,
+    QGraphicsRectItem,
+    QTableWidgetItem,
+)
 from useq import MDASequence
 
 from pymmcore_widgets._hcs_widget._calibration_widget import PlateCalibration
