@@ -14,6 +14,7 @@ from useq import MDASequence
 from pymmcore_widgets._hcs_widget._calibration_widget import PlateCalibration
 from pymmcore_widgets._hcs_widget._graphics_items import FOVPoints, Well, WellArea
 from pymmcore_widgets._hcs_widget._main_hcs_widget import HCSWidget
+from pymmcore_widgets._mda._zstack_widget import ZRangeAroundSelect
 from pymmcore_widgets._util import PLATE_FROM_CALIBRATION
 
 if TYPE_CHECKING:
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture()
 def hcs_wdg(global_mmcore, qtbot: QtBot):
-    hcs = HCSWidget(include_run_button=True, mmcore=global_mmcore)
+    hcs = HCSWidget(mmcore=global_mmcore)
     hcs._set_enabled(True)
     mmc = hcs._mmc
     cal = hcs.calibration
@@ -547,7 +548,7 @@ def test_generate_pos_list(
     hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot
 ):
     hcs, _, cal = hcs_wdg
-    pos_table = hcs.ch_and_pos_list.stage_tableWidget
+    pos_table = hcs._mda.position_groupbox.stage_tableWidget
 
     hcs.wp_combo.setCurrentText("standard 384")
     assert hcs.wp_combo.currentText() == "standard 384"
@@ -576,7 +577,7 @@ def test_generate_pos_list(
     cal._calibrate_plate()
     assert cal.cal_lbl.text() == "Plate Calibrated!"
 
-    assert hcs.ch_and_pos_list.z_combo.currentText() == "Z"
+    assert hcs._mda.position_groupbox.z_stage_combo.currentText() == "Z"
     assert not pos_table.rowCount()
 
     # center
@@ -589,16 +590,16 @@ def test_generate_pos_list(
     table_info = []
     for r in range(pos_table.rowCount()):
         well_name = pos_table.item(r, 0).text()
-        _x = pos_table.item(r, 1).text()
-        _y = pos_table.item(r, 2).text()
-        _z = pos_table.item(r, 3).text()
+        _x = pos_table.cellWidget(r, 1).value()
+        _y = pos_table.cellWidget(r, 2).value()
+        _z = pos_table.cellWidget(r, 3).value()
         table_info.append((well_name, _x, _y, _z))
 
     assert table_info == [
-        ("A1_pos000", "0.0", "0.0", "0.0"),
-        ("A2_pos000", "4500.0", "0.0", "0.0"),
-        ("B2_pos000", "4500.0", "-4500.0", "0.0"),
-        ("B1_pos000", "0.0", "-4500.0", "0.0"),
+        ("A1_pos000", 0.0, 0.0, 0.0),
+        ("A2_pos000", 4500.0, 0.0, 0.0),
+        ("B2_pos000", 4500.0, -4500.0, 0.0),
+        ("B1_pos000", 0.0, -4500.0, 0.0),
     ]
 
     # random
@@ -661,8 +662,8 @@ def test_generate_pos_list(
 
 def test_hcs_state(hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot):
     hcs, _, cal = hcs_wdg
-    mda = hcs.ch_and_pos_list
-    pos_table = mda.stage_tableWidget
+    mda = hcs._mda
+    pos_table = mda.position_groupbox.stage_tableWidget
 
     hcs.wp_combo.setCurrentText("standard 384")
     assert hcs.wp_combo.currentText() == "standard 384"
@@ -688,7 +689,7 @@ def test_hcs_state(hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBo
     cal._calibrate_plate()
     assert cal.cal_lbl.text() == "Plate Calibrated!"
 
-    assert mda.z_combo.currentText() == "Z"
+    assert mda.position_groupbox.z_stage_combo.currentText() == "Z"
     assert not pos_table.rowCount()
 
     assert hcs.FOV_selector.tab_wdg.currentIndex() == 0
@@ -699,21 +700,27 @@ def test_hcs_state(hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBo
     assert pos_table.rowCount() == 2
 
     # channels
-    mda._add_channel()
+    mda.channel_groupbox._add_button.click()
+    assert mda.channel_groupbox._table.rowCount() == 1
 
     # time
-    mda.time_groupBox.setChecked(True)
-    mda.timepoints_spinBox.setValue(2)
-    mda.interval_spinBox.setValue(1.00)
-    mda.time_comboBox.setCurrentText("sec")
+    mda.time_groupbox.setChecked(True)
+    mda.time_groupbox._timepoints_spinbox.setValue(2)
+    mda.time_groupbox._interval_spinbox.setValue(1.00)
+    mda.time_groupbox._units_combo.setCurrentText("sec")
 
     # z stack
-    mda.stack_group.setChecked(True)
-    assert mda.z_tabWidget.currentIndex() == 0
-    assert mda.z_tabWidget.tabText(0) == "RangeAround"
-    mda.zrange_spinBox.setValue(2)
-    mda.step_size_doubleSpinBox.setValue(1)
+    mda.stack_groupbox.setChecked(True)
+    assert mda.stack_groupbox._zmode_tabs.currentIndex() == 0
+    mda.stack_groupbox._zmode_tabs.setCurrentIndex(1)
+    assert mda.stack_groupbox._zmode_tabs.tabText(1) == "RangeAround"
+    range_around = cast(
+        ZRangeAroundSelect, mda.stack_groupbox._zmode_tabs.currentWidget()
+    )
+    range_around._zrange_spinbox.setValue(2)
+    mda.stack_groupbox._zstep_spinbox.setValue(1)
 
+    assert mda.position_groupbox.isChecked()
     state = hcs.get_state()
 
     sequence = MDASequence(
@@ -721,12 +728,12 @@ def test_hcs_state(hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBo
             {
                 "config": "Cy5",
                 "group": "Channel",
-                "exposure": 100,
+                "exposure": 10,
             }
         ],
         time_plan={"interval": {"seconds": 1.0}, "loops": 2},
         z_plan={"range": 2, "step": 1.0},
-        axis_order="tpzc",
+        axis_order="tpcz",
         stage_positions=(
             {"name": "A1_pos000", "x": 0.0, "y": 0.0, "z": 0.0},
             {"name": "A2_pos000", "x": 4500.0, "y": 0.0, "z": 0.0},
@@ -740,50 +747,19 @@ def test_hcs_state(hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBo
     assert state.stage_positions == sequence.stage_positions
 
 
-def test_save_positions(hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot):
-    hcs, _, cal = hcs_wdg
-    mda = hcs.ch_and_pos_list
-    cal.A1_stage_coords_center = (0.0, 0.0)
-
-    pos = [
-        ("A1_pos000", "-100", "100", "0.0"),
-        ("A1_pos001", "200", "200", "0.0"),
-        ("A1_pos002", "300", "-300", "0.0"),
-    ]
-
-    mda.stage_tableWidget.setRowCount(3)
-    for row, (pos_name, x, y, z) in enumerate(pos):
-        name = QTableWidgetItem(pos_name)
-        mda.stage_tableWidget.setItem(row, 0, name)
-        stage_x = QTableWidgetItem(x)
-        mda.stage_tableWidget.setItem(row, 1, stage_x)
-        stage_y = QTableWidgetItem(y)
-        mda.stage_tableWidget.setItem(row, 2, stage_y)
-        stage_z = QTableWidgetItem(z)
-        mda.stage_tableWidget.setItem(row, 3, stage_z)
-
-    assert mda.stage_tableWidget.rowCount() == 3
-    assert hcs._get_positions(3) == {
-        "A1_center_coords": {"x": 0.0, "y": 0.0},
-        "A1_pos000": {"x": -100.0, "y": 100.0, "z": 0.0},
-        "A1_pos001": {"x": 200.0, "y": 200.0, "z": 0.0},
-        "A1_pos002": {"x": 300.0, "y": -300.0, "z": 0.0},
-    }
-
-
 def test_load_positions(
     hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot, tmp_path: Path
 ):
     hcs, _, cal = hcs_wdg
-    mda = hcs.ch_and_pos_list
+    mda = hcs._mda
     cal.A1_stage_coords_center = (100.0, 100.0)
 
-    positions = {
-        "A1_center_coords": {"x": 0.0, "y": 0.0},
-        "A1_pos000": {"x": -100.0, "y": 100.0, "z": 0.0},
-        "A1_pos001": {"x": 200.0, "y": 200.0, "z": 0.0},
-        "A1_pos002": {"x": 300.0, "y": -300.0, "z": 0.0},
-    }
+    positions = [
+        {"name": "A1_center_coords", "x": 0.0, "y": 0.0},
+        {"name": "A1_pos000", "x": -100.0, "y": 100.0, "z": 0.0},
+        {"name": "A1_pos001", "x": 200.0, "y": 200.0, "z": 0.0},
+        {"name": "A1_pos002", "x": 300.0, "y": -300.0, "z": 0.0},
+    ]
 
     saved = tmp_path / "test.json"
     saved.write_text(json.dumps(positions))
@@ -792,20 +768,12 @@ def test_load_positions(
     pos_list = json.loads(saved.read_text())
 
     hcs._add_loaded_positions_and_translate(pos_list)
-    assert mda.stage_tableWidget.rowCount() == 3
+    assert mda.position_groupbox.stage_tableWidget.rowCount() == 3
 
-    pos = [
-        (
-            mda.stage_tableWidget.item(r, 0).text(),
-            mda.stage_tableWidget.item(r, 1).text(),
-            mda.stage_tableWidget.item(r, 2).text(),
-            mda.stage_tableWidget.item(r, 3).text(),
-        )
-        for r in range(3)
-    ]
+    pos = mda.position_groupbox.value()
 
     assert pos == [
-        ("A1_pos000", "0.0", "200.0", "0.0"),
-        ("A1_pos001", "300.0", "300.0", "0.0"),
-        ("A1_pos002", "400.0", "-200.0", "0.0"),
+        {"name": "A1_pos000", "x": 0.0, "y": 200.0, "z": 0.0},
+        {"name": "A1_pos001", "x": 300.0, "y": 300.0, "z": 0.0},
+        {"name": "A1_pos002", "x": 400.0, "y": -200.0, "z": 0.0},
     ]

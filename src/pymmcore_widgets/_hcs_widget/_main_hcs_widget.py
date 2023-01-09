@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from pathlib import Path
 
 import numpy as np
 from pymmcore_plus import CMMCorePlus
@@ -22,6 +23,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import signals_blocked
+from useq import MDASequence
 
 from pymmcore_widgets._hcs_widget._calibration_widget import PlateCalibration
 from pymmcore_widgets._hcs_widget._generate_fov_widget import SelectFOV
@@ -394,8 +396,7 @@ class HCSWidget(QWidget):
         for f in ordered_wells_and_fovs_list:
             well_name, stage_coord_x, stage_coord_y = f
             zpos = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
-            # TODO: make _create_row public in PositionTable
-            self._mda.position_groupbox._create_row(
+            self._mda.position_groupbox.create_row(
                 well_name, stage_coord_x, stage_coord_y, zpos
             )
 
@@ -575,8 +576,27 @@ class HCSWidget(QWidget):
             new_y = pos.get("y") - delta_y
             zpos = pos.get("z")
 
-            # TODO: make _create_row public in PositionTable
-            self._mda.position_groupbox._create_row(name, new_x, new_y, zpos)
+            self._mda.position_groupbox.create_row(name, new_x, new_y, zpos)
+
+    def get_state(self) -> MDASequence:
+        """Get current state of widget and build a useq.MDASequence.
+
+        Returns
+        -------
+        useq.MDASequence
+        """
+        return self._mda.get_state()
+
+    def set_state(self, state: dict | MDASequence | str | Path) -> None:
+        """Set current state of MDA widget.
+
+        Parameters
+        ----------
+        state : dict | MDASequence | str | Path
+            MDASequence state in the form of a dict, MDASequence object, or a str or
+            Path pointing to a sequence.yaml file
+        """
+        return self._mda.set_state(state)
 
 
 class HCSMDA(MDAWidget):
@@ -595,8 +615,8 @@ class HCSMDA(MDAWidget):
         self._central_widget.layout().removeWidget(self.position_groupbox)
         self._central_widget.layout().insertWidget(0, self.position_groupbox)
         self.position_groupbox.setMinimumHeight(300)
-        self.position_groupbox.setCheckable(False)
-        self.position_groupbox.setEnabled(True)
+        self.position_groupbox.setChecked(True)
+        self.position_groupbox.toggled.connect(self._set_checked)
         self.position_groupbox.grid_button.hide()
 
         # replace add button
@@ -609,6 +629,10 @@ class HCSMDA(MDAWidget):
         # disconnect save and load buttons
         self.position_groupbox.save_positions_button.clicked.disconnect()
         self.position_groupbox.load_positions_button.clicked.disconnect()
+
+    def _set_checked(self) -> None:
+        """Keep the QGroupBox always checked."""
+        self.position_groupbox.setChecked(True)
 
     def _enable_run_btn(self) -> None:
         self.buttons_wdg.run_button.setEnabled(
