@@ -518,7 +518,7 @@ class HCSWidget(QWidget):
         return pos_list
 
     def _save_positions(self) -> None:
-        if not self._mda.position_groupbox.stage_tableWidget.rowCount():
+        if not self._mda.position_groupbox._table.rowCount():
             return
 
         (dir_file, _) = QFileDialog.getSaveFileName(
@@ -637,7 +637,7 @@ class HCSMDA(MDAWidget):
     def _enable_run_btn(self) -> None:
         self.buttons_wdg.run_button.setEnabled(
             self.channel_groupbox._table.rowCount() > 0
-            and self.position_groupbox.stage_tableWidget.rowCount() > 0
+            and self.position_groupbox._table.rowCount() > 0
         )
 
 

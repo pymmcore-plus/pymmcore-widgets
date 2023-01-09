@@ -548,7 +548,7 @@ def test_generate_pos_list(
     hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot
 ):
     hcs, _, cal = hcs_wdg
-    pos_table = hcs._mda.position_groupbox.stage_tableWidget
+    pos_table = hcs._mda.position_groupbox._table
 
     hcs.wp_combo.setCurrentText("standard 384")
     assert hcs.wp_combo.currentText() == "standard 384"
@@ -663,7 +663,7 @@ def test_generate_pos_list(
 def test_hcs_state(hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot):
     hcs, _, cal = hcs_wdg
     mda = hcs._mda
-    pos_table = mda.position_groupbox.stage_tableWidget
+    pos_table = mda.position_groupbox._table
 
     hcs.wp_combo.setCurrentText("standard 384")
     assert hcs.wp_combo.currentText() == "standard 384"
@@ -768,7 +768,7 @@ def test_load_positions(
     pos_list = json.loads(saved.read_text())
 
     hcs._add_loaded_positions_and_translate(pos_list)
-    assert mda.position_groupbox.stage_tableWidget.rowCount() == 3
+    assert mda.position_groupbox._table.rowCount() == 3
 
     pos = mda.position_groupbox.value()
 
