@@ -352,6 +352,8 @@ class PositionTable(QGroupBox):
         spin.setMinimum(-1000000.0)
         spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         spin.setValue(value)
+        # block mouse scroll
+        spin.wheelEvent = lambda event: None
         self._table.setCellWidget(row, col, spin)
 
     def _add_table_item(self, table_item: str | None, row: int, col: int) -> None:
