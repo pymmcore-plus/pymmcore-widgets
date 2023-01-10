@@ -12,7 +12,9 @@ from pymmcore_plus._logger import logger
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractItemView,
+    QAbstractSpinBox,
     QComboBox,
+    QDoubleSpinBox,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -208,42 +210,10 @@ class PlateCalibration(QWidget):
             return
 
         with signals_blocked(self._calibration_combo):
-            self._calibration_combo.clear()
+            well_list = self._get_calibration_wells(combo_txt)
 
-            rows = self.plate.rows
-            cols = self.plate.cols
-            well = ALPHABET[rows - 1]
-
-            well_list = []
-
-            if self.plate.id == PLATE_FROM_CALIBRATION:
-                self._calibration_combo.addItem("1 Well (A1)")
-
-            elif rows == 1:
-                if cols == 1:
-                    self._calibration_combo.addItem("1 Well (A1)")
-                else:
-                    well_list.append(f"A{cols}")
-                    self._calibration_combo.addItems(
-                        ["1 Well (A1)", f"2 Wells (A1,  A{cols})"]
-                    )
-
-            elif cols == 1:
-                well_list.append(f"{well}{rows}")
-                self._calibration_combo.addItems(
-                    ["1 Well (A1)", f"2 Wells (A1, {well}{rows})"]
-                )
-            else:
-                well_list.extend((f"A{cols}", f"{well}{1}", f"{well}{cols}"))
-                self._calibration_combo.addItems(
-                    [
-                        "1 Well (A1)",
-                        f"2 Wells (A1,  A{cols})",
-                    ]
-                )
-
-            if combo_txt:
-                self._calibration_combo.setCurrentText(combo_txt)
+        if not well_list:
+            return
 
         n_tables = self._calibration_combo.currentText()[0]
         self._show_hide_tables(int(n_tables), well_list)
@@ -270,26 +240,71 @@ class PlateCalibration(QWidget):
             )
         self.info_lbl.setText(text)
 
-    def _set_calibrated(self, state: bool) -> None:
-        if state:
-            self.is_calibrated = True
-            self.icon_lbl.setPixmap(
-                icon(MDI6.check_bold, color=(0, 255, 0)).pixmap(QSize(20, 20))
+    def _get_calibration_wells(self, combo_txt: str) -> list[str] | None:
+        self._calibration_combo.clear()
+
+        if not self.plate:
+            return None
+
+        rows = self.plate.rows
+        cols = self.plate.cols
+        well = ALPHABET[rows - 1]
+
+        cal_well_list: list[str] = []
+
+        if (
+            self.plate.id != PLATE_FROM_CALIBRATION
+            and rows == 1
+            and cols == 1
+            or self.plate.id == PLATE_FROM_CALIBRATION
+        ):
+            self._calibration_combo.addItem("1 Well (A1)")
+        elif rows == 1:
+            cal_well_list.append(f"A{cols}")
+            self._calibration_combo.addItems(["1 Well (A1)", f"2 Wells (A1,  A{cols})"])
+
+        elif cols == 1:
+            cal_well_list.append(f"{well}{rows}")
+            self._calibration_combo.addItems(
+                ["1 Well (A1)", f"2 Wells (A1, {well}{rows})"]
             )
-            self.cal_lbl.setText("Plate Calibrated!")
-            self._test_button.setEnabled(True)
         else:
-            self.is_calibrated = False
-            self.A1_well = None
-            self.plate_rotation_matrix = None
-            self.plate_angle_deg = 0.0
-            self.A1_stage_coords_center = ()
-            self._reset_calibration_variables(set_to_none=True)
-            self.icon_lbl.setPixmap(
-                icon(MDI6.close_octagon_outline, color="magenta").pixmap(QSize(30, 30))
+            cal_well_list.extend((f"A{cols}", f"{well}{1}", f"{well}{cols}"))
+            self._calibration_combo.addItems(
+                [
+                    "1 Well (A1)",
+                    f"2 Wells (A1,  A{cols})",
+                ]
             )
-            self.cal_lbl.setText("Plate non Calibrated!")
-            self._test_button.setEnabled(False)
+
+        if combo_txt:
+            self._calibration_combo.setCurrentText(combo_txt)
+
+        return cal_well_list
+
+    def _set_calibrated(self, state: bool) -> None:
+        self._set_to_calibrated() if state else self._set_to_not_calibrated()
+
+    def _set_to_calibrated(self) -> None:
+        self.is_calibrated = True
+        self.icon_lbl.setPixmap(
+            icon(MDI6.check_bold, color=(0, 255, 0)).pixmap(QSize(20, 20))
+        )
+        self.cal_lbl.setText("Plate Calibrated!")
+        self._test_button.setEnabled(True)
+
+    def _set_to_not_calibrated(self) -> None:
+        self.is_calibrated = False
+        self.A1_well = None
+        self.plate_rotation_matrix = None
+        self.plate_angle_deg = 0.0
+        self.A1_stage_coords_center = ()
+        self._reset_calibration_variables(set_to_none=True)
+        self.icon_lbl.setPixmap(
+            icon(MDI6.close_octagon_outline, color="magenta").pixmap(QSize(30, 30))
+        )
+        self.cal_lbl.setText("Plate non Calibrated!")
+        self._test_button.setEnabled(False)
 
     def _get_circle_center_(
         self, a: tuple[float, float], b: tuple[float, float], c: tuple[float, float]
@@ -423,8 +438,8 @@ class PlateCalibration(QWidget):
         pos = []
         _range = table.rowCount()
         for r in range(_range):
-            x = float(table.item(r, 1).text())
-            y = float(table.item(r, 2).text())
+            x = table.cellWidget(r, 1).value()
+            y = table.cellWidget(r, 2).value()
             pos.append((x, y))
         return tuple(pos)
 
@@ -538,29 +553,32 @@ class CalibrationTable(QWidget):
     def _add_pos(self) -> None:
 
         if not self._mmc.getXYStageDevice():
+            warnings.warn("XY Stage not selected!")
             return
 
-        if len(self._mmc.getLoadedDevices()) > 1:
-            idx = self._add_position_row()
+        if len(self._mmc.getLoadedDevices()) <= 1:
+            return
 
-            for c, ax in enumerate("WXY"):
-                if ax == "W":
-                    item = QTableWidgetItem(f"{self._well_name}_pos{idx:03d}")
-                    item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-                else:
-                    cur = getattr(self._mmc, f"get{ax}Position")()
-                    item = QTableWidgetItem(str(cur))
-                    item.setFlags(
-                        Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
-                    )
-
-                item.setTextAlignment(int(Qt.AlignHCenter | Qt.AlignVCenter))
-                self.tb.setItem(idx, c, item)
+        row = self._add_position_row()
+        name = QTableWidgetItem(f"{self._well_name}_pos{row:03d}")
+        name.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+        self.tb.setItem(row, 0, name)
+        self._add_table_value(self._mmc.getXPosition(), row, 1)
+        self._add_table_value(self._mmc.getYPosition(), row, 2)
 
     def _add_position_row(self) -> int:
         idx = self.tb.rowCount()
         self.tb.insertRow(idx)
         return int(idx)
+
+    def _add_table_value(self, value: float, row: int, col: int) -> None:
+        spin = QDoubleSpinBox()
+        spin.setAlignment(AlignCenter)
+        spin.setMaximum(1000000.0)
+        spin.setMinimum(-1000000.0)
+        spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        spin.setValue(value)
+        self.tb.setCellWidget(row, col, spin)
 
     def _remove_position_row(self) -> None:
         rows = {r.row() for r in self.tb.selectedIndexes()}

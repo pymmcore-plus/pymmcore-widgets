@@ -371,16 +371,17 @@ def test_calibration_one_well(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mmc.setXYPosition(-50.0, 0.0)
     mmc.waitForDevice(mmc.getXYStageDevice())
     cal.table_1._add_pos()
+
     assert cal.table_1.tb.item(0, 0).text() == "Well A1_pos000"
-    assert cal.table_1.tb.item(0, 1).text() == "-49.995"
-    assert cal.table_1.tb.item(0, 2).text() == "-0.0"
+    assert round(cal.table_1.tb.cellWidget(0, 1).value()) == -50
+    assert round(cal.table_1.tb.cellWidget(0, 2).value()) == -0.0
 
     mmc.setXYPosition(0.0, 50.0)
     mmc.waitForDevice(mmc.getXYStageDevice())
     cal.table_1._add_pos()
     assert cal.table_1.tb.item(1, 0).text() == "Well A1_pos001"
-    assert cal.table_1.tb.item(1, 1).text() == "-0.0"
-    assert cal.table_1.tb.item(1, 2).text() == "49.995"
+    assert round(cal.table_1.tb.cellWidget(1, 1).value()) == -0.0
+    assert round(cal.table_1.tb.cellWidget(1, 2).value()) == 50.0
 
     error = "Not enough points for Well A1. Add 3 points to the table."
     with pytest.warns(match=error):
@@ -390,8 +391,8 @@ def test_calibration_one_well(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mmc.waitForDevice(mmc.getXYStageDevice())
     cal.table_1._add_pos()
     assert cal.table_1.tb.item(2, 0).text() == "Well A1_pos002"
-    assert cal.table_1.tb.item(2, 1).text() == "49.995"
-    assert cal.table_1.tb.item(2, 2).text() == "-0.0"
+    assert round(cal.table_1.tb.cellWidget(2, 1).value()) == 50.0
+    assert round(cal.table_1.tb.cellWidget(2, 2).value()) == -0.0
 
     cal.table_1._add_pos()
     assert cal.table_1.tb.rowCount() == 4
@@ -435,8 +436,8 @@ def test_calibration_one_well_square(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     cal.table_1.tb.insertRow(0)
     cal.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
-    cal.table_1.tb.setItem(0, 1, QTableWidgetItem("-50.0"))
-    cal.table_1.tb.setItem(0, 2, QTableWidgetItem("50.0"))
+    cal.table_1._add_table_value(-50, 0, 1)
+    cal.table_1._add_table_value(50, 0, 2)
     assert cal.table_1.tb.rowCount() == 1
 
     error = "Not enough points for Well A1. Add 2 or 4 points to the table."
@@ -445,8 +446,8 @@ def test_calibration_one_well_square(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     cal.table_1.tb.insertRow(1)
     cal.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
-    cal.table_1.tb.setItem(1, 1, QTableWidgetItem("50.0"))
-    cal.table_1.tb.setItem(1, 2, QTableWidgetItem("-50.0"))
+    cal.table_1._add_table_value(50, 1, 1)
+    cal.table_1._add_table_value(-50, 1, 2)
 
     assert cal.table_1.tb.rowCount() == 2
 
@@ -482,29 +483,29 @@ def test_calibration_two_wells(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert not cal.table_2.isHidden()
 
     cal.table_1.tb.setRowCount(3)
-    cal.table_2.tb.setRowCount(3)
     # A1
     cal.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
-    cal.table_1.tb.setItem(0, 1, QTableWidgetItem("-50"))
-    cal.table_1.tb.setItem(0, 2, QTableWidgetItem("0"))
+    cal.table_1._add_table_value(-50, 0, 1)
+    cal.table_1._add_table_value(0, 0, 2)
     cal.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
-    cal.table_1.tb.setItem(1, 1, QTableWidgetItem("0"))
-    cal.table_1.tb.setItem(1, 2, QTableWidgetItem("50"))
+    cal.table_1._add_table_value(0, 1, 1)
+    cal.table_1._add_table_value(50, 1, 2)
     cal.table_1.tb.setItem(2, 0, QTableWidgetItem("Well A1_pos002"))
-    cal.table_1.tb.setItem(2, 1, QTableWidgetItem("50"))
-    cal.table_1.tb.setItem(2, 2, QTableWidgetItem("0"))
+    cal.table_1._add_table_value(50, 2, 1)
+    cal.table_1._add_table_value(0, 2, 2)
+    assert cal.table_1.tb.rowCount() == 3
+
+    cal.table_2.tb.setRowCount(3)
     # A3
     cal.table_2.tb.setItem(0, 0, QTableWidgetItem("Well A3_pos000"))
-    cal.table_2.tb.setItem(0, 1, QTableWidgetItem("1364"))
-    cal.table_2.tb.setItem(0, 2, QTableWidgetItem("1414"))
+    cal.table_2._add_table_value(1364, 0, 1)
+    cal.table_2._add_table_value(1414, 0, 2)
     cal.table_2.tb.setItem(1, 0, QTableWidgetItem("Well A3_pos001"))
-    cal.table_2.tb.setItem(1, 1, QTableWidgetItem("1414"))
-    cal.table_2.tb.setItem(1, 2, QTableWidgetItem("1364"))
+    cal.table_2._add_table_value(1414, 1, 1)
+    cal.table_2._add_table_value(1364, 1, 2)
     cal.table_2.tb.setItem(2, 0, QTableWidgetItem("Well A3_pos002"))
-    cal.table_2.tb.setItem(2, 1, QTableWidgetItem("1464"))
-    cal.table_2.tb.setItem(2, 2, QTableWidgetItem("1414"))
-
-    assert cal.table_1.tb.rowCount() == 3
+    cal.table_2._add_table_value(1464, 2, 1)
+    cal.table_2._add_table_value(1414, 2, 2)
     assert cal.table_2.tb.rowCount() == 3
 
     x, y = cal._get_well_center(cal.table_1.tb)
@@ -556,11 +557,11 @@ def test_calibration_from_calibration(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     cal.table_1.tb.setRowCount(2)
     cal.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
-    cal.table_1.tb.setItem(0, 1, QTableWidgetItem("-50.0"))
-    cal.table_1.tb.setItem(0, 2, QTableWidgetItem("50.0"))
+    cal.table_1._add_table_value(-50, 0, 1)
+    cal.table_1._add_table_value(50, 0, 2)
     cal.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
-    cal.table_1.tb.setItem(1, 1, QTableWidgetItem("50.0"))
-    cal.table_1.tb.setItem(1, 2, QTableWidgetItem("-50.0"))
+    cal.table_1._add_table_value(50, 1, 1)
+    cal.table_1._add_table_value(-50, 1, 2)
     assert cal.table_1.tb.rowCount() == 2
 
     assert cal._get_well_center(cal.table_1.tb) == (0.0, 0.0)
@@ -608,11 +609,12 @@ def test_generate_pos_list(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     cal.table_1.tb.setRowCount(2)
     cal.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
-    cal.table_1.tb.setItem(0, 1, QTableWidgetItem("-50.0"))
-    cal.table_1.tb.setItem(0, 2, QTableWidgetItem("50.0"))
+    cal.table_1._add_table_value(-50, 0, 1)
+    cal.table_1._add_table_value(50, 0, 2)
     cal.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
-    cal.table_1.tb.setItem(1, 1, QTableWidgetItem("50.0"))
-    cal.table_1.tb.setItem(1, 2, QTableWidgetItem("-50.0"))
+    cal.table_1._add_table_value(50, 1, 1)
+    cal.table_1._add_table_value(-50, 1, 2)
+    assert cal.table_1.tb.rowCount() == 2
 
     cal._calibrate_plate()
     assert cal.cal_lbl.text() == "Plate Calibrated!"
@@ -726,11 +728,12 @@ def test_hcs_state(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     cal.table_1.tb.setRowCount(2)
     cal.table_1.tb.setItem(0, 0, QTableWidgetItem("Well A1_pos000"))
-    cal.table_1.tb.setItem(0, 1, QTableWidgetItem("-50.0"))
-    cal.table_1.tb.setItem(0, 2, QTableWidgetItem("50.0"))
+    cal.table_1._add_table_value(-50, 0, 1)
+    cal.table_1._add_table_value(50, 0, 2)
     cal.table_1.tb.setItem(1, 0, QTableWidgetItem("Well A1_pos001"))
-    cal.table_1.tb.setItem(1, 1, QTableWidgetItem("50.0"))
-    cal.table_1.tb.setItem(1, 2, QTableWidgetItem("-50.0"))
+    cal.table_1._add_table_value(50, 1, 1)
+    cal.table_1._add_table_value(-50, 1, 2)
+    assert cal.table_1.tb.rowCount() == 2
 
     cal._calibrate_plate()
     assert cal.cal_lbl.text() == "Plate Calibrated!"

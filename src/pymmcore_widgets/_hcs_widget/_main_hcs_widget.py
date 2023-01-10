@@ -268,6 +268,8 @@ class HCSWidget(QWidget):
             )
         )
         _, xc, yc = center[0]
+
+        self._mmc.waitForDevice(self._mmc.getXYStageDevice())
         if self.calibration.plate.circular:
             self._move_to_circle_edge(xc, yc, self.calibration.plate.well_size_x / 2)
         else:

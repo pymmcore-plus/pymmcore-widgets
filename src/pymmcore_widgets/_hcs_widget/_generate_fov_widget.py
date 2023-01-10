@@ -405,7 +405,6 @@ class SelectFOV(QWidget):
             return
 
         if not self._mmc.getPixelSizeUm():
-            # raise ValueError("Pixel Size not defined! Set pixel size first.")
             warnings.warn("Pixel Size not defined! Set pixel size first.")
             return
 
@@ -644,7 +643,7 @@ class SelectFOV(QWidget):
             # calculating coordinates
             x = r * math.cos(alpha) + _to_add
             y = r * math.sin(alpha) + _to_add
-            if self._dist((x, y), points, (min_dist_x, min_dist_y)):
+            if self._distance((x, y), points, (min_dist_x, min_dist_y)):
                 points.append((x, y))
             t1 = time.time()
             if t1 - t > 1:
@@ -679,7 +678,7 @@ class SelectFOV(QWidget):
         while len(points) < nFOV:
             x = np.random.uniform(x_left, x_right)
             y = np.random.uniform(y_up, y_down)
-            if self._dist((x, y), points, (min_dist_x, min_dist_y)):
+            if self._distance((x, y), points, (min_dist_x, min_dist_y)):
                 points.append((x, y))
             t1 = time.time()
             if t1 - t > 0.5:
@@ -692,7 +691,7 @@ class SelectFOV(QWidget):
                 return points
         return points
 
-    def _dist(
+    def _distance(
         self,
         new_point: tuple[float, float],
         points: list[tuple[float, float]],
