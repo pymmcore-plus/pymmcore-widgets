@@ -51,7 +51,7 @@ class HCS(QWidget):
         self.mmc.mda.events.sequencePauseToggled.connect(self._on_pause)
 
         # instantiate the MultiDWidget, and a couple lables for feedback
-        self.hcs = HCSWidget(include_run_button=True)
+        self.hcs = HCSWidget()
         self.current_sequence = QLabel('... enter info and click "Run"')
         self.current_event = QLabel("... current event info will appear here")
 
