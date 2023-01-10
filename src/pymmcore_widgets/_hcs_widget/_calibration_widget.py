@@ -578,6 +578,8 @@ class CalibrationTable(QWidget):
         spin.setMinimum(-1000000.0)
         spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         spin.setValue(value)
+        # block mouse scroll
+        spin.wheelEvent = lambda event: None
         self.tb.setCellWidget(row, col, spin)
 
     def _remove_position_row(self) -> None:
