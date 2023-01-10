@@ -50,10 +50,6 @@ class HCSWidget(QWidget):
     ----------
     parent : Optional[QWidget]
         Optional parent widget, by default None
-    include_run_button: bool
-        By default, False. If true, a "run" button is added to the widget.
-        The acquisition defined by the `useq.MDASequence` built through the
-        widget is executed when clicked.
     mmcore: Optional[CMMCorePlus]
         Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
@@ -62,9 +58,6 @@ class HCSWidget(QWidget):
     The `HCSWidget` provides a GUI to construct a `useq.MDASequence` object.
     It can be used to automate the acquisition of multi-well plate
     or custom defined areas.
-    If the `include_run_button` parameter is set to `True`, a "run" button is added
-    to the GUI and, when clicked, the generated `useq.MDASequence` is passed to the
-    `CMMCorePlus.run_mda` method and the acquisition is executed.
     """
 
     def __init__(
