@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import contextlib
 import math
 import random
 import time
 import warnings
-from typing import List, Optional, Tuple
 
 import numpy as np
 from pymmcore_plus import CMMCorePlus
@@ -34,8 +35,10 @@ AlignCenter = Qt.AlignmentFlag.AlignCenter
 class SelectFOV(QWidget):
     """Widget to select the FOVs of the sample plate."""
 
-    def __init__(self, *, mmcore: Optional[CMMCorePlus] = None) -> None:
-        super().__init__()
+    def __init__(
+        self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
+    ) -> None:
+        super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -453,7 +456,7 @@ class SelectFOV(QWidget):
 
     def _create_grid_of_points(
         self, rows: int, cols: int, x: float, y: float, move_x: float, move_y: float
-    ) -> List[Tuple[float, float, int, int]]:
+    ) -> list[tuple[float, float, int, int]]:
         # for 'snake' acquisition
         points = []
         for r in range(rows):
@@ -627,11 +630,11 @@ class SelectFOV(QWidget):
         center: float,
         min_dist_x: float,
         min_dist_y: float,
-    ) -> List[Tuple[float, float]]:
+    ) -> list[tuple[float, float]]:
 
         radius = round(diameter / 2)
         _to_add = center + radius
-        points: List[Tuple[float, float]] = []
+        points: list[tuple[float, float]] = []
         t = time.time()
         while len(points) < nFOV:
             # random angle
@@ -663,14 +666,14 @@ class SelectFOV(QWidget):
         max_size_y: int,
         min_dist_x: float,
         min_dist_y: float,
-    ) -> List[Tuple[float, float]]:
+    ) -> list[tuple[float, float]]:
 
         x_left = (max_size_x - size_x) / 2  # left bound
         x_right = x_left + size_x  # right bound
         y_up = (max_size_y - size_y) / 2  # upper bound
         y_down = y_up + size_y  # lower bound
 
-        points: List[Tuple[float, float]] = []
+        points: list[tuple[float, float]] = []
 
         t = time.time()
         while len(points) < nFOV:
@@ -691,9 +694,9 @@ class SelectFOV(QWidget):
 
     def _dist(
         self,
-        new_point: Tuple[float, float],
-        points: List[Tuple[float, float]],
-        min_distance: Tuple[float, float],
+        new_point: tuple[float, float],
+        points: list[tuple[float, float]],
+        min_distance: tuple[float, float],
     ) -> bool:
 
         x_new, y_new = new_point[0], new_point[1]

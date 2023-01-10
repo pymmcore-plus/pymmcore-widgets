@@ -95,7 +95,7 @@ class HCSWidget(QWidget):
 
         self._calibration = self._create_calibration_tab()
 
-        self._mda = HCSMDA()
+        self._mda = HCSMDA(parent=self)
         self._mda.add_positions_button.clicked.connect(self._generate_pos_list)
         self._mda.position_groupbox.load_positions_button.clicked.connect(
             self._load_positions
@@ -129,7 +129,7 @@ class HCSWidget(QWidget):
         wdg_layout.setContentsMargins(10, 10, 10, 10)
         wdg.setLayout(wdg_layout)
 
-        self.scene = HCSGraphicsScene()
+        self.scene = HCSGraphicsScene(parent=self)
         self.view = QGraphicsView(self.scene, self)
         self.view.setStyleSheet("background:grey;")
         self._width = 500
@@ -147,7 +147,7 @@ class HCSWidget(QWidget):
         upper_wdg_layout.addWidget(btns)
         upper_wdg.setLayout(upper_wdg_layout)
 
-        self.FOV_selector = SelectFOV()
+        self.FOV_selector = SelectFOV(parent=self)
 
         # add widgets
         view_group = QGroupBox()
@@ -221,7 +221,7 @@ class HCSWidget(QWidget):
         cal_group_layout.setSpacing(0)
         cal_group_layout.setContentsMargins(10, 20, 10, 10)
         cal_group.setLayout(cal_group_layout)
-        self.calibration = PlateCalibration()
+        self.calibration = PlateCalibration(parent=self)
         cal_group_layout.addWidget(self.calibration)
         wdg_layout.addWidget(cal_group)
 
@@ -427,7 +427,7 @@ class HCSWidget(QWidget):
             x = start_x
 
     def _show_update_plate_dialog(self) -> None:
-        self.plate = UpdatePlateDialog(self)
+        self.plate = UpdatePlateDialog(parent=self)
         self.plate.plate_updated.connect(self._update_wp_combo)
         self.plate.show()
         self._clear_values()
@@ -473,6 +473,7 @@ class HCSWidget(QWidget):
         self._mda.position_groupbox._clear_positions()
 
         ordered_wells_list = self._get_wells_stage_coords(well_list)
+
         ordered_wells_and_fovs_list = self._get_well_and_fovs_position_list(
             ordered_wells_list
         )
@@ -487,6 +488,7 @@ class HCSWidget(QWidget):
     def _get_wells_stage_coords(
         self, well_list: list[tuple[str, int, int]]
     ) -> list[tuple[str, float, float]]:
+
         if self.wp is None or self.calibration.A1_well is None:
             return []
 

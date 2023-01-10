@@ -7,14 +7,15 @@ from qtpy.QtWidgets import (
     QGraphicsScene,
     QGraphicsSceneMouseEvent,
     QRubberBand,
+    QWidget,
 )
 
 
 class HCSGraphicsScene(QGraphicsScene):
     """Custom QGraphicsScene to control the plate/well selection."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
 
         self.unselected = QBrush(Qt.green)
         self.selected = QBrush(Qt.magenta)

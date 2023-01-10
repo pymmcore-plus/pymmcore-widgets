@@ -1,8 +1,7 @@
-from typing import Optional
+from __future__ import annotations
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
-    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -28,7 +27,7 @@ class UpdatePlateDialog(QDialog):
 
     plate_updated = Signal(object)
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         self._create_gui()
@@ -223,12 +222,3 @@ class Table(QTableWidget):
 
     def _update(self) -> None:
         self.cellClicked.emit(self.currentRow(), 0)
-
-
-if __name__ == "__main__":
-    import sys
-
-    app = QApplication(sys.argv)
-    win = UpdatePlateDialog()
-    win.show()
-    sys.exit(app.exec_())

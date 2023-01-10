@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, call
 
 import pytest
@@ -15,7 +15,6 @@ from qtpy.QtWidgets import (
 )
 from useq import MDASequence
 
-from pymmcore_widgets._hcs_widget._calibration_widget import PlateCalibration
 from pymmcore_widgets._hcs_widget._graphics_items import FOVPoints, Well, WellArea
 from pymmcore_widgets._hcs_widget._main_hcs_widget import HCSWidget
 from pymmcore_widgets._mda._zstack_widget import ZRangeAroundSelect
@@ -25,16 +24,18 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
-@pytest.fixture()
-def hcs_wdg(global_mmcore, qtbot: QtBot):
-    hcs = HCSWidget(mmcore=global_mmcore)
-    hcs._set_enabled(True)
-    mmc = hcs._mmc
-    cal = hcs.calibration
-    qtbot.add_widget(hcs)
-    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
-        hcs.wp_combo.setCurrentText("standard 6")
-    return hcs, mmc, cal
+# NOTE NOT using a fixture like this because
+# it gives "_run_after_each_test" error
+# @pytest.fixture()
+# def hcs_wdg(global_mmcore: CMMCorePlus, qtbot: QtBot):
+#     hcs = HCSWidget(mmcore=global_mmcore)
+#     hcs._set_enabled(True)
+#     mmc = hcs._mmc
+#     cal = hcs.calibration
+#     qtbot.add_widget(hcs)
+#     with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+#         hcs.wp_combo.setCurrentText("standard 6")
+#     return hcs, mmc, cal
 
 
 def _get_image_size(mmc: CMMCorePlus):
@@ -47,8 +48,12 @@ def _get_image_size(mmc: CMMCorePlus):
     return _image_size_mm_x, _image_size_mm_y
 
 
-def test_hcs_plate_selection(hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot):
-    hcs, _, _ = hcs_wdg
+def test_hcs_plate_selection(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    hcs._set_enabled(True)
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
 
     assert hcs.tabwidget.currentIndex() == 0
     assert hcs.tabwidget.tabText(0) == "  Plate and FOVs Selection  "
@@ -111,10 +116,13 @@ def test_hcs_plate_selection(hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot):
     hcs.plate.close()
 
 
-def test_hcs_fov_selection_FOVPoints_size(
-    hcs_wdg: tuple[HCSWidget, CMMCorePlus, Any], qtbot: QtBot
-):
-    hcs, mmc, _ = hcs_wdg
+def test_hcs_fov_selection_FOVPoints_size(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    hcs._set_enabled(True)
+    mmc = hcs._mmc
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
 
     assert hcs.tabwidget.currentIndex() == 0
     assert hcs.tabwidget.tabText(0) == "  Plate and FOVs Selection  "
@@ -159,10 +167,12 @@ def test_hcs_fov_selection_FOVPoints_size(
     assert fov._x_size == fov._y_size == 1.1770114942528738
 
 
-def test_hcs_fov_selection_center(
-    hcs_wdg: tuple[HCSWidget, CMMCorePlus, Any], qtbot: QtBot
-):
-    hcs, _, _ = hcs_wdg
+def test_hcs_fov_selection_center(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    hcs._set_enabled(True)
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
 
     assert hcs.tabwidget.currentIndex() == 0
     assert hcs.tabwidget.tabText(0) == "  Plate and FOVs Selection  "
@@ -182,9 +192,12 @@ def test_hcs_fov_selection_center(
     assert isinstance(well, QGraphicsRectItem)
 
 
-def test_hcs_fov_selection_random(hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: QtBot):
-    hcs, _, _ = hcs_wdg
-
+def test_hcs_fov_selection_random(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    hcs._set_enabled(True)
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
     assert hcs.tabwidget.currentIndex() == 0
     assert hcs.tabwidget.tabText(0) == "  Plate and FOVs Selection  "
     hcs.tabwidget.setCurrentIndex(1)
@@ -235,10 +248,13 @@ def test_hcs_fov_selection_random(hcs_wdg: tuple[HCSWidget, Any, Any], qtbot: Qt
     assert fov_1._y != fov_2._y
 
 
-def test_hcs_fov_selection_grid(
-    hcs_wdg: tuple[HCSWidget, CMMCorePlus, Any], qtbot: QtBot
-):
-    hcs, mmc, _ = hcs_wdg
+def test_hcs_fov_selection_grid(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    hcs._set_enabled(True)
+    mmc = hcs._mmc
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
 
     assert hcs.tabwidget.currentIndex() == 0
     assert hcs.tabwidget.tabText(0) == "  Plate and FOVs Selection  "
@@ -273,10 +289,13 @@ def test_hcs_fov_selection_grid(
     assert (round(cx, 2), round(cy, 2), w, h) == (140.48, 100.00, 160, 160)
 
 
-def test_calibration_label(
-    hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot
-):
-    hcs, _, cal = hcs_wdg
+def test_calibration_label(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    hcs._set_enabled(True)
+    cal = hcs.calibration
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
 
     hcs.wp_combo.setCurrentText("standard 96")
     assert hcs.wp_combo.currentText() == "standard 96"
@@ -326,10 +345,14 @@ def test_calibration_label(
     assert cal.info_lbl.text() == text
 
 
-def test_calibration_one_well(
-    hcs_wdg: tuple[HCSWidget, CMMCorePlus, PlateCalibration], qtbot: QtBot
-):
-    hcs, mmc, cal = hcs_wdg
+def test_calibration_one_well(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    hcs._set_enabled(True)
+    mmc = hcs._mmc
+    cal = hcs.calibration
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
 
     hcs.tabwidget.setCurrentIndex(1)
     assert hcs.tabwidget.tabText(1) == "  Plate Calibration  "
@@ -378,7 +401,7 @@ def test_calibration_one_well(
 
     cal.table_1.tb.removeRow(3)
 
-    assert cal._get_well_center(cal.table_1) == (0.0, 0.0)
+    assert cal._get_well_center(cal.table_1.tb) == (0.0, 0.0)
 
     cal._calibrate_plate()
     assert cal.cal_lbl.text() == "Plate Calibrated!"
@@ -387,10 +410,13 @@ def test_calibration_one_well(
     assert not cal.plate_rotation_matrix
 
 
-def test_calibration_one_well_square(
-    hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot
-):
-    hcs, _, cal = hcs_wdg
+def test_calibration_one_well_square(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    hcs._set_enabled(True)
+    cal = hcs.calibration
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
 
     hcs.tabwidget.setCurrentIndex(1)
     assert hcs.tabwidget.tabText(1) == "  Plate Calibration  "
@@ -424,7 +450,7 @@ def test_calibration_one_well_square(
 
     assert cal.table_1.tb.rowCount() == 2
 
-    assert cal._get_well_center(cal.table_1) == (0.0, 0.0)
+    assert cal._get_well_center(cal.table_1.tb) == (0.0, 0.0)
 
     cal._calibrate_plate()
     assert cal.cal_lbl.text() == "Plate Calibrated!"
@@ -433,10 +459,13 @@ def test_calibration_one_well_square(
     assert not cal.plate_rotation_matrix
 
 
-def test_calibration_two_wells(
-    hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot
-):
-    hcs, _, cal = hcs_wdg
+def test_calibration_two_wells(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    hcs._set_enabled(True)
+    cal = hcs.calibration
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
 
     hcs.tabwidget.setCurrentIndex(1)
     assert hcs.tabwidget.tabText(1) == "  Plate Calibration  "
@@ -478,9 +507,9 @@ def test_calibration_two_wells(
     assert cal.table_1.tb.rowCount() == 3
     assert cal.table_2.tb.rowCount() == 3
 
-    x, y = cal._get_well_center(cal.table_1)
+    x, y = cal._get_well_center(cal.table_1.tb)
     assert (round(x), round(y)) == (0.0, 0.0)
-    x, y = cal._get_well_center(cal.table_2)
+    x, y = cal._get_well_center(cal.table_2.tb)
     assert (round(x), round(y)) == (1414, 1414)
 
     cal._calibrate_plate()
@@ -493,10 +522,13 @@ def test_calibration_two_wells(
     assert cal.cal_lbl.text() == "Plate Calibrated!"
 
 
-def test_calibration_from_calibration(
-    hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot
-):
-    hcs, _, cal = hcs_wdg
+def test_calibration_from_calibration(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    hcs._set_enabled(True)
+    cal = hcs.calibration
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
 
     hcs.tabwidget.setCurrentIndex(1)
     assert hcs.tabwidget.tabText(1) == "  Plate Calibration  "
@@ -531,7 +563,7 @@ def test_calibration_from_calibration(
     cal.table_1.tb.setItem(1, 2, QTableWidgetItem("-50.0"))
     assert cal.table_1.tb.rowCount() == 2
 
-    assert cal._get_well_center(cal.table_1) == (0.0, 0.0)
+    assert cal._get_well_center(cal.table_1.tb) == (0.0, 0.0)
 
     mock = Mock()
     cal.PlateFromCalibration.connect(mock)
@@ -539,7 +571,7 @@ def test_calibration_from_calibration(
     with qtbot.waitSignal(cal.PlateFromCalibration):
         cal._calibrate_plate()
 
-    pos = cal._get_pos_from_table(cal.table_1)
+    pos = cal._get_pos_from_table(cal.table_1.tb)
     mock.assert_has_calls([call(pos)])
 
     assert cal.cal_lbl.text() == "Plate Calibrated!"
@@ -548,10 +580,14 @@ def test_calibration_from_calibration(
     assert not cal.plate_rotation_matrix
 
 
-def test_generate_pos_list(
-    hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot
-):
-    hcs, _, cal = hcs_wdg
+def test_generate_pos_list(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    hcs._set_enabled(True)
+    cal = hcs.calibration
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
+
     pos_table = hcs._mda.position_groupbox._table
 
     hcs.wp_combo.setCurrentText("standard 384")
@@ -664,8 +700,14 @@ def test_generate_pos_list(
     ]
 
 
-def test_hcs_state(hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot):
-    hcs, _, cal = hcs_wdg
+def test_hcs_state(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    hcs._set_enabled(True)
+    cal = hcs.calibration
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
+
     mda = hcs._mda
     pos_table = mda.position_groupbox._table
 
@@ -751,10 +793,14 @@ def test_hcs_state(hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBo
     assert state.stage_positions == sequence.stage_positions
 
 
-def test_load_positions(
-    hcs_wdg: tuple[HCSWidget, Any, PlateCalibration], qtbot: QtBot, tmp_path: Path
-):
-    hcs, _, cal = hcs_wdg
+def test_load_positions(global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path):
+    hcs = HCSWidget(mmcore=global_mmcore)
+    hcs._set_enabled(True)
+    cal = hcs.calibration
+    qtbot.add_widget(hcs)
+    with qtbot.waitSignal(hcs.wp_combo.currentTextChanged):
+        hcs.wp_combo.setCurrentText("standard 6")
+
     mda = hcs._mda
     cal.A1_stage_coords_center = (100.0, 100.0)
 

@@ -12,7 +12,6 @@ from pymmcore_plus._logger import logger
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractItemView,
-    QApplication,
     QComboBox,
     QGridLayout,
     QGroupBox,
@@ -175,13 +174,10 @@ class PlateCalibration(QWidget):
         self._show_hide_tables(n_tables)
 
     def _show_hide_tables(self, n_tables: int, well_list: Sequence[str] = ()) -> None:
-
         self.table_1._rename_well_column("Well A1")
         self.table_1.show()
-
         if n_tables == 1:
             self.table_2.hide()
-
         else:
             if well_list:
                 self.table_2._rename_well_column(f"Well {well_list[0]}")
@@ -362,11 +358,11 @@ class PlateCalibration(QWidget):
         ):
             return
 
-        xc_w1, yc_w1 = self._get_well_center(self.table_1)
+        xc_w1, yc_w1 = self._get_well_center(self.table_1.tb)
         self.A1_stage_coords_center = (xc_w1, yc_w1)
         xy_coords: list[tuple] = [(xc_w1, yc_w1)]
         if not self.table_2.isHidden():
-            xc_w2, yc_w2 = self._get_well_center(self.table_2)
+            xc_w2, yc_w2 = self._get_well_center(self.table_2.tb)
             xy_coords.append((xc_w2, yc_w2))
             self._calculate_and_set_well_spacing(xc_w1, yc_w1, xc_w2, yc_w2)
 
@@ -376,7 +372,7 @@ class PlateCalibration(QWidget):
         self._set_calibrated(True)
 
         if self.plate.id == PLATE_FROM_CALIBRATION:
-            pos = self._get_pos_from_table(self.table_1)
+            pos = self._get_pos_from_table(self.table_1.tb)
             self.PlateFromCalibration.emit(pos)
 
     def _calculate_and_set_well_spacing(
@@ -425,10 +421,10 @@ class PlateCalibration(QWidget):
         self, table: QTableWidget
     ) -> tuple[tuple[float, float], ...]:
         pos = []
-        _range = table.tb.rowCount()
+        _range = table.rowCount()
         for r in range(_range):
-            x = float(table.tb.item(r, 1).text())
-            y = float(table.tb.item(r, 2).text())
+            x = float(table.item(r, 1).text())
+            y = float(table.item(r, 2).text())
             pos.append((x, y))
         return tuple(pos)
 
@@ -480,7 +476,7 @@ class PlateCalibration(QWidget):
                     f"stored plate well_size_y: {self.plate.well_size_y * 1000}"
                 )
 
-        if table == self.table_1:
+        if table == self.table_1.tb:
             self.A1_well = ("A1", xc, yc)
             self._calculated_well_size_x = size_x
             self._calculated_well_size_y = size_y
@@ -638,12 +634,3 @@ def _get_circle_from_3_points(
     B = np.array([a[0] ** 2 + a[1] ** 2, b[0] ** 2 + b[1] ** 2, c[0] ** 2 + c[1] ** 2])
     x, y, _ = np.linalg.solve(A, B)
     return x / 2, y / 2
-
-
-if __name__ == "__main__":
-    import sys
-
-    app = QApplication(sys.argv)
-    win = PlateCalibration()
-    win.show()
-    sys.exit(app.exec_())
