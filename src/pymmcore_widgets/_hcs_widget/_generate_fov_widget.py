@@ -482,7 +482,6 @@ class SelectFOV(QWidget):
             return
 
         if not self._mmc.getPixelSizeUm():
-            # raise ValueError("Pixel Size not defined! Set pixel size first.")
             warnings.warn("Pixel Size not defined! Set pixel size first.")
             return
 

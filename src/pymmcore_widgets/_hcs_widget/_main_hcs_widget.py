@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import math
+import random
+import string
 import warnings
 from pathlib import Path
 
@@ -36,6 +39,7 @@ from pymmcore_widgets._util import PLATE_FROM_CALIBRATION
 
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 
+ALPHABET = string.ascii_uppercase
 CALIBRATED_PLATE: WellPlate | None = None
 
 
@@ -113,7 +117,7 @@ class HCSWidget(QWidget):
         self.custom_plate.clicked.connect(self._show_update_plate_dialog)
         self.clear_button.clicked.connect(self.scene._clear_selection)
         self.calibration.PlateFromCalibration.connect(self._on_plate_from_calibration)
-        self._mda.add_positions_button.clicked.connect(self._generate_pos_list)
+        self.calibration._test_button.clicked.connect(self._test_calibration)
 
         self._refresh_wp_combo()
 
@@ -243,6 +247,86 @@ class HCSWidget(QWidget):
         self.scene.clear()
         self._draw_well_plate(value)
         self.calibration._update_gui(value)
+
+        self.calibration._well_letter_combo.clear()
+        letters = [ALPHABET[letter] for letter in range(PLATE_DB[value].rows)]
+        self.calibration._well_letter_combo.addItems(letters)
+
+        self.calibration._well_number_combo.clear()
+        numbers = [str(c) for c in range(1, PLATE_DB[value].cols + 1)]
+        self.calibration._well_number_combo.addItems(numbers)
+
+    def _test_calibration(self) -> None:
+
+        if not self.calibration.plate:
+            return
+
+        well_letter = self.calibration._well_letter_combo.currentText()
+        well_number = self.calibration._well_number_combo.currentText()
+        center = self._get_well_and_fovs_position_list(
+            self._get_wells_stage_coords(
+                [
+                    (
+                        f"{well_letter}{well_number}",
+                        self.calibration._well_letter_combo.currentIndex(),
+                        self.calibration._well_number_combo.currentIndex(),
+                    )
+                ]
+            )
+        )
+        _, xc, yc = center[0]
+        if self.calibration.plate.circular:
+            self._move_to_circle_edge(xc, yc, self.calibration.plate.well_size_x / 2)
+        else:
+            self._move_to_rectangle_edge(
+                xc,
+                yc,
+                self.calibration.plate.well_size_x,
+                self.calibration.plate.well_size_y,
+            )
+
+    def _move_to_circle_edge(self, xc: float, yc: float, radius: float) -> None:
+        # random angle
+        alpha = 2 * math.pi * random.random()
+        move_x = radius * math.cos(alpha) + xc
+        move_y = radius * math.sin(alpha) + yc
+        self._mmc.setXYPosition(move_x, move_y)
+
+    def _move_to_rectangle_edge(
+        self, xc: float, yc: float, well_size_x: float, well_size_y: float
+    ) -> None:
+        x_top_left = xc - (well_size_x / 2)
+        y_top_left = yc + (well_size_y / 2)
+
+        x_bottom_right = xc + (well_size_x / 2)
+        y_bottom_right = yc - (well_size_y / 2)
+
+        x = np.random.uniform(x_top_left, x_bottom_right)
+        y = np.random.uniform(y_top_left, y_bottom_right)
+
+        if x <= xc:
+            if y >= yc:
+                move_x, move_y = (
+                    (x_top_left, y)  # quad 1 - LEFT
+                    if abs(x_top_left - x) < abs(y_top_left - y)
+                    else (x, y_top_left)  # quad 1 - TOP
+                )
+            elif abs(x_top_left - x) < abs(y_bottom_right - y):
+                move_x, move_y = (x_top_left, y)  # quad 3 - LEFT
+            else:
+                move_x, move_y = (x, y_bottom_right)  # quad 3 - BOTTOM
+        elif y >= yc:
+            move_x, move_y = (
+                (x_bottom_right, y)  # quad 2 - RIGHT
+                if abs(x_bottom_right - x) < abs(y_top_left - y)
+                else (x, y_top_left)  # quad 2 - TOP
+            )
+        elif abs(x_bottom_right - x) < abs(y_bottom_right - y):
+            move_x, move_y = (x_bottom_right, y)  # quad 4 - RIGHT
+        else:
+            move_x, move_y = (x, y_bottom_right)  # quad 4 - BOTTOM
+
+        self._mmc.setXYPosition(move_x, move_y)
 
     def _on_roi_set(self) -> None:
         self._on_combo_changed(self.wp_combo.currentText())
@@ -649,5 +733,6 @@ if __name__ == "__main__":
     CMMCorePlus.instance().loadSystemConfiguration()
     app = QApplication(sys.argv)
     win = HCSWidget()
+
     win.show()
     sys.exit(app.exec_())

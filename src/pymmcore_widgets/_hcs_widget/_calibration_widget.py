@@ -20,6 +20,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QPushButton,
     QSizePolicy,
+    QSpacerItem,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -30,6 +31,8 @@ from superqt.utils import signals_blocked
 
 from .._util import PLATE_FROM_CALIBRATION
 from ._well_plate_database import PLATE_DB, WellPlate
+
+AlignCenter = Qt.AlignmentFlag.AlignCenter
 
 ALPHABET = string.ascii_uppercase
 
@@ -60,17 +63,13 @@ class PlateCalibration(QWidget):
         self._calculated_well_spacing_x: float | None = None
         self._calculated_well_spacing_y: float | None = None
 
-        self._create_gui()
-
-    def _create_gui(self) -> None:
-
         layout = QVBoxLayout()
         layout.setSpacing(10)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
         self.info_lbl = QLabel()
-        self.info_lbl.setAlignment(Qt.AlignCenter)
+        self.info_lbl.setAlignment(AlignCenter)
         self.layout().addWidget(self.info_lbl)
 
         wdg = QWidget()
@@ -102,7 +101,7 @@ class PlateCalibration(QWidget):
 
         cal_state_wdg = QWidget()
         cal_state_wdg_layout = QHBoxLayout()
-        cal_state_wdg_layout.setAlignment(Qt.AlignCenter)
+        cal_state_wdg_layout.setAlignment(AlignCenter)
         cal_state_wdg_layout.setSpacing(0)
         cal_state_wdg_layout.setContentsMargins(0, 0, 0, 0)
         cal_state_wdg.setLayout(cal_state_wdg_layout)
@@ -123,6 +122,37 @@ class PlateCalibration(QWidget):
         bottom_group_layout.addWidget(cal_state_wdg)
 
         layout.addWidget(bottom_group)
+
+        test_calibration = QGroupBox(title="Test Calibration")
+        test_cal_layout = QHBoxLayout()
+        test_cal_layout.setSpacing(10)
+        test_cal_layout.setContentsMargins(10, 10, 10, 10)
+        test_calibration.setLayout(test_cal_layout)
+        # connections to this test_calibration widgets are in _main_hcs_widget.py
+        lbl = QLabel("Move to edge of well:")
+        lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+        self._well_letter_combo = QComboBox()
+        self._well_letter_combo.setEditable(True)
+        self._well_letter_combo.lineEdit().setReadOnly(True)
+        self._well_letter_combo.lineEdit().setAlignment(AlignCenter)
+
+        self._well_number_combo = QComboBox()
+        self._well_number_combo.setEditable(True)
+        self._well_number_combo.lineEdit().setReadOnly(True)
+        self._well_number_combo.lineEdit().setAlignment(AlignCenter)
+
+        self._test_button = QPushButton("Test")
+        self._test_button.setEnabled(False)
+
+        test_cal_layout.addWidget(lbl)
+        test_cal_layout.addWidget(self._well_letter_combo)
+        test_cal_layout.addWidget(self._well_number_combo)
+        test_cal_layout.addWidget(self._test_button)
+
+        spacer = QSpacerItem(10, 30, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        layout.addSpacerItem(spacer)
+        layout.addWidget(test_calibration)
 
     def _reset_calibration_variables(self, set_to_none: bool) -> None:
         if set_to_none or not self.plate:
@@ -251,6 +281,7 @@ class PlateCalibration(QWidget):
                 icon(MDI6.check_bold, color=(0, 255, 0)).pixmap(QSize(20, 20))
             )
             self.cal_lbl.setText("Plate Calibrated!")
+            self._test_button.setEnabled(True)
         else:
             self.is_calibrated = False
             self.A1_well = None
@@ -262,6 +293,7 @@ class PlateCalibration(QWidget):
                 icon(MDI6.close_octagon_outline, color="magenta").pixmap(QSize(30, 30))
             )
             self.cal_lbl.setText("Plate non Calibrated!")
+            self._test_button.setEnabled(False)
 
     def _get_circle_center_(
         self, a: tuple[float, float], b: tuple[float, float], c: tuple[float, float]
