@@ -21,12 +21,11 @@ class HCS(QWidget):
     of multi-well plate or custom defined areas.
 
     The `HCSWidget` provides a GUI to construct a `useq.MDASequence` object.
-    This object describes a full multi-dimensional acquisition;
+    This object describes a full multi-dimensional acquisition.
 
-    In this example, we set the `HCSWidget` parameter `include_run_button`
-    to `True`, meaning that a `run` button is added to the GUI. When pressed,
-    a `useq.MDASequence` is first built depending on the GUI values and
-    is then passed to the `CMMCorePlus.run_mda` to actually execute the acquisition.
+    When the `run` button is pressed, a `useq.MDASequence` is first built depending
+    on the GUI values and is then passed to the `CMMCorePlus.run_mda` to actually
+    execute the acquisition.
 
     For details of the corresponding schema and methods, see
     https://github.com/pymmcore-plus/useq-schema and

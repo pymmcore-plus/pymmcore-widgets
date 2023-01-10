@@ -16,7 +16,7 @@ class MDA(QWidget):
     """An example of using the MDAWidget to create and acquire a useq.MDASequence.
 
     The `MDAWidget` provides a GUI to construct a `useq.MDASequence` object.
-    This object describes a full multi-dimensional acquisition;
+    This object describes a full multi-dimensional acquisition.
 
     In this example, we set the `MDAWidget` parameter `include_run_button` to `True`,
     meaning that a `run` button is added to the GUI. When pressed, a `useq.MDASequence`
