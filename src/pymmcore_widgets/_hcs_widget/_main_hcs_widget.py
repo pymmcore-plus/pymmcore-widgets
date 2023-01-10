@@ -82,7 +82,6 @@ class HCSWidget(QWidget):
 
         # tabwidget
         self.tabwidget = QTabWidget()
-        self.tabwidget.setTabPosition(QTabWidget.West)
 
         self._select_plate_tab = self._create_plate_and_fov_tab()
 
