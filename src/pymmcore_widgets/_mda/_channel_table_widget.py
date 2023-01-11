@@ -291,7 +291,7 @@ class ChannelGroupCombo(QComboBox):
         self.setSizeAdjustPolicy(QComboBox.AdjustToContents)
 
         self._mmc = mmcore or CMMCorePlus.instance()
-        self._channel_group = channel_group
+        self._channel_group = channel_group or self._mmc.getChannelGroup()
 
         # connect core
         self._mmc.events.systemConfigurationLoaded.connect(
