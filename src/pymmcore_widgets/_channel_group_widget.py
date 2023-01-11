@@ -27,6 +27,8 @@ class ChannelGroupWidget(QComboBox):
     ) -> None:
         super().__init__(parent)
 
+        self.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._mmc.events.systemConfigurationLoaded.connect(
@@ -47,6 +49,7 @@ class ChannelGroupWidget(QComboBox):
         with signals_blocked(self):
             self.clear()
             self.addItems(self._mmc.getAvailableConfigGroups())
+            self.adjustSize()
             if ch_group := self._mmc.getChannelGroup():
                 self.setCurrentText(ch_group)
                 self.setStyleSheet("")
