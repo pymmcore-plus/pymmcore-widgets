@@ -10,9 +10,6 @@ class ChannelGroupWidget(QComboBox):
 
     Parameters
     ----------
-    connect_core : bool
-        By default, `True`. If set to `False`, this widget will be disconnected
-        from the core.
     parent : QWidget | None
         Optional parent widget. By default, None.
     mmcore : CMMCorePlus | None
@@ -24,7 +21,6 @@ class ChannelGroupWidget(QComboBox):
 
     def __init__(
         self,
-        connect_core: bool = True,
         parent: QWidget | None = None,
         *,
         mmcore: CMMCorePlus | None = None,
@@ -32,21 +28,16 @@ class ChannelGroupWidget(QComboBox):
         super().__init__(parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
-        self._connect_core = connect_core
 
-        # connect mmcore events
         self._mmc.events.systemConfigurationLoaded.connect(
             self._update_channel_group_combo
         )
-        if connect_core:
-            self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
-            self._mmc.events.propertyChanged.connect(self._on_property_changed)
-            self._mmc.events.configGroupDeleted.connect(
-                self._update_channel_group_combo
-            )
-            self._mmc.events.configDefined.connect(self._update_channel_group_combo)
+        self._mmc.events.configGroupDeleted.connect(self._update_channel_group_combo)
+        self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
+        self._mmc.events.propertyChanged.connect(self._on_property_changed)
+        self._mmc.events.configDefined.connect(self._update_channel_group_combo)
 
-            self.currentTextChanged.connect(self._mmc.setChannelGroup)
+        self.currentTextChanged.connect(self._mmc.setChannelGroup)
 
         self.destroyed.connect(self._disconnect)
 
@@ -56,8 +47,6 @@ class ChannelGroupWidget(QComboBox):
         with signals_blocked(self):
             self.clear()
             self.addItems(self._mmc.getAvailableConfigGroups())
-            if not self._connect_core:
-                return
             if ch_group := self._mmc.getChannelGroup():
                 self.setCurrentText(ch_group)
                 self.setStyleSheet("")
@@ -83,12 +72,7 @@ class ChannelGroupWidget(QComboBox):
         self._mmc.events.systemConfigurationLoaded.disconnect(
             self._update_channel_group_combo
         )
-        if self._connect_core:
-            self._mmc.events.channelGroupChanged.disconnect(
-                self._on_channel_group_changed
-            )
-            self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
-            self._mmc.events.configGroupDeleted.disconnect(
-                self._update_channel_group_combo
-            )
-            self._mmc.events.configDefined.disconnect(self._update_channel_group_combo)
+        self._mmc.events.channelGroupChanged.disconnect(self._on_channel_group_changed)
+        self._mmc.events.configGroupDeleted.disconnect(self._update_channel_group_combo)
+        self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
+        self._mmc.events.configDefined.disconnect(self._update_channel_group_combo)

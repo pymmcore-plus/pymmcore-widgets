@@ -19,8 +19,6 @@ from qtpy.QtWidgets import (
 )
 from superqt.utils import signals_blocked
 
-from pymmcore_widgets._channel_group_widget import ChannelGroupWidget
-
 if TYPE_CHECKING:
     from typing_extensions import Required, TypedDict
 
@@ -47,11 +45,11 @@ class ChannelTable(QGroupBox):
     ----------
     title : str
         Title of the QGroupBox widget. Bt default, 'Channel'.
-    connect_core : bool
-        By default, `True`. If set to `False`, the `ChannelGroupWidget`
-        will be disconnected from the core.
     parent : QWidget | None
         Optional parent widget. By default, None.
+    channel_group : str | None
+        Optional channel group that will be set as the widget's initial
+        ChannelGroup. By default, None.
     mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
@@ -64,15 +62,14 @@ class ChannelTable(QGroupBox):
     def __init__(
         self,
         title: str = "Channels",
-        connect_core: bool = True,
         parent: QWidget | None = None,
         *,
+        channel_group: str | None = None,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(title, parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
-        self._connect_core = connect_core
 
         group_layout = QGridLayout()
         group_layout.setSpacing(15)
@@ -100,7 +97,10 @@ class ChannelTable(QGroupBox):
         layout.setContentsMargins(0, 0, 0, 0)
         wdg.setLayout(layout)
 
-        self.channel_group_combo = ChannelGroupWidget(connect_core)
+        # ChannelGroup combobox
+        self.channel_group_combo = ChannelGroupCombo(
+            self, channel_group=channel_group, mmcore=self._mmc
+        )
         layout.addWidget(self.channel_group_combo)
 
         min_size = 100
@@ -274,3 +274,54 @@ class ChannelTable(QGroupBox):
         self._mmc.events.systemConfigurationLoaded.disconnect(self.clear)
         self._mmc.events.configGroupDeleted.disconnect(self._on_group_deleted)
         self._mmc.events.configDeleted.disconnect(self._on_config_deleted)
+
+
+class ChannelGroupCombo(QComboBox):
+    """QComboBox to set the channel group to use in the ChannelTable."""
+
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        channel_group: str | None = None,
+        mmcore: CMMCorePlus | None = None,
+    ) -> None:
+        super().__init__(parent)
+
+        self.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+
+        self._mmc = mmcore or CMMCorePlus.instance()
+        self._channel_group = channel_group
+
+        self.currentTextChanged.connect(self._on_text_changed)
+
+        # connect core
+        self._mmc.events.systemConfigurationLoaded.connect(
+            self._update_channel_group_combo
+        )
+        self._mmc.events.configGroupDeleted.connect(self._update_channel_group_combo)
+        self._mmc.events.configDefined.connect(self._update_channel_group_combo)
+
+        self.destroyed.connect(self._disconnect)
+
+        self._update_channel_group_combo()
+
+    def _update_channel_group_combo(self) -> None:
+        self.clear()
+        groups = self._mmc.getAvailableConfigGroups()
+        self.addItems(groups)
+        if not self._channel_group or self._channel_group not in groups:
+            self._channel_group = self.currentText()
+            return
+        self.setCurrentText(self._channel_group)
+
+    def _on_text_changed(self, group: str) -> None:
+        if group != self._channel_group:
+            self._channel_group = group
+
+    def _disconnect(self) -> None:
+        self._mmc.events.systemConfigurationLoaded.disconnect(
+            self._update_channel_group_combo
+        )
+        self._mmc.events.configGroupDeleted.disconnect(self._update_channel_group_combo)
+        self._mmc.events.configDefined.disconnect(self._update_channel_group_combo)
