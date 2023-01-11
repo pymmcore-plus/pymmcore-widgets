@@ -193,23 +193,6 @@ class PositionTable(QGroupBox):
 
         self.destroyed.connect(self._disconnect)
 
-    def _select_all_grid_positions(self) -> None:
-        """Select all grid positions from the same 'Gridnnn'."""
-        rows = {r.row() for r in self._table.selectedIndexes()}
-
-        _grid_to_select = []
-        for row in rows:
-            pos = self._table.item(row, 0).data(self.POS_ROLE).split("_")[0]
-            if "Grid" not in pos:
-                continue
-            if pos not in _grid_to_select:
-                _grid_to_select.append(pos)
-
-        for row in range(self._table.rowCount()):
-            n_grid = self._table.item(row, 0).data(self.POS_ROLE).split("_")[0]
-            if n_grid in _grid_to_select:
-                self._table.item(row, 0).setSelected(True)
-
     def _on_sys_cfg_loaded(self) -> None:
         self._clear_positions()
         self._set_table_header()
@@ -271,6 +254,24 @@ class PositionTable(QGroupBox):
     def _enable_remove_button(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
         self.remove_button.setEnabled(len(rows) >= 1)
+
+    def _select_all_grid_positions(self) -> None:
+        """Select all grid positions from the same 'Gridnnn'."""
+        rows = {r.row() for r in self._table.selectedIndexes()}
+
+        _grid_to_select = []
+        for row in rows:
+            pos = self._table.item(row, 0).data(self.POS_ROLE).split("_")[0]
+            if "Grid" not in pos:
+                continue
+            if pos not in _grid_to_select:
+                _grid_to_select.append(pos)
+
+        for row in range(self._table.rowCount()):
+            n_grid = self._table.item(row, 0).data(self.POS_ROLE).split("_")[0]
+            if n_grid in _grid_to_select:
+                with signals_blocked(self._table.selectionModel()):
+                    self._table.item(row, 0).setSelected(True)
 
     def _set_table_header(self) -> None:
 
