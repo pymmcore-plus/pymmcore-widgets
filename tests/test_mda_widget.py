@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 def test_mda_widget_load_state(qtbot: QtBot):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
+    assert wdg.position_groupbox._table.rowCount() == 0
     assert wdg.channel_groupbox._table.rowCount() == 0
     assert not wdg.time_groupbox.isChecked()
 
@@ -41,7 +41,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
         ),
     )
     wdg.set_state(sequence)
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 2
+    assert wdg.position_groupbox._table.rowCount() == 2
     assert wdg.channel_groupbox._table.rowCount() == 2
     assert wdg.time_groupbox.isChecked()
 
@@ -51,13 +51,13 @@ def test_mda_widget_load_state(qtbot: QtBot):
     # test add grid positions
     wdg.position_groupbox.setChecked(True)
     wdg.position_groupbox._clear_positions()
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
+    assert wdg.position_groupbox._table.rowCount() == 0
     wdg.position_groupbox.grid_button.click()
     qtbot.addWidget(wdg.position_groupbox._grid_wdg)
     wdg.position_groupbox._grid_wdg.scan_size_spinBox_r.setValue(2)
     wdg.position_groupbox._grid_wdg.scan_size_spinBox_c.setValue(2)
     wdg.position_groupbox._grid_wdg.generate_position_btn.click()
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 4
+    assert wdg.position_groupbox._table.rowCount() == 4
 
 
 def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -74,16 +74,16 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg.channel_groupbox._clear_button.click()
     assert wdg.channel_groupbox._table.rowCount() == 0
 
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
+    assert wdg.position_groupbox._table.rowCount() == 0
     wdg.position_groupbox.setChecked(True)
     wdg.position_groupbox.add_button.click()
     wdg.position_groupbox.add_button.click()
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 2
-    wdg.position_groupbox.stage_tableWidget.selectRow(0)
+    assert wdg.position_groupbox._table.rowCount() == 2
+    wdg.position_groupbox._table.selectRow(0)
     wdg.position_groupbox.remove_button.click()
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 1
+    assert wdg.position_groupbox._table.rowCount() == 1
     wdg.position_groupbox.clear_button.click()
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
+    assert wdg.position_groupbox._table.rowCount() == 0
 
 
 def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):

@@ -15,7 +15,7 @@ def test_add_single_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
     qtbot.addWidget(p)
 
     mmc = global_mmcore
-    tb = p.stage_tableWidget
+    tb = p._table
 
     assert not tb.rowCount()
     p.setChecked(True)
@@ -29,7 +29,7 @@ def test_add_single_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
         name = f"Pos{row:03d}"
         assert tb.item(row, 0).text() == name
         assert tb.item(row, 0).toolTip() == name
-        assert tb.item(row, 0).whatsThis() == name
+        assert tb.item(row, 0).data(p.POS_ROLE) == name
         assert tb.cellWidget(row, 1).value() == 0.0
         assert tb.cellWidget(row, 2).value() == 0.0
         assert tb.cellWidget(row, 3).value() == 0.0
@@ -37,7 +37,7 @@ def test_add_single_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
     tb.item(row, 0).setText("test000")
     assert tb.item(row, 0).text() == "test000"
     assert tb.item(row, 0).toolTip() == name
-    assert tb.item(row, 0).whatsThis() == name
+    assert tb.item(row, 0).data(p.POS_ROLE) == name
 
     mmc.unloadDevice("XY")
 
@@ -49,7 +49,7 @@ def test_add_single_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
     name = "Pos000"
     assert tb.item(0, 0).text() == name
     assert tb.item(0, 0).toolTip() == name
-    assert tb.item(0, 0).whatsThis() == name
+    assert tb.item(0, 0).data(p.POS_ROLE) == name
     assert not tb.cellWidget(0, 1)
     assert not tb.cellWidget(0, 2)
     assert tb.cellWidget(0, 3).value() == 0.0
@@ -64,7 +64,7 @@ def test_add_single_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     assert tb.item(0, 0).text() == name
     assert tb.item(0, 0).toolTip() == name
-    assert tb.item(0, 0).whatsThis() == name
+    assert tb.item(0, 0).data(p.POS_ROLE) == name
     assert tb.cellWidget(0, 1).value() == 0.0
     assert tb.cellWidget(0, 2).value() == 0.0
     assert not tb.cellWidget(0, 3)
@@ -74,7 +74,7 @@ def test_rename_single_pos_after_delete(global_mmcore: CMMCorePlus, qtbot: QtBot
     p = PositionTable()
     qtbot.addWidget(p)
 
-    tb = p.stage_tableWidget
+    tb = p._table
 
     assert not tb.rowCount()
     p.setChecked(True)
@@ -107,7 +107,7 @@ def test_rename_single_pos_after_delete(global_mmcore: CMMCorePlus, qtbot: QtBot
 
     assert tb.item(0, 0).text() == "test"
     assert tb.item(0, 0).toolTip() == "Pos000"
-    assert tb.item(0, 0).whatsThis() == "Pos000"
+    assert tb.item(0, 0).data(p.POS_ROLE) == "Pos000"
 
     assert tb.item(1, 0).text() == "Pos001"
 
@@ -116,7 +116,7 @@ def test_rename_grid_pos_after_delete(global_mmcore: CMMCorePlus, qtbot: QtBot):
     p = PositionTable()
     qtbot.addWidget(p)
 
-    tb = p.stage_tableWidget
+    tb = p._table
 
     assert not tb.rowCount()
     p.setChecked(True)
@@ -133,7 +133,7 @@ def test_rename_grid_pos_after_delete(global_mmcore: CMMCorePlus, qtbot: QtBot):
         name = f"Grid000_Pos{row:03d}"
         assert tb.item(row, 0).text() == name
         assert tb.item(row, 0).toolTip() == name
-        assert tb.item(row, 0).whatsThis() == name
+        assert tb.item(row, 0).data(p.POS_ROLE) == name
 
     p._grid_wdg.generate_position_btn.click()
     p._grid_wdg.generate_position_btn.click()
@@ -156,7 +156,7 @@ def test_rename_grid_pos_after_delete(global_mmcore: CMMCorePlus, qtbot: QtBot):
         else:
             assert tb.item(row, 0).text() == name
         assert tb.item(row, 0).toolTip() == name
-        assert tb.item(row, 0).whatsThis() == name
+        assert tb.item(row, 0).data(p.POS_ROLE) == name
         pos += 1
         if row in {1, 3}:
             grid_n += 1
