@@ -288,6 +288,8 @@ class ChannelGroupCombo(QComboBox):
     ) -> None:
         super().__init__(parent)
 
+        self.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+
         self._mmc = mmcore or CMMCorePlus.instance()
         self._channel_group = channel_group
 
@@ -312,6 +314,7 @@ class ChannelGroupCombo(QComboBox):
             self.clear()
             groups = self._mmc.getAvailableConfigGroups()
             self.addItems(groups)
+            self.adjustSize()
 
         if not self._channel_group or self._channel_group not in groups:
             self._channel_group = self.currentText()
