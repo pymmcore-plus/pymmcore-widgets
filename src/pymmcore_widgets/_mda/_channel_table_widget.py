@@ -58,6 +58,7 @@ class ChannelTable(QGroupBox):
     """
 
     valueChanged = Signal()
+    CH_GROUP_ROLE = 1
 
     def __init__(
         self,
@@ -146,7 +147,9 @@ class ChannelTable(QGroupBox):
         for row in range(self._table.rowCount()):
             combo = cast(QComboBox, self._table.cellWidget(row, 0))
             items = [combo.itemText(ch) for ch in range(combo.count())]
-            if group == combo.whatsThis() and config in items:
+            # channel_combo.setItemData(self.CH_GROUP_ROLE, _channel_group)
+            if group == combo.itemData(self.CH_GROUP_ROLE) and config in items:
+                # if group == combo.whatsThis() and config in items:
                 combo.clear()
                 combo.addItems(self._mmc.getAvailableConfigs(group))
                 if self._mmc.getChannelGroup() != config:
@@ -187,10 +190,11 @@ class ChannelTable(QGroupBox):
 
         # channel dropdown
         channel_combo = QComboBox()
-        channel_combo.setWhatsThis(_channel_group)
+        # channel_combo.setWhatsThis(_channel_group)
         available = self._mmc.getAvailableConfigs(_channel_group)
         channel = channel or self._pick_first_unused_channel(available)
         channel_combo.addItems(available)
+        channel_combo.setItemData(self.CH_GROUP_ROLE, _channel_group)
         channel_combo.setCurrentText(channel)
 
         # exposure spinbox
@@ -237,7 +241,8 @@ class ChannelTable(QGroupBox):
                 values.append(
                     {
                         "config": name_widget.currentText(),
-                        "group": name_widget.whatsThis(),
+                        # "group": name_widget.whatsThis(),
+                        "group": name_widget.itemData(self.CH_GROUP_ROLE),
                         "exposure": exposure_widget.value(),
                     }
                 )

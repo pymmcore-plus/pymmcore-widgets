@@ -23,11 +23,13 @@ def test_channel_table_widget(qtbot: QtBot):
 
     assert ct._table.cellWidget(0, 0).currentText() == "Cy5"
     assert ct._table.cellWidget(1, 0).currentText() == "DAPI"
+    assert ct._table.cellWidget(1, 0).itemData(ct.CH_GROUP_ROLE) == "Channel"
 
     ct.channel_group_combo.setCurrentText("Camera")
     ct._add_button.click()
     assert ct._table.rowCount() == 3
     assert ct._table.cellWidget(2, 0).currentText() == "HighRes"
+    assert ct._table.cellWidget(2, 0).itemData(ct.CH_GROUP_ROLE) == "Camera"
 
     ct._clear_button.click()
     assert not ct._table.rowCount()
