@@ -51,6 +51,7 @@ class PositionTable(QGroupBox):
     """
 
     valueChanged = Signal()
+    POS_ROLE = QTableWidgetItem.ItemType.UserType + 1
 
     def __init__(
         self,
@@ -183,11 +184,31 @@ class PositionTable(QGroupBox):
         self._table.selectionModel().selectionChanged.connect(
             self._enable_remove_button
         )
+        self._table.selectionModel().selectionChanged.connect(
+            self._select_all_grid_positions
+        )
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.propertyChanged.connect(self._on_prop_changed)
 
         self.destroyed.connect(self._disconnect)
+
+    def _select_all_grid_positions(self) -> None:
+        """Select all grid positions from the same 'Gridnnn'."""
+        rows = {r.row() for r in self._table.selectedIndexes()}
+
+        _grid_to_select = []
+        for row in rows:
+            pos = self._table.item(row, 0).data(self.POS_ROLE).split("_")[0]
+            if "Grid" not in pos:
+                continue
+            if pos not in _grid_to_select:
+                _grid_to_select.append(pos)
+
+        for row in range(self._table.rowCount()):
+            n_grid = self._table.item(row, 0).data(self.POS_ROLE).split("_")[0]
+            if n_grid in _grid_to_select:
+                self._table.item(row, 0).setSelected(True)
 
     def _on_sys_cfg_loaded(self) -> None:
         self._clear_positions()
@@ -242,7 +263,9 @@ class PositionTable(QGroupBox):
         rows = {r.row() for r in self._table.selectedIndexes()}
         self.go_button.setEnabled(len(rows) == 1)
         self.replace_button.setEnabled(len(rows) == 1)
-        if len(rows) == 1 and "Grid" in self._table.item(list(rows)[0], 0).whatsThis():
+        if len(rows) == 1 and "Grid" in self._table.item(list(rows)[0], 0).data(
+            self.POS_ROLE
+        ):
             self.replace_button.setEnabled(False)
 
     def _enable_remove_button(self) -> None:
@@ -358,9 +381,9 @@ class PositionTable(QGroupBox):
 
     def _add_table_item(self, table_item: str | None, row: int, col: int) -> None:
         item = QTableWidgetItem(table_item)
-        # whatsthis is used to keep track of grid and/or position
+        # data(sellf.POS_ROLE) is used to keep track of grid and/or position
         # even when the user changed the name in the table.
-        item.setWhatsThis(table_item)
+        item.setData(self.POS_ROLE, table_item)
         item.setToolTip(table_item)
         item.setTextAlignment(AlignCenter)
         self._table.setItem(row, col, item)
@@ -385,10 +408,10 @@ class PositionTable(QGroupBox):
 
         for idx in sorted(rows, reverse=True):
 
-            whatsthis = self._table.item(idx, 0).whatsThis()
+            pos_role = self._table.item(idx, 0).data(self.POS_ROLE)
             # store grid name if is a grid position
-            if "Grid" in whatsthis:
-                grid_name = whatsthis.split("_")[0]
+            if "Grid" in pos_role:
+                grid_name = pos_role.split("_")[0]
                 grid_to_delete.append(grid_name)
             else:
                 # remove if is a single position
@@ -404,7 +427,7 @@ class PositionTable(QGroupBox):
     def _delete_grid_positions(self, name: list[str]) -> None:
         """Remove all positions related to the same grid."""
         for row in reversed(range(self._table.rowCount())):
-            if name in self._table.item(row, 0).whatsThis():
+            if name in self._table.item(row, 0).data(self.POS_ROLE):
                 self._table.removeRow(row)
 
     def _rename_positions(self) -> None:
@@ -413,22 +436,22 @@ class PositionTable(QGroupBox):
         grid_info: list[tuple[str, str, int]] = []
         for row in range(self._table.rowCount()):
             name = self._table.item(row, 0).text()
-            whatsthis = self._table.item(row, 0).whatsThis()
+            pos_role = self._table.item(row, 0).data(self.POS_ROLE)
 
-            if "Grid" in whatsthis.split("_")[0]:
-                grid_info.append((name, whatsthis, row))
+            if "Grid" in pos_role.split("_")[0]:
+                grid_info.append((name, pos_role, row))
                 continue
 
-            if name == whatsthis:  # name = Posnnn and whatsthis = Posnnn
+            if name == pos_role:  # name = Posnnn and pos_role = Posnnn
                 pos_number = self._update_number(single_pos_count, single_pos_rows)
                 new_name = f"Pos{pos_number:03d}"
                 single_pos_count = pos_number + 1
                 self._update_table_item(new_name, row, 0)
 
-            elif "Grid" not in whatsthis:  # whatsthis = Posnnn
+            elif "Grid" not in pos_role:  # pos_role = Posnnn
                 single_pos_rows.append(row)
-                new_whatsthis = f"Pos{row:03d}"
-                self._update_table_item(new_whatsthis, row, 0, False)
+                new_pos_role = f"Pos{row:03d}"
+                self._update_table_item(new_pos_role, row, 0, False)
 
         if not grid_info:
             return
@@ -440,7 +463,7 @@ class PositionTable(QGroupBox):
     ) -> None:
         if update_name:
             self._table.item(row, col).setText(name)
-        self._table.item(row, col).setWhatsThis(name)
+        self._table.item(row, col).setData(self.POS_ROLE, name)
         self._table.item(row, col).setToolTip(name)
 
     def _update_number(self, number: int, exixting_numbers: list[int]) -> int:
@@ -455,7 +478,7 @@ class PositionTable(QGroupBox):
     def _rename_grid_positions(self, grid_info: list[tuple[str, str, int]]) -> None:
         """Rename postions created with the GridWidget.
 
-        grid_info = [(name, whatsthis, row), ...].
+        grid_info = [(name, pos_role, row), ...].
         By default, name is 'Gridnnn_Posnnn' but users can rename.
 
         Example
@@ -467,18 +490,18 @@ class PositionTable(QGroupBox):
             (test1, Grid001_Pos001, 4),
         ]
         """
-        # first create a new list with items grouped by grid WhatsThis property
+        # first create a new list with items grouped by grid POS_ROLE property
         ordered_by_grid_n = [
             list(grid_n)
             for _, grid_n in groupby(grid_info, lambda x: x[1].split("_")[0])
         ]
 
-        # then rename each grid with new neame and new whatsthis
+        # then rename each grid with new name and new POS_ROLE
         for idx, i in enumerate(ordered_by_grid_n):
             for pos_idx, n in enumerate(i):
-                name, whatsthis, row = n
+                name, pos_role, row = n
                 new_name = f"Grid{idx:03d}_Pos{pos_idx:03d}"
-                self._update_table_item(new_name, row, 0, name == whatsthis)
+                self._update_table_item(new_name, row, 0, name == pos_role)
 
     def _clear_positions(self) -> None:
         """clear all positions."""
@@ -505,7 +528,7 @@ class PositionTable(QGroupBox):
             self._clear_positions()
         else:
             for r in range(self._table.rowCount()):
-                pos_name = self._table.item(r, 0).whatsThis()
+                pos_name = self._table.item(r, 0).data(self.POS_ROLE)
                 grid_name = pos_name.split("_")[0]  # e.g. Grid000
                 if "Grid" in grid_name:
                     grid_n = grid_name[-3:]
