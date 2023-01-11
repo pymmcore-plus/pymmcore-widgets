@@ -288,12 +288,8 @@ class ChannelGroupCombo(QComboBox):
     ) -> None:
         super().__init__(parent)
 
-        self.setSizeAdjustPolicy(QComboBox.AdjustToContents)
-
         self._mmc = mmcore or CMMCorePlus.instance()
         self._channel_group = channel_group
-
-        self.currentTextChanged.connect(self._on_text_changed)
 
         # connect core
         self._mmc.events.systemConfigurationLoaded.connect(
@@ -306,10 +302,17 @@ class ChannelGroupCombo(QComboBox):
 
         self._update_channel_group_combo()
 
+        self.currentTextChanged.connect(self._on_text_changed)
+
     def _update_channel_group_combo(self) -> None:
-        self.clear()
-        groups = self._mmc.getAvailableConfigGroups()
-        self.addItems(groups)
+        if len(self._mmc.getLoadedDevices()) <= 1:
+            return
+
+        with signals_blocked(self):
+            self.clear()
+            groups = self._mmc.getAvailableConfigGroups()
+            self.addItems(groups)
+
         if not self._channel_group or self._channel_group not in groups:
             self._channel_group = self.currentText()
             return
