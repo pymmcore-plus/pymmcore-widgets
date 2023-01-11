@@ -60,7 +60,6 @@ class PositionTable(QGroupBox):
         self.setTitle(title)
 
         self.setCheckable(True)
-        self.setChecked(False)
 
         group_layout = QHBoxLayout()
         group_layout.setSpacing(15)
