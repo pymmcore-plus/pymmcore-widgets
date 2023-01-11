@@ -216,8 +216,8 @@ class SampleExplorerWidget(MDAWidget):
             for c, ax in enumerate("GXYZ"):
                 if ax == "G":
                     count = self.position_groupbox._table.rowCount()
-                    item = QTableWidgetItem(f"Grid_{count:03d}")
-                    item.setWhatsThis(f"Grid_{count:03d}")
+                    item = QTableWidgetItem(f"Grid{count:03d}")
+                    item.setData(self.position_groupbox.POS_ROLE, f"Grid{count:03d}")
                     item.setTextAlignment(
                         Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
                     )
@@ -251,26 +251,26 @@ class SampleExplorerWidget(MDAWidget):
         for grid_count, r in enumerate(range(self.position_groupbox._table.rowCount())):
             item = self.position_groupbox._table.item(r, 0)
             item_text = item.text()
-            item_whatisthis = item.whatsThis()
+            item_whatisthis = item.data(self.position_groupbox.POS_ROLE)
             if item_text == item_whatisthis:
-                new_name = f"Grid_{grid_count:03d}"
+                new_name = f"Grid{grid_count:03d}"
             else:
                 new_name = item_text
-            new_whatisthis = f"Grid_{grid_count:03d}"
+            new_pos_role = f"Grid{grid_count:03d}"
 
             item = QTableWidgetItem(new_name)
             item.setTextAlignment(
                 Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
             )
-            item.setWhatsThis(new_whatisthis)
+            item.setData(self.position_groupbox.POS_ROLE, new_pos_role)
             self.position_groupbox._table.setItem(r, 0, item)
 
     def _get_pos_name(self, row: int) -> str:
-        """Get position name from table item's whatsThis property."""
+        """Get position name from table item's POS_ROLE property."""
         item = self.position_groupbox._table.item(row, 0)
         name = str(item.text())
-        whatsthis = item.whatsThis()
-        return f"{name}_{whatsthis}" if whatsthis not in name else name
+        pos_role = item.data(self.position_groupbox.POS_ROLE)
+        return f"{name}_{pos_role}" if pos_role not in name else name
 
     def _create_grid_coords(self) -> list[Position]:
         """Calculate the grid coordinates for each grid starting position.
@@ -296,7 +296,7 @@ class SampleExplorerWidget(MDAWidget):
         else:
             explorer_starting_positions.append(
                 Position(
-                    name="Grid_001",
+                    name="Grid001",
                     x=float(self._mmc.getXPosition()),
                     y=float(self._mmc.getYPosition()),
                     z=float(self._mmc.getZPosition())
