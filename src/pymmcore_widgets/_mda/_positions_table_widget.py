@@ -150,19 +150,28 @@ class PositionTable(QGroupBox):
         """Select all grid positions from the same 'Gridnnn'."""
         rows = {r.row() for r in self._table.selectedIndexes()}
 
-        _grid_to_select = []
+        # get all the grid selected in the table
+        grid_to_select = []
         for row in rows:
             pos = self._table.item(row, 0).data(self.POS_ROLE).split("_")[0]
             if "Grid" not in pos:
                 continue
-            if pos not in _grid_to_select:
-                _grid_to_select.append(pos)
+            if pos not in grid_to_select:
+                grid_to_select.append(pos)
 
+        # select all positions from the same grid
+        # activate MultiSelection
+        self._table.setSelectionMode(QAbstractItemView.MultiSelection)
         for row in range(self._table.rowCount()):
             n_grid = self._table.item(row, 0).data(self.POS_ROLE).split("_")[0]
-            if n_grid in _grid_to_select:
+            if (
+                n_grid in grid_to_select
+                and not self._table.selectionModel().isRowSelected(row)
+            ):
                 with signals_blocked(self._table.selectionModel()):
-                    self._table.item(row, 0).setSelected(True)
+                    self._table.selectRow(row)
+        # revert back to ExtendedSelection
+        self._table.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
     def _add_position(self) -> None:
 
