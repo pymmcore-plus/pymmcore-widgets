@@ -299,9 +299,7 @@ class ChannelGroupCombo(QComboBox):
         self._channel_group = channel_group or self._mmc.getChannelGroup()
 
         # connect core
-        self._mmc.events.systemConfigurationLoaded.connect(
-            self._update_channel_group_combo
-        )
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.configGroupDeleted.connect(self._update_channel_group_combo)
         self._mmc.events.configDefined.connect(self._update_channel_group_combo)
 
@@ -311,10 +309,14 @@ class ChannelGroupCombo(QComboBox):
 
         self.currentTextChanged.connect(self._on_text_changed)
 
+    def _on_sys_cfg_loaded(self) -> None:
+        if not self._channel_group:
+            self._channel_group = self._mmc.getChannelGroup()
+        self._update_channel_group_combo()
+
     def _update_channel_group_combo(self) -> None:
         if len(self._mmc.getLoadedDevices()) <= 1:
             return
-
         with signals_blocked(self):
             self.clear()
             groups = self._mmc.getAvailableConfigGroups()
@@ -324,6 +326,7 @@ class ChannelGroupCombo(QComboBox):
         if not self._channel_group or self._channel_group not in groups:
             self._channel_group = self.currentText()
             return
+
         self.setCurrentText(self._channel_group)
 
     def _on_text_changed(self, group: str) -> None:
@@ -331,8 +334,6 @@ class ChannelGroupCombo(QComboBox):
             self._channel_group = group
 
     def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(
-            self._update_channel_group_combo
-        )
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
         self._mmc.events.configGroupDeleted.disconnect(self._update_channel_group_combo)
         self._mmc.events.configDefined.disconnect(self._update_channel_group_combo)
