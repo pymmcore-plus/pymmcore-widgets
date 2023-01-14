@@ -37,13 +37,13 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert s_exp.stack_groupbox.n_images_label.text() == "Number of Images: 3"
 
     s_exp.position_groupbox.setChecked(True)
-    s_exp.position_groupbox.add_pos_button.click()
-    assert s_exp.position_groupbox.stage_tableWidget.rowCount() == 1
+    s_exp.position_groupbox.add_button.click()
+    assert s_exp.position_groupbox._table.rowCount() == 1
     mmc.setXYPosition(2000.0, 2000.0)
     mmc.waitForSystem()
-    s_exp.position_groupbox.add_pos_button.click()
+    s_exp.position_groupbox.add_button.click()
 
-    assert s_exp.position_groupbox.stage_tableWidget.rowCount() == 2
+    assert s_exp.position_groupbox._table.rowCount() == 2
 
     state = s_exp.get_state()
 
@@ -59,40 +59,40 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
         z_plan={"range": 2, "step": 1},
         axis_order="tpcz",
         stage_positions=(
-            {"name": "Grid_000_Pos000", "x": -307.2, "y": 307.2, "z": 0.0},
-            {"name": "Grid_000_Pos001", "x": 153.60000000000002, "y": 307.2, "z": 0.0},
+            {"name": "Grid000_Pos000", "x": -307.2, "y": 307.2, "z": 0.0},
+            {"name": "Grid000_Pos001", "x": 153.60000000000002, "y": 307.2, "z": 0.0},
             {
-                "name": "Grid_000_Pos002",
+                "name": "Grid000_Pos002",
                 "x": 153.60000000000002,
                 "y": -153.60000000000002,
                 "z": 0.0,
             },
             {
-                "name": "Grid_000_Pos003",
+                "name": "Grid000_Pos003",
                 "x": -307.2,
                 "y": -153.60000000000002,
                 "z": 0.0,
             },
             {
-                "name": "Grid_001_Pos000",
+                "name": "Grid001_Pos000",
                 "x": 1692.7949999999998,
                 "y": 2307.1949999999997,
                 "z": 0.0,
             },
             {
-                "name": "Grid_001_Pos001",
+                "name": "Grid001_Pos001",
                 "x": 2153.595,
                 "y": 2307.1949999999997,
                 "z": 0.0,
             },
             {
-                "name": "Grid_001_Pos002",
+                "name": "Grid001_Pos002",
                 "x": 2153.595,
                 "y": 1846.3949999999998,
                 "z": 0.0,
             },
             {
-                "name": "Grid_001_Pos003",
+                "name": "Grid001_Pos003",
                 "x": 1692.7949999999998,
                 "y": 1846.3949999999998,
                 "z": 0.0,
@@ -124,16 +124,16 @@ def test_explorer_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg.channel_groupbox._clear_button.click()
     assert wdg.channel_groupbox._table.rowCount() == 0
 
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
+    assert wdg.position_groupbox._table.rowCount() == 0
     wdg.position_groupbox.setChecked(True)
-    wdg.position_groupbox.add_pos_button.click()
-    wdg.position_groupbox.add_pos_button.click()
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 2
-    wdg.position_groupbox.stage_tableWidget.selectRow(0)
-    wdg.position_groupbox.remove_pos_button.click()
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 1
-    wdg.position_groupbox.clear_pos_button.click()
-    assert wdg.position_groupbox.stage_tableWidget.rowCount() == 0
+    wdg.position_groupbox.add_button.click()
+    wdg.position_groupbox.add_button.click()
+    assert wdg.position_groupbox._table.rowCount() == 2
+    wdg.position_groupbox._table.selectRow(0)
+    wdg.position_groupbox.remove_button.click()
+    assert wdg.position_groupbox._table.rowCount() == 1
+    wdg.position_groupbox.clear_button.click()
+    assert wdg.position_groupbox._table.rowCount() == 0
 
 
 def test_explorer_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
