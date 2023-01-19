@@ -72,12 +72,6 @@ class ShuttersWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._refresh_shutter_widget)
         self._mmc.events.autoShutterSet.connect(self._on_autoshutter_changed)
         self._mmc.events.propertyChanged.connect(self._on_prop_changed)
-        self._mmc.events.continuousSequenceAcquisitionStarted.connect(
-            self._on_seq_started
-        )
-        self._mmc.events.sequenceAcquisitionStarted.connect(self._on_seq_started)
-        self._mmc.events.sequenceAcquisitionStopped.connect(self._on_seq_stopped)
-        self._mmc.events.imageSnapped.connect(self._on_seq_stopped)
         self._mmc.events.configSet.connect(self._on_channel_set)
 
         self.destroyed.connect(self._disconnect)
@@ -244,24 +238,20 @@ class ShuttersWidget(QWidget):
             if self.autoshutter:
                 self.autoshutter_checkbox.setEnabled(False)
         else:
-            self._close_shutter(self.shutter_device)
             if self.autoshutter:
                 self.autoshutter_checkbox.setEnabled(True)
-                self.autoshutter_checkbox.setChecked(True)
-                self.shutter_button.setEnabled(False)
+                self.autoshutter_checkbox.setChecked(self._mmc.getAutoShutter())
             else:
-                self.shutter_button.setEnabled(not self._mmc.getAutoShutter())
+                self.autoshutter_checkbox.setChecked(False)
+            self.shutter_button.setEnabled(True)
+            if self._mmc.getShutterOpen(self.shutter_device):
+                self._set_shutter_wdg_to_opened()
+            else:
+                self._set_shutter_wdg_to_closed()
 
             # bool to define if the shutter_device is a Micro-Manager 'Multi Shutter'
             props = self._mmc.getDevicePropertyNames(self.shutter_device)
             self._is_multiShutter = bool([x for x in props if "Physical Shutter" in x])
-
-    def _on_seq_started(self) -> None:
-        if self._mmc.getShutterOpen(self.shutter_device):
-            self._set_shutter_wdg_to_opened()
-
-    def _on_seq_stopped(self) -> None:
-        self._close_shutter(self.shutter_device)
 
     def _on_prop_changed(self, dev_name: str, prop_name: str, value: Any) -> None:
         if dev_name != self.shutter_device or prop_name != "State":
@@ -342,10 +332,4 @@ class ShuttersWidget(QWidget):
         )
         self._mmc.events.autoShutterSet.disconnect(self._on_autoshutter_changed)
         self._mmc.events.propertyChanged.disconnect(self._on_prop_changed)
-        self._mmc.events.continuousSequenceAcquisitionStarted.disconnect(
-            self._on_seq_started
-        )
-        self._mmc.events.sequenceAcquisitionStarted.disconnect(self._on_seq_started)
-        self._mmc.events.sequenceAcquisitionStopped.disconnect(self._on_seq_stopped)
-        self._mmc.events.imageSnapped.disconnect(self._on_seq_stopped)
         self._mmc.events.configSet.disconnect(self._on_channel_set)
