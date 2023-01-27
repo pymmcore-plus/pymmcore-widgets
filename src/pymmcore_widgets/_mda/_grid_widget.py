@@ -90,7 +90,7 @@ class _CornerSpinbox(QWidget):
 class GridWidget(QDialog):
     """A subwidget to setup the acquisition of a grid of images."""
 
-    sendPosList = Signal(list, bool)
+    valueChanged = Signal(object, bool)
 
     def __init__(
         self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
@@ -342,7 +342,7 @@ class GridWidget(QDialog):
                 order_mode=self.ordermode_combo.currentText(),
             )
 
-        self.sendPosList.emit(grid, self.clear_checkbox.isChecked())
+        self.valueChanged.emit(grid, self.clear_checkbox.isChecked())
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._update_info_label)

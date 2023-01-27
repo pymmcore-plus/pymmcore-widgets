@@ -349,13 +349,11 @@ class PositionTable(QGroupBox):
             return
         if not hasattr(self, "_grid_wdg"):
             self._grid_wdg = GridWidget(parent=self, mmcore=self._mmc)
-            self._grid_wdg.sendPosList.connect(self._add_grid_positions_to_table)
+            self._grid_wdg.valueChanged.connect(self._add_grid_positions_to_table)
         self._grid_wdg.show()
         self._grid_wdg.raise_()
 
-    def _add_grid_positions_to_table(
-        self, position_list: AnyGridPlan, clear: bool
-    ) -> None:
+    def _add_grid_positions_to_table(self, grid: AnyGridPlan, clear: bool) -> None:
 
         grid_number = -1
 
@@ -372,15 +370,14 @@ class PositionTable(QGroupBox):
 
         grid_number = 0 if grid_number < 0 else grid_number + 1
 
+        _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
+        position_list = list(grid.iter_grid_pos(width, height))
+
+        z = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
+
         for idx, position in enumerate(position_list):
             name = f"Grid{grid_number:03d}_Pos{idx:03d}"
-            if len(position) == 3:
-                x, y, z = position
-            else:
-                x, y = position
-                z = None
-
-            self._create_new_row(name, x, y, z)
+            self._create_new_row(name, position.x, position.y, z)
 
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():

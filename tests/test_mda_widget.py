@@ -130,7 +130,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert grid_wdg.info_lbl.text() == "1.024 mm x 1.024 mm"
 
     mock = Mock()
-    grid_wdg.sendPosList.connect(mock)
+    grid_wdg.valueChanged.connect(mock)
 
     grid_wdg.clear_checkbox.setChecked(True)
 
