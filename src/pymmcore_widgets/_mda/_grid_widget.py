@@ -6,6 +6,7 @@ from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
+    QCheckBox,
     QComboBox,
     QDialog,
     QDoubleSpinBox,
@@ -16,7 +17,6 @@ from qtpy.QtWidgets import (
     QLayout,
     QPushButton,
     QSizePolicy,
-    QSpacerItem,
     QSpinBox,
     QTabWidget,
     QVBoxLayout,
@@ -90,7 +90,7 @@ class _CornerSpinbox(QWidget):
 class GridWidget(QDialog):
     """A subwidget to setup the acquisition of a grid of images."""
 
-    sendPosList = Signal(list)
+    sendPosList = Signal(list, bool)
 
     def __init__(
         self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
@@ -279,10 +279,9 @@ class GridWidget(QDialog):
         wdg_layout.setContentsMargins(0, 0, 0, 0)
         wdg.setLayout(wdg_layout)
 
-        spacer = QSpacerItem(
-            5, 5, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        wdg_layout.addSpacerItem(spacer)
+        self.clear_checkbox = QCheckBox(text="Delete Current Position List")
+        self.clear_checkbox.setChecked(False)
+        wdg_layout.addWidget(self.clear_checkbox)
 
         self.generate_position_btn = QPushButton(text="Generate Position List")
         self.generate_position_btn.setSizePolicy(
@@ -343,7 +342,7 @@ class GridWidget(QDialog):
                 order_mode=self.ordermode_combo.currentText(),
             )
 
-        self.sendPosList.emit(grid)
+        self.sendPosList.emit(grid, self.clear_checkbox.isChecked())
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._update_info_label)

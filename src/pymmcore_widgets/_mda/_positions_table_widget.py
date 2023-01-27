@@ -21,6 +21,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import signals_blocked
+from useq import AnyGridPlan  # type: ignore
 
 from ._grid_widget import GridWidget
 
@@ -347,13 +348,13 @@ class PositionTable(QGroupBox):
         if not self._mmc.getXYStageDevice():
             return
         if not hasattr(self, "_grid_wdg"):
-            self._grid_wdg = GridWidget(parent=self)
+            self._grid_wdg = GridWidget(parent=self, mmcore=self._mmc)
             self._grid_wdg.sendPosList.connect(self._add_grid_positions_to_table)
         self._grid_wdg.show()
         self._grid_wdg.raise_()
 
     def _add_grid_positions_to_table(
-        self, position_list: list[tuple[float, ...]], clear: bool
+        self, position_list: AnyGridPlan, clear: bool
     ) -> None:
 
         grid_number = -1
