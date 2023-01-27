@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock, call
 
 from pymmcore_plus import CMMCorePlus
-from useq import MDASequence
+from useq import GridRelative, MDASequence
+from useq._grid import OrderMode, RelativeTo
 
 from pymmcore_widgets._mda import GridWidget, MDAWidget
 
@@ -119,15 +120,15 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     global_mmcore.setProperty("Objective", "Label", "Objective-2")
     assert not global_mmcore.getPixelSizeUm()
     grid_wdg._update_info_label()
-    assert grid_wdg.info_lbl.text() == "_ mm x _ mm"
+    assert grid_wdg.info_lbl.text() == "Width: _ mm    Height: _ mm"
 
     global_mmcore.setProperty("Objective", "Label", "Nikon 10X S Fluor")
 
     # w/o overlap
     grid_wdg.n_rows.setValue(2)
     grid_wdg.n_columns.setValue(2)
-    grid_wdg.ovelap_spinbox.setValue(0)
-    assert grid_wdg.info_lbl.text() == "1.024 mm x 1.024 mm"
+    grid_wdg.overlap_spinbox.setValue(0)
+    assert grid_wdg.info_lbl.text() == "Width: 1.024 mm    Height: 1.024 mm"
 
     mock = Mock()
     grid_wdg.valueChanged.connect(mock)
@@ -139,12 +140,13 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     mock.assert_has_calls(
         [
             call(
-                [
-                    (-256.0, 256.0, 0.0),
-                    (256.0, 256.0, 0.0),
-                    (256.0, -256.0, 0.0),
-                    (-256.0, -256.0, 0.0),
-                ],
+                GridRelative(
+                    overlap=(0.0, 0.0),
+                    order_mode=OrderMode.row_wise,
+                    rows=2,
+                    cols=2,
+                    relative_to=RelativeTo.center,
+                ),
                 True,
             )
         ]
@@ -153,8 +155,8 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     # with overlap
     grid_wdg.n_rows.setValue(3)
     grid_wdg.n_columns.setValue(3)
-    grid_wdg.ovelap_spinbox.setValue(15)
-    assert grid_wdg.info_lbl.text() == "1.306 mm x 1.306 mm"
+    grid_wdg.overlap_spinbox.setValue(15)
+    assert grid_wdg.info_lbl.text() == "Width: 1.306 mm    Height: 1.306 mm"
 
     grid_wdg.clear_checkbox.setChecked(False)
 
@@ -163,17 +165,13 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     mock.assert_has_calls(
         [
             call(
-                [
-                    (-588.8, 588.8, 0.0),
-                    (-153.59999999999997, 588.8, 0.0),
-                    (281.6, 588.8, 0.0),
-                    (281.6, 153.59999999999997, 0.0),
-                    (-153.59999999999997, 153.59999999999997, 0.0),
-                    (-588.8, 153.59999999999997, 0.0),
-                    (-588.8, -281.6, 0.0),
-                    (-153.59999999999997, -281.6, 0.0),
-                    (281.6, -281.6, 0.0),
-                ],
+                GridRelative(
+                    overlap=(15.0, 15.0),
+                    order_mode=OrderMode.row_wise,
+                    rows=3,
+                    cols=3,
+                    relative_to=RelativeTo.center,
+                ),
                 False,
             )
         ]
