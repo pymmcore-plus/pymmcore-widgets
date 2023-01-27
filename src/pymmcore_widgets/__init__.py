@@ -15,6 +15,7 @@ from ._image_widget import ImagePreview
 from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
 from ._mda import (
+    GridWidget,
     MDAWidget,
     PositionTable,
     SampleExplorerWidget,
@@ -38,6 +39,7 @@ __all__ = [
     "DefaultCameraExposureWidget",
     "DeviceWidget",
     "ExposureWidget",
+    "GridWidget",
     "GroupPresetTableWidget",
     "ImagePreview",
     "LiveButton",

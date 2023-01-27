@@ -54,8 +54,8 @@ def test_mda_widget_load_state(qtbot: QtBot):
     assert wdg.position_groupbox._table.rowCount() == 0
     wdg.position_groupbox.grid_button.click()
     qtbot.addWidget(wdg.position_groupbox._grid_wdg)
-    wdg.position_groupbox._grid_wdg.scan_size_spinBox_r.setValue(2)
-    wdg.position_groupbox._grid_wdg.scan_size_spinBox_c.setValue(2)
+    wdg.position_groupbox._grid_wdg.n_rows.setValue(2)
+    wdg.position_groupbox._grid_wdg.n_columns.setValue(2)
     wdg.position_groupbox._grid_wdg.generate_position_btn.click()
     assert wdg.position_groupbox._table.rowCount() == 4
 
@@ -124,9 +124,9 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     global_mmcore.setProperty("Objective", "Label", "Nikon 10X S Fluor")
 
     # w/o overlap
-    grid_wdg.scan_size_spinBox_r.setValue(2)
-    grid_wdg.scan_size_spinBox_c.setValue(2)
-    grid_wdg.ovelap_spinBox.setValue(0)
+    grid_wdg.n_rows.setValue(2)
+    grid_wdg.n_columns.setValue(2)
+    grid_wdg.ovelap_spinbox.setValue(0)
     assert grid_wdg.info_lbl.text() == "1.024 mm x 1.024 mm"
 
     mock = Mock()
@@ -151,9 +151,9 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     )
 
     # with overlap
-    grid_wdg.scan_size_spinBox_r.setValue(3)
-    grid_wdg.scan_size_spinBox_c.setValue(3)
-    grid_wdg.ovelap_spinBox.setValue(15)
+    grid_wdg.n_rows.setValue(3)
+    grid_wdg.n_columns.setValue(3)
+    grid_wdg.ovelap_spinbox.setValue(15)
     assert grid_wdg.info_lbl.text() == "1.306 mm x 1.306 mm"
 
     grid_wdg.clear_checkbox.setChecked(False)

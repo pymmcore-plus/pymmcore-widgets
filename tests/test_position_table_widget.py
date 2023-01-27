@@ -122,7 +122,7 @@ def test_rename_grid_pos_after_delete(global_mmcore: CMMCorePlus, qtbot: QtBot):
     p.setChecked(True)
 
     p.grid_button.click()
-    p._grid_wdg.scan_size_spinBox_r.setValue(2)
+    p._grid_wdg.n_rows.setValue(2)
     p._grid_wdg.clear_checkbox.setChecked(False)
 
     p._grid_wdg.generate_position_btn.click()
