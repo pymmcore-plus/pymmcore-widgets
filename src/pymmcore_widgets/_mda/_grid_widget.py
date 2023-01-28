@@ -354,7 +354,7 @@ class GridWidget(QDialog):
 
     def value(self) -> AnyGridPlan:
         # TODO: update docstring when useq GridPlan will be added to the docs.
-        """Return the current grid settings."""
+        """Return the current GridPlan settings."""
         if self.tab.currentIndex() == 0:  # rows and cols
             return GridRelative(
                 overlap=(
