@@ -160,6 +160,8 @@ class GridWidget(QDialog):
         self.tab.addTab(cr, "Grid from Corners")
 
         layout.addWidget(self.tab)
+
+        self.tab.currentChanged.connect(self._update_info_label)
         return wdg
 
     def _create_row_cols_wdg(self) -> QWidget:
