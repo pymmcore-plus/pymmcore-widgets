@@ -391,8 +391,6 @@ class GridWidget(QDialog):
         ordermode = (
             ordermode.value
             if isinstance(ordermode, OrderMode)
-            else ordermode[0]
-            if isinstance(ordermode, tuple)
             else ordermode or "snake_row_wise"
         )
         self.ordermode_combo.setCurrentText(ordermode)
