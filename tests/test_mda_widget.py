@@ -198,6 +198,21 @@ def test_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
         "corner2": (2.0, 2.0),
     }
 
+    grid_wdg.set_state(
+        {
+            "overlap": (10.0, 0.0),
+            "order_mode": "snake_row_wise",
+            "corner1": (10.0, 5.0),
+            "corner2": (20.0, 20.0),
+        }
+    )
+    assert grid_wdg.value() == {
+        "overlap": (10.0, 0.0),
+        "order_mode": "snake_row_wise",
+        "corner1": (10.0, 5.0),
+        "corner2": (20.0, 20.0),
+    }
+
 
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     global_mmcore.setExposure(100)

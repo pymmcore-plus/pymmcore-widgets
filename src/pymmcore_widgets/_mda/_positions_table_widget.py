@@ -27,7 +27,7 @@ from useq._grid import Coordinate, OrderMode, RelativeTo
 from ._grid_widget import GridWidget
 
 if TYPE_CHECKING:
-    from typing_extensions import TypedDict
+    from typing_extensions import Required, TypedDict
 
     class PositionDict(TypedDict, total=False):
         """Position dictionary."""
@@ -40,8 +40,8 @@ if TYPE_CHECKING:
     class GridDict(TypedDict, total=False):
         """Grid dictionary."""
 
-        overlap: float | tuple[float, float]
-        order_mode: OrderMode | str
+        overlap: Required[float | tuple[float, float]]
+        order_mode: Required[OrderMode | str]
         rows: int
         cols: int
         relative_to: RelativeTo | str

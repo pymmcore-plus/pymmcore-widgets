@@ -27,13 +27,13 @@ from useq import AnyGridPlan  # type: ignore
 from useq._grid import Coordinate, OrderMode, RelativeTo
 
 if TYPE_CHECKING:
-    from typing_extensions import TypedDict
+    from typing_extensions import Required, TypedDict
 
     class GridDict(TypedDict, total=False):
         """Grid dictionary."""
 
-        overlap: float | tuple[float, float]
-        order_mode: OrderMode | str
+        overlap: Required[float | tuple[float, float]]
+        order_mode: Required[OrderMode | str]
         rows: int
         cols: int
         relative_to: RelativeTo | str
@@ -382,19 +382,13 @@ class GridWidget(QDialog):
         if isinstance(grid, AnyGridPlan):
             grid = grid.dict()
 
-        overlap = grid.get("overlap")
-        over_x, over_y = (
-            overlap if isinstance(overlap, tuple) else (overlap, overlap) or (0.0, 0.0)
-        )
+        overlap = grid["overlap"]
+        over_x, over_y = overlap if isinstance(overlap, tuple) else (overlap, overlap)
         self.overlap_spinbox_x.setValue(over_x)
         self.overlap_spinbox_y.setValue(over_y)
 
-        ordermode = grid.get("order_mode")
-        ordermode = (
-            ordermode.value
-            if isinstance(ordermode, OrderMode)
-            else ordermode or "snake_row_wise"
-        )
+        ordermode = grid["order_mode"]
+        ordermode = ordermode.value if isinstance(ordermode, OrderMode) else ordermode
         self.ordermode_combo.setCurrentText(ordermode)
 
         try:
