@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock, call
 
 from pymmcore_plus import CMMCorePlus
-from useq import GridRelative, MDASequence
+from useq import GridFromCorners, GridRelative, MDASequence
 from useq._grid import OrderMode, RelativeTo
 
 from pymmcore_widgets._mda import GridWidget, MDAWidget
@@ -125,9 +125,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     global_mmcore.setProperty("Objective", "Label", "Nikon 10X S Fluor")
 
     # w/o overlap
-    grid_wdg.n_rows.setValue(2)
-    grid_wdg.n_columns.setValue(2)
-    grid_wdg.overlap_spinbox.setValue(0)
+    grid_wdg.set_state(GridRelative(rows=2, cols=2))
     assert grid_wdg.info_lbl.text() == "Width: 1.024 mm    Height: 1.024 mm"
 
     mock = Mock()
@@ -142,7 +140,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
             call(
                 GridRelative(
                     overlap=(0.0, 0.0),
-                    order_mode=OrderMode.row_wise,
+                    order_mode=OrderMode.snake_row_wise,
                     rows=2,
                     cols=2,
                     relative_to=RelativeTo.center,
@@ -153,9 +151,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     )
 
     # with overlap
-    grid_wdg.n_rows.setValue(3)
-    grid_wdg.n_columns.setValue(3)
-    grid_wdg.overlap_spinbox.setValue(15)
+    grid_wdg.set_state(GridRelative(rows=3, cols=3, overlap=15.0))
     assert grid_wdg.info_lbl.text() == "Width: 1.306 mm    Height: 1.306 mm"
 
     grid_wdg.clear_checkbox.setChecked(False)
@@ -167,7 +163,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
             call(
                 GridRelative(
                     overlap=(15.0, 15.0),
-                    order_mode=OrderMode.row_wise,
+                    order_mode=OrderMode.snake_row_wise,
                     rows=3,
                     cols=3,
                     relative_to=RelativeTo.center,
@@ -175,6 +171,25 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
                 False,
             )
         ]
+    )
+
+
+def test_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    grid_wdg = GridWidget()
+    qtbot.addWidget(grid_wdg)
+
+    grid_wdg.set_state(
+        GridRelative(rows=3, cols=3, overlap=15.0, relative_to="top_left")
+    )
+    assert grid_wdg.value() == GridRelative(
+        rows=3, cols=3, overlap=15.0, relative_to="top_left"
+    )
+
+    grid_wdg.set_state(
+        GridFromCorners(corner1=(0, 0), corner2=(2, 2), order_mode="spiral")
+    )
+    assert grid_wdg.value() == GridFromCorners(
+        corner1=(0, 0), corner2=(2, 2), order_mode="spiral"
     )
 
 
