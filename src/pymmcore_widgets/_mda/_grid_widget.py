@@ -414,10 +414,14 @@ class GridWidget(QDialog):
     def _set_corner_wdg(
         self, corner1: dict | list | tuple, corner2: dict | list | tuple
     ) -> None:
-        corner1_x = corner1.get("x") if isinstance(corner1, dict) else corner1[0]
-        corner1_y = corner1.get("y") if isinstance(corner1, dict) else corner1[1]
-        corner2_x = corner2.get("x") if isinstance(corner2, dict) else corner2[0]
-        corner2_y = corner2.get("y") if isinstance(corner2, dict) else corner2[1]
+        corner1_x, corner1_y = (
+            corner1.get("x") if isinstance(corner1, dict) else corner1[0],
+            corner1.get("y") if isinstance(corner1, dict) else corner1[1],
+        )
+        corner2_x, corner2_y = (
+            corner2.get("x") if isinstance(corner2, dict) else corner2[0],
+            corner2.get("y") if isinstance(corner2, dict) else corner2[1],
+        )
         self.corner1.set_values(corner1_x, corner1_y)
         self.corner2.set_values(corner2_x, corner2_y)
 
