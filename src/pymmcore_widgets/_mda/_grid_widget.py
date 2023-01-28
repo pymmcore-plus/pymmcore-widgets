@@ -347,10 +347,10 @@ class GridWidget(QDialog):
             rows = math.ceil(total_width / width) if total_width > width else 1
             cols = math.ceil(total_height / height) if total_height > height else 1
 
-        y = ((height - overlap_y) * rows) * px_size / 1000
         x = ((width - overlap_x) * cols) * px_size / 1000
+        y = ((height - overlap_y) * rows) * px_size / 1000
 
-        self.info_lbl.setText(f"Width: {round(y, 3)} mm    Height: {round(x, 3)} mm")
+        self.info_lbl.setText(f"Width: {round(x, 3)} mm    Height: {round(y, 3)} mm")
 
     def value(self) -> GridDict:
         # TODO: update docstring when useq GridPlan will be added to the docs.

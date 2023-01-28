@@ -5,7 +5,6 @@ from unittest.mock import Mock, call
 
 from pymmcore_plus import CMMCorePlus
 from useq import GridFromCorners, GridRelative, MDASequence
-from useq._grid import OrderMode, RelativeTo
 
 from pymmcore_widgets._mda import GridWidget, MDAWidget
 
@@ -138,21 +137,21 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     mock.assert_has_calls(
         [
             call(
-                GridRelative(
-                    overlap=(0.0, 0.0),
-                    order_mode=OrderMode.snake_row_wise,
-                    rows=2,
-                    cols=2,
-                    relative_to=RelativeTo.center,
-                ),
+                {
+                    "overlap": (0.0, 0.0),
+                    "order_mode": "snake_row_wise",
+                    "rows": 2,
+                    "cols": 2,
+                    "relative_to": "center",
+                },
                 True,
             )
         ]
     )
 
     # with overlap
-    grid_wdg.set_state(GridRelative(rows=3, cols=3, overlap=15.0))
-    assert grid_wdg.info_lbl.text() == "Width: 1.306 mm    Height: 1.306 mm"
+    grid_wdg.set_state(GridRelative(rows=3, cols=3, overlap=(15.0, 10.0)))
+    assert grid_wdg.info_lbl.text() == "Width: 1.306 mm    Height: 1.382 mm"
 
     grid_wdg.clear_checkbox.setChecked(False)
 
@@ -161,13 +160,13 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     mock.assert_has_calls(
         [
             call(
-                GridRelative(
-                    overlap=(15.0, 15.0),
-                    order_mode=OrderMode.snake_row_wise,
-                    rows=3,
-                    cols=3,
-                    relative_to=RelativeTo.center,
-                ),
+                {
+                    "overlap": (15.0, 10.0),
+                    "order_mode": "snake_row_wise",
+                    "rows": 3,
+                    "cols": 3,
+                    "relative_to": "center",
+                },
                 False,
             )
         ]
@@ -181,16 +180,23 @@ def test_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     grid_wdg.set_state(
         GridRelative(rows=3, cols=3, overlap=15.0, relative_to="top_left")
     )
-    assert grid_wdg.value() == GridRelative(
-        rows=3, cols=3, overlap=15.0, relative_to="top_left"
-    )
+    assert grid_wdg.value() == {
+        "overlap": (15.0, 15.0),
+        "order_mode": "snake_row_wise",
+        "rows": 3,
+        "cols": 3,
+        "relative_to": "top_left",
+    }
 
     grid_wdg.set_state(
         GridFromCorners(corner1=(0, 0), corner2=(2, 2), order_mode="spiral")
     )
-    assert grid_wdg.value() == GridFromCorners(
-        corner1=(0, 0), corner2=(2, 2), order_mode="spiral"
-    )
+    assert grid_wdg.value() == {
+        "overlap": (0.0, 0.0),
+        "order_mode": "spiral",
+        "corner1": (0.0, 0.0),
+        "corner2": (2.0, 2.0),
+    }
 
 
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
