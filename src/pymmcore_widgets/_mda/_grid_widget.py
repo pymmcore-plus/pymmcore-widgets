@@ -29,7 +29,7 @@ from useq._grid import Coordinate, OrderMode, RelativeTo
 if TYPE_CHECKING:
     from typing_extensions import TypedDict
 
-    class PGridDict(TypedDict, total=False):
+    class GridDict(TypedDict, total=False):
         """Grid dictionary."""
 
         overlap: float
@@ -361,23 +361,25 @@ class GridWidget(QDialog):
                 order_mode=self.ordermode_combo.currentText(),
             )
 
-    def set_state(self, grid: AnyGridPlan | dict) -> None:
+    def set_state(self, grid: AnyGridPlan | GridDict) -> None:
         """Set the state of the widget from a useq AnyGridPlan or dictionary."""
         if isinstance(grid, dict):
-            self.overlap_spinbox.setValue(grid["overlap"][0])
+            self.overlap_spinbox.setValue(grid["overlap"])
+            ordermode = grid.get("order_mode")
             ordermode = (
-                grid["order_mode"].value
-                if isinstance(grid.get("order_mode"), OrderMode)
-                else grid["order_mode"]
+                ordermode.value
+                if isinstance(ordermode, OrderMode)
+                else ordermode or "snake_row_wise"
             )
             self.ordermode_combo.setCurrentText(ordermode)
             try:
                 self.n_rows.setValue(grid.get("rows"))
                 self.n_columns.setValue(grid.get("cols"))
+                relative = grid.get("relative_to")
                 relative = (
-                    grid["relative_to"].value
-                    if isinstance(grid.get("relative_to"), RelativeTo)
-                    else grid["relative_to"]
+                    relative.value
+                    if isinstance(relative, RelativeTo)
+                    else relative or "center"
                 )
                 self.relative_combo.setCurrentText(relative)
                 self.tab.setCurrentIndex(0)
