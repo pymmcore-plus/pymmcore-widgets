@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     class GridDict(TypedDict, total=False):
         """Grid dictionary."""
 
-        overlap: float
+        overlap: float | tuple[float, float]
         order_mode: OrderMode | str
         rows: int
         cols: int
@@ -363,46 +363,40 @@ class GridWidget(QDialog):
 
     def set_state(self, grid: AnyGridPlan | GridDict) -> None:
         """Set the state of the widget from a useq AnyGridPlan or dictionary."""
-        if isinstance(grid, dict):
-            self.overlap_spinbox.setValue(grid["overlap"])
-            ordermode = grid.get("order_mode")
-            ordermode = (
-                ordermode.value
-                if isinstance(ordermode, OrderMode)
-                else ordermode or "snake_row_wise"
-            )
-            self.ordermode_combo.setCurrentText(ordermode)
-            try:
-                self.n_rows.setValue(grid.get("rows"))
-                self.n_columns.setValue(grid.get("cols"))
-                relative = grid.get("relative_to")
-                relative = (
-                    relative.value
-                    if isinstance(relative, RelativeTo)
-                    else relative or "center"
-                )
-                self.relative_combo.setCurrentText(relative)
-                self.tab.setCurrentIndex(0)
-            except TypeError:
-                self._set_corners(grid["corner1"], grid["corner2"])
-                self.tab.setCurrentIndex(1)
+        if isinstance(grid, AnyGridPlan):
+            grid = grid.dict()
 
-        elif isinstance(grid, AnyGridPlan):
-            self.overlap_spinbox.value(AnyGridPlan.overlap)
-            self.ordermode_combo.setCurrentText(AnyGridPlan.order_mode.value)
-            if isinstance(grid, GridRelative):
-                self.n_rows.setValue(GridRelative.rows)
-                self.n_columns.setValue(GridRelative.cols)
-                self.relative_combo.setCurrentText(GridRelative.relative_to.value)
-            elif isinstance(grid, GridFromCorners):
-                self.corner1.set_values(
-                    GridFromCorners.corner1.x, GridFromCorners.corner1.y
-                )
-                self.corner2.set_values(
-                    GridFromCorners.corner2.x, GridFromCorners.corner2.y
-                )
+        overlap = grid.get("overlap")
+        overlap = overlap[0] if isinstance(overlap, tuple) else overlap or 0.0
+        self.overlap_spinbox.setValue(overlap)
 
-    def _set_corners(
+        ordermode = grid.get("order_mode")
+        ordermode = (
+            ordermode.value
+            if isinstance(ordermode, OrderMode)
+            else ordermode[0]
+            if isinstance(ordermode, tuple)
+            else ordermode or "snake_row_wise"
+        )
+        self.ordermode_combo.setCurrentText(ordermode)
+
+        try:
+            self._set_relative_wdg(grid)
+            self.tab.setCurrentIndex(0)
+        except TypeError:
+            self._set_corner_wdg(grid["corner1"], grid["corner2"])
+            self.tab.setCurrentIndex(1)
+
+    def _set_relative_wdg(self, grid: GridDict) -> None:
+        self.n_rows.setValue(grid.get("rows"))
+        self.n_columns.setValue(grid.get("cols"))
+        relative = grid.get("relative_to")
+        relative = (
+            relative.value if isinstance(relative, RelativeTo) else relative or "center"
+        )
+        self.relative_combo.setCurrentText(relative)
+
+    def _set_corner_wdg(
         self, corner1: dict | list | tuple, corner2: dict | list | tuple
     ) -> None:
         corner1_x = corner1.get("x") if isinstance(corner1, dict) else corner1[0]
