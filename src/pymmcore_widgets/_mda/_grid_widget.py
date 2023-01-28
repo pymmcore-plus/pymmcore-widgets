@@ -232,45 +232,52 @@ class GridWidget(QDialog):
 
         return group
 
+    def _general_wdg_with_label(self, label_text: str) -> QWidget:
+        wdg = QWidget()
+        layout = QHBoxLayout()
+        layout.setSpacing(10)
+        layout.setContentsMargins(0, 0, 0, 0)
+        wdg.setLayout(layout)
+        label = QLabel(text=label_text)
+        label.setSizePolicy(fixed_sizepolicy)
+        layout.addWidget(label)
+        return wdg
+
+    def _create_overlap_spinbox(self) -> QDoubleSpinBox:
+        spin = QDoubleSpinBox()
+        spin.setMinimumWidth(100)
+        spin.setMaximum(100)
+        spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        spin.valueChanged.connect(self._update_info_label)
+        return spin
+
     def _create_overlap_and_ordermode(self) -> QGroupBox:
         group = QGroupBox()
         group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        group_layout = QHBoxLayout()
+        group_layout = QGridLayout()
         group_layout.setSpacing(15)
         group_layout.setContentsMargins(10, 10, 10, 10)
         group.setLayout(group_layout)
 
-        # overlap
-        ovl_wdg = QWidget()
-        ovl_wdg_lay = QHBoxLayout()
-        ovl_wdg_lay.setSpacing(10)
-        ovl_wdg_lay.setContentsMargins(0, 0, 0, 0)
-        ovl_wdg.setLayout(ovl_wdg_lay)
-        overlap_label = QLabel(text="Overlap (%):")
-        overlap_label.setSizePolicy(fixed_sizepolicy)
-        self.overlap_spinbox = QDoubleSpinBox()
-        self.overlap_spinbox.setMinimumWidth(100)
-        self.overlap_spinbox.setMaximum(100)
-        self.overlap_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.overlap_spinbox.valueChanged.connect(self._update_info_label)
-        ovl_wdg_lay.addWidget(overlap_label)
-        ovl_wdg_lay.addWidget(self.overlap_spinbox)
-        group_layout.addWidget(ovl_wdg)
+        # overlap x
+        wdg_x = self._general_wdg_with_label("Overlap x (%):")
+        self.overlap_spinbox_x = self._create_overlap_spinbox()
+        wdg_x.layout().addWidget(self.overlap_spinbox_x)
+        group_layout.addWidget(wdg_x, 0, 0)
+
+        # overlap y
+        wdg_y = self._general_wdg_with_label("Overlap y (%):")
+        self.overlap_spinbox_y = self._create_overlap_spinbox()
+        wdg_y.layout().addWidget(self.overlap_spinbox_y)
+        group_layout.addWidget(wdg_y, 1, 0)
 
         # order mode
-        mode_wdg = QWidget()
-        mode_wdg_lay = QHBoxLayout()
-        mode_wdg_lay.setSpacing(10)
-        mode_wdg_lay.setContentsMargins(0, 0, 0, 0)
-        mode_wdg.setLayout(mode_wdg_lay)
-        mode_label = QLabel(text="Order mode:")
-        mode_label.setSizePolicy(fixed_sizepolicy)
+        wdg_mode = self._general_wdg_with_label("Order mode:")
         self.ordermode_combo = QComboBox()
         self.ordermode_combo.addItems([mode.value for mode in OrderMode])
         self.ordermode_combo.setCurrentText("Snake RowWise")
-        mode_wdg_lay.addWidget(mode_label)
-        mode_wdg_lay.addWidget(self.ordermode_combo)
-        group_layout.addWidget(mode_wdg)
+        wdg_mode.layout().addWidget(self.ordermode_combo)
+        group_layout.addWidget(wdg_mode, 0, 1)
 
         return group
 
@@ -320,9 +327,10 @@ class GridWidget(QDialog):
 
         px_size = self._mmc.getPixelSizeUm()
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
-        overlap_percentage = self.overlap_spinbox.value()
-        overlap_x = width * overlap_percentage / 100
-        overlap_y = height * overlap_percentage / 100
+        overlap_percentage_x = self.overlap_spinbox_x.value()
+        overlap_percentage_y = self.overlap_spinbox_y.value()
+        overlap_x = width * overlap_percentage_x / 100
+        overlap_y = height * overlap_percentage_y / 100
 
         if self.tab.currentIndex() == 0:  # rows and cols
             rows = self.n_rows.value()
@@ -347,7 +355,10 @@ class GridWidget(QDialog):
         """Return the current grid settings."""
         if self.tab.currentIndex() == 0:  # rows and cols
             return GridRelative(
-                overlap=self.overlap_spinbox.value(),
+                overlap=(
+                    self.overlap_spinbox_x.value(),
+                    self.overlap_spinbox_y.value(),
+                ),
                 rows=self.n_rows.value(),
                 cols=self.n_columns.value(),
                 relative_to=self.relative_combo.currentText(),
@@ -355,7 +366,10 @@ class GridWidget(QDialog):
             )
         else:  # corners
             return GridFromCorners(
-                overlap=(self.overlap_spinbox.value()),
+                overlap=(
+                    self.overlap_spinbox_x.value(),
+                    self.overlap_spinbox_y.value(),
+                ),
                 corner1=(self.corner1.values()),
                 corner2=self.corner2.values(),
                 order_mode=self.ordermode_combo.currentText(),
@@ -367,8 +381,11 @@ class GridWidget(QDialog):
             grid = grid.dict()
 
         overlap = grid.get("overlap")
-        overlap = overlap[0] if isinstance(overlap, tuple) else overlap or 0.0
-        self.overlap_spinbox.setValue(overlap)
+        over_x, over_y = (
+            overlap if isinstance(overlap, tuple) else (overlap, overlap) or (0.0, 0.0)
+        )
+        self.overlap_spinbox_x.setValue(over_x)
+        self.overlap_spinbox_y.setValue(over_y)
 
         ordermode = grid.get("order_mode")
         ordermode = (
