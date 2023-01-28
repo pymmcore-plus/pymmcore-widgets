@@ -23,7 +23,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import AnyGridPlan, GridFromCorners, GridRelative  # type: ignore
+from useq import AnyGridPlan  # type: ignore
 from useq._grid import Coordinate, OrderMode, RelativeTo
 
 if TYPE_CHECKING:
@@ -352,7 +352,7 @@ class GridWidget(QDialog):
 
         self.info_lbl.setText(f"Width: {round(y, 3)} mm    Height: {round(x, 3)} mm")
 
-    def value(self) -> AnyGridPlan:
+    def value(self) -> GridDict:
         # TODO: update docstring when useq GridPlan will be added to the docs.
         """Return the current GridPlan settings."""
         overlap = (
@@ -362,20 +362,20 @@ class GridWidget(QDialog):
         order_mode = self.ordermode_combo.currentText()
 
         if self.tab.currentIndex() == 0:  # rows and cols
-            return GridRelative(
-                overlap=overlap,
-                order_mode=order_mode,
-                rows=self.n_rows.value(),
-                cols=self.n_columns.value(),
-                relative_to=self.relative_combo.currentText(),
-            )
+            return {
+                "overlap": overlap,
+                "order_mode": order_mode,
+                "rows": self.n_rows.value(),
+                "cols": self.n_columns.value(),
+                "relative_to": self.relative_combo.currentText(),
+            }
         else:  # corners
-            return GridFromCorners(
-                overlap=overlap,
-                order_mode=order_mode,
-                corner1=(self.corner1.values()),
-                corner2=self.corner2.values(),
-            )
+            return {
+                "overlap": overlap,
+                "order_mode": order_mode,
+                "corner1": (self.corner1.values()),
+                "corner2": self.corner2.values(),
+            }
 
     def set_state(self, grid: AnyGridPlan | GridDict) -> None:
         """Set the state of the widget from a useq AnyGridPlan or dictionary."""

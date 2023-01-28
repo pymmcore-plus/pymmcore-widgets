@@ -21,7 +21,8 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import signals_blocked
-from useq import AnyGridPlan  # type: ignore
+from useq import GridFromCorners, GridRelative  # type: ignore
+from useq._grid import Coordinate, OrderMode, RelativeTo
 
 from ._grid_widget import GridWidget
 
@@ -35,6 +36,17 @@ if TYPE_CHECKING:
         y: float | None
         z: float | None
         name: str | None
+
+    class GridDict(TypedDict, total=False):
+        """Grid dictionary."""
+
+        overlap: float | tuple[float, float]
+        order_mode: OrderMode | str
+        rows: int
+        cols: int
+        relative_to: RelativeTo | str
+        corner1: Coordinate
+        corner2: Coordinate
 
 
 AlignCenter = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
@@ -353,31 +365,34 @@ class PositionTable(QGroupBox):
         self._grid_wdg.show()
         self._grid_wdg.raise_()
 
-    def _add_grid_positions_to_table(self, grid: AnyGridPlan, clear: bool) -> None:
-
-        grid_number = -1
+    def _add_grid_positions_to_table(self, grid: GridDict, clear: bool) -> None:
+        _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
+        try:
+            position_list = list(GridRelative(**grid).iter_grid_pos(width, height))
+        except ValueError:
+            position_list = list(GridFromCorners(**grid).iter_grid_pos(width, height))
 
         if clear:
             self._clear_positions()
+            grid_number = 0
         else:
-            for r in range(self._table.rowCount()):
-                pos_name = self._table.item(r, 0).data(self.POS_ROLE)
-                grid_name = pos_name.split("_")[0]  # e.g. Grid000
-                if "Grid" in grid_name:
-                    grid_n = grid_name[-3:]
-                    if int(grid_n) > grid_number:
-                        grid_number = int(grid_n)
-
-        grid_number = 0 if grid_number < 0 else grid_number + 1
-
-        _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
-        position_list = list(grid.iter_grid_pos(width, height))
+            grid_number = self._get_grid_number()
 
         z = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
-
         for idx, position in enumerate(position_list):
             name = f"Grid{grid_number:03d}_Pos{idx:03d}"
             self._create_new_row(name, position.x, position.y, z)
+
+    def _get_grid_number(self) -> int:
+        grid_number = -1
+        for r in range(self._table.rowCount()):
+            pos_name = self._table.item(r, 0).data(self.POS_ROLE)
+            grid_name = pos_name.split("_")[0]  # e.g. Grid000
+            if "Grid" in grid_name:
+                grid_n = grid_name[-3:]
+                if int(grid_n) > grid_number:
+                    grid_number = int(grid_n)
+        return 0 if grid_number < 0 else grid_number + 1
 
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():
