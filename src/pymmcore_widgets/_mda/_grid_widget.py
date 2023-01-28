@@ -434,14 +434,3 @@ class GridWidget(QDialog):
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._update_info_label)
-
-
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
-
-    CMMCorePlus.instance().loadSystemConfiguration()
-    app = QApplication([])
-    table = GridWidget()
-    table.show()
-
-    app.exec_()
