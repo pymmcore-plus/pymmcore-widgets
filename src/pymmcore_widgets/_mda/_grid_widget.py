@@ -317,7 +317,7 @@ class GridWidget(QDialog):
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
         self.generate_position_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.generate_position_btn.clicked.connect(self._send_positions_grid)
+        self.generate_position_btn.clicked.connect(self._emit_grid_positions)
         wdg_layout.addWidget(self.generate_position_btn)
 
         return wdg
@@ -427,7 +427,7 @@ class GridWidget(QDialog):
         self.corner1.set_values(corner1_x, corner1_y)
         self.corner2.set_values(corner2_x, corner2_y)
 
-    def _send_positions_grid(self) -> AnyGridPlan:
+    def _emit_grid_positions(self) -> AnyGridPlan:
         if self._mmc.getPixelSizeUm() <= 0:
             raise ValueError("Pixel Size Not Set.")
         self.valueChanged.emit(self.value(), self.clear_checkbox.isChecked())

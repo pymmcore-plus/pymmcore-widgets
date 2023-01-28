@@ -133,7 +133,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     grid_wdg.clear_checkbox.setChecked(True)
 
-    grid_wdg._send_positions_grid()
+    grid_wdg._emit_grid_positions()
 
     mock.assert_has_calls(
         [
@@ -156,7 +156,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     grid_wdg.clear_checkbox.setChecked(False)
 
-    grid_wdg._send_positions_grid()
+    grid_wdg._emit_grid_positions()
 
     mock.assert_has_calls(
         [
