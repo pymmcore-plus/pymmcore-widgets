@@ -275,7 +275,7 @@ class GridWidget(QDialog):
         wdg_mode = self._general_wdg_with_label("Order mode:")
         self.ordermode_combo = QComboBox()
         self.ordermode_combo.addItems([mode.value for mode in OrderMode])
-        self.ordermode_combo.setCurrentText("Snake RowWise")
+        self.ordermode_combo.setCurrentText("snake_row_wise")
         wdg_mode.layout().addWidget(self.ordermode_combo)
         group_layout.addWidget(wdg_mode, 0, 1)
 
