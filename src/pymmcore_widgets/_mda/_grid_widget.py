@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
@@ -23,7 +24,22 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from useq import AnyGridPlan, GridFromCorners, GridRelative  # type: ignore
-from useq._grid import OrderMode, RelativeTo
+from useq._grid import Coordinate, OrderMode, RelativeTo
+
+if TYPE_CHECKING:
+    from typing_extensions import TypedDict
+
+    class PGridDict(TypedDict, total=False):
+        """Grid dictionary."""
+
+        overlap: float
+        order_mode: OrderMode | str
+        rows: int
+        cols: int
+        relative_to: RelativeTo | str
+        corner1: Coordinate
+        corner2: Coordinate
+
 
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
@@ -82,6 +98,10 @@ class _CornerSpinbox(QWidget):
             return
         self.x_spinbox.setValue(self._mmc.getXPosition())
         self.y_spinbox.setValue(self._mmc.getYPosition())
+
+    def set_values(self, x: float, y: float) -> None:
+        self.x_spinbox.setValue(x)
+        self.y_spinbox.setValue(y)
 
     def values(self) -> tuple[float, float]:
         return self.x_spinbox.value(), self.y_spinbox.value()
@@ -322,12 +342,11 @@ class GridWidget(QDialog):
 
         self.info_lbl.setText(f"Width: {round(y, 3)} mm    Height: {round(x, 3)} mm")
 
-    def _send_positions_grid(self) -> AnyGridPlan:
-        if self._mmc.getPixelSizeUm() <= 0:
-            raise ValueError("Pixel Size Not Set.")
-
+    def value(self) -> AnyGridPlan:
+        # TODO: update docstring when useq GridPlan will be added to the docs.
+        """Return the current grid settings."""
         if self.tab.currentIndex() == 0:  # rows and cols
-            grid = GridRelative(
+            return GridRelative(
                 overlap=self.overlap_spinbox.value(),
                 rows=self.n_rows.value(),
                 cols=self.n_columns.value(),
@@ -335,14 +354,66 @@ class GridWidget(QDialog):
                 order_mode=self.ordermode_combo.currentText(),
             )
         else:  # corners
-            grid = GridFromCorners(
+            return GridFromCorners(
                 overlap=(self.overlap_spinbox.value()),
                 corner1=(self.corner1.values()),
                 corner2=self.corner2.values(),
                 order_mode=self.ordermode_combo.currentText(),
             )
 
-        self.valueChanged.emit(grid, self.clear_checkbox.isChecked())
+    def set_state(self, grid: AnyGridPlan | dict) -> None:
+        """Set the state of the widget from a useq AnyGridPlan or dictionary."""
+        if isinstance(grid, dict):
+            self.overlap_spinbox.setValue(grid["overlap"][0])
+            ordermode = (
+                grid["order_mode"].value
+                if isinstance(grid.get("order_mode"), OrderMode)
+                else grid["order_mode"]
+            )
+            self.ordermode_combo.setCurrentText(ordermode)
+            try:
+                self.n_rows.setValue(grid.get("rows"))
+                self.n_columns.setValue(grid.get("cols"))
+                relative = (
+                    grid["relative_to"].value
+                    if isinstance(grid.get("relative_to"), RelativeTo)
+                    else grid["relative_to"]
+                )
+                self.relative_combo.setCurrentText(relative)
+                self.tab.setCurrentIndex(0)
+            except TypeError:
+                self._set_corners(grid["corner1"], grid["corner2"])
+                self.tab.setCurrentIndex(1)
+
+        elif isinstance(grid, AnyGridPlan):
+            self.overlap_spinbox.value(AnyGridPlan.overlap)
+            self.ordermode_combo.setCurrentText(AnyGridPlan.order_mode.value)
+            if isinstance(grid, GridRelative):
+                self.n_rows.setValue(GridRelative.rows)
+                self.n_columns.setValue(GridRelative.cols)
+                self.relative_combo.setCurrentText(GridRelative.relative_to.value)
+            elif isinstance(grid, GridFromCorners):
+                self.corner1.set_values(
+                    GridFromCorners.corner1.x, GridFromCorners.corner1.y
+                )
+                self.corner2.set_values(
+                    GridFromCorners.corner2.x, GridFromCorners.corner2.y
+                )
+
+    def _set_corners(
+        self, corner1: dict | list | tuple, corner2: dict | list | tuple
+    ) -> None:
+        corner1_x = corner1.get("x") if isinstance(corner1, dict) else corner1[0]
+        corner1_y = corner1.get("y") if isinstance(corner1, dict) else corner1[1]
+        corner2_x = corner2.get("x") if isinstance(corner2, dict) else corner2[0]
+        corner2_y = corner2.get("y") if isinstance(corner2, dict) else corner2[1]
+        self.corner1.set_values(corner1_x, corner1_y)
+        self.corner2.set_values(corner2_x, corner2_y)
+
+    def _send_positions_grid(self) -> AnyGridPlan:
+        if self._mmc.getPixelSizeUm() <= 0:
+            raise ValueError("Pixel Size Not Set.")
+        self.valueChanged.emit(self.value(), self.clear_checkbox.isChecked())
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._update_info_label)
