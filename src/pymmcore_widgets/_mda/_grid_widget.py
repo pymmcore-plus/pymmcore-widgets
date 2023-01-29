@@ -355,27 +355,22 @@ class GridWidget(QDialog):
     def value(self) -> GridDict:
         # TODO: update docstring when useq GridPlan will be added to the docs.
         """Return the current GridPlan settings."""
-        overlap = (
-            self.overlap_spinbox_x.value(),
-            self.overlap_spinbox_y.value(),
-        )
-        order_mode = self.ordermode_combo.currentText()
-
+        value: GridDict = {
+            "overlap": (
+                self.overlap_spinbox_x.value(),
+                self.overlap_spinbox_y.value(),
+            ),
+            "order_mode": self.ordermode_combo.currentText(),
+        }
         if self.tab.currentIndex() == 0:  # rows and cols
-            return {
-                "overlap": overlap,
-                "order_mode": order_mode,
-                "rows": self.n_rows.value(),
-                "cols": self.n_columns.value(),
-                "relative_to": self.relative_combo.currentText(),
-            }
+            value["rows"] = self.n_rows.value()
+            value["cols"] = self.n_columns.value()
+            value["relative_to"] = self.relative_combo.currentText()
         else:  # corners
-            return {
-                "overlap": overlap,
-                "order_mode": order_mode,
-                "corner1": (self.corner1.values()),
-                "corner2": self.corner2.values(),
-            }
+            value["corner1"] = self.corner1.values()
+            value["corner2"] = self.corner2.values()
+
+        return value
 
     def set_state(self, grid: AnyGridPlan | GridDict) -> None:
         """Set the state of the widget from a useq AnyGridPlan or dictionary."""
