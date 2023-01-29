@@ -215,9 +215,12 @@ class MDAWidget(QWidget):
         else:
             self.time_groupbox.setChecked(False)
 
-        # set stage positions
-        if state.stage_positions:
-            self.position_groupbox.set_state([p.dict() for p in state.stage_positions])
+        # set stage positions and GridPlan
+        if state.stage_positions or state.grid_plan:  # type: ignore
+            self.position_groupbox.setChecked(True)
+            pos = list(state.stage_positions)
+            pos.append(state.grid_plan)  # type: ignore
+            self.position_groupbox.set_state(pos)
         else:
             self.position_groupbox.setChecked(False)
 
