@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import warnings
-from itertools import groupby
-from typing import TYPE_CHECKING, cast
+import contextlib
+from typing import TYPE_CHECKING, Sequence, cast
 
+from pydantic import ValidationError
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -20,9 +20,14 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.utils import signals_blocked
-from useq import GridFromCorners, GridRelative  # type: ignore
-from useq._grid import Coordinate, OrderMode, RelativeTo
+from useq import (  # type: ignore
+    AnyGridPlan,
+    GridFromCorners,
+    GridRelative,
+    NoGrid,
+    Position,
+)
+from useq._grid import Coordinate, GridPosition, OrderMode, RelativeTo
 
 from ._grid_widget import GridWidget
 
@@ -49,6 +54,8 @@ if TYPE_CHECKING:
         corner2: Coordinate
 
 
+GRID = "Grid"
+POS = "Pos"
 AlignCenter = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
 
 
@@ -61,7 +68,8 @@ class PositionTable(QGroupBox):
     """
 
     valueChanged = Signal()
-    POS_ROLE = QTableWidgetItem.ItemType.UserType + 1
+    GRID_ROLE = QTableWidgetItem.ItemType.UserType + 1
+    # POS_ROLE = QTableWidgetItem.ItemType.UserType + 1
 
     def __init__(
         self,
@@ -143,9 +151,8 @@ class PositionTable(QGroupBox):
         self._table.selectionModel().selectionChanged.connect(
             self._enable_remove_button
         )
-        self._table.selectionModel().selectionChanged.connect(
-            self._select_all_grid_positions
-        )
+
+        self._table.itemChanged.connect(self._rename_positions)
 
         self._mmc.events.systemConfigurationLoaded.connect(self._clear_positions)
 
@@ -159,33 +166,6 @@ class PositionTable(QGroupBox):
         rows = {r.row() for r in self._table.selectedIndexes()}
         self.remove_button.setEnabled(len(rows) >= 1)
 
-    def _select_all_grid_positions(self) -> None:
-        """Select all grid positions from the same 'Gridnnn'."""
-        rows = {r.row() for r in self._table.selectedIndexes()}
-
-        # get all the grid selected in the table
-        grid_to_select = []
-        for row in rows:
-            pos = self._table.item(row, 0).data(self.POS_ROLE).split("_")[0]
-            if "Grid" not in pos:
-                continue
-            if pos not in grid_to_select:
-                grid_to_select.append(pos)
-
-        # select all positions from the same grid
-        # activate MultiSelection
-        self._table.setSelectionMode(QAbstractItemView.MultiSelection)
-        for row in range(self._table.rowCount()):
-            n_grid = self._table.item(row, 0).data(self.POS_ROLE).split("_")[0]
-            if (
-                n_grid in grid_to_select
-                and not self._table.selectionModel().isRowSelected(row)
-            ):
-                with signals_blocked(self._table.selectionModel()):
-                    self._table.selectRow(row)
-        # revert back to ExtendedSelection
-        self._table.setSelectionMode(QAbstractItemView.ExtendedSelection)
-
     def _add_position(self) -> None:
 
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
@@ -195,12 +175,10 @@ class PositionTable(QGroupBox):
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
-
-        self._create_new_row(name, xpos, ypos, zpos)
-
+        self._add_table_row(name, xpos, ypos, zpos)
         self._rename_positions()
 
-    def _create_new_row(
+    def _add_table_row(
         self,
         name: str | None,
         xpos: float | None,
@@ -228,8 +206,15 @@ class PositionTable(QGroupBox):
         self._table.insertRow(idx)
         return cast(int, idx)
 
-    def _add_table_value(self, value: float | None, row: int, col: int) -> None:
-        if value is None:
+    def _add_table_item(self, table_item: str | None, row: int, col: int) -> None:
+        item = QTableWidgetItem(table_item)
+        item.setTextAlignment(AlignCenter)
+        self._table.setItem(row, col, item)
+
+    def _add_table_value(
+        self, value: float | None, row: int | None, col: int | None
+    ) -> None:
+        if value is None or row is None or col is None:
             return
         spin = QDoubleSpinBox()
         spin.setAlignment(AlignCenter)
@@ -237,73 +222,44 @@ class PositionTable(QGroupBox):
         spin.setMinimum(-1000000.0)
         spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         spin.setValue(value)
+        # block mouse scroll
+        spin.wheelEvent = lambda event: None
         self._table.setCellWidget(row, col, spin)
 
-    def _add_table_item(self, table_item: str | None, row: int, col: int) -> None:
-        item = QTableWidgetItem(table_item)
-        # data(self.POS_ROLE) is used to keep track of grid and/or position
-        # even when the user changed the name in the table.
-        item.setData(self.POS_ROLE, table_item)
-        item.setToolTip(table_item)
-        item.setTextAlignment(AlignCenter)
-        self._table.setItem(row, col, item)
-
     def _remove_position(self) -> None:
-
         rows = {r.row() for r in self._table.selectedIndexes()}
-        grid_to_delete = []
-
         for idx in sorted(rows, reverse=True):
-
-            pos_role = self._table.item(idx, 0).data(self.POS_ROLE)
-            # store grid name if is a grid position
-            if "Grid" in pos_role:
-                grid_name = pos_role.split("_")[0]
-                grid_to_delete.append(grid_name)
-            else:
-                # remove if is a single position
-                self._table.removeRow(idx)
-
-        # remove grid positions
-        for gridname in grid_to_delete:
-            self._delete_grid_positions(gridname)
-
+            self._table.removeRow(idx)
         self._rename_positions()
         self.valueChanged.emit()
 
-    def _delete_grid_positions(self, name: list[str]) -> None:
-        """Remove all positions related to the same grid."""
-        for row in reversed(range(self._table.rowCount())):
-            if name in self._table.item(row, 0).data(self.POS_ROLE):
-                self._table.removeRow(row)
-
     def _rename_positions(self) -> None:
         single_pos_count = 0
+        grid_count = 0
         single_pos_rows: list[int] = []
-        grid_info: list[tuple[str, str, int]] = []
-        for row in range(self._table.rowCount()):
-            name = self._table.item(row, 0).text()
-            pos_role = self._table.item(row, 0).data(self.POS_ROLE)
+        grid_rows: list[int] = []
 
-            if "Grid" in pos_role.split("_")[0]:
-                grid_info.append((name, pos_role, row))
+        for row in range(self._table.rowCount()):
+            if not self._has_default_name(self._table.item(row, 0).text()):
                 continue
 
-            if name == pos_role:  # name = Posnnn and pos_role = Posnnn
+            if self._table.item(row, 0).data(self.GRID_ROLE):
+                grid_number = self._update_number(grid_count, grid_rows)
+                new_name = f"{GRID}{grid_number:03d}"
+                grid_count = grid_number + 1
+            else:
                 pos_number = self._update_number(single_pos_count, single_pos_rows)
-                new_name = f"Pos{pos_number:03d}"
+                new_name = f"{POS}{pos_number:03d}"
                 single_pos_count = pos_number + 1
-                self._update_table_item(new_name, row, 0)
 
-            elif "Grid" not in pos_role:  # pos_role = Posnnn
-                single_pos_rows.append(row)
-                new_pos_role = f"Pos{row:03d}"
-                self._update_table_item(new_pos_role, row, 0, False)
+            self._table.item(row, 0).setText(new_name)
 
-        if not grid_info:
-            return
-
-        self._rename_grid_positions(grid_info)
+    def _has_default_name(self, name: str) -> bool:
+        if POS in name or GRID in name:
+            with contextlib.suppress(ValueError):
+                int(name[-3:])
+                return True
+        return False
 
     def _update_table_item(
         self, name: str, row: int, col: int, update_name: bool = True
@@ -322,34 +278,6 @@ class PositionTable(QGroupBox):
                 loop = False
         return number
 
-    def _rename_grid_positions(self, grid_info: list[tuple[str, str, int]]) -> None:
-        """Rename postions created with the GridWidget.
-
-        grid_info = [(name, pos_role, row), ...].
-        By default, name is 'Gridnnn_Posnnn' but users can rename.
-
-        Example
-        -------
-        grid_info = [
-            (Grid000_Pos000, Grid000_Pos000, 1),
-            (Grid000_Pos001, Grid000_Pos001, 2),
-            (test0, Grid001_Pos000, 3),
-            (test1, Grid001_Pos001, 4),
-        ]
-        """
-        # first create a new list with items grouped by grid pos_role property
-        ordered_by_grid_n = [
-            list(grid_n)
-            for _, grid_n in groupby(grid_info, lambda x: x[1].split("_")[0])
-        ]
-
-        # then rename each grid with new neame and new pos_role
-        for idx, i in enumerate(ordered_by_grid_n):
-            for pos_idx, n in enumerate(i):
-                name, pos_role, row = n
-                new_name = f"Grid{idx:03d}_Pos{pos_idx:03d}"
-                self._update_table_item(new_name, row, 0, name == pos_role)
-
     def _clear_positions(self) -> None:
         """clear all positions."""
         self._table.clearContents()
@@ -367,100 +295,129 @@ class PositionTable(QGroupBox):
 
     def _add_grid_positions_to_table(self, grid: GridDict, clear: bool) -> None:
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
-        try:
-            position_list = list(GridRelative(**grid).iter_grid_pos(width, height))
-        except ValueError:
-            position_list = list(GridFromCorners(**grid).iter_grid_pos(width, height))
+        position_list = list(self._get_grid_type(grid).iter_grid_pos(width, height))
 
         if clear:
             self._clear_positions()
-            grid_number = 0
-        else:
-            grid_number = self._get_grid_number()
 
-        z = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
-        for idx, position in enumerate(position_list):
-            name = f"Grid{grid_number:03d}_Pos{idx:03d}"
-            self._create_new_row(name, position.x, position.y, z)
+        grid_name = f"{GRID}{self._get_grid_number():03d}"
+        z_pos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
+
+        self._add_table_row(grid_name, position_list[0].x, position_list[0].y, z_pos)
+
+        row = self._table.rowCount() - 1
+        self._table.item(row, 0).setData(self.GRID_ROLE, grid)
+        tooltip = self._create_grid_tooltip(grid, position_list, z_pos)
+        self._table.item(row, 0).setToolTip(tooltip)
+
+        self.valueChanged.emit()
+
+    def _get_grid_type(self, grid: GridDict) -> AnyGridPlan:
+        try:
+            grid_type = GridRelative(**grid)
+        except ValidationError:
+            try:
+                grid_type = GridFromCorners(**grid)
+            except ValidationError:
+                grid_type = NoGrid()
+        return grid_type
 
     def _get_grid_number(self) -> int:
-        grid_number = -1
-        for r in range(self._table.rowCount()):
-            pos_name = self._table.item(r, 0).data(self.POS_ROLE)
-            grid_name = pos_name.split("_")[0]  # e.g. Grid000
-            if "Grid" in grid_name:
-                grid_n = grid_name[-3:]
-                if int(grid_n) > grid_number:
-                    grid_number = int(grid_n)
-        return 0 if grid_number < 0 else grid_number + 1
+        return sum(
+            bool(
+                self._table.item(r, 0).data(self.GRID_ROLE)
+                and self._has_default_name(self._table.item(r, 0).text())
+            )
+            for r in range(self._table.rowCount())
+        )
+
+    def _create_grid_tooltip(
+        self,
+        grid: GridDict,
+        position: list[GridPosition],
+        z_pos: float | None = None,
+    ) -> str:
+        tooltip = (
+            "GridRelative\n"
+            if isinstance(self._get_grid_type(grid), GridRelative)
+            else "GridFromCorners\n"
+        )
+        for idx, pos in enumerate(position):
+            new_line = "" if idx + 1 == len(position) else "\n"
+            tooltip = f"{tooltip}Pos{idx:03d}:  ({pos.x},  {pos.y},  {z_pos}){new_line}"
+        return tooltip
+
+    def _get_table_value(self, row: int, col: int | None) -> float | None:
+        try:
+            wdg = cast(QDoubleSpinBox, self._table.cellWidget(row, col))
+            value = wdg.value()
+        except (AttributeError, TypeError):
+            value = None
+        return value  # type: ignore
 
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():
             return
         curr_row = self._table.currentRow()
-        self._mmc.setXYPosition(
-            self.value()[curr_row].get("x"), self.value()[curr_row].get("y")
-        )
-        if self._mmc.getFocusDevice() and self.value()[curr_row].get("z"):
-            self._mmc.setPosition(self.value()[curr_row].get("z"))
+        x, y = (self._get_table_value(curr_row, 1), self._get_table_value(curr_row, 2))
+        z = self._get_table_value(curr_row, 3)
+        if x and y:
+            self._mmc.setXYPosition(x, y)
+        if self._mmc.getFocusDevice() and z:
+            self._mmc.setPosition(z)
 
-    def value(self) -> list[PositionDict]:
+    def value(self) -> list[PositionDict | GridDict]:
+        # TODO: update docstring
         """Return the current positions settings.
 
         Note that output dict will match the Positions from useq schema:
         <https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position>
         """
-        values: list[PositionDict] = [
-            {
-                "name": self._table.item(row, 0).text() or None,
-                "x": self._get_table_value(row, 1),
-                "y": self._get_table_value(row, 2),
-                "z": self._get_table_value(row, 3),
-            }
-            for row in range(self._table.rowCount())
-        ]
+        if not self._table.rowCount():
+            return []
+
+        values: list = []
+        for row in range(self._table.rowCount()):
+            if grid := self._table.item(row, 0).data(self.GRID_ROLE):
+                values.append(grid)
+            else:
+                name = self._table.item(row, 0).text()
+                x, y = (self._get_table_value(row, 1), self._get_table_value(row, 2))
+                z = self._get_table_value(row, 3)
+                values.append({"name": name, "x": x, "y": y, "z": z})
+
         return values
 
-    def _get_table_value(self, row: int, col: int) -> float | None:
-        try:
-            wdg = cast(QDoubleSpinBox, self._table.cellWidget(row, col))
-            value = wdg.value()
-        except AttributeError:
-            value = None
-        return value  # type: ignore
-
-    # note: this should to be PositionDict, but it makes typing elsewhere harder
-    def set_state(self, positions: list[dict]) -> None:
+    def set_state(
+        self, positions: Sequence[PositionDict | Position | GridDict | AnyGridPlan]
+    ) -> None:
         """Set the state of the widget from a useq position dictionary."""
         self._clear_positions()
+
+        if not isinstance(positions, Sequence):
+            raise TypeError("The 'positions' arguments has to be a 'Sequence'.")
 
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
             raise ValueError("No XY and Z Stage devices loaded.")
 
-        self.setChecked(True)
+        pos_number = 0
+        for position in positions:
 
-        for idx, pos in enumerate(positions):
-            name = pos.get("name") or f"Pos{idx:03d}"
-            x = pos.get("x")
-            y = pos.get("y")
-            z = pos.get("z")
+            if isinstance(position, (Position, AnyGridPlan)):
+                position = position.dict()
 
-            if (x is not None or y is not None) and not self._mmc.getXYStageDevice():
-                x, y = (None, None)
-                warnings.warn("No XY Stage device loaded.")
-
-            if z and not self._mmc.getFocusDevice():
-                z = None
-                warnings.warn("No Focus device loaded.")
-
-            self._add_position_row()
-
-            self._add_table_item(name, idx, 0)
-            self._add_table_value(x, idx, 1)
-            self._add_table_value(y, idx, 2)
-            self._add_table_value(z, idx, 3)
-
-        self.valueChanged.emit()
+            grid = self._get_grid_type(position)
+            if isinstance(grid, (GridRelative, GridFromCorners)):
+                self._add_grid_positions_to_table(position, False)
+            else:
+                name = position.get("name")
+                if not name:
+                    name = f"{POS}{pos_number:03d}"
+                    pos_number += 1
+                self._add_table_row(
+                    name, position.get("x"), position.get("y"), position.get("z")
+                )
+            self.valueChanged.emit()
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._clear_positions)
