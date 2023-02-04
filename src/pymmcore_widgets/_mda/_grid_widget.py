@@ -7,7 +7,6 @@ from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
-    QCheckBox,
     QComboBox,
     QDialog,
     QDoubleSpinBox,
@@ -18,13 +17,14 @@ from qtpy.QtWidgets import (
     QLayout,
     QPushButton,
     QSizePolicy,
+    QSpacerItem,
     QSpinBox,
     QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 from useq import AnyGridPlan  # type: ignore
-from useq._grid import Coordinate, OrderMode, RelativeTo
+from useq._grid import OrderMode, RelativeTo
 
 if TYPE_CHECKING:
     from typing_extensions import Required, TypedDict
@@ -37,8 +37,10 @@ if TYPE_CHECKING:
         rows: int
         cols: int
         relative_to: RelativeTo | str
-        corner1: Coordinate
-        corner2: Coordinate
+        top: float  # top_left y
+        left: float  # top_left x
+        bottom: float  # bottom_right y
+        right: float  # bottom_right x
 
 
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -54,22 +56,17 @@ class _CornerSpinbox(QWidget):
         super().__init__(parent)
 
         self._mmc = mmcore
+        self._label = label
 
         layout = QHBoxLayout()
         layout.setSpacing(10)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
-        lbl = QLabel(text=label)
-        lbl.setSizePolicy(fixed_sizepolicy)
+        self.label = QLabel(text=f"{self._label}:")
+        self.label.setSizePolicy(fixed_sizepolicy)
 
-        lbl_x = QLabel(text="x:")
-        lbl_x.setSizePolicy(fixed_sizepolicy)
-        lbl_y = QLabel(text="y:")
-        lbl_y.setSizePolicy(fixed_sizepolicy)
-
-        self.x_spinbox = self._doublespinbox()
-        self.y_spinbox = self._doublespinbox()
+        self.spinbox = self._doublespinbox()
 
         self.set_button = QPushButton(text="Set")
         self.set_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -77,11 +74,8 @@ class _CornerSpinbox(QWidget):
         self.set_button.setSizePolicy(fixed_sizepolicy)
         self.set_button.clicked.connect(self._on_click)
 
-        layout.addWidget(lbl)
-        layout.addWidget(lbl_x)
-        layout.addWidget(self.x_spinbox)
-        layout.addWidget(lbl_y)
-        layout.addWidget(self.y_spinbox)
+        layout.addWidget(self.label)
+        layout.addWidget(self.spinbox)
         layout.addWidget(self.set_button)
 
     def _doublespinbox(self) -> QDoubleSpinBox:
@@ -96,21 +90,16 @@ class _CornerSpinbox(QWidget):
     def _on_click(self) -> None:
         if not self._mmc.getXYStageDevice():
             return
-        self.x_spinbox.setValue(self._mmc.getXPosition())
-        self.y_spinbox.setValue(self._mmc.getYPosition())
-
-    def set_values(self, x: float, y: float) -> None:
-        self.x_spinbox.setValue(x)
-        self.y_spinbox.setValue(y)
-
-    def values(self) -> tuple[float, float]:
-        return self.x_spinbox.value(), self.y_spinbox.value()
+        if self._label in {"top", "bottom"}:
+            self.spinbox.setValue(self._mmc.getYPosition())
+        elif self._label in {"left", "right"}:
+            self.spinbox.setValue(self._mmc.getXPosition())
 
 
 class GridWidget(QDialog):
     """A subwidget to setup the acquisition of a grid of images."""
 
-    valueChanged = Signal(object, bool)
+    valueChanged = Signal(object)
 
     def __init__(
         self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
@@ -133,7 +122,7 @@ class GridWidget(QDialog):
         label_info = self._create_label_info()
         layout.addWidget(label_info)
 
-        button = self._create_generate_list_button()
+        button = self._create_add_button()
         layout.addWidget(button)
 
         self.setFixedHeight(self.sizeHint().height())
@@ -219,18 +208,25 @@ class GridWidget(QDialog):
 
     def _create_corner_wdg(self) -> QWidget:
         group = QWidget()
-        group_layout = QVBoxLayout()
+        group_layout = QGridLayout()
         group_layout.setSpacing(10)
         group_layout.setContentsMargins(10, 10, 10, 10)
         group.setLayout(group_layout)
 
-        self.corner1 = _CornerSpinbox("Corner 1", mmcore=self._mmc)
-        self.corner1.valueChanged.connect(self._update_info_label)
-        self.corner2 = _CornerSpinbox("Corner 2", mmcore=self._mmc)
-        self.corner2.valueChanged.connect(self._update_info_label)
+        self.top = _CornerSpinbox("top", mmcore=self._mmc)
+        self.top.valueChanged.connect(self._update_info_label)
+        self.bottom = _CornerSpinbox("bottom", mmcore=self._mmc)
+        self.bottom.valueChanged.connect(self._update_info_label)
+        self.top.label.setMinimumWidth(self.bottom.label.sizeHint().width())
+        self.left = _CornerSpinbox("left", mmcore=self._mmc)
+        self.left.valueChanged.connect(self._update_info_label)
+        self.right = _CornerSpinbox("right", mmcore=self._mmc)
+        self.right.valueChanged.connect(self._update_info_label)
 
-        group_layout.addWidget(self.corner1)
-        group_layout.addWidget(self.corner2)
+        group_layout.addWidget(self.top, 0, 0)
+        group_layout.addWidget(self.bottom, 1, 0)
+        group_layout.addWidget(self.left, 0, 1)
+        group_layout.addWidget(self.right, 1, 1)
 
         return group
 
@@ -300,7 +296,7 @@ class GridWidget(QDialog):
 
         return group
 
-    def _create_generate_list_button(self) -> QWidget:
+    def _create_add_button(self) -> QWidget:
         wdg = QWidget()
         wdg.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         wdg_layout = QHBoxLayout()
@@ -308,17 +304,18 @@ class GridWidget(QDialog):
         wdg_layout.setContentsMargins(0, 0, 0, 0)
         wdg.setLayout(wdg_layout)
 
-        self.clear_checkbox = QCheckBox(text="Delete Current Position List")
-        self.clear_checkbox.setChecked(False)
-        wdg_layout.addWidget(self.clear_checkbox)
+        spacer = QSpacerItem(
+            5, 5, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        wdg_layout.addSpacerItem(spacer)
 
-        self.generate_position_btn = QPushButton(text="Generate Position List")
-        self.generate_position_btn.setSizePolicy(
+        self.add_button = QPushButton(text="Add")
+        self.add_button.setSizePolicy(
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
-        self.generate_position_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.generate_position_btn.clicked.connect(self._emit_grid_positions)
-        wdg_layout.addWidget(self.generate_position_btn)
+        self.add_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.add_button.clicked.connect(self._emit_grid_positions)
+        wdg_layout.addWidget(self.add_button)
 
         return wdg
 
@@ -339,10 +336,10 @@ class GridWidget(QDialog):
             cols = self.n_columns.value()
         else:  # corners
             total_width = (
-                abs(self.corner1.values()[0] - self.corner2.values()[0]) + width
+                abs(self.left.spinbox.value() - self.right.spinbox.value()) + width
             )
             total_height = (
-                abs(self.corner1.values()[1] - self.corner2.values()[1]) + height
+                abs(self.top.spinbox.value() - self.bottom.spinbox.value()) + height
             )
             rows = math.ceil(total_width / width) if total_width > width else 1
             cols = math.ceil(total_height / height) if total_height > height else 1
@@ -367,8 +364,10 @@ class GridWidget(QDialog):
             value["cols"] = self.n_columns.value()
             value["relative_to"] = self.relative_combo.currentText()
         else:  # corners
-            value["corner1"] = self.corner1.values()
-            value["corner2"] = self.corner2.values()
+            value["top"] = self.top.spinbox.value()
+            value["bottom"] = self.bottom.spinbox.value()
+            value["left"] = self.left.spinbox.value()
+            value["right"] = self.right.spinbox.value()
 
         return value
 
@@ -377,12 +376,12 @@ class GridWidget(QDialog):
         if isinstance(grid, AnyGridPlan):
             grid = grid.dict()
 
-        overlap = grid["overlap"]
+        overlap = grid.get("overlap") or 0.0
         over_x, over_y = overlap if isinstance(overlap, tuple) else (overlap, overlap)
         self.overlap_spinbox_x.setValue(over_x)
         self.overlap_spinbox_y.setValue(over_y)
 
-        ordermode = grid["order_mode"]
+        ordermode = grid.get("order_mode") or OrderMode.row_wise_snake
         ordermode = ordermode.value if isinstance(ordermode, OrderMode) else ordermode
         self.ordermode_combo.setCurrentText(ordermode)
 
@@ -390,7 +389,7 @@ class GridWidget(QDialog):
             self._set_relative_wdg(grid)
             self.tab.setCurrentIndex(0)
         except TypeError:
-            self._set_corner_wdg(grid["corner1"], grid["corner2"])
+            self._set_corner_wdg(grid)
             self.tab.setCurrentIndex(1)
 
     def _set_relative_wdg(self, grid: GridDict) -> None:
@@ -402,24 +401,16 @@ class GridWidget(QDialog):
         )
         self.relative_combo.setCurrentText(relative)
 
-    def _set_corner_wdg(
-        self, corner1: dict | list | tuple, corner2: dict | list | tuple
-    ) -> None:
-        corner1_x, corner1_y = (
-            corner1.get("x") if isinstance(corner1, dict) else corner1[0],
-            corner1.get("y") if isinstance(corner1, dict) else corner1[1],
-        )
-        corner2_x, corner2_y = (
-            corner2.get("x") if isinstance(corner2, dict) else corner2[0],
-            corner2.get("y") if isinstance(corner2, dict) else corner2[1],
-        )
-        self.corner1.set_values(corner1_x, corner1_y)
-        self.corner2.set_values(corner2_x, corner2_y)
+    def _set_corner_wdg(self, grid: GridDict) -> None:
+        self.top.spinbox.setValue(grid["top"])
+        self.bottom.spinbox.setValue(grid["bottom"])
+        self.left.spinbox.setValue(grid["left"])
+        self.right.spinbox.setValue(grid["right"])
 
     def _emit_grid_positions(self) -> AnyGridPlan:
         if self._mmc.getPixelSizeUm() <= 0:
             raise ValueError("Pixel Size Not Set.")
-        self.valueChanged.emit(self.value(), self.clear_checkbox.isChecked())
+        self.valueChanged.emit(self.value())
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._update_info_label)
