@@ -309,7 +309,7 @@ class GridWidget(QDialog):
         )
         wdg_layout.addSpacerItem(spacer)
 
-        self.add_button = QPushButton(text="Add")
+        self.add_button = QPushButton(text="Add Grid")
         self.add_button.setSizePolicy(
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
