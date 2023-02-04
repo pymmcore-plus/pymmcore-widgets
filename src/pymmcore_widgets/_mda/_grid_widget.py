@@ -33,9 +33,9 @@ if TYPE_CHECKING:
         """Grid dictionary."""
 
         overlap: Required[float | tuple[float, float]]
-        order_mode: Required[OrderMode | str]
+        mode: Required[OrderMode | str]
         rows: int
-        cols: int
+        columns: int
         relative_to: RelativeTo | str
         top: float  # top_left y
         left: float  # top_left x
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
 
-class _CornerSpinbox(QWidget):
+class _EdgeSpinbox(QWidget):
 
     valueChanged = Signal()
 
@@ -145,8 +145,8 @@ class GridWidget(QDialog):
         rc = self._create_row_cols_wdg()
         self.tab.addTab(rc, "Rows x Columns")
 
-        cr = self._create_corner_wdg()
-        self.tab.addTab(cr, "Grid from Corners")
+        cr = self._create_edges_grid_wdg()
+        self.tab.addTab(cr, "Grid from Edges")
 
         layout.addWidget(self.tab)
 
@@ -206,21 +206,21 @@ class GridWidget(QDialog):
         layout.addWidget(spin)
         return spin
 
-    def _create_corner_wdg(self) -> QWidget:
+    def _create_edges_grid_wdg(self) -> QWidget:
         group = QWidget()
         group_layout = QGridLayout()
         group_layout.setSpacing(10)
         group_layout.setContentsMargins(10, 10, 10, 10)
         group.setLayout(group_layout)
 
-        self.top = _CornerSpinbox("top", mmcore=self._mmc)
+        self.top = _EdgeSpinbox("top", mmcore=self._mmc)
         self.top.valueChanged.connect(self._update_info_label)
-        self.bottom = _CornerSpinbox("bottom", mmcore=self._mmc)
+        self.bottom = _EdgeSpinbox("bottom", mmcore=self._mmc)
         self.bottom.valueChanged.connect(self._update_info_label)
         self.top.label.setMinimumWidth(self.bottom.label.sizeHint().width())
-        self.left = _CornerSpinbox("left", mmcore=self._mmc)
+        self.left = _EdgeSpinbox("left", mmcore=self._mmc)
         self.left.valueChanged.connect(self._update_info_label)
-        self.right = _CornerSpinbox("right", mmcore=self._mmc)
+        self.right = _EdgeSpinbox("right", mmcore=self._mmc)
         self.right.valueChanged.connect(self._update_info_label)
 
         group_layout.addWidget(self.top, 0, 0)
@@ -357,11 +357,11 @@ class GridWidget(QDialog):
                 self.overlap_spinbox_x.value(),
                 self.overlap_spinbox_y.value(),
             ),
-            "order_mode": self.ordermode_combo.currentText(),
+            "mode": self.ordermode_combo.currentText(),
         }
         if self.tab.currentIndex() == 0:  # rows and cols
             value["rows"] = self.n_rows.value()
-            value["cols"] = self.n_columns.value()
+            value["columns"] = self.n_columns.value()
             value["relative_to"] = self.relative_combo.currentText()
         else:  # corners
             value["top"] = self.top.spinbox.value()
