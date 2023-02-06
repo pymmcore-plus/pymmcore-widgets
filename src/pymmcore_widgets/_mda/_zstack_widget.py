@@ -19,7 +19,7 @@ from qtpy.QtWidgets import (
 )
 
 if TYPE_CHECKING:
-    from typing_extensions import Protocol
+    from typing import Protocol
 
     # fmt: off
     class ZPicker(Protocol):

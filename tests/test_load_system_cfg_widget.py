@@ -10,7 +10,6 @@ if TYPE_CHECKING:
 
 
 def test_load_system_cfg_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
-
     cfg = ConfigurationWidget()
     qtbot.addWidget(cfg)
 

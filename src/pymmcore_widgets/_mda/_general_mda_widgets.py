@@ -30,7 +30,6 @@ class _MDAPositionTable(QGroupBox):
         self._create_pos_gui()
 
     def _create_pos_gui(self) -> None:
-
         self.setTitle("Stage Positions")
 
         self.setCheckable(True)
@@ -115,7 +114,6 @@ class _MDAControlButtons(QWidget):
         self._create_btns_gui()
 
     def _create_btns_gui(self) -> None:
-
         self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         wdg_layout = QHBoxLayout()
         wdg_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
