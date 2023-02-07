@@ -300,8 +300,8 @@ class ShuttersWidget(QWidget):
         if self.autoshutter:
             with signals_blocked(self.autoshutter_checkbox):
                 self.autoshutter_checkbox.setChecked(state)
-        self.shutter_button.setEnabled(not state)
-
+        if self._mmc.getShutterDevice() == self.shutter_device:
+            self.shutter_button.setEnabled(not state)
         if state and self._mmc.isSequenceRunning():
             self._mmc.stopSequenceAcquisition()
 
