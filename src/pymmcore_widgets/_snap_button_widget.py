@@ -79,7 +79,7 @@ class SnapButton(QPushButton):
     def _snap(self) -> None:
         if self._mmc.isSequenceRunning():
             self._mmc.stopSequenceAcquisition()
-        def snap_with_shutter():
+        def snap_with_shutter() -> None:
             """
             Perform a snap and ensure shutter signals are sent.
 
@@ -97,7 +97,6 @@ class SnapButton(QPushButton):
                     self._mmc.getShutterDevice(), "State", False
                 )
         create_worker(snap_with_shutter, _start_thread=True)
-
 
 
     def _on_system_cfg_loaded(self) -> None:
