@@ -243,7 +243,10 @@ class ShuttersWidget(QWidget):
                 self.autoshutter_checkbox.setChecked(self._mmc.getAutoShutter())
             else:
                 self.autoshutter_checkbox.setChecked(False)
-            self.shutter_button.setEnabled(True)
+            if self._mmc.getShutterDevice() == self.shutter_device:
+                self.shutter_button.setEnabled(not self._mmc.getAutoShutter())
+            else:
+                self.shutter_button.setEnabled(True)
             if self._mmc.getShutterOpen(self.shutter_device):
                 self._set_shutter_wdg_to_opened()
             else:
