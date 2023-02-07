@@ -73,6 +73,9 @@ class ShuttersWidget(QWidget):
         self._mmc.events.autoShutterSet.connect(self._on_autoshutter_changed)
         self._mmc.events.propertyChanged.connect(self._on_prop_changed)
         self._mmc.events.configSet.connect(self._on_channel_set)
+        self._mmc.events.continuousSequenceAcquisitionStarted.connect(self._on_live_mode)
+        self._mmc.events.sequenceAcquisitionStarted.connect(self._on_live_mode)
+        self._mmc.events.sequenceAcquisitionStopped.connect(self._on_live_mode)
 
         self.destroyed.connect(self._disconnect)
 
@@ -273,6 +276,10 @@ class ShuttersWidget(QWidget):
                 if value != "Undefined":
                     self._mmc.events.propertyChanged.emit(value, "State", True)
 
+    def _on_live_mode(self) -> None:
+        if not self._mmc.getShutterOpen(self.shutter_device):
+            self._set_shutter_wdg_to_closed()
+
     def _on_channel_set(self, group: str, preset: str) -> None:
         if (self._mmc.getShutterDevice() == self.shutter_device) and self._mmc.getAutoShutter():
             self.shutter_button.setEnabled(False)
@@ -300,8 +307,6 @@ class ShuttersWidget(QWidget):
                 self.autoshutter_checkbox.setChecked(state)
         if self._mmc.getShutterDevice() == self.shutter_device:
             self.shutter_button.setEnabled(not state)
-        if state and self._mmc.isSequenceRunning():
-            self._mmc.stopSequenceAcquisition()
 
     def _close_shutter(self, shutter: str) -> None:
         self._set_shutter_wdg_to_closed()
