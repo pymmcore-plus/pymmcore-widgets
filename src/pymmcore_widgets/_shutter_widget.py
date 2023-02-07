@@ -274,15 +274,10 @@ class ShuttersWidget(QWidget):
                     self._mmc.events.propertyChanged.emit(value, "State", True)
 
     def _on_channel_set(self, group: str, preset: str) -> None:
-        ch = self._mmc.getChannelGroup()
-        if group != ch:
-            return  # pragma: no cover
-        for d in self._mmc.getConfigData(ch, preset):
-            _dev = d[0]
-            _type = self._mmc.getDeviceType(_dev)
-            if _type is DeviceType.Shutter:
-                self._mmc.setProperty("Core", "Shutter", _dev)
-                break
+        if (self._mmc.getShutterDevice() == self.shutter_device) and self._mmc.getAutoShutter():
+            self.shutter_button.setEnabled(False)
+        else:
+            self.shutter_button.setEnabled(True)
 
     def _on_shutter_btn_clicked(self) -> None:
         if self._mmc.getShutterOpen(self.shutter_device):
