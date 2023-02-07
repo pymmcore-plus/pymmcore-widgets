@@ -134,7 +134,7 @@ class _MDAControlButtons(QWidget):
         )
         self.acquisition_order_comboBox = QComboBox()
         self.acquisition_order_comboBox.setMinimumWidth(100)
-        self.acquisition_order_comboBox.addItems(["tpcz", "tpzc", "ptzc", "ptcz"])
+        self.acquisition_order_comboBox.addItems(["tpgcz", "tpgzc", "pgtzc", "pgtcz"])
         acq_wdg_layout.addWidget(acquisition_order_label)
         acq_wdg_layout.addWidget(self.acquisition_order_comboBox)
 
