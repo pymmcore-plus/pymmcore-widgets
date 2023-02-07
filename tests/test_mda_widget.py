@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock, call
 
 from pymmcore_plus import CMMCorePlus
-from useq import GridFromCorners, GridRelative, MDASequence
+from useq import GridFromEdges, GridRelative, MDASequence
 
 from pymmcore_widgets._mda import GridWidget, MDAWidget
 
@@ -56,7 +56,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
     qtbot.addWidget(wdg.position_groupbox._grid_wdg)
     wdg.position_groupbox._grid_wdg.n_rows.setValue(2)
     wdg.position_groupbox._grid_wdg.n_columns.setValue(2)
-    wdg.position_groupbox._grid_wdg.generate_position_btn.click()
+    wdg.position_groupbox._grid_wdg.add_button.click()
     assert wdg.position_groupbox._table.rowCount() == 4
 
 
@@ -189,7 +189,7 @@ def test_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     }
 
     grid_wdg.set_state(
-        GridFromCorners(corner1=(0, 0), corner2=(2, 2), order_mode="spiral")
+        GridFromEdges(corner1=(0, 0), corner2=(2, 2), order_mode="spiral")
     )
     assert grid_wdg.value() == {
         "overlap": (0.0, 0.0),

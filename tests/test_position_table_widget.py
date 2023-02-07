@@ -125,7 +125,7 @@ def test_rename_grid_pos_after_delete(global_mmcore: CMMCorePlus, qtbot: QtBot):
     p._grid_wdg.n_rows.setValue(2)
     p._grid_wdg.clear_checkbox.setChecked(False)
 
-    p._grid_wdg.generate_position_btn.click()
+    p._grid_wdg.add_button.click()
 
     assert tb.rowCount() == 2
 
@@ -135,8 +135,8 @@ def test_rename_grid_pos_after_delete(global_mmcore: CMMCorePlus, qtbot: QtBot):
         assert tb.item(row, 0).toolTip() == name
         assert tb.item(row, 0).data(p.POS_ROLE) == name
 
-    p._grid_wdg.generate_position_btn.click()
-    p._grid_wdg.generate_position_btn.click()
+    p._grid_wdg.add_button.click()
+    p._grid_wdg.add_button.click()
 
     assert tb.rowCount() == 6
 

@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         y: float | None
         z: float | None
         name: str | None
+        sequence: MDASequence | None
 
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -240,19 +241,27 @@ class MDAWidget(QWidget):
             self.time_groupbox.value() if self.time_groupbox.isChecked() else None
         )
 
-        stage_positions = (
-            self.position_groupbox.value()
-            if self.position_groupbox.isChecked()
-            else self._get_current_position()
-        )
+        stage_positions: list[PositionDict] = []
+        if self.position_groupbox.isChecked():
+            stage_positions.extend(iter(self.position_groupbox.value()))
+        if not stage_positions:
+            stage_positions = self._get_current_position()
 
-        return MDASequence(
+        grid_plan = self.position_groupbox.grid_value()
+
+        sequence = MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
             channels=channels,
             stage_positions=stage_positions,
             z_plan=z_plan,
             time_plan=time_plan,
+            grid_plan=grid_plan,
         )
+
+        _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
+        sequence.set_fov_size((width, height))  # type: ignore
+
+        return sequence
 
     def _get_current_position(self) -> list[PositionDict]:
         return [
