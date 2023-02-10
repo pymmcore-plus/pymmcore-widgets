@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pymmcore_plus import CMMCorePlus, DeviceType
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QComboBox, QVBoxLayout, QWidget
 
 from ._presets_widget import PresetsWidget
