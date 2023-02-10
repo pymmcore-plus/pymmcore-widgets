@@ -279,6 +279,8 @@ class ShuttersWidget(QWidget):
     def _on_live_mode(self) -> None:
         if not self._mmc.getShutterOpen(self.shutter_device):
             self._set_shutter_wdg_to_closed()
+        else:
+            self._set_shutter_wdg_to_opened()
 
     def _on_channel_set(self, group: str, preset: str) -> None:
         if (self._mmc.getShutterDevice() == self.shutter_device) and self._mmc.getAutoShutter():
