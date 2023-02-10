@@ -123,7 +123,6 @@ class DevicePropertyTable(QTableWidget):
         props = list(self._mmc.iterProperties(as_object=True))
         self.setRowCount(len(props))
         for i, prop in enumerate(props):
-
             item = QTableWidgetItem(f"{prop.device}-{prop.name}")
             item.setData(self.PROP_ROLE, prop)
             # TODO: make sure to add icons for all possible device types

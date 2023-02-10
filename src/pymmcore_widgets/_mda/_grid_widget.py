@@ -32,7 +32,6 @@ class GridWidget(QDialog):
         self._update_info_label()
 
     def _create_gui(self) -> None:
-
         layout = QVBoxLayout()
         layout.setSpacing(5)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -162,7 +161,6 @@ class GridWidget(QDialog):
         self.info_lbl.setText(f"{round(y, 3)} mm x {round(x, 3)} mm")
 
     def _set_grid(self) -> list[tuple[float, ...]]:
-
         scan_size_r = self.scan_size_spinBox_r.value()
         scan_size_c = self.scan_size_spinBox_c.value()
 

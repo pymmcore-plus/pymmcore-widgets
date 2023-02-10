@@ -30,7 +30,6 @@ def _make_shutters(
 
 
 def test_create_shutter_widgets(qtbot: QtBot):
-
     shutter, state_dev_shutter, multi_shutter = _make_shutters(qtbot)
 
     assert shutter.shutter_button.text() == "Shutter closed"
@@ -43,7 +42,6 @@ def test_create_shutter_widgets(qtbot: QtBot):
 
 
 def test_shutter_widget_propertyChanged(qtbot: QtBot):
-
     shutter, _, multi_shutter = _make_shutters(qtbot)
     mmc = CMMCorePlus.instance()
 
@@ -60,7 +58,6 @@ def test_shutter_widget_propertyChanged(qtbot: QtBot):
 
 
 def test_shutter_widget_autoShutterSet(qtbot: QtBot):
-
     shutter, state_dev_shutter, multi_shutter = _make_shutters(qtbot)
     mmc = CMMCorePlus.instance()
 
@@ -76,7 +73,6 @@ def test_shutter_widget_autoShutterSet(qtbot: QtBot):
 
 
 def test_shutter_widget_configSet(qtbot: QtBot):
-
     shutter, state_dev_shutter, multi_shutter = _make_shutters(qtbot)
     mmc = CMMCorePlus.instance()
 
@@ -100,7 +96,6 @@ def test_shutter_widget_configSet(qtbot: QtBot):
 
 
 def test_shutter_widget_SequenceAcquisition(qtbot: QtBot):
-
     shutter, state_dev_shutter, multi_shutter = _make_shutters(qtbot)
     mmc = CMMCorePlus.instance()
 
@@ -136,7 +131,6 @@ def test_shutter_widget_SequenceAcquisition(qtbot: QtBot):
 
 
 def test_shutter_widget_autoshutter(qtbot: QtBot):
-
     shutter, state_dev_shutter, multi_shutter = _make_shutters(qtbot)
     mmc = CMMCorePlus.instance()
 
@@ -156,7 +150,6 @@ def test_shutter_widget_autoshutter(qtbot: QtBot):
 
 
 def test_shutter_widget_button(qtbot: QtBot):
-
     shutter, state_dev_shutter, multi_shutter = _make_shutters(qtbot)
     mmc = CMMCorePlus.instance()
 
@@ -203,7 +196,6 @@ def test_shutter_widget_button(qtbot: QtBot):
 
 
 def test_shutter_widget_setters(qtbot: QtBot):
-
     shutter, _, _ = _make_shutters(qtbot)
     mmc = CMMCorePlus.instance()
 
@@ -236,7 +228,6 @@ def test_shutter_widget_setters(qtbot: QtBot):
 
 
 def test_shutter_widget_UserWarning(qtbot: QtBot):
-
     _, _, multi_shutter = _make_shutters(qtbot)
     mmc = CMMCorePlus.instance()
 

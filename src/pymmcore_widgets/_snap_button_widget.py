@@ -51,7 +51,6 @@ class SnapButton(QPushButton):
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
-
         super().__init__(parent=parent)
 
         self.setSizePolicy(

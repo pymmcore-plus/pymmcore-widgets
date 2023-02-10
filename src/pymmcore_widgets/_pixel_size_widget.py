@@ -316,7 +316,6 @@ class PixelSizeWidget(QDialog):
         self._rebuild()
 
     def _on_px_set(self, value: float) -> None:
-
         rows = []
         for cfg in self._mmc.getAvailablePixelSizeConfigs():
             if value == self._mmc.getPixelSizeUmByID(cfg):
@@ -438,7 +437,6 @@ class PixelSizeWidget(QDialog):
         value = wdg.text()
 
         if value in self._mmc.getAvailablePixelSizeConfigs():
-
             if wdg.property("resID") == value:
                 return
 
