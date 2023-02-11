@@ -58,7 +58,7 @@ class ChannelTable(QGroupBox):
     """
 
     valueChanged = Signal()
-    CH_GROUP_ROLE = 1
+    CH_GROUP_ROLE = Qt.UserRole + 1
 
     def __init__(
         self,
@@ -147,9 +147,14 @@ class ChannelTable(QGroupBox):
         for row in range(self._table.rowCount()):
             combo = cast(QComboBox, self._table.cellWidget(row, 0))
             items = [combo.itemText(ch) for ch in range(combo.count())]
-            if group == combo.itemData(self.CH_GROUP_ROLE) and config in items:
+            items_data = {
+                combo.itemData(ch, self.CH_GROUP_ROLE) for ch in range(combo.count())
+            }
+            if group in items_data and config in items:
                 combo.clear()
                 combo.addItems(self._mmc.getAvailableConfigs(group))
+                for i in range(combo.count()):
+                    combo.setItemData(i, group, self.CH_GROUP_ROLE)
                 if self._mmc.getChannelGroup() != config:
                     combo.setCurrentText(self._mmc.getChannelGroup())
 
@@ -191,7 +196,8 @@ class ChannelTable(QGroupBox):
         available = self._mmc.getAvailableConfigs(_channel_group)
         channel = channel or self._pick_first_unused_channel(available)
         channel_combo.addItems(available)
-        channel_combo.setItemData(self.CH_GROUP_ROLE, _channel_group)
+        for i in range(channel_combo.count()):
+            channel_combo.setItemData(i, _channel_group, self.CH_GROUP_ROLE)
         channel_combo.setCurrentText(channel)
 
         # exposure spinbox
@@ -238,7 +244,9 @@ class ChannelTable(QGroupBox):
                 values.append(
                     {
                         "config": name_widget.currentText(),
-                        "group": name_widget.itemData(self.CH_GROUP_ROLE),
+                        "group": name_widget.itemData(
+                            name_widget.currentIndex(), self.CH_GROUP_ROLE
+                        ),
                         "exposure": exposure_widget.value(),
                     }
                 )
