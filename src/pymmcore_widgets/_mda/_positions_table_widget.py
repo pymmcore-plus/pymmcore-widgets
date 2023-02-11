@@ -380,7 +380,7 @@ class PositionTable(QGroupBox):
         self._grid_wdg.show()
         self._grid_wdg.raise_()
 
-    def _add_grid_position(self, grid: GridDict, name: str = "") -> None:
+    def _add_grid_position(self, grid: GridDict) -> None:
         grid_type = self._get_grid_type(grid)
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
         position_list = list(grid_type.iter_grid_positions(width, height))
@@ -397,7 +397,7 @@ class PositionTable(QGroupBox):
             else position_list[0].y
         )
         z_pos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
-        self._add_table_row(name or grid_number, x_pos, y_pos, z_pos)
+        self._add_table_row(grid_number, x_pos, y_pos, z_pos)
 
         row = self._table.rowCount() - 1
         self._table.item(row, 0).setData(self.GRID_ROLE, (grid_number, grid, grid_type))
@@ -543,8 +543,9 @@ class PositionTable(QGroupBox):
 
             # at the moment only grid_plan will be considered
             if pos_seq and not isinstance(pos_seq.grid_plan, NoGrid):
-                print(pos_seq.grid_plan)
-                self._add_grid_position(pos_seq.grid_plan.dict(), name)
+                self._add_grid_position(pos_seq.grid_plan.dict())
+                if name:
+                    self._table.item(row, 0).setText(name)
                 self._add_table_value(x, row, 1)
                 self._add_table_value(y, row, 2)
                 self._add_table_value(z, row, 3)
