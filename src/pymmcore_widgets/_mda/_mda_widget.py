@@ -243,7 +243,15 @@ class MDAWidget(QWidget):
 
         stage_positions: list[PositionDict] = []
         if self.position_groupbox.isChecked():
-            stage_positions.extend(iter(self.position_groupbox.value()))
+            for p in self.position_groupbox.value():
+                if p_sequence := p.get("sequence"):
+                    p_sequence = p_sequence.replace(
+                        axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
+                    )
+                    p_sequence = p_sequence.replace(channels=channels)  # type: ignore
+                    p_sequence = p_sequence.replace(z_plan=z_plan)  # type: ignore
+                    p["sequence"] = p_sequence
+                stage_positions.append(p)
         if not stage_positions:
             stage_positions = self._get_current_position()
 
