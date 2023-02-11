@@ -112,7 +112,6 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
-
     grid_wdg = GridWidget()
     qtbot.addWidget(grid_wdg)
 

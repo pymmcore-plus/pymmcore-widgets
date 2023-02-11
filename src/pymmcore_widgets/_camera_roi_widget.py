@@ -85,7 +85,6 @@ class CameraRoiWidget(QWidget):
         self._mmc.events.roiSet.disconnect(self._on_roi_set)
 
     def _create_main_wdg(self) -> QWidget:
-
         wdg = QWidget()
         layout = QGridLayout()
         layout.setVerticalSpacing(3)
@@ -129,7 +128,6 @@ class CameraRoiWidget(QWidget):
         return wdg
 
     def _create_selection_combo_wdg(self) -> QWidget:
-
         wdg = QWidget()
         layout = QHBoxLayout()
         layout.setSpacing(5)
@@ -145,7 +143,6 @@ class CameraRoiWidget(QWidget):
         return wdg
 
     def _create_selection_wdg(self) -> QGroupBox:
-
         wdg = QGroupBox()
         wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         layout = QVBoxLayout()
@@ -163,7 +160,6 @@ class CameraRoiWidget(QWidget):
         return wdg
 
     def _create_custom_roi_group(self) -> QGroupBox:
-
         group = QGroupBox()
         layout = QGridLayout()
         layout.setSpacing(5)
@@ -262,7 +258,6 @@ class CameraRoiWidget(QWidget):
     def _on_roi_set(
         self, cam_label: str, x: int, y: int, width: int, height: int
     ) -> None:
-
         self.start_x.setMaximum(self.chip_size_x)
         self.start_y.setMaximum(self.chip_size_y)
 
@@ -296,7 +291,6 @@ class CameraRoiWidget(QWidget):
             self.center_checkbox.setChecked(checkbox_state)
 
     def _update_lbl_info(self) -> None:
-
         start_x, start_y, width, height = self._get_roi_groupbox_values()
 
         px_size = self._mmc.getPixelSizeUm() or 0
@@ -378,7 +372,6 @@ class CameraRoiWidget(QWidget):
         self._update_lbl_info()
 
     def _on_roi_spinbox_changed(self) -> None:
-
         self._update_lbl_info()
 
         if self.cam_roi_combo.currentText() != CUSTOM_ROI:
@@ -437,7 +430,6 @@ class CameraRoiWidget(QWidget):
         return start_x, start_y, width, height
 
     def _on_center_checkbox(self, state: bool) -> None:
-
         self.start_x.setEnabled(not state)
         self.start_y.setEnabled(not state)
         self._hide_spinbox_button([self.start_x, self.start_y], state)

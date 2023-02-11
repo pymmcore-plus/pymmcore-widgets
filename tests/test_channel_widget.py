@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 
 def test_channel_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
-
     wdg = ChannelWidget()
     qtbot.addWidget(wdg)
 
@@ -57,7 +56,6 @@ def test_channel_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert global_mmcore.getChannelGroup() == ""
 
     with qtbot.waitSignal(global_mmcore.events.configDefined):
-
         dev_prop_val = [
             ("Dichroic", "Label", "400DCLP"),
             ("Emission", "Label", "Chroma-HQ700"),

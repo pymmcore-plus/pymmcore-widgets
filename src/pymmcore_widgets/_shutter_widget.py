@@ -201,7 +201,6 @@ class ShuttersWidget(QWidget):
         self._button_text_closed = text
 
     def _create_wdg(self) -> None:
-
         main_layout = QHBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(3)

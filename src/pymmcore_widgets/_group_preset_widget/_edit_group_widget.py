@@ -41,7 +41,6 @@ class EditGroupWidget(QDialog):
         self.destroyed.connect(self._disconnect)
 
     def _create_gui(self) -> None:
-
         self.setWindowTitle(f"Edit the '{self._group}' Group.")
 
         main_layout = QVBoxLayout()
@@ -59,7 +58,6 @@ class EditGroupWidget(QDialog):
         main_layout.addWidget(btn)
 
     def _create_group_lineedit_wdg(self) -> QGroupBox:
-
         wdg = QGroupBox()
         layout = QHBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
@@ -79,7 +77,6 @@ class EditGroupWidget(QDialog):
         return wdg
 
     def _create_table_wdg(self) -> QGroupBox:
-
         wdg = QGroupBox()
         layout = QHBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
@@ -116,7 +113,6 @@ class EditGroupWidget(QDialog):
         return wdg
 
     def _create_button_wdg(self) -> QWidget:
-
         wdg = QWidget()
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -146,7 +142,6 @@ class EditGroupWidget(QDialog):
         )
 
     def _add_group(self) -> None:
-
         # [(device, property, value), ...], need to remove the value
         new_dev_prop = [x[:2] for x in self._prop_table.getCheckedProperties()]
 
@@ -179,7 +174,6 @@ class EditGroupWidget(QDialog):
         self._mmc.deleteConfigGroup(self._group)
 
         for idx, preset in enumerate(presets):
-
             preset_dpv = _prop_to_keep[idx]
             if _to_add:
                 preset_dpv.extend(_to_add)

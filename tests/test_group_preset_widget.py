@@ -26,7 +26,6 @@ def test_populating_group_preset_table(global_mmcore: CMMCorePlus, qtbot: QtBot)
     assert len(list(global_mmcore.getAvailableConfigGroups())) == 9
 
     for r in range(gp.table_wdg.rowCount()):
-
         group_name = gp.table_wdg.item(r, 0).text()
         wdg = gp.table_wdg.cellWidget(r, 1)
 
@@ -177,11 +176,9 @@ def test_delete_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert "Camera" in mmc.getAvailableConfigGroups()
 
     for r in range(gp.table_wdg.rowCount()):
-
         group_name = gp.table_wdg.item(r, 0).text()
 
         if group_name == "Camera":
-
             with qtbot.waitSignal(mmc.events.configGroupDeleted):
                 mmc.deleteConfigGroup("Camera")
             break
@@ -238,7 +235,6 @@ def test_add_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
     ]
 
     for r in range(gp.table_wdg.rowCount()):
-
         group_name = gp.table_wdg.item(r, 0).text()
         if group_name == "Channel":
             wdg = cast(PresetsWidget, gp.table_wdg.cellWidget(r, 1))
@@ -276,7 +272,6 @@ def test_delete_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     camera_group_row = 0
     for r in range(gp.table_wdg.rowCount()):
-
         group_name = gp.table_wdg.item(r, 0).text()
         wdg = cast(PresetsWidget, gp.table_wdg.cellWidget(r, 1))
 

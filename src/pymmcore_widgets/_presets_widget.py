@@ -34,7 +34,6 @@ class PresetsWidget(QWidget):
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
-
         super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
@@ -104,7 +103,7 @@ class PresetsWidget(QWidget):
     def _set_style_if_props_not_match_preset(self) -> None:
         for preset in self._presets:
             _set_combo = True
-            for (dev, prop, value) in self._mmc.getConfigData(self._group, preset):
+            for dev, prop, value in self._mmc.getConfigData(self._group, preset):
                 cache_value = self._mmc.getPropertyFromCache(dev, prop)
                 if cache_value != value:
                     _set_combo = False
@@ -134,7 +133,6 @@ class PresetsWidget(QWidget):
                 )
 
     def _on_cfg_set(self, group: str, preset: str) -> None:
-
         if group == self._group and self._combo.currentText() != preset:
             with signals_blocked(self._combo):
                 self._combo.setCurrentText(preset)
@@ -230,7 +228,6 @@ class PresetsWidget(QWidget):
     def _on_new_group_preset(
         self, group: str, preset: str, device: str, property: str, value: str
     ) -> None:
-
         if group != self._group:
             return
 

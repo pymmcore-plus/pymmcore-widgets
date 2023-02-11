@@ -261,7 +261,6 @@ class StageWidget(QWidget):
                 self._mmc.setProperty("Core", "Focus", "")
 
     def _on_prop_changed(self, dev: str, prop: str, val: str) -> None:
-
         if dev != "Core":
             return
 

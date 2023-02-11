@@ -205,7 +205,6 @@ class SampleExplorerWidget(MDAWidget):
         super()._update_total_time(tiles=self.grid_params.ntiles())
 
     def _add_position(self) -> None:
-
         if not self._mmc.getXYStageDevice():
             return
 
@@ -383,7 +382,6 @@ class SampleExplorerWidget(MDAWidget):
         )
 
     def _on_run_clicked(self) -> None:
-
         self.pixel_size = self._mmc.getPixelSizeUm()
 
         if self._mmc.getPixelSizeUm() <= 0:

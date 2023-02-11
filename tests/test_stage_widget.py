@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 
 def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
-
     # test XY stage
     stage_xy = StageWidget("XY", levels=3)
 

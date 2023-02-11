@@ -174,7 +174,6 @@ class PositionTable(QGroupBox):
         self._table.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
     def _add_position(self) -> None:
-
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
             raise ValueError("No XY and Z Stage devices loaded.")
 
@@ -194,7 +193,6 @@ class PositionTable(QGroupBox):
         ypos: float | None,
         zpos: float | None,
     ) -> None:
-
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
             raise ValueError("No XY and Z Stage devices loaded.")
 
@@ -236,12 +234,10 @@ class PositionTable(QGroupBox):
         self._table.setItem(row, col, item)
 
     def _remove_position(self) -> None:
-
         rows = {r.row() for r in self._table.selectedIndexes()}
         grid_to_delete = []
 
         for idx in sorted(rows, reverse=True):
-
             pos_role = self._table.item(idx, 0).data(self.POS_ROLE)
             # store grid name if is a grid position
             if "Grid" in pos_role:
@@ -355,7 +351,6 @@ class PositionTable(QGroupBox):
     def _add_grid_positions_to_table(
         self, position_list: list[tuple[float, ...]], clear: bool
     ) -> None:
-
         grid_number = -1
 
         if clear:

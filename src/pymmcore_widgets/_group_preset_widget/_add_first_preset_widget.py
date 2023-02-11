@@ -43,7 +43,6 @@ class AddFirstPresetWidget(QDialog):
         self._populate_table()
 
     def _create_gui(self) -> None:
-
         self.setWindowTitle(f"Add the first Preset to the new '{self._group}' Group")
 
         main_layout = QVBoxLayout()
@@ -102,7 +101,6 @@ class AddFirstPresetWidget(QDialog):
         return f"NewPreset_{idx}" if idx > 0 else "NewPreset"
 
     def _create_bottom_wdg(self) -> QWidget:
-
         wdg = QWidget()
         wdg_layout = QHBoxLayout()
         wdg_layout.setSpacing(5)
@@ -125,7 +123,6 @@ class AddFirstPresetWidget(QDialog):
         return wdg
 
     def _populate_table(self) -> None:
-
         self.table.clearContents()
 
         self.table.setRowCount(len(self._dev_prop_val_list))
@@ -137,7 +134,6 @@ class AddFirstPresetWidget(QDialog):
             self.table.setCellWidget(idx, 1, wdg)
 
     def _create_first_preset(self) -> None:
-
         dev_prop_val = []
         for row in range(self.table.rowCount()):
             device_property = self.table.item(row, 0).text()
