@@ -37,10 +37,10 @@ if TYPE_CHECKING:
         rows: int
         columns: int
         relative_to: RelativeTo | str
-        top: float  # top_left y
-        left: float  # top_left x
-        bottom: float  # bottom_right y
-        right: float  # bottom_right x
+        top: float
+        left: float
+        bottom: float
+        right: float
 
 
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -334,7 +334,7 @@ class GridWidget(QDialog):
         if self.tab.currentIndex() == 0:  # rows and cols
             rows = self.n_rows.value()
             cols = self.n_columns.value()
-        else:  # corners
+        else:  # edges
             total_width = (
                 abs(self.left.spinbox.value() - self.right.spinbox.value()) + width
             )
@@ -363,7 +363,7 @@ class GridWidget(QDialog):
             value["rows"] = self.n_rows.value()
             value["columns"] = self.n_columns.value()
             value["relative_to"] = self.relative_combo.currentText()
-        else:  # corners
+        else:  # edges
             value["top"] = self.top.spinbox.value()
             value["bottom"] = self.bottom.spinbox.value()
             value["left"] = self.left.spinbox.value()
@@ -380,8 +380,7 @@ class GridWidget(QDialog):
         over_x, over_y = overlap if isinstance(overlap, tuple) else (overlap, overlap)
         self.overlap_spinbox_x.setValue(over_x)
         self.overlap_spinbox_y.setValue(over_y)
-
-        ordermode = grid.get("order_mode") or OrderMode.row_wise_snake
+        ordermode = grid.get("mode") or OrderMode.row_wise_snake
         ordermode = ordermode.value if isinstance(ordermode, OrderMode) else ordermode
         self.ordermode_combo.setCurrentText(ordermode)
 
@@ -389,19 +388,19 @@ class GridWidget(QDialog):
             self._set_relative_wdg(grid)
             self.tab.setCurrentIndex(0)
         except TypeError:
-            self._set_corner_wdg(grid)
+            self._set_edges_wdg(grid)
             self.tab.setCurrentIndex(1)
 
     def _set_relative_wdg(self, grid: GridDict) -> None:
         self.n_rows.setValue(grid.get("rows"))
-        self.n_columns.setValue(grid.get("cols"))
+        self.n_columns.setValue(grid.get("columns"))
         relative = grid.get("relative_to")
         relative = (
             relative.value if isinstance(relative, RelativeTo) else relative or "center"
         )
         self.relative_combo.setCurrentText(relative)
 
-    def _set_corner_wdg(self, grid: GridDict) -> None:
+    def _set_edges_wdg(self, grid: GridDict) -> None:
         self.top.spinbox.setValue(grid["top"])
         self.bottom.spinbox.setValue(grid["bottom"])
         self.left.spinbox.setValue(grid["left"])
