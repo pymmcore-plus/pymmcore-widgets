@@ -34,7 +34,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
         ],
         time_plan={"interval": 2, "loops": 5},
         z_plan={"range": 4, "step": 0.5},
-        axis_order="tpcz",
+        axis_order="tpgcz",
         stage_positions=(
             {"name": "Pos000", "x": 222, "y": 1, "z": 1},
             {"name": "Pos001", "x": 111, "y": 0, "z": 0},
@@ -47,17 +47,6 @@ def test_mda_widget_load_state(qtbot: QtBot):
 
     # round trip
     assert wdg.get_state() == sequence
-
-    # test add grid positions
-    wdg.position_groupbox.setChecked(True)
-    wdg.position_groupbox._clear_positions()
-    assert wdg.position_groupbox._table.rowCount() == 0
-    wdg.position_groupbox.grid_button.click()
-    qtbot.addWidget(wdg.position_groupbox._grid_wdg)
-    wdg.position_groupbox._grid_wdg.n_rows.setValue(2)
-    wdg.position_groupbox._grid_wdg.n_columns.setValue(2)
-    wdg.position_groupbox._grid_wdg.add_button.click()
-    assert wdg.position_groupbox._table.rowCount() == 4
 
 
 def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -123,54 +112,24 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     global_mmcore.setProperty("Objective", "Label", "Nikon 10X S Fluor")
 
-    # w/o overlap
-    grid_wdg.set_state(GridRelative(rows=2, cols=2))
+    grid_wdg.set_state(GridRelative(rows=2, columns=2))
     assert grid_wdg.info_lbl.text() == "Width: 1.024 mm    Height: 1.024 mm"
 
     mock = Mock()
     grid_wdg.valueChanged.connect(mock)
 
-    grid_wdg.clear_checkbox.setChecked(True)
-
     grid_wdg._emit_grid_positions()
 
-    mock.assert_has_calls(
-        [
-            call(
-                {
-                    "overlap": (0.0, 0.0),
-                    "order_mode": "snake_row_wise",
-                    "rows": 2,
-                    "cols": 2,
-                    "relative_to": "center",
-                },
-                True,
-            )
-        ]
-    )
+    mock.assert_has_calls([call(grid_wdg.value())])
 
-    # with overlap
-    grid_wdg.set_state(GridRelative(rows=3, cols=3, overlap=(15.0, 10.0)))
+    grid_wdg.set_state(
+        GridFromEdges(top=512, bottom=-512, left=-512, right=512, overlap=(15.0, 10.0))
+    )
     assert grid_wdg.info_lbl.text() == "Width: 1.306 mm    Height: 1.382 mm"
 
-    grid_wdg.clear_checkbox.setChecked(False)
-
     grid_wdg._emit_grid_positions()
 
-    mock.assert_has_calls(
-        [
-            call(
-                {
-                    "overlap": (15.0, 10.0),
-                    "order_mode": "snake_row_wise",
-                    "rows": 3,
-                    "cols": 3,
-                    "relative_to": "center",
-                },
-                False,
-            )
-        ]
-    )
+    mock.assert_has_calls([call(grid_wdg.value())])
 
 
 def test_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -178,39 +137,45 @@ def test_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(grid_wdg)
 
     grid_wdg.set_state(
-        GridRelative(rows=3, cols=3, overlap=15.0, relative_to="top_left")
+        GridRelative(rows=3, columns=3, overlap=15.0, relative_to="top_left")
     )
     assert grid_wdg.value() == {
         "overlap": (15.0, 15.0),
-        "order_mode": "snake_row_wise",
+        "mode": "row_wise_snake",
         "rows": 3,
-        "cols": 3,
+        "columns": 3,
         "relative_to": "top_left",
     }
 
     grid_wdg.set_state(
-        GridFromEdges(corner1=(0, 0), corner2=(2, 2), order_mode="spiral")
+        GridFromEdges(top=512, bottom=-512, left=-512, right=512, mode="spiral")
     )
     assert grid_wdg.value() == {
         "overlap": (0.0, 0.0),
-        "order_mode": "spiral",
-        "corner1": (0.0, 0.0),
-        "corner2": (2.0, 2.0),
+        "mode": "spiral",
+        "top": 512.0,
+        "bottom": -512.0,
+        "left": -512.0,
+        "right": 512.0,
     }
 
     grid_wdg.set_state(
         {
             "overlap": (10.0, 0.0),
-            "order_mode": "snake_row_wise",
-            "corner1": (10.0, 5.0),
-            "corner2": (20.0, 20.0),
+            "mode": "row_wise_snake",
+            "top": 512.0,
+            "bottom": -512.0,
+            "left": -512.0,
+            "right": 512.0,
         }
     )
     assert grid_wdg.value() == {
         "overlap": (10.0, 0.0),
-        "order_mode": "snake_row_wise",
-        "corner1": (10.0, 5.0),
-        "corner2": (20.0, 20.0),
+        "mode": "row_wise_snake",
+        "top": 512.0,
+        "bottom": -512.0,
+        "left": -512.0,
+        "right": 512.0,
     }
 
 
