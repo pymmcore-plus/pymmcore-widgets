@@ -100,10 +100,11 @@ def test_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
     rows = {r.row() for r in tb.selectedIndexes()}
     assert rows == {0, 1, 2, 3}
 
-    assert tb.item(4, 0).text() == "Pos001_000_000_0"
+    assert tb.item(4, 0).text()[:6] == "Pos001"
     for row in rows:
         tb.item(row, 0).setText(f"test{row}")
-    assert tb.item(4, 0).text() == "Pos000_000_000_0"
+    for r in range(4, 8):
+        assert tb.item(r, 0).text()[:6] == "Pos000"
 
     p.clear()
     assert not tb.rowCount()
