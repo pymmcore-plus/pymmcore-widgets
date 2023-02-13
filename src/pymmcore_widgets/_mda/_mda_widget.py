@@ -216,12 +216,10 @@ class MDAWidget(QWidget):
         else:
             self.time_groupbox.setChecked(False)
 
-        # set stage positions and GridPlan
-        if state.stage_positions or state.grid_plan:  # type: ignore
+        # set stage positions
+        if state.stage_positions:
             self.position_groupbox.setChecked(True)
-            pos = list(state.stage_positions)
-            pos.append(state.grid_plan)  # type: ignore
-            self.position_groupbox.set_state(pos)
+            self.position_groupbox.set_state(list(state.stage_positions))
         else:
             self.position_groupbox.setChecked(False)
 
@@ -255,15 +253,12 @@ class MDAWidget(QWidget):
         if not stage_positions:
             stage_positions = self._get_current_position()
 
-        grid_plan = self.position_groupbox.grid_value()
-
         sequence = MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
             channels=channels,
             stage_positions=stage_positions,
             z_plan=z_plan,
             time_plan=time_plan,
-            grid_plan=grid_plan,
         )
 
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
@@ -321,7 +316,8 @@ class MDAWidget(QWidget):
 
         # positions
         if self.position_groupbox.isChecked():
-            n_pos = len(self.position_groupbox.value()) or 1
+            # n_pos = len(self.position_groupbox.value()) or 1
+            n_pos = self.position_groupbox._table.rowCount() or 1
         else:
             n_pos = 1
 
