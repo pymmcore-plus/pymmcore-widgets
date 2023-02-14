@@ -82,7 +82,6 @@ class GroupPresetTableWidget(QGroupBox):
         self.destroyed.connect(self._disconnect)
 
     def _create_gui(self) -> None:
-
         self.setLayout(QVBoxLayout())
         self.layout().setSpacing(5)
         self.setContentsMargins(0, 0, 0, 0)
@@ -100,7 +99,6 @@ class GroupPresetTableWidget(QGroupBox):
         self._enable_buttons(False)
 
     def _add_groups_presets_buttons(self) -> QWidget:
-
         main_wdg = QWidget()
         main_wdg_layout = QHBoxLayout()
         main_wdg_layout.setSpacing(10)
@@ -156,7 +154,6 @@ class GroupPresetTableWidget(QGroupBox):
         return main_wdg
 
     def _add_save_button(self) -> QWidget:
-
         save_btn_wdg = QWidget()
         save_btn_layout = QHBoxLayout()
         save_btn_layout.setSpacing(5)
@@ -200,7 +197,6 @@ class GroupPresetTableWidget(QGroupBox):
     def _on_new_group_preset(
         self, group: str, preset: str, device: str, property: str, value: str
     ) -> None:
-
         if not device or not property or not value:
             return
 
@@ -208,7 +204,6 @@ class GroupPresetTableWidget(QGroupBox):
             row = matching_item[0].row()
 
             if isinstance(self.table_wdg.cellWidget(row, 1), PropertyWidget):
-
                 dev_prop_val = [
                     (k[0], k[1], k[2]) for k in self._mmc.getConfigData(group, preset)
                 ]

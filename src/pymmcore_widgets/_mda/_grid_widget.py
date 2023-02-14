@@ -47,7 +47,6 @@ fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixe
 
 
 class _EdgeSpinbox(QWidget):
-
     valueChanged = Signal()
 
     def __init__(

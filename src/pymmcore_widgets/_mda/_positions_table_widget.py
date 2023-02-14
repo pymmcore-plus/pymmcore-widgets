@@ -78,7 +78,7 @@ class PositionTable(QGroupBox):
     When using the [GridWidget](), a list of stage positions will be added to
     the table with a default name in the form:
     "position_row_column_acquisition-order-index" (e.g. "Pos000_000_000_0",
-    "Pos000_000_001_1", ...)
+    "Pos000_000_001_1", ...).
     """
 
     valueChanged = Signal()
@@ -239,7 +239,6 @@ class PositionTable(QGroupBox):
         self._table.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
     def _add_position(self) -> None:
-
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
             raise ValueError("No XY and Z Stage devices loaded.")
 
@@ -257,7 +256,6 @@ class PositionTable(QGroupBox):
         ypos: float | None,
         zpos: float | None,
     ) -> None:
-
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
             raise ValueError("No XY and Z Stage devices loaded.")
 
@@ -472,11 +470,10 @@ class PositionTable(QGroupBox):
         return value  # type: ignore
 
     def value(self) -> list[PositionDict]:
-        # TODO: update docstring
         """Return the current positions settings.
 
         Note that output dict will match the Positions from useq schema:
-        <https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position>
+        <https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position>.
         """
         if not self._table.rowCount():
             return []
@@ -488,7 +485,6 @@ class PositionTable(QGroupBox):
             name = self._table.item(row, 0).text()
 
             if grid_role := self._table.item(row, 0).data(self.GRID_ROLE):
-
                 if row in grids_rows:
                     continue
 
@@ -523,7 +519,6 @@ class PositionTable(QGroupBox):
             raise ValueError("No XY and Z Stage devices loaded.")
 
         for position in positions:
-
             if isinstance(position, Position):
                 position = position.dict()  # type: ignore
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pymmcore_plus import CMMCorePlus, DeviceType
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QComboBox, QVBoxLayout, QWidget
 
 from ._presets_widget import PresetsWidget
@@ -45,7 +45,6 @@ class ChannelWidget(QWidget):
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
-
         super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -62,7 +61,6 @@ class ChannelWidget(QWidget):
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
-        self._mmc.events.configSet.connect(self._on_channel_set)
 
         # presetDeleted signal is handled by the PresetsWidget
         self._mmc.events.configDefined.connect(self._on_new_group_preset)
@@ -98,17 +96,6 @@ class ChannelWidget(QWidget):
             # signal is not emitted and we get a ValueError. So we need to call:
             self._on_channel_group_changed(channel_group)
 
-    def _on_channel_set(self, group: str, preset: str) -> None:
-        ch = self._mmc.getChannelGroup()
-        if group != ch:
-            return  # pragma: no cover
-        for d in self._mmc.getConfigData(ch, preset):
-            _dev = d[0]
-            _type = self._mmc.getDeviceType(_dev)
-            if _type is DeviceType.Shutter:
-                self._mmc.setProperty("Core", "Shutter", _dev)
-                break
-
     def _on_channel_group_changed(self, new_channel_group: str) -> None:
         """When Channel group is changed, recreate combo."""
         _wdg = QWidget()
@@ -136,6 +123,5 @@ class ChannelWidget(QWidget):
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
         self._mmc.events.channelGroupChanged.disconnect(self._on_channel_group_changed)
-        self._mmc.events.configSet.disconnect(self._on_channel_set)
         self._mmc.events.configDefined.disconnect(self._on_new_group_preset)
         self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)

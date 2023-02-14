@@ -41,7 +41,6 @@ class AddGroupWidget(QDialog):
         event.accept()
 
     def _create_gui(self) -> None:
-
         self.setWindowTitle("Create a new Group")
 
         main_layout = QVBoxLayout()
@@ -59,7 +58,6 @@ class AddGroupWidget(QDialog):
         main_layout.addWidget(btn)
 
     def _create_group_lineedit_wdg(self) -> QGroupBox:
-
         wdg = QGroupBox()
         layout = QHBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
@@ -79,7 +77,6 @@ class AddGroupWidget(QDialog):
         return wdg
 
     def _create_table_wdg(self) -> QGroupBox:
-
         wdg = QGroupBox()
         layout = QHBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
@@ -115,7 +112,6 @@ class AddGroupWidget(QDialog):
         return wdg
 
     def _create_button_wdg(self) -> QWidget:
-
         wdg = QWidget()
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -145,7 +141,6 @@ class AddGroupWidget(QDialog):
         )
 
     def _add_group(self) -> None:
-
         group = self.group_lineedit.text()
 
         if not group:
