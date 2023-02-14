@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -240,14 +241,16 @@ class MDAWidget(QWidget):
         )
 
         stage_positions: list[PositionDict] = []
+        _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
         if self.position_groupbox.isChecked():
             for p in self.position_groupbox.value():
-                if p_sequence := p.get("sequence"):
-                    p_sequence = p_sequence.replace(
+                with contextlib.suppress(AttributeError):
+                    p.get("sequence").set_fov_size((width, height))  # type: ignore
+                    p_sequence = p.get("sequence").replace(  # type: ignore
                         axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
                     )
-                    p_sequence = p_sequence.replace(channels=channels)  # type: ignore
-                    p_sequence = p_sequence.replace(z_plan=z_plan)  # type: ignore
+                    p_sequence = p_sequence.replace(channels=channels)
+                    p_sequence = p_sequence.replace(z_plan=z_plan)
                     p["sequence"] = p_sequence
                 stage_positions.append(p)
         if not stage_positions:
@@ -260,8 +263,6 @@ class MDAWidget(QWidget):
             z_plan=z_plan,
             time_plan=time_plan,
         )
-
-        _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
         sequence.set_fov_size((width, height))  # type: ignore
 
         return sequence
