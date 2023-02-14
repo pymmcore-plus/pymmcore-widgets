@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
 from useq import MDASequence
 
 from pymmcore_widgets import SampleExplorerWidget
@@ -11,6 +12,9 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
+@pytest.mark.skip(
+    reason="Since we will remove the 'SampleExplorerWidget', we can skip this test."
+)
 def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     # sourcery skip: remove-duplicate-set-key
     global_mmcore.setExposure(100)
@@ -107,6 +111,9 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert state.stage_positions == sequence.stage_positions
 
 
+@pytest.mark.skip(
+    reason="Since we will remove the 'SampleExplorerWidget', we can skip this test."
+)
 def test_explorer_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = SampleExplorerWidget(include_run_button=True)
     qtbot.addWidget(wdg)
@@ -136,6 +143,9 @@ def test_explorer_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.position_groupbox._table.rowCount() == 0
 
 
+@pytest.mark.skip(
+    reason="Since we will remove the 'SampleExplorerWidget', we can skip this test."
+)
 def test_explorer_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = SampleExplorerWidget(include_run_button=True)
     qtbot.addWidget(wdg)
@@ -161,6 +171,9 @@ def test_explorer_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.buttons_wdg.cancel_button.isHidden()
 
 
+@pytest.mark.skip(
+    reason="Since we will remove the 'SampleExplorerWidget', we can skip this test."
+)
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     global_mmcore.setExposure(100)
     wdg = SampleExplorerWidget(include_run_button=True)
