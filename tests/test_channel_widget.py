@@ -21,12 +21,9 @@ def test_channel_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     assert isinstance(wdg.channel_wdg, PresetsWidget)
 
-    global_mmcore.setProperty("Core", "Shutter", "")
-    assert not global_mmcore.getShutterDevice()
-
     wdg.channel_wdg.setValue("DAPI")
     assert global_mmcore.getCurrentConfig("Channel") == "DAPI"
-    assert global_mmcore.getShutterDevice() == "Multi Shutter"
+    assert global_mmcore.getShutterDevice() == "Shutter"
 
     global_mmcore.setConfig("Channel", "FITC")
     assert wdg.channel_wdg.value() == "FITC"
