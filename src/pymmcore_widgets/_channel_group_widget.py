@@ -68,6 +68,7 @@ class ChannelGroupWidget(QComboBox):
 
     def _on_channel_group_changed(self, group: str) -> None:
         if group == self.currentText():
+            self.setStyleSheet("")
             return
         self._update_channel_group_combo()
 
