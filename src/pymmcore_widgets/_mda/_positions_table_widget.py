@@ -164,9 +164,6 @@ class PositionTable(QGroupBox):
         self._table.selectionModel().selectionChanged.connect(
             self._enable_remove_button
         )
-        self._table.selectionModel().selectionChanged.connect(
-            self._select_all_grid_positions
-        )
 
         self._table.itemChanged.connect(self._rename_positions)
 
@@ -212,31 +209,6 @@ class PositionTable(QGroupBox):
     def _enable_remove_button(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
         self.remove_button.setEnabled(len(rows) >= 1)
-
-    def _select_all_grid_positions(self) -> None:
-        """Select all grid positions from the same 'Gridnnn'."""
-        rows = {r.row() for r in self._table.selectedIndexes()}
-
-        # get grids id
-        _ids = [
-            self._table.item(row, 0).data(self.GRID_ROLE)[0]
-            for row in rows
-            if self._table.item(row, 0).data(self.GRID_ROLE)
-        ]
-
-        # select all positions from the same grid
-        # activate MultiSelection
-        self._table.setSelectionMode(QAbstractItemView.MultiSelection)
-        for row in range(self._table.rowCount()):
-            role = self._table.item(row, 0).data(self.GRID_ROLE)
-            if (
-                role
-                and role[0] in _ids
-                and not self._table.selectionModel().isRowSelected(row)
-            ):
-                self._table.selectRow(row)
-        # revert back to ExtendedSelection
-        self._table.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
     def _add_position(self) -> None:
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
