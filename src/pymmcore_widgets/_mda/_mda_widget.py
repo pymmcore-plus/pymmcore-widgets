@@ -242,6 +242,8 @@ class MDAWidget(QWidget):
 
         stage_positions: list[PositionDict] = []
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
+        width = int(width * self._mmc.getPixelSizeUm())
+        height = int(height * self._mmc.getPixelSizeUm())
         if self.position_groupbox.isChecked():
             for p in self.position_groupbox.value():
                 with contextlib.suppress(AttributeError):

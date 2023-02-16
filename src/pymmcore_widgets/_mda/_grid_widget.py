@@ -325,6 +325,8 @@ class GridWidget(QDialog):
 
         px_size = self._mmc.getPixelSizeUm()
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
+        width = int(width * self._mmc.getPixelSizeUm())
+        height = int(height * self._mmc.getPixelSizeUm())
         overlap_percentage_x = self.overlap_spinbox_x.value()
         overlap_percentage_y = self.overlap_spinbox_y.value()
         overlap_x = width * overlap_percentage_x / 100

@@ -403,6 +403,8 @@ class PositionTable(QGroupBox):
             return
 
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
+        width = int(width * self._mmc.getPixelSizeUm())
+        height = int(height * self._mmc.getPixelSizeUm())
         position_list = list(grid_type.iter_grid_positions(width, height))
 
         if isinstance(grid_type, GridRelative):
