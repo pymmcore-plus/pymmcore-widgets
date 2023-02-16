@@ -109,10 +109,13 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     grid_wdg._update_info_label()
     assert grid_wdg.info_lbl.text() == "Width: _ mm    Height: _ mm"
 
-    global_mmcore.setProperty("Objective", "Label", "Nikon 10X S Fluor")
+    global_mmcore.setProperty("Objective", "Label", "Nikon 20X Plan Fluor ELWD")
+    assert global_mmcore.getPixelSizeUm() == 0.5
+    assert tuple(global_mmcore.getXYPosition()) == (0.0, 0.0)
+    assert tuple(global_mmcore.getROI()) == (0, 0, 512, 512)
 
     grid_wdg.set_state(GridRelative(rows=2, columns=2))
-    assert grid_wdg.info_lbl.text() == "Width: 1.024 mm    Height: 1.024 mm"
+    assert grid_wdg.info_lbl.text() == "Width: 0.512 mm    Height: 0.512 mm"
 
     mock = Mock()
     grid_wdg.valueChanged.connect(mock)
@@ -122,9 +125,9 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     mock.assert_has_calls([call(grid_wdg.value())])
 
     grid_wdg.set_state(
-        GridFromEdges(top=512, bottom=-512, left=-512, right=512, overlap=(15.0, 10.0))
+        GridFromEdges(top=256, bottom=-256, left=-256, right=256, overlap=(0.0, 50.0))
     )
-    assert grid_wdg.info_lbl.text() == "Width: 1.306 mm    Height: 1.382 mm"
+    assert grid_wdg.info_lbl.text() == "Width: 0.768 mm    Height: 0.768 mm"
 
     grid_wdg._emit_grid_positions()
 

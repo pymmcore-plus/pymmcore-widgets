@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
@@ -129,6 +128,7 @@ class GridWidget(QDialog):
         self._update_info_label()
 
         self._mmc.events.systemConfigurationLoaded.connect(self._update_info_label)
+        self._mmc.events.pixelSizeChanged.connect(self._update_info_label)
 
         self.destroyed.connect(self._disconnect)
 
@@ -323,7 +323,6 @@ class GridWidget(QDialog):
             self.info_lbl.setText("Width: _ mm    Height: _ mm")
             return
 
-        px_size = self._mmc.getPixelSizeUm()
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
         width = int(width * self._mmc.getPixelSizeUm())
         height = int(height * self._mmc.getPixelSizeUm())
@@ -335,18 +334,16 @@ class GridWidget(QDialog):
         if self.tab.currentIndex() == 0:  # rows and cols
             rows = self.n_rows.value()
             cols = self.n_columns.value()
-        else:  # edges
-            total_width = (
-                abs(self.left.spinbox.value() - self.right.spinbox.value()) + width
-            )
-            total_height = (
-                abs(self.top.spinbox.value() - self.bottom.spinbox.value()) + height
-            )
-            rows = math.ceil(total_width / width) if total_width > width else 1
-            cols = math.ceil(total_height / height) if total_height > height else 1
+            x = ((width - overlap_x) * cols) / 1000
+            y = ((height - overlap_y) * rows) / 1000
 
-        x = ((width - overlap_x) * cols) * px_size / 1000
-        y = ((height - overlap_y) * rows) * px_size / 1000
+        else:  # edges
+            x = (
+                abs(self.left.spinbox.value() - self.right.spinbox.value()) + width
+            ) / 1000
+            y = (
+                abs(self.top.spinbox.value() - self.bottom.spinbox.value()) + height
+            ) / 1000
 
         self.info_lbl.setText(f"Width: {round(x, 3)} mm    Height: {round(y, 3)} mm")
 
@@ -414,3 +411,4 @@ class GridWidget(QDialog):
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._update_info_label)
+        self._mmc.events.pixelSizeChanged.disconnect(self._update_info_label)
