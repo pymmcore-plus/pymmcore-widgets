@@ -320,6 +320,9 @@ class GridWidget(QDialog):
         self.corner_2 = _SpinboxWidget("corner2", mmcore=self._mmc)
         self.corner_2.valueChanged.connect(self._update_info_label)
 
+        self.corner_1.label.setFixedWidth(self.corner_2.label.sizeHint().width() + 5)
+        self.corner_2.label.setFixedWidth(self.corner_2.label.sizeHint().width() + 5)
+
         group_layout.addWidget(self.corner_1)
         group_layout.addWidget(self.corner_2)
 
