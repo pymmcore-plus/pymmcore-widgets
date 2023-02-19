@@ -247,6 +247,11 @@ class GridWidget(QDialog):
         self.right = _SpinboxWidget("right", mmcore=self._mmc)
         self.right.valueChanged.connect(self._update_info_label)
 
+        self.top.label.setFixedWidth(self.bottom.label.sizeHint().width() + 5)
+        self.bottom.label.setFixedWidth(self.bottom.label.sizeHint().width() + 5)
+        self.right.label.setFixedWidth(self.right.label.sizeHint().width() + 5)
+        self.left.label.setFixedWidth(self.right.label.sizeHint().width() + 5)
+
         group_layout.addWidget(self.top, 0, 0)
         group_layout.addWidget(self.bottom, 1, 0)
         group_layout.addWidget(self.left, 0, 1)
