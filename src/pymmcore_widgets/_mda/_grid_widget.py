@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
@@ -45,16 +45,22 @@ if TYPE_CHECKING:
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
 
-class _EdgeSpinbox(QWidget):
+class _SpinboxWidget(QWidget):
     valueChanged = Signal()
 
     def __init__(
-        self, label: str, parent: QWidget | None = None, *, mmcore: CMMCorePlus
+        self,
+        label: Literal["top", "bottom", "left", "right", "corner1", "corner2"],
+        parent: QWidget | None = None,
+        *,
+        mmcore: CMMCorePlus,
     ) -> None:
         super().__init__(parent)
 
         self._mmc = mmcore
         self._label = label
+
+        self._corners = label in {"corner1", "corner2"}
 
         layout = QHBoxLayout()
         layout.setSpacing(10)
@@ -64,8 +70,6 @@ class _EdgeSpinbox(QWidget):
         self.label = QLabel(text=f"{self._label}:")
         self.label.setSizePolicy(fixed_sizepolicy)
 
-        self.spinbox = self._doublespinbox()
-
         self.set_button = QPushButton(text="Set")
         self.set_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.set_button.setMinimumWidth(75)
@@ -73,7 +77,22 @@ class _EdgeSpinbox(QWidget):
         self.set_button.clicked.connect(self._on_click)
 
         layout.addWidget(self.label)
-        layout.addWidget(self.spinbox)
+
+        if self._corners:
+            x_label = QLabel(text="x:")
+            x_label.setSizePolicy(fixed_sizepolicy)
+            self.x_spinbox = self._doublespinbox()
+            y_label = QLabel(text="y:")
+            y_label.setSizePolicy(fixed_sizepolicy)
+            self.y_spinbox = self._doublespinbox()
+            layout.addWidget(x_label)
+            layout.addWidget(self.x_spinbox)
+            layout.addWidget(y_label)
+            layout.addWidget(self.y_spinbox)
+        else:
+            self.spinbox = self._doublespinbox()
+            layout.addWidget(self.spinbox)
+
         layout.addWidget(self.set_button)
 
     def _doublespinbox(self) -> QDoubleSpinBox:
@@ -88,7 +107,10 @@ class _EdgeSpinbox(QWidget):
     def _on_click(self) -> None:
         if not self._mmc.getXYStageDevice():
             return
-        if self._label in {"top", "bottom"}:
+        if self._corners:
+            self.x_spinbox.setValue(self._mmc.getXPosition())
+            self.y_spinbox.setValue(self._mmc.getYPosition())
+        elif self._label in {"top", "bottom"}:
             self.spinbox.setValue(self._mmc.getYPosition())
         elif self._label in {"left", "right"}:
             self.spinbox.setValue(self._mmc.getXPosition())
@@ -141,11 +163,14 @@ class GridWidget(QDialog):
         self.tab = QTabWidget()
         self.tab.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
-        rc = self._create_row_cols_wdg()
-        self.tab.addTab(rc, "Rows x Columns")
+        rowcol = self._create_row_cols_wdg()
+        self.tab.addTab(rowcol, "Rows x Columns")
 
-        cr = self._create_edges_grid_wdg()
-        self.tab.addTab(cr, "Grid from Edges")
+        edges = self._create_edges_grid_wdg()
+        self.tab.addTab(edges, "Grid from Edges")
+
+        corners = self._create_corners_grid_wdg()
+        self.tab.addTab(corners, "Grid from Corners")
 
         layout.addWidget(self.tab)
 
@@ -212,14 +237,14 @@ class GridWidget(QDialog):
         group_layout.setContentsMargins(10, 10, 10, 10)
         group.setLayout(group_layout)
 
-        self.top = _EdgeSpinbox("top", mmcore=self._mmc)
+        self.top = _SpinboxWidget("top", mmcore=self._mmc)
         self.top.valueChanged.connect(self._update_info_label)
-        self.bottom = _EdgeSpinbox("bottom", mmcore=self._mmc)
+        self.bottom = _SpinboxWidget("bottom", mmcore=self._mmc)
         self.bottom.valueChanged.connect(self._update_info_label)
         self.top.label.setMinimumWidth(self.bottom.label.sizeHint().width())
-        self.left = _EdgeSpinbox("left", mmcore=self._mmc)
+        self.left = _SpinboxWidget("left", mmcore=self._mmc)
         self.left.valueChanged.connect(self._update_info_label)
-        self.right = _EdgeSpinbox("right", mmcore=self._mmc)
+        self.right = _SpinboxWidget("right", mmcore=self._mmc)
         self.right.valueChanged.connect(self._update_info_label)
 
         group_layout.addWidget(self.top, 0, 0)
@@ -278,6 +303,23 @@ class GridWidget(QDialog):
 
         return group
 
+    def _create_corners_grid_wdg(self) -> QWidget:
+        group = QWidget()
+        group_layout = QVBoxLayout()
+        group_layout.setSpacing(10)
+        group_layout.setContentsMargins(10, 10, 10, 10)
+        group.setLayout(group_layout)
+
+        self.corner_1 = _SpinboxWidget("corner1", mmcore=self._mmc)
+        self.corner_1.valueChanged.connect(self._update_info_label)
+        self.corner_2 = _SpinboxWidget("corner2", mmcore=self._mmc)
+        self.corner_2.valueChanged.connect(self._update_info_label)
+
+        group_layout.addWidget(self.corner_1)
+        group_layout.addWidget(self.corner_2)
+
+        return group
+
     def _create_label_info(self) -> QGroupBox:
         group = QGroupBox()
         group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -331,19 +373,43 @@ class GridWidget(QDialog):
         overlap_x = width * overlap_percentage_x / 100
         overlap_y = height * overlap_percentage_y / 100
 
-        if self.tab.currentIndex() == 0:  # rows and cols
+        if self.tab.currentIndex() == 0:
             rows = self.n_rows.value()
             cols = self.n_columns.value()
             x = ((width - overlap_x) * cols) / 1000
             y = ((height - overlap_y) * rows) / 1000
+        else:
+            top = (
+                self.top.spinbox.value()
+                if self.tab.currentIndex() == 1
+                else max(
+                    self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value()
+                )
+            )
+            bottom = (
+                self.bottom.spinbox.value()
+                if self.tab.currentIndex() == 1
+                else min(
+                    self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value()
+                )
+            )
+            right = (
+                self.right.spinbox.value()
+                if self.tab.currentIndex() == 1
+                else max(
+                    self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value()
+                )
+            )
+            left = (
+                self.left.spinbox.value()
+                if self.tab.currentIndex() == 1
+                else min(
+                    self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value()
+                )
+            )
 
-        else:  # edges
-            x = (
-                abs(self.left.spinbox.value() - self.right.spinbox.value()) + width
-            ) / 1000
-            y = (
-                abs(self.top.spinbox.value() - self.bottom.spinbox.value()) + height
-            ) / 1000
+            x = (abs(left - right) + width) / 1000
+            y = (abs(top - bottom) + height) / 1000
 
         self.info_lbl.setText(f"Width: {round(x, 3)} mm    Height: {round(y, 3)} mm")
 
@@ -357,15 +423,39 @@ class GridWidget(QDialog):
             ),
             "mode": self.ordermode_combo.currentText(),
         }
-        if self.tab.currentIndex() == 0:  # rows and cols
+        if self.tab.currentIndex() == 0:
             value["rows"] = self.n_rows.value()
             value["columns"] = self.n_columns.value()
             value["relative_to"] = self.relative_combo.currentText()
-        else:  # edges
-            value["top"] = self.top.spinbox.value()
-            value["bottom"] = self.bottom.spinbox.value()
-            value["left"] = self.left.spinbox.value()
-            value["right"] = self.right.spinbox.value()
+        else:
+            value["top"] = (
+                self.top.spinbox.value()
+                if self.tab.currentIndex() == 1
+                else max(
+                    self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value()
+                )
+            )
+            value["bottom"] = (
+                self.bottom.spinbox.value()
+                if self.tab.currentIndex() == 1
+                else min(
+                    self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value()
+                )
+            )
+            value["left"] = (
+                self.left.spinbox.value()
+                if self.tab.currentIndex() == 1
+                else max(
+                    self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value()
+                )
+            )
+            value["right"] = (
+                self.right.spinbox.value()
+                if self.tab.currentIndex() == 1
+                else min(
+                    self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value()
+                )
+            )
 
         return value
 
