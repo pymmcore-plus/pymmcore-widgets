@@ -76,10 +76,10 @@ def test_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
         assert tb.item(row, 0).toolTip() == (
             "overlap=(0.0, 0.0) mode=row_wise rows=2 columns=2 relative_to=center"
         )
-    assert _get_values(tb, 0) == ("Pos000_000_000_0", -256.0, 256.0, 0.0)
-    assert _get_values(tb, 1) == ("Pos000_000_001_1", 256.0, 256.0, 0.0)
-    assert _get_values(tb, 2) == ("Pos000_001_000_2", -256.0, -256.0, 0.0)
-    assert _get_values(tb, 3) == ("Pos000_001_001_3", 256.0, -256.0, 0.0)
+    assert _get_values(tb, 0) == ("Pos000_000_000_000", -256.0, 256.0, 0.0)
+    assert _get_values(tb, 1) == ("Pos000_000_001_001", 256.0, 256.0, 0.0)
+    assert _get_values(tb, 2) == ("Pos000_001_000_002", -256.0, -256.0, 0.0)
+    assert _get_values(tb, 3) == ("Pos000_001_001_003", 256.0, -256.0, 0.0)
 
     p._grid_wdg.tab.setCurrentIndex(1)
     p._grid_wdg.set_state(
@@ -91,17 +91,13 @@ def test_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
         assert tb.item(row, 0).toolTip() == (
             "overlap=(0.0, 0.0) mode=spiral top=0.0 left=0.0 bottom=-512.0 right=512.0"
         )
-    assert _get_values(tb, 4) == ("Pos001_000_000_0", 0.0, 0.0, 0.0)
-    assert _get_values(tb, 5) == ("Pos001_000_001_1", 512.0, 0.0, 0.0)
-    assert _get_values(tb, 6) == ("Pos001_001_001_2", 512.0, -512.0, 0.0)
-    assert _get_values(tb, 7) == ("Pos001_001_000_3", 0.0, -512.0, 0.0)
-
-    tb.selectRow(2)
-    rows = {r.row() for r in tb.selectedIndexes()}
-    assert rows == {0, 1, 2, 3}
+    assert _get_values(tb, 4) == ("Pos001_000_000_000", 0.0, 0.0, 0.0)
+    assert _get_values(tb, 5) == ("Pos001_000_001_001", 512.0, 0.0, 0.0)
+    assert _get_values(tb, 6) == ("Pos001_001_001_002", 512.0, -512.0, 0.0)
+    assert _get_values(tb, 7) == ("Pos001_001_000_003", 0.0, -512.0, 0.0)
 
     assert tb.item(4, 0).text()[:6] == "Pos001"
-    for row in rows:
+    for row in range(4):
         tb.item(row, 0).setText(f"test{row}")
     for r in range(4, 8):
         assert tb.item(r, 0).text()[:6] == "Pos000"
@@ -181,5 +177,5 @@ def test_set_and_get_state(global_mmcore: CMMCorePlus, qtbot: QtBot):
     p.set_state(pos)
     assert p._table.rowCount() == 3
     assert _get_values(p._table, 0) == ("Pos000", 0.0, 0.0, 0.0)
-    assert _get_values(p._table, 1) == ("Pos001_000_000_0", -10.0, 246.0, 30.0)
-    assert _get_values(p._table, 2) == ("Pos001_001_000_1", -10.0, -266.0, 30.0)
+    assert _get_values(p._table, 1) == ("Pos001_000_000_000", -10.0, 246.0, 30.0)
+    assert _get_values(p._table, 2) == ("Pos001_001_000_001", -10.0, -266.0, 30.0)

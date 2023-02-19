@@ -77,8 +77,8 @@ class PositionTable(QGroupBox):
 
     When using the [GridWidget](), a list of stage positions will be added to
     the table with a default name in the form:
-    "position_row_column_acquisition-order-index" (e.g. "Pos000_000_000_0",
-    "Pos000_000_001_1", ...).
+    'position'_'row'_'column'_'acquisition-order-index' (e.g. "Pos000_000_000_000",
+    "Pos000_000_001_001", ...).
     """
 
     valueChanged = Signal()
@@ -400,7 +400,7 @@ class PositionTable(QGroupBox):
             x_pos, y_pos, row, col, _ = pos
             with signals_blocked(self._table):
                 self._add_table_row(
-                    f"{name}_{row:03d}_{col:03d}_{idx}", x_pos, y_pos, z_pos
+                    f"{name}_{row:03d}_{col:03d}_{idx:03d}", x_pos, y_pos, z_pos
                 )
                 row = self._table.rowCount() - 1
                 self._table.item(row, 0).setData(
