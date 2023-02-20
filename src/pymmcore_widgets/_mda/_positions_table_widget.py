@@ -481,9 +481,13 @@ class PositionTable(QGroupBox):
 
         return values
 
-    def set_state(self, positions: Sequence[PositionDict | Position]) -> None:
+    def set_state(
+        self, positions: Sequence[PositionDict | Position], clear: bool = True
+    ) -> None:
         """Set the state of the widget from a useq position dictionary."""
-        self.clear()
+        if clear:
+            self.clear()
+
         self.setChecked(True)
 
         if not isinstance(positions, Sequence):
