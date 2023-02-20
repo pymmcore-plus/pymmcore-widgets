@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QTableWidget
-from useq import GridFromEdges, GridRelative, MDASequence
+from useq import GridFromEdges, GridRelative
 
 from pymmcore_widgets._mda import PositionTable
 
@@ -117,15 +117,15 @@ _output = [
     [
         {
             "name": "Pos000",
-            "sequence": MDASequence(
-                grid_plan=GridRelative(
-                    overlap=(5.0, 5.0),
-                    mode="row_wise",
-                    rows=2,
-                    columns=2,
-                    relative_to="center",
-                )
-            ),
+            "sequence": {
+                "grid_plan": {
+                    "columns": 2,
+                    "mode": "row_wise",
+                    "overlap": (5.0, 5.0),
+                    "relative_to": "center",
+                    "rows": 2,
+                }
+            },
             "x": -0.0,
             "y": -0.0,
             "z": 0.0,
@@ -134,16 +134,16 @@ _output = [
     [
         {
             "name": "Pos000",
-            "sequence": MDASequence(
-                grid_plan=GridFromEdges(
-                    overlap=(0.0, 0.0),
-                    mode="spiral",
-                    top=0.0,
-                    bottom=-512.0,
-                    left=0.0,
-                    right=512.0,
-                )
-            ),
+            "sequence": {
+                "grid_plan": {
+                    "mode": "spiral",
+                    "overlap": (0.0, 0.0),
+                    "top": 0.0,
+                    "bottom": -512.0,
+                    "left": 0.0,
+                    "right": 512.0,
+                }
+            },
             "x": None,
             "y": None,
             "z": 0.0,
@@ -171,7 +171,15 @@ def test_set_and_get_state(global_mmcore: CMMCorePlus, qtbot: QtBot):
             "x": -10.0,
             "y": -20.0,
             "z": 30.0,
-            "sequence": MDASequence(grid_plan=GridRelative(rows=2, columns=1)),
+            "sequence": {
+                "grid_plan": {
+                    "columns": 1,
+                    "mode": "row_wise",
+                    "overlap": (0.0, 0.0),
+                    "relative_to": "center",
+                    "rows": 2,
+                }
+            },
         },
     ]
     p.set_state(pos)

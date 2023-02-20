@@ -469,7 +469,7 @@ class PositionTable(QGroupBox):
                         "x": xpos,
                         "y": ypos,
                         "z": zpos,
-                        "sequence": MDASequence(grid_plan=grid),
+                        "sequence": {"grid_plan": grid},
                     }
                 )
                 grids_rows.extend(grids[_id])
@@ -502,11 +502,11 @@ class PositionTable(QGroupBox):
             name = position.get("name")
             pos_seq = position.get("sequence")
 
-            if pos_seq and pos_seq.grid_plan:  # type: ignore
-                grid_type = self._get_grid_type(pos_seq.grid_plan)  # type: ignore
+            if pos_seq and pos_seq.get("grid_plan"):  # type: ignore
+                grid_type = self._get_grid_type(pos_seq["grid_plan"])  # type: ignore
                 if not isinstance(grid_type, NoGrid):
                     self._add_grid_position(
-                        pos_seq.grid_plan.dict(),  # type: ignore
+                        pos_seq["grid_plan"],  # type: ignore
                         name,
                         position.get("x"),
                         position.get("x"),
