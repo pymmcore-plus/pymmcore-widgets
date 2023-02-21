@@ -401,18 +401,18 @@ class GridWidget(QDialog):
                     self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value()
                 )
             )
+            left = (
+                self.left.spinbox.value()
+                if self.tab.currentIndex() == 1
+                else min(
+                    self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value()
+                )
+            )
             right = (
                 self.right.spinbox.value()
                 if self.tab.currentIndex() == 1
                 else max(
                     self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value()
-                )
-            )
-            left = (
-                self.left.spinbox.value()
-                if self.tab.currentIndex() == 1
-                else min(
-                    self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value()
                 )
             )
 
@@ -453,15 +453,15 @@ class GridWidget(QDialog):
             value["left"] = (
                 self.left.spinbox.value()
                 if self.tab.currentIndex() == 1
-                else max(
+                else min(
                     self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value()
                 )
             )
             value["right"] = (
                 self.right.spinbox.value()
                 if self.tab.currentIndex() == 1
-                else min(
-                    self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value()
+                else max(
+                    self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value()
                 )
             )
 
