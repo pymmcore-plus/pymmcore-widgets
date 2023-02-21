@@ -74,7 +74,8 @@ def test_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert tb.rowCount() == 4
     for row in range(tb.rowCount()):
         assert tb.item(row, 0).toolTip() == (
-            "overlap=(0.0, 0.0) mode=row_wise rows=2 columns=2 relative_to=center"
+            "'overlap': (0.0, 0.0), 'mode': 'row_wise', 'rows': 2, "
+            "'columns': 2, 'relative_to': 'center'"
         )
     assert _get_values(tb, 0) == ("Pos000_000_000_000", -256.0, 256.0, 0.0)
     assert _get_values(tb, 1) == ("Pos000_000_001_001", 256.0, 256.0, 0.0)
@@ -89,7 +90,8 @@ def test_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert tb.rowCount() == 8
     for row in range(4, tb.rowCount()):
         assert tb.item(row, 0).toolTip() == (
-            "overlap=(0.0, 0.0) mode=spiral top=0.0 left=0.0 bottom=-512.0 right=512.0"
+            "'overlap': (0.0, 0.0), 'mode': 'spiral', 'top': 0.0, "
+            "'bottom': -512.0, 'left': 0.0, 'right': 512.0"
         )
     assert _get_values(tb, 4) == ("Pos001_000_000_000", 0.0, 0.0, 0.0)
     assert _get_values(tb, 5) == ("Pos001_000_001_001", 512.0, 0.0, 0.0)

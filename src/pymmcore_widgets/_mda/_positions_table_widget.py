@@ -406,7 +406,9 @@ class PositionTable(QGroupBox):
                 self._table.item(row, 0).setData(
                     self.GRID_ROLE, (_id, grid, grid_type, xpos, ypos, z_pos)
                 )
-                self._table.item(row, 0).setToolTip(str(grid_type))
+                self._table.item(row, 0).setToolTip(
+                    str(grid).replace("{", "").replace("}", "")
+                )
 
         self._rename_positions()
 
