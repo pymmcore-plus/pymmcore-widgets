@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -246,7 +245,7 @@ class MDAWidget(QWidget):
         height = int(height * self._mmc.getPixelSizeUm())
         if self.position_groupbox.isChecked():
             for p in self.position_groupbox.value():
-                with contextlib.suppress(AttributeError):
+                if p.get("sequence") is not None:
                     p.get("sequence").set_fov_size((width, height))  # type: ignore
                     p_sequence = p.get("sequence").replace(  # type: ignore
                         axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
