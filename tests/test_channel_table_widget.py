@@ -48,6 +48,11 @@ def test_channel_table_widget(qtbot: QtBot):
     assert "Channel" not in _values(ct.channel_group_combo)
     assert ct._table.rowCount() == 1
 
+    ct._disconnect()
+    with qtbot.waitSignal(ct._mmc.events.configGroupDeleted):
+        ct._mmc.deleteConfigGroup("Camera")
+    assert ct._table.rowCount() == 1
+
     ct._clear_button.click()
     assert not ct._table.rowCount()
 

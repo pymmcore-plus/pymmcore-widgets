@@ -38,3 +38,8 @@ def test_channel_group_widget(qtbot: QtBot):
 
     mmc.defineConfig("test_group", "test_preset")
     assert "test_group" in [ch.itemText(idx) for idx in range(ch.count())]
+
+    ch._disconnect()
+    mmc.setProperty("Core", "ChannelGroup", "LightPath")
+    assert ch.currentText() == "Camera"
+    assert mmc.getChannelGroup() == "LightPath"
