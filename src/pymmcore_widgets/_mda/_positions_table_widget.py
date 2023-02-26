@@ -268,16 +268,8 @@ class PositionTable(QGroupBox):
 
     def _remove_position(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
-        grids_id = []
         for r in sorted(rows, reverse=True):
-            if data := self._table.item(r, 0).data(self.GRID_ROLE):
-                grids_id.append(data[0])
             self._table.removeRow(r)
-
-        for row in reversed(range(self._table.rowCount())):
-            grid_role = self._table.item(row, 0).data(self.GRID_ROLE)
-            if grid_role and grid_role[0] in grids_id:
-                self._table.removeRow(row)
 
         self._rename_positions()
         self.valueChanged.emit()
