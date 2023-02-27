@@ -245,15 +245,16 @@ class MDAWidget(QWidget):
         height = int(height * self._mmc.getPixelSizeUm())
         if self.position_groupbox.isChecked():
             for p in self.position_groupbox.value():
-                if p.get("sequence") is not None:
-                    p.get("sequence").set_fov_size((width, height))  # type: ignore
-                    p_sequence = p.get("sequence").replace(  # type: ignore
+                if p.get("sequence"):
+                    p_sequence = MDASequence(**p.get("sequence"))  # type: ignore
+                    p_sequence = p_sequence.replace(
                         axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
                     )
-                    p_sequence = p_sequence.replace(channels=channels)
-                    p_sequence = p_sequence.replace(z_plan=z_plan)
+                    p_sequence.set_fov_size((width, height))  # type: ignore
                     p["sequence"] = p_sequence
+
                 stage_positions.append(p)
+
         if not stage_positions:
             stage_positions = self._get_current_position()
 
@@ -318,7 +319,6 @@ class MDAWidget(QWidget):
 
         # positions
         if self.position_groupbox.isChecked():
-            # n_pos = len(self.position_groupbox.value()) or 1
             n_pos = self.position_groupbox._table.rowCount() or 1
         else:
             n_pos = 1
