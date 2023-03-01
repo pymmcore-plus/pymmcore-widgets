@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Literal
 
 from pymmcore_plus import CMMCorePlus
@@ -370,7 +371,7 @@ class GridWidget(QDialog):
 
     def _update_info_label(self) -> None:
         if not self._mmc.getPixelSizeUm():
-            self.info_lbl.setText("Width: _ mm    Height: _ mm")
+            self.info_lbl.setText("Width: _ mm    Height: _ mm (Rows: _, Columns: _)")
             return
 
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
@@ -416,10 +417,16 @@ class GridWidget(QDialog):
                 )
             )
 
+            rows = math.ceil((abs(top - bottom) + height) / height)
+            cols = math.ceil((abs(right - left) + width) / width)
+
             x = (abs(left - right) + width) / 1000
             y = (abs(top - bottom) + height) / 1000
 
-        self.info_lbl.setText(f"Width: {round(x, 3)} mm    Height: {round(y, 3)} mm")
+        self.info_lbl.setText(
+            f"Width: {round(x, 3)} mm    Height: {round(y, 3)} mm  "
+            f"(Rows: {rows},  Columns: {cols})"
+        )
 
     def value(self) -> GridDict:
         # TODO: update docstring when useq GridPlan will be added to the docs.
