@@ -264,6 +264,7 @@ class PositionTable(QGroupBox):
 
     def _add_table_item(self, table_item: str | None, row: int, col: int) -> None:
         item = QTableWidgetItem(table_item)
+        item.setTextAlignment(AlignCenter)
         self._table.setItem(row, col, item)
 
     def _add_table_value(
