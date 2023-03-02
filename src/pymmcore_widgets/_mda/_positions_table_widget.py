@@ -318,6 +318,7 @@ class PositionTable(QGroupBox):
         grid_plan = self._table.item(row, 0).data(self.GRID_ROLE)
         for r in range(self._table.rowCount()):
             self._add_grid_position(grid_plan, r)
+        self.valueChanged.emit()
 
     def _remove_grid_plan(self) -> None:
         row = self._table.indexAt(self.sender().parent().pos()).row()
@@ -329,6 +330,7 @@ class PositionTable(QGroupBox):
         add_grid.setIconSize(QSize(25, 25))
         remove_grid.hide()
         self._enable_button()
+        self.valueChanged.emit()
 
     def _get_grid_buttons(self, row: int) -> tuple[QPushButton, QPushButton]:
         return (
@@ -380,6 +382,7 @@ class PositionTable(QGroupBox):
             self._add_table_value(first_pos.y, row, 2)
 
         self._enable_button()
+        self.valueChanged.emit()
 
     def _replace_position(self) -> None:
         rows = [r.row() for r in self._table.selectedIndexes()]

@@ -318,17 +318,18 @@ class MDAWidget(QWidget):
         )
 
         # positions
-        n_pos = 1
+        n_pos = 0
         if self.position_groupbox.isChecked():
             rows = self.position_groupbox._table.rowCount()
-            if rows > 1:
-                for row in range(rows):
-                    if grid_role := self.position_groupbox._table.item(row, 0).data(
-                        self.position_groupbox.GRID_ROLE
-                    ):
-                        n_pos = n_pos + len(
-                            self.position_groupbox.get_grid_type(grid_role)
-                        )
+            for row in range(rows):
+                if grid_role := self.position_groupbox._table.item(row, 0).data(
+                    self.position_groupbox.GRID_ROLE
+                ):
+                    n_pos = n_pos + len(self.position_groupbox.get_grid_type(grid_role))
+                else:
+                    n_pos += 1
+        if not n_pos:
+            n_pos = 1
 
         # acq time per timepoint
         time_chs: float = 0.0  # s
