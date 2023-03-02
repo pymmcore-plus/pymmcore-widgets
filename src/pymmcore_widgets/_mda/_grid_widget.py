@@ -371,7 +371,9 @@ class GridWidget(QDialog):
 
     def _update_info_label(self) -> None:
         if not self._mmc.getPixelSizeUm():
-            self.info_lbl.setText("Width: _ mm    Height: _ mm (Rows: _, Columns: _)")
+            self.info_lbl.setText(
+                "Width: _ mm    Height: _ mm    (Columns: _    Rows: _)"
+            )
             return
 
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
@@ -424,8 +426,8 @@ class GridWidget(QDialog):
             y = (abs(top - bottom) + height) / 1000
 
         self.info_lbl.setText(
-            f"Width: {round(x, 3)} mm    Height: {round(y, 3)} mm  "
-            f"(Rows: {rows},  Columns: {cols})"
+            f"Width: {round(x, 3)} mm    Height: {round(y, 3)} mm    "
+            f"(Columns: {cols}    Rows: {rows})"
         )
 
     def value(self) -> GridDict:

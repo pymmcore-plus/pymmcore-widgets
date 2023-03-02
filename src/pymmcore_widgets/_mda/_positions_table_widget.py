@@ -248,11 +248,13 @@ class PositionTable(QGroupBox):
         xpos: float | None,
         ypos: float | None,
         zpos: float | None,
+        row: int | None = None,
     ) -> None:
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
             raise ValueError("No XY and Z Stage devices selected.")
 
-        row = self._add_position_row()
+        if row is None:
+            row = self._add_position_row()
         self._add_table_item(name, row, 0)
         self._add_table_value(xpos, row, 1)
         self._add_table_value(ypos, row, 2)
@@ -409,7 +411,7 @@ class PositionTable(QGroupBox):
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
-        self._add_table_row(name, xpos, ypos, zpos)
+        self._add_table_row(name, xpos, ypos, zpos, rows[0])
 
     def _remove_position(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
