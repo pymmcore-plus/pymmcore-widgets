@@ -371,7 +371,8 @@ class PositionTable(QGroupBox):
         add_grid.setText("Edit")
         add_grid.setIcon(QIcon())
         remove_grid.show()
-        self._grid_wdg.close()
+        if hasattr(self, "_grid_wdg"):
+            self._grid_wdg.close()
 
         if isinstance(grid_type, GridFromEdges):
             _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())

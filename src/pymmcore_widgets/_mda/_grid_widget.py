@@ -482,7 +482,9 @@ class GridWidget(QDialog):
             grid = grid.dict()
 
         overlap = grid.get("overlap") or 0.0
-        over_x, over_y = overlap if isinstance(overlap, tuple) else (overlap, overlap)
+        over_x, over_y = (
+            overlap if isinstance(overlap, (tuple, list)) else (overlap, overlap)
+        )
         self.overlap_spinbox_x.setValue(over_x)
         self.overlap_spinbox_y.setValue(over_y)
         ordermode = grid.get("mode") or OrderMode.row_wise_snake
