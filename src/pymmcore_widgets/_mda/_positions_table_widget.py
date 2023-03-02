@@ -453,7 +453,7 @@ class PositionTable(QGroupBox):
         return number
 
     def clear(self) -> None:
-        """clear all positions."""
+        """Clear all positions."""
         self._table.clearContents()
         self._table.setRowCount(0)
         self.valueChanged.emit()
