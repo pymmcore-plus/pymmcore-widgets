@@ -250,7 +250,7 @@ class PositionTable(QGroupBox):
         zpos: float | None,
     ) -> None:
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage devices loaded.")
+            raise ValueError("No XY and Z Stage devices selected.")
 
         row = self._add_position_row()
         self._add_table_item(name, row, 0)
