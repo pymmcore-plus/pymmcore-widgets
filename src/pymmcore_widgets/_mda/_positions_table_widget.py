@@ -12,18 +12,15 @@ from qtpy.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
     QAction,
-    QComboBox,
     QDoubleSpinBox,
     QFileDialog,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
-    QLabel,
     QMenu,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
-    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -186,37 +183,6 @@ class PositionTable(QGroupBox):
 
         self.destroyed.connect(self._disconnect)
 
-    def _create_spin_with_label(
-        self, label: str, spin: QSpinBox | QDoubleSpinBox
-    ) -> QWidget:
-        wdg = QWidget()
-        layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
-        wdg.setLayout(layout)
-        _label = QLabel(text=label)
-        _label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        spin.setMaximum(100)
-        spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(_label)
-        layout.addWidget(spin)
-        return wdg
-
-    def _create_combo_with_label(
-        self, label: str, combo: QComboBox, items: list
-    ) -> QWidget:
-        wdg = QWidget()
-        layout = QHBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(0, 0, 0, 0)
-        wdg.setLayout(layout)
-        lbl = QLabel(label)
-        lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        combo.addItems(items)
-        layout.addWidget(lbl)
-        layout.addWidget(combo)
-        return wdg
-
     def _enable_button(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
         self.go_button.setEnabled(len(rows) == 1)
@@ -227,6 +193,18 @@ class PositionTable(QGroupBox):
             grid_role = self._table.item(list(rows)[0], 0).data(self.GRID_ROLE)
             if grid_role and isinstance(self._get_grid_type(grid_role), GridFromEdges):
                 self.replace_button.setEnabled(False)
+
+    def _get_grid_type(self, grid: GridDict | AnyGridPlan) -> AnyGridPlan:
+        if isinstance(grid, AnyGridPlan):
+            grid = grid.dict()
+        try:
+            grid_type = GridRelative(**grid)
+        except ValidationError:
+            try:
+                grid_type = GridFromEdges(**grid)
+            except ValidationError:
+                grid_type = NoGrid()
+        return grid_type
 
     def _add_position(self) -> None:
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
@@ -457,18 +435,6 @@ class PositionTable(QGroupBox):
         self._table.clearContents()
         self._table.setRowCount(0)
         self.valueChanged.emit()
-
-    def _get_grid_type(self, grid: GridDict | AnyGridPlan) -> AnyGridPlan:
-        if isinstance(grid, AnyGridPlan):
-            grid = grid.dict()
-        try:
-            grid_type = GridRelative(**grid)
-        except ValidationError:
-            try:
-                grid_type = GridFromEdges(**grid)
-            except ValidationError:
-                grid_type = NoGrid()
-        return grid_type
 
     def _move_to_position(self) -> None:
         if not self._mmc.getXYStageDevice():
