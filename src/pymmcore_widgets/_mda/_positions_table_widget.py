@@ -6,18 +6,17 @@ from typing import TYPE_CHECKING, Sequence, cast
 from fonticon_mdi6 import MDI6
 from pydantic import ValidationError
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QPoint, QSize, Qt, Signal
+from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
-    QAction,
+    QCheckBox,
     QDoubleSpinBox,
     QFileDialog,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
-    QMenu,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
@@ -114,6 +113,7 @@ class PositionTable(QGroupBox):
         self._table.setColumnCount(5)
         self._table.setRowCount(0)
         self._table.setHorizontalHeaderLabels(["Pos", "X", "Y", "Z", "Grid"])
+        self._table.setColumnHidden(4, True)
         group_layout.addWidget(self._table, 0, 0)
 
         # buttons
@@ -149,10 +149,7 @@ class PositionTable(QGroupBox):
         self.load_positions_button = QPushButton(text="Load")
         self.load_positions_button.setMinimumWidth(min_size)
         self.load_positions_button.setSizePolicy(btn_sizepolicy)
-
-        spacer = QSpacerItem(
-            10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
-        )
+        self._advanced_cbox = QCheckBox(text="Advanced")
 
         buttons_layout.addWidget(self.add_button)
         buttons_layout.addWidget(self.replace_button)
@@ -161,6 +158,14 @@ class PositionTable(QGroupBox):
         buttons_layout.addWidget(self.go_button)
         buttons_layout.addWidget(self.save_positions_button)
         buttons_layout.addWidget(self.load_positions_button)
+        spacer_fix = QSpacerItem(
+            0, 5, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
+        buttons_layout.addItem(spacer_fix)
+        buttons_layout.addWidget(self._advanced_cbox)
+        spacer = QSpacerItem(
+            10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
+        )
         buttons_layout.addItem(spacer)
 
         group_layout.addWidget(buttons_wdg, 0, 1)
@@ -172,6 +177,7 @@ class PositionTable(QGroupBox):
         self.go_button.clicked.connect(self._move_to_position)
         self.save_positions_button.clicked.connect(self._save_positions)
         self.load_positions_button.clicked.connect(self._load_positions)
+        self._advanced_cbox.toggled.connect(self._on_advanced_toggled)
 
         self._table.setMinimumHeight(buttons_wdg.sizeHint().height() + 5)
 
@@ -182,6 +188,9 @@ class PositionTable(QGroupBox):
         self._mmc.events.systemConfigurationLoaded.connect(self.clear)
 
         self.destroyed.connect(self._disconnect)
+
+    def _on_advanced_toggled(self, state: bool) -> None:
+        self._table.setColumnHidden(4, not state)
 
     def _enable_button(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
@@ -277,8 +286,6 @@ class PositionTable(QGroupBox):
         add_grid.setIconSize(QSize(25, 25))
         add_grid.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         add_grid.clicked.connect(self._grid_widget)
-        add_grid.setContextMenuPolicy(Qt.CustomContextMenu)
-        add_grid.customContextMenuRequested.connect(self._show_apply_to_all_menu)
         remove_grid = QPushButton()
         remove_grid.setIcon(icon(MDI6.close_thick, color="magenta"))
         remove_grid.setIconSize(QSize(25, 25))
@@ -288,37 +295,6 @@ class PositionTable(QGroupBox):
         layout.addWidget(remove_grid)
         remove_grid.hide()
         self._table.setCellWidget(row, col, wdg)
-
-    def _show_apply_to_all_menu(self, QPos: QPoint) -> None:
-        """Create right-click popup menu...
-
-        to apply the relative grid_plan to all positions.
-        """
-        btn = cast(QPushButton, self.sender())
-        row = self._table.indexAt(btn.parent().pos()).row()
-        grid_role = self._table.item(row, 0).data(self.GRID_ROLE)
-
-        # return if not grid or if absolute grid_plan
-        if not grid_role:
-            return
-        if isinstance(self.get_grid_type(grid_role), GridFromEdges):
-            return
-
-        # define where the menu appear on click
-        parentPosition = btn.mapToGlobal(QPoint(0, 0))
-        menuPosition = parentPosition + QPos
-
-        popMenu = QMenu(self)
-        popMenu.addAction(QAction("Apply to All", self, checkable=True))
-        popMenu.triggered.connect(lambda x: self._apply_grid_to_all_positions(row))
-        popMenu.move(menuPosition)
-        popMenu.show()
-
-    def _apply_grid_to_all_positions(self, row: int) -> None:
-        grid_plan = self._table.item(row, 0).data(self.GRID_ROLE)
-        for r in range(self._table.rowCount()):
-            self._add_grid_position(grid_plan, r)
-        self.valueChanged.emit()
 
     def _remove_grid_plan(self) -> None:
         row = self._table.indexAt(self.sender().parent().pos()).row()
@@ -471,7 +447,11 @@ class PositionTable(QGroupBox):
 
         values: list = []
         for row in range(self._table.rowCount()):
-            grid_role = self._table.item(row, 0).data(self.GRID_ROLE)
+            grid_role = (
+                None
+                if self._table.isColumnHidden(4)
+                else self._table.item(row, 0).data(self.GRID_ROLE)
+            )
 
             values.append(
                 {
