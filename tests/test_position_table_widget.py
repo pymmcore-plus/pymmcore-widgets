@@ -57,6 +57,55 @@ def test_single_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert tb.item(2, 0).text() == "Pos001"
 
 
+def test_replace_pos(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    p = PositionTable()
+    qtbot.addWidget(p)
+
+    mmc = global_mmcore
+    tb = p._table
+
+    p.add_button.click()
+    assert _get_values(tb, 0) == ("Pos000", 0.0, 0.0, 0.0)
+
+    mmc.setXYPosition(100, 200)
+    mmc.setPosition(50)
+
+    tb.selectRow(0)
+    p.replace_button.click()
+    assert _get_values(tb, 0) == ("Pos000", 100.0, 200.0, 50.0)
+
+
+def test_go_to_pos(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    p = PositionTable()
+    qtbot.addWidget(p)
+
+    mmc = global_mmcore
+    tb = p._table
+
+    mmc.setXYPosition(100, 200)
+    mmc.setPosition(50)
+    p.add_button.click()
+    assert _get_values(tb, 0) == ("Pos000", 100.0, 200.0, 50.0)
+    assert round(mmc.getXPosition()) == 100.0
+    assert round(mmc.getYPosition()) == 200.0
+    assert round(mmc.getPosition()) == 50.0
+
+    mmc.waitForSystem()
+    mmc.setXYPosition(0.0, 0.0)
+    mmc.setPosition(0.0)
+    assert mmc.getXPosition() == 0.0
+    assert mmc.getYPosition() == 0.0
+    assert mmc.getPosition() == 0.0
+
+    tb.selectRow(0)
+    mmc.waitForSystem()
+    p.go_button.click()
+
+    assert round(mmc.getXPosition()) == 100.0
+    assert round(mmc.getYPosition()) == 200.0
+    assert round(mmc.getPosition()) == 50.0
+
+
 @pytest.fixture()
 def pos():
     pos_1 = {
