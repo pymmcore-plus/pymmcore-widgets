@@ -404,7 +404,6 @@ class GridWidget(QDialog):
         for pos in grid.iter_grid_positions(width, height):
             if pos.row == row and pos.col == col:
                 self._mmc.setXYPosition(pos.x, pos.y)
-                print(pos.x, pos.y)
                 return
 
     def _create_add_button(self) -> QWidget:
