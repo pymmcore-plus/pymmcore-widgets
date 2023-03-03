@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Sequence, cast
+from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from fonticon_mdi6 import MDI6
 from pydantic import ValidationError
@@ -194,6 +194,14 @@ class PositionTable(QGroupBox):
     def _on_advanced_toggled(self, state: bool) -> None:
         self._table.setColumnHidden(4, not state)
 
+        for row in range(self._table.rowCount()):
+            item = self._table.item(row, 0)
+            grid_role = item.data(self.GRID_ROLE)
+            if state and grid_role:
+                item.setToolTip(self._create_tooltip(grid_role))
+            else:
+                item.setToolTip("")
+
     def _enable_button(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
         self.go_button.setEnabled(len(rows) == 1)
@@ -347,7 +355,7 @@ class PositionTable(QGroupBox):
             return
 
         self._table.item(row, 0).setData(self.GRID_ROLE, grid)
-        self._table.item(row, 0).setToolTip(str(grid).replace("{", "").replace("}", ""))
+        self._table.item(row, 0).setToolTip(self._create_tooltip(grid))
         add_grid, remove_grid = self._get_grid_buttons(row)
         add_grid.setText("Edit")
         add_grid.setIcon(QIcon())
@@ -365,6 +373,32 @@ class PositionTable(QGroupBox):
 
         self._enable_button()
         self.valueChanged.emit()
+
+    def _create_tooltip(self, grid: GridDict) -> str:
+        grid_type = self.get_grid_type(grid)
+
+        if isinstance(grid_type, NoGrid):
+            return ""
+
+        tooltip: dict[str, Any] = {}
+        if isinstance(grid_type, GridRelative):
+            tooltip["rows"] = grid["rows"]
+            tooltip["columns"] = grid["columns"]
+            tooltip["relative_to"] = grid["relative_to"]
+        elif isinstance(grid_type, GridFromEdges):
+            tooltip["top"] = grid["top"]
+            tooltip["bottom"] = grid["bottom"]
+            tooltip["left"] = grid["left"]
+            tooltip["right"] = grid["right"]
+
+        tooltip["overlap"] = (
+            tuple(grid["overlap"])
+            if isinstance(grid["overlap"], (tuple, list))
+            else grid["overlap"]
+        )
+        tooltip["mode"] = grid["mode"]
+
+        return ",  ".join(f"{k}: {v}" for k, v in tooltip.items())
 
     def _show_apply_to_all_menu(self, QPos: QPoint) -> None:
         """Create right-click popup menu...
@@ -527,6 +561,7 @@ class PositionTable(QGroupBox):
             x, y, z = (position.get("x"), position.get("y"), position.get("z"))
             self._add_table_row(name or f"{POS}000", x, y, z)
             if pos_seq := position.get("sequence"):
+                self._advanced_cbox.setChecked(True)
                 if isinstance(pos_seq, MDASequence):
                     grid_plan = cast(GridDict, pos_seq.grid_plan.dict())  # type: ignore
                 else:
