@@ -6,17 +6,19 @@ from typing import TYPE_CHECKING, Sequence, cast
 from fonticon_mdi6 import MDI6
 from pydantic import ValidationError
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QSize, Qt, Signal
+from qtpy.QtCore import QPoint, QSize, Qt, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
+    QAction,
     QCheckBox,
     QDoubleSpinBox,
     QFileDialog,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QMenu,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
@@ -285,6 +287,9 @@ class PositionTable(QGroupBox):
         add_grid.setIcon(icon(MDI6.plus_thick, color=(0, 255, 0)))
         add_grid.setIconSize(QSize(25, 25))
         add_grid.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        add_grid.setContextMenuPolicy(Qt.CustomContextMenu)
+        # for righ-click menu
+        add_grid.customContextMenuRequested.connect(self._show_apply_to_all_menu)
         add_grid.clicked.connect(self._grid_widget)
         remove_grid = QPushButton()
         remove_grid.setIcon(icon(MDI6.close_thick, color="magenta"))
@@ -359,6 +364,37 @@ class PositionTable(QGroupBox):
             self._add_table_value(first_pos.y, row, 2)
 
         self._enable_button()
+        self.valueChanged.emit()
+
+    def _show_apply_to_all_menu(self, QPos: QPoint) -> None:
+        """Create right-click popup menu...
+
+        to apply a relative grid_plan to all positions.
+        """
+        btn = cast(QPushButton, self.sender())
+        row = self._table.indexAt(btn.parent().pos()).row()
+        grid_role = self._table.item(row, 0).data(self.GRID_ROLE)
+
+        # return if not grid or if absolute grid_plan
+        if not grid_role:
+            return
+        if isinstance(self.get_grid_type(grid_role), GridFromEdges):
+            return
+
+        # define where the menu appear on click
+        parentPosition = btn.mapToGlobal(QPoint(0, 0))
+        menuPosition = parentPosition + QPos
+
+        popMenu = QMenu(self)
+        popMenu.addAction(QAction("Apply to All", self, checkable=True))
+        popMenu.triggered.connect(lambda x: self._apply_grid_to_all_positions(row))
+        popMenu.move(menuPosition)
+        popMenu.show()
+
+    def _apply_grid_to_all_positions(self, row: int) -> None:
+        grid_plan = self._table.item(row, 0).data(self.GRID_ROLE)
+        for r in range(self._table.rowCount()):
+            self._add_grid_position(grid_plan, r)
         self.valueChanged.emit()
 
     def _replace_position(self) -> None:
