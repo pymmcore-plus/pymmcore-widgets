@@ -7,6 +7,7 @@ except PackageNotFoundError:
     __version__ = "uninstalled"
 
 from ._camera_roi_widget import CameraRoiWidget
+from ._channel_group_widget import ChannelGroupWidget
 from ._channel_widget import ChannelWidget
 from ._device_widget import DeviceWidget, StateDeviceWidget
 from ._exposure_widget import DefaultCameraExposureWidget, ExposureWidget
@@ -15,6 +16,7 @@ from ._image_widget import ImagePreview
 from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
 from ._mda import (
+    ChannelTable,
     GridWidget,
     MDAWidget,
     PositionTable,
@@ -34,6 +36,8 @@ from ._stage_widget import StageWidget
 
 __all__ = [
     "CameraRoiWidget",
+    "ChannelGroupWidget",
+    "ChannelTable",
     "ChannelWidget",
     "ConfigurationWidget",
     "DefaultCameraExposureWidget",
