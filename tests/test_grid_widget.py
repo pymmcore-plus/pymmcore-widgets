@@ -106,4 +106,30 @@ def test_grid_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_grid_move_to(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    pass
+    grid_wdg = GridWidget()
+    qtbot.addWidget(grid_wdg)
+    mmc = global_mmcore
+
+    assert mmc.getXPosition() == 0.0
+    assert mmc.getYPosition() == 0.0
+
+    grid_wdg.set_state({"rows": 2, "columns": 2})
+
+    assert grid_wdg._move_to_row.currentText() == "1"
+    assert grid_wdg._move_to_col.currentText() == "1"
+
+    grid_wdg._move_button.click()
+    assert round(mmc.getXPosition()) == -256
+    assert round(mmc.getYPosition()) == 256
+
+    grid_wdg._move_to_row.setCurrentText("2")
+    mmc.waitForSystem()
+    grid_wdg._move_button.click()
+    assert round(mmc.getXPosition()) == -256
+    assert round(mmc.getYPosition()) == -256
+
+    grid_wdg._move_to_col.setCurrentText("2")
+    mmc.waitForSystem()
+    grid_wdg._move_button.click()
+    assert round(mmc.getXPosition()) == 256
+    assert round(mmc.getYPosition()) == -256
