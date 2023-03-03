@@ -487,7 +487,7 @@ class GridWidget(QDialog):
 
         self.info_lbl.setText(
             f"Height: {round(y, 3)} mm    Width: {round(x, 3)} mm    "
-            f"(Rows: {rows}    Cols: {cols})"
+            f"(Rows: {rows}    Columns: {cols})"
         )
 
         self._move_to_row.clear()

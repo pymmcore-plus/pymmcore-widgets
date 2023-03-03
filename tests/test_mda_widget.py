@@ -109,7 +109,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     grid_wdg._update_info()
     assert (
         grid_wdg.info_lbl.text()
-        == "Width: _ mm    Height: _ mm    (Columns: _    Rows: _)"
+        == "Height: _ mm    Width: _ mm    (Rows: _    Columns: _)"
     )
 
     global_mmcore.setProperty("Objective", "Label", "Nikon 20X Plan Fluor ELWD")
@@ -120,7 +120,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     grid_wdg.set_state(GridRelative(rows=2, columns=2))
     assert (
         grid_wdg.info_lbl.text()
-        == "Width: 0.512 mm    Height: 0.512 mm    (Columns: 2    Rows: 2)"
+        == "Height: 0.512 mm    Width: 0.512 mm    (Rows: 2    Columns: 2)"
     )
 
     mock = Mock()
@@ -135,7 +135,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     )
     assert (
         grid_wdg.info_lbl.text()
-        == "Width: 0.768 mm    Height: 0.768 mm    (Columns: 3    Rows: 3)"
+        == "Height: 0.768 mm    Width: 0.768 mm    (Rows: 3    Columns: 3)"
     )
 
     grid_wdg._emit_grid_positions()
