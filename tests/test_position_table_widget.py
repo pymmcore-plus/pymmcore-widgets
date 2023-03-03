@@ -154,6 +154,7 @@ def test_relative_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
 
     assert p.value() == [pos_1]
 
+    mmc.waitForSystem()
     mmc.setXYPosition(10, 20)
     p.add_button.click()
     p._apply_grid_to_all_positions(0)
