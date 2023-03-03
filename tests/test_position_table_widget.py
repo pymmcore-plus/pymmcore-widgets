@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QTableWidget
-from useq import GridFromEdges, GridRelative
 
 from pymmcore_widgets._mda import PositionTable
 
@@ -57,7 +57,122 @@ def test_single_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert tb.item(2, 0).text() == "Pos001"
 
 
-def test_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
+@pytest.fixture()
+def pos():
+    pos_1 = {
+        "name": "Pos000",
+        "x": 100.0,
+        "y": 200.0,
+        "z": 0.0,
+        "sequence": {
+            "grid_plan": {
+                "columns": 2,
+                "mode": "spiral",
+                "overlap": (10.0, 5.0),
+                "relative_to": "center",
+                "rows": 2,
+            }
+        },
+    }
+
+    pos_2 = {
+        "name": "Pos001",
+        "x": 10.0,
+        "y": 20.0,
+        "z": 0.0,
+        "sequence": {
+            "grid_plan": {
+                "columns": 2,
+                "mode": "spiral",
+                "overlap": (10.0, 5.0),
+                "relative_to": "center",
+                "rows": 2,
+            }
+        },
+    }
+
+    pos_3 = {
+        "name": "Pos002",
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "sequence": {
+            "grid_plan": {
+                "bottom": 0.0,
+                "left": 0.0,
+                "mode": "row_wise_snake",
+                "overlap": (0.0, 0.0),
+                "right": 50.0,
+                "top": 100.0,
+            }
+        },
+    }
+    return pos_1, pos_2, pos_3
+
+
+def test_relative_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
+    pos_1, pos_2, _ = pos
+
+    p = PositionTable()
+    qtbot.addWidget(p)
+
+    mmc = global_mmcore
+    tb = p._table
+
+    assert not tb.rowCount()
+    p.setChecked(True)
+
+    mmc.setXYPosition(100, 200)
+    p.add_button.click()
+    assert tb.rowCount() == 1
+    assert tb.isColumnHidden(4)
+
+    p._advanced_cbox.setChecked(True)
+    assert not tb.isColumnHidden(4)
+
+    add_grid_btn, remove_grid_btn = p._get_grid_buttons(0)
+    assert remove_grid_btn.isHidden()
+
+    add_grid_btn.click()
+    assert p._grid_wdg
+
+    p._grid_wdg.set_state(pos_1["sequence"]["grid_plan"])
+    p._grid_wdg.add_button.click()
+    assert not remove_grid_btn.isHidden()
+    assert add_grid_btn.text() == "Edit"
+    assert tb.item(0, 0).data(p.GRID_ROLE) == {
+        "columns": 2,
+        "mode": "spiral",
+        "overlap": (10.0, 5.0),
+        "relative_to": "center",
+        "rows": 2,
+    }
+    assert tb.item(0, 0).toolTip() == (
+        "rows: 2,  columns: 2,  relative_to: center,  overlap: (10.0, 5.0),  "
+        "mode: spiral"
+    )
+
+    assert p.value() == [pos_1]
+
+    mmc.setXYPosition(10, 20)
+    p.add_button.click()
+    p._apply_grid_to_all_positions(0)
+    assert tb.item(1, 0).toolTip() == tb.item(0, 0).toolTip()
+
+    assert p.value() == [pos_1, pos_2]
+
+    p._advanced_cbox.setChecked(False)
+    pos_1["sequence"] = pos_2["sequence"] = None
+    assert p.value() == [pos_1, pos_2]
+    assert tb.item(1, 0).toolTip() == tb.item(0, 0).toolTip() == ""
+
+    p._advanced_cbox.setChecked(True)
+    remove_grid_btn.click()
+    assert remove_grid_btn.isHidden()
+
+
+def test_absolute_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
+    _, _, pos_3 = pos
     p = PositionTable()
     qtbot.addWidget(p)
 
@@ -66,126 +181,47 @@ def test_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert not tb.rowCount()
     p.setChecked(True)
 
-    p.grid_button.click()
-    p._grid_wdg.tab.setCurrentIndex(0)
-    p._grid_wdg.set_state({"rows": 2, "columns": 2, "mode": "row_wise"})
+    p.add_button.click()
+    assert tb.rowCount() == 1
+    p._advanced_cbox.setChecked(True)
 
+    add_grid_btn, remove_grid_btn = p._get_grid_buttons(0)
+    assert remove_grid_btn.isHidden()
+
+    add_grid_btn.click()
+    assert p._grid_wdg
+    p._grid_wdg.set_state(pos_3["sequence"]["grid_plan"])
+    assert p._grid_wdg.tab.currentIndex() == 1
     p._grid_wdg.add_button.click()
-    assert tb.rowCount() == 4
-    for row in range(tb.rowCount()):
-        assert tb.item(row, 0).toolTip() == (
-            "'overlap': (0.0, 0.0), 'mode': 'row_wise', 'rows': 2, "
-            "'columns': 2, 'relative_to': 'center'"
-        )
-    assert _get_values(tb, 0) == ("Pos000_000_000_000", -256.0, 256.0, 0.0)
-    assert _get_values(tb, 1) == ("Pos000_000_001_001", 256.0, 256.0, 0.0)
-    assert _get_values(tb, 2) == ("Pos000_001_000_002", -256.0, -256.0, 0.0)
-    assert _get_values(tb, 3) == ("Pos000_001_001_003", 256.0, -256.0, 0.0)
 
-    p._grid_wdg.tab.setCurrentIndex(1)
-    p._grid_wdg.set_state(
-        {"top": 0.0, "bottom": -512.0, "left": 0.0, "right": 512.0, "mode": "spiral"}
+    assert tb.item(0, 0).data(p.GRID_ROLE) == {
+        "bottom": 0.0,
+        "left": 0.0,
+        "mode": "row_wise_snake",
+        "overlap": (0.0, 0.0),
+        "right": 50.0,
+        "top": 100.0,
+    }
+
+    assert tb.item(0, 0).toolTip() == (
+        "top: 100.0,  bottom: 0.0,  left: 0.0,  right: 50.0,  overlap: (0.0, 0.0),  "
+        "mode: row_wise_snake"
     )
-    p._grid_wdg.add_button.click()
-    assert tb.rowCount() == 8
-    for row in range(4, tb.rowCount()):
-        assert tb.item(row, 0).toolTip() == (
-            "'overlap': (0.0, 0.0), 'mode': 'spiral', 'top': 0.0, "
-            "'bottom': -512.0, 'left': 0.0, 'right': 512.0"
-        )
-    assert _get_values(tb, 4) == ("Pos001_000_000_000", 0.0, 0.0, 0.0)
-    assert _get_values(tb, 5) == ("Pos001_000_001_001", 512.0, 0.0, 0.0)
-    assert _get_values(tb, 6) == ("Pos001_001_001_002", 512.0, -512.0, 0.0)
-    assert _get_values(tb, 7) == ("Pos001_001_000_003", 0.0, -512.0, 0.0)
-
-    assert tb.item(4, 0).text()[:6] == "Pos001"
-    for row in range(4):
-        tb.item(row, 0).setText(f"test{row}")
-    for r in range(4, 8):
-        assert tb.item(r, 0).text()[:6] == "Pos000"
-
-    p.clear()
-    assert not tb.rowCount()
+    pos_3["name"] = "Pos000"
+    pos_3["y"] = 100.0
+    assert p.value() == [pos_3]
 
 
-_input = [
-    (0, {"rows": 2, "columns": 2, "mode": "row_wise", "overlap": 5.0}),
-    (0, GridRelative(rows=2, columns=2, mode="row_wise", overlap=5.0)),
-    (1, {"top": 0.0, "bottom": -512.0, "left": 0.0, "right": 512.0, "mode": "spiral"}),
-    (1, GridFromEdges(top=0.0, bottom=-512.0, left=0.0, right=512.0, mode="spiral")),
-]
-
-_output = [
-    [
-        {
-            "name": "Pos000",
-            "sequence": {
-                "grid_plan": {
-                    "columns": 2,
-                    "mode": "row_wise",
-                    "overlap": (5.0, 5.0),
-                    "relative_to": "center",
-                    "rows": 2,
-                }
-            },
-            "x": -0.0,
-            "y": -0.0,
-            "z": 0.0,
-        }
-    ],
-    [
-        {
-            "name": "Pos000",
-            "sequence": {
-                "grid_plan": {
-                    "mode": "spiral",
-                    "overlap": (0.0, 0.0),
-                    "top": 0.0,
-                    "bottom": -512.0,
-                    "left": 0.0,
-                    "right": 512.0,
-                }
-            },
-            "x": None,
-            "y": None,
-            "z": 0.0,
-        }
-    ],
-]
-
-
-def test_set_and_get_state(global_mmcore: CMMCorePlus, qtbot: QtBot):
+def test_pos_table_set_and_get_state(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
+    pos_1, pos_2, pos_3 = pos
     p = PositionTable()
     qtbot.addWidget(p)
-    p.grid_button.click()
-    for i in _input:
-        idx, grid = i
-        p._grid_wdg.tab.setCurrentIndex(1)
-        p._grid_wdg.set_state(grid)
-        p._grid_wdg._emit_grid_positions()
-        assert p.value() == _output[idx]
-        p.clear()
 
-    pos = [
-        {"name": "Pos000", "x": 0.0, "y": 0.0, "z": 0.0},
-        {
-            "name": "Pos001",
-            "x": -10.0,
-            "y": -20.0,
-            "z": 30.0,
-            "sequence": {
-                "grid_plan": {
-                    "columns": 1,
-                    "mode": "row_wise",
-                    "overlap": (0.0, 0.0),
-                    "relative_to": "center",
-                    "rows": 2,
-                }
-            },
-        },
-    ]
-    p.set_state(pos)
-    assert p._table.rowCount() == 3
-    assert _get_values(p._table, 0) == ("Pos000", 0.0, 0.0, 0.0)
-    assert _get_values(p._table, 1) == ("Pos001_000_000_000", -10.0, 246.0, 30.0)
-    assert _get_values(p._table, 2) == ("Pos001_001_000_001", -10.0, -266.0, 30.0)
+    p._advanced_cbox.setChecked(True)
+    p.set_state([pos_1, pos_2, pos_3])
+    pos_3["y"] = 100.0
+    assert p.value() == [pos_1, pos_2, pos_3]
+
+    p._advanced_cbox.setChecked(False)
+    pos_1["sequence"] = pos_2["sequence"] = pos_3["sequence"] = None
+    assert p.value() == [pos_1, pos_2, pos_3]

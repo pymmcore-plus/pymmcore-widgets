@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING, Literal
 
+from pydantic import ValidationError
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -23,7 +24,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import AnyGridPlan, GridFromEdges, GridRelative  # type: ignore
+from useq import AnyGridPlan, GridFromEdges, GridRelative, NoGrid  # type: ignore
 from useq._grid import OrderMode, RelativeTo
 
 if TYPE_CHECKING:
@@ -556,12 +557,28 @@ class GridWidget(QDialog):
         ordermode = ordermode.value if isinstance(ordermode, OrderMode) else ordermode
         self.ordermode_combo.setCurrentText(ordermode)
 
-        try:
-            self._set_relative_wdg(grid)
+        grid_type = self._get_grid_type(grid)
+
+        if isinstance(grid_type, GridRelative):
             self.tab.setCurrentIndex(0)
-        except TypeError:
-            self._set_edges_wdg(grid)
+            self._set_relative_wdg(grid)
+
+        elif isinstance(grid_type, GridFromEdges):
             self.tab.setCurrentIndex(1)
+            self._set_edges_wdg(grid)
+
+    def _get_grid_type(self, grid: GridDict | AnyGridPlan) -> AnyGridPlan:
+        """Get type of the grid_plan."""
+        if isinstance(grid, AnyGridPlan):
+            grid = grid.dict()
+        try:
+            grid_type = GridRelative(**grid)
+        except ValidationError:
+            try:
+                grid_type = GridFromEdges(**grid)
+            except ValidationError:
+                grid_type = NoGrid()
+        return grid_type
 
     def _set_relative_wdg(self, grid: GridDict) -> None:
         self.n_rows.setValue(grid.get("rows"))
