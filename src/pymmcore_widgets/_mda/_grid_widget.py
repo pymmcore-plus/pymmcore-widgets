@@ -23,7 +23,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import AnyGridPlan  # type: ignore
+from useq import AnyGridPlan, GridFromEdges, GridRelative  # type: ignore
 from useq._grid import OrderMode, RelativeTo
 
 if TYPE_CHECKING:
@@ -140,6 +140,9 @@ class GridWidget(QDialog):
         overlap_and_size = self._create_overlap_and_ordermode()
         layout.addWidget(overlap_and_size)
 
+        move_to = self._create_move_to_widget()
+        layout.addWidget(move_to)
+
         label_info = self._create_label_info()
         layout.addWidget(label_info)
 
@@ -148,10 +151,10 @@ class GridWidget(QDialog):
 
         self.setFixedHeight(self.sizeHint().height())
 
-        self._update_info_label()
+        self._update_info()
 
-        self._mmc.events.systemConfigurationLoaded.connect(self._update_info_label)
-        self._mmc.events.pixelSizeChanged.connect(self._update_info_label)
+        self._mmc.events.systemConfigurationLoaded.connect(self._update_info)
+        self._mmc.events.pixelSizeChanged.connect(self._update_info)
 
         self.destroyed.connect(self._disconnect)
 
@@ -175,7 +178,7 @@ class GridWidget(QDialog):
 
         layout.addWidget(self.tab)
 
-        self.tab.currentChanged.connect(self._update_info_label)
+        self.tab.currentChanged.connect(self._update_info)
         return wdg
 
     def _create_row_cols_wdg(self) -> QWidget:
@@ -226,7 +229,7 @@ class GridWidget(QDialog):
         spin = QSpinBox()
         spin.setMinimum(1)
         spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        spin.valueChanged.connect(self._update_info_label)
+        spin.valueChanged.connect(self._update_info)
         layout.addWidget(label)
         layout.addWidget(spin)
         return spin
@@ -239,14 +242,14 @@ class GridWidget(QDialog):
         group.setLayout(group_layout)
 
         self.top = _SpinboxWidget("top", mmcore=self._mmc)
-        self.top.valueChanged.connect(self._update_info_label)
+        self.top.valueChanged.connect(self._update_info)
         self.bottom = _SpinboxWidget("bottom", mmcore=self._mmc)
-        self.bottom.valueChanged.connect(self._update_info_label)
+        self.bottom.valueChanged.connect(self._update_info)
         self.top.label.setMinimumWidth(self.bottom.label.sizeHint().width())
         self.left = _SpinboxWidget("left", mmcore=self._mmc)
-        self.left.valueChanged.connect(self._update_info_label)
+        self.left.valueChanged.connect(self._update_info)
         self.right = _SpinboxWidget("right", mmcore=self._mmc)
-        self.right.valueChanged.connect(self._update_info_label)
+        self.right.valueChanged.connect(self._update_info)
 
         self.top.label.setFixedWidth(self.bottom.label.sizeHint().width() + 5)
         self.bottom.label.setFixedWidth(self.bottom.label.sizeHint().width() + 5)
@@ -276,7 +279,7 @@ class GridWidget(QDialog):
         spin.setMinimumWidth(100)
         spin.setMaximum(100)
         spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        spin.valueChanged.connect(self._update_info_label)
+        spin.valueChanged.connect(self._update_info)
         return spin
 
     def _create_overlap_and_ordermode(self) -> QGroupBox:
@@ -317,9 +320,9 @@ class GridWidget(QDialog):
         group.setLayout(group_layout)
 
         self.corner_1 = _SpinboxWidget("corner1", mmcore=self._mmc)
-        self.corner_1.valueChanged.connect(self._update_info_label)
+        self.corner_1.valueChanged.connect(self._update_info)
         self.corner_2 = _SpinboxWidget("corner2", mmcore=self._mmc)
-        self.corner_2.valueChanged.connect(self._update_info_label)
+        self.corner_2.valueChanged.connect(self._update_info)
 
         self.corner_1.label.setFixedWidth(self.corner_2.label.sizeHint().width() + 5)
         self.corner_2.label.setFixedWidth(self.corner_2.label.sizeHint().width() + 5)
@@ -337,7 +340,7 @@ class GridWidget(QDialog):
         group_layout.setContentsMargins(10, 10, 10, 10)
         group.setLayout(group_layout)
 
-        self.info_lbl = QLabel(text="Width: _ mm    Height: _ mm")
+        self.info_lbl = QLabel()
         self.info_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.info_lbl.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
@@ -345,6 +348,64 @@ class GridWidget(QDialog):
         group_layout.addWidget(self.info_lbl)
 
         return group
+
+    def _create_move_to_widget(self) -> QGroupBox:
+        group = QGroupBox()
+        group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        group_layout = QHBoxLayout()
+        group_layout.setSpacing(10)
+        group_layout.setContentsMargins(10, 10, 10, 10)
+        group.setLayout(group_layout)
+
+        lbl_policy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        row_lbl = QLabel("Row:")
+        row_lbl.setSizePolicy(lbl_policy)
+        col_lbl = QLabel("Column:")
+        col_lbl.setSizePolicy(lbl_policy)
+
+        self._move_to_row = QComboBox()
+        self._move_to_row.setEditable(True)
+        self._move_to_row.lineEdit().setReadOnly(True)
+        self._move_to_row.lineEdit().setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._move_to_col = QComboBox()
+        self._move_to_col.setEditable(True)
+        self._move_to_col.lineEdit().setReadOnly(True)
+        self._move_to_col.lineEdit().setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._move_button = QPushButton("Go")
+        self._move_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._move_button.clicked.connect(self._move_to_row_col)
+
+        group_layout.addWidget(row_lbl)
+        group_layout.addWidget(self._move_to_row)
+        group_layout.addWidget(col_lbl)
+        group_layout.addWidget(self._move_to_col)
+        group_layout.addWidget(self._move_button)
+
+        return group
+
+    def _move_to_row_col(self) -> None:
+        _move_to_row = int(self._move_to_row.currentText())
+        _move_to_col = int(self._move_to_col.currentText())
+
+        row = _move_to_row - 1 if _move_to_row > 0 else 0
+        col = _move_to_col - 1 if _move_to_col > 0 else 0
+
+        if self.tab.currentIndex() == 0:
+            grid = GridRelative(**self.value())
+        else:
+            grid = GridFromEdges(**self.value())
+
+        _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
+        width = int(width * self._mmc.getPixelSizeUm())
+        height = int(height * self._mmc.getPixelSizeUm())
+
+        for pos in grid.iter_grid_positions(width, height):
+            if pos.row == row and pos.col == col:
+                self._mmc.setXYPosition(pos.x, pos.y)
+                print(pos.x, pos.y)
+                return
 
     def _create_add_button(self) -> QWidget:
         wdg = QWidget()
@@ -369,10 +430,10 @@ class GridWidget(QDialog):
 
         return wdg
 
-    def _update_info_label(self) -> None:
+    def _update_info(self) -> None:
         if not self._mmc.getPixelSizeUm():
             self.info_lbl.setText(
-                "Width: _ mm    Height: _ mm    (Columns: _    Rows: _)"
+                "Height: _ mm    Width: _ mm    (Rows: _    Columns: _)"
             )
             return
 
@@ -426,9 +487,14 @@ class GridWidget(QDialog):
             y = (abs(top - bottom) + height) / 1000
 
         self.info_lbl.setText(
-            f"Width: {round(x, 3)} mm    Height: {round(y, 3)} mm    "
-            f"(Columns: {cols}    Rows: {rows})"
+            f"Height: {round(y, 3)} mm    Width: {round(x, 3)} mm    "
+            f"(Rows: {rows}    Cols: {cols})"
         )
+
+        self._move_to_row.clear()
+        self._move_to_row.addItems([str(r) for r in range(1, rows + 1)])
+        self._move_to_col.clear()
+        self._move_to_col.addItems([str(r) for r in range(1, cols + 1)])
 
     def value(self) -> GridDict:
         # TODO: update docstring when useq GridPlan will be added to the docs.
@@ -519,5 +585,5 @@ class GridWidget(QDialog):
         self.valueChanged.emit(self.value())
 
     def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self._update_info_label)
-        self._mmc.events.pixelSizeChanged.disconnect(self._update_info_label)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._update_info)
+        self._mmc.events.pixelSizeChanged.disconnect(self._update_info)

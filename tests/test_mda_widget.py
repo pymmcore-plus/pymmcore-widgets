@@ -106,7 +106,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     global_mmcore.setProperty("Objective", "Label", "Objective-2")
     assert not global_mmcore.getPixelSizeUm()
-    grid_wdg._update_info_label()
+    grid_wdg._update_info()
     assert (
         grid_wdg.info_lbl.text()
         == "Width: _ mm    Height: _ mm    (Columns: _    Rows: _)"
