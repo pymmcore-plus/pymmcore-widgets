@@ -113,7 +113,9 @@ def test_grid_move_to(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert mmc.getXPosition() == 0.0
     assert mmc.getYPosition() == 0.0
 
-    grid_wdg.set_state({"rows": 2, "columns": 2})
+    grid_wdg.set_state(
+        {"rows": 2, "columns": 2, "overlap": (0.0, 0.0), "mode": "row_wise"}
+    )
 
     assert grid_wdg._move_to_row.currentText() == "1"
     assert grid_wdg._move_to_col.currentText() == "1"
