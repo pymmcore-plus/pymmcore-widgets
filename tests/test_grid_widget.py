@@ -105,6 +105,49 @@ def test_grid_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert grid_wdg.tab.currentIndex() == 1
 
 
+def test_grid_from_edges_set_buton(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    grid_wdg = GridWidget()
+    qtbot.addWidget(grid_wdg)
+    mmc = global_mmcore
+
+    assert grid_wdg.top.spinbox.value() == 0
+    assert grid_wdg.left.spinbox.value() == 0
+    mmc.setXYPosition(100.0, 200.0)
+    grid_wdg.top.set_button.click()
+    grid_wdg.left.set_button.click()
+    assert grid_wdg.top.spinbox.value() == 200
+    assert grid_wdg.left.spinbox.value() == 100
+
+
+def test_grid_on_px_size_changed(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    grid_wdg = GridWidget()
+    qtbot.addWidget(grid_wdg)
+    mmc = global_mmcore
+
+    assert mmc.getProperty("Objective", "Label") == "Nikon 10X S Fluor"
+    assert mmc.getPixelSizeUm() == 1.0
+    grid_wdg.set_state(GridRelative(rows=2, columns=2))
+    assert (
+        grid_wdg.info_lbl.text()
+        == "Height: 1.024 mm    Width: 1.024 mm    (Rows: 2    Columns: 2)"
+    )
+
+    with qtbot.waitSignal(mmc.events.pixelSizeChanged):
+        mmc.setPixelSizeUm("Res10x", 0.5)
+    assert (
+        grid_wdg.info_lbl.text()
+        == "Height: 0.512 mm    Width: 0.512 mm    (Rows: 2    Columns: 2)"
+    )
+
+    grid_wdg._disconnect()
+    with qtbot.waitSignal(mmc.events.pixelSizeChanged):
+        mmc.setPixelSizeUm("Res10x", 1)
+    assert (
+        grid_wdg.info_lbl.text()
+        == "Height: 0.512 mm    Width: 0.512 mm    (Rows: 2    Columns: 2)"
+    )
+
+
 def test_grid_move_to(qtbot: QtBot, global_mmcore: CMMCorePlus):
     grid_wdg = GridWidget()
     qtbot.addWidget(grid_wdg)

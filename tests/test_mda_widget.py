@@ -37,10 +37,19 @@ def test_mda_widget_load_state(qtbot: QtBot):
         stage_positions=(
             {"name": "Pos000", "x": 222, "y": 1, "z": 1},
             {"name": "Pos001", "x": 111, "y": 0, "z": 0},
+            {
+                "name": "Pos002",
+                "x": 1,
+                "y": 2,
+                "z": 3,
+                "sequence": {
+                    "grid_plan": {"rows": 2, "columns": 2},
+                },
+            },
         ),
     )
     wdg.set_state(sequence)
-    assert wdg.position_groupbox._table.rowCount() == 2
+    assert wdg.position_groupbox._table.rowCount() == 3
     assert wdg.channel_groupbox._table.rowCount() == 2
     assert wdg.time_groupbox.isChecked()
 
