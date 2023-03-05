@@ -339,7 +339,7 @@ class PositionTable(QGroupBox):
 
         self._grid_wdg = GridWidget(parent=self, mmcore=self._mmc)
         row = self._table.indexAt(self.sender().parent().pos()).row()
-        self._grid_wdg.valueChanged.connect(lambda x: self._add_grid_position(x, row))
+        self._grid_wdg.valueChanged.connect(lambda x: self._add_grid_plan(x, row))
 
         item = self._table.item(row, 0)
         if item.data(self.GRID_ROLE):
@@ -347,7 +347,7 @@ class PositionTable(QGroupBox):
 
         self._grid_wdg.show()
 
-    def _add_grid_position(self, grid: GridDict, row: int | None = None) -> None:
+    def _add_grid_plan(self, grid: GridDict, row: int | None = None) -> None:
         # sourcery skip: extract-method
         grid_type = self._get_grid_type(grid)
 
@@ -431,7 +431,7 @@ class PositionTable(QGroupBox):
     def _apply_grid_to_all_positions(self, row: int) -> None:
         grid_plan = self._table.item(row, 0).data(self.GRID_ROLE)
         for r in range(self._table.rowCount()):
-            self._add_grid_position(grid_plan, r)
+            self._add_grid_plan(grid_plan, r)
         self.valueChanged.emit()
 
     def _replace_position(self) -> None:
@@ -570,7 +570,7 @@ class PositionTable(QGroupBox):
                 else:
                     grid_plan = pos_seq.get("grid_plan")
                 if grid_plan:
-                    self._add_grid_position(grid_plan, self._table.rowCount() - 1)
+                    self._add_grid_plan(grid_plan, self._table.rowCount() - 1)
 
             self.valueChanged.emit()
 

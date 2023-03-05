@@ -185,7 +185,7 @@ def test_relative_grid_position(
     assert remove_grid_btn.isHidden()
 
     grid_plan = pos_1["sequence"]["grid_plan"]
-    p._add_grid_position(grid_plan, 0)
+    p._add_grid_plan(grid_plan, 0)
 
     assert not remove_grid_btn.isHidden()
     assert add_grid_btn.text() == "Edit"
@@ -241,7 +241,7 @@ def test_absolute_grid_position(
     assert remove_grid_btn.isHidden()
 
     grid_plan = pos_3["sequence"]["grid_plan"]
-    p._add_grid_position(grid_plan, 0)
+    p._add_grid_plan(grid_plan, 0)
 
     assert tb.item(0, 0).data(p.GRID_ROLE) == {
         "bottom": 0.0,
