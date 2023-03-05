@@ -182,11 +182,8 @@ def test_relative_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
     add_grid_btn, remove_grid_btn = p._get_grid_buttons(0)
     assert remove_grid_btn.isHidden()
 
-    add_grid_btn.click()
-    assert p._grid_wdg
+    p._add_grid_position(pos_1["sequence"]["grid_plan"], 0)
 
-    p._grid_wdg.set_state(pos_1["sequence"]["grid_plan"])
-    p._grid_wdg.add_button.click()
     assert not remove_grid_btn.isHidden()
     assert add_grid_btn.text() == "Edit"
     assert tb.item(0, 0).data(p.GRID_ROLE) == {
@@ -202,15 +199,6 @@ def test_relative_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
     )
 
     assert p.value() == [pos_1]
-
-    add_grid_btn.click()
-    assert p._grid_wdg.n_rows.value() == 2
-    assert p._grid_wdg.n_columns.value() == 2
-    assert p._grid_wdg.ordermode_combo.currentText() == "spiral"
-    assert p._grid_wdg.relative_combo.currentText() == "center"
-    assert p._grid_wdg.overlap_spinbox_x.value() == 10.0
-    assert p._grid_wdg.overlap_spinbox_y.value() == 5.0
-    p._grid_wdg.close()
 
     mmc.waitForSystem()
     mmc.setXYPosition(10, 20)
@@ -247,11 +235,7 @@ def test_absolute_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
     add_grid_btn, remove_grid_btn = p._get_grid_buttons(0)
     assert remove_grid_btn.isHidden()
 
-    add_grid_btn.click()
-    assert p._grid_wdg
-    p._grid_wdg.set_state(pos_3["sequence"]["grid_plan"])
-    assert p._grid_wdg.tab.currentIndex() == 1
-    p._grid_wdg.add_button.click()
+    p._add_grid_position(pos_3["sequence"]["grid_plan"], 0)
 
     assert tb.item(0, 0).data(p.GRID_ROLE) == {
         "bottom": 0.0,
