@@ -1,30 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QTableWidget
 
 from pymmcore_widgets._mda import PositionTable
-from pymmcore_widgets._mda._grid_widget import OrderMode, RelativeTo
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
-    from typing_extensions import Required, TypedDict
-
-    class GridDict(TypedDict, total=False):
-        """Grid dictionary."""
-
-        overlap: Required[float | tuple[float, float]]
-        mode: Required[OrderMode | str]
-        rows: int
-        columns: int
-        relative_to: RelativeTo | str
-        top: float
-        left: float
-        bottom: float
-        right: float
 
 
 def _get_values(table: QTableWidget, row: int):
@@ -199,7 +184,7 @@ def test_relative_grid_position(
     add_grid_btn, remove_grid_btn = p._get_grid_buttons(0)
     assert remove_grid_btn.isHidden()
 
-    grid_plan = cast("GridDict", pos_1["sequence"]["grid_plan"])
+    grid_plan = pos_1["sequence"]["grid_plan"]
     p._add_grid_position(grid_plan, 0)
 
     assert not remove_grid_btn.isHidden()
@@ -255,7 +240,7 @@ def test_absolute_grid_position(
     add_grid_btn, remove_grid_btn = p._get_grid_buttons(0)
     assert remove_grid_btn.isHidden()
 
-    grid_plan = cast("GridDict", pos_3["sequence"]["grid_plan"])
+    grid_plan = pos_3["sequence"]["grid_plan"]
     p._add_grid_position(grid_plan, 0)
 
     assert tb.item(0, 0).data(p.GRID_ROLE) == {

@@ -544,7 +544,10 @@ class GridWidget(QDialog):
 
     def set_state(self, grid: AnyGridPlan | GridDict) -> None:
         """Set the state of the widget from a useq AnyGridPlan or dictionary."""
-        if isinstance(grid, AnyGridPlan):
+        # to avoid TypeError("Subscripted generics cannot be used with"
+        # " class and instance checks") in python 3.8 and 3.9 we don't use
+        # if isinstance(grid, AnyGridPlan):
+        if isinstance(grid, (GridRelative, GridFromEdges, NoGrid)):
             grid = grid.dict()
 
         overlap = grid.get("overlap") or 0.0
@@ -569,7 +572,10 @@ class GridWidget(QDialog):
 
     def _get_grid_type(self, grid: GridDict | AnyGridPlan) -> AnyGridPlan:
         """Get type of the grid_plan."""
-        if isinstance(grid, AnyGridPlan):
+        # to avoid TypeError("Subscripted generics cannot be used with"
+        # " class and instance checks") in python 3.8 and 3.9 we don't use
+        # if isinstance(grid, AnyGridPlan):
+        if isinstance(grid, (GridRelative, GridFromEdges, NoGrid)):
             grid = grid.dict()
         try:
             grid_type = GridRelative(**grid)

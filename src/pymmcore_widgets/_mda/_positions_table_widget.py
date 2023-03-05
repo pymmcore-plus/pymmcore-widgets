@@ -210,12 +210,15 @@ class PositionTable(QGroupBox):
         self.replace_button.setEnabled(len(rows) == 1)
         if len(rows) == 1:
             grid_role = self._table.item(list(rows)[0], 0).data(self.GRID_ROLE)
-            if grid_role and isinstance(self.get_grid_type(grid_role), GridFromEdges):
+            if grid_role and isinstance(self._get_grid_type(grid_role), GridFromEdges):
                 self.replace_button.setEnabled(False)
 
-    def get_grid_type(self, grid: GridDict | AnyGridPlan) -> AnyGridPlan:
+    def _get_grid_type(self, grid: GridDict | AnyGridPlan) -> AnyGridPlan:
         """Get type of the grid_plan."""
-        if isinstance(grid, AnyGridPlan):
+        # to avoid TypeError("Subscripted generics cannot be used with
+        # class and instance checks") in python 3.8 and 3.9 we don't use
+        # if isinstance(grid, AnyGridPlan):
+        if isinstance(grid, (GridRelative, GridFromEdges, NoGrid)):
             grid = grid.dict()
         try:
             grid_type = GridRelative(**grid)
@@ -346,7 +349,7 @@ class PositionTable(QGroupBox):
 
     def _add_grid_position(self, grid: GridDict, row: int | None = None) -> None:
         # sourcery skip: extract-method
-        grid_type = self.get_grid_type(grid)
+        grid_type = self._get_grid_type(grid)
 
         if isinstance(grid_type, NoGrid):
             return
@@ -375,7 +378,7 @@ class PositionTable(QGroupBox):
         self.valueChanged.emit()
 
     def _create_tooltip(self, grid: GridDict) -> str:
-        grid_type = self.get_grid_type(grid)
+        grid_type = self._get_grid_type(grid)
 
         if isinstance(grid_type, NoGrid):
             return ""
@@ -412,7 +415,7 @@ class PositionTable(QGroupBox):
         # return if not grid or if absolute grid_plan
         if not grid_role:
             return
-        if isinstance(self.get_grid_type(grid_role), GridFromEdges):
+        if isinstance(self._get_grid_type(grid_role), GridFromEdges):
             return
 
         # define where the menu appear on click

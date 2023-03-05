@@ -325,7 +325,9 @@ class MDAWidget(QWidget):
                 if grid_role := self.position_groupbox._table.item(row, 0).data(
                     self.position_groupbox.GRID_ROLE
                 ):
-                    n_pos = n_pos + len(self.position_groupbox.get_grid_type(grid_role))
+                    n_pos = n_pos + len(
+                        self.position_groupbox._get_grid_type(grid_role)
+                    )
                 else:
                     n_pos += 1
         if not n_pos:
