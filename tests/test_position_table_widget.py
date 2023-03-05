@@ -1,15 +1,30 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QTableWidget
 
 from pymmcore_widgets._mda import PositionTable
+from pymmcore_widgets._mda._grid_widget import OrderMode, RelativeTo
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
+    from typing_extensions import Required, TypedDict
+
+    class GridDict(TypedDict, total=False):
+        """Grid dictionary."""
+
+        overlap: Required[float | tuple[float, float]]
+        mode: Required[OrderMode | str]
+        rows: int
+        columns: int
+        relative_to: RelativeTo | str
+        top: float
+        left: float
+        bottom: float
+        right: float
 
 
 def _get_values(table: QTableWidget, row: int):
@@ -159,7 +174,9 @@ def pos():
     return pos_1, pos_2, pos_3
 
 
-def test_relative_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
+def test_relative_grid_position(
+    global_mmcore: CMMCorePlus, qtbot: QtBot, pos: tuple[dict[str, Any], ...]
+):
     pos_1, pos_2, _ = pos
 
     p = PositionTable()
@@ -182,7 +199,8 @@ def test_relative_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
     add_grid_btn, remove_grid_btn = p._get_grid_buttons(0)
     assert remove_grid_btn.isHidden()
 
-    p._add_grid_position(pos_1["sequence"]["grid_plan"], 0)
+    grid_plan = cast("GridDict", pos_1["sequence"]["grid_plan"])
+    p._add_grid_position(grid_plan, 0)
 
     assert not remove_grid_btn.isHidden()
     assert add_grid_btn.text() == "Edit"
@@ -218,7 +236,9 @@ def test_relative_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
     assert remove_grid_btn.isHidden()
 
 
-def test_absolute_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
+def test_absolute_grid_position(
+    global_mmcore: CMMCorePlus, qtbot: QtBot, pos: tuple[dict[str, Any], ...]
+):
     _, _, pos_3 = pos
     p = PositionTable()
     qtbot.addWidget(p)
@@ -235,7 +255,8 @@ def test_absolute_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
     add_grid_btn, remove_grid_btn = p._get_grid_buttons(0)
     assert remove_grid_btn.isHidden()
 
-    p._add_grid_position(pos_3["sequence"]["grid_plan"], 0)
+    grid_plan = cast("GridDict", pos_3["sequence"]["grid_plan"])
+    p._add_grid_position(grid_plan, 0)
 
     assert tb.item(0, 0).data(p.GRID_ROLE) == {
         "bottom": 0.0,
@@ -255,7 +276,9 @@ def test_absolute_grid_position(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
     assert p.value() == [pos_3]
 
 
-def test_pos_table_set_and_get_state(global_mmcore: CMMCorePlus, qtbot: QtBot, pos):
+def test_pos_table_set_and_get_state(
+    global_mmcore: CMMCorePlus, qtbot: QtBot, pos: tuple[dict[str, Any], ...]
+):
     pos_1, pos_2, pos_3 = pos
     p = PositionTable()
     qtbot.addWidget(p)
