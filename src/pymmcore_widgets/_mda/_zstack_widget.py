@@ -301,7 +301,7 @@ class ZStackWidget(QGroupBox):
     def set_state(self, z_plan: dict) -> None:
         """Set the state of the widget from a dictionary."""
         tabs = self._zmode_tabs
-        wdg: "ZPicker"
+        wdg: ZPicker
         if "top" in z_plan and "bottom" in z_plan:
             wdg = cast(ZTopBottomSelect, tabs.findChild(ZTopBottomSelect))
             wdg._top_spinbox.setValue(z_plan["top"])
