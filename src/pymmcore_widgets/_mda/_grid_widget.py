@@ -118,7 +118,18 @@ class _SpinboxWidget(QWidget):
 
 
 class GridWidget(QDialog):
-    """A subwidget to setup the acquisition of a grid of images."""
+    """A subwidget to setup the acquisition of a grid of images.
+
+    Parameters
+    ----------
+    parent : QWidget | None
+        Optional parent widget, by default None.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    """
 
     valueChanged = Signal(object)
 

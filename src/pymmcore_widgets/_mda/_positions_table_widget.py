@@ -78,10 +78,17 @@ class PositionTable(QGroupBox):
     format that matches one of the [useq-schema Position
     specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
 
-    When using the [GridWidget](), a list of stage positions will be added to
-    the table with a default name in the form:
-    'position'_'row'_'column'_'acquisition-order-index' (e.g. "Pos000_000_000_000",
-    "Pos000_000_001_001", ...).
+    Parameters
+    ----------
+    title: str
+        Title of the widget, by default "Stage Positions".
+    parent : QWidget | None
+        Optional parent widget, by default None.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     valueChanged = Signal()
