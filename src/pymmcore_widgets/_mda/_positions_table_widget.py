@@ -114,7 +114,9 @@ class PositionTable(QGroupBox):
         self._table.setTabKeyNavigation(True)
         self._table.setColumnCount(5)
         self._table.setRowCount(0)
-        self._table.setHorizontalHeaderLabels(["Pos", "X", "Y", "Z", "Grid"])
+        self._table.setHorizontalHeaderLabels(
+            ["Pos", "X", "Y", self._mmc.getFocusDevice(), "Grid"]
+        )
         self._table.setColumnHidden(4, True)
         group_layout.addWidget(self._table, 0, 0)
 
@@ -187,9 +189,18 @@ class PositionTable(QGroupBox):
 
         self._table.itemChanged.connect(self._rename_positions)
 
-        self._mmc.events.systemConfigurationLoaded.connect(self.clear)
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
+        self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
         self.destroyed.connect(self._disconnect)
+
+    def _on_sys_cfg_loaded(self) -> None:
+        self.clear()
+        self._table.horizontalHeaderItem(3).setText(self._mmc.getFocusDevice())
+
+    def _on_property_changed(self, device: str, property: str, value: str) -> None:
+        if device == "Core" and property == "Focus":
+            self._table.horizontalHeaderItem(3).setText(value)
 
     def _on_advanced_toggled(self, state: bool) -> None:
         self._table.setColumnHidden(4, not state)
@@ -603,4 +614,5 @@ class PositionTable(QGroupBox):
                 self.set_state(json.load(file))
 
     def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self.clear)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
+        self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
