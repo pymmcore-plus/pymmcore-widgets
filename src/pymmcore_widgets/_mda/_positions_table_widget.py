@@ -519,11 +519,12 @@ class PositionTable(QGroupBox):
             return []
 
         values: list = []
+
         for row in range(self._table.rowCount()):
             grid_role = (
-                None
-                if self._table.isColumnHidden(4)
-                else self._table.item(row, 0).data(self.GRID_ROLE)
+                self._table.item(row, 0).data(self.GRID_ROLE)
+                if self._advanced_cbox.isChecked()
+                else None
             )
 
             values.append(
@@ -544,6 +545,8 @@ class PositionTable(QGroupBox):
         """Set the state of the widget from a useq position dictionary."""
         if clear:
             self.clear()
+
+        # print(positions)
 
         self.setChecked(True)
 

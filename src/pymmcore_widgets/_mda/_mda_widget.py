@@ -296,7 +296,7 @@ class MDAWidget(QWidget):
             self.channel_groupbox._table.rowCount() > 0
         )
 
-    def _update_total_time(self, *, tiles: int = 1) -> None:
+    def _update_total_time(self) -> None:
         """Update the minimum total acquisition time info."""
         # channel
         exp: list[float] = [
@@ -336,7 +336,7 @@ class MDAWidget(QWidget):
         # acq time per timepoint
         time_chs: float = 0.0  # s
         for e in exp:
-            time_chs = time_chs + ((e / 1000) * n_z_images * n_pos * tiles)
+            time_chs = time_chs + ((e / 1000) * n_z_images * n_pos)
 
         min_aq_tp, unit_1 = _select_output_unit(time_chs)
 

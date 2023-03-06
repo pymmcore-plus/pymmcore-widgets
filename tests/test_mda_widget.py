@@ -43,7 +43,12 @@ def test_mda_widget_load_state(qtbot: QtBot):
                 "y": 2,
                 "z": 3,
                 "sequence": {
-                    "grid_plan": {"rows": 2, "columns": 2},
+                    "grid_plan": {
+                        "rows": 2,
+                        "columns": 2,
+                        "mode": "row_wise_snake",
+                        "overlap": (0.0, 0.0),
+                    },
                 },
             },
         ),
