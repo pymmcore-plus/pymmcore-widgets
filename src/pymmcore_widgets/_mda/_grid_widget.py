@@ -53,9 +53,8 @@ class _SpinboxWidget(QWidget):
     def __init__(
         self,
         label: Literal["top", "bottom", "left", "right", "corner1", "corner2"],
-        parent: QWidget | None = None,
-        *,
         mmcore: CMMCorePlus,
+        parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
 

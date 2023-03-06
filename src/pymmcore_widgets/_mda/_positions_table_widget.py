@@ -91,10 +91,12 @@ class PositionTable(QGroupBox):
         self,
         title: str = "Stage Positions",
         parent: QWidget | None = None,
+        *,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent=parent)
 
-        self._mmc = CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         self.setTitle(title)
 
