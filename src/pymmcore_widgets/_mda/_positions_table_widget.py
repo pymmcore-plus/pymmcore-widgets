@@ -706,7 +706,12 @@ class PositionTable(QGroupBox):
 
     def get_z_stages(self) -> tuple[str | None, str | None]:
         """Return the currently set focus and autofocus stage names."""
-        return self.z_focus_combo.currentText(), self.z_autofocus_combo.currentText()
+        focus = self.z_focus_combo.currentText()
+        autofocus = self.z_autofocus_combo.currentText()
+        return (
+            focus if focus != "None" else None,
+            autofocus if autofocus != "None" else None,
+        )
 
     def set_state(
         self, positions: Sequence[PositionDict | Position], clear: bool = True
