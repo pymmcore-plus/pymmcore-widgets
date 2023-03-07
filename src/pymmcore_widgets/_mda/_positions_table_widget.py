@@ -389,13 +389,8 @@ class PositionTable(QGroupBox):
             if grid_role and isinstance(self._get_grid_type(grid_role), GridFromEdges):
                 self.replace_button.setEnabled(False)
 
-    def _get_grid_type(self, grid: GridDict | AnyGridPlan) -> AnyGridPlan:
+    def _get_grid_type(self, grid: GridDict) -> AnyGridPlan:
         """Get type of the grid_plan."""
-        # to avoid TypeError("Subscripted generics cannot be used with
-        # class and instance checks") in python 3.8 and 3.9 we don't use
-        # if isinstance(grid, AnyGridPlan):
-        if isinstance(grid, (GridRelative, GridFromEdges, NoGrid)):
-            grid = grid.dict()
         try:
             grid_type = GridRelative(**grid)
         except ValidationError:
@@ -727,8 +722,6 @@ class PositionTable(QGroupBox):
         """Set the state of the widget from a useq position dictionary."""
         if clear:
             self.clear()
-
-        # print(positions)
 
         self.setChecked(True)
 
