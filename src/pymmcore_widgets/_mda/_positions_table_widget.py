@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from fonticon_mdi6 import MDI6
 from pydantic import ValidationError
-from pymmcore_plus import CMMCorePlus
+from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtCore import QPoint, QSize, Qt, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
@@ -13,11 +13,13 @@ from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QAction,
     QCheckBox,
+    QComboBox,
     QDoubleSpinBox,
     QFileDialog,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QMenu,
     QPushButton,
     QSizePolicy,
@@ -114,21 +116,6 @@ class PositionTable(QGroupBox):
         group_layout.setContentsMargins(10, 10, 10, 10)
         self.setLayout(group_layout)
 
-        # table
-        self._table = QTableWidget()
-        self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        hdr = self._table.horizontalHeader()
-        hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
-        self._table.verticalHeader().setVisible(False)
-        self._table.setTabKeyNavigation(True)
-        self._table.setColumnCount(5)
-        self._table.setRowCount(0)
-        self._table.setHorizontalHeaderLabels(
-            ["Pos", "X", "Y", self._mmc.getFocusDevice(), "Grid"]
-        )
-        self._table.setColumnHidden(4, True)
-        group_layout.addWidget(self._table, 0, 0)
-
         # buttons
         buttons_wdg = QWidget()
         buttons_layout = QVBoxLayout()
@@ -136,32 +123,32 @@ class PositionTable(QGroupBox):
         buttons_layout.setContentsMargins(0, 0, 0, 0)
         buttons_wdg.setLayout(buttons_layout)
 
-        btn_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        _sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         min_size = 100
         self.add_button = QPushButton(text="Add")
         self.add_button.setMinimumWidth(min_size)
-        self.add_button.setSizePolicy(btn_sizepolicy)
+        self.add_button.setSizePolicy(_sizepolicy)
         self.replace_button = QPushButton(text="Replace")
         self.replace_button.setEnabled(False)
         self.replace_button.setMinimumWidth(min_size)
-        self.replace_button.setSizePolicy(btn_sizepolicy)
+        self.replace_button.setSizePolicy(_sizepolicy)
         self.remove_button = QPushButton(text="Remove")
         self.remove_button.setEnabled(False)
         self.remove_button.setMinimumWidth(min_size)
-        self.remove_button.setSizePolicy(btn_sizepolicy)
+        self.remove_button.setSizePolicy(_sizepolicy)
         self.clear_button = QPushButton(text="Clear")
         self.clear_button.setMinimumWidth(min_size)
-        self.clear_button.setSizePolicy(btn_sizepolicy)
+        self.clear_button.setSizePolicy(_sizepolicy)
         self.go_button = QPushButton(text="Go")
         self.go_button.setEnabled(False)
         self.go_button.setMinimumWidth(min_size)
-        self.go_button.setSizePolicy(btn_sizepolicy)
+        self.go_button.setSizePolicy(_sizepolicy)
         self.save_positions_button = QPushButton(text="Save")
         self.save_positions_button.setMinimumWidth(min_size)
-        self.save_positions_button.setSizePolicy(btn_sizepolicy)
+        self.save_positions_button.setSizePolicy(_sizepolicy)
         self.load_positions_button = QPushButton(text="Load")
         self.load_positions_button.setMinimumWidth(min_size)
-        self.load_positions_button.setSizePolicy(btn_sizepolicy)
+        self.load_positions_button.setSizePolicy(_sizepolicy)
         self._advanced_cbox = QCheckBox(text="Advanced")
 
         buttons_layout.addWidget(self.add_button)
@@ -192,10 +179,46 @@ class PositionTable(QGroupBox):
         self.load_positions_button.clicked.connect(self._load_positions)
         self._advanced_cbox.toggled.connect(self._on_advanced_toggled)
 
+        # bottom widget
+        bottom_wdg = QWidget()
+        bottom_wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        bottom_wdg_layout = QHBoxLayout()
+        bottom_wdg_layout.setSpacing(15)
+        bottom_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_wdg.setLayout(bottom_wdg_layout)
+        group_layout.addWidget(bottom_wdg, 1, 0)
+        # z stage combo widget
+        combo_wdg = QWidget()
+        # combo_wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        cbox_wdg_layout = QHBoxLayout()
+        cbox_wdg_layout.setSpacing(3)
+        cbox_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        combo_wdg.setLayout(cbox_wdg_layout)
+        bottom_wdg_layout.addWidget(combo_wdg)
+        lbl = QLabel("Z Focus:")
+        lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.z_focus_combo = QComboBox()
+        self.z_focus_combo.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.z_focus_combo.currentTextChanged.connect(self._on_z_focus_changed)
+        cbox_wdg_layout.addWidget(lbl)
+        cbox_wdg_layout.addWidget(self.z_focus_combo)
+        self._populate_z_focus_combo()
+
+        # table
+        self._table = QTableWidget()
+        self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        hdr = self._table.horizontalHeader()
+        hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
+        self._table.verticalHeader().setVisible(False)
+        self._table.setTabKeyNavigation(True)
+        self._table.setColumnCount(5)
+        self._table.setRowCount(0)
+        self._set_table_header()
+        self._table.setColumnHidden(self._table.columnCount() - 1, True)
+        group_layout.addWidget(self._table, 0, 0)
+
         self._table.setMinimumHeight(buttons_wdg.sizeHint().height() + 5)
-
         self._table.selectionModel().selectionChanged.connect(self._enable_button)
-
         self._table.itemChanged.connect(self._rename_positions)
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
@@ -205,14 +228,108 @@ class PositionTable(QGroupBox):
 
     def _on_sys_cfg_loaded(self) -> None:
         self.clear()
-        self._table.horizontalHeaderItem(3).setText(self._mmc.getFocusDevice())
+        self._set_table_header()
+        self._populate_z_focus_combo()
 
-    def _on_property_changed(self, device: str, property: str, value: str) -> None:
-        if device == "Core" and property == "Focus":
-            self._table.horizontalHeaderItem(3).setText(value)
+    def _on_property_changed(self, device: str, prop: str, value: str) -> None:
+        if device != "Core" or prop != "Focus":
+            return
+
+        with signals_blocked(self.z_focus_combo):
+            self.z_focus_combo.setCurrentText(value or "None")
+
+        _range = (
+            (3, self._table.columnCount() - 1)
+            if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+            else (0, self._table.columnCount() - 1)
+        )
+        for i in range(_range[0], _range[1]):
+            if not value:
+                self._table.setColumnHidden(i, True)
+            elif i == 0:
+                self._table.setColumnHidden(i, False)
+            else:
+                col_name = self._table.horizontalHeaderItem(i).text()
+                self._table.setColumnHidden(i, col_name != value)
+
+    def _populate_z_focus_combo(self) -> None:
+        with signals_blocked(self.z_focus_combo):
+            self.z_focus_combo.clear()
+            items = [
+                "None",
+                *list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice)),
+            ]
+            self.z_focus_combo.addItems(items)
+        self.z_focus_combo.setCurrentText(self._mmc.getFocusDevice() or "None")
+
+    def _on_z_focus_changed(self, stage: str) -> None:
+        if stage == "None":
+            _range = (
+                (3, self._table.columnCount() - 1)
+                if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+                else (0, self._table.columnCount() - 1)
+            )
+            for c in range(_range[0], _range[1]):
+                self._table.setColumnHidden(c, True)
+            stage = ""
+        self._mmc.setFocusDevice(stage)
+
+    def _set_table_header(self) -> None:
+        self._table.setColumnCount(0)
+
+        if not self._mmc.getLoadedDevicesOfType(
+            DeviceType.XYStageDevice
+        ) and not self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice):
+            self.clear()
+            return
+
+        header = (
+            [POS]
+            + (
+                ["X", "Y"]
+                if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+                else []
+            )
+            + list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
+            + ["Grid"]
+        )
+
+        self._table.setColumnCount(len(header))
+        self._table.setHorizontalHeaderLabels(header)
+        self._hide_header_columns(header)
+
+    def _hide_header_columns(self, header: list[str]) -> None:
+        for idx, c in enumerate(header):
+            if c == "Grid":
+                continue
+
+            if c == POS and (
+                not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+                and not self._mmc.getFocusDevice()
+            ):
+                self._table.setColumnHidden(idx, True)
+
+            elif c in {"X", "Y"} and not self._mmc.getLoadedDevicesOfType(
+                DeviceType.XYStageDevice
+            ):
+                self._table.setColumnHidden(idx, True)
+
+            elif c not in {POS, "X", "Y"}:
+                self._table.setColumnHidden(idx, self._mmc.getFocusDevice() != c)
+
+    def _get_z_stage_column(self) -> int | None:
+        for i in range(self._table.columnCount()):
+            col_name = self._table.horizontalHeaderItem(i).text()
+            if col_name == self._mmc.getFocusDevice():
+                return i
+        return None
 
     def _on_advanced_toggled(self, state: bool) -> None:
-        self._table.setColumnHidden(4, not state)
+        if not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice):
+            self._advanced_cbox.setChecked(False)
+            return
+
+        self._table.setColumnHidden(self._table.columnCount() - 1, not state)
 
         for row in range(self._table.rowCount()):
             item = self._table.item(row, 0)
@@ -279,8 +396,8 @@ class PositionTable(QGroupBox):
         self._add_table_item(name, row, 0)
         self._add_table_value(xpos, row, 1)
         self._add_table_value(ypos, row, 2)
-        self._add_table_value(zpos, row, 3)
-        self._add_grid_buttons(row, 4)
+        self._add_table_value(zpos, row, self._get_z_stage_column())
+        self._add_grid_buttons(row, self._table.columnCount() - 1)
 
         self.valueChanged.emit()
 
@@ -346,8 +463,14 @@ class PositionTable(QGroupBox):
 
     def _get_grid_buttons(self, row: int) -> tuple[QPushButton, QPushButton]:
         return (
-            self._table.cellWidget(row, 4).layout().itemAt(0).widget(),
-            self._table.cellWidget(row, 4).layout().itemAt(1).widget(),
+            self._table.cellWidget(row, self._table.columnCount() - 1)
+            .layout()
+            .itemAt(0)
+            .widget(),
+            self._table.cellWidget(row, self._table.columnCount() - 1)
+            .layout()
+            .itemAt(1)
+            .widget(),
         )
 
     def _grid_widget(self) -> None:
@@ -515,7 +638,7 @@ class PositionTable(QGroupBox):
             return
         curr_row = self._table.currentRow()
         x, y = (self._get_table_value(curr_row, 1), self._get_table_value(curr_row, 2))
-        z = self._get_table_value(curr_row, 3)
+        z = self._get_table_value(curr_row, self._get_z_stage_column())
         if x and y:
             self._mmc.setXYPosition(x, y)
         if self._mmc.getFocusDevice() and z:
@@ -552,7 +675,7 @@ class PositionTable(QGroupBox):
                     "name": self._table.item(row, 0).text(),
                     "x": self._get_table_value(row, 1),
                     "y": self._get_table_value(row, 2),
-                    "z": self._get_table_value(row, 3),
+                    "z": self._get_table_value(row, self._get_z_stage_column()),
                     "sequence": {"grid_plan": grid_role} if grid_role else None,
                 }
             )
@@ -583,6 +706,7 @@ class PositionTable(QGroupBox):
             if not isinstance(position, dict):
                 continue
 
+            # TODO: find a way to also store z stage name
             name = position.get("name")
             x, y, z = (position.get("x"), position.get("y"), position.get("z"))
             self._add_table_row(name or f"{POS}000", x, y, z)
