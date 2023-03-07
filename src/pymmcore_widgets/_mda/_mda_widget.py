@@ -9,7 +9,7 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 from useq import MDASequence
 
-from .._util import _select_output_unit, guess_channel_group
+from .._util import _select_output_unit, get_grid_type, guess_channel_group
 from ._channel_table_widget import ChannelTable
 from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
 from ._positions_table_widget import PositionTable
@@ -325,9 +325,7 @@ class MDAWidget(QWidget):
                 if grid_role := self.position_groupbox._table.item(row, 0).data(
                     self.position_groupbox.GRID_ROLE
                 ):
-                    n_pos = n_pos + len(
-                        self.position_groupbox._get_grid_type(grid_role)
-                    )
+                    n_pos = n_pos + len(get_grid_type(grid_role))
                 else:
                     n_pos += 1
         if not n_pos:

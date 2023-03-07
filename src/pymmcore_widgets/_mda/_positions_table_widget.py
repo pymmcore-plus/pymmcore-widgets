@@ -4,7 +4,6 @@ import contextlib
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from fonticon_mdi6 import MDI6
-from pydantic import ValidationError
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QPoint, QSize, Qt, Signal
 from qtpy.QtGui import QIcon
@@ -30,7 +29,6 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 from useq import (  # type: ignore
-    AnyGridPlan,
     GridFromEdges,
     GridRelative,
     MDASequence,
@@ -39,6 +37,7 @@ from useq import (  # type: ignore
 )
 from useq._grid import OrderMode, RelativeTo
 
+from .._util import get_grid_type
 from ._grid_widget import GridWidget
 
 if TYPE_CHECKING:
@@ -219,19 +218,8 @@ class PositionTable(QGroupBox):
         self.replace_button.setEnabled(len(rows) == 1)
         if len(rows) == 1:
             grid_role = self._table.item(list(rows)[0], 0).data(self.GRID_ROLE)
-            if grid_role and isinstance(self._get_grid_type(grid_role), GridFromEdges):
+            if grid_role and isinstance(get_grid_type(grid_role), GridFromEdges):
                 self.replace_button.setEnabled(False)
-
-    def _get_grid_type(self, grid: GridDict) -> AnyGridPlan:
-        """Get type of the grid_plan."""
-        try:
-            grid_type = GridRelative(**grid)
-        except ValidationError:
-            try:
-                grid_type = GridFromEdges(**grid)
-            except ValidationError:
-                grid_type = NoGrid()
-        return grid_type
 
     def _add_position(self) -> None:
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
@@ -353,7 +341,7 @@ class PositionTable(QGroupBox):
 
     def _add_grid_plan(self, grid: GridDict, row: int | None = None) -> None:
         # sourcery skip: extract-method
-        grid_type = self._get_grid_type(grid)
+        grid_type = get_grid_type(grid)
 
         if isinstance(grid_type, NoGrid):
             return
@@ -382,7 +370,7 @@ class PositionTable(QGroupBox):
         self.valueChanged.emit()
 
     def _create_tooltip(self, grid: GridDict) -> str:
-        grid_type = self._get_grid_type(grid)
+        grid_type = get_grid_type(grid)
 
         if isinstance(grid_type, NoGrid):
             return ""
@@ -419,7 +407,7 @@ class PositionTable(QGroupBox):
         # return if not grid or if absolute grid_plan
         if not grid_role:
             return
-        if isinstance(self._get_grid_type(grid_role), GridFromEdges):
+        if isinstance(get_grid_type(grid_role), GridFromEdges):
             return
 
         # define where the menu appear on click
