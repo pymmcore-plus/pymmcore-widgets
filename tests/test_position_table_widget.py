@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from pymmcore_plus import CMMCorePlus
+from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtWidgets import QTableWidget
 
 from pymmcore_widgets._mda import PositionTable
@@ -276,3 +276,46 @@ def test_pos_table_set_and_get_state(
     p._advanced_cbox.setChecked(False)
     pos_1["sequence"] = pos_2["sequence"] = pos_3["sequence"] = None
     assert p.value() == [pos_1, pos_2, pos_3]
+
+
+def test_columns_position_table(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    p = PositionTable()
+    qtbot.addWidget(p)
+
+    p.setChecked(True)
+    mmc = global_mmcore
+
+    assert [
+        p._table.horizontalHeaderItem(i).text() for i in range(p._table.columnCount())
+    ] == ["Pos", "X", "Y", "Z", "Z1", "Grid"]
+    p._advanced_cbox.setChecked(True)
+    assert len(mmc.getLoadedDevicesOfType(DeviceType.Stage)) == 2
+    assert ["Z", "Z1"] == list(mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
+    assert mmc.getFocusDevice() == "Z"
+
+    assert p.z_focus_combo.currentText() == "Z"
+
+    assert not p._table.isColumnHidden(3)  # "Z"
+    assert p._table.isColumnHidden(4)  # "Z1"
+
+    p.z_focus_combo.setCurrentText("Z1")
+    assert mmc.getFocusDevice() == "Z1"
+    assert p._table.isColumnHidden(3)  # "Z"
+    assert not p._table.isColumnHidden(4)  # "Z1"
+
+    mmc.unloadDevice("XY")
+    p.z_focus_combo.setCurrentText("None")
+    for c in range(p._table.columnCount() - 1):
+        assert p._table.isColumnHidden(c)
+    assert not p._table.isColumnHidden(5)
+
+    p.z_focus_combo.setCurrentText("Z")
+    assert p._table.columnCount() == 6
+
+    assert p._table.horizontalHeaderItem(0).text() == "Pos"
+    assert p._table.horizontalHeaderItem(3).text() == "Z"
+    for c in range(p._table.columnCount() - 1):
+        if c in {0, 3}:
+            assert not p._table.isColumnHidden(c)
+        else:
+            assert p._table.isColumnHidden(c)
