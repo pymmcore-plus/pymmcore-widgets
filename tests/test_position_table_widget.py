@@ -176,10 +176,10 @@ def test_relative_grid_position(
     mmc.setXYPosition(100, 200)
     p.add_button.click()
     assert tb.rowCount() == 1
-    assert tb.isColumnHidden(4)
+    assert tb.isColumnHidden(5)
 
     p._advanced_cbox.setChecked(True)
-    assert not tb.isColumnHidden(4)
+    assert not tb.isColumnHidden(5)
 
     add_grid_btn, remove_grid_btn = p._get_grid_buttons(0)
     assert remove_grid_btn.isHidden()
@@ -319,3 +319,32 @@ def test_columns_position_table(global_mmcore: CMMCorePlus, qtbot: QtBot):
             assert not p._table.isColumnHidden(c)
         else:
             assert p._table.isColumnHidden(c)
+
+
+def test_z_autofocus_combo(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    p = PositionTable()
+    qtbot.addWidget(p)
+
+    p.setChecked(True)
+    mmc = global_mmcore
+
+    assert p.z_autofocus_combo.currentText() == "None"
+    assert mmc.getFocusDevice() == "Z"
+    assert mmc.getAutoFocusDevice() == "Autofocus"
+    assert not p._table.isColumnHidden(3)  # "Z"
+    assert p._table.isColumnHidden(4)  # "Z1"
+
+    p.z_autofocus_combo.setCurrentText("Z1")
+    assert mmc.getFocusDevice() == "Z1"
+    assert p._table.isColumnHidden(3)  # "Z"
+    assert not p._table.isColumnHidden(4)  # "Z1"
+
+    p.z_focus_combo.setCurrentText("None")
+    assert mmc.getFocusDevice() == "Z1"
+    assert p._table.isColumnHidden(3)  # "Z"
+    assert not p._table.isColumnHidden(4)  # "Z1"
+
+    p.z_autofocus_combo.setCurrentText("None")
+    assert not mmc.getFocusDevice()
+    assert p._table.isColumnHidden(3)  # "Z"
+    assert p._table.isColumnHidden(4)  # "Z1"

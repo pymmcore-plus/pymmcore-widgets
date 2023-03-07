@@ -211,9 +211,7 @@ class PositionTable(QGroupBox):
         )
         self.z_autofocus_combo = QComboBox()
         self.z_autofocus_combo.setSizeAdjustPolicy(QComboBox.AdjustToContents)
-        self.z_autofocus_combo.currentTextChanged.connect(
-            self._on_z_autofofocus_changed
-        )
+        self.z_autofocus_combo.currentTextChanged.connect(self._on_z_autofocus_changed)
         self.autofocus_lbl.hide()
         self.z_autofocus_combo.hide()
         combo_wdg_layout.addWidget(self.autofocus_lbl)
@@ -309,9 +307,9 @@ class PositionTable(QGroupBox):
 
         self._mmc.setFocusDevice(focus_stage)
 
-    def _on_z_autofofocus_changed(self, autofocus_stage: str) -> None:
+    def _on_z_autofocus_changed(self, autofocus_stage: str) -> None:
         if autofocus_stage == "None":
-            self._mmc.setFocusDevice(self.z_focus_combo.currentText() or "None")
+            self._on_z_focus_changed(self.z_focus_combo.currentText())
         else:
             self._mmc.setFocusDevice(autofocus_stage)
 
