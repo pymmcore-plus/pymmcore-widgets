@@ -456,6 +456,7 @@ class PositionTable(QGroupBox):
         add_grid = QPushButton()
         add_grid.setIcon(icon(MDI6.plus_thick, color=(0, 255, 0)))
         add_grid.setIconSize(QSize(25, 25))
+        add_grid.setFixedHeight(25)
         add_grid.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         add_grid.setContextMenuPolicy(Qt.CustomContextMenu)
         # for righ-click menu
@@ -464,6 +465,7 @@ class PositionTable(QGroupBox):
         remove_grid = QPushButton()
         remove_grid.setIcon(icon(MDI6.close_thick, color="magenta"))
         remove_grid.setIconSize(QSize(25, 25))
+        remove_grid.setFixedHeight(25)
         remove_grid.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         remove_grid.clicked.connect(self._remove_grid_plan)
         layout.addWidget(add_grid)
