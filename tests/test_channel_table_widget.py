@@ -62,16 +62,51 @@ def test_set_get_state(qtbot: QtBot):
     qtbot.addWidget(ct)
 
     state = [
-        {"config": "Cy5", "group": "Channel", "exposure": 100.0},
-        {"config": "DAPI", "group": "Channel", "exposure": 100.0},
-        {"config": "HighRes", "group": "Camera", "exposure": 100.0},
+        {
+            "config": "Cy5",
+            "group": "Channel",
+            "exposure": 100.0,
+            "z_offset": 0.0,
+            "do_stack": True,
+            "acquire_every": 1,
+        },
+        {
+            "config": "DAPI",
+            "group": "Channel",
+            "exposure": 100.0,
+            "z_offset": 10.0,
+            "do_stack": True,
+            "acquire_every": 1,
+        },
+        {
+            "config": "HighRes",
+            "group": "Camera",
+            "exposure": 100.0,
+            "z_offset": 0.0,
+            "do_stack": False,
+            "acquire_every": 1,
+        },
+        {
+            "config": "Cy5",
+            "group": "Channel",
+            "exposure": 100.0,
+            "z_offset": 0.0,
+            "do_stack": True,
+            "acquire_every": 2,
+        },
     ]
 
     ct.set_state(state)
 
-    assert ct._table.rowCount() == 3
+    assert ct._table.rowCount() == 4
     assert ct._table.cellWidget(0, 0).currentText() == "Cy5"
     assert ct._table.cellWidget(1, 0).currentText() == "DAPI"
     assert ct._table.cellWidget(2, 0).currentText() == "HighRes"
+    assert ct._table.cellWidget(3, 0).currentText() == "Cy5"
+
+    ct._advanced_cbox.setChecked(True)
+    assert ct._table.cellWidget(1, 2).value() == 10.0
+    assert not ct._z_stack_checkbox(2).isChecked()
+    assert ct._table.cellWidget(3, 4).value() == 2
 
     assert ct.value() == state
