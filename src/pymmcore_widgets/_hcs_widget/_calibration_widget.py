@@ -38,7 +38,7 @@ AlignCenter = Qt.AlignmentFlag.AlignCenter
 ALPHABET = string.ascii_uppercase
 
 
-class PlateCalibration(QWidget):
+class _PlateCalibration(QWidget):
     """Widget to calibrate the sample plate."""
 
     PlateFromCalibration = Signal(tuple)

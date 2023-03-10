@@ -28,11 +28,11 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 from useq import MDASequence
 
-from pymmcore_widgets._hcs_widget._calibration_widget import PlateCalibration
-from pymmcore_widgets._hcs_widget._generate_fov_widget import SelectFOV
-from pymmcore_widgets._hcs_widget._graphics_items import FOVPoints, Well
-from pymmcore_widgets._hcs_widget._plate_graphics_scene_widget import HCSGraphicsScene
-from pymmcore_widgets._hcs_widget._update_plate_dialog import UpdatePlateDialog
+from pymmcore_widgets._hcs_widget._calibration_widget import _PlateCalibration
+from pymmcore_widgets._hcs_widget._generate_fov_widget import _SelectFOV
+from pymmcore_widgets._hcs_widget._graphics_items import _FOVPoints, _Well
+from pymmcore_widgets._hcs_widget._plate_graphics_scene_widget import _HCSGraphicsScene
+from pymmcore_widgets._hcs_widget._update_plate_dialog import _UpdatePlateDialog
 from pymmcore_widgets._hcs_widget._well_plate_database import PLATE_DB, WellPlate
 from pymmcore_widgets._mda._mda_widget import MDAWidget
 from pymmcore_widgets._util import PLATE_FROM_CALIBRATION
@@ -87,7 +87,7 @@ class HCSWidget(QWidget):
 
         self._calibration = self._create_calibration_tab()
 
-        self._mda = HCSMDA(parent=self)
+        self._mda = _HCSMDA(parent=self)
         self._mda.add_positions_button.clicked.connect(self._generate_pos_list)
         self._mda.position_groupbox.load_positions_button.clicked.connect(
             self._load_positions
@@ -121,7 +121,7 @@ class HCSWidget(QWidget):
         wdg_layout.setContentsMargins(10, 10, 10, 10)
         wdg.setLayout(wdg_layout)
 
-        self.scene = HCSGraphicsScene(parent=self)
+        self.scene = _HCSGraphicsScene(parent=self)
         self.view = QGraphicsView(self.scene, self)
         self.view.setStyleSheet("background:grey;")
         self._width = 500
@@ -139,7 +139,7 @@ class HCSWidget(QWidget):
         upper_wdg_layout.addWidget(btns)
         upper_wdg.setLayout(upper_wdg_layout)
 
-        self.FOV_selector = SelectFOV(parent=self)
+        self.FOV_selector = _SelectFOV(parent=self)
 
         # add widgets
         view_group = QGroupBox()
@@ -213,7 +213,7 @@ class HCSWidget(QWidget):
         cal_group_layout.setSpacing(0)
         cal_group_layout.setContentsMargins(10, 20, 10, 10)
         cal_group.setLayout(cal_group_layout)
-        self.calibration = PlateCalibration(parent=self)
+        self.calibration = _PlateCalibration(parent=self)
         cal_group_layout.addWidget(self.calibration)
         wdg_layout.addWidget(cal_group)
 
@@ -414,14 +414,14 @@ class HCSWidget(QWidget):
         for row in range(rows):
             for col in range(cols):
                 self.scene.addItem(
-                    Well(x, y, size_x, size_y, row, col, text_size, circular)
+                    _Well(x, y, size_x, size_y, row, col, text_size, circular)
                 )
                 x += size_x
             y += size_y
             x = start_x
 
     def _show_update_plate_dialog(self) -> None:
-        self.plate = UpdatePlateDialog(parent=self)
+        self.plate = _UpdatePlateDialog(parent=self)
         self.plate.plate_updated.connect(self._update_wp_combo)
         self.plate.show()
         self._clear_values()
@@ -543,7 +543,7 @@ class HCSWidget(QWidget):
         fovs = [
             item._getPositionsInfo()
             for item in self.FOV_selector.scene.items()
-            if isinstance(item, FOVPoints)
+            if isinstance(item, _FOVPoints)
         ]
         fovs.reverse()
 
@@ -679,7 +679,7 @@ class HCSWidget(QWidget):
         return self._mda.set_state(state)
 
 
-class HCSMDA(MDAWidget):
+class _HCSMDA(MDAWidget):
     """Subclass of MDAWidget to modify PositionTable."""
 
     def __init__(

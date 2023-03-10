@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
+
 from qtpy.QtCore import QRect, QRectF, Qt
 from qtpy.QtGui import QBrush, QTransform
 from qtpy.QtWidgets import (
@@ -10,8 +12,11 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+if TYPE_CHECKING:
+    from ._graphics_items import _Well
 
-class HCSGraphicsScene(QGraphicsScene):
+
+class _HCSGraphicsScene(QGraphicsScene):
     """Custom QGraphicsScene to control the plate/well selection."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -33,9 +38,11 @@ class HCSGraphicsScene(QGraphicsScene):
         self._selected_wells = [item for item in self.items() if item.isSelected()]
 
         for item in self._selected_wells:
+            item = cast("_Well", item)
             item._setBrush(self.selected)
 
         if well := self.itemAt(self.originCropPoint, QTransform()):
+            well = cast("_Well", well)
             if well.isSelected():
                 well._setBrush(self.unselected)
                 well.setSelected(False)
@@ -48,6 +55,7 @@ class HCSGraphicsScene(QGraphicsScene):
         self.currentQRubberBand.show()
         selection = self.items(QRectF(self.originCropPoint, event.scenePos()))
         for item in self.items():
+            item = cast("_Well", item)
             if item in selection:
                 item._setBrush(self.selected)
                 item.setSelected(True)
@@ -60,6 +68,7 @@ class HCSGraphicsScene(QGraphicsScene):
 
     def _clear_selection(self) -> None:
         for item in self.items():
+            item = cast("_Well", item)
             if item.isSelected():
                 item.setSelected(False)
                 item._setBrush(self.unselected)

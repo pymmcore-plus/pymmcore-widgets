@@ -15,7 +15,7 @@ from qtpy.QtWidgets import (
 )
 from useq import MDASequence
 
-from pymmcore_widgets._hcs_widget._graphics_items import FOVPoints, Well, WellArea
+from pymmcore_widgets._hcs_widget._graphics_items import _FOVPoints, _Well, _WellArea
 from pymmcore_widgets._hcs_widget._main_hcs_widget import HCSWidget
 from pymmcore_widgets._mda._zstack_widget import ZRangeAroundSelect
 from pymmcore_widgets._util import PLATE_FROM_CALIBRATION
@@ -64,7 +64,7 @@ def test_hcs_plate_selection(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     wells = []
     for item in reversed(hcs.scene.items()):
-        assert isinstance(item, Well)
+        assert isinstance(item, _Well)
         well, _, col = item._getPos()
         wells.append(well)
         if col in {0, 1}:
@@ -142,7 +142,7 @@ def test_hcs_fov_selection_FOVPoints_size(global_mmcore: CMMCorePlus, qtbot: QtB
     assert _image_size_mm_x == 0.512
     assert _image_size_mm_y == 0.512
     fov, well = list(hcs.FOV_selector.scene.items())
-    assert isinstance(fov, FOVPoints)
+    assert isinstance(fov, _FOVPoints)
     assert isinstance(well, QGraphicsEllipseItem)
     assert fov._getPositionsInfo() == (scene_width / 2, scene_height / 2, 160, 160)
     assert fov._x_size == (160 * _image_size_mm_x) / hcs.wp.well_size_x
@@ -159,7 +159,7 @@ def test_hcs_fov_selection_FOVPoints_size(global_mmcore: CMMCorePlus, qtbot: QtB
     items = list(hcs.FOV_selector.scene.items())
     assert len(items) == 2
     fov, well = items
-    assert isinstance(fov, FOVPoints)
+    assert isinstance(fov, _FOVPoints)
     assert isinstance(well, QGraphicsEllipseItem)
     assert fov._getPositionsInfo() == (scene_width / 2, scene_height / 2, 160, 160)
     assert fov._x_size == (160 * _image_size_mm_x) / hcs.wp.well_size_x
@@ -188,7 +188,7 @@ def test_hcs_fov_selection_center(global_mmcore: CMMCorePlus, qtbot: QtBot):
     items = list(hcs.FOV_selector.scene.items())
     assert len(items) == 2
     fov, well = items
-    assert isinstance(fov, FOVPoints)
+    assert isinstance(fov, _FOVPoints)
     assert isinstance(well, QGraphicsRectItem)
 
 
@@ -213,9 +213,9 @@ def test_hcs_fov_selection_random(global_mmcore: CMMCorePlus, qtbot: QtBot):
     well_area = items[-2]
     fovs = items[:3]
     assert isinstance(well, QGraphicsEllipseItem)
-    assert isinstance(well_area, WellArea)
+    assert isinstance(well_area, _WellArea)
     for i in fovs:
-        assert isinstance(i, FOVPoints)
+        assert isinstance(i, _FOVPoints)
 
     w, h = hcs.wp.well_size_x, hcs.wp.well_size_y
     ax = hcs.FOV_selector.plate_area_x
@@ -231,8 +231,8 @@ def test_hcs_fov_selection_random(global_mmcore: CMMCorePlus, qtbot: QtBot):
     items = list(hcs.FOV_selector.scene.items())
     well_area = items[-2]
     fov_1 = items[0]
-    assert isinstance(well_area, WellArea)
-    assert isinstance(fov_1, FOVPoints)
+    assert isinstance(well_area, _WellArea)
+    assert isinstance(fov_1, _FOVPoints)
     assert ax.value() != w
     assert ay.value() != h
     assert well_area._w == (160 * ax.value()) / w
@@ -242,7 +242,7 @@ def test_hcs_fov_selection_random(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     items = list(hcs.FOV_selector.scene.items())
     fov_2 = items[0]
-    assert isinstance(fov_2, FOVPoints)
+    assert isinstance(fov_2, _FOVPoints)
 
     assert fov_1._x != fov_2._x
     assert fov_1._y != fov_2._y
@@ -277,12 +277,12 @@ def test_hcs_fov_selection_grid(global_mmcore: CMMCorePlus, qtbot: QtBot):
     _image_size_mm_x, _image_size_mm_y = _get_image_size(mmc)
     fovs = items[:9]
     for fov in fovs:
-        assert isinstance(fov, FOVPoints)
+        assert isinstance(fov, _FOVPoints)
         assert fov._x_size == (160 * _image_size_mm_x) / hcs.wp.well_size_x
         assert fov._y_size == (160 * _image_size_mm_y) / hcs.wp.well_size_y
 
-    fov_1 = cast(FOVPoints, items[4])
-    fov_2 = cast(FOVPoints, items[5])
+    fov_1 = cast(_FOVPoints, items[4])
+    fov_2 = cast(_FOVPoints, items[5])
     cx, cy, w, h = fov_1._getPositionsInfo()
     assert (round(cx, 2), round(cy, 2), w, h) == (100.00, 100.00, 160, 160)
     cx, cy, w, h = fov_2._getPositionsInfo()
@@ -597,7 +597,7 @@ def test_generate_pos_list(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     wells = []
     for item in reversed(hcs.scene.items()):
-        assert isinstance(item, Well)
+        assert isinstance(item, _Well)
         well, row, col = item._getPos()
         if col in {0, 1} and row in {0, 1}:
             item.setSelected(True)
@@ -718,7 +718,7 @@ def test_hcs_state(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert len(hcs.scene.items()) == 384
 
     for item in reversed(hcs.scene.items()):
-        assert isinstance(item, Well)
+        assert isinstance(item, _Well)
         _, row, col = item._getPos()
         if col in {0, 1} and row in {0}:
             item.setSelected(True)

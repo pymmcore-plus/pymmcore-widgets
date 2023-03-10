@@ -8,7 +8,7 @@ from qtpy.QtWidgets import QGraphicsItem
 ALPHABET = string.ascii_uppercase
 
 
-class Well(QGraphicsItem):
+class _Well(QGraphicsItem):
     """QGraphicsItem to draw each well from a plate."""
 
     def __init__(
@@ -77,7 +77,7 @@ class Well(QGraphicsItem):
         return well, row, col
 
 
-class WellArea(QGraphicsItem):
+class _WellArea(QGraphicsItem):
     """QGraphicsItem to draw a well for the FOV selection."""
 
     def __init__(
@@ -114,7 +114,7 @@ class WellArea(QGraphicsItem):
             painter.drawRect(self.rect)
 
 
-class FOVPoints(QGraphicsItem):
+class _FOVPoints(QGraphicsItem):
     """QGraphicsItem to select the positions per FOV."""
 
     def __init__(

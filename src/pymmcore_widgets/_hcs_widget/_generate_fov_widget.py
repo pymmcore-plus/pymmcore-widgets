@@ -27,12 +27,12 @@ from qtpy.QtWidgets import (
 )
 from superqt.utils import signals_blocked
 
-from ._graphics_items import FOVPoints, WellArea
+from ._graphics_items import _FOVPoints, _WellArea
 
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 
 
-class SelectFOV(QWidget):
+class _SelectFOV(QWidget):
     """Widget to select the FOVs of the sample plate."""
 
     def __init__(
@@ -269,7 +269,7 @@ class SelectFOV(QWidget):
     def _on_px_size_changed(self) -> None:
         with contextlib.suppress(AttributeError):
             for item in self.scene.items():
-                if isinstance(item, (WellArea, FOVPoints)):
+                if isinstance(item, (_WellArea, _FOVPoints)):
                     self.scene.removeItem(item)
             mode = self.tab_wdg.tabText(self.tab_wdg.currentIndex())
             if mode in ["Center", "Random"]:
@@ -292,7 +292,7 @@ class SelectFOV(QWidget):
 
     def _on_tab_changed(self, tab_index: int) -> None:
         for item in self.scene.items():
-            if isinstance(item, (WellArea, FOVPoints)):
+            if isinstance(item, (_WellArea, _FOVPoints)):
                 self.scene.removeItem(item)
         if tab_index != 2:  # Center or Random
             mode = "Center" if tab_index == 0 else "Random"
@@ -302,19 +302,19 @@ class SelectFOV(QWidget):
 
     def _on_area_changed(self) -> None:
         for item in self.scene.items():
-            if isinstance(item, (WellArea, FOVPoints)):
+            if isinstance(item, (_WellArea, _FOVPoints)):
                 self.scene.removeItem(item)
         self._reset_center_random_scene("Random")
 
     def _on_number_of_FOV_changed(self) -> None:
         for item in self.scene.items():
-            if isinstance(item, FOVPoints):
+            if isinstance(item, _FOVPoints):
                 self.scene.removeItem(item)
         self._reset_center_random_scene("Random")
 
     def _on_grid_changed(self) -> None:
         for item in self.scene.items():
-            if isinstance(item, FOVPoints):
+            if isinstance(item, _FOVPoints):
                 self.scene.removeItem(item)
         self._reset_grid_scene()
 
@@ -393,7 +393,7 @@ class SelectFOV(QWidget):
     def _on_random_button_pressed(self) -> None:
 
         for item in self.scene.items():
-            if isinstance(item, FOVPoints):
+            if isinstance(item, _FOVPoints):
                 self.scene.removeItem(item)
 
         mode = self.tab_wdg.tabText(self.tab_wdg.currentIndex())
@@ -439,7 +439,7 @@ class SelectFOV(QWidget):
         for p in points:
             x, y, fov_row, fov_col = p
             self.scene.addItem(
-                FOVPoints(
+                _FOVPoints(
                     x,
                     y,
                     self._scene_size_x,
@@ -516,7 +516,7 @@ class SelectFOV(QWidget):
         if mode == "Center":
             center_x, center_y = (self._view_size / 2, self._view_size / 2)
             self.scene.addItem(
-                FOVPoints(
+                _FOVPoints(
                     center_x,
                     center_y,
                     self._scene_size_x,
@@ -533,7 +533,7 @@ class SelectFOV(QWidget):
             center = (self._view_size - diameter) / 2
 
             self.scene.addItem(
-                WellArea(True, center, center, diameter, diameter, area_pen)
+                _WellArea(True, center, center, diameter, diameter, area_pen)
             )
 
             min_dist_x = (self._scene_size_x * _image_size_mm_x) / area_x
@@ -545,7 +545,7 @@ class SelectFOV(QWidget):
             for p in points:
                 x, y = p
                 self.scene.addItem(
-                    FOVPoints(
+                    _FOVPoints(
                         x,
                         y,
                         self._scene_size_x,
@@ -571,7 +571,7 @@ class SelectFOV(QWidget):
         if mode == "Center":
             center_x, center_y = (self._view_size / 2, self._view_size / 2)
             self.scene.addItem(
-                FOVPoints(
+                _FOVPoints(
                     center_x,
                     center_y,
                     self._scene_size_x,
@@ -590,7 +590,7 @@ class SelectFOV(QWidget):
             center_y = (self._view_size - size_y) / 2
 
             self.scene.addItem(
-                WellArea(False, center_x, center_y, size_x, size_y, area_pen)
+                _WellArea(False, center_x, center_y, size_x, size_y, area_pen)
             )
 
             points_area_x = (self._scene_size_x * area_x) / self._plate_size_x
@@ -610,7 +610,7 @@ class SelectFOV(QWidget):
             for p in points:
                 x, y = p
                 self.scene.addItem(
-                    FOVPoints(
+                    _FOVPoints(
                         x,
                         y,
                         self._scene_size_x,

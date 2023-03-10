@@ -22,7 +22,7 @@ from ._well_plate_database import PLATE_DB, WellPlate
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 
 
-class UpdatePlateDialog(QDialog):
+class _UpdatePlateDialog(QDialog):
     """Class to create or edit a well plate in the database."""
 
     plate_updated = Signal(object)
@@ -124,7 +124,7 @@ class UpdatePlateDialog(QDialog):
         btn_wdg.setLayout(btn_layout)
         main_layout.addWidget(btn_wdg, 8, 0, 1, 3)
 
-        self.plate_table = Table()
+        self.plate_table = _Table()
         self.plate_table.cellClicked.connect(self._update_values)
         main_layout.addWidget(self.plate_table, 0, 2, 8, 1)
 
@@ -205,7 +205,7 @@ class UpdatePlateDialog(QDialog):
         self._circular_checkbox.setChecked(False)
 
 
-class Table(QTableWidget):
+class _Table(QTableWidget):
     """QTableWidget setup."""
 
     def __init__(self) -> None:
