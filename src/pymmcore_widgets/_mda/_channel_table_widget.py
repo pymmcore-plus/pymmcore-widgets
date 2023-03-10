@@ -420,14 +420,3 @@ class ChannelGroupCombo(QComboBox):
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
         self._mmc.events.configGroupDeleted.disconnect(self._update_channel_group_combo)
         self._mmc.events.configDefined.disconnect(self._update_channel_group_combo)
-
-
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
-
-    CMMCorePlus.instance().loadSystemConfiguration()
-    app = QApplication([])
-    table = ChannelTable()
-    table.show()
-
-    app.exec_()
