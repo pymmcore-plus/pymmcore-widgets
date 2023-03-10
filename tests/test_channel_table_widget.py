@@ -110,3 +110,11 @@ def test_set_get_state(qtbot: QtBot):
     assert ct._table.cellWidget(3, 4).value() == 2
 
     assert ct.value() == state
+    ct._advanced_cbox.setChecked(False)
+
+    for s in state:
+        s["z_offset"] = 0.0
+        s["do_stack"] = True
+        s["acquire_every"] = 1
+
+    assert ct.value() == state
