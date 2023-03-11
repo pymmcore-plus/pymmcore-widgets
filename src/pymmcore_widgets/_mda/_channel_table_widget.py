@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, cast
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
+    QAbstractSpinBox,
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
@@ -190,6 +191,17 @@ class ChannelTable(QGroupBox):
                 return ch
         return available[0]
 
+    def _create_spinbox(
+        self, range: tuple[int, int], double: bool = False
+    ) -> QDoubleSpinBox:
+        dspinbox = QDoubleSpinBox() if double else QSpinBox()
+        dspinbox.setButtonSymbols(QAbstractSpinBox.NoButtons)
+        dspinbox.setRange(*range)
+        dspinbox.setAlignment(Qt.AlignCenter)
+        dspinbox.wheelEvent = lambda event: None  # block mouse scroll
+        dspinbox.valueChanged.connect(self.valueChanged)
+        return dspinbox
+
     def _create_new_row(
         self,
         channel: str | None = None,
@@ -224,20 +236,12 @@ class ChannelTable(QGroupBox):
         channel_combo.setCurrentText(channel)
 
         # exposure spinbox
-        channel_exp_spinbox = QDoubleSpinBox()
-        channel_exp_spinbox.setRange(0, 10000)
+        channel_exp_spinbox = self._create_spinbox((0, 10000), True)
         channel_exp_spinbox.setValue(exposure or self._mmc.getExposure() or 100)
-        channel_exp_spinbox.setAlignment(Qt.AlignCenter)
-        channel_exp_spinbox.wheelEvent = lambda event: None  # block mouse scroll
-        channel_exp_spinbox.valueChanged.connect(self.valueChanged)
 
         # z offset spinbox
-        z_offset_spinbox = QDoubleSpinBox()
-        z_offset_spinbox.setRange(-10000, 10000)
+        z_offset_spinbox = self._create_spinbox((-10000, 10000), True)
         z_offset_spinbox.setValue(z_offset)
-        z_offset_spinbox.setAlignment(Qt.AlignCenter)
-        z_offset_spinbox.wheelEvent = lambda event: None  # block mouse scroll
-        z_offset_spinbox.valueChanged.connect(self.valueChanged)
 
         # z stack checkbox
         z_stack_wdg = QWidget()
@@ -251,12 +255,8 @@ class ChannelTable(QGroupBox):
         z_stack_layout.addWidget(z_stack_checkbox)
 
         # acqire every spinbox
-        acquire_every_spinbox = QSpinBox()
-        acquire_every_spinbox.setRange(1, 10000)
+        acquire_every_spinbox = self._create_spinbox((1, 10000))
         acquire_every_spinbox.setValue(acquire_every)
-        acquire_every_spinbox.setAlignment(Qt.AlignCenter)
-        acquire_every_spinbox.wheelEvent = lambda event: None  # block mouse scroll
-        acquire_every_spinbox.valueChanged.connect(self.valueChanged)
 
         idx = self._table.rowCount()
         self._table.insertRow(idx)
