@@ -15,6 +15,7 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLayout,
+    QMessageBox,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
@@ -462,34 +463,7 @@ class GridWidget(QDialog):
             x = ((width - overlap_x) * cols) / 1000
             y = ((height - overlap_y) * rows) / 1000
         else:
-            top = (
-                self.top.spinbox.value()
-                if self.tab.currentIndex() == 1
-                else max(
-                    self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value()
-                )
-            )
-            bottom = (
-                self.bottom.spinbox.value()
-                if self.tab.currentIndex() == 1
-                else min(
-                    self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value()
-                )
-            )
-            left = (
-                self.left.spinbox.value()
-                if self.tab.currentIndex() == 1
-                else min(
-                    self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value()
-                )
-            )
-            right = (
-                self.right.spinbox.value()
-                if self.tab.currentIndex() == 1
-                else max(
-                    self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value()
-                )
-            )
+            top, bottom, left, right = self._get_edges()
 
             rows = math.ceil((abs(top - bottom) + height) / height)
             cols = math.ceil((abs(right - left) + width) / width)
@@ -507,6 +481,30 @@ class GridWidget(QDialog):
         self._move_to_col.clear()
         self._move_to_col.addItems([str(r) for r in range(1, cols + 1)])
 
+    def _get_edges(self) -> tuple[int, int, int, int]:
+        top = (
+            self.top.spinbox.value()
+            if self.tab.currentIndex() == 1
+            else max(self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value())
+        )
+        bottom = (
+            self.bottom.spinbox.value()
+            if self.tab.currentIndex() == 1
+            else min(self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value())
+        )
+        left = (
+            self.left.spinbox.value()
+            if self.tab.currentIndex() == 1
+            else min(self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value())
+        )
+        right = (
+            self.right.spinbox.value()
+            if self.tab.currentIndex() == 1
+            else max(self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value())
+        )
+
+        return top, bottom, left, right
+
     def value(self) -> GridDict:
         # TODO: update docstring when useq GridPlan will be added to the docs.
         """Return the current GridPlan settings."""
@@ -522,34 +520,12 @@ class GridWidget(QDialog):
             value["columns"] = self.n_columns.value()
             value["relative_to"] = self.relative_combo.currentText()
         else:
-            value["top"] = (
-                self.top.spinbox.value()
-                if self.tab.currentIndex() == 1
-                else max(
-                    self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value()
-                )
-            )
-            value["bottom"] = (
-                self.bottom.spinbox.value()
-                if self.tab.currentIndex() == 1
-                else min(
-                    self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value()
-                )
-            )
-            value["left"] = (
-                self.left.spinbox.value()
-                if self.tab.currentIndex() == 1
-                else min(
-                    self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value()
-                )
-            )
-            value["right"] = (
-                self.right.spinbox.value()
-                if self.tab.currentIndex() == 1
-                else max(
-                    self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value()
-                )
-            )
+            (
+                value["top"],
+                value["bottom"],
+                value["left"],
+                value["right"],
+            ) = self._get_edges()
 
         return value
 
@@ -575,13 +551,13 @@ class GridWidget(QDialog):
 
         if isinstance(grid_type, GridRelative):
             self.tab.setCurrentIndex(0)
-            self._set_relative_wdg(grid)
+            self._set_relative(grid)
 
         elif isinstance(grid_type, GridFromEdges):
             self.tab.setCurrentIndex(1)
-            self._set_edges_wdg(grid)
+            self._set_edges(grid)
 
-    def _set_relative_wdg(self, grid: GridDict) -> None:
+    def _set_relative(self, grid: GridDict) -> None:
         self.n_rows.setValue(grid.get("rows"))
         self.n_columns.setValue(grid.get("columns"))
         relative = grid.get("relative_to")
@@ -590,16 +566,38 @@ class GridWidget(QDialog):
         )
         self.relative_combo.setCurrentText(relative)
 
-    def _set_edges_wdg(self, grid: GridDict) -> None:
+    def _set_edges(self, grid: GridDict) -> None:
         self.top.spinbox.setValue(grid["top"])
         self.bottom.spinbox.setValue(grid["bottom"])
         self.left.spinbox.setValue(grid["left"])
         self.right.spinbox.setValue(grid["right"])
 
-    def _emit_grid_positions(self) -> AnyGridPlan:
+    def _emit_grid_positions(self) -> None:
         if self._mmc.getPixelSizeUm() <= 0:
             raise ValueError("Pixel Size Not Set.")
-        self.valueChanged.emit(self.value())
+
+        if self.tab.currentIndex() > 0 and any(int(v) == 0 for v in self._get_edges()):
+            self._show_warning()
+        else:
+            self.valueChanged.emit(self.value())
+
+    def _show_warning(self) -> None:
+        if self.tab.currentIndex() == 1:
+            msg = (
+                "Did you set all four 'top',  'bottom',  'left', and  'right'  "
+                "positions?"
+            )
+        elif self.tab.currentIndex() == 2:
+            msg = "Did you set the both corner positions?"
+
+        msgBox = QMessageBox()
+        msgBox.setIcon(QMessageBox.Warning)
+        msgBox.setText(msg)
+        msgBox.setWindowTitle("Grid from Edges")
+        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+
+        if msgBox.exec() == QMessageBox.Ok:
+            self.valueChanged.emit(self.value())
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._update_info)
