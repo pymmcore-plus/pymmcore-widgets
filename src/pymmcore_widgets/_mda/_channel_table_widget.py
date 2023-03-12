@@ -237,6 +237,7 @@ class ChannelTable(QGroupBox):
 
         # exposure spinbox
         channel_exp_spinbox = self._create_spinbox((0, 10000), True)
+        channel_exp_spinbox.setMinimum(1)
         channel_exp_spinbox.setValue(exposure or self._mmc.getExposure() or 100)
 
         # z offset spinbox
