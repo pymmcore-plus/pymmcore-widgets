@@ -78,12 +78,15 @@ class MDAWidget(QWidget):
 
         self.time_groupbox = TimePlanWidget()
         self.time_groupbox.setChecked(False)
+        self.time_groupbox.toggled.connect(self._update_total_time)
 
         self.stack_groupbox = ZStackWidget()
         self.stack_groupbox.setChecked(False)
+        self.stack_groupbox.toggled.connect(self._update_total_time)
 
         self.position_groupbox = PositionTable()
         self.position_groupbox.setChecked(False)
+        self.position_groupbox.toggled.connect(self._update_total_time)
 
         # below the scroll area, some feedback widgets and buttons
         self.time_lbl = _MDATimeLabel()
