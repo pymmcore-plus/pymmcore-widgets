@@ -80,6 +80,7 @@ class MDAWidget(QWidget):
         self.time_groupbox = TimePlanWidget()
         self.time_groupbox.setChecked(False)
         self.time_groupbox.toggled.connect(self._update_total_time)
+        self.time_groupbox.toggled.connect(self._on_time_toggled)
 
         self.stack_groupbox = ZStackWidget()
         self.stack_groupbox.setChecked(False)
@@ -282,6 +283,13 @@ class MDAWidget(QWidget):
             self.channel_groupbox._table.rowCount() > 0
         )
 
+    def _on_time_toggled(self, checked: bool) -> None:
+        """Hide the warning if the time groupbox is unchecked."""
+        if not checked and self.time_groupbox._warning_widget.isVisible():
+            self.time_groupbox.setWarningVisible(False)
+        else:
+            self._update_total_time()
+
     def _update_total_time(self, *, tiles: int = 1) -> None:
         """Update the minimum total acquisition time info."""
         if not self.channel_groupbox.value():
@@ -302,6 +310,13 @@ class MDAWidget(QWidget):
             timepoints = val["loops"]
             interval = val["interval"].total_seconds()
             total_time = total_time + (timepoints - 1) * interval
+
+            sum_ch_exp = sum(
+                (c["exposure"] / 1000)
+                for c in self.channel_groupbox.value()
+                if c["exposure"] is not None
+            )
+            self.time_groupbox.setWarningVisible(0 < interval < sum_ch_exp)
 
             _per_timepoints: dict[int, float] = {}
             for e in self.get_state().iter_events():
