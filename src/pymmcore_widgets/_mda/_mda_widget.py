@@ -75,6 +75,7 @@ class MDAWidget(QWidget):
         # Widgets for Channels, Time, ZStack, and Positions in the Scroll Area
         self.channel_groupbox = ChannelTable()
         self.channel_groupbox.valueChanged.connect(self._enable_run_btn)
+        self.channel_groupbox._advanced_cbox.toggled.connect(self._update_total_time)
 
         self.time_groupbox = TimePlanWidget()
         self.time_groupbox.setChecked(False)
@@ -283,54 +284,63 @@ class MDAWidget(QWidget):
 
     def _update_total_time(self, *, tiles: int = 1) -> None:
         """Update the minimum total acquisition time info."""
-        # channel
-        exp: list[float] = [
-            e for c in self.channel_groupbox.value() if (e := c.get("exposure"))
-        ]
+        if not self.channel_groupbox.value():
+            self.time_lbl._total_time_lbl.setText(
+                "Minimum total acquisition time: 0 sec."
+            )
+            return
 
-        # time
+        total_time = sum(
+            (e.exposure / 1000)
+            for e in self.get_state().iter_events()
+            if e.exposure is not None
+        )
+
+        t_per_tp_msg = ""
         if self.time_groupbox.isChecked():
             val = self.time_groupbox.value()
             timepoints = val["loops"]
             interval = val["interval"].total_seconds()
-        else:
-            timepoints = 1
-            interval = -1.0
+            total_time = total_time + (timepoints - 1) * interval
 
-        # z stack
-        n_z_images = (
-            self.stack_groupbox.n_images() if self.stack_groupbox.isChecked() else 1
-        )
+            _per_timepoints: dict[int, float] = {}
+            for e in self.get_state().iter_events():
+                _t = e.index["t"]
 
-        # positions
-        if self.position_groupbox.isChecked():
-            n_pos = len(self.position_groupbox.value()) or 1
-        else:
-            n_pos = 1
+                if e.exposure is None:
+                    continue
+                else:
+                    _exp = e.exposure / 1000
 
-        # acq time per timepoint
-        time_chs: float = 0.0  # s
-        for e in exp:
-            time_chs = time_chs + ((e / 1000) * n_z_images * n_pos * tiles)
+                try:
+                    _per_timepoints[_t] = _per_timepoints[_t] + _exp
+                except KeyError:
+                    _per_timepoints[_t] = _exp
 
-        min_aq_tp, unit_1 = _select_output_unit(time_chs)
+            # group by time
+            _group_by_time: dict[float, list[int]] = {
+                n: [k for k in _per_timepoints if _per_timepoints[k] == n]
+                for n in set(_per_timepoints.values())
+            }
 
-        addition_time = 0.0
-        effective_interval = 0.0
-        if interval >= time_chs:
-            effective_interval = float(interval) - time_chs  # s
-            addition_time = effective_interval * timepoints  # s
+            t_per_tp_msg = "\nMinimum acquisition time(s) per timepoint: "
+            if len(_group_by_time) == 1:
+                min_aq_tp, _tp_unit = _select_output_unit(float(_per_timepoints[0]))
+                t_per_tp_msg = f"{t_per_tp_msg}{min_aq_tp:.4f} {_tp_unit}."
+            else:
+                # print longest timepoint first and other in brackets
+                _tp = []
+                for idx, i in enumerate(sorted(_per_timepoints.values(), reverse=True)):
+                    aq, u = _select_output_unit(float(i))
+                    if idx == 0:
+                        t_per_tp_msg = f"{t_per_tp_msg}{aq:.4f} {u} ("
+                    elif (aq, u) in _tp:
+                        continue
+                    else:
+                        t_per_tp_msg = f"{t_per_tp_msg}{aq:.4f} {u},  "
+                    _tp.append((aq, u))
+                t_per_tp_msg = f"{t_per_tp_msg[:-3]})."
 
-        min_tot_time, unit_4 = _select_output_unit(
-            (time_chs * timepoints) + addition_time - effective_interval
-        )
-
-        self.time_groupbox.setWarningVisible(0 < interval < time_chs)
-
-        t_per_tp_msg = ""
-        tot_acq_msg = f"Minimum total acquisition time: {min_tot_time:.4f} {unit_4}.\n"
-        if self.time_groupbox.isChecked():
-            t_per_tp_msg = (
-                f"Minimum acquisition time per timepoint: {min_aq_tp:.4f} {unit_1}."
-            )
+        _min_tot_time, _unit = _select_output_unit(total_time)
+        tot_acq_msg = f"Minimum total acquisition time: {_min_tot_time:.4f} {_unit}."
         self.time_lbl._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
