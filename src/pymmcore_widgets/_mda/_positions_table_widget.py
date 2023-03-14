@@ -260,7 +260,7 @@ class PositionTable(QGroupBox):
             and value != self.z_autofocus_combo.currentText()
         ):
             with signals_blocked(self.z_autofocus_combo):
-                self.z_autofocus_combo.setCurrentText("None")
+                self.z_autofocus_combo.setCurrentText(value)
 
         _range = (
             (3, self._table.columnCount() - 1)

@@ -348,3 +348,14 @@ def test_z_autofocus_combo(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert not mmc.getFocusDevice()
     assert p._table.isColumnHidden(3)  # "Z"
     assert p._table.isColumnHidden(4)  # "Z1"
+
+    mmc.setProperty("Core", "Focus", "Z")
+    assert p.z_focus_combo.currentText() == "Z"
+    assert p.z_autofocus_combo.currentText() == "None"
+
+    p.z_autofocus_combo.setCurrentText("Z1")
+    assert p.z_focus_combo.currentText() == "Z"
+
+    mmc.setProperty("Core", "Focus", "Z")
+    assert p.z_autofocus_combo.currentText() == "Z"
+    assert p.z_focus_combo.currentText() == "Z"
