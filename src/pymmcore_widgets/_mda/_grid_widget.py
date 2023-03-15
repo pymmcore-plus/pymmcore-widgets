@@ -126,6 +126,8 @@ class GridWidget(QDialog):
     ----------
     parent : QWidget | None
         Optional parent widget, by default None.
+    current_stage_pos : tuple[float | None, float | None]
+        Optional current stage position. By default None.
     mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
@@ -136,11 +138,17 @@ class GridWidget(QDialog):
     valueChanged = Signal(object)
 
     def __init__(
-        self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
+        self,
+        parent: QWidget | None = None,
+        *,
+        current_stage_pos: tuple[float | None, float | None] = (None, None),
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
+
+        self._current_stage_pos = current_stage_pos
 
         layout = QVBoxLayout()
         layout.setSpacing(10)
@@ -399,16 +407,18 @@ class GridWidget(QDialog):
         return group
 
     def _move_to_row_col(self) -> None:
+        if self.tab.currentIndex() == 0:
+            if None in self._current_stage_pos:
+                return
+            grid = GridRelative(**self.value())
+        else:
+            grid = GridFromEdges(**self.value())
+
         _move_to_row = int(self._move_to_row.currentText())
         _move_to_col = int(self._move_to_col.currentText())
 
         row = _move_to_row - 1 if _move_to_row > 0 else 0
         col = _move_to_col - 1 if _move_to_col > 0 else 0
-
-        if self.tab.currentIndex() == 0:
-            grid = GridRelative(**self.value())
-        else:
-            grid = GridFromEdges(**self.value())
 
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
         width = int(width * self._mmc.getPixelSizeUm())
@@ -416,7 +426,13 @@ class GridWidget(QDialog):
 
         for pos in grid.iter_grid_positions(width, height):
             if pos.row == row and pos.col == col:
-                self._mmc.setXYPosition(pos.x, pos.y)
+                if isinstance(grid, GridRelative):
+                    xpos = self._current_stage_pos[0] + pos.x
+                    ypos = self._current_stage_pos[1] + pos.y
+                else:
+                    xpos = pos.x
+                    ypos = pos.y
+                self._mmc.setXYPosition(xpos, ypos)
                 return
 
     def _create_add_button(self) -> QWidget:
