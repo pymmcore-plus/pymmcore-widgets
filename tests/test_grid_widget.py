@@ -149,12 +149,15 @@ def test_grid_on_px_size_changed(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_grid_move_to(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    grid_wdg = GridWidget()
-    qtbot.addWidget(grid_wdg)
     mmc = global_mmcore
+    mmc.setXYPosition(100.0, 100.0)
 
-    assert mmc.getXPosition() == 0.0
-    assert mmc.getYPosition() == 0.0
+    grid_wdg = GridWidget(current_stage_pos=(mmc.getXPosition(), mmc.getYPosition()))
+    qtbot.addWidget(grid_wdg)
+
+    curr_x, curr_y = grid_wdg._current_stage_pos
+    assert round(curr_x) == 100
+    assert round(curr_y) == 100
 
     grid_wdg.set_state(
         {"rows": 2, "columns": 2, "overlap": (0.0, 0.0), "mode": "row_wise"}
@@ -163,18 +166,37 @@ def test_grid_move_to(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert grid_wdg._move_to_row.currentText() == "1"
     assert grid_wdg._move_to_col.currentText() == "1"
 
+    mmc.waitForSystem()
     grid_wdg._move_button.click()
-    assert round(mmc.getXPosition()) == -256
-    assert round(mmc.getYPosition()) == 256
+    assert round(mmc.getXPosition()) == -156
+    assert round(mmc.getYPosition()) == 356
 
     grid_wdg._move_to_row.setCurrentText("2")
     mmc.waitForSystem()
     grid_wdg._move_button.click()
-    assert round(mmc.getXPosition()) == -256
-    assert round(mmc.getYPosition()) == -256
+    assert round(mmc.getXPosition()) == -156
+    assert round(mmc.getYPosition()) == -156
 
     grid_wdg._move_to_col.setCurrentText("2")
     mmc.waitForSystem()
     grid_wdg._move_button.click()
-    assert round(mmc.getXPosition()) == 256
-    assert round(mmc.getYPosition()) == -256
+    assert round(mmc.getXPosition()) == 356
+    assert round(mmc.getYPosition()) == -156
+
+    grid_wdg.set_state({"top": 512, "bottom": 0, "left": 512, "right": 0})
+
+    assert grid_wdg._move_to_row.currentText() == "1"
+    assert grid_wdg._move_to_col.currentText() == "1"
+
+    mmc.waitForSystem()
+    grid_wdg._move_button.click()
+    assert round(mmc.getXPosition()) == 0
+    assert round(mmc.getYPosition()) == 512
+
+    grid_wdg._move_to_row.setCurrentText("2")
+    grid_wdg._move_to_col.setCurrentText("2")
+
+    mmc.waitForSystem()
+    grid_wdg._move_button.click()
+    assert round(mmc.getXPosition()) == 512
+    assert round(mmc.getYPosition()) == 0
