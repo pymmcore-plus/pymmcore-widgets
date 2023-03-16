@@ -504,7 +504,11 @@ class PositionTable(QGroupBox):
         if hasattr(self, "_grid_wdg"):
             self._grid_wdg.close()  # type: ignore
 
-        self._grid_wdg = GridWidget(parent=self, mmcore=self._mmc)
+        self._grid_wdg = GridWidget(
+            parent=self,
+            mmcore=self._mmc,
+            current_stage_pos=(self._mmc.getXPosition(), self._mmc.getYPosition()),
+        )
         row = self._table.indexAt(self.sender().parent().pos()).row()
         self._grid_wdg.valueChanged.connect(lambda x: self._add_grid_plan(x, row))
 
