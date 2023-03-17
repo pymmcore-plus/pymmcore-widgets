@@ -298,39 +298,33 @@ class MDAWidget(QWidget):
             )
             return
 
-        total_time = sum(
-            (e.exposure / 1000)
-            for e in self.get_state().iter_events()
-            if e.exposure is not None
-        )
-
+        total_time: float = 0.0
+        _per_timepoints: dict[int, float] = {}
         t_per_tp_msg = ""
-        if self.time_groupbox.isChecked():
-            val = self.time_groupbox.value()
-            timepoints = val["loops"]
-            interval = val["interval"].total_seconds()
+
+        for e in self.get_state():
+            if e.exposure is None:
+                continue
+
+            total_time = total_time + (e.exposure / 1000)
+            if self.time_groupbox.isChecked():
+                _t = e.index["t"]
+                _exp = e.exposure / 1000
+                _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp
+
+        if _per_timepoints:
+            time_value = self.time_groupbox.value()
+            timepoints = time_value["loops"]
+            interval = time_value["interval"].total_seconds()
             total_time = total_time + (timepoints - 1) * interval
 
+            # check if the interval is smaller than the sum of the exposure times
             sum_ch_exp = sum(
                 (c["exposure"] / 1000)
                 for c in self.channel_groupbox.value()
                 if c["exposure"] is not None
             )
             self.time_groupbox.setWarningVisible(0 < interval < sum_ch_exp)
-
-            _per_timepoints: dict[int, float] = {}
-            for e in self.get_state().iter_events():
-                _t = e.index["t"]
-
-                if e.exposure is None:
-                    continue
-                else:
-                    _exp = e.exposure / 1000
-
-                try:
-                    _per_timepoints[_t] = _per_timepoints[_t] + _exp
-                except KeyError:
-                    _per_timepoints[_t] = _exp
 
             # group by time
             _group_by_time: dict[float, list[int]] = {
