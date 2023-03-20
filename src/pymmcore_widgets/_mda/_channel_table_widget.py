@@ -130,8 +130,9 @@ class ChannelTable(QGroupBox):
         )
 
         advanced_wdg = QWidget()
+        advanced_wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         advanced_layout = QHBoxLayout()
-        advanced_layout.setSpacing(0)
+        advanced_layout.setSpacing(5)
         advanced_layout.setContentsMargins(0, 0, 0, 0)
         advanced_wdg.setLayout(advanced_layout)
         self._advanced_cbox = QCheckBox("Advanced")
@@ -141,6 +142,8 @@ class ChannelTable(QGroupBox):
         self._warn_icon.setPixmap(_icon.pixmap(QSize(25, 25)))
         advanced_layout.addWidget(self._advanced_cbox)
         advanced_layout.addWidget(self._warn_icon)
+        advanced_wdg.setMinimumWidth(advanced_wdg.sizeHint().width())
+        self._warn_icon.hide()
 
         layout.addWidget(self._add_button)
         layout.addWidget(self._remove_button)
@@ -191,6 +194,13 @@ class ChannelTable(QGroupBox):
     def _on_advanced_toggled(self, state: bool) -> None:
         for c in range(2, self._table.columnCount()):
             self._table.setColumnHidden(c, not state)
+
+        if not state:
+            for v in self.value():
+                if v["z_offset"] > 0 or not v["do_stack"] or v["acquire_every"] > 1:
+                    self._warn_icon.show()
+                    return
+        self._warn_icon.hide()
 
     def _pick_first_unused_channel(self, available: tuple[str, ...]) -> str:
         """Return index of first unused channel."""
