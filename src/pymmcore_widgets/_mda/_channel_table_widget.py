@@ -6,13 +6,17 @@ from typing import TYPE_CHECKING, cast
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
+    QAbstractSpinBox,
+    QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QGridLayout,
     QGroupBox,
+    QHBoxLayout,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
+    QSpinBox,
     QTableWidget,
     QVBoxLayout,
     QWidget,
@@ -84,11 +88,13 @@ class ChannelTable(QGroupBox):
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
         self._table.verticalHeader().setVisible(False)
         self._table.setTabKeyNavigation(True)
-        self._table.setColumnCount(2)
+        self._table.setColumnCount(5)
         self._table.setRowCount(0)
         # TODO: we should also implement the other channel parameters
         # e.g. z_offset, do_stack, ...
-        self._table.setHorizontalHeaderLabels(["Channel", "Exposure (ms)"])
+        self._table.setHorizontalHeaderLabels(
+            ["Channel", "Exposure (ms)", "Z offset", "Z stack", "Acquire Every"]
+        )
         group_layout.addWidget(self._table, 0, 0)
 
         # buttons
@@ -120,18 +126,29 @@ class ChannelTable(QGroupBox):
             10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
         )
 
+        self._advanced_cbox = QCheckBox("Advanced")
+        self._advanced_cbox.toggled.connect(self._on_advanced_toggled)
+
         layout.addWidget(self._add_button)
         layout.addWidget(self._remove_button)
         layout.addWidget(self._clear_button)
         layout.addItem(spacer)
+        layout.addWidget(self._advanced_cbox)
 
         group_layout.addWidget(wdg, 0, 1)
 
-        self._mmc.events.systemConfigurationLoaded.connect(self.clear)
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)
         self._mmc.events.configDeleted.connect(self._on_config_deleted)
 
         self.destroyed.connect(self._disconnect)
+
+        self._on_sys_cfg_loaded()
+
+    def _on_sys_cfg_loaded(self) -> None:
+        self.clear()
+        self._advanced_cbox.setChecked(False)
+        self._on_advanced_toggled(False)
 
     def _on_group_deleted(self, group: str) -> None:
         """Remove rows that are using channels from the deleted group."""
@@ -158,6 +175,10 @@ class ChannelTable(QGroupBox):
                 if self._mmc.getChannelGroup() != config:
                     combo.setCurrentText(self._mmc.getChannelGroup())
 
+    def _on_advanced_toggled(self, state: bool) -> None:
+        for c in range(2, self._table.columnCount()):
+            self._table.setColumnHidden(c, not state)
+
     def _pick_first_unused_channel(self, available: tuple[str, ...]) -> str:
         """Return index of first unused channel."""
         used = set()
@@ -170,11 +191,25 @@ class ChannelTable(QGroupBox):
                 return ch
         return available[0]
 
+    def _create_spinbox(
+        self, range: tuple[int, int], double: bool = False
+    ) -> QDoubleSpinBox:
+        dspinbox = QDoubleSpinBox() if double else QSpinBox()
+        dspinbox.setButtonSymbols(QAbstractSpinBox.NoButtons)
+        dspinbox.setRange(*range)
+        dspinbox.setAlignment(Qt.AlignCenter)
+        dspinbox.wheelEvent = lambda event: None  # block mouse scroll
+        dspinbox.valueChanged.connect(self.valueChanged)
+        return dspinbox
+
     def _create_new_row(
         self,
         channel: str | None = None,
         exposure: float | None = None,
         channel_group: str | None = None,
+        z_offset: float = 0.0,
+        do_stack: bool = True,
+        acquire_every: int = 1,
     ) -> None:
         """Create a new row in the table.
 
@@ -201,19 +236,41 @@ class ChannelTable(QGroupBox):
         channel_combo.setCurrentText(channel)
 
         # exposure spinbox
-        channel_exp_spinbox = QDoubleSpinBox()
-        channel_exp_spinbox.setRange(0, 10000)
+        channel_exp_spinbox = self._create_spinbox((0, 10000), True)
+        channel_exp_spinbox.setMinimum(1)
         channel_exp_spinbox.setValue(exposure or self._mmc.getExposure() or 100)
-        channel_exp_spinbox.setAlignment(
-            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-        )
-        channel_exp_spinbox.valueChanged.connect(self.valueChanged)
+
+        # z offset spinbox
+        z_offset_spinbox = self._create_spinbox((-10000, 10000), True)
+        z_offset_spinbox.setValue(z_offset)
+
+        # z stack checkbox
+        # creating a wrapper widget so that the checkbox appears centered.
+        z_stack_wdg = QWidget()
+        z_stack_layout = QHBoxLayout()
+        z_stack_layout.setContentsMargins(0, 0, 0, 0)
+        z_stack_layout.setAlignment(Qt.AlignCenter)
+        z_stack_wdg.setLayout(z_stack_layout)
+        z_stack_checkbox = QCheckBox()
+        z_stack_checkbox.setChecked(do_stack)
+        z_stack_checkbox.stateChanged.connect(self.valueChanged)
+        z_stack_layout.addWidget(z_stack_checkbox)
+
+        # acqire every spinbox
+        acquire_every_spinbox = self._create_spinbox((1, 10000))
+        acquire_every_spinbox.setValue(acquire_every)
 
         idx = self._table.rowCount()
         self._table.insertRow(idx)
         self._table.setCellWidget(idx, 0, channel_combo)
         self._table.setCellWidget(idx, 1, channel_exp_spinbox)
+        self._table.setCellWidget(idx, 2, z_offset_spinbox)
+        self._table.setCellWidget(idx, 3, z_stack_wdg)
+        self._table.setCellWidget(idx, 4, acquire_every_spinbox)
         self.valueChanged.emit()
+
+    def _z_stack_checkbox(self, row: int) -> QCheckBox:
+        return self._table.cellWidget(row, 3).layout().itemAt(0).widget()
 
     def _remove_selected_rows(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
@@ -238,8 +295,8 @@ class ChannelTable(QGroupBox):
         """
         values: list[ChannelDict] = []
         for c in range(self._table.rowCount()):
-            name_widget = cast(QComboBox, self._table.cellWidget(c, 0))
-            exposure_widget = cast(QDoubleSpinBox, self._table.cellWidget(c, 1))
+            name_widget = cast("QComboBox", self._table.cellWidget(c, 0))
+            exposure_widget = cast("QDoubleSpinBox", self._table.cellWidget(c, 1))
             if name_widget and exposure_widget:
                 values.append(
                     {
@@ -248,6 +305,15 @@ class ChannelTable(QGroupBox):
                             name_widget.currentIndex(), self.CH_GROUP_ROLE
                         ),
                         "exposure": exposure_widget.value(),
+                        # NOTE: the columns representing these values *may* be hidden
+                        # ... but we are still using them
+                        "z_offset": (
+                            cast("QDoubleSpinBox", self._table.cellWidget(c, 2)).value()
+                        ),
+                        "do_stack": (self._z_stack_checkbox(c).isChecked()),
+                        "acquire_every": (
+                            cast("QSpinBox", self._table.cellWidget(c, 4)).value()
+                        ),
                     }
                 )
         return values
@@ -275,12 +341,17 @@ class ChannelTable(QGroupBox):
                     continue
 
                 exposure = channel.get("exposure") or self._mmc.getExposure()
-                self._create_new_row(ch, exposure, group)
+                z_offset = channel.get("z_offset") or 0.0
+                do_stack = channel["do_stack"] if "do_stack" in channel else True
+                acquire_every = channel.get("acquire_every") or 1
+                self._create_new_row(
+                    ch, exposure, group, z_offset, do_stack, acquire_every
+                )
 
         self.valueChanged.emit()
 
     def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self.clear)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
         self._mmc.events.configGroupDeleted.disconnect(self._on_group_deleted)
         self._mmc.events.configDeleted.disconnect(self._on_config_deleted)
 
