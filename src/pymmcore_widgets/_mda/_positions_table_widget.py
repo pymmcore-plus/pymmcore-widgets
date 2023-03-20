@@ -334,7 +334,7 @@ class PositionTable(QGroupBox):
                 self._update_table_item(new_name, row, 0, name == pos_role)
 
     def _clear_positions(self) -> None:
-        """clear all positions."""
+        """Clear all positions."""
         self._table.clearContents()
         self._table.setRowCount(0)
         self.valueChanged.emit()

@@ -191,7 +191,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.channel_groupbox._table.cellWidget(0, 1).value() == 100.0
     assert not wdg.time_groupbox.isChecked()
 
-    txt = "Minimum total acquisition time: 100.0000 ms.\n"
+    txt = "Minimum total acquisition time: 100.0000 ms."
     assert wdg.time_lbl._total_time_lbl.text() == txt
     assert not wdg.time_groupbox._warning_widget.isVisible()
 
@@ -201,29 +201,40 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.time_groupbox._warning_widget.isVisible()
 
     txt = (
-        "Minimum total acquisition time: 100.0000 ms.\n"
-        "Minimum acquisition time per timepoint: 100.0000 ms."
+        "Minimum total acquisition time: 100.0000 ms."
+        "\nMinimum acquisition time(s) per timepoint: 100.0000 ms."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
 
     wdg.time_groupbox._timepoints_spinbox.setValue(3)
     txt = (
-        "Minimum total acquisition time: 300.0000 ms.\n"
-        "Minimum acquisition time per timepoint: 100.0000 ms."
+        "Minimum total acquisition time: 302.0000 ms.\n"
+        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
 
     wdg.time_groupbox._interval_spinbox.setValue(10)
-    txt1 = (
-        "Minimum total acquisition time: 300.0000 ms.\n"
-        "Minimum acquisition time per timepoint: 100.0000 ms."
+    txt = (
+        "Minimum total acquisition time: 320.0000 ms.\n"
+        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
     )
-    assert wdg.time_lbl._total_time_lbl.text() == txt1
+    assert wdg.time_lbl._total_time_lbl.text() == txt
 
     wdg.time_groupbox._interval_spinbox.setValue(200)
-    txt1 = (
-        "Minimum total acquisition time: 500.0000 ms.\n"
-        "Minimum acquisition time per timepoint: 100.0000 ms."
+    txt = (
+        "Minimum total acquisition time: 700.0000 ms.\n"
+        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
     )
-    assert wdg.time_lbl._total_time_lbl.text() == txt1
+    assert wdg.time_lbl._total_time_lbl.text() == txt
     assert not wdg.time_groupbox._warning_widget.isVisible()
+
+    wdg.channel_groupbox._add_button.click()
+    wdg.channel_groupbox._advanced_cbox.setChecked(True)
+    wdg.channel_groupbox._table.cellWidget(1, 4).setValue(2)
+    wdg.channel_groupbox._table.cellWidget(1, 1).setValue(100.0)
+
+    txt = (
+        "Minimum total acquisition time: 900.0000 ms.\n"
+        "Minimum acquisition time(s) per timepoint: 200.0000 ms (100.0000 ms)."
+    )
+    assert wdg.time_lbl._total_time_lbl.text() == txt

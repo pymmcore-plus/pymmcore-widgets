@@ -296,12 +296,12 @@ class ZStackWidget(QGroupBox):
         """Return the current number of images in the z-stack."""
         step = self._zstep_spinbox.value()
         _range = cast("ZPicker", self._zmode_tabs.currentWidget()).z_range()
-        return round((_range / step) + 1)
+        return int(round((_range / step) + 1))
 
     def set_state(self, z_plan: dict) -> None:
         """Set the state of the widget from a dictionary."""
         tabs = self._zmode_tabs
-        wdg: "ZPicker"
+        wdg: ZPicker
         if "top" in z_plan and "bottom" in z_plan:
             wdg = cast(ZTopBottomSelect, tabs.findChild(ZTopBottomSelect))
             wdg._top_spinbox.setValue(z_plan["top"])
