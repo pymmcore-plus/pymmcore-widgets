@@ -179,6 +179,7 @@ def test_relative_grid_position(
     assert tb.isColumnHidden(5)
 
     p._advanced_cbox.setChecked(True)
+    assert p._warn_icon.isHidden()
     assert not tb.isColumnHidden(5)
 
     add_grid_btn, remove_grid_btn = p._get_grid_buttons(0)
@@ -212,9 +213,8 @@ def test_relative_grid_position(
     assert p.value() == [pos_1, pos_2]
 
     p._advanced_cbox.setChecked(False)
-    pos_1["sequence"] = pos_2["sequence"] = None
+    assert not p._warn_icon.isHidden()
     assert p.value() == [pos_1, pos_2]
-    assert tb.item(1, 0).toolTip() == tb.item(0, 0).toolTip() == ""
 
     p._advanced_cbox.setChecked(True)
     remove_grid_btn.click()
@@ -237,7 +237,7 @@ def test_absolute_grid_position(
     assert tb.rowCount() == 1
     p._advanced_cbox.setChecked(True)
 
-    add_grid_btn, remove_grid_btn = p._get_grid_buttons(0)
+    _, remove_grid_btn = p._get_grid_buttons(0)
     assert remove_grid_btn.isHidden()
 
     grid_plan = pos_3["sequence"]["grid_plan"]
@@ -268,13 +268,14 @@ def test_pos_table_set_and_get_state(
     p = PositionTable()
     qtbot.addWidget(p)
 
-    p._advanced_cbox.setChecked(True)
     p.set_state([pos_1, pos_2, pos_3])
+    assert p._warn_icon.isHidden()
     pos_3["y"] = 100.0
     assert p.value() == [pos_1, pos_2, pos_3]
+    assert p._advanced_cbox.isChecked()
 
     p._advanced_cbox.setChecked(False)
-    pos_1["sequence"] = pos_2["sequence"] = pos_3["sequence"] = None
+    assert not p._warn_icon.isHidden()
     assert p.value() == [pos_1, pos_2, pos_3]
 
 

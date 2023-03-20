@@ -86,7 +86,7 @@ class DeviceWidget(QWidget):
         return self._mmc.getDeviceType(self._device_label)
 
     @classmethod
-    def for_device(cls, device_label: str) -> "DeviceWidget":
+    def for_device(cls, device_label: str) -> DeviceWidget:
         """Create a type-appropriate subclass for device with label `device_label`.
 
         Parameters
