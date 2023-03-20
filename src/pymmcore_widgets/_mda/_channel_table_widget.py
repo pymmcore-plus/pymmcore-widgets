@@ -138,6 +138,7 @@ class ChannelTable(QGroupBox):
         self._advanced_cbox = QCheckBox("Advanced")
         self._advanced_cbox.toggled.connect(self._on_advanced_toggled)
         self._warn_icon = QLabel()
+        self._warn_icon.setToolTip("Warning: some 'Advanced' values are selected!")
         _icon = fonticon.icon(MDI6.exclamation_thick, color="magenta")
         self._warn_icon.setPixmap(_icon.pixmap(QSize(25, 25)))
         advanced_layout.addWidget(self._advanced_cbox)
