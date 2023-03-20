@@ -143,6 +143,7 @@ class ChannelTable(QGroupBox):
         advanced_layout.addWidget(self._advanced_cbox)
         advanced_layout.addWidget(self._warn_icon)
         advanced_wdg.setMinimumWidth(advanced_wdg.sizeHint().width())
+        advanced_wdg.setMinimumHeight(advanced_wdg.sizeHint().height())
         self._warn_icon.hide()
 
         layout.addWidget(self._add_button)
