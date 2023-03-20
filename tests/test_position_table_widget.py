@@ -214,15 +214,6 @@ def test_relative_grid_position(
 
     p._advanced_cbox.setChecked(False)
     assert not p._warn_icon.isHidden()
-    # pos_1["sequence"] = pos_2["sequence"] = {
-    #     "grid_plan": {
-    #         "columns": 2,
-    #         "mode": "spiral",
-    #         "overlap": (10.0, 5.0),
-    #         "relative_to": "center",
-    #         "rows": 2,
-    #     }
-    # }
     assert p.value() == [pos_1, pos_2]
 
     p._advanced_cbox.setChecked(True)
