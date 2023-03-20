@@ -347,6 +347,7 @@ class ChannelTable(QGroupBox):
     def set_state(self, channels: list[dict]) -> None:
         """Set the state of the widget from a useq channel dictionary."""
         self.clear()
+        _advanced_bool = False
         with signals_blocked(self):
             for channel in channels:
                 ch = channel.get("config")
@@ -371,6 +372,11 @@ class ChannelTable(QGroupBox):
                 self._create_new_row(
                     ch, exposure, group, z_offset, do_stack, acquire_every
                 )
+
+                if z_offset != 0.0 or not do_stack or acquire_every > 1:
+                    _advanced_bool = True
+
+            self._advanced_cbox.setChecked(_advanced_bool)
 
         self.valueChanged.emit()
 

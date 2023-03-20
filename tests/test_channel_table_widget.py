@@ -96,6 +96,7 @@ def test_set_get_state(qtbot: QtBot):
         },
     ]
 
+    assert not ct._advanced_cbox.isChecked()
     ct.set_state(state)
 
     assert ct._table.rowCount() == 4
@@ -109,3 +110,6 @@ def test_set_get_state(qtbot: QtBot):
     assert ct._table.cellWidget(3, 4).value() == 2
 
     assert ct.value() == state
+    assert ct._advanced_cbox.isChecked()
+    ct._advanced_cbox.setChecked(False)
+    assert not ct._warn_icon.isHidden()
