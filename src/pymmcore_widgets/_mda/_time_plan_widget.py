@@ -51,7 +51,6 @@ class TimePlanWidget(QGroupBox):
         super().__init__(title, parent=parent)
         self.setCheckable(True)
         self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-        # self.setChecked(False)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -98,13 +97,19 @@ class TimePlanWidget(QGroupBox):
         self.setWarningMessage("Interval shorter than acquisition time per timepoint.")
         # warning widget (icon + message)
         self._warning_widget = QWidget()
-        self._warning_widget.setLayout(QHBoxLayout())
-        self._warning_widget.layout().addWidget(self._warning_icon)
-        self._warning_widget.layout().addWidget(self._warning_msg)
+        _warning_layout = QHBoxLayout()
+        _warning_layout.setSpacing(0)
+        _warning_layout.setContentsMargins(0, 0, 0, 0)
+        self._warning_widget.setLayout(_warning_layout)
+        _warning_layout.addWidget(self._warning_icon)
+        _warning_layout.addWidget(self._warning_msg)
         self._warning_widget.setStyleSheet("color:magenta")
         self._warning_widget.hide()
 
-        self.setLayout(QVBoxLayout())
+        _main_layout = QVBoxLayout()
+        _main_layout.setSpacing(0)
+        _main_layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(_main_layout)
         top_row = QWidget()
         top_row.setLayout(QHBoxLayout())
         top_row.layout().setSpacing(5)
@@ -114,8 +119,8 @@ class TimePlanWidget(QGroupBox):
         top_row.layout().addWidget(self._interval_spinbox)
         top_row.layout().addWidget(self._units_combo)
 
-        self.layout().addWidget(top_row)
-        self.layout().addWidget(self._warning_widget)
+        _main_layout.addWidget(top_row)
+        _main_layout.addWidget(self._warning_widget)
 
     def setWarningMessage(self, msg: str) -> None:
         """Set the text of the warning message."""
