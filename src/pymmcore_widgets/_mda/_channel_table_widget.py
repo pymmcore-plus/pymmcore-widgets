@@ -3,8 +3,9 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, cast
 
+from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QCheckBox,
@@ -13,6 +14,7 @@ from qtpy.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
@@ -21,6 +23,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt import fonticon
 from superqt.utils import signals_blocked
 
 if TYPE_CHECKING:
@@ -126,14 +129,24 @@ class ChannelTable(QGroupBox):
             10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
         )
 
+        advanced_wdg = QWidget()
+        advanced_layout = QHBoxLayout()
+        advanced_layout.setSpacing(0)
+        advanced_layout.setContentsMargins(0, 0, 0, 0)
+        advanced_wdg.setLayout(advanced_layout)
         self._advanced_cbox = QCheckBox("Advanced")
         self._advanced_cbox.toggled.connect(self._on_advanced_toggled)
+        self._warn_icon = QLabel()
+        _icon = fonticon.icon(MDI6.exclamation_thick, color="magenta")
+        self._warn_icon.setPixmap(_icon.pixmap(QSize(25, 25)))
+        advanced_layout.addWidget(self._advanced_cbox)
+        advanced_layout.addWidget(self._warn_icon)
 
         layout.addWidget(self._add_button)
         layout.addWidget(self._remove_button)
         layout.addWidget(self._clear_button)
         layout.addItem(spacer)
-        layout.addWidget(self._advanced_cbox)
+        layout.addWidget(advanced_wdg)
 
         group_layout.addWidget(wdg, 0, 1)
 
