@@ -17,6 +17,7 @@ from qtpy.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QMenu,
     QPushButton,
     QSizePolicy,
@@ -26,6 +27,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt import fonticon
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 from useq import (  # type: ignore
@@ -134,32 +136,51 @@ class PositionTable(QGroupBox):
         buttons_wdg.setLayout(buttons_layout)
 
         btn_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        min_size = 100
         self.add_button = QPushButton(text="Add")
-        self.add_button.setMinimumWidth(min_size)
         self.add_button.setSizePolicy(btn_sizepolicy)
         self.replace_button = QPushButton(text="Replace")
         self.replace_button.setEnabled(False)
-        self.replace_button.setMinimumWidth(min_size)
         self.replace_button.setSizePolicy(btn_sizepolicy)
         self.remove_button = QPushButton(text="Remove")
         self.remove_button.setEnabled(False)
-        self.remove_button.setMinimumWidth(min_size)
         self.remove_button.setSizePolicy(btn_sizepolicy)
         self.clear_button = QPushButton(text="Clear")
-        self.clear_button.setMinimumWidth(min_size)
         self.clear_button.setSizePolicy(btn_sizepolicy)
         self.go_button = QPushButton(text="Go")
         self.go_button.setEnabled(False)
-        self.go_button.setMinimumWidth(min_size)
         self.go_button.setSizePolicy(btn_sizepolicy)
         self.save_positions_button = QPushButton(text="Save")
-        self.save_positions_button.setMinimumWidth(min_size)
         self.save_positions_button.setSizePolicy(btn_sizepolicy)
         self.load_positions_button = QPushButton(text="Load")
-        self.load_positions_button.setMinimumWidth(min_size)
         self.load_positions_button.setSizePolicy(btn_sizepolicy)
-        self._advanced_cbox = QCheckBox(text="Advanced")
+
+        # self._advanced_cbox = QCheckBox(text="Advanced")
+        advanced_wdg = QWidget()
+        advanced_wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        advanced_layout = QHBoxLayout()
+        advanced_layout.setSpacing(5)
+        advanced_layout.setContentsMargins(0, 0, 0, 0)
+        advanced_wdg.setLayout(advanced_layout)
+        self._advanced_cbox = QCheckBox("Advanced")
+        self._advanced_cbox.toggled.connect(self._on_advanced_toggled)
+        self._warn_icon = QLabel()
+        self._warn_icon.setToolTip("Warning: some 'Advanced' values are selected!")
+        _icon = fonticon.icon(MDI6.exclamation_thick, color="magenta")
+        self._warn_icon.setPixmap(_icon.pixmap(QSize(25, 25)))
+        advanced_layout.addWidget(self._advanced_cbox)
+        advanced_layout.addWidget(self._warn_icon)
+        _w = advanced_wdg.sizeHint().width()
+        advanced_wdg.setMinimumWidth(_w)
+        advanced_wdg.setMinimumHeight(advanced_wdg.sizeHint().height())
+        self._warn_icon.hide()
+
+        self.add_button.setMinimumWidth(_w)
+        self.replace_button.setMinimumWidth(_w)
+        self.remove_button.setMinimumWidth(_w)
+        self.clear_button.setMinimumWidth(_w)
+        self.go_button.setMinimumWidth(_w)
+        self.save_positions_button.setMinimumWidth(_w)
+        self.load_positions_button.setMinimumWidth(_w)
 
         buttons_layout.addWidget(self.add_button)
         buttons_layout.addWidget(self.replace_button)
@@ -172,7 +193,7 @@ class PositionTable(QGroupBox):
             0, 5, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
         buttons_layout.addItem(spacer_fix)
-        buttons_layout.addWidget(self._advanced_cbox)
+        buttons_layout.addWidget(advanced_wdg)
         spacer = QSpacerItem(
             10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
         )
@@ -187,7 +208,6 @@ class PositionTable(QGroupBox):
         self.go_button.clicked.connect(self._move_to_position)
         self.save_positions_button.clicked.connect(self._save_positions)
         self.load_positions_button.clicked.connect(self._load_positions)
-        self._advanced_cbox.toggled.connect(self._on_advanced_toggled)
 
         self._table.setMinimumHeight(buttons_wdg.sizeHint().height() + 5)
 
@@ -202,13 +222,12 @@ class PositionTable(QGroupBox):
     def _on_advanced_toggled(self, state: bool) -> None:
         self._table.setColumnHidden(4, not state)
 
-        for row in range(self._table.rowCount()):
-            item = self._table.item(row, 0)
-            grid_role = item.data(self.GRID_ROLE)
-            if state and grid_role:
-                item.setToolTip(self._create_tooltip(grid_role))
-            else:
-                item.setToolTip("")
+        if not state:
+            for v in self.value():
+                if v["sequence"]:
+                    self._warn_icon.show()
+                    return
+        self._warn_icon.hide()
 
     def _enable_button(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
@@ -519,12 +538,7 @@ class PositionTable(QGroupBox):
         values: list = []
 
         for row in range(self._table.rowCount()):
-            grid_role = (
-                self._table.item(row, 0).data(self.GRID_ROLE)
-                if self._advanced_cbox.isChecked()
-                else None
-            )
-
+            grid_role = self._table.item(row, 0).data(self.GRID_ROLE)
             values.append(
                 {
                     "name": self._table.item(row, 0).text(),
