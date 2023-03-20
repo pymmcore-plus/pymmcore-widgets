@@ -208,7 +208,7 @@ class ChannelTable(QGroupBox):
         exposure: float | None = None,
         channel_group: str | None = None,
         z_offset: float = 0.0,
-        do_stack: bool | None = True,
+        do_stack: bool = True,
         acquire_every: int = 1,
     ) -> None:
         """Create a new row in the table.
@@ -245,6 +245,7 @@ class ChannelTable(QGroupBox):
         z_offset_spinbox.setValue(z_offset)
 
         # z stack checkbox
+        # creating a wrapper widget so that the checkbox appears centered.
         z_stack_wdg = QWidget()
         z_stack_layout = QHBoxLayout()
         z_stack_layout.setContentsMargins(0, 0, 0, 0)
@@ -294,8 +295,8 @@ class ChannelTable(QGroupBox):
         """
         values: list[ChannelDict] = []
         for c in range(self._table.rowCount()):
-            name_widget = cast(QComboBox, self._table.cellWidget(c, 0))
-            exposure_widget = cast(QDoubleSpinBox, self._table.cellWidget(c, 1))
+            name_widget = cast("QComboBox", self._table.cellWidget(c, 0))
+            exposure_widget = cast("QDoubleSpinBox", self._table.cellWidget(c, 1))
             if name_widget and exposure_widget:
                 values.append(
                     {
@@ -304,20 +305,14 @@ class ChannelTable(QGroupBox):
                             name_widget.currentIndex(), self.CH_GROUP_ROLE
                         ),
                         "exposure": exposure_widget.value(),
+                        # NOTE: the columns representing these values *may* be hidden
+                        # ... but we are still using them
                         "z_offset": (
-                            self._table.cellWidget(c, 2).value()
-                            if self._advanced_cbox.isChecked()
-                            else 0.0
+                            cast("QDoubleSpinBox", self._table.cellWidget(c, 2)).value()
                         ),
-                        "do_stack": (
-                            self._z_stack_checkbox(c).isChecked()
-                            if self._advanced_cbox.isChecked()
-                            else True
-                        ),
+                        "do_stack": (self._z_stack_checkbox(c).isChecked()),
                         "acquire_every": (
-                            self._table.cellWidget(c, 4).value()
-                            if self._advanced_cbox.isChecked()
-                            else 1
+                            cast("QSpinBox", self._table.cellWidget(c, 4)).value()
                         ),
                     }
                 )
@@ -347,11 +342,7 @@ class ChannelTable(QGroupBox):
 
                 exposure = channel.get("exposure") or self._mmc.getExposure()
                 z_offset = channel.get("z_offset") or 0.0
-                do_stack = (
-                    channel.get("do_stack")
-                    if channel.get("do_stack") is not None
-                    else True
-                )
+                do_stack = channel["do_stack"] if "do_stack" in channel else True
                 acquire_every = channel.get("acquire_every") or 1
                 self._create_new_row(
                     ch, exposure, group, z_offset, do_stack, acquire_every
