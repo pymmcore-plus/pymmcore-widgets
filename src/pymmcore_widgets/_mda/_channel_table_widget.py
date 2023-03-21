@@ -93,8 +93,6 @@ class ChannelTable(QGroupBox):
         self._table.setTabKeyNavigation(True)
         self._table.setColumnCount(5)
         self._table.setRowCount(0)
-        # TODO: we should also implement the other channel parameters
-        # e.g. z_offset, do_stack, ...
         self._table.setHorizontalHeaderLabels(
             ["Channel", "Exposure (ms)", "Z offset", "Z stack", "Acquire Every"]
         )
