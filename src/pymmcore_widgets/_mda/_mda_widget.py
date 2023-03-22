@@ -35,6 +35,7 @@ if TYPE_CHECKING:
         y: float | None
         z: float | None
         name: str | None
+        sequence: MDASequence | None
 
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -328,7 +329,8 @@ class MDAWidget(QWidget):
 
         # set stage positions
         if state.stage_positions:
-            self.position_groupbox.set_state([p.dict() for p in state.stage_positions])
+            self.position_groupbox.setChecked(True)
+            self.position_groupbox.set_state(list(state.stage_positions))
         else:
             self.position_groupbox.setChecked(False)
 
@@ -348,19 +350,35 @@ class MDAWidget(QWidget):
             self.time_groupbox.value() if self.time_groupbox.isChecked() else None
         )
 
-        stage_positions = (
-            self.position_groupbox.value()
-            if self.position_groupbox.isChecked()
-            else self._get_current_position()
-        )
+        stage_positions: list[PositionDict] = []
+        _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
+        width = int(width * self._mmc.getPixelSizeUm())
+        height = int(height * self._mmc.getPixelSizeUm())
+        if self.position_groupbox.isChecked():
+            for p in self.position_groupbox.value():
+                if p.get("sequence"):
+                    p_sequence = MDASequence(**p.get("sequence"))  # type: ignore
+                    p_sequence = p_sequence.replace(
+                        axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
+                    )
+                    p_sequence.set_fov_size((width, height))  # type: ignore
+                    p["sequence"] = p_sequence
 
-        return MDASequence(
+                stage_positions.append(p)
+
+        if not stage_positions:
+            stage_positions = self._get_current_position()
+
+        sequence = MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
             channels=channels,
             stage_positions=stage_positions,
             z_plan=z_plan,
             time_plan=time_plan,
         )
+        sequence.set_fov_size((width, height))  # type: ignore
+
+        return sequence
 
     def _get_current_position(self) -> list[PositionDict]:
         return [
