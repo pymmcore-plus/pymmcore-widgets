@@ -8,6 +8,7 @@ from qtpy import QtWidgets as QtW
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QCheckBox,
+    QGroupBox,
     QScrollArea,
     QSizePolicy,
     QSpacerItem,
@@ -16,11 +17,12 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import MDASequence
+from useq import MDASequence, NoGrid  # type: ignore
 
 from .._util import _select_output_unit, guess_channel_group
 from ._channel_table_widget import ChannelTable
 from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
+from ._grid_widget import GridWidget
 from ._positions_table_widget import PositionTable
 from ._time_plan_widget import TimePlanWidget
 from ._zstack_widget import ZStackWidget
@@ -57,6 +59,17 @@ class TabBar(QTabBar):
         size = QTabBar.tabSizeHint(self, index)
         w = int(size.width() + self._checkbox_width)
         return QSize(w, size.height())
+
+
+class Grid(GridWidget):
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent=parent)
+        self._grid = NoGrid()
+
+    def _update_info(self) -> None:
+        super()._update_info()
+        self.valueChanged.emit(self.value())
+        print(self.value())
 
 
 class MDAWidget(QWidget):
@@ -126,6 +139,25 @@ class MDAWidget(QWidget):
         self.position_groupbox.setStyleSheet(GROUP_STYLE)
         self.position_groupbox.toggled.connect(self._update_total_time)
 
+        self.grid_groupbox = QGroupBox()
+        self.grid_groupbox.setLayout(QVBoxLayout())
+        self.grid_groupbox.layout().setContentsMargins(0, 0, 0, 0)
+        self.grid_groupbox.layout().setSpacing(0)
+        self.grid_groupbox.setTitle("")
+        self.grid_groupbox.setEnabled(False)
+        self.grid_groupbox.setStyleSheet(GROUP_STYLE)
+        self._mda_grid_wdg = Grid()
+        self._mda_grid_wdg.valueChanged.connect(self._update_total_time)
+        self.grid_groupbox.layout().addWidget(self._mda_grid_wdg)
+        spacer = QSpacerItem(
+            0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
+        )
+        self.grid_groupbox.layout().addSpacerItem(spacer)
+        # hide grid button
+        self._mda_grid_wdg.layout().itemAt(
+            self._mda_grid_wdg.layout().count() - 1
+        ).widget().hide()
+
         # below the scroll area, some feedback widgets and buttons
         self.time_lbl = _MDATimeLabel()
 
@@ -182,6 +214,8 @@ class MDAWidget(QWidget):
         twdg.layout().addSpacerItem(spacer)
         self._tab.addTab(twdg, "")
 
+        self._tab.addTab(self.grid_groupbox, "")
+
         self._tabbar.addTab("Channels")
         self._tabbar.setTabButton(
             0, QTabBar.ButtonPosition.LeftSide, self._checkbox_channel
@@ -195,6 +229,11 @@ class MDAWidget(QWidget):
         self._tabbar.addTab("Time")
         self._tabbar.setTabButton(
             3, QTabBar.ButtonPosition.LeftSide, self._checkbox_time
+        )
+
+        self._tabbar.addTab("Grid")
+        self._tabbar.setTabButton(
+            4, QTabBar.ButtonPosition.LeftSide, self._checkbox_grid
         )
 
         self._tab.setTabBar(self._tabbar)
@@ -239,17 +278,23 @@ class MDAWidget(QWidget):
 
     def _on_toggled(self, checked: bool) -> None:
         _sender = self.sender().objectName()
-        print(_sender)
         if _sender == "Channels":
+            self._tab.setCurrentIndex(0)
             self.channel_groupbox.setEnabled(checked)
             self._enable_run_btn()
             self._update_total_time()
         elif _sender == "ZStack":
+            self._tab.setCurrentIndex(1)
             self.stack_groupbox.setChecked(checked)
         elif _sender == "Positions":
+            self._tab.setCurrentIndex(2)
             self.position_groupbox.setChecked(checked)
         elif _sender == "Time":
+            self._tab.setCurrentIndex(3)
             self.time_groupbox.setChecked(checked)
+        elif _sender == "Grid":
+            self._tab.setCurrentIndex(4)
+            self.grid_groupbox.setEnabled(checked)
 
     def _on_sys_cfg_loaded(self) -> None:
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
@@ -369,12 +414,17 @@ class MDAWidget(QWidget):
         if not stage_positions:
             stage_positions = self._get_current_position()
 
+        grid_plan = (
+            self._mda_grid_wdg.value() if self.grid_groupbox.isChecked() else NoGrid()
+        )
+
         sequence = MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
             channels=channels,
             stage_positions=stage_positions,
             z_plan=z_plan,
             time_plan=time_plan,
+            grid_plan=grid_plan,
         )
         sequence.set_fov_size((width, height))  # type: ignore
 
@@ -417,6 +467,8 @@ class MDAWidget(QWidget):
 
     def _update_total_time(self, *, tiles: int = 1) -> None:
         """Update the minimum total acquisition time info."""
+        print("___________")
+
         if not self.channel_groupbox.value() or not self._checkbox_channel.isChecked():
             self.time_lbl._total_time_lbl.setText(
                 "Minimum total acquisition time: 0 sec."
