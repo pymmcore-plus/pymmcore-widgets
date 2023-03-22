@@ -290,7 +290,7 @@ class MDAWidget(QWidget):
         else:
             self._update_total_time()
 
-    def _update_total_time(self, *, tiles: int = 1) -> None:
+    def _update_total_time(self) -> None:
         """Update the minimum total acquisition time info."""
         if not self.channel_groupbox.value():
             self.time_lbl._total_time_lbl.setText(
