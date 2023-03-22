@@ -69,7 +69,6 @@ class Grid(GridWidget):
     def _update_info(self) -> None:
         super()._update_info()
         self.valueChanged.emit(self.value())
-        print(self.value())
 
 
 class MDAWidget(QWidget):
@@ -295,6 +294,7 @@ class MDAWidget(QWidget):
         elif _sender == "Grid":
             self._tab.setCurrentIndex(4)
             self.grid_groupbox.setEnabled(checked)
+            self._update_total_time()
 
     def _on_sys_cfg_loaded(self) -> None:
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
@@ -415,7 +415,7 @@ class MDAWidget(QWidget):
             stage_positions = self._get_current_position()
 
         grid_plan = (
-            self._mda_grid_wdg.value() if self.grid_groupbox.isChecked() else NoGrid()
+            self._mda_grid_wdg.value() if self._checkbox_grid.isChecked() else NoGrid()
         )
 
         sequence = MDASequence(
@@ -467,8 +467,6 @@ class MDAWidget(QWidget):
 
     def _update_total_time(self, *, tiles: int = 1) -> None:
         """Update the minimum total acquisition time info."""
-        print("___________")
-
         if not self.channel_groupbox.value() or not self._checkbox_channel.isChecked():
             self.time_lbl._total_time_lbl.setText(
                 "Minimum total acquisition time: 0 sec."
