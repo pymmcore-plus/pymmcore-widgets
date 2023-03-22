@@ -503,7 +503,7 @@ class MDAWidget(QWidget):
                 continue
 
             total_time = total_time + (e.exposure / 1000)
-            if self.time_groupbox.isChecked():
+            if self._checkbox_time.isChecked():
                 _t = e.index["t"]
                 _exp = e.exposure / 1000
                 _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp
