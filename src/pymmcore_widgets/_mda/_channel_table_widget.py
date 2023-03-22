@@ -17,6 +17,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QPushButton,
     QSizePolicy,
+    QSpacerItem,
     QSpinBox,
     QTableWidget,
     QVBoxLayout,
@@ -118,6 +119,10 @@ class ChannelTable(QGroupBox):
         self._remove_button.clicked.connect(self._remove_selected_rows)
         self._clear_button.clicked.connect(self.clear)
 
+        spacer = QSpacerItem(
+            10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
+        )
+
         advanced_wdg = QWidget()
         advanced_wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         advanced_layout = QHBoxLayout()
@@ -145,6 +150,7 @@ class ChannelTable(QGroupBox):
         layout.addWidget(self._remove_button)
         layout.addWidget(self._clear_button)
         layout.addWidget(advanced_wdg)
+        layout.addItem(spacer)
 
         group_layout.addWidget(wdg, 0, 1)
 
