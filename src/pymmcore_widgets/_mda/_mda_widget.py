@@ -379,28 +379,36 @@ class MDAWidget(QWidget):
 
         # set channel table
         if state.channels:
+            self._checkbox_channel.setChecked(True)
             self.channel_groupbox.set_state([c.dict() for c in state.channels])
 
         # set Z
         if state.z_plan:
-            self.stack_groupbox.setChecked(True)
+            self._checkbox_z.setChecked(True)
             self.stack_groupbox.set_state(state.z_plan.dict())
         else:
-            self.stack_groupbox.setChecked(False)
+            self._checkbox_z.setChecked(False)
 
         # set time
         if state.time_plan:
-            self.time_groupbox.setChecked(True)
+            self._checkbox_time.setChecked(True)
             self.time_groupbox.set_state(state.time_plan.dict())
         else:
-            self.time_groupbox.setChecked(False)
+            self._checkbox_time.setChecked(False)
 
         # set stage positions
         if state.stage_positions:
-            self.position_groupbox.setChecked(True)
+            self._checkbox_position.setChecked(True)
             self.position_groupbox.set_state(list(state.stage_positions))
         else:
-            self.position_groupbox.setChecked(False)
+            self._checkbox_position.setChecked(False)
+
+        # set grid
+        if state.grid_plan:  # type: ignore
+            self._checkbox_grid.setChecked(True)
+            self._mda_grid_wdg.set_state(state.grid_plan)  # type: ignore
+        else:
+            self._checkbox_grid.setChecked(False)
 
     def get_state(self) -> MDASequence:
         """Get current state of widget and build a useq.MDASequence.

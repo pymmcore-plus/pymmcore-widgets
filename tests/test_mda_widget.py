@@ -56,7 +56,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
     wdg.set_state(sequence)
     assert wdg.position_groupbox._table.rowCount() == 3
     assert wdg.channel_groupbox._table.rowCount() == 2
-    assert wdg.time_groupbox.isChecked()
+    assert wdg._checkbox_time.isChecked()
 
     # round trip
     assert wdg.get_state() == sequence
