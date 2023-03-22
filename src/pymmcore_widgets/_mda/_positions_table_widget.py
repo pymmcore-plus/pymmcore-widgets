@@ -168,7 +168,11 @@ class PositionTable(QGroupBox):
         self._warn_icon.setPixmap(_icon.pixmap(QSize(25, 25)))
         advanced_layout.addWidget(self._advanced_cbox)
         advanced_layout.addWidget(self._warn_icon)
-        _w = advanced_wdg.sizeHint().width()
+        _w = (
+            self._advanced_cbox.sizeHint().width()
+            + self._warn_icon.sizeHint().width()
+            + advanced_layout.spacing()
+        )
         advanced_wdg.setMinimumWidth(_w)
         advanced_wdg.setMinimumHeight(advanced_wdg.sizeHint().height())
         self._warn_icon.hide()
