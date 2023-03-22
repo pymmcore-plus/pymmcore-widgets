@@ -16,7 +16,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
     qtbot.addWidget(wdg)
     assert wdg.position_groupbox._table.rowCount() == 0
     assert wdg.channel_groupbox._table.rowCount() == 0
-    assert not wdg.time_groupbox.isChecked()
+    assert not wdg._checkbox_time.isChecked()
 
     wdg._set_enabled(False)
     assert not wdg.time_groupbox.isEnabled()
@@ -52,6 +52,12 @@ def test_mda_widget_load_state(qtbot: QtBot):
                 },
             },
         ),
+        grid_plan={
+            "rows": 1,
+            "columns": 2,
+            "mode": "row_wise_snake",
+            "overlap": (0.0, 0.0),
+        },
     )
     wdg.set_state(sequence)
     assert wdg.position_groupbox._table.rowCount() == 3
@@ -66,6 +72,8 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
+    wdg._checkbox_channel.setChecked(True)
+    wdg._checkbox_position.setChecked(True)
     assert wdg.channel_groupbox._table.rowCount() == 0
     wdg.channel_groupbox._add_button.click()
     wdg.channel_groupbox._add_button.click()
@@ -77,7 +85,6 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.channel_groupbox._table.rowCount() == 0
 
     assert wdg.position_groupbox._table.rowCount() == 0
-    wdg.position_groupbox.setChecked(True)
     wdg.position_groupbox.add_button.click()
     wdg.position_groupbox.add_button.click()
     assert wdg.position_groupbox._table.rowCount() == 2
@@ -98,6 +105,7 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not wdg.channel_groupbox.isEnabled()
     assert not wdg.position_groupbox.isEnabled()
     assert not wdg.stack_groupbox.isEnabled()
+    assert not wdg.grid_groupbox.isEnabled()
     assert wdg.buttons_wdg.run_button.isHidden()
     assert not wdg.buttons_wdg.pause_button.isHidden()
     assert not wdg.buttons_wdg.cancel_button.isHidden()
@@ -108,6 +116,7 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.channel_groupbox.isEnabled()
     assert wdg.position_groupbox.isEnabled()
     assert wdg.stack_groupbox.isEnabled()
+    assert wdg.grid_groupbox.isEnabled()
     assert not wdg.buttons_wdg.run_button.isHidden()
     assert wdg.buttons_wdg.pause_button.isHidden()
     assert wdg.buttons_wdg.cancel_button.isHidden()
@@ -119,6 +128,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(wdg)
     wdg.show()
 
+    wdg._checkbox_channel.setChecked(True)
     assert wdg.channel_groupbox._table.rowCount() == 0
     wdg.channel_groupbox._add_button.click()
     assert wdg.channel_groupbox._table.rowCount() == 1
@@ -129,8 +139,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.time_lbl._total_time_lbl.text() == txt
     assert not wdg.time_groupbox._warning_widget.isVisible()
 
-    assert not wdg.time_groupbox.isChecked()
-    wdg.time_groupbox.setChecked(True)
+    wdg._checkbox_time.setChecked(True)
     wdg.time_groupbox._units_combo.setCurrentText("ms")
     assert wdg.time_groupbox._warning_widget.isVisible()
 

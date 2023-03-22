@@ -330,13 +330,16 @@ class MDAWidget(QWidget):
         self.channel_groupbox.setEnabled(enabled)
 
         if not self._mmc.getXYStageDevice():
-            self.position_groupbox.setChecked(False)
+            self._checkbox_position.setChecked(False)
             self.position_groupbox.setEnabled(False)
+            self._checkbox_grid.setEnabled(False)
+            self.grid_groupbox.setEnabled(False)
         else:
             self.position_groupbox.setEnabled(enabled)
+            self.grid_groupbox.setEnabled(enabled)
 
         if not self._mmc.getFocusDevice():
-            self.stack_groupbox.setChecked(False)
+            self._checkbox_z.setChecked(False)
             self.stack_groupbox.setEnabled(False)
         else:
             self.stack_groupbox.setEnabled(enabled)
