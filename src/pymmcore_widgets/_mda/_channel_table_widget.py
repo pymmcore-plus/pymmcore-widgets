@@ -111,13 +111,9 @@ class ChannelTable(QGroupBox):
         )
         layout.addWidget(self.channel_group_combo)
 
-        min_size = 100
         self._add_button = QPushButton(text="Add")
-        self._add_button.setMinimumWidth(min_size)
         self._remove_button = QPushButton(text="Remove")
-        self._remove_button.setMinimumWidth(min_size)
         self._clear_button = QPushButton(text="Clear")
-        self._clear_button.setMinimumWidth(min_size)
 
         self._add_button.clicked.connect(self._create_new_row)
         self._remove_button.clicked.connect(self._remove_selected_rows)
@@ -141,9 +137,14 @@ class ChannelTable(QGroupBox):
         self._warn_icon.setPixmap(_icon.pixmap(QSize(25, 25)))
         advanced_layout.addWidget(self._advanced_cbox)
         advanced_layout.addWidget(self._warn_icon)
-        advanced_wdg.setMinimumWidth(advanced_wdg.sizeHint().width())
+        _w = advanced_wdg.sizeHint().width()
+        advanced_wdg.setMinimumWidth(_w)
         advanced_wdg.setMinimumHeight(advanced_wdg.sizeHint().height())
         self._warn_icon.hide()
+
+        self._add_button.setMinimumWidth(_w)
+        self._remove_button.setMinimumWidth(_w)
+        self._clear_button.setMinimumWidth(_w)
 
         layout.addWidget(self._add_button)
         layout.addWidget(self._remove_button)
