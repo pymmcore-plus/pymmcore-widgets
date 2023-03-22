@@ -220,7 +220,7 @@ class MDAWidget(QWidget):
         self._tabbar.addTab("Z Stack")
         self._tabbar.setTabButton(1, QTabBar.ButtonPosition.LeftSide, self._checkbox_z)
 
-        # set posirions tab with checkbox
+        # set positions tab with checkbox
         pwdg = QWidget()
         pwdg.setLayout(QVBoxLayout())
         pwdg.layout().setContentsMargins(10, 10, 10, 10)
