@@ -5,8 +5,17 @@ from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
-from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+from qtpy.QtCore import QSize, Qt
+from qtpy.QtWidgets import (
+    QCheckBox,
+    QScrollArea,
+    QSizePolicy,
+    QSpacerItem,
+    QTabBar,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 from useq import MDASequence
 
 from .._util import _select_output_unit, guess_channel_group
@@ -29,6 +38,24 @@ if TYPE_CHECKING:
 
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+GROUP_STYLE = (
+    "QGroupBox::indicator {border: 0px; width: 0px; height: 0px; border-radius: 0px;}"
+)
+
+
+class TabBar(QTabBar):
+    """A TabBar subclass that allows to control the minimum width of each tab."""
+
+    def __init__(self, parent: QWidget | None = None, *, checkbox_width: int = 0):
+        super().__init__(parent)
+
+        self._checkbox_width = checkbox_width
+
+    def tabSizeHint(self, index: int) -> QSize:
+        size = QTabBar.tabSizeHint(self, index)
+        w = int(size.width() + self._checkbox_width)
+        return QSize(w, size.height())
 
 
 class MDAWidget(QWidget):
@@ -74,20 +101,28 @@ class MDAWidget(QWidget):
 
         # Widgets for Channels, Time, ZStack, and Positions in the Scroll Area
         self.channel_groupbox = ChannelTable()
+        self.channel_groupbox.setTitle("")
+        self.channel_groupbox.setEnabled(False)
         self.channel_groupbox.valueChanged.connect(self._enable_run_btn)
         self.channel_groupbox._advanced_cbox.toggled.connect(self._update_total_time)
 
         self.time_groupbox = TimePlanWidget()
+        self.time_groupbox.setTitle("")
         self.time_groupbox.setChecked(False)
+        self.time_groupbox.setStyleSheet(GROUP_STYLE)
         self.time_groupbox.toggled.connect(self._update_total_time)
         self.time_groupbox.toggled.connect(self._on_time_toggled)
 
         self.stack_groupbox = ZStackWidget()
+        self.stack_groupbox.setTitle("")
         self.stack_groupbox.setChecked(False)
+        self.stack_groupbox.setStyleSheet(GROUP_STYLE)
         self.stack_groupbox.toggled.connect(self._update_total_time)
 
         self.position_groupbox = PositionTable()
+        self.position_groupbox.setTitle("")
         self.position_groupbox.setChecked(False)
+        self.position_groupbox.setStyleSheet(GROUP_STYLE)
         self.position_groupbox.toggled.connect(self._update_total_time)
 
         # below the scroll area, some feedback widgets and buttons
@@ -103,10 +138,67 @@ class MDAWidget(QWidget):
         central_layout = QVBoxLayout()
         central_layout.setSpacing(20)
         central_layout.setContentsMargins(10, 10, 10, 10)
-        central_layout.addWidget(self.channel_groupbox)
-        central_layout.addWidget(self.time_groupbox)
-        central_layout.addWidget(self.stack_groupbox)
-        central_layout.addWidget(self.position_groupbox)
+
+        self._tab = QTabWidget()
+
+        self._checkbox_channel = QCheckBox("")
+        self._checkbox_channel.setObjectName("Channels")
+        self._checkbox_channel.toggled.connect(self._on_toggled)
+        self._checkbox_z = QCheckBox("")
+        self._checkbox_z.setObjectName("ZStack")
+        self._checkbox_z.toggled.connect(self._on_toggled)
+        self._checkbox_time = QCheckBox("")
+        self._checkbox_time.setObjectName("Time")
+        self._checkbox_time.toggled.connect(self._on_toggled)
+        self._checkbox_position = QCheckBox("")
+        self._checkbox_position.setObjectName("Positions")
+        self._checkbox_position.toggled.connect(self._on_toggled)
+        self._checkbox_grid = QCheckBox("")
+        self._checkbox_grid.setObjectName("Grid")
+        self._checkbox_grid.toggled.connect(self._on_toggled)
+
+        self._tabbar = TabBar(checkbox_width=self._checkbox_channel.sizeHint().width())
+
+        self._tab.addTab(self.channel_groupbox, "")
+
+        zwdg = QWidget()
+        zwdg.setLayout(QVBoxLayout())
+        zwdg.layout().setContentsMargins(0, 0, 0, 0)
+        zwdg.layout().setSpacing(0)
+        zwdg.layout().addWidget(self.stack_groupbox)
+        spacer = QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        zwdg.layout().addSpacerItem(spacer)
+        self._tab.addTab(zwdg, "")
+
+        self._tab.addTab(self.position_groupbox, "")
+
+        twdg = QWidget()
+        twdg.setLayout(QVBoxLayout())
+        twdg.layout().setContentsMargins(0, 0, 0, 0)
+        twdg.layout().setSpacing(0)
+        twdg.layout().addWidget(self.time_groupbox)
+        spacer = QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        twdg.layout().addSpacerItem(spacer)
+        self._tab.addTab(twdg, "")
+
+        self._tabbar.addTab("Channels")
+        self._tabbar.setTabButton(
+            0, QTabBar.ButtonPosition.LeftSide, self._checkbox_channel
+        )
+        self._tabbar.addTab("Z Stack")
+        self._tabbar.setTabButton(1, QTabBar.ButtonPosition.LeftSide, self._checkbox_z)
+        self._tabbar.addTab("Positions")
+        self._tabbar.setTabButton(
+            2, QTabBar.ButtonPosition.LeftSide, self._checkbox_position
+        )
+        self._tabbar.addTab("Time")
+        self._tabbar.setTabButton(
+            3, QTabBar.ButtonPosition.LeftSide, self._checkbox_time
+        )
+
+        self._tab.setTabBar(self._tabbar)
+
+        central_layout.addWidget(self._tab)
         self._central_widget = QWidget()
         self._central_widget.setLayout(central_layout)
 
@@ -143,6 +235,20 @@ class MDAWidget(QWidget):
             self.buttons_wdg.run_button.show()
 
         self._on_sys_cfg_loaded()
+
+    def _on_toggled(self, checked: bool) -> None:
+        _sender = self.sender().objectName()
+        print(_sender)
+        if _sender == "Channels":
+            self.channel_groupbox.setEnabled(checked)
+            self._enable_run_btn()
+            self._update_total_time()
+        elif _sender == "ZStack":
+            self.stack_groupbox.setChecked(checked)
+        elif _sender == "Positions":
+            self.position_groupbox.setChecked(checked)
+        elif _sender == "Time":
+            self.time_groupbox.setChecked(checked)
 
     def _on_sys_cfg_loaded(self) -> None:
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
@@ -281,6 +387,7 @@ class MDAWidget(QWidget):
     def _enable_run_btn(self) -> None:
         self.buttons_wdg.run_button.setEnabled(
             self.channel_groupbox._table.rowCount() > 0
+            and self._checkbox_channel.isChecked()
         )
 
     def _on_time_toggled(self, checked: bool) -> None:
@@ -292,7 +399,7 @@ class MDAWidget(QWidget):
 
     def _update_total_time(self, *, tiles: int = 1) -> None:
         """Update the minimum total acquisition time info."""
-        if not self.channel_groupbox.value():
+        if not self.channel_groupbox.value() or not self._checkbox_channel.isChecked():
             self.time_lbl._total_time_lbl.setText(
                 "Minimum total acquisition time: 0 sec."
             )
