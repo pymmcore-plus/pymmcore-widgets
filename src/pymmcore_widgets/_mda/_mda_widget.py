@@ -17,7 +17,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import MDASequence, NoGrid  # type: ignore
+from useq import MDASequence, NoGrid, NoT, NoZ  # type: ignore
 
 from .._util import _select_output_unit, guess_channel_group
 from ._channel_table_widget import ChannelTable
@@ -62,6 +62,8 @@ class TabBar(QTabBar):
 
 
 class Grid(GridWidget):
+    """Sunclass GridWidget to emit valueChanged when grid is changed."""
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent=parent)
         self._grid = NoGrid()
@@ -121,20 +123,23 @@ class MDAWidget(QWidget):
 
         self.time_groupbox = TimePlanWidget()
         self.time_groupbox.setTitle("")
-        self.time_groupbox.setChecked(False)
+        self.time_groupbox.setCheckable(False)
+        self.time_groupbox.setEnabled(False)
         self.time_groupbox.setStyleSheet(GROUP_STYLE)
         self.time_groupbox.toggled.connect(self._update_total_time)
         self.time_groupbox.toggled.connect(self._on_time_toggled)
 
         self.stack_groupbox = ZStackWidget()
         self.stack_groupbox.setTitle("")
-        self.stack_groupbox.setChecked(False)
+        self.stack_groupbox.setCheckable(False)
+        self.stack_groupbox.setEnabled(False)
         self.stack_groupbox.setStyleSheet(GROUP_STYLE)
         self.stack_groupbox.toggled.connect(self._update_total_time)
 
         self.position_groupbox = PositionTable()
         self.position_groupbox.setTitle("")
-        self.position_groupbox.setChecked(False)
+        self.position_groupbox.setCheckable(False)
+        self.position_groupbox.setEnabled(False)
         self.position_groupbox.setStyleSheet(GROUP_STYLE)
         self.position_groupbox.toggled.connect(self._update_total_time)
 
@@ -175,61 +180,79 @@ class MDAWidget(QWidget):
 
         self._checkbox_channel = QCheckBox("")
         self._checkbox_channel.setObjectName("Channels")
-        self._checkbox_channel.toggled.connect(self._on_toggled)
+        self._checkbox_channel.toggled.connect(self._on_tab_checkbox_toggled)
         self._checkbox_z = QCheckBox("")
         self._checkbox_z.setObjectName("ZStack")
-        self._checkbox_z.toggled.connect(self._on_toggled)
+        self._checkbox_z.toggled.connect(self._on_tab_checkbox_toggled)
         self._checkbox_time = QCheckBox("")
         self._checkbox_time.setObjectName("Time")
-        self._checkbox_time.toggled.connect(self._on_toggled)
+        self._checkbox_time.toggled.connect(self._on_tab_checkbox_toggled)
         self._checkbox_position = QCheckBox("")
         self._checkbox_position.setObjectName("Positions")
-        self._checkbox_position.toggled.connect(self._on_toggled)
+        self._checkbox_position.toggled.connect(self._on_tab_checkbox_toggled)
         self._checkbox_grid = QCheckBox("")
         self._checkbox_grid.setObjectName("Grid")
-        self._checkbox_grid.toggled.connect(self._on_toggled)
+        self._checkbox_grid.toggled.connect(self._on_tab_checkbox_toggled)
 
         self._tabbar = TabBar(checkbox_width=self._checkbox_channel.sizeHint().width())
 
-        self._tab.addTab(self.channel_groupbox, "")
+        # set channel tab with checkbox
+        cwdg = QWidget()
+        cwdg.setLayout(QVBoxLayout())
+        cwdg.layout().setContentsMargins(10, 10, 10, 10)
+        cwdg.layout().setSpacing(0)
+        cwdg.layout().addWidget(self.channel_groupbox)
+        self._tab.addTab(cwdg, "")
+        self._tabbar.addTab("Channels")
+        self._tabbar.setTabButton(
+            0, QTabBar.ButtonPosition.LeftSide, self._checkbox_channel
+        )
 
+        # set zstack tab with checkbox
         zwdg = QWidget()
         zwdg.setLayout(QVBoxLayout())
-        zwdg.layout().setContentsMargins(0, 0, 0, 0)
+        zwdg.layout().setContentsMargins(10, 10, 10, 10)
         zwdg.layout().setSpacing(0)
         zwdg.layout().addWidget(self.stack_groupbox)
         spacer = QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding)
         zwdg.layout().addSpacerItem(spacer)
         self._tab.addTab(zwdg, "")
+        self._tabbar.addTab("Z Stack")
+        self._tabbar.setTabButton(1, QTabBar.ButtonPosition.LeftSide, self._checkbox_z)
 
-        self._tab.addTab(self.position_groupbox, "")
+        # set posirions tab with checkbox
+        pwdg = QWidget()
+        pwdg.setLayout(QVBoxLayout())
+        pwdg.layout().setContentsMargins(10, 10, 10, 10)
+        pwdg.layout().setSpacing(0)
+        pwdg.layout().addWidget(self.position_groupbox)
+        self._tab.addTab(pwdg, "")
+        self._tabbar.addTab("Positions")
+        self._tabbar.setTabButton(
+            2, QTabBar.ButtonPosition.LeftSide, self._checkbox_position
+        )
 
+        # set time tab with checkbox
         twdg = QWidget()
         twdg.setLayout(QVBoxLayout())
-        twdg.layout().setContentsMargins(0, 0, 0, 0)
+        twdg.layout().setContentsMargins(10, 10, 10, 10)
         twdg.layout().setSpacing(0)
         twdg.layout().addWidget(self.time_groupbox)
         spacer = QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding)
         twdg.layout().addSpacerItem(spacer)
         self._tab.addTab(twdg, "")
-
-        self._tab.addTab(self.grid_groupbox, "")
-
-        self._tabbar.addTab("Channels")
-        self._tabbar.setTabButton(
-            0, QTabBar.ButtonPosition.LeftSide, self._checkbox_channel
-        )
-        self._tabbar.addTab("Z Stack")
-        self._tabbar.setTabButton(1, QTabBar.ButtonPosition.LeftSide, self._checkbox_z)
-        self._tabbar.addTab("Positions")
-        self._tabbar.setTabButton(
-            2, QTabBar.ButtonPosition.LeftSide, self._checkbox_position
-        )
         self._tabbar.addTab("Time")
         self._tabbar.setTabButton(
             3, QTabBar.ButtonPosition.LeftSide, self._checkbox_time
         )
 
+        # set grid tab with checkbox
+        gwdg = QWidget()
+        gwdg.setLayout(QVBoxLayout())
+        gwdg.layout().setContentsMargins(10, 10, 10, 10)
+        gwdg.layout().setSpacing(0)
+        gwdg.layout().addWidget(self.grid_groupbox)
+        self._tab.addTab(gwdg, "")
         self._tabbar.addTab("Grid")
         self._tabbar.setTabButton(
             4, QTabBar.ButtonPosition.LeftSide, self._checkbox_grid
@@ -275,7 +298,7 @@ class MDAWidget(QWidget):
 
         self._on_sys_cfg_loaded()
 
-    def _on_toggled(self, checked: bool) -> None:
+    def _on_tab_checkbox_toggled(self, checked: bool) -> None:
         _sender = self.sender().objectName()
         if _sender == "Channels":
             self._tab.setCurrentIndex(0)
@@ -284,13 +307,13 @@ class MDAWidget(QWidget):
             self._update_total_time()
         elif _sender == "ZStack":
             self._tab.setCurrentIndex(1)
-            self.stack_groupbox.setChecked(checked)
+            self.stack_groupbox.setEnabled(checked)
         elif _sender == "Positions":
             self._tab.setCurrentIndex(2)
-            self.position_groupbox.setChecked(checked)
+            self.position_groupbox.setEnabled(checked)
         elif _sender == "Time":
             self._tab.setCurrentIndex(3)
-            self.time_groupbox.setChecked(checked)
+            self.time_groupbox.setEnabled(checked)
         elif _sender == "Grid":
             self._tab.setCurrentIndex(4)
             self.grid_groupbox.setEnabled(checked)
@@ -388,18 +411,16 @@ class MDAWidget(QWidget):
         """
         channels = self.channel_groupbox.value()
 
-        z_plan = (
-            self.stack_groupbox.value() if self.stack_groupbox.isChecked() else None
-        )
+        z_plan = self.stack_groupbox.value() if self._checkbox_z.isChecked() else NoZ()
         time_plan = (
-            self.time_groupbox.value() if self.time_groupbox.isChecked() else None
+            self.time_groupbox.value() if self._checkbox_time.isChecked() else NoT()
         )
 
         stage_positions: list[PositionDict] = []
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
         width = int(width * self._mmc.getPixelSizeUm())
         height = int(height * self._mmc.getPixelSizeUm())
-        if self.position_groupbox.isChecked():
+        if self._checkbox_position.isChecked():
             for p in self.position_groupbox.value():
                 if p.get("sequence"):
                     p_sequence = MDASequence(**p.get("sequence"))  # type: ignore
