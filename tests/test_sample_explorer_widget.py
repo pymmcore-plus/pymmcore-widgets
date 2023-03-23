@@ -29,8 +29,9 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert s_exp.channel_groupbox._table.rowCount() == 1
 
     s_exp.time_groupbox.setChecked(True)
-    s_exp.time_groupbox._timepoints_spinbox.setValue(2)
-    s_exp.time_groupbox._interval_spinbox.setValue(0)
+    s_exp.time_groupbox._add_button.click()
+    s_exp.time_groupbox._table.cellWidget(0, 0).setValue(2)
+    s_exp.time_groupbox._table.cellWidget(0, 1).setValue(0)
 
     s_exp.stack_groupbox.setChecked(True)
     s_exp.stack_groupbox.set_state({"range": 2, "step": 1})
