@@ -138,8 +138,8 @@ class TimePlanWidget(QGroupBox):
         unit: Literal["ms", "sec", "min", "hours"] = "sec",
     ) -> None:
         _timepoints_spinbox = QSpinBox()
-        _timepoints_spinbox.setRange(1, 1000000)
-        _timepoints_spinbox.setValue(timepoint or 1)
+        _timepoints_spinbox.setRange(2, 1000000)
+        _timepoints_spinbox.setValue(timepoint or 2)
         _timepoints_spinbox.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         _timepoints_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         _timepoints_spinbox.valueChanged.connect(self.valueChanged)
