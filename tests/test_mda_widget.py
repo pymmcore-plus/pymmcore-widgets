@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
 from pymmcore_plus import CMMCorePlus
 from useq import MDASequence
 
@@ -64,6 +65,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
     assert wdg.position_groupbox._table.rowCount() == 3
     assert wdg.channel_groupbox._table.rowCount() == 2
     assert wdg._checkbox_time.isChecked()
+    assert wdg._checkbox_grid.isChecked()
 
     # round trip
     assert wdg.get_state() == sequence
@@ -100,6 +102,10 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
+    wdg._checkbox_position.setChecked(True)
+    wdg._checkbox_z.setChecked(True)
+    wdg._checkbox_time.setChecked(True)
+
     wdg._on_mda_started()
     assert not wdg.time_groupbox.isEnabled()
     assert not wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
@@ -114,10 +120,10 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg._on_mda_finished()
     assert wdg.time_groupbox.isEnabled()
     assert wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
-    assert wdg.channel_groupbox.isEnabled()
+    assert not wdg.channel_groupbox.isEnabled()
     assert wdg.position_groupbox.isEnabled()
     assert wdg.stack_groupbox.isEnabled()
-    assert wdg.grid_groupbox.isEnabled()
+    assert not wdg.grid_groupbox.isEnabled()
     assert not wdg.buttons_wdg.run_button.isHidden()
     assert wdg.buttons_wdg.pause_button.isHidden()
     assert wdg.buttons_wdg.cancel_button.isHidden()
@@ -209,3 +215,29 @@ def test_enable_run_button(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     mmc.setChannelGroup("")
     assert not wdg.buttons_wdg.run_button.isEnabled()
+
+
+def test_absolute_grid_warning(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    wdg = MDAWidget(include_run_button=True)
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    assert not wdg._checkbox_position.isChecked()
+
+    wdg._checkbox_grid.setChecked(True)
+    wdg._mda_grid_wdg.tab.setCurrentIndex(1)
+
+    wdg._checkbox_position.setChecked(True)
+    wdg.position_groupbox.add_button.click()
+
+    with pytest.warns(UserWarning, match="'Absolute' grid modes are not supported"):
+        wdg.position_groupbox.add_button.click()
+
+    assert not wdg._checkbox_grid.isChecked()
+    assert not wdg._mda_grid_wdg.tab.isTabEnabled(1)
+    assert not wdg._mda_grid_wdg.tab.isTabEnabled(2)
+
+    wdg._checkbox_position.setChecked(False)
+
+    assert wdg._mda_grid_wdg.tab.isTabEnabled(1)
+    assert wdg._mda_grid_wdg.tab.isTabEnabled(2)
