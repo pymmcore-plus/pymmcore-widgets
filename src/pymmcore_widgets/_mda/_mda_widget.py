@@ -341,6 +341,7 @@ class MDAWidget(QWidget):
                 )
                 with signals_blocked(self._checkbox_grid):
                     self._checkbox_grid.setChecked(False)
+                    self.grid_groupbox.setEnabled(False)
             self._mda_grid_wdg.tab.setTabEnabled(1, False)
             self._mda_grid_wdg.tab.setTabEnabled(2, False)
         else:
