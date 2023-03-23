@@ -24,6 +24,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
     assert not wdg.channel_groupbox.isEnabled()
     assert not wdg.position_groupbox.isEnabled()
     assert not wdg.stack_groupbox.isEnabled()
+    assert not wdg.grid_groupbox.isEnabled()
     wdg._set_enabled(True)
 
     sequence = MDASequence(
