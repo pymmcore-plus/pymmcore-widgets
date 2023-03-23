@@ -66,9 +66,6 @@ class Grid(GridWidget):
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent=parent)
-        self._grid = NoGrid()
-
-        self.tab.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
     def _update_info(self) -> None:
         super()._update_info()
@@ -158,6 +155,7 @@ class MDAWidget(QWidget):
         self._mda_grid_wdg.layout().itemAt(
             self._mda_grid_wdg.layout().count() - 1
         ).widget().hide()  # hide add grid button
+        self._mda_grid_wdg.setMinimumHeight(self.sizeHint().height())
 
         # below the scroll area, tabs, some feedback widgets and buttons
         self.time_lbl = _MDATimeLabel()
