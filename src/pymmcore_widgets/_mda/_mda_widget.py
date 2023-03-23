@@ -18,6 +18,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.utils import signals_blocked
 from useq import MDASequence, NoGrid, NoT, NoZ  # type: ignore
 
 from .._util import _select_output_unit, guess_channel_group
@@ -324,24 +325,27 @@ class MDAWidget(QWidget):
         self._enable_run_btn()
 
     def _on_tab_changed(self, index: int) -> None:
-        if index in {2, 4}:  # grid tab
+        if index not in {2, 4}:
+            return
+        if (
+            self._checkbox_position.isChecked()
+            and self.position_groupbox._table.rowCount() > 1
+        ):
             if (
-                self._checkbox_position.isChecked()
-                and self.position_groupbox._table.rowCount() > 1
+                self._checkbox_grid.isChecked()
+                and self._mda_grid_wdg.tab.currentIndex() in {1, 2}
             ):
-                if (
-                    self._checkbox_grid.isChecked()
-                    and self._mda_grid_wdg.tab.currentIndex() in {1, 2}
-                ):
-                    warnings.warn(
-                        "'Absolute' grid modes are not supported "
-                        "with multiple positions."
-                    )
-                self._mda_grid_wdg.tab.setTabEnabled(1, False)
-                self._mda_grid_wdg.tab.setTabEnabled(2, False)
-            else:
-                self._mda_grid_wdg.tab.setTabEnabled(1, True)
-                self._mda_grid_wdg.tab.setTabEnabled(2, True)
+                warnings.warn(
+                    "'Absolute' grid modes are not supported "
+                    "with multiple positions."
+                )
+            with signals_blocked(self._checkbox_grid):
+                self._checkbox_grid.setChecked(False)
+            self._mda_grid_wdg.tab.setTabEnabled(1, False)
+            self._mda_grid_wdg.tab.setTabEnabled(2, False)
+        else:
+            self._mda_grid_wdg.tab.setTabEnabled(1, True)
+            self._mda_grid_wdg.tab.setTabEnabled(2, True)
 
     def _on_pos_tab_changed(self) -> None:
         # not using .connect(lambda: self._on_tab_changed(2)) because it would
@@ -362,6 +366,7 @@ class MDAWidget(QWidget):
         elif _sender == "Positions":
             self._tab.setCurrentIndex(2)
             self.position_groupbox.setEnabled(checked)
+            self._on_pos_tab_changed()
         elif _sender == "Time":
             self._tab.setCurrentIndex(3)
             self.time_groupbox.setEnabled(checked)
@@ -397,9 +402,13 @@ class MDAWidget(QWidget):
             self.buttons_wdg.run_button.setEnabled(True)
 
     def _set_enabled(self, enabled: bool) -> None:
-        self.time_groupbox.setEnabled(enabled)
+        self.time_groupbox.setEnabled(
+            enabled if self._checkbox_time.isChecked() else False
+        )
         self.buttons_wdg.acquisition_order_comboBox.setEnabled(enabled)
-        self.channel_groupbox.setEnabled(enabled)
+        self.channel_groupbox.setEnabled(
+            enabled if self._checkbox_channel.isChecked() else False
+        )
 
         if not self._mmc.getXYStageDevice():
             self._checkbox_position.setChecked(False)
@@ -407,14 +416,20 @@ class MDAWidget(QWidget):
             self._checkbox_grid.setEnabled(False)
             self.grid_groupbox.setEnabled(False)
         else:
-            self.position_groupbox.setEnabled(enabled)
-            self.grid_groupbox.setEnabled(enabled)
+            self.position_groupbox.setEnabled(
+                enabled if self._checkbox_position.isChecked() else False
+            )
+            self.grid_groupbox.setEnabled(
+                enabled if self._checkbox_grid.isChecked() else False
+            )
 
         if not self._mmc.getFocusDevice():
             self._checkbox_z.setChecked(False)
             self.stack_groupbox.setEnabled(False)
         else:
-            self.stack_groupbox.setEnabled(enabled)
+            self.stack_groupbox.setEnabled(
+                enabled if self._checkbox_z.isChecked() else False
+            )
 
     def _on_mda_started(self) -> None:
         self._set_enabled(False)
