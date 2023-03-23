@@ -181,3 +181,30 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
         "Minimum acquisition time(s) per timepoint: 200.0000 ms (100.0000 ms)."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
+
+
+def test_enable_run_button(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    wdg = MDAWidget(include_run_button=True)
+    qtbot.addWidget(wdg)
+    wdg.show()
+    mmc = global_mmcore
+
+    assert mmc.getChannelGroup() == "Channel"
+    assert not mmc.getCurrentConfig("Channel")
+    assert not wdg.buttons_wdg.run_button.isEnabled()
+    assert not wdg._checkbox_channel.isChecked()
+
+    wdg._checkbox_channel.setChecked(True)
+    assert not wdg.buttons_wdg.run_button.isEnabled()
+    wdg.channel_groupbox._add_button.click()
+    assert wdg.channel_groupbox._table.rowCount()
+    assert wdg.buttons_wdg.run_button.isEnabled()
+
+    wdg._checkbox_channel.setChecked(False)
+    assert not wdg.buttons_wdg.run_button.isEnabled()
+
+    mmc.setConfig("Channel", "DAPI")
+    assert wdg.buttons_wdg.run_button.isEnabled()
+
+    mmc.setChannelGroup("")
+    assert not wdg.buttons_wdg.run_button.isEnabled()

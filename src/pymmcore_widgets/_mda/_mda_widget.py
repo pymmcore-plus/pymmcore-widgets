@@ -155,12 +155,11 @@ class MDAWidget(QWidget):
         self._mda_grid_wdg = Grid()
         self._mda_grid_wdg.valueChanged.connect(self._update_total_time)
         self.grid_groupbox.layout().addWidget(self._mda_grid_wdg)
-        # hide grid button
         self._mda_grid_wdg.layout().itemAt(
             self._mda_grid_wdg.layout().count() - 1
-        ).widget().hide()
+        ).widget().hide()  # hide add grid button
 
-        # below the scroll area, some feedback widgets and buttons
+        # below the scroll area, tabs, some feedback widgets and buttons
         self.time_lbl = _MDATimeLabel()
 
         self.buttons_wdg = _MDAControlButtons()
@@ -173,7 +172,7 @@ class MDAWidget(QWidget):
         central_layout.setSpacing(20)
         central_layout.setContentsMargins(10, 10, 10, 10)
 
-        # Tab
+        # TABS
         self._tab = QTabWidget()
 
         self._checkbox_channel = QCheckBox("")
@@ -290,6 +289,9 @@ class MDAWidget(QWidget):
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
+        self._mmc.events.configSet.connect(self._on_config_set)
+        self._mmc.events.configGroupChanged.connect(self._on_config_set)
+        self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
 
         # connect run button
         if self._include_run_button:
@@ -297,6 +299,16 @@ class MDAWidget(QWidget):
             self.buttons_wdg.run_button.show()
 
         self._on_sys_cfg_loaded()
+
+        self.destroyed.connect(self._disconnect)
+
+    def _on_config_set(self, group: str, preset: str) -> None:
+        if group != self._mmc.getChannelGroup():
+            return
+        self._enable_run_btn()
+
+    def _on_channel_group_changed(self, group: str) -> None:
+        self._enable_run_btn()
 
     def _on_tab_checkbox_toggled(self, checked: bool) -> None:
         _sender = self.sender().objectName()
@@ -322,7 +334,33 @@ class MDAWidget(QWidget):
     def _on_sys_cfg_loaded(self) -> None:
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
-        self.channel_groupbox.clear()
+        self._enable_run_btn()
+
+    def _enable_run_btn(self) -> None:
+        """Enable run button.
+
+        ...if there is a channel group and a preset selected or the channel checkbox
+        is checked and there is at least one channel selected.
+        """
+        if self._mmc.getChannelGroup() and self._mmc.getCurrentConfig(
+            self._mmc.getChannelGroup()
+        ):
+            if (
+                self._checkbox_channel.isChecked()
+                and not self.channel_groupbox._table.rowCount()
+            ):
+                self.buttons_wdg.run_button.setEnabled(False)
+            else:
+                self.buttons_wdg.run_button.setEnabled(True)
+
+        elif (
+            not self._checkbox_channel.isChecked()
+            or not self.channel_groupbox._table.rowCount()
+        ):
+            self.buttons_wdg.run_button.setEnabled(False)
+
+        else:
+            self.buttons_wdg.run_button.setEnabled(True)
 
     def _set_enabled(self, enabled: bool) -> None:
         self.time_groupbox.setEnabled(enabled)
@@ -420,9 +458,19 @@ class MDAWidget(QWidget):
         -------
         useq.MDASequence
         """
-        channels = self.channel_groupbox.value()
+        channels = self.channel_groupbox.value() or [
+            {
+                "config": self._mmc.getCurrentConfig(self._mmc.getChannelGroup()),
+                "group": self._mmc.getChannelGroup(),
+                "exposure": self._mmc.getExposure(),
+                "z_offset": 0.0,
+                "do_stack": True,
+                "acquire_every": 1,
+            }
+        ]
 
         z_plan = self.stack_groupbox.value() if self._checkbox_z.isChecked() else NoZ()
+
         time_plan = (
             self.time_groupbox.value() if self._checkbox_time.isChecked() else NoT()
         )
@@ -484,12 +532,6 @@ class MDAWidget(QWidget):
         self._mmc.run_mda(experiment)
         return
 
-    def _enable_run_btn(self) -> None:
-        self.buttons_wdg.run_button.setEnabled(
-            self.channel_groupbox._table.rowCount() > 0
-            and self._checkbox_channel.isChecked()
-        )
-
     def _on_time_toggled(self, checked: bool) -> None:
         """Hide the warning if the time groupbox is unchecked."""
         if not checked and self.time_groupbox._warning_widget.isVisible():
@@ -499,7 +541,9 @@ class MDAWidget(QWidget):
 
     def _update_total_time(self) -> None:
         """Update the minimum total acquisition time info."""
-        if not self.channel_groupbox.value() or not self._checkbox_channel.isChecked():
+        if (
+            not self.channel_groupbox.value() or not self._checkbox_channel.isChecked()
+        ) and not self._mmc.getCurrentConfig(self._mmc.getChannelGroup()):
             self.time_lbl._total_time_lbl.setText(
                 "Minimum total acquisition time: 0 sec."
             )
@@ -560,3 +604,11 @@ class MDAWidget(QWidget):
         _min_tot_time, _unit = _select_output_unit(total_time)
         tot_acq_msg = f"Minimum total acquisition time: {_min_tot_time:.4f} {_unit}."
         self.time_lbl._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
+
+    def _disconnect(self) -> None:
+        self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
+        self._mmc.mda.events.sequenceFinished.disconnect(self._on_mda_finished)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
+        self._mmc.events.configSet.disconnect(self._on_config_set)
+        self._mmc.events.configGroupChanged.disconnect(self._on_config_set)
+        self._mmc.events.channelGroupChanged.disconnect(self._on_channel_group_changed)
