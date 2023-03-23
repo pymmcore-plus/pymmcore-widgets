@@ -156,7 +156,7 @@ class MDAWidget(QWidget):
         self._mda_grid_wdg.layout().itemAt(
             self._mda_grid_wdg.layout().count() - 1
         ).widget().hide()  # hide add grid button
-        self._mda_grid_wdg.setMinimumHeight(self.sizeHint().height())
+        self._mda_grid_wdg.setMinimumHeight(self._mda_grid_wdg.sizeHint().height())
 
         # below the scroll area, tabs, some feedback widgets and buttons
         self.time_lbl = _MDATimeLabel()
@@ -305,6 +305,12 @@ class MDAWidget(QWidget):
 
         self.destroyed.connect(self._disconnect)
 
+    def _on_sys_cfg_loaded(self) -> None:
+        if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
+            self._mmc.setChannelGroup(channel_group)
+        self._enable_run_btn()
+        self._update_total_time()
+
     def _on_config_set(self, group: str, preset: str) -> None:
         if group != self._mmc.getChannelGroup():
             return
@@ -350,11 +356,6 @@ class MDAWidget(QWidget):
             self._tab.setCurrentIndex(4)
             self.grid_groupbox.setEnabled(checked)
             self._update_total_time()
-
-    def _on_sys_cfg_loaded(self) -> None:
-        if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
-            self._mmc.setChannelGroup(channel_group)
-        self._enable_run_btn()
 
     def _enable_run_btn(self) -> None:
         """Enable run button.
@@ -478,16 +479,20 @@ class MDAWidget(QWidget):
         -------
         useq.MDASequence
         """
-        channels = self.channel_groupbox.value() or [
-            {
-                "config": self._mmc.getCurrentConfig(self._mmc.getChannelGroup()),
-                "group": self._mmc.getChannelGroup(),
-                "exposure": self._mmc.getExposure(),
-                "z_offset": 0.0,
-                "do_stack": True,
-                "acquire_every": 1,
-            }
-        ]
+        channels = (
+            self.channel_groupbox.value()
+            if self._checkbox_channel.isChecked()
+            else [
+                {
+                    "config": self._mmc.getCurrentConfig(self._mmc.getChannelGroup()),
+                    "group": self._mmc.getChannelGroup(),
+                    "exposure": self._mmc.getExposure(),
+                    "z_offset": 0.0,
+                    "do_stack": True,
+                    "acquire_every": 1,
+                }
+            ]
+        )
 
         z_plan = self.stack_groupbox.value() if self._checkbox_z.isChecked() else NoZ()
 
@@ -561,9 +566,22 @@ class MDAWidget(QWidget):
 
     def _update_total_time(self) -> None:
         """Update the minimum total acquisition time info."""
-        if (
-            not self.channel_groupbox.value() or not self._checkbox_channel.isChecked()
-        ) and not self._mmc.getCurrentConfig(self._mmc.getChannelGroup()):
+        if self._mmc.getChannelGroup() and self._mmc.getCurrentConfig(
+            self._mmc.getChannelGroup()
+        ):
+            if (
+                self._checkbox_channel.isChecked()
+                and not self.channel_groupbox._table.rowCount()
+            ):
+                self.time_lbl._total_time_lbl.setText(
+                    "Minimum total acquisition time: 0 sec."
+                )
+                return
+
+        elif (
+            not self._checkbox_channel.isChecked()
+            or not self.channel_groupbox._table.rowCount()
+        ):
             self.time_lbl._total_time_lbl.setText(
                 "Minimum total acquisition time: 0 sec."
             )
@@ -574,6 +592,8 @@ class MDAWidget(QWidget):
         t_per_tp_msg = ""
 
         for e in self.get_state():
+            print(e.channel)
+
             if e.exposure is None:
                 continue
 
