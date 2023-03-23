@@ -68,6 +68,8 @@ class Grid(GridWidget):
         super().__init__(parent=parent)
         self._grid = NoGrid()
 
+        self.tab.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
     def _update_info(self) -> None:
         super()._update_info()
         self.valueChanged.emit(self.value())
@@ -153,10 +155,6 @@ class MDAWidget(QWidget):
         self._mda_grid_wdg = Grid()
         self._mda_grid_wdg.valueChanged.connect(self._update_total_time)
         self.grid_groupbox.layout().addWidget(self._mda_grid_wdg)
-        spacer = QSpacerItem(
-            0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
-        )
-        self.grid_groupbox.layout().addSpacerItem(spacer)
         # hide grid button
         self._mda_grid_wdg.layout().itemAt(
             self._mda_grid_wdg.layout().count() - 1
@@ -171,11 +169,11 @@ class MDAWidget(QWidget):
         self.buttons_wdg.run_button.hide()
 
         # LAYOUT
-
         central_layout = QVBoxLayout()
         central_layout.setSpacing(20)
         central_layout.setContentsMargins(10, 10, 10, 10)
 
+        # Tab
         self._tab = QTabWidget()
 
         self._checkbox_channel = QCheckBox("")
@@ -252,6 +250,8 @@ class MDAWidget(QWidget):
         gwdg.layout().setContentsMargins(10, 10, 10, 10)
         gwdg.layout().setSpacing(0)
         gwdg.layout().addWidget(self.grid_groupbox)
+        spacer = QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        gwdg.layout().addSpacerItem(spacer)
         self._tab.addTab(gwdg, "")
         self._tabbar.addTab("Grid")
         self._tabbar.setTabButton(
