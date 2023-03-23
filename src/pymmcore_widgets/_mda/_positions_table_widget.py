@@ -444,7 +444,7 @@ class PositionTable(QGroupBox):
 
         popMenu = QMenu(self)
         popMenu.addAction(QAction("Apply to All", self, checkable=True))
-        popMenu.triggered.connect(lambda x: self._apply_grid_to_all_positions(row))
+        popMenu.triggered.connect(lambda: self._apply_grid_to_all_positions(row))
         popMenu.move(menuPosition)
         popMenu.show()
 
