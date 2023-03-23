@@ -592,8 +592,6 @@ class MDAWidget(QWidget):
         t_per_tp_msg = ""
 
         for e in self.get_state():
-            print(e.channel)
-
             if e.exposure is None:
                 continue
 
