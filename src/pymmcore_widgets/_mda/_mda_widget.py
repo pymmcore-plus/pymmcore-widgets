@@ -325,13 +325,16 @@ class MDAWidget(QWidget):
                 self._checkbox_position.isChecked()
                 and self.position_groupbox._table.rowCount() > 1
             ):
-                self._mda_grid_wdg.tab.setTabEnabled(1, False)
-                self._mda_grid_wdg.tab.setTabEnabled(2, False)
-                if self._checkbox_grid.isChecked():
+                if (
+                    self._checkbox_grid.isChecked()
+                    and self._mda_grid_wdg.tab.currentIndex() in {1, 2}
+                ):
                     warnings.warn(
                         "'Absolute' grid modes are not supported "
                         "with multiple positions."
                     )
+                self._mda_grid_wdg.tab.setTabEnabled(1, False)
+                self._mda_grid_wdg.tab.setTabEnabled(2, False)
             else:
                 self._mda_grid_wdg.tab.setTabEnabled(1, True)
                 self._mda_grid_wdg.tab.setTabEnabled(2, True)
