@@ -287,7 +287,11 @@ class MDAWidget(QWidget):
         self.time_groupbox.valueChanged.connect(self._update_total_time)
         self.time_groupbox.toggled.connect(self._update_total_time)
         self.position_groupbox.valueChanged.connect(self._update_total_time)
-        self.position_groupbox.valueChanged.connect(lambda: self._on_tab_changed(2))
+        # below not using
+        # position_groupbox.valueChanged.connect(lambda: self._on_tab_changed(2))
+        # because it would cause problems in closing the widget
+        # (see conftest _run_after_each_test fixture)
+        self.position_groupbox.valueChanged.connect(self._on_pos_tab_changed)
         # connect mmcore signals
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
@@ -338,6 +342,12 @@ class MDAWidget(QWidget):
             else:
                 self._mda_grid_wdg.tab.setTabEnabled(1, True)
                 self._mda_grid_wdg.tab.setTabEnabled(2, True)
+
+    def _on_pos_tab_changed(self) -> None:
+        # not using .connect(lambda: self._on_tab_changed(2)) because it would
+        # cause problems in closing the widget
+        # (see conftest _run_after_each_test fixture)
+        self._on_tab_changed(2)
 
     def _on_tab_checkbox_toggled(self, checked: bool) -> None:
         _sender = self.sender().objectName()
