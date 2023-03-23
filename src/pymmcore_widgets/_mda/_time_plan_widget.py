@@ -163,6 +163,8 @@ class TimePlanWidget(QGroupBox):
         self._table.setCellWidget(idx, 1, _interval_spinbox)
         self._table.setCellWidget(idx, 2, _units_combo)
 
+        self.valueChanged.emit()
+
     def _remove_selected_rows(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
         if not rows:
@@ -176,7 +178,7 @@ class TimePlanWidget(QGroupBox):
         if self._table.rowCount():
             self._table.clearContents()
             self._table.setRowCount(0)
-            self.valueChanged.emit()
+        self.valueChanged.emit()
 
     def setWarningMessage(self, msg: str) -> None:
         """Set the text of the warning message."""

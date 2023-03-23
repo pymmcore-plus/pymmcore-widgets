@@ -307,24 +307,39 @@ class MDAWidget(QWidget):
                 continue
 
             total_time = total_time + (e.exposure / 1000)
-            if self.time_groupbox.isChecked():
+            if self.time_groupbox.isChecked() and self.time_groupbox.value():
                 _t = e.index["t"]
                 _exp = e.exposure / 1000
                 _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp
 
         if _per_timepoints:
             time_value = self.time_groupbox.value()
-            timepoints = time_value["loops"]
-            interval = time_value["interval"].total_seconds()
-            total_time = total_time + (timepoints - 1) * interval
 
-            # check if the interval is smaller than the sum of the exposure times
+            intervals = []
+            if "phases" in time_value:
+                for phase in time_value["phases"]:
+                    interval = phase["interval"].total_seconds()
+                    intervals.append(interval)
+                    timepoints = phase["loops"]
+                    total_time = total_time + (timepoints - 1) * interval
+            else:
+                timepoints = time_value["loops"]
+                interval = time_value["interval"].total_seconds()
+                intervals.append(interval)
+                total_time = total_time + (timepoints - 1) * interval
+
+            # check if the interval(s) is smaller than the sum of the exposure times
             sum_ch_exp = sum(
                 (c["exposure"] / 1000)
                 for c in self.channel_groupbox.value()
                 if c["exposure"] is not None
             )
-            self.time_groupbox.setWarningVisible(0 < interval < sum_ch_exp)
+            for i in intervals:
+                if 0 < i < sum_ch_exp:
+                    self.time_groupbox.setWarningVisible(True)
+                    break
+                else:
+                    self.time_groupbox.setWarningVisible(False)
 
             # group by time
             _group_by_time: dict[float, list[int]] = {
