@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -275,6 +276,9 @@ class MDAWidget(QWidget):
 
         # CONNECTIONS
 
+        # connect tabs
+        self._tab.currentChanged.connect(self._on_tab_changed)
+        # connect buttons
         self.buttons_wdg.pause_button.released.connect(self._mmc.mda.toggle_pause)
         self.buttons_wdg.cancel_button.released.connect(self._mmc.mda.cancel)
         # connect valueUpdated signal
@@ -283,6 +287,7 @@ class MDAWidget(QWidget):
         self.time_groupbox.valueChanged.connect(self._update_total_time)
         self.time_groupbox.toggled.connect(self._update_total_time)
         self.position_groupbox.valueChanged.connect(self._update_total_time)
+        self.position_groupbox.valueChanged.connect(lambda: self._on_tab_changed(2))
         # connect mmcore signals
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
@@ -307,6 +312,23 @@ class MDAWidget(QWidget):
 
     def _on_channel_group_changed(self, group: str) -> None:
         self._enable_run_btn()
+
+    def _on_tab_changed(self, index: int) -> None:
+        if index in {2, 4}:  # grid tab
+            if (
+                self._checkbox_position.isChecked()
+                and self.position_groupbox._table.rowCount() > 1
+            ):
+                self._mda_grid_wdg.tab.setTabEnabled(1, False)
+                self._mda_grid_wdg.tab.setTabEnabled(2, False)
+                if self._checkbox_grid.isChecked():
+                    warnings.warn(
+                        "'Absolute' grid modes are not supported "
+                        "with multiple positions."
+                    )
+            else:
+                self._mda_grid_wdg.tab.setTabEnabled(1, True)
+                self._mda_grid_wdg.tab.setTabEnabled(2, True)
 
     def _on_tab_checkbox_toggled(self, checked: bool) -> None:
         _sender = self.sender().objectName()
