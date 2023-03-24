@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.utils import create_worker, signals_blocked
+from superqt.utils import signals_blocked
 from useq import MDASequence, NoGrid, NoT, NoZ  # type: ignore
 
 from .._util import _select_output_unit, guess_channel_group
@@ -600,10 +600,6 @@ class MDAWidget(QWidget):
             self._update_total_time()
 
     def _update_total_time(self) -> None:
-        # create thread to avoid blocking the UI
-        create_worker(self._calculate_minimum_acquisition_time, _start_thread=True)
-
-    def _calculate_minimum_acquisition_time(self) -> None:
         """Calculate the minimum total acquisition time info."""
         if self._mmc.getChannelGroup() and self._mmc.getCurrentConfig(
             self._mmc.getChannelGroup()
@@ -633,8 +629,6 @@ class MDAWidget(QWidget):
         for e in self.get_state():
             if e.exposure is None:
                 continue
-
-            print(e.exposure)
 
             total_time = total_time + (e.exposure / 1000)
             if self._checkbox_time.isChecked():
