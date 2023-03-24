@@ -7,6 +7,7 @@ from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+from superqt.utils import create_worker
 from useq import MDASequence
 
 from .._util import _select_output_unit, guess_channel_group
@@ -308,8 +309,12 @@ class MDAWidget(QWidget):
         else:
             self._update_total_time()
 
-    def _update_total_time(self, *, tiles: int = 1) -> None:
-        """Update the minimum total acquisition time info."""
+    def _update_total_time(self) -> None:
+        # create thread to avoid blocking the UI
+        create_worker(self._calculate_minimum_acquisition_time, _start_thread=True)
+
+    def _calculate_minimum_acquisition_time(self) -> None:
+        """Calculate the minimum total acquisition time info."""
         if not self.channel_groupbox.value():
             self.time_lbl._total_time_lbl.setText(
                 "Minimum total acquisition time: 0 sec."
