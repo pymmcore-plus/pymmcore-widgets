@@ -403,6 +403,12 @@ class MDAWidget(QWidget):
             self.buttons_wdg.run_button.setEnabled(True)
 
     def _set_enabled(self, enabled: bool) -> None:
+        self._checkbox_channel.setEnabled(enabled)
+        self._checkbox_z.setEnabled(enabled)
+        self._checkbox_position.setEnabled(enabled)
+        self._checkbox_time.setEnabled(enabled)
+        self._checkbox_grid.setEnabled(enabled)
+
         self.time_groupbox.setEnabled(
             enabled if self._checkbox_time.isChecked() else False
         )
