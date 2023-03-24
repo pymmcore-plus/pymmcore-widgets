@@ -122,6 +122,10 @@ class _SpinboxWidget(QWidget):
 class GridWidget(QDialog):
     """A subwidget to setup the acquisition of a grid of images.
 
+    The `value()` method returns a dictionary with the current state of the widget, in a
+    format that matches one of the [useq-schema Grid Plan
+    specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans).
+
     Parameters
     ----------
     parent : QWidget | None
@@ -522,8 +526,11 @@ class GridWidget(QDialog):
         return top, bottom, left, right
 
     def value(self) -> GridDict:
-        # TODO: update docstring when useq GridPlan will be added to the docs.
-        """Return the current GridPlan settings."""
+        """Return the current GridPlan settings.
+
+        Note that output dict will match the Channel from useq schema:
+        <https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans>
+        """
         value: GridDict = {
             "overlap": (
                 self.overlap_spinbox_x.value(),
