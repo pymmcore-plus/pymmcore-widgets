@@ -604,8 +604,7 @@ class MDAWidget(QWidget):
         create_worker(self._calculate_minimum_acquisition_time, _start_thread=True)
 
     def _calculate_minimum_acquisition_time(self) -> None:
-        """Update the minimum total acquisition time info."""
-        print("update total time")
+        """Calculate the minimum total acquisition time info."""
         if self._mmc.getChannelGroup() and self._mmc.getCurrentConfig(
             self._mmc.getChannelGroup()
         ):
@@ -684,7 +683,6 @@ class MDAWidget(QWidget):
         _min_tot_time, _unit = _select_output_unit(total_time)
         tot_acq_msg = f"Minimum total acquisition time: {_min_tot_time:.4f} {_unit}."
         self.time_lbl._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
-        print("  ")
 
     def _disconnect(self) -> None:
         self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
