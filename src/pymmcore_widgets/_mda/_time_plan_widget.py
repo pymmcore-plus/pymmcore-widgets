@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -24,6 +24,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import fonticon
+from superqt.utils import signals_blocked
 
 if TYPE_CHECKING:
     from typing_extensions import TypedDict
@@ -34,6 +35,62 @@ if TYPE_CHECKING:
         phases: list
         interval: timedelta
         loops: int
+
+
+class _DoubleSpinAndCombo(QWidget):
+    """A widget with a double spinbox and a combo box."""
+
+    valueChanged = Signal()
+
+    def __init__(self, parent: QWidget = None) -> None:
+        super().__init__(parent)
+
+        self._spin = QDoubleSpinBox()
+        self._spin.setMinimum(0)
+        self._spin.setMaximum(100000)
+        self._spin.wheelEvent = lambda event: None  # block mouse scroll
+        self._spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self._spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._spin.valueChanged.connect(self.valueChanged)
+        self._combo = QComboBox()
+        self._combo.addItems(["ms", "sec", "min", "hours"])
+        self._combo.currentTextChanged.connect(self.valueChanged)
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self._spin)
+        layout.addWidget(self._combo)
+        self.setLayout(layout)
+
+    def value(self) -> timedelta:
+        """Return the value of the widget as a timedelta."""
+        unit = {
+            "ms": "milliseconds",
+            "sec": "seconds",
+            "min": "minutes",
+            "hours": "hours",
+        }
+        _u = self._combo.currentText()
+        return timedelta(**{unit[_u]: self._spin.value()})
+
+    def setValue(self, value: timedelta) -> None:
+        sec = value.total_seconds()
+        if sec >= 3600:
+            u = "hours"
+            val = sec // 3600
+        elif sec >= 60:
+            u = "min"
+            val = sec // 60
+        elif sec >= 1:
+            u = "sec"
+            val = int(sec)
+        else:
+            u = "ms"
+            val = int(sec * 1000)
+
+        self._spin.setValue(val)
+        self._combo.setCurrentText(u)
 
 
 class TimePlanWidget(QGroupBox):
@@ -74,7 +131,7 @@ class TimePlanWidget(QGroupBox):
         self._table.setTabKeyNavigation(True)
         self._table.setColumnCount(3)
         self._table.setRowCount(0)
-        self._table.setHorizontalHeaderLabels(["Timepoints", "Interval", "Units"])
+        self._table.setHorizontalHeaderLabels(["Duration", "Interval", "Timepoints"])
         group_layout.addWidget(self._table, 0, 0)
 
         # buttons
@@ -133,35 +190,50 @@ class TimePlanWidget(QGroupBox):
 
     def _create_new_row(
         self,
-        timepoint: int | None = None,
-        interval: float | None = None,
-        unit: Literal["ms", "sec", "min", "hours"] = "sec",
+        interval: timedelta | None = None,
+        loops: int = 1,
     ) -> None:
-        _timepoints_spinbox = QSpinBox()
-        _timepoints_spinbox.setRange(2, 1000000)
-        _timepoints_spinbox.setValue(timepoint or 2)
-        _timepoints_spinbox.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        _timepoints_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        _timepoints_spinbox.valueChanged.connect(self.valueChanged)
+        """Create a new row in the table."""
+        _interval = _DoubleSpinAndCombo()
+        _interval.setValue(interval or timedelta(seconds=1))
+        _interval.valueChanged.connect(self.valueChanged)
+        _interval.valueChanged.connect(self._on_item_changed)
 
-        _interval_spinbox = QDoubleSpinBox()
-        _interval_spinbox.setRange(0, 100000)
-        _interval_spinbox.setValue(interval or 1)
-        _interval_spinbox.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        _interval_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        _interval_spinbox.valueChanged.connect(self.valueChanged)
+        _timepoints = QSpinBox()
+        _timepoints.setRange(1, 1000000)
+        _timepoints.setValue(loops)
+        _timepoints.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        _timepoints.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        _timepoints.valueChanged.connect(self.valueChanged)
+        _timepoints.valueChanged.connect(self._on_item_changed)
 
-        _units_combo = QComboBox()
-        _units_combo.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        _units_combo.addItems(["ms", "sec", "min", "hours"])
-        _units_combo.setCurrentText(unit)
-        _units_combo.currentIndexChanged.connect(self.valueChanged)
+        _duration = _DoubleSpinAndCombo()
+        _duration.setValue(interval or timedelta(seconds=1) * (loops - 1))
+        _duration.valueChanged.connect(self.valueChanged)
+        _duration.valueChanged.connect(self._on_item_changed)
 
         idx = self._table.rowCount()
         self._table.insertRow(idx)
-        self._table.setCellWidget(idx, 0, _timepoints_spinbox)
-        self._table.setCellWidget(idx, 1, _interval_spinbox)
-        self._table.setCellWidget(idx, 2, _units_combo)
+        self._table.setCellWidget(idx, 0, _duration)
+        self._table.setCellWidget(idx, 1, _interval)
+        self._table.setCellWidget(idx, 2, _timepoints)
+
+        self.valueChanged.emit()
+
+    def _on_item_changed(self) -> None:
+        row = self._table.indexAt(self.sender().pos()).row()
+        col = self._table.indexAt(self.sender().pos()).column()
+
+        duration = cast("_DoubleSpinAndCombo", self._table.cellWidget(row, 0))
+        interval = cast("_DoubleSpinAndCombo", self._table.cellWidget(row, 1))
+        timepoints = cast("QSpinBox", self._table.cellWidget(row, 2))
+
+        if col in {0, 1}:
+            with signals_blocked(timepoints):
+                timepoints.setValue(duration.value() // interval.value() + 1)
+        elif col == 2:
+            with signals_blocked(duration):
+                duration.setValue(interval.value() * (timepoints.value() - 1))
 
         self.valueChanged.emit()
 
@@ -197,84 +269,75 @@ class TimePlanWidget(QGroupBox):
         self._warning_widget.setVisible(visible)
 
     def value(self) -> TimeDict:
-        # keys are from the combobox... values are kwargs for timedelta
+        """Return the current time plan as a TimeDict.
+
+        Note that the output TimeDict will match [TIntervalLoopsdictionary](
+        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
+        ) or [MultiPhaseTimePlan](
+        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan
+        )[[TIntervalLoopsdictionary](
+        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
+        )] from useq schema.
+        """
         if not self._table.rowCount():
             return {}
+        timeplan: TimeDict = {"phases": []}
+        for row in range(self._table.rowCount()):
+            interval = cast("_DoubleSpinAndCombo", self._table.cellWidget(row, 1))
+            timepoints = cast("QSpinBox", self._table.cellWidget(row, 2))
+            timeplan["phases"].append(
+                {
+                    "interval": interval.value(),
+                    "loops": timepoints.value(),
+                }
+            )
+        return timeplan
 
-        unit = {
-            "ms": "milliseconds",
-            "sec": "seconds",
-            "min": "minutes",
-            "hours": "hours",
-        }
+    # t_plan is a TimeDicts but it makes typing elsewhere harder
+    def set_state(self, t_plan: dict) -> None:
+        """Set the state of the widget.
 
-        if self._table.rowCount() == 1:
-            _timepoints_spinbox = cast("QSpinBox", self._table.cellWidget(0, 0))
-            _interval_spinbox = cast("QDoubleSpinBox", self._table.cellWidget(0, 1))
-            _units_combo = cast("QComboBox", self._table.cellWidget(0, 2))
-
-            _u = _units_combo.currentText()
-            return {
-                "interval": timedelta(**{unit[_u]: _interval_spinbox.value()}),
-                "loops": _timepoints_spinbox.value(),
-            }
-
-        else:
-            timeplan: TimeDict = {"phases": []}
-            for row in range(self._table.rowCount()):
-                _timepoints_spinbox = cast("QSpinBox", self._table.cellWidget(row, 0))
-                _interval_spinbox = cast(
-                    "QDoubleSpinBox", self._table.cellWidget(row, 1)
-                )
-                _units_combo = cast("QComboBox", self._table.cellWidget(row, 2))
-
-                _u = _units_combo.currentText()
-                timeplan["phases"].append(
-                    {
-                        "interval": timedelta(**{unit[_u]: _interval_spinbox.value()}),
-                        "loops": _timepoints_spinbox.value(),
-                    }
-                )
-            return timeplan
-
-    # timeplan is a TimeDicts but it makes typing elsewhere harder
-    def set_state(self, timeplan: dict) -> None:
-        """Set the state of the widget from a useq time_plan dictionary."""
+        Note that the input t_plan has to match [TIntervalLoopsdictionary](
+        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
+        ) or [MultiPhaseTimePlan](
+        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan
+        )[[TIntervalLoopsdictionary](
+        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
+        )] from useq schema.
+        """
         self._clear()
 
-        if "phases" in timeplan:
-            for t in timeplan["phases"]:
-                _tp, _int, _u = self._get_timepoints_interval_and_unit(t)
-                self._create_new_row(timepoint=_tp, interval=_int, unit=_u)
+        if "phases" in t_plan:
+            for t in t_plan["phases"]:
+                self._check_dict(t)
+                self._create_new_row(interval=t["interval"], loops=t["loops"])
         else:
-            _tp, _int, _u = self._get_timepoints_interval_and_unit(timeplan)
-            self._create_new_row(timepoint=_tp, interval=_int, unit=_u)
+            self._check_dict(t_plan)
+            self._create_new_row(interval=t_plan["interval"], loops=t_plan["loops"])
 
-    def _get_timepoints_interval_and_unit(
-        self, timeplan: dict
-    ) -> tuple[int, int | float, Literal["ms", "sec", "min", "hours"]]:
-        if "interval" not in timeplan or "loops" not in timeplan:
-            raise ValueError("Only time_plans with 'interval' and 'loops' supported.")
-        if not isinstance(timeplan["interval"], timedelta):
+    # t_plan is a TimeDicts but it makes typing elsewhere harder
+    def _check_dict(self, t_plan: dict) -> None:
+        """Check if the timeplan is valid."""
+        if "interval" not in t_plan or "loops" not in t_plan:
+            raise NotImplementedError(
+                "Only time_plans with 'interval' and 'loops' supported."
+            )
+        if not isinstance(t_plan["interval"], timedelta):
             raise ValueError(
                 "Only time_plans with 'interval' as 'timedelta' supported."
             )
-        _tp = int(timeplan["loops"])
-        sec = timeplan["interval"].total_seconds()
-        if sec >= 3600:
-            _u = "hours"
-            _int = sec // 3600
-        elif sec >= 60:
-            _u = "min"
-            _int = sec // 60
-        elif sec >= 1:
-            _u = "sec"
-            _int = int(sec)
-        else:
-            _u = "ms"
-            _int = int(sec * 1000)
-
-        return _tp, _int, cast(Literal["ms", "sec", "min", "hours"], _u)
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._clear)
+
+
+if "__main__" == __name__:
+    import sys
+
+    from qtpy.QtWidgets import QApplication
+
+    app = QApplication(sys.argv)
+    # w = T(None)
+    w = TimePlanWidget()
+    w.show()
+    sys.exit(app.exec_())
