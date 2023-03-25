@@ -271,9 +271,7 @@ class TimePlanWidget(QGroupBox):
     def value(self) -> TimeDict:
         """Return the current time plan as a TimeDict.
 
-        Note that the output TimeDict will match [TIntervalLoopsdictionary](
-        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
-        ) or [MultiPhaseTimePlan](
+        Note that the output TimeDict will match [MultiPhaseTimePlan](
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan
         )[[TIntervalLoopsdictionary](
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
