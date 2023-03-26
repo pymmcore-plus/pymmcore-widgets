@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import timedelta
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, call
 
 from pymmcore_plus import CMMCorePlus
@@ -10,6 +11,9 @@ from pymmcore_widgets._mda import GridWidget, MDAWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
+    from qtpy.QtWidgets import QSpinBox
+
+    from pymmcore_widgets._mda._time_plan_widget import _DoubleSpinAndCombo
 
 
 def test_mda_widget_load_state(qtbot: QtBot):
@@ -195,14 +199,17 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg.time_groupbox._add_button.click()
 
     txt = (
-        "Minimum total acquisition time: 1.2000 sec."
+        "Minimum total acquisition time: 100.0000 ms."
         "\nMinimum acquisition time(s) per timepoint: 100.0000 ms."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
     assert not wdg.time_groupbox._warning_widget.isVisible()
 
     assert wdg.time_groupbox.isChecked()
-    wdg.time_groupbox._table.cellWidget(0, 2).setCurrentText("ms")
+    interval = cast("_DoubleSpinAndCombo", wdg.time_groupbox._table.cellWidget(0, 0))
+    timepoint = cast("QSpinBox", wdg.time_groupbox._table.cellWidget(0, 1))
+    interval.setValue(timedelta(milliseconds=1))
+    timepoint.setValue(2)
     assert wdg.time_groupbox._warning_widget.isVisible()
 
     txt = (
@@ -211,45 +218,27 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
 
-    wdg.time_groupbox._table.cellWidget(0, 0).setValue(3)
-
-    txt = (
-        "Minimum total acquisition time: 302.0000 ms."
-        "\nMinimum acquisition time(s) per timepoint: 100.0000 ms."
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-
-    wdg.time_groupbox._table.cellWidget(0, 1).setValue(10)
-    txt = (
-        "Minimum total acquisition time: 320.0000 ms.\n"
-        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-
-    wdg.time_groupbox._table.cellWidget(0, 1).setValue(200)
-    txt = (
-        "Minimum total acquisition time: 700.0000 ms.\n"
-        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-    assert not wdg.time_groupbox._warning_widget.isVisible()
-
     wdg.channel_groupbox._add_button.click()
     wdg.channel_groupbox._advanced_cbox.setChecked(True)
     wdg.channel_groupbox._table.cellWidget(1, 4).setValue(2)
     wdg.channel_groupbox._table.cellWidget(1, 1).setValue(100.0)
+    assert wdg.time_groupbox._warning_widget.isVisible()
+    interval.setValue(timedelta(milliseconds=200))
+    timepoint.setValue(4)
+    assert not wdg.time_groupbox._warning_widget.isVisible()
 
     txt = (
-        "Minimum total acquisition time: 900.0000 ms.\n"
+        "Minimum total acquisition time: 1.2000 sec.\n"
         "Minimum acquisition time(s) per timepoint: 200.0000 ms (100.0000 ms)."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
 
     wdg.time_groupbox._add_button.click()
-    wdg.time_groupbox._table.cellWidget(1, 0).setValue(2)
+    timepoint = cast("QSpinBox", wdg.time_groupbox._table.cellWidget(1, 1))
+    timepoint.setValue(2)
 
     txt = (
-        "Minimum total acquisition time: 2.0000 sec.\n"
+        "Minimum total acquisition time: 2.4000 sec.\n"
         "Minimum acquisition time(s) per timepoint: 200.0000 ms (100.0000 ms)."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt

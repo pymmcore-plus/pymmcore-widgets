@@ -24,7 +24,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import fonticon
-from superqt.utils import signals_blocked
 
 if TYPE_CHECKING:
     from typing_extensions import TypedDict
@@ -129,9 +128,9 @@ class TimePlanWidget(QGroupBox):
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
         self._table.verticalHeader().setVisible(False)
         self._table.setTabKeyNavigation(True)
-        self._table.setColumnCount(3)
+        self._table.setColumnCount(2)
         self._table.setRowCount(0)
-        self._table.setHorizontalHeaderLabels(["Duration", "Interval", "Timepoints"])
+        self._table.setHorizontalHeaderLabels(["Interval", "Timepoints"])
         group_layout.addWidget(self._table, 0, 0)
 
         # buttons
@@ -197,7 +196,6 @@ class TimePlanWidget(QGroupBox):
         _interval = _DoubleSpinAndCombo()
         _interval.setValue(interval or timedelta(seconds=1))
         _interval.valueChanged.connect(self.valueChanged)
-        _interval.valueChanged.connect(self._on_item_changed)
 
         _timepoints = QSpinBox()
         _timepoints.setRange(1, 1000000)
@@ -205,35 +203,11 @@ class TimePlanWidget(QGroupBox):
         _timepoints.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         _timepoints.setAlignment(Qt.AlignmentFlag.AlignCenter)
         _timepoints.valueChanged.connect(self.valueChanged)
-        _timepoints.valueChanged.connect(self._on_item_changed)
-
-        _duration = _DoubleSpinAndCombo()
-        _duration.setValue(interval or timedelta(seconds=1) * (loops - 1))
-        _duration.valueChanged.connect(self.valueChanged)
-        _duration.valueChanged.connect(self._on_item_changed)
 
         idx = self._table.rowCount()
         self._table.insertRow(idx)
-        self._table.setCellWidget(idx, 0, _duration)
-        self._table.setCellWidget(idx, 1, _interval)
-        self._table.setCellWidget(idx, 2, _timepoints)
-
-        self.valueChanged.emit()
-
-    def _on_item_changed(self) -> None:
-        row = self._table.indexAt(self.sender().pos()).row()
-        col = self._table.indexAt(self.sender().pos()).column()
-
-        duration = cast("_DoubleSpinAndCombo", self._table.cellWidget(row, 0))
-        interval = cast("_DoubleSpinAndCombo", self._table.cellWidget(row, 1))
-        timepoints = cast("QSpinBox", self._table.cellWidget(row, 2))
-
-        if col in {0, 1}:
-            with signals_blocked(timepoints):
-                timepoints.setValue(duration.value() // interval.value() + 1)
-        elif col == 2:
-            with signals_blocked(duration):
-                duration.setValue(interval.value() * (timepoints.value() - 1))
+        self._table.setCellWidget(idx, 0, _interval)
+        self._table.setCellWidget(idx, 1, _timepoints)
 
         self.valueChanged.emit()
 
@@ -284,8 +258,8 @@ class TimePlanWidget(QGroupBox):
         timeplan: TimeDict = {}
 
         if self._table.rowCount() == 1:
-            interval = cast("_DoubleSpinAndCombo", self._table.cellWidget(0, 1))
-            timepoints = cast("QSpinBox", self._table.cellWidget(0, 2))
+            interval = cast("_DoubleSpinAndCombo", self._table.cellWidget(0, 0))
+            timepoints = cast("QSpinBox", self._table.cellWidget(0, 1))
             timeplan = {
                 "interval": interval.value(),
                 "loops": timepoints.value(),
@@ -293,8 +267,8 @@ class TimePlanWidget(QGroupBox):
         else:
             timeplan = {"phases": []}
             for row in range(self._table.rowCount()):
-                interval = cast("_DoubleSpinAndCombo", self._table.cellWidget(row, 1))
-                timepoints = cast("QSpinBox", self._table.cellWidget(row, 2))
+                interval = cast("_DoubleSpinAndCombo", self._table.cellWidget(row, 0))
+                timepoints = cast("QSpinBox", self._table.cellWidget(row, 1))
                 timeplan["phases"].append(
                     {
                         "interval": interval.value(),
@@ -339,15 +313,3 @@ class TimePlanWidget(QGroupBox):
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._clear)
-
-
-if "__main__" == __name__:
-    import sys
-
-    from qtpy.QtWidgets import QApplication
-
-    app = QApplication(sys.argv)
-    # w = T(None)
-    w = TimePlanWidget()
-    w.show()
-    sys.exit(app.exec_())
