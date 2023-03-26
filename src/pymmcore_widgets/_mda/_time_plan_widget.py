@@ -271,7 +271,9 @@ class TimePlanWidget(QGroupBox):
     def value(self) -> TimeDict:
         """Return the current time plan as a TimeDict.
 
-        Note that the output TimeDict will match [MultiPhaseTimePlan](
+        Note that the output TimeDict will match [TIntervalLoopsdictionary](
+        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
+        ) or [MultiPhaseTimePlan](
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan
         )[[TIntervalLoopsdictionary](
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
@@ -279,16 +281,26 @@ class TimePlanWidget(QGroupBox):
         """
         if not self._table.rowCount():
             return {}
-        timeplan: TimeDict = {"phases": []}
-        for row in range(self._table.rowCount()):
-            interval = cast("_DoubleSpinAndCombo", self._table.cellWidget(row, 1))
-            timepoints = cast("QSpinBox", self._table.cellWidget(row, 2))
-            timeplan["phases"].append(
-                {
-                    "interval": interval.value(),
-                    "loops": timepoints.value(),
-                }
-            )
+        timeplan: TimeDict = {}
+
+        if self._table.rowCount() == 1:
+            interval = cast("_DoubleSpinAndCombo", self._table.cellWidget(0, 1))
+            timepoints = cast("QSpinBox", self._table.cellWidget(0, 2))
+            timeplan = {
+                "interval": interval.value(),
+                "loops": timepoints.value(),
+            }
+        else:
+            timeplan = {"phases": []}
+            for row in range(self._table.rowCount()):
+                interval = cast("_DoubleSpinAndCombo", self._table.cellWidget(row, 1))
+                timepoints = cast("QSpinBox", self._table.cellWidget(row, 2))
+                timeplan["phases"].append(
+                    {
+                        "interval": interval.value(),
+                        "loops": timepoints.value(),
+                    }
+                )
         return timeplan
 
     # t_plan is a TimeDicts but it makes typing elsewhere harder
