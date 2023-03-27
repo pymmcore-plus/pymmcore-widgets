@@ -174,6 +174,7 @@ class MDAWidget(QWidget):
 
         # TABS
         self._tab = QTabWidget()
+        self._tab.setMovable(True)
 
         self._checkbox_channel = QCheckBox("")
         self._checkbox_channel.setObjectName("Channels")
