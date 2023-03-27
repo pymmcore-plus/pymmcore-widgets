@@ -112,7 +112,6 @@ class TimePlanWidget(QGroupBox):
     ) -> None:
         super().__init__(title, parent=parent)
         self.setCheckable(True)
-        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
