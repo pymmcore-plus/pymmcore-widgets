@@ -57,7 +57,7 @@ class _DoubleSpinAndCombo(QWidget):
 
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setSpacing(5)
         layout.addWidget(self._spin)
         layout.addWidget(self._combo)
         self.setLayout(layout)
@@ -134,10 +134,10 @@ class TimePlanWidget(QGroupBox):
 
         # buttons
         buttons_wdg = QWidget()
-        layout = QVBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(0, 0, 0, 0)
-        buttons_wdg.setLayout(layout)
+        layout_buttons = QVBoxLayout()
+        layout_buttons.setSpacing(10)
+        layout_buttons.setContentsMargins(0, 0, 0, 0)
+        buttons_wdg.setLayout(layout_buttons)
 
         min_size = 100
         self._add_button = QPushButton(text="Add")
@@ -155,10 +155,10 @@ class TimePlanWidget(QGroupBox):
             10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
         )
 
-        layout.addWidget(self._add_button)
-        layout.addWidget(self._remove_button)
-        layout.addWidget(self._clear_button)
-        layout.addItem(spacer)
+        layout_buttons.addWidget(self._add_button)
+        layout_buttons.addWidget(self._remove_button)
+        layout_buttons.addWidget(self._clear_button)
+        layout_buttons.addItem(spacer)
 
         group_layout.addWidget(buttons_wdg, 0, 1)
 
