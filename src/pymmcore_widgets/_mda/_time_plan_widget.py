@@ -139,10 +139,13 @@ class TimePlanWidget(QGroupBox):
         layout.setContentsMargins(0, 0, 0, 0)
         buttons_wdg.setLayout(layout)
 
-        # ChannelGroup combobox
+        min_size = 100
         self._add_button = QPushButton(text="Add")
+        self._add_button.setMinimumWidth(min_size)
         self._remove_button = QPushButton(text="Remove")
+        self._remove_button.setMinimumWidth(min_size)
         self._clear_button = QPushButton(text="Clear")
+        self._clear_button.setMinimumWidth(min_size)
 
         self._add_button.clicked.connect(self._create_new_row)
         self._remove_button.clicked.connect(self._remove_selected_rows)
