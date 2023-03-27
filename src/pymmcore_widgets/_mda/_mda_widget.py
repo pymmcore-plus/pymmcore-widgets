@@ -174,7 +174,6 @@ class MDAWidget(QWidget):
 
         # TABS
         self._tab = QTabWidget()
-        self._tab.setMovable(True)
 
         self._checkbox_channel = QCheckBox("")
         self._checkbox_channel.setObjectName("Channels")
@@ -193,6 +192,7 @@ class MDAWidget(QWidget):
         self._checkbox_grid.toggled.connect(self._on_tab_checkbox_toggled)
 
         self._tabbar = TabBar(checkbox_width=self._checkbox_channel.sizeHint().width())
+        self._tabbar.setMovable(True)
 
         # set channel tab with checkbox
         cwdg = QWidget()
@@ -259,6 +259,7 @@ class MDAWidget(QWidget):
         )
 
         self._tab.setTabBar(self._tabbar)
+        self._tab.tabBar().setMovable(True)
 
         central_layout.addWidget(self._tab)
         self._central_widget = QWidget()
