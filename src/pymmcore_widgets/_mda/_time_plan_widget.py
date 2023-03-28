@@ -199,12 +199,15 @@ class TimePlanWidget(QGroupBox):
 
     def _enable_cell(self, row: int, col: int) -> None:
         """Enable editing of duration or timepoints cell."""
+        if col == 1:
+            return
         if col == 0:
             self._table.cellWidget(row, col).setEnabled(True)
             self._table.cellWidget(row, TIMEPOINTS).setEnabled(False)
         elif col == 2:
             self._table.cellWidget(row, col).setEnabled(True)
             self._table.cellWidget(row, DURATION).setEnabled(False)
+        self.valueChanged.emit()
 
     def _create_new_row(
         self,
