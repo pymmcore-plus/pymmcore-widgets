@@ -633,13 +633,23 @@ class MDAWidget(QWidget):
                 for phase in time_value["phases"]:
                     interval = phase["interval"].total_seconds()
                     intervals.append(interval)
-                    timepoints = phase["loops"]
-                    total_time = total_time + (timepoints - 1) * interval
+
+                    if phase.get("loops") is not None:
+                        total_time = total_time + (phase["loops"] - 1) * interval
+                    # elif phase.get("duration") is not None:
+                    else:
+                        total_time = total_time + phase["duration"].total_seconds()
+                    # timepoints = phase["loops"]
+                    # total_time = total_time + (timepoints - 1) * interval
             else:
-                timepoints = time_value["loops"]
                 interval = time_value["interval"].total_seconds()
                 intervals.append(interval)
-                total_time = total_time + (timepoints - 1) * interval
+                if time_value.get("loops") is not None:
+                    total_time = total_time + (time_value["loops"] - 1) * interval
+                else:
+                    total_time = total_time + time_value["duration"].total_seconds()
+                # timepoints = time_value["loops"]
+                # total_time = total_time + (timepoints - 1) * interval
 
             # check if the interval(s) is smaller than the sum of the exposure times
             sum_ch_exp = sum(

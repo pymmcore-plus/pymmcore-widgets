@@ -227,6 +227,7 @@ class TimePlanWidget(QGroupBox):
             _timepoints.setEnabled(False)
 
         _duration = _DoubleSpinAndCombo()
+        _duration.valueChanged.connect(self.valueChanged)
         if duration:
             _duration.setValue(duration)
         else:
