@@ -590,6 +590,7 @@ class MDAWidget(QWidget):
 
     def _update_total_time(self) -> None:
         """Calculate the minimum total acquisition time info."""
+        # TODO: fix me!!!!!
         if self._mmc.getChannelGroup() and self._mmc.getCurrentConfig(
             self._mmc.getChannelGroup()
         ):
