@@ -219,6 +219,7 @@ class TimePlanWidget(QGroupBox):
         _interval = _DoubleSpinAndCombo()
         _interval.setValue(interval or timedelta(seconds=1))
         _interval.valueChanged.connect(self.valueChanged)
+        # _interval._spin.valueChanged.connect(self._on_intervall_changed)
 
         _timepoints = QSpinBox()
         _timepoints.setRange(1, 1000000)
@@ -243,6 +244,16 @@ class TimePlanWidget(QGroupBox):
         self._table.setCellWidget(idx, TIMEPOINTS, _timepoints)
 
         self.valueChanged.emit()
+
+    # def _on_intervall_changed(self, value: float) -> None:
+    #     """Raise error if setting duration with interval 0."""
+    #     row = self._table.indexAt(self.sender().parent().pos()).row()
+    #     if value == 0 and self._table.cellWidget(row, DURATION).isEnabled():
+    #         self._table.cellWidget(row, DURATION).setEnabled(False)
+    #         self._table.cellWidget(row, TIMEPOINTS).setEnabled(True)
+    #         raise NotImplementedError(
+    #             "Setting the 'duration' with 0 'interval' is not yet implemented. "
+    #             "Set the number of 'timepoints' instead.")
 
     def _remove_selected_rows(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
