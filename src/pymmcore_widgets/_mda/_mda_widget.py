@@ -20,7 +20,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import signals_blocked
-from useq import MDASequence, NoGrid, NoT, NoZ  # type: ignore
+from useq import MDASequence, NoGrid, NoT, NoZ
 
 from .._util import _select_output_unit, guess_channel_group
 from ._channel_table_widget import ChannelTable
@@ -499,9 +499,9 @@ class MDAWidget(QWidget):
             self._checkbox_p.setChecked(False)
 
         # set grid
-        if state.grid_plan:  # type: ignore
+        if state.grid_plan:
             self._checkbox_g.setChecked(True)
-            self._mda_grid_wdg.set_state(state.grid_plan)  # type: ignore
+            self._mda_grid_wdg.set_state(state.grid_plan)
         else:
             self._checkbox_g.setChecked(False)
 
@@ -582,7 +582,7 @@ class MDAWidget(QWidget):
                     p_sequence = p_sequence.replace(
                         axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
                     )
-                    p_sequence.set_fov_size((width, height))  # type: ignore
+                    p_sequence.set_fov_size((width, height))
                     p["sequence"] = p_sequence
 
                 stage_positions.append(p)
@@ -602,7 +602,7 @@ class MDAWidget(QWidget):
             time_plan=time_plan,
             grid_plan=grid_plan,
         )
-        sequence.set_fov_size((width, height))  # type: ignore
+        sequence.set_fov_size((width, height))
 
         return sequence
 
