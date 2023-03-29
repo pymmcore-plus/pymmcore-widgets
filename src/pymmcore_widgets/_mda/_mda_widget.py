@@ -255,7 +255,7 @@ class MDAWidget(QWidget):
                     p_sequence = p_sequence.replace(
                         axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
                     )
-                    p_sequence.set_fov_size((width, height))  # type: ignore
+                    p_sequence.set_fov_size((width, height))
                     p["sequence"] = p_sequence
 
                 stage_positions.append(p)
@@ -270,7 +270,7 @@ class MDAWidget(QWidget):
             z_plan=z_plan,
             time_plan=time_plan,
         )
-        sequence.set_fov_size((width, height))  # type: ignore
+        sequence.set_fov_size((width, height))
 
         return sequence
 

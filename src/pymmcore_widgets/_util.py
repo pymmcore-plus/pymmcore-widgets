@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, ContextManager, Sequence
 
 from pydantic import ValidationError
@@ -14,7 +15,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import signals_blocked
-from useq import AnyGridPlan, GridFromEdges, GridRelative, NoGrid  # type: ignore
+from useq import AnyGridPlan, GridFromEdges, GridRelative, NoGrid
 
 if TYPE_CHECKING:
     from typing_extensions import Required, TypedDict
@@ -124,11 +125,10 @@ def block_core(mmcore_events: CMMCoreSignaler | PCoreSignaler) -> ContextManager
 
 def get_grid_type(grid: GridDict) -> AnyGridPlan:
     """Get the grid type from the grid_plan."""
-    try:
-        grid_type = GridRelative(**grid)
-    except ValidationError:
-        try:
-            grid_type = GridFromEdges(**grid)
-        except ValidationError:
-            grid_type = NoGrid()
-    return grid_type
+    with contextlib.suppress(ValidationError):
+        return GridRelative(**grid)
+    with contextlib.suppress(ValidationError):
+        return GridFromEdges(**grid)
+    with contextlib.suppress(ValidationError):
+        return NoGrid()
+    return NoGrid()
