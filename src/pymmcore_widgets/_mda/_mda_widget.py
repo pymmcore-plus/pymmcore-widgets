@@ -505,7 +505,6 @@ class MDAWidget(QWidget):
         else:
             self._checkbox_g.setChecked(False)
 
-    # should return TimeDict | NoT
     def _get_time_plan(self, total_exp_ms: float | None) -> TimeDict | NoT:
         """Determine time plan."""
         t_plan = (
@@ -518,10 +517,10 @@ class MDAWidget(QWidget):
         if isinstance(t_plan, NoT) or not total_exp_ms:
             return NoT()
 
-        t_plan = cast(TimeDict, t_plan)
+        t_plan = cast("TimeDict", t_plan)
         if t_plan.get("phases"):
             for t in t_plan["phases"]:
-                t = cast(TimeDict, t)
+                t = cast("TimeDict", t)
                 interval = t["interval"]
                 duration = t.get("duration")
 
