@@ -27,7 +27,7 @@ from ._channel_table_widget import ChannelTable
 from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
 from ._grid_widget import GridWidget
 from ._positions_table_widget import PositionTable
-from ._time_plan_widget import TimeDict, TimePlanWidget
+from ._time_plan_widget import TimePlanWidget
 from ._zstack_widget import ZStackWidget
 
 if TYPE_CHECKING:
@@ -41,6 +41,14 @@ if TYPE_CHECKING:
         z: float | None
         name: str | None
         sequence: MDASequence | None
+
+    class TimeDict(TypedDict, total=False):
+        """Time plan dictionary."""
+
+        phases: list
+        interval: timedelta
+        loops: int
+        duration: timedelta
 
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
