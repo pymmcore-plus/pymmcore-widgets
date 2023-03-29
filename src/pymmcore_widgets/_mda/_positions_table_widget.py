@@ -30,7 +30,7 @@ from qtpy.QtWidgets import (
 from superqt import fonticon
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
-from useq import (  # type: ignore
+from useq import (
     GridFromEdges,
     GridRelative,
     MDASequence,
@@ -582,7 +582,7 @@ class PositionTable(QGroupBox):
             if pos_seq := position.get("sequence"):
                 self._advanced_cbox.setChecked(True)
                 if isinstance(pos_seq, MDASequence):
-                    grid_plan = cast(GridDict, pos_seq.grid_plan.dict())  # type: ignore
+                    grid_plan = cast(GridDict, pos_seq.grid_plan.dict())
                 else:
                     grid_plan = pos_seq.get("grid_plan")
                 if grid_plan:

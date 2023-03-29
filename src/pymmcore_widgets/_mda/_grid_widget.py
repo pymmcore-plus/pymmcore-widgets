@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
@@ -24,7 +24,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import AnyGridPlan, GridFromEdges, GridRelative, NoGrid  # type: ignore
+from useq import AnyGridPlan, GridFromEdges, GridRelative, NoGrid
 from useq._grid import OrderMode, RelativeTo
 
 from .._util import get_grid_type
@@ -411,8 +411,11 @@ class GridWidget(QDialog):
         return group
 
     def _move_to_row_col(self) -> None:
+        grid: AnyGridPlan = NoGrid()
+        curr_x, curr_y = self._current_stage_pos
+
         if self.tab.currentIndex() == 0:
-            if None in self._current_stage_pos:
+            if curr_x is None or curr_y is None:
                 return
             grid = GridRelative(**self.value())
         else:
@@ -431,8 +434,8 @@ class GridWidget(QDialog):
         for pos in grid.iter_grid_positions(width, height):
             if pos.row == row and pos.col == col:
                 if isinstance(grid, GridRelative):
-                    xpos = self._current_stage_pos[0] + pos.x
-                    ypos = self._current_stage_pos[1] + pos.y
+                    xpos = cast(float, curr_x) + pos.x
+                    ypos = cast(float, curr_y) + pos.y
                 else:
                     xpos = pos.x
                     ypos = pos.y
@@ -558,7 +561,7 @@ class GridWidget(QDialog):
         # " class and instance checks") in python 3.8 and 3.9 we don't use
         # if isinstance(grid, AnyGridPlan):
         if isinstance(grid, (GridRelative, GridFromEdges, NoGrid)):
-            grid = grid.dict()
+            grid = cast(GridDict, grid.dict())
 
         overlap = grid.get("overlap") or 0.0
         over_x, over_y = (
