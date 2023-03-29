@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import warnings
+from datetime import timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
@@ -26,7 +27,7 @@ from ._channel_table_widget import ChannelTable
 from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
 from ._grid_widget import GridWidget
 from ._positions_table_widget import PositionTable
-from ._time_plan_widget import TimePlanWidget
+from ._time_plan_widget import TimeDict, TimePlanWidget
 from ._zstack_widget import ZStackWidget
 
 if TYPE_CHECKING:
@@ -496,6 +497,46 @@ class MDAWidget(QWidget):
         else:
             self._checkbox_g.setChecked(False)
 
+    # should return TimeDict | NoT
+    def _get_time_plan(self, total_exp_ms: float | None) -> TimeDict | NoT:
+        """Determine time plan."""
+        t_plan = (
+            self.time_groupbox.value()
+            if self._checkbox_t.isChecked()
+            and self.time_groupbox._table.rowCount() >= 1
+            else NoT()
+        )
+
+        if isinstance(t_plan, NoT) or not total_exp_ms:
+            return NoT()
+
+        t_plan = cast(TimeDict, t_plan)
+        if t_plan.get("phases"):
+            for t in t_plan["phases"]:
+                t = cast(TimeDict, t)
+                interval = t["interval"]
+                duration = t.get("duration")
+
+                # if using duration and interval is 0, set interval equal to
+                # the sum of the channels exposure time. Otherwise we will get a
+                # useq-shema ZeroDivisionError (because loops is defined as
+                # duration / interval)
+                if duration is not None and interval.total_seconds() == 0:
+                    t["interval"] = timedelta(seconds=(total_exp_ms / 1000))
+
+        else:
+            interval = t_plan["interval"]
+            duration = t_plan.get("duration")
+
+            # if using duration and interval is 0, set interval equal to
+            # the sum of the channels exposure time. Otherwise we will get a
+            # useq-shema ZeroDivisionError (because loops is defined as
+            # duration / interval)
+            if duration is not None and interval.total_seconds() == 0:
+                t_plan["interval"] = timedelta(seconds=total_exp_ms / 1000)
+
+        return t_plan
+
     def get_state(self) -> MDASequence:
         """Get current state of widget and build a useq.MDASequence.
 
@@ -520,9 +561,8 @@ class MDAWidget(QWidget):
 
         z_plan = self.stack_groupbox.value() if self._checkbox_z.isChecked() else NoZ()
 
-        time_plan = (
-            self.time_groupbox.value() if self._checkbox_t.isChecked() else NoT()
-        )
+        exposure_sum = sum(c["exposure"] for c in channels if c["exposure"] is not None)
+        time_plan = self._get_time_plan(exposure_sum)
 
         stage_positions: list[PositionDict] = []
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
