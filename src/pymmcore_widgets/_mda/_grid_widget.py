@@ -561,7 +561,7 @@ class GridWidget(QDialog):
         # " class and instance checks") in python 3.8 and 3.9 we don't use
         # if isinstance(grid, AnyGridPlan):
         if isinstance(grid, (GridRelative, GridFromEdges, NoGrid)):
-            grid = cast(GridDict, grid.dict())
+            grid = cast("GridDict", grid.dict())
 
         overlap = grid.get("overlap") or 0.0
         over_x, over_y = (
