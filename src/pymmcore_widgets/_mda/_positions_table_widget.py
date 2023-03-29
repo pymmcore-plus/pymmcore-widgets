@@ -4,14 +4,17 @@ import warnings
 from itertools import groupby
 from typing import TYPE_CHECKING, cast
 
-from pymmcore_plus import CMMCorePlus
+from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
+    QComboBox,
     QDoubleSpinBox,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
@@ -36,6 +39,7 @@ if TYPE_CHECKING:
         name: str | None
 
 
+POS = "Pos"
 AlignCenter = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
 
 
@@ -63,7 +67,7 @@ class PositionTable(QGroupBox):
 
         self.setCheckable(True)
 
-        group_layout = QHBoxLayout()
+        group_layout = QGridLayout()
         group_layout.setSpacing(15)
         group_layout.setContentsMargins(10, 10, 10, 10)
         self.setLayout(group_layout)
@@ -75,10 +79,11 @@ class PositionTable(QGroupBox):
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
         self._table.verticalHeader().setVisible(False)
         self._table.setTabKeyNavigation(True)
-        self._table.setColumnCount(4)
+        # self._table.setColumnCount(4)
+        self._table.setColumnCount(5)
         self._table.setRowCount(0)
-        self._table.setHorizontalHeaderLabels(["Pos", "X", "Y", "Z"])
-        group_layout.addWidget(self._table)
+        # self._table.setHorizontalHeaderLabels(["Pos", "X", "Y", "Z"])
+        group_layout.addWidget(self._table, 0, 0)
 
         # buttons
         wdg = QWidget()
@@ -118,7 +123,7 @@ class PositionTable(QGroupBox):
         layout.addWidget(self.go_button)
         layout.addItem(spacer)
 
-        group_layout.addWidget(wdg)
+        group_layout.addWidget(wdg, 0, 1)
 
         self.add_button.clicked.connect(self._add_position)
         self.remove_button.clicked.connect(self._remove_position)
@@ -134,9 +139,167 @@ class PositionTable(QGroupBox):
             self._select_all_grid_positions
         )
 
-        self._mmc.events.systemConfigurationLoaded.connect(self._clear_positions)
+        # bottom widget
+        bottom_wdg = QWidget()
+        bottom_wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        bottom_wdg_layout = QHBoxLayout()
+        bottom_wdg_layout.setSpacing(15)
+        bottom_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_wdg.setLayout(bottom_wdg_layout)
+        group_layout.addWidget(bottom_wdg, 1, 0, 1, 2)
+        # z stage combo widget
+        combo_wdg = QWidget()
+        combo_wdg_layout = QHBoxLayout()
+        combo_wdg_layout.setSpacing(5)
+        combo_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        combo_wdg.setLayout(combo_wdg_layout)
+        bottom_wdg_layout.addWidget(combo_wdg)
+        # focus
+        focus_lbl = QLabel("Z Focus:")
+        focus_lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.z_focus_combo = QComboBox()
+        self.z_focus_combo.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.z_focus_combo.currentTextChanged.connect(self._on_z_focus_changed)
+        combo_wdg_layout.addWidget(focus_lbl)
+        combo_wdg_layout.addWidget(self.z_focus_combo)
+        spacer = QSpacerItem(15, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        combo_wdg_layout.addSpacerItem(spacer)
+        # autofocus
+        self.autofocus_lbl = QLabel("Z AutoFocus:")
+        self.autofocus_lbl.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
+        self.z_autofocus_combo = QComboBox()
+        self.z_autofocus_combo.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.z_autofocus_combo.currentTextChanged.connect(self._on_z_autofocus_changed)
+        self.autofocus_lbl.hide()
+        self.z_autofocus_combo.hide()
+        combo_wdg_layout.addWidget(self.autofocus_lbl)
+        combo_wdg_layout.addWidget(self.z_autofocus_combo)
+
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
+        self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
         self.destroyed.connect(self._disconnect)
+
+        self._on_sys_cfg_loaded()
+
+    def _on_sys_cfg_loaded(self) -> None:
+        self._clear_positions()
+        self._set_table_header()
+        self._table.setColumnHidden(self._table.columnCount() - 1, True)
+        self._populate_combo()
+        if self._mmc.getLoadedDevicesOfType(DeviceType.AutoFocus):
+            self.autofocus_lbl.show()
+            self.z_autofocus_combo.show()
+
+    def _on_property_changed(self, device: str, prop: str, value: str) -> None:
+        if device != "Core" or prop != "Focus":
+            return
+
+        if self.z_autofocus_combo.currentText() == "None":
+            with signals_blocked(self.z_focus_combo):
+                self.z_focus_combo.setCurrentText(value or "None")
+
+        if (
+            self.z_autofocus_combo.currentText() != "None"
+            and value != self.z_autofocus_combo.currentText()
+        ):
+            with signals_blocked(self.z_autofocus_combo):
+                self.z_autofocus_combo.setCurrentText(value)
+
+        _range = (
+            (3, self._table.columnCount() - 1)
+            if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+            else (0, self._table.columnCount() - 1)
+        )
+        for i in range(_range[0], _range[1]):
+            if not value:
+                self._table.setColumnHidden(i, True)
+            elif i == 0:
+                self._table.setColumnHidden(i, False)
+            else:
+                col_name = self._table.horizontalHeaderItem(i).text()
+                self._table.setColumnHidden(i, col_name != value)
+
+    def _set_table_header(self) -> None:
+        self._table.setColumnCount(0)
+
+        if not self._mmc.getLoadedDevicesOfType(
+            DeviceType.XYStageDevice
+        ) and not self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice):
+            self._clear_positions()
+            return
+
+        header = (
+            [POS]
+            + (
+                ["X", "Y"]
+                if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+                else []
+            )
+            + list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
+            + ["Grid"]
+        )
+
+        self._table.setColumnCount(len(header))
+        self._table.setHorizontalHeaderLabels(header)
+        self._hide_header_columns(header)
+
+    def _hide_header_columns(self, header: list[str]) -> None:
+        for idx, c in enumerate(header):
+            if c == "Grid":
+                continue
+
+            if c == POS and (
+                not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+                and not self._mmc.getFocusDevice()
+            ):
+                self._table.setColumnHidden(idx, True)
+
+            elif c in {"X", "Y"} and not self._mmc.getLoadedDevicesOfType(
+                DeviceType.XYStageDevice
+            ):
+                self._table.setColumnHidden(idx, True)
+
+            elif c not in {POS, "X", "Y"}:
+                self._table.setColumnHidden(idx, self._mmc.getFocusDevice() != c)
+
+    def _populate_combo(self) -> None:
+        items = [
+            "None",
+            *list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice)),
+        ]
+        with signals_blocked(self.z_focus_combo):
+            self.z_focus_combo.clear()
+            self.z_focus_combo.addItems(items)
+            self.z_focus_combo.setCurrentText(self._mmc.getFocusDevice() or "None")
+        with signals_blocked(self.z_autofocus_combo):
+            self.z_autofocus_combo.clear()
+            self.z_autofocus_combo.addItems(items)
+            self.z_autofocus_combo.setCurrentText("None")
+
+    def _on_z_focus_changed(self, focus_stage: str) -> None:
+        if self.z_autofocus_combo.currentText() != "None":
+            return
+
+        if focus_stage == "None":
+            _range = (
+                (3, self._table.columnCount() - 1)
+                if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+                else (0, self._table.columnCount() - 1)
+            )
+            for c in range(_range[0], _range[1]):
+                self._table.setColumnHidden(c, True)
+            focus_stage = ""
+
+        self._mmc.setFocusDevice(focus_stage)
+
+    def _on_z_autofocus_changed(self, autofocus_stage: str) -> None:
+        if autofocus_stage == "None":
+            self._on_z_focus_changed(self.z_focus_combo.currentText())
+        else:
+            self._mmc.setFocusDevice(autofocus_stage)
 
     def _enable_go_button(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
@@ -445,4 +608,4 @@ class PositionTable(QGroupBox):
         self.valueChanged.emit()
 
     def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self._clear_positions)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
