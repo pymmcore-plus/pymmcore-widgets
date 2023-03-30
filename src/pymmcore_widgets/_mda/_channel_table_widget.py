@@ -202,7 +202,8 @@ class ChannelTable(QGroupBox):
 
         if not state:
             for v in self.value():
-                if v["z_offset"] > 0 or not v["do_stack"] or v["acquire_every"] > 1:
+                # if any of the advanced settings are different from their default
+                if v["z_offset"] != 0 or not v["do_stack"] or v["acquire_every"] != 1:
                     self._warn_icon.show()
                     return
         self._warn_icon.hide()
@@ -377,7 +378,8 @@ class ChannelTable(QGroupBox):
                     ch, exposure, group, z_offset, do_stack, acquire_every
                 )
 
-                if z_offset != 0.0 or not do_stack or acquire_every > 1:
+                # if any of the advanced settings are different from their default
+                if z_offset != 0.0 or not do_stack or acquire_every != 1:
                     _advanced_bool = True
 
             self._advanced_cbox.setChecked(_advanced_bool)
