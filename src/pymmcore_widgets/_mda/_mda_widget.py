@@ -358,7 +358,6 @@ class MDAWidget(QWidget):
             self._tab.setCurrentIndex(self._tab_order["Channels"])
             self.channel_groupbox.setEnabled(checked)
             self._enable_run_btn()
-            self._update_total_time()
         elif _sender == "ZStack":
             self._tab.setCurrentIndex(self._tab_order["ZStack"])
             self.stack_groupbox.setEnabled(checked)
@@ -372,7 +371,7 @@ class MDAWidget(QWidget):
         elif _sender == "Grid":
             self._tab.setCurrentIndex(self._tab_order["Grid"])
             self.grid_groupbox.setEnabled(checked)
-            self._update_total_time()
+        self._update_total_time()
 
     def _enable_run_btn(self) -> None:
         """Enable run button.
