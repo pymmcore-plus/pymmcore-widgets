@@ -79,10 +79,8 @@ class PositionTable(QGroupBox):
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
         self._table.verticalHeader().setVisible(False)
         self._table.setTabKeyNavigation(True)
-        # self._table.setColumnCount(4)
-        self._table.setColumnCount(5)
+        self._table.setColumnCount(4)
         self._table.setRowCount(0)
-        # self._table.setHorizontalHeaderLabels(["Pos", "X", "Y", "Z"])
         group_layout.addWidget(self._table, 0, 0)
 
         # buttons
@@ -187,7 +185,6 @@ class PositionTable(QGroupBox):
     def _on_sys_cfg_loaded(self) -> None:
         self._clear_positions()
         self._set_table_header()
-        self._table.setColumnHidden(self._table.columnCount() - 1, True)
         self._populate_combo()
         if self._mmc.getLoadedDevicesOfType(DeviceType.AutoFocus):
             self.autofocus_lbl.show()
@@ -209,18 +206,22 @@ class PositionTable(QGroupBox):
                 self.z_autofocus_combo.setCurrentText(value)
 
         _range = (
-            (3, self._table.columnCount() - 1)
+            None
             if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
             else (0, self._table.columnCount() - 1)
         )
-        for i in range(_range[0], _range[1]):
-            if not value:
-                self._table.setColumnHidden(i, True)
-            elif i == 0:
-                self._table.setColumnHidden(i, False)
-            else:
-                col_name = self._table.horizontalHeaderItem(i).text()
-                self._table.setColumnHidden(i, col_name != value)
+        if _range:
+            for i in range(_range[0], _range[1]):
+                if not value:
+                    self._table.setColumnHidden(i, True)
+                elif i == 0:
+                    self._table.setColumnHidden(i, False)
+                else:
+                    col_name = self._table.horizontalHeaderItem(i).text()
+                    self._table.setColumnHidden(i, col_name != value)
+
+        else:
+            self._table.setColumnHidden(3, not value)
 
     def _set_table_header(self) -> None:
         self._table.setColumnCount(0)
@@ -239,8 +240,9 @@ class PositionTable(QGroupBox):
                 else []
             )
             + list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
-            + ["Grid"]
         )
+
+        print(header)
 
         self._table.setColumnCount(len(header))
         self._table.setHorizontalHeaderLabels(header)
@@ -248,8 +250,7 @@ class PositionTable(QGroupBox):
 
     def _hide_header_columns(self, header: list[str]) -> None:
         for idx, c in enumerate(header):
-            if c == "Grid":
-                continue
+            print(c)
 
             if c == POS and (
                 not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
@@ -263,6 +264,7 @@ class PositionTable(QGroupBox):
                 self._table.setColumnHidden(idx, True)
 
             elif c not in {POS, "X", "Y"}:
+                print(idx, self._mmc.getFocusDevice() != c)
                 self._table.setColumnHidden(idx, self._mmc.getFocusDevice() != c)
 
     def _populate_combo(self) -> None:
@@ -285,12 +287,15 @@ class PositionTable(QGroupBox):
 
         if focus_stage == "None":
             _range = (
-                (3, self._table.columnCount() - 1)
+                None
                 if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
                 else (0, self._table.columnCount() - 1)
             )
-            for c in range(_range[0], _range[1]):
-                self._table.setColumnHidden(c, True)
+            if _range:
+                for c in range(_range[0], _range[1]):
+                    self._table.setColumnHidden(c, True)
+            else:
+                self._table.setColumnHidden(3, True)
             focus_stage = ""
 
         self._mmc.setFocusDevice(focus_stage)
