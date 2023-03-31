@@ -242,16 +242,12 @@ class PositionTable(QGroupBox):
             + list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
         )
 
-        print(header)
-
         self._table.setColumnCount(len(header))
         self._table.setHorizontalHeaderLabels(header)
         self._hide_header_columns(header)
 
     def _hide_header_columns(self, header: list[str]) -> None:
         for idx, c in enumerate(header):
-            print(c)
-
             if c == POS and (
                 not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
                 and not self._mmc.getFocusDevice()
@@ -264,7 +260,6 @@ class PositionTable(QGroupBox):
                 self._table.setColumnHidden(idx, True)
 
             elif c not in {POS, "X", "Y"}:
-                print(idx, self._mmc.getFocusDevice() != c)
                 self._table.setColumnHidden(idx, self._mmc.getFocusDevice() != c)
 
     def _populate_combo(self) -> None:
