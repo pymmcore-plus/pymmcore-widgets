@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from datetime import timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
@@ -504,45 +504,6 @@ class MDAWidget(QWidget):
         else:
             self._checkbox_g.setChecked(False)
 
-    def _get_time_plan(self, total_exp_ms: float | None) -> TimeDict | NoT:
-        """Determine time plan."""
-        t_plan = (
-            self.time_groupbox.value()
-            if self._checkbox_t.isChecked()
-            and self.time_groupbox._table.rowCount() >= 1
-            else NoT()
-        )
-
-        if isinstance(t_plan, NoT) or not total_exp_ms:
-            return NoT()
-
-        t_plan = cast("TimeDict", t_plan)
-        if t_plan.get("phases"):
-            for t in t_plan["phases"]:
-                t = cast("TimeDict", t)
-                interval = t["interval"]
-                duration = t.get("duration")
-
-                # if using duration and interval is 0, set interval equal to
-                # the sum of the channels exposure time. Otherwise we will get a
-                # useq-shema ZeroDivisionError (because loops is defined as
-                # duration / interval)
-                if duration is not None and interval.total_seconds() == 0:
-                    t["interval"] = timedelta(seconds=(total_exp_ms / 1000))
-
-        else:
-            interval = t_plan["interval"]
-            duration = t_plan.get("duration")
-
-            # if using duration and interval is 0, set interval equal to
-            # the sum of the channels exposure time. Otherwise we will get a
-            # useq-shema ZeroDivisionError (because loops is defined as
-            # duration / interval)
-            if duration is not None and interval.total_seconds() == 0:
-                t_plan["interval"] = timedelta(seconds=total_exp_ms / 1000)
-
-        return t_plan
-
     def get_state(self) -> MDASequence:
         """Get current state of widget and build a useq.MDASequence.
 
@@ -567,8 +528,12 @@ class MDAWidget(QWidget):
 
         z_plan = self.stack_groupbox.value() if self._checkbox_z.isChecked() else NoZ()
 
-        exposure_sum = sum(c["exposure"] for c in channels if c["exposure"] is not None)
-        time_plan = self._get_time_plan(exposure_sum)
+        time_plan = (
+            self.time_groupbox.value()
+            if self._checkbox_t.isChecked()
+            and self.time_groupbox._table.rowCount() >= 1
+            else NoT()
+        )
 
         stage_positions: list[PositionDict] = []
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
@@ -683,11 +648,9 @@ class MDAWidget(QWidget):
 
                     if phase.get("loops") is not None:
                         total_time = total_time + (phase["loops"] - 1) * interval
-                    # elif phase.get("duration") is not None:
                     else:
                         total_time = total_time + phase["duration"].total_seconds()
-                    # timepoints = phase["loops"]
-                    # total_time = total_time + (timepoints - 1) * interval
+
             else:
                 interval = time_value["interval"].total_seconds()
                 intervals.append(interval)
@@ -695,8 +658,6 @@ class MDAWidget(QWidget):
                     total_time = total_time + (time_value["loops"] - 1) * interval
                 else:
                     total_time = total_time + time_value["duration"].total_seconds()
-                # timepoints = time_value["loops"]
-                # total_time = total_time + (timepoints - 1) * interval
 
             # check if the interval(s) is smaller than the sum of the exposure times
             sum_ch_exp = sum(
@@ -722,18 +683,9 @@ class MDAWidget(QWidget):
                 min_aq_tp, _tp_unit = _select_output_unit(float(_per_timepoints[0]))
                 t_per_tp_msg = f"{t_per_tp_msg}{min_aq_tp:.4f} {_tp_unit}."
             else:
-                # print longest timepoint first and other in brackets
-                _tp = []
-                for idx, i in enumerate(sorted(_per_timepoints.values(), reverse=True)):
-                    aq, u = _select_output_unit(float(i))
-                    if idx == 0:
-                        t_per_tp_msg = f"{t_per_tp_msg}{aq:.4f} {u} ("
-                    elif (aq, u) in _tp:
-                        continue
-                    else:
-                        t_per_tp_msg = f"{t_per_tp_msg}{aq:.4f} {u},  "
-                    _tp.append((aq, u))
-                t_per_tp_msg = f"{t_per_tp_msg[:-3]})."
+                # print shortest timepoint
+                aq, u = _select_output_unit(min(_per_timepoints.values()))
+                t_per_tp_msg = f"{t_per_tp_msg}{aq:.4f} {u}."
 
         _min_tot_time, _unit = _select_output_unit(total_time)
         tot_acq_msg = f"Minimum total acquisition time: {_min_tot_time:.4f} {_unit}."
