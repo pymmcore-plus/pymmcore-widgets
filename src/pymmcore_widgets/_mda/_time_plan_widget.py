@@ -37,9 +37,8 @@ if TYPE_CHECKING:
         duration: timedelta
 
 
-DURATION = 0
-INTERVAL = 1
-TIMEPOINTS = 2
+INTERVAL = 0
+TIMEPOINTS = 1
 
 
 class _DoubleSpinAndCombo(QWidget):
@@ -133,9 +132,9 @@ class TimePlanWidget(QGroupBox):
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
         self._table.verticalHeader().setVisible(False)
         self._table.setTabKeyNavigation(True)
-        self._table.setColumnCount(3)
+        self._table.setColumnCount(2)
         self._table.setRowCount(0)
-        self._table.setHorizontalHeaderLabels(["Durations", "Interval", "Timepoints"])
+        self._table.setHorizontalHeaderLabels(["Interval", "Timepoints"])
         group_layout.addWidget(self._table, 0, 0)
 
         # buttons
@@ -191,29 +190,14 @@ class TimePlanWidget(QGroupBox):
 
         group_layout.addWidget(self._warning_widget, 1, 0, 1, 2)
 
-        self._table.cellClicked.connect(self._enable_cell)
-
         self._mmc.events.systemConfigurationLoaded.connect(self._clear)
 
         self.destroyed.connect(self._disconnect)
-
-    def _enable_cell(self, row: int, col: int) -> None:
-        """Enable editing of duration or timepoints cell."""
-        if col == 1:
-            return
-        if col == 0:
-            self._table.cellWidget(row, col).setEnabled(True)
-            self._table.cellWidget(row, TIMEPOINTS).setEnabled(False)
-        elif col == 2:
-            self._table.cellWidget(row, col).setEnabled(True)
-            self._table.cellWidget(row, DURATION).setEnabled(False)
-        self.valueChanged.emit()
 
     def _create_new_row(
         self,
         interval: timedelta | None = None,
         loops: int | None = None,
-        duration: timedelta | None = None,
     ) -> None:
         """Create a new row in the table."""
         _interval = _DoubleSpinAndCombo()
@@ -226,19 +210,9 @@ class TimePlanWidget(QGroupBox):
         _timepoints.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         _timepoints.setAlignment(Qt.AlignmentFlag.AlignCenter)
         _timepoints.valueChanged.connect(self.valueChanged)
-        if duration:
-            _timepoints.setEnabled(False)
-
-        _duration = _DoubleSpinAndCombo()
-        _duration.valueChanged.connect(self.valueChanged)
-        if duration:
-            _duration.setValue(duration)
-        else:
-            _duration.setEnabled(False)
 
         idx = self._table.rowCount()
         self._table.insertRow(idx)
-        self._table.setCellWidget(idx, DURATION, _duration)
         self._table.setCellWidget(idx, INTERVAL, _interval)
         self._table.setCellWidget(idx, TIMEPOINTS, _timepoints)
 
@@ -253,7 +227,7 @@ class TimePlanWidget(QGroupBox):
         self.valueChanged.emit()
 
     def _clear(self) -> None:
-        """Clear the channel table."""
+        """Clear the time table."""
         if self._table.rowCount():
             self._table.clearContents()
             self._table.setRowCount(0)
@@ -280,14 +254,10 @@ class TimePlanWidget(QGroupBox):
 
         Note that the output TimeDict will match [TIntervalLoopsdictionary](
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
-        ) or [TIntervalDuration](
-        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalDuration
         ) or [MultiPhaseTimePlan](
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan
         )[[TIntervalLoopsdictionary](
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
-        ) | [TIntervalDuration](
-        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalDuration
         )] from useq schema.
         """
         if not self._table.rowCount():
@@ -296,34 +266,19 @@ class TimePlanWidget(QGroupBox):
         timeplan: TimeDict = {}
 
         if self._table.rowCount() == 1:
-            duration = cast("_DoubleSpinAndCombo", self._table.cellWidget(0, DURATION))
             interval = cast("_DoubleSpinAndCombo", self._table.cellWidget(0, INTERVAL))
             timepoints = cast("QSpinBox", self._table.cellWidget(0, TIMEPOINTS))
-
-            if duration.isEnabled():
-                timeplan = {"interval": interval.value(), "duration": duration.value()}
-            else:
-                timeplan = {"interval": interval.value(), "loops": timepoints.value()}
-
+            timeplan = {"interval": interval.value(), "loops": timepoints.value()}
         else:
             timeplan = {"phases": []}
             for row in range(self._table.rowCount()):
-                duration = cast(
-                    "_DoubleSpinAndCombo", self._table.cellWidget(row, DURATION)
-                )
                 interval = cast(
                     "_DoubleSpinAndCombo", self._table.cellWidget(row, INTERVAL)
                 )
                 timepoints = cast("QSpinBox", self._table.cellWidget(row, TIMEPOINTS))
-
-                if duration.isEnabled():
-                    timeplan["phases"].append(
-                        {"interval": interval.value(), "duration": duration.value()}
-                    )
-                else:
-                    timeplan["phases"].append(
-                        {"interval": interval.value(), "loops": timepoints.value()}
-                    )
+                timeplan["phases"].append(
+                    {"interval": interval.value(), "loops": timepoints.value()}
+                )
         return timeplan
 
     # t_plan is a TimeDicts but it makes typing elsewhere harder
@@ -332,56 +287,35 @@ class TimePlanWidget(QGroupBox):
 
         Note that the output TimeDict will match [TIntervalLoopsdictionary](
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
-        ) or [TIntervalDuration](
-        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalDuration
         ) or [MultiPhaseTimePlan](
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan
         )[[TIntervalLoopsdictionary](
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
-        ) | [TIntervalDuration](
-        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalDuration
         )] from useq schema.
+
+        If the `interval` key is not a `timedelta` object, it will be converted to a
+        timedelta object and will be considered as expressed in seconds.
         """
         self._clear()
 
         if "phases" in t_plan:
             for t in t_plan["phases"]:
                 self._check_dict(t)
-                self._create_new_row(
-                    interval=t["interval"],
-                    loops=t.get("loops"),
-                    duration=t.get("duration"),
-                )
+                self._create_new_row(interval=t["interval"], loops=t["loops"])
         else:
             self._check_dict(t_plan)
-            self._create_new_row(
-                interval=t_plan["interval"],
-                loops=t_plan.get("loops"),
-                duration=t_plan.get("duration"),
-            )
+            self._create_new_row(interval=t_plan["interval"], loops=t_plan["loops"])
 
     # t_plan is a TimeDicts but it makes typing elsewhere harder
     def _check_dict(self, t_plan: dict) -> None:
         """Check if the timeplan is valid."""
-        if "interval" not in t_plan:
-            raise NotImplementedError(
-                "time_plans dictionary must incluede 'interval' key."
+        if "interval" not in t_plan or "loops" not in t_plan:
+            raise KeyError(
+                "The time_plans dictionary must incluede 'interval' and 'loop' keys."
             )
-
+        # if the interval is not a timedelta object, convert it to a seconds timedelta
         if not isinstance(t_plan["interval"], timedelta):
-            raise ValueError(
-                "Only time_plans with 'interval' as 'timedelta' supported."
-            )
-
-        if "loops" not in t_plan and "duration" not in t_plan:
-            raise NotImplementedError(
-                "time_plans dictionary must incluede 'loops' or 'duration' keys."
-            )
-
-        if t_plan.get("duration") and not isinstance(t_plan["duration"], timedelta):
-            raise ValueError(
-                "Only time_plans with 'duration' as 'timedelta' supported."
-            )
+            t_plan["interval"] = timedelta(seconds=t_plan["interval"])
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._clear)

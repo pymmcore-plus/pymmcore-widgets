@@ -206,8 +206,8 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not wdg.time_groupbox._warning_widget.isVisible()
 
     assert wdg.time_groupbox.isChecked()
-    interval = cast("_DoubleSpinAndCombo", wdg.time_groupbox._table.cellWidget(0, 1))
-    timepoint = cast("QSpinBox", wdg.time_groupbox._table.cellWidget(0, 2))
+    interval = cast("_DoubleSpinAndCombo", wdg.time_groupbox._table.cellWidget(0, 0))
+    timepoint = cast("QSpinBox", wdg.time_groupbox._table.cellWidget(0, 1))
     interval.setValue(timedelta(milliseconds=1))
     timepoint.setValue(2)
     assert wdg.time_groupbox._warning_widget.isVisible()
@@ -234,7 +234,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.time_lbl._total_time_lbl.text() == txt
 
     wdg.time_groupbox._add_button.click()
-    timepoint = cast("QSpinBox", wdg.time_groupbox._table.cellWidget(1, 2))
+    timepoint = cast("QSpinBox", wdg.time_groupbox._table.cellWidget(1, 1))
     timepoint.setValue(2)
 
     txt = (
