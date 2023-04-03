@@ -58,7 +58,7 @@ GROUP_STYLE = (
 )
 
 CHANNELS = ("Channels", 0)
-ZSTACK = ("ZStack", 1)
+ZSTACK = ("zStack", 1)
 POSITIONS = ("Positions", 2)
 TIME = ("Time", 3)
 GRID = ("Grid", 4)
@@ -148,23 +148,23 @@ class MDAWidget(QWidget):
 
         # tab chackboxes
         self._checkbox_ch = QCheckBox("")
-        self._checkbox_ch.setObjectName("Channels")
+        self._checkbox_ch.setObjectName(CHANNELS[0])
         self._checkbox_ch.toggled.connect(self._on_tab_checkbox_toggled)
         self._checkbox_z = QCheckBox("")
-        self._checkbox_z.setObjectName("ZStack")
+        self._checkbox_z.setObjectName(ZSTACK[0])
         self._checkbox_z.toggled.connect(self._on_tab_checkbox_toggled)
         self._checkbox_t = QCheckBox("")
-        self._checkbox_t.setObjectName("Time")
+        self._checkbox_t.setObjectName(TIME[0])
         self._checkbox_t.toggled.connect(self._on_tab_checkbox_toggled)
         self._checkbox_t.toggled.connect(self._on_time_toggled)
         self._checkbox_p = QCheckBox("")
-        self._checkbox_p.setObjectName("Positions")
+        self._checkbox_p.setObjectName(POSITIONS[0])
         self._checkbox_p.toggled.connect(self._on_tab_checkbox_toggled)
         self._checkbox_g = QCheckBox("")
-        self._checkbox_g.setObjectName("Grid")
+        self._checkbox_g.setObjectName(GRID[0])
         self._checkbox_g.toggled.connect(self._on_tab_checkbox_toggled)
 
-        # Widgets for Channels, Time, ZStack, and Positions in the Scroll Area
+        # Widgets for Channels, Time, zStack, and Positions in the Scroll Area
         self.channel_groupbox = ChannelTable()
         self.channel_groupbox.setTitle("")
         self.channel_groupbox.setEnabled(False)
@@ -323,7 +323,7 @@ class MDAWidget(QWidget):
             self._tab_order[self._tabbar.tabData(tb)] = tb
 
     def _on_tab_changed(self, index: int) -> None:
-        if index not in {self._tab_order["Positions"], self._tab_order["Grid"]}:
+        if index not in {self._tab_order[POSITIONS[0]], self._tab_order[GRID[0]]}:
             return
         if (
             self._checkbox_p.isChecked()
@@ -354,22 +354,22 @@ class MDAWidget(QWidget):
 
     def _on_tab_checkbox_toggled(self, checked: bool) -> None:
         _sender = self.sender().objectName()
-        if _sender == "Channels":
-            self._tab.setCurrentIndex(self._tab_order["Channels"])
+        if _sender == CHANNELS[0]:
+            self._tab.setCurrentIndex(self._tab_order[CHANNELS[0]])
             self.channel_groupbox.setEnabled(checked)
             self._enable_run_btn()
-        elif _sender == "ZStack":
-            self._tab.setCurrentIndex(self._tab_order["ZStack"])
+        elif _sender == ZSTACK[0]:
+            self._tab.setCurrentIndex(self._tab_order[ZSTACK[0]])
             self.stack_groupbox.setEnabled(checked)
-        elif _sender == "Positions":
-            self._tab.setCurrentIndex(self._tab_order["Positions"])
+        elif _sender == POSITIONS[0]:
+            self._tab.setCurrentIndex(self._tab_order[POSITIONS[0]])
             self.position_groupbox.setEnabled(checked)
             self._on_pos_tab_changed()
-        elif _sender == "Time":
-            self._tab.setCurrentIndex(self._tab_order["Time"])
+        elif _sender == TIME[0]:
+            self._tab.setCurrentIndex(self._tab_order[TIME[0]])
             self.time_groupbox.setEnabled(checked)
-        elif _sender == "Grid":
-            self._tab.setCurrentIndex(self._tab_order["Grid"])
+        elif _sender == GRID[0]:
+            self._tab.setCurrentIndex(self._tab_order[GRID[0]])
             self.grid_groupbox.setEnabled(checked)
         self._update_total_time()
 
