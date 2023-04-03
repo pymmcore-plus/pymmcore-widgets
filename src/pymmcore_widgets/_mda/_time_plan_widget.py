@@ -115,7 +115,10 @@ class TimePlanWidget(QGroupBox):
         *,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
-        super().__init__(title, parent=parent)
+        super().__init__(parent=parent)
+
+        self.setTitle(title)
+
         self.setCheckable(True)
 
         self._mmc = mmcore or CMMCorePlus.instance()
