@@ -171,7 +171,7 @@ class PositionTable(QGroupBox):
         _w = (
             self._advanced_cbox.sizeHint().width()
             + self._warn_icon.sizeHint().width()
-            + advanced_layout.spacing() * 2
+            + advanced_layout.spacing()
         )
         advanced_wdg.setMinimumWidth(_w)
         advanced_wdg.setMinimumHeight(advanced_wdg.sizeHint().height())
