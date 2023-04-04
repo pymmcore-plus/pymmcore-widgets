@@ -337,14 +337,22 @@ class PositionTable(QGroupBox):
         self._table.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
     def _add_position(self) -> None:
-        if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage devices loaded.")
+        if not self._mmc.getLoadedDevicesOfType(
+            DeviceType.XYStageDevice
+        ) and not self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice):
+            raise ValueError("No XY and Z Stages devices loaded.")
+
+        if not self._mmc.getXYStageDevice():
+            warnings.warn("No XY Stage device selected.")
 
         name = f"Pos{self._table.rowCount():03d}"
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         _z_stage = self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"]
         zpos = self._mmc.getPosition(_z_stage) if _z_stage else None
+
+        if xpos is None and ypos is None and zpos is None:
+            return
 
         self._create_new_row(name, xpos, ypos, zpos)
 
@@ -357,11 +365,7 @@ class PositionTable(QGroupBox):
         ypos: float | None,
         zpos: float | None,
     ) -> None:
-        if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage devices loaded.")
-
         row = self._add_position_row()
-
         self._add_table_item(name, row, 0)
         self._add_table_value(xpos, row, 1)
         self._add_table_value(ypos, row, 2)
@@ -538,6 +542,9 @@ class PositionTable(QGroupBox):
                 x, y = position
                 z = None
 
+            if x is None and y is None and z is None:
+                continue
+
             self._create_new_row(name, x, y, z)
 
     def _move_to_position(self) -> None:
@@ -573,20 +580,31 @@ class PositionTable(QGroupBox):
     def _get_table_value(self, row: int, col: int | None) -> float | None:
         if col is None:
             return None
-        wdg = cast(QDoubleSpinBox, self._table.cellWidget(row, col))
-        return float(wdg.value())
+        try:
+            wdg = cast(QDoubleSpinBox, self._table.cellWidget(row, col))
+            value = wdg.value()
+        except AttributeError:
+            value = None
+        return value  # type: ignore
 
     def get_used_z_stages(self) -> dict[str, str]:
-        """Return a dictionary of the used z stages."""
+        """Return a dictionary of the used Z Focus and Z AutoFocus stages.
+
+        e.g. {"Z Focus": Z", "Z AutoFocus": "Z1"}
+        """
         return self._z_stages
 
     # note: this should to be PositionDict, but it makes typing elsewhere harder
     def set_state(self, positions: list[dict]) -> None:
         """Set the state of the widget from a useq position dictionary."""
+        # TODO: when we add the ability to store z stage name to MDASequence or Position
+        # objects, we should also add the ability to set the z stage name here
         self._clear_positions()
 
-        if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage devices loaded.")
+        if not self._mmc.getLoadedDevicesOfType(
+            DeviceType.XYStageDevice
+        ) and not self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice):
+            raise ValueError("No XY and Z Stages devices loaded.")
 
         self.setChecked(True)
 
@@ -599,10 +617,6 @@ class PositionTable(QGroupBox):
             if (x is not None or y is not None) and not self._mmc.getXYStageDevice():
                 x, y = (None, None)
                 warnings.warn("No XY Stage device loaded.")
-
-            if z and not self._mmc.getFocusDevice():
-                z = None
-                warnings.warn("No Focus device loaded.")
 
             self._add_position_row()
 
