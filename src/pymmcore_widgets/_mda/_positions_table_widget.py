@@ -337,7 +337,12 @@ class PositionTable(QGroupBox):
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         _z_stage = self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"]
+
+        print(f"Z stage: {_z_stage}")
+
         zpos = self._mmc.getPosition(_z_stage) if _z_stage else None
+
+        print(f"zpos: {zpos}", self._mmc.getPosition(_z_stage))
 
         if xpos is None and ypos is None and zpos is None:
             return
@@ -353,14 +358,12 @@ class PositionTable(QGroupBox):
         ypos: float | None,
         zpos: float | None,
     ) -> None:
+        print(f"zpos: {zpos}")
         row = self._add_position_row()
         self._add_table_item(name, row, 0)
         self._add_table_value(xpos, row, 1)
         self._add_table_value(ypos, row, 2)
-        if zpos is None or not self._mmc.getFocusDevice():
-            self.valueChanged.emit()
-            return
-        self._add_table_value(zpos, row, 3)
+        self._add_table_value(zpos, row, self._get_z_stage_column())
 
         self.valueChanged.emit()
 
@@ -369,8 +372,10 @@ class PositionTable(QGroupBox):
         self._table.insertRow(idx)
         return cast(int, idx)
 
-    def _add_table_value(self, value: float | None, row: int, col: int) -> None:
-        if value is None:
+    def _add_table_value(
+        self, value: float | None, row: int | None, col: int | None
+    ) -> None:
+        if value is None or row is None or col is None:
             return
         spin = QDoubleSpinBox()
         spin.setAlignment(AlignCenter)
