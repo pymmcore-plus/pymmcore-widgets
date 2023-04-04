@@ -269,6 +269,9 @@ class PositionTable(QGroupBox):
         if self._mmc.getLoadedDevicesOfType(DeviceType.AutoFocus):
             self.autofocus_lbl.show()
             self.z_autofocus_combo.show()
+        else:
+            self.autofocus_lbl.hide()
+            self.z_autofocus_combo.hide()
 
     def _populate_combo(self) -> None:
         items = [
@@ -283,10 +286,6 @@ class PositionTable(QGroupBox):
             self.z_autofocus_combo.clear()
             self.z_autofocus_combo.addItems(items)
             self.z_autofocus_combo.setCurrentText("None")
-
-    def get_used_z_stages(self) -> dict[str, str]:
-        """Return a dictionary of the used z stages."""
-        return self._z_stages
 
     def _on_combo_changed(self, value: str) -> None:
         if self.z_autofocus_combo.currentText() == "None":
@@ -696,10 +695,12 @@ class PositionTable(QGroupBox):
         curr_row = self._table.currentRow()
         x, y = (self._get_table_value(curr_row, 1), self._get_table_value(curr_row, 2))
         z = self._get_table_value(curr_row, self._get_z_stage_column())
-        if x and y:
+        if x is not None and y is not None:
             self._mmc.setXYPosition(x, y)
-        if self._mmc.getFocusDevice() and z:
-            self._mmc.setPosition(z)
+        if z is not None:
+            self._mmc.setPosition(
+                self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"], z
+            )
 
     def _get_table_value(self, row: int, col: int | None) -> float | None:
         if col is None:
@@ -732,14 +733,9 @@ class PositionTable(QGroupBox):
 
         return values
 
-    def get_z_stages(self) -> tuple[str | None, str | None]:
-        """Return the currently set focus and autofocus stage names."""
-        focus = self.z_focus_combo.currentText()
-        autofocus = self.z_autofocus_combo.currentText()
-        return (
-            focus if focus != "None" else None,
-            autofocus if autofocus != "None" else None,
-        )
+    def get_used_z_stages(self) -> dict[str, str]:
+        """Return a dictionary of the used z stages."""
+        return self._z_stages
 
     def set_state(
         self, positions: Sequence[PositionDict | Position], clear: bool = True
