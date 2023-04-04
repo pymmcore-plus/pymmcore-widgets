@@ -695,10 +695,12 @@ class PositionTable(QGroupBox):
         curr_row = self._table.currentRow()
         x, y = (self._get_table_value(curr_row, 1), self._get_table_value(curr_row, 2))
         z = self._get_table_value(curr_row, self._get_z_stage_column())
-        if x and y:
+        if x is not None and y is not None:
             self._mmc.setXYPosition(x, y)
-        if self._mmc.getFocusDevice() and z:
-            self._mmc.setPosition(z)
+        if z is not None:
+            self._mmc.setPosition(
+                self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"], z
+            )
 
     def _get_table_value(self, row: int, col: int | None) -> float | None:
         try:
