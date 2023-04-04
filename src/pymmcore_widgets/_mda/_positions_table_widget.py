@@ -741,6 +741,8 @@ class PositionTable(QGroupBox):
         self, positions: Sequence[PositionDict | Position], clear: bool = True
     ) -> None:
         """Set the state of the widget from a useq position dictionary."""
+        # TODO: when we add the ability to store z stage name to MDASequence or Position
+        # objects, we should also add the ability to set the z stage name here
         if clear:
             self.clear()
 
