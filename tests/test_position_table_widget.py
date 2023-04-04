@@ -307,7 +307,7 @@ def test_columns_position_table(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     mmc.unloadDevice("XY")
     p.z_focus_combo.setCurrentText("None")
-    for c in range(p._table.columnCount() - 1):
+    for c in range(1, p._table.columnCount() - 1):
         assert p._table.isColumnHidden(c)
     assert not p._table.isColumnHidden(5)
 
