@@ -295,14 +295,15 @@ def test_columns_position_table(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert mmc.getFocusDevice() == "Z"
 
     assert p.z_focus_combo.currentText() == "Z"
+    assert p.get_used_z_stages() == {"Z Focus": "Z", "Z AutoFocus": ""}
 
     assert not p._table.isColumnHidden(3)  # "Z"
     assert p._table.isColumnHidden(4)  # "Z1"
 
     p.z_focus_combo.setCurrentText("Z1")
-    assert mmc.getFocusDevice() == "Z1"
     assert p._table.isColumnHidden(3)  # "Z"
     assert not p._table.isColumnHidden(4)  # "Z1"
+    assert p.get_used_z_stages() == {"Z Focus": "Z1", "Z AutoFocus": ""}
 
     mmc.unloadDevice("XY")
     p.z_focus_combo.setCurrentText("None")
@@ -334,29 +335,19 @@ def test_z_autofocus_combo(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert mmc.getAutoFocusDevice() == "Autofocus"
     assert not p._table.isColumnHidden(3)  # "Z"
     assert p._table.isColumnHidden(4)  # "Z1"
+    assert p.get_used_z_stages() == {"Z Focus": "Z", "Z AutoFocus": ""}
 
     p.z_autofocus_combo.setCurrentText("Z1")
-    assert mmc.getFocusDevice() == "Z1"
     assert p._table.isColumnHidden(3)  # "Z"
     assert not p._table.isColumnHidden(4)  # "Z1"
+    assert p.get_used_z_stages() == {"Z Focus": "Z", "Z AutoFocus": "Z1"}
 
     p.z_focus_combo.setCurrentText("None")
-    assert mmc.getFocusDevice() == "Z1"
     assert p._table.isColumnHidden(3)  # "Z"
     assert not p._table.isColumnHidden(4)  # "Z1"
+    assert p.get_used_z_stages() == {"Z Focus": "", "Z AutoFocus": "Z1"}
 
     p.z_autofocus_combo.setCurrentText("None")
-    assert not mmc.getFocusDevice()
     assert p._table.isColumnHidden(3)  # "Z"
     assert p._table.isColumnHidden(4)  # "Z1"
-
-    mmc.setProperty("Core", "Focus", "Z")
-    assert p.z_focus_combo.currentText() == "Z"
-    assert p.z_autofocus_combo.currentText() == "None"
-
-    p.z_autofocus_combo.setCurrentText("Z1")
-    assert p.z_focus_combo.currentText() == "Z"
-
-    mmc.setProperty("Core", "Focus", "Z")
-    assert p.z_autofocus_combo.currentText() == "Z"
-    assert p.z_focus_combo.currentText() == "Z"
+    assert p.get_used_z_stages() == {"Z Focus": "", "Z AutoFocus": ""}

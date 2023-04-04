@@ -316,6 +316,7 @@ class PositionTable(QGroupBox):
 
     def _on_z_focus_changed(self, focus_stage: str) -> None:
         if self.z_autofocus_combo.currentText() != "None":
+            self._z_stages["Z Focus"] = focus_stage if focus_stage != "None" else ""
             return
 
         if focus_stage == "None":
@@ -701,12 +702,10 @@ class PositionTable(QGroupBox):
             self._mmc.setPosition(z)
 
     def _get_table_value(self, row: int, col: int | None) -> float | None:
-        try:
-            wdg = cast(QDoubleSpinBox, self._table.cellWidget(row, col))
-            value = wdg.value()
-        except (AttributeError, TypeError):
-            value = None
-        return value  # type: ignore
+        if col is None:
+            return None
+        wdg = cast(QDoubleSpinBox, self._table.cellWidget(row, col))
+        return float(wdg.value())
 
     def value(self) -> list[PositionDict]:
         """Return the current positions settings.
