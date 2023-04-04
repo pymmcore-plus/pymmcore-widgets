@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from fonticon_mdi6 import MDI6
@@ -107,7 +108,7 @@ class PositionTable(QGroupBox):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self._z_stages: dict = {"Z Focus": "", "Z AutoFocus": ""}
+        self._z_stages: dict[str, str] = {"Z Focus": "", "Z AutoFocus": ""}
 
         self.setCheckable(True)
 
@@ -272,6 +273,9 @@ class PositionTable(QGroupBox):
         else:
             self.autofocus_lbl.hide()
             self.z_autofocus_combo.hide()
+        self._advanced_cbox.setEnabled(
+            bool(self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice))
+        )
 
     def _populate_combo(self) -> None:
         items = [
@@ -391,10 +395,6 @@ class PositionTable(QGroupBox):
         return None
 
     def _on_advanced_toggled(self, state: bool) -> None:
-        if not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice):
-            self._advanced_cbox.setChecked(False)
-            return
-
         self._table.setColumnHidden(self._table.columnCount() - 1, not state)
 
         if not state:
@@ -416,8 +416,10 @@ class PositionTable(QGroupBox):
                 self.replace_button.setEnabled(False)
 
     def _add_position(self) -> None:
-        if not self._mmc.getXYStageDevice():
-            raise ValueError("No XY device loaded.")
+        if not self._mmc.getLoadedDevicesOfType(
+            DeviceType.XYStageDevice
+        ) and not self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice):
+            raise ValueError("No XY and Z Stages devices loaded.")
 
         if hasattr(self, "_grid_wdg"):
             self._grid_wdg.close()  # type: ignore
@@ -427,6 +429,10 @@ class PositionTable(QGroupBox):
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         _z_stage = self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"]
         zpos = self._mmc.getPosition(_z_stage) if _z_stage else None
+
+        if xpos is None and ypos is None and zpos is None:
+            return
+
         self._add_table_row(name, xpos, ypos, zpos)
         self._rename_positions()
 
@@ -438,9 +444,6 @@ class PositionTable(QGroupBox):
         zpos: float | None,
         row: int | None = None,
     ) -> None:
-        if not self._mmc.getXYStageDevice():
-            raise ValueError("No XY devices selected.")
-
         if row is None:
             row = self._add_position_row()
         self._add_table_item(name, row, 0)
@@ -643,6 +646,10 @@ class PositionTable(QGroupBox):
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         _z_stage = self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"]
         zpos = self._mmc.getPosition(_z_stage) if _z_stage else None
+
+        if xpos is None and ypos is None and zpos is None:
+            return
+
         self._add_table_row(name, xpos, ypos, zpos, rows[0])
 
     def _remove_position(self) -> None:
@@ -706,8 +713,12 @@ class PositionTable(QGroupBox):
     def _get_table_value(self, row: int, col: int | None) -> float | None:
         if col is None:
             return None
-        wdg = cast(QDoubleSpinBox, self._table.cellWidget(row, col))
-        return float(wdg.value())
+        try:
+            wdg = cast(QDoubleSpinBox, self._table.cellWidget(row, col))
+            value = wdg.value()
+        except AttributeError:
+            value = None
+        return value  # type: ignore
 
     def value(self) -> list[PositionDict]:
         """Return the current positions settings.
@@ -715,10 +726,12 @@ class PositionTable(QGroupBox):
         Note that output dict will match the Positions from useq schema:
         <https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position>.
         """
+        # TODO: if we add zFocus and zAutoFocus info in the Position object,
+        # expand the PositionDict
         if not self._table.rowCount():
             return []
 
-        values: list = []
+        values: list[PositionDict] = []
 
         for row in range(self._table.rowCount()):
             grid_role = self._table.item(row, 0).data(self.GRID_ROLE)
@@ -728,14 +741,19 @@ class PositionTable(QGroupBox):
                     "x": self._get_table_value(row, 1),
                     "y": self._get_table_value(row, 2),
                     "z": self._get_table_value(row, self._get_z_stage_column()),
-                    "sequence": {"grid_plan": grid_role} if grid_role else None,
+                    "sequence": (
+                        {"grid_plan": grid_role} if grid_role else None  # type: ignore
+                    ),
                 }
             )
 
         return values
 
     def get_used_z_stages(self) -> dict[str, str]:
-        """Return a dictionary of the used z stages."""
+        """Return a dictionary of the used Z Focus and Z AutoFocus stages.
+
+        e.g. {"Z Focus": Z", "Z AutoFocus": "Z1"}
+        """
         return self._z_stages
 
     def set_state(
@@ -752,8 +770,10 @@ class PositionTable(QGroupBox):
         if not isinstance(positions, Sequence):
             raise TypeError("The 'positions' arguments has to be a 'Sequence'.")
 
-        if not self._mmc.getXYStageDevice():
-            raise ValueError("No XY Stage devices selected.")
+        if not self._mmc.getLoadedDevicesOfType(
+            DeviceType.XYStageDevice
+        ) and not self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice):
+            raise ValueError("No XY and Z Stages devices loaded.")
 
         for position in positions:
             if isinstance(position, Position):
@@ -762,9 +782,16 @@ class PositionTable(QGroupBox):
             if not isinstance(position, dict):
                 continue
 
-            # TODO: find a way to also store z stage name
             name = position.get("name")
             x, y, z = (position.get("x"), position.get("y"), position.get("z"))
+
+            if x and y and not self._mmc.getXYStageDevice():
+                warnings.warn("No XY Stage devices selected.")
+                x = y = None
+
+            if x is None and y is None and z is None:
+                continue
+
             self._add_table_row(name or f"{POS}000", x, y, z)
             if pos_seq := position.get("sequence"):
                 self._advanced_cbox.setChecked(True)
