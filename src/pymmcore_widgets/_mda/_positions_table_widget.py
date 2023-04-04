@@ -233,6 +233,7 @@ class PositionTable(QGroupBox):
 
     def _on_z_focus_changed(self, focus_stage: str) -> None:
         if self.z_autofocus_combo.currentText() != "None":
+            self._z_stages["Z Focus"] = focus_stage if focus_stage != "None" else ""
             return
 
         if focus_stage == "None":

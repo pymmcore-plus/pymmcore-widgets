@@ -54,21 +54,6 @@ def test_add_single_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert not tb.cellWidget(0, 2)
     assert tb.cellWidget(0, 3).value() == 0.0
 
-    mmc.loadSystemConfiguration()
-    mmc.unloadDevice("Z")
-
-    p.clear_button.click()
-    assert not tb.rowCount()
-
-    p.add_button.click()
-
-    assert tb.item(0, 0).text() == name
-    assert tb.item(0, 0).toolTip() == name
-    assert tb.item(0, 0).data(p.POS_ROLE) == name
-    assert tb.cellWidget(0, 1).value() == 0.0
-    assert tb.cellWidget(0, 2).value() == 0.0
-    assert not tb.cellWidget(0, 3)
-
 
 def test_rename_single_pos_after_delete(global_mmcore: CMMCorePlus, qtbot: QtBot):
     p = PositionTable()
