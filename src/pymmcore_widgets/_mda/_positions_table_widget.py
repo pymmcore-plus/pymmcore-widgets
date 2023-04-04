@@ -107,6 +107,8 @@ class PositionTable(QGroupBox):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
+        self._z_stages: dict = {"Z Focus": "", "Z AutoFocus": ""}
+
         self.setCheckable(True)
 
         group_layout = QGridLayout()
@@ -252,13 +254,14 @@ class PositionTable(QGroupBox):
         self._table.itemChanged.connect(self._rename_positions)
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
-        self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
         self.destroyed.connect(self._disconnect)
 
         self._on_sys_cfg_loaded()
 
     def _on_sys_cfg_loaded(self) -> None:
+        self._z_stages["Z Focus"] = self._mmc.getFocusDevice() or ""
+        self._z_stages["Z AutoFocus"] = ""
         self.clear()
         self._set_table_header()
         self._table.setColumnHidden(self._table.columnCount() - 1, True)
@@ -267,10 +270,25 @@ class PositionTable(QGroupBox):
             self.autofocus_lbl.show()
             self.z_autofocus_combo.show()
 
-    def _on_property_changed(self, device: str, prop: str, value: str) -> None:
-        if device != "Core" or prop != "Focus":
-            return
+    def _populate_combo(self) -> None:
+        items = [
+            "None",
+            *list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice)),
+        ]
+        with signals_blocked(self.z_focus_combo):
+            self.z_focus_combo.clear()
+            self.z_focus_combo.addItems(items)
+            self.z_focus_combo.setCurrentText(self._mmc.getFocusDevice() or "None")
+        with signals_blocked(self.z_autofocus_combo):
+            self.z_autofocus_combo.clear()
+            self.z_autofocus_combo.addItems(items)
+            self.z_autofocus_combo.setCurrentText("None")
 
+    def get_used_z_stages(self) -> dict[str, str]:
+        """Return a dictionary of the used z stages."""
+        return self._z_stages
+
+    def _on_combo_changed(self, value: str) -> None:
         if self.z_autofocus_combo.currentText() == "None":
             with signals_blocked(self.z_focus_combo):
                 self.z_focus_combo.setCurrentText(value or "None")
@@ -296,20 +314,6 @@ class PositionTable(QGroupBox):
                 col_name = self._table.horizontalHeaderItem(i).text()
                 self._table.setColumnHidden(i, col_name != value)
 
-    def _populate_combo(self) -> None:
-        items = [
-            "None",
-            *list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice)),
-        ]
-        with signals_blocked(self.z_focus_combo):
-            self.z_focus_combo.clear()
-            self.z_focus_combo.addItems(items)
-            self.z_focus_combo.setCurrentText(self._mmc.getFocusDevice() or "None")
-        with signals_blocked(self.z_autofocus_combo):
-            self.z_autofocus_combo.clear()
-            self.z_autofocus_combo.addItems(items)
-            self.z_autofocus_combo.setCurrentText("None")
-
     def _on_z_focus_changed(self, focus_stage: str) -> None:
         if self.z_autofocus_combo.currentText() != "None":
             return
@@ -324,13 +328,16 @@ class PositionTable(QGroupBox):
                 self._table.setColumnHidden(c, True)
             focus_stage = ""
 
-        self._mmc.setFocusDevice(focus_stage)
+        self._z_stages["Z Focus"] = focus_stage
+        self._on_combo_changed(focus_stage)
 
     def _on_z_autofocus_changed(self, autofocus_stage: str) -> None:
-        if autofocus_stage == "None":
-            self._on_z_focus_changed(self.z_focus_combo.currentText())
+        _autofocus = "" if autofocus_stage == "None" else autofocus_stage
+        self._z_stages["Z AutoFocus"] = _autofocus
+        if _autofocus:
+            self._on_combo_changed(_autofocus)
         else:
-            self._mmc.setFocusDevice(autofocus_stage)
+            self._on_z_focus_changed(self.z_focus_combo.currentText())
 
     def _set_table_header(self) -> None:
         self._table.setColumnCount(0)
@@ -378,7 +385,8 @@ class PositionTable(QGroupBox):
     def _get_z_stage_column(self) -> int | None:
         for i in range(self._table.columnCount()):
             col_name = self._table.horizontalHeaderItem(i).text()
-            if col_name == self._mmc.getFocusDevice():
+            _z = self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"]
+            if col_name == _z:
                 return i
         return None
 
@@ -417,7 +425,8 @@ class PositionTable(QGroupBox):
         name = f"Pos{self._table.rowCount():03d}"
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
-        zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
+        _z_stage = self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"]
+        zpos = self._mmc.getPosition(_z_stage) if _z_stage else None
         self._add_table_row(name, xpos, ypos, zpos)
         self._rename_positions()
 
@@ -797,4 +806,3 @@ class PositionTable(QGroupBox):
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
-        self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
