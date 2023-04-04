@@ -284,10 +284,6 @@ class PositionTable(QGroupBox):
             self.z_autofocus_combo.addItems(items)
             self.z_autofocus_combo.setCurrentText("None")
 
-    def get_used_z_stages(self) -> dict[str, str]:
-        """Return a dictionary of the used z stages."""
-        return self._z_stages
-
     def _on_combo_changed(self, value: str) -> None:
         if self.z_autofocus_combo.currentText() == "None":
             with signals_blocked(self.z_focus_combo):
@@ -735,14 +731,9 @@ class PositionTable(QGroupBox):
 
         return values
 
-    def get_z_stages(self) -> tuple[str | None, str | None]:
-        """Return the currently set focus and autofocus stage names."""
-        focus = self.z_focus_combo.currentText()
-        autofocus = self.z_autofocus_combo.currentText()
-        return (
-            focus if focus != "None" else None,
-            autofocus if autofocus != "None" else None,
-        )
+    def get_used_z_stages(self) -> dict[str, str]:
+        """Return a dictionary of the used z stages."""
+        return self._z_stages
 
     def set_state(
         self, positions: Sequence[PositionDict | Position], clear: bool = True
