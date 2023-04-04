@@ -227,7 +227,6 @@ class PositionTable(QGroupBox):
         if _autofocus:
             _range_low, _range_high = self._get_range()
             for c in range(_range_low, _range_high):
-                print("     ", c)
                 if c == 0:
                     self._table.setColumnHidden(c, False)
                     continue
