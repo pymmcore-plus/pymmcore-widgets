@@ -59,11 +59,11 @@ class PositionTable(QGroupBox):
         title: str = "Stage Positions",
         parent: QWidget | None = None,
     ) -> None:
-        super().__init__(parent=parent)
+        super().__init__(title, parent=parent)
 
         self._mmc = CMMCorePlus.instance()
 
-        self.setTitle(title)
+        self._z_stages: dict = {"Z Focus": "", "Z AutoFocus": ""}
 
         self.setCheckable(True)
 
@@ -129,10 +129,7 @@ class PositionTable(QGroupBox):
         self.grid_button.clicked.connect(self._grid_widget)
         self.go_button.clicked.connect(self._move_to_position)
 
-        self._table.selectionModel().selectionChanged.connect(self._enable_go_button)
-        self._table.selectionModel().selectionChanged.connect(
-            self._enable_remove_button
-        )
+        self._table.selectionModel().selectionChanged.connect(self._enable_button)
         self._table.selectionModel().selectionChanged.connect(
             self._select_all_grid_positions
         )
@@ -176,24 +173,39 @@ class PositionTable(QGroupBox):
         combo_wdg_layout.addWidget(self.z_autofocus_combo)
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
-        self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
         self.destroyed.connect(self._disconnect)
 
         self._on_sys_cfg_loaded()
 
     def _on_sys_cfg_loaded(self) -> None:
+        self._z_stages["Z Focus"] = self._mmc.getFocusDevice() or ""
+        self._z_stages["Z AutoFocus"] = ""
         self._clear_positions()
         self._set_table_header()
         self._populate_combo()
         if self._mmc.getLoadedDevicesOfType(DeviceType.AutoFocus):
             self.autofocus_lbl.show()
             self.z_autofocus_combo.show()
+        else:
+            self.autofocus_lbl.hide()
+            self.z_autofocus_combo.hide()
 
-    def _on_property_changed(self, device: str, prop: str, value: str) -> None:
-        if device != "Core" or prop != "Focus":
-            return
+    def _populate_combo(self) -> None:
+        items = [
+            "None",
+            *list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice)),
+        ]
+        with signals_blocked(self.z_focus_combo):
+            self.z_focus_combo.clear()
+            self.z_focus_combo.addItems(items)
+            self.z_focus_combo.setCurrentText(self._mmc.getFocusDevice() or "None")
+        with signals_blocked(self.z_autofocus_combo):
+            self.z_autofocus_combo.clear()
+            self.z_autofocus_combo.addItems(items)
+            self.z_autofocus_combo.setCurrentText("None")
 
+    def _on_combo_changed(self, value: str) -> None:
         if self.z_autofocus_combo.currentText() == "None":
             with signals_blocked(self.z_focus_combo):
                 self.z_focus_combo.setCurrentText(value or "None")
@@ -206,22 +218,43 @@ class PositionTable(QGroupBox):
                 self.z_autofocus_combo.setCurrentText(value)
 
         _range = (
-            None
+            (3, self._table.columnCount() - 1)
             if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
             else (0, self._table.columnCount() - 1)
         )
-        if _range:
-            for i in range(_range[0], _range[1]):
-                if not value:
-                    self._table.setColumnHidden(i, True)
-                elif i == 0:
-                    self._table.setColumnHidden(i, False)
-                else:
-                    col_name = self._table.horizontalHeaderItem(i).text()
-                    self._table.setColumnHidden(i, col_name != value)
+        for i in range(_range[0], _range[1]):
+            if not value:
+                self._table.setColumnHidden(i, True)
+            elif i == 0:
+                self._table.setColumnHidden(i, False)
+            else:
+                col_name = self._table.horizontalHeaderItem(i).text()
+                self._table.setColumnHidden(i, col_name != value)
 
+    def _on_z_focus_changed(self, focus_stage: str) -> None:
+        if self.z_autofocus_combo.currentText() != "None":
+            return
+
+        if focus_stage == "None":
+            _range = (
+                (3, self._table.columnCount() - 1)
+                if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+                else (0, self._table.columnCount() - 1)
+            )
+            for c in range(_range[0], _range[1]):
+                self._table.setColumnHidden(c, True)
+            focus_stage = ""
+
+        self._z_stages["Z Focus"] = focus_stage
+        self._on_combo_changed(focus_stage)
+
+    def _on_z_autofocus_changed(self, autofocus_stage: str) -> None:
+        _autofocus = "" if autofocus_stage == "None" else autofocus_stage
+        self._z_stages["Z AutoFocus"] = _autofocus
+        if _autofocus:
+            self._on_combo_changed(_autofocus)
         else:
-            self._table.setColumnHidden(3, not value)
+            self._on_z_focus_changed(self.z_focus_combo.currentText())
 
     def _set_table_header(self) -> None:
         self._table.setColumnCount(0)
@@ -262,51 +295,17 @@ class PositionTable(QGroupBox):
             elif c not in {POS, "X", "Y"}:
                 self._table.setColumnHidden(idx, self._mmc.getFocusDevice() != c)
 
-    def _populate_combo(self) -> None:
-        items = [
-            "None",
-            *list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice)),
-        ]
-        with signals_blocked(self.z_focus_combo):
-            self.z_focus_combo.clear()
-            self.z_focus_combo.addItems(items)
-            self.z_focus_combo.setCurrentText(self._mmc.getFocusDevice() or "None")
-        with signals_blocked(self.z_autofocus_combo):
-            self.z_autofocus_combo.clear()
-            self.z_autofocus_combo.addItems(items)
-            self.z_autofocus_combo.setCurrentText("None")
+    def _get_z_stage_column(self) -> int | None:
+        for i in range(self._table.columnCount()):
+            col_name = self._table.horizontalHeaderItem(i).text()
+            _z = self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"]
+            if col_name == _z:
+                return i
+        return None
 
-    def _on_z_focus_changed(self, focus_stage: str) -> None:
-        if self.z_autofocus_combo.currentText() != "None":
-            return
-
-        if focus_stage == "None":
-            _range = (
-                None
-                if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
-                else (0, self._table.columnCount() - 1)
-            )
-            if _range:
-                for c in range(_range[0], _range[1]):
-                    self._table.setColumnHidden(c, True)
-            else:
-                self._table.setColumnHidden(3, True)
-            focus_stage = ""
-
-        self._mmc.setFocusDevice(focus_stage)
-
-    def _on_z_autofocus_changed(self, autofocus_stage: str) -> None:
-        if autofocus_stage == "None":
-            self._on_z_focus_changed(self.z_focus_combo.currentText())
-        else:
-            self._mmc.setFocusDevice(autofocus_stage)
-
-    def _enable_go_button(self) -> None:
+    def _enable_button(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
         self.go_button.setEnabled(len(rows) == 1)
-
-    def _enable_remove_button(self) -> None:
-        rows = {r.row() for r in self._table.selectedIndexes()}
         self.remove_button.setEnabled(len(rows) >= 1)
 
     def _select_all_grid_positions(self) -> None:
@@ -343,7 +342,8 @@ class PositionTable(QGroupBox):
         name = f"Pos{self._table.rowCount():03d}"
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
-        zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
+        _z_stage = self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"]
+        zpos = self._mmc.getPosition(_z_stage) if _z_stage else None
 
         self._create_new_row(name, xpos, ypos, zpos)
 
@@ -543,11 +543,14 @@ class PositionTable(QGroupBox):
         if not self._mmc.getXYStageDevice():
             return
         curr_row = self._table.currentRow()
-        self._mmc.setXYPosition(
-            self.value()[curr_row].get("x"), self.value()[curr_row].get("y")
-        )
-        if self._mmc.getFocusDevice() and self.value()[curr_row].get("z"):
-            self._mmc.setPosition(self.value()[curr_row].get("z"))
+        x, y = (self._get_table_value(curr_row, 1), self._get_table_value(curr_row, 2))
+        z = self._get_table_value(curr_row, self._get_z_stage_column())
+        if x is not None and y is not None:
+            self._mmc.setXYPosition(x, y)
+        if z is not None:
+            self._mmc.setPosition(
+                self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"], z
+            )
 
     def value(self) -> list[PositionDict]:
         """Return the current positions settings.
@@ -560,19 +563,21 @@ class PositionTable(QGroupBox):
                 "name": self._table.item(row, 0).text() or None,
                 "x": self._get_table_value(row, 1),
                 "y": self._get_table_value(row, 2),
-                "z": self._get_table_value(row, 3),
+                "z": self._get_table_value(row, self._get_z_stage_column()),
             }
             for row in range(self._table.rowCount())
         ]
         return values
 
-    def _get_table_value(self, row: int, col: int) -> float | None:
-        try:
-            wdg = cast(QDoubleSpinBox, self._table.cellWidget(row, col))
-            value = wdg.value()
-        except AttributeError:
-            value = None
-        return value  # type: ignore
+    def _get_table_value(self, row: int, col: int | None) -> float | None:
+        if col is None:
+            return None
+        wdg = cast(QDoubleSpinBox, self._table.cellWidget(row, col))
+        return float(wdg.value())
+
+    def get_used_z_stages(self) -> dict[str, str]:
+        """Return a dictionary of the used z stages."""
+        return self._z_stages
 
     # note: this should to be PositionDict, but it makes typing elsewhere harder
     def set_state(self, positions: list[dict]) -> None:
