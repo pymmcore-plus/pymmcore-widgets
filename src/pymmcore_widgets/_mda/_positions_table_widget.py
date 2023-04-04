@@ -267,15 +267,15 @@ class PositionTable(QGroupBox):
         self._set_table_header()
         self._table.setColumnHidden(self._table.columnCount() - 1, True)
         self._populate_combo()
+        self._advanced_cbox.setEnabled(
+            bool(self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice))
+        )
         if self._mmc.getLoadedDevicesOfType(DeviceType.AutoFocus):
             self.autofocus_lbl.show()
             self.z_autofocus_combo.show()
         else:
             self.autofocus_lbl.hide()
             self.z_autofocus_combo.hide()
-        self._advanced_cbox.setEnabled(
-            bool(self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice))
-        )
 
     def _populate_combo(self) -> None:
         items = [
@@ -420,6 +420,9 @@ class PositionTable(QGroupBox):
             DeviceType.XYStageDevice
         ) and not self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice):
             raise ValueError("No XY and Z Stages devices loaded.")
+
+        if not self._mmc.getXYStageDevice():
+            warnings.warn("No XY Stage device selected.")
 
         if hasattr(self, "_grid_wdg"):
             self._grid_wdg.close()  # type: ignore

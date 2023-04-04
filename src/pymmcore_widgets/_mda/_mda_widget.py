@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pymmcore_plus import CMMCorePlus
+from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
@@ -155,13 +155,15 @@ class MDAWidget(QWidget):
         self.buttons_wdg.acquisition_order_comboBox.setEnabled(enabled)
         self.channel_groupbox.setEnabled(enabled)
 
-        if not self._mmc.getXYStageDevice():
+        if not self._mmc.getLoadedDevicesOfType(
+            DeviceType.XYStageDevice
+        ) and not self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice):
             self.position_groupbox.setChecked(False)
             self.position_groupbox.setEnabled(False)
         else:
             self.position_groupbox.setEnabled(enabled)
 
-        if not self._mmc.getFocusDevice():
+        if not self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice):
             self.stack_groupbox.setChecked(False)
             self.stack_groupbox.setEnabled(False)
         else:
