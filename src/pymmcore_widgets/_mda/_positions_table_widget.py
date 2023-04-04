@@ -752,8 +752,8 @@ class PositionTable(QGroupBox):
         if not isinstance(positions, Sequence):
             raise TypeError("The 'positions' arguments has to be a 'Sequence'.")
 
-        if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage devices loaded.")
+        if not self._mmc.getXYStageDevice():
+            raise ValueError("No XY Stage devices selected.")
 
         for position in positions:
             if isinstance(position, Position):
