@@ -205,57 +205,43 @@ class PositionTable(QGroupBox):
             self.z_autofocus_combo.addItems(items)
             self.z_autofocus_combo.setCurrentText("None")
 
-    def _on_combo_changed(self, value: str) -> None:
-        if self.z_autofocus_combo.currentText() == "None":
-            with signals_blocked(self.z_focus_combo):
-                self.z_focus_combo.setCurrentText(value or "None")
-
-        if (
-            self.z_autofocus_combo.currentText() != "None"
-            and value != self.z_autofocus_combo.currentText()
-        ):
-            with signals_blocked(self.z_autofocus_combo):
-                self.z_autofocus_combo.setCurrentText(value)
-
-        _range = (
-            (3, self._table.columnCount() - 1)
-            if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
-            else (0, self._table.columnCount() - 1)
-        )
-        for i in range(_range[0], _range[1]):
-            if not value:
-                self._table.setColumnHidden(i, True)
-            elif i == 0:
-                self._table.setColumnHidden(i, False)
-            else:
-                col_name = self._table.horizontalHeaderItem(i).text()
-                self._table.setColumnHidden(i, col_name != value)
-
     def _on_z_focus_changed(self, focus_stage: str) -> None:
         if self.z_autofocus_combo.currentText() != "None":
             self._z_stages["Z Focus"] = focus_stage if focus_stage != "None" else ""
             return
-
-        if focus_stage == "None":
-            _range = (
-                (3, self._table.columnCount() - 1)
-                if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
-                else (0, self._table.columnCount() - 1)
+        _range_low, _range_high = self._get_range()
+        for c in range(_range_low, _range_high):
+            if c == 0:
+                self._table.setColumnHidden(c, False)
+                continue
+            col_name = self._table.horizontalHeaderItem(c).text()
+            self._table.setColumnHidden(
+                c, focus_stage == "None" or focus_stage != col_name
             )
-            for c in range(_range[0], _range[1]):
-                self._table.setColumnHidden(c, True)
-            focus_stage = ""
-
+        focus_stage = focus_stage if focus_stage != "None" else ""
         self._z_stages["Z Focus"] = focus_stage
-        self._on_combo_changed(focus_stage)
 
     def _on_z_autofocus_changed(self, autofocus_stage: str) -> None:
-        _autofocus = "" if autofocus_stage == "None" else autofocus_stage
+        _autofocus = autofocus_stage if autofocus_stage != "None" else ""
         self._z_stages["Z AutoFocus"] = _autofocus
         if _autofocus:
-            self._on_combo_changed(_autofocus)
+            _range_low, _range_high = self._get_range()
+            for c in range(_range_low, _range_high):
+                print("     ", c)
+                if c == 0:
+                    self._table.setColumnHidden(c, False)
+                    continue
+                col_name = self._table.horizontalHeaderItem(c).text()
+                self._table.setColumnHidden(c, autofocus_stage != col_name)
         else:
             self._on_z_focus_changed(self.z_focus_combo.currentText())
+
+    def _get_range(self) -> tuple[int, int]:
+        return (
+            (3, self._table.columnCount())
+            if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+            else (0, self._table.columnCount())
+        )
 
     def _set_table_header(self) -> None:
         self._table.setColumnCount(0)
