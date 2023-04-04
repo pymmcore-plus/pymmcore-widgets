@@ -269,6 +269,9 @@ class PositionTable(QGroupBox):
         if self._mmc.getLoadedDevicesOfType(DeviceType.AutoFocus):
             self.autofocus_lbl.show()
             self.z_autofocus_combo.show()
+        else:
+            self.autofocus_lbl.hide()
+            self.z_autofocus_combo.hide()
 
     def _populate_combo(self) -> None:
         items = [
