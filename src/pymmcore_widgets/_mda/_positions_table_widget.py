@@ -416,8 +416,8 @@ class PositionTable(QGroupBox):
                 self.replace_button.setEnabled(False)
 
     def _add_position(self) -> None:
-        if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage devices loaded.")
+        if not self._mmc.getXYStageDevice():
+            raise ValueError("No XY device loaded.")
 
         if hasattr(self, "_grid_wdg"):
             self._grid_wdg.close()  # type: ignore
@@ -438,8 +438,8 @@ class PositionTable(QGroupBox):
         zpos: float | None,
         row: int | None = None,
     ) -> None:
-        if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage devices selected.")
+        if not self._mmc.getXYStageDevice():
+            raise ValueError("No XY devices selected.")
 
         if row is None:
             row = self._add_position_row()
@@ -641,7 +641,8 @@ class PositionTable(QGroupBox):
         name = item.text()
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
-        zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
+        _z_stage = self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"]
+        zpos = self._mmc.getPosition(_z_stage) if _z_stage else None
         self._add_table_row(name, xpos, ypos, zpos, rows[0])
 
     def _remove_position(self) -> None:
