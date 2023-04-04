@@ -421,7 +421,10 @@ class PositionTable(QGroupBox):
         ) and not self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice):
             raise ValueError("No XY and Z Stages devices loaded.")
 
-        if not self._mmc.getXYStageDevice():
+        if (
+            self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
+            and not self._mmc.getXYStageDevice()
+        ):
             warnings.warn("No XY Stage device selected.")
 
         if hasattr(self, "_grid_wdg"):
