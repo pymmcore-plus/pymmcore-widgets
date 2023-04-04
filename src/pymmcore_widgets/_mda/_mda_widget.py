@@ -153,18 +153,8 @@ class MDAWidget(QWidget):
         self.time_groupbox.setEnabled(enabled)
         self.buttons_wdg.acquisition_order_comboBox.setEnabled(enabled)
         self.channel_groupbox.setEnabled(enabled)
-
-        if not self._mmc.getXYStageDevice():
-            self.position_groupbox.setChecked(False)
-            self.position_groupbox.setEnabled(False)
-        else:
-            self.position_groupbox.setEnabled(enabled)
-
-        if not self._mmc.getFocusDevice():
-            self.stack_groupbox.setChecked(False)
-            self.stack_groupbox.setEnabled(False)
-        else:
-            self.stack_groupbox.setEnabled(enabled)
+        self.position_groupbox.setEnabled(enabled)
+        self.stack_groupbox.setEnabled(enabled)
 
     def _on_mda_started(self) -> None:
         self._set_enabled(False)
