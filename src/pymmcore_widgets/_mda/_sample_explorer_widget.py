@@ -53,7 +53,6 @@ class _GridParametersWidget(QGroupBox):
         col_label.setMaximumWidth(80)
         col_label.setSizePolicy(LBL_SIZEPOLICY)
         self.scan_size_spinBox_c = QSpinBox()
-        self.scan_size_spinBox_c.setSizePolicy
         self.scan_size_spinBox_c.setMinimum(1)
         self.scan_size_spinBox_c.setAlignment(Qt.AlignmentFlag.AlignCenter)
         col_wdg_lay = QHBoxLayout()
@@ -385,7 +384,7 @@ class SampleExplorerWidget(MDAWidget):
         self.pixel_size = self._mmc.getPixelSizeUm()
 
         if self._mmc.getPixelSizeUm() <= 0:
-            warnings.warn("Pixel Size not set.")
+            warnings.warn("Pixel Size not set.", stacklevel=2)
             return
 
         super()._on_run_clicked()

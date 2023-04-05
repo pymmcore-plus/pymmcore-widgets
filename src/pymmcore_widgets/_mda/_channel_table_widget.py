@@ -217,13 +217,13 @@ class ChannelTable(QGroupBox):
         If 'exposure' is not provided, the current exposure will be used (or 100).
         """
         if len(self._mmc.getLoadedDevices()) <= 1:
-            warnings.warn("No devices loaded.")
+            warnings.warn("No devices loaded.", stacklevel=2)
             return
 
         _channel_group = channel_group or self.channel_group_combo.currentText()
 
         if not _channel_group:
-            warnings.warn("First select Micro-Manager 'ChannelGroup'.")
+            warnings.warn("First select Micro-Manager 'ChannelGroup'.", stacklevel=2)
             return
 
         # channel dropdown
@@ -336,7 +336,8 @@ class ChannelTable(QGroupBox):
                 if ch not in avail_configs:
                     warnings.warn(
                         f"'{ch}' config or its group doesn't exist in the "
-                        f"'{group}' ChannelGroup!"
+                        f"'{group}' ChannelGroup!",
+                        stacklevel=2,
                     )
                     continue
 
