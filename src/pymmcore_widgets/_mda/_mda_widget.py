@@ -402,15 +402,25 @@ class MDAWidget(QWidget):
     def _set_enabled(self, enabled: bool) -> None:
         self.buttons_wdg.acquisition_order_comboBox.setEnabled(enabled)
         self._checkbox_ch.setEnabled(enabled)
-        self.channel_groupbox.setEnabled(enabled)
+        self.channel_groupbox.setEnabled(
+            enabled if self._checkbox_ch.isChecked() else False
+        )
         self._checkbox_z.setEnabled(enabled)
-        self.stack_groupbox.setEnabled(enabled)
+        self.stack_groupbox.setEnabled(
+            enabled if self._checkbox_z.isChecked() else False
+        )
         self._checkbox_p.setEnabled(enabled)
-        self.position_groupbox.setEnabled(enabled)
+        self.position_groupbox.setEnabled(
+            enabled if self._checkbox_p.isChecked() else False
+        )
         self._checkbox_t.setEnabled(enabled)
-        self.time_groupbox.setEnabled(enabled)
+        self.time_groupbox.setEnabled(
+            enabled if self._checkbox_t.isChecked() else False
+        )
         self._checkbox_g.setEnabled(enabled)
-        self.grid_groupbox.setEnabled(enabled)
+        self.grid_groupbox.setEnabled(
+            enabled if self._checkbox_g.isChecked() else False
+        )
 
     def _on_mda_started(self) -> None:
         self._set_enabled(False)
