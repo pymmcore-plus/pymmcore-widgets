@@ -400,40 +400,17 @@ class MDAWidget(QWidget):
             self.buttons_wdg.run_button.setEnabled(True)
 
     def _set_enabled(self, enabled: bool) -> None:
-        self._checkbox_ch.setEnabled(enabled)
-        self._checkbox_z.setEnabled(enabled)
-        self._checkbox_p.setEnabled(enabled)
-        self._checkbox_t.setEnabled(enabled)
-        self._checkbox_g.setEnabled(enabled)
-
-        self.time_groupbox.setEnabled(
-            enabled if self._checkbox_t.isChecked() else False
-        )
         self.buttons_wdg.acquisition_order_comboBox.setEnabled(enabled)
-        self.channel_groupbox.setEnabled(
-            enabled if self._checkbox_ch.isChecked() else False
-        )
-
-        if not self._mmc.getXYStageDevice():
-            self._checkbox_p.setChecked(False)
-            self.position_groupbox.setEnabled(False)
-            self._checkbox_g.setEnabled(False)
-            self.grid_groupbox.setEnabled(False)
-        else:
-            self.position_groupbox.setEnabled(
-                enabled if self._checkbox_p.isChecked() else False
-            )
-            self.grid_groupbox.setEnabled(
-                enabled if self._checkbox_g.isChecked() else False
-            )
-
-        if not self._mmc.getFocusDevice():
-            self._checkbox_z.setChecked(False)
-            self.stack_groupbox.setEnabled(False)
-        else:
-            self.stack_groupbox.setEnabled(
-                enabled if self._checkbox_z.isChecked() else False
-            )
+        self._checkbox_ch.setEnabled(enabled)
+        self.channel_groupbox.setEnabled(enabled)
+        self._checkbox_z.setEnabled(enabled)
+        self.stack_groupbox.setEnabled(enabled)
+        self._checkbox_p.setEnabled(enabled)
+        self.position_groupbox.setEnabled(enabled)
+        self._checkbox_t.setEnabled(enabled)
+        self.time_groupbox.setEnabled(enabled)
+        self._checkbox_g.setEnabled(enabled)
+        self.grid_groupbox.setEnabled(enabled)
 
     def _on_mda_started(self) -> None:
         self._set_enabled(False)
