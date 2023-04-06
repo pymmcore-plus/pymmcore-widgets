@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import timedelta
 from typing import TYPE_CHECKING, cast
 
 import pytest
@@ -159,7 +158,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg._checkbox_t.isChecked()
     interval = cast("_DoubleSpinAndCombo", wdg.time_groupbox._table.cellWidget(0, 0))
     timepoint = cast("QSpinBox", wdg.time_groupbox._table.cellWidget(0, 1))
-    interval.setValue(timedelta(milliseconds=1))
+    interval.setValue(1, "ms")
     timepoint.setValue(2)
     assert wdg.time_groupbox._warning_widget.isVisible()
 
@@ -174,7 +173,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg.channel_groupbox._table.cellWidget(1, 4).setValue(2)
     wdg.channel_groupbox._table.cellWidget(1, 1).setValue(100.0)
     assert wdg.time_groupbox._warning_widget.isVisible()
-    interval.setValue(timedelta(milliseconds=200))
+    interval.setValue(200, "ms")
     timepoint.setValue(4)
     assert not wdg.time_groupbox._warning_widget.isVisible()
 
