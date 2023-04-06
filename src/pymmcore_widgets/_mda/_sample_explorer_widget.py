@@ -88,10 +88,6 @@ class _GridParametersWidget(QGroupBox):
         self.scan_size_spinBox_r.valueChanged.connect(self.valueChanged)
         self.scan_size_spinBox_c.valueChanged.connect(self.valueChanged)
 
-    def ntiles(self) -> int:
-        tiles = self.scan_size_spinBox_r.value() * self.scan_size_spinBox_c.value()
-        return cast(int, tiles)
-
 
 class SampleExplorerWidget(MDAWidget):
     """Widget to create and run grid acquisitions.
@@ -200,9 +196,6 @@ class SampleExplorerWidget(MDAWidget):
             )
             self.return_to_position_x = None
             self.return_to_position_y = None
-
-    def _update_total_time(self, *, tiles: int = 1) -> None:
-        super()._update_total_time(tiles=self.grid_params.ntiles())
 
     def _add_position(self) -> None:
         if not self._mmc.getXYStageDevice():
