@@ -144,7 +144,7 @@ class TimePlanWidget(QGroupBox):
         loops: int | None = None,
     ) -> None:
         """Create a new row in the table."""
-        val, u = (interval.total_seconds(), "s") if interval is not None else (1, "s")
+        val, u = (interval.total_seconds(), "s") if interval else (1, "s")
         _interval = QQuantity(val, u)
         _interval._mag_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         _interval._mag_spinbox.setButtonSymbols(
