@@ -32,7 +32,7 @@ def test_time_table_widget(qtbot: QtBot):
     assert t._table.rowCount() == 2
 
     interval, timepoints = _value(t._table, 0)
-    assert t._quantity_to_timedelta(interval.value()) == timedelta(seconds=1)
+    assert interval.value().to_timedelta() == timedelta(seconds=1)
     assert timepoints.value() == 1
 
     t._table.selectRow(0)
@@ -59,11 +59,11 @@ def test_set_get_state(qtbot: QtBot):
     assert t._table.rowCount() == 2
 
     interval, timepoints = _value(t._table, 0)
-    assert t._quantity_to_timedelta(interval.value()) == timedelta(seconds=10)
+    assert interval.value().to_timedelta() == timedelta(seconds=10)
     assert timepoints.value() == 10
 
     interval, timepoints = _value(t._table, 1)
-    assert t._quantity_to_timedelta(interval.value()) == timedelta(minutes=5)
+    assert interval.value().to_timedelta() == timedelta(minutes=5)
     assert timepoints.value() == 5
 
     assert t.value() == state
@@ -74,7 +74,7 @@ def test_set_get_state(qtbot: QtBot):
     state = {"interval": 10, "loops": 10}
     t.set_state(state)
     interval, timepoints = _value(t._table, 0)
-    assert t._quantity_to_timedelta(interval.value()) == timedelta(minutes=10)
+    assert interval.value().to_timedelta() == timedelta(minutes=10)
     assert timepoints.value() == 10
 
     state = {"loops": 10}

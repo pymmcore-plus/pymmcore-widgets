@@ -4,7 +4,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, cast
 
 from fonticon_mdi6 import MDI6
-from pint import Quantity
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QIcon
@@ -197,19 +196,6 @@ class TimePlanWidget(QGroupBox):
         """Set the visibility of the warning message."""
         self._warning_widget.setVisible(visible)
 
-    def _quantity_to_timedelta(self, value: Quantity) -> timedelta:
-        if value.units == "day":
-            return timedelta(days=value.magnitude)
-        elif value.units == "hour":
-            return timedelta(hours=value.magnitude)
-        elif value.units == "minute":
-            return timedelta(minutes=value.magnitude)
-        elif value.units == "second":
-            return timedelta(seconds=value.magnitude)
-        elif value.units == "millisecond":
-            return timedelta(milliseconds=value.magnitude)
-        raise ValueError(f"Invalid units: {value.units}")
-
     def value(self) -> TimeDict:
         """Return the current time plan as a TimeDict.
 
@@ -231,7 +217,7 @@ class TimePlanWidget(QGroupBox):
             timepoints = cast("QSpinBox", self._table.cellWidget(row, TIMEPOINTS))
             phases.append(
                 {
-                    "interval": self._quantity_to_timedelta(interval.value()),
+                    "interval": interval.value().to_timedelta(),
                     "loops": timepoints.value(),
                 }
             )
