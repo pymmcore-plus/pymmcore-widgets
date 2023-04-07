@@ -138,34 +138,13 @@ class TimePlanWidget(QGroupBox):
 
         self.destroyed.connect(self._disconnect)
 
-    def _timedelta_to_value_and_units(
-        self, value: timedelta
-    ) -> tuple[float | int, str]:
-        sec = value.total_seconds()
-        if sec >= 86400:
-            u = "days"
-            val = sec // 86400
-        if sec >= 3600:
-            u = "hours"
-            val = sec // 3600
-        elif sec >= 60:
-            u = "min"
-            val = sec // 60
-        elif sec >= 1:
-            u = "sec"
-            val = int(sec)
-        else:
-            u = "ms"
-            val = int(sec * 1000)
-        return val, u
-
     def _create_new_row(
         self,
         interval: timedelta | None = None,
         loops: int | None = None,
     ) -> None:
         """Create a new row in the table."""
-        val, u = self._timedelta_to_value_and_units(interval) if interval else (1, "s")
+        val, u = (interval.total_seconds(), "s") if interval is not None else (1, "s")
         _interval = QQuantity(val, u)
         _interval._mag_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         _interval._mag_spinbox.setButtonSymbols(
