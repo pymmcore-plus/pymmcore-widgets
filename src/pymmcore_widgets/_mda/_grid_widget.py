@@ -131,7 +131,7 @@ class GridWidget(QDialog):
     parent : QWidget | None
         Optional parent widget, by default None.
     current_stage_pos : tuple[float | None, float | None]
-        Optional current stage position. By default None.
+        Optional current xy stage position. By default None.
     mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active

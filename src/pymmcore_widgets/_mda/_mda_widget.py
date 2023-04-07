@@ -84,6 +84,8 @@ class Grid(GridWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent=parent)
 
+        self.layout().itemAt(2).widget().hide()
+
     def _update_info(self) -> None:
         super()._update_info()
         self.valueChanged.emit(self.value())
