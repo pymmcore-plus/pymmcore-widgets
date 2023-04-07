@@ -234,7 +234,7 @@ class MDAWidget(QWidget):
             (self.time_groupbox, TIME[0], TIME[1], self._checkbox_t),
             (self.grid_groupbox, GRID[0], GRID[1], self._checkbox_g, True),
         ]
-        for _tab in _tabs:
+        for _tab in sorted(_tabs, key=lambda x: x[2]):  # type: ignore
             self._add_new_tab(*_tab)
 
         self._tab.setTabBar(self._tabbar)
