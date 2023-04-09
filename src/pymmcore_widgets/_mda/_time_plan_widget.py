@@ -193,7 +193,6 @@ class TimePlanWidget(QGroupBox):
             if i == 3:
                 s = t.split(".")
                 if len(s) == 2:
-                    print(s, int(s[1]), f"{int(s[1]):03d}")
                     out.append(f"{int(s[0]):02d}:{int(s[1][:3]):03d}")
                 else:
                     out.append(f"{int(s[0]):02d}:000")
