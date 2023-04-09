@@ -161,7 +161,7 @@ class TimePlanWidget(QGroupBox):
         _timepoints.valueChanged.connect(self.valueChanged)
         _timepoints.valueChanged.connect(self._on_value_changed)
 
-        v = _interval.value().to_base_units().magnitude * _timepoints.value()
+        v = _interval.value().to_base_units().magnitude * (_timepoints.value() - 1)
         _duration = QLabel(text=str(self._print_timedelta(timedelta(seconds=v))))
         _duration.setEnabled(False)
         _duration.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -179,7 +179,7 @@ class TimePlanWidget(QGroupBox):
         row = self._table.indexAt(self.sender().pos()).row()
         interval = self._table.cellWidget(row, INTERVAL).value()
         timepoints = self._table.cellWidget(row, TIMEPOINTS).value()
-        sec = interval.to_base_units().magnitude * timepoints
+        sec = interval.to_base_units().magnitude * (timepoints - 1)
         td = timedelta(seconds=sec)
         self._table.cellWidget(row, DURATION).setText(self._print_timedelta(td))
 
