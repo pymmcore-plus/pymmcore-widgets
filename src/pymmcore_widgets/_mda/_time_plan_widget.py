@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 
 INTERVAL = 0
 TIMEPOINTS = 1
+DURATION = 2
 
 
 class TimePlanWidget(QGroupBox):
@@ -75,9 +76,9 @@ class TimePlanWidget(QGroupBox):
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
         self._table.verticalHeader().setVisible(False)
         self._table.setTabKeyNavigation(True)
-        self._table.setColumnCount(2)
+        self._table.setColumnCount(3)
         self._table.setRowCount(0)
-        self._table.setHorizontalHeaderLabels(["Interval", "Timepoints"])
+        self._table.setHorizontalHeaderLabels(["Interval", "Timepoints", "Duration"])
         group_layout.addWidget(self._table, 0, 0)
 
         # buttons
@@ -150,6 +151,7 @@ class TimePlanWidget(QGroupBox):
             QAbstractSpinBox.ButtonSymbols.NoButtons
         )
         _interval.valueChanged.connect(self.valueChanged)
+        _interval.valueChanged.connect(self._on_value_changed)
 
         _timepoints = QSpinBox()
         _timepoints.setRange(1, 1000000)
@@ -157,13 +159,47 @@ class TimePlanWidget(QGroupBox):
         _timepoints.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         _timepoints.setAlignment(Qt.AlignmentFlag.AlignCenter)
         _timepoints.valueChanged.connect(self.valueChanged)
+        _timepoints.valueChanged.connect(self._on_value_changed)
+
+        v = _interval.value().to_base_units().magnitude * _timepoints.value()
+        _duration = QLabel(text=str(self._print_timedelta(timedelta(seconds=v))))
+        _duration.setEnabled(False)
+        _duration.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         idx = self._table.rowCount()
         self._table.insertRow(idx)
         self._table.setCellWidget(idx, INTERVAL, _interval)
         self._table.setCellWidget(idx, TIMEPOINTS, _timepoints)
+        self._table.setCellWidget(idx, DURATION, _duration)
 
         self.valueChanged.emit()
+
+    def _on_value_changed(self) -> None:
+        """Update the duration column when the interval or timepoints change."""
+        row = self._table.indexAt(self.sender().pos()).row()
+        interval = self._table.cellWidget(row, INTERVAL).value()
+        timepoints = self._table.cellWidget(row, TIMEPOINTS).value()
+        sec = interval.to_base_units().magnitude * timepoints
+        td = timedelta(seconds=sec)
+        self._table.cellWidget(row, DURATION).setText(self._print_timedelta(td))
+
+    def _print_timedelta(self, time: timedelta) -> str:
+        d = "day" if time.days == 1 else "days"
+        _time = (
+            str(time).replace(f" {d}, ", ":") if time.days >= 1 else f"0:{str(time)}"
+        )
+        out: list = []
+        for i, t in enumerate(_time.split(":")):
+            if i == 3:
+                s = t.split(".")
+                if len(s) == 2:
+                    print(s, int(s[1]), f"{int(s[1]):03d}")
+                    out.append(f"{int(s[0]):02d}:{int(s[1][:3]):03d}")
+                else:
+                    out.append(f"{int(s[0]):02d}:000")
+            else:
+                out.append(f"{int(float(t)):02d}")
+        return ":".join(out)
 
     def _remove_selected_rows(self) -> None:
         rows = {r.row() for r in self._table.selectedIndexes()}
