@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -9,7 +10,7 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 from useq import MDASequence
 
-from .._util import _select_output_unit, guess_channel_group
+from .._util import _select_output_unit, guess_channel_group, print_timedelta
 from ._channel_table_widget import ChannelTable
 from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
 from ._positions_table_widget import PositionTable
@@ -365,6 +366,6 @@ class MDAWidget(QWidget):
                     _tp.append((aq, u))
                 t_per_tp_msg = f"{t_per_tp_msg[:-3]})."
 
-        _min_tot_time, _unit = _select_output_unit(total_time)
-        tot_acq_msg = f"Minimum total acquisition time: {_min_tot_time:.4f} {_unit}."
+        _min_tot_time = print_timedelta(timedelta(seconds=total_time))
+        tot_acq_msg = f"Minimum total acquisition time: {_min_tot_time}."
         self.time_lbl._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")

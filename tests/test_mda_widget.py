@@ -198,7 +198,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg.time_groupbox._add_button.click()
 
     txt = (
-        "Minimum total acquisition time: 100.0000 ms."
+        "Minimum total acquisition time: 00 days  00 hours  00 min  00 sec  100 ms."
         "\nMinimum acquisition time(s) per timepoint: 100.0000 ms."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
@@ -212,7 +212,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.time_groupbox._warning_widget.isVisible()
 
     txt = (
-        "Minimum total acquisition time: 201.0000 ms."
+        "Minimum total acquisition time: 00 days  00 hours  00 min  00 sec  201 ms."
         "\nMinimum acquisition time(s) per timepoint: 100.0000 ms."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
@@ -227,7 +227,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not wdg.time_groupbox._warning_widget.isVisible()
 
     txt = (
-        "Minimum total acquisition time: 1.2000 sec.\n"
+        "Minimum total acquisition time: 00 days  00 hours  00 min  01 sec  200 ms.\n"
         "Minimum acquisition time(s) per timepoint: 200.0000 ms (100.0000 ms)."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
@@ -237,7 +237,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     timepoint.setValue(2)
 
     txt = (
-        "Minimum total acquisition time: 2.4000 sec.\n"
+        "Minimum total acquisition time: 00 days  00 hours  00 min  02 sec  400 ms.\n"
         "Minimum acquisition time(s) per timepoint: 200.0000 ms (100.0000 ms)."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt

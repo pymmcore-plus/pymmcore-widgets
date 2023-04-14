@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import ContextManager, Sequence
 
 from pymmcore_plus import CMMCorePlus
@@ -101,3 +102,20 @@ def block_core(mmcore_events: CMMCoreSignaler | PCoreSignaler) -> ContextManager
         return mmcore_events.blocked()  # type: ignore
     elif isinstance(mmcore_events, PCoreSignaler):
         return signals_blocked(mmcore_events)  # type: ignore
+
+
+def print_timedelta(time: timedelta) -> str:
+    d = "day" if time.days == 1 else "days"
+    _time = str(time).replace(f" {d}, ", ":") if time.days >= 1 else f"0:{str(time)}"
+    out: list = []
+    keys = ["days", "hours", "min", "sec", "ms"]
+    for i, t in enumerate(_time.split(":")):
+        if i == 3:
+            s = t.split(".")
+            if len(s) == 2:
+                out.append(f"{int(s[0]):02d} sec  {int(s[1][:3]):03d} ms")
+            else:
+                out.append(f"{int(s[0]):02d} sec  000 ms")
+        else:
+            out.append(f"{int(float(t)):02d} {keys[i]}")
+    return "  ".join(out)
