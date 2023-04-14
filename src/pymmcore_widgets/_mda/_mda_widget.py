@@ -235,9 +235,6 @@ class MDAWidget(QWidget):
         )
 
         stage_positions: list[PositionDict] = []
-        _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
-        width = int(width * self._mmc.getPixelSizeUm())
-        height = int(height * self._mmc.getPixelSizeUm())
         if self.position_groupbox.isChecked():
             for p in self.position_groupbox.value():
                 if p.get("sequence"):
@@ -245,7 +242,6 @@ class MDAWidget(QWidget):
                     p_sequence = p_sequence.replace(
                         axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
                     )
-                    p_sequence.set_fov_size((width, height))
                     p["sequence"] = p_sequence
 
                 stage_positions.append(p)
@@ -253,16 +249,13 @@ class MDAWidget(QWidget):
         if not stage_positions:
             stage_positions = self._get_current_position()
 
-        sequence = MDASequence(
+        return MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
             channels=channels,
             stage_positions=stage_positions,
             z_plan=z_plan,
             time_plan=time_plan,
         )
-        sequence.set_fov_size((width, height))
-
-        return sequence
 
     def _get_current_position(self) -> list[PositionDict]:
         return [
