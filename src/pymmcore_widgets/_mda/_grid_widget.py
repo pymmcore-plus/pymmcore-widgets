@@ -24,10 +24,8 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import AnyGridPlan, GridFromEdges, GridRelative, NoGrid
+from useq import AnyGridPlan, GridFromEdges, GridRelative, MDASequence, NoGrid
 from useq._grid import OrderMode, RelativeTo
-
-from .._util import get_grid_type
 
 if TYPE_CHECKING:
     from typing_extensions import Required, TypedDict
@@ -555,13 +553,9 @@ class GridWidget(QDialog):
 
         return value
 
-    def set_state(self, grid: AnyGridPlan | GridDict) -> None:
+    def set_state(self, grid: dict) -> None:
         """Set the state of the widget from a useq AnyGridPlan or dictionary."""
-        # to avoid TypeError("Subscripted generics cannot be used with"
-        # " class and instance checks") in python 3.8 and 3.9 we don't use
-        # if isinstance(grid, AnyGridPlan):
-        if isinstance(grid, (GridRelative, GridFromEdges, NoGrid)):
-            grid = cast("GridDict", grid.dict())
+        grid_plan = MDASequence(grid_plan=grid).grid_plan
 
         overlap = grid.get("overlap") or 0.0
         over_x, over_y = (
@@ -573,30 +567,18 @@ class GridWidget(QDialog):
         ordermode = ordermode.value if isinstance(ordermode, OrderMode) else ordermode
         self.ordermode_combo.setCurrentText(ordermode)
 
-        grid_type = get_grid_type(grid)
-
-        if isinstance(grid_type, GridRelative):
+        if isinstance(grid_plan, GridRelative):
             self.tab.setCurrentIndex(0)
-            self._set_relative(grid)
+            self.n_rows.setValue(grid_plan.rows)
+            self.n_columns.setValue(grid_plan.columns)
+            self.relative_combo.setCurrentText(grid_plan.relative_to.value)
 
-        elif isinstance(grid_type, GridFromEdges):
+        elif isinstance(grid_plan, GridFromEdges):
             self.tab.setCurrentIndex(1)
-            self._set_edges(grid)
-
-    def _set_relative(self, grid: GridDict) -> None:
-        self.n_rows.setValue(grid.get("rows"))
-        self.n_columns.setValue(grid.get("columns"))
-        relative = grid.get("relative_to")
-        relative = (
-            relative.value if isinstance(relative, RelativeTo) else relative or "center"
-        )
-        self.relative_combo.setCurrentText(relative)
-
-    def _set_edges(self, grid: GridDict) -> None:
-        self.top.spinbox.setValue(grid["top"])
-        self.bottom.spinbox.setValue(grid["bottom"])
-        self.left.spinbox.setValue(grid["left"])
-        self.right.spinbox.setValue(grid["right"])
+            self.top.spinbox.setValue(grid_plan.top)
+            self.bottom.spinbox.setValue(grid_plan.bottom)
+            self.left.spinbox.setValue(grid_plan.left)
+            self.right.spinbox.setValue(grid_plan.right)
 
     def _emit_grid_positions(self) -> None:
         if self._mmc.getPixelSizeUm() <= 0:

@@ -192,16 +192,12 @@ class SampleExplorerWidget(MDAWidget):
     def _add_pos(self) -> None:
         self.position_groupbox._add_position()
         for r in range(self.position_groupbox._table.rowCount()):
-            self.position_groupbox._add_grid_plan(
-                self.grid_params.value(), r  # type: ignore
-            )
+            self.position_groupbox._add_grid_plan(self.grid_params.value(), r)
         super()._update_total_time()
 
     def _update_grid_plan(self) -> None:
         for r in range(self.position_groupbox._table.rowCount()):
-            self.position_groupbox._add_grid_plan(
-                self.grid_params.value(), r  # type: ignore
-            )
+            self.position_groupbox._add_grid_plan(self.grid_params.value(), r)
         super()._update_total_time()
 
 
