@@ -557,15 +557,10 @@ class GridWidget(QDialog):
         """Set the state of the widget from a useq AnyGridPlan or dictionary."""
         grid_plan = MDASequence(grid_plan=grid).grid_plan
 
-        overlap = grid.get("overlap") or 0.0
-        over_x, over_y = (
-            overlap if isinstance(overlap, (tuple, list)) else (overlap, overlap)
-        )
+        over_x, over_y = grid_plan.overlap
         self.overlap_spinbox_x.setValue(over_x)
         self.overlap_spinbox_y.setValue(over_y)
-        ordermode = grid.get("mode") or OrderMode.row_wise_snake
-        ordermode = ordermode.value if isinstance(ordermode, OrderMode) else ordermode
-        self.ordermode_combo.setCurrentText(ordermode)
+        self.ordermode_combo.setCurrentText(grid_plan.mode.value)
 
         if isinstance(grid_plan, GridRelative):
             self.tab.setCurrentIndex(0)
