@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+from datetime import timedelta
 from typing import TYPE_CHECKING, ContextManager, Sequence
 
 from pydantic import ValidationError
@@ -132,3 +133,20 @@ def get_grid_type(grid: GridDict) -> AnyGridPlan:
     with contextlib.suppress(ValidationError):
         return NoGrid()
     return NoGrid()
+
+
+def print_timedelta(time: timedelta) -> str:
+    d = "day" if time.days == 1 else "days"
+    _time = str(time).replace(f" {d}, ", ":") if time.days >= 1 else f"0:{str(time)}"
+    out: list = []
+    keys = ["days", "hours", "min", "sec", "ms"]
+    for i, t in enumerate(_time.split(":")):
+        if i == 3:
+            s = t.split(".")
+            if len(s) == 2:
+                out.append(f"{int(s[0]):02d} sec  {int(s[1][:3]):03d} ms")
+            else:
+                out.append(f"{int(s[0]):02d} sec  000 ms")
+        else:
+            out.append(f"{int(float(t)):02d} {keys[i]}")
+    return "  ".join(out)

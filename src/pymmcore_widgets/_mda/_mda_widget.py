@@ -22,7 +22,7 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 from useq import MDASequence, NoGrid, NoT, NoZ
 
-from .._util import _select_output_unit, guess_channel_group
+from .._util import _select_output_unit, guess_channel_group, print_timedelta
 from ._channel_table_widget import ChannelTable
 from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
 from ._grid_widget import GridWidget
@@ -643,10 +643,7 @@ class MDAWidget(QWidget):
             else:
                 interval = time_value["interval"].total_seconds()
                 intervals.append(interval)
-                if time_value.get("loops") is not None:
-                    total_time = total_time + (time_value["loops"] - 1) * interval
-                else:
-                    total_time = total_time + time_value["duration"].total_seconds()
+                total_time = total_time + (time_value["loops"] - 1) * interval
 
             # check if the interval(s) is smaller than the sum of the exposure times
             sum_ch_exp = sum(
@@ -676,8 +673,8 @@ class MDAWidget(QWidget):
                 aq, u = _select_output_unit(min(_per_timepoints.values()))
                 t_per_tp_msg = f"{t_per_tp_msg}{aq:.4f} {u}."
 
-        _min_tot_time, _unit = _select_output_unit(total_time)
-        tot_acq_msg = f"Minimum total acquisition time: {_min_tot_time:.4f} {_unit}."
+        _min_tot_time = print_timedelta(timedelta(seconds=total_time))
+        tot_acq_msg = f"Minimum total acquisition time: {_min_tot_time}."
         self.time_lbl._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
 
     def _disconnect(self) -> None:
