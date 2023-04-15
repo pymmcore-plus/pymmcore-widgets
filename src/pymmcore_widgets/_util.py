@@ -113,9 +113,11 @@ def print_timedelta(time: timedelta) -> str:
         if i == 3:
             s = t.split(".")
             if len(s) == 2:
-                out.append(f"{int(s[0]):02d} sec  {int(s[1][:3]):03d} ms")
+                sec = f"{int(s[0]):02d} sec " if int(s[0]) > 0 else ""
+                ms = f"{int(s[1][:3]):03d} ms" if int(s[1][:3]) > 0 else ""
+                out.append(f"{sec}{ms}")
             else:
-                out.append(f"{int(s[0]):02d} sec  000 ms")
+                out.append(f"{int(s[0]):02d} sec") if int(s[0]) > 0 else ""
         else:
-            out.append(f"{int(float(t)):02d} {keys[i]}")
+            out.append(f"{int(float(t)):02d} {keys[i]}") if int(float(t)) > 0 else ""
     return "  ".join(out)
