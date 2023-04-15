@@ -179,7 +179,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     txt = (
         "Minimum total acquisition time: 00 days  00 hours  00 min  01 sec  200 ms.\n"
-        "Minimum acquisition time(s) per timepoint: 200.0000 ms (100.0000 ms)."
+        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
 
@@ -189,7 +189,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     txt = (
         "Minimum total acquisition time: 00 days  00 hours  00 min  02 sec  400 ms.\n"
-        "Minimum acquisition time(s) per timepoint: 200.0000 ms (100.0000 ms)."
+        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
 

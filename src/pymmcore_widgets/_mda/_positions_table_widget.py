@@ -37,13 +37,12 @@ from useq import (
     NoGrid,
     Position,
 )
-from useq._grid import OrderMode, RelativeTo
 
 from .._util import get_grid_type
 from ._grid_widget import GridWidget
 
 if TYPE_CHECKING:
-    from typing_extensions import Required, TypedDict
+    from typing_extensions import TypedDict
 
     class PositionDict(TypedDict, total=False):
         """Position dictionary."""
@@ -53,19 +52,6 @@ if TYPE_CHECKING:
         z: float | None
         name: str | None
         sequence: MDASequence | None
-
-    class GridDict(TypedDict, total=False):
-        """Grid dictionary."""
-
-        overlap: Required[float | tuple[float, float]]
-        mode: Required[OrderMode | str]
-        rows: int
-        columns: int
-        relative_to: RelativeTo | str
-        top: float
-        left: float
-        bottom: float
-        right: float
 
 
 POS = "Pos"
@@ -365,7 +351,7 @@ class PositionTable(QGroupBox):
 
         self._grid_wdg.show()
 
-    def _add_grid_plan(self, grid: GridDict, row: int | None = None) -> None:
+    def _add_grid_plan(self, grid: dict, row: int | None = None) -> None:
         # sourcery skip: extract-method
         grid_type = get_grid_type(grid)
 
@@ -395,7 +381,7 @@ class PositionTable(QGroupBox):
         self._enable_button()
         self.valueChanged.emit()
 
-    def _create_tooltip(self, grid: GridDict) -> str:
+    def _create_tooltip(self, grid: dict) -> str:
         grid_type = get_grid_type(grid)
 
         if isinstance(grid_type, NoGrid):
@@ -580,7 +566,7 @@ class PositionTable(QGroupBox):
             if pos_seq := position.get("sequence"):
                 self._advanced_cbox.setChecked(True)
                 if isinstance(pos_seq, MDASequence):
-                    grid_plan = cast(GridDict, pos_seq.grid_plan.dict())
+                    grid_plan = pos_seq.grid_plan.dict()
                 else:
                     grid_plan = pos_seq.get("grid_plan")
                 if grid_plan:

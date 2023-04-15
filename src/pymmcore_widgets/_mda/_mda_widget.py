@@ -337,7 +337,8 @@ class MDAWidget(QWidget):
             ):
                 warnings.warn(
                     "'Absolute' grid modes are not supported "
-                    "with multiple positions."
+                    "with multiple positions.",
+                    stacklevel=2,
                 )
                 with signals_blocked(self._checkbox_g):
                     self._checkbox_g.setChecked(False)
@@ -525,9 +526,6 @@ class MDAWidget(QWidget):
         )
 
         stage_positions: list[PositionDict] = []
-        _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
-        width = int(width * self._mmc.getPixelSizeUm())
-        height = int(height * self._mmc.getPixelSizeUm())
         if self._checkbox_p.isChecked():
             for p in self.position_groupbox.value():
                 if p.get("sequence"):
@@ -535,7 +533,6 @@ class MDAWidget(QWidget):
                     p_sequence = p_sequence.replace(
                         axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
                     )
-                    p_sequence.set_fov_size((width, height))
                     p["sequence"] = p_sequence
 
                 stage_positions.append(p)
@@ -547,7 +544,7 @@ class MDAWidget(QWidget):
             self._mda_grid_wdg.value() if self._checkbox_g.isChecked() else NoGrid()
         )
 
-        sequence = MDASequence(
+        return MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
             channels=channels,
             stage_positions=stage_positions,
@@ -555,9 +552,6 @@ class MDAWidget(QWidget):
             time_plan=time_plan,
             grid_plan=grid_plan,
         )
-        sequence.set_fov_size((width, height))
-
-        return sequence
 
     def _get_current_position(self) -> list[PositionDict]:
         return [

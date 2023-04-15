@@ -194,7 +194,8 @@ class EditPresetWidget(QDialog):
                     return
                 warnings.warn(
                     "Threre is already a preset with the same "
-                    f"devices, properties and values: '{p}'."
+                    f"devices, properties and values: '{p}'.",
+                    stacklevel=2,
                 )
                 self.info_lbl.setStyleSheet("color: magenta;")
                 self.info_lbl.setText(f"'{p}' already has the same properties!")

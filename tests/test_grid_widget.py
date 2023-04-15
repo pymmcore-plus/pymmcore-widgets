@@ -29,7 +29,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert tuple(global_mmcore.getXYPosition()) == (0.0, 0.0)
     assert tuple(global_mmcore.getROI()) == (0, 0, 512, 512)
 
-    grid_wdg.set_state(GridRelative(rows=2, columns=2))
+    grid_wdg.set_state({"rows": 2, "columns": 2})
     assert (
         grid_wdg.info_lbl.text()
         == "Height: 0.512 mm    Width: 0.512 mm    (Rows: 2    Columns: 2)"
@@ -60,7 +60,7 @@ def test_grid_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(grid_wdg)
 
     grid_wdg.set_state(
-        GridRelative(rows=3, columns=3, overlap=15.0, relative_to="top_left")
+        {"rows": 3, "columns": 3, "overlap": 15.0, "relative_to": "top_left"}
     )
     assert grid_wdg.value() == {
         "overlap": (15.0, 15.0),
