@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import contextlib
-from typing import TYPE_CHECKING, ContextManager, Sequence
+from typing import ContextManager, Sequence
 
-from pydantic import ValidationError
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
 from qtpy.QtWidgets import (
@@ -15,24 +13,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import signals_blocked
-from useq import AnyGridPlan, GridFromEdges, GridRelative, NoGrid
-
-if TYPE_CHECKING:
-    from typing_extensions import Required, TypedDict
-    from useq._grid import OrderMode, RelativeTo
-
-    class GridDict(TypedDict, total=False):
-        """Grid dictionary."""
-
-        overlap: Required[float | tuple[float, float]]
-        mode: Required[OrderMode | str]
-        rows: int
-        columns: int
-        relative_to: RelativeTo | str
-        top: float
-        left: float
-        bottom: float
-        right: float
+from useq import AnyGridPlan, MDASequence
 
 
 class ComboMessageBox(QDialog):
@@ -123,12 +104,6 @@ def block_core(mmcore_events: CMMCoreSignaler | PCoreSignaler) -> ContextManager
         return signals_blocked(mmcore_events)  # type: ignore
 
 
-def get_grid_type(grid: GridDict) -> AnyGridPlan:
+def get_grid_type(grid: dict) -> AnyGridPlan:
     """Get the grid type from the grid_plan."""
-    with contextlib.suppress(ValidationError):
-        return GridRelative(**grid)
-    with contextlib.suppress(ValidationError):
-        return GridFromEdges(**grid)
-    with contextlib.suppress(ValidationError):
-        return NoGrid()
-    return NoGrid()
+    return MDASequence(grid_plan=grid).grid_plan

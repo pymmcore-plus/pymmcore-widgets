@@ -50,7 +50,6 @@ class _GridParametersWidget(QGroupBox):
         col_label.setMaximumWidth(80)
         col_label.setSizePolicy(LBL_SIZEPOLICY)
         self.scan_size_spinBox_c = QSpinBox()
-        self.scan_size_spinBox_c.setSizePolicy
         self.scan_size_spinBox_c.setMinimum(1)
         self.scan_size_spinBox_c.setAlignment(Qt.AlignmentFlag.AlignCenter)
         col_wdg_lay = QHBoxLayout()
@@ -193,16 +192,12 @@ class SampleExplorerWidget(MDAWidget):
     def _add_pos(self) -> None:
         self.position_groupbox._add_position()
         for r in range(self.position_groupbox._table.rowCount()):
-            self.position_groupbox._add_grid_plan(
-                self.grid_params.value(), r  # type: ignore
-            )
+            self.position_groupbox._add_grid_plan(self.grid_params.value(), r)
         super()._update_total_time()
 
     def _update_grid_plan(self) -> None:
         for r in range(self.position_groupbox._table.rowCount()):
-            self.position_groupbox._add_grid_plan(
-                self.grid_params.value(), r  # type: ignore
-            )
+            self.position_groupbox._add_grid_plan(self.grid_params.value(), r)
         super()._update_total_time()
 
 
