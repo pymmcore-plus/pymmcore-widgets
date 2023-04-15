@@ -22,7 +22,7 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 from useq import MDASequence, NoGrid, NoT, NoZ
 
-from .._util import _select_output_unit, guess_channel_group, print_timedelta
+from .._util import guess_channel_group, print_timedelta
 from ._channel_table_widget import ChannelTable
 from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
 from ._grid_widget import GridWidget
@@ -658,18 +658,28 @@ class MDAWidget(QWidget):
                 for n in set(_per_timepoints.values())
             }
 
-            t_per_tp_msg = "\nMinimum acquisition time(s) per timepoint: "
-            if len(_group_by_time) == 1:
-                min_aq_tp, _tp_unit = _select_output_unit(float(_per_timepoints[0]))
-                t_per_tp_msg = f"{t_per_tp_msg}{min_aq_tp:.4f} {_tp_unit}."
-            else:
-                # print shortest timepoint
-                aq, u = _select_output_unit(min(_per_timepoints.values()))
-                t_per_tp_msg = f"{t_per_tp_msg}{aq:.4f} {u}."
+            t_per_tp_msg = "Minimum acquisition time per timepoint: "
 
-        _min_tot_time = print_timedelta(timedelta(seconds=total_time))
-        tot_acq_msg = f"Minimum total acquisition time: {_min_tot_time}."
-        self.time_lbl._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
+            if len(_group_by_time) == 1:
+                t_per_tp_msg = (
+                    f"\n{t_per_tp_msg}"
+                    f"{print_timedelta(timedelta(seconds=_per_timepoints[0]))}"
+                )
+            else:
+                acq_min = timedelta(seconds=min(_per_timepoints.values()))
+                t_per_tp_msg = (
+                    f"\n{t_per_tp_msg}{print_timedelta(acq_min)}"
+                    if self.time_groupbox.isChecked() and self.time_groupbox.value()
+                    else ""
+                )
+        else:
+            t_per_tp_msg = ""
+
+        _min_tot_time = (
+            "Minimum total acquisition time: "
+            f"{print_timedelta(timedelta(seconds=total_time))}"
+        )
+        self.time_lbl._total_time_lbl.setText(f"{_min_tot_time}{t_per_tp_msg}")
 
     def _disconnect(self) -> None:
         self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
