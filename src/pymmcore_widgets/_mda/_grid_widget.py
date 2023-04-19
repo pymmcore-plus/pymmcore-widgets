@@ -218,10 +218,10 @@ class _FromEdgesWdg(QWidget):
 
     def value(self) -> GridDict:
         return {
-            "top": cast(float, self.top.value()),
-            "bottom": cast(float, self.bottom.value()),
-            "left": cast(float, self.left.value()),
-            "right": cast(float, self.right.value()),
+            "top": cast("float", self.top.value()),
+            "bottom": cast("float", self.bottom.value()),
+            "left": cast("float", self.left.value()),
+            "right": cast("float", self.right.value()),
         }
 
     def setValue(self, grid: GridDict) -> None:
@@ -265,8 +265,8 @@ class _FromCornersWdg(QWidget):
         group_layout.addWidget(self.corner_2)
 
     def value(self) -> GridDict:
-        corner1_x, corner1_y = cast(tuple[float, float], self.corner_1.value())
-        corner2_x, corner2_y = cast(tuple[float, float], self.corner_2.value())
+        corner1_x, corner1_y = cast("tuple[float, float]", self.corner_1.value())
+        corner2_x, corner2_y = cast("tuple[float, float]", self.corner_2.value())
         return {
             "top": max(corner1_y, corner2_y),
             "bottom": min(corner1_y, corner2_y),
@@ -451,7 +451,7 @@ class _MoveToWidget(QGroupBox):
         self,
         tabwidget: _TabWidget,
         parent: QWidget | None = None,
-        current_position: tuple[float | None, float | None] = (None, None),
+        current_position: tuple[float, float] | None = None,
         *,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
@@ -502,7 +502,11 @@ class _MoveToWidget(QGroupBox):
         self._move_to_col.addItems(cols_items)
 
     def _move_to_row_col(self) -> None:
-        curr_x, curr_y = self._current_position
+        if self._current_position is None:
+            curr_x, curr_y = (self._mmc.getXPosition(), self._mmc.getYPosition())
+        else:
+            curr_x, curr_y = self._current_position
+
         grid = get_grid_type(self._tabwidget.value())  # type: ignore
 
         if isinstance(grid, GridRelative) and (curr_x is None or curr_y is None):
@@ -521,8 +525,8 @@ class _MoveToWidget(QGroupBox):
         for pos in grid.iter_grid_positions(width, height):
             if pos.row == row and pos.col == col:
                 if isinstance(grid, GridRelative):
-                    xpos = cast(float, curr_x) + pos.x
-                    ypos = cast(float, curr_y) + pos.y
+                    xpos = curr_x + pos.x
+                    ypos = curr_y + pos.y
                 else:
                     xpos = pos.x
                     ypos = pos.y
@@ -556,7 +560,8 @@ class GridWidget(QWidget):
         self,
         parent: QWidget | None = None,
         *,
-        current_stage_pos: tuple[float | None, float | None] = (None, None),
+        # current_stage_pos: tuple[float | None, float | None] = (None, None),
+        current_stage_pos: tuple[float, float] | None = None,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent=parent)
@@ -651,7 +656,7 @@ class GridWidget(QWidget):
         width = int(width * self._mmc.getPixelSizeUm())
         height = int(height * self._mmc.getPixelSizeUm())
         overlap_xcent_x, overlap_xcent_y = cast(
-            tuple[float, float], self.overlap_and_mode.value()["overlap"]
+            "tuple[float, float]", self.overlap_and_mode.value()["overlap"]
         )
         overlap_xcent_x = width * overlap_xcent_x / 100
         overlap_xcent_y = height * overlap_xcent_y / 100
@@ -662,7 +667,7 @@ class GridWidget(QWidget):
             y = ((height - overlap_xcent_y) * rows) / 1000
         else:
             top, bottom, left, right = cast(
-                tuple[float, ...], self.tab.value().values()
+                "tuple[float, ...]", self.tab.value().values()
             )
 
             rows = math.ceil((abs(top - bottom) + height) / height)
