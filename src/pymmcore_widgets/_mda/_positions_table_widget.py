@@ -532,14 +532,10 @@ class PositionTable(QGroupBox):
         )
 
     def _grid_widget(self) -> None:
-        if not self._mmc.getXYStageDevice():
-            return
-
         if hasattr(self, "_grid_wdg"):
             self._grid_wdg.close()  # type: ignore
 
         self._grid_wdg = GridWidget(
-            parent=self,
             mmcore=self._mmc,
             current_stage_pos=(self._mmc.getXPosition(), self._mmc.getYPosition()),
         )

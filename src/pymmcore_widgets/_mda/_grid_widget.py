@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from typing import TYPE_CHECKING, Literal, cast
 
 from pymmcore_plus import CMMCorePlus
@@ -8,7 +9,6 @@ from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QComboBox,
-    QDialog,
     QDoubleSpinBox,
     QGridLayout,
     QGroupBox,
@@ -24,17 +24,19 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import AnyGridPlan, GridFromEdges, GridRelative, MDASequence, NoGrid
+from useq import AnyGridPlan, GridFromEdges, GridRelative
 from useq._grid import OrderMode, RelativeTo
 
+from .._util import get_grid_type
+
 if TYPE_CHECKING:
-    from typing_extensions import Required, TypedDict
+    from typing_extensions import TypedDict
 
     class GridDict(TypedDict, total=False):
         """Grid dictionary."""
 
-        overlap: Required[float | tuple[float, float]]
-        mode: Required[OrderMode | str]
+        overlap: float | tuple[float, float]
+        mode: OrderMode | str
         rows: int
         columns: int
         relative_to: RelativeTo | str
@@ -47,7 +49,244 @@ if TYPE_CHECKING:
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
 
-class _SpinboxWidget(QWidget):
+class _TabWidget(QTabWidget):
+    valueChanged = Signal()
+
+    def __init__(
+        self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
+    ) -> None:
+        super().__init__(parent)
+
+        self._mmc = mmcore or CMMCorePlus.instance()
+
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        # rows and columns
+        self._rowcol = _RowsColsWdg()
+        self._rowcol.valueChanged.connect(self.valueChanged.emit)
+        self.addTab(self._rowcol, "Rows x Columns")
+
+        # grid from edges
+        self.edges = _FromEdgesWdg(mmcore=self._mmc)
+        self.edges.valueChanged.connect(self.valueChanged.emit)
+        self.addTab(self.edges, "Grid from Edges")
+
+        # grid from corners
+        self.corners = _FromCornersWdg(mmcore=self._mmc)
+        self.corners.valueChanged.connect(self.valueChanged)
+        self.addTab(self.corners, "Grid from Corners")
+
+        self.currentChanged.connect(self._on_tab_changed)
+
+    def value(self) -> GridDict:
+        if self.currentIndex() == 0:
+            return self._rowcol.value()
+        elif self.currentIndex() == 1:
+            return self.edges.value()
+        else:
+            return self.corners.value()
+
+    def setValue(self, grid: GridDict) -> None:
+        grid_type = get_grid_type(grid)  # type: ignore
+        if isinstance(grid_type, GridRelative):
+            self._rowcol.setValue(grid)
+        elif isinstance(grid_type, GridFromEdges):
+            self.edges.setValue(grid)
+        self.valueChanged.emit()
+
+    def _on_tab_changed(self) -> None:
+        self.valueChanged.emit()
+
+
+class _RowsColsWdg(QWidget):
+    valueChanged = Signal()
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        group_layout = QGridLayout()
+        group_layout.setSpacing(10)
+        group_layout.setContentsMargins(10, 10, 10, 10)
+
+        # rows
+        row_wdg = QWidget()
+        row_wdg_lay = QHBoxLayout()
+        row_wdg_lay.setSpacing(10)
+        self.n_rows = self._general_label_spin_wdg(row_wdg, row_wdg_lay, "Rows:")
+        # cols
+        col_wdg = QWidget()
+        col_wdg_lay = QHBoxLayout()
+        col_wdg_lay.setSpacing(10)
+        self.n_columns = self._general_label_spin_wdg(col_wdg, col_wdg_lay, "Columns:")
+
+        # relative to combo
+        relative_wdg = QWidget()
+        relative_layout = QHBoxLayout()
+        relative_layout.setSpacing(10)
+        relative_layout.setContentsMargins(0, 0, 0, 0)
+        relative_wdg.setLayout(relative_layout)
+        relative_lbl = QLabel("Relative to:")
+        relative_lbl.setSizePolicy(fixed_sizepolicy)
+        self.relative_combo = QComboBox()
+        self.relative_combo.addItems([r.value for r in RelativeTo])
+        relative_layout.addWidget(relative_lbl)
+        relative_layout.addWidget(self.relative_combo)
+
+        group_layout.addWidget(row_wdg, 0, 0)
+        group_layout.addWidget(col_wdg, 1, 0)
+        group_layout.addWidget(relative_wdg, 0, 1)
+
+        self.setLayout(group_layout)
+
+    def _general_label_spin_wdg(
+        self, wdg: QWidget, layout: QLayout, text: str
+    ) -> QSpinBox:
+        layout.setContentsMargins(0, 0, 0, 0)
+        wdg.setLayout(layout)
+        label = QLabel(text=text)
+        label.setSizePolicy(fixed_sizepolicy)
+        label.setMinimumWidth(65)
+        spin = QSpinBox()
+        spin.setMinimum(1)
+        spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        spin.valueChanged.connect(lambda: self.valueChanged.emit())
+        layout.addWidget(label)
+        layout.addWidget(spin)
+        return spin
+
+    def value(self) -> GridDict:
+        return {
+            "rows": self.n_rows.value(),
+            "columns": self.n_columns.value(),
+            "relative_to": self.relative_combo.currentText(),
+        }
+
+    def setValue(self, grid: GridDict) -> None:
+        keys = ["rows", "columns"]
+        if any(item not in grid.keys() for item in keys):
+            warnings.warn(f"Grid dictionary must contain {keys} keys", stacklevel=2)
+            return
+
+        self.n_rows.setValue(grid["rows"])
+        self.n_columns.setValue(grid["columns"])
+
+        if "relative_to" in grid:
+            self.relative_combo.setCurrentText(
+                grid["relative_to"]
+                if isinstance(grid["relative_to"], str)
+                else grid["relative_to"].value
+            )
+
+        self.valueChanged.emit()
+
+
+class _FromEdgesWdg(QWidget):
+    valueChanged = Signal()
+
+    def __init__(
+        self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
+    ) -> None:
+        super().__init__(parent)
+
+        mmcore = mmcore or CMMCorePlus.instance()
+
+        group_layout = QGridLayout()
+        group_layout.setSpacing(10)
+        group_layout.setContentsMargins(10, 10, 10, 10)
+        self.setLayout(group_layout)
+
+        # top, left, bottom, right
+        self.top = _DoubleSpinboxWidget("top", mmcore=mmcore)
+        self.top.valueChanged.connect(self.valueChanged.emit)
+        self.bottom = _DoubleSpinboxWidget("bottom", mmcore=mmcore)
+        self.bottom.valueChanged.connect(self.valueChanged.emit)
+        self.top.label.setMinimumWidth(self.bottom.label.sizeHint().width())
+        self.left = _DoubleSpinboxWidget("left", mmcore=mmcore)
+        self.left.valueChanged.connect(self.valueChanged.emit)
+        self.right = _DoubleSpinboxWidget("right", mmcore=mmcore)
+        self.right.valueChanged.connect(self.valueChanged.emit)
+
+        self.top.label.setFixedWidth(self.bottom.label.sizeHint().width() + 5)
+        self.bottom.label.setFixedWidth(self.bottom.label.sizeHint().width() + 5)
+        self.right.label.setFixedWidth(self.right.label.sizeHint().width() + 5)
+        self.left.label.setFixedWidth(self.right.label.sizeHint().width() + 5)
+
+        group_layout.addWidget(self.top, 0, 0)
+        group_layout.addWidget(self.bottom, 1, 0)
+        group_layout.addWidget(self.left, 0, 1)
+        group_layout.addWidget(self.right, 1, 1)
+
+    def value(self) -> GridDict:
+        return {
+            "top": cast("float", self.top.value()),
+            "bottom": cast("float", self.bottom.value()),
+            "left": cast("float", self.left.value()),
+            "right": cast("float", self.right.value()),
+        }
+
+    def setValue(self, grid: GridDict) -> None:
+        keys = ["top", "bottom", "left", "right"]
+        if any(item not in grid.keys() for item in keys):
+            warnings.warn(f"Grid dictionary must contain {keys} keys", stacklevel=2)
+            return
+
+        self.top.setValue(grid["top"])
+        self.bottom.setValue(grid["bottom"])
+        self.left.setValue(grid["left"])
+        self.right.setValue(grid["right"])
+
+        self.valueChanged.emit()
+
+
+class _FromCornersWdg(QWidget):
+    valueChanged = Signal()
+
+    def __init__(
+        self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
+    ) -> None:
+        super().__init__(parent)
+
+        mmcore = mmcore or CMMCorePlus.instance()
+
+        group_layout = QVBoxLayout()
+        group_layout.setSpacing(10)
+        group_layout.setContentsMargins(10, 10, 10, 10)
+        self.setLayout(group_layout)
+
+        self.corner_1 = _DoubleSpinboxWidget("corner1", mmcore=mmcore)
+        self.corner_1.valueChanged.connect(self.valueChanged.emit)
+        self.corner_2 = _DoubleSpinboxWidget("corner2", mmcore=mmcore)
+        self.corner_2.valueChanged.connect(self.valueChanged.emit)
+
+        self.corner_1.label.setFixedWidth(self.corner_2.label.sizeHint().width() + 5)
+        self.corner_2.label.setFixedWidth(self.corner_2.label.sizeHint().width() + 5)
+
+        group_layout.addWidget(self.corner_1)
+        group_layout.addWidget(self.corner_2)
+
+    def value(self) -> GridDict:
+        corner1_x, corner1_y = cast("tuple[float, float]", self.corner_1.value())
+        corner2_x, corner2_y = cast("tuple[float, float]", self.corner_2.value())
+        return {
+            "top": max(corner1_y, corner2_y),
+            "bottom": min(corner1_y, corner2_y),
+            "left": min(corner1_x, corner2_x),
+            "right": max(corner1_x, corner2_x),
+        }
+
+    def setValue(self, grid: GridDict) -> None:
+        keys = ["top", "bottom", "left", "right"]
+        if any(item not in grid.keys() for item in keys):
+            warnings.warn(f"Grid dictionary must contain {keys} keys", stacklevel=2)
+            return
+
+        self.corner_1.setValue((grid["left"], grid["top"]))
+        self.corner_2.setValue((grid["right"], grid["bottom"]))
+
+        self.valueChanged.emit()
+
+
+class _DoubleSpinboxWidget(QWidget):
     valueChanged = Signal()
 
     def __init__(
@@ -102,7 +341,7 @@ class _SpinboxWidget(QWidget):
         spin.setMinimum(-1000000)
         spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        spin.valueChanged.connect(self.valueChanged)
+        spin.valueChanged.connect(lambda: self.valueChanged.emit())
         return spin
 
     def _on_click(self) -> None:
@@ -116,202 +355,31 @@ class _SpinboxWidget(QWidget):
         elif self._label in {"left", "right"}:
             self.spinbox.setValue(self._mmc.getXPosition())
 
+    def value(self) -> float | tuple[float, float]:
+        if self._corners:
+            return self.x_spinbox.value(), self.y_spinbox.value()
+        return self.spinbox.value()  # type: ignore
 
-class GridWidget(QDialog):
-    """A subwidget to setup the acquisition of a grid of images.
+    def setValue(self, value: float | tuple[float, float]) -> None:
+        if isinstance(value, tuple):
+            self.x_spinbox.setValue(value[0])
+            self.y_spinbox.setValue(value[1])
+        else:
+            self.spinbox.setValue(value)
+        self.valueChanged.emit()
 
-    The `value()` method returns a dictionary with the current state of the widget, in a
-    format that matches one of the [useq-schema Grid Plan
-    specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans).
 
-    Parameters
-    ----------
-    parent : QWidget | None
-        Optional parent widget, by default None.
-    current_stage_pos : tuple[float | None, float | None]
-        Optional current stage position. By default None.
-    mmcore : CMMCorePlus | None
-        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
-        By default, None. If not specified, the widget will use the active
-        (or create a new)
-        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
-    """
+class _OverlapAndOrderModeWdg(QGroupBox):
+    valueChanged = Signal()
 
-    valueChanged = Signal(object)
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
 
-    def __init__(
-        self,
-        parent: QWidget | None = None,
-        *,
-        current_stage_pos: tuple[float | None, float | None] = (None, None),
-        mmcore: CMMCorePlus | None = None,
-    ) -> None:
-        super().__init__(parent=parent)
-
-        self._mmc = mmcore or CMMCorePlus.instance()
-
-        self._current_stage_pos = current_stage_pos
-
-        layout = QVBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
-        self.setLayout(layout)
-
-        tab = self._create_tab()
-        layout.addWidget(tab)
-
-        overlap_and_size = self._create_overlap_and_ordermode()
-        layout.addWidget(overlap_and_size)
-
-        move_to = self._create_move_to_widget()
-        layout.addWidget(move_to)
-
-        label_info = self._create_label_info()
-        layout.addWidget(label_info)
-
-        button = self._create_add_button()
-        layout.addWidget(button)
-
-        self.setFixedHeight(self.sizeHint().height())
-
-        self._update_info()
-
-        self._mmc.events.systemConfigurationLoaded.connect(self._update_info)
-        self._mmc.events.pixelSizeChanged.connect(self._update_info)
-
-        self.destroyed.connect(self._disconnect)
-
-    def _create_tab(self) -> QWidget:
-        wdg = QWidget()
-        layout = QVBoxLayout()
-        layout.setSpacing(0)
-        layout.setContentsMargins(0, 0, 0, 0)
-        wdg.setLayout(layout)
-        self.tab = QTabWidget()
-        self.tab.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-
-        rowcol = self._create_row_cols_wdg()
-        self.tab.addTab(rowcol, "Rows x Columns")
-
-        edges = self._create_edges_grid_wdg()
-        self.tab.addTab(edges, "Grid from Edges")
-
-        corners = self._create_corners_grid_wdg()
-        self.tab.addTab(corners, "Grid from Corners")
-
-        layout.addWidget(self.tab)
-
-        self.tab.currentChanged.connect(self._update_info)
-        return wdg
-
-    def _create_row_cols_wdg(self) -> QWidget:
-        group = QWidget()
-        group_layout = QGridLayout()
-        group_layout.setSpacing(10)
-        group_layout.setContentsMargins(10, 10, 10, 10)
-        group.setLayout(group_layout)
-
-        # rows
-        row_wdg = QWidget()
-        row_wdg_lay = QHBoxLayout()
-        row_wdg_lay.setSpacing(10)
-        self.n_rows = self._general_label_spin_wdg(row_wdg, row_wdg_lay, "Rows:")
-        # cols
-        col_wdg = QWidget()
-        col_wdg_lay = QHBoxLayout()
-        col_wdg_lay.setSpacing(10)
-        self.n_columns = self._general_label_spin_wdg(col_wdg, col_wdg_lay, "Columns:")
-
-        # relative to combo
-        relative_wdg = QWidget()
-        relative_layout = QHBoxLayout()
-        relative_layout.setSpacing(10)
-        relative_layout.setContentsMargins(0, 0, 0, 0)
-        relative_wdg.setLayout(relative_layout)
-        relative_lbl = QLabel("Relative to:")
-        relative_lbl.setSizePolicy(fixed_sizepolicy)
-        self.relative_combo = QComboBox()
-        self.relative_combo.addItems([r.value for r in RelativeTo])
-        relative_layout.addWidget(relative_lbl)
-        relative_layout.addWidget(self.relative_combo)
-
-        group_layout.addWidget(row_wdg, 0, 0)
-        group_layout.addWidget(col_wdg, 1, 0)
-        group_layout.addWidget(relative_wdg, 0, 1)
-
-        return group
-
-    def _general_label_spin_wdg(
-        self, wdg: QWidget, layout: QLayout, text: str
-    ) -> QSpinBox:
-        layout.setContentsMargins(0, 0, 0, 0)
-        wdg.setLayout(layout)
-        label = QLabel(text=text)
-        label.setSizePolicy(fixed_sizepolicy)
-        label.setMinimumWidth(65)
-        spin = QSpinBox()
-        spin.setMinimum(1)
-        spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        spin.valueChanged.connect(self._update_info)
-        layout.addWidget(label)
-        layout.addWidget(spin)
-        return spin
-
-    def _create_edges_grid_wdg(self) -> QWidget:
-        group = QWidget()
-        group_layout = QGridLayout()
-        group_layout.setSpacing(10)
-        group_layout.setContentsMargins(10, 10, 10, 10)
-        group.setLayout(group_layout)
-
-        self.top = _SpinboxWidget("top", mmcore=self._mmc)
-        self.top.valueChanged.connect(self._update_info)
-        self.bottom = _SpinboxWidget("bottom", mmcore=self._mmc)
-        self.bottom.valueChanged.connect(self._update_info)
-        self.top.label.setMinimumWidth(self.bottom.label.sizeHint().width())
-        self.left = _SpinboxWidget("left", mmcore=self._mmc)
-        self.left.valueChanged.connect(self._update_info)
-        self.right = _SpinboxWidget("right", mmcore=self._mmc)
-        self.right.valueChanged.connect(self._update_info)
-
-        self.top.label.setFixedWidth(self.bottom.label.sizeHint().width() + 5)
-        self.bottom.label.setFixedWidth(self.bottom.label.sizeHint().width() + 5)
-        self.right.label.setFixedWidth(self.right.label.sizeHint().width() + 5)
-        self.left.label.setFixedWidth(self.right.label.sizeHint().width() + 5)
-
-        group_layout.addWidget(self.top, 0, 0)
-        group_layout.addWidget(self.bottom, 1, 0)
-        group_layout.addWidget(self.left, 0, 1)
-        group_layout.addWidget(self.right, 1, 1)
-
-        return group
-
-    def _general_wdg_with_label(self, label_text: str) -> QWidget:
-        wdg = QWidget()
-        layout = QHBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(0, 0, 0, 0)
-        wdg.setLayout(layout)
-        label = QLabel(text=label_text)
-        label.setSizePolicy(fixed_sizepolicy)
-        layout.addWidget(label)
-        return wdg
-
-    def _create_overlap_spinbox(self) -> QDoubleSpinBox:
-        spin = QDoubleSpinBox()
-        spin.setMinimumWidth(100)
-        spin.setMaximum(100)
-        spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        spin.valueChanged.connect(self._update_info)
-        return spin
-
-    def _create_overlap_and_ordermode(self) -> QGroupBox:
-        group = QGroupBox()
-        group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         group_layout = QGridLayout()
         group_layout.setSpacing(15)
         group_layout.setContentsMargins(10, 10, 10, 10)
-        group.setLayout(group_layout)
+        self.setLayout(group_layout)
 
         # overlap x
         wdg_x = self._general_wdg_with_label("Overlap x (%):")
@@ -333,52 +401,71 @@ class GridWidget(QDialog):
         wdg_mode.layout().addWidget(self.ordermode_combo)
         group_layout.addWidget(wdg_mode, 0, 1)
 
-        return group
+    def _general_wdg_with_label(self, label_text: str) -> QWidget:
+        wdg = QWidget()
+        layout = QHBoxLayout()
+        layout.setSpacing(10)
+        layout.setContentsMargins(0, 0, 0, 0)
+        wdg.setLayout(layout)
+        label = QLabel(text=label_text)
+        label.setSizePolicy(fixed_sizepolicy)
+        layout.addWidget(label)
+        return wdg
 
-    def _create_corners_grid_wdg(self) -> QWidget:
-        group = QWidget()
-        group_layout = QVBoxLayout()
-        group_layout.setSpacing(10)
-        group_layout.setContentsMargins(10, 10, 10, 10)
-        group.setLayout(group_layout)
+    def _create_overlap_spinbox(self) -> QDoubleSpinBox:
+        spin = QDoubleSpinBox()
+        spin.setMinimumWidth(100)
+        spin.setMaximum(100)
+        spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        spin.valueChanged.connect(lambda: self.valueChanged.emit())
+        return spin
 
-        self.corner_1 = _SpinboxWidget("corner1", mmcore=self._mmc)
-        self.corner_1.valueChanged.connect(self._update_info)
-        self.corner_2 = _SpinboxWidget("corner2", mmcore=self._mmc)
-        self.corner_2.valueChanged.connect(self._update_info)
+    def value(self) -> GridDict:
+        return {
+            "overlap": (self.overlap_spinbox_x.value(), self.overlap_spinbox_y.value()),
+            "mode": self.ordermode_combo.currentText(),
+        }
 
-        self.corner_1.label.setFixedWidth(self.corner_2.label.sizeHint().width() + 5)
-        self.corner_2.label.setFixedWidth(self.corner_2.label.sizeHint().width() + 5)
+    def setValue(self, value: GridDict) -> None:
+        if "overlap" not in value:
+            return
 
-        group_layout.addWidget(self.corner_1)
-        group_layout.addWidget(self.corner_2)
-
-        return group
-
-    def _create_label_info(self) -> QGroupBox:
-        group = QGroupBox()
-        group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        group_layout = QHBoxLayout()
-        group_layout.setSpacing(0)
-        group_layout.setContentsMargins(10, 10, 10, 10)
-        group.setLayout(group_layout)
-
-        self.info_lbl = QLabel()
-        self.info_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.info_lbl.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        over_x, over_y = (
+            value["overlap"]
+            if isinstance(value["overlap"], tuple)
+            else (value["overlap"], value["overlap"])
         )
-        group_layout.addWidget(self.info_lbl)
+        self.overlap_spinbox_x.setValue(over_x)
+        self.overlap_spinbox_y.setValue(over_y)
 
-        return group
+        if "mode" in value:
+            self.ordermode_combo.setCurrentText(
+                value["mode"] if isinstance(value["mode"], str) else value["mode"].value
+            )
 
-    def _create_move_to_widget(self) -> QGroupBox:
-        group = QGroupBox()
-        group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.valueChanged.emit()
+
+
+class _MoveToWidget(QGroupBox):
+    def __init__(
+        self,
+        tabwidget: _TabWidget,
+        parent: QWidget | None = None,
+        current_position: tuple[float, float] | None = None,
+        *,
+        mmcore: CMMCorePlus | None = None,
+    ) -> None:
+        super().__init__(parent)
+
+        self._mmc = mmcore or CMMCorePlus.instance()
+        self._current_position = current_position
+        self._tabwidget = tabwidget
+
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         group_layout = QHBoxLayout()
         group_layout.setSpacing(10)
         group_layout.setContentsMargins(10, 10, 10, 10)
-        group.setLayout(group_layout)
+        self.setLayout(group_layout)
 
         lbl_policy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         row_lbl = QLabel("Row:")
@@ -406,18 +493,24 @@ class GridWidget(QDialog):
         group_layout.addWidget(self._move_to_col)
         group_layout.addWidget(self._move_button)
 
-        return group
+    def _clear(self) -> None:
+        self._move_to_row.clear()
+        self._move_to_col.clear()
+
+    def _add_items(self, rows_items: list, cols_items: list) -> None:
+        self._move_to_row.addItems(rows_items)
+        self._move_to_col.addItems(cols_items)
 
     def _move_to_row_col(self) -> None:
-        grid: AnyGridPlan = NoGrid()
-        curr_x, curr_y = self._current_stage_pos
-
-        if self.tab.currentIndex() == 0:
-            if curr_x is None or curr_y is None:
-                return
-            grid = GridRelative(**self.value())
+        if self._current_position is None:
+            curr_x, curr_y = (self._mmc.getXPosition(), self._mmc.getYPosition())
         else:
-            grid = GridFromEdges(**self.value())
+            curr_x, curr_y = self._current_position
+
+        grid = get_grid_type(self._tabwidget.value())  # type: ignore
+
+        if isinstance(grid, GridRelative) and (curr_x is None or curr_y is None):
+            return
 
         _move_to_row = int(self._move_to_row.currentText())
         _move_to_col = int(self._move_to_col.currentText())
@@ -432,26 +525,107 @@ class GridWidget(QDialog):
         for pos in grid.iter_grid_positions(width, height):
             if pos.row == row and pos.col == col:
                 if isinstance(grid, GridRelative):
-                    xpos = cast(float, curr_x) + pos.x
-                    ypos = cast(float, curr_y) + pos.y
+                    xpos = curr_x + pos.x
+                    ypos = curr_y + pos.y
                 else:
                     xpos = pos.x
                     ypos = pos.y
                 self._mmc.setXYPosition(xpos, ypos)
                 return
 
-    def _create_add_button(self) -> QWidget:
+
+class GridWidget(QWidget):
+    """A subwidget to setup the acquisition of a grid of images.
+
+    The `value()` method returns a dictionary with the current state of the widget, in a
+    format that matches one of the [useq-schema Grid Plan
+    specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans).
+
+    Parameters
+    ----------
+    parent : QWidget | None
+        Optional parent widget, by default None.
+    current_stage_pos : tuple[float | None, float | None]
+        Optional current stage position. By default None.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    """
+
+    valueChanged = Signal(object)
+
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        # current_stage_pos: tuple[float | None, float | None] = (None, None),
+        current_stage_pos: tuple[float, float] | None = None,
+        mmcore: CMMCorePlus | None = None,
+    ) -> None:
+        super().__init__(parent=parent)
+
+        self._mmc = mmcore or CMMCorePlus.instance()
+
+        self._current_stage_pos = current_stage_pos
+
+        main_layout = QVBoxLayout()
+        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        self.setLayout(main_layout)
+
+        # tab widget
         wdg = QWidget()
-        wdg.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        wdg_layout = QHBoxLayout()
-        wdg_layout.setSpacing(20)
-        wdg_layout.setContentsMargins(0, 0, 0, 0)
-        wdg.setLayout(wdg_layout)
+        layout = QVBoxLayout()
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        wdg.setLayout(layout)
+        self.tab = _TabWidget(mmcore=self._mmc)
+        self.tab.valueChanged.connect(self._update_info)
+        layout.addWidget(self.tab)
+        main_layout.addWidget(wdg)
+
+        # overlap and order mode
+        self.overlap_and_mode = _OverlapAndOrderModeWdg()
+        self.overlap_and_mode.valueChanged.connect(self._update_info)
+        main_layout.addWidget(self.overlap_and_mode)
+
+        # move to
+        self.move_to = _MoveToWidget(
+            tabwidget=self.tab, current_position=self._current_stage_pos
+        )
+        main_layout.addWidget(self.move_to)
+
+        # info label
+        label_info_group = QGroupBox()
+        label_info_group.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        label_group_layout = QHBoxLayout()
+        label_group_layout.setSpacing(0)
+        label_group_layout.setContentsMargins(10, 10, 10, 10)
+        label_info_group.setLayout(label_group_layout)
+        self.info_lbl = QLabel()
+        self.info_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.info_lbl.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        label_group_layout.addWidget(self.info_lbl)
+        main_layout.addWidget(label_info_group)
+
+        # add button
+        btn_wdg = QWidget()
+        btn_wdg.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        btn_wdg_layout = QHBoxLayout()
+        btn_wdg_layout.setSpacing(20)
+        btn_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        btn_wdg.setLayout(btn_wdg_layout)
 
         spacer = QSpacerItem(
             5, 5, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
-        wdg_layout.addSpacerItem(spacer)
+        btn_wdg_layout.addSpacerItem(spacer)
 
         self.add_button = QPushButton(text="Add Grid")
         self.add_button.setSizePolicy(
@@ -459,9 +633,17 @@ class GridWidget(QDialog):
         )
         self.add_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.add_button.clicked.connect(self._emit_grid_positions)
-        wdg_layout.addWidget(self.add_button)
+        btn_wdg_layout.addWidget(self.add_button)
+        main_layout.addWidget(btn_wdg)
 
-        return wdg
+        self.setFixedHeight(self.sizeHint().height())
+
+        self._update_info()
+
+        self._mmc.events.systemConfigurationLoaded.connect(self._update_info)
+        self._mmc.events.pixelSizeChanged.connect(self._update_info)
+
+        self.destroyed.connect(self._disconnect)
 
     def _update_info(self) -> None:
         if not self._mmc.getPixelSizeUm():
@@ -473,18 +655,20 @@ class GridWidget(QDialog):
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
         width = int(width * self._mmc.getPixelSizeUm())
         height = int(height * self._mmc.getPixelSizeUm())
-        overlap_percentage_x = self.overlap_spinbox_x.value()
-        overlap_percentage_y = self.overlap_spinbox_y.value()
-        overlap_x = width * overlap_percentage_x / 100
-        overlap_y = height * overlap_percentage_y / 100
+        overlap_xcent_x, overlap_xcent_y = cast(
+            "tuple[float, float]", self.overlap_and_mode.value()["overlap"]
+        )
+        overlap_xcent_x = width * overlap_xcent_x / 100
+        overlap_xcent_y = height * overlap_xcent_y / 100
 
         if self.tab.currentIndex() == 0:
-            rows = self.n_rows.value()
-            cols = self.n_columns.value()
-            x = ((width - overlap_x) * cols) / 1000
-            y = ((height - overlap_y) * rows) / 1000
+            rows, cols = (self.tab.value()["rows"], self.tab.value()["columns"])
+            x = ((width - overlap_xcent_x) * cols) / 1000
+            y = ((height - overlap_xcent_y) * rows) / 1000
         else:
-            top, bottom, left, right = self._get_edges()
+            top, bottom, left, right = cast(
+                "tuple[float, ...]", self.tab.value().values()
+            )
 
             rows = math.ceil((abs(top - bottom) + height) / height)
             cols = math.ceil((abs(right - left) + width) / width)
@@ -497,89 +681,38 @@ class GridWidget(QDialog):
             f"(Rows: {rows}    Columns: {cols})"
         )
 
-        self._move_to_row.clear()
-        self._move_to_row.addItems([str(r) for r in range(1, rows + 1)])
-        self._move_to_col.clear()
-        self._move_to_col.addItems([str(r) for r in range(1, cols + 1)])
-
-    def _get_edges(self) -> tuple[int, int, int, int]:
-        top = (
-            self.top.spinbox.value()
-            if self.tab.currentIndex() == 1
-            else max(self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value())
-        )
-        bottom = (
-            self.bottom.spinbox.value()
-            if self.tab.currentIndex() == 1
-            else min(self.corner_1.y_spinbox.value(), self.corner_2.y_spinbox.value())
-        )
-        left = (
-            self.left.spinbox.value()
-            if self.tab.currentIndex() == 1
-            else min(self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value())
-        )
-        right = (
-            self.right.spinbox.value()
-            if self.tab.currentIndex() == 1
-            else max(self.corner_1.x_spinbox.value(), self.corner_2.x_spinbox.value())
+        self.move_to._clear()
+        self.move_to._add_items(
+            [str(r) for r in range(1, rows + 1)], [str(r) for r in range(1, cols + 1)]
         )
 
-        return top, bottom, left, right
-
-    def value(self) -> GridDict:
+    # note: this really ought to be GridDict, but it makes typing harder
+    def value(self) -> dict:
         """Return the current GridPlan settings.
 
         Note that output dict will match the Channel from useq schema:
         <https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans>
         """
-        value: GridDict = {
-            "overlap": (
-                self.overlap_spinbox_x.value(),
-                self.overlap_spinbox_y.value(),
-            ),
-            "mode": self.ordermode_combo.currentText(),
-        }
-        if self.tab.currentIndex() == 0:
-            value["rows"] = self.n_rows.value()
-            value["columns"] = self.n_columns.value()
-            value["relative_to"] = self.relative_combo.currentText()
-        else:
-            (
-                value["top"],
-                value["bottom"],
-                value["left"],
-                value["right"],
-            ) = self._get_edges()
+        return {**self.tab.value(), **self.overlap_and_mode.value()}
 
-        return value
-
-    def set_state(self, grid: dict) -> None:
+    def set_state(self, grid: dict | AnyGridPlan) -> None:
         """Set the state of the widget from a useq AnyGridPlan or dictionary."""
-        grid_plan = MDASequence(grid_plan=grid).grid_plan
+        grid_plan = get_grid_type(grid) if isinstance(grid, dict) else grid
 
-        over_x, over_y = grid_plan.overlap
-        self.overlap_spinbox_x.setValue(over_x)
-        self.overlap_spinbox_y.setValue(over_y)
-        self.ordermode_combo.setCurrentText(grid_plan.mode.value)
-
-        if isinstance(grid_plan, GridRelative):
-            self.tab.setCurrentIndex(0)
-            self.n_rows.setValue(grid_plan.rows)
-            self.n_columns.setValue(grid_plan.columns)
-            self.relative_combo.setCurrentText(grid_plan.relative_to.value)
-
-        elif isinstance(grid_plan, GridFromEdges):
-            self.tab.setCurrentIndex(1)
-            self.top.spinbox.setValue(grid_plan.top)
-            self.bottom.spinbox.setValue(grid_plan.bottom)
-            self.left.spinbox.setValue(grid_plan.left)
-            self.right.spinbox.setValue(grid_plan.right)
+        self.overlap_and_mode.setValue(grid_plan.dict())  # type: ignore
+        self.tab.setValue(grid_plan.dict())  # type: ignore
+        self.tab.setCurrentIndex(0) if isinstance(
+            grid_plan, GridRelative
+        ) else self.tab.setCurrentIndex(1)
+        self._update_info()
 
     def _emit_grid_positions(self) -> None:
         if self._mmc.getPixelSizeUm() <= 0:
             raise ValueError("Pixel Size Not Set.")
 
-        if self.tab.currentIndex() > 0 and any(int(v) == 0 for v in self._get_edges()):
+        if self.tab.currentIndex() > 0 and any(
+            str(v) == "0.0" for v in self.tab.value().values()
+        ):
             self._show_warning()
         else:
             self.valueChanged.emit(self.value())
