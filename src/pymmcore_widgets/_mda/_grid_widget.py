@@ -49,7 +49,9 @@ if TYPE_CHECKING:
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
 
-class _TabWidget(QTabWidget):
+class _GridTabWidget(QTabWidget):
+    """Tab widget containing a few different ways to define a grid."""
+
     valueChanged = Signal()
 
     def __init__(
@@ -67,12 +69,12 @@ class _TabWidget(QTabWidget):
         self.addTab(self._rowcol, "Rows x Columns")
 
         # grid from edges
-        self.edges = _FromEdgesWdg(mmcore=self._mmc)
+        self.edges = _GridFromEdgesWdg(mmcore=self._mmc)
         self.edges.valueChanged.connect(self.valueChanged.emit)
         self.addTab(self.edges, "Grid from Edges")
 
         # grid from corners
-        self.corners = _FromCornersWdg(mmcore=self._mmc)
+        self.corners = _GridFromCornersWdg(mmcore=self._mmc)
         self.corners.valueChanged.connect(self.valueChanged)
         self.addTab(self.corners, "Grid from Corners")
 
@@ -99,6 +101,8 @@ class _TabWidget(QTabWidget):
 
 
 class _RowsColsWdg(QWidget):
+    """The Rows x Columns tab in the _GridTabWidget."""
+
     valueChanged = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -180,7 +184,9 @@ class _RowsColsWdg(QWidget):
         self.valueChanged.emit()
 
 
-class _FromEdgesWdg(QWidget):
+class _GridFromEdgesWdg(QWidget):
+    """The Grid from Edges tab in the _GridTabWidget."""
+
     valueChanged = Signal()
 
     def __init__(
@@ -238,7 +244,9 @@ class _FromEdgesWdg(QWidget):
         self.valueChanged.emit()
 
 
-class _FromCornersWdg(QWidget):
+class _GridFromCornersWdg(QWidget):
+    """The Grid from Corners tab in the _GridTabWidget."""
+
     valueChanged = Signal()
 
     def __init__(
@@ -446,10 +454,12 @@ class _OverlapAndOrderModeWdg(QGroupBox):
         self.valueChanged.emit()
 
 
-class _MoveToWidget(QGroupBox):
+class _MoveToRowColWidget(QGroupBox):
+    """A widget that allows the user to move to a specific position (row, col)."""
+
     def __init__(
         self,
-        tabwidget: _TabWidget,
+        tabwidget: _GridTabWidget,
         parent: QWidget | None = None,
         current_position: tuple[float, float] | None = None,
         *,
@@ -581,7 +591,7 @@ class GridWidget(QWidget):
         layout.setSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
         wdg.setLayout(layout)
-        self.tab = _TabWidget(mmcore=self._mmc)
+        self.tab = _GridTabWidget(mmcore=self._mmc)
         self.tab.valueChanged.connect(self._update_info)
         layout.addWidget(self.tab)
         main_layout.addWidget(wdg)
@@ -592,7 +602,7 @@ class GridWidget(QWidget):
         main_layout.addWidget(self.overlap_and_mode)
 
         # move to
-        self.move_to = _MoveToWidget(
+        self.move_to = _MoveToRowColWidget(
             tabwidget=self.tab, current_position=self._current_stage_pos
         )
         main_layout.addWidget(self.move_to)
