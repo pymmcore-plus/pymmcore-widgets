@@ -9,7 +9,6 @@ from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QComboBox,
-    QDialog,
     QDoubleSpinBox,
     QGridLayout,
     QGroupBox,
@@ -531,7 +530,7 @@ class _MoveToWidget(QGroupBox):
                 return
 
 
-class GridWidget(QDialog):
+class GridWidget(QWidget):
     """A subwidget to setup the acquisition of a grid of images.
 
     The `value()` method returns a dictionary with the current state of the widget, in a

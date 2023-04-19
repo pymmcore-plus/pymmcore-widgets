@@ -338,7 +338,6 @@ class PositionTable(QGroupBox):
             self._grid_wdg.close()  # type: ignore
 
         self._grid_wdg = GridWidget(
-            parent=self,
             mmcore=self._mmc,
             current_stage_pos=(self._mmc.getXPosition(), self._mmc.getYPosition()),
         )
