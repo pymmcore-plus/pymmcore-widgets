@@ -50,6 +50,11 @@ fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixe
 
 
 class _TabWidget(QTabWidget):
+    """Main Tab Widget containing all the grid options...
+
+    ...Rows and Columns, Grid from Edges and Grid from Corners.
+    """
+
     valueChanged = Signal()
 
     def __init__(
@@ -99,6 +104,8 @@ class _TabWidget(QTabWidget):
 
 
 class _RowsColsWdg(QWidget):
+    """Widget for setting the grid's number of rows and columns."""
+
     valueChanged = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -155,6 +162,7 @@ class _RowsColsWdg(QWidget):
         return spin
 
     def value(self) -> GridDict:
+        """Return the _RowsColsWdg grid dictionary."""
         return {
             "rows": self.n_rows.value(),
             "columns": self.n_columns.value(),
@@ -162,6 +170,7 @@ class _RowsColsWdg(QWidget):
         }
 
     def setValue(self, grid: GridDict) -> None:
+        """Set the _RowsColsWdg grid dictionary."""
         keys = ["rows", "columns"]
         if any(item not in grid.keys() for item in keys):
             warnings.warn(f"Grid dictionary must contain {keys} keys", stacklevel=2)
@@ -181,6 +190,8 @@ class _RowsColsWdg(QWidget):
 
 
 class _FromEdgesWdg(QWidget):
+    """Widget for setting the grid's edges."""
+
     valueChanged = Signal()
 
     def __init__(
@@ -217,6 +228,7 @@ class _FromEdgesWdg(QWidget):
         group_layout.addWidget(self.right, 1, 1)
 
     def value(self) -> GridDict:
+        """Return the _FromEdgesWdg grid dictionary."""
         return {
             "top": cast("float", self.top.value()),
             "bottom": cast("float", self.bottom.value()),
@@ -225,6 +237,7 @@ class _FromEdgesWdg(QWidget):
         }
 
     def setValue(self, grid: GridDict) -> None:
+        """Set the _FromEdgesWdg grid dictionary."""
         keys = ["top", "bottom", "left", "right"]
         if any(item not in grid.keys() for item in keys):
             warnings.warn(f"Grid dictionary must contain {keys} keys", stacklevel=2)
@@ -239,6 +252,8 @@ class _FromEdgesWdg(QWidget):
 
 
 class _FromCornersWdg(QWidget):
+    """Widget for setting the grid's corners."""
+
     valueChanged = Signal()
 
     def __init__(
@@ -265,6 +280,7 @@ class _FromCornersWdg(QWidget):
         group_layout.addWidget(self.corner_2)
 
     def value(self) -> GridDict:
+        """Return the _FromCornersWdg grid dictionary."""
         corner1_x, corner1_y = cast("tuple[float, float]", self.corner_1.value())
         corner2_x, corner2_y = cast("tuple[float, float]", self.corner_2.value())
         return {
@@ -275,6 +291,7 @@ class _FromCornersWdg(QWidget):
         }
 
     def setValue(self, grid: GridDict) -> None:
+        """Set the _FromCornersWdg grid dictionary."""
         keys = ["top", "bottom", "left", "right"]
         if any(item not in grid.keys() for item in keys):
             warnings.warn(f"Grid dictionary must contain {keys} keys", stacklevel=2)
@@ -287,6 +304,12 @@ class _FromCornersWdg(QWidget):
 
 
 class _DoubleSpinboxWidget(QWidget):
+    """Double spinbox widget used by _FromEdgesWdg and _FromCornersWdg.
+
+    It allows to set the grid's top, bottom, left, right, positions
+    or the two corners position.
+    """
+
     valueChanged = Signal()
 
     def __init__(
@@ -370,6 +393,8 @@ class _DoubleSpinboxWidget(QWidget):
 
 
 class _OverlapAndOrderModeWdg(QGroupBox):
+    """Widget to set the grid overlap and order mode."""
+
     valueChanged = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -447,6 +472,15 @@ class _OverlapAndOrderModeWdg(QGroupBox):
 
 
 class _MoveToWidget(QGroupBox):
+    """Widget used to move to a specific grid position.
+
+    It requires a _TabWidget to be able to access the selected grid plan.
+
+    If using a Relative plan, the widget also needs the 'current position'
+    coordinates to be able to calculate the absolute position where to move. If
+    not provided, the current position will be the current stage position.
+    """
+
     def __init__(
         self,
         tabwidget: _TabWidget,
@@ -502,6 +536,7 @@ class _MoveToWidget(QGroupBox):
         self._move_to_col.addItems(cols_items)
 
     def _move_to_row_col(self) -> None:
+        """Move to a selected position depending on the used grid plan."""
         if self._current_position is None:
             curr_x, curr_y = (self._mmc.getXPosition(), self._mmc.getYPosition())
         else:
@@ -560,7 +595,6 @@ class GridWidget(QWidget):
         self,
         parent: QWidget | None = None,
         *,
-        # current_stage_pos: tuple[float | None, float | None] = (None, None),
         current_stage_pos: tuple[float, float] | None = None,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
@@ -646,6 +680,7 @@ class GridWidget(QWidget):
         self.destroyed.connect(self._disconnect)
 
     def _update_info(self) -> None:
+        """Update the info label with the current grid size."""
         if not self._mmc.getPixelSizeUm():
             self.info_lbl.setText(
                 "Height: _ mm    Width: _ mm    (Rows: _    Columns: _)"
@@ -707,6 +742,7 @@ class GridWidget(QWidget):
         self._update_info()
 
     def _emit_grid_positions(self) -> None:
+        """Emit the grid positions if the pixel size is set."""
         if self._mmc.getPixelSizeUm() <= 0:
             raise ValueError("Pixel Size Not Set.")
 
@@ -718,6 +754,7 @@ class GridWidget(QWidget):
             self.valueChanged.emit(self.value())
 
     def _show_warning(self) -> None:
+        """Show a warning message if the user has not set all the grid positions."""
         if self.tab.currentIndex() == 1:
             msg = (
                 "Did you set all four 'top',  'bottom',  'left', and  'right'  "
