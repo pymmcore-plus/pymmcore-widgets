@@ -444,7 +444,8 @@ class PixelSizeWidget(QDialog):
 
             warnings.warn(
                 f"There is already a configuration called '{value}'. "
-                "Choose a different resolutionID."
+                "Choose a different resolutionID.",
+                stacklevel=2,
             )
             with contextlib.suppress(ValueError):
                 self._mmc.deletePixelSizeConfig(wdg.property("resID"))
