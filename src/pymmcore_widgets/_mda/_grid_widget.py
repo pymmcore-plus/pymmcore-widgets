@@ -475,6 +475,10 @@ class _MoveToWidget(QGroupBox):
     """Widget used to move to a specific grid position.
 
     It requires a _TabWidget to be able to access the selected grid plan.
+
+    If using a Relative plan, the widget needs the 'current position'
+    coordinates to be able to calculate the absolute position where to move. If
+    not provided, the current position will be the current stage position.
     """
 
     def __init__(
