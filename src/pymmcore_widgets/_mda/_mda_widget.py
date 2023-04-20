@@ -669,7 +669,7 @@ class MDAWidget(QWidget):
                 acq_min = timedelta(seconds=min(_per_timepoints.values()))
                 t_per_tp_msg = (
                     f"\n{t_per_tp_msg}{print_timedelta(acq_min)}"
-                    if self.time_groupbox.isChecked() and self.time_groupbox.value()
+                    if self._checkbox_t.isChecked() and self.time_groupbox.value()
                     else ""
                 )
         else:
