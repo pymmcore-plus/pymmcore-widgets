@@ -307,7 +307,7 @@ class _DoubleSpinboxWidget(QWidget):
     """Double spinbox widget used by _FromEdgesWdg and _FromCornersWdg.
 
     It allows to set the grid's top, bottom, left, right, positions
-    or the two coirners' positions.
+    or the two corners position.
     """
 
     valueChanged = Signal()
@@ -476,7 +476,7 @@ class _MoveToWidget(QGroupBox):
 
     It requires a _TabWidget to be able to access the selected grid plan.
 
-    If using a Relative plan, the widget needs the 'current position'
+    If using a Relative plan, the widget also needs the 'current position'
     coordinates to be able to calculate the absolute position where to move. If
     not provided, the current position will be the current stage position.
     """
