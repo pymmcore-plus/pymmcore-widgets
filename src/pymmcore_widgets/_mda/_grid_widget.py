@@ -591,7 +591,6 @@ class GridWidget(QWidget):
         self,
         parent: QWidget | None = None,
         *,
-        # current_stage_pos: tuple[float | None, float | None] = (None, None),
         current_stage_pos: tuple[float, float] | None = None,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
