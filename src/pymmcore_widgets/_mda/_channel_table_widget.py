@@ -3,8 +3,9 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, cast
 
+from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QCheckBox,
@@ -13,6 +14,7 @@ from qtpy.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
@@ -21,6 +23,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt import fonticon
 from superqt.utils import signals_blocked
 
 if TYPE_CHECKING:
@@ -90,8 +93,6 @@ class ChannelTable(QGroupBox):
         self._table.setTabKeyNavigation(True)
         self._table.setColumnCount(5)
         self._table.setRowCount(0)
-        # TODO: we should also implement the other channel parameters
-        # e.g. z_offset, do_stack, ...
         self._table.setHorizontalHeaderLabels(
             ["Channel", "Exposure (ms)", "Z offset", "Z stack", "Acquire Every"]
         )
@@ -110,13 +111,9 @@ class ChannelTable(QGroupBox):
         )
         layout.addWidget(self.channel_group_combo)
 
-        min_size = 100
         self._add_button = QPushButton(text="Add")
-        self._add_button.setMinimumWidth(min_size)
         self._remove_button = QPushButton(text="Remove")
-        self._remove_button.setMinimumWidth(min_size)
         self._clear_button = QPushButton(text="Clear")
-        self._clear_button.setMinimumWidth(min_size)
 
         self._add_button.clicked.connect(self._create_new_row)
         self._remove_button.clicked.connect(self._remove_selected_rows)
@@ -126,14 +123,38 @@ class ChannelTable(QGroupBox):
             10, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
         )
 
+        advanced_wdg = QWidget()
+        advanced_wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        advanced_layout = QHBoxLayout()
+        advanced_layout.setSpacing(5)
+        advanced_layout.setContentsMargins(0, 0, 0, 0)
+        advanced_wdg.setLayout(advanced_layout)
         self._advanced_cbox = QCheckBox("Advanced")
         self._advanced_cbox.toggled.connect(self._on_advanced_toggled)
+        self._warn_icon = QLabel()
+        self._warn_icon.setToolTip("Warning: some 'Advanced' values are selected!")
+        _icon = fonticon.icon(MDI6.alert_outline, color="magenta")
+        self._warn_icon.setPixmap(_icon.pixmap(QSize(25, 25)))
+        advanced_layout.addWidget(self._advanced_cbox)
+        advanced_layout.addWidget(self._warn_icon)
+        _w = (
+            self._advanced_cbox.sizeHint().width()
+            + self._warn_icon.sizeHint().width()
+            + advanced_layout.spacing()
+        )
+        advanced_wdg.setMinimumWidth(_w)
+        advanced_wdg.setMinimumHeight(advanced_wdg.sizeHint().height())
+        self._warn_icon.hide()
+
+        self._add_button.setMinimumWidth(_w)
+        self._remove_button.setMinimumWidth(_w)
+        self._clear_button.setMinimumWidth(_w)
 
         layout.addWidget(self._add_button)
         layout.addWidget(self._remove_button)
         layout.addWidget(self._clear_button)
+        layout.addWidget(advanced_wdg)
         layout.addItem(spacer)
-        layout.addWidget(self._advanced_cbox)
 
         group_layout.addWidget(wdg, 0, 1)
 
@@ -179,6 +200,14 @@ class ChannelTable(QGroupBox):
         for c in range(2, self._table.columnCount()):
             self._table.setColumnHidden(c, not state)
 
+        if not state:
+            for v in self.value():
+                # if any of the advanced settings are different from their default
+                if v["z_offset"] != 0 or not v["do_stack"] or v["acquire_every"] != 1:
+                    self._warn_icon.show()
+                    return
+        self._warn_icon.hide()
+
     def _pick_first_unused_channel(self, available: tuple[str, ...]) -> str:
         """Return index of first unused channel."""
         used = set()
@@ -217,13 +246,13 @@ class ChannelTable(QGroupBox):
         If 'exposure' is not provided, the current exposure will be used (or 100).
         """
         if len(self._mmc.getLoadedDevices()) <= 1:
-            warnings.warn("No devices loaded.")
+            warnings.warn("No devices loaded.", stacklevel=2)
             return
 
         _channel_group = channel_group or self.channel_group_combo.currentText()
 
         if not _channel_group:
-            warnings.warn("First select Micro-Manager 'ChannelGroup'.")
+            warnings.warn("First select Micro-Manager 'ChannelGroup'.", stacklevel=2)
             return
 
         # channel dropdown
@@ -323,6 +352,7 @@ class ChannelTable(QGroupBox):
     def set_state(self, channels: list[dict]) -> None:
         """Set the state of the widget from a useq channel dictionary."""
         self.clear()
+        _advanced_bool = False
         with signals_blocked(self):
             for channel in channels:
                 ch = channel.get("config")
@@ -336,7 +366,8 @@ class ChannelTable(QGroupBox):
                 if ch not in avail_configs:
                     warnings.warn(
                         f"'{ch}' config or its group doesn't exist in the "
-                        f"'{group}' ChannelGroup!"
+                        f"'{group}' ChannelGroup!",
+                        stacklevel=2,
                     )
                     continue
 
@@ -347,6 +378,12 @@ class ChannelTable(QGroupBox):
                 self._create_new_row(
                     ch, exposure, group, z_offset, do_stack, acquire_every
                 )
+
+                # if any of the advanced settings are different from their default
+                if z_offset != 0.0 or not do_stack or acquire_every != 1:
+                    _advanced_bool = True
+
+            self._advanced_cbox.setChecked(_advanced_bool)
 
         self.valueChanged.emit()
 

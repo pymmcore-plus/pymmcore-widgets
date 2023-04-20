@@ -236,7 +236,9 @@ class ShuttersWidget(QWidget):
             DeviceType.ShutterDevice
         ):
             if self.shutter_device != "":
-                warnings.warn(f"No device with label {self.shutter_device}!")
+                warnings.warn(
+                    f"No device with label {self.shutter_device}!", stacklevel=2
+                )
             self.shutter_button.setText("None")
             self.shutter_button.setEnabled(False)
             if self.autoshutter:
