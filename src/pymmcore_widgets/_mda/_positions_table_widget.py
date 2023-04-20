@@ -331,7 +331,7 @@ class PositionTable(QGroupBox):
             self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
             and not self._mmc.getXYStageDevice()
         ):
-            warnings.warn("No XY Stage device selected.")
+            warnings.warn("No XY Stage device selected.", stacklevel=2)
 
         name = f"Pos{self._table.rowCount():03d}"
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
