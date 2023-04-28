@@ -53,7 +53,6 @@ class _GridParametersWidget(QGroupBox):
         col_label.setMaximumWidth(80)
         col_label.setSizePolicy(LBL_SIZEPOLICY)
         self.scan_size_spinBox_c = QSpinBox()
-        self.scan_size_spinBox_c.setSizePolicy
         self.scan_size_spinBox_c.setMinimum(1)
         self.scan_size_spinBox_c.setAlignment(Qt.AlignmentFlag.AlignCenter)
         col_wdg_lay = QHBoxLayout()
@@ -87,10 +86,6 @@ class _GridParametersWidget(QGroupBox):
 
         self.scan_size_spinBox_r.valueChanged.connect(self.valueChanged)
         self.scan_size_spinBox_c.valueChanged.connect(self.valueChanged)
-
-    def ntiles(self) -> int:
-        tiles = self.scan_size_spinBox_r.value() * self.scan_size_spinBox_c.value()
-        return cast(int, tiles)
 
 
 class SampleExplorerWidget(MDAWidget):
@@ -200,9 +195,6 @@ class SampleExplorerWidget(MDAWidget):
             )
             self.return_to_position_x = None
             self.return_to_position_y = None
-
-    def _update_total_time(self, *, tiles: int = 1) -> None:
-        super()._update_total_time(tiles=self.grid_params.ntiles())
 
     def _add_position(self) -> None:
         if not self._mmc.getXYStageDevice():
@@ -385,7 +377,7 @@ class SampleExplorerWidget(MDAWidget):
         self.pixel_size = self._mmc.getPixelSizeUm()
 
         if self._mmc.getPixelSizeUm() <= 0:
-            warnings.warn("Pixel Size not set.")
+            warnings.warn("Pixel Size not set.", stacklevel=2)
             return
 
         super()._on_run_clicked()

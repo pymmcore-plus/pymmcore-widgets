@@ -429,11 +429,11 @@ class PositionTable(QGroupBox):
 
             if (x is not None or y is not None) and not self._mmc.getXYStageDevice():
                 x, y = (None, None)
-                warnings.warn("No XY Stage device loaded.")
+                warnings.warn("No XY Stage device loaded.", stacklevel=2)
 
             if z and not self._mmc.getFocusDevice():
                 z = None
-                warnings.warn("No Focus device loaded.")
+                warnings.warn("No Focus device loaded.", stacklevel=2)
 
             self._add_position_row()
 
