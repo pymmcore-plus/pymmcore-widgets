@@ -101,6 +101,8 @@ class PresetsWidget(QWidget):
         self._combo.setStyleSheet("")
 
     def _set_style_if_props_not_match_preset(self) -> None:
+        if not self._mmc.getAvailableConfigs(self._group):
+            return
         for preset in self._presets:
             _set_combo = True
             for dev, prop, value in self._mmc.getConfigData(self._group, preset):
