@@ -144,13 +144,13 @@ class AddGroupWidget(QDialog):
         group = self.group_lineedit.text()
 
         if not group:
-            warnings.warn("Give a name to the group!")
+            warnings.warn("Give a name to the group!", stacklevel=2)
             self.info_lbl.setStyleSheet("color: magenta;")
             self.info_lbl.setText("Give a name to the group!")
             return
 
         if group in self._mmc.getAvailableConfigGroups():
-            warnings.warn(f"There is already a preset called '{group}'.")
+            warnings.warn(f"There is already a preset called '{group}'.", stacklevel=2)
             self.info_lbl.setStyleSheet("color: magenta;")
             self.info_lbl.setText(f"'{group}' already exist!")
             return
@@ -159,7 +159,7 @@ class AddGroupWidget(QDialog):
         dev_prop_val_list = self._prop_table.getCheckedProperties()
 
         if not dev_prop_val_list:
-            warnings.warn("Select at lest one property!")
+            warnings.warn("Select at lest one property!", stacklevel=2)
             self.info_lbl.setStyleSheet("color: magenta;")
             self.info_lbl.setText("Select at lest one property!")
             return

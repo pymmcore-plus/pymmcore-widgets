@@ -40,7 +40,7 @@ test = ["pytest>=6.0", "pytest-cov", "pytest-qt"]
 pyqt5 = ["PyQt5"]
 pyside2 = ["PySide2"]
 pyqt6 = ["PyQt6"]
-pyside6 = ["PySide6"]
+pyside6 = ["PySide6<6.5"]
 image = ["vispy"]
 
 dev = [
@@ -106,12 +106,12 @@ extend-select = [
     "UP",    # pyupgrade
     # "N",  # pep8-naming
     # "S",  # bandit
-    "C",    # flake8-comprehensions
+    "C4",    # flake8-comprehensions
     "B",    # flake8-bugbear
     "A001", # flake8-builtins
     "RUF",  # ruff-specific rules
 ]
-extend-ignore = [
+ignore = [
     "D100", # Missing docstring in public module
     "D107", # Missing docstring in __init__
     "D203", # 1 blank line required before class docstring
@@ -144,6 +144,7 @@ disallow_any_generics = false
 disallow_subclassing_any = false
 show_error_codes = true
 pretty = true
+plugins = ["pydantic.mypy"]
 
 
 # https://coverage.readthedocs.io/en/6.4/config.html
