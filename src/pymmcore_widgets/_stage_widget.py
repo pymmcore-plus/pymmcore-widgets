@@ -132,6 +132,7 @@ class StageWidget(QWidget):
         self._btns.layout().setSpacing(0)
         for glpyh, (row, col, *_) in self.BTNS.items():
             btn = QPushButton()
+            btn.setAutoRepeat(True)
             btn.setFlat(True)
             btn.setFixedSize(self.BTN_SIZE, self.BTN_SIZE)
             btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
