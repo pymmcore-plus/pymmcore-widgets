@@ -270,10 +270,10 @@ class PositionTable(QGroupBox):
         """Hide/show XYStage columns when XYStage is set/removed."""
         if not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice):
             return
-        if device == "Core" and prop == "XYStage":
-            print("XYStage changed", value)
-            self._table.setColumnHidden(1, not value)
-            self._table.setColumnHidden(2, not value)
+        if device != "Core" and prop != "XYStage":
+            return
+        self._table.setColumnHidden(1, not value)
+        self._table.setColumnHidden(2, not value)
 
     def _populate_combo(self) -> None:
         items = [
