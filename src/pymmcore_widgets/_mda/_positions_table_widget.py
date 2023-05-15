@@ -771,6 +771,10 @@ class PositionTable(QGroupBox):
 
             name = position.get("name")
             x, y, z = (position.get("x"), position.get("y"), position.get("z"))
+            z_focus, z_autofocus = (
+                position.get("z_focus"),
+                position.get("z_autofocus"),
+            )
 
             if x and y and not self._mmc.getXYStageDevice():
                 warnings.warn("No XY Stage devices selected.", stacklevel=2)
@@ -778,6 +782,12 @@ class PositionTable(QGroupBox):
 
             if x is None and y is None and z is None:
                 continue
+
+            if z is not None and not z_focus and not z_autofocus:
+                self.z_focus_combo.setCurrentText(self._mmc.getFocusDevice())
+            else:
+                self.z_focus_combo.setCurrentText(z_focus or "None")
+                self.z_autofocus_combo.setCurrentText(z_autofocus or "None")
 
             self._add_table_row(name or f"{POS}000", x, y, z)
             if pos_seq := position.get("sequence"):
