@@ -113,6 +113,8 @@ def pos():
         "x": 100.0,
         "y": 200.0,
         "z": 0.0,
+        "z_focus": "Z",
+        "z_autofocus": None,
         "sequence": {
             "grid_plan": {
                 "columns": 2,
@@ -129,6 +131,8 @@ def pos():
         "x": 10.0,
         "y": 20.0,
         "z": 0.0,
+        "z_focus": "Z",
+        "z_autofocus": None,
         "sequence": {
             "grid_plan": {
                 "columns": 2,
@@ -145,6 +149,8 @@ def pos():
         "x": 0.0,
         "y": 0.0,
         "z": 0.0,
+        "z_focus": "Z",
+        "z_autofocus": None,
         "sequence": {
             "grid_plan": {
                 "bottom": 0.0,

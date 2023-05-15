@@ -726,8 +726,16 @@ class PositionTable(QGroupBox):
                     "x": self._get_table_value(row, 1),
                     "y": self._get_table_value(row, 2),
                     "z": self._get_table_value(row, self._get_z_stage_column()),
-                    "z_focus": self.z_focus_combo.currentText(),
-                    "z_autofocus": self.z_autofocus_combo.currentText(),
+                    "z_focus": (
+                        self.z_focus_combo.currentText()
+                        if self.z_focus_combo.currentText() != "None"
+                        else None
+                    ),
+                    "z_autofocus": (
+                        self.z_autofocus_combo.currentText()
+                        if self.z_autofocus_combo.currentText() != "None"
+                        else None
+                    ),
                     "sequence": (
                         {"grid_plan": grid_role} if grid_role else None  # type: ignore
                     ),
