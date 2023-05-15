@@ -52,6 +52,8 @@ if TYPE_CHECKING:
         x: float | None
         y: float | None
         z: float | None
+        z_focus: str | None
+        z_autofocus: str | None
         name: str | None
         sequence: MDASequence | None
 
@@ -276,32 +278,6 @@ class PositionTable(QGroupBox):
             self.z_autofocus_combo.clear()
             self.z_autofocus_combo.addItems(items)
             self.z_autofocus_combo.setCurrentText("None")
-
-    def _on_combo_changed(self, value: str) -> None:
-        if self.z_autofocus_combo.currentText() == "None":
-            with signals_blocked(self.z_focus_combo):
-                self.z_focus_combo.setCurrentText(value or "None")
-
-        if (
-            self.z_autofocus_combo.currentText() != "None"
-            and value != self.z_autofocus_combo.currentText()
-        ):
-            with signals_blocked(self.z_autofocus_combo):
-                self.z_autofocus_combo.setCurrentText(value)
-
-        _range = (
-            (3, self._table.columnCount() - 1)
-            if self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
-            else (0, self._table.columnCount() - 1)
-        )
-        for i in range(_range[0], _range[1]):
-            if not value:
-                self._table.setColumnHidden(i, True)
-            elif i == 0:
-                self._table.setColumnHidden(i, False)
-            else:
-                col_name = self._table.horizontalHeaderItem(i).text()
-                self._table.setColumnHidden(i, col_name != value)
 
     def _on_z_focus_changed(self, focus_stage: str) -> None:
         if self.z_autofocus_combo.currentText() != "None":
@@ -740,6 +716,8 @@ class PositionTable(QGroupBox):
                     "x": self._get_table_value(row, 1),
                     "y": self._get_table_value(row, 2),
                     "z": self._get_table_value(row, self._get_z_stage_column()),
+                    "z_focus": self.z_focus_combo.currentText(),
+                    "z_autofocus": self.z_autofocus_combo.currentText(),
                     "sequence": (
                         {"grid_plan": grid_role} if grid_role else None  # type: ignore
                     ),
