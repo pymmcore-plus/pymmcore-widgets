@@ -243,6 +243,7 @@ class PositionTable(QGroupBox):
         self._table.itemChanged.connect(self._rename_positions)
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
+        self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
         self.destroyed.connect(self._disconnect)
 
@@ -264,6 +265,15 @@ class PositionTable(QGroupBox):
         else:
             self.autofocus_lbl.hide()
             self.z_autofocus_combo.hide()
+
+    def _on_property_changed(self, device: str, prop: str, value: str) -> None:
+        """Hide/show XYStage columns when XYStage is set/removed."""
+        if not self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice):
+            return
+        if device == "Core" and prop == "XYStage":
+            print("XYStage changed", value)
+            self._table.setColumnHidden(1, not value)
+            self._table.setColumnHidden(2, not value)
 
     def _populate_combo(self) -> None:
         items = [
@@ -808,3 +818,4 @@ class PositionTable(QGroupBox):
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
+        self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
