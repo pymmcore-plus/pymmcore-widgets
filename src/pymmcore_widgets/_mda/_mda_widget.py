@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -9,7 +10,7 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 from useq import MDASequence
 
-from .._util import _select_output_unit, guess_channel_group
+from .._util import fmt_timedelta, guess_channel_group
 from ._channel_table_widget import ChannelTable
 from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
 from ._positions_table_widget import PositionTable
@@ -308,24 +309,33 @@ class MDAWidget(QWidget):
                 continue
 
             total_time = total_time + (e.exposure / 1000)
-            if self.time_groupbox.isChecked():
+            if self.time_groupbox.isChecked() and self.time_groupbox.value():
                 _t = e.index["t"]
                 _exp = e.exposure / 1000
                 _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp
 
         if _per_timepoints:
             time_value = self.time_groupbox.value()
-            timepoints = time_value["loops"]
-            interval = time_value["interval"].total_seconds()
-            total_time = total_time + (timepoints - 1) * interval
 
-            # check if the interval is smaller than the sum of the exposure times
+            intervals = []
+            for phase in time_value["phases"]:  # type: ignore
+                interval = phase["interval"].total_seconds()
+                intervals.append(interval)
+                timepoints = phase["loops"]
+                total_time = total_time + (timepoints - 1) * interval
+
+            # check if the interval(s) is smaller than the sum of the exposure times
             sum_ch_exp = sum(
                 (c["exposure"] / 1000)
                 for c in self.channel_groupbox.value()
                 if c["exposure"] is not None
             )
-            self.time_groupbox.setWarningVisible(0 < interval < sum_ch_exp)
+            for i in intervals:
+                if 0 < i < sum_ch_exp:
+                    self.time_groupbox.setWarningVisible(True)
+                    break
+                else:
+                    self.time_groupbox.setWarningVisible(False)
 
             # group by time
             _group_by_time: dict[float, list[int]] = {
@@ -333,24 +343,25 @@ class MDAWidget(QWidget):
                 for n in set(_per_timepoints.values())
             }
 
-            t_per_tp_msg = "\nMinimum acquisition time(s) per timepoint: "
-            if len(_group_by_time) == 1:
-                min_aq_tp, _tp_unit = _select_output_unit(float(_per_timepoints[0]))
-                t_per_tp_msg = f"{t_per_tp_msg}{min_aq_tp:.4f} {_tp_unit}."
-            else:
-                # print longest timepoint first and other in brackets
-                _tp = []
-                for idx, i in enumerate(sorted(_per_timepoints.values(), reverse=True)):
-                    aq, u = _select_output_unit(float(i))
-                    if idx == 0:
-                        t_per_tp_msg = f"{t_per_tp_msg}{aq:.4f} {u} ("
-                    elif (aq, u) in _tp:
-                        continue
-                    else:
-                        t_per_tp_msg = f"{t_per_tp_msg}{aq:.4f} {u},  "
-                    _tp.append((aq, u))
-                t_per_tp_msg = f"{t_per_tp_msg[:-3]})."
+            t_per_tp_msg = "Minimum acquisition time per timepoint: "
 
-        _min_tot_time, _unit = _select_output_unit(total_time)
-        tot_acq_msg = f"Minimum total acquisition time: {_min_tot_time:.4f} {_unit}."
-        self.time_lbl._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
+            if len(_group_by_time) == 1:
+                t_per_tp_msg = (
+                    f"\n{t_per_tp_msg}"
+                    f"{fmt_timedelta(timedelta(seconds=_per_timepoints[0]))}"
+                )
+            else:
+                acq_min = timedelta(seconds=min(_per_timepoints.values()))
+                t_per_tp_msg = (
+                    f"\n{t_per_tp_msg}{fmt_timedelta(acq_min)}"
+                    if self.time_groupbox.isChecked() and self.time_groupbox.value()
+                    else ""
+                )
+        else:
+            t_per_tp_msg = ""
+
+        _min_tot_time = (
+            "Minimum total acquisition time: "
+            f"{fmt_timedelta(timedelta(seconds=total_time))}"
+        )
+        self.time_lbl._total_time_lbl.setText(f"{_min_tot_time}{t_per_tp_msg}")
