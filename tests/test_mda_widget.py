@@ -36,7 +36,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
             {"config": "Cy5", "exposure": 20},
             {"config": "FITC", "exposure": 50},
         ],
-        time_plan={"interval": 2, "loops": 5},
+        time_plan={"phases": [{"interval": 2, "loops": 5}]},
         z_plan={"range": 4, "step": 0.5},
         axis_order="tpgcz",
         stage_positions=(

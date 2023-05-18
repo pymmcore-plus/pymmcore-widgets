@@ -22,7 +22,7 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 from useq import MDASequence, NoGrid, NoT, NoZ
 
-from .._util import guess_channel_group, print_timedelta
+from .._util import fmt_timedelta, guess_channel_group
 from ._channel_table_widget import ChannelTable
 from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
 from ._grid_widget import GridWidget
@@ -41,14 +41,6 @@ if TYPE_CHECKING:
         z: float | None
         name: str | None
         sequence: MDASequence | None
-
-    class TimeDict(TypedDict, total=False):
-        """Time plan dictionary."""
-
-        phases: list
-        interval: timedelta
-        loops: int
-        duration: timedelta
 
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -518,12 +510,7 @@ class MDAWidget(QWidget):
 
         z_plan = self.stack_groupbox.value() if self._checkbox_z.isChecked() else NoZ()
 
-        time_plan = (
-            self.time_groupbox.value()
-            if self._checkbox_t.isChecked()
-            and self.time_groupbox._table.rowCount() >= 1
-            else NoT()
-        )
+        time_plan = self.time_groupbox.value() if self._uses_time() else NoT()
 
         stage_positions: list[PositionDict] = []
         if self._checkbox_p.isChecked():
@@ -582,6 +569,11 @@ class MDAWidget(QWidget):
         else:
             self._update_total_time()
 
+    def _uses_time(self) -> bool:
+        """Hacky method to check whether the timebox is selected with any timepoints."""
+        has_phases = self.time_groupbox.value()["phases"]  # type: ignore
+        return bool(self._checkbox_t.isChecked() and has_phases)
+
     def _update_total_time(self) -> None:
         """Calculate the minimum total acquisition time info."""
         # TODO: fix me!!!!!
@@ -615,7 +607,7 @@ class MDAWidget(QWidget):
                 continue
 
             total_time = total_time + (e.exposure / 1000)
-            if self._checkbox_t.isChecked() and self.time_groupbox.value():
+            if self._uses_time():
                 _t = e.index["t"]
                 _exp = e.exposure / 1000
                 _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp
@@ -624,20 +616,13 @@ class MDAWidget(QWidget):
             time_value = self.time_groupbox.value()
 
             intervals = []
-            if "phases" in time_value:
-                for phase in time_value["phases"]:
-                    interval = phase["interval"].total_seconds()
-                    intervals.append(interval)
-
-                    if phase.get("loops") is not None:
-                        total_time = total_time + (phase["loops"] - 1) * interval
-                    else:
-                        total_time = total_time + phase["duration"].total_seconds()
-
-            else:
-                interval = time_value["interval"].total_seconds()
+            for phase in time_value["phases"]:  # type: ignore
+                interval = phase["interval"].total_seconds()
                 intervals.append(interval)
-                total_time = total_time + (time_value["loops"] - 1) * interval
+                if phase.get("loops") is not None:
+                    total_time = total_time + (phase["loops"] - 1) * interval
+                else:
+                    total_time = total_time + phase["duration"].total_seconds()
 
             # check if the interval(s) is smaller than the sum of the exposure times
             sum_ch_exp = sum(
@@ -663,13 +648,13 @@ class MDAWidget(QWidget):
             if len(_group_by_time) == 1:
                 t_per_tp_msg = (
                     f"\n{t_per_tp_msg}"
-                    f"{print_timedelta(timedelta(seconds=_per_timepoints[0]))}"
+                    f"{fmt_timedelta(timedelta(seconds=_per_timepoints[0]))}"
                 )
             else:
                 acq_min = timedelta(seconds=min(_per_timepoints.values()))
                 t_per_tp_msg = (
-                    f"\n{t_per_tp_msg}{print_timedelta(acq_min)}"
-                    if self._checkbox_t.isChecked() and self.time_groupbox.value()
+                    f"\n{t_per_tp_msg}{fmt_timedelta(acq_min)}"
+                    if self._uses_time()
                     else ""
                 )
         else:
@@ -677,7 +662,7 @@ class MDAWidget(QWidget):
 
         _min_tot_time = (
             "Minimum total acquisition time: "
-            f"{print_timedelta(timedelta(seconds=total_time))}"
+            f"{fmt_timedelta(timedelta(seconds=total_time))}"
         )
         self.time_lbl._total_time_lbl.setText(f"{_min_tot_time}{t_per_tp_msg}")
 
