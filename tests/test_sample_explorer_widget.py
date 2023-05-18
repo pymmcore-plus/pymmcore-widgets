@@ -87,7 +87,7 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     )
 
     assert state.channels == sequence.channels
-    assert state.time_plan == sequence.time_plan
+    assert state.time_plan.phases == [sequence.time_plan]
     assert state.z_plan == sequence.z_plan
     assert state.axis_order == sequence.axis_order
     assert state.stage_positions == sequence.stage_positions
