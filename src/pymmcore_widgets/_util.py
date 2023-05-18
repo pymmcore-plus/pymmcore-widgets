@@ -14,6 +14,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import signals_blocked
+from useq import AnyGridPlan, MDASequence
 
 
 class ComboMessageBox(QDialog):
@@ -121,3 +122,8 @@ def print_timedelta(time: timedelta) -> str:
         else:
             out.append(f"{int(float(t)):02d} {keys[i]}") if int(float(t)) > 0 else ""
     return "  ".join(out)
+
+
+def get_grid_type(grid: dict) -> AnyGridPlan:
+    """Get the grid type from the grid_plan."""
+    return MDASequence(grid_plan=grid).grid_plan
