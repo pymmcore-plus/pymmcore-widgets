@@ -43,7 +43,8 @@ def test_time_table_widget(qtbot: QtBot):
     assert t._table.rowCount() == 0
 
 
-def test_set_get_state(qtbot: QtBot):
+@pytest.mark.filterwarnings("ignore:NoT got unknown")
+def test_set_get_state(qtbot: QtBot) -> None:
     t = TimePlanWidget()
     qtbot.addWidget(t)
 
@@ -71,16 +72,12 @@ def test_set_get_state(qtbot: QtBot):
     t._clear()
     assert t._table.rowCount() == 0
 
-    state = {"interval": 10, "loops": 10}
-    t.set_state(state)
+    t.set_state({"interval": 10, "loops": 10})
     interval, timepoints = _value(t._table, 0)
-    assert interval.value().to_timedelta() == timedelta(minutes=10)
+    assert interval.value().to_timedelta() == timedelta(seconds=10)
     assert timepoints.value() == 10
 
-    state = {"loops": 10}
-    with pytest.raises(KeyError, match="The time_plans dictionary must incluede"):
-        t.set_state(state)
-
-    state = {"interval": 10}
-    with pytest.raises(KeyError, match="The time_plans dictionary must incluede"):
-        t.set_state(state)
+    with pytest.raises(
+        ValueError, match="Time dicts must have both 'interval' and 'loops'."
+    ):
+        t.set_state({"loops": 10})

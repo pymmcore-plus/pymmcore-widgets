@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, cast
+from useq import MDASequence, MultiPhaseTimePlan, TIntervalLoops
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -9,6 +11,7 @@ from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
+    QDoubleSpinBox,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -29,9 +32,11 @@ if TYPE_CHECKING:
     class TimeDict(TypedDict, total=False):
         """Time plan dictionary."""
 
-        phases: list
         interval: timedelta
         loops: int
+
+    class MultiPhaseTimeDict:
+        phases: list[TimeDict]
 
 
 INTERVAL = 0
@@ -143,27 +148,31 @@ class TimePlanWidget(QGroupBox):
     ) -> None:
         """Create a new row in the table."""
         val, u = (interval.total_seconds(), "s") if interval else (1, "s")
-        _interval = QQuantity(val, u)
-        _interval._mag_spinbox.setMinimum(0.0)
-        _interval._mag_spinbox.wheelEvent = lambda event: None  # block mouse scroll
-        _interval._mag_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        _interval._mag_spinbox.setButtonSymbols(
-            QAbstractSpinBox.ButtonSymbols.NoButtons
-        )
-        _interval.valueChanged.connect(self.valueChanged)
+        quant_wdg = QQuantity(val, u)
+        mag_spin = cast("QDoubleSpinBox", getattr(quant_wdg, "_mag_spinbox", None))
+        if mag_spin is None:
+            warnings.warn(
+                "QQuantity._mag_spinbox not found, check superqt version.", stacklevel=1
+            )
 
-        _timepoints = QSpinBox()
-        _timepoints.wheelEvent = lambda event: None  # block mouse scroll
-        _timepoints.setRange(1, 1000000)
-        _timepoints.setValue(loops or 1)
-        _timepoints.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        _timepoints.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        _timepoints.valueChanged.connect(self.valueChanged)
+        mag_spin.setMinimum(0.0)
+        mag_spin.wheelEvent = lambda event: None  # type: ignore # block mouse scroll
+        mag_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        mag_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        quant_wdg.valueChanged.connect(self.valueChanged)
+
+        time_spin = QSpinBox()
+        time_spin.wheelEvent = lambda event: None  # type: ignore # block mouse scroll
+        time_spin.setRange(1, 1000000)
+        time_spin.setValue(loops or 1)
+        time_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        time_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        time_spin.valueChanged.connect(self.valueChanged)
 
         idx = self._table.rowCount()
         self._table.insertRow(idx)
-        self._table.setCellWidget(idx, INTERVAL, _interval)
-        self._table.setCellWidget(idx, TIMEPOINTS, _timepoints)
+        self._table.setCellWidget(idx, INTERVAL, quant_wdg)
+        self._table.setCellWidget(idx, TIMEPOINTS, time_spin)
 
         self.valueChanged.emit()
 
@@ -198,7 +207,7 @@ class TimePlanWidget(QGroupBox):
         """Set the visibility of the warning message."""
         self._warning_widget.setVisible(visible)
 
-    def value(self) -> TimeDict:
+    def value(self) -> MultiPhaseTimeDict:
         """Return the current time plan as a TimeDict.
 
         Note that the output TimeDict will match [TIntervalLoopsdictionary](
@@ -209,25 +218,19 @@ class TimePlanWidget(QGroupBox):
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
         )] from useq schema.
         """
+        timeplan: MultiPhaseTimeDict = {"phases": []}  # type: ignore ??
         if not self._table.rowCount():
-            return {}
+            return timeplan
 
-        timeplan: TimeDict = {}
-        phases: list = []
         for row in range(self._table.rowCount()):
             interval = cast("QQuantity", self._table.cellWidget(row, INTERVAL))
             timepoints = cast("QSpinBox", self._table.cellWidget(row, TIMEPOINTS))
-            phases.append(
+            timeplan["phases"].append(  # type: ignore
                 {
-                    "interval": interval.value().to_timedelta(),
+                    "interval": interval.value().to_timedelta(),  # type: ignore
                     "loops": timepoints.value(),
                 }
             )
-        if len(phases) == 1:
-            timeplan = phases[0]
-        else:
-            timeplan["phases"] = phases
-
         return timeplan
 
     # t_plan is a TimeDicts but it makes typing elsewhere harder
@@ -247,21 +250,12 @@ class TimePlanWidget(QGroupBox):
         """
         self._clear()
 
-        phases = t_plan.get("phases", [t_plan])
+        tp = MDASequence(time_plan=t_plan).time_plan
+        phases = tp.phases if isinstance(tp, MultiPhaseTimePlan) else [tp]
         for phase in phases:
-            self._check_dict(phase)
-            self._create_new_row(interval=phase["interval"], loops=phase["loops"])
-
-    # t_plan is a TimeDicts but it makes typing elsewhere harder
-    def _check_dict(self, t_plan: dict) -> None:
-        """Check if the timeplan is valid."""
-        if "interval" not in t_plan or "loops" not in t_plan:
-            raise KeyError(
-                "The time_plans dictionary must incluede 'interval' and 'loop' keys."
-            )
-        # if the interval is not a timedelta object, convert it to a minutes timedelta
-        if not isinstance(t_plan["interval"], timedelta):
-            t_plan["interval"] = timedelta(minutes=t_plan["interval"])
+            if not isinstance(phase, TIntervalLoops):
+                raise ValueError("Time dicts must have both 'interval' and 'loops'.")
+            self._create_new_row(interval=phase.interval, loops=phase.loops)
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._clear)
