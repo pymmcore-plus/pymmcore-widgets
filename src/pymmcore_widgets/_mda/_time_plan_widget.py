@@ -3,7 +3,6 @@ from __future__ import annotations
 import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, cast
-from useq import MDASequence, MultiPhaseTimePlan, TIntervalLoops
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -25,6 +24,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QQuantity, fonticon
+from useq import MDASequence, MultiPhaseTimePlan, TIntervalLoops
 
 if TYPE_CHECKING:
     from typing_extensions import TypedDict
