@@ -105,9 +105,18 @@ def block_core(mmcore_events: CMMCoreSignaler | PCoreSignaler) -> ContextManager
         return signals_blocked(mmcore_events)  # type: ignore
 
 
-def print_timedelta(time: timedelta) -> str:
+def fmt_timedelta(time: timedelta) -> str:
+    """Take timedelta and return formatted string.
+
+    Examples
+    --------
+    >>> fmt_timedelta(timedelta(seconds=100))
+    '01 min  40 sec'
+    >>> fmt_timedelta(timedelta(minutes=320, seconds=2500))
+    '06 hours  01 min  40 sec'
+    """
     d = "day" if time.days == 1 else "days"
-    _time = str(time).replace(f" {d}, ", ":") if time.days >= 1 else f"0:{str(time)}"
+    _time = str(time).replace(f" {d}, ", ":") if time.days >= 1 else f"0:{time!s}"
     out: list = []
     keys = ["days", "hours", "min", "sec", "ms"]
     for i, t in enumerate(_time.split(":")):
