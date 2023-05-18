@@ -13,6 +13,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import signals_blocked
+from useq import AnyGridPlan, MDASequence
 
 
 class ComboMessageBox(QDialog):
@@ -101,3 +102,8 @@ def block_core(mmcore_events: CMMCoreSignaler | PCoreSignaler) -> ContextManager
         return mmcore_events.blocked()  # type: ignore
     elif isinstance(mmcore_events, PCoreSignaler):
         return signals_blocked(mmcore_events)  # type: ignore
+
+
+def get_grid_type(grid: dict) -> AnyGridPlan:
+    """Get the grid type from the grid_plan."""
+    return MDASequence(grid_plan=grid).grid_plan

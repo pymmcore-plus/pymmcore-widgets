@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from typing import Any, cast
 
 from pymmcore_plus import CMMCorePlus
@@ -13,12 +12,10 @@ from qtpy.QtWidgets import (
     QSizePolicy,
     QSpacerItem,
     QSpinBox,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 from superqt import QCollapsible
-from useq import MDASequence, Position
 
 from pymmcore_widgets._mda import MDAWidget
 
@@ -87,6 +84,15 @@ class _GridParametersWidget(QGroupBox):
         self.scan_size_spinBox_r.valueChanged.connect(self.valueChanged)
         self.scan_size_spinBox_c.valueChanged.connect(self.valueChanged)
 
+    def value(self) -> dict[str, Any]:
+        return {
+            "rows": self.scan_size_spinBox_r.value(),
+            "columns": self.scan_size_spinBox_c.value(),
+            "overlap": (self.overlap_spinBox.value(), self.overlap_spinBox.value()),
+            "mode": "row_wise_snake",
+            "relative_to": "center",
+        }
+
 
 class SampleExplorerWidget(MDAWidget):
     """Widget to create and run grid acquisitions.
@@ -123,13 +129,15 @@ class SampleExplorerWidget(MDAWidget):
         include_run_button: bool = False,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
+        _mmcore = mmcore or CMMCorePlus.instance()
+
+        super().__init__(
+            parent=parent, include_run_button=include_run_button, mmcore=_mmcore
+        )
+
         self.grid_params = _GridParametersWidget()
         self.return_to_position_x: float | None = None
         self.return_to_position_y: float | None = None
-
-        super().__init__(
-            parent=parent, include_run_button=include_run_button, mmcore=mmcore
-        )
 
         # add widget elements
         scroll_layout = cast(QVBoxLayout, self._central_widget.layout())
@@ -160,11 +168,11 @@ class SampleExplorerWidget(MDAWidget):
         wdg.layout().addWidget(pos_coll)
         scroll_layout.removeWidget(self.position_groupbox)
         self.position_groupbox.setTitle("")
-        self.position_groupbox.grid_button.hide()
+        self.position_groupbox._advanced_cbox.setChecked(True)
+        self.position_groupbox._advanced_cbox.hide()
+        self.position_groupbox._table.setColumnHidden(4, True)
         self.position_groupbox.add_button.clicked.disconnect()
-        self.position_groupbox.add_button.clicked.connect(self._add_position)
-        self.position_groupbox.remove_button.clicked.disconnect()
-        self.position_groupbox.remove_button.clicked.connect(self._remove_position)
+        self.position_groupbox.add_button.clicked.connect(self._add_pos)
         pos_coll.addWidget(self.position_groupbox)
 
         scroll_layout.insertWidget(2, wdg)
@@ -174,213 +182,23 @@ class SampleExplorerWidget(MDAWidget):
         )
         scroll_layout.addItem(spacer)
 
-        # explorer variables
-        self.pixel_size = self._mmc.getPixelSizeUm()
-
         # connection for scan size
-        self.grid_params.valueChanged.connect(self._update_total_time)
+        self.grid_params.valueChanged.connect(self._update_grid_plan)
 
     def _set_enabled(self, enabled: bool) -> None:
         super()._set_enabled(enabled)
         self.grid_params.setEnabled(enabled)
 
-    def _on_mda_finished(self) -> None:
-        super()._on_mda_finished()
-        if (
-            self.return_to_position_x is not None
-            and self.return_to_position_y is not None
-        ):
-            self._mmc.setXYPosition(
-                self.return_to_position_x, self.return_to_position_y
-            )
-            self.return_to_position_x = None
-            self.return_to_position_y = None
+    def _add_pos(self) -> None:
+        self.position_groupbox._add_position()
+        for r in range(self.position_groupbox._table.rowCount()):
+            self.position_groupbox._add_grid_plan(self.grid_params.value(), r)
+        super()._update_total_time()
 
-    def _add_position(self) -> None:
-        if not self._mmc.getXYStageDevice():
-            return
-
-        if len(self._mmc.getLoadedDevices()) > 1:
-            # idx = self._add_position_row()
-            idx = self.position_groupbox._add_position_row()
-
-            for c, ax in enumerate("GXYZ"):
-                if ax == "G":
-                    count = self.position_groupbox._table.rowCount()
-                    item = QTableWidgetItem(f"Grid{count:03d}")
-                    item.setData(self.position_groupbox.POS_ROLE, f"Grid{count:03d}")
-                    item.setTextAlignment(
-                        Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-                    )
-                    self.position_groupbox._table.setItem(idx, c, item)
-                    self._rename_positions()
-                    continue
-
-                if not self._mmc.getFocusDevice() and ax == "Z":
-                    continue
-
-                cur = getattr(self._mmc, f"get{ax}Position")()
-                item = QTableWidgetItem(str(cur))
-                item.setTextAlignment(
-                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-                )
-                self.position_groupbox._table.setItem(idx, c, item)
-
-        self._update_total_time()
-
-    def _remove_position(self) -> None:
-        # remove selected position
-        rows = {r.row() for r in self.position_groupbox._table.selectedIndexes()}
-        for idx in sorted(rows, reverse=True):
-            self.position_groupbox._table.removeRow(idx)
-        self._rename_positions()
-        self._update_total_time()
-
-    def _rename_positions(self, _: Any = None) -> None:
-        """Rename the positions to keep name's correct counter of 3digits."""
-        # name arguments to match super method
-        for grid_count, r in enumerate(range(self.position_groupbox._table.rowCount())):
-            item = self.position_groupbox._table.item(r, 0)
-            item_text = item.text()
-            item_whatisthis = item.data(self.position_groupbox.POS_ROLE)
-            if item_text == item_whatisthis:
-                new_name = f"Grid{grid_count:03d}"
-            else:
-                new_name = item_text
-            pos_role = f"Grid{grid_count:03d}"
-
-            item = QTableWidgetItem(new_name)
-            item.setTextAlignment(
-                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-            )
-            item.setData(self.position_groupbox.POS_ROLE, pos_role)
-            self.position_groupbox._table.setItem(r, 0, item)
-
-    def _get_pos_name(self, row: int) -> str:
-        """Get position name from table item's pos_role."""
-        item = self.position_groupbox._table.item(row, 0)
-        name = str(item.text())
-        pos_role = item.data(self.position_groupbox.POS_ROLE)
-        return f"{name}_{pos_role}" if pos_role not in name else name
-
-    def _create_grid_coords(self) -> list[Position]:
-        """Calculate the grid coordinates for each grid starting position.
-
-        output should be a compatible input to MDASequence stage_positions.
-        """
-        table = self.position_groupbox._table
-        explorer_starting_positions: list[Position] = []
-        if self.position_groupbox.isChecked() and table.rowCount() > 0:
-            explorer_starting_positions.extend(
-                Position(
-                    name=self._get_pos_name(r),
-                    x=float(table.item(r, 1).text()),
-                    y=float(table.item(r, 2).text()),
-                    z=(
-                        float(table.item(r, 3).text())
-                        if self._mmc.getFocusDevice()
-                        else None
-                    ),
-                )
-                for r in range(table.rowCount())
-            )
-        else:
-            explorer_starting_positions.append(
-                Position(
-                    name="Grid001",
-                    x=float(self._mmc.getXPosition()),
-                    y=float(self._mmc.getYPosition()),
-                    z=float(self._mmc.getZPosition())
-                    if self._mmc.getFocusDevice()
-                    else None,
-                )
-            )
-
-        # calculate initial scan position
-        _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
-
-        # prepare overlaps and shifts
-        scan_size_r = self.grid_params.scan_size_spinBox_r.value()
-        scan_size_c = self.grid_params.scan_size_spinBox_c.value()
-        self.pixel_size = self._mmc.getPixelSizeUm()
-
-        overlap_percentage = self.grid_params.overlap_spinBox.value()
-        overlap_px_w = width - (width * overlap_percentage) / 100
-        overlap_px_h = height - (height * overlap_percentage) / 100
-        move_x = (width / 2) * (scan_size_c - 1) - overlap_px_w
-        move_x = self.pixel_size * (move_x + width)
-
-        move_y = (height / 2) * (scan_size_r - 1) - overlap_px_h
-        move_y = self.pixel_size * (move_y + height)
-
-        # calculate position increments depending on pixel size
-        if overlap_percentage > 0:
-            increment_x = overlap_px_w * self.pixel_size
-            increment_y = overlap_px_h * self.pixel_size
-        else:
-            increment_x = width * self.pixel_size
-            increment_y = height * self.pixel_size
-
-        output: list[Position] = []
-        for st_pos in explorer_starting_positions:
-            # XXX: why are we setting this in a for loop?
-            self.return_to_position_x = st_pos.x
-            self.return_to_position_y = st_pos.y
-
-            # to match position coordinates with center of the image
-            x_pos = cast(float, st_pos.x) - move_x
-            y_pos = cast(float, st_pos.y) + move_y
-
-            pos_count = 0
-            for r in range(scan_size_r):
-                if r % 2:  # for odd rows
-                    col = scan_size_c - 1
-                    for c in range(scan_size_c):
-                        if c == 0:
-                            y_pos -= increment_y
-                        name = f"{st_pos.name}_Pos{pos_count:03d}"
-                        output.append(Position(name=name, x=x_pos, y=y_pos, z=st_pos.z))
-                        if col > 0:
-                            col -= 1
-                            x_pos -= increment_x
-                        pos_count += 1
-                else:  # for even rows
-                    for c in range(scan_size_c):
-                        if r > 0 and c == 0:
-                            y_pos -= increment_y
-                        name = f"{st_pos.name}_Pos{pos_count:03d}"
-                        output.append(Position(name=name, x=x_pos, y=y_pos, z=st_pos.z))
-                        if c < scan_size_c - 1:
-                            x_pos += increment_x
-                        pos_count += 1
-
-        return output
-
-    def get_state(self) -> MDASequence:  # sourcery skip: merge-dict-assign
-        """Get current state of widget and build a useq.MDASequence.
-
-        Returns
-        -------
-        useq.MDASequence
-        """
-        z = self.stack_groupbox.value() if self.stack_groupbox.isChecked() else None
-        time = self.time_groupbox.value() if self.time_groupbox.isChecked() else None
-        return MDASequence(
-            axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
-            channels=self.channel_groupbox.value(),
-            stage_positions=self._create_grid_coords(),
-            z_plan=z,
-            time_plan=time,
-        )
-
-    def _on_run_clicked(self) -> None:
-        self.pixel_size = self._mmc.getPixelSizeUm()
-
-        if self._mmc.getPixelSizeUm() <= 0:
-            warnings.warn("Pixel Size not set.", stacklevel=2)
-            return
-
-        super()._on_run_clicked()
+    def _update_grid_plan(self) -> None:
+        for r in range(self.position_groupbox._table.rowCount()):
+            self.position_groupbox._add_grid_plan(self.grid_params.value(), r)
+        super()._update_total_time()
 
 
 class _TightCollapsible(QCollapsible):
@@ -389,16 +207,3 @@ class _TightCollapsible(QCollapsible):
         self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         self.layout().setSpacing(0)
         self.layout().setContentsMargins(0, 0, 0, 0)
-
-
-if __name__ == "__main__":
-    import sys
-
-    from qtpy.QtWidgets import QApplication
-
-    mmc = CMMCorePlus.instance()
-    mmc.loadSystemConfiguration()
-    app = QApplication(sys.argv)
-    win = SampleExplorerWidget(include_run_button=True)
-    win.show()
-    sys.exit(app.exec_())

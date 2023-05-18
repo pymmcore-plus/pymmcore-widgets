@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         y: float | None
         z: float | None
         name: str | None
+        sequence: MDASequence | None
 
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -153,18 +154,8 @@ class MDAWidget(QWidget):
         self.time_groupbox.setEnabled(enabled)
         self.buttons_wdg.acquisition_order_comboBox.setEnabled(enabled)
         self.channel_groupbox.setEnabled(enabled)
-
-        if not self._mmc.getXYStageDevice():
-            self.position_groupbox.setChecked(False)
-            self.position_groupbox.setEnabled(False)
-        else:
-            self.position_groupbox.setEnabled(enabled)
-
-        if not self._mmc.getFocusDevice():
-            self.stack_groupbox.setChecked(False)
-            self.stack_groupbox.setEnabled(False)
-        else:
-            self.stack_groupbox.setEnabled(enabled)
+        self.position_groupbox.setEnabled(enabled)
+        self.stack_groupbox.setEnabled(enabled)
 
     def _on_mda_started(self) -> None:
         self._set_enabled(False)
@@ -222,7 +213,8 @@ class MDAWidget(QWidget):
 
         # set stage positions
         if state.stage_positions:
-            self.position_groupbox.set_state([p.dict() for p in state.stage_positions])
+            self.position_groupbox.setChecked(True)
+            self.position_groupbox.set_state(list(state.stage_positions))
         else:
             self.position_groupbox.setChecked(False)
 
@@ -242,11 +234,20 @@ class MDAWidget(QWidget):
             self.time_groupbox.value() if self.time_groupbox.isChecked() else None
         )
 
-        stage_positions = (
-            self.position_groupbox.value()
-            if self.position_groupbox.isChecked()
-            else self._get_current_position()
-        )
+        stage_positions: list[PositionDict] = []
+        if self.position_groupbox.isChecked():
+            for p in self.position_groupbox.value():
+                if p.get("sequence"):
+                    p_sequence = MDASequence(**p.get("sequence"))  # type: ignore
+                    p_sequence = p_sequence.replace(
+                        axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
+                    )
+                    p["sequence"] = p_sequence
+
+                stage_positions.append(p)
+
+        if not stage_positions:
+            stage_positions = self._get_current_position()
 
         return MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),

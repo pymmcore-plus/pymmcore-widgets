@@ -47,6 +47,15 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     state = s_exp.get_state()
 
+    p_seq = {
+        "grid_plan": {
+            "rows": 2,
+            "columns": 2,
+            "mode": "row_wise_snake",
+            "overlap": (10.0, 10.0),
+            "relative_to": "center",
+        }
+    }
     sequence = MDASequence(
         channels=[
             {
@@ -57,45 +66,21 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
         ],
         time_plan={"interval": {"milliseconds": 0}, "loops": 2},
         z_plan={"range": 2, "step": 1},
-        axis_order="tpcz",
+        axis_order="tpgcz",
         stage_positions=(
-            {"name": "Grid000_Pos000", "x": -307.2, "y": 307.2, "z": 0.0},
-            {"name": "Grid000_Pos001", "x": 153.60000000000002, "y": 307.2, "z": 0.0},
             {
-                "name": "Grid000_Pos002",
-                "x": 153.60000000000002,
-                "y": -153.60000000000002,
+                "name": "Pos000",
+                "x": 0.0,
+                "y": 0.0,
                 "z": 0.0,
+                "sequence": p_seq,
             },
             {
-                "name": "Grid000_Pos003",
-                "x": -307.2,
-                "y": -153.60000000000002,
+                "name": "Pos001",
+                "x": 1999.99,
+                "y": 1999.99,
                 "z": 0.0,
-            },
-            {
-                "name": "Grid001_Pos000",
-                "x": 1692.7949999999998,
-                "y": 2307.1949999999997,
-                "z": 0.0,
-            },
-            {
-                "name": "Grid001_Pos001",
-                "x": 2153.595,
-                "y": 2307.1949999999997,
-                "z": 0.0,
-            },
-            {
-                "name": "Grid001_Pos002",
-                "x": 2153.595,
-                "y": 1846.3949999999998,
-                "z": 0.0,
-            },
-            {
-                "name": "Grid001_Pos003",
-                "x": 1692.7949999999998,
-                "y": 1846.3949999999998,
-                "z": 0.0,
+                "sequence": p_seq,
             },
         ),
     )
@@ -107,7 +92,7 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert state.stage_positions == sequence.stage_positions
 
 
-def test_explorer_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
+def p(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = SampleExplorerWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, call
 
 from pymmcore_plus import CMMCorePlus
 from useq import MDASequence
 
-from pymmcore_widgets._mda import GridWidget, MDAWidget
+from pymmcore_widgets._mda import MDAWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -34,30 +33,33 @@ def test_mda_widget_load_state(qtbot: QtBot):
         ],
         time_plan={"interval": 2, "loops": 5},
         z_plan={"range": 4, "step": 0.5},
-        axis_order="tpcz",
+        axis_order="tpgcz",
         stage_positions=(
             {"name": "Pos000", "x": 222, "y": 1, "z": 1},
             {"name": "Pos001", "x": 111, "y": 0, "z": 0},
+            {
+                "name": "Pos002",
+                "x": 1,
+                "y": 2,
+                "z": 3,
+                "sequence": {
+                    "grid_plan": {
+                        "rows": 2,
+                        "columns": 2,
+                        "mode": "row_wise_snake",
+                        "overlap": (0.0, 0.0),
+                    },
+                },
+            },
         ),
     )
     wdg.set_state(sequence)
-    assert wdg.position_groupbox._table.rowCount() == 2
+    assert wdg.position_groupbox._table.rowCount() == 3
     assert wdg.channel_groupbox._table.rowCount() == 2
     assert wdg.time_groupbox.isChecked()
 
     # round trip
     assert wdg.get_state() == sequence
-
-    # test add grid positions
-    wdg.position_groupbox.setChecked(True)
-    wdg.position_groupbox._clear_positions()
-    assert wdg.position_groupbox._table.rowCount() == 0
-    wdg.position_groupbox.grid_button.click()
-    qtbot.addWidget(wdg.position_groupbox._grid_wdg)
-    wdg.position_groupbox._grid_wdg.scan_size_spinBox_r.setValue(2)
-    wdg.position_groupbox._grid_wdg.scan_size_spinBox_c.setValue(2)
-    wdg.position_groupbox._grid_wdg.generate_position_btn.click()
-    assert wdg.position_groupbox._table.rowCount() == 4
 
 
 def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -109,74 +111,6 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not wdg.buttons_wdg.run_button.isHidden()
     assert wdg.buttons_wdg.pause_button.isHidden()
     assert wdg.buttons_wdg.cancel_button.isHidden()
-
-
-def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    grid_wdg = GridWidget()
-    qtbot.addWidget(grid_wdg)
-
-    global_mmcore.setProperty("Objective", "Label", "Objective-2")
-    assert not global_mmcore.getPixelSizeUm()
-    grid_wdg._update_info_label()
-    assert grid_wdg.info_lbl.text() == "_ mm x _ mm"
-
-    global_mmcore.setProperty("Objective", "Label", "Nikon 10X S Fluor")
-
-    # w/o overlap
-    grid_wdg.scan_size_spinBox_r.setValue(2)
-    grid_wdg.scan_size_spinBox_c.setValue(2)
-    grid_wdg.ovelap_spinBox.setValue(0)
-    assert grid_wdg.info_lbl.text() == "1.024 mm x 1.024 mm"
-
-    mock = Mock()
-    grid_wdg.sendPosList.connect(mock)
-
-    grid_wdg.clear_checkbox.setChecked(True)
-
-    grid_wdg._send_positions_grid()
-
-    mock.assert_has_calls(
-        [
-            call(
-                [
-                    (-256.0, 256.0, 0.0),
-                    (256.0, 256.0, 0.0),
-                    (256.0, -256.0, 0.0),
-                    (-256.0, -256.0, 0.0),
-                ],
-                True,
-            )
-        ]
-    )
-
-    # with overlap
-    grid_wdg.scan_size_spinBox_r.setValue(3)
-    grid_wdg.scan_size_spinBox_c.setValue(3)
-    grid_wdg.ovelap_spinBox.setValue(15)
-    assert grid_wdg.info_lbl.text() == "1.306 mm x 1.306 mm"
-
-    grid_wdg.clear_checkbox.setChecked(False)
-
-    grid_wdg._send_positions_grid()
-
-    mock.assert_has_calls(
-        [
-            call(
-                [
-                    (-588.8, 588.8, 0.0),
-                    (-153.59999999999997, 588.8, 0.0),
-                    (281.6, 588.8, 0.0),
-                    (281.6, 153.59999999999997, 0.0),
-                    (-153.59999999999997, 153.59999999999997, 0.0),
-                    (-588.8, 153.59999999999997, 0.0),
-                    (-588.8, -281.6, 0.0),
-                    (-153.59999999999997, -281.6, 0.0),
-                    (281.6, -281.6, 0.0),
-                ],
-                False,
-            )
-        ]
-    )
 
 
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
