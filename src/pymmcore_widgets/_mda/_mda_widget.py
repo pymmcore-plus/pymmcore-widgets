@@ -318,16 +318,10 @@ class MDAWidget(QWidget):
             time_value = self.time_groupbox.value()
 
             intervals = []
-            if "phases" in time_value:
-                for phase in time_value["phases"]:
-                    interval = phase["interval"].total_seconds()
-                    intervals.append(interval)
-                    timepoints = phase["loops"]
-                    total_time = total_time + (timepoints - 1) * interval
-            else:
-                timepoints = time_value["loops"]
-                interval = time_value["interval"].total_seconds()
+            for phase in time_value["phases"]:  # type: ignore
+                interval = phase["interval"].total_seconds()
                 intervals.append(interval)
+                timepoints = phase["loops"]
                 total_time = total_time + (timepoints - 1) * interval
 
             # check if the interval(s) is smaller than the sum of the exposure times

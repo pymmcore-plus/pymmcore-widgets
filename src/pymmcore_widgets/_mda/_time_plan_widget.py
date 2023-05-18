@@ -156,13 +156,13 @@ class TimePlanWidget(QGroupBox):
             )
 
         mag_spin.setMinimum(0.0)
-        mag_spin.wheelEvent = lambda event: None  # type: ignore # block mouse scroll
+        mag_spin.wheelEvent = lambda event: None
         mag_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
         mag_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         quant_wdg.valueChanged.connect(self.valueChanged)
 
         time_spin = QSpinBox()
-        time_spin.wheelEvent = lambda event: None  # type: ignore # block mouse scroll
+        time_spin.wheelEvent = lambda event: None
         time_spin.setRange(1, 1000000)
         time_spin.setValue(loops or 1)
         time_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
@@ -218,7 +218,7 @@ class TimePlanWidget(QGroupBox):
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
         )] from useq schema.
         """
-        timeplan: MultiPhaseTimeDict = {"phases": []}  # type: ignore ??
+        timeplan: MultiPhaseTimeDict = {"phases": []}  # type: ignore
         if not self._table.rowCount():
             return timeplan
 
@@ -227,7 +227,7 @@ class TimePlanWidget(QGroupBox):
             timepoints = cast("QSpinBox", self._table.cellWidget(row, TIMEPOINTS))
             timeplan["phases"].append(  # type: ignore
                 {
-                    "interval": interval.value().to_timedelta(),  # type: ignore
+                    "interval": interval.value().to_timedelta(),
                     "loops": timepoints.value(),
                 }
             )
