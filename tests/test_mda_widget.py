@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from unittest.mock import Mock, call
+from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import CMMCorePlus
 from useq import MDASequence
 
-from pymmcore_widgets._mda import GridWidget, MDAWidget
+from pymmcore_widgets._mda import MDAWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
+    from qtpy.QtWidgets import QSpinBox
+
+    from pymmcore_widgets._mda._time_plan_widget import _DoubleSpinAndCombo
 
 
 def test_mda_widget_load_state(qtbot: QtBot):
@@ -32,32 +34,35 @@ def test_mda_widget_load_state(qtbot: QtBot):
             {"config": "Cy5", "exposure": 20},
             {"config": "FITC", "exposure": 50},
         ],
-        time_plan={"interval": 2, "loops": 5},
+        time_plan={"phases": [{"interval": 2, "loops": 5}]},
         z_plan={"range": 4, "step": 0.5},
-        axis_order="tpcz",
+        axis_order="tpgcz",
         stage_positions=(
             {"name": "Pos000", "x": 222, "y": 1, "z": 1},
             {"name": "Pos001", "x": 111, "y": 0, "z": 0},
+            {
+                "name": "Pos002",
+                "x": 1,
+                "y": 2,
+                "z": 3,
+                "sequence": {
+                    "grid_plan": {
+                        "rows": 2,
+                        "columns": 2,
+                        "mode": "row_wise_snake",
+                        "overlap": (0.0, 0.0),
+                    },
+                },
+            },
         ),
     )
     wdg.set_state(sequence)
-    assert wdg.position_groupbox._table.rowCount() == 2
+    assert wdg.position_groupbox._table.rowCount() == 3
     assert wdg.channel_groupbox._table.rowCount() == 2
     assert wdg.time_groupbox.isChecked()
 
     # round trip
     assert wdg.get_state() == sequence
-
-    # test add grid positions
-    wdg.position_groupbox.setChecked(True)
-    wdg.position_groupbox._clear_positions()
-    assert wdg.position_groupbox._table.rowCount() == 0
-    wdg.position_groupbox.grid_button.click()
-    qtbot.addWidget(wdg.position_groupbox._grid_wdg)
-    wdg.position_groupbox._grid_wdg.scan_size_spinBox_r.setValue(2)
-    wdg.position_groupbox._grid_wdg.scan_size_spinBox_c.setValue(2)
-    wdg.position_groupbox._grid_wdg.generate_position_btn.click()
-    assert wdg.position_groupbox._table.rowCount() == 4
 
 
 def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -111,74 +116,6 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.buttons_wdg.cancel_button.isHidden()
 
 
-def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    grid_wdg = GridWidget()
-    qtbot.addWidget(grid_wdg)
-
-    global_mmcore.setProperty("Objective", "Label", "Objective-2")
-    assert not global_mmcore.getPixelSizeUm()
-    grid_wdg._update_info_label()
-    assert grid_wdg.info_lbl.text() == "_ mm x _ mm"
-
-    global_mmcore.setProperty("Objective", "Label", "Nikon 10X S Fluor")
-
-    # w/o overlap
-    grid_wdg.scan_size_spinBox_r.setValue(2)
-    grid_wdg.scan_size_spinBox_c.setValue(2)
-    grid_wdg.ovelap_spinBox.setValue(0)
-    assert grid_wdg.info_lbl.text() == "1.024 mm x 1.024 mm"
-
-    mock = Mock()
-    grid_wdg.sendPosList.connect(mock)
-
-    grid_wdg.clear_checkbox.setChecked(True)
-
-    grid_wdg._send_positions_grid()
-
-    mock.assert_has_calls(
-        [
-            call(
-                [
-                    (-256.0, 256.0, 0.0),
-                    (256.0, 256.0, 0.0),
-                    (256.0, -256.0, 0.0),
-                    (-256.0, -256.0, 0.0),
-                ],
-                True,
-            )
-        ]
-    )
-
-    # with overlap
-    grid_wdg.scan_size_spinBox_r.setValue(3)
-    grid_wdg.scan_size_spinBox_c.setValue(3)
-    grid_wdg.ovelap_spinBox.setValue(15)
-    assert grid_wdg.info_lbl.text() == "1.306 mm x 1.306 mm"
-
-    grid_wdg.clear_checkbox.setChecked(False)
-
-    grid_wdg._send_positions_grid()
-
-    mock.assert_has_calls(
-        [
-            call(
-                [
-                    (-588.8, 588.8, 0.0),
-                    (-153.59999999999997, 588.8, 0.0),
-                    (281.6, 588.8, 0.0),
-                    (281.6, 153.59999999999997, 0.0),
-                    (-153.59999999999997, 153.59999999999997, 0.0),
-                    (-588.8, 153.59999999999997, 0.0),
-                    (-588.8, -281.6, 0.0),
-                    (-153.59999999999997, -281.6, 0.0),
-                    (281.6, -281.6, 0.0),
-                ],
-                False,
-            )
-        ]
-    )
-
-
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     global_mmcore.setExposure(100)
     wdg = MDAWidget(include_run_button=True)
@@ -189,52 +126,52 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg.channel_groupbox._add_button.click()
     assert wdg.channel_groupbox._table.rowCount() == 1
     assert wdg.channel_groupbox._table.cellWidget(0, 1).value() == 100.0
-    assert not wdg.time_groupbox.isChecked()
-
-    txt = "Minimum total acquisition time: 100.0000 ms."
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-    assert not wdg.time_groupbox._warning_widget.isVisible()
 
     assert not wdg.time_groupbox.isChecked()
     wdg.time_groupbox.setChecked(True)
-    wdg.time_groupbox._units_combo.setCurrentText("ms")
-    assert wdg.time_groupbox._warning_widget.isVisible()
+    wdg.time_groupbox._add_button.click()
 
     txt = (
-        "Minimum total acquisition time: 100.0000 ms."
-        "\nMinimum acquisition time(s) per timepoint: 100.0000 ms."
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-
-    wdg.time_groupbox._timepoints_spinbox.setValue(3)
-    txt = (
-        "Minimum total acquisition time: 302.0000 ms.\n"
-        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-
-    wdg.time_groupbox._interval_spinbox.setValue(10)
-    txt = (
-        "Minimum total acquisition time: 320.0000 ms.\n"
-        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-
-    wdg.time_groupbox._interval_spinbox.setValue(200)
-    txt = (
-        "Minimum total acquisition time: 700.0000 ms.\n"
-        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
+        "Minimum total acquisition time: 100 ms"
+        "\nMinimum acquisition time per timepoint: 100 ms"
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
     assert not wdg.time_groupbox._warning_widget.isVisible()
+
+    assert wdg.time_groupbox.isChecked()
+    interval = cast("_DoubleSpinAndCombo", wdg.time_groupbox._table.cellWidget(0, 0))
+    timepoint = cast("QSpinBox", wdg.time_groupbox._table.cellWidget(0, 1))
+    interval.setValue(1, "ms")
+    timepoint.setValue(2)
+    assert wdg.time_groupbox._warning_widget.isVisible()
+
+    txt = (
+        "Minimum total acquisition time: 201 ms"
+        "\nMinimum acquisition time per timepoint: 100 ms"
+    )
+    assert wdg.time_lbl._total_time_lbl.text() == txt
 
     wdg.channel_groupbox._add_button.click()
     wdg.channel_groupbox._advanced_cbox.setChecked(True)
     wdg.channel_groupbox._table.cellWidget(1, 4).setValue(2)
     wdg.channel_groupbox._table.cellWidget(1, 1).setValue(100.0)
+    assert wdg.time_groupbox._warning_widget.isVisible()
+    interval.setValue(200, "ms")
+    timepoint.setValue(4)
+    assert not wdg.time_groupbox._warning_widget.isVisible()
 
     txt = (
-        "Minimum total acquisition time: 900.0000 ms.\n"
-        "Minimum acquisition time(s) per timepoint: 200.0000 ms (100.0000 ms)."
+        "Minimum total acquisition time: 01 sec 200 ms"
+        "\nMinimum acquisition time per timepoint: 100 ms"
+    )
+    assert wdg.time_lbl._total_time_lbl.text() == txt
+
+    wdg.time_groupbox._add_button.click()
+    timepoint = cast("QSpinBox", wdg.time_groupbox._table.cellWidget(1, 1))
+    timepoint.setValue(2)
+
+    txt = (
+        "Minimum total acquisition time: 02 sec 400 ms"
+        "\nMinimum acquisition time per timepoint: 100 ms"
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt

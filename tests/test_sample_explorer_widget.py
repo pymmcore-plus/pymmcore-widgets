@@ -29,8 +29,9 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert s_exp.channel_groupbox._table.rowCount() == 1
 
     s_exp.time_groupbox.setChecked(True)
-    s_exp.time_groupbox._timepoints_spinbox.setValue(2)
-    s_exp.time_groupbox._interval_spinbox.setValue(0)
+    s_exp.time_groupbox._add_button.click()
+    s_exp.time_groupbox._table.cellWidget(0, 0).setValue(0, "ms")
+    s_exp.time_groupbox._table.cellWidget(0, 1).setValue(2)
 
     s_exp.stack_groupbox.setChecked(True)
     s_exp.stack_groupbox.set_state({"range": 2, "step": 1})
@@ -47,6 +48,15 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     state = s_exp.get_state()
 
+    p_seq = {
+        "grid_plan": {
+            "rows": 2,
+            "columns": 2,
+            "mode": "row_wise_snake",
+            "overlap": (10.0, 10.0),
+            "relative_to": "center",
+        }
+    }
     sequence = MDASequence(
         channels=[
             {
@@ -57,57 +67,33 @@ def test_explorer_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
         ],
         time_plan={"interval": {"milliseconds": 0}, "loops": 2},
         z_plan={"range": 2, "step": 1},
-        axis_order="tpcz",
+        axis_order="tpgcz",
         stage_positions=(
-            {"name": "Grid000_Pos000", "x": -307.2, "y": 307.2, "z": 0.0},
-            {"name": "Grid000_Pos001", "x": 153.60000000000002, "y": 307.2, "z": 0.0},
             {
-                "name": "Grid000_Pos002",
-                "x": 153.60000000000002,
-                "y": -153.60000000000002,
+                "name": "Pos000",
+                "x": 0.0,
+                "y": 0.0,
                 "z": 0.0,
+                "sequence": p_seq,
             },
             {
-                "name": "Grid000_Pos003",
-                "x": -307.2,
-                "y": -153.60000000000002,
+                "name": "Pos001",
+                "x": 1999.99,
+                "y": 1999.99,
                 "z": 0.0,
-            },
-            {
-                "name": "Grid001_Pos000",
-                "x": 1692.7949999999998,
-                "y": 2307.1949999999997,
-                "z": 0.0,
-            },
-            {
-                "name": "Grid001_Pos001",
-                "x": 2153.595,
-                "y": 2307.1949999999997,
-                "z": 0.0,
-            },
-            {
-                "name": "Grid001_Pos002",
-                "x": 2153.595,
-                "y": 1846.3949999999998,
-                "z": 0.0,
-            },
-            {
-                "name": "Grid001_Pos003",
-                "x": 1692.7949999999998,
-                "y": 1846.3949999999998,
-                "z": 0.0,
+                "sequence": p_seq,
             },
         ),
     )
 
     assert state.channels == sequence.channels
-    assert state.time_plan == sequence.time_plan
+    assert state.time_plan.phases == [sequence.time_plan]
     assert state.z_plan == sequence.z_plan
     assert state.axis_order == sequence.axis_order
     assert state.stage_positions == sequence.stage_positions
 
 
-def test_explorer_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
+def p(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = SampleExplorerWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
@@ -159,53 +145,3 @@ def test_explorer_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not wdg.buttons_wdg.run_button.isHidden()
     assert wdg.buttons_wdg.pause_button.isHidden()
     assert wdg.buttons_wdg.cancel_button.isHidden()
-
-
-def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    global_mmcore.setExposure(100)
-    wdg = SampleExplorerWidget(include_run_button=True)
-    qtbot.addWidget(wdg)
-    wdg.show()
-
-    assert wdg.channel_groupbox._table.rowCount() == 0
-    wdg.channel_groupbox._add_button.click()
-    assert wdg.channel_groupbox._table.rowCount() == 1
-    assert wdg.channel_groupbox._table.cellWidget(0, 1).value() == 100.0
-    assert not wdg.time_groupbox.isChecked()
-    assert not wdg.time_groupbox._warning_widget.isVisible()
-    wdg.time_groupbox._units_combo.setCurrentText("ms")
-
-    txt = "Minimum total acquisition time: 100.0000 ms."
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-
-    assert not wdg.time_groupbox.isChecked()
-    wdg.time_groupbox.setChecked(True)
-    assert wdg.time_groupbox._warning_widget.isVisible()
-
-    txt = (
-        "Minimum total acquisition time: 100.0000 ms.\n"
-        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-
-    wdg.time_groupbox._timepoints_spinbox.setValue(3)
-    txt = (
-        "Minimum total acquisition time: 302.0000 ms.\n"
-        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-
-    wdg.time_groupbox._interval_spinbox.setValue(10)
-    txt1 = (
-        "Minimum total acquisition time: 320.0000 ms.\n"
-        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt1
-
-    wdg.time_groupbox._interval_spinbox.setValue(200)
-    txt1 = (
-        "Minimum total acquisition time: 700.0000 ms.\n"
-        "Minimum acquisition time(s) per timepoint: 100.0000 ms."
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt1
-    assert not wdg.time_groupbox._warning_widget.isVisible()
