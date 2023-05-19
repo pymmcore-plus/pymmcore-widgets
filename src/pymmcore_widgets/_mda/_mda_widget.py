@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+from qtpy.QtWidgets import QGroupBox, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 from useq import MDASequence
 
 from .._util import fmt_timedelta, guess_channel_group
@@ -80,6 +80,12 @@ class MDAWidget(QWidget):
         self.stack_wdg = ZStackWidget()
         self.position_wdg = PositionTable()
 
+        # TO BE REMOVED WHEN SWITCHING TO A MDA WITH TABS
+        self.ch_wdg = self._wdg_as_groupbox(self.channel_wdg, "Channels")
+        self.t_wdg = self._wdg_as_groupbox(self.time_wdg, "Time")
+        self.z_wdg = self._wdg_as_groupbox(self.stack_wdg, "Z Stack", True)
+        self.p_wdg = self._wdg_as_groupbox(self.position_wdg, "Positions")
+
         # below the scroll area, some feedback widgets and buttons
         self.time_lbl = _MDATimeLabel()
 
@@ -93,10 +99,11 @@ class MDAWidget(QWidget):
         central_layout = QVBoxLayout()
         central_layout.setSpacing(20)
         central_layout.setContentsMargins(10, 10, 10, 10)
-        central_layout.addWidget(self.channel_wdg)
-        central_layout.addWidget(self.time_wdg)
-        central_layout.addWidget(self.stack_wdg)
-        central_layout.addWidget(self.position_wdg)
+        # TO BE CHANGED WHEN SWITCHING TO A MDA WITH TABS
+        central_layout.addWidget(self.ch_wdg)
+        central_layout.addWidget(self.t_wdg)
+        central_layout.addWidget(self.z_wdg)
+        central_layout.addWidget(self.p_wdg)
         self._central_widget = QWidget()
         self._central_widget.setLayout(central_layout)
 
@@ -135,6 +142,20 @@ class MDAWidget(QWidget):
             self.buttons_wdg.run_button.show()
 
         self._on_sys_cfg_loaded()
+
+    # TO BE REMOVED WHEN SWITCHING TO A MDA WITH TABS
+    def _wdg_as_groupbox(
+        self, widget: QWidget, title: str, checkable: bool = False
+    ) -> QGroupBox:
+        wdg = QGroupBox(title=title)
+        if checkable:
+            wdg.setCheckable(True)
+        wdg_layout = QVBoxLayout()
+        wdg_layout.setContentsMargins(10, 10, 10, 10)
+        wdg_layout.setSpacing(0)
+        wdg.setLayout(wdg_layout)
+        wdg_layout.addWidget(widget)
+        return wdg
 
     def _on_sys_cfg_loaded(self) -> None:
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
@@ -189,8 +210,12 @@ class MDAWidget(QWidget):
             self.channel_wdg.set_state([c.dict() for c in state.channels])
 
         # set Z
+        # TO BE REMOVED WHEN SWITCHING TO A MDA WITH TABS:  self.z_wdg.setChecked()
         if state.z_plan:
+            self.z_wdg.setChecked(True)
             self.stack_wdg.set_state(state.z_plan.dict())
+        else:
+            self.z_wdg.setChecked(False)
 
         # set time
         if state.time_plan:
@@ -209,7 +234,8 @@ class MDAWidget(QWidget):
         """
         channels = self.channel_wdg.value()
 
-        z_plan = self.stack_wdg.value() or None
+        # TO BE REMOVED WHEN SWITCHING TO A MDA WITH TABS: self.z_wdg.isChecked()
+        z_plan = self.stack_wdg.value() if self.z_wdg.isChecked() else None
         time_plan = self.time_wdg.value() or None
 
         stage_positions: list[PositionDict] = []
