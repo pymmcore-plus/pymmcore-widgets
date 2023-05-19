@@ -52,8 +52,8 @@ class ChannelTable(QWidget):
     parent : QWidget | None
         Optional parent widget. By default, None.
     channel_group : str | None
-        Optional channel group that will be set as the widget's initial
-        ChannelGroup. By default, None.
+        Optional channel group that will be set as the widget's initialChannelGroup.
+        By default, None.
     mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
@@ -315,8 +315,8 @@ class ChannelTable(QWidget):
     def value(self) -> list[ChannelDict]:
         """Return the current channels settings.
 
-        Note that output dict will match the Channel from useq schema:
-        <https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel>
+        Note that output list[dict] will match the [useq-schema Channel
+        specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
         """
         values: list[ChannelDict] = []
         for c in range(self._table.rowCount()):
@@ -346,7 +346,11 @@ class ChannelTable(QWidget):
     # note: this really ought to be ChannelDict, but it makes typing elsewhere harder
     # TODO: also accept actual useq objects
     def set_state(self, channels: list[dict]) -> None:
-        """Set the state of the widget from a useq channel dictionary."""
+        """Set the state of the widget.
+
+        The `channels` argument should follow the [useq-schema Channel specifications](
+        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+        """
         self.clear()
         _advanced_bool = False
         with signals_blocked(self):

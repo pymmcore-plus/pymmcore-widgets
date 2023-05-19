@@ -506,8 +506,8 @@ class PositionTable(QWidget):
     def value(self) -> list[PositionDict]:
         """Return the current positions settings.
 
-        Note that output dict will match the Positions from useq schema:
-        <https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position>.
+        Note that output list[dict] will match the [useq-schema Positions
+        specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
         """
         if not self._table.rowCount():
             return []
@@ -531,7 +531,11 @@ class PositionTable(QWidget):
     def set_state(
         self, positions: Sequence[PositionDict | Position], clear: bool = True
     ) -> None:
-        """Set the state of the widget from a useq position dictionary."""
+        """Set the state of the widget.
+
+        The `positions` argument should follow the [useq-schema Positions
+        specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
+        """
         if clear:
             self.clear()
 
