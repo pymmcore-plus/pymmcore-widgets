@@ -15,7 +15,6 @@ from qtpy.QtWidgets import (
     QDoubleSpinBox,
     QFileDialog,
     QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QMenu,
@@ -58,7 +57,7 @@ POS = "Pos"
 AlignCenter = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
 
 
-class PositionTable(QGroupBox):
+class PositionTable(QWidget):
     """Widget providing options for setting up a multi-position acquisition.
 
     The `value()` method returns a dictionary with the current state of the widget, in a
@@ -67,8 +66,6 @@ class PositionTable(QGroupBox):
 
     Parameters
     ----------
-    title: str
-        Title of the widget, by default "Stage Positions".
     parent : QWidget | None
         Optional parent widget, by default None.
     mmcore : CMMCorePlus | None
@@ -83,16 +80,13 @@ class PositionTable(QGroupBox):
 
     def __init__(
         self,
-        title: str = "Stage Positions",
         parent: QWidget | None = None,
         *,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
-        super().__init__(title, parent=parent)
+        super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
-
-        self.setCheckable(True)
 
         group_layout = QGridLayout()
         group_layout.setSpacing(15)
@@ -540,8 +534,6 @@ class PositionTable(QGroupBox):
         """Set the state of the widget from a useq position dictionary."""
         if clear:
             self.clear()
-
-        self.setChecked(True)
 
         if not isinstance(positions, Sequence):
             raise TypeError("The 'positions' arguments has to be a 'Sequence'.")
