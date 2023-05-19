@@ -313,9 +313,9 @@ class ChannelTable(QWidget):
             self.valueChanged.emit()
 
     def value(self) -> list[ChannelDict]:
-        """Return the current channels settings.
+        """Return the current channels settings as a list of dictionaries.
 
-        Note that output list[dict] will match the [useq-schema Channel
+        Note that the output will match the [useq-schema Channel
         specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
         """
         values: list[ChannelDict] = []
@@ -348,8 +348,11 @@ class ChannelTable(QWidget):
     def set_state(self, channels: list[dict]) -> None:
         """Set the state of the widget.
 
-        The `channels` argument should follow the [useq-schema Channel specifications](
-        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+        Parameters
+        ----------
+        channels : list[dict]
+            A list of dictionaries following the [useq-schema Channel specifications](
+            https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
         """
         self.clear()
         _advanced_bool = False

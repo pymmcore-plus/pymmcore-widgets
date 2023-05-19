@@ -290,9 +290,9 @@ class ZStackWidget(QWidget):
         self.valueChanged.emit(self.value())
 
     def value(self) -> dict:
-        """Return the current z-stack settings.
+        """Return the current z-stack settings as a dictionary.
 
-        Note that output dict will match one of the [useq-schema Z Plan
+        Note that the output will match one of the [useq-schema Z Plan
         specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans).
         """
         value = cast("ZPicker", self._zmode_tabs.currentWidget()).value()
@@ -308,8 +308,11 @@ class ZStackWidget(QWidget):
     def set_state(self, z_plan: dict) -> None:
         """Set the state of the widget.
 
-        The `z_plan` argument should follow the [useq-schema Z Plan
-        specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans).
+        Parameters
+        ----------
+        z_plan : dict
+            A dictionary following the [useq-schema Z Plan specifications](
+            https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans).
         """
         tabs = self._zmode_tabs
         wdg: ZPicker

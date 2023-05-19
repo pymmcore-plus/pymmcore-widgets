@@ -49,7 +49,7 @@ class TimePlanWidget(QWidget):
 
     The `value()` method returns a dictionary with the current state of the widget, in a
     format that matches one of the [useq-schema MultiPhaseTimePlan
-    specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan)
+    specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan).
 
     Parameters
     ----------
@@ -216,9 +216,9 @@ class TimePlanWidget(QWidget):
         self._warning_widget.setVisible(visible)
 
     def value(self) -> MultiPhaseTimeDict:
-        """Return the current time plan as a TimeDict.
+        """Return the current time plan as a dictionary.
 
-        Note that output list[dict] will match one of the [useq-schema
+        Note that the output will match the [useq-schema
         MultiPhaseTimePlan specifications](
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan
         ).
@@ -242,13 +242,19 @@ class TimePlanWidget(QWidget):
     def set_state(self, t_plan: dict) -> None:
         """Set the state of the widget.
 
-        The `t_plan` argument should follow the [useq-schema TIntervalLoopsdictionary
-        specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops)
-        or the [useq-schema MultiPhaseTimePlan[TIntervalLoopsdictionary] specifications]
-        (https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan).
+        Parameters
+        ----------
+        t_plan : dict
+            A dictionary following the [useq-schema TIntervalLoopsdictionary
+            specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops)
+            or the
+            [useq-schema MultiPhaseTimePlan TIntervalLoopsdictionary specifications](
+            https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan).
 
-        If the `interval` key is not a `timedelta` object, it will be converted to a
-        timedelta object and will be considered as expressed in seconds.
+            If the [TIntervalLoopsdictionary](
+            https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
+            ) `interval` key is not a `timedelta` object, it will be converted to a
+            timedelta object and will be considered as expressed in seconds.
         """
         self._clear()
 
