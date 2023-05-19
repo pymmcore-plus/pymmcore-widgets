@@ -12,7 +12,6 @@ from qtpy.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -41,7 +40,7 @@ if TYPE_CHECKING:
         acquire_every: int
 
 
-class ChannelTable(QGroupBox):
+class ChannelTable(QWidget):
     """Widget providing options for setting up a multi-channel acquisition.
 
     The `value()` method returns a dictionary with the current state of the widget, in a
@@ -51,7 +50,7 @@ class ChannelTable(QGroupBox):
     Parameters
     ----------
     title : str
-        Title of the QGroupBox widget. Bt default, 'Channel'.
+        Title of the QWidget widget. Bt default, 'Channel'.
     parent : QWidget | None
         Optional parent widget. By default, None.
     channel_group : str | None
@@ -69,13 +68,12 @@ class ChannelTable(QGroupBox):
 
     def __init__(
         self,
-        title: str = "Channels",
         parent: QWidget | None = None,
         *,
         channel_group: str | None = None,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
-        super().__init__(title, parent=parent)
+        super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
