@@ -12,7 +12,6 @@ from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QDoubleSpinBox,
     QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -36,6 +35,8 @@ if TYPE_CHECKING:
         loops: int
 
     class MultiPhaseTimeDict:
+        """MultiPhase time plan dictionary."""
+
         phases: list[TimeDict]
 
 
@@ -43,12 +44,22 @@ INTERVAL = 0
 TIMEPOINTS = 1
 
 
-class TimePlanWidget(QGroupBox):
+class TimePlanWidget(QWidget):
     """Widget providing options for setting up a timelapse acquisition.
 
     The `value()` method returns a dictionary with the current state of the widget, in a
-    format that matches one of the [useq-schema Time Plan
-    specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#time-plans).
+    format that matches one of the [useq-schema MultiPhaseTimePlan
+    specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan)
+
+    Parameters
+    ----------
+    parent : QWidget | None
+        Optional parent widget, by default None.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     valueChanged = Signal()
@@ -56,14 +67,11 @@ class TimePlanWidget(QGroupBox):
 
     def __init__(
         self,
-        title: str = "Time",
         parent: QWidget | None = None,
         *,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
-        super().__init__(title, parent=parent)
-
-        self.setCheckable(True)
+        super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -210,13 +218,10 @@ class TimePlanWidget(QGroupBox):
     def value(self) -> MultiPhaseTimeDict:
         """Return the current time plan as a TimeDict.
 
-        Note that the output TimeDict will match [TIntervalLoopsdictionary](
-        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
-        ) or [MultiPhaseTimePlan](
+        Note that output list[dict] will match one of the [useq-schema
+        MultiPhaseTimePlan specifications](
         https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan
-        )[[TIntervalLoopsdictionary](
-        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
-        )] from useq schema.
+        ).
         """
         timeplan: MultiPhaseTimeDict = {"phases": []}  # type: ignore
         if not self._table.rowCount():
@@ -233,17 +238,14 @@ class TimePlanWidget(QGroupBox):
             )
         return timeplan
 
-    # t_plan is a TimeDicts but it makes typing elsewhere harder
+    # t_plan is a TimeDicts/MultiPhaseTimeDict but it makes typing elsewhere harder
     def set_state(self, t_plan: dict) -> None:
         """Set the state of the widget.
 
-        Note that the output TimeDict will match [TIntervalLoopsdictionary](
-        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
-        ) or [MultiPhaseTimePlan](
-        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan
-        )[[TIntervalLoopsdictionary](
-        https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops
-        )] from useq schema.
+        The `t_plan` argument should follow the [useq-schema TIntervalLoopsdictionary
+        specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.TIntervalLoops)
+        or the [useq-schema MultiPhaseTimePlan[TIntervalLoopsdictionary] specifications]
+        (https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.MultiPhaseTimePlan).
 
         If the `interval` key is not a `timedelta` object, it will be converted to a
         timedelta object and will be considered as expressed in seconds.
