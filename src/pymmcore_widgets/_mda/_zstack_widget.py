@@ -331,8 +331,5 @@ class ZStackWidget(QWidget):
             wdg._zrange_spinbox.setValue(z_plan["range"])
             tabs.setCurrentWidget(wdg)
 
-        disabled = set(z_plan).isdisjoint({"top", "bottom", "above", "below", "range"})
-        self.setChecked(not disabled)
-
         if "step" in z_plan:
             self._zstep_spinbox.setValue(z_plan["step"])

@@ -29,7 +29,6 @@ def test_single_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
     tb = p._table
 
     assert not tb.rowCount()
-    p.setChecked(True)
 
     p.add_button.click()
     mmc.setXYPosition(100, 200)
@@ -171,7 +170,6 @@ def test_relative_grid_position(
     tb = p._table
 
     assert not tb.rowCount()
-    p.setChecked(True)
 
     mmc.setXYPosition(100, 200)
     p.add_button.click()
@@ -231,7 +229,6 @@ def test_absolute_grid_position(
     tb = p._table
 
     assert not tb.rowCount()
-    p.setChecked(True)
 
     p.add_button.click()
     assert tb.rowCount() == 1
