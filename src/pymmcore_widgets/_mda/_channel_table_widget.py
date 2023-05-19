@@ -49,8 +49,6 @@ class ChannelTable(QWidget):
 
     Parameters
     ----------
-    title : str
-        Title of the QWidget widget. Bt default, 'Channel'.
     parent : QWidget | None
         Optional parent widget. By default, None.
     channel_group : str | None
