@@ -205,7 +205,7 @@ class MDAWidget(QWidget):
         if state.channels:
             self.channel_wdg.set_state([c.dict() for c in state.channels])
 
-        # set z
+        # set z stack
         if state.z_plan:
             self.z_wdg.setChecked(True)
             self.stack_wdg.set_state(state.z_plan.dict())
