@@ -80,7 +80,6 @@ class MDAWidget(QWidget):
         self.stack_wdg = ZStackWidget()
         self.position_wdg = PositionTable()
 
-        # TO BE REMOVED WHEN SWITCHING TO A MDA WITH TABS
         self.ch_wdg = self._wdg_as_groupbox(self.channel_wdg, "Channels")
         self.t_wdg = self._wdg_as_groupbox(self.time_wdg, "Time")
         self.z_wdg = self._wdg_as_groupbox(self.stack_wdg, "Z Stack")
@@ -143,7 +142,6 @@ class MDAWidget(QWidget):
 
         self._on_sys_cfg_loaded()
 
-    # TO BE REMOVED WHEN SWITCHING TO A MDA WITH TABS
     def _wdg_as_groupbox(self, widget: QWidget, title: str) -> QGroupBox:
         wdg = QGroupBox(title=title)
         wdg.setCheckable(True)
@@ -207,8 +205,7 @@ class MDAWidget(QWidget):
         if state.channels:
             self.channel_wdg.set_state([c.dict() for c in state.channels])
 
-        # set Z
-        # TO BE REMOVED WHEN SWITCHING TO A MDA WITH TABS:  self.z_wdg.setChecked()
+        # set z
         if state.z_plan:
             self.z_wdg.setChecked(True)
             self.stack_wdg.set_state(state.z_plan.dict())
@@ -238,7 +235,6 @@ class MDAWidget(QWidget):
         """
         channels = self.channel_wdg.value()
 
-        # TO BE REMOVED WHEN SWITCHING TO A MDA WITH TABS: self.z_wdg.isChecked()
         z_plan = self.stack_wdg.value() if self.z_wdg.isChecked() else None
         time_plan = self.time_wdg.value() if self.t_wdg.isChecked() else None
 
