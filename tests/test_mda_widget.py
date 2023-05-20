@@ -68,6 +68,7 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(wdg)
 
     assert wdg.channel_wdg._table.rowCount() == 0
+    wdg.ch_wdg.setChecked(True)
     wdg.channel_wdg._add_button.click()
     wdg.channel_wdg._add_button.click()
     assert wdg.channel_wdg._table.rowCount() == 2
@@ -78,6 +79,7 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.channel_wdg._table.rowCount() == 0
 
     assert wdg.position_wdg._table.rowCount() == 0
+    wdg.p_wdg.setChecked(True)
     wdg.position_wdg.add_button.click()
     wdg.position_wdg.add_button.click()
     assert wdg.position_wdg._table.rowCount() == 2
@@ -120,10 +122,12 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg.show()
 
     assert wdg.channel_wdg._table.rowCount() == 0
+    wdg.ch_wdg.setChecked(True)
     wdg.channel_wdg._add_button.click()
     assert wdg.channel_wdg._table.rowCount() == 1
     assert wdg.channel_wdg._table.cellWidget(0, 1).value() == 100.0
 
+    wdg.t_wdg.setChecked(True)
     wdg.time_wdg._add_button.click()
 
     txt = (

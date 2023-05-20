@@ -83,7 +83,7 @@ class MDAWidget(QWidget):
         # TO BE REMOVED WHEN SWITCHING TO A MDA WITH TABS
         self.ch_wdg = self._wdg_as_groupbox(self.channel_wdg, "Channels")
         self.t_wdg = self._wdg_as_groupbox(self.time_wdg, "Time")
-        self.z_wdg = self._wdg_as_groupbox(self.stack_wdg, "Z Stack", True)
+        self.z_wdg = self._wdg_as_groupbox(self.stack_wdg, "Z Stack")
         self.p_wdg = self._wdg_as_groupbox(self.position_wdg, "Positions")
 
         # below the scroll area, some feedback widgets and buttons
@@ -144,12 +144,10 @@ class MDAWidget(QWidget):
         self._on_sys_cfg_loaded()
 
     # TO BE REMOVED WHEN SWITCHING TO A MDA WITH TABS
-    def _wdg_as_groupbox(
-        self, widget: QWidget, title: str, checkable: bool = False
-    ) -> QGroupBox:
+    def _wdg_as_groupbox(self, widget: QWidget, title: str) -> QGroupBox:
         wdg = QGroupBox(title=title)
-        if checkable:
-            wdg.setCheckable(True)
+        wdg.setCheckable(True)
+        wdg.setChecked(False)
         wdg_layout = QVBoxLayout()
         wdg_layout.setContentsMargins(10, 10, 10, 10)
         wdg_layout.setSpacing(0)
@@ -219,11 +217,17 @@ class MDAWidget(QWidget):
 
         # set time
         if state.time_plan:
+            self.t_wdg.setChecked(True)
             self.time_wdg.set_state(state.time_plan.dict())
+        else:
+            self.t_wdg.setChecked(False)
 
         # set stage positions
         if state.stage_positions:
+            self.p_wdg.setChecked(True)
             self.position_wdg.set_state(list(state.stage_positions))
+        else:
+            self.p_wdg.setChecked(False)
 
     def get_state(self) -> MDASequence:
         """Get current state of widget and build a useq.MDASequence.
@@ -236,18 +240,19 @@ class MDAWidget(QWidget):
 
         # TO BE REMOVED WHEN SWITCHING TO A MDA WITH TABS: self.z_wdg.isChecked()
         z_plan = self.stack_wdg.value() if self.z_wdg.isChecked() else None
-        time_plan = self.time_wdg.value() or None
+        time_plan = self.time_wdg.value() if self.t_wdg.isChecked() else None
 
         stage_positions: list[PositionDict] = []
-        for p in self.position_wdg.value():
-            if p.get("sequence"):
-                p_sequence = MDASequence(**p.get("sequence"))  # type: ignore
-                p_sequence = p_sequence.replace(
-                    axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
-                )
-                p["sequence"] = p_sequence
+        if self.p_wdg.isChecked():
+            for p in self.position_wdg.value():
+                if p.get("sequence"):
+                    p_sequence = MDASequence(**p.get("sequence"))  # type: ignore
+                    p_sequence = p_sequence.replace(
+                        axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
+                    )
+                    p["sequence"] = p_sequence
 
-            stage_positions.append(p)
+                stage_positions.append(p)
 
         if not stage_positions:
             stage_positions = self._get_current_position()
@@ -309,7 +314,7 @@ class MDAWidget(QWidget):
                 continue
 
             total_time = total_time + (e.exposure / 1000)
-            if self.time_wdg.value():
+            if self.t_wdg.isChecked() and self.time_wdg.value():
                 _t = e.index["t"]
                 _exp = e.exposure / 1000
                 _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp
@@ -354,7 +359,7 @@ class MDAWidget(QWidget):
                 acq_min = timedelta(seconds=min(_per_timepoints.values()))
                 t_per_tp_msg = (
                     f"\n{t_per_tp_msg}{fmt_timedelta(acq_min)}"
-                    if self.time_wdg.value()
+                    if self.t_wdg.isChecked() and self.time_wdg.value()
                     else ""
                 )
         else:
