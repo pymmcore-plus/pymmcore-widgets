@@ -12,7 +12,6 @@ from qtpy.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -41,7 +40,7 @@ if TYPE_CHECKING:
         acquire_every: int
 
 
-class ChannelTable(QGroupBox):
+class ChannelTable(QWidget):
     """Widget providing options for setting up a multi-channel acquisition.
 
     The `value()` method returns a dictionary with the current state of the widget, in a
@@ -50,13 +49,11 @@ class ChannelTable(QGroupBox):
 
     Parameters
     ----------
-    title : str
-        Title of the QGroupBox widget. Bt default, 'Channel'.
     parent : QWidget | None
         Optional parent widget. By default, None.
     channel_group : str | None
-        Optional channel group that will be set as the widget's initial
-        ChannelGroup. By default, None.
+        Optional channel group that will be set as the widget's initialChannelGroup.
+        By default, None.
     mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
         By default, None. If not specified, the widget will use the active
@@ -69,13 +66,12 @@ class ChannelTable(QGroupBox):
 
     def __init__(
         self,
-        title: str = "Channels",
         parent: QWidget | None = None,
         *,
         channel_group: str | None = None,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
-        super().__init__(title, parent=parent)
+        super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -317,10 +313,10 @@ class ChannelTable(QGroupBox):
             self.valueChanged.emit()
 
     def value(self) -> list[ChannelDict]:
-        """Return the current channels settings.
+        """Return the current channels settings as a list of dictionaries.
 
-        Note that output dict will match the Channel from useq schema:
-        <https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel>
+        Note that the output will match the [useq-schema Channel
+        specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
         """
         values: list[ChannelDict] = []
         for c in range(self._table.rowCount()):
@@ -350,7 +346,14 @@ class ChannelTable(QGroupBox):
     # note: this really ought to be ChannelDict, but it makes typing elsewhere harder
     # TODO: also accept actual useq objects
     def set_state(self, channels: list[dict]) -> None:
-        """Set the state of the widget from a useq channel dictionary."""
+        """Set the state of the widget.
+
+        Parameters
+        ----------
+        channels : list[dict]
+            A list of dictionaries following the [useq-schema Channel specifications](
+            https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+        """
         self.clear()
         _advanced_bool = False
         with signals_blocked(self):

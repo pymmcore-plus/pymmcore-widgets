@@ -50,7 +50,7 @@ GROUP_STYLE = (
 )
 
 CHANNELS = ("Channels", 0)
-ZSTACK = ("zStack", 1)
+ZSTACK = ("Z Stack", 1)
 POSITIONS = ("Positions", 2)
 TIME = ("Time", 3)
 GRID = ("Grid", 4)
@@ -160,29 +160,22 @@ class MDAWidget(QWidget):
 
         # Widgets for Channels, Time, zStack, and Positions in the Scroll Area
         self.channel_groupbox = ChannelTable()
-        self.channel_groupbox.setTitle("")
         self.channel_groupbox.setEnabled(False)
         self.channel_groupbox.valueChanged.connect(self._enable_run_btn)
         self.channel_groupbox.valueChanged.connect(self._update_total_time)
         self.channel_groupbox._advanced_cbox.toggled.connect(self._update_total_time)
 
         self.time_groupbox = TimePlanWidget()
-        self.time_groupbox.setTitle("")
-        self.time_groupbox.setCheckable(False)
         self.time_groupbox.setEnabled(False)
         self.time_groupbox.setStyleSheet(GROUP_STYLE)
         self.time_groupbox.valueChanged.connect(self._update_total_time)
 
         self.stack_groupbox = ZStackWidget()
-        self.stack_groupbox.setTitle("")
-        self.stack_groupbox.setCheckable(False)
         self.stack_groupbox.setEnabled(False)
         self.stack_groupbox.setStyleSheet(GROUP_STYLE)
         self.stack_groupbox.valueChanged.connect(self._update_total_time)
 
         self.position_groupbox = PositionTable()
-        self.position_groupbox.setTitle("")
-        self.position_groupbox.setCheckable(False)
         self.position_groupbox.setEnabled(False)
         self.position_groupbox.setStyleSheet(GROUP_STYLE)
         self.position_groupbox._advanced_cbox.toggled.connect(self._update_total_time)
@@ -458,7 +451,7 @@ class MDAWidget(QWidget):
             self._checkbox_ch.setChecked(True)
             self.channel_groupbox.set_state([c.dict() for c in state.channels])
 
-        # set Z
+        # set z stack
         if state.z_plan:
             self._checkbox_z.setChecked(True)
             self.stack_groupbox.set_state(state.z_plan.dict())
