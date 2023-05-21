@@ -17,6 +17,7 @@ from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
 from ._mda import (
     ChannelTable,
+    CheckableTabWidget,
     GridWidget,
     MDAWidget,
     PositionTable,
@@ -38,6 +39,7 @@ __all__ = [
     "ChannelGroupWidget",
     "ChannelTable",
     "ChannelWidget",
+    "CheckableTabWidget",
     "ConfigurationWidget",
     "DefaultCameraExposureWidget",
     "DeviceWidget",

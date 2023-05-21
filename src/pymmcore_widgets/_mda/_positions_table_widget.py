@@ -17,7 +17,6 @@ from qtpy.QtWidgets import (
     QDoubleSpinBox,
     QFileDialog,
     QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QMenu,
@@ -62,7 +61,7 @@ POS = "Pos"
 AlignCenter = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
 
 
-class PositionTable(QGroupBox):
+class PositionTable(QWidget):
     """Widget providing options for setting up a multi-position acquisition.
 
     The `value()` method returns a dictionary with the current state of the widget, in a
@@ -71,8 +70,6 @@ class PositionTable(QGroupBox):
 
     Parameters
     ----------
-    title: str
-        Title of the widget, by default "Stage Positions".
     parent : QWidget | None
         Optional parent widget, by default None.
     mmcore : CMMCorePlus | None
@@ -87,18 +84,15 @@ class PositionTable(QGroupBox):
 
     def __init__(
         self,
-        title: str = "Stage Positions",
         parent: QWidget | None = None,
         *,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
-        super().__init__(title, parent=parent)
+        super().__init__(parent=parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._z_stages: dict[str, str] = {"Z Focus": "", "Z AutoFocus": ""}
-
-        self.setCheckable(True)
 
         group_layout = QGridLayout()
         group_layout.setSpacing(15)
@@ -709,10 +703,10 @@ class PositionTable(QGroupBox):
         return value  # type: ignore
 
     def value(self) -> list[PositionDict]:
-        """Return the current positions settings.
+        """Return the current positions settings as a list of dictionaries.
 
-        Note that output dict will match the Positions from useq schema:
-        <https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position>.
+        Note that the output will match the [useq-schema Positions
+        specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
         """
         # TODO: if we add zFocus and zAutoFocus info in the Position object,
         # expand the PositionDict
@@ -757,15 +751,19 @@ class PositionTable(QGroupBox):
     def set_state(
         self, positions: Sequence[PositionDict | Position], clear: bool = True
     ) -> None:
-        """Set the state of the widget from a useq position dictionary."""
-        # TODO: when we add the ability to store z stage name to MDASequence or Position
-        # objects, we should also add the ability to set the z stage name here
+        """Set the state of the widget.
+
+        Parameters
+        ----------
+        positions : Sequence[PositionDict | Position]
+            A sequence of positions based on the [useq-schema Positions specifications](
+            https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
+        clear : bool
+            By default True. If True, the current positions list is cleared before the
+            specified one is added.
+        """
         if clear:
             self.clear()
-
-        for position in positions:
-            if isinstance(position, Position):
-                position = cast("PositionDict", position.dict())
 
         if not isinstance(positions, Sequence):
             raise TypeError("The 'positions' arguments has to be a 'Sequence'.")

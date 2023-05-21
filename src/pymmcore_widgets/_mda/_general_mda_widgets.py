@@ -55,7 +55,6 @@ class _MDAControlButtons(QWidget):
         min_width = 130
         icon_size = 40
         self.run_button = QPushButton(text="Run")
-        self.run_button.setEnabled(False)
         self.run_button.setMinimumWidth(min_width)
         self.run_button.setStyleSheet("QPushButton { text-align: center; }")
         self.run_button.setSizePolicy(btn_sizepolicy)
