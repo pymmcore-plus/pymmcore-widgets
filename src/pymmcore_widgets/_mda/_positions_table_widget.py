@@ -413,6 +413,9 @@ class PositionTable(QGroupBox):
         if hasattr(self, "_grid_wdg"):
             self._grid_wdg.close()  # type: ignore
 
+        if hasattr(self, "_grid_wdg"):
+            self._grid_wdg.close()  # type: ignore
+
         name = f"Pos{self._table.rowCount():03d}"
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
@@ -760,7 +763,9 @@ class PositionTable(QGroupBox):
         if clear:
             self.clear()
 
-        self.setChecked(True)
+        for position in positions:
+            if isinstance(position, Position):
+                position = cast("PositionDict", position.dict())
 
         if not isinstance(positions, Sequence):
             raise TypeError("The 'positions' arguments has to be a 'Sequence'.")
