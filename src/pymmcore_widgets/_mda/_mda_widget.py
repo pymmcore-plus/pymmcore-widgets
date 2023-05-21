@@ -6,12 +6,11 @@ from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QCheckBox,
     QScrollArea,
     QSizePolicy,
-    QTabBar,
     QVBoxLayout,
     QWidget,
 )
@@ -40,20 +39,6 @@ if TYPE_CHECKING:
 
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
-
-class TabBar(QTabBar):
-    """A TabBar subclass that allows to control the minimum width of each tab."""
-
-    def __init__(self, parent: QWidget | None = None, *, checkbox_width: int = 0):
-        super().__init__(parent)
-
-        self._checkbox_width = checkbox_width
-
-    def tabSizeHint(self, index: int) -> QSize:
-        size = QTabBar.tabSizeHint(self, index)
-        w = int(size.width() + self._checkbox_width)
-        return QSize(w, size.height())
 
 
 class Grid(GridWidget):
