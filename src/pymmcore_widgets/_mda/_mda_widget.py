@@ -104,26 +104,24 @@ class MDAWidget(QWidget):
         self._tab = CheckableTabWidget(change_tab_on_check=False, movable=False)
 
         # Channels, Time, Z Stack, Positions and Grid widgets
-        self.channel_groupbox = ChannelTable()
-        self.time_groupbox = TimePlanWidget()
-        self.stack_groupbox = ZStackWidget()
-        self.stack_groupbox.setFixedHeight(
-            self.stack_groupbox.minimumSizeHint().height()
-        )
-        self.position_groupbox = PositionTable()
-        self.grid_groupbox = Grid()
-        self.grid_groupbox.valueChanged.connect(self._update_total_time)
-        self.grid_groupbox.layout().itemAt(
-            self.grid_groupbox.layout().count() - 1
+        self.channel_widget = ChannelTable()
+        self.time_widget = TimePlanWidget()
+        self.stack_widget = ZStackWidget()
+        self.stack_widget.setFixedHeight(self.stack_widget.minimumSizeHint().height())
+        self.position_widget = PositionTable()
+        self.grid_widget = Grid()
+        self.grid_widget.valueChanged.connect(self._update_total_time)
+        self.grid_widget.layout().itemAt(
+            self.grid_widget.layout().count() - 1
         ).widget().hide()  # hide add grid button
-        self.grid_groupbox.setFixedHeight(self.grid_groupbox.sizeHint().height())
+        self.grid_widget.setFixedHeight(self.grid_widget.sizeHint().height())
 
         # add tabs to the tab widget
-        self._tab.addTab(self.channel_groupbox, "Channels")
-        self._tab.addTab(self.stack_groupbox, "Z Stack")
-        self._tab.addTab(self.position_groupbox, "Positions")
-        self._tab.addTab(self.time_groupbox, "Time")
-        self._tab.addTab(self.grid_groupbox, "Grid")
+        self._tab.addTab(self.channel_widget, "Channels")
+        self._tab.addTab(self.stack_widget, "Z Stack")
+        self._tab.addTab(self.position_widget, "Positions")
+        self._tab.addTab(self.time_widget, "Time")
+        self._tab.addTab(self.grid_widget, "Grid")
 
         # assign checkboxes to a variable
         self.ch_cbox = self._get_checkbox(0)
@@ -160,16 +158,16 @@ class MDAWidget(QWidget):
         # connect tabs
         self._tab.currentChanged.connect(self._on_tab_changed)
         # connect Channels, Time, Z Stack, Positions and Grid widgets
-        self.channel_groupbox.valueChanged.connect(self._enable_run_btn)
-        self.channel_groupbox.valueChanged.connect(self._update_total_time)
-        self.channel_groupbox._advanced_cbox.toggled.connect(self._update_total_time)
-        self.time_groupbox.valueChanged.connect(self._update_total_time)
-        self.stack_groupbox.valueChanged.connect(self._update_total_time)
-        self.position_groupbox._advanced_cbox.toggled.connect(self._update_total_time)
-        self.position_groupbox.valueChanged.connect(self._update_total_time)
+        self.channel_widget.valueChanged.connect(self._enable_run_btn)
+        self.channel_widget.valueChanged.connect(self._update_total_time)
+        self.channel_widget._advanced_cbox.toggled.connect(self._update_total_time)
+        self.time_widget.valueChanged.connect(self._update_total_time)
+        self.stack_widget.valueChanged.connect(self._update_total_time)
+        self.position_widget._advanced_cbox.toggled.connect(self._update_total_time)
+        self.position_widget.valueChanged.connect(self._update_total_time)
         # below not using lambda with position_groupbox below because it would cause
         # problems in closing the widget (see conftest _run_after_each_test fixture)
-        self.position_groupbox.valueChanged.connect(self._on_positions_tab_changed)
+        self.position_widget.valueChanged.connect(self._on_positions_tab_changed)
         # connect tab checkboxes
         self.ch_cbox.toggled.connect(self._enable_run_btn)
         self.ch_cbox.toggled.connect(self._update_total_time)
@@ -222,10 +220,10 @@ class MDAWidget(QWidget):
         if index not in {2, 4}:
             return
         _has_positions = bool(
-            self.p_cbox.isChecked() and self.position_groupbox._table.rowCount() > 1
+            self.p_cbox.isChecked() and self.position_widget._table.rowCount() > 1
         )
-        self.grid_groupbox.tab.setTabEnabled(1, not _has_positions)
-        self.grid_groupbox.tab.setTabEnabled(2, not _has_positions)
+        self.grid_widget.tab.setTabEnabled(1, not _has_positions)
+        self.grid_widget.tab.setTabEnabled(2, not _has_positions)
 
     def _on_positions_tab_changed(self) -> None:
         # not using .connect(lambda: self._on_tab_changed(2))
@@ -242,13 +240,11 @@ class MDAWidget(QWidget):
         if self._mmc.getChannelGroup() and self._mmc.getCurrentConfig(
             self._mmc.getChannelGroup()
         ):
-            if self.ch_cbox.isChecked() and not self.channel_groupbox._table.rowCount():
+            if self.ch_cbox.isChecked() and not self.channel_widget._table.rowCount():
                 self.buttons_wdg.run_button.setEnabled(False)
             else:
                 self.buttons_wdg.run_button.setEnabled(True)
-        elif (
-            not self.ch_cbox.isChecked() or not self.channel_groupbox._table.rowCount()
-        ):
+        elif not self.ch_cbox.isChecked() or not self.channel_widget._table.rowCount():
             self.buttons_wdg.run_button.setEnabled(False)
         else:
             self.buttons_wdg.run_button.setEnabled(True)
@@ -300,35 +296,35 @@ class MDAWidget(QWidget):
         # set channel table
         if state.channels:
             self.ch_cbox.setChecked(True)
-            self.channel_groupbox.set_state([c.dict() for c in state.channels])
+            self.channel_widget.set_state([c.dict() for c in state.channels])
         else:
             self.ch_cbox.setChecked(False)
 
         # set z stack
         if state.z_plan:
             self.z_cbox.setChecked(True)
-            self.stack_groupbox.set_state(state.z_plan.dict())
+            self.stack_widget.set_state(state.z_plan.dict())
         else:
             self.z_cbox.setChecked(False)
 
         # set time
         if state.time_plan:
             self.t_cbox.setChecked(True)
-            self.time_groupbox.set_state(state.time_plan.dict())
+            self.time_widget.set_state(state.time_plan.dict())
         else:
             self.t_cbox.setChecked(False)
 
         # set stage positions
         if state.stage_positions:
             self.p_cbox.setChecked(True)
-            self.position_groupbox.set_state(list(state.stage_positions))
+            self.position_widget.set_state(list(state.stage_positions))
         else:
             self.p_cbox.setChecked(False)
 
         # set grid
         if state.grid_plan:
             self.g_cbox.setChecked(True)
-            self.grid_groupbox.set_state(state.grid_plan)
+            self.grid_widget.set_state(state.grid_plan)
         else:
             self.g_cbox.setChecked(False)
 
@@ -340,7 +336,7 @@ class MDAWidget(QWidget):
         useq.MDASequence
         """
         channels = (
-            self.channel_groupbox.value()
+            self.channel_widget.value()
             if self.ch_cbox.isChecked()
             else [
                 {
@@ -354,13 +350,13 @@ class MDAWidget(QWidget):
             ]
         )
 
-        z_plan = self.stack_groupbox.value() if self.z_cbox.isChecked() else NoZ()
+        z_plan = self.stack_widget.value() if self.z_cbox.isChecked() else NoZ()
 
-        time_plan = self.time_groupbox.value() if self._uses_time() else NoT()
+        time_plan = self.time_widget.value() if self._uses_time() else NoT()
 
         stage_positions: list[PositionDict] = []
         if self.p_cbox.isChecked():
-            for p in self.position_groupbox.value():
+            for p in self.position_widget.value():
                 if p.get("sequence"):
                     p_sequence = MDASequence(**p.get("sequence"))  # type: ignore
                     p_sequence = p_sequence.replace(
@@ -373,7 +369,7 @@ class MDAWidget(QWidget):
         if not stage_positions:
             stage_positions = self._get_current_position()
 
-        grid_plan = self.grid_groupbox.value() if self.g_cbox.isChecked() else NoGrid()
+        grid_plan = self.grid_widget.value() if self.g_cbox.isChecked() else NoGrid()
 
         return MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
@@ -408,14 +404,14 @@ class MDAWidget(QWidget):
 
     def _on_time_toggled(self, checked: bool) -> None:
         """Hide the warning if the time groupbox is unchecked."""
-        if not checked and self.time_groupbox._warning_widget.isVisible():
-            self.time_groupbox.setWarningVisible(False)
+        if not checked and self.time_widget._warning_widget.isVisible():
+            self.time_widget.setWarningVisible(False)
         else:
             self._update_total_time()
 
     def _uses_time(self) -> bool:
         """Hacky method to check whether the timebox is selected with any timepoints."""
-        has_phases = self.time_groupbox.value()["phases"]  # type: ignore
+        has_phases = self.time_widget.value()["phases"]  # type: ignore
         return bool(self.t_cbox.isChecked() and has_phases)
 
     def _update_total_time(self) -> None:
@@ -424,15 +420,13 @@ class MDAWidget(QWidget):
         if self._mmc.getChannelGroup() and self._mmc.getCurrentConfig(
             self._mmc.getChannelGroup()
         ):
-            if self.ch_cbox.isChecked() and not self.channel_groupbox._table.rowCount():
+            if self.ch_cbox.isChecked() and not self.channel_widget._table.rowCount():
                 self.time_lbl._total_time_lbl.setText(
                     "Minimum total acquisition time: 0 sec."
                 )
                 return
 
-        elif (
-            not self.ch_cbox.isChecked() or not self.channel_groupbox._table.rowCount()
-        ):
+        elif not self.ch_cbox.isChecked() or not self.channel_widget._table.rowCount():
             self.time_lbl._total_time_lbl.setText(
                 "Minimum total acquisition time: 0 sec."
             )
@@ -453,7 +447,7 @@ class MDAWidget(QWidget):
                 _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp
 
         if _per_timepoints:
-            time_value = self.time_groupbox.value()
+            time_value = self.time_widget.value()
 
             intervals = []
             for phase in time_value["phases"]:  # type: ignore
@@ -467,15 +461,15 @@ class MDAWidget(QWidget):
             # check if the interval(s) is smaller than the sum of the exposure times
             sum_ch_exp = sum(
                 (c["exposure"] / 1000)
-                for c in self.channel_groupbox.value()
+                for c in self.channel_widget.value()
                 if c["exposure"] is not None
             )
             for i in intervals:
                 if 0 < i < sum_ch_exp:
-                    self.time_groupbox.setWarningVisible(True)
+                    self.time_widget.setWarningVisible(True)
                     break
                 else:
-                    self.time_groupbox.setWarningVisible(False)
+                    self.time_widget.setWarningVisible(False)
 
             # group by time
             _group_by_time: dict[float, list[int]] = {
@@ -499,7 +493,7 @@ class MDAWidget(QWidget):
                 )
         else:
             t_per_tp_msg = ""
-            self.time_groupbox.setWarningVisible(False)
+            self.time_widget.setWarningVisible(False)
 
         _min_tot_time = (
             "Minimum total acquisition time: "
