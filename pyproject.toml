@@ -30,7 +30,6 @@ dependencies = [
     'superqt[quantity] >=0.3.1',
     'fonticon-materialdesignicons6',
     'qtpy',
-    'pint'
 ]
 
 # extras
