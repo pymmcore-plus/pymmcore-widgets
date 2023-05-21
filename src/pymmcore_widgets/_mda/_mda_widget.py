@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -185,8 +184,7 @@ class MDAWidget(QWidget):
         self.position_groupbox.valueChanged.connect(self._update_total_time)
         # below not using lambda with position_groupbox below because it would cause
         # problems in closing the widget (see conftest _run_after_each_test fixture)
-        # self.position_groupbox.valueChanged.connect(self._on_positions_tab_changed)
-        self.position_groupbox.valueChanged.connect(lambda: self._on_tab_changed(2))
+        self.position_groupbox.valueChanged.connect(self._on_positions_tab_changed)
         # connect tab checkboxes
         self.ch_cbox.toggled.connect(self._enable_run_btn)
         self.ch_cbox.toggled.connect(self._update_total_time)
@@ -195,8 +193,7 @@ class MDAWidget(QWidget):
         self.p_cbox.toggled.connect(self._update_total_time)
         # not using lambda with p_cbox below because it would cause problems in closing
         # the widget (see conftest _run_after_each_test fixture)
-        # self.p_cbox.toggled.connect(self._on_positions_tab_changed)
-        self.p_cbox.toggled.connect(lambda: self._on_tab_changed(2))
+        self.p_cbox.toggled.connect(self._on_positions_tab_changed)
         self.g_cbox.toggled.connect(self._update_total_time)
         # connect buttons
         self.buttons_wdg.pause_button.released.connect(self._mmc.mda.toggle_pause)
@@ -239,24 +236,14 @@ class MDAWidget(QWidget):
         """Enable/disable 'Absolute' grid modes if multiple positions are selected."""
         if index not in {2, 4}:
             return
-        if self.p_cbox.isChecked() and self.position_groupbox._table.rowCount() > 1:
-            if self.g_cbox.isChecked() and self.grid_groupbox.tab.currentIndex() in {
-                1,
-                2,
-            }:
-                warnings.warn(
-                    "'Absolute' grid modes are not supported "
-                    "with multiple positions.",
-                    stacklevel=2,
-                )
-            self.grid_groupbox.tab.setTabEnabled(1, False)
-            self.grid_groupbox.tab.setTabEnabled(2, False)
-        else:
-            self.grid_groupbox.tab.setTabEnabled(1, True)
-            self.grid_groupbox.tab.setTabEnabled(2, True)
+        _has_positions = bool(
+            self.p_cbox.isChecked() and self.position_groupbox._table.rowCount() > 1
+        )
+        self.grid_groupbox.tab.setTabEnabled(1, not _has_positions)
+        self.grid_groupbox.tab.setTabEnabled(2, not _has_positions)
 
     def _on_positions_tab_changed(self) -> None:
-        # not using .connect(lambda: self._on_tab_changed(POSITIONS))
+        # not using .connect(lambda: self._on_tab_changed(2))
         # because it would cause problems in closing the widget
         # (see conftest _run_after_each_test fixture)
         self._on_tab_changed(2)
@@ -284,6 +271,7 @@ class MDAWidget(QWidget):
     def _enable_widgets(self, enable: bool) -> None:
         self.buttons_wdg.acquisition_order_comboBox.setEnabled(enable)
         for i in range(self._tab.count()):
+            self._get_checkbox(i).setEnabled(enable)
             self._tab.widget(i).setEnabled(
                 enable if self._get_checkbox(i).isChecked() else False
             )
@@ -526,7 +514,7 @@ class MDAWidget(QWidget):
                 )
         else:
             t_per_tp_msg = ""
-            # self.time_groupbox.setWarningVisible(False)
+            self.time_groupbox.setWarningVisible(False)
 
         _min_tot_time = (
             "Minimum total acquisition time: "

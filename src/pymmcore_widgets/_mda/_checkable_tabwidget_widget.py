@@ -7,7 +7,7 @@ from qtpy.QtWidgets import QCheckBox, QTabBar, QTabWidget, QWidget
 
 
 class CheckableTabWidget(QTabWidget):
-    """A QTabWidget where each tab has a checkable QCheckbox.
+    """A QTabWidget subclass where each tab has a checkable QCheckbox.
 
     Toggling the QCheckbox enables/disables the widget(s) in the tab.
 

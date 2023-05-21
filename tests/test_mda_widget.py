@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-import pytest
 from pymmcore_plus import CMMCorePlus
 from useq import MDASequence
 
@@ -22,14 +21,14 @@ def test_mda_widget_load_state(qtbot: QtBot):
     assert wdg.channel_groupbox._table.rowCount() == 0
     assert not wdg.t_cbox.isChecked()
 
-    wdg._set_enabled(False)
+    wdg._enable_widgets(False)
     assert not wdg.time_groupbox.isEnabled()
     assert not wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_groupbox.isEnabled()
     assert not wdg.position_groupbox.isEnabled()
     assert not wdg.stack_groupbox.isEnabled()
     assert not wdg.grid_groupbox.isEnabled()
-    wdg._set_enabled(True)
+    wdg._enable_widgets(True)
 
     sequence = MDASequence(
         channels=[
@@ -133,6 +132,7 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    # sourcery skip: extract-duplicate-method
     global_mmcore.setExposure(100)
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
@@ -153,29 +153,29 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
         "\nMinimum acquisition time per timepoint: 100 ms"
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
-    assert not wdg.time_groupbox._warning_widget.isVisible()
+    assert wdg.time_groupbox._warning_widget.isHidden()
 
     assert wdg.t_cbox.isChecked()
     interval = cast("_DoubleSpinAndCombo", wdg.time_groupbox._table.cellWidget(0, 0))
     timepoint = cast("QSpinBox", wdg.time_groupbox._table.cellWidget(0, 1))
     interval.setValue(1, "ms")
     timepoint.setValue(2)
-    assert wdg.time_groupbox._warning_widget.isVisible()
 
     txt = (
         "Minimum total acquisition time: 201 ms"
         "\nMinimum acquisition time per timepoint: 100 ms"
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
+    assert not wdg.time_groupbox._warning_widget.isHidden()
 
     wdg.channel_groupbox._add_button.click()
     wdg.channel_groupbox._advanced_cbox.setChecked(True)
     wdg.channel_groupbox._table.cellWidget(1, 4).setValue(2)
     wdg.channel_groupbox._table.cellWidget(1, 1).setValue(100.0)
-    assert wdg.time_groupbox._warning_widget.isVisible()
+    assert not wdg.time_groupbox._warning_widget.isHidden()
     interval.setValue(200, "ms")
     timepoint.setValue(4)
-    assert not wdg.time_groupbox._warning_widget.isVisible()
+    assert wdg.time_groupbox._warning_widget.isHidden()
 
     txt = (
         "Minimum total acquisition time: 01 sec 200 ms"
@@ -226,6 +226,7 @@ def test_absolute_grid_warning(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(wdg)
     wdg.show()
 
+    assert not wdg.g_cbox.isChecked()
     assert not wdg.p_cbox.isChecked()
 
     wdg.g_cbox.setChecked(True)
@@ -233,11 +234,8 @@ def test_absolute_grid_warning(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     wdg.p_cbox.setChecked(True)
     wdg.position_groupbox.add_button.click()
+    wdg.position_groupbox.add_button.click()
 
-    with pytest.warns(UserWarning, match="'Absolute' grid modes are not supported"):
-        wdg.position_groupbox.add_button.click()
-
-    assert not wdg.g_cbox.isChecked()
     assert not wdg.grid_groupbox.tab.isTabEnabled(1)
     assert not wdg.grid_groupbox.tab.isTabEnabled(2)
 
