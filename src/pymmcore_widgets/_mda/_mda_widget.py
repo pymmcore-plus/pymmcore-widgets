@@ -163,7 +163,7 @@ class MDAWidget(QWidget):
         self.layout().addWidget(self.buttons_wdg)
 
         # CONNECTIONS
-        # connect tabs
+        # connect tabs changed signal
         self._tab.currentChanged.connect(self._on_tab_changed)
         # connect Channels, Time, Z Stack, Positions and Grid widgets
         self.channel_widget.valueChanged.connect(self._enable_run_btn)
@@ -173,7 +173,7 @@ class MDAWidget(QWidget):
         self.stack_widget.valueChanged.connect(self._update_total_time)
         self.position_widget._advanced_cbox.toggled.connect(self._update_total_time)
         self.position_widget.valueChanged.connect(self._update_total_time)
-        # below not using lambda with position_groupbox below because it would cause
+        # below not using lambda with position_widget below because it would cause
         # problems in closing the widget (see conftest _run_after_each_test fixture)
         self.position_widget.valueChanged.connect(self._on_positions_tab_changed)
         # connect tab checkboxes
