@@ -52,7 +52,7 @@ class ChannelTable(QWidget):
     parent : QWidget | None
         Optional parent widget. By default, None.
     channel_group : str | None
-        Optional channel group that will be set as the widget's initialChannelGroup.
+        Optional channel group that will be set as the widget's initial ChannelGroup.
         By default, None.
     mmcore : CMMCorePlus | None
         Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
