@@ -20,7 +20,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
     qtbot.addWidget(wdg)
     assert wdg.position_groupbox._table.rowCount() == 0
     assert wdg.channel_groupbox._table.rowCount() == 0
-    assert not wdg._checkbox_t.isChecked()
+    assert not wdg.t_cbox.isChecked()
 
     wdg._set_enabled(False)
     assert not wdg.time_groupbox.isEnabled()
@@ -67,8 +67,8 @@ def test_mda_widget_load_state(qtbot: QtBot):
     wdg.set_state(sequence)
     assert wdg.position_groupbox._table.rowCount() == 3
     assert wdg.channel_groupbox._table.rowCount() == 2
-    assert wdg._checkbox_t.isChecked()
-    assert wdg._checkbox_g.isChecked()
+    assert wdg.t_cbox.isChecked()
+    assert wdg.g_cbox.isChecked()
 
     # round trip
     assert wdg.get_state() == sequence
@@ -78,8 +78,8 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
-    wdg._checkbox_ch.setChecked(True)
-    wdg._checkbox_p.setChecked(True)
+    wdg.ch_cbox.setChecked(True)
+    wdg.p_cbox.setChecked(True)
     assert wdg.channel_groupbox._table.rowCount() == 0
     wdg.channel_groupbox._add_button.click()
     wdg.channel_groupbox._add_button.click()
@@ -105,9 +105,9 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
-    wdg._checkbox_p.setChecked(True)
-    wdg._checkbox_z.setChecked(True)
-    wdg._checkbox_t.setChecked(True)
+    wdg.p_cbox.setChecked(True)
+    wdg.z_cbox.setChecked(True)
+    wdg.t_cbox.setChecked(True)
 
     wdg._on_mda_started()
     assert not wdg.time_groupbox.isEnabled()
@@ -138,14 +138,14 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(wdg)
     wdg.show()
 
-    wdg._checkbox_ch.setChecked(True)
+    wdg.ch_cbox.setChecked(True)
     assert wdg.channel_groupbox._table.rowCount() == 0
     wdg.channel_groupbox._add_button.click()
     assert wdg.channel_groupbox._table.rowCount() == 1
     assert wdg.channel_groupbox._table.cellWidget(0, 1).value() == 100.0
 
-    assert not wdg._checkbox_t.isChecked()
-    wdg._checkbox_t.setChecked(True)
+    assert not wdg.t_cbox.isChecked()
+    wdg.t_cbox.setChecked(True)
     wdg.time_groupbox._add_button.click()
 
     txt = (
@@ -155,7 +155,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.time_lbl._total_time_lbl.text() == txt
     assert not wdg.time_groupbox._warning_widget.isVisible()
 
-    assert wdg._checkbox_t.isChecked()
+    assert wdg.t_cbox.isChecked()
     interval = cast("_DoubleSpinAndCombo", wdg.time_groupbox._table.cellWidget(0, 0))
     timepoint = cast("QSpinBox", wdg.time_groupbox._table.cellWidget(0, 1))
     interval.setValue(1, "ms")
@@ -203,15 +203,15 @@ def test_enable_run_button(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert mmc.getChannelGroup() == "Channel"
     assert not mmc.getCurrentConfig("Channel")
     assert not wdg.buttons_wdg.run_button.isEnabled()
-    assert not wdg._checkbox_ch.isChecked()
+    assert not wdg.ch_cbox.isChecked()
 
-    wdg._checkbox_ch.setChecked(True)
+    wdg.ch_cbox.setChecked(True)
     assert not wdg.buttons_wdg.run_button.isEnabled()
     wdg.channel_groupbox._add_button.click()
     assert wdg.channel_groupbox._table.rowCount()
     assert wdg.buttons_wdg.run_button.isEnabled()
 
-    wdg._checkbox_ch.setChecked(False)
+    wdg.ch_cbox.setChecked(False)
     assert not wdg.buttons_wdg.run_button.isEnabled()
 
     mmc.setConfig("Channel", "DAPI")
@@ -226,22 +226,22 @@ def test_absolute_grid_warning(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(wdg)
     wdg.show()
 
-    assert not wdg._checkbox_p.isChecked()
+    assert not wdg.p_cbox.isChecked()
 
-    wdg._checkbox_g.setChecked(True)
-    wdg._mda_grid_wdg.tab.setCurrentIndex(1)
+    wdg.g_cbox.setChecked(True)
+    wdg.grid_groupbox.tab.setCurrentIndex(1)
 
-    wdg._checkbox_p.setChecked(True)
+    wdg.p_cbox.setChecked(True)
     wdg.position_groupbox.add_button.click()
 
     with pytest.warns(UserWarning, match="'Absolute' grid modes are not supported"):
         wdg.position_groupbox.add_button.click()
 
-    assert not wdg._checkbox_g.isChecked()
-    assert not wdg._mda_grid_wdg.tab.isTabEnabled(1)
-    assert not wdg._mda_grid_wdg.tab.isTabEnabled(2)
+    assert not wdg.g_cbox.isChecked()
+    assert not wdg.grid_groupbox.tab.isTabEnabled(1)
+    assert not wdg.grid_groupbox.tab.isTabEnabled(2)
 
-    wdg._checkbox_p.setChecked(False)
+    wdg.p_cbox.setChecked(False)
 
-    assert wdg._mda_grid_wdg.tab.isTabEnabled(1)
-    assert wdg._mda_grid_wdg.tab.isTabEnabled(2)
+    assert wdg.grid_groupbox.tab.isTabEnabled(1)
+    assert wdg.grid_groupbox.tab.isTabEnabled(2)

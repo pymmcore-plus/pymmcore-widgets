@@ -27,20 +27,22 @@ class CheckableTabWidget(QTabWidget):
     def __init__(
         self,
         parent: QWidget | None = None,
-        button_position: QTabBar.ButtonPosition = QTabBar.ButtonPosition.LeftSide,
+        checkbox_position: QTabBar.ButtonPosition = QTabBar.ButtonPosition.LeftSide,
         change_tab_on_check: bool = True,
         movable: bool = True,
     ) -> None:
         super().__init__(parent)
 
-        self._button_class = QCheckBox
-        self._button_position = button_position
+        self._checkbox = QCheckBox
+        # self.checkbox_position below not private because it could be used to get the
+        # QCheckbox object using self.tabBar().tabButton(index, checkbox_position)
+        self.checkbox_position = checkbox_position
         self._change_tab_on_check = change_tab_on_check
 
         self.tabBar().setElideMode(Qt.TextElideMode.ElideNone)
         self.tabBar().setMovable(movable)
 
-    def addTab(self, widget: QWidget, *args: tuple, **kwargs: dict[str, Any]) -> None:
+    def addTab(self, widget: QWidget, *args: Any, **kwargs: dict[str, Any]) -> None:
         """Add a tab with a checkable QCheckbox.
 
         Parameters
@@ -55,9 +57,9 @@ class CheckableTabWidget(QTabWidget):
         widget.setEnabled(False)
         super().addTab(widget, *args, **kwargs)
         idx = self.count() - 1
-        btn = self._button_class(parent=self.tabBar())
-        btn.toggled.connect(self._on_tab_checkbox_toggled)
-        self.tabBar().setTabButton(idx, self._button_position, btn)
+        self._cbox = self._checkbox(parent=self.tabBar())
+        self._cbox.toggled.connect(self._on_tab_checkbox_toggled)
+        self.tabBar().setTabButton(idx, self.checkbox_position, self._cbox)
 
     def _on_tab_checkbox_toggled(self, checked: bool) -> None:
         """Enable/disable the widget in the tab."""

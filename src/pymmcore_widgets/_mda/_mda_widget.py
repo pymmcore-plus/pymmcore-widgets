@@ -10,20 +10,17 @@ from qtpy import QtWidgets as QtW
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QCheckBox,
-    QGroupBox,
     QScrollArea,
     QSizePolicy,
-    QSpacerItem,
     QTabBar,
-    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
-from superqt.utils import signals_blocked
 from useq import MDASequence, NoGrid, NoT, NoZ
 
 from .._util import fmt_timedelta, guess_channel_group
 from ._channel_table_widget import ChannelTable
+from ._checkable_tabwidget_widget import CheckableTabWidget
 from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
 from ._grid_widget import GridWidget
 from ._positions_table_widget import PositionTable
@@ -44,16 +41,6 @@ if TYPE_CHECKING:
 
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
-GROUP_STYLE = (
-    "QGroupBox::indicator {border: 0px; width: 0px; height: 0px; border-radius: 0px;}"
-)
-
-CHANNELS = ("Channels", 0)
-ZSTACK = ("Z Stack", 1)
-POSITIONS = ("Positions", 2)
-TIME = ("Time", 3)
-GRID = ("Grid", 4)
 
 
 class TabBar(QTabBar):
@@ -129,108 +116,50 @@ class MDAWidget(QWidget):
         central_layout.setSpacing(20)
         central_layout.setContentsMargins(10, 10, 10, 10)
 
-        # TABS
-        self._tab = QTabWidget()
+        # main TabWidget
+        self._tab = CheckableTabWidget(change_tab_on_check=False, movable=False)
 
-        self._tab_order: dict[str, int] = {
-            CHANNELS[0]: CHANNELS[1],
-            ZSTACK[0]: ZSTACK[1],
-            POSITIONS[0]: POSITIONS[1],
-            TIME[0]: TIME[1],
-            GRID[0]: GRID[1],
-        }
-
-        # tab chackboxes
-        self._checkbox_ch = QCheckBox("")
-        self._checkbox_ch.setObjectName(CHANNELS[0])
-        self._checkbox_ch.toggled.connect(self._on_tab_checkbox_toggled)
-        self._checkbox_z = QCheckBox("")
-        self._checkbox_z.setObjectName(ZSTACK[0])
-        self._checkbox_z.toggled.connect(self._on_tab_checkbox_toggled)
-        self._checkbox_t = QCheckBox("")
-        self._checkbox_t.setObjectName(TIME[0])
-        self._checkbox_t.toggled.connect(self._on_tab_checkbox_toggled)
-        self._checkbox_t.toggled.connect(self._on_time_toggled)
-        self._checkbox_p = QCheckBox("")
-        self._checkbox_p.setObjectName(POSITIONS[0])
-        self._checkbox_p.toggled.connect(self._on_tab_checkbox_toggled)
-        self._checkbox_g = QCheckBox("")
-        self._checkbox_g.setObjectName(GRID[0])
-        self._checkbox_g.toggled.connect(self._on_tab_checkbox_toggled)
-
-        # Widgets for Channels, Time, zStack, and Positions in the Scroll Area
+        # Channels, Time, Z Stack, Positions and Grid widgets
         self.channel_groupbox = ChannelTable()
-        self.channel_groupbox.setEnabled(False)
-        self.channel_groupbox.valueChanged.connect(self._enable_run_btn)
-        self.channel_groupbox.valueChanged.connect(self._update_total_time)
-        self.channel_groupbox._advanced_cbox.toggled.connect(self._update_total_time)
-
         self.time_groupbox = TimePlanWidget()
-        self.time_groupbox.setEnabled(False)
-        self.time_groupbox.setStyleSheet(GROUP_STYLE)
-        self.time_groupbox.valueChanged.connect(self._update_total_time)
-
         self.stack_groupbox = ZStackWidget()
-        self.stack_groupbox.setEnabled(False)
-        self.stack_groupbox.setStyleSheet(GROUP_STYLE)
-        self.stack_groupbox.valueChanged.connect(self._update_total_time)
-
+        self.stack_groupbox.setFixedHeight(
+            self.stack_groupbox.minimumSizeHint().height()
+        )
         self.position_groupbox = PositionTable()
-        self.position_groupbox.setEnabled(False)
-        self.position_groupbox.setStyleSheet(GROUP_STYLE)
-        self.position_groupbox._advanced_cbox.toggled.connect(self._update_total_time)
-        self.position_groupbox.valueChanged.connect(self._update_total_time)
-        # below not using
-        # position_groupbox.valueChanged.connect(
-        #   lambda: self._on_tab_changed(POSITIONS[1])
-        # ) because it would cause problems in closing the widget
-        # (see conftest _run_after_each_test fixture)
-        self.position_groupbox.valueChanged.connect(self._on_pos_tab_changed)
-
-        self.grid_groupbox = QGroupBox()
-        self.grid_groupbox.setLayout(QVBoxLayout())
-        self.grid_groupbox.layout().setContentsMargins(0, 0, 0, 0)
-        self.grid_groupbox.layout().setSpacing(0)
-        self.grid_groupbox.setTitle("")
-        self.grid_groupbox.setEnabled(False)
-        self.grid_groupbox.setStyleSheet(GROUP_STYLE)
-        self._mda_grid_wdg = Grid()
-        self._mda_grid_wdg.valueChanged.connect(self._update_total_time)
-        self.grid_groupbox.layout().addWidget(self._mda_grid_wdg)
-        self._mda_grid_wdg.layout().itemAt(
-            self._mda_grid_wdg.layout().count() - 1
+        self.grid_groupbox = Grid()
+        self.grid_groupbox.valueChanged.connect(self._update_total_time)
+        self.grid_groupbox.layout().itemAt(
+            self.grid_groupbox.layout().count() - 1
         ).widget().hide()  # hide add grid button
-        self._mda_grid_wdg.setMinimumHeight(self._mda_grid_wdg.sizeHint().height())
+        self.grid_groupbox.setFixedHeight(self.grid_groupbox.sizeHint().height())
 
-        # below the scroll area, tabs, some feedback widgets and buttons
+        # add tabs to the tab widget
+        self._tab.addTab(self.channel_groupbox, "Channels")
+        self._tab.addTab(self.stack_groupbox, "Z Stack")
+        self._tab.addTab(self.position_groupbox, "Positions")
+        self._tab.addTab(self.time_groupbox, "Time")
+        self._tab.addTab(self.grid_groupbox, "Grid")
+
+        # assign checkboxes to a variable
+        self.ch_cbox = self._get_checkbox(0)
+        self.z_cbox = self._get_checkbox(1)
+        self.p_cbox = self._get_checkbox(2)
+        self.t_cbox = self._get_checkbox(3)
+        self.g_cbox = self._get_checkbox(4)
+
+        # info time label and buttons widgets
         self.time_lbl = _MDATimeLabel()
-
         self.buttons_wdg = _MDAControlButtons()
         self.buttons_wdg.pause_button.hide()
         self.buttons_wdg.cancel_button.hide()
         self.buttons_wdg.run_button.hide()
 
-        self._tabbar = TabBar(checkbox_width=self._checkbox_ch.sizeHint().width())
-        self._tabbar.setMovable(True)
-
-        # add tabs with checkbox
-        _tabs = [
-            (self.channel_groupbox, CHANNELS[0], CHANNELS[1], self._checkbox_ch),
-            (self.stack_groupbox, ZSTACK[0], ZSTACK[1], self._checkbox_z, True),
-            (self.position_groupbox, POSITIONS[0], POSITIONS[1], self._checkbox_p),
-            (self.time_groupbox, TIME[0], TIME[1], self._checkbox_t),
-            (self.grid_groupbox, GRID[0], GRID[1], self._checkbox_g, True),
-        ]
-        for _tab in sorted(_tabs, key=lambda x: x[2]):  # type: ignore
-            self._add_new_tab(*_tab)
-
-        self._tab.setTabBar(self._tabbar)
-
+        # add widgets to layout
         central_layout.addWidget(self._tab)
         self._central_widget = QWidget()
         self._central_widget.setLayout(central_layout)
 
-        # scroll area ana main layout
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -244,10 +173,31 @@ class MDAWidget(QWidget):
         self.layout().addWidget(self.buttons_wdg)
 
         # CONNECTIONS
-
         # connect tabs
         self._tab.currentChanged.connect(self._on_tab_changed)
-        self._tabbar.tabMoved.connect(self._on_tab_moved)
+        # connect Channels, Time, Z Stack, Positions and Grid widgets
+        self.channel_groupbox.valueChanged.connect(self._enable_run_btn)
+        self.channel_groupbox.valueChanged.connect(self._update_total_time)
+        self.channel_groupbox._advanced_cbox.toggled.connect(self._update_total_time)
+        self.time_groupbox.valueChanged.connect(self._update_total_time)
+        self.stack_groupbox.valueChanged.connect(self._update_total_time)
+        self.position_groupbox._advanced_cbox.toggled.connect(self._update_total_time)
+        self.position_groupbox.valueChanged.connect(self._update_total_time)
+        # below not using lambda with position_groupbox below because it would cause
+        # problems in closing the widget (see conftest _run_after_each_test fixture)
+        # self.position_groupbox.valueChanged.connect(self._on_positions_tab_changed)
+        self.position_groupbox.valueChanged.connect(lambda: self._on_tab_changed(2))
+        # connect tab checkboxes
+        self.ch_cbox.toggled.connect(self._enable_run_btn)
+        self.ch_cbox.toggled.connect(self._update_total_time)
+        self.z_cbox.toggled.connect(self._update_total_time)
+        self.t_cbox.toggled.connect(self._update_total_time)
+        self.p_cbox.toggled.connect(self._update_total_time)
+        # not using lambda with p_cbox below because it would cause problems in closing
+        # the widget (see conftest _run_after_each_test fixture)
+        # self.p_cbox.toggled.connect(self._on_positions_tab_changed)
+        self.p_cbox.toggled.connect(lambda: self._on_tab_changed(2))
+        self.g_cbox.toggled.connect(self._update_total_time)
         # connect buttons
         self.buttons_wdg.pause_button.released.connect(self._mmc.mda.toggle_pause)
         self.buttons_wdg.cancel_button.released.connect(self._mmc.mda.cancel)
@@ -258,7 +208,6 @@ class MDAWidget(QWidget):
         self._mmc.events.configSet.connect(self._on_config_set)
         self._mmc.events.configGroupChanged.connect(self._on_config_set)
         self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
-
         # connect run button
         if self._include_run_button:
             self.buttons_wdg.run_button.clicked.connect(self._on_run_clicked)
@@ -268,31 +217,9 @@ class MDAWidget(QWidget):
 
         self.destroyed.connect(self._disconnect)
 
-    def _add_new_tab(
-        self,
-        widget: QWidget,
-        tab_name: str,
-        tab_index: int,
-        checkbox: QCheckBox,
-        spacer: bool = False,
-    ) -> None:
-        wdg = QWidget()
-        wdg.setLayout(QVBoxLayout())
-        wdg.layout().setContentsMargins(10, 10, 10, 10)
-        wdg.layout().setSpacing(0)
-        wdg.layout().addWidget(widget)
-        if spacer:
-            _spacer = QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding)
-            wdg.layout().addSpacerItem(_spacer)
-        self._tab.addTab(wdg, "")
-        self._tabbar.addTab(tab_name)
-        self._tabbar.setTabData(tab_index, tab_name)
-        self._tabbar.setTabButton(tab_index, QTabBar.ButtonPosition.LeftSide, checkbox)
-
     def _on_sys_cfg_loaded(self) -> None:
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
-        self._on_tab_moved()
         self._enable_run_btn()
         self._update_total_time()
 
@@ -304,62 +231,35 @@ class MDAWidget(QWidget):
     def _on_channel_group_changed(self, group: str) -> None:
         self._enable_run_btn()
 
-    def _on_tab_moved(self) -> None:
-        """Update tab order when a tab is moved."""
-        for tb in range(self._tab.count()):
-            self._tab_order[self._tabbar.tabData(tb)] = tb
+    def _get_checkbox(self, tab_index: int) -> QCheckBox:
+        """Return the checkbox of the tab at the given index."""
+        return self._tab.tabBar().tabButton(tab_index, self._tab.checkbox_position)
 
     def _on_tab_changed(self, index: int) -> None:
-        if index not in {self._tab_order[POSITIONS[0]], self._tab_order[GRID[0]]}:
+        """Enable/disable 'Absolute' grid modes if multiple positions are selected."""
+        if index not in {2, 4}:
             return
-        if (
-            self._checkbox_p.isChecked()
-            and self.position_groupbox._table.rowCount() > 1
-        ):
-            if (
-                self._checkbox_g.isChecked()
-                and self._mda_grid_wdg.tab.currentIndex() in {1, 2}
-            ):
+        if self.p_cbox.isChecked() and self.position_groupbox._table.rowCount() > 1:
+            if self.g_cbox.isChecked() and self.grid_groupbox.tab.currentIndex() in {
+                1,
+                2,
+            }:
                 warnings.warn(
                     "'Absolute' grid modes are not supported "
                     "with multiple positions.",
                     stacklevel=2,
                 )
-                with signals_blocked(self._checkbox_g):
-                    self._checkbox_g.setChecked(False)
-                    self.grid_groupbox.setEnabled(False)
-            self._mda_grid_wdg.tab.setTabEnabled(1, False)
-            self._mda_grid_wdg.tab.setTabEnabled(2, False)
+            self.grid_groupbox.tab.setTabEnabled(1, False)
+            self.grid_groupbox.tab.setTabEnabled(2, False)
         else:
-            self._mda_grid_wdg.tab.setTabEnabled(1, True)
-            self._mda_grid_wdg.tab.setTabEnabled(2, True)
+            self.grid_groupbox.tab.setTabEnabled(1, True)
+            self.grid_groupbox.tab.setTabEnabled(2, True)
 
-    def _on_pos_tab_changed(self) -> None:
-        # not using .connect(lambda: self._on_tab_changed(POSITIONS[1]))
+    def _on_positions_tab_changed(self) -> None:
+        # not using .connect(lambda: self._on_tab_changed(POSITIONS))
         # because it would cause problems in closing the widget
         # (see conftest _run_after_each_test fixture)
-        self._on_tab_changed(POSITIONS[1])
-
-    def _on_tab_checkbox_toggled(self, checked: bool) -> None:
-        _sender = self.sender().objectName()
-        if _sender == CHANNELS[0]:
-            self._tab.setCurrentIndex(self._tab_order[CHANNELS[0]])
-            self.channel_groupbox.setEnabled(checked)
-            self._enable_run_btn()
-        elif _sender == ZSTACK[0]:
-            self._tab.setCurrentIndex(self._tab_order[ZSTACK[0]])
-            self.stack_groupbox.setEnabled(checked)
-        elif _sender == POSITIONS[0]:
-            self._tab.setCurrentIndex(self._tab_order[POSITIONS[0]])
-            self.position_groupbox.setEnabled(checked)
-            self._on_pos_tab_changed()
-        elif _sender == TIME[0]:
-            self._tab.setCurrentIndex(self._tab_order[TIME[0]])
-            self.time_groupbox.setEnabled(checked)
-        elif _sender == GRID[0]:
-            self._tab.setCurrentIndex(self._tab_order[GRID[0]])
-            self.grid_groupbox.setEnabled(checked)
-        self._update_total_time()
+        self._on_tab_changed(2)
 
     def _enable_run_btn(self) -> None:
         """Enable run button.
@@ -370,55 +270,33 @@ class MDAWidget(QWidget):
         if self._mmc.getChannelGroup() and self._mmc.getCurrentConfig(
             self._mmc.getChannelGroup()
         ):
-            if (
-                self._checkbox_ch.isChecked()
-                and not self.channel_groupbox._table.rowCount()
-            ):
+            if self.ch_cbox.isChecked() and not self.channel_groupbox._table.rowCount():
                 self.buttons_wdg.run_button.setEnabled(False)
             else:
                 self.buttons_wdg.run_button.setEnabled(True)
-
         elif (
-            not self._checkbox_ch.isChecked()
-            or not self.channel_groupbox._table.rowCount()
+            not self.ch_cbox.isChecked() or not self.channel_groupbox._table.rowCount()
         ):
             self.buttons_wdg.run_button.setEnabled(False)
-
         else:
             self.buttons_wdg.run_button.setEnabled(True)
 
-    def _set_enabled(self, enabled: bool) -> None:
-        self.buttons_wdg.acquisition_order_comboBox.setEnabled(enabled)
-        self._checkbox_ch.setEnabled(enabled)
-        self.channel_groupbox.setEnabled(
-            enabled if self._checkbox_ch.isChecked() else False
-        )
-        self._checkbox_z.setEnabled(enabled)
-        self.stack_groupbox.setEnabled(
-            enabled if self._checkbox_z.isChecked() else False
-        )
-        self._checkbox_p.setEnabled(enabled)
-        self.position_groupbox.setEnabled(
-            enabled if self._checkbox_p.isChecked() else False
-        )
-        self._checkbox_t.setEnabled(enabled)
-        self.time_groupbox.setEnabled(
-            enabled if self._checkbox_t.isChecked() else False
-        )
-        self._checkbox_g.setEnabled(enabled)
-        self.grid_groupbox.setEnabled(
-            enabled if self._checkbox_g.isChecked() else False
-        )
+    def _enable_widgets(self, enable: bool) -> None:
+        self.buttons_wdg.acquisition_order_comboBox.setEnabled(enable)
+        for i in range(self._tab.count()):
+            self._tab.widget(i).setEnabled(
+                enable if self._get_checkbox(i).isChecked() else False
+            )
 
     def _on_mda_started(self) -> None:
-        self._set_enabled(False)
+        self._enable_widgets(False)
         if self._include_run_button:
             self.buttons_wdg.pause_button.show()
             self.buttons_wdg.cancel_button.show()
         self.buttons_wdg.run_button.hide()
 
     def _on_mda_finished(self) -> None:
-        self._set_enabled(True)
+        self._enable_widgets(True)
         self.buttons_wdg.pause_button.hide()
         self.buttons_wdg.cancel_button.hide()
         if self._include_run_button:
@@ -448,36 +326,38 @@ class MDAWidget(QWidget):
 
         # set channel table
         if state.channels:
-            self._checkbox_ch.setChecked(True)
+            self.ch_cbox.setChecked(True)
             self.channel_groupbox.set_state([c.dict() for c in state.channels])
+        else:
+            self.ch_cbox.setChecked(False)
 
         # set z stack
         if state.z_plan:
-            self._checkbox_z.setChecked(True)
+            self.z_cbox.setChecked(True)
             self.stack_groupbox.set_state(state.z_plan.dict())
         else:
-            self._checkbox_z.setChecked(False)
+            self.z_cbox.setChecked(False)
 
         # set time
         if state.time_plan:
-            self._checkbox_t.setChecked(True)
+            self.t_cbox.setChecked(True)
             self.time_groupbox.set_state(state.time_plan.dict())
         else:
-            self._checkbox_t.setChecked(False)
+            self.t_cbox.setChecked(False)
 
         # set stage positions
         if state.stage_positions:
-            self._checkbox_p.setChecked(True)
+            self.p_cbox.setChecked(True)
             self.position_groupbox.set_state(list(state.stage_positions))
         else:
-            self._checkbox_p.setChecked(False)
+            self.p_cbox.setChecked(False)
 
         # set grid
         if state.grid_plan:
-            self._checkbox_g.setChecked(True)
-            self._mda_grid_wdg.set_state(state.grid_plan)
+            self.g_cbox.setChecked(True)
+            self.grid_groupbox.set_state(state.grid_plan)
         else:
-            self._checkbox_g.setChecked(False)
+            self.g_cbox.setChecked(False)
 
     def get_state(self) -> MDASequence:
         """Get current state of widget and build a useq.MDASequence.
@@ -488,7 +368,7 @@ class MDAWidget(QWidget):
         """
         channels = (
             self.channel_groupbox.value()
-            if self._checkbox_ch.isChecked()
+            if self.ch_cbox.isChecked()
             else [
                 {
                     "config": self._mmc.getCurrentConfig(self._mmc.getChannelGroup()),
@@ -501,12 +381,12 @@ class MDAWidget(QWidget):
             ]
         )
 
-        z_plan = self.stack_groupbox.value() if self._checkbox_z.isChecked() else NoZ()
+        z_plan = self.stack_groupbox.value() if self.z_cbox.isChecked() else NoZ()
 
         time_plan = self.time_groupbox.value() if self._uses_time() else NoT()
 
         stage_positions: list[PositionDict] = []
-        if self._checkbox_p.isChecked():
+        if self.p_cbox.isChecked():
             for p in self.position_groupbox.value():
                 if p.get("sequence"):
                     p_sequence = MDASequence(**p.get("sequence"))  # type: ignore
@@ -520,9 +400,7 @@ class MDAWidget(QWidget):
         if not stage_positions:
             stage_positions = self._get_current_position()
 
-        grid_plan = (
-            self._mda_grid_wdg.value() if self._checkbox_g.isChecked() else NoGrid()
-        )
+        grid_plan = self.grid_groupbox.value() if self.g_cbox.isChecked() else NoGrid()
 
         return MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
@@ -565,7 +443,7 @@ class MDAWidget(QWidget):
     def _uses_time(self) -> bool:
         """Hacky method to check whether the timebox is selected with any timepoints."""
         has_phases = self.time_groupbox.value()["phases"]  # type: ignore
-        return bool(self._checkbox_t.isChecked() and has_phases)
+        return bool(self.t_cbox.isChecked() and has_phases)
 
     def _update_total_time(self) -> None:
         """Calculate the minimum total acquisition time info."""
@@ -573,18 +451,14 @@ class MDAWidget(QWidget):
         if self._mmc.getChannelGroup() and self._mmc.getCurrentConfig(
             self._mmc.getChannelGroup()
         ):
-            if (
-                self._checkbox_ch.isChecked()
-                and not self.channel_groupbox._table.rowCount()
-            ):
+            if self.ch_cbox.isChecked() and not self.channel_groupbox._table.rowCount():
                 self.time_lbl._total_time_lbl.setText(
                     "Minimum total acquisition time: 0 sec."
                 )
                 return
 
         elif (
-            not self._checkbox_ch.isChecked()
-            or not self.channel_groupbox._table.rowCount()
+            not self.ch_cbox.isChecked() or not self.channel_groupbox._table.rowCount()
         ):
             self.time_lbl._total_time_lbl.setText(
                 "Minimum total acquisition time: 0 sec."
@@ -652,6 +526,7 @@ class MDAWidget(QWidget):
                 )
         else:
             t_per_tp_msg = ""
+            # self.time_groupbox.setWarningVisible(False)
 
         _min_tot_time = (
             "Minimum total acquisition time: "
