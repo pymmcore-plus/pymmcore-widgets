@@ -8,6 +8,7 @@ from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QDoubleSpinBox,
     QGridLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -264,12 +265,12 @@ class ZStackWidget(QWidget):
 
         # bottom row with step size and number of images
         bottom_layout = QHBoxLayout()
-        bottom_layout.setContentsMargins(10, 0, 10, 0)
+        bottom_layout.setContentsMargins(5, 5, 5, 5)
         bottom_layout.addWidget(QLabel("Step Size (µm):"))
         bottom_layout.addWidget(self._zstep_spinbox)
         bottom_layout.addStretch()
         bottom_layout.addWidget(self.n_images_label)
-        bottom_row = QWidget()
+        bottom_row = QGroupBox()
         bottom_row.setLayout(bottom_layout)
 
         # layout

@@ -11,6 +11,7 @@ from qtpy.QtWidgets import (
     QCheckBox,
     QScrollArea,
     QSizePolicy,
+    QSpacerItem,
     QVBoxLayout,
     QWidget,
 )
@@ -116,12 +117,19 @@ class MDAWidget(QWidget):
         ).widget().hide()  # hide add grid button
         self.grid_widget.setFixedHeight(self.grid_widget.sizeHint().height())
 
+        # place widgets in a QWidget to control tab layout content margins
+        ch = self._make_qwidget(self.channel_widget)
+        z = self._make_qwidget(self.stack_widget, True)
+        p = self._make_qwidget(self.position_widget)
+        t = self._make_qwidget(self.time_widget)
+        g = self._make_qwidget(self.grid_widget, True)
+
         # add tabs to the tab widget
-        self._tab.addTab(self.channel_widget, "Channels")
-        self._tab.addTab(self.stack_widget, "Z Stack")
-        self._tab.addTab(self.position_widget, "Positions")
-        self._tab.addTab(self.time_widget, "Time")
-        self._tab.addTab(self.grid_widget, "Grid")
+        self._tab.addTab(ch, "Channels")
+        self._tab.addTab(z, "Z Stack")
+        self._tab.addTab(p, "Positions")
+        self._tab.addTab(t, "Time")
+        self._tab.addTab(g, "Grid")
 
         # assign checkboxes to a variable
         self.ch_cbox = self._get_checkbox(0)
@@ -210,6 +218,16 @@ class MDAWidget(QWidget):
 
     def _on_channel_group_changed(self, group: str) -> None:
         self._enable_run_btn()
+
+    def _make_qwidget(self, widget: QWidget, spacer: bool = False) -> QWidget:
+        wdg = QWidget()
+        wdg.setLayout(QVBoxLayout())
+        wdg.layout().setContentsMargins(5, 10, 5, 5)
+        wdg.layout().addWidget(widget)
+        s = QSpacerItem(1, 1, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        if spacer:
+            wdg.layout().addItem(s)
+        return wdg
 
     def _get_checkbox(self, tab_index: int) -> QCheckBox:
         """Return the checkbox of the tab at the given index."""
