@@ -103,7 +103,7 @@ class PositionTable(QWidget):
         # selection for z device
         z_dev_row = QGroupBox()
         z_dev_row_layout = QHBoxLayout()
-        z_dev_row_layout.setContentsMargins(0, 0, 0, 0)
+        z_dev_row_layout.setContentsMargins(0, 0, 10, 0)
         z_dev_row_layout.setSpacing(5)
         z_dev_row.setLayout(z_dev_row_layout)
         self._z_device_combo = _ZDeviceSelector(
