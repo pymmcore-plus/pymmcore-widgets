@@ -36,6 +36,10 @@ class _BasicWidget(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
         self._z_device = self._mmc.getFocusDevice() or ""
 
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
+
+        self.destroyed.connect(self._disconnect)
+
     @property
     def z_device(self) -> str:
         """The name of the z device."""
@@ -45,6 +49,9 @@ class _BasicWidget(QWidget):
     def z_device(self, device: str) -> None:
         self._z_device = device
 
+    def _on_sys_cfg_loaded(self) -> None:
+        self._z_device = self._mmc.getFocusDevice() or ""
+
     def value(self) -> dict:
         """Return the current value."""
         return NoZ().dict()
@@ -52,6 +59,9 @@ class _BasicWidget(QWidget):
     def z_range(self) -> float:
         """Return the current z range."""
         return 0.0
+
+    def _disconnect(self) -> None:
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
 
 
 class ZTopBottomSelect(_BasicWidget):
@@ -112,11 +122,8 @@ class ZTopBottomSelect(_BasicWidget):
         grid.addWidget(self._zrange_spinbox, 1, 2)
         self.setLayout(grid)
 
-        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
-
-        self.destroyed.connect(self._disconnect)
-
     def _on_sys_cfg_loaded(self) -> None:
+        super()._on_sys_cfg_loaded()
         self._chached_values = {self._z_device: (0.0, 0.0)} if self._z_device else {}
 
     def _set_top(self) -> None:
@@ -146,9 +153,6 @@ class ZTopBottomSelect(_BasicWidget):
     def z_range(self) -> float:
         diff = self._top_spinbox.value() - self._bottom_spinbox.value()
         return abs(diff)  # type: ignore
-
-    def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
 
 
 class ZRangeAroundSelect(_BasicWidget):
