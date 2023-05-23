@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from fonticon_mdi6 import MDI6
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QSize, Qt
+from pymmcore_plus import CMMCorePlus, DeviceType
+from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QComboBox,
     QHBoxLayout,
@@ -13,6 +13,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.fonticon import icon
+from superqt.utils import signals_blocked
 
 
 class _MDAControlButtons(QWidget):
@@ -103,3 +104,59 @@ class _MDATimeLabel(QWidget):
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
         wdg_lay.addWidget(self._total_time_lbl)
+
+
+class _ZDeviceSelector(QWidget):
+    valueChanged = Signal(str)
+
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        mmcore: CMMCorePlus | None = None,
+        include_none_in_list: bool = False,
+    ) -> None:
+        super().__init__(parent)
+
+        self._mmc = mmcore or CMMCorePlus.instance()
+        self._with_none = include_none_in_list
+
+        wdg_layout = QHBoxLayout()
+        wdg_layout.setContentsMargins(5, 5, 5, 5)
+        wdg_layout.setSpacing(5)
+        self.setLayout(wdg_layout)
+        z_dev_label = QLabel("Z Device:")
+        z_dev_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self._z_dev_combo = QComboBox()
+        self._z_dev_combo.currentTextChanged.connect(self.valueChanged.emit)
+        wdg_layout.addWidget(z_dev_label)
+        wdg_layout.addWidget(self._z_dev_combo)
+
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
+
+        self.destroyed.connect(self._disconnect)
+
+        self._refresh()
+
+    def _on_sys_cfg_loaded(self) -> None:
+        self._refresh()
+
+    def _refresh(self) -> None:
+        items = list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
+        if self._with_none:
+            items = ["None", *items]
+        with signals_blocked(self._z_dev_combo):
+            self._z_dev_combo.clear()
+            self._z_dev_combo.addItems(items)
+            self._z_dev_combo.setCurrentText(self._mmc.getFocusDevice() or items[0])
+
+    def value(self) -> str:
+        """Return the currently selected Z device."""
+        return str(self._z_dev_combo.currentText())
+
+    def set_value(self, value: str) -> None:
+        """Set the which Z device to use."""
+        self._z_dev_combo.setCurrentText(value)
+
+    def _disconnect(self) -> None:
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)

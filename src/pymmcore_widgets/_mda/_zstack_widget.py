@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
@@ -17,32 +17,61 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.utils import signals_blocked
+from useq import NoZ
 
-if TYPE_CHECKING:
-    from typing import Protocol
-
-    # fmt: off
-    class ZPicker(Protocol):
-        valueChanged: Signal
-        def value(self) -> dict:...
-        def z_range(self) -> float: ...
-    # fmt: on
+from ._general_mda_widgets import _ZDeviceSelector
 
 
-class ZTopBottomSelect(QWidget):
-    """Widget to select the top and bottom of a z-stack."""
+class _BasicWidget(QWidget):
+    """Basic Z widget."""
 
     valueChanged = Signal(dict)
+
+    def __init__(
+        self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
+    ) -> None:
+        super().__init__(parent)
+
+        self._mmc = mmcore or CMMCorePlus.instance()
+        self._z_device = self._mmc.getFocusDevice() or ""
+
+    @property
+    def z_device(self) -> str:
+        """The name of the z device."""
+        return self._z_device
+
+    @z_device.setter
+    def z_device(self, device: str) -> None:
+        self._z_device = device
+
+    def value(self) -> dict:
+        """Return the current value."""
+        return NoZ().dict()
+
+    def z_range(self) -> float:
+        """Return the current z range."""
+        return 0.0
+
+
+class ZTopBottomSelect(_BasicWidget):
+    """Widget to select the top and bottom of a z-stack."""
 
     _MIN_Z = -1000000
     _MAX_Z = 1000000
 
     def __init__(
-        self, *, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
+        self,
+        parent: QWidget | None = None,
+        *,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent, mmcore=mmcore)
 
-        self._mmc = mmcore or CMMCorePlus.instance()
+        # cached for top and bottom values
+        self._chached_values: dict[str, tuple[float, float]] = (
+            {self._z_device: (0.0, 0.0)} if self._z_device else {}
+        )
 
         # set top button
         self._top_btn = QPushButton(text="Set Top")
@@ -57,12 +86,14 @@ class ZTopBottomSelect(QWidget):
         self._top_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._top_spinbox.setRange(self._MIN_Z, self._MAX_Z)
         self._top_spinbox.valueChanged.connect(self._update_zrange_and_emit)
+        self._top_spinbox.valueChanged.connect(self._update_chached_values)
 
         # current bottom position spinbox
         self._bottom_spinbox = QDoubleSpinBox()
         self._bottom_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._bottom_spinbox.setRange(self._MIN_Z, self._MAX_Z)
         self._bottom_spinbox.valueChanged.connect(self._update_zrange_and_emit)
+        self._bottom_spinbox.valueChanged.connect(self._update_chached_values)
 
         # read only z range spinbox
         self._zrange_spinbox = QDoubleSpinBox()
@@ -81,11 +112,25 @@ class ZTopBottomSelect(QWidget):
         grid.addWidget(self._zrange_spinbox, 1, 2)
         self.setLayout(grid)
 
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
+
+        self.destroyed.connect(self._disconnect)
+
+    def _on_sys_cfg_loaded(self) -> None:
+        self._chached_values = {self._z_device: (0.0, 0.0)} if self._z_device else {}
+
     def _set_top(self) -> None:
-        self._top_spinbox.setValue(self._mmc.getZPosition())
+        self._top_spinbox.setValue(self._mmc.getPosition(self._z_device))
 
     def _set_bottom(self) -> None:
-        self._bottom_spinbox.setValue(self._mmc.getZPosition())
+        self._bottom_spinbox.setValue(self._mmc.getPosition(self._z_device))
+
+    def _update_chached_values(self) -> None:
+        """Update the cached values."""
+        self._chached_values[self._z_device] = (
+            self._top_spinbox.value(),
+            self._bottom_spinbox.value(),
+        )
 
     def _update_zrange_and_emit(self) -> None:
         self._zrange_spinbox.setValue(self.z_range())
@@ -95,23 +140,27 @@ class ZTopBottomSelect(QWidget):
         return {
             "top": self._top_spinbox.value(),
             "bottom": self._bottom_spinbox.value(),
+            "z_device": self._z_device or None,
         }
 
     def z_range(self) -> float:
         diff = self._top_spinbox.value() - self._bottom_spinbox.value()
         return abs(diff)  # type: ignore
 
+    def _disconnect(self) -> None:
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
 
-class ZRangeAroundSelect(QWidget):
+
+class ZRangeAroundSelect(_BasicWidget):
     """Widget to select the range of a symmetric z-stack."""
-
-    valueChanged = Signal(dict)
 
     _MAX_RANGE = 100000
     _UNIT = "µm"
 
-    def __init__(self, *, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
+    def __init__(
+        self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
+    ) -> None:
+        super().__init__(parent, mmcore=mmcore)
 
         # left label
         lbl_range_ra = QLabel(f"Range ({self._UNIT}):")
@@ -141,22 +190,25 @@ class ZRangeAroundSelect(QWidget):
         self.valueChanged.emit(self.value())
 
     def value(self) -> dict:
-        return {"range": self._zrange_spinbox.value()}
+        return {
+            "range": self._zrange_spinbox.value(),
+            "z_device": self._z_device or None,
+        }
 
     def z_range(self) -> float:
         return self._zrange_spinbox.value()  # type: ignore
 
 
-class ZAboveBelowSelect(QWidget):
+class ZAboveBelowSelect(_BasicWidget):
     """Widget to select the range of an asymmetric z-stack."""
-
-    valueChanged = Signal(dict)
 
     _MAX_RANGE = 1000000
     _UNIT = "µm"
 
-    def __init__(self, *, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
+    def __init__(
+        self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
+    ) -> None:
+        super().__init__(parent, mmcore=mmcore)
 
         self._above_spinbox = QDoubleSpinBox()
         self._above_spinbox.setValue(2.5)
@@ -196,6 +248,7 @@ class ZAboveBelowSelect(QWidget):
         return {
             "above": self._above_spinbox.value(),
             "below": self._below_spinbox.value(),
+            "z_device": self._z_device or None,
         }
 
     def z_range(self) -> float:
@@ -237,6 +290,17 @@ class ZStackWidget(QWidget):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
+        # selection for z device
+        z_dev_row = QGroupBox()
+        z_dev_row_layout = QHBoxLayout()
+        z_dev_row_layout.setContentsMargins(0, 0, 0, 0)
+        z_dev_row.setLayout(z_dev_row_layout)
+        self._z_device_combo = _ZDeviceSelector(
+            mmcore=self._mmc, include_none_in_list=True
+        )
+        self._z_device_combo.valueChanged.connect(self._on_z_dev_combo_changed)
+        z_dev_row_layout.addWidget(self._z_device_combo)
+
         # tabs for each z selection mode
         self._zmode_tabs = QTabWidget()
         self._zmode_tabs.setLayout(QVBoxLayout())
@@ -244,8 +308,9 @@ class ZStackWidget(QWidget):
         self._zmode_tabs.layout().setContentsMargins(0, 0, 0, 0)
         # all of the tabs have a valueChanged signal which we connect to _on_tab-change
         for tab_cls in [ZTopBottomSelect, ZRangeAroundSelect, ZAboveBelowSelect]:
-            tab_cls = cast("type[ZPicker]", tab_cls)
-            wdg = tab_cls()
+            tab_cls = cast("type[_BasicWidget]", tab_cls)
+            wdg = tab_cls(mmcore=self._mmc)
+            wdg.z_device = self._z_device_combo.value()
             wdg.valueChanged.connect(self._on_tab_change)
             name = tab_cls.__name__.replace("Z", "").replace("Select", "")
             self._zmode_tabs.addTab(wdg, name)
@@ -275,10 +340,41 @@ class ZStackWidget(QWidget):
 
         # layout
         self.setLayout(QVBoxLayout())
-        self.layout().setSpacing(10)
+        self.layout().setSpacing(15)
         self.layout().setContentsMargins(10, 10, 10, 10)
+        self.layout().addWidget(z_dev_row)
         self.layout().addWidget(self._zmode_tabs)
         self.layout().addWidget(bottom_row)
+
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
+
+        self.destroyed.connect(self._disconnect)
+
+    def _on_sys_cfg_loaded(self) -> None:
+        self._zmode_tabs.setEnabled(self._z_device_combo.value() != "None")
+        self._zstep_spinbox.setEnabled(self._z_device_combo.value() != "None")
+
+    def _on_z_dev_combo_changed(self, text: str) -> None:
+        """Enable/Disable the widgets, set z_device property and set chached values."""
+        self._zmode_tabs.setEnabled(text != "None")
+        self._zstep_spinbox.setEnabled(text != "None")
+        wdg = cast("_BasicWidget", self._zmode_tabs.currentWidget())
+        wdg.z_device = text if text != "None" else ""
+
+        if isinstance(wdg, ZTopBottomSelect):
+            if wdg.z_device in wdg._chached_values and text != "None":
+                with signals_blocked(wdg._top_spinbox):
+                    wdg._top_spinbox.setValue(wdg._chached_values[text][0])
+                with signals_blocked(wdg._bottom_spinbox):
+                    wdg._bottom_spinbox.setValue(wdg._chached_values[text][1])
+            else:
+                with signals_blocked(wdg._top_spinbox):
+                    wdg._top_spinbox.setValue(0)
+                with signals_blocked(wdg._bottom_spinbox):
+                    wdg._bottom_spinbox.setValue(0)
+            wdg._update_zrange_and_emit()
+
+        self.valueChanged.emit(self.value() if text != "None" else NoZ().dict())
 
     def _on_tab_change(self) -> None:
         """Only update the number of images when the active tab changes."""
@@ -296,14 +392,16 @@ class ZStackWidget(QWidget):
         Note that the output will match one of the [useq-schema Z Plan
         specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans).
         """
-        value = cast("ZPicker", self._zmode_tabs.currentWidget()).value()
+        if not self._zmode_tabs.isEnabled():
+            return NoZ().dict()
+        value = cast("_BasicWidget", self._zmode_tabs.currentWidget()).value()
         value["step"] = self._zstep_spinbox.value()
         return value
 
     def n_images(self) -> int:
         """Return the current number of images in the z-stack."""
         step = self._zstep_spinbox.value()
-        _range = cast("ZPicker", self._zmode_tabs.currentWidget()).z_range()
+        _range = cast("_BasicWidget", self._zmode_tabs.currentWidget()).z_range()
         return int(round((_range / step) + 1))
 
     def set_state(self, z_plan: dict) -> None:
@@ -316,7 +414,7 @@ class ZStackWidget(QWidget):
             https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans).
         """
         tabs = self._zmode_tabs
-        wdg: ZPicker
+        wdg: _BasicWidget
         if "top" in z_plan and "bottom" in z_plan:
             wdg = cast(ZTopBottomSelect, tabs.findChild(ZTopBottomSelect))
             wdg._top_spinbox.setValue(z_plan["top"])
@@ -334,3 +432,9 @@ class ZStackWidget(QWidget):
 
         if "step" in z_plan:
             self._zstep_spinbox.setValue(z_plan["step"])
+
+        if "z_device" in z_plan:
+            self._z_device_combo.set_value(z_plan["z_device"])
+
+    def _disconnect(self) -> None:
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
