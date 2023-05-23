@@ -350,14 +350,18 @@ class ZStackWidget(QWidget):
 
         self.destroyed.connect(self._disconnect)
 
+        self._on_sys_cfg_loaded()
+
     def _on_sys_cfg_loaded(self) -> None:
         self._zmode_tabs.setEnabled(self._z_device_combo.value() != "None")
         self._zstep_spinbox.setEnabled(self._z_device_combo.value() != "None")
+        self.n_images_label.setEnabled(self._z_device_combo.value() != "None")
 
     def _on_z_dev_combo_changed(self, text: str) -> None:
         """Enable/Disable the widgets, set z_device property and set chached values."""
         self._zmode_tabs.setEnabled(text != "None")
         self._zstep_spinbox.setEnabled(text != "None")
+        self.n_images_label.setEnabled(text != "None")
         wdg = cast("_BasicWidget", self._zmode_tabs.currentWidget())
         wdg.z_device = text if text != "None" else ""
 
