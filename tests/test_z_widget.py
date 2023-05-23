@@ -45,7 +45,7 @@ def test_z_stack_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     z._zmode_tabs.setCurrentIndex(2)
     assert z.value() == {"above": 2.5, "below": 2.5, "z_device": "Z", "step": 1.0}
 
-    z._z_device_combo.set_value("None")
+    z._z_device_combo.setValue("None")
     assert z.value() == {"go_up": True, "z_device": None}
 
 

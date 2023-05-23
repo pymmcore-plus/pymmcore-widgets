@@ -443,7 +443,7 @@ class ZStackWidget(QWidget):
             self._zstep_spinbox.setValue(z_plan["step"])
 
         if "z_device" in z_plan:
-            self._z_device_combo.set_value(z_plan["z_device"])
+            self._z_device_combo.setValue(z_plan["z_device"])
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)

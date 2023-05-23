@@ -154,7 +154,7 @@ class _ZDeviceSelector(QWidget):
         """Return the currently selected Z device."""
         return str(self._z_dev_combo.currentText())
 
-    def set_value(self, value: str) -> None:
+    def setValue(self, value: str) -> None:
         """Set the which Z device to use."""
         self._z_dev_combo.setCurrentText(value)
 
