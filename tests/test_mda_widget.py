@@ -36,16 +36,32 @@ def test_mda_widget_load_state(qtbot: QtBot):
             {"config": "FITC", "exposure": 50},
         ],
         time_plan={"phases": [{"interval": 2, "loops": 5}]},
-        z_plan={"range": 4, "step": 0.5},
+        z_plan={"range": 4, "step": 0.5, "z_device": "Z"},
         axis_order="tpgcz",
         stage_positions=(
-            {"name": "Pos000", "x": 222, "y": 1, "z": 1},
-            {"name": "Pos001", "x": 111, "y": 0, "z": 0},
+            {
+                "name": "Pos000",
+                "x": 222,
+                "y": 1,
+                "z": 1,
+                "z_device": "Z",
+                "is_autofocus": False,
+            },
+            {
+                "name": "Pos001",
+                "x": 111,
+                "y": 0,
+                "z": 0,
+                "z_device": "Z",
+                "is_autofocus": False,
+            },
             {
                 "name": "Pos002",
                 "x": 1,
                 "y": 2,
                 "z": 3,
+                "z_device": "Z",
+                "is_autofocus": False,
                 "sequence": {
                     "grid_plan": {
                         "rows": 2,
