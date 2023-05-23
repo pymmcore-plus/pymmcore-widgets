@@ -112,8 +112,8 @@ def pos():
         "x": 100.0,
         "y": 200.0,
         "z": 0.0,
-        "z_focus": "Z",
-        "z_autofocus": None,
+        "z_device": "Z",
+        "z_is_autofocus": False,
         "sequence": {
             "grid_plan": {
                 "columns": 2,
@@ -130,8 +130,8 @@ def pos():
         "x": 10.0,
         "y": 20.0,
         "z": 0.0,
-        "z_focus": "Z",
-        "z_autofocus": None,
+        "z_device": "Z",
+        "z_is_autofocus": False,
         "sequence": {
             "grid_plan": {
                 "columns": 2,
@@ -148,8 +148,8 @@ def pos():
         "x": 0.0,
         "y": 0.0,
         "z": 0.0,
-        "z_focus": "Z",
-        "z_autofocus": None,
+        "z_device": "Z",
+        "z_is_autofocus": False,
         "sequence": {
             "grid_plan": {
                 "bottom": 0.0,
@@ -286,7 +286,6 @@ def test_columns_position_table(global_mmcore: CMMCorePlus, qtbot: QtBot):
     p = PositionTable()
     qtbot.addWidget(p)
 
-    p.setChecked(True)
     mmc = global_mmcore
 
     assert [
@@ -297,24 +296,21 @@ def test_columns_position_table(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert ["Z", "Z1"] == list(mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
     assert mmc.getFocusDevice() == "Z"
 
-    assert p.z_focus_combo.currentText() == "Z"
-    assert p.get_used_z_stages() == {"Z Focus": "Z", "Z AutoFocus": ""}
-
+    assert p._z_device_combo.value() == "Z"
     assert not p._table.isColumnHidden(3)  # "Z"
     assert p._table.isColumnHidden(4)  # "Z1"
 
-    p.z_focus_combo.setCurrentText("Z1")
+    p._z_device_combo.setValue("Z1")
     assert p._table.isColumnHidden(3)  # "Z"
     assert not p._table.isColumnHidden(4)  # "Z1"
-    assert p.get_used_z_stages() == {"Z Focus": "Z1", "Z AutoFocus": ""}
 
     mmc.unloadDevice("XY")
-    p.z_focus_combo.setCurrentText("None")
+    p._z_device_combo.setValue("None")
     for c in range(1, p._table.columnCount() - 1):
         assert p._table.isColumnHidden(c)
     assert not p._table.isColumnHidden(5)
 
-    p.z_focus_combo.setCurrentText("Z")
+    p._z_device_combo.setValue("Z")
     assert p._table.columnCount() == 6
 
     assert p._table.horizontalHeaderItem(0).text() == "Pos"
@@ -326,31 +322,34 @@ def test_columns_position_table(global_mmcore: CMMCorePlus, qtbot: QtBot):
             assert p._table.isColumnHidden(c)
 
 
-def test_z_autofocus_combo(global_mmcore: CMMCorePlus, qtbot: QtBot):
+def test_z_is_autofocus(qtbot: QtBot):
     p = PositionTable()
     qtbot.addWidget(p)
 
-    p.setChecked(True)
-    mmc = global_mmcore
+    pos = [{"name": "Pos000", "x": 0.0, "y": 0.0, "z": 0.0}]
+    p.set_state(pos)
 
-    assert p.z_autofocus_combo.currentText() == "None"
-    assert mmc.getFocusDevice() == "Z"
-    assert mmc.getAutoFocusDevice() == "Autofocus"
-    assert not p._table.isColumnHidden(3)  # "Z"
-    assert p._table.isColumnHidden(4)  # "Z1"
-    assert p.get_used_z_stages() == {"Z Focus": "Z", "Z AutoFocus": ""}
+    assert p.value() == [
+        {
+            "name": "Pos000",
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0,
+            "z_device": "Z",
+            "z_is_autofocus": False,
+            "sequence": None,
+        }
+    ]
 
-    p.z_autofocus_combo.setCurrentText("Z1")
-    assert p._table.isColumnHidden(3)  # "Z"
-    assert not p._table.isColumnHidden(4)  # "Z1"
-    assert p.get_used_z_stages() == {"Z Focus": "Z", "Z AutoFocus": "Z1"}
-
-    p.z_focus_combo.setCurrentText("None")
-    assert p._table.isColumnHidden(3)  # "Z"
-    assert not p._table.isColumnHidden(4)  # "Z1"
-    assert p.get_used_z_stages() == {"Z Focus": "", "Z AutoFocus": "Z1"}
-
-    p.z_autofocus_combo.setCurrentText("None")
-    assert p._table.isColumnHidden(3)  # "Z"
-    assert p._table.isColumnHidden(4)  # "Z1"
-    assert p.get_used_z_stages() == {"Z Focus": "", "Z AutoFocus": ""}
+    p._autofocus_checkbox.setChecked(True)
+    assert p.value() == [
+        {
+            "name": "Pos000",
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0,
+            "z_device": "Z",
+            "z_is_autofocus": True,
+            "sequence": None,
+        }
+    ]

@@ -13,10 +13,10 @@ from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QAction,
     QCheckBox,
-    QComboBox,
     QDoubleSpinBox,
     QFileDialog,
     QGridLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QMenu,
@@ -40,6 +40,7 @@ from useq import (
 )
 
 from .._util import get_grid_type
+from ._general_mda_widgets import _ZDeviceSelector
 from ._grid_widget import GridWidget
 
 if TYPE_CHECKING:
@@ -98,6 +99,28 @@ class PositionTable(QWidget):
         group_layout.setSpacing(15)
         group_layout.setContentsMargins(10, 10, 10, 10)
         self.setLayout(group_layout)
+
+        # selection for z device
+        z_dev_row = QGroupBox()
+        z_dev_row_layout = QHBoxLayout()
+        z_dev_row_layout.setContentsMargins(0, 0, 0, 0)
+        z_dev_row_layout.setSpacing(5)
+        z_dev_row.setLayout(z_dev_row_layout)
+        self._z_device_combo = _ZDeviceSelector(
+            mmcore=self._mmc, include_none_in_list=True
+        )
+        self._z_device_combo.valueChanged.connect(self._on_z_focus_changed)
+        self._autofocus_checkbox = QCheckBox("AutoFocus Device")
+        self._autofocus_checkbox.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
+        self._autofocus_checkbox.setToolTip(
+            "Check this box if the z device selected is an AutoFocus device."
+        )
+        z_dev_row_layout.addWidget(self._z_device_combo)
+        z_dev_row_layout.addWidget(self._autofocus_checkbox)
+        group_layout.addWidget(z_dev_row, 0, 0, 1, 2)
+        z_dev_row.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         # buttons
         buttons_wdg = QWidget()
@@ -173,7 +196,7 @@ class PositionTable(QWidget):
         )
         buttons_layout.addItem(spacer)
 
-        group_layout.addWidget(buttons_wdg, 0, 1)
+        group_layout.addWidget(buttons_wdg, 1, 1)
 
         self.add_button.clicked.connect(self._add_position)
         self.replace_button.clicked.connect(self._replace_position)
@@ -182,44 +205,6 @@ class PositionTable(QWidget):
         self.go_button.clicked.connect(self._move_to_position)
         self.save_positions_button.clicked.connect(self._save_positions)
         self.load_positions_button.clicked.connect(self._load_positions)
-
-        # bottom widget
-        bottom_wdg = QWidget()
-        bottom_wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        bottom_wdg_layout = QHBoxLayout()
-        bottom_wdg_layout.setSpacing(15)
-        bottom_wdg_layout.setContentsMargins(0, 0, 0, 0)
-        bottom_wdg.setLayout(bottom_wdg_layout)
-        group_layout.addWidget(bottom_wdg, 1, 0, 1, 2)
-        # z stage combo widget
-        combo_wdg = QWidget()
-        combo_wdg_layout = QHBoxLayout()
-        combo_wdg_layout.setSpacing(5)
-        combo_wdg_layout.setContentsMargins(0, 0, 0, 0)
-        combo_wdg.setLayout(combo_wdg_layout)
-        bottom_wdg_layout.addWidget(combo_wdg)
-        # focus
-        focus_lbl = QLabel("Z Focus:")
-        focus_lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self.z_focus_combo = QComboBox()
-        self.z_focus_combo.setSizeAdjustPolicy(QComboBox.AdjustToContents)
-        self.z_focus_combo.currentTextChanged.connect(self._on_z_focus_changed)
-        combo_wdg_layout.addWidget(focus_lbl)
-        combo_wdg_layout.addWidget(self.z_focus_combo)
-        spacer = QSpacerItem(15, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        combo_wdg_layout.addSpacerItem(spacer)
-        # autofocus
-        self.autofocus_lbl = QLabel("Z AutoFocus:")
-        self.autofocus_lbl.setSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-        )
-        self.z_autofocus_combo = QComboBox()
-        self.z_autofocus_combo.setSizeAdjustPolicy(QComboBox.AdjustToContents)
-        self.z_autofocus_combo.currentTextChanged.connect(self._on_z_autofocus_changed)
-        self.autofocus_lbl.hide()
-        self.z_autofocus_combo.hide()
-        combo_wdg_layout.addWidget(self.autofocus_lbl)
-        combo_wdg_layout.addWidget(self.z_autofocus_combo)
 
         # table
         self._table = QTableWidget()
@@ -230,7 +215,8 @@ class PositionTable(QWidget):
         self._table.setTabKeyNavigation(True)
         self._table.setColumnCount(5)
         self._table.setRowCount(0)
-        group_layout.addWidget(self._table, 0, 0)
+        # group_layout.addWidget(self._table, 0, 0)
+        group_layout.addWidget(self._table, 1, 0)
 
         self._table.setMinimumHeight(buttons_wdg.sizeHint().height() + 5)
         self._table.selectionModel().selectionChanged.connect(self._enable_button)
@@ -244,21 +230,12 @@ class PositionTable(QWidget):
         self._on_sys_cfg_loaded()
 
     def _on_sys_cfg_loaded(self) -> None:
-        self._z_stages["Z Focus"] = self._mmc.getFocusDevice() or ""
-        self._z_stages["Z AutoFocus"] = ""
         self.clear()
         self._set_table_header()
         self._table.setColumnHidden(self._table.columnCount() - 1, True)
-        self._populate_combo()
         self._advanced_cbox.setEnabled(
             bool(self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice))
         )
-        if self._mmc.getLoadedDevicesOfType(DeviceType.AutoFocus):
-            self.autofocus_lbl.show()
-            self.z_autofocus_combo.show()
-        else:
-            self.autofocus_lbl.hide()
-            self.z_autofocus_combo.hide()
 
     def _on_property_changed(self, device: str, prop: str, value: str) -> None:
         """Hide/show XYStage columns when XYStage is set/removed."""
@@ -269,24 +246,8 @@ class PositionTable(QWidget):
         self._table.setColumnHidden(1, not value)
         self._table.setColumnHidden(2, not value)
 
-    def _populate_combo(self) -> None:
-        items = [
-            "None",
-            *list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice)),
-        ]
-        with signals_blocked(self.z_focus_combo):
-            self.z_focus_combo.clear()
-            self.z_focus_combo.addItems(items)
-            self.z_focus_combo.setCurrentText(self._mmc.getFocusDevice() or "None")
-        with signals_blocked(self.z_autofocus_combo):
-            self.z_autofocus_combo.clear()
-            self.z_autofocus_combo.addItems(items)
-            self.z_autofocus_combo.setCurrentText("None")
-
     def _on_z_focus_changed(self, focus_stage: str) -> None:
-        if self.z_autofocus_combo.currentText() != "None":
-            self._z_stages["Z Focus"] = focus_stage if focus_stage != "None" else ""
-            return
+        self._autofocus_checkbox.setEnabled(focus_stage != "None")
         _range_low, _range_high = self._get_range()
         for c in range(_range_low, _range_high):
             if c == 0:
@@ -298,20 +259,6 @@ class PositionTable(QWidget):
             )
         focus_stage = focus_stage if focus_stage != "None" else ""
         self._z_stages["Z Focus"] = focus_stage
-
-    def _on_z_autofocus_changed(self, autofocus_stage: str) -> None:
-        _autofocus = autofocus_stage if autofocus_stage != "None" else ""
-        self._z_stages["Z AutoFocus"] = _autofocus
-        if _autofocus:
-            _range_low, _range_high = self._get_range()
-            for c in range(_range_low, _range_high):
-                if c == 0:
-                    self._table.setColumnHidden(c, False)
-                    continue
-                col_name = self._table.horizontalHeaderItem(c).text()
-                self._table.setColumnHidden(c, autofocus_stage != col_name)
-        else:
-            self._on_z_focus_changed(self.z_focus_combo.currentText())
 
     def _get_range(self) -> tuple[int, int]:
         return (
@@ -366,8 +313,7 @@ class PositionTable(QWidget):
     def _get_z_stage_column(self) -> int | None:
         for i in range(self._table.columnCount()):
             col_name = self._table.horizontalHeaderItem(i).text()
-            _z = self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"]
-            if col_name == _z:
+            if col_name == self._z_device_combo.value():
                 return i
         return None
 
@@ -413,7 +359,7 @@ class PositionTable(QWidget):
         name = f"Pos{self._table.rowCount():03d}"
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
-        _z_stage = self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"]
+        _z_stage = self._z_device_combo.value()
         zpos = self._mmc.getPosition(_z_stage) if _z_stage else None
 
         if xpos is None and ypos is None and zpos is None:
@@ -626,7 +572,7 @@ class PositionTable(QWidget):
         name = item.text()
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
-        _z_stage = self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"]
+        _z_stage = self._z_device_combo.value()
         zpos = self._mmc.getPosition(_z_stage) if _z_stage else None
 
         if xpos is None and ypos is None and zpos is None:
@@ -688,9 +634,7 @@ class PositionTable(QWidget):
         if x is not None and y is not None:
             self._mmc.setXYPosition(x, y)
         if z is not None:
-            self._mmc.setPosition(
-                self._z_stages["Z AutoFocus"] or self._z_stages["Z Focus"], z
-            )
+            self._mmc.setPosition(self._z_device_combo.value(), z)
 
     def _get_table_value(self, row: int, col: int | None) -> float | None:
         if col is None:
@@ -723,15 +667,11 @@ class PositionTable(QWidget):
                     "x": self._get_table_value(row, 1),
                     "y": self._get_table_value(row, 2),
                     "z": self._get_table_value(row, self._get_z_stage_column()),
-                    "z_focus": (
-                        self.z_focus_combo.currentText()
-                        if self.z_focus_combo.currentText() != "None"
-                        else None
-                    ),
-                    "z_autofocus": (
-                        self.z_autofocus_combo.currentText()
-                        if self.z_autofocus_combo.currentText() != "None"
-                        else None
+                    "z_device": self._z_device_combo.value() or None,
+                    "z_is_autofocus": (
+                        self._autofocus_checkbox.isChecked()
+                        if self._autofocus_checkbox.isEnabled()
+                        else False
                     ),
                     "sequence": (
                         {"grid_plan": grid_role} if grid_role else None  # type: ignore
@@ -740,13 +680,6 @@ class PositionTable(QWidget):
             )
 
         return values
-
-    def get_used_z_stages(self) -> dict[str, str]:
-        """Return a dictionary of the used Z Focus and Z AutoFocus stages.
-
-        e.g. {"Z Focus": Z", "Z AutoFocus": "Z1"}
-        """
-        return self._z_stages
 
     def set_state(
         self, positions: Sequence[PositionDict | Position], clear: bool = True
@@ -782,9 +715,9 @@ class PositionTable(QWidget):
 
             name = position.get("name")
             x, y, z = (position.get("x"), position.get("y"), position.get("z"))
-            z_focus, z_autofocus = (
-                position.get("z_focus"),
-                position.get("z_autofocus"),
+            z_device = str(position.get("z_device")) or self._z_device_combo.value()
+            z_is_autofocus = (
+                position.get("z_is_autofocus") or self._autofocus_checkbox.isChecked()
             )
 
             if x and y and not self._mmc.getXYStageDevice():
@@ -794,11 +727,8 @@ class PositionTable(QWidget):
             if x is None and y is None and z is None:
                 continue
 
-            if z is not None and not z_focus and not z_autofocus:
-                self.z_focus_combo.setCurrentText(self._mmc.getFocusDevice())
-            else:
-                self.z_focus_combo.setCurrentText(z_focus or "None")
-                self.z_autofocus_combo.setCurrentText(z_autofocus or "None")
+            self._z_device_combo.setValue(z_device)
+            self._autofocus_checkbox.setChecked(z_is_autofocus)
 
             self._add_table_row(name or f"{POS}000", x, y, z)
             if pos_seq := position.get("sequence"):
