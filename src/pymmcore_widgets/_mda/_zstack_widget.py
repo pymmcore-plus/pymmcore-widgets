@@ -138,8 +138,8 @@ class ZTopBottomSelect(_BasicWidget):
 
     def value(self) -> dict:
         return {
-            "top": self._top_spinbox.value(),
-            "bottom": self._bottom_spinbox.value(),
+            "top": max(self._top_spinbox.value(), self._bottom_spinbox.value()),
+            "bottom": min(self._top_spinbox.value(), self._bottom_spinbox.value()),
             "z_device": self._z_device or None,
         }
 
