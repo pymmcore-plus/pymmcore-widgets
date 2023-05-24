@@ -45,7 +45,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
                 "y": 1,
                 "z": 1,
                 "z_device": "Z",
-                "z_is_autofocus": False,
+                "use_autofocus_device": False,
             },
             {
                 "name": "Pos001",
@@ -53,7 +53,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
                 "y": 0,
                 "z": 0,
                 "z_device": "Z",
-                "z_is_autofocus": False,
+                "use_autofocus_device": False,
             },
             {
                 "name": "Pos002",
@@ -61,7 +61,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
                 "y": 2,
                 "z": 3,
                 "z_device": "Z",
-                "z_is_autofocus": False,
+                "use_autofocus_device": False,
                 "sequence": {
                     "grid_plan": {
                         "rows": 2,

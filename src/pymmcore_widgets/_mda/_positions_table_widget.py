@@ -110,12 +110,12 @@ class PositionTable(QWidget):
             mmcore=self._mmc, include_none_in_list=True
         )
         self._z_device_combo.valueChanged.connect(self._on_z_focus_changed)
-        self._autofocus_checkbox = QCheckBox("AutoFocus Device")
+        self._autofocus_checkbox = QCheckBox("Use AutoFocus Device")
         self._autofocus_checkbox.setSizePolicy(
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
         self._autofocus_checkbox.setToolTip(
-            "Check this box if the z device selected is an AutoFocus device."
+            "Check this box if you want to use the core AutoFocus device."
         )
         z_dev_row_layout.addWidget(self._z_device_combo)
         z_dev_row_layout.addWidget(self._autofocus_checkbox)
@@ -224,6 +224,7 @@ class PositionTable(QWidget):
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
+        self._mmc.events.propertyChanged.connect(self._on_autofocus_device_changed)
 
         self.destroyed.connect(self._disconnect)
 
@@ -236,6 +237,12 @@ class PositionTable(QWidget):
         self._advanced_cbox.setEnabled(
             bool(self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice))
         )
+        self._autofocus_checkbox.setEnabled(bool(self._mmc.getAutoFocusDevice()))
+
+    def _on_autofocus_device_changed(self, device: str, property: str) -> None:
+        if device != "Core" and property != "AutoFocus":
+            return
+        self._autofocus_checkbox.setEnabled(bool(self._mmc.getAutoFocusDevice()))
 
     def _on_property_changed(self, device: str, prop: str, value: str) -> None:
         """Hide/show XYStage columns when XYStage is set/removed."""
@@ -247,7 +254,6 @@ class PositionTable(QWidget):
         self._table.setColumnHidden(2, not value)
 
     def _on_z_focus_changed(self, focus_stage: str) -> None:
-        self._autofocus_checkbox.setEnabled(focus_stage != "None")
         _range_low, _range_high = self._get_range()
         for c in range(_range_low, _range_high):
             if c == 0:
@@ -668,7 +674,7 @@ class PositionTable(QWidget):
                     "y": self._get_table_value(row, 2),
                     "z": self._get_table_value(row, self._get_z_stage_column()),
                     "z_device": self._z_device_combo.value() or None,
-                    "z_is_autofocus": (
+                    "use_autofocus_device": (
                         self._autofocus_checkbox.isChecked()
                         if self._autofocus_checkbox.isEnabled()
                         else False
@@ -715,10 +721,6 @@ class PositionTable(QWidget):
 
             name = position.get("name")
             x, y, z = (position.get("x"), position.get("y"), position.get("z"))
-            z_device = str(position.get("z_device")) or self._z_device_combo.value()
-            z_is_autofocus = (
-                position.get("z_is_autofocus") or self._autofocus_checkbox.isChecked()
-            )
 
             if x and y and not self._mmc.getXYStageDevice():
                 warnings.warn("No XY Stage devices selected.", stacklevel=2)
@@ -727,8 +729,14 @@ class PositionTable(QWidget):
             if x is None and y is None and z is None:
                 continue
 
+            z_device = str(position.get("z_device") or self._z_device_combo.value())
+            use_autofocus_device = position.get("use_autofocus_device") or bool(
+                self._autofocus_checkbox.isChecked()
+                and self._autofocus_checkbox.isEnabled()
+            )
+
             self._z_device_combo.setValue(z_device)
-            self._autofocus_checkbox.setChecked(z_is_autofocus)
+            self._autofocus_checkbox.setChecked(use_autofocus_device)
 
             self._add_table_row(name or f"{POS}000", x, y, z)
             if pos_seq := position.get("sequence"):

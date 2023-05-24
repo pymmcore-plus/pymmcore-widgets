@@ -113,7 +113,7 @@ def pos():
         "y": 200.0,
         "z": 0.0,
         "z_device": "Z",
-        "z_is_autofocus": False,
+        "use_autofocus_device": False,
         "sequence": {
             "grid_plan": {
                 "columns": 2,
@@ -131,7 +131,7 @@ def pos():
         "y": 20.0,
         "z": 0.0,
         "z_device": "Z",
-        "z_is_autofocus": False,
+        "use_autofocus_device": False,
         "sequence": {
             "grid_plan": {
                 "columns": 2,
@@ -149,7 +149,7 @@ def pos():
         "y": 0.0,
         "z": 0.0,
         "z_device": "Z",
-        "z_is_autofocus": False,
+        "use_autofocus_device": False,
         "sequence": {
             "grid_plan": {
                 "bottom": 0.0,
@@ -322,9 +322,11 @@ def test_columns_position_table(global_mmcore: CMMCorePlus, qtbot: QtBot):
             assert p._table.isColumnHidden(c)
 
 
-def test_z_is_autofocus(qtbot: QtBot):
+def test_use_autofocus_device(qtbot: QtBot, global_mmcore: CMMCorePlus):
     p = PositionTable()
     qtbot.addWidget(p)
+
+    mmc = global_mmcore
 
     pos = [{"name": "Pos000", "x": 0.0, "y": 0.0, "z": 0.0}]
     p.set_state(pos)
@@ -336,7 +338,7 @@ def test_z_is_autofocus(qtbot: QtBot):
             "y": 0.0,
             "z": 0.0,
             "z_device": "Z",
-            "z_is_autofocus": False,
+            "use_autofocus_device": False,
             "sequence": None,
         }
     ]
@@ -349,7 +351,13 @@ def test_z_is_autofocus(qtbot: QtBot):
             "y": 0.0,
             "z": 0.0,
             "z_device": "Z",
-            "z_is_autofocus": True,
+            "use_autofocus_device": True,
             "sequence": None,
         }
     ]
+
+    assert p._autofocus_checkbox.isChecked()
+    with qtbot.waitSignal(mmc.events.propertyChanged):
+        mmc.setProperty("Core", "AutoFocus", "")
+    assert not p._autofocus_checkbox.isEnabled()
+    assert not p.value()[0]["use_autofocus_device"]
