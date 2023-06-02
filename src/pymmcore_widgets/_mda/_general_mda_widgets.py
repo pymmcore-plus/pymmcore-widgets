@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from fonticon_mdi6 import MDI6
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QSize, Qt
+from pymmcore_plus import CMMCorePlus, DeviceType
+from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QHBoxLayout,
     QLabel,
@@ -103,3 +104,111 @@ class _MDATimeLabel(QWidget):
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
         wdg_lay.addWidget(self._total_time_lbl)
+
+
+class _AutofocusZDeviceWidget(QWidget):
+    valueChanged = Signal(dict)
+
+    def __init__(
+        self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
+    ) -> None:
+        super().__init__(parent)
+
+        self._mmc = mmcore or CMMCorePlus.instance()
+
+        layout = QHBoxLayout()
+        layout.setSpacing(30)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
+
+        self._autofocus_checkbox = QCheckBox("Use Autofocus Device")
+        self._autofocus_checkbox.toggled.connect(self._on_checkbox_toggled)
+
+        self._selector_wdg = QWidget()
+        _selector_wdg_layout = QHBoxLayout()
+        _selector_wdg_layout.setSpacing(5)
+        _selector_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        self._selector_wdg.setLayout(_selector_wdg_layout)
+        _autofocus_label = QLabel("Autofocus Z Device:")
+        _autofocus_label.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
+        self._autofocus_device_combo = QComboBox()
+        self._autofocus_device_combo.currentTextChanged.connect(self._on_combo_changed)
+        self._autofocus_device_combo.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        _selector_wdg_layout.addWidget(_autofocus_label)
+        _selector_wdg_layout.addWidget(self._autofocus_device_combo)
+
+        layout.addWidget(self._autofocus_checkbox)
+        layout.addWidget(self._selector_wdg)
+
+        self.setMinimumHeight(self.sizeHint().height())
+
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
+        self._mmc.events.propertyChanged.connect(self._on_property_changed)
+
+        self.destroyed.connect(self._disconnect)
+
+        self._on_sys_cfg_loaded()
+
+    def _on_sys_cfg_loaded(self) -> None:
+        self._on_checkbox_toggled(self._autofocus_checkbox.isChecked())
+        items = list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
+        self._autofocus_device_combo.clear()
+        self._autofocus_device_combo.addItems(items)
+
+    def _on_property_changed(self, device: str, prop: str, value: str) -> None:
+        if device != "Core" and prop != "Autofocus":
+            return
+        self._autofocus_checkbox.setChecked(False)
+        self._autofocus_checkbox.setEnabled(value)
+
+    def _on_checkbox_toggled(self, checked: bool) -> None:
+        if not self._mmc.getAutoFocusDevice():
+            self._autofocus_checkbox.setChecked(False)
+            self._selector_wdg.hide()
+        else:
+            self._selector_wdg.show() if checked else self._selector_wdg.hide()
+        self.valueChanged.emit(self.value())
+
+    def _on_combo_changed(self, z_autofocus_device: str) -> None:
+        self.valueChanged.emit(self.value())
+
+    def value(self) -> dict[str, bool | str | None]:
+        """Return in a dict the autofocus checkbox state and the autofocus z_device."""
+        return {
+            "use_autofocus": (
+                self._autofocus_checkbox.isChecked()
+                if self._mmc.getAutoFocusDevice()
+                else False
+            ),
+            "autofocus_z_device": (
+                self._autofocus_device_combo.currentText()
+                if self._autofocus_checkbox.isChecked()
+                and self._mmc.getAutoFocusDevice()
+                else None
+            ),
+        }
+
+    def setValue(self, checked: bool, z_device: str | None = None) -> None:
+        """Set the 'autofocus checkbox' state and the autofocus z_device to use.
+
+        Parameters
+        ----------
+        checked : bool
+            Whether the checkbox should be checked.
+        z_device : str | None
+            The autofocus device name.
+        """
+        if not self._mmc.getAutoFocusDevice():
+            self._selector_wdg.hide()
+            return
+        self._autofocus_checkbox.setChecked(checked)
+        if z_device is not None:
+            self._autofocus_device_combo.setCurrentText(z_device)
+
+    def _disconnect(self) -> None:
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
+        self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
