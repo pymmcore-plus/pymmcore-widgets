@@ -154,6 +154,7 @@ class _AutofocusZDeviceWidget(QWidget):
         self._on_sys_cfg_loaded()
 
     def _on_sys_cfg_loaded(self) -> None:
+        self._autofocus_checkbox.setEnabled(bool(self._mmc.getAutoFocusDevice()))
         self._on_checkbox_toggled(self._autofocus_checkbox.isChecked())
         items = list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
         self._autofocus_device_combo.clear()
@@ -163,7 +164,7 @@ class _AutofocusZDeviceWidget(QWidget):
         if device != "Core" and prop != "Autofocus":
             return
         self._autofocus_checkbox.setChecked(False)
-        self._autofocus_checkbox.setEnabled(value)
+        self._autofocus_checkbox.setEnabled(bool(value))
 
     def _on_checkbox_toggled(self, checked: bool) -> None:
         if not self._mmc.getAutoFocusDevice():
@@ -179,35 +180,28 @@ class _AutofocusZDeviceWidget(QWidget):
     def value(self) -> dict[str, bool | str | None]:
         """Return in a dict the autofocus checkbox state and the autofocus z_device."""
         return {
-            "use_autofocus": (
-                self._autofocus_checkbox.isChecked()
-                if self._mmc.getAutoFocusDevice()
-                else False
-            ),
-            "autofocus_z_device": (
+            "z_device": (
                 self._autofocus_device_combo.currentText()
                 if self._autofocus_checkbox.isChecked()
                 and self._mmc.getAutoFocusDevice()
                 else None
             ),
+            "is_autofocus_device": (
+                self._autofocus_checkbox.isChecked()
+                if self._mmc.getAutoFocusDevice()
+                else False
+            ),
         }
 
-    def setValue(self, checked: bool, z_device: str | None = None) -> None:
-        """Set the 'autofocus checkbox' state and the autofocus z_device to use.
-
-        Parameters
-        ----------
-        checked : bool
-            Whether the checkbox should be checked.
-        z_device : str | None
-            The autofocus device name.
-        """
+    def setValue(self, value: dict[str, bool | str | None]) -> None:
+        """Set the autofocus checkbox state and the autofocus z_device to use."""
         if not self._mmc.getAutoFocusDevice():
             self._selector_wdg.hide()
             return
-        self._autofocus_checkbox.setChecked(checked)
-        if z_device is not None:
-            self._autofocus_device_combo.setCurrentText(z_device)
+
+        self._autofocus_checkbox.setChecked(value.get("is_autofocus_device", False))
+        if value.get("z_device") is not None:
+            self._autofocus_device_combo.setCurrentText(value.get("z_device"))
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
