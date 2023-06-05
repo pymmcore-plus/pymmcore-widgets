@@ -175,3 +175,33 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
         "\nMinimum acquisition time per timepoint: 100 ms"
     )
     assert wdg.time_lbl._total_time_lbl.text() == txt
+
+
+def test_grid_sequence_fov(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    """Test that the FOV size is updated when creating the MDASequernce."""
+    wdg = MDAWidget(include_run_button=True)
+    qtbot.addWidget(wdg)
+    mmc = global_mmcore
+
+    sequence = MDASequence(
+        channels=[
+            {"config": "FITC", "exposure": 50},
+        ],
+        stage_positions=(
+            {
+                "name": "Pos000",
+                "x": 1,
+                "y": 2,
+                "z": 3,
+                "sequence": {"grid_plan": {"rows": 2, "columns": 2}},
+            },
+        ),
+    )
+
+    wdg.set_state(sequence)
+
+    assert wdg.get_state()._fov_size == (512.0, 512.0)
+    mmc.setProperty("Objective", "Label", "Nikon 20X Plan Fluor ELWD")
+    assert wdg.get_state()._fov_size == (256.0, 256.0)
+    pos_seq = wdg.get_state().stage_positions[0].sequence
+    assert pos_seq._fov_size == (256.0, 256.0)
