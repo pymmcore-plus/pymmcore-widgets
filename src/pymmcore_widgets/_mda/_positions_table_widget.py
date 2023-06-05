@@ -258,14 +258,10 @@ class PositionTable(QWidget):
             for r in range(self._table.rowCount()):
                 self._table.removeCellWidget(r, idx)
 
-            # rename column header with default ZStage or Autofocus name
-            if idx not in {Z, AF}:
+            # rename column header with default ZStage or Autofocus
+            if idx not in {Z, AF} or self._autofocus_wdg.value()["is_autofocus_device"]:
                 continue
-            name = (
-                self._mmc.getFocusDevice()
-                if idx == Z
-                else self._mmc.getAutoFocusDevice()
-            )
+            name = self._mmc.getFocusDevice() if idx == Z else "Autofocus"
             self._table.setHorizontalHeaderItem(idx, QTableWidgetItem(name))
 
     def _set_table_header(self) -> None:
@@ -408,7 +404,7 @@ class PositionTable(QWidget):
         add_grid.setContextMenuPolicy(Qt.CustomContextMenu)
         # for righ-click menu
         add_grid.customContextMenuRequested.connect(self._show_apply_to_all_menu)
-        add_grid.clicked.connect(self._grid_widget)
+        add_grid.clicked.connect(self._show_grid_widget)
         remove_grid = QPushButton()
         remove_grid.setIcon(icon(MDI6.close_thick, color="magenta"))
         remove_grid.setIconSize(QSize(25, 25))
@@ -438,7 +434,7 @@ class PositionTable(QWidget):
             self._table.cellWidget(row, GRID).layout().itemAt(1).widget(),
         )
 
-    def _grid_widget(self) -> None:
+    def _show_grid_widget(self) -> None:
         if hasattr(self, "_grid_wdg"):
             self._grid_wdg.close()  # type: ignore
 
@@ -446,6 +442,8 @@ class PositionTable(QWidget):
             mmcore=self._mmc,
             current_stage_pos=(self._mmc.getXPosition(), self._mmc.getYPosition()),
         )
+        self._grid_wdg.setStyleSheet(self.parentWidget().styleSheet())
+
         row = self._table.indexAt(self.sender().parent().pos()).row()
         self._grid_wdg.valueChanged.connect(lambda x: self._add_grid_plan(x, row))
 
