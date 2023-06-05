@@ -160,6 +160,14 @@ class _AutofocusZDeviceWidget(QWidget):
         self._autofocus_device_combo.clear()
         self._autofocus_device_combo.addItems(items)
 
+        if len(items) == 1:
+            return
+
+        for i in items:
+            if i != self._mmc.getFocusDevice():
+                self._autofocus_device_combo.setCurrentText(i)
+                break
+
     def _on_property_changed(self, device: str, prop: str, value: str) -> None:
         if device != "Core" and prop != "Autofocus":
             return
