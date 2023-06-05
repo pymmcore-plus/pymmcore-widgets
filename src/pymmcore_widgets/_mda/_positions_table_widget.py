@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 from typing import TYPE_CHECKING, Any, Sequence, cast
+import warnings
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
@@ -338,6 +339,10 @@ class PositionTable(QWidget):
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
         z_device = cast("str", self._autofocus_wdg.value()["z_device"])
         z_pos_autofocus = self._mmc.getPosition(z_device) if z_device else None
+
+        if z_pos_autofocus and not self._mmc.isContinuousFocusLocked():
+            warnings.warn("Autofocus Device is not Locked in Focus.")
+
         self._add_table_row(name, xpos, ypos, zpos, z_pos_autofocus)
         self._rename_positions()
 
