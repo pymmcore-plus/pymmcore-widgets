@@ -224,8 +224,9 @@ class PositionTable(QWidget):
     def _on_sys_cfg_loaded(self) -> None:
         self.clear()
         self._set_table_header()
-        xy = bool(self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice))
-        self._advanced_cbox.setEnabled(xy)
+        self._advanced_cbox.setEnabled(
+            bool(self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice))
+        )
         advanced = self._advanced_cbox.isChecked()
         use_af = self._autofocus_wdg.value()["use_one_shot_focus"]
         self._table.setColumnHidden(GRID, not advanced)
