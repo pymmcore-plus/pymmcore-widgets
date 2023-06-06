@@ -225,10 +225,7 @@ class PositionTable(QWidget):
         self.clear()
         self._set_table_header()
         xy = bool(self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice))
-        z = bool(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
         self._advanced_cbox.setEnabled(xy)
-        self.add_button.setEnabled(xy and z)
-        self.save_positions_button.setEnabled(xy and z)
         advanced = self._advanced_cbox.isChecked()
         use_af = self._autofocus_wdg.value()["use_one_shot_focus"]
         self._table.setColumnHidden(GRID, not advanced)
