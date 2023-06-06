@@ -194,7 +194,7 @@ class _AutofocusZDeviceWidget(QWidget):
                 and self._mmc.getAutoFocusDevice()
                 else None
             ),
-            "is_autofocus_z_device": (
+            "use_one_shot_focus": (
                 self._autofocus_checkbox.isChecked()
                 if self._mmc.getAutoFocusDevice()
                 else False
@@ -207,7 +207,7 @@ class _AutofocusZDeviceWidget(QWidget):
             self._selector_wdg.hide()
             return
 
-        self._autofocus_checkbox.setChecked(value.get("is_autofocus_z_device", False))
+        self._autofocus_checkbox.setChecked(value.get("use_one_shot_focus", False))
         if value.get("z_device") is not None:
             self._autofocus_device_combo.setCurrentText(value.get("z_device"))
 
