@@ -115,13 +115,16 @@ class _AutofocusZDeviceWidget(QWidget):
         super().__init__(parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
+        self._autofocus_device: str = self._mmc.getAutoFocusDevice() or ""
 
         layout = QHBoxLayout()
         layout.setSpacing(30)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
-        self._autofocus_checkbox = QCheckBox("Use Autofocus Device")
+        self._autofocus_checkbox = QCheckBox(
+            f"Use {self._autofocus_device or 'Autofocus Device'}"
+        )
         self._autofocus_checkbox.toggled.connect(self._on_checkbox_toggled)
 
         self._selector_wdg = QWidget()
@@ -129,8 +132,8 @@ class _AutofocusZDeviceWidget(QWidget):
         _selector_wdg_layout.setSpacing(5)
         _selector_wdg_layout.setContentsMargins(0, 0, 0, 0)
         self._selector_wdg.setLayout(_selector_wdg_layout)
-        _autofocus_label = QLabel("Autofocus Z Device:")
-        _autofocus_label.setSizePolicy(
+        self._autofocus_label = QLabel(f"{self._autofocus_device} Z Device:")
+        self._autofocus_label.setSizePolicy(
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
         self._autofocus_device_combo = QComboBox()
@@ -138,7 +141,7 @@ class _AutofocusZDeviceWidget(QWidget):
         self._autofocus_device_combo.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
-        _selector_wdg_layout.addWidget(_autofocus_label)
+        _selector_wdg_layout.addWidget(self._autofocus_label)
         _selector_wdg_layout.addWidget(self._autofocus_device_combo)
 
         layout.addWidget(self._autofocus_checkbox)
@@ -154,6 +157,11 @@ class _AutofocusZDeviceWidget(QWidget):
         self._on_sys_cfg_loaded()
 
     def _on_sys_cfg_loaded(self) -> None:
+        self._autofocus_device = self._mmc.getAutoFocusDevice() or ""
+        self._autofocus_checkbox.setText(
+            f"Use {self._autofocus_device or 'Autofocus Device'}"
+        )
+        self._autofocus_label = QLabel(f"{self._autofocus_device} Z Device:")
         self._autofocus_checkbox.setEnabled(bool(self._mmc.getAutoFocusDevice()))
         self._on_checkbox_toggled(self._autofocus_checkbox.isChecked())
         items = list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
@@ -173,6 +181,12 @@ class _AutofocusZDeviceWidget(QWidget):
             return
         self._autofocus_checkbox.setChecked(False)
         self._autofocus_checkbox.setEnabled(bool(value))
+
+        self._autofocus_device = value
+        self._autofocus_checkbox.setText(
+            f"Use {self._autofocus_device or 'Autofocus Device'}"
+        )
+        self._autofocus_label = QLabel(f"{self._autofocus_device} Z Device:")
 
     def _on_checkbox_toggled(self, checked: bool) -> None:
         if not self._mmc.getAutoFocusDevice():
