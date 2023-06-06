@@ -182,7 +182,7 @@ class _AutofocusZDeviceWidget(QWidget):
         self._autofocus_checkbox.setChecked(False)
         self._autofocus_checkbox.setEnabled(bool(value))
 
-        self._autofocus_device = value
+        self._autofocus_device = self._mmc.getAutoFocusDevice() or ""
         self._autofocus_checkbox.setText(
             f"Use {self._autofocus_device or 'Autofocus Device'}"
         )
