@@ -35,6 +35,8 @@ if TYPE_CHECKING:
         x: float | None
         y: float | None
         z: float | None
+        z_device: str | None
+        use_one_shot_focus: bool
         name: str | None
         sequence: MDASequence | None
 
@@ -195,7 +197,7 @@ class MDAWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.configSet.connect(self._on_config_set)
         self._mmc.events.configGroupChanged.connect(self._on_config_set)
-        self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
+        self._mmc.events.channelGroupChanged.connect(self._enable_run_btn)
         # connect run button
         if self._include_run_button:
             self.buttons_wdg.run_button.clicked.connect(self._on_run_clicked)
@@ -214,9 +216,6 @@ class MDAWidget(QWidget):
     def _on_config_set(self, group: str, preset: str) -> None:
         if group != self._mmc.getChannelGroup():
             return
-        self._enable_run_btn()
-
-    def _on_channel_group_changed(self, group: str) -> None:
         self._enable_run_btn()
 
     def _make_qwidget(self, widget: QWidget, spacer: bool = False) -> QWidget:
@@ -415,6 +414,7 @@ class MDAWidget(QWidget):
                     self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
                 ),
                 "z": (self._mmc.getZPosition() if self._mmc.getFocusDevice() else None),
+                "z_device": self._mmc.getFocusDevice() or None,
             }
         ]
 
@@ -531,4 +531,4 @@ class MDAWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
         self._mmc.events.configSet.disconnect(self._on_config_set)
         self._mmc.events.configGroupChanged.disconnect(self._on_config_set)
-        self._mmc.events.channelGroupChanged.disconnect(self._on_channel_group_changed)
+        self._mmc.events.channelGroupChanged.disconnect(self._enable_run_btn)

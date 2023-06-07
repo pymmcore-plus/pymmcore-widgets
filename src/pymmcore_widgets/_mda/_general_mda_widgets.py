@@ -206,7 +206,7 @@ class _AutofocusZDeviceWidget(QWidget):
                 self._autofocus_device_combo.currentText()
                 if self._autofocus_checkbox.isChecked()
                 and self._mmc.getAutoFocusDevice()
-                else None
+                else self._mmc.getFocusDevice() or None
             ),
             "use_one_shot_focus": (
                 self._autofocus_checkbox.isChecked()

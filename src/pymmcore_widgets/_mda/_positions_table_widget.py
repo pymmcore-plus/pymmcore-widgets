@@ -336,7 +336,11 @@ class PositionTable(QWidget):
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
         z_device = cast("str", self._autofocus_wdg.value()["z_device"])
-        z_pos_autofocus = self._mmc.getPosition(z_device) if z_device else None
+        z_pos_autofocus = (
+            self._mmc.getPosition(z_device)
+            if z_device and self._autofocus_wdg.value()["use_one_shot_focus"]
+            else None
+        )
 
         if z_pos_autofocus is not None and not self._mmc.isContinuousFocusLocked():
             warnings.warn("Autofocus Device is not Locked in Focus.", stacklevel=1)
@@ -643,8 +647,14 @@ class PositionTable(QWidget):
         for row in range(self._table.rowCount()):
             grid_role = self._table.item(row, P).data(self.GRID_ROLE)
 
-            af = self._autofocus_wdg.value()
-            z_col_idx = AF if af.get("use_one_shot_focus") else Z
+            use_af = self._autofocus_wdg.value().get("use_one_shot_focus")
+            if use_af and self._get_table_value(row, AF) is not None:
+                z_col_idx = AF
+                z_device = self._autofocus_wdg.value().get("z_device")
+            else:
+                z_col_idx = Z
+                z_device = self._mmc.getFocusDevice()
+                use_af = False
 
             values.append(
                 {
@@ -653,7 +663,8 @@ class PositionTable(QWidget):
                     "y": self._get_table_value(row, Y),
                     "z": self._get_table_value(row, z_col_idx),
                     "sequence": {"grid_plan": grid_role} if grid_role else None,
-                    **self._autofocus_wdg.value(),
+                    "z_device": z_device,
+                    "use_one_shot_focus": use_af,
                 }
             )
 
