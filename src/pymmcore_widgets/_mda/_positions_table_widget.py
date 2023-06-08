@@ -68,6 +68,28 @@ GRID = 5
 AlignCenter = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
 
 
+class _DoubleSpinBox(QDoubleSpinBox):
+    """DoubleSpinBox with context menu to apply value to all positions."""
+
+    def __init__(self, table: QTableWidget, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        self._table = table
+
+    def contextMenuEvent(self, event) -> None:  # type: ignore
+        context_menu = QMenu(self)
+        action = QAction("Apply to all", self)
+        action.triggered.connect(self._apply_to_all)
+        context_menu.addAction(action)
+        context_menu.exec_(self.mapToGlobal(event.pos()))
+
+    def _apply_to_all(self) -> None:
+        for r in range(self._table.rowCount()):
+            self._table.cellWidget(r, self._table.currentColumn()).setValue(
+                self.value()
+            )
+
+
 class PositionTable(QWidget):
     """Widget providing options for setting up a multi-position acquisition.
 
@@ -396,9 +418,10 @@ class PositionTable(QWidget):
     def _add_table_value(
         self, value: float | None, row: int | None, col: int | None
     ) -> None:
+        # TODO: disable cells if value is none
         if value is None or row is None or col is None:
             return
-        spin = QDoubleSpinBox()
+        spin = _DoubleSpinBox(self._table) if col in {Z, AF} else QDoubleSpinBox()
         spin.setAlignment(AlignCenter)
         spin.setMaximum(1000000.0)
         spin.setMinimum(-1000000.0)
