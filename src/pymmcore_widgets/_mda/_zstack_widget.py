@@ -298,7 +298,6 @@ class ZStackWidget(QWidget):
         """
         value = cast("ZPicker", self._zmode_tabs.currentWidget()).value()
         value["step"] = self._zstep_spinbox.value()
-        value["z_device"] = self._mmc.getFocusDevice() or None
         return value
 
     def n_images(self) -> int:

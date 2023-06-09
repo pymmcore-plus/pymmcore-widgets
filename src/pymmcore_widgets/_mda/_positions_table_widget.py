@@ -53,9 +53,6 @@ if TYPE_CHECKING:
         x: float | None
         y: float | None
         z: float | None
-        z_device: str | None
-        z_autofocus: float | None
-        z_autofocus_device: bool
         name: str | None
         sequence: MDASequence | None
         properties: PropertyTuple | None
@@ -684,10 +681,17 @@ class PositionTable(QWidget):
                     "x": self._get_table_value(row, X),
                     "y": self._get_table_value(row, Y),
                     "z": self._get_table_value(row, Z),
-                    "z_device": self._mmc.getFocusDevice(),
-                    "z_autofocus": self._get_table_value(row, AF),
-                    "z_autofocus_device": self._get_af_device(),
                     "sequence": {"grid_plan": grid_role} if grid_role else None,
+                    "properties": [
+                        ("z_device", "device_name", self._mmc.getFocusDevice()),
+                        ("z_autofocus_device", "device_name", self._get_af_device()),
+                        (
+                            "z_autofocus_device",
+                            "position",
+                            self._get_table_value(row, AF),
+                        ),
+                        ("z_autofocus_device", "state", self._use_af()),
+                    ],
                 }
             )
 
@@ -727,11 +731,12 @@ class PositionTable(QWidget):
                 continue
 
             name = position.get("name")
-            x, y = (position.get("x"), position.get("y"))
-            z, z_af = (position.get("z"), position.get("z_autofocus"))
+            x, y, z = (position.get("x"), position.get("y"), position.get("z"))
 
-            z_device = position.get("z_device", None)
-            z_autofocus_device = position.get("z_autofocus_device", None)
+            props = cast(list[PropertyTuple], position.get("properties")) or None
+            z_device, z_autofocus_device, z_af, use_af = self._get_properties_values(
+                props
+            )
 
             # check that all positions have the same z_device and/or one_shot_focus
             # key values. If not, raise error.
@@ -756,7 +761,7 @@ class PositionTable(QWidget):
                 )
 
             self._autofocus_wdg.setValue(
-                {"device_name": z_autofocus_device, "use_autofocus": True}
+                {"device_name": z_autofocus_device, "use_autofocus": use_af or False}
             )
 
             self._add_table_row(name or f"{POS}000", x, y, z, z_af)
@@ -804,6 +809,36 @@ class PositionTable(QWidget):
     def _use_af(self) -> bool:
         """Return the autofocus checkbox state."""
         return self._autofocus_wdg.value()["use_autofocus"]  # type: ignore
+
+    def _get_properties_values(
+        self, properties: list[PropertyTuple] | None
+    ) -> tuple[str | None, str | None, float | None, bool | None]:
+        """Get the values of the properties that are used for one_shot autofocus."""
+        z_device, z_af_device, z_af, use_af = None, None, None, None
+
+        if not properties:
+            return z_device, z_af_device, z_af, use_af
+
+        for prop in properties:
+            if prop.device_name == "z_device" and prop.property_name == "device_name":
+                z_device = prop.property_value
+            elif (
+                prop.device_name == "z_autofocus_device"
+                and prop.property_name == "device_name"
+            ):
+                z_af_device = prop.property_value
+            elif (
+                prop.device_name == "z_autofocus_device"
+                and prop.property_name == "position"
+            ):
+                z_af = prop.property_value
+            elif (
+                prop.device_name == "z_autofocus_device"
+                and prop.property_name == "state"
+            ):
+                use_af = prop.property_value
+
+        return z_device, z_af_device, z_af, use_af
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
