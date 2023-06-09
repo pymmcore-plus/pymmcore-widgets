@@ -37,6 +37,7 @@ from useq import (
     MDASequence,
     NoGrid,
     Position,
+    PropertyTuple,
 )
 
 from .._util import get_grid_type
@@ -53,9 +54,11 @@ if TYPE_CHECKING:
         y: float | None
         z: float | None
         z_device: str | None
-        use_one_shot_focus: bool
+        z_autofocus: float | None
+        z_autofocus_device: bool
         name: str | None
         sequence: MDASequence | None
+        properties: PropertyTuple | None
 
 
 POS = "Pos"
@@ -250,10 +253,9 @@ class PositionTable(QWidget):
             bool(self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice))
         )
         advanced = self._advanced_cbox.isChecked()
-        use_af = self._autofocus_wdg.value()["use_one_shot_focus"]
         self._table.setColumnHidden(GRID, not advanced)
-        self._table.setColumnHidden(AF, not use_af)
-        self._enable_table_z_doublespinbox()
+        self._table.setColumnHidden(AF, not self._use_af())
+        # self._enable_table_z_doublespinbox()
 
     def _on_property_changed(self, device: str, prop: str, value: str) -> None:
         # TODO: add 'propertyChanged.emit()' to pymmcore-plus setProperty() methods
@@ -281,7 +283,7 @@ class PositionTable(QWidget):
                 self._table.removeCellWidget(r, idx)
 
             # rename column header with default ZStage or Autofocus
-            if idx not in {Z, AF} or self._autofocus_wdg.value()["use_one_shot_focus"]:
+            if idx not in {Z, AF} or not self._use_af():
                 continue
             name = self._mmc.getFocusDevice() if idx == Z else "Autofocus"
             self._table.setHorizontalHeaderItem(idx, QTableWidgetItem(name))
@@ -317,9 +319,9 @@ class PositionTable(QWidget):
     def _on_autofocus_value_changed(
         self, value: dict[str, bool | (str | None)]
     ) -> None:
-        use_af = value["use_one_shot_focus"]
-        self._table.setColumnHidden(AF, not use_af)
-        self._table.setHorizontalHeaderItem(AF, QTableWidgetItem(value["z_device"]))
+        self._table.setColumnHidden(AF, not self._use_af())
+        if z_device := self._get_af_device():
+            self._table.setHorizontalHeaderItem(AF, QTableWidgetItem(z_device))
 
         # if the signal is sent from the autofocus checkbox, do not delete cell widgets
         if not isinstance(self.sender().sender(), QCheckBox):
@@ -327,14 +329,13 @@ class PositionTable(QWidget):
             for r in range(self._table.rowCount()):
                 self._table.removeCellWidget(r, AF)
 
-        self._enable_table_z_doublespinbox()
+        # self._enable_table_z_doublespinbox()
 
-    def _enable_table_z_doublespinbox(self) -> None:
-        """Enable the Z doublespinbox depending on autofocus checkbox and value."""
-        use_af = self._autofocus_wdg.value()["use_one_shot_focus"]
-        for r in range(self._table.rowCount()):
-            with contextlib.suppress(AttributeError):
-                self._table.cellWidget(r, Z).setEnabled(not use_af)
+    # def _enable_table_z_doublespinbox(self) -> None:
+    #     """Enable the Z doublespinbox depending on autofocus checkbox and value."""
+    #     for r in range(self._table.rowCount()):
+    #         with contextlib.suppress(AttributeError):
+    #             self._table.cellWidget(r, Z).setEnabled(not self._use_af())
 
     def _on_advanced_toggled(self, state: bool) -> None:
         self._table.setColumnHidden(GRID, not state)
@@ -365,11 +366,9 @@ class PositionTable(QWidget):
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
-        z_device = cast("str", self._autofocus_wdg.value()["z_device"])
+        z_device = self._get_af_device()
         z_pos_autofocus = (
-            self._mmc.getPosition(z_device)
-            if z_device and self._autofocus_wdg.value()["use_one_shot_focus"]
-            else None
+            self._mmc.getPosition(z_device) if z_device and self._use_af() else None
         )
 
         if z_pos_autofocus is not None and not self._mmc.isContinuousFocusLocked():
@@ -401,7 +400,7 @@ class PositionTable(QWidget):
 
         self._add_grid_buttons(row, GRID)
 
-        self._enable_table_z_doublespinbox()
+        # self._enable_table_z_doublespinbox()
 
         self.valueChanged.emit()
 
@@ -589,7 +588,7 @@ class PositionTable(QWidget):
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
-        z_device = cast("str", self._autofocus_wdg.value()["z_device"])
+        z_device = self._get_af_device()
         z_pos_autofocus = self._mmc.getPosition(z_device) if z_device else None
 
         self._add_table_row(name, xpos, ypos, zpos, z_pos_autofocus, rows[0])
@@ -644,21 +643,21 @@ class PositionTable(QWidget):
             return
         curr_row = self._table.currentRow()
         x, y = (self._get_table_value(curr_row, X), self._get_table_value(curr_row, Y))
-
-        z_device = cast("str", self._autofocus_wdg.value()["z_device"])
-        use_one_shot_focus = self._autofocus_wdg.value()["use_one_shot_focus"]
-        z_col_idx = AF if use_one_shot_focus else Z
+        z_device = self._get_af_device()
+        z_col_idx = AF if self._use_af() else Z
         z = self._get_table_value(curr_row, z_col_idx)
 
         if x and y:
             self._mmc.setXYPosition(x, y)
-        if use_one_shot_focus and z_device and z is not None:
+        if self._use_af() and z_device and z is not None:
             self._mmc.setPosition(z_device, z)
             self._mmc.fullFocus()
         elif self._mmc.getFocusDevice() and z is not None:
             self._mmc.setPosition(self._mmc.getFocusDevice(), z)
 
     def _get_table_value(self, row: int, col: int | None) -> float | None:
+        if self._table.isColumnHidden(col):
+            return None
         try:
             wdg = cast(QDoubleSpinBox, self._table.cellWidget(row, col))
             value = wdg.value()
@@ -679,16 +678,16 @@ class PositionTable(QWidget):
 
         for row in range(self._table.rowCount()):
             grid_role = self._table.item(row, P).data(self.GRID_ROLE)
-            use_af = self._autofocus_wdg.value().get("use_one_shot_focus")
-            z_col_idx = AF if use_af else Z
             values.append(
                 {
                     "name": self._table.item(row, P).text(),
                     "x": self._get_table_value(row, X),
                     "y": self._get_table_value(row, Y),
-                    "z": self._get_table_value(row, z_col_idx),
+                    "z": self._get_table_value(row, Z),
+                    "z_device": self._mmc.getFocusDevice(),
+                    "z_autofocus": self._get_table_value(row, AF),
+                    "z_autofocus_device": self._get_af_device(),
                     "sequence": {"grid_plan": grid_role} if grid_role else None,
-                    **self._autofocus_wdg.value(),
                 }
             )
 
@@ -718,7 +717,7 @@ class PositionTable(QWidget):
             raise ValueError("No XY and Z Stage devices loaded.")
 
         z_devicies = set()
-        use_af = set()
+        z_af_devicies = set()
         rows = set(range(self._table.rowCount()))
         for position in positions:
             if isinstance(position, Position):
@@ -728,16 +727,17 @@ class PositionTable(QWidget):
                 continue
 
             name = position.get("name")
-            x, y, z = (position.get("x"), position.get("y"), position.get("z"))
+            x, y = (position.get("x"), position.get("y"))
+            z, z_af = (position.get("z"), position.get("z_autofocus"))
 
             z_device = position.get("z_device", None)
-            use_one_shot_focus = position.get("use_one_shot_focus", False)
+            z_autofocus_device = position.get("z_autofocus_device", None)
 
-            # check that all positions have the same z_device and/or use_one_shot_focus
+            # check that all positions have the same z_device and/or one_shot_focus
             # key values. If not, raise error.
             z_devicies.add(z_device)
-            use_af.add(use_one_shot_focus)
-            if len(z_devicies) > 1 or len(use_af) > 1:
+            z_af_devicies.add(z_autofocus_device)
+            if len(z_devicies) > 1 or len(z_af_devicies) > 1:
                 if clear:
                     self.clear()
                 else:
@@ -747,31 +747,19 @@ class PositionTable(QWidget):
                         self._table.removeRow(r)
 
                 self._autofocus_wdg.setValue(
-                    {"z_device": "", "use_one_shot_focus": False}
+                    {"device_name": None, "use_autofocus": False}
                 )
 
                 raise ValueError(
                     "Each position must have the same 'z_device' and/or "
-                    "'use_one_shot_focus' key values."
+                    "'one_shot_focus' key values."
                 )
-
-            if use_one_shot_focus and z_device:
-                z, af = (None, z)
-            elif use_one_shot_focus:  # and not z_device
-                z, af = (None, None)
-                use_one_shot_focus = False
-                warnings.warn(
-                    "z position not added, missing 'z_device' key.", stacklevel=1
-                )
-            else:
-                z, af = (z, None)
-                use_one_shot_focus = False
 
             self._autofocus_wdg.setValue(
-                {"z_device": z_device, "use_one_shot_focus": use_one_shot_focus}
+                {"device_name": z_autofocus_device, "use_autofocus": True}
             )
 
-            self._add_table_row(name or f"{POS}000", x, y, z, af)
+            self._add_table_row(name or f"{POS}000", x, y, z, z_af)
 
             if pos_seq := position.get("sequence"):
                 self._advanced_cbox.setChecked(True)
@@ -808,6 +796,14 @@ class PositionTable(QWidget):
 
             with open(filename) as file:
                 self.set_state(json.load(file))
+
+    def _get_af_device(self) -> str | None:
+        """Return the autofocus device name."""
+        return self._autofocus_wdg.value()["device_name"]  # type: ignore
+
+    def _use_af(self) -> bool:
+        """Return the autofocus checkbox state."""
+        return self._autofocus_wdg.value()["use_autofocus"]  # type: ignore
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)

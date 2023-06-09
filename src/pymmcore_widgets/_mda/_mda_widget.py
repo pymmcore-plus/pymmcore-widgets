@@ -15,7 +15,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import MDASequence, NoGrid, NoT, NoZ
+from useq import MDASequence, NoGrid, NoT, NoZ, PropertyTuple
 
 from .._util import fmt_timedelta, guess_channel_group
 from ._channel_table_widget import ChannelTable
@@ -36,9 +36,11 @@ if TYPE_CHECKING:
         y: float | None
         z: float | None
         z_device: str | None
-        use_one_shot_focus: bool
+        z_autofocus: float | None
+        z_autofocus_device: bool
         name: str | None
         sequence: MDASequence | None
+        properties: PropertyTuple | None
 
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)

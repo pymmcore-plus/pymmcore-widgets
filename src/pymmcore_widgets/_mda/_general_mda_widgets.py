@@ -157,11 +157,7 @@ class _AutofocusZDeviceWidget(QWidget):
         self._on_sys_cfg_loaded()
 
     def _on_sys_cfg_loaded(self) -> None:
-        self._autofocus_device = self._mmc.getAutoFocusDevice() or ""
-        self._autofocus_checkbox.setText(
-            f"Use {self._autofocus_device or 'Autofocus Device'}"
-        )
-        self._autofocus_label = QLabel(f"{self._autofocus_device} Z Device:")
+        self._update_labels()
         self._autofocus_checkbox.setEnabled(bool(self._mmc.getAutoFocusDevice()))
         self._on_checkbox_toggled(self._autofocus_checkbox.isChecked())
         items = list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
@@ -176,17 +172,19 @@ class _AutofocusZDeviceWidget(QWidget):
                 self._autofocus_device_combo.setCurrentText(i)
                 break
 
-    def _on_property_changed(self, device: str, prop: str, value: str) -> None:
-        if device != "Core" and prop != "Autofocus":
-            return
-        self._autofocus_checkbox.setChecked(False)
-        self._autofocus_checkbox.setEnabled(bool(value))
-
+    def _update_labels(self) -> None:
         self._autofocus_device = self._mmc.getAutoFocusDevice() or ""
         self._autofocus_checkbox.setText(
             f"Use {self._autofocus_device or 'Autofocus Device'}"
         )
         self._autofocus_label = QLabel(f"{self._autofocus_device} Z Device:")
+
+    def _on_property_changed(self, device: str, prop: str, value: str) -> None:
+        if device != "Core" and prop != "Autofocus":
+            return
+        self._autofocus_checkbox.setChecked(False)
+        self._autofocus_checkbox.setEnabled(bool(value))
+        self._update_labels()
 
     def _on_checkbox_toggled(self, checked: bool) -> None:
         if not self._mmc.getAutoFocusDevice():
@@ -202,13 +200,13 @@ class _AutofocusZDeviceWidget(QWidget):
     def value(self) -> dict[str, bool | str | None]:
         """Return in a dict the autofocus checkbox state and the autofocus z_device."""
         return {
-            "z_device": (
+            "device_name": (
                 self._autofocus_device_combo.currentText()
                 if self._autofocus_checkbox.isChecked()
                 and self._mmc.getAutoFocusDevice()
-                else self._mmc.getFocusDevice() or None
+                else None
             ),
-            "use_one_shot_focus": (
+            "use_autofocus": (
                 self._autofocus_checkbox.isChecked()
                 if self._mmc.getAutoFocusDevice()
                 else False
@@ -221,9 +219,9 @@ class _AutofocusZDeviceWidget(QWidget):
             self._selector_wdg.hide()
             return
 
-        self._autofocus_checkbox.setChecked(value.get("use_one_shot_focus", False))
-        if value.get("z_device") is not None:
-            self._autofocus_device_combo.setCurrentText(value.get("z_device"))
+        self._autofocus_checkbox.setChecked(value.get("use_autofocus", False))
+        if value.get("device_name") is not None:
+            self._autofocus_device_combo.setCurrentText(value.get("device_name"))
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
