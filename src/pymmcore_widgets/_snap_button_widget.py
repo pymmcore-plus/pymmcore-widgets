@@ -100,20 +100,18 @@ class SnapButton(QPushButton):
             _is_multiShutter = bool([x for x in props if "Physical Shutter" in x])
             autoshutter = self._mmc.getAutoShutter()
             if autoshutter:
+                self._mmc.events.propertyChanged.emit(
+                    self._mmc.getShutterDevice(), "State", True
+                )
                 if _is_multiShutter:
                     self._update_multishutter(True)
-                else:
-                    self._mmc.events.propertyChanged.emit(
-                        self._mmc.getShutterDevice(), "State", True
-                    )
             self._mmc.snap()
             if autoshutter:
+                self._mmc.events.propertyChanged.emit(
+                    self._mmc.getShutterDevice(), "State", False
+                )
                 if _is_multiShutter:
                     self._update_multishutter(False)
-                else:
-                    self._mmc.events.propertyChanged.emit(
-                        self._mmc.getShutterDevice(), "State", False
-                    )
 
         create_worker(snap_with_shutter, _start_thread=True)
 
