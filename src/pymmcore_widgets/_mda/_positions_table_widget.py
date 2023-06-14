@@ -55,7 +55,7 @@ if TYPE_CHECKING:
         z: float | None
         name: str | None
         sequence: MDASequence | None
-        properties: PropertyTuple | None
+        properties: list[PropertyTuple] | None
 
 
 POS = "Pos"
@@ -733,7 +733,13 @@ class PositionTable(QWidget):
             name = position.get("name")
             x, y, z = (position.get("x"), position.get("y"), position.get("z"))
 
-            props = cast(list[PropertyTuple], position.get("properties")) or None
+            props = position.get("properties") or None
+
+            # convert props to list of PropertyTuple if list of lists/tuples
+            if props and isinstance(props[0], (list, tuple)):
+                for idx, p in enumerate(props):
+                    props[idx] = PropertyTuple(*p)
+
             z_device, z_autofocus_device, z_af, use_af = self._get_properties_values(
                 props
             )
