@@ -75,6 +75,16 @@ class SnapButton(QPushButton):
         self.setIconSize(QSize(30, 30))
         self.clicked.connect(self._snap)
 
+    def _update_multishutter(self, state: bool) -> None:
+        """Update the state of every shutter in the Multi Shutter device."""
+        for i in range(1, 6):
+            value = self._mmc.getProperty(
+                self._mmc.getShutterDevice(), f"Physical Shutter {i}"
+            )
+            if value == "Undefined":
+                continue
+            self._mmc.events.propertyChanged.emit(value, "State", state)
+
     def _snap(self) -> None:
         if self._mmc.isSequenceRunning():
             self._mmc.stopSequenceAcquisition()
@@ -90,31 +100,16 @@ class SnapButton(QPushButton):
             _is_multiShutter = bool([x for x in props if "Physical Shutter" in x])
             autoshutter = self._mmc.getAutoShutter()
             if autoshutter:
-
                 if _is_multiShutter:
-                    for i in range(1, 6):
-                        value = self._mmc.getProperty(
-                            self._mmc.getShutterDevice(), f"Physical Shutter {i}"
-                        )
-                        if value == "Undefined":
-                            continue
-                        self._mmc.events.propertyChanged.emit(value, "State", True)
-
+                    self._update_multishutter(True)
                 else:
                     self._mmc.events.propertyChanged.emit(
                         self._mmc.getShutterDevice(), "State", True
                     )
-
             self._mmc.snap()
             if autoshutter:
                 if _is_multiShutter:
-                    for i in range(1, 6):
-                        value = self._mmc.getProperty(
-                            self._mmc.getShutterDevice(), f"Physical Shutter {i}"
-                        )
-                        if value == "Undefined":
-                            continue
-                        self._mmc.events.propertyChanged.emit(value, "State", False)
+                    self._update_multishutter(False)
                 else:
                     self._mmc.events.propertyChanged.emit(
                         self._mmc.getShutterDevice(), "State", False
