@@ -86,16 +86,39 @@ class SnapButton(QPushButton):
             This is necessary as not all shutter devices properly
             send signals as they are opened and closed.
             """
+            props = self._mmc.getDevicePropertyNames(self._mmc.getShutterDevice())
+            _is_multiShutter = bool([x for x in props if "Physical Shutter" in x])
             autoshutter = self._mmc.getAutoShutter()
             if autoshutter:
-                self._mmc.events.propertyChanged.emit(
-                    self._mmc.getShutterDevice(), "State", True
-                )
+
+                if _is_multiShutter:
+                    for i in range(1, 6):
+                        value = self._mmc.getProperty(
+                            self._mmc.getShutterDevice(), f"Physical Shutter {i}"
+                        )
+                        if value == "Undefined":
+                            continue
+                        self._mmc.events.propertyChanged.emit(value, "State", True)
+
+                else:
+                    self._mmc.events.propertyChanged.emit(
+                        self._mmc.getShutterDevice(), "State", True
+                    )
+
             self._mmc.snap()
             if autoshutter:
-                self._mmc.events.propertyChanged.emit(
-                    self._mmc.getShutterDevice(), "State", False
-                )
+                if _is_multiShutter:
+                    for i in range(1, 6):
+                        value = self._mmc.getProperty(
+                            self._mmc.getShutterDevice(), f"Physical Shutter {i}"
+                        )
+                        if value == "Undefined":
+                            continue
+                        self._mmc.events.propertyChanged.emit(value, "State", False)
+                else:
+                    self._mmc.events.propertyChanged.emit(
+                        self._mmc.getShutterDevice(), "State", False
+                    )
 
         create_worker(snap_with_shutter, _start_thread=True)
 
