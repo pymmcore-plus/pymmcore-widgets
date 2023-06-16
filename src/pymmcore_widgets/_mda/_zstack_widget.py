@@ -8,7 +8,6 @@ from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QDoubleSpinBox,
     QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -202,13 +201,23 @@ class ZAboveBelowSelect(QWidget):
         return self._above_spinbox.value() + self._below_spinbox.value()  # type: ignore
 
 
-class ZStackWidget(QGroupBox):
+class ZStackWidget(QWidget):
     """Widget providing options for setting up a z-stack range and step size.
 
     Each tab represents a different way of specifying a z-stack range. The `value()`
     method returns a dictionary with the current state of the widget, in a format that
     matches one of the [useq-schema Z Plan
     specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans).
+
+    Parameters
+    ----------
+    parent : QWidget | None
+        Optional parent widget, by default None.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
     valueChanged = Signal(dict)
@@ -218,13 +227,11 @@ class ZStackWidget(QGroupBox):
 
     def __init__(
         self,
-        title: str = "Z Stack",
         parent: QWidget | None = None,
         *,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
-        super().__init__(title, parent=parent)
-        self.setCheckable(True)
+        super().__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
         self._mmc = mmcore or CMMCorePlus.instance()
@@ -283,10 +290,10 @@ class ZStackWidget(QGroupBox):
         self.valueChanged.emit(self.value())
 
     def value(self) -> dict:
-        """Return the current z-stack settings.
+        """Return the current z-stack settings as a dictionary.
 
-        Note that output dict will match one of the Z plans from useq schema:
-        <https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans>
+        Note that the output will match one of the [useq-schema Z Plan
+        specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans).
         """
         value = cast("ZPicker", self._zmode_tabs.currentWidget()).value()
         value["step"] = self._zstep_spinbox.value()
@@ -299,7 +306,14 @@ class ZStackWidget(QGroupBox):
         return int(round((_range / step) + 1))
 
     def set_state(self, z_plan: dict) -> None:
-        """Set the state of the widget from a dictionary."""
+        """Set the state of the widget.
+
+        Parameters
+        ----------
+        z_plan : dict
+            A dictionary following the [useq-schema Z Plan specifications](
+            https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans).
+        """
         tabs = self._zmode_tabs
         wdg: ZPicker
         if "top" in z_plan and "bottom" in z_plan:
@@ -316,9 +330,6 @@ class ZStackWidget(QGroupBox):
             wdg = cast(ZRangeAroundSelect, tabs.findChild(ZRangeAroundSelect))
             wdg._zrange_spinbox.setValue(z_plan["range"])
             tabs.setCurrentWidget(wdg)
-
-        disabled = set(z_plan).isdisjoint({"top", "bottom", "above", "below", "range"})
-        self.setChecked(not disabled)
 
         if "step" in z_plan:
             self._zstep_spinbox.setValue(z_plan["step"])

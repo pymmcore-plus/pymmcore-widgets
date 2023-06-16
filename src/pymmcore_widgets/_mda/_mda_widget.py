@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+from qtpy.QtWidgets import QGroupBox, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 from useq import MDASequence
 
 from .._util import fmt_timedelta, guess_channel_group
@@ -75,22 +75,15 @@ class MDAWidget(QWidget):
         self._include_run_button = include_run_button
 
         # Widgets for Channels, Time, ZStack, and Positions in the Scroll Area
-        self.channel_groupbox = ChannelTable()
-        self.channel_groupbox.valueChanged.connect(self._enable_run_btn)
-        self.channel_groupbox._advanced_cbox.toggled.connect(self._update_total_time)
+        self.channel_wdg = ChannelTable()
+        self.time_wdg = TimePlanWidget()
+        self.stack_wdg = ZStackWidget()
+        self.position_wdg = PositionTable()
 
-        self.time_groupbox = TimePlanWidget()
-        self.time_groupbox.setChecked(False)
-        self.time_groupbox.toggled.connect(self._update_total_time)
-        self.time_groupbox.toggled.connect(self._on_time_toggled)
-
-        self.stack_groupbox = ZStackWidget()
-        self.stack_groupbox.setChecked(False)
-        self.stack_groupbox.toggled.connect(self._update_total_time)
-
-        self.position_groupbox = PositionTable()
-        self.position_groupbox.setChecked(False)
-        self.position_groupbox.toggled.connect(self._update_total_time)
+        self.ch_wdg = self._wdg_as_groupbox(self.channel_wdg, "Channels")
+        self.t_wdg = self._wdg_as_groupbox(self.time_wdg, "Time")
+        self.z_wdg = self._wdg_as_groupbox(self.stack_wdg, "Z Stack")
+        self.p_wdg = self._wdg_as_groupbox(self.position_wdg, "Positions")
 
         # below the scroll area, some feedback widgets and buttons
         self.time_lbl = _MDATimeLabel()
@@ -105,10 +98,11 @@ class MDAWidget(QWidget):
         central_layout = QVBoxLayout()
         central_layout.setSpacing(20)
         central_layout.setContentsMargins(10, 10, 10, 10)
-        central_layout.addWidget(self.channel_groupbox)
-        central_layout.addWidget(self.time_groupbox)
-        central_layout.addWidget(self.stack_groupbox)
-        central_layout.addWidget(self.position_groupbox)
+        # TO BE CHANGED WHEN SWITCHING TO A MDA WITH TABS
+        central_layout.addWidget(self.ch_wdg)
+        central_layout.addWidget(self.t_wdg)
+        central_layout.addWidget(self.z_wdg)
+        central_layout.addWidget(self.p_wdg)
         self._central_widget = QWidget()
         self._central_widget.setLayout(central_layout)
 
@@ -128,12 +122,14 @@ class MDAWidget(QWidget):
 
         self.buttons_wdg.pause_button.released.connect(self._mmc.mda.toggle_pause)
         self.buttons_wdg.cancel_button.released.connect(self._mmc.mda.cancel)
+        # connect channel wdg
+        self.channel_wdg.valueChanged.connect(self._enable_run_btn)
+        self.channel_wdg._advanced_cbox.toggled.connect(self._update_total_time)
         # connect valueUpdated signal
-        self.channel_groupbox.valueChanged.connect(self._update_total_time)
-        self.stack_groupbox.valueChanged.connect(self._update_total_time)
-        self.time_groupbox.valueChanged.connect(self._update_total_time)
-        self.time_groupbox.toggled.connect(self._update_total_time)
-        self.position_groupbox.valueChanged.connect(self._update_total_time)
+        self.channel_wdg.valueChanged.connect(self._update_total_time)
+        self.stack_wdg.valueChanged.connect(self._update_total_time)
+        self.time_wdg.valueChanged.connect(self._update_total_time)
+        self.position_wdg.valueChanged.connect(self._update_total_time)
         # connect mmcore signals
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
@@ -146,17 +142,28 @@ class MDAWidget(QWidget):
 
         self._on_sys_cfg_loaded()
 
+    def _wdg_as_groupbox(self, widget: QWidget, title: str) -> QGroupBox:
+        wdg = QGroupBox(title=title)
+        wdg.setCheckable(True)
+        wdg.setChecked(False)
+        wdg_layout = QVBoxLayout()
+        wdg_layout.setContentsMargins(10, 10, 10, 10)
+        wdg_layout.setSpacing(0)
+        wdg.setLayout(wdg_layout)
+        wdg_layout.addWidget(widget)
+        return wdg
+
     def _on_sys_cfg_loaded(self) -> None:
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
-        self.channel_groupbox.clear()
+        self.channel_wdg.clear()
 
     def _set_enabled(self, enabled: bool) -> None:
-        self.time_groupbox.setEnabled(enabled)
+        self.time_wdg.setEnabled(enabled)
         self.buttons_wdg.acquisition_order_comboBox.setEnabled(enabled)
-        self.channel_groupbox.setEnabled(enabled)
-        self.position_groupbox.setEnabled(enabled)
-        self.stack_groupbox.setEnabled(enabled)
+        self.channel_wdg.setEnabled(enabled)
+        self.position_wdg.setEnabled(enabled)
+        self.stack_wdg.setEnabled(enabled)
 
     def _on_mda_started(self) -> None:
         self._set_enabled(False)
@@ -196,28 +203,28 @@ class MDAWidget(QWidget):
 
         # set channel table
         if state.channels:
-            self.channel_groupbox.set_state([c.dict() for c in state.channels])
+            self.channel_wdg.set_state([c.dict() for c in state.channels])
 
-        # set Z
+        # set z stack
         if state.z_plan:
-            self.stack_groupbox.setChecked(True)
-            self.stack_groupbox.set_state(state.z_plan.dict())
+            self.z_wdg.setChecked(True)
+            self.stack_wdg.set_state(state.z_plan.dict())
         else:
-            self.stack_groupbox.setChecked(False)
+            self.z_wdg.setChecked(False)
 
         # set time
         if state.time_plan:
-            self.time_groupbox.setChecked(True)
-            self.time_groupbox.set_state(state.time_plan.dict())
+            self.t_wdg.setChecked(True)
+            self.time_wdg.set_state(state.time_plan.dict())
         else:
-            self.time_groupbox.setChecked(False)
+            self.t_wdg.setChecked(False)
 
         # set stage positions
         if state.stage_positions:
-            self.position_groupbox.setChecked(True)
-            self.position_groupbox.set_state(list(state.stage_positions))
+            self.p_wdg.setChecked(True)
+            self.position_wdg.set_state(list(state.stage_positions))
         else:
-            self.position_groupbox.setChecked(False)
+            self.p_wdg.setChecked(False)
 
     def get_state(self) -> MDASequence:
         """Get current state of widget and build a useq.MDASequence.
@@ -226,18 +233,14 @@ class MDAWidget(QWidget):
         -------
         useq.MDASequence
         """
-        channels = self.channel_groupbox.value()
+        channels = self.channel_wdg.value()
 
-        z_plan = (
-            self.stack_groupbox.value() if self.stack_groupbox.isChecked() else None
-        )
-        time_plan = (
-            self.time_groupbox.value() if self.time_groupbox.isChecked() else None
-        )
+        z_plan = self.stack_wdg.value() if self.z_wdg.isChecked() else None
+        time_plan = self.time_wdg.value() if self.t_wdg.isChecked() else None
 
         stage_positions: list[PositionDict] = []
-        if self.position_groupbox.isChecked():
-            for p in self.position_groupbox.value():
+        if self.p_wdg.isChecked():
+            for p in self.position_wdg.value():
                 if p.get("sequence"):
                     p_sequence = MDASequence(**p.get("sequence"))  # type: ignore
                     p_sequence = p_sequence.replace(
@@ -281,20 +284,18 @@ class MDAWidget(QWidget):
         return
 
     def _enable_run_btn(self) -> None:
-        self.buttons_wdg.run_button.setEnabled(
-            self.channel_groupbox._table.rowCount() > 0
-        )
+        self.buttons_wdg.run_button.setEnabled(self.channel_wdg._table.rowCount() > 0)
 
     def _on_time_toggled(self, checked: bool) -> None:
         """Hide the warning if the time groupbox is unchecked."""
-        if not checked and self.time_groupbox._warning_widget.isVisible():
-            self.time_groupbox.setWarningVisible(False)
+        if not checked and self.time_wdg._warning_widget.isVisible():
+            self.time_wdg.setWarningVisible(False)
         else:
             self._update_total_time()
 
     def _update_total_time(self) -> None:
         """Calculate the minimum total acquisition time info."""
-        if not self.channel_groupbox.value():
+        if not self.channel_wdg.value():
             self.time_lbl._total_time_lbl.setText(
                 "Minimum total acquisition time: 0 sec."
             )
@@ -309,13 +310,13 @@ class MDAWidget(QWidget):
                 continue
 
             total_time = total_time + (e.exposure / 1000)
-            if self.time_groupbox.isChecked() and self.time_groupbox.value():
+            if self.t_wdg.isChecked() and self.time_wdg.value():
                 _t = e.index["t"]
                 _exp = e.exposure / 1000
                 _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp
 
         if _per_timepoints:
-            time_value = self.time_groupbox.value()
+            time_value = self.time_wdg.value()
 
             intervals = []
             for phase in time_value["phases"]:  # type: ignore
@@ -327,15 +328,15 @@ class MDAWidget(QWidget):
             # check if the interval(s) is smaller than the sum of the exposure times
             sum_ch_exp = sum(
                 (c["exposure"] / 1000)
-                for c in self.channel_groupbox.value()
+                for c in self.channel_wdg.value()
                 if c["exposure"] is not None
             )
             for i in intervals:
                 if 0 < i < sum_ch_exp:
-                    self.time_groupbox.setWarningVisible(True)
+                    self.time_wdg.setWarningVisible(True)
                     break
                 else:
-                    self.time_groupbox.setWarningVisible(False)
+                    self.time_wdg.setWarningVisible(False)
 
             # group by time
             _group_by_time: dict[float, list[int]] = {
@@ -354,7 +355,7 @@ class MDAWidget(QWidget):
                 acq_min = timedelta(seconds=min(_per_timepoints.values()))
                 t_per_tp_msg = (
                     f"\n{t_per_tp_msg}{fmt_timedelta(acq_min)}"
-                    if self.time_groupbox.isChecked() and self.time_groupbox.value()
+                    if self.t_wdg.isChecked() and self.time_wdg.value()
                     else ""
                 )
         else:

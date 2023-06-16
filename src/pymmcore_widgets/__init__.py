@@ -20,7 +20,6 @@ from ._mda import (
     GridWidget,
     MDAWidget,
     PositionTable,
-    SampleExplorerWidget,
     TimePlanWidget,
     ZStackWidget,
 )
@@ -55,7 +54,6 @@ __all__ = [
     "PropertiesWidget",
     "PropertyBrowser",
     "PropertyWidget",
-    "SampleExplorerWidget",
     "ShuttersWidget",
     "SnapButton",
     "StageWidget",
