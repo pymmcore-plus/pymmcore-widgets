@@ -118,18 +118,15 @@ class MDAWidget(QWidget):
         self.grid_widget.setFixedHeight(self.grid_widget.sizeHint().height())
 
         # place widgets in a QWidget to control tab layout content margins
-        ch = self._make_qwidget(self.channel_widget)
-        z = self._make_qwidget(self.stack_widget, True)
-        p = self._make_qwidget(self.position_widget)
-        t = self._make_qwidget(self.time_widget)
-        g = self._make_qwidget(self.grid_widget, True)
-
-        # add tabs to the tab widget
-        self._tab.addTab(ch, "Channels")
-        self._tab.addTab(z, "Z Stack")
-        self._tab.addTab(p, "Positions")
-        self._tab.addTab(t, "Time")
-        self._tab.addTab(g, "Grid")
+        wdgs = [
+            (self.channel_widget, "Channels"),
+            (self.stack_widget, "Z Stack"),
+            (self.position_widget, "Positions"),
+            (self.time_widget, "Time"),
+            (self.grid_widget, "Grid"),
+        ]
+        for w, n in wdgs:
+            self._tab.addTab(self._make_qwidget(w), n)
 
         # assign checkboxes to a variable
         self.ch_cbox = self._get_checkbox(0)
