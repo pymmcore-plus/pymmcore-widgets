@@ -119,18 +119,15 @@ class MDAWidget(QWidget):
         self.grid_widget.setFixedHeight(self.grid_widget.sizeHint().height())
 
         # place widgets in a QWidget to control tab layout content margins
-        ch = self._make_qwidget(self.channel_widget)
-        z = self._make_qwidget(self.stack_widget, True)
-        p = self._make_qwidget(self.position_widget)
-        t = self._make_qwidget(self.time_widget)
-        g = self._make_qwidget(self.grid_widget, True)
-
-        # add tabs to the tab widget
-        self._tab.addTab(ch, "Channels")
-        self._tab.addTab(z, "Z Stack")
-        self._tab.addTab(p, "Positions")
-        self._tab.addTab(t, "Time")
-        self._tab.addTab(g, "Grid")
+        wdgs = [
+            (self.channel_widget, "Channels", False),
+            (self.stack_widget, "Z Stack", True),
+            (self.position_widget, "Positions", False),
+            (self.time_widget, "Time", False),
+            (self.grid_widget, "Grid", True),
+        ]
+        for w, n, b in wdgs:
+            self._tab.addTab(self._make_qwidget(w, b), n)
 
         # assign checkboxes to a variable
         self.ch_cbox = self._get_checkbox(0)
@@ -217,7 +214,10 @@ class MDAWidget(QWidget):
             return
         self._enable_run_btn()
 
-    def _make_qwidget(self, widget: QWidget, spacer: bool = False) -> QWidget:
+    def _on_channel_group_changed(self, group: str) -> None:
+        self._enable_run_btn()
+
+    def _make_qwidget(self, widget: QWidget, spacer: bool) -> QWidget:
         wdg = QWidget()
         wdg.setLayout(QVBoxLayout())
         wdg.layout().setContentsMargins(5, 10, 5, 5)
