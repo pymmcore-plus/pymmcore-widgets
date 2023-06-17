@@ -15,7 +15,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import MDASequence, NoGrid, NoT, NoZ, PropertyTuple
+from useq import MDASequence, NoGrid, NoT, NoZ
 
 from .._util import fmt_timedelta, guess_channel_group
 from ._channel_table_widget import ChannelTable
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
         z: float | None
         name: str | None
         sequence: MDASequence | None
-        properties: list[PropertyTuple] | None
+        autofocus: tuple[str, float] | None
 
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -370,8 +370,6 @@ class MDAWidget(QWidget):
 
         time_plan = self.time_widget.value() if self._uses_time() else NoT()
 
-        _, _, width, height = self._mmc.getROI()
-        fov = (width * self._mmc.getPixelSizeUm(), height * self._mmc.getPixelSizeUm())
         stage_positions: list[PositionDict] = []
         if self.p_cbox.isChecked():
             for p in self.position_widget.value():
@@ -380,7 +378,6 @@ class MDAWidget(QWidget):
                     p_sequence = p_sequence.replace(
                         axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
                     )
-                    p_sequence.set_fov_size(fov)
                     p["sequence"] = p_sequence
 
                 stage_positions.append(p)
@@ -390,7 +387,7 @@ class MDAWidget(QWidget):
 
         grid_plan = self.grid_widget.value() if self.g_cbox.isChecked() else NoGrid()
 
-        sequence = MDASequence(
+        return MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
             channels=channels,
             stage_positions=stage_positions,
@@ -398,9 +395,6 @@ class MDAWidget(QWidget):
             time_plan=time_plan,
             grid_plan=grid_plan,
         )
-        sequence.set_fov_size(fov)
-
-        return sequence
 
     def _get_current_position(self) -> list[PositionDict]:
         return [

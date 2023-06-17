@@ -37,7 +37,6 @@ from useq import (
     MDASequence,
     NoGrid,
     Position,
-    PropertyTuple,
 )
 
 from .._util import get_grid_type
@@ -55,7 +54,7 @@ if TYPE_CHECKING:
         z: float | None
         name: str | None
         sequence: MDASequence | None
-        properties: list[PropertyTuple] | None
+        autofocus: tuple[str, float] | None
 
 
 POS = "Pos"
@@ -252,7 +251,6 @@ class PositionTable(QWidget):
         advanced = self._advanced_cbox.isChecked()
         self._table.setColumnHidden(GRID, not advanced)
         self._table.setColumnHidden(AF, not self._use_af())
-        # self._enable_table_z_doublespinbox()
 
     def _on_property_changed(self, device: str, prop: str, value: str) -> None:
         # TODO: add 'propertyChanged.emit()' to pymmcore-plus setProperty() methods
@@ -326,14 +324,6 @@ class PositionTable(QWidget):
             for r in range(self._table.rowCount()):
                 self._table.removeCellWidget(r, AF)
 
-        # self._enable_table_z_doublespinbox()
-
-    # def _enable_table_z_doublespinbox(self) -> None:
-    #     """Enable the Z doublespinbox depending on autofocus checkbox and value."""
-    #     for r in range(self._table.rowCount()):
-    #         with contextlib.suppress(AttributeError):
-    #             self._table.cellWidget(r, Z).setEnabled(not self._use_af())
-
     def _on_advanced_toggled(self, state: bool) -> None:
         self._table.setColumnHidden(GRID, not state)
 
@@ -396,8 +386,6 @@ class PositionTable(QWidget):
         self._add_table_value(z_pos_autofocus, row, AF)
 
         self._add_grid_buttons(row, GRID)
-
-        # self._enable_table_z_doublespinbox()
 
         self.valueChanged.emit()
 
@@ -681,17 +669,12 @@ class PositionTable(QWidget):
                     "x": self._get_table_value(row, X),
                     "y": self._get_table_value(row, Y),
                     "z": self._get_table_value(row, Z),
+                    "autofocus": (
+                        (self._get_af_device(), self._get_table_value(row, AF))
+                        if self._use_af() and self._get_table_value(row, AF) is not None
+                        else None
+                    ),
                     "sequence": {"grid_plan": grid_role} if grid_role else None,
-                    "properties": [
-                        ("z_device", "device_name", self._mmc.getFocusDevice()),
-                        ("z_autofocus_device", "state", self._use_af()),
-                        ("z_autofocus_device", "device_name", self._get_af_device()),
-                        (
-                            "z_autofocus_device",
-                            "position",
-                            self._get_table_value(row, AF),
-                        ),
-                    ],
                 }
             )
 
@@ -720,7 +703,6 @@ class PositionTable(QWidget):
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
             raise ValueError("No XY and Z Stage devices loaded.")
 
-        z_devicies = set()
         z_af_devicies = set()
         rows = set(range(self._table.rowCount()))
         for position in positions:
@@ -733,20 +715,12 @@ class PositionTable(QWidget):
             name = position.get("name")
             x, y, z = (position.get("x"), position.get("y"), position.get("z"))
 
-            props = position.get("properties") or None
+            z_af_device, z_af_pos = position.get("autofocus") or (None, None)
 
-            # convert props to list of PropertyTuple if list of lists/tuples
-            if props and isinstance(props[0], (list, tuple)):
-                for idx, p in enumerate(props):
-                    props[idx] = PropertyTuple(*p)
-
-            z_device, use_af, z_af_device, z_af = self._get_properties_values(props)
-
-            # check that all positions have the same z_device and/or one_shot_focus
-            # key values. If not, raise error.
-            z_devicies.add(z_device)
+            # check that all positions have the same one_shot_focus key values.
+            # If not, raise error.
             z_af_devicies.add(z_af_device)
-            if len(z_devicies) > 1 or len(z_af_devicies) > 1:
+            if len(z_af_devicies) > 1:
                 if clear:
                     self.clear()
                 else:
@@ -760,15 +734,14 @@ class PositionTable(QWidget):
                 )
 
                 raise ValueError(
-                    "Each position must have the same 'z_device' and/or "
-                    "'one_shot_focus' key values."
+                    "Each position must have the same 'one_shot_focus' key values."
                 )
 
             self._autofocus_wdg.setValue(
-                {"device_name": z_af_device, "use_autofocus": use_af or False}
+                {"device_name": z_af_device, "use_autofocus": z_af_device is not None}
             )
 
-            self._add_table_row(name or f"{POS}000", x, y, z, z_af)
+            self._add_table_row(name or f"{POS}000", x, y, z, z_af_pos)
 
             if pos_seq := position.get("sequence"):
                 self._advanced_cbox.setChecked(True)
@@ -813,31 +786,6 @@ class PositionTable(QWidget):
     def _use_af(self) -> bool:
         """Return the autofocus checkbox state."""
         return self._autofocus_wdg.value()["use_autofocus"]  # type: ignore
-
-    def _get_properties_values(
-        self, properties: list[PropertyTuple] | None
-    ) -> tuple[str | None, bool | None, str | None, float | None]:
-        """Get the values of the properties that are used for one_shot autofocus."""
-        z_device, use_af, z_af_device, z_af = None, None, None, None
-
-        if not properties:
-            return z_device, use_af, z_af_device, z_af
-
-        for prop in properties:
-            dev_prop_tuple = (prop.device_name, prop.property_name)
-            if dev_prop_tuple == ("z_device", "device_name"):
-                z_device = prop.property_value
-            elif dev_prop_tuple == ("z_autofocus_device", "state"):
-                use_af = prop.property_value
-                # return if autofocus is not used
-                if use_af is None:
-                    return z_device, use_af, None, None
-            elif dev_prop_tuple == ("z_autofocus_device", "device_name"):
-                z_af_device = prop.property_value
-            elif dev_prop_tuple == ("z_autofocus_device", "position"):
-                z_af = prop.property_value
-
-        return z_device, use_af, z_af_device, z_af
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
