@@ -119,14 +119,14 @@ class MDAWidget(QWidget):
 
         # place widgets in a QWidget to control tab layout content margins
         wdgs = [
-            (self.channel_widget, "Channels"),
-            (self.stack_widget, "Z Stack"),
-            (self.position_widget, "Positions"),
-            (self.time_widget, "Time"),
-            (self.grid_widget, "Grid"),
+            (self.channel_widget, "Channels", False),
+            (self.stack_widget, "Z Stack", True),
+            (self.position_widget, "Positions", False),
+            (self.time_widget, "Time", False),
+            (self.grid_widget, "Grid", True),
         ]
-        for w, n in wdgs:
-            self._tab.addTab(self._make_qwidget(w), n)
+        for w, n, b in wdgs:
+            self._tab.addTab(self._make_qwidget(w, b), n)
 
         # assign checkboxes to a variable
         self.ch_cbox = self._get_checkbox(0)
@@ -216,7 +216,7 @@ class MDAWidget(QWidget):
     def _on_channel_group_changed(self, group: str) -> None:
         self._enable_run_btn()
 
-    def _make_qwidget(self, widget: QWidget, spacer: bool = False) -> QWidget:
+    def _make_qwidget(self, widget: QWidget, spacer: bool) -> QWidget:
         wdg = QWidget()
         wdg.setLayout(QVBoxLayout())
         wdg.layout().setContentsMargins(5, 10, 5, 5)
