@@ -10,8 +10,7 @@ from pymmcore_widgets._mda import MDAWidget
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
     from qtpy.QtWidgets import QSpinBox
-
-    from pymmcore_widgets._mda._time_plan_widget import _DoubleSpinAndCombo
+    from superqt import QQuantity
 
 
 def test_mda_widget_load_state(qtbot: QtBot):
@@ -156,7 +155,7 @@ def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.time_widget._warning_widget.isHidden()
 
     assert wdg.t_cbox.isChecked()
-    interval = cast("_DoubleSpinAndCombo", wdg.time_widget._table.cellWidget(0, 0))
+    interval = cast("QQuantity", wdg.time_widget._table.cellWidget(0, 0))
     timepoint = cast("QSpinBox", wdg.time_widget._table.cellWidget(0, 1))
     interval.setValue(1, "ms")
     timepoint.setValue(2)
