@@ -750,7 +750,7 @@ class PositionTable(QWidget):
                 else:
                     grid_plan = pos_seq.get("grid_plan")
                 if grid_plan:
-                    self._add_grid_plan(grid_plan, GRID)
+                    self._add_grid_plan(grid_plan, self._table.rowCount() - 1)
 
             self.valueChanged.emit()
 
