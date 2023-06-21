@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import contextlib
 from typing import TYPE_CHECKING, Any
+from unittest.mock import patch
 
 import pytest
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QTableWidget
+from qtpy.QtWidgets import QFileDialog, QTableWidget
 
 from pymmcore_widgets._mda import PositionTable
 
@@ -391,3 +392,121 @@ def test_set_state_with_autofocus(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert _get_values(tb, 0) == ["Pos000", 10.0, 20.0, 30.0, 45.0]
 
     assert p.value() == [pos]
+
+
+def test_apply_grid_to_all_positions(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    p = PositionTable()
+    qtbot.addWidget(p)
+    tb = p._table
+
+    pos = [
+        {
+            "name": "Pos000",
+            "x": 100.0,
+            "y": 200.0,
+            "z": 0.0,
+            "sequence": {
+                "grid_plan": {
+                    "columns": 2,
+                    "rows": 2,
+                    "relative_to": "center",
+                    "overlap": (0.0, 0.0),
+                    "mode": "spiral",
+                }
+            },
+        },
+        {
+            "name": "Pos001",
+            "x": 10.0,
+            "y": 20.0,
+            "z": 0.0,
+        },
+    ]
+
+    p.set_state(pos)
+
+    assert tb.rowCount() == 2
+    assert not tb.isColumnHidden(GRID)
+    edit_btn = tb.cellWidget(0, GRID).layout().itemAt(0).widget()
+    assert edit_btn.text() == "Edit"
+    assert not tb.item(1, 0).data(p.GRID_ROLE)
+
+    p._apply_grid_to_all_positions(0)
+
+    assert tb.item(1, 0).data(p.GRID_ROLE)
+    assert tb.item(0, 0).data(p.GRID_ROLE) == {
+        "columns": 2,
+        "rows": 2,
+        "relative_to": "center",
+        "overlap": (0.0, 0.0),
+        "mode": "spiral",
+    }
+
+
+def test_on_property_changed(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    p = PositionTable()
+    qtbot.addWidget(p)
+    tb = p._table
+    mmc = global_mmcore
+
+    assert not tb.isColumnHidden(Z)
+    mmc.setProperty("Core", "Focus", "")
+    assert tb.isColumnHidden(Z)
+
+
+def test_save_and_load_position(qtbot: QtBot):
+    import json
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmp:
+
+        def _path(*args, **kwargs):
+            return Path(tmp) / "test.json", None
+
+        with patch.object(QFileDialog, "getSaveFileName", _path):
+            p = PositionTable()
+            qtbot.addWidget(p)
+
+            pos = [
+                {
+                    "name": "Pos000",
+                    "x": 1.0,
+                    "y": 20.0,
+                    "z": 3.0,
+                    "autofocus": None,
+                    "sequence": None,
+                },
+                {
+                    "name": "Pos001",
+                    "x": 100.0,
+                    "y": 200.0,
+                    "z": 0.0,
+                    "autofocus": None,
+                    "sequence": {
+                        "grid_plan": {
+                            "columns": 2,
+                            "mode": "spiral",
+                            "overlap": [10.0, 5.0],
+                            "relative_to": "center",
+                            "rows": 2,
+                        }
+                    },
+                },
+            ]
+            p.set_state(pos)
+            assert p._table.rowCount() == 2
+
+            p._save_positions()
+
+            file = list(Path(tmp).iterdir())[0]
+            assert json.loads(file.read_text()) == pos
+
+            p.clear()
+            assert p.value() == []
+            assert p._table.rowCount() == 0
+
+            with patch.object(QFileDialog, "getOpenFileName", _path):
+                p._load_positions()
+                assert p._table.rowCount() == 2
+                assert p.value() == pos

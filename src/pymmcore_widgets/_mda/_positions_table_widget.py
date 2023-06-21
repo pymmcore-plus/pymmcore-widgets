@@ -761,6 +761,7 @@ class PositionTable(QWidget):
         (dir_file, _) = QFileDialog.getSaveFileName(
             self, "Saving directory and filename.", "", "json(*.json)"
         )
+
         if not dir_file:
             return
 
