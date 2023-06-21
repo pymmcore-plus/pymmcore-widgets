@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import contextlib
+import json
+import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
@@ -455,10 +458,6 @@ def test_on_property_changed(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
 
 def test_save_and_load_position(qtbot: QtBot):
-    import json
-    import tempfile
-    from pathlib import Path
-
     with tempfile.TemporaryDirectory() as tmp:
 
         def _path(*args, **kwargs):
@@ -510,3 +509,21 @@ def test_save_and_load_position(qtbot: QtBot):
                 p._load_positions()
                 assert p._table.rowCount() == 2
                 assert p.value() == pos
+
+
+def test_set_state_with_different_z_af_devicies(
+    global_mmcore: CMMCorePlus, qtbot: QtBot
+):
+    p = PositionTable()
+    qtbot.addWidget(p)
+    tb = p._table
+
+    pos = [
+        {"name": "Pos000", "autofocus": ("Z", 10)},
+        {"name": "Pos000", "autofocus": ("Z1", 15)},
+    ]
+
+    with pytest.raises(ValueError, match="Each position must have the same 'one_shot"):
+        p.set_state(pos, clear=False)
+
+    assert tb.rowCount() == 0
