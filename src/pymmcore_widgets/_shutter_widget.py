@@ -71,7 +71,8 @@ class ShuttersWidget(QWidget):
 
         self._mmc.events.systemConfigurationLoaded.connect(self._refresh_shutter_widget)
         self._mmc.events.autoShutterSet.connect(self._on_autoshutter_changed)
-        self._mmc.events.propertyChanged.connect(self._on_prop_changed)
+        self._mmc.events.propertyChanged.connect(self._on_shutter_device_changed)
+        self._mmc.events.propertyChanged.connect(self._on_shutter_state_changed)
         self._mmc.events.configSet.connect(self._on_channel_set)
         self._mmc.events.continuousSequenceAcquisitionStarted.connect(
             self._on_live_mode
@@ -262,7 +263,9 @@ class ShuttersWidget(QWidget):
             props = self._mmc.getDevicePropertyNames(self.shutter_device)
             self._is_multiShutter = bool([x for x in props if "Physical Shutter" in x])
 
-    def _on_prop_changed(self, dev_name: str, prop_name: str, value: Any) -> None:
+    def _on_shutter_state_changed(
+        self, dev_name: str, prop_name: str, value: Any
+    ) -> None:
         if dev_name != self.shutter_device or prop_name != "State":
             return
         state = value in [True, "1"]
@@ -271,13 +274,24 @@ class ShuttersWidget(QWidget):
             if state
             else self._set_shutter_wdg_to_closed()
         )
-        if self._is_multiShutter and state:
+        if self._is_multiShutter:
             for i in range(1, 6):
                 value = self._mmc.getProperty(
                     self.shutter_device, f"Physical Shutter {i}"
                 )
                 if value != "Undefined":
-                    self._mmc.events.propertyChanged.emit(value, "State", True)
+                    self._mmc.events.propertyChanged.emit(value, "State", state)
+
+    def _on_shutter_device_changed(
+        self, dev_name: str, prop_name: str, value: Any
+    ) -> None:
+        if dev_name != "Core" and prop_name != "Shutter":
+            return
+
+        if value != self.shutter_device:
+            self.shutter_button.setEnabled(True)
+        else:
+            self.shutter_button.setEnabled(not self._mmc.getAutoShutter())
 
     def _on_live_mode(self) -> None:
         if not self._mmc.getShutterOpen(self.shutter_device):
@@ -341,5 +355,6 @@ class ShuttersWidget(QWidget):
             self._refresh_shutter_widget
         )
         self._mmc.events.autoShutterSet.disconnect(self._on_autoshutter_changed)
-        self._mmc.events.propertyChanged.disconnect(self._on_prop_changed)
+        self._mmc.events.propertyChanged.disconnect(self._on_shutter_device_changed)
+        self._mmc.events.propertyChanged.disconnect(self._on_shutter_state_changed)
         self._mmc.events.configSet.disconnect(self._on_channel_set)
