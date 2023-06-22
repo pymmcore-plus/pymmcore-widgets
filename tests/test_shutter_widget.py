@@ -230,3 +230,53 @@ def test_shutter_widget_UserWarning(qtbot: QtBot):
         with pytest.warns(UserWarning):
             mmc.loadSystemConfiguration("MMConfig_demo.cfg")
             assert multi_shutter.shutter_button.text() == "None"
+
+
+def test_multi_shutter_state_changed(qtbot: QtBot):
+    shutter, shutter1, multi_shutter = _make_shutters(qtbot)
+    mmc = CMMCorePlus.instance()
+
+    with qtbot.waitSignals([mmc.events.propertyChanged, mmc.events.configSet]):
+        mmc.setProperty("Core", "Shutter", "Multi Shutter")
+        mmc.setConfig("Channel", "DAPI")
+
+    with qtbot.waitSignal(mmc.events.propertyChanged):
+        mmc.setProperty("Multi Shutter", "State", "0")
+
+    assert mmc.getProperty("Multi Shutter", "State") == "0"
+    assert mmc.getProperty("Shutter", "State") == "0"
+
+    assert multi_shutter.shutter_button.text() == "Multi Shutter closed"
+    assert shutter.shutter_button.text() == "Shutter closed"
+
+    with qtbot.waitSignal(mmc.events.propertyChanged):
+        mmc.setProperty("Multi Shutter", "State", "1")
+
+    assert mmc.getProperty("Multi Shutter", "State") == "1"
+    assert mmc.getProperty("Shutter", "State") == "1"
+
+    assert multi_shutter.shutter_button.text() == "Multi Shutter opened"
+    assert shutter.shutter_button.text() == "Shutter opened"
+
+
+def test_on_shutter_device_changed(qtbot: QtBot):
+    shutter, shutter1, multi_shutter = _make_shutters(qtbot)
+    mmc = CMMCorePlus.instance()
+
+    with qtbot.waitSignals([mmc.events.propertyChanged, mmc.events.configSet]):
+        mmc.setProperty("Core", "Shutter", "Multi Shutter")
+        mmc.setConfig("Channel", "DAPI")
+
+    assert mmc.getShutterDevice() == "Multi Shutter"
+    assert not multi_shutter.shutter_button.isEnabled()
+    assert shutter.shutter_button.isEnabled()
+    assert shutter1.shutter_button.isEnabled()
+
+    with qtbot.waitSignals([mmc.events.propertyChanged, mmc.events.configSet]):
+        mmc.setProperty("Core", "Shutter", "Shutter")
+        mmc.setConfig("Channel", "DAPI")
+
+    assert mmc.getShutterDevice() == "Shutter"
+    assert multi_shutter.shutter_button.isEnabled()
+    assert not shutter.shutter_button.isEnabled()
+    assert shutter1.shutter_button.isEnabled()
