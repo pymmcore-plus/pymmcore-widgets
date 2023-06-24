@@ -5,10 +5,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
-from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QCheckBox,
+    QFileDialog,
+    QHBoxLayout,
+    QPushButton,
     QScrollArea,
     QSizePolicy,
     QSpacerItem,
@@ -55,6 +57,54 @@ class Grid(GridWidget):
         self.valueChanged.emit(self.value())
 
 
+class SaveLoadSequenceWidget(QWidget):
+    def __init__(self, mda_widget: MDAWidget) -> None:
+        super().__init__(mda_widget)
+
+        self._mda_widget = mda_widget
+        assert isinstance(self._mda_widget, MDAWidget)
+
+        self._save_button = QPushButton("Save")
+        self._load_button = QPushButton("Load")
+
+        self._save_button.setMaximumWidth(self._save_button.sizeHint().width())
+        self._load_button.setMaximumWidth(self._load_button.sizeHint().width())
+
+        self._save_button.clicked.connect(self._save_sequence)
+        self._load_button.clicked.connect(self._load_sequence)
+
+        self.setLayout(QHBoxLayout())
+
+        spacer = QSpacerItem(1, 1, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.layout().addItem(spacer)
+        self.layout().addWidget(self._save_button)
+        self.layout().addWidget(self._load_button)
+
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(10)
+
+    def _save_sequence(self) -> None:
+        (dir_file, _) = QFileDialog.getSaveFileName(
+            self, "Saving directory and filename.", "", "json(*.json)"
+        )
+        if not dir_file:
+            return
+
+        with open(str(dir_file), "w") as file:
+            file.write(self._mda_widget.get_state().json())
+
+    def _load_sequence(self) -> None:
+        (filename, _) = QFileDialog.getOpenFileName(
+            self, "Select a MDAsequence json file.", "", "json(*.json)"
+        )
+        if filename:
+            import json
+
+            with open(filename) as file:
+                self._mda_widget.set_state(json.load(file))
+
+
 class MDAWidget(QWidget):
     """A Multi-dimensional acquisition Widget.
 
@@ -87,7 +137,7 @@ class MDAWidget(QWidget):
     def __init__(
         self,
         *,
-        parent: QtW.QWidget | None = None,
+        parent: QWidget | None = None,
         include_run_button: bool = False,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
@@ -98,7 +148,7 @@ class MDAWidget(QWidget):
 
         # LAYOUT
         central_layout = QVBoxLayout()
-        central_layout.setSpacing(20)
+        central_layout.setSpacing(7)
         central_layout.setContentsMargins(10, 10, 10, 10)
 
         # main TabWidget
@@ -144,6 +194,7 @@ class MDAWidget(QWidget):
 
         # add widgets to layout
         central_layout.addWidget(self._tab)
+        central_layout.addWidget(SaveLoadSequenceWidget(self))
         self._central_widget = QWidget()
         self._central_widget.setLayout(central_layout)
 
