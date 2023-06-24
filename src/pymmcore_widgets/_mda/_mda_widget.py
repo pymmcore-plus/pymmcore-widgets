@@ -9,8 +9,6 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QCheckBox,
     QFileDialog,
-    QHBoxLayout,
-    QPushButton,
     QScrollArea,
     QSizePolicy,
     QSpacerItem,
@@ -22,7 +20,11 @@ from useq import MDASequence, NoGrid, NoT, NoZ
 from .._util import fmt_timedelta, guess_channel_group
 from ._channel_table_widget import ChannelTable
 from ._checkable_tabwidget_widget import CheckableTabWidget
-from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
+from ._general_mda_widgets import (
+    SaveLoadSequenceWidget,
+    _MDAControlButtons,
+    _MDATimeLabel,
+)
 from ._grid_widget import GridWidget
 from ._positions_table_widget import PositionTable
 from ._time_plan_widget import TimePlanWidget
@@ -55,54 +57,6 @@ class Grid(GridWidget):
     def _update_info(self) -> None:
         super()._update_info()
         self.valueChanged.emit(self.value())
-
-
-class SaveLoadSequenceWidget(QWidget):
-    def __init__(self, mda_widget: MDAWidget) -> None:
-        super().__init__(mda_widget)
-
-        self._mda_widget = mda_widget
-        assert isinstance(self._mda_widget, MDAWidget)
-
-        self._save_button = QPushButton("Save")
-        self._load_button = QPushButton("Load")
-
-        self._save_button.setMaximumWidth(self._save_button.sizeHint().width())
-        self._load_button.setMaximumWidth(self._load_button.sizeHint().width())
-
-        self._save_button.clicked.connect(self._save_sequence)
-        self._load_button.clicked.connect(self._load_sequence)
-
-        self.setLayout(QHBoxLayout())
-
-        spacer = QSpacerItem(1, 1, QSizePolicy.Expanding, QSizePolicy.Minimum)
-
-        self.layout().addItem(spacer)
-        self.layout().addWidget(self._save_button)
-        self.layout().addWidget(self._load_button)
-
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(10)
-
-    def _save_sequence(self) -> None:
-        (dir_file, _) = QFileDialog.getSaveFileName(
-            self, "Saving directory and filename.", "", "json(*.json)"
-        )
-        if not dir_file:
-            return
-
-        with open(str(dir_file), "w") as file:
-            file.write(self._mda_widget.get_state().json())
-
-    def _load_sequence(self) -> None:
-        (filename, _) = QFileDialog.getOpenFileName(
-            self, "Select a MDAsequence json file.", "", "json(*.json)"
-        )
-        if filename:
-            import json
-
-            with open(filename) as file:
-                self._mda_widget.set_state(json.load(file))
 
 
 class MDAWidget(QWidget):
@@ -192,9 +146,14 @@ class MDAWidget(QWidget):
         self.buttons_wdg.cancel_button.hide()
         self.buttons_wdg.run_button.hide()
 
+        # savle load widget
+        self._save_load = SaveLoadSequenceWidget()
+        self._save_load._save_button.clicked.connect(self._save_sequence)
+        self._save_load._load_button.clicked.connect(self._load_sequence)
+
         # add widgets to layout
         central_layout.addWidget(self._tab)
-        central_layout.addWidget(SaveLoadSequenceWidget(self))
+        central_layout.addWidget(self._save_load)
         self._central_widget = QWidget()
         self._central_widget.setLayout(central_layout)
 
@@ -467,6 +426,28 @@ class MDAWidget(QWidget):
         # run the MDA experiment asynchronously
         self._mmc.run_mda(experiment)
         return
+
+    def _save_sequence(self) -> None:
+        """Save the current MDA sequence to a json file."""
+        (dir_file, _) = QFileDialog.getSaveFileName(
+            self, "Saving directory and filename.", "", "json(*.json)"
+        )
+        if not dir_file:
+            return
+
+        with open(str(dir_file), "w") as file:
+            file.write(self.get_state().json())
+
+    def _load_sequence(self) -> None:
+        """Load a MDAsequence json file into the widget."""
+        (filename, _) = QFileDialog.getOpenFileName(
+            self, "Select a MDAsequence json file.", "", "json(*.json)"
+        )
+        if filename:
+            import json
+
+            with open(filename) as file:
+                self.set_state(json.load(file))
 
     def _on_time_toggled(self, checked: bool) -> None:
         """Hide the warning if the time groupbox is unchecked."""
