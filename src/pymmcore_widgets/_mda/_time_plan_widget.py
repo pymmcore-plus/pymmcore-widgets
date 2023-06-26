@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     class TimeDict(TypedDict, total=False):
         """Time plan dictionary."""
 
+        phases: list
         interval: timedelta
         loops: int
 
