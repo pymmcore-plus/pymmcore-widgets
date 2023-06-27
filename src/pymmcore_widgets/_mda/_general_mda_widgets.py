@@ -55,7 +55,6 @@ class _MDAControlButtons(QWidget):
         min_width = 130
         icon_size = 40
         self.run_button = QPushButton(text="Run")
-        self.run_button.setEnabled(False)
         self.run_button.setMinimumWidth(min_width)
         self.run_button.setStyleSheet("QPushButton { text-align: center; }")
         self.run_button.setSizePolicy(btn_sizepolicy)
@@ -104,3 +103,25 @@ class _MDATimeLabel(QWidget):
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
         wdg_lay.addWidget(self._total_time_lbl)
+
+
+class SaveLoadSequenceWidget(QWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        self._save_button = QPushButton("Save")
+        self._load_button = QPushButton("Load")
+
+        self._save_button.setMaximumWidth(self._save_button.sizeHint().width())
+        self._load_button.setMaximumWidth(self._load_button.sizeHint().width())
+
+        self.setLayout(QHBoxLayout())
+
+        spacer = QSpacerItem(1, 1, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.layout().addItem(spacer)
+        self.layout().addWidget(self._save_button)
+        self.layout().addWidget(self._load_button)
+
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(10)
