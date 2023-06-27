@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
+from unittest.mock import patch
 
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtWidgets import QFileDialog
 from useq import MDASequence
 
 from pymmcore_widgets._mda import MDAWidget
@@ -242,3 +246,46 @@ def test_absolute_grid_warning(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     assert wdg.grid_widget.tab.isTabEnabled(1)
     assert wdg.grid_widget.tab.isTabEnabled(2)
+
+
+def test_save_and_load_sequence(qtbot: QtBot):
+    with tempfile.TemporaryDirectory() as tmp:
+
+        def _path(*args, **kwargs):
+            return Path(tmp) / "sequence.json", None
+
+        with patch.object(QFileDialog, "getSaveFileName", _path):
+            mda = MDAWidget()
+            qtbot.addWidget(mda)
+
+            seq = MDASequence(
+                axis_order="tpgcz",
+                stage_positions=[
+                    {
+                        "x": 10,
+                        "y": 20,
+                        "z": 50,
+                        "name": "test_name",
+                        "sequence": MDASequence(grid_plan={"rows": 2, "columns": 3}),
+                    },
+                ],
+                channels=[
+                    {"config": "Cy5", "exposure": 50},
+                    {
+                        "config": "DAPI",
+                        "exposure": 100.0,
+                        "do_stack": False,
+                        "acquire_every": 3,
+                    },
+                ],
+                time_plan=[{"interval": 3, "loops": 3}, {"interval": 5, "loops": 10}],
+                z_plan={"range": 1.0, "step": 0.5},
+                grid_plan={"rows": 2, "columns": 1},
+            )
+            mda.set_state(seq)
+
+            mda._save_sequence()
+
+            with patch.object(QFileDialog, "getOpenFileName", _path):
+                mda._load_sequence()
+                assert mda.get_state() == seq

@@ -5,10 +5,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
-from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QCheckBox,
+    QFileDialog,
     QScrollArea,
     QSizePolicy,
     QSpacerItem,
@@ -20,7 +20,11 @@ from useq import MDASequence, NoGrid, NoT, NoZ
 from .._util import fmt_timedelta, guess_channel_group
 from ._channel_table_widget import ChannelTable
 from ._checkable_tabwidget_widget import CheckableTabWidget
-from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
+from ._general_mda_widgets import (
+    SaveLoadSequenceWidget,
+    _MDAControlButtons,
+    _MDATimeLabel,
+)
 from ._grid_widget import GridWidget
 from ._positions_table_widget import PositionTable
 from ._time_plan_widget import TimePlanWidget
@@ -87,7 +91,7 @@ class MDAWidget(QWidget):
     def __init__(
         self,
         *,
-        parent: QtW.QWidget | None = None,
+        parent: QWidget | None = None,
         include_run_button: bool = False,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
@@ -98,7 +102,7 @@ class MDAWidget(QWidget):
 
         # LAYOUT
         central_layout = QVBoxLayout()
-        central_layout.setSpacing(20)
+        central_layout.setSpacing(7)
         central_layout.setContentsMargins(10, 10, 10, 10)
 
         # main TabWidget
@@ -142,8 +146,14 @@ class MDAWidget(QWidget):
         self.buttons_wdg.cancel_button.hide()
         self.buttons_wdg.run_button.hide()
 
+        # savle load widget
+        self._save_load = SaveLoadSequenceWidget()
+        self._save_load._save_button.clicked.connect(self._save_sequence)
+        self._save_load._load_button.clicked.connect(self._load_sequence)
+
         # add widgets to layout
         central_layout.addWidget(self._tab)
+        central_layout.addWidget(self._save_load)
         self._central_widget = QWidget()
         self._central_widget.setLayout(central_layout)
 
@@ -416,6 +426,28 @@ class MDAWidget(QWidget):
         # run the MDA experiment asynchronously
         self._mmc.run_mda(experiment)
         return
+
+    def _save_sequence(self) -> None:
+        """Save the current MDA sequence to a json file."""
+        (dir_file, _) = QFileDialog.getSaveFileName(
+            self, "Saving directory and filename.", "", "json(*.json)"
+        )
+        if not dir_file:
+            return
+
+        with open(str(dir_file), "w") as file:
+            file.write(self.get_state().json())
+
+    def _load_sequence(self) -> None:
+        """Load a MDAsequence json file into the widget."""
+        (filename, _) = QFileDialog.getOpenFileName(
+            self, "Select a MDAsequence json file.", "", "json(*.json)"
+        )
+        if filename:
+            import json
+
+            with open(filename) as file:
+                self.set_state(json.load(file))
 
     def _on_time_toggled(self, checked: bool) -> None:
         """Hide the warning if the time groupbox is unchecked."""
