@@ -263,15 +263,12 @@ class PositionTable(QWidget):
             return
 
         # hide XY or Z columns if ZStage or XYStage are not loaded + remove cell values
-        indexes = (
-            [Z]
-            if prop == "Focus"
-            else [X, Y]
-            if prop == "XYStage"
-            else [AF]
-            if prop == "AutoFocus"
-            else []
-        )
+        indexes = {
+            "Focus": [Z],
+            "XYStage": [X, Y],
+            "AutoFocus": [AF],
+        }.get(prop, [])
+
         for idx in indexes:
             self._table.setColumnHidden(idx, not value)
             for r in range(self._table.rowCount()):
