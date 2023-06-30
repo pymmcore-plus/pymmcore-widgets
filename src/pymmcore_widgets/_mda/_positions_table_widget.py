@@ -40,7 +40,7 @@ from useq import (
 )
 
 from .._util import get_grid_type
-from ._general_mda_widgets import _AutofocusZDeviceWidget
+from ._autofocus_device_widget import _AutofocusZDeviceWidget
 from ._grid_widget import GridWidget
 
 if TYPE_CHECKING:
