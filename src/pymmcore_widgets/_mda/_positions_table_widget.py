@@ -715,7 +715,7 @@ class PositionTable(QWidget):
             name = position.get("name")
             x, y, z = (position.get("x"), position.get("y"), position.get("z"))
 
-            z_af_device, z_af_pos = position.get("autofocus") or (None, None)
+            z_af_device, z_af_pos = position.get("autofocus") or ("", None)
 
             # check that all positions have the same one_shot_focus key values.
             # If not, raise error.
@@ -730,7 +730,7 @@ class PositionTable(QWidget):
                         self._table.removeRow(r)
 
                 self._autofocus_wdg.setValue(
-                    {"device_name": None, "use_autofocus": False}
+                    {"device_name": "", "use_autofocus": False}
                 )
 
                 raise ValueError(
@@ -780,13 +780,13 @@ class PositionTable(QWidget):
             with open(filename) as file:
                 self.set_state(json.load(file))
 
-    def _get_af_device(self) -> str | None:
+    def _get_af_device(self) -> str:
         """Return the autofocus device name."""
-        return self._autofocus_wdg.value()["device_name"]  # type: ignore
+        return self._autofocus_wdg.value()["device_name"]
 
     def _use_af(self) -> bool:
         """Return the autofocus checkbox state."""
-        return self._autofocus_wdg.value()["use_autofocus"]  # type: ignore
+        return self._autofocus_wdg.value()["use_autofocus"]
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)

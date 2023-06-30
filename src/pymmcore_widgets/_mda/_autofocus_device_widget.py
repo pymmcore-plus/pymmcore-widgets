@@ -129,7 +129,7 @@ class _AutofocusZDeviceWidget(QWidget):
 
     def _af_device_name(self) -> str:
         if self._should_use_autofocus():
-            return self._autofocus_device_combo.currentText()
+            return self._autofocus_device_combo.currentText()  # type: ignore
         return ""
 
     def _should_use_autofocus(self) -> bool:
