@@ -187,7 +187,9 @@ def test_delete_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     groups_in_table = [
         gp.table_wdg.item(r, 0).text() for r in range(gp.table_wdg.rowCount())
     ]
+
     assert "Camera" not in groups_in_table
+    assert gp.table_wdg.rowCount() == 8
 
 
 def test_add_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):

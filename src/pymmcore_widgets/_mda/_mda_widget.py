@@ -1,17 +1,31 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
-from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
-from useq import MDASequence
+from qtpy.QtWidgets import (
+    QCheckBox,
+    QFileDialog,
+    QScrollArea,
+    QSizePolicy,
+    QSpacerItem,
+    QVBoxLayout,
+    QWidget,
+)
+from useq import MDASequence, NoGrid, NoT, NoZ
 
-from .._util import _select_output_unit, guess_channel_group
+from .._util import fmt_timedelta, guess_channel_group
 from ._channel_table_widget import ChannelTable
-from ._general_mda_widgets import _MDAControlButtons, _MDATimeLabel
+from ._checkable_tabwidget_widget import CheckableTabWidget
+from ._general_mda_widgets import (
+    SaveLoadSequenceWidget,
+    _MDAControlButtons,
+    _MDATimeLabel,
+)
+from ._grid_widget import GridWidget
 from ._positions_table_widget import PositionTable
 from ._time_plan_widget import TimePlanWidget
 from ._zstack_widget import ZStackWidget
@@ -30,6 +44,19 @@ if TYPE_CHECKING:
 
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+
+class Grid(GridWidget):
+    """Sunclass GridWidget to emit valueChanged when grid is changed."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent=parent)
+
+        self.layout().itemAt(2).widget().hide()
+
+    def _update_info(self) -> None:
+        super()._update_info()
+        self.valueChanged.emit(self.value())
 
 
 class MDAWidget(QWidget):
@@ -64,7 +91,7 @@ class MDAWidget(QWidget):
     def __init__(
         self,
         *,
-        parent: QtW.QWidget | None = None,
+        parent: QWidget | None = None,
         include_run_button: bool = False,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
@@ -73,41 +100,60 @@ class MDAWidget(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
         self._include_run_button = include_run_button
 
-        # Widgets for Channels, Time, ZStack, and Positions in the Scroll Area
-        self.channel_groupbox = ChannelTable()
-        self.channel_groupbox.valueChanged.connect(self._enable_run_btn)
-        self.channel_groupbox._advanced_cbox.toggled.connect(self._update_total_time)
+        # LAYOUT
+        central_layout = QVBoxLayout()
+        central_layout.setSpacing(7)
+        central_layout.setContentsMargins(10, 10, 10, 10)
 
-        self.time_groupbox = TimePlanWidget()
-        self.time_groupbox.setChecked(False)
-        self.time_groupbox.toggled.connect(self._update_total_time)
-        self.time_groupbox.toggled.connect(self._on_time_toggled)
+        # main TabWidget
+        self._tab = CheckableTabWidget(change_tab_on_check=False, movable=False)
 
-        self.stack_groupbox = ZStackWidget()
-        self.stack_groupbox.setChecked(False)
-        self.stack_groupbox.toggled.connect(self._update_total_time)
+        # Channels, Time, Z Stack, Positions and Grid widgets
+        self.channel_widget = ChannelTable()
+        self.time_widget = TimePlanWidget()
+        self.stack_widget = ZStackWidget()
+        self.stack_widget.setFixedHeight(self.stack_widget.minimumSizeHint().height())
+        self.position_widget = PositionTable()
+        self.grid_widget = Grid()
+        self.grid_widget.valueChanged.connect(self._update_total_time)
+        self.grid_widget.layout().itemAt(
+            self.grid_widget.layout().count() - 1
+        ).widget().hide()  # hide add grid button
+        self.grid_widget.setFixedHeight(self.grid_widget.sizeHint().height())
 
-        self.position_groupbox = PositionTable()
-        self.position_groupbox.setChecked(False)
-        self.position_groupbox.toggled.connect(self._update_total_time)
+        # place widgets in a QWidget to control tab layout content margins
+        wdgs = [
+            (self.channel_widget, "Channels", False),
+            (self.stack_widget, "Z Stack", True),
+            (self.position_widget, "Positions", False),
+            (self.time_widget, "Time", False),
+            (self.grid_widget, "Grid", True),
+        ]
+        for w, n, b in wdgs:
+            self._tab.addTab(self._make_qwidget(w, b), n)
 
-        # below the scroll area, some feedback widgets and buttons
+        # assign checkboxes to a variable
+        self.ch_cbox = self._get_checkbox(0)
+        self.z_cbox = self._get_checkbox(1)
+        self.p_cbox = self._get_checkbox(2)
+        self.t_cbox = self._get_checkbox(3)
+        self.g_cbox = self._get_checkbox(4)
+
+        # info time label and buttons widgets
         self.time_lbl = _MDATimeLabel()
-
         self.buttons_wdg = _MDAControlButtons()
         self.buttons_wdg.pause_button.hide()
         self.buttons_wdg.cancel_button.hide()
         self.buttons_wdg.run_button.hide()
 
-        # LAYOUT
+        # savle load widget
+        self._save_load = SaveLoadSequenceWidget()
+        self._save_load._save_button.clicked.connect(self._save_sequence)
+        self._save_load._load_button.clicked.connect(self._load_sequence)
 
-        central_layout = QVBoxLayout()
-        central_layout.setSpacing(20)
-        central_layout.setContentsMargins(10, 10, 10, 10)
-        central_layout.addWidget(self.channel_groupbox)
-        central_layout.addWidget(self.time_groupbox)
-        central_layout.addWidget(self.stack_groupbox)
-        central_layout.addWidget(self.position_groupbox)
+        # add widgets to layout
+        central_layout.addWidget(self._tab)
+        central_layout.addWidget(self._save_load)
         self._central_widget = QWidget()
         self._central_widget.setLayout(central_layout)
 
@@ -124,20 +170,39 @@ class MDAWidget(QWidget):
         self.layout().addWidget(self.buttons_wdg)
 
         # CONNECTIONS
-
+        # connect tabs changed signal
+        self._tab.currentChanged.connect(self._on_tab_changed)
+        # connect Channels, Time, Z Stack, Positions and Grid widgets
+        self.channel_widget.valueChanged.connect(self._enable_run_btn)
+        self.channel_widget.valueChanged.connect(self._update_total_time)
+        self.channel_widget._advanced_cbox.toggled.connect(self._update_total_time)
+        self.time_widget.valueChanged.connect(self._update_total_time)
+        self.stack_widget.valueChanged.connect(self._update_total_time)
+        self.position_widget._advanced_cbox.toggled.connect(self._update_total_time)
+        self.position_widget.valueChanged.connect(self._update_total_time)
+        # below not using lambda with position_widget below because it would cause
+        # problems in closing the widget (see conftest _run_after_each_test fixture)
+        self.position_widget.valueChanged.connect(self._on_positions_tab_changed)
+        # connect tab checkboxes
+        self.ch_cbox.toggled.connect(self._enable_run_btn)
+        self.ch_cbox.toggled.connect(self._update_total_time)
+        self.z_cbox.toggled.connect(self._update_total_time)
+        self.t_cbox.toggled.connect(self._update_total_time)
+        self.p_cbox.toggled.connect(self._update_total_time)
+        # not using lambda with p_cbox below because it would cause problems in closing
+        # the widget (see conftest _run_after_each_test fixture)
+        self.p_cbox.toggled.connect(self._on_positions_tab_changed)
+        self.g_cbox.toggled.connect(self._update_total_time)
+        # connect buttons
         self.buttons_wdg.pause_button.released.connect(self._mmc.mda.toggle_pause)
         self.buttons_wdg.cancel_button.released.connect(self._mmc.mda.cancel)
-        # connect valueUpdated signal
-        self.channel_groupbox.valueChanged.connect(self._update_total_time)
-        self.stack_groupbox.valueChanged.connect(self._update_total_time)
-        self.time_groupbox.valueChanged.connect(self._update_total_time)
-        self.time_groupbox.toggled.connect(self._update_total_time)
-        self.position_groupbox.valueChanged.connect(self._update_total_time)
         # connect mmcore signals
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
-
+        self._mmc.events.configSet.connect(self._on_config_set)
+        self._mmc.events.configGroupChanged.connect(self._on_config_set)
+        self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
         # connect run button
         if self._include_run_button:
             self.buttons_wdg.run_button.clicked.connect(self._on_run_clicked)
@@ -145,27 +210,87 @@ class MDAWidget(QWidget):
 
         self._on_sys_cfg_loaded()
 
+        self.destroyed.connect(self._disconnect)
+
     def _on_sys_cfg_loaded(self) -> None:
         if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
             self._mmc.setChannelGroup(channel_group)
-        self.channel_groupbox.clear()
+        self._enable_run_btn()
+        self._update_total_time()
 
-    def _set_enabled(self, enabled: bool) -> None:
-        self.time_groupbox.setEnabled(enabled)
-        self.buttons_wdg.acquisition_order_comboBox.setEnabled(enabled)
-        self.channel_groupbox.setEnabled(enabled)
-        self.position_groupbox.setEnabled(enabled)
-        self.stack_groupbox.setEnabled(enabled)
+    def _on_config_set(self, group: str, preset: str) -> None:
+        if group != self._mmc.getChannelGroup():
+            return
+        self._enable_run_btn()
+
+    def _on_channel_group_changed(self, group: str) -> None:
+        self._enable_run_btn()
+
+    def _make_qwidget(self, widget: QWidget, spacer: bool) -> QWidget:
+        wdg = QWidget()
+        wdg.setLayout(QVBoxLayout())
+        wdg.layout().setContentsMargins(5, 10, 5, 5)
+        wdg.layout().addWidget(widget)
+        s = QSpacerItem(1, 1, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        if spacer:
+            wdg.layout().addItem(s)
+        return wdg
+
+    def _get_checkbox(self, tab_index: int) -> QCheckBox:
+        """Return the checkbox of the tab at the given index."""
+        return self._tab.tabBar().tabButton(tab_index, self._tab.checkbox_position)
+
+    def _on_tab_changed(self, index: int) -> None:
+        """Enable/disable 'Absolute' grid modes if multiple positions are selected."""
+        if index not in {2, 4}:
+            return
+        _has_positions = bool(
+            self.p_cbox.isChecked() and self.position_widget._table.rowCount() > 1
+        )
+        self.grid_widget.tab.setTabEnabled(1, not _has_positions)
+        self.grid_widget.tab.setTabEnabled(2, not _has_positions)
+
+    def _on_positions_tab_changed(self) -> None:
+        # not using .connect(lambda: self._on_tab_changed(2))
+        # because it would cause problems in closing the widget
+        # (see conftest _run_after_each_test fixture)
+        self._on_tab_changed(2)
+
+    def _enable_run_btn(self) -> None:
+        """Enable run button.
+
+        ...if there is a channel group and a preset selected or the channel checkbox
+        is checked and there is at least one channel selected.
+        """
+        if self._mmc.getChannelGroup() and self._mmc.getCurrentConfig(
+            self._mmc.getChannelGroup()
+        ):
+            if self.ch_cbox.isChecked() and not self.channel_widget._table.rowCount():
+                self.buttons_wdg.run_button.setEnabled(False)
+            else:
+                self.buttons_wdg.run_button.setEnabled(True)
+        elif not self.ch_cbox.isChecked() or not self.channel_widget._table.rowCount():
+            self.buttons_wdg.run_button.setEnabled(False)
+        else:
+            self.buttons_wdg.run_button.setEnabled(True)
+
+    def _enable_widgets(self, enable: bool) -> None:
+        self.buttons_wdg.acquisition_order_comboBox.setEnabled(enable)
+        for i in range(self._tab.count()):
+            self._get_checkbox(i).setEnabled(enable)
+            self._tab.widget(i).setEnabled(
+                enable if self._get_checkbox(i).isChecked() else False
+            )
 
     def _on_mda_started(self) -> None:
-        self._set_enabled(False)
+        self._enable_widgets(False)
         if self._include_run_button:
             self.buttons_wdg.pause_button.show()
             self.buttons_wdg.cancel_button.show()
         self.buttons_wdg.run_button.hide()
 
     def _on_mda_finished(self) -> None:
-        self._set_enabled(True)
+        self._enable_widgets(True)
         self.buttons_wdg.pause_button.hide()
         self.buttons_wdg.cancel_button.hide()
         if self._include_run_button:
@@ -195,28 +320,38 @@ class MDAWidget(QWidget):
 
         # set channel table
         if state.channels:
-            self.channel_groupbox.set_state([c.dict() for c in state.channels])
-
-        # set Z
-        if state.z_plan:
-            self.stack_groupbox.setChecked(True)
-            self.stack_groupbox.set_state(state.z_plan.dict())
+            self.ch_cbox.setChecked(True)
+            self.channel_widget.set_state([c.dict() for c in state.channels])
         else:
-            self.stack_groupbox.setChecked(False)
+            self.ch_cbox.setChecked(False)
+
+        # set z stack
+        if state.z_plan:
+            self.z_cbox.setChecked(True)
+            self.stack_widget.set_state(state.z_plan.dict())
+        else:
+            self.z_cbox.setChecked(False)
 
         # set time
         if state.time_plan:
-            self.time_groupbox.setChecked(True)
-            self.time_groupbox.set_state(state.time_plan.dict())
+            self.t_cbox.setChecked(True)
+            self.time_widget.set_state(state.time_plan.dict())
         else:
-            self.time_groupbox.setChecked(False)
+            self.t_cbox.setChecked(False)
 
         # set stage positions
         if state.stage_positions:
-            self.position_groupbox.setChecked(True)
-            self.position_groupbox.set_state(list(state.stage_positions))
+            self.p_cbox.setChecked(True)
+            self.position_widget.set_state(list(state.stage_positions))
         else:
-            self.position_groupbox.setChecked(False)
+            self.p_cbox.setChecked(False)
+
+        # set grid
+        if state.grid_plan:
+            self.g_cbox.setChecked(True)
+            self.grid_widget.set_state(state.grid_plan)
+        else:
+            self.g_cbox.setChecked(False)
 
     def get_state(self) -> MDASequence:
         """Get current state of widget and build a useq.MDASequence.
@@ -225,18 +360,28 @@ class MDAWidget(QWidget):
         -------
         useq.MDASequence
         """
-        channels = self.channel_groupbox.value()
+        channels = (
+            self.channel_widget.value()
+            if self.ch_cbox.isChecked()
+            else [
+                {
+                    "config": self._mmc.getCurrentConfig(self._mmc.getChannelGroup()),
+                    "group": self._mmc.getChannelGroup(),
+                    "exposure": self._mmc.getExposure(),
+                    "z_offset": 0.0,
+                    "do_stack": True,
+                    "acquire_every": 1,
+                }
+            ]
+        )
 
-        z_plan = (
-            self.stack_groupbox.value() if self.stack_groupbox.isChecked() else None
-        )
-        time_plan = (
-            self.time_groupbox.value() if self.time_groupbox.isChecked() else None
-        )
+        z_plan = self.stack_widget.value() if self.z_cbox.isChecked() else NoZ()
+
+        time_plan = self.time_widget.value() if self._uses_time() else NoT()
 
         stage_positions: list[PositionDict] = []
-        if self.position_groupbox.isChecked():
-            for p in self.position_groupbox.value():
+        if self.p_cbox.isChecked():
+            for p in self.position_widget.value():
                 if p.get("sequence"):
                     p_sequence = MDASequence(**p.get("sequence"))  # type: ignore
                     p_sequence = p_sequence.replace(
@@ -249,12 +394,15 @@ class MDAWidget(QWidget):
         if not stage_positions:
             stage_positions = self._get_current_position()
 
+        grid_plan = self.grid_widget.value() if self.g_cbox.isChecked() else NoGrid()
+
         return MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
             channels=channels,
             stage_positions=stage_positions,
             z_plan=z_plan,
             time_plan=time_plan,
+            grid_plan=grid_plan,
         )
 
     def _get_current_position(self) -> list[PositionDict]:
@@ -279,21 +427,53 @@ class MDAWidget(QWidget):
         self._mmc.run_mda(experiment)
         return
 
-    def _enable_run_btn(self) -> None:
-        self.buttons_wdg.run_button.setEnabled(
-            self.channel_groupbox._table.rowCount() > 0
+    def _save_sequence(self) -> None:
+        """Save the current MDA sequence to a json file."""
+        (dir_file, _) = QFileDialog.getSaveFileName(
+            self, "Saving directory and filename.", "", "json(*.json)"
         )
+        if not dir_file:
+            return
+
+        with open(str(dir_file), "w") as file:
+            file.write(self.get_state().json())
+
+    def _load_sequence(self) -> None:
+        """Load a MDAsequence json file into the widget."""
+        (filename, _) = QFileDialog.getOpenFileName(
+            self, "Select a MDAsequence json file.", "", "json(*.json)"
+        )
+        if filename:
+            import json
+
+            with open(filename) as file:
+                self.set_state(json.load(file))
 
     def _on_time_toggled(self, checked: bool) -> None:
         """Hide the warning if the time groupbox is unchecked."""
-        if not checked and self.time_groupbox._warning_widget.isVisible():
-            self.time_groupbox.setWarningVisible(False)
+        if not checked and self.time_widget._warning_widget.isVisible():
+            self.time_widget.setWarningVisible(False)
         else:
             self._update_total_time()
 
+    def _uses_time(self) -> bool:
+        """Hacky method to check whether the timebox is selected with any timepoints."""
+        has_phases = self.time_widget.value()["phases"]  # type: ignore
+        return bool(self.t_cbox.isChecked() and has_phases)
+
     def _update_total_time(self) -> None:
         """Calculate the minimum total acquisition time info."""
-        if not self.channel_groupbox.value():
+        # TODO: fix me!!!!!
+        if self._mmc.getChannelGroup() and self._mmc.getCurrentConfig(
+            self._mmc.getChannelGroup()
+        ):
+            if self.ch_cbox.isChecked() and not self.channel_widget._table.rowCount():
+                self.time_lbl._total_time_lbl.setText(
+                    "Minimum total acquisition time: 0 sec."
+                )
+                return
+
+        elif not self.ch_cbox.isChecked() or not self.channel_widget._table.rowCount():
             self.time_lbl._total_time_lbl.setText(
                 "Minimum total acquisition time: 0 sec."
             )
@@ -308,24 +488,35 @@ class MDAWidget(QWidget):
                 continue
 
             total_time = total_time + (e.exposure / 1000)
-            if self.time_groupbox.isChecked():
+            if self._uses_time():
                 _t = e.index["t"]
                 _exp = e.exposure / 1000
                 _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp
 
         if _per_timepoints:
-            time_value = self.time_groupbox.value()
-            timepoints = time_value["loops"]
-            interval = time_value["interval"].total_seconds()
-            total_time = total_time + (timepoints - 1) * interval
+            time_value = self.time_widget.value()
 
-            # check if the interval is smaller than the sum of the exposure times
+            intervals = []
+            for phase in time_value["phases"]:  # type: ignore
+                interval = phase["interval"].total_seconds()
+                intervals.append(interval)
+                if phase.get("loops") is not None:
+                    total_time = total_time + (phase["loops"] - 1) * interval
+                else:
+                    total_time = total_time + phase["duration"].total_seconds()
+
+            # check if the interval(s) is smaller than the sum of the exposure times
             sum_ch_exp = sum(
                 (c["exposure"] / 1000)
-                for c in self.channel_groupbox.value()
+                for c in self.channel_widget.value()
                 if c["exposure"] is not None
             )
-            self.time_groupbox.setWarningVisible(0 < interval < sum_ch_exp)
+            for i in intervals:
+                if 0 < i < sum_ch_exp:
+                    self.time_widget.setWarningVisible(True)
+                    break
+                else:
+                    self.time_widget.setWarningVisible(False)
 
             # group by time
             _group_by_time: dict[float, list[int]] = {
@@ -333,24 +524,34 @@ class MDAWidget(QWidget):
                 for n in set(_per_timepoints.values())
             }
 
-            t_per_tp_msg = "\nMinimum acquisition time(s) per timepoint: "
-            if len(_group_by_time) == 1:
-                min_aq_tp, _tp_unit = _select_output_unit(float(_per_timepoints[0]))
-                t_per_tp_msg = f"{t_per_tp_msg}{min_aq_tp:.4f} {_tp_unit}."
-            else:
-                # print longest timepoint first and other in brackets
-                _tp = []
-                for idx, i in enumerate(sorted(_per_timepoints.values(), reverse=True)):
-                    aq, u = _select_output_unit(float(i))
-                    if idx == 0:
-                        t_per_tp_msg = f"{t_per_tp_msg}{aq:.4f} {u} ("
-                    elif (aq, u) in _tp:
-                        continue
-                    else:
-                        t_per_tp_msg = f"{t_per_tp_msg}{aq:.4f} {u},  "
-                    _tp.append((aq, u))
-                t_per_tp_msg = f"{t_per_tp_msg[:-3]})."
+            t_per_tp_msg = "Minimum acquisition time per timepoint: "
 
-        _min_tot_time, _unit = _select_output_unit(total_time)
-        tot_acq_msg = f"Minimum total acquisition time: {_min_tot_time:.4f} {_unit}."
-        self.time_lbl._total_time_lbl.setText(f"{tot_acq_msg}{t_per_tp_msg}")
+            if len(_group_by_time) == 1:
+                t_per_tp_msg = (
+                    f"\n{t_per_tp_msg}"
+                    f"{fmt_timedelta(timedelta(seconds=_per_timepoints[0]))}"
+                )
+            else:
+                acq_min = timedelta(seconds=min(_per_timepoints.values()))
+                t_per_tp_msg = (
+                    f"\n{t_per_tp_msg}{fmt_timedelta(acq_min)}"
+                    if self._uses_time()
+                    else ""
+                )
+        else:
+            t_per_tp_msg = ""
+            self.time_widget.setWarningVisible(False)
+
+        _min_tot_time = (
+            "Minimum total acquisition time: "
+            f"{fmt_timedelta(timedelta(seconds=total_time))}"
+        )
+        self.time_lbl._total_time_lbl.setText(f"{_min_tot_time}{t_per_tp_msg}")
+
+    def _disconnect(self) -> None:
+        self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
+        self._mmc.mda.events.sequenceFinished.disconnect(self._on_mda_finished)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
+        self._mmc.events.configSet.disconnect(self._on_config_set)
+        self._mmc.events.configGroupChanged.disconnect(self._on_config_set)
+        self._mmc.events.channelGroupChanged.disconnect(self._on_channel_group_changed)
