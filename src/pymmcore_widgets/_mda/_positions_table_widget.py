@@ -13,6 +13,7 @@ from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QAction,
     QCheckBox,
+    QDialog,
     QDoubleSpinBox,
     QFileDialog,
     QGridLayout,
@@ -87,6 +88,23 @@ class _DoubleSpinBox(QDoubleSpinBox):
             self._table.cellWidget(r, self._table.currentColumn()).setValue(
                 self.value()
             )
+
+
+class GridDialog(QDialog):
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        current_stage_pos: tuple[float, float] | None = None,
+        mmcore: CMMCorePlus | None = None,
+    ) -> None:
+        super().__init__(parent)
+
+        self._grid_wdg = GridWidget(mmcore=mmcore, current_stage_pos=current_stage_pos)
+        self.setLayout(QVBoxLayout())
+        self.layout().setSpacing(0)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().addWidget(self._grid_wdg)
 
 
 class PositionTable(QWidget):
@@ -341,8 +359,8 @@ class PositionTable(QWidget):
                 self.replace_button.setEnabled(False)
 
     def _add_position(self) -> None:
-        if hasattr(self, "_grid_wdg"):
-            self._grid_wdg.close()  # type: ignore
+        if hasattr(self, "_grid_dialog"):
+            self._grid_dialog.close()  # type: ignore
 
         name = f"Pos{self._table.rowCount():03d}"
         xpos = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
@@ -452,13 +470,15 @@ class PositionTable(QWidget):
         )
 
     def _show_grid_widget(self) -> None:
-        if hasattr(self, "_grid_wdg"):
-            self._grid_wdg.close()  # type: ignore
+        if hasattr(self, "_grid_dialog"):
+            self._grid_dialog.close()  # type: ignore
 
-        self._grid_wdg = GridWidget(
+        self._grid_dialog = GridDialog(
+            self,
             mmcore=self._mmc,
             current_stage_pos=(self._mmc.getXPosition(), self._mmc.getYPosition()),
         )
+        self._grid_wdg = self._grid_dialog._grid_wdg
 
         row = self._table.indexAt(self.sender().parent().pos()).row()
         self._grid_wdg.valueChanged.connect(lambda x: self._add_grid_plan(x, row))
@@ -467,7 +487,7 @@ class PositionTable(QWidget):
         if item.data(self.GRID_ROLE):
             self._grid_wdg.set_state(item.data(self.GRID_ROLE))
 
-        self._grid_wdg.show()
+        self._grid_dialog.show()
 
     def _add_grid_plan(self, grid: dict, row: int | None = None) -> None:
         # sourcery skip: extract-method
@@ -485,8 +505,8 @@ class PositionTable(QWidget):
         add_grid.setText("Edit")
         add_grid.setIcon(QIcon())
         remove_grid.show()
-        if hasattr(self, "_grid_wdg"):
-            self._grid_wdg.close()
+        if hasattr(self, "_grid_dialog"):
+            self._grid_dialog.close()
 
         if isinstance(grid_type, GridFromEdges):
             _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
