@@ -31,7 +31,8 @@ from qtpy.QtWidgets import (
 from superqt import fonticon
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
-from useq import (
+from useq import (  # type: ignore
+    AnyAF,
     GridFromEdges,
     GridRelative,
     MDASequence,
@@ -54,7 +55,6 @@ if TYPE_CHECKING:
         z: float | None
         name: str | None
         sequence: MDASequence | None
-        autofocus: tuple[str, float] | None
 
 
 POS = "Pos"
@@ -308,9 +308,7 @@ class PositionTable(QWidget):
         if not xy and not z:
             self._table.setColumnHidden(P, True)
 
-    def _on_autofocus_value_changed(
-        self, value: dict[str, bool | (str | None)]
-    ) -> None:
+    def _on_autofocus_value_changed(self) -> None:
         self._table.setColumnHidden(AF, not self._use_af())
         if z_device := self._get_af_device():
             self._table.setHorizontalHeaderItem(AF, QTableWidgetItem(z_device))
@@ -326,7 +324,7 @@ class PositionTable(QWidget):
 
         if not state:
             for v in self.value():
-                if v["sequence"]:
+                if v.get("sequence") and v.get("sequence").get("grid_plan"):  # type: ignore  # noqa E501
                     self._warn_icon.show()
                     return
         self._warn_icon.hide()
@@ -351,9 +349,7 @@ class PositionTable(QWidget):
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
         z_device = self._get_af_device()
-        z_pos_autofocus = (
-            self._mmc.getPosition(z_device) if z_device and self._use_af() else None
-        )
+        z_pos_autofocus = self._mmc.getPosition(z_device) if self._use_af() else None
 
         if z_pos_autofocus is not None and not self._mmc.isContinuousFocusLocked():
             warnings.warn("Autofocus Device is not Locked in Focus.", stacklevel=1)
@@ -463,7 +459,6 @@ class PositionTable(QWidget):
             mmcore=self._mmc,
             current_stage_pos=(self._mmc.getXPosition(), self._mmc.getYPosition()),
         )
-        self._grid_wdg.setStyleSheet(self.parentWidget().styleSheet())
 
         row = self._table.indexAt(self.sender().parent().pos()).row()
         self._grid_wdg.valueChanged.connect(lambda x: self._add_grid_plan(x, row))
@@ -571,7 +566,9 @@ class PositionTable(QWidget):
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
         z_device = self._get_af_device()
-        z_pos_autofocus = self._mmc.getPosition(z_device) if z_device else None
+        z_pos_autofocus = (
+            self._mmc.getPosition(z_device) if z_device != "__no_autofocus__" else None
+        )
 
         self._add_table_row(name, xpos, ypos, zpos, z_pos_autofocus, rows[0])
 
@@ -660,22 +657,38 @@ class PositionTable(QWidget):
 
         for row in range(self._table.rowCount()):
             grid_role = self._table.item(row, P).data(self.GRID_ROLE)
-            values.append(
-                {
-                    "name": self._table.item(row, P).text(),
-                    "x": self._get_table_value(row, X),
-                    "y": self._get_table_value(row, Y),
-                    "z": self._get_table_value(row, Z),
-                    "autofocus": (
-                        (self._get_af_device(), self._get_table_value(row, AF))
-                        if self._use_af() and self._get_table_value(row, AF) is not None
-                        else None
-                    ),
-                    "sequence": {"grid_plan": grid_role} if grid_role else None,
-                }
-            )
+            af_plan = self._get_autofocus_plan(row)
+
+            value = {
+                "name": self._table.item(row, P).text(),
+                "x": self._get_table_value(row, X),
+                "y": self._get_table_value(row, Y),
+                "z": self._get_table_value(row, Z),
+                "sequence": {} if grid_role or af_plan else None,
+            }
+            if grid_role:
+                value["sequence"]["grid_plan"] = grid_role
+            if af_plan:
+                value["sequence"]["autofocus_plan"] = af_plan
+
+            values.append(value)
 
         return values
+
+    def _get_autofocus_plan(self, row: int) -> dict[str, Any] | None:
+        """Return the autofocus plan for the specified row."""
+        if (
+            self._get_af_device() == "__no_autofocus__"
+            or self._get_table_value(row, AF) is None
+        ):
+            # return {"autofocus_z_device_name": "__no_autofocus__"}
+            return None
+
+        return {
+            **self._autofocus_wdg.value(),
+            "z_stage_position": self._get_table_value(row, Z),
+            "af_motor_offset": (self._get_table_value(row, AF)),
+        }
 
     def set_state(
         self, positions: Sequence[PositionDict | Position], clear: bool = True
@@ -700,8 +713,10 @@ class PositionTable(QWidget):
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
             raise ValueError("No XY and Z Stage devices loaded.")
 
-        z_af_devicies = set()
+        # variables used for autofocus devaice name check
         rows = set(range(self._table.rowCount()))
+        z_af_devicies = set()
+
         for position in positions:
             if isinstance(position, Position):
                 position = cast("PositionDict", position.dict())
@@ -712,44 +727,56 @@ class PositionTable(QWidget):
             name = position.get("name")
             x, y, z = (position.get("x"), position.get("y"), position.get("z"))
 
-            z_af_device, z_af_pos = position.get("autofocus") or ("", None)
-
-            # check that all positions have the same one_shot_focus key values.
-            # If not, raise error.
-            z_af_devicies.add(z_af_device)
-            if len(z_af_devicies) > 1:
-                if clear:
-                    self.clear()
-                else:
-                    # remove only rows that have been added
-                    rows = set(range(self._table.rowCount())) - rows
-                    for r in sorted(rows, reverse=True):
-                        self._table.removeRow(r)
-
-                self._autofocus_wdg.setValue(
-                    {"device_name": "", "use_autofocus": False}
-                )
-
-                raise ValueError(
-                    "Each position must have the same 'one_shot_focus' key values."
-                )
-
-            self._autofocus_wdg.setValue(
-                {"device_name": z_af_device, "use_autofocus": z_af_device is not None}
-            )
-
-            self._add_table_row(name or f"{POS}000", x, y, z, z_af_pos)
+            z_af_pos = None
+            grid_plan = NoGrid().dict()
 
             if pos_seq := position.get("sequence"):
-                self._advanced_cbox.setChecked(True)
                 if isinstance(pos_seq, MDASequence):
-                    grid_plan = pos_seq.grid_plan.dict()
+                    if pos_seq.grid_plan:
+                        grid_plan = pos_seq.grid_plan.dict()
+                    if isinstance(pos_seq.autofocus_plan, AnyAF):  # type: ignore
+                        autofocus = pos_seq.autofocus_plan.dict()  # type: ignore
                 else:
-                    grid_plan = pos_seq.get("grid_plan")
-                if grid_plan:
-                    self._add_grid_plan(grid_plan, self._table.rowCount() - 1)
+                    grid_plan = pos_seq.get("grid_plan", NoGrid().dict())
+                    autofocus = pos_seq.get("autofocus_plan")
+
+                # add autofocus position if autofocus is used
+                if autofocus:
+                    af_device = autofocus.get(
+                        "autofocus_z_device_name", "__no_autofocus__"
+                    )
+
+                    if af_device != "__no_autofocus__":
+                        z_af_devicies.add(af_device)
+                        self._autofocus_wdg.setValue(af_device)
+                        z_af_pos = autofocus.get("af_motor_offset")
+                    else:
+                        z_af_pos = None
+
+                    # check that all positions have the same autofocus_z_device_name
+                    if len(z_af_devicies) > 1:
+                        self._check_z_af_name(clear, rows)
+
+            # add values to table
+            self._add_table_row(name or f"{POS}000", x, y, z, z_af_pos)
+            # add grid plan if any
+            if not isinstance(get_grid_type(grid_plan), NoGrid):
+                self._advanced_cbox.setChecked(True)
+                self._add_grid_plan(grid_plan, self._table.rowCount() - 1)
 
             self.valueChanged.emit()
+
+    def _check_z_af_name(self, clear: bool, rows: set[int]) -> None:
+        """Check that all positions have the same autofocus_z_device_name."""
+        if clear:
+            self.clear()
+        else:
+            # remove only rows that have been added
+            rows = set(range(self._table.rowCount())) - rows
+            for r in sorted(rows, reverse=True):
+                self._table.removeRow(r)
+        self._autofocus_wdg.setValue("__no_autofocus__")
+        raise ValueError("Each position must have the same autofocus_z_device_name.")
 
     def _save_positions(self) -> None:
         if not self._table.rowCount() or not self.value():
@@ -778,12 +805,12 @@ class PositionTable(QWidget):
                 self.set_state(json.load(file))
 
     def _get_af_device(self) -> str:
-        """Return the autofocus device name."""
-        return self._autofocus_wdg.value()["device_name"]
+        """Return the autofocus z device name."""
+        return self._autofocus_wdg.value()["autofocus_z_device_name"]
 
     def _use_af(self) -> bool:
-        """Return the autofocus checkbox state."""
-        return self._autofocus_wdg.value()["use_autofocus"]
+        """Return True if autofocus is used."""
+        return self._get_af_device() != "__no_autofocus__"
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)

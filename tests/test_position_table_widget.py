@@ -124,7 +124,6 @@ def pos():
         "x": 100.0,
         "y": 200.0,
         "z": 0.0,
-        "autofocus": (None),
         "sequence": {
             "grid_plan": {
                 "columns": 2,
@@ -141,7 +140,6 @@ def pos():
         "x": 10.0,
         "y": 20.0,
         "z": 0.0,
-        "autofocus": None,
         "sequence": {
             "grid_plan": {
                 "columns": 2,
@@ -158,7 +156,6 @@ def pos():
         "x": 0.0,
         "y": 0.0,
         "z": 0.0,
-        "autofocus": None,
         "sequence": {
             "grid_plan": {
                 "bottom": 0.0,
@@ -298,9 +295,9 @@ def test_autofocus_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mmc = global_mmcore
     tb = p._table
 
-    assert p._autofocus_wdg.value() == {"device_name": None, "use_autofocus": False}
+    assert p._autofocus_wdg.value() == {"autofocus_z_device_name": "__no_autofocus__"}
     assert tb.isColumnHidden(AF)
-    p._autofocus_wdg.setValue({"device_name": "Z1", "use_autofocus": True})
+    p._autofocus_wdg.setValue({"autofocus_z_device_name": "Z1"})
     assert not tb.isColumnHidden(AF)
 
     mmc.setXYPosition(100, 200)
@@ -312,7 +309,10 @@ def test_autofocus_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
         p.add_button.click()
     assert tb.rowCount() == 1
     assert _get_values(tb, 0) == ["Pos000", 100.0, 200.0, 50.0, 45.0]
-    assert p._autofocus_wdg.value() == {"device_name": "Z1", "use_autofocus": True}
+    assert p._autofocus_wdg.value() == {
+        "autofocus_z_device_name": "Z1",
+        "axes": ("t", "p", "g"),
+    }
 
 
 def test_no_z_stage(global_mmcore: CMMCorePlus, qtbot: QtBot):
@@ -330,13 +330,16 @@ def test_no_z_stage(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mmc.setPosition("Z1", 45)
     mmc.waitForSystem()
 
-    p._autofocus_wdg.setValue({"device_name": "Z1", "use_autofocus": True})
+    p._autofocus_wdg.setValue({"autofocus_z_device_name": "Z1"})
     assert not tb.isColumnHidden(AF)
 
     with pytest.warns(UserWarning, match="Autofocus Device is not Locked in Focus"):
         p.add_button.click()
     assert _get_values(tb, 0) == ["Pos000", 100.0, 200.0, 45.0]
-    assert p._autofocus_wdg.value() == {"device_name": "Z1", "use_autofocus": True}
+    assert p._autofocus_wdg.value() == {
+        "autofocus_z_device_name": "Z1",
+        "axes": ("t", "p", "g"),
+    }
 
 
 def test_no_xy_stage(global_mmcore: CMMCorePlus, qtbot: QtBot):
@@ -355,7 +358,7 @@ def test_no_xy_stage(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert tb.isColumnHidden(Y)
     assert tb.isColumnHidden(AF)
 
-    p._autofocus_wdg.setValue({"device_name": "Z1", "use_autofocus": True})
+    p._autofocus_wdg.setValue({"autofocus_z_device_name": "Z1"})
     assert not tb.isColumnHidden(AF)
     with pytest.warns(UserWarning, match="Autofocus Device is not Locked in Focus"):
         p.add_button.click()
@@ -370,7 +373,7 @@ def test_no_autofocus(global_mmcore: CMMCorePlus, qtbot: QtBot):
     qtbot.addWidget(p)
 
     assert not p._autofocus_wdg._autofocus_checkbox.isEnabled()
-    assert p._autofocus_wdg.value() == {"device_name": None, "use_autofocus": False}
+    assert p._autofocus_wdg.value() == {"autofocus_z_device_name": "__no_autofocus__"}
 
 
 def test_set_state_with_autofocus(global_mmcore: CMMCorePlus, qtbot: QtBot):
@@ -383,15 +386,24 @@ def test_set_state_with_autofocus(global_mmcore: CMMCorePlus, qtbot: QtBot):
         "x": 10.0,
         "y": 20.0,
         "z": 30.0,
-        "autofocus": ("Z1", 45.0),
-        "sequence": None,
+        "sequence": {
+            "autofocus_plan": {
+                "autofocus_z_device_name": "Z1",
+                "axes": ("t", "p", "g"),
+                "af_motor_offset": 45.0,
+                "z_stage_position": 30.0,
+            }
+        },
     }
 
     p.set_state([pos])
 
     assert not tb.isColumnHidden(AF)
     assert p._autofocus_wdg._autofocus_checkbox.isChecked()
-    assert p._autofocus_wdg.value() == {"device_name": "Z1", "use_autofocus": True}
+    assert p._autofocus_wdg.value() == {
+        "autofocus_z_device_name": "Z1",
+        "axes": ("t", "p", "g"),
+    }
     assert _get_values(tb, 0) == ["Pos000", 10.0, 20.0, 30.0, 45.0]
 
     assert p.value() == [pos]
@@ -457,6 +469,45 @@ def test_on_property_changed(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert tb.isColumnHidden(Z)
 
 
+def _pos_for_save_load(load: bool):
+    """Return a list of positions for saving or loading.
+
+    The difference ios that for loading the axes are a tuple and for saving a list.
+    """
+    return [
+        {"name": "Pos000", "x": 1.0, "y": 20.0, "z": 3.0, "sequence": None},
+        {
+            "name": "Pos001",
+            "x": 100.0,
+            "y": 200.0,
+            "z": 0.0,
+            "sequence": {
+                "grid_plan": {
+                    "columns": 2,
+                    "mode": "spiral",
+                    "overlap": [10.0, 5.0],
+                    "relative_to": "center",
+                    "rows": 2,
+                }
+            },
+        },
+        {
+            "name": "Pos002",
+            "x": 100.0,
+            "y": 200.0,
+            "z": 5.0,
+            "sequence": {
+                "autofocus_plan": {
+                    "autofocus_z_device_name": "Z",
+                    "axes": ("t", "p", "g") if load else ["t", "p", "g"],
+                    "af_motor_offset": 10.0,
+                    "z_stage_position": 5.0,
+                },
+            },
+        },
+    ]
+
+
 def test_save_and_load_position(qtbot: QtBot):
     with tempfile.TemporaryDirectory() as tmp:
 
@@ -467,38 +518,14 @@ def test_save_and_load_position(qtbot: QtBot):
             p = PositionTable()
             qtbot.addWidget(p)
 
-            pos = [
-                {
-                    "name": "Pos000",
-                    "x": 1.0,
-                    "y": 20.0,
-                    "z": 3.0,
-                    "autofocus": None,
-                    "sequence": None,
-                },
-                {
-                    "name": "Pos001",
-                    "x": 100.0,
-                    "y": 200.0,
-                    "z": 0.0,
-                    "autofocus": None,
-                    "sequence": {
-                        "grid_plan": {
-                            "columns": 2,
-                            "mode": "spiral",
-                            "overlap": [10.0, 5.0],
-                            "relative_to": "center",
-                            "rows": 2,
-                        }
-                    },
-                },
-            ]
+            pos = _pos_for_save_load(load=False)
             p.set_state(pos)
-            assert p._table.rowCount() == 2
+            assert p._table.rowCount() == 3
 
             p._save_positions()
 
             file = list(Path(tmp).iterdir())[0]
+
             assert json.loads(file.read_text()) == pos
 
             p.clear()
@@ -507,8 +534,8 @@ def test_save_and_load_position(qtbot: QtBot):
 
             with patch.object(QFileDialog, "getOpenFileName", _path):
                 p._load_positions()
-                assert p._table.rowCount() == 2
-                assert p.value() == pos
+                assert p._table.rowCount() == 3
+                assert p.value() == _pos_for_save_load(load=True)
 
 
 def test_set_state_with_different_z_af_devicies(
@@ -519,11 +546,17 @@ def test_set_state_with_different_z_af_devicies(
     tb = p._table
 
     pos = [
-        {"name": "Pos000", "autofocus": ("Z", 10)},
-        {"name": "Pos000", "autofocus": ("Z1", 15)},
+        {
+            "name": "Pos000",
+            "sequence": {"autofocus_plan": {"autofocus_z_device_name": "Z"}},
+        },
+        {
+            "name": "Pos000",
+            "sequence": {"autofocus_plan": {"autofocus_z_device_name": "Z1"}},
+        },
     ]
 
-    with pytest.raises(ValueError, match="Each position must have the same 'one_shot"):
+    with pytest.raises(ValueError, match="Each position must have the same"):
         p.set_state(pos, clear=False)
 
     assert tb.rowCount() == 0

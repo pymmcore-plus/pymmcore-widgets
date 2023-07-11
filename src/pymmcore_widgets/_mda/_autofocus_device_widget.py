@@ -16,12 +16,18 @@ from qtpy.QtWidgets import (
 if TYPE_CHECKING:
     from typing_extensions import TypedDict
 
-    class AFValueDict(TypedDict):
-        device_name: str
-        use_autofocus: bool
+    class AFValueDict(TypedDict, total=False):
+        """Autofocus dictionary."""
+
+        autofocus_z_device_name: str
+        axes: tuple[str, ...] | None
+        af_motor_offset: float | None
+        z_stage_position: float | None
 
 
 class _AutofocusZDeviceWidget(QWidget):
+    """Widget to select the hardware autofocus z device."""
+
     valueChanged = Signal(dict)
 
     def __init__(
@@ -112,25 +118,32 @@ class _AutofocusZDeviceWidget(QWidget):
 
     def value(self) -> AFValueDict:
         """Return in a dict the autofocus checkbox state and the autofocus z_device."""
-        return {
-            "device_name": self._af_device_name(),
-            "use_autofocus": self._should_use_autofocus(),
-        }
+        value: AFValueDict = {"autofocus_z_device_name": "__no_autofocus__"}
+        if self._should_use_autofocus():
+            value = {"autofocus_z_device_name": self._af_z_device_name()}
+            if self._af_z_device_name() != "__no_autofocus__":
+                value["axes"] = ("t", "p", "g")
+        return value
 
-    def setValue(self, value: AFValueDict) -> None:
+    def setValue(self, value: str | AFValueDict) -> None:
         """Set the autofocus checkbox state and the autofocus z_device to use."""
         if not self._mmc.getAutoFocusDevice():
             self._selector_wdg.hide()
             return
 
-        self._autofocus_checkbox.setChecked(value.get("use_autofocus", False))
-        if value.get("device_name") is not None:
-            self._autofocus_device_combo.setCurrentText(value.get("device_name", ""))
+        if isinstance(value, str):
+            af_dev_name = value
+        else:
+            af_dev_name = value.get("autofocus_z_device_name", "__no_autofocus__")
 
-    def _af_device_name(self) -> str:
+        self._autofocus_checkbox.setChecked(af_dev_name != "__no_autofocus__")
+        if af_dev_name != "__no_autofocus__":
+            self._autofocus_device_combo.setCurrentText(af_dev_name)
+
+    def _af_z_device_name(self) -> str:
         if self._should_use_autofocus():
             return self._autofocus_device_combo.currentText()  # type: ignore
-        return ""
+        return "__no_autofocus__"
 
     def _should_use_autofocus(self) -> bool:
         return bool(

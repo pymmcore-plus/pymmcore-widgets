@@ -15,7 +15,16 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import MDASequence, NoGrid, NoT, NoZ
+from useq import (  # type: ignore
+    AnyGridPlan,
+    AxesBasedAF,
+    MDASequence,
+    NoAF,
+    NoGrid,
+    NoT,
+    NoZ,
+    Position,
+)
 
 from .._util import fmt_timedelta, guess_channel_group
 from ._channel_table_widget import ChannelTable
@@ -41,7 +50,6 @@ if TYPE_CHECKING:
         z: float | None
         name: str | None
         sequence: MDASequence | None
-        autofocus: tuple[str, float] | None
 
 
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -340,8 +348,20 @@ class MDAWidget(QWidget):
         else:
             self.t_cbox.setChecked(False)
 
-        # set stage positions
-        if state.stage_positions:
+        # set autofocus plan and stage positions
+        # if a autofocus plan is specified, we need to add it to each position
+        if (
+            state.autofocus_plan  # type: ignore
+            and not isinstance(state.autofocus_plan, NoAF)  # type: ignore
+            and state.stage_positions
+        ):
+            pos_list = self._positions_with_autofocus(
+                state.stage_positions, state.autofocus_plan  # type: ignore
+            )
+            self.p_cbox.setChecked(True)
+            self.position_widget.set_state(list(pos_list))
+
+        elif state.stage_positions:
             self.p_cbox.setChecked(True)
             self.position_widget.set_state(list(state.stage_positions))
         else:
@@ -353,6 +373,25 @@ class MDAWidget(QWidget):
             self.grid_widget.set_state(state.grid_plan)
         else:
             self.g_cbox.setChecked(False)
+
+    def _positions_with_autofocus(
+        self, positions: tuple[Position, ...], autofocus_plan: AxesBasedAF
+    ) -> tuple[Position, ...]:
+        """Set autofocus plan to positions keeping also any specified grid_plan."""
+        new_pos = []
+        for pos in positions:
+            autofocus_plan = autofocus_plan.copy(update={"z_stage_position": pos.z})
+            # keep any specified grid_plan
+            grid_plan: AnyGridPlan | None = (
+                pos.sequence.grid_plan
+                if pos.sequence and pos.sequence.grid_plan
+                else None
+            )
+            update_kwargs = {
+                "sequence": {"grid_plan": grid_plan, "autofocus_plan": autofocus_plan}
+            }
+            new_pos.append(pos.copy(update=update_kwargs))
+        return tuple(new_pos)
 
     def get_state(self) -> MDASequence:
         """Get current state of widget and build a useq.MDASequence.
@@ -389,7 +428,6 @@ class MDAWidget(QWidget):
                         axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
                     )
                     p["sequence"] = p_sequence
-
                 stage_positions.append(p)
 
         if not stage_positions:
@@ -466,6 +504,9 @@ class MDAWidget(QWidget):
         """Hacky method to check whether the timebox is selected with any timepoints."""
         has_phases = self.time_widget.value()["phases"]  # type: ignore
         return bool(self.t_cbox.isChecked() and has_phases)
+
+    def _uses_autofocus(self) -> bool:
+        return bool(self.p_cbox.isChecked() and self.position_widget._use_af())
 
     def _update_total_time(self) -> None:
         """Calculate the minimum total acquisition time info."""
