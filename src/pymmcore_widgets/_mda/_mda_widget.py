@@ -387,7 +387,7 @@ class MDAWidget(QWidget):
                     p_sequence = p_sequence.replace(
                         axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
                     )
-                    p_sequence.set_fov_size(self._get_grid_fov())
+                    p_sequence.set_fov_size(self._get_fov_size())
                     p["sequence"] = p_sequence
 
                 stage_positions.append(p)
@@ -405,10 +405,10 @@ class MDAWidget(QWidget):
             time_plan=time_plan,
             grid_plan=grid_plan,
         )
-        mda.set_fov_size(self._get_grid_fov())
+        mda.set_fov_size(self._get_fov_size())
         return mda
 
-    def _get_grid_fov(self) -> tuple[float, float]:
+    def _get_fov_size(self) -> tuple[float, float]:
         """Return image width and height in micron to be used for the grid plan."""
         if px := self._mmc.getPixelSizeUm():
             _, _, widtgh, height = self._mmc.getROI()
