@@ -472,11 +472,6 @@ class MDAWidget(QWidget):
         """Run the MDA sequence experiment."""
         # construct a `useq.MDASequence` object from the values inserted in the widget
         experiment = self.get_state()
-        # raise error if z_plan is absolute and autofocus is checked
-        if not experiment.z_plan.is_relative and self.position_widget._use_af():
-            raise ValueError(
-                f"Cannot use {self._mmc.getAutoFocusDevice()} with an absolute z_plan."
-            )
         # run the MDA experiment asynchronously
         self._mmc.run_mda(experiment)
         return
