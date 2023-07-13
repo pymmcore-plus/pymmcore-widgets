@@ -91,6 +91,8 @@ class _DoubleSpinBox(QDoubleSpinBox):
 
 
 class GridDialog(QDialog):
+    """QDialog for the GridWidget."""
+
     def __init__(
         self,
         parent: QWidget | None = None,
