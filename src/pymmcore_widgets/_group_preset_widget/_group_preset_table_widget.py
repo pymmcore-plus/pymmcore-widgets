@@ -401,7 +401,26 @@ class GroupPresetTableWidget(QGroupBox):
             self, "Save Micro-Manager Configuration."
         )
         if filename:
+            if not filename.endswith(".cfg"):
+                filename += ".cfg"
             self._mmc.saveSystemConfiguration(filename)
+
+            # saveSystemConfiguration does not save the pixel size config so here
+            # we add to the saved .cfg filesave also any pixel size config.
+            if px_configs := self._mmc.getAvailablePixelSizeConfigs():
+                with open(filename, "a") as f:
+                    f.write("# PixelSize settings")
+                    for px_config in px_configs:
+                        data = self._mmc.getPixelSizeConfigData(px_config)
+                        obj = data.dict()["Objective"]["Label"]
+                        px_size = self._mmc.getPixelSizeUmByID(px_config)
+                        px_affine = self._mmc.getPixelSizeAffineByID(px_config)
+                        cfg = (
+                            f"\nConfigPixelSize,{px_config},Objective,Label,{obj}\n"
+                            f"PixelSize_um,{px_config},{px_size}\n"
+                            f"PixelSizeAffine,{px_config},{','.join(map(str, px_affine))}"  # noqa E501
+                        )
+                        f.write(cfg)
 
     def _load_cfg(self) -> None:
         """Open file dialog to select a config file."""

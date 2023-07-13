@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
+from unittest.mock import patch
 
 import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QFileDialog
 
 from pymmcore_widgets import PresetsWidget
 from pymmcore_widgets._group_preset_widget._add_group_widget import AddGroupWidget
@@ -288,3 +292,29 @@ def test_delete_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert "LowRes" not in mmc.getAvailableConfigs("Camera")
     wdg = cast(PresetsWidget, gp.table_wdg.cellWidget(camera_group_row, 1))
     assert "LowRes" not in wdg.allowedValues()
+
+
+def test_save_and_load_sequence(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    gp = GroupPresetTableWidget()
+    qtbot.addWidget(gp)
+    mmc = global_mmcore
+
+    with qtbot.waitSignal(mmc.events.pixelSizeChanged):
+        mmc.deletePixelSizeConfig("Res10x")
+
+    assert "Res10x" not in mmc.getAvailablePixelSizeConfigs()
+    mmc.definePixelSizeConfig("r10x", "Objective", "Label", "Nikon 10X S Fluor")
+    mmc.setPixelSizeUm("r10x", 2)
+    assert "r10x" in mmc.getAvailablePixelSizeConfigs()
+
+    with tempfile.TemporaryDirectory() as tmp:
+
+        def _path(*args, **kwargs):
+            return str(Path(tmp) / "test.cfg"), None
+
+        with patch.object(QFileDialog, "getSaveFileName", _path):
+            gp._save_cfg()
+
+            with patch.object(QFileDialog, "getOpenFileName", _path):
+                gp._load_cfg()
+                assert "r10x" in mmc.getAvailablePixelSizeConfigs()
