@@ -50,10 +50,9 @@ def test_mda_widget_load_state(qtbot: QtBot):
                 "z": 5,
                 "sequence": {
                     "autofocus_plan": {
-                        "autofocus_z_device_name": "Z",
+                        "autofocus_device_name": "Z",
                         "axes": ("t", "p", "g"),
-                        "af_motor_offset": 10.0,
-                        "z_stage_position": 5.0,
+                        "autofocus_motor_offset": 10.0,
                     }
                 },
             },
@@ -65,10 +64,9 @@ def test_mda_widget_load_state(qtbot: QtBot):
                 "sequence": {
                     "grid_plan": {"rows": 2, "columns": 2},
                     "autofocus_plan": {
-                        "autofocus_z_device_name": "Z",
+                        "autofocus_device_name": "Z",
                         "axes": ("t", "p", "g"),
-                        "af_motor_offset": 10.0,
-                        "z_stage_position": 15.0,
+                        "autofocus_motor_offset": 10.0,
                     },
                 },
             },

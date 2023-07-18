@@ -19,10 +19,12 @@ if TYPE_CHECKING:
     class AFValueDict(TypedDict, total=False):
         """Autofocus dictionary."""
 
-        autofocus_z_device_name: str
         axes: tuple[str, ...] | None
-        af_motor_offset: float | None
-        z_stage_position: float | None
+        autofocus_device_name: str
+        autofocus_motor_offset: float | None
+
+
+NOAF = "__no_autofocus__"
 
 
 class _AutofocusZDeviceWidget(QWidget):
@@ -118,10 +120,10 @@ class _AutofocusZDeviceWidget(QWidget):
 
     def value(self) -> AFValueDict:
         """Return in a dict the autofocus checkbox state and the autofocus z_device."""
-        value: AFValueDict = {"autofocus_z_device_name": "__no_autofocus__"}
+        value: AFValueDict = {"autofocus_device_name": NOAF}
         if self._should_use_autofocus():
-            value = {"autofocus_z_device_name": self._af_z_device_name()}
-            if self._af_z_device_name() != "__no_autofocus__":
+            value = {"autofocus_device_name": self._af_z_device_name()}
+            if self._af_z_device_name() != NOAF:
                 value["axes"] = ("t", "p", "g")
         return value
 
@@ -134,16 +136,16 @@ class _AutofocusZDeviceWidget(QWidget):
         if isinstance(value, str):
             af_dev_name = value
         else:
-            af_dev_name = value.get("autofocus_z_device_name", "__no_autofocus__")
+            af_dev_name = value.get("autofocus_device_name", NOAF)
 
-        self._autofocus_checkbox.setChecked(af_dev_name != "__no_autofocus__")
-        if af_dev_name != "__no_autofocus__":
+        self._autofocus_checkbox.setChecked(af_dev_name != NOAF)
+        if af_dev_name != NOAF:
             self._autofocus_device_combo.setCurrentText(af_dev_name)
 
     def _af_z_device_name(self) -> str:
         if self._should_use_autofocus():
             return self._autofocus_device_combo.currentText()  # type: ignore
-        return "__no_autofocus__"
+        return NOAF
 
     def _should_use_autofocus(self) -> bool:
         return bool(

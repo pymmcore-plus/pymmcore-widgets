@@ -33,7 +33,7 @@ from superqt import fonticon
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 from useq import (  # type: ignore
-    AnyAF,
+    AxesBasedAF,
     GridFromEdges,
     GridRelative,
     MDASequence,
@@ -65,6 +65,7 @@ Y = 2
 Z = 3
 AF = 4
 GRID = 5
+NOAF = "__no_autofocus__"
 AlignCenter = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
 
 
@@ -356,7 +357,8 @@ class PositionTable(QWidget):
 
         self.replace_button.setEnabled(len(rows) == 1)
         if len(rows) == 1:
-            grid_role = self._table.item(list(rows)[0], 0).data(self.GRID_ROLE)
+            item = self._table.item(list(rows)[0], 0)
+            grid_role = item.data(self.GRID_ROLE) if item else None
             if grid_role and isinstance(get_grid_type(grid_role), GridFromEdges):
                 self.replace_button.setEnabled(False)
 
@@ -588,9 +590,7 @@ class PositionTable(QWidget):
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
         z_device = self._get_af_device()
-        z_pos_autofocus = (
-            self._mmc.getPosition(z_device) if z_device != "__no_autofocus__" else None
-        )
+        z_pos_autofocus = self._mmc.getPosition(z_device) if z_device != NOAF else None
 
         self._add_table_row(name, xpos, ypos, zpos, z_pos_autofocus, rows[0])
 
@@ -699,17 +699,13 @@ class PositionTable(QWidget):
 
     def _get_autofocus_plan(self, row: int) -> dict[str, Any] | None:
         """Return the autofocus plan for the specified row."""
-        if (
-            self._get_af_device() == "__no_autofocus__"
-            or self._get_table_value(row, AF) is None
-        ):
-            # return {"autofocus_z_device_name": "__no_autofocus__"}
+        if self._get_af_device() == NOAF or self._get_table_value(row, AF) is None:
+            # return {"autofocus_device_name": NOAF}
             return None
 
         return {
             **self._autofocus_wdg.value(),
-            "z_stage_position": self._get_table_value(row, Z),
-            "af_motor_offset": (self._get_table_value(row, AF)),
+            "autofocus_motor_offset": (self._get_table_value(row, AF)),
         }
 
     def set_state(
@@ -749,14 +745,14 @@ class PositionTable(QWidget):
             name = position.get("name")
             x, y, z = (position.get("x"), position.get("y"), position.get("z"))
 
-            z_af_pos = None
+            z_af_pos: float | None = None
             grid_plan = NoGrid().dict()
 
             if pos_seq := position.get("sequence"):
                 if isinstance(pos_seq, MDASequence):
                     if pos_seq.grid_plan:
                         grid_plan = pos_seq.grid_plan.dict()
-                    if isinstance(pos_seq.autofocus_plan, AnyAF):  # type: ignore
+                    if isinstance(pos_seq.autofocus_plan, AxesBasedAF):  # type: ignore
                         autofocus = pos_seq.autofocus_plan.dict()  # type: ignore
                 else:
                     grid_plan = pos_seq.get("grid_plan", NoGrid().dict())
@@ -764,18 +760,28 @@ class PositionTable(QWidget):
 
                 # add autofocus position if autofocus is used
                 if autofocus:
-                    af_device = autofocus.get(
-                        "autofocus_z_device_name", "__no_autofocus__"
-                    )
+                    af_device = autofocus.get("autofocus_device_name", NOAF)
 
-                    if af_device != "__no_autofocus__":
-                        z_af_devicies.add(af_device)
-                        self._autofocus_wdg.setValue(af_device)
-                        z_af_pos = autofocus.get("af_motor_offset")
-                    else:
+                    if af_device == NOAF:
                         z_af_pos = None
+                    else:
+                        z_af_devicies.add(af_device)
+                        af_device_loaded = (
+                            af_device
+                            in self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice)
+                        )
+                        if af_device_loaded:
+                            self._autofocus_wdg.setValue(af_device)
+                            z_af_pos = autofocus.get("autofocus_motor_offset")
+                        else:
+                            self._autofocus_wdg.setValue(NOAF)
+                            z_af_pos = None
+                            warnings.warn(
+                                f"Autofocus device {af_device} not loaded.",
+                                stacklevel=2,
+                            )
 
-                    # check that all positions have the same autofocus_z_device_name
+                    # check that all positions have the same autofocus_device_name
                     if len(z_af_devicies) > 1:
                         self._check_z_af_name(clear, rows)
 
@@ -789,7 +795,7 @@ class PositionTable(QWidget):
             self.valueChanged.emit()
 
     def _check_z_af_name(self, clear: bool, rows: set[int]) -> None:
-        """Check that all positions have the same autofocus_z_device_name."""
+        """Check that all positions have the same autofocus_device_name."""
         if clear:
             self.clear()
         else:
@@ -797,8 +803,8 @@ class PositionTable(QWidget):
             rows = set(range(self._table.rowCount())) - rows
             for r in sorted(rows, reverse=True):
                 self._table.removeRow(r)
-        self._autofocus_wdg.setValue("__no_autofocus__")
-        raise ValueError("Each position must have the same autofocus_z_device_name.")
+        self._autofocus_wdg.setValue(NOAF)
+        raise ValueError("Each position must have the same autofocus_device_name.")
 
     def _save_positions(self) -> None:
         if not self._table.rowCount() or not self.value():
@@ -828,11 +834,11 @@ class PositionTable(QWidget):
 
     def _get_af_device(self) -> str:
         """Return the autofocus z device name."""
-        return self._autofocus_wdg.value()["autofocus_z_device_name"]
+        return self._autofocus_wdg.value()["autofocus_device_name"]
 
     def _use_af(self) -> bool:
         """Return True if autofocus is used."""
-        return self._get_af_device() != "__no_autofocus__"
+        return self._get_af_device() != NOAF
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
