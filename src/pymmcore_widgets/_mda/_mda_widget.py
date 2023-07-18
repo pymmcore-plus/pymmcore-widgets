@@ -15,13 +15,11 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import (  # type: ignore
-    AxesBasedAF,
+from useq import (
     MDASequence,
     NoGrid,
     NoT,
     NoZ,
-    Position,
 )
 
 from .._util import fmt_timedelta, guess_channel_group
@@ -346,19 +344,10 @@ class MDAWidget(QWidget):
         else:
             self.t_cbox.setChecked(False)
 
-        # set autofocus plan and stage positions
+        # set stage positions
         if state.stage_positions:
-            # if a autofocus plan is specified, we need to add it to each position
-            # if not already specified
-            if state.autofocus_plan:  # type: ignore
-                pos_list = self._positions_with_autofocus(
-                    state.stage_positions, state.autofocus_plan  # type: ignore
-                )
-                self.p_cbox.setChecked(True)
-                self.position_widget.set_state(list(pos_list))
-            else:
-                self.p_cbox.setChecked(True)
-                self.position_widget.set_state(list(state.stage_positions))
+            self.p_cbox.setChecked(True)
+            self.position_widget.set_state(list(state.stage_positions))
         else:
             self.p_cbox.setChecked(False)
 
@@ -368,20 +357,6 @@ class MDAWidget(QWidget):
             self.grid_widget.set_state(state.grid_plan)
         else:
             self.g_cbox.setChecked(False)
-
-    def _positions_with_autofocus(
-        self, positions: tuple[Position, ...], autofocus_plan: AxesBasedAF
-    ) -> tuple[Position, ...]:
-        """Set autofocus plan to positions keeping also any specified grid_plan."""
-        new_pos = []
-        for pos in positions:
-            update_kwargs = {}
-            if pos.sequence is not None:
-                update_kwargs = {"sequence": pos.sequence.dict()}
-                if not pos.sequence.autofocus_plan:  # type: ignore
-                    update_kwargs["sequence"]["autofocus_plan"] = autofocus_plan
-            new_pos.append(pos.copy(update=update_kwargs))
-        return tuple(new_pos)
 
     def get_state(self) -> MDASequence:
         """Get current state of widget and build a useq.MDASequence.
