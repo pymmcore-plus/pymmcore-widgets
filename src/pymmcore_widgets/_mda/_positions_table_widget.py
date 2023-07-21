@@ -33,7 +33,6 @@ from useq import (
     GridFromEdges,
     GridRelative,
     MDASequence,
-    NoGrid,
     Position,
 )
 
@@ -345,10 +344,7 @@ class PositionTable(QWidget):
         # sourcery skip: extract-method
         grid_type = get_grid_type(grid)
 
-        if isinstance(grid_type, NoGrid):
-            return
-
-        if row is None:
+        if grid_type is None or row is None:
             return
 
         self._table.item(row, 0).setData(self.GRID_ROLE, grid)
@@ -374,7 +370,7 @@ class PositionTable(QWidget):
     def _create_tooltip(self, grid: dict) -> str:
         grid_type = get_grid_type(grid)
 
-        if isinstance(grid_type, NoGrid):
+        if grid_type is None:
             return ""
 
         tooltip: dict[str, Any] = {}
