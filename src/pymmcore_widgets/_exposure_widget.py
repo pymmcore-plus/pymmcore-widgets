@@ -32,7 +32,7 @@ class ExposureWidget(QWidget):
 
     def __init__(
         self,
-        camera: str = None,  # type: ignore
+        camera: str | None = None,
         *,
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
@@ -67,7 +67,7 @@ class ExposureWidget(QWidget):
         self._mmc.events.exposureChanged.disconnect(self._on_exp_changed)
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_load)
 
-    def setCamera(self, camera: str = None) -> None:  # type: ignore
+    def setCamera(self, camera: str | None = None) -> None:
         """Set which camera this widget tracks.
 
         Parameters
@@ -133,9 +133,7 @@ class DefaultCameraExposureWidget(ExposureWidget):
             g_Keyword_CoreDevice, g_Keyword_CoreCamera
         ).disconnect(self._camera_updated)
 
-    def setCamera(
-        self, camera: str = None, force: bool = False  # type: ignore
-    ) -> None:
+    def setCamera(self, camera: str | None = None, force: bool = False) -> None:
         """Set which camera this widget tracks.
 
         Using this on the ``DefaultCameraExposureWidget``widget may cause unexpected

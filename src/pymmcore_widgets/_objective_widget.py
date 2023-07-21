@@ -32,7 +32,7 @@ class ObjectivesWidget(QWidget):
 
     def __init__(
         self,
-        objective_device: str = None,  # type: ignore
+        objective_device: str | None = None,
         *,
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,

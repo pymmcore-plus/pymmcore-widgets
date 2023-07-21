@@ -20,11 +20,8 @@ if TYPE_CHECKING:
         """Autofocus dictionary."""
 
         axes: tuple[str, ...] | None
-        autofocus_device_name: str
+        autofocus_device_name: str | None
         autofocus_motor_offset: float | None
-
-
-NOAF = "__no_autofocus__"
 
 
 class _AutofocusZDeviceWidget(QWidget):
@@ -120,32 +117,33 @@ class _AutofocusZDeviceWidget(QWidget):
 
     def value(self) -> AFValueDict:
         """Return in a dict the autofocus checkbox state and the autofocus z_device."""
-        value: AFValueDict = {"autofocus_device_name": NOAF}
+        value: AFValueDict = {"autofocus_device_name": None}
         if self._should_use_autofocus():
             value = {"autofocus_device_name": self._af_z_device_name()}
-            if self._af_z_device_name() != NOAF:
+            if self._af_z_device_name():
                 value["axes"] = ("t", "p", "g")
         return value
 
-    def setValue(self, value: str | AFValueDict) -> None:
+    def setValue(self, value: str | AFValueDict | None) -> None:
         """Set the autofocus checkbox state and the autofocus z_device to use."""
         if not self._mmc.getAutoFocusDevice():
             self._selector_wdg.hide()
             return
 
-        if isinstance(value, str):
-            af_dev_name = value
-        else:
-            af_dev_name = value.get("autofocus_device_name", NOAF)
+        af_dev_name: str | None = (
+            value
+            if isinstance(value, str) or value is None
+            else value.get("autofocus_device_name", None)
+        )
 
-        self._autofocus_checkbox.setChecked(af_dev_name != NOAF)
-        if af_dev_name != NOAF:
+        self._autofocus_checkbox.setChecked(af_dev_name is not None)
+        if af_dev_name is not None:
             self._autofocus_device_combo.setCurrentText(af_dev_name)
 
-    def _af_z_device_name(self) -> str:
+    def _af_z_device_name(self) -> str | None:
         if self._should_use_autofocus():
             return self._autofocus_device_combo.currentText()  # type: ignore
-        return NOAF
+        return None
 
     def _should_use_autofocus(self) -> bool:
         return bool(

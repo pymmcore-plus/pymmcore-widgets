@@ -15,12 +15,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import (
-    MDASequence,
-    NoGrid,
-    NoT,
-    NoZ,
-)
+from useq import MDASequence
 
 from .._util import fmt_timedelta, guess_channel_group
 from ._channel_table_widget import ChannelTable
@@ -380,9 +375,9 @@ class MDAWidget(QWidget):
             ]
         )
 
-        z_plan = self.stack_widget.value() if self.z_cbox.isChecked() else NoZ()
+        z_plan = self.stack_widget.value() if self.z_cbox.isChecked() else None
 
-        time_plan = self.time_widget.value() if self._uses_time() else NoT()
+        time_plan = self.time_widget.value() if self._uses_time() else None
 
         stage_positions: list[PositionDict] = []
         if self.p_cbox.isChecked():
@@ -399,7 +394,7 @@ class MDAWidget(QWidget):
         if not stage_positions:
             stage_positions = self._get_current_position()
 
-        grid_plan = self.grid_widget.value() if self.g_cbox.isChecked() else NoGrid()
+        grid_plan = self.grid_widget.value() if self.g_cbox.isChecked() else None
 
         mda = MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),

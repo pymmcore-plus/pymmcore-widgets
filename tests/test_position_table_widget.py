@@ -295,7 +295,7 @@ def test_autofocus_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mmc = global_mmcore
     tb = p._table
 
-    assert p._autofocus_wdg.value() == {"autofocus_device_name": "__no_autofocus__"}
+    assert p._autofocus_wdg.value() == {"autofocus_device_name": None}
     assert tb.isColumnHidden(AF)
     p._autofocus_wdg.setValue({"autofocus_device_name": "Z1"})
     assert not tb.isColumnHidden(AF)
@@ -373,7 +373,7 @@ def test_no_autofocus(global_mmcore: CMMCorePlus, qtbot: QtBot):
     qtbot.addWidget(p)
 
     assert not p._autofocus_wdg._autofocus_checkbox.isEnabled()
-    assert p._autofocus_wdg.value() == {"autofocus_device_name": "__no_autofocus__"}
+    assert p._autofocus_wdg.value() == {"autofocus_device_name": None}
 
 
 def test_set_state_with_autofocus(global_mmcore: CMMCorePlus, qtbot: QtBot):
@@ -584,5 +584,5 @@ def test_set_state_autofocus_wrong_name(global_mmcore: CMMCorePlus, qtbot: QtBot
 
     assert tb.isColumnHidden(AF)
     assert not p._autofocus_wdg._autofocus_checkbox.isChecked()
-    assert p._autofocus_wdg.value() == {"autofocus_device_name": "__no_autofocus__"}
+    assert p._autofocus_wdg.value() == {"autofocus_device_name": None}
     assert _get_values(tb, 0) == ["Pos000", 10.0, 20.0, 30.0]

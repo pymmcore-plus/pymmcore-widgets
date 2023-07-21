@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from itertools import chain, product, repeat
+from typing import ClassVar
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
@@ -72,7 +73,7 @@ class StageWidget(QWidget):
     """
 
     # fmt: off
-    BTNS = {
+    BTNS: ClassVar[ dict]= {
         # btn glyph                (r, c, xmag, ymag)
         MDI6.chevron_triple_up:    (0, 3,  0,  3),
         MDI6.chevron_double_up:    (1, 3,  0,  2),

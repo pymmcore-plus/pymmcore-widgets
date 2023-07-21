@@ -37,7 +37,6 @@ from useq import (  # type: ignore
     GridFromEdges,
     GridRelative,
     MDASequence,
-    NoGrid,
     Position,
 )
 
@@ -65,7 +64,6 @@ Y = 2
 Z = 3
 AF = 4
 GRID = 5
-NOAF = "__no_autofocus__"
 AlignCenter = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
 
 
@@ -371,7 +369,9 @@ class PositionTable(QWidget):
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
         z_device = self._get_af_device()
-        z_pos_autofocus = self._mmc.getPosition(z_device) if self._use_af() else None
+        z_pos_autofocus = (
+            self._mmc.getPosition(z_device) if z_device and self._use_af() else None
+        )
 
         if z_pos_autofocus is not None and not self._mmc.isContinuousFocusLocked():
             warnings.warn("Autofocus Device is not Locked in Focus.", stacklevel=1)
@@ -497,10 +497,7 @@ class PositionTable(QWidget):
         # sourcery skip: extract-method
         grid_type = get_grid_type(grid)
 
-        if isinstance(grid_type, NoGrid):
-            return
-
-        if row is None:
+        if grid_type is None or row is None:
             return
 
         self._table.item(row, P).setData(self.GRID_ROLE, grid)
@@ -526,7 +523,7 @@ class PositionTable(QWidget):
     def _create_tooltip(self, grid: dict) -> str:
         grid_type = get_grid_type(grid)
 
-        if isinstance(grid_type, NoGrid):
+        if grid_type is None:
             return ""
 
         tooltip: dict[str, Any] = {}
@@ -590,7 +587,7 @@ class PositionTable(QWidget):
         ypos = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         zpos = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
         z_device = self._get_af_device()
-        z_pos_autofocus = self._mmc.getPosition(z_device) if z_device != NOAF else None
+        z_pos_autofocus = self._mmc.getPosition(z_device) if z_device else None
 
         self._add_table_row(name, xpos, ypos, zpos, z_pos_autofocus, rows[0])
 
@@ -699,8 +696,7 @@ class PositionTable(QWidget):
 
     def _get_autofocus_plan(self, row: int) -> dict[str, Any] | None:
         """Return the autofocus plan for the specified row."""
-        if self._get_af_device() == NOAF or self._get_table_value(row, AF) is None:
-            # return {"autofocus_device_name": NOAF}
+        if self._get_af_device() is None or self._get_table_value(row, AF) is None:
             return None
 
         return {
@@ -746,7 +742,7 @@ class PositionTable(QWidget):
             x, y, z = (position.get("x"), position.get("y"), position.get("z"))
 
             z_af_pos: float | None = None
-            grid_plan = NoGrid().dict()
+            grid_plan = None
 
             if pos_seq := position.get("sequence"):
                 if isinstance(pos_seq, MDASequence):
@@ -755,14 +751,14 @@ class PositionTable(QWidget):
                     if isinstance(pos_seq.autofocus_plan, AxesBasedAF):  # type: ignore
                         autofocus = pos_seq.autofocus_plan.dict()  # type: ignore
                 else:
-                    grid_plan = pos_seq.get("grid_plan", NoGrid().dict())
+                    grid_plan = pos_seq.get("grid_plan", None)
                     autofocus = pos_seq.get("autofocus_plan")
 
                 # add autofocus position if autofocus is used
                 if autofocus:
-                    af_device = autofocus.get("autofocus_device_name", NOAF)
+                    af_device = autofocus.get("autofocus_device_name", None)
 
-                    if af_device == NOAF:
+                    if af_device is None:
                         z_af_pos = None
                     else:
                         z_af_devicies.add(af_device)
@@ -774,7 +770,7 @@ class PositionTable(QWidget):
                             self._autofocus_wdg.setValue(af_device)
                             z_af_pos = autofocus.get("autofocus_motor_offset")
                         else:
-                            self._autofocus_wdg.setValue(NOAF)
+                            self._autofocus_wdg.setValue(None)
                             z_af_pos = None
                             warnings.warn(
                                 f"Autofocus device {af_device} not loaded.",
@@ -788,7 +784,7 @@ class PositionTable(QWidget):
             # add values to table
             self._add_table_row(name or f"{POS}000", x, y, z, z_af_pos)
             # add grid plan if any
-            if not isinstance(get_grid_type(grid_plan), NoGrid):
+            if grid_plan is not None:
                 self._advanced_cbox.setChecked(True)
                 self._add_grid_plan(grid_plan, self._table.rowCount() - 1)
 
@@ -803,7 +799,7 @@ class PositionTable(QWidget):
             rows = set(range(self._table.rowCount())) - rows
             for r in sorted(rows, reverse=True):
                 self._table.removeRow(r)
-        self._autofocus_wdg.setValue(NOAF)
+        self._autofocus_wdg.setValue(None)
         raise ValueError("Each position must have the same autofocus_device_name.")
 
     def _save_positions(self) -> None:
@@ -832,13 +828,13 @@ class PositionTable(QWidget):
             with open(filename) as file:
                 self.set_state(json.load(file))
 
-    def _get_af_device(self) -> str:
+    def _get_af_device(self) -> str | None:
         """Return the autofocus z device name."""
         return self._autofocus_wdg.value()["autofocus_device_name"]
 
     def _use_af(self) -> bool:
         """Return True if autofocus is used."""
-        return self._get_af_device() != NOAF
+        return self._get_af_device() is not None
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
