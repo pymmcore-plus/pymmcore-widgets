@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
@@ -294,7 +293,9 @@ def test_delete_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert "LowRes" not in wdg.allowedValues()
 
 
-def test_save_and_load_sequence(global_mmcore: CMMCorePlus, qtbot: QtBot):
+def test_save_and_load_sequence(
+    global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path
+):
     gp = GroupPresetTableWidget()
     qtbot.addWidget(gp)
     mmc = global_mmcore
@@ -307,14 +308,10 @@ def test_save_and_load_sequence(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mmc.setPixelSizeUm("r10x", 2)
     assert "r10x" in mmc.getAvailablePixelSizeConfigs()
 
-    with tempfile.TemporaryDirectory() as tmp:
+    test_cfg = str(tmp_path / "test.cfg")
 
-        def _path(*args, **kwargs):
-            return str(Path(tmp) / "test.cfg"), None
-
-        with patch.object(QFileDialog, "getSaveFileName", _path):
+    with patch.object(QFileDialog, "getSaveFileName", lambda *a: (test_cfg, None)):
+        with patch.object(QFileDialog, "getOpenFileName", lambda *a: (test_cfg, None)):
             gp._save_cfg()
-
-            with patch.object(QFileDialog, "getOpenFileName", _path):
-                gp._load_cfg()
-                assert "r10x" in mmc.getAvailablePixelSizeConfigs()
+            gp._load_cfg()
+            assert "r10x" in mmc.getAvailablePixelSizeConfigs()
