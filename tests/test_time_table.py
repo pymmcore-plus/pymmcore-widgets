@@ -43,7 +43,6 @@ def test_time_table_widget(qtbot: QtBot):
     assert t._table.rowCount() == 0
 
 
-@pytest.mark.filterwarnings("ignore:NoT got unknown")
 def test_set_get_state(qtbot: QtBot) -> None:
     t = TimePlanWidget()
     qtbot.addWidget(t)
@@ -80,4 +79,4 @@ def test_set_get_state(qtbot: QtBot) -> None:
     with pytest.raises(
         ValueError, match="Time dicts must have both 'interval' and 'loops'."
     ):
-        t.set_state({"loops": 10})
+        t.set_state({"interval": 10, "duration": 10})

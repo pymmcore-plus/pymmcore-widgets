@@ -544,6 +544,9 @@ class _MoveToWidget(QGroupBox):
 
         grid = get_grid_type(self._tabwidget.value())  # type: ignore
 
+        if grid is None:
+            return
+
         if isinstance(grid, GridRelative) and (curr_x is None or curr_y is None):
             return
 
