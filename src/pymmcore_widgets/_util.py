@@ -133,6 +133,6 @@ def fmt_timedelta(time: timedelta) -> str:
     return "  ".join(out)
 
 
-def get_grid_type(grid: dict) -> AnyGridPlan:
+def get_grid_type(grid: dict) -> AnyGridPlan | None:
     """Get the grid type from the grid_plan."""
     return MDASequence(grid_plan=grid).grid_plan
