@@ -260,6 +260,8 @@ class TimePlanWidget(QWidget):
         self._clear()
 
         tp = MDASequence(time_plan=t_plan).time_plan
+        if tp is None:
+            return
         phases = tp.phases if isinstance(tp, MultiPhaseTimePlan) else [tp]
         for phase in phases:
             if not isinstance(phase, TIntervalLoops):

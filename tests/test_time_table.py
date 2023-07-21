@@ -4,6 +4,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, cast
 
 import pytest
+from pydantic import ValidationError
 from qtpy.QtWidgets import QSpinBox, QTableWidget
 from superqt import QQuantity
 
@@ -43,7 +44,6 @@ def test_time_table_widget(qtbot: QtBot):
     assert t._table.rowCount() == 0
 
 
-@pytest.mark.filterwarnings("ignore:NoT got unknown")
 def test_set_get_state(qtbot: QtBot) -> None:
     t = TimePlanWidget()
     qtbot.addWidget(t)
@@ -77,7 +77,10 @@ def test_set_get_state(qtbot: QtBot) -> None:
     assert interval.value().to_timedelta() == timedelta(seconds=10)
     assert timepoints.value() == 10
 
+    with pytest.raises(ValidationError):
+        t.set_state({"loops": 11})
+
     with pytest.raises(
         ValueError, match="Time dicts must have both 'interval' and 'loops'."
     ):
-        t.set_state({"loops": 10})
+        t.set_state({"interval": 10, "duration": 10})
