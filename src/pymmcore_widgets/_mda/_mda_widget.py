@@ -375,9 +375,9 @@ class MDAWidget(QWidget):
             ]
         )
 
-        z_plan = self.stack_widget.value() if self.z_cbox.isChecked() else None
+        z_plan = self.stack_widget.value() if self.z_cbox.isChecked() else {}
 
-        time_plan = self.time_widget.value() if self._uses_time() else None
+        time_plan = self.time_widget.value() if self._uses_time() else {}
 
         stage_positions: list[PositionDict] = []
         if self.p_cbox.isChecked():
@@ -394,7 +394,7 @@ class MDAWidget(QWidget):
         if not stage_positions:
             stage_positions = self._get_current_position()
 
-        grid_plan = self.grid_widget.value() if self.g_cbox.isChecked() else None
+        grid_plan = self.grid_widget.value() if self.g_cbox.isChecked() else {}
 
         return MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
