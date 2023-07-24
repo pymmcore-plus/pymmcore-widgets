@@ -51,7 +51,6 @@ class SnapButton(QPushButton):
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
-
         super().__init__(parent=parent)
 
         self.setSizePolicy(
@@ -79,11 +78,26 @@ class SnapButton(QPushButton):
     def _snap(self) -> None:
         if self._mmc.isSequenceRunning():
             self._mmc.stopSequenceAcquisition()
-        if self._mmc.getAutoShutter():
-            self._mmc.events.propertyChanged.emit(
-                self._mmc.getShutterDevice(), "State", True
-            )
-        create_worker(self._mmc.snap, _start_thread=True)
+
+        def snap_with_shutter() -> None:
+            """
+            Perform a snap and ensure shutter signals are sent.
+
+            This is necessary as not all shutter devices properly
+            send signals as they are opened and closed.
+            """
+            autoshutter = self._mmc.getAutoShutter()
+            if autoshutter:
+                self._mmc.events.propertyChanged.emit(
+                    self._mmc.getShutterDevice(), "State", True
+                )
+            self._mmc.snap()
+            if autoshutter:
+                self._mmc.events.propertyChanged.emit(
+                    self._mmc.getShutterDevice(), "State", False
+                )
+
+        create_worker(snap_with_shutter, _start_thread=True)
 
     def _on_system_cfg_loaded(self) -> None:
         self.setEnabled(bool(self._mmc.getCameraDevice()))

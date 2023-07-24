@@ -8,9 +8,9 @@ app = QApplication([])
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-shutter = ShuttersWidget("Shutter")
-shutter.button_text_open = "Shutter"
-shutter.button_text_closed = "Shutter"
+shutter = ShuttersWidget("White Light Shutter")
+shutter.button_text_open = "White Light Shutter"
+shutter.button_text_closed = "White Light Shutter"
 shutter.show()
 
 app.exec_()

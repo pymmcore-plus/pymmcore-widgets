@@ -26,7 +26,6 @@ def test_populating_group_preset_table(global_mmcore: CMMCorePlus, qtbot: QtBot)
     assert len(list(global_mmcore.getAvailableConfigGroups())) == 9
 
     for r in range(gp.table_wdg.rowCount()):
-
         group_name = gp.table_wdg.item(r, 0).text()
         wdg = gp.table_wdg.cellWidget(r, 1)
 
@@ -177,11 +176,9 @@ def test_delete_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert "Camera" in mmc.getAvailableConfigGroups()
 
     for r in range(gp.table_wdg.rowCount()):
-
         group_name = gp.table_wdg.item(r, 0).text()
 
         if group_name == "Camera":
-
             with qtbot.waitSignal(mmc.events.configGroupDeleted):
                 mmc.deleteConfigGroup("Camera")
             break
@@ -190,7 +187,9 @@ def test_delete_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     groups_in_table = [
         gp.table_wdg.item(r, 0).text() for r in range(gp.table_wdg.rowCount())
     ]
+
     assert "Camera" not in groups_in_table
+    assert gp.table_wdg.rowCount() == 8
 
 
 def test_add_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
@@ -202,16 +201,22 @@ def test_add_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     add_prs.preset_name_lineedit.setText("New")
 
-    mode = add_prs.table.cellWidget(3, 1)
-    mode.setValue("Color Test Pattern")
-    wdg = add_prs.table.cellWidget(5, 1)
-    wdg.setValue("Shutter")
+    dapi_values = []
+    for k in mmc.getConfigData("Channel", "DAPI").dict().values():
+        values = list(k.values())
+        if len(values) > 1:
+            dapi_values.extend(iter(values))
+        else:
+            dapi_values.append(values[0])
+
+    for i in range(add_prs.table.rowCount()):
+        add_prs.table.cellWidget(i, 1).setValue(dapi_values[i])
 
     with pytest.warns(UserWarning):
         add_prs.add_preset_button.click()
         assert add_prs.info_lbl.text() == "'DAPI' already has the same properties!"
 
-    mode.setValue("Noise")
+    add_prs.table.cellWidget(3, 1).setValue("Noise")
     add_prs.add_preset_button.click()
     assert add_prs.info_lbl.text() == "'New' has been added!"
 
@@ -225,12 +230,13 @@ def test_add_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
         ("Camera", "Mode", "Noise"),
         ("Multi Shutter", "Physical Shutter 1", "Undefined"),
         ("Multi Shutter", "Physical Shutter 2", "Shutter"),
-        ("Multi Shutter", "Physical Shutter 3", "Undefined"),
+        ("Multi Shutter", "Physical Shutter 3", "StateDev Shutter"),
         ("Multi Shutter", "Physical Shutter 4", "Undefined"),
+        ("StateDev Shutter", "State Device", "StateDev"),
+        ("StateDev", "Label", "State-1"),
     ]
 
     for r in range(gp.table_wdg.rowCount()):
-
         group_name = gp.table_wdg.item(r, 0).text()
         if group_name == "Channel":
             wdg = cast(PresetsWidget, gp.table_wdg.cellWidget(r, 1))
@@ -268,7 +274,6 @@ def test_delete_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     camera_group_row = 0
     for r in range(gp.table_wdg.rowCount()):
-
         group_name = gp.table_wdg.item(r, 0).text()
         wdg = cast(PresetsWidget, gp.table_wdg.cellWidget(r, 1))
 

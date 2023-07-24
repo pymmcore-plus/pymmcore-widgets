@@ -9,7 +9,6 @@ if TYPE_CHECKING:
 
 
 def test_combo_message_box_widget(qtbot: QtBot):
-
     items = ["item_1", "item_2", "item_3"]
 
     wdg = ComboMessageBox(items)

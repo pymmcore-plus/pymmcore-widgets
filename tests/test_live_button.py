@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 
 def test_live_button_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
-
     live_btn = LiveButton()
 
     qtbot.addWidget(live_btn)

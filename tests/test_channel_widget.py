@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 
 def test_channel_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
-
     wdg = ChannelWidget()
     qtbot.addWidget(wdg)
 
@@ -22,12 +21,9 @@ def test_channel_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     assert isinstance(wdg.channel_wdg, PresetsWidget)
 
-    global_mmcore.setProperty("Core", "Shutter", "")
-    assert not global_mmcore.getShutterDevice()
-
     wdg.channel_wdg.setValue("DAPI")
     assert global_mmcore.getCurrentConfig("Channel") == "DAPI"
-    assert global_mmcore.getShutterDevice() == "Multi Shutter"
+    assert global_mmcore.getShutterDevice() == "Shutter"
 
     global_mmcore.setConfig("Channel", "FITC")
     assert wdg.channel_wdg.value() == "FITC"
@@ -57,7 +53,6 @@ def test_channel_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert global_mmcore.getChannelGroup() == ""
 
     with qtbot.waitSignal(global_mmcore.events.configDefined):
-
         dev_prop_val = [
             ("Dichroic", "Label", "400DCLP"),
             ("Emission", "Label", "Chroma-HQ700"),

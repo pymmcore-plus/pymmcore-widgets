@@ -82,7 +82,6 @@ class GroupPresetTableWidget(QGroupBox):
         self.destroyed.connect(self._disconnect)
 
     def _create_gui(self) -> None:
-
         self.setLayout(QVBoxLayout())
         self.layout().setSpacing(5)
         self.setContentsMargins(0, 0, 0, 0)
@@ -100,7 +99,6 @@ class GroupPresetTableWidget(QGroupBox):
         self._enable_buttons(False)
 
     def _add_groups_presets_buttons(self) -> QWidget:
-
         main_wdg = QWidget()
         main_wdg_layout = QHBoxLayout()
         main_wdg_layout.setSpacing(10)
@@ -156,7 +154,6 @@ class GroupPresetTableWidget(QGroupBox):
         return main_wdg
 
     def _add_save_button(self) -> QWidget:
-
         save_btn_wdg = QWidget()
         save_btn_layout = QHBoxLayout()
         save_btn_layout.setSpacing(5)
@@ -200,7 +197,6 @@ class GroupPresetTableWidget(QGroupBox):
     def _on_new_group_preset(
         self, group: str, preset: str, device: str, property: str, value: str
     ) -> None:
-
         if not device or not property or not value:
             return
 
@@ -208,7 +204,6 @@ class GroupPresetTableWidget(QGroupBox):
             row = matching_item[0].row()
 
             if isinstance(self.table_wdg.cellWidget(row, 1), PropertyWidget):
-
                 dev_prop_val = [
                     (k[0], k[1], k[2]) for k in self._mmc.getConfigData(group, preset)
                 ]
@@ -308,8 +303,7 @@ class GroupPresetTableWidget(QGroupBox):
         msg = self._msg_box(f"Delete '{',  '.join(groups)}'?")
 
         if msg == QMessageBox.StandardButton.Ok:
-            for row, group in enumerate(groups):
-                self.table_wdg.removeRow(row)
+            for group in groups:
                 self._mmc.deleteConfigGroup(group)
 
     def _msg_box(self, msg: str) -> Any:
@@ -360,12 +354,12 @@ class GroupPresetTableWidget(QGroupBox):
             return
 
         groups_preset = [
-            (row, self.table_wdg.item(row, 0).text(), self.table_wdg.cellWidget(row, 1))
+            (self.table_wdg.item(row, 0).text(), self.table_wdg.cellWidget(row, 1))
             for row in sorted(selected_rows, reverse=True)
         ]
 
         _text = []
-        for _, group, wdg in groups_preset:
+        for group, wdg in groups_preset:
             if isinstance(wdg, PresetsWidget):
                 _text.append(f"({group},  {wdg._combo.currentText()})")
             else:
@@ -374,18 +368,16 @@ class GroupPresetTableWidget(QGroupBox):
         msg = self._msg_box(f"Delete '{',  '.join(_text)}'?")
 
         if msg == QMessageBox.StandardButton.Ok:
-            for row, group, wdg in groups_preset:
+            for group, wdg in groups_preset:
                 if isinstance(wdg, PresetsWidget):
                     preset = wdg._combo.currentText()
 
                     if len(wdg.allowedValues()) > 1:
                         self._mmc.deleteConfig(group, preset)
                     else:
-                        self.table_wdg.removeRow(row)
                         self._mmc.deleteConfigGroup(group)
 
                 elif isinstance(wdg, PropertyWidget):
-                    self.table_wdg.removeRow(row)
                     self._mmc.deleteConfigGroup(group)
 
     def _edit_preset(self) -> None:

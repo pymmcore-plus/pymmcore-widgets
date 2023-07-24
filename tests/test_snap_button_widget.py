@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 
 def test_snap_button_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
-
     snap_btn = SnapButton()
 
     qtbot.addWidget(snap_btn)

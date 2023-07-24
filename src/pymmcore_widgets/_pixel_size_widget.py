@@ -4,7 +4,7 @@ import contextlib
 import itertools
 import re
 import warnings
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
@@ -39,7 +39,7 @@ IMAGE_PX_SIZE = 4
 class PixelSizeTable(QTableWidget):
     """Create a QTableWidget to set pixel size configurations."""
 
-    HEADERS = {
+    HEADERS: ClassVar[dict] = {
         "objective": "Objective",
         "resolutionID": "Resolution ID",
         "cameraPixelSize": "Camera Pixel Size (um)",
@@ -61,7 +61,7 @@ class PixelSizeTable(QTableWidget):
         self.setDragDropMode(QAbstractItemView.DragDropMode.NoDragDrop)
 
     def _rebuild(
-        self, obj_dev: str, _cam_mag_dict: dict[str, tuple[float, float]] = None  # type: ignore # noqa:E501
+        self, obj_dev: str, _cam_mag_dict: dict[str, tuple[float, float]] | None = None
     ) -> None:
         records = self._get_pixel_info(obj_dev, _cam_mag_dict)
         self.clear()
@@ -75,7 +75,7 @@ class PixelSizeTable(QTableWidget):
         self._update_status()
 
     def _get_pixel_info(
-        self, obj_dev: str, _cam_mag_dict: dict[str, tuple[float, float]] = None  # type: ignore # noqa:E501
+        self, obj_dev: str, _cam_mag_dict: dict[str, tuple[float, float]] | None = None
     ) -> list[dict[str, Any]]:
         """Returns a list of records, that can be used to build a table.
 
@@ -316,7 +316,6 @@ class PixelSizeWidget(QDialog):
         self._rebuild()
 
     def _on_px_set(self, value: float) -> None:
-
         rows = []
         for cfg in self._mmc.getAvailablePixelSizeConfigs():
             if value == self._mmc.getPixelSizeUmByID(cfg):
@@ -438,7 +437,6 @@ class PixelSizeWidget(QDialog):
         value = wdg.text()
 
         if value in self._mmc.getAvailablePixelSizeConfigs():
-
             if wdg.property("resID") == value:
                 return
 
@@ -446,7 +444,8 @@ class PixelSizeWidget(QDialog):
 
             warnings.warn(
                 f"There is already a configuration called '{value}'. "
-                "Choose a different resolutionID."
+                "Choose a different resolutionID.",
+                stacklevel=2,
             )
             with contextlib.suppress(ValueError):
                 self._mmc.deletePixelSizeConfig(wdg.property("resID"))

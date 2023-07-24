@@ -43,7 +43,6 @@ class EditPresetWidget(QDialog):
         self._populate_table_and_combo()
 
     def _create_gui(self) -> None:  # sourcery skip: class-extract-method
-
         self.setWindowTitle(
             f"Edit the '{self._preset}' Preset from the '{self._group}' Group"
         )
@@ -117,7 +116,6 @@ class EditPresetWidget(QDialog):
         return wdg
 
     def _create_bottom_wdg(self) -> QWidget:
-
         wdg = QWidget()
         wdg_layout = QHBoxLayout()
         wdg_layout.setSpacing(5)
@@ -137,7 +135,6 @@ class EditPresetWidget(QDialog):
         return wdg
 
     def _update_combo(self) -> None:
-
         presets = self._mmc.getAvailableConfigs(self._group)
         with signals_blocked(self._presets_combo):
             self._presets_combo.clear()
@@ -153,7 +150,6 @@ class EditPresetWidget(QDialog):
         self._presets_combo.setEditable(False)
 
     def _populate_table_and_combo(self) -> None:
-
         self._update_combo()
 
         self.table.clearContents()
@@ -172,14 +168,12 @@ class EditPresetWidget(QDialog):
             self.table.setCellWidget(idx, 1, wdg)
 
     def _on_combo_changed(self, preset: str) -> None:
-
         self._preset = preset
         self.info_lbl.setStyleSheet("")
         self.info_lbl.setText("")
         self._populate_table_and_combo()
 
     def _apply_changes(self) -> None:
-
         dev_prop_val = []
         for row in range(self.table.rowCount()):
             device_property = self.table.item(row, 0).text()
@@ -200,7 +194,8 @@ class EditPresetWidget(QDialog):
                     return
                 warnings.warn(
                     "Threre is already a preset with the same "
-                    f"devices, properties and values: '{p}'."
+                    f"devices, properties and values: '{p}'.",
+                    stacklevel=2,
                 )
                 self.info_lbl.setStyleSheet("color: magenta;")
                 self.info_lbl.setText(f"'{p}' already has the same properties!")

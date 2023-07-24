@@ -71,14 +71,14 @@ class ShuttersWidget(QWidget):
 
         self._mmc.events.systemConfigurationLoaded.connect(self._refresh_shutter_widget)
         self._mmc.events.autoShutterSet.connect(self._on_autoshutter_changed)
-        self._mmc.events.propertyChanged.connect(self._on_prop_changed)
-        self._mmc.events.continuousSequenceAcquisitionStarted.connect(
-            self._on_seq_started
-        )
-        self._mmc.events.sequenceAcquisitionStarted.connect(self._on_seq_started)
-        self._mmc.events.sequenceAcquisitionStopped.connect(self._on_seq_stopped)
-        self._mmc.events.imageSnapped.connect(self._on_seq_stopped)
+        self._mmc.events.propertyChanged.connect(self._on_shutter_device_changed)
+        self._mmc.events.propertyChanged.connect(self._on_shutter_state_changed)
         self._mmc.events.configSet.connect(self._on_channel_set)
+        self._mmc.events.continuousSequenceAcquisitionStarted.connect(
+            self._on_live_mode
+        )
+        self._mmc.events.sequenceAcquisitionStarted.connect(self._on_live_mode)
+        self._mmc.events.sequenceAcquisitionStopped.connect(self._on_live_mode)
 
         self.destroyed.connect(self._disconnect)
 
@@ -97,7 +97,7 @@ class ShuttersWidget(QWidget):
 
     @icon_open.setter
     def icon_open(self, icon_o: str) -> None:
-        if int(self._mmc.getProperty(self.shutter_device, "State")) == 1:
+        if self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setIcon(icon(icon_o, color=self._icon_color_open))
         self._icon_open = icon_o
 
@@ -116,7 +116,7 @@ class ShuttersWidget(QWidget):
 
     @icon_closed.setter
     def icon_closed(self, icon_c: str) -> None:
-        if int(self._mmc.getProperty(self.shutter_device, "State")) == 0:
+        if not self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setIcon(icon(icon_c, color=self._icon_color_closed))
         self._icon_closed = icon_c
 
@@ -134,7 +134,7 @@ class ShuttersWidget(QWidget):
 
     @icon_color_open.setter
     def icon_color_open(self, color: COLOR_TYPE) -> None:
-        if int(self._mmc.getProperty(self.shutter_device, "State")) == 1:
+        if self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setIcon(icon(self._icon_open, color=color))
         self._icon_color_open = color
 
@@ -152,7 +152,7 @@ class ShuttersWidget(QWidget):
 
     @icon_color_closed.setter
     def icon_color_closed(self, color: COLOR_TYPE) -> None:
-        if int(self._mmc.getProperty(self.shutter_device, "State")) == 0:
+        if not self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setIcon(icon(self._icon_closed, color=color))
         self._icon_color_closed = color
 
@@ -181,7 +181,7 @@ class ShuttersWidget(QWidget):
 
     @button_text_open.setter
     def button_text_open(self, text: str) -> None:
-        if int(self._mmc.getProperty(self.shutter_device, "State")) == 1:
+        if self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setText(text)
         self._button_text_open = text
 
@@ -196,12 +196,11 @@ class ShuttersWidget(QWidget):
 
     @button_text_closed.setter
     def button_text_closed(self, text: str) -> None:
-        if int(self._mmc.getProperty(self.shutter_device, "State")) == 0:
+        if not self._mmc.getShutterOpen(self.shutter_device):
             self.shutter_button.setText(text)
         self._button_text_closed = text
 
     def _create_wdg(self) -> None:
-
         main_layout = QHBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(3)
@@ -238,32 +237,35 @@ class ShuttersWidget(QWidget):
             DeviceType.ShutterDevice
         ):
             if self.shutter_device != "":
-                warnings.warn(f"No device with label {self.shutter_device}!")
+                warnings.warn(
+                    f"No device with label {self.shutter_device}!", stacklevel=2
+                )
             self.shutter_button.setText("None")
             self.shutter_button.setEnabled(False)
             if self.autoshutter:
                 self.autoshutter_checkbox.setEnabled(False)
         else:
-            self._close_shutter(self.shutter_device)
             if self.autoshutter:
                 self.autoshutter_checkbox.setEnabled(True)
-                self.autoshutter_checkbox.setChecked(True)
-                self.shutter_button.setEnabled(False)
+                self.autoshutter_checkbox.setChecked(self._mmc.getAutoShutter())
             else:
+                self.autoshutter_checkbox.setChecked(False)
+            if self._mmc.getShutterDevice() == self.shutter_device:
                 self.shutter_button.setEnabled(not self._mmc.getAutoShutter())
+            else:
+                self.shutter_button.setEnabled(True)
+            if self._mmc.getShutterOpen(self.shutter_device):
+                self._set_shutter_wdg_to_opened()
+            else:
+                self._set_shutter_wdg_to_closed()
 
             # bool to define if the shutter_device is a Micro-Manager 'Multi Shutter'
             props = self._mmc.getDevicePropertyNames(self.shutter_device)
             self._is_multiShutter = bool([x for x in props if "Physical Shutter" in x])
 
-    def _on_seq_started(self) -> None:
-        if self._mmc.getShutterOpen(self.shutter_device):
-            self._set_shutter_wdg_to_opened()
-
-    def _on_seq_stopped(self) -> None:
-        self._close_shutter(self.shutter_device)
-
-    def _on_prop_changed(self, dev_name: str, prop_name: str, value: Any) -> None:
+    def _on_shutter_state_changed(
+        self, dev_name: str, prop_name: str, value: Any
+    ) -> None:
         if dev_name != self.shutter_device or prop_name != "State":
             return
         state = value in [True, "1"]
@@ -272,24 +274,38 @@ class ShuttersWidget(QWidget):
             if state
             else self._set_shutter_wdg_to_closed()
         )
-        if self._is_multiShutter and state:
+        if self._is_multiShutter:
             for i in range(1, 6):
                 value = self._mmc.getProperty(
                     self.shutter_device, f"Physical Shutter {i}"
                 )
                 if value != "Undefined":
-                    self._mmc.events.propertyChanged.emit(value, "State", True)
+                    self._mmc.events.propertyChanged.emit(value, "State", state)
+
+    def _on_shutter_device_changed(
+        self, dev_name: str, prop_name: str, value: Any
+    ) -> None:
+        if dev_name != "Core" and prop_name != "Shutter":
+            return
+
+        if value != self.shutter_device:
+            self.shutter_button.setEnabled(True)
+        else:
+            self.shutter_button.setEnabled(not self._mmc.getAutoShutter())
+
+    def _on_live_mode(self) -> None:
+        if not self._mmc.getShutterOpen(self.shutter_device):
+            self._set_shutter_wdg_to_closed()
+        else:
+            self._set_shutter_wdg_to_opened()
 
     def _on_channel_set(self, group: str, preset: str) -> None:
-        ch = self._mmc.getChannelGroup()
-        if group != ch:
-            return  # pragma: no cover
-        for d in self._mmc.getConfigData(ch, preset):
-            _dev = d[0]
-            _type = self._mmc.getDeviceType(_dev)
-            if _type is DeviceType.Shutter:
-                self._mmc.setProperty("Core", "Shutter", _dev)
-                break
+        if (
+            self._mmc.getShutterDevice() == self.shutter_device
+        ) and self._mmc.getAutoShutter():
+            self.shutter_button.setEnabled(False)
+        else:
+            self.shutter_button.setEnabled(True)
 
     def _on_shutter_btn_clicked(self) -> None:
         if self._mmc.getShutterOpen(self.shutter_device):
@@ -310,18 +326,16 @@ class ShuttersWidget(QWidget):
         if self.autoshutter:
             with signals_blocked(self.autoshutter_checkbox):
                 self.autoshutter_checkbox.setChecked(state)
-        self.shutter_button.setEnabled(not state)
-
-        if state and self._mmc.isSequenceRunning():
-            self._mmc.stopSequenceAcquisition()
+        if self._mmc.getShutterDevice() == self.shutter_device:
+            self.shutter_button.setEnabled(not state)
 
     def _close_shutter(self, shutter: str) -> None:
         self._set_shutter_wdg_to_closed()
-        self._mmc.setProperty(shutter, "State", False)
+        self._mmc.setShutterOpen(shutter, False)
 
     def _open_shutter(self, shutter: str) -> None:
         self._set_shutter_wdg_to_opened()
-        self._mmc.setProperty(shutter, "State", True)
+        self._mmc.setShutterOpen(shutter, True)
 
     def _on_shutter_checkbox_toggled(self, state: bool) -> None:
         self._mmc.setAutoShutter(state)
@@ -341,11 +355,6 @@ class ShuttersWidget(QWidget):
             self._refresh_shutter_widget
         )
         self._mmc.events.autoShutterSet.disconnect(self._on_autoshutter_changed)
-        self._mmc.events.propertyChanged.disconnect(self._on_prop_changed)
-        self._mmc.events.continuousSequenceAcquisitionStarted.disconnect(
-            self._on_seq_started
-        )
-        self._mmc.events.sequenceAcquisitionStarted.disconnect(self._on_seq_started)
-        self._mmc.events.sequenceAcquisitionStopped.disconnect(self._on_seq_stopped)
-        self._mmc.events.imageSnapped.disconnect(self._on_seq_stopped)
+        self._mmc.events.propertyChanged.disconnect(self._on_shutter_device_changed)
+        self._mmc.events.propertyChanged.disconnect(self._on_shutter_state_changed)
         self._mmc.events.configSet.disconnect(self._on_channel_set)

@@ -38,7 +38,6 @@ class AddPresetWidget(QDialog):
         self._populate_table()
 
     def _create_gui(self) -> None:
-
         self.setWindowTitle(f"Add a new Preset to the '{self._group}' Group")
 
         main_layout = QVBoxLayout()
@@ -64,7 +63,6 @@ class AddPresetWidget(QDialog):
         main_layout.addWidget(wdg)
 
     def _create_top_wdg(self) -> QGroupBox:
-
         wdg = QGroupBox()
         wdg_layout = QHBoxLayout()
         wdg_layout.setSpacing(5)
@@ -98,7 +96,6 @@ class AddPresetWidget(QDialog):
         return f"NewPreset_{idx}" if idx > 0 else "NewPreset"
 
     def _create_bottom_wdg(self) -> QWidget:
-
         wdg = QWidget()
         wdg_layout = QHBoxLayout()
         wdg_layout.setSpacing(5)
@@ -118,7 +115,6 @@ class AddPresetWidget(QDialog):
         return wdg
 
     def _populate_table(self) -> None:
-
         self.table.clearContents()
 
         dev_prop = []
@@ -140,11 +136,12 @@ class AddPresetWidget(QDialog):
             self.table.setCellWidget(idx, 1, wdg)
 
     def _add_preset(self) -> None:
-
         preset_name = self.preset_name_lineedit.text()
 
         if preset_name in self._mmc.getAvailableConfigs(self._group):
-            warnings.warn(f"There is already a preset called '{preset_name}'.")
+            warnings.warn(
+                f"There is already a preset called '{preset_name}'.", stacklevel=2
+            )
             self.info_lbl.setStyleSheet("color: magenta;")
             self.info_lbl.setText(f"'{preset_name}' already exist!")
             return
@@ -167,7 +164,8 @@ class AddPresetWidget(QDialog):
             if dpv_preset == dev_prop_val:
                 warnings.warn(
                     "There is already a preset with the same "
-                    f"devices, properties and values: '{p}'."
+                    f"devices, properties and values: '{p}'.",
+                    stacklevel=2,
                 )
                 self.info_lbl.setStyleSheet("color: magenta;")
                 self.info_lbl.setText(f"'{p}' already has the same properties!")
