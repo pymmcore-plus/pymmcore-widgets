@@ -142,9 +142,9 @@ class MDAWidget(QWidget):
         # info time label and buttons widgets
         self.time_lbl = _MDATimeLabel()
         self.buttons_wdg = _MDAControlButtons()
-        self.buttons_wdg.pause_button.hide()
-        self.buttons_wdg.cancel_button.hide()
-        self.buttons_wdg.run_button.hide()
+        # self.buttons_wdg.pause_button.hide()
+        # self.buttons_wdg.cancel_button.hide()
+        # self.buttons_wdg.run_button.hide()
 
         # savle load widget
         self._save_load = SaveLoadSequenceWidget()
@@ -284,17 +284,17 @@ class MDAWidget(QWidget):
 
     def _on_mda_started(self) -> None:
         self._enable_widgets(False)
-        if self._include_run_button:
-            self.buttons_wdg.pause_button.show()
-            self.buttons_wdg.cancel_button.show()
-        self.buttons_wdg.run_button.hide()
+        # if self._include_run_button:
+        #     self.buttons_wdg.pause_button.show()
+        #     self.buttons_wdg.cancel_button.show()
+        # self.buttons_wdg.run_button.hide()
 
     def _on_mda_finished(self) -> None:
         self._enable_widgets(True)
-        self.buttons_wdg.pause_button.hide()
-        self.buttons_wdg.cancel_button.hide()
-        if self._include_run_button:
-            self.buttons_wdg.run_button.show()
+        # self.buttons_wdg.pause_button.hide()
+        # self.buttons_wdg.cancel_button.hide()
+        # if self._include_run_button:
+        #     self.buttons_wdg.run_button.show()
 
     def _on_mda_paused(self, paused: bool) -> None:
         self.buttons_wdg.pause_button.setText("Resume" if paused else "Pause")

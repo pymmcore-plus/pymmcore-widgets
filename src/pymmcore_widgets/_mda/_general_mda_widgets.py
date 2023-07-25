@@ -25,6 +25,7 @@ class _MDAControlButtons(QWidget):
         self._create_btns_gui()
 
     def _create_btns_gui(self) -> None:
+        self.setMinimumWidth(300)
         self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         wdg_layout = QHBoxLayout()
         wdg_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
@@ -77,11 +78,24 @@ class _MDAControlButtons(QWidget):
             10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
 
+        self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
+        self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
+
         wdg_layout.addWidget(acq_wdg)
         wdg_layout.addItem(spacer)
         wdg_layout.addWidget(self.run_button)
         wdg_layout.addWidget(self.pause_button)
         wdg_layout.addWidget(self.cancel_button)
+
+    def _on_mda_started(self) -> None:
+        self.run_button.hide()
+        self.pause_button.show()
+        self.cancel_button.show()
+
+    def _on_mda_finished(self) -> None:
+        self.run_button.show()
+        self.pause_button.hide()
+        self.cancel_button.hide()
 
     def _on_mda_paused(self, paused: bool) -> None:
         self.pause_button.setText("Resume" if paused else "Pause")
