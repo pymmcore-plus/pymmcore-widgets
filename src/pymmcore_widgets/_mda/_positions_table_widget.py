@@ -502,6 +502,7 @@ class PositionTable(QWidget):
 
         self._table.item(row, P).setData(self.GRID_ROLE, grid)
         self._table.item(row, P).setToolTip(self._create_tooltip(grid))
+
         add_grid, remove_grid = self._get_grid_buttons(row)
         add_grid.setText("Edit")
         add_grid.setIcon(QIcon())
