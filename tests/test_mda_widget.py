@@ -137,7 +137,8 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg.z_cbox.setChecked(True)
     wdg.t_cbox.setChecked(True)
 
-    wdg._on_mda_started()
+    seq = MDASequence()
+    global_mmcore.mda.events.sequenceStarted.emit(seq)
     assert not wdg.time_widget.isEnabled()
     assert not wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_widget.isEnabled()
@@ -148,7 +149,7 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not wdg.buttons_wdg.pause_button.isHidden()
     assert not wdg.buttons_wdg.cancel_button.isHidden()
 
-    wdg._on_mda_finished()
+    global_mmcore.mda.events.sequenceFinished.emit(seq)
     assert wdg.time_widget.isEnabled()
     assert wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_widget.isEnabled()
