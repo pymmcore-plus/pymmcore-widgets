@@ -38,16 +38,22 @@ ALL_WIDGETS: dict[type[QWidget], dict[str, Any]] = {
 }
 
 
+def _full_state(core: CMMCorePlus) -> dict:
+    state: dict = dict(core.state())
+    state.pop("Datetime", None)
+    for prop in core.iterProperties():
+        state[(prop.device, prop.name)] = prop.value
+    return state
+
+
 @pytest.mark.parametrize("widget", ALL_WIDGETS, ids=lambda x: x.__name__)
 def test_core_state_unchanged(
     global_mmcore: CMMCorePlus, widget: type[QWidget], qapp: Any
 ) -> None:
-    before = global_mmcore.state()
+    before = _full_state(global_mmcore)
     kwargs = {**ALL_WIDGETS[widget]}
     widget(**kwargs)
-    after = global_mmcore.state()
-    before.pop("Datetime", None)
-    after.pop("Datetime", None)
+    after = _full_state(global_mmcore)
     assert before == after
 
 
