@@ -402,14 +402,6 @@ class MDAWidget(QWidget):
         if grid_plan is not None:
             update_kwargs["grid_plan"] = grid_plan
 
-        update_kwargs: dict = {}
-        if z_plan is not None:
-            update_kwargs["z_plan"] = z_plan
-        if time_plan is not None:
-            update_kwargs["time_plan"] = time_plan
-        if grid_plan is not None:
-            update_kwargs["grid_plan"] = grid_plan
-
         mda = MDASequence(
             axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
             channels=channels,
