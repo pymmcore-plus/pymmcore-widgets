@@ -181,6 +181,7 @@ class TimePlanWidget(QWidget):
         time_spin.setValue(loops or 1)
         time_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         time_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        time_spin.setKeyboardTracking(False)
         time_spin.valueChanged.connect(self.valueChanged)
 
         idx = self._table.rowCount()
