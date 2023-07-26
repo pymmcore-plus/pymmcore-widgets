@@ -308,6 +308,9 @@ class MDAWidget(QWidget):
             MDASequence state in the form of a dict, MDASequence object, or a str or
             Path pointing to a sequence.yaml file
         """
+        # TODO: prevent _update_total_time from being called until
+        # all subcomponents have been set
+
         # sourcery skip: low-code-quality
         if isinstance(state, (str, Path)):
             state = MDASequence.parse_file(state)
