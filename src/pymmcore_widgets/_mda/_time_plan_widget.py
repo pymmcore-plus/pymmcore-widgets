@@ -23,6 +23,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QQuantity, fonticon
+from superqt.utils import signals_blocked
 from useq import MDASequence, MultiPhaseTimePlan, TIntervalLoops
 
 if TYPE_CHECKING:
@@ -267,10 +268,12 @@ class TimePlanWidget(QWidget):
         if tp is None:
             return
         phases = tp.phases if isinstance(tp, MultiPhaseTimePlan) else [tp]
-        for phase in phases:
-            if not isinstance(phase, TIntervalLoops):
-                raise ValueError("Time dicts must have both 'interval' and 'loops'.")
-            self._create_new_row(interval=phase.interval, loops=phase.loops)
+        with signals_blocked(self):
+            for phase in phases:
+                if not isinstance(phase, TIntervalLoops):
+                    raise ValueError("Time dicts must have both 'interval' and 'loops'.")
+                self._create_new_row(interval=phase.interval, loops=phase.loops)
+        self.valueChanged()
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._clear)
