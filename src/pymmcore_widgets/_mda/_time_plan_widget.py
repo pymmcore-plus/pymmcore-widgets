@@ -271,9 +271,11 @@ class TimePlanWidget(QWidget):
         with signals_blocked(self):
             for phase in phases:
                 if not isinstance(phase, TIntervalLoops):
-                    raise ValueError("Time dicts must have both 'interval' and 'loops'.")
+                    raise ValueError(
+                        "Time dicts must have both 'interval' and 'loops'."
+                    )
                 self._create_new_row(interval=phase.interval, loops=phase.loops)
-        self.valueChanged()
+        self.valueChanged.emit()
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._clear)
