@@ -486,13 +486,14 @@ class MDAWidget(QWidget):
         total_time: float = 0.0
         _per_timepoints: dict[int, float] = {}
         t_per_tp_msg = ""
+        _uses_time = self._uses_time()
 
         for e in self.get_state():
             if e.exposure is None:
                 continue
 
             total_time = total_time + (e.exposure / 1000)
-            if self._uses_time():
+            if _uses_time:
                 _t = e.index["t"]
                 _exp = e.exposure / 1000
                 _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp
