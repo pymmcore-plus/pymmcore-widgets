@@ -156,7 +156,11 @@ class TimePlanWidget(QWidget):
         loops: int | None = None,
     ) -> None:
         """Create a new row in the table."""
-        val, u = (interval.total_seconds(), "s") if interval else (1, "s")
+        val, u = (
+            (interval.total_seconds(), "s")
+            if isinstance(interval, timedelta)
+            else (1, "s")
+        )
         quant_wdg = QQuantity(val, u)
         mag_spin = cast("QDoubleSpinBox", getattr(quant_wdg, "_mag_spinbox", None))
         if mag_spin is None:
