@@ -9,12 +9,12 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QCheckBox,
     QFileDialog,
+    QHBoxLayout,
     QScrollArea,
     QSizePolicy,
     QSpacerItem,
     QVBoxLayout,
     QWidget,
-    QHBoxLayout,
 )
 from useq import MDASequence
 
@@ -22,8 +22,8 @@ from .._util import fmt_timedelta, guess_channel_group
 from ._channel_table_widget import ChannelTable
 from ._checkable_tabwidget_widget import CheckableTabWidget
 from ._general_mda_widgets import (
-    SaveLoadSequenceWidget,
     AcquisitionOrderWidget,
+    SaveLoadSequenceWidget,
     _MDAControlButtons,
     _MDATimeLabel,
 )
@@ -172,7 +172,6 @@ class MDAWidget(QWidget):
         self.layout().addWidget(self.time_lbl)
         self.layout().addLayout(acq_order_run_layout)
 
-
         # CONNECTIONS
         # connect tabs changed signal
         self._tab.currentChanged.connect(self._on_tab_changed)
@@ -297,7 +296,6 @@ class MDAWidget(QWidget):
     def _on_mda_finished(self) -> None:
         self._enable_widgets(True)
 
-
     def set_state(self, state: dict | MDASequence | str | Path) -> None:
         """Set current state of MDA widget.
 
@@ -315,7 +313,9 @@ class MDAWidget(QWidget):
         if not isinstance(state, MDASequence):
             raise TypeError("state must be an MDASequence, dict, or yaml file")
 
-        self.acquisition_order_widget.acquisition_order_comboBox.setCurrentText(state.axis_order)
+        self.acquisition_order_widget.acquisition_order_comboBox.setCurrentText(
+            state.axis_order
+        )
 
         # set channel table
         if state.channels:
