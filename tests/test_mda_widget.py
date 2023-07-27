@@ -26,7 +26,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
 
     wdg._enable_widgets(False)
     assert not wdg.time_widget.isEnabled()
-    assert not wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
+    assert not wdg.acquisition_order_widget.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_widget.isEnabled()
     assert not wdg.position_widget.isEnabled()
     assert not wdg.stack_widget.isEnabled()
@@ -136,11 +136,10 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg.p_cbox.setChecked(True)
     wdg.z_cbox.setChecked(True)
     wdg.t_cbox.setChecked(True)
-
     seq = MDASequence()
     global_mmcore.mda.events.sequenceStarted.emit(seq)
     assert not wdg.time_widget.isEnabled()
-    assert not wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
+    assert not wdg.acquisition_order_widget.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_widget.isEnabled()
     assert not wdg.position_widget.isEnabled()
     assert not wdg.stack_widget.isEnabled()
@@ -151,7 +150,7 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     global_mmcore.mda.events.sequenceFinished.emit(seq)
     assert wdg.time_widget.isEnabled()
-    assert wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
+    assert wdg.acquisition_order_widget.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_widget.isEnabled()
     assert wdg.position_widget.isEnabled()
     assert wdg.stack_widget.isEnabled()
