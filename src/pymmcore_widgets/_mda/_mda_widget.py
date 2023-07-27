@@ -610,5 +610,5 @@ def _is_checked(self: QWidget) -> bool:
     if not tab:
         return False
     my_idx = tab.indexOf(self)
-    chbox = tab.tabBar().tabButton(my_idx, tab.checkbox_position)  # type: ignore
+    chbox = tab.tabBar().tabButton(my_idx, tab.checkbox_position)
     return chbox.isChecked()  # type: ignore
