@@ -9,6 +9,7 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QCheckBox,
     QFileDialog,
+    QHBoxLayout,
     QScrollArea,
     QSizePolicy,
     QSpacerItem,
@@ -17,13 +18,14 @@ from qtpy.QtWidgets import (
 )
 from useq import MDASequence
 
-from .._util import fmt_timedelta, guess_channel_group
+from .._util import fmt_timedelta
 from ._channel_table_widget import ChannelTable
 from ._checkable_tabwidget_widget import CheckableTabWidget
 from ._general_mda_widgets import (
-    SaveLoadSequenceWidget,
+    _AcquisitionOrderWidget,
     _MDAControlButtons,
     _MDATimeLabel,
+    _SaveLoadSequenceWidget,
 )
 from ._grid_widget import GridWidget
 from ._positions_table_widget import PositionTable
@@ -141,15 +143,16 @@ class MDAWidget(QWidget):
 
         # info time label and buttons widgets
         self.time_lbl = _MDATimeLabel()
-        self.buttons_wdg = _MDAControlButtons()
-        self.buttons_wdg.pause_button.hide()
-        self.buttons_wdg.cancel_button.hide()
-        self.buttons_wdg.run_button.hide()
 
         # savle load widget
-        self._save_load = SaveLoadSequenceWidget()
+        self._save_load = _SaveLoadSequenceWidget()
         self._save_load._save_button.clicked.connect(self._save_sequence)
         self._save_load._load_button.clicked.connect(self._load_sequence)
+
+        # Acquisition order widget
+        self.acquisition_order_widget = _AcquisitionOrderWidget()
+        acq_order_run_layout = QHBoxLayout()
+        acq_order_run_layout.addWidget(self.acquisition_order_widget)
 
         # add widgets to layout
         central_layout.addWidget(self._tab)
@@ -167,7 +170,7 @@ class MDAWidget(QWidget):
         self.layout().setContentsMargins(10, 10, 10, 10)
         self.layout().addWidget(scroll)
         self.layout().addWidget(self.time_lbl)
-        self.layout().addWidget(self.buttons_wdg)
+        self.layout().addLayout(acq_order_run_layout)
 
         # CONNECTIONS
         # connect tabs changed signal
@@ -193,9 +196,6 @@ class MDAWidget(QWidget):
         # the widget (see conftest _run_after_each_test fixture)
         self.p_cbox.toggled.connect(self._on_positions_tab_changed)
         self.g_cbox.toggled.connect(self._update_total_time)
-        # connect buttons
-        self.buttons_wdg.pause_button.released.connect(self._mmc.mda.toggle_pause)
-        self.buttons_wdg.cancel_button.released.connect(self._mmc.mda.cancel)
         # connect mmcore signals
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
@@ -205,18 +205,20 @@ class MDAWidget(QWidget):
         self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
         # connect run button
         if self._include_run_button:
+            self.buttons_wdg = _MDAControlButtons()
             self.buttons_wdg.run_button.clicked.connect(self._on_run_clicked)
             self.buttons_wdg.run_button.show()
+            # connect buttons
+            self.buttons_wdg.pause_button.released.connect(self._mmc.mda.toggle_pause)
+            self.buttons_wdg.cancel_button.released.connect(self._mmc.mda.cancel)
+            acq_order_run_layout.addWidget(self.buttons_wdg)
 
         self._on_sys_cfg_loaded()
 
         self.destroyed.connect(self._disconnect)
 
     def _on_sys_cfg_loaded(self) -> None:
-        if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
-            self._mmc.setChannelGroup(channel_group)
         self._enable_run_btn()
-        self._update_total_time()
 
     def _on_config_set(self, group: str, preset: str) -> None:
         if group != self._mmc.getChannelGroup():
@@ -262,6 +264,9 @@ class MDAWidget(QWidget):
         ...if there is a channel group and a preset selected or the channel checkbox
         is checked and there is at least one channel selected.
         """
+        if not self._include_run_button:
+            return
+
         if self._mmc.getChannelGroup() and self._mmc.getCurrentConfig(
             self._mmc.getChannelGroup()
         ):
@@ -275,7 +280,7 @@ class MDAWidget(QWidget):
             self.buttons_wdg.run_button.setEnabled(True)
 
     def _enable_widgets(self, enable: bool) -> None:
-        self.buttons_wdg.acquisition_order_comboBox.setEnabled(enable)
+        self.acquisition_order_widget.acquisition_order_comboBox.setEnabled(enable)
         for i in range(self._tab.count()):
             self._get_checkbox(i).setEnabled(enable)
             self._tab.widget(i).setEnabled(
@@ -284,20 +289,9 @@ class MDAWidget(QWidget):
 
     def _on_mda_started(self) -> None:
         self._enable_widgets(False)
-        if self._include_run_button:
-            self.buttons_wdg.pause_button.show()
-            self.buttons_wdg.cancel_button.show()
-        self.buttons_wdg.run_button.hide()
 
     def _on_mda_finished(self) -> None:
         self._enable_widgets(True)
-        self.buttons_wdg.pause_button.hide()
-        self.buttons_wdg.cancel_button.hide()
-        if self._include_run_button:
-            self.buttons_wdg.run_button.show()
-
-    def _on_mda_paused(self, paused: bool) -> None:
-        self.buttons_wdg.pause_button.setText("Resume" if paused else "Pause")
 
     def set_state(self, state: dict | MDASequence | str | Path) -> None:
         """Set current state of MDA widget.
@@ -319,7 +313,9 @@ class MDAWidget(QWidget):
         if not isinstance(state, MDASequence):
             raise TypeError("state must be an MDASequence, dict, or yaml file")
 
-        self.buttons_wdg.acquisition_order_comboBox.setCurrentText(state.axis_order)
+        self.acquisition_order_widget.acquisition_order_comboBox.setCurrentText(
+            state.axis_order
+        )
 
         # set channel table
         if state.channels:
@@ -384,7 +380,7 @@ class MDAWidget(QWidget):
                 if p.get("sequence"):
                     p_sequence = MDASequence(**p.get("sequence"))  # type: ignore
                     p_sequence = p_sequence.replace(
-                        axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText()
+                        axis_order=self.acquisition_order_widget.acquisition_order_comboBox.currentText()
                     )
                     p["sequence"] = p_sequence
 
@@ -406,7 +402,7 @@ class MDAWidget(QWidget):
             update_kwargs["grid_plan"] = grid_plan
 
         return MDASequence(
-            axis_order=self.buttons_wdg.acquisition_order_comboBox.currentText(),
+            axis_order=self.acquisition_order_widget.acquisition_order_comboBox.currentText(),
             channels=channels,
             stage_positions=stage_positions,
             **update_kwargs,
