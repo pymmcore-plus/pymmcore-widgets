@@ -22,10 +22,10 @@ from .._util import fmt_timedelta
 from ._channel_table_widget import ChannelTable
 from ._checkable_tabwidget_widget import CheckableTabWidget
 from ._general_mda_widgets import (
-    SaveLoadSequenceWidget,
     _AcquisitionOrderWidget,
     _MDAControlButtons,
     _MDATimeLabel,
+    _SaveLoadSequenceWidget,
 )
 from ._grid_widget import GridWidget
 from ._positions_table_widget import PositionTable
@@ -145,7 +145,7 @@ class MDAWidget(QWidget):
         self.time_lbl = _MDATimeLabel()
 
         # savle load widget
-        self._save_load = SaveLoadSequenceWidget()
+        self._save_load = _SaveLoadSequenceWidget()
         self._save_load._save_button.clicked.connect(self._save_sequence)
         self._save_load._load_button.clicked.connect(self._load_sequence)
 
@@ -302,6 +302,9 @@ class MDAWidget(QWidget):
             MDASequence state in the form of a dict, MDASequence object, or a str or
             Path pointing to a sequence.yaml file
         """
+        # TODO: prevent _update_total_time from being called until
+        # all subcomponents have been set
+
         # sourcery skip: low-code-quality
         if isinstance(state, (str, Path)):
             state = MDASequence.parse_file(state)
@@ -469,7 +472,7 @@ class MDAWidget(QWidget):
 
     def _uses_time(self) -> bool:
         """Hacky method to check whether the timebox is selected with any timepoints."""
-        has_phases = self.time_widget.value()["phases"]  # type: ignore
+        has_phases = self.time_widget._table.rowCount()
         return bool(self.t_cbox.isChecked() and has_phases)
 
     def _uses_autofocus(self) -> bool:
@@ -496,13 +499,14 @@ class MDAWidget(QWidget):
         total_time: float = 0.0
         _per_timepoints: dict[int, float] = {}
         t_per_tp_msg = ""
+        _uses_time = self._uses_time()
 
         for e in self.get_state():
             if e.exposure is None:
                 continue
 
             total_time = total_time + (e.exposure / 1000)
-            if self._uses_time():
+            if _uses_time:
                 _t = e.index["t"]
                 _exp = e.exposure / 1000
                 _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp

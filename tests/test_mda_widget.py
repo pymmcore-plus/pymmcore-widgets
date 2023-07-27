@@ -3,7 +3,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QFileDialog
@@ -92,7 +92,19 @@ def test_mda_widget_load_state(qtbot: QtBot):
             "overlap": (0.0, 0.0),
         },
     )
+    mocks = []
+    for subcomponent in [
+        wdg.time_widget,
+        wdg.stack_widget,
+        wdg.position_widget,
+        wdg.channel_widget,
+        wdg.grid_widget,
+    ]:
+        mocks.append(MagicMock())
+        subcomponent.valueChanged.connect(mocks[-1])
     wdg.set_state(sequence)
+    for mock in mocks:
+        mock.assert_called_once()
     assert wdg.position_widget._table.rowCount() == 4
     assert wdg.channel_widget._table.rowCount() == 2
     assert wdg.t_cbox.isChecked()
