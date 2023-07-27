@@ -427,6 +427,7 @@ class PositionTable(QWidget):
         spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         spin.setValue(value)
         spin.wheelEvent = lambda event: None  # block mouse scroll
+        spin.setKeyboardTracking(False)
         self._table.setCellWidget(row, col, spin)
 
     def _add_grid_buttons(self, row: int | None, col: int | None) -> None:
@@ -719,9 +720,6 @@ class PositionTable(QWidget):
             By default True. If True, the current positions list is cleared before the
             specified one is added.
         """
-        if clear:
-            self.clear()
-
         if not isinstance(positions, Sequence):
             raise TypeError("The 'positions' arguments has to be a 'Sequence' type.")
 
@@ -732,64 +730,69 @@ class PositionTable(QWidget):
         rows = set(range(self._table.rowCount()))
         z_af_devicies = set()
 
-        for position in positions:
-            if isinstance(position, Position):
-                position = cast("PositionDict", position.dict())
+        with signals_blocked(self):
+            if clear:
+                self.clear()
+            for position in positions:
+                if isinstance(position, Position):
+                    position = cast("PositionDict", position.dict())
 
-            if not isinstance(position, dict):
-                continue
+                if not isinstance(position, dict):
+                    continue
 
-            name = position.get("name")
-            x, y, z = (position.get("x"), position.get("y"), position.get("z"))
+                name = position.get("name")
+                x, y, z = (position.get("x"), position.get("y"), position.get("z"))
 
-            z_af_pos: float | None = None
-            grid_plan = None
+                z_af_pos: float | None = None
+                grid_plan = None
 
-            if pos_seq := position.get("sequence"):
-                if isinstance(pos_seq, MDASequence):
-                    if pos_seq.grid_plan:
-                        grid_plan = pos_seq.grid_plan.dict()
-                    if isinstance(pos_seq.autofocus_plan, AxesBasedAF):  # type: ignore
-                        autofocus = pos_seq.autofocus_plan.dict()  # type: ignore
-                else:
-                    grid_plan = pos_seq.get("grid_plan", None)
-                    autofocus = pos_seq.get("autofocus_plan")
-
-                # add autofocus position if autofocus is used
-                if autofocus:
-                    af_device = autofocus.get("autofocus_device_name", None)
-
-                    if af_device is None:
-                        z_af_pos = None
+                if pos_seq := position.get("sequence"):
+                    if isinstance(pos_seq, MDASequence):
+                        if pos_seq.grid_plan:
+                            grid_plan = pos_seq.grid_plan.dict()
+                        if isinstance(pos_seq.autofocus_plan, AxesBasedAF):  # type: ignore
+                            autofocus = pos_seq.autofocus_plan.dict()  # type: ignore
                     else:
-                        z_af_devicies.add(af_device)
-                        af_device_loaded = (
-                            af_device
-                            in self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice)
-                        )
-                        if af_device_loaded:
-                            self._autofocus_wdg.setValue(af_device)
-                            z_af_pos = autofocus.get("autofocus_motor_offset")
-                        else:
-                            self._autofocus_wdg.setValue(None)
+                        grid_plan = pos_seq.get("grid_plan", None)
+                        autofocus = pos_seq.get("autofocus_plan")
+
+                    # add autofocus position if autofocus is used
+                    if autofocus:
+                        af_device = autofocus.get("autofocus_device_name", None)
+
+                        if af_device is None:
                             z_af_pos = None
-                            warnings.warn(
-                                f"Autofocus device {af_device} not loaded.",
-                                stacklevel=2,
+                        else:
+                            z_af_devicies.add(af_device)
+                            af_device_loaded = (
+                                af_device
+                                in self._mmc.getLoadedDevicesOfType(
+                                    DeviceType.StageDevice
+                                )
                             )
+                            if af_device_loaded:
+                                self._autofocus_wdg.setValue(af_device)
+                                z_af_pos = autofocus.get("autofocus_motor_offset")
+                            else:
+                                self._autofocus_wdg.setValue(None)
+                                z_af_pos = None
+                                warnings.warn(
+                                    f"Autofocus device {af_device} not loaded.",
+                                    stacklevel=2,
+                                )
 
-                    # check that all positions have the same autofocus_device_name
-                    if len(z_af_devicies) > 1:
-                        self._check_z_af_name(clear, rows)
+                        # check that all positions have the same autofocus_device_name
+                        if len(z_af_devicies) > 1:
+                            self._check_z_af_name(clear, rows)
 
-            # add values to table
-            self._add_table_row(name or f"{POS}000", x, y, z, z_af_pos)
-            # add grid plan if any
-            if grid_plan is not None:
-                self._advanced_cbox.setChecked(True)
-                self._add_grid_plan(grid_plan, self._table.rowCount() - 1)
+                # add values to table
+                self._add_table_row(name or f"{POS}000", x, y, z, z_af_pos)
+                # add grid plan if any
+                if grid_plan is not None:
+                    self._advanced_cbox.setChecked(True)
+                    self._add_grid_plan(grid_plan, self._table.rowCount() - 1)
 
-            self.valueChanged.emit()
+        self.valueChanged.emit()
 
     def _check_z_af_name(self, clear: bool, rows: set[int]) -> None:
         """Check that all positions have the same autofocus_device_name."""
