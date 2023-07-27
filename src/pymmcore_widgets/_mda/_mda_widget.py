@@ -22,10 +22,10 @@ from .._util import fmt_timedelta
 from ._channel_table_widget import ChannelTable
 from ._checkable_tabwidget_widget import CheckableTabWidget
 from ._general_mda_widgets import (
-    SaveLoadSequenceWidget,
     _AcquisitionOrderWidget,
     _MDAControlButtons,
     _MDATimeLabel,
+    _SaveLoadSequenceWidget,
 )
 from ._grid_widget import GridWidget
 from ._positions_table_widget import PositionTable
@@ -145,7 +145,7 @@ class MDAWidget(QWidget):
         self.time_lbl = _MDATimeLabel()
 
         # savle load widget
-        self._save_load = SaveLoadSequenceWidget()
+        self._save_load = _SaveLoadSequenceWidget()
         self._save_load._save_button.clicked.connect(self._save_sequence)
         self._save_load._load_button.clicked.connect(self._load_sequence)
 
