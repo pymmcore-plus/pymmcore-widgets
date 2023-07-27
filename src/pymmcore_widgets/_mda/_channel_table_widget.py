@@ -62,7 +62,7 @@ class ChannelTable(QWidget):
     """
 
     valueChanged = Signal()
-    CH_GROUP_ROLE = Qt.UserRole + 1
+    CH_GROUP_ROLE = Qt.ItemDataRole.UserRole + 1
 
     def __init__(
         self,

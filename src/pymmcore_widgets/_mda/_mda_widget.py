@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -12,7 +13,6 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QScrollArea,
     QSizePolicy,
-    QSpacerItem,
     QVBoxLayout,
     QWidget,
 )
@@ -125,14 +125,14 @@ class MDAWidget(QWidget):
 
         # place widgets in a QWidget to control tab layout content margins
         wdgs = [
-            (self.channel_widget, "Channels", False),
-            (self.stack_widget, "Z Stack", True),
-            (self.position_widget, "Positions", False),
-            (self.time_widget, "Time", False),
-            (self.grid_widget, "Grid", True),
+            (self.channel_widget, "Channels"),
+            (self.stack_widget, "Z Stack"),
+            (self.position_widget, "Positions"),
+            (self.time_widget, "Time"),
+            (self.grid_widget, "Grid"),
         ]
-        for w, n, b in wdgs:
-            self._tab.addTab(self._make_qwidget(w, b), n)
+        for widget, title in wdgs:
+            self._tab.addTab(widget, title)
 
         # assign checkboxes to a variable
         self.ch_cbox = self._get_checkbox(0)
@@ -227,16 +227,6 @@ class MDAWidget(QWidget):
 
     def _on_channel_group_changed(self, group: str) -> None:
         self._enable_run_btn()
-
-    def _make_qwidget(self, widget: QWidget, spacer: bool) -> QWidget:
-        wdg = QWidget()
-        wdg.setLayout(QVBoxLayout())
-        wdg.layout().setContentsMargins(5, 10, 5, 5)
-        wdg.layout().addWidget(widget)
-        s = QSpacerItem(1, 1, QSizePolicy.Minimum, QSizePolicy.Expanding)
-        if spacer:
-            wdg.layout().addItem(s)
-        return wdg
 
     def _get_checkbox(self, tab_index: int) -> QCheckBox:
         """Return the checkbox of the tab at the given index."""
@@ -572,4 +562,68 @@ class MDAWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
         self._mmc.events.configSet.disconnect(self._on_config_set)
         self._mmc.events.configGroupChanged.disconnect(self._on_config_set)
+        self._mmc.events.channelGroupChanged.disconnect(self._on_channel_group_changed)
         self._mmc.events.channelGroupChanged.disconnect(self._enable_run_btn)
+
+    # DEPRECATIONS
+
+    @property
+    def channel_groupbox(self) -> ChannelTable:
+        warnings.warn(
+            "MDAWidget.channel_groupbox has been renamed to MDAWidget.channel_widget. "
+            "In the future, this will raise an exception.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.channel_widget.isChecked = lambda: _is_checked(self.channel_widget)
+        return self.channel_widget
+
+    @property
+    def position_groupbox(self) -> PositionTable:
+        warnings.warn(
+            "MDAWidget.position_groupbox has been renamed to MDAWidget.position_widget."
+            " In the future, this will raise an exception.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.position_widget.isChecked = lambda: _is_checked(self.position_widget)
+        return self.position_widget
+
+    @property
+    def time_groupbox(self) -> ChannelTable:
+        warnings.warn(
+            "MDAWidget.time_groupbox has been renamed to MDAWidget.time_widget. "
+            "In the future, this will raise an exception.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.time_widget.isChecked = lambda: _is_checked(self.time_widget)
+        return self.time_widget
+
+    @property
+    def stack_groupbox(self) -> PositionTable:
+        warnings.warn(
+            "MDAWidget.stack_groupbox has been renamed to MDAWidget.stack_widget."
+            " In the future, this will raise an exception.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.stack_widget.isChecked = lambda: _is_checked(self.stack_widget)
+        return self.stack_widget
+
+
+def _is_checked(self: QWidget) -> bool:
+    from qtpy.QtWidgets import QTabWidget
+
+    p = self.parent()
+    tab = None
+    while p:
+        if isinstance(p, QTabWidget):
+            tab = p
+            break
+        p = p.parent()
+    if not tab:
+        return False
+    my_idx = tab.indexOf(self)
+    chbox = tab.tabBar().tabButton(my_idx, tab.checkbox_position)
+    return chbox.isChecked()  # type: ignore
