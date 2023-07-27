@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
 )
 from useq import MDASequence
 
-from .._util import fmt_timedelta, guess_channel_group
+from .._util import fmt_timedelta
 from ._channel_table_widget import ChannelTable
 from ._checkable_tabwidget_widget import CheckableTabWidget
 from ._general_mda_widgets import (
@@ -218,10 +218,7 @@ class MDAWidget(QWidget):
         self.destroyed.connect(self._disconnect)
 
     def _on_sys_cfg_loaded(self) -> None:
-        if channel_group := self._mmc.getChannelGroup() or guess_channel_group():
-            self._mmc.setChannelGroup(channel_group)
         self._enable_run_btn()
-        self._update_total_time()
 
     def _on_config_set(self, group: str, preset: str) -> None:
         if group != self._mmc.getChannelGroup():
