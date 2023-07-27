@@ -3,7 +3,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QFileDialog
@@ -26,7 +26,7 @@ def test_mda_widget_load_state(qtbot: QtBot):
 
     wdg._enable_widgets(False)
     assert not wdg.time_widget.isEnabled()
-    assert not wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
+    assert not wdg.acquisition_order_widget.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_widget.isEnabled()
     assert not wdg.position_widget.isEnabled()
     assert not wdg.stack_widget.isEnabled()
@@ -66,7 +66,19 @@ def test_mda_widget_load_state(qtbot: QtBot):
             "overlap": (0.0, 0.0),
         },
     )
+    mocks = []
+    for subcomponent in [
+        wdg.time_widget,
+        wdg.stack_widget,
+        wdg.position_widget,
+        wdg.channel_widget,
+        wdg.grid_widget,
+    ]:
+        mocks.append(MagicMock())
+        subcomponent.valueChanged.connect(mocks[-1])
     wdg.set_state(sequence)
+    for mock in mocks:
+        mock.assert_called_once()
     assert wdg.position_widget._table.rowCount() == 3
     assert wdg.channel_widget._table.rowCount() == 2
     assert wdg.t_cbox.isChecked()
@@ -110,10 +122,10 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg.p_cbox.setChecked(True)
     wdg.z_cbox.setChecked(True)
     wdg.t_cbox.setChecked(True)
-
-    wdg._on_mda_started()
+    seq = MDASequence()
+    global_mmcore.mda.events.sequenceStarted.emit(seq)
     assert not wdg.time_widget.isEnabled()
-    assert not wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
+    assert not wdg.acquisition_order_widget.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_widget.isEnabled()
     assert not wdg.position_widget.isEnabled()
     assert not wdg.stack_widget.isEnabled()
@@ -122,9 +134,9 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not wdg.buttons_wdg.pause_button.isHidden()
     assert not wdg.buttons_wdg.cancel_button.isHidden()
 
-    wdg._on_mda_finished()
+    global_mmcore.mda.events.sequenceFinished.emit(seq)
     assert wdg.time_widget.isEnabled()
-    assert wdg.buttons_wdg.acquisition_order_comboBox.isEnabled()
+    assert wdg.acquisition_order_widget.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_widget.isEnabled()
     assert wdg.position_widget.isEnabled()
     assert wdg.stack_widget.isEnabled()

@@ -216,7 +216,7 @@ class PositionTable(QWidget):
 
         self.replace_button.setEnabled(len(rows) == 1)
         if len(rows) == 1:
-            grid_role = self._table.item(list(rows)[0], 0).data(self.GRID_ROLE)
+            grid_role = self._table.item(next(iter(rows)), 0).data(self.GRID_ROLE)
             if grid_role and isinstance(get_grid_type(grid_role), GridFromEdges):
                 self.replace_button.setEnabled(False)
 
@@ -277,6 +277,7 @@ class PositionTable(QWidget):
         spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         spin.setValue(value)
         spin.wheelEvent = lambda event: None  # block mouse scroll
+        spin.setKeyboardTracking(False)
         self._table.setCellWidget(row, col, spin)
 
     def _add_grid_buttons(self, row: int | None, col: int | None) -> None:
@@ -360,7 +361,7 @@ class PositionTable(QWidget):
             _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
             width = int(width * self._mmc.getPixelSizeUm())
             height = int(height * self._mmc.getPixelSizeUm())
-            first_pos = list(grid_type.iter_grid_positions(width, height))[0]
+            first_pos = next(iter(grid_type.iter_grid_positions(width, height)))
             self._add_table_value(first_pos.x, row, 1)
             self._add_table_value(first_pos.y, row, 2)
 
@@ -538,35 +539,35 @@ class PositionTable(QWidget):
             By default True. If True, the current positions list is cleared before the
             specified one is added.
         """
-        if clear:
-            self.clear()
-
         if not isinstance(positions, Sequence):
             raise TypeError("The 'positions' arguments has to be a 'Sequence'.")
 
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
             raise ValueError("No XY and Z Stage devices loaded.")
 
-        for position in positions:
-            if isinstance(position, Position):
-                position = cast("PositionDict", position.dict())
+        with signals_blocked(self):
+            if clear:
+                self.clear()
+            for position in positions:
+                if isinstance(position, Position):
+                    position = cast("PositionDict", position.dict())
 
-            if not isinstance(position, dict):
-                continue
+                if not isinstance(position, dict):
+                    continue
 
-            name = position.get("name")
-            x, y, z = (position.get("x"), position.get("y"), position.get("z"))
-            self._add_table_row(name or f"{POS}000", x, y, z)
-            if pos_seq := position.get("sequence"):
-                self._advanced_cbox.setChecked(True)
-                if isinstance(pos_seq, MDASequence):
-                    grid_plan = pos_seq.grid_plan.dict()
-                else:
-                    grid_plan = pos_seq.get("grid_plan")
-                if grid_plan:
-                    self._add_grid_plan(grid_plan, self._table.rowCount() - 1)
+                name = position.get("name")
+                x, y, z = (position.get("x"), position.get("y"), position.get("z"))
+                self._add_table_row(name or f"{POS}000", x, y, z)
+                if pos_seq := position.get("sequence"):
+                    self._advanced_cbox.setChecked(True)
+                    if isinstance(pos_seq, MDASequence):
+                        grid_plan = pos_seq.grid_plan.dict()
+                    else:
+                        grid_plan = pos_seq.get("grid_plan")
+                    if grid_plan:
+                        self._add_grid_plan(grid_plan, self._table.rowCount() - 1)
 
-            self.valueChanged.emit()
+        self.valueChanged.emit()
 
     def _save_positions(self) -> None:
         if not self._table.rowCount() or not self.value():

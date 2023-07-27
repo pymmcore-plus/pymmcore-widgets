@@ -23,6 +23,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QQuantity, fonticon
+from superqt.utils import signals_blocked
 from useq import MDASequence, MultiPhaseTimePlan, TIntervalLoops
 
 if TYPE_CHECKING:
@@ -156,7 +157,11 @@ class TimePlanWidget(QWidget):
         loops: int | None = None,
     ) -> None:
         """Create a new row in the table."""
-        val, u = (interval.total_seconds(), "s") if interval else (1, "s")
+        val, u = (
+            (interval.total_seconds(), "s")
+            if isinstance(interval, timedelta)
+            else (1, "s")
+        )
         quant_wdg = QQuantity(val, u)
         mag_spin = cast("QDoubleSpinBox", getattr(quant_wdg, "_mag_spinbox", None))
         if mag_spin is None:
@@ -168,6 +173,7 @@ class TimePlanWidget(QWidget):
         mag_spin.wheelEvent = lambda event: None
         mag_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
         mag_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        mag_spin.setKeyboardTracking(False)
         quant_wdg.valueChanged.connect(self.valueChanged)
 
         time_spin = QSpinBox()
@@ -176,6 +182,7 @@ class TimePlanWidget(QWidget):
         time_spin.setValue(loops or 1)
         time_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         time_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        time_spin.setKeyboardTracking(False)
         time_spin.valueChanged.connect(self.valueChanged)
 
         idx = self._table.rowCount()
@@ -257,16 +264,20 @@ class TimePlanWidget(QWidget):
             ) `interval` key is not a `timedelta` object, it will be converted to a
             timedelta object and will be considered as expressed in seconds.
         """
-        self._clear()
-
         tp = MDASequence(time_plan=t_plan).time_plan
         if tp is None:
+            # should we raise/warn here?
             return
-        phases = tp.phases if isinstance(tp, MultiPhaseTimePlan) else [tp]
-        for phase in phases:
-            if not isinstance(phase, TIntervalLoops):
-                raise ValueError("Time dicts must have both 'interval' and 'loops'.")
-            self._create_new_row(interval=phase.interval, loops=phase.loops)
+        with signals_blocked(self):
+            self._clear()
+            phases = tp.phases if isinstance(tp, MultiPhaseTimePlan) else [tp]
+            for phase in phases:
+                if not isinstance(phase, TIntervalLoops):
+                    raise ValueError(
+                        "Time dicts must have both 'interval' and 'loops'."
+                    )
+                self._create_new_row(interval=phase.interval, loops=phase.loops)
+        self.valueChanged.emit()
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._clear)
