@@ -216,7 +216,7 @@ class PositionTable(QWidget):
 
         self.replace_button.setEnabled(len(rows) == 1)
         if len(rows) == 1:
-            grid_role = self._table.item(list(rows)[0], 0).data(self.GRID_ROLE)
+            grid_role = self._table.item(next(iter(rows)), 0).data(self.GRID_ROLE)
             if grid_role and isinstance(get_grid_type(grid_role), GridFromEdges):
                 self.replace_button.setEnabled(False)
 
@@ -361,7 +361,7 @@ class PositionTable(QWidget):
             _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
             width = int(width * self._mmc.getPixelSizeUm())
             height = int(height * self._mmc.getPixelSizeUm())
-            first_pos = list(grid_type.iter_grid_positions(width, height))[0]
+            first_pos = next(iter(grid_type.iter_grid_positions(width, height)))
             self._add_table_value(first_pos.x, row, 1)
             self._add_table_value(first_pos.y, row, 2)
 
