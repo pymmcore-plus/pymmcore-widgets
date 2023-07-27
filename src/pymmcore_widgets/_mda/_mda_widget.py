@@ -22,7 +22,6 @@ from .._util import fmt_timedelta
 from ._channel_table_widget import ChannelTable
 from ._checkable_tabwidget_widget import CheckableTabWidget
 from ._general_mda_widgets import (
-   _AcquisitionOrderWidget,
     SaveLoadSequenceWidget,
     _MDAControlButtons,
     _MDATimeLabel,
