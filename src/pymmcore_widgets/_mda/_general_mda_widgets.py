@@ -21,10 +21,13 @@ class _MDAControlButtons(QWidget):
 
         self._mmc = CMMCorePlus.instance()
         self._mmc.mda.events.sequencePauseToggled.connect(self._on_mda_paused)
+        self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
+        self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
 
         self._create_btns_gui()
 
     def _create_btns_gui(self) -> None:
+        self.setMinimumWidth(300)
         self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         wdg_layout = QHBoxLayout()
         wdg_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
@@ -37,17 +40,6 @@ class _MDAControlButtons(QWidget):
         acq_wdg_layout.setSpacing(0)
         acq_wdg_layout.setContentsMargins(0, 0, 0, 0)
         acq_wdg.setLayout(acq_wdg_layout)
-        acquisition_order_label = QLabel(text="Acquisition Order:")
-        acquisition_order_label.setSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-        )
-        self.acquisition_order_comboBox = QComboBox()
-        self.acquisition_order_comboBox.setMinimumWidth(100)
-        self.acquisition_order_comboBox.addItems(
-            ["tpgcz", "tpgzc", "tpcgz", "tpzgc", "pgtzc", "ptzgc", "ptcgz", "pgtcz"]
-        )
-        acq_wdg_layout.addWidget(acquisition_order_label)
-        acq_wdg_layout.addWidget(self.acquisition_order_comboBox)
 
         btn_sizepolicy = QSizePolicy(
             QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed
@@ -83,8 +75,38 @@ class _MDAControlButtons(QWidget):
         wdg_layout.addWidget(self.pause_button)
         wdg_layout.addWidget(self.cancel_button)
 
+    def _on_mda_started(self) -> None:
+        self.run_button.hide()
+        self.pause_button.show()
+        self.cancel_button.show()
+
+    def _on_mda_finished(self) -> None:
+        self.run_button.show()
+        self.pause_button.hide()
+        self.cancel_button.hide()
+        self.pause_button.setText("Pause")
+
     def _on_mda_paused(self, paused: bool) -> None:
         self.pause_button.setText("Resume" if paused else "Pause")
+
+
+class _AcquisitionOrderWidget(QWidget):
+    def __init__(self, *, parent: QWidget | None = None) -> None:
+        super().__init__(parent=parent)
+        self.setMaximumWidth(300)
+        acq_wdg_layout = QHBoxLayout()
+        self.setLayout(acq_wdg_layout)
+        acquisition_order_label = QLabel(text="Acquisition Order:")
+        acquisition_order_label.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
+        self.acquisition_order_comboBox = QComboBox()
+        self.acquisition_order_comboBox.setMinimumWidth(100)
+        self.acquisition_order_comboBox.addItems(
+            ["tpgcz", "tpgzc", "tpcgz", "tpzgc", "pgtzc", "ptzgc", "ptcgz", "pgtcz"]
+        )
+        acq_wdg_layout.addWidget(acquisition_order_label)
+        acq_wdg_layout.addWidget(self.acquisition_order_comboBox)
 
 
 class _MDATimeLabel(QWidget):
