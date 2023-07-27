@@ -90,7 +90,7 @@ class _MDAControlButtons(QWidget):
         self.pause_button.setText("Resume" if paused else "Pause")
 
 
-class AcquisitionOrderWidget(QWidget):
+class _AcquisitionOrderWidget(QWidget):
     def __init__(self, *, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
         self.setMaximumWidth(300)
