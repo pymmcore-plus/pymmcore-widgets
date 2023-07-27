@@ -354,9 +354,9 @@ class ChannelTable(QWidget):
             A list of dictionaries following the [useq-schema Channel specifications](
             https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
         """
-        self.clear()
         _advanced_bool = False
         with signals_blocked(self):
+            self.clear()
             for channel in channels:
                 ch = channel.get("config")
                 group = channel.get("group")

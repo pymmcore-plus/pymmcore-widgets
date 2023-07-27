@@ -263,19 +263,20 @@ class TimePlanWidget(QWidget):
             ) `interval` key is not a `timedelta` object, it will be converted to a
             timedelta object and will be considered as expressed in seconds.
         """
-        self._clear()
-
         tp = MDASequence(time_plan=t_plan).time_plan
         if tp is None:
+            # should we raise/warn here?
             return
-        phases = tp.phases if isinstance(tp, MultiPhaseTimePlan) else [tp]
         with signals_blocked(self):
-            for phase in phases:
-                if not isinstance(phase, TIntervalLoops):
-                    raise ValueError(
-                        "Time dicts must have both 'interval' and 'loops'."
-                    )
-                self._create_new_row(interval=phase.interval, loops=phase.loops)
+            self._clear()
+            phases = tp.phases if isinstance(tp, MultiPhaseTimePlan) else [tp]
+            with signals_blocked(self):
+                for phase in phases:
+                    if not isinstance(phase, TIntervalLoops):
+                        raise ValueError(
+                            "Time dicts must have both 'interval' and 'loops'."
+                        )
+                    self._create_new_row(interval=phase.interval, loops=phase.loops)
         self.valueChanged.emit()
 
     def _disconnect(self) -> None:
