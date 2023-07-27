@@ -173,6 +173,7 @@ class TimePlanWidget(QWidget):
         mag_spin.wheelEvent = lambda event: None
         mag_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
         mag_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        mag_spin.setKeyboardTracking(False)
         quant_wdg.valueChanged.connect(self.valueChanged)
 
         time_spin = QSpinBox()

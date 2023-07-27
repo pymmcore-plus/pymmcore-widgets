@@ -224,6 +224,7 @@ class ChannelTable(QWidget):
         dspinbox.setRange(*range)
         dspinbox.setAlignment(Qt.AlignCenter)
         dspinbox.wheelEvent = lambda event: None  # block mouse scroll
+        dspinbox.setKeyboardTracking(False)
         dspinbox.valueChanged.connect(self.valueChanged)
         return dspinbox
 

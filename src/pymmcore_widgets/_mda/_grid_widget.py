@@ -156,6 +156,7 @@ class _RowsColsWdg(QWidget):
         spin = QSpinBox()
         spin.setMinimum(1)
         spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        spin.setKeyboardTracking(False)
         spin.valueChanged.connect(lambda: self.valueChanged.emit())
         layout.addWidget(label)
         layout.addWidget(spin)
@@ -364,6 +365,7 @@ class _DoubleSpinboxWidget(QWidget):
         spin.setMinimum(-1000000)
         spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        spin.setKeyboardTracking(False)
         spin.valueChanged.connect(lambda: self.valueChanged.emit())
         return spin
 
@@ -442,6 +444,7 @@ class _OverlapAndOrderModeWdg(QGroupBox):
         spin.setMinimumWidth(100)
         spin.setMaximum(100)
         spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        spin.setKeyboardTracking(False)
         spin.valueChanged.connect(lambda: self.valueChanged.emit())
         return spin
 

@@ -277,6 +277,7 @@ class PositionTable(QWidget):
         spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         spin.setValue(value)
         spin.wheelEvent = lambda event: None  # block mouse scroll
+        spin.setKeyboardTracking(False)
         self._table.setCellWidget(row, col, spin)
 
     def _add_grid_buttons(self, row: int | None, col: int | None) -> None:
