@@ -277,6 +277,7 @@ class PositionTable(QWidget):
         spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         spin.setValue(value)
         spin.wheelEvent = lambda event: None  # block mouse scroll
+        spin.setKeyboardTracking(False)
         self._table.setCellWidget(row, col, spin)
 
     def _add_grid_buttons(self, row: int | None, col: int | None) -> None:
@@ -538,35 +539,35 @@ class PositionTable(QWidget):
             By default True. If True, the current positions list is cleared before the
             specified one is added.
         """
-        if clear:
-            self.clear()
-
         if not isinstance(positions, Sequence):
             raise TypeError("The 'positions' arguments has to be a 'Sequence'.")
 
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
             raise ValueError("No XY and Z Stage devices loaded.")
 
-        for position in positions:
-            if isinstance(position, Position):
-                position = cast("PositionDict", position.dict())
+        with signals_blocked(self):
+            if clear:
+                self.clear()
+            for position in positions:
+                if isinstance(position, Position):
+                    position = cast("PositionDict", position.dict())
 
-            if not isinstance(position, dict):
-                continue
+                if not isinstance(position, dict):
+                    continue
 
-            name = position.get("name")
-            x, y, z = (position.get("x"), position.get("y"), position.get("z"))
-            self._add_table_row(name or f"{POS}000", x, y, z)
-            if pos_seq := position.get("sequence"):
-                self._advanced_cbox.setChecked(True)
-                if isinstance(pos_seq, MDASequence):
-                    grid_plan = pos_seq.grid_plan.dict()
-                else:
-                    grid_plan = pos_seq.get("grid_plan")
-                if grid_plan:
-                    self._add_grid_plan(grid_plan, self._table.rowCount() - 1)
+                name = position.get("name")
+                x, y, z = (position.get("x"), position.get("y"), position.get("z"))
+                self._add_table_row(name or f"{POS}000", x, y, z)
+                if pos_seq := position.get("sequence"):
+                    self._advanced_cbox.setChecked(True)
+                    if isinstance(pos_seq, MDASequence):
+                        grid_plan = pos_seq.grid_plan.dict()
+                    else:
+                        grid_plan = pos_seq.get("grid_plan")
+                    if grid_plan:
+                        self._add_grid_plan(grid_plan, self._table.rowCount() - 1)
 
-            self.valueChanged.emit()
+        self.valueChanged.emit()
 
     def _save_positions(self) -> None:
         if not self._table.rowCount() or not self.value():
