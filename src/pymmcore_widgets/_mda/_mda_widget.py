@@ -465,7 +465,7 @@ class MDAWidget(QWidget):
 
     def _uses_time(self) -> bool:
         """Hacky method to check whether the timebox is selected with any timepoints."""
-        has_phases = self.time_widget.value()["phases"]  # type: ignore
+        has_phases = self.time_widget._table.rowCount()
         return bool(self.t_cbox.isChecked() and has_phases)
 
     def _update_total_time(self) -> None:
