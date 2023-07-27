@@ -202,7 +202,7 @@ class MDAWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.configSet.connect(self._on_config_set)
         self._mmc.events.configGroupChanged.connect(self._on_config_set)
-        self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
+        self._mmc.events.channelGroupChanged.connect(self._enable_run_btn)
         # connect run button
         if self._include_run_button:
             self.buttons_wdg = _MDAControlButtons()
@@ -372,8 +372,8 @@ class MDAWidget(QWidget):
                     p_sequence = p_sequence.replace(
                         axis_order=self.acquisition_order_widget.acquisition_order_comboBox.currentText()
                     )
+                    p_sequence.set_fov_size(self._get_fov_size())
                     p["sequence"] = p_sequence
-
                 stage_positions.append(p)
 
         if not stage_positions:
@@ -391,12 +391,23 @@ class MDAWidget(QWidget):
         if grid_plan is not None:
             update_kwargs["grid_plan"] = grid_plan
 
-        return MDASequence(
-            axis_order=self.acquisition_order_widget.acquisition_order_comboBox.currentText(),
+        mda = MDASequence(
+            axis_order=(
+                self.acquisition_order_widget.acquisition_order_comboBox.currentText()
+            ),
             channels=channels,
             stage_positions=stage_positions,
             **update_kwargs,
         )
+        mda.set_fov_size(self._get_fov_size())
+        return mda
+
+    def _get_fov_size(self) -> tuple[float, float]:
+        """Return image width and height in micron to be used for the grid plan."""
+        if px := self._mmc.getPixelSizeUm():
+            _, _, widtgh, height = self._mmc.getROI()
+            return (widtgh * px, height * px)
+        return (1.0, 1.0)
 
     def _get_current_position(self) -> list[PositionDict]:
         return [
@@ -453,6 +464,9 @@ class MDAWidget(QWidget):
         """Hacky method to check whether the timebox is selected with any timepoints."""
         has_phases = self.time_widget._table.rowCount()
         return bool(self.t_cbox.isChecked() and has_phases)
+
+    def _uses_autofocus(self) -> bool:
+        return bool(self.p_cbox.isChecked() and self.position_widget._use_af())
 
     def _update_total_time(self) -> None:
         """Calculate the minimum total acquisition time info."""
@@ -549,6 +563,7 @@ class MDAWidget(QWidget):
         self._mmc.events.configSet.disconnect(self._on_config_set)
         self._mmc.events.configGroupChanged.disconnect(self._on_config_set)
         self._mmc.events.channelGroupChanged.disconnect(self._on_channel_group_changed)
+        self._mmc.events.channelGroupChanged.disconnect(self._enable_run_btn)
 
     # DEPRECATIONS
 
