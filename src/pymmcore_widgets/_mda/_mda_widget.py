@@ -150,7 +150,7 @@ class MDAWidget(QWidget):
         self._save_load._load_button.clicked.connect(self._load_sequence)
 
         # Acquisition order widget
-        self.acquisition_order_widget = AcquisitionOrderWidget()
+        self.acquisition_order_widget = _AcquisitionOrderWidget()
         acq_order_run_layout = QHBoxLayout()
         acq_order_run_layout.addWidget(self.acquisition_order_widget)
 
