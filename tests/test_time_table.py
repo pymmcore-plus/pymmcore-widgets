@@ -4,6 +4,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, cast
 
 import pytest
+from pydantic import ValidationError
 from qtpy.QtWidgets import QSpinBox, QTableWidget
 from superqt import QQuantity
 
@@ -75,6 +76,9 @@ def test_set_get_state(qtbot: QtBot) -> None:
     interval, timepoints = _value(t._table, 0)
     assert interval.value().to_timedelta() == timedelta(seconds=10)
     assert timepoints.value() == 10
+
+    with pytest.raises(ValidationError):
+        t.set_state({"loops": 11})
 
     with pytest.raises(
         ValueError, match="Time dicts must have both 'interval' and 'loops'."
