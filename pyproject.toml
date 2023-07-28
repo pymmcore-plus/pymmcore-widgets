@@ -86,8 +86,8 @@ docs = [
 ]
 
 [project.urls]
-homepage = "https://github.com/pymmcore-plus/pymmcore-widgets"
-repository = "https://github.com/pymmcore-plus/pymmcore-widgets"
+Homepage = "https://github.com/pymmcore-plus/pymmcore-widgets"
+"Source Code" = "https://github.com/pymmcore-plus/pymmcore-widgets"
 Documentation = "https://pymmcore-plus.github.io/pymmcore-widgets"
 
 # https://beta.ruff.rs/docs/rules/
