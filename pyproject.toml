@@ -1,7 +1,22 @@
 # https://peps.python.org/pep-0517/
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools-scm>=6.2"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+# https://hatch.pypa.io/latest/config/metadata/
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+# https://hatch.pypa.io/latest/config/build/#file-selection
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests"]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["src"]
+sources = ["src"]
 
 # https://peps.python.org/pep-0621/
 [project]
@@ -17,11 +32,21 @@ authors = [
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: BSD License",
-    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python",
+    "Topic :: Software Development :: Widget Sets",
+    "Topic :: System :: Hardware :: Hardware Drivers",
+    "Topic :: System :: Hardware",
+    "Topic :: Utilities",
+    "Typing :: Typed",
 ]
 dynamic = ["version"]
 dependencies = [
@@ -29,7 +54,7 @@ dependencies = [
     'useq-schema >=0.3.1',
     'superqt[quantity] >=0.3.1',
     'fonticon-materialdesignicons6',
-    'qtpy',
+    'qtpy >=2.0',
 ]
 
 # extras
@@ -66,40 +91,27 @@ docs = [
 [project.urls]
 homepage = "https://github.com/pymmcore-plus/pymmcore-widgets"
 repository = "https://github.com/pymmcore-plus/pymmcore-widgets"
+Documentation = "https://pymmcore-plus.github.io/pymmcore-widgets"
 
-# https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
-[tool.setuptools]
-zip-safe = false
-include-package-data = true
-packages = { find = { where = ["src"], exclude = [] } }
-
-[tool.setuptools.package-data]
-"*" = ["py.typed"]
-
-# https://github.com/pypa/setuptools_scm/#pyprojecttoml-usage
-[tool.setuptools_scm]
-
-# https://pycqa.github.io/isort/docs/configuration/options.html
-[tool.isort]
-profile = "black"
-
-# https://github.com/charliermarsh/ruff
+# https://beta.ruff.rs/docs/rules/
 [tool.ruff]
 line-length = 88
 target-version = "py38"
 src = ["src", "tests"]
-extend-select = [
+select = [
     "E",    # style errors
     "F",    # flakes
+    "W",    # warnings
     "D",    # pydocstyle
-    "I001", # isort
+    "I",    # isort
     "UP",   # pyupgrade
-    # "N",  # pep8-naming
-    # "S",  # bandit
     "C4",   # flake8-comprehensions
     "B",    # flake8-bugbear
     "A001", # flake8-builtins
     "RUF",  # ruff-specific rules
+    "TID",  # tidy
+    "TCH",  # typecheck
+    # "SLF",  # private-access
 ]
 ignore = [
     "D100", # Missing docstring in public module
@@ -110,12 +122,11 @@ ignore = [
     "D401", # First line should be in imperative mood
     "D413", # Missing blank line after last section
     "D416", # Section name should end with a colon
-    "C901", # Function is too complex
 ]
 
 
 [tool.ruff.per-file-ignores]
-"tests/*.py" = ["D"]
+"tests/*.py" = ["D", "SLF"]
 
 # https://docs.pytest.org/en/6.2.x/customize.html
 [tool.pytest.ini_options]
@@ -141,16 +152,16 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@overload",
     "except ImportError",
+    "raise AssertionError",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
 ]
-
-# https://github.com/cruft/cruft
-[tool.cruft]
-skip = ["tests"]
+[tool.coverage.run]
+source = ['pymmcore_widgets']
 
 # https://github.com/mgedmin/check-manifest#configuration
 [tool.check-manifest]
 ignore = [
-    ".flake8",
     ".github_changelog_generator",
     ".pre-commit-config.yaml",
     "tests/**/*",
@@ -158,11 +169,3 @@ ignore = [
     "mkdocs.yml",
     "examples/**/*",
 ]
-
-# https://python-semantic-release.readthedocs.io/en/latest/configuration.html
-[tool.semantic_release]
-version_source = "tag_only"
-branch = "main"
-changelog_sections = "feature,fix,breaking,documentation,performance,chore,:boom:,:sparkles:,:children_crossing:,:lipstick:,:iphone:,:egg:,:chart_with_upwards_trend:,:ambulance:,:lock:,:bug:,:zap:,:goal_net:,:alien:,:wheelchair:,:speech_balloon:,:mag:,:apple:,:penguin:,:checkered_flag:,:robot:,:green_apple:,Other"
-# commit_parser=semantic_release.history.angular_parser
-build_command = "pip install build && python -m build"

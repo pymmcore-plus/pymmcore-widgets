@@ -5,13 +5,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from unittest.mock import MagicMock, patch
 
-from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QFileDialog
 from useq import MDASequence
 
 from pymmcore_widgets._mda import MDAWidget
 
 if TYPE_CHECKING:
+    from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
     from qtpy.QtWidgets import QSpinBox
     from superqt import QQuantity

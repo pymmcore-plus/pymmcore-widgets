@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QComboBox
 
 from pymmcore_widgets._channel_widget import ChannelWidget
@@ -10,6 +9,7 @@ from pymmcore_widgets._presets_widget import PresetsWidget
 from pymmcore_widgets._util import block_core
 
 if TYPE_CHECKING:
+    from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
 

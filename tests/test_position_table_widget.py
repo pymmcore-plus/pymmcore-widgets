@@ -8,12 +8,12 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
-from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QFileDialog, QTableWidget
 
 from pymmcore_widgets._mda import PositionTable
 
 if TYPE_CHECKING:
+    from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
 

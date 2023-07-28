@@ -5,13 +5,13 @@ from typing import TYPE_CHECKING, cast
 
 import pytest
 from pydantic import ValidationError
-from qtpy.QtWidgets import QSpinBox, QTableWidget
-from superqt import QQuantity
 
 from pymmcore_widgets._mda import TimePlanWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
+    from qtpy.QtWidgets import QSpinBox, QTableWidget
+    from superqt import QQuantity
 
 INTERVAL = 0
 TIMEPOINTS = 1

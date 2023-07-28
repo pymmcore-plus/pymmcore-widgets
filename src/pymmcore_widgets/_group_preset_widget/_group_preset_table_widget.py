@@ -19,11 +19,11 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+from pymmcore_widgets._core import load_system_config
 from pymmcore_widgets._presets_widget import PresetsWidget
 from pymmcore_widgets._property_widget import PropertyWidget
+from pymmcore_widgets._util import block_core
 
-from .._core import load_system_config
-from .._util import block_core
 from ._add_group_widget import AddGroupWidget
 from ._add_preset_widget import AddPresetWidget
 from ._edit_group_widget import EditGroupWidget

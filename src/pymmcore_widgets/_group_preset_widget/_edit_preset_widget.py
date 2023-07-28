@@ -22,8 +22,7 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets._property_widget import PropertyWidget
-
-from .._util import block_core
+from pymmcore_widgets._util import block_core
 
 
 class EditPresetWidget(QDialog):

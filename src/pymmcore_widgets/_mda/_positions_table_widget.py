@@ -34,7 +34,8 @@ from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 from useq import AxesBasedAF, GridFromEdges, GridRelative, MDASequence, Position
 
-from .._util import get_grid_type
+from pymmcore_widgets._util import get_grid_type
+
 from ._autofocus_device_widget import _AutofocusZDeviceWidget
 from ._grid_widget import GridWidget
 

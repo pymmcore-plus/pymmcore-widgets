@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import warnings
+from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtGui import QCloseEvent
 from qtpy.QtWidgets import (
     QDialog,
     QGroupBox,
@@ -16,10 +16,13 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+from pymmcore_widgets._device_property_table import DevicePropertyTable
 from pymmcore_widgets._device_type_filter import DeviceTypeFilters
 
-from .._device_property_table import DevicePropertyTable
 from ._add_first_preset_widget import AddFirstPresetWidget
+
+if TYPE_CHECKING:
+    from qtpy.QtGui import QCloseEvent
 
 
 class AddGroupWidget(QDialog):

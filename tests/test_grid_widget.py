@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, call
 
-from pymmcore_plus import CMMCorePlus
 from useq import GridFromEdges, GridRelative
 from useq._grid import OrderMode, RelativeTo
 
 from pymmcore_widgets._mda import GridWidget
 
 if TYPE_CHECKING:
+    from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
 

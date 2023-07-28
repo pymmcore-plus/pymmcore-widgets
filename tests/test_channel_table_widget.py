@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from qtpy.QtWidgets import QComboBox
-
 from pymmcore_widgets._mda import ChannelTable
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
+    from qtpy.QtWidgets import QComboBox
 
 
 def _values(combo: QComboBox) -> list:
