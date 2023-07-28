@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -12,7 +13,6 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QScrollArea,
     QSizePolicy,
-    QSpacerItem,
     QVBoxLayout,
     QWidget,
 )
@@ -22,10 +22,10 @@ from .._util import fmt_timedelta
 from ._channel_table_widget import ChannelTable
 from ._checkable_tabwidget_widget import CheckableTabWidget
 from ._general_mda_widgets import (
-    SaveLoadSequenceWidget,
     _AcquisitionOrderWidget,
     _MDAControlButtons,
     _MDATimeLabel,
+    _SaveLoadSequenceWidget,
 )
 from ._grid_widget import GridWidget
 from ._positions_table_widget import PositionTable
@@ -125,14 +125,14 @@ class MDAWidget(QWidget):
 
         # place widgets in a QWidget to control tab layout content margins
         wdgs = [
-            (self.channel_widget, "Channels", False),
-            (self.stack_widget, "Z Stack", True),
-            (self.position_widget, "Positions", False),
-            (self.time_widget, "Time", False),
-            (self.grid_widget, "Grid", True),
+            (self.channel_widget, "Channels"),
+            (self.stack_widget, "Z Stack"),
+            (self.position_widget, "Positions"),
+            (self.time_widget, "Time"),
+            (self.grid_widget, "Grid"),
         ]
-        for w, n, b in wdgs:
-            self._tab.addTab(self._make_qwidget(w, b), n)
+        for widget, title in wdgs:
+            self._tab.addTab(widget, title)
 
         # assign checkboxes to a variable
         self.ch_cbox = self._get_checkbox(0)
@@ -145,7 +145,7 @@ class MDAWidget(QWidget):
         self.time_lbl = _MDATimeLabel()
 
         # savle load widget
-        self._save_load = SaveLoadSequenceWidget()
+        self._save_load = _SaveLoadSequenceWidget()
         self._save_load._save_button.clicked.connect(self._save_sequence)
         self._save_load._load_button.clicked.connect(self._load_sequence)
 
@@ -202,7 +202,7 @@ class MDAWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.configSet.connect(self._on_config_set)
         self._mmc.events.configGroupChanged.connect(self._on_config_set)
-        self._mmc.events.channelGroupChanged.connect(self._on_channel_group_changed)
+        self._mmc.events.channelGroupChanged.connect(self._enable_run_btn)
         # connect run button
         if self._include_run_button:
             self.buttons_wdg = _MDAControlButtons()
@@ -227,16 +227,6 @@ class MDAWidget(QWidget):
 
     def _on_channel_group_changed(self, group: str) -> None:
         self._enable_run_btn()
-
-    def _make_qwidget(self, widget: QWidget, spacer: bool) -> QWidget:
-        wdg = QWidget()
-        wdg.setLayout(QVBoxLayout())
-        wdg.layout().setContentsMargins(5, 10, 5, 5)
-        wdg.layout().addWidget(widget)
-        s = QSpacerItem(1, 1, QSizePolicy.Minimum, QSizePolicy.Expanding)
-        if spacer:
-            wdg.layout().addItem(s)
-        return wdg
 
     def _get_checkbox(self, tab_index: int) -> QCheckBox:
         """Return the checkbox of the tab at the given index."""
@@ -302,6 +292,9 @@ class MDAWidget(QWidget):
             MDASequence state in the form of a dict, MDASequence object, or a str or
             Path pointing to a sequence.yaml file
         """
+        # TODO: prevent _update_total_time from being called until
+        # all subcomponents have been set
+
         # sourcery skip: low-code-quality
         if isinstance(state, (str, Path)):
             state = MDASequence.parse_file(state)
@@ -379,8 +372,8 @@ class MDAWidget(QWidget):
                     p_sequence = p_sequence.replace(
                         axis_order=self.acquisition_order_widget.acquisition_order_comboBox.currentText()
                     )
+                    p_sequence.set_fov_size(self._get_fov_size())
                     p["sequence"] = p_sequence
-
                 stage_positions.append(p)
 
         if not stage_positions:
@@ -398,12 +391,23 @@ class MDAWidget(QWidget):
         if grid_plan is not None:
             update_kwargs["grid_plan"] = grid_plan
 
-        return MDASequence(
-            axis_order=self.acquisition_order_widget.acquisition_order_comboBox.currentText(),
+        mda = MDASequence(
+            axis_order=(
+                self.acquisition_order_widget.acquisition_order_comboBox.currentText()
+            ),
             channels=channels,
             stage_positions=stage_positions,
             **update_kwargs,
         )
+        mda.set_fov_size(self._get_fov_size())
+        return mda
+
+    def _get_fov_size(self) -> tuple[float, float]:
+        """Return image width and height in micron to be used for the grid plan."""
+        if px := self._mmc.getPixelSizeUm():
+            _, _, widtgh, height = self._mmc.getROI()
+            return (widtgh * px, height * px)
+        return (1.0, 1.0)
 
     def _get_current_position(self) -> list[PositionDict]:
         return [
@@ -458,8 +462,11 @@ class MDAWidget(QWidget):
 
     def _uses_time(self) -> bool:
         """Hacky method to check whether the timebox is selected with any timepoints."""
-        has_phases = self.time_widget.value()["phases"]  # type: ignore
+        has_phases = self.time_widget._table.rowCount()
         return bool(self.t_cbox.isChecked() and has_phases)
+
+    def _uses_autofocus(self) -> bool:
+        return bool(self.p_cbox.isChecked() and self.position_widget._use_af())
 
     def _update_total_time(self) -> None:
         """Calculate the minimum total acquisition time info."""
@@ -482,13 +489,14 @@ class MDAWidget(QWidget):
         total_time: float = 0.0
         _per_timepoints: dict[int, float] = {}
         t_per_tp_msg = ""
+        _uses_time = self._uses_time()
 
         for e in self.get_state():
             if e.exposure is None:
                 continue
 
             total_time = total_time + (e.exposure / 1000)
-            if self._uses_time():
+            if _uses_time:
                 _t = e.index["t"]
                 _exp = e.exposure / 1000
                 _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp
@@ -555,3 +563,67 @@ class MDAWidget(QWidget):
         self._mmc.events.configSet.disconnect(self._on_config_set)
         self._mmc.events.configGroupChanged.disconnect(self._on_config_set)
         self._mmc.events.channelGroupChanged.disconnect(self._on_channel_group_changed)
+        self._mmc.events.channelGroupChanged.disconnect(self._enable_run_btn)
+
+    # DEPRECATIONS
+
+    @property
+    def channel_groupbox(self) -> ChannelTable:
+        warnings.warn(
+            "MDAWidget.channel_groupbox has been renamed to MDAWidget.channel_widget. "
+            "In the future, this will raise an exception.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.channel_widget.isChecked = lambda: _is_checked(self.channel_widget)
+        return self.channel_widget
+
+    @property
+    def position_groupbox(self) -> PositionTable:
+        warnings.warn(
+            "MDAWidget.position_groupbox has been renamed to MDAWidget.position_widget."
+            " In the future, this will raise an exception.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.position_widget.isChecked = lambda: _is_checked(self.position_widget)
+        return self.position_widget
+
+    @property
+    def time_groupbox(self) -> ChannelTable:
+        warnings.warn(
+            "MDAWidget.time_groupbox has been renamed to MDAWidget.time_widget. "
+            "In the future, this will raise an exception.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.time_widget.isChecked = lambda: _is_checked(self.time_widget)
+        return self.time_widget
+
+    @property
+    def stack_groupbox(self) -> PositionTable:
+        warnings.warn(
+            "MDAWidget.stack_groupbox has been renamed to MDAWidget.stack_widget."
+            " In the future, this will raise an exception.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.stack_widget.isChecked = lambda: _is_checked(self.stack_widget)
+        return self.stack_widget
+
+
+def _is_checked(self: QWidget) -> bool:
+    from qtpy.QtWidgets import QTabWidget
+
+    p = self.parent()
+    tab = None
+    while p:
+        if isinstance(p, QTabWidget):
+            tab = p
+            break
+        p = p.parent()
+    if not tab:
+        return False
+    my_idx = tab.indexOf(self)
+    chbox = tab.tabBar().tabButton(my_idx, tab.checkbox_position)
+    return chbox.isChecked()  # type: ignore

@@ -3,7 +3,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QFileDialog
@@ -43,9 +43,35 @@ def test_mda_widget_load_state(qtbot: QtBot):
         axis_order="tpgcz",
         stage_positions=(
             {"name": "Pos000", "x": 222, "y": 1, "z": 1},
-            {"name": "Pos001", "x": 111, "y": 0, "z": 0},
+            {
+                "name": "Pos001",
+                "x": 222,
+                "y": 1,
+                "z": 5,
+                "sequence": {
+                    "autofocus_plan": {
+                        "autofocus_device_name": "Z",
+                        "axes": ("t", "p", "g"),
+                        "autofocus_motor_offset": 10.0,
+                    }
+                },
+            },
             {
                 "name": "Pos002",
+                "x": 111,
+                "y": 0,
+                "z": 15,
+                "sequence": {
+                    "grid_plan": {"rows": 2, "columns": 2},
+                    "autofocus_plan": {
+                        "autofocus_device_name": "Z",
+                        "axes": ("t", "p", "g"),
+                        "autofocus_motor_offset": 10.0,
+                    },
+                },
+            },
+            {
+                "name": "Pos003",
                 "x": 1,
                 "y": 2,
                 "z": 3,
@@ -66,8 +92,20 @@ def test_mda_widget_load_state(qtbot: QtBot):
             "overlap": (0.0, 0.0),
         },
     )
+    mocks = []
+    for subcomponent in [
+        wdg.time_widget,
+        wdg.stack_widget,
+        wdg.position_widget,
+        wdg.channel_widget,
+        wdg.grid_widget,
+    ]:
+        mocks.append(MagicMock())
+        subcomponent.valueChanged.connect(mocks[-1])
     wdg.set_state(sequence)
-    assert wdg.position_widget._table.rowCount() == 3
+    for mock in mocks:
+        mock.assert_called_once()
+    assert wdg.position_widget._table.rowCount() == 4
     assert wdg.channel_widget._table.rowCount() == 2
     assert wdg.t_cbox.isChecked()
     assert wdg.g_cbox.isChecked()

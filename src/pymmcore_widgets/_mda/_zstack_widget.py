@@ -17,6 +17,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.utils import signals_blocked
 
 if TYPE_CHECKING:
     from typing import Protocol
@@ -56,12 +57,14 @@ class ZTopBottomSelect(QWidget):
         self._top_spinbox = QDoubleSpinBox()
         self._top_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._top_spinbox.setRange(self._MIN_Z, self._MAX_Z)
+        self._top_spinbox.setKeyboardTracking(False)
         self._top_spinbox.valueChanged.connect(self._update_zrange_and_emit)
 
         # current bottom position spinbox
         self._bottom_spinbox = QDoubleSpinBox()
         self._bottom_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._bottom_spinbox.setRange(self._MIN_Z, self._MAX_Z)
+        self._bottom_spinbox.setKeyboardTracking(False)
         self._bottom_spinbox.valueChanged.connect(self._update_zrange_and_emit)
 
         # read only z range spinbox
@@ -69,6 +72,7 @@ class ZTopBottomSelect(QWidget):
         self._zrange_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._zrange_spinbox.setMaximum(self._MAX_Z - self._MIN_Z)
         self._zrange_spinbox.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self._zrange_spinbox.setKeyboardTracking(False)
         self._zrange_spinbox.setReadOnly(True)
 
         grid = QGridLayout()
@@ -258,6 +262,7 @@ class ZStackWidget(QWidget):
         self._zstep_spinbox.setMinimum(0.05)
         self._zstep_spinbox.setMaximum(self._MAX_STEP)
         self._zstep_spinbox.setSingleStep(0.1)
+        self._zstep_spinbox.setKeyboardTracking(False)
         self._zstep_spinbox.valueChanged.connect(self._update_and_emit)
 
         # readout for the number of images
@@ -317,20 +322,22 @@ class ZStackWidget(QWidget):
         """
         tabs = self._zmode_tabs
         wdg: ZPicker
-        if "top" in z_plan and "bottom" in z_plan:
-            wdg = cast(ZTopBottomSelect, tabs.findChild(ZTopBottomSelect))
-            wdg._top_spinbox.setValue(z_plan["top"])
-            wdg._bottom_spinbox.setValue(z_plan["bottom"])
-            tabs.setCurrentWidget(wdg)
-        elif "above" in z_plan and "below" in z_plan:
-            wdg = cast(ZAboveBelowSelect, tabs.findChild(ZAboveBelowSelect))
-            wdg._above_spinbox.setValue(z_plan["above"])
-            wdg._below_spinbox.setValue(z_plan["below"])
-            tabs.setCurrentWidget(wdg)
-        elif "range" in z_plan:
-            wdg = cast(ZRangeAroundSelect, tabs.findChild(ZRangeAroundSelect))
-            wdg._zrange_spinbox.setValue(z_plan["range"])
-            tabs.setCurrentWidget(wdg)
+        with signals_blocked(self):
+            if "top" in z_plan and "bottom" in z_plan:
+                wdg = cast(ZTopBottomSelect, tabs.findChild(ZTopBottomSelect))
+                wdg._top_spinbox.setValue(z_plan["top"])
+                wdg._bottom_spinbox.setValue(z_plan["bottom"])
+                tabs.setCurrentWidget(wdg)
+            elif "above" in z_plan and "below" in z_plan:
+                wdg = cast(ZAboveBelowSelect, tabs.findChild(ZAboveBelowSelect))
+                wdg._above_spinbox.setValue(z_plan["above"])
+                wdg._below_spinbox.setValue(z_plan["below"])
+                tabs.setCurrentWidget(wdg)
+            elif "range" in z_plan:
+                wdg = cast(ZRangeAroundSelect, tabs.findChild(ZRangeAroundSelect))
+                wdg._zrange_spinbox.setValue(z_plan["range"])
+                tabs.setCurrentWidget(wdg)
 
-        if "step" in z_plan:
-            self._zstep_spinbox.setValue(z_plan["step"])
+            if "step" in z_plan:
+                self._zstep_spinbox.setValue(z_plan["step"])
+        self.valueChanged.emit(self.value())

@@ -24,6 +24,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.utils import signals_blocked
 from useq import AnyGridPlan, GridFromEdges, GridRelative
 from useq._grid import OrderMode, RelativeTo
 
@@ -156,6 +157,7 @@ class _RowsColsWdg(QWidget):
         spin = QSpinBox()
         spin.setMinimum(1)
         spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        spin.setKeyboardTracking(False)
         spin.valueChanged.connect(lambda: self.valueChanged.emit())
         layout.addWidget(label)
         layout.addWidget(spin)
@@ -364,6 +366,7 @@ class _DoubleSpinboxWidget(QWidget):
         spin.setMinimum(-1000000)
         spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        spin.setKeyboardTracking(False)
         spin.valueChanged.connect(lambda: self.valueChanged.emit())
         return spin
 
@@ -442,6 +445,7 @@ class _OverlapAndOrderModeWdg(QGroupBox):
         spin.setMinimumWidth(100)
         spin.setMaximum(100)
         spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        spin.setKeyboardTracking(False)
         spin.valueChanged.connect(lambda: self.valueChanged.emit())
         return spin
 
@@ -735,14 +739,16 @@ class GridWidget(QWidget):
 
     def set_state(self, grid: dict | AnyGridPlan) -> None:
         """Set the state of the widget from a useq AnyGridPlan or dictionary."""
-        grid_plan = get_grid_type(grid) if isinstance(grid, dict) else grid
+        with signals_blocked(self):
+            grid_plan = get_grid_type(grid) if isinstance(grid, dict) else grid
 
-        self.overlap_and_mode.setValue(grid_plan.dict())  # type: ignore
-        self.tab.setValue(grid_plan.dict())  # type: ignore
-        self.tab.setCurrentIndex(0) if isinstance(
-            grid_plan, GridRelative
-        ) else self.tab.setCurrentIndex(1)
-        self._update_info()
+            self.overlap_and_mode.setValue(grid_plan.dict())  # type: ignore
+            self.tab.setValue(grid_plan.dict())  # type: ignore
+            self.tab.setCurrentIndex(0) if isinstance(
+                grid_plan, GridRelative
+            ) else self.tab.setCurrentIndex(1)
+            self._update_info()
+        self.valueChanged.emit(self.value())
 
     def _emit_grid_positions(self) -> None:
         """Emit the grid positions if the pixel size is set."""

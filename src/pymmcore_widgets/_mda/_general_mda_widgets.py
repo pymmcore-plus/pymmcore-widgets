@@ -127,7 +127,7 @@ class _MDATimeLabel(QWidget):
         wdg_lay.addWidget(self._total_time_lbl)
 
 
-class SaveLoadSequenceWidget(QWidget):
+class _SaveLoadSequenceWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
