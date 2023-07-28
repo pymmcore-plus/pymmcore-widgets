@@ -193,7 +193,7 @@ class EditPresetWidget(QDialog):
                 if p == self._preset:
                     return
                 warnings.warn(
-                    "Threre is already a preset with the same "
+                    "There is already a preset with the same "
                     f"devices, properties and values: '{p}'.",
                     stacklevel=2,
                 )

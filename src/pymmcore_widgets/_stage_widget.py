@@ -131,14 +131,14 @@ class StageWidget(QWidget):
         self._btns.setLayout(QGridLayout())
         self._btns.layout().setContentsMargins(0, 0, 0, 0)
         self._btns.layout().setSpacing(0)
-        for glpyh, (row, col, *_) in self.BTNS.items():
+        for glyph, (row, col, *_) in self.BTNS.items():
             btn = QPushButton()
             btn.setAutoRepeat(True)
             btn.setFlat(True)
             btn.setFixedSize(self.BTN_SIZE, self.BTN_SIZE)
             btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            setTextIcon(btn, glpyh)
+            setTextIcon(btn, glyph)
             btn.clicked.connect(self._on_click)
             self._btns.layout().addWidget(btn, row, col, AlignCenter)
 

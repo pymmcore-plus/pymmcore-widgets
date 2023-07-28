@@ -3,30 +3,20 @@ ci:
   autofix_commit_msg: "style(pre-commit.ci): auto fixes [...]"
   autoupdate_commit_msg: "ci(pre-commit.ci): autoupdate"
 
-default_install_hook_types: [pre-commit, commit-msg]
-
 repos:
-  # - repo: https://github.com/compilerla/conventional-pre-commit
-  #   rev: v1.3.0
-  #   hooks:
-  #     - id: conventional-pre-commit
-  #       stages: [commit-msg]
-
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.16.1
     hooks:
-      - id: check-docstring-first
-      - id: end-of-file-fixer
-      - id: trailing-whitespace
+      - id: typos
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.275
+    rev: v0.0.280
     hooks:
       - id: ruff
         args: [--fix]
 
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 23.7.0
     hooks:
       - id: black
 
@@ -41,4 +31,4 @@ repos:
       - id: mypy
         files: "^src/"
         additional_dependencies:
-          - pymmcore-plus>=0.6.6
+          - pymmcore-plus >=0.7.1

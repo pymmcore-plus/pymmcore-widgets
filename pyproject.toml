@@ -25,8 +25,8 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    'pymmcore-plus>=0.6.6',
-    'useq-schema >=0.2.0',
+    'pymmcore-plus >=0.7.1',
+    'useq-schema >=0.3.1',
     'superqt[quantity] >=0.3.1',
     'fonticon-materialdesignicons6',
     'qtpy',
@@ -60,21 +60,12 @@ docs = [
     "mkdocs-material",
     "mkdocstrings-python",
     "mkdocs-literate-nav",
-    "mkdocs-gen-files"
+    "mkdocs-gen-files",
 ]
 
 [project.urls]
 homepage = "https://github.com/pymmcore-plus/pymmcore-widgets"
 repository = "https://github.com/pymmcore-plus/pymmcore-widgets"
-
-# same as console_scripts entry point
-# [project.scripts]
-# spam-cli = "spam:main_cli"
-
-# Entry points
-# https://peps.python.org/pep-0621/#entry-points
-# [project.entry-points."spam.magical"]
-# tomatoes = "spam:main_tomatoes"
 
 # https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
 [tool.setuptools]
@@ -96,16 +87,16 @@ profile = "black"
 [tool.ruff]
 line-length = 88
 target-version = "py38"
-src = ["src","tests"]
+src = ["src", "tests"]
 extend-select = [
     "E",    # style errors
     "F",    # flakes
     "D",    # pydocstyle
     "I001", # isort
-    "UP",    # pyupgrade
+    "UP",   # pyupgrade
     # "N",  # pep8-naming
     # "S",  # bandit
-    "C4",    # flake8-comprehensions
+    "C4",   # flake8-comprehensions
     "B",    # flake8-bugbear
     "A001", # flake8-builtins
     "RUF",  # ruff-specific rules
@@ -130,10 +121,7 @@ ignore = [
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
-filterwarnings = [
-    "error",
-    "ignore:distutils Version classes are deprecated"
-]
+filterwarnings = ["error", "ignore:distutils Version classes are deprecated"]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
 [tool.mypy]
@@ -162,14 +150,12 @@ skip = ["tests"]
 # https://github.com/mgedmin/check-manifest#configuration
 [tool.check-manifest]
 ignore = [
-    ".cruft.json",
     ".flake8",
     ".github_changelog_generator",
     ".pre-commit-config.yaml",
     "tests/**/*",
     "docs/**/*",
     "mkdocs.yml",
-    "tox.ini",
     "examples/**/*",
 ]
 

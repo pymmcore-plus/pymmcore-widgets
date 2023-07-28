@@ -299,7 +299,7 @@ class PropertyWidget(QWidget):
             names = self._mmc.getDevicePropertyNames(device_label)
             raise ValueError(
                 f"Device {device_label!r} has no property {prop_name!r}. "
-                f"Availble property names include: {names}"
+                f"Available property names include: {names}"
             )
 
         self._updates_core: bool = True  # whether to update the core on value change

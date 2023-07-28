@@ -87,7 +87,7 @@ class ShuttersWidget(QWidget):
         """
         Set the icon of the QPushButton when the shutter is open.
 
-        The icon_open.setter icon string should be any key recognizeable as
+        The icon_open.setter icon string should be any key recognizable as
         a superqt fonticon (e.g. mdi6.abacus).
         Default = MDI6.hexagon_outline (https://github.com/templarian/MaterialDesign).
         Note that MDI6 is installed by default, you must install other fonts
@@ -106,7 +106,7 @@ class ShuttersWidget(QWidget):
         """
         Set the icon of the QPushButton when the shutter is closed.
 
-        The icon_closed.setter icon string should be any key recognizeable as
+        The icon_closed.setter icon string should be any key recognizable as
         a superqt fonticon (e.g. mdi6.abacus).
         Default = MDI6.hexagon_slice_6 (https://github.com/templarian/MaterialDesign).
         Note that MDI6 is installed by default, you must install other fonts

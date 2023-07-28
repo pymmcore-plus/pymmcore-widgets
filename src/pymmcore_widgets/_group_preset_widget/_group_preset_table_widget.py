@@ -325,7 +325,7 @@ class GroupPresetTableWidget(QGroupBox):
         if not selected_rows or len(selected_rows) > 1:
             return
 
-        row = list(selected_rows)[0]
+        row = next(iter(selected_rows))
         group = self.table_wdg.item(row, 0).text()
         self._close_if_hasattr()
         self._edit_group_wdg = EditGroupWidget(group, parent=self)
@@ -336,7 +336,7 @@ class GroupPresetTableWidget(QGroupBox):
         if not selected_rows or len(selected_rows) > 1:
             return
 
-        row = list(selected_rows)[0]
+        row = next(iter(selected_rows))
         group = self.table_wdg.item(row, 0).text()
         wdg = self.table_wdg.cellWidget(row, 1)
 
@@ -385,7 +385,7 @@ class GroupPresetTableWidget(QGroupBox):
         if not selected_rows or len(selected_rows) > 1:
             return
 
-        row = list(selected_rows)[0]
+        row = next(iter(selected_rows))
         group = self.table_wdg.item(row, 0).text()
         wdg = self.table_wdg.cellWidget(row, 1)
         if isinstance(wdg, PropertyWidget):

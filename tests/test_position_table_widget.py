@@ -522,7 +522,7 @@ def test_save_and_load_position(qtbot: QtBot):
 
             p._save_positions()
 
-            file = list(Path(tmp).iterdir())[0]
+            file = next(iter(Path(tmp).iterdir()))
 
             assert json.loads(file.read_text()) == pos
 

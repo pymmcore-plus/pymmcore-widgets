@@ -45,7 +45,7 @@ class MDA(QWidget):
         self.mmc.mda.events.sequenceFinished.connect(self._on_end)
         self.mmc.mda.events.sequencePauseToggled.connect(self._on_pause)
 
-        # instantiate the MDAWidget, and a couple lables for feedback
+        # instantiate the MDAWidget, and a couple labels for feedback
         self.mda = MDAWidget(include_run_button=True)
         self.current_sequence = QLabel('... enter info and click "Run"')
         self.current_event = QLabel("... current event info will appear here")
