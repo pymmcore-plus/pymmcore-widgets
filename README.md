@@ -1,9 +1,11 @@
 # pymmcore-widgets
 
 [![License](https://img.shields.io/pypi/l/pymmcore-widgets.svg?color=green)](https://github.com/pymmcore-plus/pymmcore-widgets/raw/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/pymmcore-widgets.svg?color=green)](https://pypi.org/project/pymmcore-widgets)
 [![Python Version](https://img.shields.io/pypi/pyversions/pymmcore-widgets.svg?color=green)](https://python.org)
+[![PyPI](https://img.shields.io/pypi/v/pymmcore-widgets.svg?color=green)](https://pypi.org/project/pymmcore-widgets)
+[![Conda](https://img.shields.io/conda/vn/conda-forge/pymmcore-widgets)](https://anaconda.org/conda-forge/pymmcore-widgets)
 [![CI](https://github.com/pymmcore-plus/pymmcore-widgets/actions/workflows/ci.yml/badge.svg)](https://github.com/pymmcore-plus/pymmcore-widgets/actions/workflows/ci.yml)
+[![docs](https://github.com/pymmcore-plus/pymmcore-plus/actions/workflows/docs.yml/badge.svg)](https://pymmcore-plus.github.io/pymmcore-widgets/)
 [![codecov](https://codecov.io/gh/pymmcore-plus/pymmcore-widgets/branch/main/graph/badge.svg)](https://codecov.io/gh/pymmcore-plus/pymmcore-widgets)
 
 A set of widgets for the [pymmcore-plus](https://github.com/pymmcore-plus/pymmcore-plus) package.
