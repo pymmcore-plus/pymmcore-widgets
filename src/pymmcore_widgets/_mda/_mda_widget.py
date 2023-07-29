@@ -4,6 +4,7 @@ import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import useq
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
@@ -321,20 +322,13 @@ class MDAWidget(QWidget):
         -------
         useq.MDASequence
         """
-        channels = (
-            self.channel_widget.value()
-            if self.ch_cbox.isChecked()
-            else [
-                {
-                    "config": self._mmc.getCurrentConfig(self._mmc.getChannelGroup()),
-                    "group": self._mmc.getChannelGroup(),
-                    "exposure": self._mmc.getExposure(),
-                    "z_offset": 0.0,
-                    "do_stack": True,
-                    "acquire_every": 1,
-                }
+        if self.ch_cbox.isChecked():
+            channels = self.channel_widget.value()
+        else:
+            group = self._mmc.getChannelGroup()
+            channels = [
+                useq.Channel(config=self._mmc.getCurrentConfig(group), group=group)
             ]
-        )
 
         stage_positions: list[PositionDict] = []
         if self.p_cbox.isChecked():

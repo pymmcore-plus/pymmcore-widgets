@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import useq
+
 from pymmcore_widgets._mda import ChannelTable
 
 if TYPE_CHECKING:
@@ -61,38 +63,42 @@ def test_set_get_state(qtbot: QtBot):
     qtbot.addWidget(ct)
 
     state = [
-        {
-            "config": "Cy5",
-            "group": "Channel",
-            "exposure": 100.0,
-            "z_offset": 0.0,
-            "do_stack": True,
-            "acquire_every": 1,
-        },
-        {
-            "config": "DAPI",
-            "group": "Channel",
-            "exposure": 100.0,
-            "z_offset": 10.0,
-            "do_stack": True,
-            "acquire_every": 1,
-        },
-        {
-            "config": "HighRes",
-            "group": "Camera",
-            "exposure": 100.0,
-            "z_offset": 0.0,
-            "do_stack": False,
-            "acquire_every": 1,
-        },
-        {
-            "config": "Cy5",
-            "group": "Channel",
-            "exposure": 100.0,
-            "z_offset": 0.0,
-            "do_stack": True,
-            "acquire_every": 2,
-        },
+        useq.Channel(
+            config="Cy5",
+            group="Channel",
+            exposure=100.0,
+            do_stack=True,
+            z_offset=0.0,
+            acquire_every=1,
+            camera=None,
+        ),
+        useq.Channel(
+            config="DAPI",
+            group="Channel",
+            exposure=100.0,
+            do_stack=True,
+            z_offset=10.0,
+            acquire_every=1,
+            camera=None,
+        ),
+        useq.Channel(
+            config="HighRes",
+            group="Camera",
+            exposure=100.0,
+            do_stack=False,
+            z_offset=0.0,
+            acquire_every=1,
+            camera=None,
+        ),
+        useq.Channel(
+            config="Cy5",
+            group="Channel",
+            exposure=100.0,
+            do_stack=True,
+            z_offset=0.0,
+            acquire_every=2,
+            camera=None,
+        ),
     ]
 
     assert not ct._advanced_cbox.isChecked()

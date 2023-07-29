@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
+import useq
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt, Signal
@@ -24,20 +25,6 @@ from qtpy.QtWidgets import (
 )
 from superqt import fonticon
 from superqt.utils import signals_blocked
-
-if TYPE_CHECKING:
-    from typing_extensions import Required, TypedDict
-
-    class ChannelDict(TypedDict, total=False):
-        """Channel dictionary."""
-
-        config: Required[str]
-        group: str
-        exposure: float | None
-        z_offset: float
-        do_stack: bool
-        camera: str | None
-        acquire_every: int
 
 
 class ChannelTable(QWidget):
@@ -169,12 +156,11 @@ class ChannelTable(QWidget):
 
     def _on_group_deleted(self, group: str) -> None:
         """Remove rows that are using channels from the deleted group."""
-        row = 0
-        for ch in self.value():
-            if ch["group"] == group:
-                self._table.removeRow(row)
-            else:
-                row += 1
+        for r in reversed(range(self._table.rowCount())):
+            name_widget = cast("QComboBox", self._table.cellWidget(r, 0))
+            _grp = name_widget.itemData(name_widget.currentIndex(), self.CH_GROUP_ROLE)
+            if _grp == group:
+                self._table.removeRow(r)
 
     def _on_config_deleted(self, group: str, config: str) -> None:
         """Remove deleted config from channel combo if present."""
@@ -196,21 +182,27 @@ class ChannelTable(QWidget):
         for c in range(2, self._table.columnCount()):
             self._table.setColumnHidden(c, not state)
 
-        if not state:
-            for v in self.value():
-                # if any of the advanced settings are different from their default
-                if v["z_offset"] != 0 or not v["do_stack"] or v["acquire_every"] != 1:
-                    self._warn_icon.show()
-                    return
-        self._warn_icon.hide()
+        if state:
+            self._warn_icon.hide()
+            return
+        # if any of the advanced settings are different from their default
+        for c in range(self._table.rowCount()):
+            if (
+                self._table.cellWidget(c, 2).value()
+                or not self._z_stack_checkbox(c).isChecked()
+                or self._table.cellWidget(c, 4).value() != 1
+            ):
+                self._warn_icon.show()
+                return
 
-    def _pick_first_unused_channel(self, available: tuple[str, ...]) -> str:
+    def _pick_first_unused_channel(self, channel_group: str) -> str:
         """Return index of first unused channel."""
-        used = set()
-        for row in range(self._table.rowCount()):
-            combo = cast(QComboBox, self._table.cellWidget(row, 0))
-            used.add(combo.currentText())
+        used = {
+            self._table.cellWidget(row, 0).currentText()
+            for row in range(self._table.rowCount())
+        }
 
+        available = self._mmc.getAvailableConfigs(channel_group)
         for ch in available:
             if ch not in used:
                 return ch
@@ -220,23 +212,15 @@ class ChannelTable(QWidget):
         self, range: tuple[int, int], double: bool = False
     ) -> QDoubleSpinBox:
         dspinbox = QDoubleSpinBox() if double else QSpinBox()
-        dspinbox.setButtonSymbols(QAbstractSpinBox.NoButtons)
+        dspinbox.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         dspinbox.setRange(*range)
-        dspinbox.setAlignment(Qt.AlignCenter)
+        dspinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         dspinbox.wheelEvent = lambda event: None  # block mouse scroll
         dspinbox.setKeyboardTracking(False)
         dspinbox.valueChanged.connect(self.valueChanged)
         return dspinbox
 
-    def _create_new_row(
-        self,
-        channel: str | None = None,
-        exposure: float | None = None,
-        channel_group: str | None = None,
-        z_offset: float = 0.0,
-        do_stack: bool = True,
-        acquire_every: int = 1,
-    ) -> None:
+    def _create_new_row(self, channel: useq.Channel | None = None) -> None:
         """Create a new row in the table.
 
         If 'channel' is not provided, the first unused channel will be used.
@@ -245,46 +229,49 @@ class ChannelTable(QWidget):
         if len(self._mmc.getLoadedDevices()) <= 1:
             warnings.warn("No devices loaded.", stacklevel=2)
             return
-
-        _channel_group = channel_group or self.channel_group_combo.currentText()
-
-        if not _channel_group:
-            warnings.warn("First select Micro-Manager 'ChannelGroup'.", stacklevel=2)
-            return
+        if channel:
+            _channel_group = channel.group
+        else:
+            _channel_group = self.channel_group_combo.currentText()
+            if not _channel_group:
+                warnings.warn(
+                    "First select Micro-Manager 'ChannelGroup'.", stacklevel=2
+                )
+                return
+            channel_name = self._pick_first_unused_channel(_channel_group)
+            channel = useq.Channel(config=channel_name, group=_channel_group)
 
         # channel dropdown
         channel_combo = QComboBox()
-        available = self._mmc.getAvailableConfigs(_channel_group)
-        channel = channel or self._pick_first_unused_channel(available)
-        channel_combo.addItems(available)
+        channel_combo.addItems(self._mmc.getAvailableConfigs(channel.group))
         for i in range(channel_combo.count()):
             channel_combo.setItemData(i, _channel_group, self.CH_GROUP_ROLE)
-        channel_combo.setCurrentText(channel)
+        channel_combo.setCurrentText(channel.config)
 
         # exposure spinbox
         channel_exp_spinbox = self._create_spinbox((0, 10000), True)
         channel_exp_spinbox.setMinimum(1)
-        channel_exp_spinbox.setValue(exposure or self._mmc.getExposure() or 100)
+        channel_exp_spinbox.setValue(channel.exposure or self._mmc.getExposure() or 100)
 
         # z offset spinbox
         z_offset_spinbox = self._create_spinbox((-10000, 10000), True)
-        z_offset_spinbox.setValue(z_offset)
+        z_offset_spinbox.setValue(channel.z_offset)
 
         # z stack checkbox
         # creating a wrapper widget so that the checkbox appears centered.
         z_stack_wdg = QWidget()
         z_stack_layout = QHBoxLayout()
         z_stack_layout.setContentsMargins(0, 0, 0, 0)
-        z_stack_layout.setAlignment(Qt.AlignCenter)
+        z_stack_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         z_stack_wdg.setLayout(z_stack_layout)
         z_stack_checkbox = QCheckBox()
-        z_stack_checkbox.setChecked(do_stack)
+        z_stack_checkbox.setChecked(channel.do_stack)
         z_stack_checkbox.stateChanged.connect(self.valueChanged)
         z_stack_layout.addWidget(z_stack_checkbox)
 
         # acqire every spinbox
         acquire_every_spinbox = self._create_spinbox((1, 10000))
-        acquire_every_spinbox.setValue(acquire_every)
+        acquire_every_spinbox.setValue(channel.acquire_every)
 
         idx = self._table.rowCount()
         self._table.insertRow(idx)
@@ -313,83 +300,70 @@ class ChannelTable(QWidget):
             self._table.setRowCount(0)
             self.valueChanged.emit()
 
-    def value(self) -> list[ChannelDict]:
+    def value(self) -> list[useq.Channel]:
         """Return the current channels settings as a list of dictionaries.
 
         Note that the output will match the [useq-schema Channel
         specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
         """
-        values: list[ChannelDict] = []
+        values: list[useq.Channel] = []
         for c in range(self._table.rowCount()):
             name_widget = cast("QComboBox", self._table.cellWidget(c, 0))
             exposure_widget = cast("QDoubleSpinBox", self._table.cellWidget(c, 1))
             if name_widget and exposure_widget:
-                values.append(
-                    {
-                        "config": name_widget.currentText(),
-                        "group": name_widget.itemData(
-                            name_widget.currentIndex(), self.CH_GROUP_ROLE
-                        ),
-                        "exposure": exposure_widget.value(),
-                        # NOTE: the columns representing these values *may* be hidden
-                        # ... but we are still using them
-                        "z_offset": (
-                            cast("QDoubleSpinBox", self._table.cellWidget(c, 2)).value()
-                        ),
-                        "do_stack": (self._z_stack_checkbox(c).isChecked()),
-                        "acquire_every": (
-                            cast("QSpinBox", self._table.cellWidget(c, 4)).value()
-                        ),
-                    }
+                channel = useq.Channel(
+                    config=name_widget.currentText(),
+                    group=name_widget.itemData(
+                        name_widget.currentIndex(), self.CH_GROUP_ROLE
+                    ),
+                    exposure=exposure_widget.value(),
+                    # NOTE: the columns representing these values *may* be hidden
+                    # ... but we are still using them
+                    z_offset=self._table.cellWidget(c, 2).value(),
+                    do_stack=self._z_stack_checkbox(c).isChecked(),
+                    acquire_every=self._table.cellWidget(c, 4).value(),
                 )
+                values.append(channel)
         return values
 
-    # note: this really ought to be ChannelDict, but it makes typing elsewhere harder
-    # TODO: also accept actual useq objects
-    def set_state(self, channels: list[dict]) -> None:
+    def set_state(self, channels: list[str | dict | useq.Channel]) -> None:
         """Set the state of the widget.
 
         Parameters
         ----------
-        channels : list[dict]
-            A list of dictionaries following the [useq-schema Channel specifications](
+        channels : list[dict | str | useq.Channel]
+            A list of objects that can be cast to a [useq-schema Channel](
             https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
         """
         _advanced_bool = False
         with signals_blocked(self):
             self.clear()
+            curgroup = self.channel_group_combo.currentText()
             for channel in channels:
-                ch = channel.get("config")
-                group = channel.get("group")
-
-                if not ch:
-                    raise ValueError("Dictionary should contain channel 'config' name.")
-                avail_configs = self._mmc.getAvailableConfigs(
-                    group or self.channel_group_combo.currentText()
-                )
-                if ch not in avail_configs:
+                channel = useq.Channel.validate(channel)
+                avail_configs = self._mmc.getAvailableConfigs(channel.group or curgroup)
+                if channel.config not in avail_configs:
                     warnings.warn(
-                        f"'{ch}' config or its group doesn't exist in the "
-                        f"'{group}' ChannelGroup!",
+                        f"'{channel.config}' config or its group doesn't exist in the "
+                        f"'{channel.group}' ChannelGroup!",
                         stacklevel=2,
                     )
                     continue
 
-                exposure = channel.get("exposure") or self._mmc.getExposure()
-                z_offset = channel.get("z_offset") or 0.0
-                do_stack = channel["do_stack"] if "do_stack" in channel else True
-                acquire_every = channel.get("acquire_every") or 1
-                self._create_new_row(
-                    ch, exposure, group, z_offset, do_stack, acquire_every
-                )
+                self._create_new_row(channel)
 
                 # if any of the advanced settings are different from their default
-                if z_offset != 0.0 or not do_stack or acquire_every != 1:
+                if self._has_advanced_settings(channel):
                     _advanced_bool = True
 
             self._advanced_cbox.setChecked(_advanced_bool)
 
         self.valueChanged.emit()
+
+    def _has_advanced_settings(self, channel: useq.Channel) -> bool:
+        return bool(
+            channel.z_offset or not channel.do_stack or channel.acquire_every != 1
+        )
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
@@ -409,7 +383,7 @@ class ChannelGroupCombo(QComboBox):
     ) -> None:
         super().__init__(parent)
 
-        self.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
 
         self._mmc = mmcore or CMMCorePlus.instance()
         self._channel_group = channel_group or self._mmc.getChannelGroup()
