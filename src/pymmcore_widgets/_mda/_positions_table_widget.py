@@ -32,15 +32,10 @@ from qtpy.QtWidgets import (
 from superqt import fonticon
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
-from useq import (  # type: ignore
-    AxesBasedAF,
-    GridFromEdges,
-    GridRelative,
-    MDASequence,
-    Position,
-)
+from useq import AxesBasedAF, GridFromEdges, GridRelative, MDASequence, Position
 
-from .._util import get_grid_type
+from pymmcore_widgets._util import get_grid_type
+
 from ._autofocus_device_widget import _AutofocusZDeviceWidget
 from ._grid_widget import GridWidget
 
@@ -442,7 +437,7 @@ class PositionTable(QWidget):
         add_grid.setFixedHeight(25)
         add_grid.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         add_grid.setContextMenuPolicy(Qt.CustomContextMenu)
-        # for righ-click menu
+        # for right-click menu
         add_grid.customContextMenuRequested.connect(self._show_apply_to_all_menu)
         add_grid.clicked.connect(self._show_grid_widget)
         remove_grid = QPushButton()
@@ -750,8 +745,8 @@ class PositionTable(QWidget):
                     if isinstance(pos_seq, MDASequence):
                         if pos_seq.grid_plan:
                             grid_plan = pos_seq.grid_plan.dict()
-                        if isinstance(pos_seq.autofocus_plan, AxesBasedAF):  # type: ignore  # noqa
-                            autofocus = pos_seq.autofocus_plan.dict()  # type: ignore
+                        if isinstance(pos_seq.autofocus_plan, AxesBasedAF):
+                            autofocus = pos_seq.autofocus_plan.dict()
                     else:
                         grid_plan = pos_seq.get("grid_plan", None)
                         autofocus = pos_seq.get("autofocus_plan")

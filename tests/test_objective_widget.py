@@ -4,13 +4,13 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock, call, patch
 
 import pytest
-from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QDialog
 
 from pymmcore_widgets._objective_widget import ObjectivesWidget
 from pymmcore_widgets._util import ComboMessageBox
 
 if TYPE_CHECKING:
+    from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
 

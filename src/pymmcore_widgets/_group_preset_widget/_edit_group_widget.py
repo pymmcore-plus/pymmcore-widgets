@@ -15,8 +15,7 @@ from qtpy.QtWidgets import (
 
 from pymmcore_widgets._device_property_table import DevicePropertyTable
 from pymmcore_widgets._device_type_filter import DeviceTypeFilters
-
-from .._util import block_core
+from pymmcore_widgets._util import block_core
 
 
 class EditGroupWidget(QDialog):

@@ -18,7 +18,8 @@ from qtpy.QtWidgets import (
 )
 from useq import MDASequence
 
-from .._util import fmt_timedelta
+from pymmcore_widgets._util import fmt_timedelta
+
 from ._channel_table_widget import ChannelTable
 from ._checkable_tabwidget_widget import CheckableTabWidget
 from ._general_mda_widgets import (

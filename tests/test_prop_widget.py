@@ -8,7 +8,7 @@ from pymmcore_widgets import PropertyWidget
 # is a mock State Device (DStateDevice) device from the 'DemoCamera DHub.
 # We are excluding the dev-prop 'LED-Number of positions' because
 # it is not an actual property of the device, but it is only used
-# in the micromanager "Hardwre Confoguration Wizard" to set the number
+# in the micromanager "Hardwre Configuration Wizard" to set the number
 # of states (by default, 10) that the mock device can have.
 CORE = CMMCorePlus()
 CORE.loadSystemConfiguration()
