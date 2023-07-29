@@ -35,8 +35,8 @@ def test_mda_widget_load_state(qtbot: QtBot):
 
     sequence = MDASequence(
         channels=[
-            {"config": "Cy5", "exposure": 20},
-            {"config": "FITC", "exposure": 50},
+            {"config": "Cy5", "exposure": 0.2},
+            {"config": "FITC", "exposure": 0.5},
         ],
         time_plan={"phases": [{"interval": 2, "loops": 5}]},
         z_plan={"range": 4, "step": 0.5},
@@ -308,10 +308,10 @@ def test_save_and_load_sequence(qtbot: QtBot):
                     },
                 ],
                 channels=[
-                    {"config": "Cy5", "exposure": 50},
+                    {"config": "Cy5", "exposure": 0.5},
                     {
                         "config": "DAPI",
-                        "exposure": 100.0,
+                        "exposure": 0.1,
                         "do_stack": False,
                         "acquire_every": 3,
                     },

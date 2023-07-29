@@ -65,7 +65,7 @@ def test_set_get_state(qtbot: QtBot):
         {
             "config": "Cy5",
             "group": "Channel",
-            "exposure": 100.0,
+            "exposure": 0.1,
             "z_offset": 0.0,
             "do_stack": True,
             "acquire_every": 1,
@@ -73,7 +73,7 @@ def test_set_get_state(qtbot: QtBot):
         {
             "config": "DAPI",
             "group": "Channel",
-            "exposure": 100.0,
+            "exposure": 0.1,
             "z_offset": 10.0,
             "do_stack": True,
             "acquire_every": 1,
@@ -81,7 +81,7 @@ def test_set_get_state(qtbot: QtBot):
         {
             "config": "HighRes",
             "group": "Camera",
-            "exposure": 100.0,
+            "exposure": 0.1,
             "z_offset": 0.0,
             "do_stack": False,
             "acquire_every": 1,
@@ -89,7 +89,7 @@ def test_set_get_state(qtbot: QtBot):
         {
             "config": "Cy5",
             "group": "Channel",
-            "exposure": 100.0,
+            "exposure": 0.1,
             "z_offset": 0.0,
             "do_stack": True,
             "acquire_every": 2,

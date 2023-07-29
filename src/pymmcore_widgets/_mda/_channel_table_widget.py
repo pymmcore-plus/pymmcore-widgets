@@ -330,7 +330,8 @@ class ChannelTable(QWidget):
                         "group": name_widget.itemData(
                             name_widget.currentIndex(), self.CH_GROUP_ROLE
                         ),
-                        "exposure": exposure_widget.value(),
+                        "exposure": exposure_widget.value()
+                        / 1000,  # convert to seconds
                         # NOTE: the columns representing these values *may* be hidden
                         # ... but we are still using them
                         "z_offset": (
@@ -375,7 +376,11 @@ class ChannelTable(QWidget):
                     )
                     continue
 
-                exposure = channel.get("exposure") or self._mmc.getExposure()
+                # exposure input is in seconds so we convert it in millisecond since
+                # the channel table exposure is in milliseconds. self._mmc.getExposure()
+                # is instead already in ms.
+                _exp = channel.get("exposure")
+                exposure = _exp * 1000 if _exp is not None else self._mmc.getExposure()
                 z_offset = channel.get("z_offset") or 0.0
                 do_stack = channel["do_stack"] if "do_stack" in channel else True
                 acquire_every = channel.get("acquire_every") or 1

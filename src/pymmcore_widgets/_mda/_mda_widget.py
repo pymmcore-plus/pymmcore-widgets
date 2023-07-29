@@ -356,7 +356,7 @@ class MDAWidget(QWidget):
                 {
                     "config": self._mmc.getCurrentConfig(self._mmc.getChannelGroup()),
                     "group": self._mmc.getChannelGroup(),
-                    "exposure": self._mmc.getExposure(),
+                    "exposure": self._mmc.getExposure() / 1000,  # convert to seconds
                     "z_offset": 0.0,
                     "do_stack": True,
                     "acquire_every": 1,
@@ -495,10 +495,10 @@ class MDAWidget(QWidget):
             if e.exposure is None:
                 continue
 
-            total_time = total_time + (e.exposure / 1000)
+            total_time = total_time + e.exposure
             if _uses_time:
                 _t = e.index["t"]
-                _exp = e.exposure / 1000
+                _exp = e.exposure
                 _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp
 
         if _per_timepoints:
@@ -515,7 +515,7 @@ class MDAWidget(QWidget):
 
             # check if the interval(s) is smaller than the sum of the exposure times
             sum_ch_exp = sum(
-                (c["exposure"] / 1000)
+                c["exposure"]
                 for c in self.channel_widget.value()
                 if c["exposure"] is not None
             )
