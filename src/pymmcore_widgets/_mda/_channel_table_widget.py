@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import cast
+from typing import Iterable, cast
 
 import useq
 from fonticon_mdi6 import MDI6
@@ -326,12 +326,12 @@ class ChannelTable(QWidget):
                 values.append(channel)
         return values
 
-    def set_state(self, channels: list[str | dict | useq.Channel]) -> None:
+    def set_state(self, channels: Iterable[str | dict | useq.Channel]) -> None:
         """Set the state of the widget.
 
         Parameters
         ----------
-        channels : list[dict | str | useq.Channel]
+        channels : Iterable[dict | str | useq.Channel]
             A list of objects that can be cast to a [useq-schema Channel](
             https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
         """
