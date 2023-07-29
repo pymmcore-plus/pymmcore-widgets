@@ -367,15 +367,16 @@ class MDAWidget(QWidget):
 
         stage_positions: list[PositionDict] = []
         if self.p_cbox.isChecked():
+            order_combo = self.acquisition_order_widget.acquisition_order_comboBox
+            axis_order = order_combo.currentText()
             for p in self.position_widget.value():
                 if p.get("sequence"):
-                    p_sequence = MDASequence(**p.get("sequence"))  # type: ignore
-                    p_sequence = p_sequence.replace(
-                        axis_order=self.acquisition_order_widget.acquisition_order_comboBox.currentText()
-                    )
+                    seq_kwargs = p.get("sequence") or {}
+                    seq_kwargs["axis_order"] = axis_order
+                    p_sequence = MDASequence(**seq_kwargs)
                     p_sequence.set_fov_size(self._get_fov_size())
-                    p["sequence"] = p_sequence
-                stage_positions.append(p)
+                    p["sequence"] = p_sequence  # type: ignore  # FIXME
+                stage_positions.append(p)  # type: ignore
 
         if not stage_positions:
             stage_positions = self._get_current_position()

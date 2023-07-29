@@ -49,7 +49,7 @@ if TYPE_CHECKING:
         y: float | None
         z: float | None
         name: str | None
-        sequence: MDASequence | None
+        sequence: dict | None
 
 
 POS = "Pos"
@@ -672,20 +672,21 @@ class PositionTable(QWidget):
         values: list = []
 
         for row in range(self._table.rowCount()):
-            grid_role = self._table.item(row, P).data(self.GRID_ROLE)
+            item = cast("QTableWidgetItem", self._table.item(row, P))
+            grid_role = item.data(self.GRID_ROLE)
             af_plan = self._get_autofocus_plan(row)
-
-            value = {
-                "name": self._table.item(row, P).text(),
+            value: PositionDict = {
+                "name": item.text(),
                 "x": self._get_table_value(row, X),
                 "y": self._get_table_value(row, Y),
                 "z": self._get_table_value(row, Z),
-                "sequence": {} if grid_role or af_plan else None,
             }
+            sequence = {}
             if grid_role:
-                value["sequence"]["grid_plan"] = grid_role
+                sequence["grid_plan"] = grid_role
             if af_plan:
-                value["sequence"]["autofocus_plan"] = af_plan
+                sequence["autofocus_plan"] = af_plan
+            value["sequence"] = sequence or None
 
             values.append(value)
 
