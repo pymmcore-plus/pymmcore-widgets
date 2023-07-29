@@ -4,15 +4,12 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, cast
 
-from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QSize, Qt, Signal
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QDoubleSpinBox,
     QGridLayout,
-    QHBoxLayout,
-    QLabel,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
@@ -21,12 +18,11 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt import QQuantity, fonticon
+from superqt import QQuantity
 from superqt.utils import signals_blocked
 from useq import MDASequence, MultiPhaseTimePlan, TIntervalLoops
 
 if TYPE_CHECKING:
-    from qtpy.QtGui import QIcon
     from typing_extensions import TypedDict
 
     class TimeDict(TypedDict, total=False):
@@ -65,7 +61,6 @@ class TimePlanWidget(QWidget):
     """
 
     valueChanged = Signal()
-    _warning_widget: QWidget
 
     def __init__(
         self,
@@ -123,29 +118,6 @@ class TimePlanWidget(QWidget):
         layout_buttons.addItem(spacer)
 
         group_layout.addWidget(buttons_wdg, 0, 1)
-
-        # warning Icon (exclamation mark)
-        self._warning_icon = QLabel()
-        self.setWarningIcon(MDI6.exclamation_thick)
-        self._warning_icon.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self._warning_icon.setSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-        )
-        # warning message
-        self._warning_msg = QLabel()
-        self.setWarningMessage("Interval shorter than acquisition time per timepoint.")
-        # warning widget (icon + message)
-        self._warning_widget = QWidget()
-        _warning_layout = QHBoxLayout()
-        _warning_layout.setSpacing(0)
-        _warning_layout.setContentsMargins(0, 0, 0, 0)
-        self._warning_widget.setLayout(_warning_layout)
-        _warning_layout.addWidget(self._warning_icon)
-        _warning_layout.addWidget(self._warning_msg)
-        self._warning_widget.setStyleSheet("color:magenta")
-        self._warning_widget.hide()
-
-        group_layout.addWidget(self._warning_widget, 1, 0, 1, 2)
 
         self._mmc.events.systemConfigurationLoaded.connect(self._clear)
 
@@ -206,22 +178,6 @@ class TimePlanWidget(QWidget):
             self._table.clearContents()
             self._table.setRowCount(0)
         self.valueChanged.emit()
-
-    def setWarningMessage(self, msg: str) -> None:
-        """Set the text of the warning message."""
-        self._warning_msg.setText(msg)
-
-    def setWarningIcon(self, icon: str | QIcon) -> None:
-        """Set the icon of the warning message."""
-        if isinstance(icon, str):
-            _icon: QIcon = fonticon.icon(MDI6.exclamation_thick, color="magenta")
-        else:
-            _icon = icon
-        self._warning_icon.setPixmap(_icon.pixmap(QSize(30, 30)))
-
-    def setWarningVisible(self, visible: bool = True) -> None:
-        """Set the visibility of the warning message."""
-        self._warning_widget.setVisible(visible)
 
     def value(self) -> MultiPhaseTimeDict:
         """Return the current time plan as a dictionary.

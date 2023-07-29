@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -18,14 +17,11 @@ from qtpy.QtWidgets import (
 )
 from useq import MDASequence
 
-from pymmcore_widgets._util import fmt_timedelta
-
 from ._channel_table_widget import ChannelTable
 from ._checkable_tabwidget_widget import CheckableTabWidget
 from ._general_mda_widgets import (
     _AcquisitionOrderWidget,
     _MDAControlButtons,
-    _MDATimeLabel,
     _SaveLoadSequenceWidget,
 )
 from ._grid_widget import GridWidget
@@ -118,7 +114,6 @@ class MDAWidget(QWidget):
         self.stack_widget.setFixedHeight(self.stack_widget.minimumSizeHint().height())
         self.position_widget = PositionTable()
         self.grid_widget = Grid()
-        self.grid_widget.valueChanged.connect(self._update_total_time)
         self.grid_widget.layout().itemAt(
             self.grid_widget.layout().count() - 1
         ).widget().hide()  # hide add grid button
@@ -141,9 +136,6 @@ class MDAWidget(QWidget):
         self.p_cbox = self._get_checkbox(2)
         self.t_cbox = self._get_checkbox(3)
         self.g_cbox = self._get_checkbox(4)
-
-        # info time label and buttons widgets
-        self.time_lbl = _MDATimeLabel()
 
         # savle load widget
         self._save_load = _SaveLoadSequenceWidget()
@@ -170,46 +162,28 @@ class MDAWidget(QWidget):
         self.layout().setSpacing(10)
         self.layout().setContentsMargins(10, 10, 10, 10)
         self.layout().addWidget(scroll)
-        self.layout().addWidget(self.time_lbl)
         self.layout().addLayout(acq_order_run_layout)
 
         # CONNECTIONS
-        # connect tabs changed signal
         self._tab.currentChanged.connect(self._on_tab_changed)
-        # connect Channels, Time, Z Stack, Positions and Grid widgets
         self.channel_widget.valueChanged.connect(self._enable_run_btn)
-        self.channel_widget.valueChanged.connect(self._update_total_time)
-        self.channel_widget._advanced_cbox.toggled.connect(self._update_total_time)
-        self.time_widget.valueChanged.connect(self._update_total_time)
-        self.stack_widget.valueChanged.connect(self._update_total_time)
-        self.position_widget._advanced_cbox.toggled.connect(self._update_total_time)
-        self.position_widget.valueChanged.connect(self._update_total_time)
         # below not using lambda with position_widget below because it would cause
         # problems in closing the widget (see conftest _run_after_each_test fixture)
         self.position_widget.valueChanged.connect(self._on_positions_tab_changed)
-        # connect tab checkboxes
         self.ch_cbox.toggled.connect(self._enable_run_btn)
-        self.ch_cbox.toggled.connect(self._update_total_time)
-        self.z_cbox.toggled.connect(self._update_total_time)
-        self.t_cbox.toggled.connect(self._update_total_time)
-        self.p_cbox.toggled.connect(self._update_total_time)
         # not using lambda with p_cbox below because it would cause problems in closing
         # the widget (see conftest _run_after_each_test fixture)
         self.p_cbox.toggled.connect(self._on_positions_tab_changed)
-        self.g_cbox.toggled.connect(self._update_total_time)
-        # connect mmcore signals
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.configSet.connect(self._on_config_set)
         self._mmc.events.configGroupChanged.connect(self._on_config_set)
         self._mmc.events.channelGroupChanged.connect(self._enable_run_btn)
-        # connect run button
         if self._include_run_button:
             self.buttons_wdg = _MDAControlButtons()
             self.buttons_wdg.run_button.clicked.connect(self._on_run_clicked)
             self.buttons_wdg.run_button.show()
-            # connect buttons
             self.buttons_wdg.pause_button.released.connect(self._mmc.mda.toggle_pause)
             self.buttons_wdg.cancel_button.released.connect(self._mmc.mda.cancel)
             acq_order_run_layout.addWidget(self.buttons_wdg)
@@ -293,9 +267,6 @@ class MDAWidget(QWidget):
             MDASequence state in the form of a dict, MDASequence object, or a str or
             Path pointing to a sequence.yaml file
         """
-        # TODO: prevent _update_total_time from being called until
-        # all subcomponents have been set
-
         # sourcery skip: low-code-quality
         if isinstance(state, (str, Path)):
             state = MDASequence.parse_file(state)
@@ -459,8 +430,6 @@ class MDAWidget(QWidget):
         """Hide the warning if the time groupbox is unchecked."""
         if not checked and self.time_widget._warning_widget.isVisible():
             self.time_widget.setWarningVisible(False)
-        else:
-            self._update_total_time()
 
     def _uses_time(self) -> bool:
         """Hacky method to check whether the timebox is selected with any timepoints."""
@@ -469,94 +438,6 @@ class MDAWidget(QWidget):
 
     def _uses_autofocus(self) -> bool:
         return bool(self.p_cbox.isChecked() and self.position_widget._use_af())
-
-    def _update_total_time(self) -> None:
-        """Calculate the minimum total acquisition time info."""
-        # TODO: fix me!!!!!
-        if self._mmc.getChannelGroup() and self._mmc.getCurrentConfig(
-            self._mmc.getChannelGroup()
-        ):
-            if self.ch_cbox.isChecked() and not self.channel_widget._table.rowCount():
-                self.time_lbl._total_time_lbl.setText(
-                    "Minimum total acquisition time: 0 sec."
-                )
-                return
-
-        elif not self.ch_cbox.isChecked() or not self.channel_widget._table.rowCount():
-            self.time_lbl._total_time_lbl.setText(
-                "Minimum total acquisition time: 0 sec."
-            )
-            return
-
-        total_time: float = 0.0
-        _per_timepoints: dict[int, float] = {}
-        t_per_tp_msg = ""
-        _uses_time = self._uses_time()
-
-        for e in self.get_state():
-            if e.exposure is None:
-                continue
-
-            total_time = total_time + (e.exposure / 1000)
-            if _uses_time:
-                _t = e.index["t"]
-                _exp = e.exposure / 1000
-                _per_timepoints[_t] = _per_timepoints.get(_t, 0) + _exp
-
-        if _per_timepoints:
-            time_value = self.time_widget.value()
-
-            intervals = []
-            for phase in time_value["phases"]:  # type: ignore
-                interval = phase["interval"].total_seconds()
-                intervals.append(interval)
-                if phase.get("loops") is not None:
-                    total_time = total_time + (phase["loops"] - 1) * interval
-                else:
-                    total_time = total_time + phase["duration"].total_seconds()
-
-            # check if the interval(s) is smaller than the sum of the exposure times
-            sum_ch_exp = sum(
-                (c["exposure"] / 1000)
-                for c in self.channel_widget.value()
-                if c["exposure"] is not None
-            )
-            for i in intervals:
-                if 0 < i < sum_ch_exp:
-                    self.time_widget.setWarningVisible(True)
-                    break
-                else:
-                    self.time_widget.setWarningVisible(False)
-
-            # group by time
-            _group_by_time: dict[float, list[int]] = {
-                n: [k for k in _per_timepoints if _per_timepoints[k] == n]
-                for n in set(_per_timepoints.values())
-            }
-
-            t_per_tp_msg = "Minimum acquisition time per timepoint: "
-
-            if len(_group_by_time) == 1:
-                t_per_tp_msg = (
-                    f"\n{t_per_tp_msg}"
-                    f"{fmt_timedelta(timedelta(seconds=_per_timepoints[0]))}"
-                )
-            else:
-                acq_min = timedelta(seconds=min(_per_timepoints.values()))
-                t_per_tp_msg = (
-                    f"\n{t_per_tp_msg}{fmt_timedelta(acq_min)}"
-                    if self._uses_time()
-                    else ""
-                )
-        else:
-            t_per_tp_msg = ""
-            self.time_widget.setWarningVisible(False)
-
-        _min_tot_time = (
-            "Minimum total acquisition time: "
-            f"{fmt_timedelta(timedelta(seconds=total_time))}"
-        )
-        self.time_lbl._total_time_lbl.setText(f"{_min_tot_time}{t_per_tp_msg}")
 
     def _disconnect(self) -> None:
         self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
