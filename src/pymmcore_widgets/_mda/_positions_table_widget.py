@@ -384,7 +384,7 @@ class PositionTable(QWidget):
         row: int | None = None,
     ) -> None:
         if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage devices selected.")
+            return
 
         if row is None:
             row = self._add_position_row()
@@ -717,9 +717,6 @@ class PositionTable(QWidget):
         """
         if not isinstance(positions, Sequence):
             raise TypeError("The 'positions' arguments has to be a 'Sequence' type.")
-
-        if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage devices loaded.")
 
         # variables used for autofocus devaice name check
         rows = set(range(self._table.rowCount()))
