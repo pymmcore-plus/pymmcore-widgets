@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from superqt import QQuantity
 
 
-def test_mda_widget_load_state(qtbot: QtBot):
+def test_mda_widget_load_state(qtbot: QtBot) -> None:
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
     assert wdg.position_widget._table.rowCount() == 0
@@ -62,7 +62,12 @@ def test_mda_widget_load_state(qtbot: QtBot):
                 "y": 0,
                 "z": 15,
                 "sequence": {
-                    "grid_plan": {"rows": 2, "columns": 2},
+                    "grid_plan": {
+                        "rows": 2,
+                        "columns": 2,
+                        "fov_height": 512,
+                        "fov_width": 512,
+                    },
                     "autofocus_plan": {
                         "autofocus_device_name": "Z",
                         "axes": ("t", "p", "g"),
@@ -79,6 +84,8 @@ def test_mda_widget_load_state(qtbot: QtBot):
                     "grid_plan": {
                         "rows": 2,
                         "columns": 2,
+                        "fov_height": 512,
+                        "fov_width": 512,
                         "mode": "row_wise_snake",
                         "overlap": (0.0, 0.0),
                     },
@@ -88,6 +95,8 @@ def test_mda_widget_load_state(qtbot: QtBot):
         grid_plan={
             "rows": 1,
             "columns": 2,
+            "fov_height": 512,
+            "fov_width": 512,
             "mode": "row_wise_snake",
             "overlap": (0.0, 0.0),
         },
@@ -304,7 +313,14 @@ def test_save_and_load_sequence(qtbot: QtBot):
                         "y": 20,
                         "z": 50,
                         "name": "test_name",
-                        "sequence": MDASequence(grid_plan={"rows": 2, "columns": 3}),
+                        "sequence": MDASequence(
+                            grid_plan={
+                                "rows": 2,
+                                "columns": 3,
+                                "fov_height": 512,
+                                "fov_width": 512,
+                            }
+                        ),
                     },
                 ],
                 channels=[
@@ -318,7 +334,12 @@ def test_save_and_load_sequence(qtbot: QtBot):
                 ],
                 time_plan=[{"interval": 3, "loops": 3}, {"interval": 5, "loops": 10}],
                 z_plan={"range": 1.0, "step": 0.5},
-                grid_plan={"rows": 2, "columns": 1},
+                grid_plan={
+                    "rows": 2,
+                    "columns": 1,
+                    "fov_height": 512,
+                    "fov_width": 512,
+                },
             )
             mda.set_state(seq)
 
