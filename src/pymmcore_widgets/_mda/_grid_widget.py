@@ -28,7 +28,7 @@ from superqt.utils import signals_blocked
 from useq import AnyGridPlan, GridFromEdges, GridRelative
 from useq._grid import OrderMode, RelativeTo
 
-from .._util import get_grid_type
+from pymmcore_widgets._util import get_grid_type
 
 if TYPE_CHECKING:
     from typing_extensions import TypedDict

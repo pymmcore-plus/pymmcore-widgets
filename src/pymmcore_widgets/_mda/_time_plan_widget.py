@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, cast
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt, Signal
-from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QDoubleSpinBox,
@@ -27,6 +26,7 @@ from superqt.utils import signals_blocked
 from useq import MDASequence, MultiPhaseTimePlan, TIntervalLoops
 
 if TYPE_CHECKING:
+    from qtpy.QtGui import QIcon
     from typing_extensions import TypedDict
 
     class TimeDict(TypedDict, total=False):

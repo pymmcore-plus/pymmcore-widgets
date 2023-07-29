@@ -4,13 +4,15 @@ It shows a number of properties, filtered by a given set of tags.
 """
 from __future__ import annotations
 
-import re
-from typing import Iterable, cast
+from typing import TYPE_CHECKING, Iterable, cast
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QGridLayout, QLabel, QWidget
 
 from ._property_widget import PropertyWidget
+
+if TYPE_CHECKING:
+    import re
 
 
 class PropertiesWidget(QWidget):

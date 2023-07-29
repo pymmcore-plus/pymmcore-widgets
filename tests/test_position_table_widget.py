@@ -8,12 +8,12 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
-from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QFileDialog, QTableWidget
 
 from pymmcore_widgets._mda import PositionTable
 
 if TYPE_CHECKING:
+    from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
 
@@ -522,7 +522,7 @@ def test_save_and_load_position(qtbot: QtBot):
 
             p._save_positions()
 
-            file = list(Path(tmp).iterdir())[0]
+            file = next(iter(Path(tmp).iterdir()))
 
             assert json.loads(file.read_text()) == pos
 

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QWidget
 
 import pymmcore_widgets as pmmw
+
+if TYPE_CHECKING:
+    from pymmcore_plus import CMMCorePlus
+    from qtpy.QtWidgets import QWidget
 
 ALL_WIDGETS: dict[type[QWidget], dict[str, Any]] = {
     pmmw.CameraRoiWidget: {},

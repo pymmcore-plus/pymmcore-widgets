@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
-from typing import ContextManager, Sequence
+from typing import TYPE_CHECKING, ContextManager, Sequence
 
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
@@ -15,6 +14,9 @@ from qtpy.QtWidgets import (
 )
 from superqt.utils import signals_blocked
 from useq import AnyGridPlan, MDASequence
+
+if TYPE_CHECKING:
+    from datetime import timedelta
 
 
 class ComboMessageBox(QDialog):

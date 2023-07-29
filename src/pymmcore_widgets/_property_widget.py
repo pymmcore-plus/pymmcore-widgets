@@ -83,7 +83,7 @@ class FloatWidget(QDoubleSpinBox):
 
 
 class _RangedMixin:
-    _cast: type[int] | type[float] = float
+    type_cast: type[int] | type[float] = float
 
     # prefer horizontal orientation
     def __init__(  # type: ignore
@@ -92,14 +92,14 @@ class _RangedMixin:
         super().__init__(orientation, parent)  # type: ignore
 
     def setValue(self, v: float) -> None:
-        val = _stretch_range_to_contain(self, self._cast(v))
+        val = _stretch_range_to_contain(self, self.type_cast(v))
         return super().setValue(val)  # type: ignore
 
 
 class RangedIntegerWidget(_RangedMixin, QLabeledSlider):
     """Slider suited to managing ranged integer values."""
 
-    _cast = int
+    type_cast = int
 
 
 class RangedFloatWidget(_RangedMixin, QLabeledDoubleSlider):
@@ -243,8 +243,8 @@ def _creat_prop_widget(mmcore: CMMCorePlus, dev: str, prop: str) -> PPropValueWi
             if ptype is PropertyType.Integer
             else RangedFloatWidget()
         )
-        wdg.setMinimum(wdg._cast(mmcore.getPropertyLowerLimit(dev, prop)))
-        wdg.setMaximum(wdg._cast(mmcore.getPropertyUpperLimit(dev, prop)))
+        wdg.setMinimum(wdg.type_cast(mmcore.getPropertyLowerLimit(dev, prop)))
+        wdg.setMaximum(wdg.type_cast(mmcore.getPropertyUpperLimit(dev, prop)))
         return wdg
     return cast(PPropValueWidget, StringWidget())
 
@@ -299,7 +299,7 @@ class PropertyWidget(QWidget):
             names = self._mmc.getDevicePropertyNames(device_label)
             raise ValueError(
                 f"Device {device_label!r} has no property {prop_name!r}. "
-                f"Availble property names include: {names}"
+                f"Available property names include: {names}"
             )
 
         self._updates_core: bool = True  # whether to update the core on value change
