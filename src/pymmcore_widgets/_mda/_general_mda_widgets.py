@@ -109,24 +109,6 @@ class _AcquisitionOrderWidget(QWidget):
         acq_wdg_layout.addWidget(self.acquisition_order_comboBox)
 
 
-class _MDATimeLabel(QWidget):
-    def __init__(self, *, parent: QWidget | None = None) -> None:
-        super().__init__(parent=parent)
-
-        wdg_lay = QHBoxLayout()
-        wdg_lay.setSpacing(5)
-        wdg_lay.setContentsMargins(10, 5, 10, 5)
-        wdg_lay.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.setLayout(wdg_lay)
-
-        self._total_time_lbl = QLabel()
-        self._total_time_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self._total_time_lbl.setSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-        )
-        wdg_lay.addWidget(self._total_time_lbl)
-
-
 class _SaveLoadSequenceWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
