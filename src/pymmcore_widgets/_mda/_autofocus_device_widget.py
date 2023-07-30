@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus, DeviceType
-from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -27,8 +26,6 @@ if TYPE_CHECKING:
 class _AutofocusZDeviceWidget(QWidget):
     """Widget to select the hardware autofocus z device."""
 
-    valueChanged = Signal(dict)
-
     def __init__(
         self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
     ) -> None:
@@ -45,7 +42,6 @@ class _AutofocusZDeviceWidget(QWidget):
         )
 
         self._autofocus_device_combo = QComboBox()
-        self._autofocus_device_combo.currentTextChanged.connect(self._on_combo_changed)
         self._autofocus_device_combo.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -93,12 +89,12 @@ class _AutofocusZDeviceWidget(QWidget):
                 break
 
     def _update_labels(self) -> None:
-        af_device = self._mmc.getAutoFocusDevice() or ""
-        self._autofocus_checkbox.setText(f"Use {af_device or 'Autofocus Device'}")
+        af_device = self._mmc.getAutoFocusDevice() or "Autofocus"
+        self._autofocus_checkbox.setText(f"Use {af_device}")
         self._autofocus_label = QLabel(f"{af_device} Z Device:")
 
     def _on_property_changed(self, device: str, prop: str, value: str) -> None:
-        if device != "Core" and prop != "Autofocus":
+        if device != "Core" or prop != "AutoFocus":
             return
         self._autofocus_checkbox.setChecked(False)
         self._autofocus_checkbox.setEnabled(bool(value))
@@ -110,10 +106,6 @@ class _AutofocusZDeviceWidget(QWidget):
             self._selector_wdg.hide()
         else:
             self._selector_wdg.show() if checked else self._selector_wdg.hide()
-        self.valueChanged.emit(self.value())
-
-    def _on_combo_changed(self, z_autofocus_device: str) -> None:
-        self.valueChanged.emit(self.value())
 
     def value(self) -> AFValueDict:
         """Return in a dict the autofocus checkbox state and the autofocus z_device."""
