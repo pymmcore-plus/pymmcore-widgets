@@ -158,7 +158,7 @@ class _RowsColsWdg(QWidget):
         """Set widget state from object that can be cast to useq.GridRelative."""
         try:
             _grid = useq.GridRelative.validate(grid)
-        except ValueError as e:
+        except ValueError as e:  # pragma: no cover
             warnings.warn(f"Invalid GridRelative value: {e}", stacklevel=2)
             return
 
@@ -219,7 +219,7 @@ class _FromEdgesWdg(QWidget):
         """Set the _FromEdgesWdg grid dictionary."""
         try:
             _grid = useq.GridFromEdges.validate(grid)
-        except ValueError as e:
+        except ValueError as e:  # pragma: no cover
             warnings.warn(f"Invalid GridFromEdges value: {e}", stacklevel=2)
             return
 
@@ -275,7 +275,7 @@ class _FromCornersWdg(QWidget):
         """Set value from object that can be cast to GridRelative."""
         try:
             _grid = useq.GridFromEdges.validate(grid)
-        except ValueError as e:
+        except ValueError as e:  # pragma: no cover
             warnings.warn(f"Invalid GridFromEdges value: {e}", stacklevel=2)
             return
 
@@ -437,7 +437,7 @@ class _OverlapAndOrderModeWdg(QGroupBox):
     def setValue(self, value: dict | useq.AnyGridPlan) -> None:
         try:
             _grid = cast_grid_plan(value)
-        except ValueError as e:
+        except ValueError as e:  # pragma: no cover
             warnings.warn(f"Invalid grid value: {e}", stacklevel=2)
             return
         if not _grid:
