@@ -34,7 +34,7 @@ from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 from useq import AxesBasedAF, GridFromEdges, GridRelative, MDASequence, Position
 
-from pymmcore_widgets._util import get_grid_type
+from pymmcore_widgets._util import cast_grid_plan
 
 from ._autofocus_device_widget import _AutofocusZDeviceWidget
 from ._grid_widget import GridWidget
@@ -319,7 +319,7 @@ class PositionTable(QWidget):
         if len(rows) == 1:
             item = self._table.item(next(iter(rows)), 0)
             grid_role = item.data(self.GRID_ROLE) if item else None
-            if grid_role and isinstance(get_grid_type(grid_role), GridFromEdges):
+            if grid_role and isinstance(cast_grid_plan(grid_role), GridFromEdges):
                 self.replace_button.setEnabled(False)
 
     def _add_position(self) -> None:
@@ -458,7 +458,7 @@ class PositionTable(QWidget):
 
     def _add_grid_plan(self, grid: dict, row: int | None = None) -> None:
         # sourcery skip: extract-method
-        grid_type = get_grid_type(grid)
+        grid_type = cast_grid_plan(grid)
 
         if grid_type is None or row is None:
             return
@@ -485,7 +485,7 @@ class PositionTable(QWidget):
         self.valueChanged.emit()
 
     def _create_tooltip(self, grid: dict) -> str:
-        grid_type = get_grid_type(grid)
+        grid_type = cast_grid_plan(grid)
 
         if grid_type is None:
             return ""
@@ -522,7 +522,7 @@ class PositionTable(QWidget):
         # return if not grid or if absolute grid_plan
         if not grid_role:
             return
-        if isinstance(get_grid_type(grid_role), GridFromEdges):
+        if isinstance(cast_grid_plan(grid_role), GridFromEdges):
             return
 
         # define where the menu appear on click

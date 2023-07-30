@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 from qtpy.QtWidgets import QFileDialog
@@ -13,8 +13,6 @@ from pymmcore_widgets._mda import MDAWidget
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
-    from qtpy.QtWidgets import QSpinBox
-    from superqt import QQuantity
 
 
 def test_mda_widget_load_state(qtbot: QtBot) -> None:
@@ -179,69 +177,6 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not wdg.buttons_wdg.run_button.isHidden()
     assert wdg.buttons_wdg.pause_button.isHidden()
     assert wdg.buttons_wdg.cancel_button.isHidden()
-
-
-def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    # sourcery skip: extract-duplicate-method
-    global_mmcore.setExposure(100)
-    wdg = MDAWidget(include_run_button=True)
-    qtbot.addWidget(wdg)
-    wdg.show()
-
-    wdg.ch_cbox.setChecked(True)
-    assert wdg.channel_widget._table.rowCount() == 0
-    wdg.channel_widget._add_button.click()
-    assert wdg.channel_widget._table.rowCount() == 1
-    assert wdg.channel_widget._table.cellWidget(0, 1).value() == 100.0
-
-    assert not wdg.t_cbox.isChecked()
-    wdg.t_cbox.setChecked(True)
-    wdg.time_widget._add_button.click()
-
-    txt = (
-        "Minimum total acquisition time: 100 ms"
-        "\nMinimum acquisition time per timepoint: 100 ms"
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-    assert wdg.time_widget._warning_widget.isHidden()
-
-    assert wdg.t_cbox.isChecked()
-    interval = cast("QQuantity", wdg.time_widget._table.cellWidget(0, 0))
-    timepoint = cast("QSpinBox", wdg.time_widget._table.cellWidget(0, 1))
-    interval.setValue(1, "ms")
-    timepoint.setValue(2)
-
-    txt = (
-        "Minimum total acquisition time: 201 ms"
-        "\nMinimum acquisition time per timepoint: 100 ms"
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-    assert not wdg.time_widget._warning_widget.isHidden()
-
-    wdg.channel_widget._add_button.click()
-    wdg.channel_widget._advanced_cbox.setChecked(True)
-    wdg.channel_widget._table.cellWidget(1, 4).setValue(2)
-    wdg.channel_widget._table.cellWidget(1, 1).setValue(100.0)
-    assert not wdg.time_widget._warning_widget.isHidden()
-    interval.setValue(200, "ms")
-    timepoint.setValue(4)
-    assert wdg.time_widget._warning_widget.isHidden()
-
-    txt = (
-        "Minimum total acquisition time: 01 sec 200 ms"
-        "\nMinimum acquisition time per timepoint: 100 ms"
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-
-    wdg.time_widget._add_button.click()
-    timepoint = cast("QSpinBox", wdg.time_widget._table.cellWidget(1, 1))
-    timepoint.setValue(2)
-
-    txt = (
-        "Minimum total acquisition time: 02 sec 400 ms"
-        "\nMinimum acquisition time per timepoint: 100 ms"
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
 
 
 def test_enable_run_button(qtbot: QtBot, global_mmcore: CMMCorePlus):

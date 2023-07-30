@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, call
 
-from useq import GridFromEdges, GridRelative
-from useq._grid import OrderMode, RelativeTo
+import useq
 
 from pymmcore_widgets._mda import GridWidget
 
@@ -44,7 +43,9 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
     mock.assert_has_calls([call(grid_wdg.value())])
 
     grid_wdg.set_state(
-        GridFromEdges(top=256, bottom=-256, left=-256, right=256, overlap=(0.0, 50.0))
+        useq.GridFromEdges(
+            top=256, bottom=-256, left=-256, right=256, overlap=(0.0, 50.0)
+        )
     )
 
     assert (
@@ -61,65 +62,27 @@ def test_grid_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     grid_wdg = GridWidget()
     qtbot.addWidget(grid_wdg)
 
-    grid_wdg.set_state(
-        {"rows": 3, "columns": 3, "overlap": 15.0, "relative_to": "top_left"}
+    grid_rel = useq.GridRelative(
+        rows=3, columns=3, relative_to="top_left", overlap=15.0, mode="row_wise_snake"
     )
-    assert grid_wdg.value() == {
-        "overlap": (15.0, 15.0),
-        "mode": "row_wise_snake",
-        "rows": 3,
-        "columns": 3,
-        "relative_to": "top_left",
-    }
-    assert grid_wdg.tab.currentIndex() == 0
 
-    # using RelativeTo enum
-    grid_wdg.set_state(
-        {"rows": 3, "columns": 3, "overlap": 15.0, "relative_to": RelativeTo.top_left}
-    )
-    assert grid_wdg.value() == {
-        "overlap": (15.0, 15.0),
-        "mode": "row_wise_snake",
-        "rows": 3,
-        "columns": 3,
-        "relative_to": "top_left",
-    }
+    grid_wdg.set_state(grid_rel.dict())
+    assert grid_wdg.value() == grid_rel
     assert grid_wdg.tab.currentIndex() == 0
 
     # using GridPlan (and not dict)
-    grid_wdg.set_state(
-        GridFromEdges(top=512, bottom=-512, left=-512, right=512, mode="spiral")
+    grid_abs = useq.GridFromEdges(
+        top=512, bottom=-512, left=-512, right=512, mode="spiral"
     )
-    assert grid_wdg.value() == {
-        "overlap": (0.0, 0.0),
-        "mode": "spiral",
-        "top": 512.0,
-        "bottom": -512.0,
-        "left": -512.0,
-        "right": 512.0,
-    }
+    grid_wdg.set_state(grid_abs)
+
+    assert grid_wdg.value() == grid_abs
     assert grid_wdg.tab.currentIndex() == 1
 
+    grid_abs2 = grid_abs.replace(mode="row_wise_snake", overlap=(10.0, 0.0))
     # using OrderMode enum
-    grid_wdg.set_state(
-        {
-            "overlap": (10.0, 0.0),
-            # "mode": "row_wise_snake",
-            "mode": OrderMode.row_wise_snake,
-            "top": 512.0,
-            "bottom": -512.0,
-            "left": -512.0,
-            "right": 512.0,
-        }
-    )
-    assert grid_wdg.value() == {
-        "overlap": (10.0, 0.0),
-        "mode": "row_wise_snake",
-        "top": 512.0,
-        "bottom": -512.0,
-        "left": -512.0,
-        "right": 512.0,
-    }
+    grid_wdg.set_state(grid_abs2.dict())
+    assert grid_wdg.value() == grid_abs2
     assert grid_wdg.tab.currentIndex() == 1
 
 
@@ -128,22 +91,16 @@ def test_grid_from_edges_set_button(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(grid_wdg)
     mmc = global_mmcore
 
-    assert grid_wdg.tab.edges.value() == {
-        "top": 0.0,
-        "bottom": 0.0,
-        "left": 0.0,
-        "right": 0.0,
-    }
+    assert grid_wdg.tab.edges.value() == useq.GridFromEdges(
+        top=0.0, bottom=0.0, left=0.0, right=0.0
+    )
 
     mmc.setXYPosition(100.0, 200.0)
     grid_wdg.tab.edges.top.set_button.click()
     grid_wdg.tab.edges.left.set_button.click()
-    assert grid_wdg.tab.edges.value() == {
-        "top": 200.0,
-        "bottom": 0.0,
-        "left": 100.0,
-        "right": 0.0,
-    }
+    assert grid_wdg.tab.edges.value() == useq.GridFromEdges(
+        top=200.0, bottom=0.0, left=100.0, right=0.0
+    )
 
 
 def test_grid_on_px_size_changed(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -153,7 +110,7 @@ def test_grid_on_px_size_changed(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     assert mmc.getProperty("Objective", "Label") == "Nikon 10X S Fluor"
     assert mmc.getPixelSizeUm() == 1.0
-    grid_wdg.set_state(GridRelative(rows=2, columns=2))
+    grid_wdg.set_state(useq.GridRelative(rows=2, columns=2))
     assert (
         grid_wdg.info_lbl.text()
         == "Height: 1.024 mm    Width: 1.024 mm    (Rows: 2    Columns: 2)"
