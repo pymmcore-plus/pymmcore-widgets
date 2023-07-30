@@ -233,7 +233,7 @@ class ChannelTable(QWidget):
             _channel_group = channel.group
         else:
             _channel_group = self.channel_group_combo.currentText()
-            if not _channel_group:
+            if not _channel_group:  # pragma: no cover
                 warnings.warn(
                     "First select Micro-Manager 'ChannelGroup'.", stacklevel=2
                 )
