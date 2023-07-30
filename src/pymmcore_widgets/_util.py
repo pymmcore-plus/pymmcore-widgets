@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ContextManager, Sequence
 
+import useq
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
 from qtpy.QtWidgets import (
@@ -13,7 +14,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import signals_blocked
-from useq import AnyGridPlan, MDASequence
 
 if TYPE_CHECKING:
     from datetime import timedelta
@@ -135,6 +135,10 @@ def fmt_timedelta(time: timedelta) -> str:
     return "  ".join(out)
 
 
-def get_grid_type(grid: dict) -> AnyGridPlan | None:
+def cast_grid_plan(grid: dict | useq.AnyGridPlan) -> useq.AnyGridPlan | None:
     """Get the grid type from the grid_plan."""
-    return MDASequence(grid_plan=grid).grid_plan
+    if not grid:
+        return None
+    if isinstance(grid, dict):
+        return useq.MDASequence(grid_plan=grid).grid_plan
+    return grid
