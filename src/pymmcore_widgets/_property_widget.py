@@ -312,12 +312,18 @@ class PropertyWidget(QWidget):
         # Create the widget based on property type and allowed choices
         self._value_widget = _creat_prop_widget(self._mmc, device_label, prop_name)
         # set current value from core
-        self._value_widget.setValue(self._mmc.getProperty(device_label, prop_name))
+        self._try_update_from_core()
+
         self._mmc.events.propertyChanged.connect(self._on_core_change)
         self._value_widget.valueChanged.connect(self._on_value_widget_change)
 
         self.layout().addWidget(cast(QWidget, self._value_widget))
         self.destroyed.connect(self._disconnect)
+
+    def _try_update_from_core(self) -> None:
+        # set current value from core, ignoring errors
+        with contextlib.suppress(RuntimeError, ValueError):
+            self._value_widget.setValue(self._mmc.getProperty(*self._dp))
 
     # connect events and queue for disconnection on widget destroyed
     def _on_core_change(self, dev_label: str, prop_name: str, new_val: Any) -> None:
@@ -332,8 +338,7 @@ class PropertyWidget(QWidget):
             self._mmc.setProperty(self._device_label, self._prop_name, value)
         except (RuntimeError, ValueError):
             # if there's an error when updating mmcore, reset widget value to mmcore
-            real_value = self._mmc.getProperty(self._device_label, self._prop_name)
-            self._value_widget.setValue(real_value)
+            self._try_update_from_core()
 
     def _disconnect(self) -> None:
         with contextlib.suppress(RuntimeError):
@@ -381,7 +386,7 @@ class PropertyWidget(QWidget):
         event is missed, this can be used).
         """
         with utils.signals_blocked(self._value_widget):
-            self._value_widget.setValue(self._mmc.getProperty(*self._dp))
+            self._try_update_from_core()
 
     def propertyType(self) -> PropertyType:
         """Return property type."""
