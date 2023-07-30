@@ -146,12 +146,10 @@ class PositionTable(QWidget):
         af_groupbox_layout.setContentsMargins(0, 0, 0, 0)
         af_groupbox.setLayout(af_groupbox_layout)
         self._autofocus_wdg = _AutofocusZDeviceWidget(self)
-        self._autofocus_wdg._autofocus_device_combo.currentTextChanged.connect(
-            self._on_autofocus_wdg_changed
+        self._autofocus_wdg._af_combo.currentTextChanged.connect(
+            self._on_af_wdg_changed
         )
-        self._autofocus_wdg._autofocus_checkbox.toggled.connect(
-            self._on_autofocus_wdg_changed
-        )
+        self._autofocus_wdg._af_checkbox.toggled.connect(self._on_af_wdg_changed)
         af_groupbox_layout.addWidget(self._autofocus_wdg)
         group_layout.addWidget(af_groupbox, 0, 0, 1, 2)
 
@@ -291,12 +289,7 @@ class PositionTable(QWidget):
         self._table.setColumnCount(6)
         self._table.setHorizontalHeaderLabels(header)
 
-    def _on_autofocus_wdg_changed(self) -> None:
-        # NOTE: it would be good to have a single signal (e.g.valueChanged) emitted in
-        # the '_AutofocusZDeviceWidget' from both QCheckBox and QComboBox and then use
-        # 'sender().sender()' to determine which widget emitted the signal. However, I
-        # tried and it works only when using Pyside and not with Pyqt. So each widget
-        # is linked to this method.
+    def _on_af_wdg_changed(self) -> None:
         self._table.setColumnHidden(AF, not self._use_af())
         if z_device := self._get_af_device():
             self._table.setHorizontalHeaderItem(AF, QTableWidgetItem(z_device))

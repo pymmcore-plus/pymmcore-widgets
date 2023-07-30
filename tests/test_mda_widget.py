@@ -358,14 +358,12 @@ def test_set_state_without_xystage(global_mmcore: CMMCorePlus, qtbot: QtBot):
     qtbot.addWidget(wdg)
 
     p_table = wdg.position_widget._table
-    assert p_table.isColumnHidden(1)
-    assert p_table.isColumnHidden(2)
-
     mda = MDASequence(stage_positions=[(10, 20, 30)])
     wdg.set_state(mda)
 
-    assert not p_table.rowCount()
-
-    assert wdg.get_state().stage_positions[0].x is None
-    assert wdg.get_state().stage_positions[0].y is None
-    assert wdg.get_state().stage_positions[0].z is None
+    assert p_table.rowCount() == 1
+    assert not mmc.getXYStageDevice()
+    assert not mmc.getFocusDevice()
+    assert wdg.get_state().stage_positions[0].x == 10
+    assert wdg.get_state().stage_positions[0].y == 20
+    assert wdg.get_state().stage_positions[0].z == 30
