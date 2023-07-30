@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ContextManager, Sequence
+from typing import ContextManager, Sequence
 
 import useq
 from pymmcore_plus import CMMCorePlus
@@ -14,9 +14,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import signals_blocked
-
-if TYPE_CHECKING:
-    from datetime import timedelta
 
 
 class ComboMessageBox(QDialog):
@@ -88,51 +85,12 @@ def guess_objective_or_prompt(
     return None
 
 
-def _select_output_unit(duration: float) -> tuple[float, str]:
-    if duration < 1.0:
-        return duration * 1000, "ms"
-    elif duration < 60.0:
-        return duration, "sec"
-    elif duration < 3600.0:
-        return duration / 60, "min"
-    else:
-        return duration / 3600, "hours"
-
-
 def block_core(mmcore_events: CMMCoreSignaler | PCoreSignaler) -> ContextManager:
     """Block core signals."""
     if isinstance(mmcore_events, CMMCoreSignaler):
         return mmcore_events.blocked()  # type: ignore
     elif isinstance(mmcore_events, PCoreSignaler):
         return signals_blocked(mmcore_events)  # type: ignore
-
-
-def fmt_timedelta(time: timedelta) -> str:
-    """Take timedelta and return formatted string.
-
-    Examples
-    --------
-    >>> fmt_timedelta(timedelta(seconds=100))
-    '01 min  40 sec'
-    >>> fmt_timedelta(timedelta(minutes=320, seconds=2500))
-    '06 hours  01 min  40 sec'
-    """
-    d = "day" if time.days == 1 else "days"
-    _time = str(time).replace(f" {d}, ", ":") if time.days >= 1 else f"0:{time!s}"
-    out: list = []
-    keys = ["days", "hours", "min", "sec", "ms"]
-    for i, t in enumerate(_time.split(":")):
-        if i == 3:
-            s = t.split(".")
-            if len(s) == 2:
-                sec = f"{int(s[0]):02d} sec " if int(s[0]) > 0 else ""
-                ms = f"{int(s[1][:3]):03d} ms" if int(s[1][:3]) > 0 else ""
-                out.append(f"{sec}{ms}")
-            else:
-                out.append(f"{int(s[0]):02d} sec") if int(s[0]) > 0 else ""
-        else:
-            out.append(f"{int(float(t)):02d} {keys[i]}") if int(float(t)) > 0 else ""
-    return "  ".join(out)
 
 
 def cast_grid_plan(grid: dict | useq.AnyGridPlan) -> useq.AnyGridPlan | None:

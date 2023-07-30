@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+import useq
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -225,7 +226,7 @@ class ZStackWidget(QWidget):
         [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
-    valueChanged = Signal(dict)
+    valueChanged = Signal(object)
 
     _MAX_STEP = 100000
     _NIMG_PREFIX = "Number of Images:"
@@ -295,15 +296,21 @@ class ZStackWidget(QWidget):
         self.n_images_label.setText(f"{self._NIMG_PREFIX} {self.n_images()}")
         self.valueChanged.emit(self.value())
 
-    def value(self) -> dict:
-        """Return the current z-stack settings as a dictionary.
+    def value(self) -> useq.ZRangeAround | useq.ZAboveBelow | useq.ZTopBottom:
+        """Return the current settings as a useq Z Plan.
 
         Note that the output will match one of the [useq-schema Z Plan
         specifications](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans).
         """
         value = cast("ZPicker", self._zmode_tabs.currentWidget()).value()
         value["step"] = self._zstep_spinbox.value()
-        return value
+        if "range" in value:
+            return useq.ZRangeAround(**value)
+        elif "above" in value:
+            return useq.ZAboveBelow(**value)
+        elif "top" in value:
+            return useq.ZTopBottom(**value)
+        raise ValueError(f"Unexpected value: {value}")  # pragma: no cover
 
     def n_images(self) -> int:
         """Return the current number of images in the z-stack."""
