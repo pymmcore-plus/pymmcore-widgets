@@ -346,25 +346,15 @@ class MDAWidget(QWidget):
         if not stage_positions:
             stage_positions = self._get_current_position()
 
-        z_plan = self.stack_widget.value() if self.z_cbox.isChecked() else None
-        time_plan = self.time_widget.value() if self._uses_time() else None
-        grid_plan = self.grid_widget.value() if self.g_cbox.isChecked() else None
-
-        update_kwargs: dict = {}
-        if z_plan is not None:
-            update_kwargs["z_plan"] = z_plan
-        if time_plan is not None:
-            update_kwargs["time_plan"] = time_plan
-        if grid_plan is not None:
-            update_kwargs["grid_plan"] = grid_plan
-
         mda = MDASequence(
             axis_order=(
                 self.acquisition_order_widget.acquisition_order_comboBox.currentText()
             ),
             channels=channels,
             stage_positions=stage_positions,
-            **update_kwargs,
+            time_plan=self.time_widget.value() if self._uses_time() else None,
+            grid_plan=self.grid_widget.value() if self.g_cbox.isChecked() else None,
+            z_plan=self.stack_widget.value() if self.z_cbox.isChecked() else None,
         )
         mda.set_fov_size(self._get_fov_size())
         return mda

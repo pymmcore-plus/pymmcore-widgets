@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import math
 import warnings
-from typing import TYPE_CHECKING, Literal, cast
+from typing import Literal, cast
 
+import useq
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -25,27 +26,9 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import signals_blocked
-from useq import AnyGridPlan, GridFromEdges, GridRelative
-from useq._grid import OrderMode, RelativeTo
+from useq._grid import OrderMode, RelativeTo  # TODO: fix private import
 
-from pymmcore_widgets._util import get_grid_type
-
-if TYPE_CHECKING:
-    from typing_extensions import TypedDict
-
-    class GridDict(TypedDict, total=False):
-        """Grid dictionary."""
-
-        overlap: float | tuple[float, float]
-        mode: OrderMode | str
-        rows: int
-        columns: int
-        relative_to: RelativeTo | str
-        top: float
-        left: float
-        bottom: float
-        right: float
-
+from pymmcore_widgets._util import cast_grid_plan
 
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
@@ -84,7 +67,7 @@ class _TabWidget(QTabWidget):
 
         self.currentChanged.connect(self._on_tab_changed)
 
-    def value(self) -> GridDict:
+    def value(self) -> useq.AnyGridPlan:
         if self.currentIndex() == 0:
             return self._rowcol.value()
         elif self.currentIndex() == 1:
@@ -92,12 +75,12 @@ class _TabWidget(QTabWidget):
         else:
             return self.corners.value()
 
-    def setValue(self, grid: GridDict) -> None:
-        grid_type = get_grid_type(grid)  # type: ignore
-        if isinstance(grid_type, GridRelative):
-            self._rowcol.setValue(grid)
-        elif isinstance(grid_type, GridFromEdges):
-            self.edges.setValue(grid)
+    def setValue(self, grid: dict | useq.AnyGridPlan) -> None:
+        _grid = cast_grid_plan(grid)
+        if isinstance(_grid, useq.GridRelative):
+            self._rowcol.setValue(_grid)
+        elif isinstance(_grid, useq.GridFromEdges):
+            self.edges.setValue(_grid)
         self.valueChanged.emit()
 
     def _on_tab_changed(self) -> None:
@@ -163,31 +146,25 @@ class _RowsColsWdg(QWidget):
         layout.addWidget(spin)
         return spin
 
-    def value(self) -> GridDict:
-        """Return the _RowsColsWdg grid dictionary."""
-        return {
-            "rows": self.n_rows.value(),
-            "columns": self.n_columns.value(),
-            "relative_to": self.relative_combo.currentText(),
-        }
+    def value(self) -> useq.GridRelative:
+        """Return useq.GridRelative instance with state of widget."""
+        return useq.GridRelative(
+            rows=self.n_rows.value(),
+            columns=self.n_columns.value(),
+            relative_to=self.relative_combo.currentText(),
+        )
 
-    def setValue(self, grid: GridDict) -> None:
-        """Set the _RowsColsWdg grid dictionary."""
-        keys = ["rows", "columns"]
-        if any(item not in grid.keys() for item in keys):
-            warnings.warn(f"Grid dictionary must contain {keys} keys", stacklevel=2)
+    def setValue(self, grid: dict | useq.GridRelative) -> None:
+        """Set widget state from object that can be cast to useq.GridRelative."""
+        try:
+            _grid = useq.GridRelative.validate(grid)
+        except ValueError as e:  # pragma: no cover
+            warnings.warn(f"Invalid GridRelative value: {e}", stacklevel=2)
             return
 
-        self.n_rows.setValue(grid["rows"])
-        self.n_columns.setValue(grid["columns"])
-
-        if "relative_to" in grid:
-            self.relative_combo.setCurrentText(
-                grid["relative_to"]
-                if isinstance(grid["relative_to"], str)
-                else grid["relative_to"].value
-            )
-
+        self.n_rows.setValue(_grid.rows)
+        self.n_columns.setValue(_grid.columns)
+        self.relative_combo.setCurrentText(_grid.relative_to.value)
         self.valueChanged.emit()
 
 
@@ -229,27 +206,27 @@ class _FromEdgesWdg(QWidget):
         group_layout.addWidget(self.left, 0, 1)
         group_layout.addWidget(self.right, 1, 1)
 
-    def value(self) -> GridDict:
+    def value(self) -> useq.GridFromEdges:
         """Return the _FromEdgesWdg grid dictionary."""
-        return {
-            "top": cast("float", self.top.value()),
-            "bottom": cast("float", self.bottom.value()),
-            "left": cast("float", self.left.value()),
-            "right": cast("float", self.right.value()),
-        }
+        return useq.GridFromEdges(
+            top=self.top.value(),
+            bottom=self.bottom.value(),
+            left=self.left.value(),
+            right=self.right.value(),
+        )
 
-    def setValue(self, grid: GridDict) -> None:
+    def setValue(self, grid: dict | useq.GridFromEdges) -> None:
         """Set the _FromEdgesWdg grid dictionary."""
-        keys = ["top", "bottom", "left", "right"]
-        if any(item not in grid.keys() for item in keys):
-            warnings.warn(f"Grid dictionary must contain {keys} keys", stacklevel=2)
+        try:
+            _grid = useq.GridFromEdges.validate(grid)
+        except ValueError as e:  # pragma: no cover
+            warnings.warn(f"Invalid GridFromEdges value: {e}", stacklevel=2)
             return
 
-        self.top.setValue(grid["top"])
-        self.bottom.setValue(grid["bottom"])
-        self.left.setValue(grid["left"])
-        self.right.setValue(grid["right"])
-
+        self.top.setValue(_grid.top)
+        self.bottom.setValue(_grid.bottom)
+        self.left.setValue(_grid.left)
+        self.right.setValue(_grid.right)
         self.valueChanged.emit()
 
 
@@ -281,27 +258,29 @@ class _FromCornersWdg(QWidget):
         group_layout.addWidget(self.corner_1)
         group_layout.addWidget(self.corner_2)
 
-    def value(self) -> GridDict:
-        """Return the _FromCornersWdg grid dictionary."""
-        corner1_x, corner1_y = cast("tuple[float, float]", self.corner_1.value())
-        corner2_x, corner2_y = cast("tuple[float, float]", self.corner_2.value())
-        return {
-            "top": max(corner1_y, corner2_y),
-            "bottom": min(corner1_y, corner2_y),
-            "left": min(corner1_x, corner2_x),
-            "right": max(corner1_x, corner2_x),
-        }
+    def value(self) -> useq.GridFromEdges:
+        """Return Grid plan."""
+        # FIXME: how do we know we can type ignore here?
+        corner1_x, corner1_y = self.corner_1.value()  # type: ignore
+        corner2_x, corner2_y = self.corner_2.value()  # type: ignore
 
-    def setValue(self, grid: GridDict) -> None:
-        """Set the _FromCornersWdg grid dictionary."""
-        keys = ["top", "bottom", "left", "right"]
-        if any(item not in grid.keys() for item in keys):
-            warnings.warn(f"Grid dictionary must contain {keys} keys", stacklevel=2)
+        return useq.GridFromEdges(
+            top=max(corner1_y, corner2_y),
+            bottom=min(corner1_y, corner2_y),
+            left=min(corner1_x, corner2_x),
+            right=max(corner1_x, corner2_x),
+        )
+
+    def setValue(self, grid: dict | useq.GridFromEdges) -> None:
+        """Set value from object that can be cast to GridRelative."""
+        try:
+            _grid = useq.GridFromEdges.validate(grid)
+        except ValueError as e:  # pragma: no cover
+            warnings.warn(f"Invalid GridFromEdges value: {e}", stacklevel=2)
             return
 
-        self.corner_1.setValue((grid["left"], grid["top"]))
-        self.corner_2.setValue((grid["right"], grid["bottom"]))
-
+        self.corner_1.setValue((_grid.left, _grid.top))
+        self.corner_2.setValue((_grid.right, _grid.bottom))
         self.valueChanged.emit()
 
 
@@ -384,7 +363,7 @@ class _DoubleSpinboxWidget(QWidget):
     def value(self) -> float | tuple[float, float]:
         if self._corners:
             return self.x_spinbox.value(), self.y_spinbox.value()
-        return self.spinbox.value()  # type: ignore
+        return cast(float, self.spinbox.value())
 
     def setValue(self, value: float | tuple[float, float]) -> None:
         if isinstance(value, tuple):
@@ -449,29 +428,24 @@ class _OverlapAndOrderModeWdg(QGroupBox):
         spin.valueChanged.connect(lambda: self.valueChanged.emit())
         return spin
 
-    def value(self) -> GridDict:
+    def value(self) -> dict:
         return {
             "overlap": (self.overlap_spinbox_x.value(), self.overlap_spinbox_y.value()),
             "mode": self.ordermode_combo.currentText(),
         }
 
-    def setValue(self, value: GridDict) -> None:
-        if "overlap" not in value:
+    def setValue(self, value: dict | useq.AnyGridPlan) -> None:
+        try:
+            _grid = cast_grid_plan(value)
+        except ValueError as e:  # pragma: no cover
+            warnings.warn(f"Invalid grid value: {e}", stacklevel=2)
+            return
+        if not _grid:
             return
 
-        over_x, over_y = (
-            value["overlap"]
-            if isinstance(value["overlap"], tuple)
-            else (value["overlap"], value["overlap"])
-        )
-        self.overlap_spinbox_x.setValue(over_x)
-        self.overlap_spinbox_y.setValue(over_y)
-
-        if "mode" in value:
-            self.ordermode_combo.setCurrentText(
-                value["mode"] if isinstance(value["mode"], str) else value["mode"].value
-            )
-
+        self.overlap_spinbox_x.setValue(_grid.overlap[0])
+        self.overlap_spinbox_y.setValue(_grid.overlap[1])
+        self.ordermode_combo.setCurrentText(_grid.mode.value)
         self.valueChanged.emit()
 
 
@@ -546,12 +520,12 @@ class _MoveToWidget(QGroupBox):
         else:
             curr_x, curr_y = self._current_position
 
-        grid = get_grid_type(self._tabwidget.value())  # type: ignore
+        grid = cast_grid_plan(self._tabwidget.value())
 
         if grid is None:
             return
 
-        if isinstance(grid, GridRelative) and (curr_x is None or curr_y is None):
+        if isinstance(grid, useq.GridRelative) and (curr_x is None or curr_y is None):
             return
 
         _move_to_row = int(self._move_to_row.currentText())
@@ -564,9 +538,13 @@ class _MoveToWidget(QGroupBox):
         width = int(width * self._mmc.getPixelSizeUm())
         height = int(height * self._mmc.getPixelSizeUm())
 
+        # FIXME!!
+        # This is a major performance hit.
+        # There must be a more direct way to determine the proper x and y
+        # positions without checking all positions in the grid for equality.
         for pos in grid.iter_grid_positions(width, height):
             if pos.row == row and pos.col == col:
-                if isinstance(grid, GridRelative):
+                if isinstance(grid, useq.GridRelative):
                     xpos = curr_x + pos.x
                     ypos = curr_y + pos.y
                 else:
@@ -688,38 +666,39 @@ class GridWidget(QWidget):
 
     def _update_info(self) -> None:
         """Update the info label with the current grid size."""
-        if not self._mmc.getPixelSizeUm():
+        pix_size = self._mmc.getPixelSizeUm()
+        if not pix_size:
             self.info_lbl.setText(
                 "Height: _ mm    Width: _ mm    (Rows: _    Columns: _)"
             )
             return
 
+        cur_grid = self.value()
+
+        # TODO: i'm pretty sure all of this is done by useq already...
         _, _, width, height = self._mmc.getROI(self._mmc.getCameraDevice())
-        width = int(width * self._mmc.getPixelSizeUm())
-        height = int(height * self._mmc.getPixelSizeUm())
-        overlap_xcent_x, overlap_xcent_y = cast(
-            "tuple[float, float]", self.overlap_and_mode.value()["overlap"]
-        )
-        overlap_xcent_x = width * overlap_xcent_x / 100
-        overlap_xcent_y = height * overlap_xcent_y / 100
+        width = int(width * pix_size)
+        height = int(height * pix_size)
+        overlap_x, overlap_y = cur_grid.overlap
+        overlap_x *= width / 100
+        overlap_y *= height / 100
 
-        if self.tab.currentIndex() == 0:
-            rows, cols = (self.tab.value()["rows"], self.tab.value()["columns"])
-            x = ((width - overlap_xcent_x) * cols) / 1000
-            y = ((height - overlap_xcent_y) * rows) / 1000
+        if isinstance(cur_grid, useq.GridRelative):
+            x = (width - overlap_x) * cur_grid.columns / 1000
+            y = (height - overlap_y) * cur_grid.rows / 1000
+            rows = cur_grid.rows
+            cols = cur_grid.columns
         else:
-            top, bottom, left, right = cast(
-                "tuple[float, ...]", self.tab.value().values()
-            )
+            grid_width = abs(cur_grid.right - cur_grid.left) + width
+            grid_height = abs(cur_grid.top - cur_grid.bottom) + height
 
-            rows = math.ceil((abs(top - bottom) + height) / height)
-            cols = math.ceil((abs(right - left) + width) / width)
-
-            x = (abs(left - right) + width) / 1000
-            y = (abs(top - bottom) + height) / 1000
+            rows = math.ceil(grid_height / height)
+            cols = math.ceil(grid_width / width)
+            x = grid_width / 1000
+            y = grid_height / 1000
 
         self.info_lbl.setText(
-            f"Height: {round(y, 3)} mm    Width: {round(x, 3)} mm    "
+            f"Height: {y:.3f} mm    Width: {x:.3f} mm    "
             f"(Rows: {rows}    Columns: {cols})"
         )
 
@@ -728,39 +707,41 @@ class GridWidget(QWidget):
             [str(r) for r in range(1, rows + 1)], [str(r) for r in range(1, cols + 1)]
         )
 
-    # note: this really ought to be GridDict, but it makes typing harder
-    def value(self) -> dict:
+    def value(self) -> useq.AnyGridPlan:
         """Return the current GridPlan settings.
 
         Note that output dict will match the Channel from useq schema:
         <https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans>
         """
-        return {**self.tab.value(), **self.overlap_and_mode.value()}
+        return self.tab.value().replace(**self.overlap_and_mode.value())
 
-    def set_state(self, grid: dict | AnyGridPlan) -> None:
+    def set_state(self, grid: dict | useq.AnyGridPlan) -> None:
         """Set the state of the widget from a useq AnyGridPlan or dictionary."""
         with signals_blocked(self):
-            grid_plan = get_grid_type(grid) if isinstance(grid, dict) else grid
+            grid_plan = cast_grid_plan(grid)
+            if grid_plan is None:
+                # TODO: do we have a clear?
+                return
 
-            self.overlap_and_mode.setValue(grid_plan.dict())  # type: ignore
-            self.tab.setValue(grid_plan.dict())  # type: ignore
-            self.tab.setCurrentIndex(0) if isinstance(
-                grid_plan, GridRelative
-            ) else self.tab.setCurrentIndex(1)
+            self.overlap_and_mode.setValue(grid_plan)
+            self.tab.setValue(grid_plan)
+            idx = 0 if isinstance(grid_plan, useq.GridRelative) else 1
+            self.tab.setCurrentIndex(idx)
             self._update_info()
-        self.valueChanged.emit(self.value())
+        self.valueChanged.emit(grid_plan)
 
     def _emit_grid_positions(self) -> None:
         """Emit the grid positions if the pixel size is set."""
         if self._mmc.getPixelSizeUm() <= 0:
             raise ValueError("Pixel Size Not Set.")
 
-        if self.tab.currentIndex() > 0 and any(
-            str(v) == "0.0" for v in self.tab.value().values()
+        val = self.value()
+        if isinstance(val, useq.GridFromEdges) and not all(
+            (val.top, val.bottom, val.left, val.right)
         ):
             self._show_warning()
         else:
-            self.valueChanged.emit(self.value())
+            self.valueChanged.emit(val)
 
     def _show_warning(self) -> None:
         """Show a warning message if the user has not set all the grid positions."""
@@ -773,12 +754,14 @@ class GridWidget(QWidget):
             msg = "Did you set the both corner positions?"
 
         msgBox = QMessageBox()
-        msgBox.setIcon(QMessageBox.Warning)
+        msgBox.setIcon(QMessageBox.Icon.Warning)
         msgBox.setText(msg)
         msgBox.setWindowTitle("Grid from Edges")
-        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        msgBox.setStandardButtons(
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
+        )
 
-        if msgBox.exec() == QMessageBox.Ok:
+        if msgBox.exec() == QMessageBox.StandardButton.Ok:
             self.valueChanged.emit(self.value())
 
     def _disconnect(self) -> None:

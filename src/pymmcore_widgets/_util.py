@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import ContextManager, Sequence
 
+import useq
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
 from qtpy.QtWidgets import (
@@ -13,7 +14,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import signals_blocked
-from useq import AnyGridPlan, MDASequence
 
 
 class ComboMessageBox(QDialog):
@@ -85,17 +85,6 @@ def guess_objective_or_prompt(
     return None
 
 
-def _select_output_unit(duration: float) -> tuple[float, str]:
-    if duration < 1.0:
-        return duration * 1000, "ms"
-    elif duration < 60.0:
-        return duration, "sec"
-    elif duration < 3600.0:
-        return duration / 60, "min"
-    else:
-        return duration / 3600, "hours"
-
-
 def block_core(mmcore_events: CMMCoreSignaler | PCoreSignaler) -> ContextManager:
     """Block core signals."""
     if isinstance(mmcore_events, CMMCoreSignaler):
@@ -104,6 +93,10 @@ def block_core(mmcore_events: CMMCoreSignaler | PCoreSignaler) -> ContextManager
         return signals_blocked(mmcore_events)  # type: ignore
 
 
-def get_grid_type(grid: dict) -> AnyGridPlan | None:
+def cast_grid_plan(grid: dict | useq.AnyGridPlan) -> useq.AnyGridPlan | None:
     """Get the grid type from the grid_plan."""
-    return MDASequence(grid_plan=grid).grid_plan
+    if not grid:
+        return None
+    if isinstance(grid, dict):
+        return useq.MDASequence(grid_plan=grid).grid_plan
+    return grid
