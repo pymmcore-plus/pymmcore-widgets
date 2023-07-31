@@ -283,3 +283,22 @@ def test_save_and_load_sequence(qtbot: QtBot):
             with patch.object(QFileDialog, "getOpenFileName", _path):
                 mda._load_sequence()
                 assert mda.get_state() == seq
+
+
+def test_set_state_without_xystage(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    mmc = global_mmcore
+    mmc.unloadDevice("XY")
+    mmc.unloadDevice("Z")
+    wdg = MDAWidget(include_run_button=True)
+    qtbot.addWidget(wdg)
+
+    p_table = wdg.position_widget._table
+    mda = MDASequence(stage_positions=[(10, 20, 30)])
+    wdg.set_state(mda)
+
+    assert p_table.rowCount() == 1
+    assert not mmc.getXYStageDevice()
+    assert not mmc.getFocusDevice()
+    assert wdg.get_state().stage_positions[0].x == 10
+    assert wdg.get_state().stage_positions[0].y == 20
+    assert wdg.get_state().stage_positions[0].z == 30
