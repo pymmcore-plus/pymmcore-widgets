@@ -170,37 +170,46 @@ def pos():
     return pos_1, pos_2, pos_3
 
 
+def _wdg_value_no_fov(wdg: PositionTable):
+    val = wdg.value()
+    for pos in val:
+        if 'sequence' in pos and 'grid_plan' in (pos['sequence'] or {}):
+            pos["sequence"]["grid_plan"].pop("fov_height")
+            pos["sequence"]["grid_plan"].pop("fov_width")
+    return val
+
+
 def test_relative_grid_position(
     global_mmcore: CMMCorePlus, qtbot: QtBot, pos: tuple[dict[str, Any], ...]
 ):
     pos_1, pos_2, _ = pos
 
-    p = PositionTable()
-    qtbot.addWidget(p)
+    pos_wdg = PositionTable()
+    qtbot.addWidget(pos_wdg)
 
     mmc = global_mmcore
-    tb = p._table
+    tb = pos_wdg._table
 
     assert not tb.rowCount()
 
     mmc.setXYPosition(100, 200)
-    p.add_button.click()
+    pos_wdg.add_button.click()
     assert tb.rowCount() == 1
     assert tb.isColumnHidden(GRID)
 
-    p._advanced_cbox.setChecked(True)
-    assert p._warn_icon.isHidden()
+    pos_wdg._advanced_cbox.setChecked(True)
+    assert pos_wdg._warn_icon.isHidden()
     assert not tb.isColumnHidden(GRID)
 
-    add_grid_btn, remove_grid_btn = p._get_grid_buttons(0)
+    add_grid_btn, remove_grid_btn = pos_wdg._get_grid_buttons(0)
     assert remove_grid_btn.isHidden()
 
     grid_plan = pos_1["sequence"]["grid_plan"]
-    p._add_grid_plan(grid_plan, 0)
+    pos_wdg._add_grid_plan(grid_plan, 0)
 
     assert not remove_grid_btn.isHidden()
     assert add_grid_btn.text() == "Edit"
-    assert tb.item(0, 0).data(p.GRID_ROLE) == {
+    assert tb.item(0, 0).data(pos_wdg.GRID_ROLE) == {
         "columns": 2,
         "mode": "spiral",
         "overlap": (10.0, 5.0),
@@ -212,21 +221,21 @@ def test_relative_grid_position(
         "mode: spiral"
     )
 
-    assert p.value() == [pos_1]
+    assert _wdg_value_no_fov(pos_wdg) == [pos_1]
 
     mmc.waitForSystem()
     mmc.setXYPosition(10, 20)
-    p.add_button.click()
-    p._apply_grid_to_all_positions(0)
+    pos_wdg.add_button.click()
+    pos_wdg._apply_grid_to_all_positions(0)
     assert tb.item(1, 0).toolTip() == tb.item(0, 0).toolTip()
 
-    assert p.value() == [pos_1, pos_2]
+    assert _wdg_value_no_fov(pos_wdg) == [pos_1, pos_2]
 
-    p._advanced_cbox.setChecked(False)
-    assert not p._warn_icon.isHidden()
-    assert p.value() == [pos_1, pos_2]
+    pos_wdg._advanced_cbox.setChecked(False)
+    assert not pos_wdg._warn_icon.isHidden()
+    assert _wdg_value_no_fov(pos_wdg) == [pos_1, pos_2]
 
-    p._advanced_cbox.setChecked(True)
+    pos_wdg._advanced_cbox.setChecked(True)
     remove_grid_btn.click()
     assert remove_grid_btn.isHidden()
 
@@ -235,24 +244,24 @@ def test_absolute_grid_position(
     global_mmcore: CMMCorePlus, qtbot: QtBot, pos: tuple[dict[str, Any], ...]
 ):
     _, _, pos_3 = pos
-    p = PositionTable()
-    qtbot.addWidget(p)
+    pos_wdg = PositionTable()
+    qtbot.addWidget(pos_wdg)
 
-    tb = p._table
+    tb = pos_wdg._table
 
     assert not tb.rowCount()
 
-    p.add_button.click()
+    pos_wdg.add_button.click()
     assert tb.rowCount() == 1
-    p._advanced_cbox.setChecked(True)
+    pos_wdg._advanced_cbox.setChecked(True)
 
-    _, remove_grid_btn = p._get_grid_buttons(0)
+    _, remove_grid_btn = pos_wdg._get_grid_buttons(0)
     assert remove_grid_btn.isHidden()
 
     grid_plan = pos_3["sequence"]["grid_plan"]
-    p._add_grid_plan(grid_plan, 0)
+    pos_wdg._add_grid_plan(grid_plan, 0)
 
-    assert tb.item(0, 0).data(p.GRID_ROLE) == {
+    assert tb.item(0, 0).data(pos_wdg.GRID_ROLE) == {
         "bottom": 0.0,
         "left": 0.0,
         "mode": "row_wise_snake",
@@ -267,25 +276,25 @@ def test_absolute_grid_position(
     )
     pos_3["name"] = "Pos000"
     pos_3["y"] = 100.0
-    assert p.value() == [pos_3]
+    assert _wdg_value_no_fov(pos_wdg) == [pos_3]
 
 
 def test_pos_table_set_and_get_state(
     global_mmcore: CMMCorePlus, qtbot: QtBot, pos: tuple[dict[str, Any], ...]
 ):
     pos_1, pos_2, pos_3 = pos
-    p = PositionTable()
-    qtbot.addWidget(p)
+    pos_wdg = PositionTable()
+    qtbot.addWidget(pos_wdg)
 
-    p.set_state([pos_1, pos_2, pos_3])
-    assert p._warn_icon.isHidden()
+    pos_wdg.set_state([pos_1, pos_2, pos_3])
+    assert pos_wdg._warn_icon.isHidden()
     pos_3["y"] = 100.0
-    assert p.value() == [pos_1, pos_2, pos_3]
-    assert p._advanced_cbox.isChecked()
+    assert _wdg_value_no_fov(pos_wdg) == [pos_1, pos_2, pos_3]
+    assert pos_wdg._advanced_cbox.isChecked()
 
-    p._advanced_cbox.setChecked(False)
-    assert not p._warn_icon.isHidden()
-    assert p.value() == [pos_1, pos_2, pos_3]
+    pos_wdg._advanced_cbox.setChecked(False)
+    assert not pos_wdg._warn_icon.isHidden()
+    assert _wdg_value_no_fov(pos_wdg) == [pos_1, pos_2, pos_3]
 
 
 def test_autofocus_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
@@ -524,7 +533,12 @@ def test_save_and_load_position(qtbot: QtBot):
 
             file = next(iter(Path(tmp).iterdir()))
 
-            assert json.loads(file.read_text()) == pos
+            from_disk = json.loads(file.read_text())
+            for item in from_disk:
+                if 'sequence' in item and 'grid_plan' in (item['sequence'] or {}):
+                    item["sequence"]['grid_plan'].pop("fov_height")
+                    item["sequence"]['grid_plan'].pop("fov_width")
+            assert from_disk == pos
 
             p.clear()
             assert p.value() == []
@@ -533,7 +547,7 @@ def test_save_and_load_position(qtbot: QtBot):
             with patch.object(QFileDialog, "getOpenFileName", _path):
                 p._load_positions()
                 assert p._table.rowCount() == 3
-                assert p.value() == _pos_for_save_load(load=True)
+                assert _wdg_value_no_fov(p) == _pos_for_save_load(load=True)
 
 
 def test_set_state_with_different_z_af_devicies(
