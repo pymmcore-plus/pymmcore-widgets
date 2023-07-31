@@ -173,7 +173,7 @@ def pos():
 def _wdg_value_no_fov(wdg: PositionTable):
     val = wdg.value()
     for pos in val:
-        if 'sequence' in pos and 'grid_plan' in (pos['sequence'] or {}):
+        if "sequence" in pos and "grid_plan" in (pos["sequence"] or {}):
             pos["sequence"]["grid_plan"].pop("fov_height")
             pos["sequence"]["grid_plan"].pop("fov_width")
     return val
@@ -535,9 +535,9 @@ def test_save_and_load_position(qtbot: QtBot):
 
             from_disk = json.loads(file.read_text())
             for item in from_disk:
-                if 'sequence' in item and 'grid_plan' in (item['sequence'] or {}):
-                    item["sequence"]['grid_plan'].pop("fov_height")
-                    item["sequence"]['grid_plan'].pop("fov_width")
+                if "sequence" in item and "grid_plan" in (item["sequence"] or {}):
+                    item["sequence"]["grid_plan"].pop("fov_height")
+                    item["sequence"]["grid_plan"].pop("fov_width")
             assert from_disk == pos
 
             p.clear()
