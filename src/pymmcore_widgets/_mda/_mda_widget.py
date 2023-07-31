@@ -339,7 +339,6 @@ class MDAWidget(QWidget):
                     seq_kwargs = p.get("sequence") or {}
                     seq_kwargs["axis_order"] = axis_order
                     p_sequence = MDASequence(**seq_kwargs)
-                    p_sequence.set_fov_size(self._get_fov_size())
                     p["sequence"] = p_sequence  # type: ignore  # FIXME
                 stage_positions.append(p)  # type: ignore
 
@@ -356,15 +355,8 @@ class MDAWidget(QWidget):
             grid_plan=self.grid_widget.value() if self.g_cbox.isChecked() else None,
             z_plan=self.stack_widget.value() if self.z_cbox.isChecked() else None,
         )
-        mda.set_fov_size(self._get_fov_size())
         return mda
 
-    def _get_fov_size(self) -> tuple[float, float]:
-        """Return image width and height in micron to be used for the grid plan."""
-        if px := self._mmc.getPixelSizeUm():
-            _, _, widtgh, height = self._mmc.getROI()
-            return (widtgh * px, height * px)
-        return (1.0, 1.0)
 
     def _get_current_position(self) -> list[PositionDict]:
         return [
