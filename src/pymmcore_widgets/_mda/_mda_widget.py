@@ -357,7 +357,6 @@ class MDAWidget(QWidget):
         )
         return mda
 
-
     def _get_current_position(self) -> list[PositionDict]:
         return [
             {

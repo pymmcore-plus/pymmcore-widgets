@@ -716,7 +716,6 @@ class GridWidget(QWidget):
         replace = {**self.overlap_and_mode.value(), **fov_kwargs(self._mmc)}
         return self.tab.value().replace(**replace)
 
-
     def set_state(self, grid: dict | useq.AnyGridPlan) -> None:
         """Set the state of the widget from a useq AnyGridPlan or dictionary."""
         with signals_blocked(self):
