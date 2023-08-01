@@ -67,7 +67,7 @@ def test_grid_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     )
 
     grid_wdg.set_state(grid_rel.dict())
-    assert grid_wdg.value() == grid_rel
+    assert grid_wdg.value().replace(fov_width=None, fov_height=None) == grid_rel
     assert grid_wdg.tab.currentIndex() == 0
 
     # using GridPlan (and not dict)
@@ -76,13 +76,13 @@ def test_grid_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     )
     grid_wdg.set_state(grid_abs)
 
-    assert grid_wdg.value() == grid_abs
+    assert grid_wdg.value().replace(fov_width=None, fov_height=None) == grid_abs
     assert grid_wdg.tab.currentIndex() == 1
 
     grid_abs2 = grid_abs.replace(mode="row_wise_snake", overlap=(10.0, 0.0))
     # using OrderMode enum
     grid_wdg.set_state(grid_abs2.dict())
-    assert grid_wdg.value() == grid_abs2
+    assert grid_wdg.value().replace(fov_width=None, fov_height=None) == grid_abs2
     assert grid_wdg.tab.currentIndex() == 1
 
 

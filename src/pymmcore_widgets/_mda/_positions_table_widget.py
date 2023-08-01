@@ -34,7 +34,7 @@ from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 from useq import AxesBasedAF, GridFromEdges, GridRelative, MDASequence, Position
 
-from pymmcore_widgets._util import cast_grid_plan
+from pymmcore_widgets._util import cast_grid_plan, fov_kwargs
 
 from ._autofocus_device_widget import _AutofocusZDeviceWidget
 from ._grid_widget import GridWidget
@@ -650,6 +650,7 @@ class PositionTable(QWidget):
             }
             sequence = {}
             if grid_role:
+                grid_role.update(fov_kwargs(self._mmc))
                 sequence["grid_plan"] = grid_role
             if af_plan:
                 sequence["autofocus_plan"] = af_plan
