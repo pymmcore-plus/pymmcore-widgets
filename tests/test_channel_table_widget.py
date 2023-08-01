@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import useq
+
 from pymmcore_widgets._mda import ChannelTable
 
 if TYPE_CHECKING:
@@ -56,43 +58,15 @@ def test_channel_table_widget(qtbot: QtBot):
     assert not ct._table.rowCount()
 
 
-def test_set_get_state(qtbot: QtBot):
+def test_set_get_state(qtbot: QtBot) -> None:
     ct = ChannelTable(channel_group="Camera")
     qtbot.addWidget(ct)
 
     state = [
-        {
-            "config": "Cy5",
-            "group": "Channel",
-            "exposure": 100.0,
-            "z_offset": 0.0,
-            "do_stack": True,
-            "acquire_every": 1,
-        },
-        {
-            "config": "DAPI",
-            "group": "Channel",
-            "exposure": 100.0,
-            "z_offset": 10.0,
-            "do_stack": True,
-            "acquire_every": 1,
-        },
-        {
-            "config": "HighRes",
-            "group": "Camera",
-            "exposure": 100.0,
-            "z_offset": 0.0,
-            "do_stack": False,
-            "acquire_every": 1,
-        },
-        {
-            "config": "Cy5",
-            "group": "Channel",
-            "exposure": 100.0,
-            "z_offset": 0.0,
-            "do_stack": True,
-            "acquire_every": 2,
-        },
+        useq.Channel(config="Cy5", exposure=100.0),
+        useq.Channel(config="DAPI", exposure=100.0, z_offset=10.0),
+        useq.Channel(config="HighRes", group="Camera", exposure=100.0, do_stack=False),
+        useq.Channel(config="Cy5", exposure=100.0, acquire_every=2),
     ]
 
     assert not ct._advanced_cbox.isChecked()

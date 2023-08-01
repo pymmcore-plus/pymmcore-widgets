@@ -34,7 +34,7 @@ from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 from useq import AxesBasedAF, GridFromEdges, GridRelative, MDASequence, Position
 
-from pymmcore_widgets._util import get_grid_type
+from pymmcore_widgets._util import cast_grid_plan
 
 from ._autofocus_device_widget import _AutofocusZDeviceWidget
 from ._grid_widget import GridWidget
@@ -49,7 +49,7 @@ if TYPE_CHECKING:
         y: float | None
         z: float | None
         name: str | None
-        sequence: MDASequence | None
+        sequence: dict | None
 
 
 POS = "Pos"
@@ -145,8 +145,11 @@ class PositionTable(QWidget):
         af_groupbox_layout.setSpacing(0)
         af_groupbox_layout.setContentsMargins(0, 0, 0, 0)
         af_groupbox.setLayout(af_groupbox_layout)
-        self._autofocus_wdg = _AutofocusZDeviceWidget()
-        self._autofocus_wdg.valueChanged.connect(self._on_autofocus_value_changed)
+        self._autofocus_wdg = _AutofocusZDeviceWidget(self)
+        self._autofocus_wdg._af_combo.currentTextChanged.connect(
+            self._on_af_wdg_changed
+        )
+        self._autofocus_wdg._af_checkbox.toggled.connect(self._on_af_wdg_changed)
         af_groupbox_layout.addWidget(self._autofocus_wdg)
         group_layout.addWidget(af_groupbox, 0, 0, 1, 2)
 
@@ -259,79 +262,43 @@ class PositionTable(QWidget):
     def _on_sys_cfg_loaded(self) -> None:
         self.clear()
         self._set_table_header()
-        self._advanced_cbox.setEnabled(
-            bool(self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice))
-        )
         advanced = self._advanced_cbox.isChecked()
         self._table.setColumnHidden(GRID, not advanced)
         self._table.setColumnHidden(AF, not self._use_af())
 
     def _on_property_changed(self, device: str, prop: str, value: str) -> None:
         # TODO: add 'propertyChanged.emit()' to pymmcore-plus setProperty() methods
-        if not self._mmc.getLoadedDevicesOfType(
-            DeviceType.XYStageDevice
-        ) and not self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice):
+        if device != "Core" and prop not in {"Focus", "AutoFocus"}:
             return
-
-        if device != "Core" and prop not in {"Focus", "XYStage", "AutoFocus"}:
+        # if prop is 'Focus', rename column header with default ZStage or "Z"
+        if prop == "Focus":
+            name, idx = (self._mmc.getFocusDevice() or "Z", Z)
+        # if prop is 'AutoFocus' but not in use, return
+        elif not self._use_af():
             return
+        # if prop is 'AutoFocus', rename column header with 'autofocus_device_name'
+        # or 'Autofocus'
+        else:
+            name, idx = (self._get_af_device() or "Autofocus", AF)
 
-        # hide XY or Z columns if ZStage or XYStage are not loaded + remove cell values
-        indexes = {
-            "Focus": [Z],
-            "XYStage": [X, Y],
-            "AutoFocus": [AF],
-        }.get(prop, [])
-
-        for idx in indexes:
-            self._table.setColumnHidden(idx, not value)
-            for r in range(self._table.rowCount()):
-                self._table.removeCellWidget(r, idx)
-
-            # rename column header with default ZStage or Autofocus
-            if idx not in {Z, AF} or not self._use_af():
-                continue
-            name = self._mmc.getFocusDevice() if idx == Z else "Autofocus"
-            self._table.setHorizontalHeaderItem(idx, QTableWidgetItem(name))
+        self._table.setHorizontalHeaderItem(idx, QTableWidgetItem(name))
 
     def _set_table_header(self) -> None:
         self._table.setColumnCount(0)
-
-        if not self._mmc.getLoadedDevicesOfType(
-            DeviceType.XYStageDevice
-        ) and not self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice):
-            self.clear()
-            return
-
-        xy = self._mmc.getLoadedDevicesOfType(DeviceType.XYStageDevice)
-        z = self._mmc.getFocusDevice() or None
-        header = (
-            [POS, "X", "Y"]
-            + ([self._mmc.getFocusDevice()] if z else ["Z"])
-            + ["Autofocus", "Grid"]
-        )
-        self._table.setColumnCount(len(header))
+        header = [POS, "X", "Y", self._mmc.getFocusDevice() or "Z", "Autofocus", "Grid"]
+        self._table.setColumnCount(6)
         self._table.setHorizontalHeaderLabels(header)
 
-        # hide columns if no XY and/or Z stage
-        if not xy:
-            self._table.setColumnHidden(X, True)
-            self._table.setColumnHidden(Y, True)
-        if not z:
-            self._table.setColumnHidden(Z, True)
-        if not xy and not z:
-            self._table.setColumnHidden(P, True)
-
-    def _on_autofocus_value_changed(self) -> None:
+    def _on_af_wdg_changed(self) -> None:
         self._table.setColumnHidden(AF, not self._use_af())
         if z_device := self._get_af_device():
             self._table.setHorizontalHeaderItem(AF, QTableWidgetItem(z_device))
-
         # if the signal is sent from the autofocus checkbox, do not delete cell widgets
-        if not isinstance(self.sender().sender(), QCheckBox):
-            # remove cell widgets in autofocus column
-            for r in range(self._table.rowCount()):
-                self._table.removeCellWidget(r, AF)
+        if isinstance(self.sender(), QCheckBox):
+            return
+        # remove cell widgets in autofocus column
+        for r in range(self._table.rowCount()):
+            self._table.removeCellWidget(r, AF)
 
     def _on_advanced_toggled(self, state: bool) -> None:
         self._table.setColumnHidden(GRID, not state)
@@ -352,7 +319,7 @@ class PositionTable(QWidget):
         if len(rows) == 1:
             item = self._table.item(next(iter(rows)), 0)
             grid_role = item.data(self.GRID_ROLE) if item else None
-            if grid_role and isinstance(get_grid_type(grid_role), GridFromEdges):
+            if grid_role and isinstance(cast_grid_plan(grid_role), GridFromEdges):
                 self.replace_button.setEnabled(False)
 
     def _add_position(self) -> None:
@@ -383,8 +350,8 @@ class PositionTable(QWidget):
         z_pos_autofocus: float | None,
         row: int | None = None,
     ) -> None:
-        if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage devices selected.")
+        # if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
+        #     return
 
         if row is None:
             row = self._add_position_row()
@@ -491,7 +458,7 @@ class PositionTable(QWidget):
 
     def _add_grid_plan(self, grid: dict, row: int | None = None) -> None:
         # sourcery skip: extract-method
-        grid_type = get_grid_type(grid)
+        grid_type = cast_grid_plan(grid)
 
         if grid_type is None or row is None:
             return
@@ -518,7 +485,7 @@ class PositionTable(QWidget):
         self.valueChanged.emit()
 
     def _create_tooltip(self, grid: dict) -> str:
-        grid_type = get_grid_type(grid)
+        grid_type = cast_grid_plan(grid)
 
         if grid_type is None:
             return ""
@@ -555,7 +522,7 @@ class PositionTable(QWidget):
         # return if not grid or if absolute grid_plan
         if not grid_role:
             return
-        if isinstance(get_grid_type(grid_role), GridFromEdges):
+        if isinstance(cast_grid_plan(grid_role), GridFromEdges):
             return
 
         # define where the menu appear on click
@@ -672,20 +639,21 @@ class PositionTable(QWidget):
         values: list = []
 
         for row in range(self._table.rowCount()):
-            grid_role = self._table.item(row, P).data(self.GRID_ROLE)
+            item = cast("QTableWidgetItem", self._table.item(row, P))
+            grid_role = item.data(self.GRID_ROLE)
             af_plan = self._get_autofocus_plan(row)
-
-            value = {
-                "name": self._table.item(row, P).text(),
+            value: PositionDict = {
+                "name": item.text(),
                 "x": self._get_table_value(row, X),
                 "y": self._get_table_value(row, Y),
                 "z": self._get_table_value(row, Z),
-                "sequence": {} if grid_role or af_plan else None,
             }
+            sequence = {}
             if grid_role:
-                value["sequence"]["grid_plan"] = grid_role
+                sequence["grid_plan"] = grid_role
             if af_plan:
-                value["sequence"]["autofocus_plan"] = af_plan
+                sequence["autofocus_plan"] = af_plan
+            value["sequence"] = sequence or None
 
             values.append(value)
 
@@ -717,9 +685,6 @@ class PositionTable(QWidget):
         """
         if not isinstance(positions, Sequence):
             raise TypeError("The 'positions' arguments has to be a 'Sequence' type.")
-
-        if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
-            raise ValueError("No XY and Z Stage devices loaded.")
 
         # variables used for autofocus devaice name check
         rows = set(range(self._table.rowCount()))

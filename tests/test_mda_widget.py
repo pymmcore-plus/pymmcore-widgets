@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 from qtpy.QtWidgets import QFileDialog
@@ -13,11 +13,9 @@ from pymmcore_widgets._mda import MDAWidget
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
-    from qtpy.QtWidgets import QSpinBox
-    from superqt import QQuantity
 
 
-def test_mda_widget_load_state(qtbot: QtBot):
+def test_mda_widget_load_state(qtbot: QtBot) -> None:
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
     assert wdg.position_widget._table.rowCount() == 0
@@ -62,7 +60,12 @@ def test_mda_widget_load_state(qtbot: QtBot):
                 "y": 0,
                 "z": 15,
                 "sequence": {
-                    "grid_plan": {"rows": 2, "columns": 2},
+                    "grid_plan": {
+                        "rows": 2,
+                        "columns": 2,
+                        "fov_height": 512,
+                        "fov_width": 512,
+                    },
                     "autofocus_plan": {
                         "autofocus_device_name": "Z",
                         "axes": ("t", "p", "g"),
@@ -79,6 +82,8 @@ def test_mda_widget_load_state(qtbot: QtBot):
                     "grid_plan": {
                         "rows": 2,
                         "columns": 2,
+                        "fov_height": 512,
+                        "fov_width": 512,
                         "mode": "row_wise_snake",
                         "overlap": (0.0, 0.0),
                     },
@@ -88,6 +93,8 @@ def test_mda_widget_load_state(qtbot: QtBot):
         grid_plan={
             "rows": 1,
             "columns": 2,
+            "fov_height": 512,
+            "fov_width": 512,
             "mode": "row_wise_snake",
             "overlap": (0.0, 0.0),
         },
@@ -172,69 +179,6 @@ def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.buttons_wdg.cancel_button.isHidden()
 
 
-def test_gui_labels(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    # sourcery skip: extract-duplicate-method
-    global_mmcore.setExposure(100)
-    wdg = MDAWidget(include_run_button=True)
-    qtbot.addWidget(wdg)
-    wdg.show()
-
-    wdg.ch_cbox.setChecked(True)
-    assert wdg.channel_widget._table.rowCount() == 0
-    wdg.channel_widget._add_button.click()
-    assert wdg.channel_widget._table.rowCount() == 1
-    assert wdg.channel_widget._table.cellWidget(0, 1).value() == 100.0
-
-    assert not wdg.t_cbox.isChecked()
-    wdg.t_cbox.setChecked(True)
-    wdg.time_widget._add_button.click()
-
-    txt = (
-        "Minimum total acquisition time: 100 ms"
-        "\nMinimum acquisition time per timepoint: 100 ms"
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-    assert wdg.time_widget._warning_widget.isHidden()
-
-    assert wdg.t_cbox.isChecked()
-    interval = cast("QQuantity", wdg.time_widget._table.cellWidget(0, 0))
-    timepoint = cast("QSpinBox", wdg.time_widget._table.cellWidget(0, 1))
-    interval.setValue(1, "ms")
-    timepoint.setValue(2)
-
-    txt = (
-        "Minimum total acquisition time: 201 ms"
-        "\nMinimum acquisition time per timepoint: 100 ms"
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-    assert not wdg.time_widget._warning_widget.isHidden()
-
-    wdg.channel_widget._add_button.click()
-    wdg.channel_widget._advanced_cbox.setChecked(True)
-    wdg.channel_widget._table.cellWidget(1, 4).setValue(2)
-    wdg.channel_widget._table.cellWidget(1, 1).setValue(100.0)
-    assert not wdg.time_widget._warning_widget.isHidden()
-    interval.setValue(200, "ms")
-    timepoint.setValue(4)
-    assert wdg.time_widget._warning_widget.isHidden()
-
-    txt = (
-        "Minimum total acquisition time: 01 sec 200 ms"
-        "\nMinimum acquisition time per timepoint: 100 ms"
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-
-    wdg.time_widget._add_button.click()
-    timepoint = cast("QSpinBox", wdg.time_widget._table.cellWidget(1, 1))
-    timepoint.setValue(2)
-
-    txt = (
-        "Minimum total acquisition time: 02 sec 400 ms"
-        "\nMinimum acquisition time per timepoint: 100 ms"
-    )
-    assert wdg.time_lbl._total_time_lbl.text() == txt
-
-
 def test_enable_run_button(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
@@ -304,7 +248,14 @@ def test_save_and_load_sequence(qtbot: QtBot):
                         "y": 20,
                         "z": 50,
                         "name": "test_name",
-                        "sequence": MDASequence(grid_plan={"rows": 2, "columns": 3}),
+                        "sequence": MDASequence(
+                            grid_plan={
+                                "rows": 2,
+                                "columns": 3,
+                                "fov_height": 512,
+                                "fov_width": 512,
+                            }
+                        ),
                     },
                 ],
                 channels=[
@@ -318,7 +269,12 @@ def test_save_and_load_sequence(qtbot: QtBot):
                 ],
                 time_plan=[{"interval": 3, "loops": 3}, {"interval": 5, "loops": 10}],
                 z_plan={"range": 1.0, "step": 0.5},
-                grid_plan={"rows": 2, "columns": 1},
+                grid_plan={
+                    "rows": 2,
+                    "columns": 1,
+                    "fov_height": 512,
+                    "fov_width": 512,
+                },
             )
             mda.set_state(seq)
 
@@ -327,3 +283,22 @@ def test_save_and_load_sequence(qtbot: QtBot):
             with patch.object(QFileDialog, "getOpenFileName", _path):
                 mda._load_sequence()
                 assert mda.get_state() == seq
+
+
+def test_set_state_without_xystage(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    mmc = global_mmcore
+    mmc.unloadDevice("XY")
+    mmc.unloadDevice("Z")
+    wdg = MDAWidget(include_run_button=True)
+    qtbot.addWidget(wdg)
+
+    p_table = wdg.position_widget._table
+    mda = MDASequence(stage_positions=[(10, 20, 30)])
+    wdg.set_state(mda)
+
+    assert p_table.rowCount() == 1
+    assert not mmc.getXYStageDevice()
+    assert not mmc.getFocusDevice()
+    assert wdg.get_state().stage_positions[0].x == 10
+    assert wdg.get_state().stage_positions[0].y == 20
+    assert wdg.get_state().stage_positions[0].z == 30
