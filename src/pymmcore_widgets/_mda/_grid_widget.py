@@ -28,7 +28,7 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 from useq._grid import OrderMode, RelativeTo  # TODO: fix private import
 
-from pymmcore_widgets._util import cast_grid_plan
+from pymmcore_widgets._util import cast_grid_plan, fov_kwargs
 
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
@@ -713,7 +713,8 @@ class GridWidget(QWidget):
         Note that output dict will match the Channel from useq schema:
         <https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans>
         """
-        return self.tab.value().replace(**self.overlap_and_mode.value())
+        replace = {**self.overlap_and_mode.value(), **fov_kwargs(self._mmc)}
+        return self.tab.value().replace(**replace)
 
     def set_state(self, grid: dict | useq.AnyGridPlan) -> None:
         """Set the state of the widget from a useq AnyGridPlan or dictionary."""

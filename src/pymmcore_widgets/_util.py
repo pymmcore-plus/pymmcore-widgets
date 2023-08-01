@@ -100,3 +100,11 @@ def cast_grid_plan(grid: dict | useq.AnyGridPlan) -> useq.AnyGridPlan | None:
     if isinstance(grid, dict):
         return useq.MDASequence(grid_plan=grid).grid_plan
     return grid
+
+
+def fov_kwargs(core: CMMCorePlus) -> dict:
+    """Return image width and height in micron to be used for the grid plan."""
+    if px := core.getPixelSizeUm():
+        *_, width, height = core.getROI()
+        return {"fov_width": (width * px) or None, "fov_height": (height * px) or None}
+    return {}
