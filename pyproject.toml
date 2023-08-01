@@ -51,7 +51,7 @@ dependencies = [
     'pymmcore-plus >=0.8.0',
     'qtpy >=2.0',
     'superqt[quantity] >=0.3.1',
-    'useq-schema >=0.4.0',
+    'useq-schema >=0.4.1',
 ]
 
 # extras
