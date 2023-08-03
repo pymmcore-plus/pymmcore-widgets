@@ -27,9 +27,9 @@ class CheckableTabWidget(QTabWidget):
     def __init__(
         self,
         parent: QWidget | None = None,
+        *,
         checkbox_position: QTabBar.ButtonPosition = QTabBar.ButtonPosition.LeftSide,
         change_tab_on_check: bool = True,
-        movable: bool = True,
     ) -> None:
         super().__init__(parent)
 
@@ -40,7 +40,6 @@ class CheckableTabWidget(QTabWidget):
         self._change_tab_on_check = change_tab_on_check
 
         self.tabBar().setElideMode(Qt.TextElideMode.ElideNone)
-        self.tabBar().setMovable(movable)
 
     def addTab(self, widget: QWidget, *args: Any, **kwargs: dict[str, Any]) -> None:
         """Add a tab with a checkable QCheckbox.
@@ -65,5 +64,5 @@ class CheckableTabWidget(QTabWidget):
         """Enable/disable the widget in the tab."""
         tab_index = self.tabBar().tabAt(self.sender().pos())
         self.widget(tab_index).setEnabled(checked)
-        if self._change_tab_on_check:
+        if checked and self._change_tab_on_check:
             self.setCurrentIndex(tab_index)

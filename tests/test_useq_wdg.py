@@ -6,6 +6,7 @@ from pytestqt.qtbot import QtBot
 from pymmcore_widgets.useq_widgets import (
     ChannelTable,
     ColumnMeta,
+    MDASequenceWidget,
     PositionTable,
     TimeTable,
 )
@@ -62,3 +63,9 @@ def test_data_table(qtbot: QtBot) -> None:
     assert wdg._selected_rows() == []
     wdg.act_clear.trigger()
     assert wdg.rowCount() == 0
+
+
+def test_mda_wdg(qtbot: QtBot):
+    wdg = MDASequenceWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()

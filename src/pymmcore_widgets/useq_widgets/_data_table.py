@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass
-from functools import lru_cache
 from typing import TYPE_CHECKING, ClassVar, Generic, NamedTuple, TypeVar, cast
 
 import pint
@@ -12,6 +11,7 @@ from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
+    QHBoxLayout,
     QHeaderView,
     QSizePolicy,
     QSpinBox,
@@ -46,7 +46,10 @@ class ColumnMeta:
     checkable: bool = False
     checked: bool = True
     hidden: bool = False
-    minimum: int | None = 0
+    minimum: int | None = None
+    maximum: int | None = None
+    align: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignCenter
+    resize_mode: QHeaderView.ResizeMode = QHeaderView.ResizeMode.ResizeToContents
 
     # role used to store ColumnMeta in header items
     _ROLE: ClassVar[int] = Qt.ItemDataRole.UserRole + 1
@@ -62,6 +65,9 @@ class ColumnMeta:
         if self.checkable and self.type != str:  # pragma: no cover
             raise ValueError("Only string columns can be checkable")
 
+        if self.default is not None and not isinstance(self.default, str):
+            object.__setattr__(self, "type", type(self.default))
+
     @property
     def choices(self) -> Sequence[str]:
         if isinstance(self.type, type) and issubclass(self.type, enum.Enum):
@@ -74,20 +80,8 @@ class ColumnMeta:
             return Qt.CheckState.Checked if self.checked else Qt.CheckState.Unchecked
         return None
 
-    @property
     def wdg_get_set(self) -> WdgGetSet | None:
         return None if self.type is str else _get_wdg_get_set(self.type)
-
-    @lru_cache(maxsize=None)  # noqa: B019
-    def _cell_kwargs(self) -> dict:
-        """Return kwargs for _DataTable._set_cell_default."""
-        return {
-            "wdg_get_set": self.wdg_get_set,
-            "default": self.default,
-            "check_state": self.CheckState,
-            "choices": self.choices,
-            "minimum": self.minimum,
-        }
 
 
 CHECKABLE = (
@@ -108,10 +102,48 @@ class WdgGetSet(NamedTuple, Generic[W, T]):
     getter: Callable[[W], T]
 
 
+class _TableSpinboxMixin:
+    def __init__(self: QDoubleSpinBox | QSpinBox) -> None:
+        self.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
+        self.setKeyboardTracking(False)
+        self.setMaximum(10000)
+        self.setStyleSheet("QAbstractSpinBox { border: none; }")
+
+    # disable mouse wheel scrolling on table spinboxes
+    def wheelEvent(self, event: Any) -> None:
+        pass  # pragma: no cover
+
+
+class _CenteredCheckBox(QWidget):
+    def __init__(self) -> None:
+        super().__init__()
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._checkbox = QCheckBox()
+        layout.addWidget(self._checkbox)
+
+    def isChecked(self) -> bool:
+        return self._checkbox.isChecked()  # type: ignore
+
+    def setChecked(self, value: bool) -> None:
+        self._checkbox.setChecked(value)
+
+
+class TableDoubleSpinBox(QDoubleSpinBox, _TableSpinboxMixin):
+    pass
+
+
+class TableSpinBox(QSpinBox, _TableSpinboxMixin):
+    pass
+
+
 TYPE_TO_WDG: dict[type, WdgGetSet] = {
-    bool: WdgGetSet(QCheckBox, QCheckBox.setChecked, QCheckBox.isChecked),
-    int: WdgGetSet(QSpinBox, QSpinBox.setValue, QSpinBox.value),
-    float: WdgGetSet(QDoubleSpinBox, QDoubleSpinBox.setValue, QDoubleSpinBox.value),
+    bool: WdgGetSet(
+        _CenteredCheckBox, _CenteredCheckBox.setChecked, _CenteredCheckBox.isChecked
+    ),
+    int: WdgGetSet(TableSpinBox, QSpinBox.setValue, QSpinBox.value),
+    float: WdgGetSet(TableDoubleSpinBox, QDoubleSpinBox.setValue, QDoubleSpinBox.value),
     enum.Enum: WdgGetSet(
         QComboBox,
         lambda w, v: QComboBox.setCurrentText(w, str(v.value)),
@@ -261,8 +293,7 @@ class _DataTable(QWidget, Generic[T]):
                         d[meta.key] = item.text()
                         if meta.checkable:
                             d["checked"] = item.checkState() is Qt.CheckState.Checked
-                else:
-                    widget_get_set = _get_wdg_get_set(meta.type)
+                elif widget_get_set := meta.wdg_get_set():
                     if wdg := self.table.cellWidget(row, col):
                         d[meta.key] = widget_get_set.getter(wdg)
         return d
@@ -331,30 +362,21 @@ class _DataTable(QWidget, Generic[T]):
     def _populate_new_row(self, row: int) -> None:
         for col in range(self.columnCount()):
             if column_meta := self.columnMeta(col):
-                self._set_cell_default(row, col, **column_meta._cell_kwargs())
+                self._set_cell_default(row, col, column_meta)
 
     def _populate_new_column(self, column_meta: ColumnMeta, col: int) -> None:
         """Add default values/widgets to a newly created column."""
-        kwargs = column_meta._cell_kwargs()
         for row in range(self.rowCount()):
-            self._set_cell_default(row, col, **kwargs)
+            self._set_cell_default(row, col, column_meta)
 
-    def _set_cell_default(
-        self,
-        row: int,
-        col: int,
-        wdg_get_set: WdgGetSet | None,
-        default: Any,
-        check_state: Qt.CheckState | None = None,
-        choices: Sequence[str] = (),
-        minimum: int | None = None,
-    ) -> None:
+    def _set_cell_default(self, row: int, col: int, column_meta: ColumnMeta) -> None:
         # for strings, use the standard QTableWidgetItem
-        if wdg_get_set is None:
+        default = column_meta.default
+        if (wdg_get_set := column_meta.wdg_get_set()) is None:
             # make a new QTableWidgetItem with the default value
             d = default.format(idx=row + 1) if isinstance(default, str) else default
             item = QTableWidgetItem(str(d))
-            if check_state is not None:
+            if (check_state := column_meta.CheckState) is not None:
                 # note: it's important to call setCheckState either way
                 # otherwise the checkbox will not be visible
                 item.setFlags(CHECKABLE)
@@ -364,12 +386,18 @@ class _DataTable(QWidget, Generic[T]):
         # create a new custom CellWidget for other column types
         else:
             new_wdg = wdg_get_set.widget()
-            if choices and hasattr(new_wdg, "addItems"):
-                new_wdg.addItems(choices)
+            if column_meta.choices and hasattr(new_wdg, "addItems"):
+                new_wdg.addItems(column_meta.choices)
             if default is not None:
                 wdg_get_set.setter(new_wdg, default)
-            if minimum is not None and hasattr(new_wdg, "setMinimum"):
-                new_wdg.setMinimum(minimum)
+            if column_meta.minimum is not None and hasattr(new_wdg, "setMinimum"):
+                new_wdg.setMinimum(column_meta.minimum)
+            if column_meta.maximum is not None and hasattr(new_wdg, "setMaximum"):
+                new_wdg.setMaximum(column_meta.maximum)
+            if column_meta.align and hasattr(new_wdg, "setAlignment"):
+                new_wdg.setAlignment(column_meta.align)
+            header = cast("QHeaderView", self.table.horizontalHeader())
+            header.setSectionResizeMode(col, column_meta.resize_mode)
             self.table.setCellWidget(row, col, new_wdg)
 
     def _add_row(self) -> None:

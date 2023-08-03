@@ -106,7 +106,8 @@ class MDAWidget(QWidget):
         central_layout.setContentsMargins(10, 10, 10, 10)
 
         # main TabWidget
-        self._tab = CheckableTabWidget(change_tab_on_check=False, movable=False)
+        self._tab = CheckableTabWidget(change_tab_on_check=False)
+        self._tab.setMovable(False)
 
         # Channels, Time, Z Stack, Positions and Grid widgets
         self.channel_widget = ChannelTable()
