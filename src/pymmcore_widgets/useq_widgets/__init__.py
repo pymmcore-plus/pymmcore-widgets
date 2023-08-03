@@ -1,6 +1,13 @@
 """Widgets for the useq-schema data model."""
 
-from ._data_table import ColumnMeta, DataTable
+from ._column_info import (
+    BoolColumn,
+    FloatColumn,
+    IntColumn,
+    TextColumn,
+    TimeDeltaColumn,
+)
+from ._data_table import DataTable, DataTableWidget
 from .channels import ChannelTable
 from .mda_sequence import MDASequenceWidget
 from .positions import PositionTable
@@ -9,8 +16,13 @@ from .time import TimeTable
 __all__ = [
     "PositionTable",
     "ChannelTable",
+    "DataTableWidget",
     "TimeTable",
     "DataTable",
-    "ColumnMeta",
     "MDASequenceWidget",
+    "TextColumn",
+    "FloatColumn",
+    "IntColumn",
+    "BoolColumn",
+    "TimeDeltaColumn",
 ]

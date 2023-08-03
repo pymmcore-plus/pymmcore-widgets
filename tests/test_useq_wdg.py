@@ -5,12 +5,15 @@ from pytestqt.qtbot import QtBot
 
 from pymmcore_widgets.useq_widgets import (
     ChannelTable,
-    ColumnMeta,
+    DataTableWidget,
     MDASequenceWidget,
     PositionTable,
     TimeTable,
 )
-from pymmcore_widgets.useq_widgets._data_table import DataTable
+from pymmcore_widgets.useq_widgets._column_info import (
+    FloatColumn,
+    TextColumn,
+)
 
 
 class MyEnum(enum.Enum):
@@ -19,50 +22,49 @@ class MyEnum(enum.Enum):
 
 
 @pytest.mark.parametrize("Wdg", [PositionTable, ChannelTable, TimeTable])
-def test_useq_wdg(qtbot: QtBot, Wdg: type[DataTable]) -> None:
+def test_useq_wdg(qtbot: QtBot, Wdg: type[DataTableWidget]) -> None:
     wdg = Wdg()
     qtbot.addWidget(wdg)
-    wdg.table.setRowCount(2)
+    table = wdg.table()
+    table.setRowCount(2)
     wdg.show()
 
-    assert wdg.table  # public attr
-    assert wdg.toolbar  # public attr
+    assert wdg.toolBar()  # public attr
     for col in Wdg.COLUMNS:
-        assert wdg.indexOf(col) == wdg.indexOf(col.header_text()) >= 0
+        assert table.indexOf(col) == table.indexOf(col.header_text()) >= 0
         assert list(wdg.value(exclude_unchecked=False))
         assert list(wdg.value(exclude_unchecked=True))
 
-    assert wdg.indexOf("foo") == -1
+    assert table.indexOf("foo") == -1
 
 
 def test_data_table(qtbot: QtBot) -> None:
-    wdg = DataTable()
+    wdg = DataTableWidget()
     qtbot.addWidget(wdg)
-    wdg.table.setRowCount(2)
-    for col_meta in (
-        columns := [
-            ColumnMeta(key="foo", default="bar"),
-            ColumnMeta(key="baz", type=MyEnum, default=MyEnum.foo),
-            ColumnMeta(key="qux", type=float, default=42.0),
-        ]
-    ):
-        wdg.addColumn(col_meta, position=-1)
+    table = wdg.table()
+    table.setRowCount(2)
+    for col_meta in [
+        TextColumn(key="foo", default="bar", is_row_selector=True),
+        TextColumn(key="baz", default="qux"),
+        FloatColumn(key="qux", default=42.0),
+    ]:
+        table.addColumn(col_meta, position=-1)
 
-    wdg.table.setRowCount(4)
+    table.setRowCount(4)
     assert list(wdg.value(exclude_unchecked=False))
 
-    n_rows = wdg.rowCount()
+    n_rows = table.rowCount()
     wdg.act_add_row.trigger()
-    assert wdg.rowCount() == n_rows + 1
-    wdg.table.selectRow(wdg.rowCount() - 1)
+    assert table.rowCount() == n_rows + 1
+    table.selectRow(table.rowCount() - 1)
     wdg.act_remove_row.trigger()
-    assert wdg.rowCount() == n_rows
-    wdg.act_select_all.trigger()
-    assert wdg._selected_rows() == sorted(range(wdg.rowCount()))
-    wdg.act_select_none.trigger()
-    assert wdg._selected_rows() == []
+    assert table.rowCount() == n_rows
+    wdg.act_check_all.trigger()
+    assert len(wdg.value()) == table.rowCount()
+    wdg.act_check_none.trigger()
+    assert len(wdg.value()) == 0  # requires a is_row_selector=True column
     wdg.act_clear.trigger()
-    assert wdg.rowCount() == 0
+    assert table.rowCount() == 0
 
 
 def test_mda_wdg(qtbot: QtBot):

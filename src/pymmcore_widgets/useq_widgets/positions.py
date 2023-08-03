@@ -1,19 +1,20 @@
 import useq
 
-from ._data_table import ColumnMeta, _DataTable
+from ._column_info import FloatColumn, TextColumn
+from ._data_table import DataTableWidget
 
 
-class PositionTable(_DataTable):
+class PositionTable(DataTableWidget):
     """Table for editing a list of `useq.Positions`."""
 
-    POSITION = ColumnMeta(key="name", checkable=True, default="#{idx}")
-    X = ColumnMeta(key="x", header="X [mm]", type=float, default=0.0)
-    Y = ColumnMeta(key="y", header="Y [mm]", type=float, default=0.0)
-    Z = ColumnMeta(key="z", header="Z [mm]", type=float, default=0.0)
+    POSITION = TextColumn(key="name", checkable=True, default="#{idx}")
+    X = FloatColumn(key="x", header="X [mm]", default=0.0)
+    Y = FloatColumn(key="y", header="Y [mm]", default=0.0)
+    Z = FloatColumn(key="z", header="Z [mm]", default=0.0)
 
     def value(self, exclude_unchecked: bool = False) -> list[useq.Position]:
         """Return the current value of the table as a list of channels."""
         return [
             useq.Position(**r)
-            for r in super().iterRecords(exclude_unchecked=exclude_unchecked)
+            for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
         ]

@@ -1,27 +1,22 @@
-from typing import cast
-
-import pint
 import useq
 
-from ._data_table import ColumnMeta, _DataTable
+from ._column_info import IntColumn, TextColumn, TimeDeltaColumn
+from ._data_table import DataTableWidget
 
 
-class TimeTable(_DataTable[useq.MultiPhaseTimePlan]):
+class TimeTable(DataTableWidget):
     """Table for editing a `useq-schema` time plan."""
 
-    PHASE = ColumnMeta(key="phase", checkable=True, default="#{idx}")
-    INTERVAL = ColumnMeta(key="interval", type=pint.Quantity, default="1 s")
-    DURATION = ColumnMeta(key="duration", type=pint.Quantity, default="1 min")
-    LOOPS = ColumnMeta(key="loops", type=int, default=1, minimum=1)
+    PHASE = TextColumn(key="phase", checkable=True, default="#{idx}")
+    INTERVAL = TimeDeltaColumn(key="interval", default="1 s")
+    DURATION = TimeDeltaColumn(key="duration", default="1 min")
+    LOOPS = IntColumn(key="loops", default=1, minimum=1)
 
     def value(self, exclude_unchecked: bool = False) -> useq.MultiPhaseTimePlan:
         """Return the current value of the table as a list of channels."""
         phases = [
-            {
-                "interval": cast("pint.Quantity", p["interval"]).to("s").magnitude,
-                "loops": p["loops"],
-            }
-            for p in super().iterRecords(exclude_unchecked=exclude_unchecked)
+            {"interval": p["interval"], "loops": p["loops"]}
+            for p in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
         ]
 
         return useq.MultiPhaseTimePlan(phases=phases)
