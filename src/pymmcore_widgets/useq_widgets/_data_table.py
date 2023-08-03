@@ -6,13 +6,16 @@ from typing import TYPE_CHECKING, ClassVar, Generic, NamedTuple, TypeVar, cast
 
 import pint
 from fonticon_mdi6 import MDI6
+from PyQt6.QtGui import QValidator
 from qtpy.QtCore import QSize, Qt
+from qtpy.QtGui import QValidator
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QHBoxLayout,
     QHeaderView,
+    QLineEdit,
     QSizePolicy,
     QSpinBox,
     QTableWidget,
@@ -21,7 +24,6 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt import QQuantity
 from superqt.fonticon import icon
 
 if TYPE_CHECKING:
@@ -48,7 +50,7 @@ class ColumnMeta:
     hidden: bool = False
     minimum: int | None = None
     maximum: int | None = None
-    align: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignCenter
+    alignment: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignCenter
     resize_mode: QHeaderView.ResizeMode = QHeaderView.ResizeMode.ResizeToContents
 
     # role used to store ColumnMeta in header items
@@ -65,7 +67,11 @@ class ColumnMeta:
         if self.checkable and self.type != str:  # pragma: no cover
             raise ValueError("Only string columns can be checkable")
 
-        if self.default is not None and not isinstance(self.default, str):
+        if (
+            self.default is not None
+            and self.type is str
+            and not isinstance(self.default, str)
+        ):
             object.__setattr__(self, "type", type(self.default))
 
     @property
@@ -106,7 +112,8 @@ class _TableSpinboxMixin:
     def __init__(self: QDoubleSpinBox | QSpinBox) -> None:
         self.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
         self.setKeyboardTracking(False)
-        self.setMaximum(10000)
+        self.setMaximum(10001)
+        self.setMinimumWidth(70)
         self.setStyleSheet("QAbstractSpinBox { border: none; }")
 
     # disable mouse wheel scrolling on table spinboxes
@@ -130,6 +137,83 @@ class _CenteredCheckBox(QWidget):
         self._checkbox.setChecked(value)
 
 
+class QQuantityValidator(QValidator):
+    def __init__(
+        self,
+        dimensionality: str | None = None,
+        ureg: pint.UnitRegistry | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.dimensionality = dimensionality
+        self.ureg = ureg or pint.application_registry
+
+    def validate(self, a0: str | None, a1: int) -> tuple[QValidator.State, str, int]:
+        if self.is_valid(a0):
+            return (QValidator.State.Acceptable, a0, a1)
+        return (QValidator.State.Intermediate, a0 or "", a1)
+
+    def is_valid(self, text: str | None) -> bool:
+        if not text:
+            return False
+        try:
+            q = self.ureg.parse_expression(text)
+            if self.dimensionality:
+                return isinstance(q, pint.Quantity) and bool(
+                    q.is_compatible_with(self.dimensionality)
+                )
+            return True
+        except pint.UndefinedUnitError:
+            return False
+
+
+class QQuantityLineEdit(QLineEdit):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._validator = QQuantityValidator(parent=self)
+        self.setValidator(self._validator)
+        self._last_valid: str = self.text()
+        self.editingFinished.connect(self._on_editing_finished)
+
+    def setDimensionality(self, dimensionality: str | None) -> None:
+        self._validator.dimensionality = dimensionality
+
+    def setUreg(self, ureg: pint.UnitRegistry) -> None:
+        if not isinstance(ureg, pint.UnitRegistry):
+            raise TypeError(f"ureg must be a pint.UnitRegistry, not {type(ureg)}")
+        self._validator.ureg = ureg
+
+    def focusOutEvent(self, event: Any) -> None:
+        # When the widget loses focus, check if the text is valid
+        self._on_editing_finished()
+        super().focusOutEvent(event)
+
+    def setText(self, value: str | None) -> None:
+        if not self._validator.is_valid(value):
+            raise ValueError(f"Invalid value: {value!r}")
+        super().setText(value)
+        self._last_valid = cast(str, value)
+
+    def _on_editing_finished(self) -> None:
+        # When the editing is finished, check if the final text is valid
+        final_text = self.text()
+        if self._validator.is_valid(final_text):
+            self._last_valid = final_text
+            self.setText(f"{self.quantity():~P}")  # short pretty format
+        else:
+            self.setText(self._last_valid)
+
+    def quantity(self) -> pint.Quantity:
+        return self._validator.ureg.parse_expression(self.text())
+
+
+class QTimeLineEdit(QQuantityLineEdit):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setDimensionality("second")
+        self.setStyleSheet("QLineEdit { border: none; }")
+
+
 class TableDoubleSpinBox(QDoubleSpinBox, _TableSpinboxMixin):
     pass
 
@@ -149,7 +233,7 @@ TYPE_TO_WDG: dict[type, WdgGetSet] = {
         lambda w, v: QComboBox.setCurrentText(w, str(v.value)),
         QComboBox.currentText,
     ),
-    pint.Quantity: WdgGetSet(QQuantity, QQuantity.setValue, QQuantity.value),
+    pint.Quantity: WdgGetSet(QTimeLineEdit, QTimeLineEdit.setText, QTimeLineEdit.text),
 }
 
 
@@ -170,11 +254,11 @@ class _DataTable(QWidget, Generic[T]):
             i for i in cls.__dict__.values() if isinstance(i, ColumnMeta)
         )
 
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
+    def __init__(self, rows: int = 0, parent: QWidget | None = None):
+        super().__init__(parent=parent)
 
         # -------- table --------
-        self._table = QTableWidget(self)
+        self._table = QTableWidget(rows, 0, self)
         self._table.verticalHeader().setVisible(False)
         h_header = cast("QHeaderView", self._table.horizontalHeader())
         h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
@@ -390,12 +474,14 @@ class _DataTable(QWidget, Generic[T]):
                 new_wdg.addItems(column_meta.choices)
             if default is not None:
                 wdg_get_set.setter(new_wdg, default)
+
             if column_meta.minimum is not None and hasattr(new_wdg, "setMinimum"):
                 new_wdg.setMinimum(column_meta.minimum)
             if column_meta.maximum is not None and hasattr(new_wdg, "setMaximum"):
                 new_wdg.setMaximum(column_meta.maximum)
-            if column_meta.align and hasattr(new_wdg, "setAlignment"):
-                new_wdg.setAlignment(column_meta.align)
+            if column_meta.alignment and hasattr(new_wdg, "setAlignment"):
+                new_wdg.setAlignment(column_meta.alignment)
+
             header = cast("QHeaderView", self.table.horizontalHeader())
             header.setSectionResizeMode(col, column_meta.resize_mode)
             self.table.setCellWidget(row, col, new_wdg)

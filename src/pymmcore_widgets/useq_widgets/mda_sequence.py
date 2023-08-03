@@ -16,9 +16,9 @@ class MDASequenceWidget(QWidget):
         super().__init__(parent)
         # main TabWidget
 
-        self.channels = ChannelTable()
-        self.time = TimeTable()
-        self.positions = PositionTable()
+        self.channels = ChannelTable(1)
+        self.time = TimeTable(1)
+        self.positions = PositionTable(1)
 
         self._tab = CheckableTabWidget()
         self._tab.addTab(self.channels, "Channels")
