@@ -1,5 +1,5 @@
 import enum
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Final, Literal, cast
 
 import useq
 from fonticon_mdi6 import MDI6
@@ -28,6 +28,8 @@ else:
 
 
 class Mode(enum.Enum):
+    """Recognized ZPlanWidget modes."""
+
     TOP_BOTTOM = "top_bottom"
     RANGE_AROUND = "range_around"
     ABOVE_BELOW = "above_below"
@@ -47,6 +49,16 @@ class ZPlanWidget(QWidget):
 
     valueChanged = Signal(object)
 
+    # public widgets
+    top: QDoubleSpinBox
+    bottom: QDoubleSpinBox
+    step: QDoubleSpinBox
+    steps: QSpinBox
+    range: QDoubleSpinBox
+    above: QDoubleSpinBox
+    below: QDoubleSpinBox
+    close_shutter: QCheckBox
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
@@ -56,30 +68,30 @@ class ZPlanWidget(QWidget):
         # #################### Mode Buttons ####################
         color = "#555"
 
-        self.mode_top_bot = QAction(
+        self._mode_top_bot = QAction(
             icon(MDI6.arrow_expand_vertical, color=color), "Top/Bottom"
         )
-        self.mode_top_bot.setData(Mode.TOP_BOTTOM)
-        self.mode_top_bot.triggered.connect(self.setMode)
+        self._mode_top_bot.setData(Mode.TOP_BOTTOM)
+        self._mode_top_bot.triggered.connect(self.setMode)
 
-        self.mode_range = QAction(
+        self._mode_range = QAction(
             icon(MDI6.arrow_split_horizontal, color=color), "Range Around"
         )
-        self.mode_range.setData(Mode.RANGE_AROUND)
-        self.mode_range.triggered.connect(self.setMode)
+        self._mode_range.setData(Mode.RANGE_AROUND)
+        self._mode_range.triggered.connect(self.setMode)
 
-        self.mode_above_below = QAction(
+        self._mode_above_below = QAction(
             icon(MDI6.arrow_expand_up, color=color), "Above/Below"
         )
-        self.mode_above_below.setData(Mode.ABOVE_BELOW)
-        self.mode_above_below.triggered.connect(self.setMode)
+        self._mode_above_below.setData(Mode.ABOVE_BELOW)
+        self._mode_above_below.triggered.connect(self.setMode)
 
         btn_top_bot = QToolButton()
-        btn_top_bot.setDefaultAction(self.mode_top_bot)
+        btn_top_bot.setDefaultAction(self._mode_top_bot)
         btn_range = QToolButton()
-        btn_range.setDefaultAction(self.mode_range)
+        btn_range.setDefaultAction(self._mode_range)
         button_above_below = QToolButton()
-        button_above_below.setDefaultAction(self.mode_above_below)
+        button_above_below.setDefaultAction(self._mode_above_below)
 
         btn_layout = QHBoxLayout()
         btn_layout.addWidget(btn_top_bot)
@@ -88,6 +100,10 @@ class ZPlanWidget(QWidget):
         btn_layout.addStretch()
 
         # #################### Value Widgets ####################
+
+        # all the widgets live in this top widget, with mode buttons that switch
+        # visibility of the various rows.  This was done to make the public API
+        # a bit simpler... we give direct access to these widgets.
 
         self.top = QDoubleSpinBox()
         self.top.setRange(-10_000, 10_000)
@@ -103,10 +119,10 @@ class ZPlanWidget(QWidget):
 
         self.step = QDoubleSpinBox()
         self.step.setRange(0, 1000)
-        self.step.setSingleStep(0.1)
+        self.step.setSingleStep(0.125)
         self.step.setDecimals(3)
         self.step.setSpecialValueText("N/A")
-        self.step.setValue(0)
+        self.step.setValue(1)
 
         self.steps = QSpinBox()
         self.steps.setRange(0, 1000)
@@ -119,26 +135,31 @@ class ZPlanWidget(QWidget):
         self.range.setSingleStep(0.1)
         self.range.setDecimals(3)
         self.range.setValue(0)
+        self.range.setSingleStep(0.5)
         self._range_div2_lbl = QLabel("")  # shows +/- range
 
         self.above = QDoubleSpinBox()
         self.above.setRange(0, 10_000)
         self.above.setSingleStep(0.1)
         self.above.setDecimals(3)
+        self.above.setSingleStep(0.5)
+        self.above.setPrefix("+")
         self.above.setValue(0)
 
         self.below = QDoubleSpinBox()
         self.below.setRange(0, 10_000)
         self.below.setSingleStep(0.1)
         self.below.setDecimals(3)
+        self.below.setSingleStep(0.5)
+        self.below.setPrefix("-")
         self.below.setValue(0)
 
-        self.bottom_to_top = QRadioButton("Bottom to Top")
-        self.top_to_bottom = QRadioButton("Top to Bottom")
-        self.direction_group = QButtonGroup()
-        self.direction_group.addButton(self.bottom_to_top)
-        self.direction_group.addButton(self.top_to_bottom)
-        self.bottom_to_top.setChecked(True)
+        self._bottom_to_top = QRadioButton("Bottom to Top")
+        self._top_to_bottom = QRadioButton("Top to Bottom")
+        self._direction_group = QButtonGroup()
+        self._direction_group.addButton(self._bottom_to_top)
+        self._direction_group.addButton(self._top_to_bottom)
+        self._bottom_to_top.setChecked(True)
 
         self.close_shutter = QCheckBox("Close shutter during move")
         self.close_shutter.setChecked(True)
@@ -160,37 +181,34 @@ class ZPlanWidget(QWidget):
         self.range.valueChanged.connect(self._on_change)
         self.above.valueChanged.connect(self._on_change)
         self.below.valueChanged.connect(self._on_change)
-        self.direction_group.buttonToggled.connect(self._on_change)
+        self._direction_group.buttonToggled.connect(self._on_change)
         self.close_shutter.toggled.connect(self._on_change)
 
         self.range.valueChanged.connect(self._on_range_changed)
         self.steps.valueChanged.connect(self._on_steps_changed)
 
         # #################### Grid ####################
-
-        grid = QGridLayout()
-        row = ROW_STEPS  # --------------- Steps
+        self._grid_layout = grid = QGridLayout()
+        row = ROW_STEPS  # --------------- Step size parameters
         grid.addWidget(QLabel("Step:"), row, 0, Qt.AlignmentFlag.AlignRight)
         grid.addWidget(self.step, row, 1)
         grid.addWidget(QLabel(UM), row, 2, Qt.AlignmentFlag.AlignLeft)
         grid.addWidget(self._use_suggested_btn, row, 3, Qt.AlignmentFlag.AlignLeft)
         grid.addWidget(self.steps, row, 4)
         grid.addWidget(QLabel("steps"), row, 5, Qt.AlignmentFlag.AlignLeft)
-        row = ROW_RANGE_AROUND  # --------------- Range Around
+        row = ROW_RANGE_AROUND  # --------------- Range Around parameters
         grid.addWidget(QLabel("Range:"), row, 0, Qt.AlignmentFlag.AlignRight)
         grid.addWidget(self.range, row, 1)
         grid.addWidget(QLabel(UM), row, 2, Qt.AlignmentFlag.AlignLeft)
-        grid.addWidget(self._range_div2_lbl, row, 3)
-        grid.addWidget(QWidget(), row, 4)
-        grid.addWidget(QWidget(), row, 5)
-        row = ROW_TOP_BOTTOM  # --------------- Bottom / Top
+        grid.addWidget(self._range_div2_lbl, row, 3, 1, 3)
+        row = ROW_TOP_BOTTOM  # --------------- Bottom / Top parameters
         grid.addWidget(QLabel("Bottom:"), row, 0, Qt.AlignmentFlag.AlignRight)
         grid.addWidget(self.bottom, row, 1)
         grid.addWidget(QLabel(UM), row, 2, Qt.AlignmentFlag.AlignLeft)
         grid.addWidget(QLabel("Top:"), row, 3, Qt.AlignmentFlag.AlignRight)
         grid.addWidget(self.top, row, 4)
         grid.addWidget(QLabel(UM), row, 5, Qt.AlignmentFlag.AlignLeft)
-        row = ROW_ABOVE_BELOW  # --------------- Above / Below
+        row = ROW_ABOVE_BELOW  # --------------- Above / Below parameters
         grid.addWidget(QLabel("Below:"), row, 0, Qt.AlignmentFlag.AlignRight)
         grid.addWidget(self.below, row, 1)
         grid.addWidget(QLabel(UM), row, 2, Qt.AlignmentFlag.AlignLeft)
@@ -198,11 +216,12 @@ class ZPlanWidget(QWidget):
         grid.addWidget(self.above, row, 4)
         grid.addWidget(QLabel(UM), row, 5, Qt.AlignmentFlag.AlignLeft)
 
+        # these hard-coded values make it so that the grid is not resized when the
+        # various rows are hidden/shown
         grid.setColumnMinimumWidth(0, 50)
         grid.setColumnMinimumWidth(1, 95)
         grid.setColumnMinimumWidth(4, 95)
         grid.setColumnStretch(3, 20)
-        self._grid_layout = grid
 
         # #################### Layout ####################
 
@@ -218,37 +237,39 @@ class ZPlanWidget(QWidget):
         left_half.addWidget(self._range_readout)
         left_half.addWidget(self.close_shutter)
 
-        direction_buttons = QVBoxLayout()
-        direction_buttons.addWidget(self.bottom_to_top)
-        direction_buttons.addWidget(self.top_to_bottom)
+        right_half = QVBoxLayout()
+        right_half.addWidget(self._bottom_to_top)
+        right_half.addWidget(self._top_to_bottom)
 
         below_grid = QHBoxLayout()
         below_grid.addLayout(left_half)
         below_grid.addStretch()
         below_grid.addWidget(QLabel("Direction:"))
-        below_grid.addLayout(direction_buttons)
+        below_grid.addLayout(right_half)
 
         layout = QVBoxLayout(self)
         layout.addLayout(btn_layout)
         layout.addLayout(self._grid_layout)
         layout.addLayout(below_grid)
+        layout.addStretch()
 
         # #################### Defaults ####################
 
         self.setMode(Mode.ABOVE_BELOW)
         # self.setSuggestedStep(1)
 
-    def _set_row_visible(self, idx: int, visible: bool) -> None:
-        grid = cast(QGridLayout, self._grid_layout)
-        for col in range(grid.columnCount()):
-            if (item := grid.itemAtPosition(idx, col)) and (wdg := item.widget()):
-                wdg.setVisible(visible)
-
     def setMode(
         self,
         mode: Mode | Literal["top_bottom", "range_around", "above_below", None] = None,
     ) -> None:
-        """Set the current mode."""
+        """Set the current mode.
+
+        Parameters
+        ----------
+        mode : Mode |  Literal["top_bottom", "range_around", "above_below"]
+            The mode to set.
+            (If None, the mode is determined by the sender().data(), for internal usage)
+        """
         if isinstance(mode, str):
             mode = Mode(mode)
         elif isinstance(mode, (bool, type(None))):
@@ -273,6 +294,10 @@ class ZPlanWidget(QWidget):
 
         self._on_change()
 
+    def mode(self) -> Mode:
+        """Return the current mode."""
+        return self._mode
+
     def setSuggestedStep(self, value: float | None) -> None:
         """Set the suggested step size and update the button text."""
         self._suggested = value
@@ -288,37 +313,9 @@ class ZPlanWidget(QWidget):
         if self._suggested:
             self.step.setValue(float(self._suggested))
 
-    def _current_range(self) -> float:
-        if self._mode is Mode.TOP_BOTTOM:
-            return abs(self.top.value() - self.bottom.value())
-        elif self._mode is Mode.RANGE_AROUND:
-            return self.range.value()
-        elif self._mode is Mode.ABOVE_BELOW:
-            return self.above.value() + self.below.value()
-
-    def _on_change(self) -> None:
-        val = self.value()
-
-        # update range readout
-        self._range_readout.setText(f"Range: {self._current_range():.2f} {UM}")
-        # update steps readout
-        with signals_blocked(self.steps):
-            try:
-                self.steps.setValue(val.num_positions())
-            except ZeroDivisionError:
-                self.steps.setValue(0)
-
-        self.valueChanged.emit(val)
-
-    def _on_steps_changed(self, steps: int) -> None:
-        self.step.setValue(self._current_range() / steps)
-
-    def _on_range_changed(self, steps: int) -> None:
-        self._range_div2_lbl.setText(f"(+/- {steps / 2:.2f} {UM})")
-
     def value(self) -> useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom:
         """Return the current value."""
-        common = {"step": self.step.value(), "go_up": self.bottom_to_top.isChecked()}
+        common = {"step": self.step.value(), "go_up": self._bottom_to_top.isChecked()}
         if self._mode is Mode.TOP_BOTTOM:
             return useq.ZTopBottom(
                 top=self.top.value(), bottom=self.bottom.value(), **common
@@ -329,6 +326,55 @@ class ZPlanWidget(QWidget):
             return useq.ZAboveBelow(
                 above=self.above.value(), below=self.below.value(), **common
             )
+
+    def isGoUp(self) -> bool:
+        """Return True if the acquisition direction is up (bottom to top)."""
+        return self._bottom_to_top.isChecked()
+
+    def setGoUp(self, up: bool) -> None:
+        """Set the acquisition direction."""
+        self._bottom_to_top.setChecked(up)
+        self._top_to_bottom.setChecked(not up)
+
+    def currentZRange(self) -> float:
+        """Return the current Z range in microns."""
+        if self._mode is Mode.TOP_BOTTOM:
+            return abs(self.top.value() - self.bottom.value())
+        elif self._mode is Mode.RANGE_AROUND:
+            return self.range.value()
+        else:  # _Mode.ABOVE_BELOW
+            return self.above.value() + self.below.value()
+
+    Mode: Final[type[Mode]] = Mode
+
+    # #################### Private ####################
+
+    def _on_change(self) -> None:
+        """Called when any of the widgets change."""
+        val = self.value()
+
+        # update range readout
+        self._range_readout.setText(f"Range: {self.currentZRange():.2f} {UM}")
+        # update steps readout
+        with signals_blocked(self.steps):
+            try:
+                self.steps.setValue(val.num_positions())
+            except ZeroDivisionError:
+                self.steps.setValue(0)
+
+        self.valueChanged.emit(val)
+
+    def _on_steps_changed(self, steps: int) -> None:
+        self.step.setValue(self.currentZRange() / steps)
+
+    def _on_range_changed(self, steps: int) -> None:
+        self._range_div2_lbl.setText(f"(+/- {steps / 2:.2f} {UM})")
+
+    def _set_row_visible(self, idx: int, visible: bool) -> None:
+        grid = self._grid_layout
+        for col in range(grid.columnCount()):
+            if (item := grid.itemAtPosition(idx, col)) and (wdg := item.widget()):
+                wdg.setVisible(visible)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import enum
 
 import pytest
+import useq
 from pytestqt.qtbot import QtBot
 
 from pymmcore_widgets.useq_widgets import (
@@ -9,6 +10,7 @@ from pymmcore_widgets.useq_widgets import (
     MDASequenceWidget,
     PositionTable,
     TimeTable,
+    ZPlanWidget,
 )
 from pymmcore_widgets.useq_widgets._column_info import (
     FloatColumn,
@@ -22,7 +24,7 @@ class MyEnum(enum.Enum):
 
 
 @pytest.mark.parametrize("Wdg", [PositionTable, ChannelTable, TimeTable])
-def test_useq_wdg(qtbot: QtBot, Wdg: type[DataTableWidget]) -> None:
+def test_useq_table(qtbot: QtBot, Wdg: type[DataTableWidget]) -> None:
     wdg = Wdg()
     qtbot.addWidget(wdg)
     table = wdg.table()
@@ -36,6 +38,19 @@ def test_useq_wdg(qtbot: QtBot, Wdg: type[DataTableWidget]) -> None:
         assert list(wdg.value(exclude_unchecked=True))
 
     assert table.indexOf("foo") == -1
+
+
+def test_z_widget(qtbot: QtBot) -> None:
+    wdg = ZPlanWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+    wdg.setMode("range_around")
+    wdg.range.setValue(4)
+    wdg.step.setValue(0.5)
+    val = wdg.value()
+    assert isinstance(val, useq.ZRangeAround)
+    assert val.range == 4
+    assert val.step == 0.5
 
 
 def test_data_table(qtbot: QtBot) -> None:

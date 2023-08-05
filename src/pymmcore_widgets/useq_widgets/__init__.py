@@ -12,6 +12,7 @@ from .channels import ChannelTable
 from .mda_sequence import MDASequenceWidget
 from .positions import PositionTable
 from .time import TimeTable
+from .z import ZPlanWidget
 
 __all__ = [
     "PositionTable",
@@ -23,6 +24,7 @@ __all__ = [
     "TextColumn",
     "FloatColumn",
     "IntColumn",
+    "ZPlanWidget",
     "BoolColumn",
     "TimeDeltaColumn",
 ]
