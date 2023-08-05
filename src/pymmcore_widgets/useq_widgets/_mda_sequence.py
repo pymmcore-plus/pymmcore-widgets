@@ -4,10 +4,10 @@ import useq
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
 from pymmcore_widgets._mda._checkable_tabwidget_widget import CheckableTabWidget
-from pymmcore_widgets.useq_widgets.channels import ChannelTable
-from pymmcore_widgets.useq_widgets.positions import PositionTable
-from pymmcore_widgets.useq_widgets.time import TimeTable
-from pymmcore_widgets.useq_widgets.z import ZPlanWidget
+from pymmcore_widgets.useq_widgets._channels import ChannelTable
+from pymmcore_widgets.useq_widgets._positions import PositionTable
+from pymmcore_widgets.useq_widgets._time import TimeTable
+from pymmcore_widgets.useq_widgets._z import ZPlanWidget
 
 
 class MDASequenceWidget(QWidget):
