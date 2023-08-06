@@ -113,7 +113,7 @@ class WidgetColumn(ColumnInfo, Generic[W, T]):
     hidden: bool = False
 
     def _init_widget(self) -> W:
-        return self.data_type.widget()
+        return self.data_type.widget()  # type: ignore
         # if self.choices and hasattr(new_wdg, "addItems"):
         #     new_wdg.addItems(self.choices)
 
@@ -152,7 +152,7 @@ class _CenteredCheckBox(QWidget):
         layout.addWidget(self._checkbox)
 
     def isChecked(self) -> bool:
-        return self._checkbox.isChecked()
+        return self._checkbox.isChecked()  # type: ignore
 
     def setChecked(self, value: bool) -> None:
         self._checkbox.setChecked(value)
@@ -224,7 +224,7 @@ class _RangeColumn(WidgetColumn, Generic[W, T]):
         if self.maximum is not None and hasattr(wdg, "setMaximum"):
             wdg.setMaximum(self.maximum)
 
-        return wdg
+        return wdg  # type: ignore
 
 
 @dataclass(frozen=True)

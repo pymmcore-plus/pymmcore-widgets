@@ -128,7 +128,7 @@ class DataTable(QTableWidget):
         if selector_col < 0:
             return True
         if item := self.item(row, selector_col):
-            return item.checkState() == Qt.CheckState.Checked
+            return item.checkState() == Qt.CheckState.Checked  # type: ignore
         return False
 
     def _check_all(self, state: Qt.CheckState) -> None:

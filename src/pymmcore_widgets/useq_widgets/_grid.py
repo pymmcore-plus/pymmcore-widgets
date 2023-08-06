@@ -1,13 +1,14 @@
 from enum import Enum
-from typing import TYPE_CHECKING, cast
+from typing import Sequence, cast
 
 import useq
 from qtpy.QtCore import QPoint, QSize, Qt, Signal
-from qtpy.QtGui import QPainter, QPaintEvent, QPen
+from qtpy.QtGui import QPainter, QPaintEvent, QPen, QResizeEvent
 from qtpy.QtWidgets import (
     QAbstractButton,
     QButtonGroup,
     QDoubleSpinBox,
+    QFormLayout,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -18,9 +19,6 @@ from qtpy.QtWidgets import (
 )
 from superqt import QEnumComboBox
 
-if TYPE_CHECKING:
-    from git import Sequence
-
 
 class RelativeTo(Enum):
     center = "center"
@@ -30,11 +28,11 @@ class RelativeTo(Enum):
 class OrderMode(Enum):
     """Different ways of ordering the grid positions."""
 
-    row_wise = "row_wise"
-    column_wise = "column_wise"
     row_wise_snake = "row_wise_snake"
     column_wise_snake = "column_wise_snake"
     spiral = "spiral"
+    row_wise = "row_wise"
+    column_wise = "column_wise"
 
 
 class Mode(Enum):
@@ -141,16 +139,19 @@ class GridPlanWidget(QWidget):
         bounds_layout.addWidget(self._mode_bounds_radio)
         bounds_layout.addLayout(lrtb_grid, 1)
 
-        row_4 = QHBoxLayout()
-        row_4.addWidget(QLabel("Overlap:"))
-        row_4.addWidget(self.overlap, 1)
-        row_4.addStretch(1)
+        bottom_stuff = QHBoxLayout()
 
-        row_5 = QHBoxLayout()
-        row_5.addWidget(self.order)
-        row_5.addWidget(self.relative_to)
+        bot_left = QFormLayout()
+        bot_left.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+        )
+        bot_left.addRow("Overlap:", self.overlap)
+        bot_left.addRow("Order:", self.order)
+        bot_left.addRow("Relative to:", self.relative_to)
 
         self._grid_img = _GridRendering()
+        bottom_stuff.addLayout(bot_left)
+        bottom_stuff.addWidget(self._grid_img, 1, Qt.AlignmentFlag.AlignCenter)
 
         layout = QVBoxLayout(self)
         layout.addLayout(row_col_layout)
@@ -159,10 +160,10 @@ class GridPlanWidget(QWidget):
         # layout.addWidget(SeparatorWidget())
         layout.addLayout(bounds_layout)
         layout.addWidget(_SeparatorWidget())
-        layout.addLayout(row_4)
-        layout.addLayout(row_5)
-        layout.addWidget(self._grid_img)
+        layout.addLayout(bottom_stuff)
         layout.addStretch()
+
+        self.setMode(Mode.NUMBER)
 
         self.top.valueChanged.connect(self._on_change)
         self.bottom.valueChanged.connect(self._on_change)
@@ -175,8 +176,6 @@ class GridPlanWidget(QWidget):
         self.overlap.valueChanged.connect(self._on_change)
         self.order.currentIndexChanged.connect(self._on_change)
         self.relative_to.currentIndexChanged.connect(self._on_change)
-
-        self.setMode(Mode.NUMBER)
 
     def _on_change(self) -> None:
         val = self.value()
@@ -261,7 +260,7 @@ class _SeparatorWidget(QWidget):
 
 
 class _GridRendering(QWidget):
-    def __init__(self, grid: useq.AnyGridPlan | None = None, line_width: int = 2):
+    def __init__(self, grid: useq.AnyGridPlan | None = None, line_width: int = 1):
         super().__init__()
         self.grid = grid
         self.line_width = line_width
@@ -271,9 +270,12 @@ class _GridRendering(QWidget):
             return
 
         # Calculate the actual positions from normalized indices
+        fraction = 0.8  # fraction of the widget to use
         w, h = self.width(), self.height()
+        half_w = w * (1 - fraction) / 2
+        half_h = h * (1 - fraction) / 2
         points = [
-            QPoint(int(w * p.x * 0.9 + w * 0.05), -int(h * p.y * 0.9 - h * 0.05))
+            QPoint(int(w * p.x * fraction + half_w), -int(h * p.y * fraction - half_h))
             for p in self.grid
         ]
 
@@ -284,7 +286,7 @@ class _GridRendering(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
         line_pen = QPen(Qt.GlobalColor.black, self.line_width, Qt.PenStyle.SolidLine)
-        point_pen = QPen(Qt.GlobalColor.red, self.line_width + 2, Qt.PenStyle.SolidLine)
+        point_pen = QPen(Qt.GlobalColor.red, self.line_width, Qt.PenStyle.SolidLine)
 
         for i in range(len(points) - 1):
             painter.setPen(line_pen)
@@ -293,8 +295,22 @@ class _GridRendering(QWidget):
             painter.drawEllipse(points[i], self.line_width + 2, self.line_width + 2)
         painter.drawEllipse(points[-1], self.line_width + 2, self.line_width + 2)
 
+    def resizeEvent(self, event: QResizeEvent | None) -> None:
+        if not event:
+            return
+        size = event.size()
+        new_width = size.width()
+        new_height = size.height()
+
+        if new_width / new_height > 1:
+            new_width = int(new_height * 1)
+        else:
+            new_height = int(new_width / 1)
+
+        self.resize(new_width, new_height)
+
     def sizeHint(self) -> QSize:
-        return QSize(200, 200)
+        return QSize(95, 95)
 
 
 if __name__ == "__main__":

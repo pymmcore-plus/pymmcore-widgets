@@ -329,7 +329,7 @@ class ZPlanWidget(QWidget):
 
     def isGoUp(self) -> bool:
         """Return True if the acquisition direction is up (bottom to top)."""
-        return self._bottom_to_top.isChecked()
+        return self._bottom_to_top.isChecked()  # type: ignore
 
     def setGoUp(self, up: bool) -> None:
         """Set the acquisition direction."""
@@ -339,11 +339,11 @@ class ZPlanWidget(QWidget):
     def currentZRange(self) -> float:
         """Return the current Z range in microns."""
         if self._mode is Mode.TOP_BOTTOM:
-            return abs(self.top.value() - self.bottom.value())
+            return abs(self.top.value() - self.bottom.value())  # type: ignore
         elif self._mode is Mode.RANGE_AROUND:
-            return self.range.value()
+            return self.range.value()  # type: ignore
         else:  # _Mode.ABOVE_BELOW
-            return self.above.value() + self.below.value()
+            return self.above.value() + self.below.value()  # type: ignore
 
     Mode: Final[type[Mode]] = Mode
 
