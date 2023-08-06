@@ -1,3 +1,5 @@
+from typing import Any
+
 import useq
 from fonticon_mdi6 import MDI6
 from qtpy.QtGui import QIcon
@@ -13,7 +15,7 @@ class TimeTable(DataTableWidget):
 
     PHASE = TextColumn(key="phase", default="#{idx}", is_row_selector=True)
     INTERVAL = TimeDeltaColumn(key="interval", default="1 s")
-    DURATION = TimeDeltaColumn(key="duration", default="1 min")
+    DURATION = TimeDeltaColumn(key="duration", default="0 s")
     LOOPS = IntColumn(key="loops", default=1, minimum=1)
 
     _active_column: str
@@ -35,28 +37,24 @@ class TimeTable(DataTableWidget):
         if not (_info := table.columnInfo(col_idx)):
             return
 
-        self._active_column = _info.key
+        previous, self._active_column = getattr(self, "_active_column", None), _info.key
         for col in range(table.columnCount()):
             if header := table.horizontalHeaderItem(col):
                 _icon = icon(MDI6.flag) if col == col_idx else QIcon()
                 header.setIcon(_icon)
+        if previous != self._active_column:
+            self.valueChanged.emit()
 
     def value(self, exclude_unchecked: bool = True) -> useq.MultiPhaseTimePlan:
         """Return the current value of the table as a list of channels."""
+        active_key = "duration" if self._active_column == self.DURATION.key else "loops"
         phases = [
-            {"interval": p["interval"], "loops": p["loops"]}
+            {"interval": p["interval"], active_key: p[active_key]}
             for p in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
         ]
-
         return useq.MultiPhaseTimePlan(phases=phases)
 
-    def setValue(
-        self,
-        value: useq.MultiPhaseTimePlan  # type: ignore
-        | useq.TDurationLoops
-        | useq.TIntervalLoops
-        | useq.TIntervalDuration,
-    ) -> None:
+    def setValue(self, value: Any) -> None:
         """Set the current value of the table."""
         if isinstance(value, useq.MultiPhaseTimePlan):
             _phases = value.phases
@@ -65,7 +63,10 @@ class TimeTable(DataTableWidget):
         ):
             _phases = [value]
         else:
-            raise TypeError(
-                f"Expected useq.MultiPhaseTimePlan, got {type(value)} instead."
-            )
+            raise TypeError(f"Expected useq TimePlan, got {type(value)}.")
         super().setValue([p.model_dump(exclude_unset=True) for p in _phases])
+
+        if isinstance(value, (useq.TIntervalDuration)):
+            self._set_active_column(self.table().indexOf(self.DURATION))
+        else:
+            self._set_active_column(self.table().indexOf(self.LOOPS))
