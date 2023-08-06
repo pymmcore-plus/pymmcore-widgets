@@ -81,18 +81,20 @@ class DataTable(QTableWidget):
         other info in the ColumnInfo object.
         """
         if position is None:
-            position = self.columnCount()
+            col = self.columnCount()
         elif position < 0:
-            position += self.columnCount() + 1
-        self.insertColumn(position)
+            col = position + self.columnCount() + 1
+        else:
+            col = int(position)
+        self.insertColumn(col)
 
         header_item = QTableWidgetItem(column_info.header_text())
         header_item.setData(ColumnInfo._ROLE, column_info)
-        self.setHorizontalHeaderItem(position, header_item)
+        self.setHorizontalHeaderItem(col, header_item)
 
-        self._populate_new_column(column_info, col=position)
+        self._populate_new_column(column_info, col=col)
         if column_info.hidden:
-            self.setColumnHidden(position, True)
+            self.setColumnHidden(col, True)
 
     def indexOf(self, header: str | ColumnInfo) -> int:
         if isinstance(header, ColumnInfo):

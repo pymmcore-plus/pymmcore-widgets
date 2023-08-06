@@ -38,7 +38,7 @@ class CheckableTabWidget(QTabWidget):
         super().__init__(parent)
 
         self.change_tab_on_check = change_tab_on_check
-        self.tabBar().setElideMode(Qt.TextElideMode.ElideNone)  # type: ignore
+        self.tabBar().setElideMode(Qt.TextElideMode.ElideNone)
 
     def isChecked(
         self,
@@ -75,10 +75,7 @@ class CheckableTabWidget(QTabWidget):
         position : QTabBar.ButtonPosition
             The position of the tab QCheckbox. By default, ButtonPosition.LeftSide.
         """
-        if isinstance(key, QWidget):
-            idx = self.indexOf(key)
-        else:
-            idx = key
+        idx = self.indexOf(key) if isinstance(key, QWidget) else key
         if tab_bar := self.tabBar():
             btn = tab_bar.tabButton(idx, position)
             if btn:
@@ -139,7 +136,7 @@ class CheckableTabWidget(QTabWidget):
         if tab_bar := self.tabBar():
             tab_bar.setTabButton(idx, position, self._cbox)
             self._cbox.setChecked(checked)
-        return idx
+        return idx  # type: ignore
 
     def _on_tab_checkbox_toggled(self, checked: bool) -> None:
         """Enable/disable the widget in the tab."""

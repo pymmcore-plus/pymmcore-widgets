@@ -278,7 +278,7 @@ class QQuantityValidator(QValidator):
         if not text:
             return None
 
-        with contextlib.suppress((pint.UndefinedUnitError, AssertionError)):
+        with contextlib.suppress(pint.UndefinedUnitError, AssertionError):
             q = self.ureg.parse_expression(text)
             if self.dimensionality and (
                 isinstance(q, pint.Quantity)

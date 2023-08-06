@@ -23,7 +23,7 @@ class TimeTable(DataTableWidget):
 
     def setValue(
         self,
-        value: useq.MultiPhaseTimePlan
+        value: useq.MultiPhaseTimePlan  # type: ignore
         | useq.TDurationLoops
         | useq.TIntervalLoops
         | useq.TIntervalDuration,

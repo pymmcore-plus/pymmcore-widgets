@@ -21,7 +21,7 @@ class PositionTable(DataTableWidget):
             for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
         ]
 
-    def setValue(self, value: Sequence[useq.Position]) -> None:
+    def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore
         """Set the current value of the table."""
         _values = []
         for v in value:
