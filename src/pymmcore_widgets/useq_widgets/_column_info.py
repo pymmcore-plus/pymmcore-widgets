@@ -278,7 +278,7 @@ class QQuantityValidator(QValidator):
         if not text:
             return None
 
-        with contextlib.suppress(pint.UndefinedUnitError):
+        with contextlib.suppress((pint.UndefinedUnitError, AssertionError)):
             q = self.ureg.parse_expression(text)
             if self.dimensionality and (
                 isinstance(q, pint.Quantity)
@@ -292,24 +292,20 @@ class QQuantityValidator(QValidator):
         return None
 
 
-pattern = r"(?:(?P<hours>\d+):)?(?:(?P<minutes>\d+):)?(?P<seconds>\d+)([.,](?P<microseconds>\d+))?"  # noqa
+pattern = r"(?:(?P<hours>\d+):)?(?:(?P<min>\d+):)?(?P<sec>\d+)([.,](?P<ms>\d+))?"
 
 
 def parse_timedelta(time_str: str) -> timedelta:
-    pattern = r"(?:(?P<hours>\d+):)?(?:(?P<minutes>\d+):)?(?P<seconds>\d+)([.,](?P<microseconds>\d+))?"
     match = re.match(pattern, time_str)
 
     if not match:
         raise ValueError(f"Invalid time interval format: {time_str}")
 
     hours = int(match["hours"]) if match["hours"] else 0
-    minutes = int(match["minutes"]) if match["minutes"] else 0
-    seconds = int(match["seconds"])
-    microseconds = int(match["microseconds"]) if match["microseconds"] else 0
-
-    return timedelta(
-        hours=hours, minutes=minutes, seconds=seconds, microseconds=microseconds
-    )
+    minutes = int(match["min"]) if match["min"] else 0
+    seconds = int(match["sec"])
+    ms = int(match["ms"]) if match["ms"] else 0
+    return timedelta(hours=hours, minutes=minutes, seconds=seconds, microseconds=ms)
 
 
 class QQuantityLineEdit(QLineEdit):

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import cast
 
 import useq
+from pint import Quantity
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QFileDialog,
@@ -53,6 +54,7 @@ class MDASequenceWidget(QWidget):
         self._time_warning = QLabel()
         self._time_warning.setPixmap(warning_icon.pixmap(24, 24))
         self._time_warning.hide()
+        self._duration_label = QLabel()
 
         self._save_button = QPushButton("Save")
         self._save_button.clicked.connect(self.save)
@@ -63,6 +65,7 @@ class MDASequenceWidget(QWidget):
 
         bot_row = QHBoxLayout()
         bot_row.addWidget(self._time_warning)
+        bot_row.addWidget(self._duration_label)
         bot_row.addStretch()
         bot_row.addWidget(self._save_button)
         bot_row.addWidget(self._load_button)
@@ -176,6 +179,9 @@ class MDASequenceWidget(QWidget):
         val = self.value()
         self._time_estimate = val.estimate_duration()
         self._time_warning.setVisible(self._time_estimate.time_interval_exceeded)
+
+        d = Quantity(self._time_estimate.total_duration, "s").to_compact()
+        self._duration_label.setText(f"Estimated duration: {d:.1f~#P}")
 
 
 if __name__ == "__main__":

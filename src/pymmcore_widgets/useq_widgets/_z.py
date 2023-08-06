@@ -313,8 +313,11 @@ class ZPlanWidget(QWidget):
         if self._suggested:
             self.step.setValue(float(self._suggested))
 
-    def value(self) -> useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom:
+    def value(self) -> useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom | None:
         """Return the current value."""
+        if self.step.value() == 0:
+            return None
+
         common = {"step": self.step.value(), "go_up": self._bottom_to_top.isChecked()}
         if self._mode is Mode.TOP_BOTTOM:
             return useq.ZTopBottom(
@@ -378,10 +381,10 @@ class ZPlanWidget(QWidget):
         self._range_readout.setText(f"Range: {self.currentZRange():.2f} {UM}")
         # update steps readout
         with signals_blocked(self.steps):
-            try:
-                self.steps.setValue(val.num_positions())
-            except ZeroDivisionError:
+            if val is None:
                 self.steps.setValue(0)
+            else:
+                self.steps.setValue(val.num_positions())
 
         self.valueChanged.emit(val)
 
