@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar, Iterable, cast
 
 from fonticon_mdi6 import MDI6
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -18,6 +18,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.fonticon import icon
+from superqt.utils import signals_blocked
 
 from ._column_info import ColumnInfo
 
@@ -33,6 +34,8 @@ else:
 
 
 class DataTable(QTableWidget):
+    valueChanged = Signal()
+
     COLUMNS: ClassVar[tuple[ColumnInfo, ...]] = ()
 
     def __init_subclass__(cls) -> None:
@@ -48,17 +51,26 @@ class DataTable(QTableWidget):
         h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
 
-        # when a new row is inserted, populate it with default values
-        self.model().rowsInserted.connect(self._on_rows_inserted)
-
         # these have been gathered during __init_subclass__
-        for i in getattr(parent, "COLUMNS", self.COLUMNS):
-            self.addColumn(i)
+        self.addColumns(getattr(parent, "COLUMNS", self.COLUMNS))
+
+        # when a new row is inserted, populate it with default values
+        self.itemChanged.connect(self.valueChanged)
+        self.model().rowsInserted.connect(self._on_rows_inserted)
+        self.model().rowsRemoved.connect(self.valueChanged)
 
     def columnInfo(self, col: int) -> ColumnInfo | None:
         if header_item := self.horizontalHeaderItem(col):
             return cast("ColumnInfo", header_item.data(ColumnInfo._ROLE))
         return None  # pragma: no cover
+
+    def addColumns(self, column_info: Iterable[ColumnInfo]) -> None:
+        cols = list(column_info)
+        if cols:
+            with signals_blocked(self):
+                for i in column_info:
+                    self.addColumn(i)
+            self.valueChanged.emit()
 
     # This could possibly be moved back to columnsInserted...
     def addColumn(self, column_info: ColumnInfo, position: int | None = None) -> None:
@@ -142,21 +154,27 @@ class DataTable(QTableWidget):
 
     def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
         # when a new row is inserted by any means, populate it with default values
-        for row_idx in range(start, end + 1):
-            self._populate_new_row(row_idx)
+        # this is connected above in __init_ with self.model().rowsInserted.connect
+        with signals_blocked(self):
+            for row_idx in range(start, end + 1):
+                self._populate_new_row(row_idx)
+        self.valueChanged.emit()
 
     def _populate_new_row(self, row: int) -> None:
         for col in range(self.columnCount()):
             if column_info := self.columnInfo(col):
-                column_info.init_cell(self, row, col)
+                column_info.init_cell(self, row, col, self.valueChanged)
 
     def _populate_new_column(self, column_info: ColumnInfo, col: int) -> None:
         """Add default values/widgets to a newly created column."""
         for row in range(self.rowCount()):
-            column_info.init_cell(self, row, col)
+            column_info.init_cell(self, row, col, self.valueChanged)
+        self.valueChanged.emit()
 
 
 class DataTableWidget(QWidget):
+    valueChanged = Signal()
+
     COLUMNS: ClassVar[tuple[ColumnInfo, ...]]
 
     def __init_subclass__(cls) -> None:
@@ -170,6 +188,7 @@ class DataTableWidget(QWidget):
         # -------- table --------
 
         self._table = DataTable(rows, self)
+        self._table.valueChanged.connect(self.valueChanged)
 
         # -------- actions (for toolbar below) --------
         # fmt: off

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast, overload
 
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import QCheckBox, QTabBar, QTabWidget, QWidget
 
 if TYPE_CHECKING:
@@ -27,6 +27,8 @@ class CheckableTabWidget(QTabWidget):
         Whether the tabs are movable. By default, True.
     """
 
+    tabChecked = Signal(int, bool)
+
     def __init__(
         self,
         parent: QWidget | None = None,
@@ -36,8 +38,7 @@ class CheckableTabWidget(QTabWidget):
         super().__init__(parent)
 
         self.change_tab_on_check = change_tab_on_check
-        if tab_bar := self.tabBar():
-            tab_bar.setElideMode(Qt.TextElideMode.ElideNone)
+        self.tabBar().setElideMode(Qt.TextElideMode.ElideNone)  # type: ignore
 
     def isChecked(
         self,
@@ -53,15 +54,9 @@ class CheckableTabWidget(QTabWidget):
         position : QTabBar.ButtonPosition
             The position of the tab QCheckbox. By default, ButtonPosition.LeftSide.
         """
-        if isinstance(key, QWidget):
-            idx = self.indexOf(key)
-        else:
-            idx = key
-        if tab_bar := self.tabBar():
-            btn = tab_bar.tabButton(idx, position)
-            if btn:
-                return cast("QCheckBox", btn).isChecked()
-        return None
+        idx = self.indexOf(key) if isinstance(key, QWidget) else key
+        btn = self.tabBar().tabButton(idx, position)
+        return cast("QCheckBox", btn).isChecked() if btn else None
 
     def setChecked(
         self,
@@ -155,3 +150,5 @@ class CheckableTabWidget(QTabWidget):
                 wdg.setEnabled(checked)
             if checked and self.change_tab_on_check:
                 self.setCurrentIndex(tab_index)
+
+            self.tabChecked.emit(tab_index, checked)

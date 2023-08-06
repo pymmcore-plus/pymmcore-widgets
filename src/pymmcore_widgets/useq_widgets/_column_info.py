@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable, ClassVar, Generic, NamedTuple, TypeVar, cast
 
 import pint
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, SignalInstance
 from qtpy.QtGui import QValidator
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -36,7 +36,9 @@ class ColumnInfo:
     def header_text(self) -> str:
         return self.header or self.key.title().replace("_", " ")
 
-    def init_cell(self, table: QTableWidget, row: int, col: int) -> None:
+    def init_cell(
+        self, table: QTableWidget, row: int, col: int, change_signal: SignalInstance
+    ) -> None:
         raise NotImplementedError("Must be implemented by subclass")
 
     def get_cell_data(self, table: QTableWidget, row: int, col: int) -> dict[str, Any]:
@@ -69,7 +71,9 @@ class TextColumn(ColumnInfo):
     checkable: bool = False
     checked: bool = True
 
-    def init_cell(self, table: QTableWidget, row: int, col: int) -> None:
+    def init_cell(
+        self, table: QTableWidget, row: int, col: int, change_signal: SignalInstance
+    ) -> None:
         # make a new QTableWidgetItem with the default value
         default = self.default.format(idx=row + 1) if self.default else ""
         item = QTableWidgetItem(default)
@@ -113,19 +117,21 @@ class WidgetColumn(ColumnInfo, Generic[W, T]):
         # if self.choices and hasattr(new_wdg, "addItems"):
         #     new_wdg.addItems(self.choices)
 
-    def init_cell(self, table: QTableWidget, row: int, col: int) -> None:
+    def init_cell(
+        self, table: QTableWidget, row: int, col: int, change_signal: SignalInstance
+    ) -> None:
         new_wdg = self._init_widget()
 
         if self.default is not None:
             self.data_type.setter(new_wdg, self.default)
 
-        #     new_wdg.setMaximum(self.maximum)
         # if self.alignment and hasattr(new_wdg, "setAlignment"):
         #     new_wdg.setAlignment(self.alignment)
 
         # header = cast("QHeaderView", self.table.horizontalHeader())
         # header.setSectionResizeMode(col, column_info.resize_mode)
         table.setCellWidget(row, col, new_wdg)
+        self.data_type.connect(new_wdg, change_signal)
 
     def get_cell_data(self, table: QTableWidget, row: int, col: int) -> dict[str, Any]:
         if wdg := table.cellWidget(row, col):

@@ -7,12 +7,12 @@ from ._data_table import DataTableWidget
 class TimeTable(DataTableWidget):
     """Table for editing a `useq-schema` time plan."""
 
-    PHASE = TextColumn(key="phase", checkable=True, default="#{idx}")
+    PHASE = TextColumn(key="phase", default="#{idx}", is_row_selector=True)
     INTERVAL = TimeDeltaColumn(key="interval", default="1 s")
     DURATION = TimeDeltaColumn(key="duration", default="1 min")
     LOOPS = IntColumn(key="loops", default=1, minimum=1)
 
-    def value(self, exclude_unchecked: bool = False) -> useq.MultiPhaseTimePlan:
+    def value(self, exclude_unchecked: bool = True) -> useq.MultiPhaseTimePlan:
         """Return the current value of the table as a list of channels."""
         phases = [
             {"interval": p["interval"], "loops": p["loops"]}

@@ -2,9 +2,10 @@ from enum import Enum
 from typing import TYPE_CHECKING, cast
 
 import useq
-from qtpy.QtCore import QPoint, QSize, Qt
+from qtpy.QtCore import QPoint, QSize, Qt, Signal
 from qtpy.QtGui import QPainter, QPaintEvent, QPen
 from qtpy.QtWidgets import (
+    QAbstractButton,
     QButtonGroup,
     QDoubleSpinBox,
     QGridLayout,
@@ -42,9 +43,12 @@ class Mode(Enum):
     BOUNDS = "bounds"
 
 
-class ImageGrid(QWidget):
+class GridPlanWidget(QWidget):
+    valueChanged = Signal(object)
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
+        self._mode = Mode.NUMBER
 
         self.rows = QSpinBox()
         self.rows.setRange(1, 1000)
@@ -107,33 +111,35 @@ class ImageGrid(QWidget):
         self._mode_btn_group.addButton(self._mode_bounds_radio)
         self._mode_btn_group.buttonToggled.connect(self.setMode)
 
-        row_1 = QHBoxLayout()
-        row_1.addWidget(self._mode_number_radio)
-        row_1.addWidget(QLabel("Rows:"))
-        row_1.addWidget(self.rows)
-        row_1.addWidget(QLabel("x Cols:"))
-        row_1.addWidget(self.columns)
+        row_col_layout = QHBoxLayout()
+        row_col_layout.addWidget(self._mode_number_radio)
+        row_col_layout.addWidget(QLabel("Rows:"))
+        row_col_layout.addWidget(self.rows, 1)
+        row_col_layout.addWidget(QLabel("Cols:"))
+        row_col_layout.addWidget(self.columns, 1)
 
-        row_2 = QHBoxLayout()
-        row_2.addWidget(self._mode_area_radio)
-        row_2.addWidget(QLabel("Width:"))
-        row_2.addWidget(self.area_width)
-        row_2.addWidget(QLabel("x Height:"))
-        row_2.addWidget(self.area_height)
+        width_height_layout = QHBoxLayout()
+        width_height_layout.addWidget(self._mode_area_radio)
+        width_height_layout.addWidget(QLabel("Width:"))
+        width_height_layout.addWidget(self.area_width, 1)
+        width_height_layout.addWidget(QLabel("Height:"))
+        width_height_layout.addWidget(self.area_height, 1)
 
         lrtb_grid = QGridLayout()
-        lrtb_grid.addWidget(QLabel("Left:"), 0, 0)
+        lrtb_grid.addWidget(QLabel("Left:"), 0, 0, Qt.AlignmentFlag.AlignRight)
         lrtb_grid.addWidget(self.left, 0, 1)
-        lrtb_grid.addWidget(QLabel("Top:"), 0, 2)
+        lrtb_grid.addWidget(QLabel("Top:"), 0, 2, Qt.AlignmentFlag.AlignRight)
         lrtb_grid.addWidget(self.top, 0, 3)
-        lrtb_grid.addWidget(QLabel("Right:"), 1, 0)
+        lrtb_grid.addWidget(QLabel("Right:"), 1, 0, Qt.AlignmentFlag.AlignRight)
         lrtb_grid.addWidget(self.right, 1, 1)
-        lrtb_grid.addWidget(QLabel("Bottom:"), 1, 2)
+        lrtb_grid.addWidget(QLabel("Bottom:"), 1, 2, Qt.AlignmentFlag.AlignRight)
         lrtb_grid.addWidget(self.bottom, 1, 3)
+        lrtb_grid.setColumnStretch(1, 1)
+        lrtb_grid.setColumnStretch(3, 1)
 
-        row_3 = QHBoxLayout()
-        row_3.addWidget(self._mode_bounds_radio)
-        row_3.addLayout(lrtb_grid)
+        bounds_layout = QHBoxLayout()
+        bounds_layout.addWidget(self._mode_bounds_radio)
+        bounds_layout.addLayout(lrtb_grid, 1)
 
         row_4 = QHBoxLayout()
         row_4.addWidget(QLabel("Overlap:"))
@@ -144,15 +150,18 @@ class ImageGrid(QWidget):
         row_5.addWidget(self.order)
         row_5.addWidget(self.relative_to)
 
-        self._grid_img = GridRendering()
+        self._grid_img = _GridRendering()
 
         layout = QVBoxLayout(self)
-        layout.addWidget(self._grid_img)
-        layout.addLayout(row_1)
-        layout.addLayout(row_2)
-        layout.addLayout(row_3)
+        layout.addLayout(row_col_layout)
+        layout.addWidget(_SeparatorWidget())
+        # layout.addLayout(width_height_layout)  # hiding until useq supports it
+        # layout.addWidget(SeparatorWidget())
+        layout.addLayout(bounds_layout)
+        layout.addWidget(_SeparatorWidget())
         layout.addLayout(row_4)
         layout.addLayout(row_5)
+        layout.addWidget(self._grid_img)
         layout.addStretch()
 
         self.top.valueChanged.connect(self._on_change)
@@ -171,66 +180,88 @@ class ImageGrid(QWidget):
 
     def _on_change(self) -> None:
         val = self.value()
-        draw_grid = val.replace(relative_to="top_left")
-        if isinstance(val, useq.GridRelative):
-            draw_grid.fov_height = 1 / ((val.rows - 1) or 1)
-            draw_grid.fov_width = 1 / ((val.columns - 1) or 1)
-        if isinstance(val, useq.GridFromEdges):
-            draw_grid.fov_height = 1 / (val.bottom - val.top)
-            draw_grid.fov_width = 1 / (val.right - val.left)
-        self._grid_img.grid = draw_grid
-        self._grid_img.update()
+
+        if val is not None:  # temporary
+            draw_grid = val.replace(relative_to="top_left")
+            if isinstance(val, useq.GridRelative):
+                draw_grid.fov_height = 1 / ((val.rows - 1) or 1)
+                draw_grid.fov_width = 1 / ((val.columns - 1) or 1)
+            if isinstance(val, useq.GridFromEdges):
+                draw_grid.fov_height = 1 / ((val.bottom - val.top) or 1)
+                draw_grid.fov_width = 1 / ((val.right - val.left) or 1)
+            self._grid_img.grid = draw_grid
+            self._grid_img.update()
+
+            self.valueChanged.emit(val)
 
     def mode(self) -> Mode:
         return self._mode
 
     def setMode(self, mode: Mode | str | None = None) -> None:
         btn = None
+        btn_map: dict[QAbstractButton, Mode] = {
+            self._mode_number_radio: Mode.NUMBER,
+            self._mode_area_radio: Mode.AREA,
+            self._mode_bounds_radio: Mode.BOUNDS,
+        }
         if isinstance(mode, QRadioButton):
             btn = cast("QRadioButton", mode)
         elif mode is None:  # use sender if mode is None
             sender = cast("QButtonGroup", self.sender())
             btn = sender.checkedButton()
         if btn is not None:
-            _mode: dict[QRadioButton, Mode] = {
-                self._mode_number_radio: Mode.NUMBER,
-                self._mode_area_radio: Mode.AREA,
-                self._mode_bounds_radio: Mode.BOUNDS,
-            }.get(btn)
+            _mode: Mode = btn_map[btn]
         else:
-            _mode = Mode(mode)  # type: ignore
+            _mode = Mode(mode)
+            {v: k for k, v in btn_map.items()}[_mode].setChecked(True)
 
-        self._mode = _mode
-        mode_groups: dict[Mode, Sequence[QWidget]] = {
-            Mode.NUMBER: (self.rows, self.columns),
-            Mode.AREA: (self.area_width, self.area_height),
-            Mode.BOUNDS: (self.left, self.top, self.right, self.bottom),
-        }
-        for group, members in mode_groups.items():
-            for member in members:
-                member.setEnabled(_mode == group)
+        previous, self._mode = self._mode, _mode
+        if previous != self._mode:
+            mode_groups: dict[Mode, Sequence[QWidget]] = {
+                Mode.NUMBER: (self.rows, self.columns),
+                Mode.AREA: (self.area_width, self.area_height),
+                Mode.BOUNDS: (self.left, self.top, self.right, self.bottom),
+            }
+            for group, members in mode_groups.items():
+                for member in members:
+                    member.setEnabled(_mode == group)
+
+            self._on_change()
 
     def value(self) -> useq.GridFromEdges | useq.GridRelative:
         over = self.overlap.value() / 100
-        common = {"overlap": (over, over), "mode": self.order.currentEnum().value}
+        _order = cast("OrderMode", self.order.currentEnum())
+        common = {"overlap": (over, over), "mode": _order.value}
         if self._mode == Mode.NUMBER:
             return useq.GridRelative(
                 rows=self.rows.value(),
                 columns=self.columns.value(),
-                relative_to=self.relative_to.currentEnum().value,
+                relative_to=cast("RelativeTo", self.relative_to.currentEnum()).value,
                 **common,
             )
-        else:
+        elif self._mode == Mode.BOUNDS:
             return useq.GridFromEdges(
-                top=0,
-                left=0,
-                bottom=self.area_height.value(),
-                right=self.area_width.value(),
+                top=self.top.value(),
+                left=self.left.value(),
+                bottom=self.bottom.value(),
+                right=self.right.value(),
             )
+        return None
 
 
-class GridRendering(QWidget):
-    def __init__(self, grid: useq.AnyGridPlan | None = None, line_width=2):
+class _SeparatorWidget(QWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setFixedHeight(1)
+
+    def paintEvent(self, a0: QPaintEvent | None) -> None:
+        painter = QPainter(self)
+        painter.setPen(QPen(Qt.GlobalColor.gray, 1, Qt.PenStyle.SolidLine))
+        painter.drawLine(self.rect().topLeft(), self.rect().topRight())
+
+
+class _GridRendering(QWidget):
+    def __init__(self, grid: useq.AnyGridPlan | None = None, line_width: int = 2):
         super().__init__()
         self.grid = grid
         self.line_width = line_width
@@ -238,19 +269,29 @@ class GridRendering(QWidget):
     def paintEvent(self, e: QPaintEvent | None) -> None:
         if not self.grid:
             return
-        painter = QPainter(self)
-        pen = QPen(Qt.GlobalColor.black, self.line_width, Qt.PenStyle.SolidLine)
-        painter.setPen(pen)
-        super().paintEvent(e)
+
         # Calculate the actual positions from normalized indices
         w, h = self.width(), self.height()
-
-        points = [QPoint(int(w * p.x), -int(h * p.y)) for p in self.grid]
+        points = [
+            QPoint(int(w * p.x * 0.9 + w * 0.05), -int(h * p.y * 0.9 - h * 0.05))
+            for p in self.grid
+        ]
 
         if len(points) < 2:
             return
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        line_pen = QPen(Qt.GlobalColor.black, self.line_width, Qt.PenStyle.SolidLine)
+        point_pen = QPen(Qt.GlobalColor.red, self.line_width + 2, Qt.PenStyle.SolidLine)
+
         for i in range(len(points) - 1):
+            painter.setPen(line_pen)
             painter.drawLine(points[i], points[i + 1])
+            painter.setPen(point_pen)
+            painter.drawEllipse(points[i], self.line_width + 2, self.line_width + 2)
+        painter.drawEllipse(points[-1], self.line_width + 2, self.line_width + 2)
 
     def sizeHint(self) -> QSize:
         return QSize(200, 200)
@@ -262,6 +303,6 @@ if __name__ == "__main__":
     from qtpy.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
-    w = ImageGrid()
+    w = GridPlanWidget()
     w.show()
     sys.exit(app.exec_())

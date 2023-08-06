@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import useq
+from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
 from pymmcore_widgets._mda._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
+from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
 from pymmcore_widgets.useq_widgets._positions import PositionTable
 from pymmcore_widgets.useq_widgets._time import TimeTable
 from pymmcore_widgets.useq_widgets._z import ZPlanWidget
@@ -12,6 +14,8 @@ from pymmcore_widgets.useq_widgets._z import ZPlanWidget
 
 class MDASequenceWidget(QWidget):
     """Widget for editing a `useq-schema` MDA sequence."""
+
+    valueChanged = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -21,12 +25,21 @@ class MDASequenceWidget(QWidget):
         self.time = TimeTable(1)
         self.positions = PositionTable(1)
         self.z = ZPlanWidget()
+        self.grid = GridPlanWidget()
 
         self._tab_wdg = CheckableTabWidget()
         self._tab_wdg.addTab(self.channels, "Channels", checked=False)
         self._tab_wdg.addTab(self.time, "Time", checked=False)
         self._tab_wdg.addTab(self.positions, "Positions", checked=False)
         self._tab_wdg.addTab(self.z, "Z", checked=False)
+        self._tab_wdg.addTab(self.grid, "Grid", checked=False)
+
+        self.channels.valueChanged.connect(self.valueChanged)
+        self.time.valueChanged.connect(self.valueChanged)
+        self.positions.valueChanged.connect(self.valueChanged)
+        self.z.valueChanged.connect(self.valueChanged)
+        self.grid.valueChanged.connect(self.valueChanged)
+        self._tab_wdg.tabChecked.connect(self.valueChanged)
 
         layout = QVBoxLayout(self)
         layout.addWidget(self._tab_wdg)
@@ -47,7 +60,7 @@ class MDASequenceWidget(QWidget):
                     "t": self.time,
                     "p": self.positions,
                     "z": self.z,
-                    # "g": self.grid
+                    "g": self.grid,
                 }[key[0].lower()]
             except KeyError as e:
                 raise ValueError(f"Invalid key: {key!r}") from e
@@ -60,6 +73,7 @@ class MDASequenceWidget(QWidget):
             time_plan=self.time.value() if self.isAxisUsed("t") else None,
             stage_positions=self.positions.value() if self.isAxisUsed("p") else (),
             channels=self.channels.value() if self.isAxisUsed("c") else (),
+            grid_plan=self.grid.value() if self.isAxisUsed("g") else None,
         )
 
 
@@ -70,5 +84,6 @@ if __name__ == "__main__":
 
     app = QApplication(sys.argv)
     widget = MDASequenceWidget()
+    widget.valueChanged.connect(lambda: print(widget.value()))
     widget.show()
     sys.exit(app.exec_())
