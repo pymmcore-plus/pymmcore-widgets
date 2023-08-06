@@ -35,15 +35,15 @@ class MDASequenceWidget(QWidget):
 
         self.channels = ChannelTable(1)
         self.time_plan = TimeTable(1)
-        self.stage_positions = PositionTable(1)
         self.z_plan = ZPlanWidget()
+        self.stage_positions = PositionTable(1)
         self.grid_plan = GridPlanWidget()
 
         self._tab_wdg = CheckableTabWidget()
         self._tab_wdg.addTab(self.channels, "Channels", checked=False)
         self._tab_wdg.addTab(self.time_plan, "Time", checked=False)
+        self._tab_wdg.addTab(self.z_plan, "Z Stack", checked=False)
         self._tab_wdg.addTab(self.stage_positions, "Positions", checked=False)
-        self._tab_wdg.addTab(self.z_plan, "Z", checked=False)
         self._tab_wdg.addTab(self.grid_plan, "Grid", checked=False)
 
         # -------------- Other Widgets --------------

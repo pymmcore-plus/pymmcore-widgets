@@ -373,23 +373,27 @@ class ZPlanWidget(QWidget):
 
     # #################### Private ####################
 
-    def _on_change(self) -> None:
+    def _on_change(self, update_steps: bool = True) -> None:
         """Called when any of the widgets change."""
         val = self.value()
 
         # update range readout
         self._range_readout.setText(f"Range: {self.currentZRange():.2f} {UM}")
         # update steps readout
-        with signals_blocked(self.steps):
-            if val is None:
-                self.steps.setValue(0)
-            else:
-                self.steps.setValue(val.num_positions())
+        if update_steps:
+            with signals_blocked(self.steps):
+                if val is None:
+                    self.steps.setValue(0)
+                else:
+                    self.steps.setValue(val.num_positions())
 
         self.valueChanged.emit(val)
 
     def _on_steps_changed(self, steps: int) -> None:
-        self.step.setValue(self.currentZRange() / steps)
+        if steps:
+            with signals_blocked(self.step):
+                self.step.setValue(self.currentZRange() / steps)
+        self._on_change(update_steps=False)
 
     def _on_range_changed(self, steps: int) -> None:
         self._range_div2_lbl.setText(f"(+/- {steps / 2:.2f} {UM})")
