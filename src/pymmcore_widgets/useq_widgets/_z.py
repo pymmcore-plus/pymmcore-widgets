@@ -327,6 +327,27 @@ class ZPlanWidget(QWidget):
                 above=self.above.value(), below=self.below.value(), **common
             )
 
+    def setValue(
+        self, value: useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom
+    ) -> None:
+        """Set the current value."""
+        if isinstance(value, useq.ZTopBottom):
+            self.top.setValue(value.top)
+            self.bottom.setValue(value.bottom)
+            self.setMode(Mode.TOP_BOTTOM)
+        elif isinstance(value, useq.ZRangeAround):
+            self.range.setValue(value.range)
+            self.setMode(Mode.RANGE_AROUND)
+        elif isinstance(value, useq.ZAboveBelow):
+            self.above.setValue(value.above)
+            self.below.setValue(value.below)
+            self.setMode(Mode.ABOVE_BELOW)
+        else:
+            raise TypeError(f"Invalid value type: {type(value)}")
+
+        self.step.setValue(value.step)
+        self._bottom_to_top.setChecked(value.go_up)
+
     def isGoUp(self) -> bool:
         """Return True if the acquisition direction is up (bottom to top)."""
         return self._bottom_to_top.isChecked()  # type: ignore

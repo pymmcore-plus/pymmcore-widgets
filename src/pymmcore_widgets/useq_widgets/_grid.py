@@ -18,6 +18,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QEnumComboBox
+from superqt.utils import signals_blocked
 
 
 class RelativeTo(Enum):
@@ -245,7 +246,25 @@ class GridPlanWidget(QWidget):
                 bottom=self.bottom.value(),
                 right=self.right.value(),
             )
-        return None
+        raise NotImplementedError
+
+    def setValue(self, value: useq.GridFromEdges | useq.GridRelative) -> None:
+        with signals_blocked(self):
+            if isinstance(value, useq.GridRelative):
+                self.rows.setValue(value.rows)
+                self.columns.setValue(value.columns)
+                self.relative_to.setCurrentText(value.relative_to.value)
+            elif isinstance(value, useq.GridFromEdges):
+                self.top.setValue(value.top)
+                self.left.setValue(value.left)
+                self.bottom.setValue(value.bottom)
+                self.right.setValue(value.right)
+            else:
+                raise TypeError(
+                    f"Expected useq.GridFromEdges or GridRelative, got {type(value)}"
+                )
+
+        self._on_change()
 
 
 class _SeparatorWidget(QWidget):

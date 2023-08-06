@@ -1,3 +1,5 @@
+from typing import Iterable
+
 import useq
 
 from ._column_info import BoolColumn, FloatColumn, IntColumn, TextColumn
@@ -22,3 +24,12 @@ class ChannelTable(DataTableWidget):
             useq.Channel(**r)
             for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
         ]
+
+    def setValue(self, value: Iterable[useq.Channel]) -> None:
+        """Set the current value of the table."""
+        _values = []
+        for v in value:
+            if not isinstance(v, useq.Channel):
+                raise TypeError(f"Expected useq.Channel, got {type(v)}")
+            _values.append(v.model_dump(exclude_unset=True))
+        super().setValue(_values)

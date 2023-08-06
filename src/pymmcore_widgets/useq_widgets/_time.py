@@ -20,3 +20,23 @@ class TimeTable(DataTableWidget):
         ]
 
         return useq.MultiPhaseTimePlan(phases=phases)
+
+    def setValue(
+        self,
+        value: useq.MultiPhaseTimePlan
+        | useq.TDurationLoops
+        | useq.TIntervalLoops
+        | useq.TIntervalDuration,
+    ) -> None:
+        """Set the current value of the table."""
+        if isinstance(value, useq.MultiPhaseTimePlan):
+            _phases = value.phases
+        elif isinstance(
+            value, (useq.TDurationLoops, useq.TIntervalLoops, useq.TIntervalDuration)
+        ):
+            _phases = [value]
+        else:
+            raise TypeError(
+                f"Expected useq.MultiPhaseTimePlan, got {type(value)} instead."
+            )
+        super().setValue([p.model_dump(exclude_unset=True) for p in _phases])

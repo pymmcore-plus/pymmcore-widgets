@@ -114,7 +114,16 @@ class DataTable(QTableWidget):
         selector_col = self._get_selector_col() if exclude_unchecked else -1
         for row in range(self.rowCount()):
             if self._is_row_checked(row, selector_col):
-                yield self._row_data(row)
+                if data := self._row_data(row):
+                    yield data
+
+    def setValue(self, records: Iterable[Record]) -> None:
+        """Set the value of the table."""
+        self.setRowCount(0)
+        _records = list(records)
+        self.setRowCount(len(_records))
+        for row, record in enumerate(_records):
+            self._set_row_data(row, record)
 
     def checkAllRows(self) -> None:
         self._check_all(Qt.CheckState.Checked)
@@ -144,13 +153,19 @@ class DataTable(QTableWidget):
                     return col
         return -1
 
-    def _row_data(self, row: int) -> dict[str, Any]:
-        d: dict[str, Any] = {}
+    def _row_data(self, row: int) -> Record:
+        d: Record = {}
         for col in range(self.columnCount()):
             if info := self.columnInfo(col):
                 d.update(info.get_cell_data(self, row, col))
-
         return d
+
+    def _set_row_data(self, row: int, data: Record) -> None:
+        if not isinstance(data, dict):
+            breakpoint()
+        for col in range(self.columnCount()):
+            if info := self.columnInfo(col):
+                info.set_cell_data(self, row, col, data.get(info.key))
 
     def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
         # when a new row is inserted by any means, populate it with default values
@@ -258,6 +273,11 @@ class DataTableWidget(QWidget):
     def value(self, exclude_unchecked: bool = True) -> Any:
         """Return a list of dicts of the data in the table."""
         return list(self._table.iterRecords(exclude_unchecked=exclude_unchecked))
+
+    def setValue(self, value: Iterable[Any]) -> None:
+        """Set the value of the table."""
+        with signals_blocked(self):
+            self._table.setValue(value)
 
     # #################### Private methods ####################
 

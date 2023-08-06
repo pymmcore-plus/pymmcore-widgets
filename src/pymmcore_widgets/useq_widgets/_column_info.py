@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import contextlib
+import re
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import TYPE_CHECKING, Callable, ClassVar, Generic, NamedTuple, TypeVar, cast
 
 import pint
@@ -92,6 +95,13 @@ class TextColumn(ColumnInfo):
             return {self.key: item.text()}
         return {}
 
+    def set_cell_data(
+        self, table: QTableWidget, row: int, col: int, value: Any
+    ) -> None:
+        if value is not None and (item := table.item(row, col)):
+            item.setText(value)
+            # Checkstate?
+
 
 T = TypeVar("T")
 W = TypeVar("W", bound=QWidget)
@@ -137,6 +147,12 @@ class WidgetColumn(ColumnInfo, Generic[W, T]):
         if wdg := table.cellWidget(row, col):
             return {self.key: self.data_type.getter(cast(W, wdg))}
         return {}
+
+    def set_cell_data(
+        self, table: QTableWidget, row: int, col: int, value: Any
+    ) -> None:
+        if value is not None and (wdg := table.cellWidget(row, col)):
+            self.data_type.setter(cast(W, wdg), value)
 
 
 # ############################# Booleans ################################
@@ -254,22 +270,46 @@ class QQuantityValidator(QValidator):
         self.ureg = ureg or pint.application_registry
 
     def validate(self, a0: str | None, a1: int) -> tuple[QValidator.State, str, int]:
-        if self.is_valid(a0):
+        if self.text_to_quant(a0):
             return (QValidator.State.Acceptable, a0 or "", a1)
         return (QValidator.State.Intermediate, a0 or "", a1)
 
-    def is_valid(self, text: str | None) -> bool:
+    def text_to_quant(self, text: str | None) -> pint.Quantity | None:
         if not text:
-            return False
-        try:
+            return None
+
+        with contextlib.suppress(pint.UndefinedUnitError):
             q = self.ureg.parse_expression(text)
-            if self.dimensionality:
-                return isinstance(q, pint.Quantity) and bool(
-                    q.is_compatible_with(self.dimensionality)
-                )
-            return True
-        except pint.UndefinedUnitError:
-            return False
+            if self.dimensionality and (
+                isinstance(q, pint.Quantity)
+                and bool(q.is_compatible_with(self.dimensionality))
+            ):
+                return q
+        # try to parse as timedelta
+        with contextlib.suppress(ValueError):
+            td = parse_timedelta(text)
+            return self.ureg.Quantity(td.total_seconds(), "second")
+        return None
+
+
+pattern = r"(?:(?P<hours>\d+):)?(?:(?P<minutes>\d+):)?(?P<seconds>\d+)([.,](?P<microseconds>\d+))?"  # noqa
+
+
+def parse_timedelta(time_str: str) -> timedelta:
+    pattern = r"(?:(?P<hours>\d+):)?(?:(?P<minutes>\d+):)?(?P<seconds>\d+)([.,](?P<microseconds>\d+))?"
+    match = re.match(pattern, time_str)
+
+    if not match:
+        raise ValueError(f"Invalid time interval format: {time_str}")
+
+    hours = int(match["hours"]) if match["hours"] else 0
+    minutes = int(match["minutes"]) if match["minutes"] else 0
+    seconds = int(match["seconds"])
+    microseconds = int(match["microseconds"]) if match["microseconds"] else 0
+
+    return timedelta(
+        hours=hours, minutes=minutes, seconds=seconds, microseconds=microseconds
+    )
 
 
 class QQuantityLineEdit(QLineEdit):
@@ -294,17 +334,19 @@ class QQuantityLineEdit(QLineEdit):
         super().focusOutEvent(event)
 
     def setText(self, value: str | None) -> None:
-        if not self._validator.is_valid(value):
+        if (valid_q := self._validator.text_to_quant(value)) is None:
             raise ValueError(f"Invalid value: {value!r}")
-        super().setText(value)
-        self._last_valid = cast(str, value)
+        text = f"{valid_q.to_compact():~P}"  # short pretty format
+        super().setText(text)
+        self._last_valid = text
 
     def _on_editing_finished(self) -> None:
         # When the editing is finished, check if the final text is valid
         final_text = self.text()
-        if self._validator.is_valid(final_text):
-            self._last_valid = final_text
-            self.setText(f"{self.quantity():~P}")  # short pretty format
+        if valid_q := self._validator.text_to_quant(final_text):
+            text = f"{valid_q:~P}"  # short pretty format
+            self._last_valid = text
+            self.setText(text)
         else:
             self.setText(self._last_valid)
 

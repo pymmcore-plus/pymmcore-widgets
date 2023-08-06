@@ -13,6 +13,7 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QScrollArea,
     QSizePolicy,
+    QTabBar,
     QVBoxLayout,
     QWidget,
 )
@@ -207,7 +208,7 @@ class MDAWidget(QWidget):
 
     def _get_checkbox(self, tab_index: int) -> QCheckBox:
         """Return the checkbox of the tab at the given index."""
-        return self._tab.tabBar().tabButton(tab_index, self._tab.checkbox_position)
+        return self._tab.tabBar().tabButton(tab_index, QTabBar.ButtonPosition.LeftSide)
 
     def _on_tab_changed(self, index: int) -> None:
         """Enable/disable 'Absolute' grid modes if multiple positions are selected."""
