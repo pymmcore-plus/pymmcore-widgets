@@ -1,10 +1,10 @@
 from typing import Any
 
-import useq
 from fonticon_mdi6 import MDI6
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QWidget
 from superqt.fonticon import icon
+from useq import MultiPhaseTimePlan, TDurationLoops, TIntervalDuration, TIntervalLoops
 
 from ._column_info import IntColumn, TextColumn, TimeDeltaColumn
 from ._data_table import DataTableWidget
@@ -29,6 +29,43 @@ class TimeTable(DataTableWidget):
 
         self._set_active_column(self.table().indexOf(self.LOOPS))
 
+        # Connect the signal to update column 3 when column 4 changes
+        self.valueChanged.connect(self._resolve_duration)
+
+    def _resolve_duration(self) -> None:
+        """Resolve interval, loops, duration based on which column changed.
+
+        The rules are:
+        total duration = interval * loops
+
+        """
+        table = self.table()
+
+        changed_col = table.currentColumn()
+        changed_row = table.currentRow()
+        loop_col = table.indexOf(self.LOOPS)
+        duration_col = table.indexOf(self.DURATION)
+
+        plan: TIntervalDuration | TIntervalLoops
+        if self._active_column == self.DURATION.key:
+            plan = TIntervalDuration(**self.table().rowData(changed_row))
+        else:
+            plan = TIntervalLoops(**self.table().rowData(changed_row))
+
+        if changed_col == loop_col:
+            self.DURATION.set_cell_data(table, changed_row, duration_col, plan.duration)
+            self._set_active_column(loop_col)
+        elif changed_col == duration_col:
+            self.LOOPS.set_cell_data(table, changed_row, loop_col, plan.loops)
+            self._set_active_column(duration_col)
+        elif changed_col == table.indexOf(self.INTERVAL):
+            if self._active_column == self.DURATION.key:
+                self.LOOPS.set_cell_data(table, changed_row, loop_col, plan.loops)
+            else:
+                self.DURATION.set_cell_data(
+                    table, changed_row, duration_col, plan.duration
+                )
+
     def _set_active_column(self, col_idx: int) -> None:
         table = self.table()
         # only duration and loops can be set as active
@@ -45,28 +82,26 @@ class TimeTable(DataTableWidget):
         if previous != self._active_column:
             self.valueChanged.emit()
 
-    def value(self, exclude_unchecked: bool = True) -> useq.MultiPhaseTimePlan:
+    def value(self, exclude_unchecked: bool = True) -> MultiPhaseTimePlan:
         """Return the current value of the table as a list of channels."""
         active_key = "duration" if self._active_column == self.DURATION.key else "loops"
         phases = [
             {"interval": p["interval"], active_key: p[active_key]}
             for p in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
         ]
-        return useq.MultiPhaseTimePlan(phases=phases)
+        return MultiPhaseTimePlan(phases=phases)
 
     def setValue(self, value: Any) -> None:
         """Set the current value of the table."""
-        if isinstance(value, useq.MultiPhaseTimePlan):
+        if isinstance(value, MultiPhaseTimePlan):
             _phases = value.phases
-        elif isinstance(
-            value, (useq.TDurationLoops, useq.TIntervalLoops, useq.TIntervalDuration)
-        ):
+        elif isinstance(value, (TDurationLoops, TIntervalLoops, TIntervalDuration)):
             _phases = [value]
         else:
             raise TypeError(f"Expected useq TimePlan, got {type(value)}.")
         super().setValue([p.model_dump(exclude_unset=True) for p in _phases])
 
-        if isinstance(value, (useq.TIntervalDuration)):
+        if isinstance(value, (TIntervalDuration)):
             self._set_active_column(self.table().indexOf(self.DURATION))
         else:
             self._set_active_column(self.table().indexOf(self.LOOPS))
