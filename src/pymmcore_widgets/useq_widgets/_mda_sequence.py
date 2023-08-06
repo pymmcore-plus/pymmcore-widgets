@@ -154,6 +154,7 @@ class MDASequenceWidget(QWidget):
         dest.write_text(data)
 
     def load(self, file: str | Path | None = None) -> None:
+        """Load sequence from a file."""
         if not isinstance(file, (str, Path)):
             file, _ = QFileDialog.getOpenFileName(
                 self, "Select an MDAsequence file.", "", "json(*.json), yaml(*.yaml)"

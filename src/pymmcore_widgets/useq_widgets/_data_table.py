@@ -260,6 +260,7 @@ class DataTableWidget(QWidget):
 
         # -------- layout --------
         layout = QVBoxLayout(self)
+        layout.setSpacing(3)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._toolbar)
         layout.addWidget(self._table)
