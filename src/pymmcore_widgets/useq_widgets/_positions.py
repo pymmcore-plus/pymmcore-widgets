@@ -1,21 +1,90 @@
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence, cast
 
 import useq
-from qtpy.QtWidgets import QFileDialog, QHBoxLayout, QPushButton, QVBoxLayout, QWidget
+from fonticon_mdi6 import MDI6
+from PyQt5.QtWidgets import QWidget
+from qtpy.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QHBoxLayout,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+from superqt.fonticon import icon
 
-from ._column_info import FloatColumn, TextColumn
+from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
+
+
+class _MDAPopup(QDialog):
+    def __init__(
+        self, value: useq.MDASequence | None = None, parent: QWidget | None = None
+    ) -> None:
+        from ._mda_sequence import MDASequenceWidget
+
+        super().__init__(parent)
+
+        self.mda = MDASequenceWidget(self)
+        if value:
+            self.mda.setValue(value)
+        self.mda.tab_wdg.removeTab(3)
+
+        self._btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self._btns.accepted.connect(self.accept)
+        self._btns.rejected.connect(self.reject)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.mda)
+        layout.addWidget(self._btns)
+
+
+class MDAButton(QPushButton):
+    def __init__(self):
+        super().__init__()
+        self.setIcon(icon(MDI6.axis_arrow))
+        self.clicked.connect(self._on_click)
+        self._value = None
+
+    def _on_click(self):
+        dialog = _MDAPopup(self._value)
+        if dialog.exec_():
+            self._value = dialog.mda.value()
+
+    def value(self):
+        return self._value
+
+    def setValue(self, value):
+        self._value = value
+
+
+MDAButton = WdgGetSet(
+    MDAButton,
+    MDAButton.value,
+    MDAButton.setValue,
+    lambda w, cb: None,
+)
+
+
+@dataclass(frozen=True)
+class SubSeqColumn(WidgetColumn):
+    """Column for editing a `useq.MDASequence`."""
+
+    data_type: WdgGetSet = MDAButton
 
 
 class PositionTable(DataTableWidget):
     """Table for editing a list of `useq.Positions`."""
 
-    POSITION = TextColumn(key="name", default="#{idx}", is_row_selector=True)
+    NAME = TextColumn(key="name", default="#{idx}", is_row_selector=True)
     X = FloatColumn(key="x", header="X [mm]", default=0.0)
     Y = FloatColumn(key="y", header="Y [mm]", default=0.0)
     Z = FloatColumn(key="z", header="Z [mm]", default=0.0)
+    SEQ = SubSeqColumn(key="sequence", header="Sub-Sequence", default=None)
 
     def __init__(self, rows: int = 0, parent: QWidget | None = None):
         super().__init__(rows, parent)

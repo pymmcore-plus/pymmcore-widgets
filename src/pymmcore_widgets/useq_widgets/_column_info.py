@@ -4,7 +4,7 @@ import contextlib
 import re
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Callable, ClassVar, Generic, NamedTuple, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, ClassVar, Generic, TypeVar, cast
 
 import pint
 from qtpy.QtCore import Qt, SignalInstance
@@ -106,8 +106,8 @@ class TextColumn(ColumnInfo):
 T = TypeVar("T")
 W = TypeVar("W", bound=QWidget)
 
-
-class WdgGetSet(NamedTuple, Generic[W, T]):
+@dataclass
+class WdgGetSet(Generic[W, T]):
     widget: type[W]
     getter: Callable[[W], T]
     setter: Callable[[W, T], None]

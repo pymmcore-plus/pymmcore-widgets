@@ -39,12 +39,12 @@ class MDASequenceWidget(QWidget):
         self.stage_positions = PositionTable(1)
         self.grid_plan = GridPlanWidget()
 
-        self._tab_wdg = CheckableTabWidget()
-        self._tab_wdg.addTab(self.channels, "Channels", checked=False)
-        self._tab_wdg.addTab(self.time_plan, "Time", checked=False)
-        self._tab_wdg.addTab(self.z_plan, "Z Stack", checked=False)
-        self._tab_wdg.addTab(self.stage_positions, "Positions", checked=False)
-        self._tab_wdg.addTab(self.grid_plan, "Grid", checked=False)
+        self.tab_wdg = CheckableTabWidget()
+        self.tab_wdg.addTab(self.channels, "Channels", checked=False)
+        self.tab_wdg.addTab(self.time_plan, "Time", checked=False)
+        self.tab_wdg.addTab(self.z_plan, "Z Stack", checked=False)
+        self.tab_wdg.addTab(self.stage_positions, "Positions", checked=False)
+        self.tab_wdg.addTab(self.grid_plan, "Grid", checked=False)
 
         # -------------- Other Widgets --------------
 
@@ -71,7 +71,7 @@ class MDASequenceWidget(QWidget):
         bot_row.addWidget(self._load_button)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(self._tab_wdg)
+        layout.addWidget(self.tab_wdg)
         layout.addLayout(bot_row)
 
         # -------------- Connections --------------
@@ -81,7 +81,7 @@ class MDASequenceWidget(QWidget):
         self.stage_positions.valueChanged.connect(self.valueChanged)
         self.z_plan.valueChanged.connect(self.valueChanged)
         self.grid_plan.valueChanged.connect(self.valueChanged)
-        self._tab_wdg.tabChecked.connect(self.valueChanged)
+        self.tab_wdg.tabChecked.connect(self.valueChanged)
         self.valueChanged.connect(self._update_time_estimate)
 
     # -------------- Public API --------------
@@ -106,7 +106,7 @@ class MDASequenceWidget(QWidget):
                 }[key[0].lower()]
             except KeyError as e:
                 raise ValueError(f"Invalid key: {key!r}") from e
-        return bool(self._tab_wdg.isChecked(key))
+        return bool(self.tab_wdg.isChecked(key))
 
     def value(self) -> useq.MDASequence:
         """Return the current sequence as a `useq-schema` MDASequence."""
@@ -124,14 +124,15 @@ class MDASequenceWidget(QWidget):
         if not isinstance(value, useq.MDASequence):
             raise TypeError(f"Expected useq.MDASequence, got {type(value)}")
 
-        for f in ("z_plan", "time_plan", "stage_positions", "channels", "grid_plan"):
+        widget: ChannelTable | TimeTable | ZPlanWidget | PositionTable | GridPlanWidget
+        for f in ("channels", "time_plan", "z_plan", "stage_positions", "grid_plan"):
             widget = getattr(self, f)
             if (field_val := getattr(value, f)) is not None:
                 widget.setValue(field_val)
-                self._tab_wdg.setChecked(widget, True)
+                self.tab_wdg.setChecked(widget, True)
             else:
-                widget.clear()
-                self._tab_wdg.setChecked(widget, False)
+                # widget.setValue(None)
+                self.tab_wdg.setChecked(widget, False)
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current sequence to a file."""
