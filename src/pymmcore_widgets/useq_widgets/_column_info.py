@@ -106,6 +106,7 @@ class TextColumn(ColumnInfo):
 T = TypeVar("T")
 W = TypeVar("W", bound=QWidget)
 
+
 @dataclass
 class WdgGetSet(Generic[W, T]):
     widget: type[W]
