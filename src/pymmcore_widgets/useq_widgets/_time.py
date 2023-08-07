@@ -47,10 +47,13 @@ class TimeTable(DataTableWidget):
         duration_col = table.indexOf(self.DURATION)
 
         plan: TIntervalDuration | TIntervalLoops
-        if self._active_column == self.DURATION.key:
-            plan = TIntervalDuration(**self.table().rowData(changed_row))
-        else:
-            plan = TIntervalLoops(**self.table().rowData(changed_row))
+        try:
+            if self._active_column == self.DURATION.key:
+                plan = TIntervalDuration(**self.table().rowData(changed_row))
+            else:
+                plan = TIntervalLoops(**self.table().rowData(changed_row))
+        except (TypeError, ValueError):
+            return
 
         if changed_col == loop_col:
             self.DURATION.set_cell_data(table, changed_row, duration_col, plan.duration)

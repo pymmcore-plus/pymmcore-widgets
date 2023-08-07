@@ -45,9 +45,14 @@ class Mode(Enum):
 class GridPlanWidget(QWidget):
     valueChanged = Signal(object)
 
+    _mode: Mode
+    _fov_width: float
+    _fov_height: float
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self._mode = Mode.NUMBER
+        self._fov_width: float = 1.0
+        self._fov_height: float = 1.0
 
         self.rows = QSpinBox()
         self.rows.setRange(1, 1000)
@@ -59,14 +64,12 @@ class GridPlanWidget(QWidget):
         self.columns.setSuffix(" fields")
 
         self.area_width = QDoubleSpinBox()
-        self.area_width.setRange(0, 100)
-        self.area_width.setValue(0)
+        self.area_width.setRange(0.01, 100)
         self.area_width.setDecimals(2)
         self.area_width.setSuffix(" mm")
         self.area_width.setSingleStep(0.1)
         self.area_height = QDoubleSpinBox()
-        self.area_height.setRange(0, 100)
-        self.area_height.setValue(0)
+        self.area_height.setRange(0.01, 100)
         self.area_height.setDecimals(2)
         self.area_height.setSuffix(" mm")
         self.area_height.setSingleStep(0.1)
@@ -157,8 +160,8 @@ class GridPlanWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.addLayout(row_col_layout)
         layout.addWidget(_SeparatorWidget())
-        # layout.addLayout(width_height_layout)  # hiding until useq supports it
-        # layout.addWidget(SeparatorWidget())
+        layout.addLayout(width_height_layout)  # hiding until useq supports it
+        layout.addWidget(_SeparatorWidget())
         layout.addLayout(bounds_layout)
         layout.addWidget(_SeparatorWidget())
         layout.addLayout(bottom_stuff)
@@ -215,7 +218,7 @@ class GridPlanWidget(QWidget):
             _mode = Mode(mode)
             {v: k for k, v in btn_map.items()}[_mode].setChecked(True)
 
-        previous, self._mode = self._mode, _mode
+        previous, self._mode = getattr(self, "_mode", None), _mode
         if previous != self._mode:
             mode_groups: dict[Mode, Sequence[QWidget]] = {
                 Mode.NUMBER: (self.rows, self.columns),
@@ -228,12 +231,17 @@ class GridPlanWidget(QWidget):
 
             self._on_change()
 
-    def value(self) -> useq.GridFromEdges | useq.GridRelative:
+    def value(self) -> useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight:
         over = self.overlap.value() / 100
         _order = cast("OrderMode", self.order.currentEnum())
-        common = {"overlap": (over, over), "mode": _order.value}
+        common = {
+            "overlap": (over, over),
+            "mode": _order.value,
+            "fov_width": self._fov_width,
+            "fov_height": self._fov_height,
+        }
         if self._mode == Mode.NUMBER:
-            return useq.GridRelative(
+            return useq.GridRowsColumns(
                 rows=self.rows.value(),
                 columns=self.columns.value(),
                 relative_to=cast("RelativeTo", self.relative_to.currentEnum()).value,
@@ -245,6 +253,14 @@ class GridPlanWidget(QWidget):
                 left=self.left.value(),
                 bottom=self.bottom.value(),
                 right=self.right.value(),
+                **common,
+            )
+        elif self._mode == Mode.AREA:
+            return useq.GridWidthHeight(
+                width=self.area_width.value(),
+                height=self.area_height.value(),
+                relative_to=cast("RelativeTo", self.relative_to.currentEnum()).value,
+                **common,
             )
         raise NotImplementedError
 
@@ -259,12 +275,35 @@ class GridPlanWidget(QWidget):
                 self.left.setValue(value.left)
                 self.bottom.setValue(value.bottom)
                 self.right.setValue(value.right)
+            elif isinstance(value, useq.GridWidthHeight):
+                self.area_width.setValue(value.width)
+                self.area_height.setValue(value.height)
+                self.relative_to.setCurrentText(value.relative_to.value)
             else:
                 raise TypeError(
                     f"Expected useq.GridFromEdges or GridRelative, got {type(value)}"
                 )
 
+            if value.fov_height:
+                self._fov_height = value.fov_height
+            if value.fov_width:
+                self._fov_width = value.fov_width
+
         self._on_change()
+
+    def setFovWidth(self, value: float) -> None:
+        self._fov_width = value
+        self._on_change()
+
+    def setFovHeight(self, value: float) -> None:
+        self._fov_height = value
+        self._on_change()
+
+    def fovWidth(self) -> float:
+        return self._fov_width
+
+    def fovHeight(self) -> float:
+        return self._fov_height
 
 
 class _SeparatorWidget(QWidget):
