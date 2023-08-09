@@ -23,6 +23,72 @@ from pymmcore_widgets.useq_widgets._time import TimeTable
 from pymmcore_widgets.useq_widgets._z import ZPlanWidget
 
 
+class MDATabs(CheckableTabWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        self.channels = ChannelTable(1)
+        self.time_plan = TimeTable(1)
+        self.z_plan = ZPlanWidget()
+        self.stage_positions = PositionTable(1)
+        self.grid_plan = GridPlanWidget()
+
+        self.addTab(self.channels, "Channels", checked=False)
+        self.addTab(self.time_plan, "Time", checked=False)
+        self.addTab(self.z_plan, "Z Stack", checked=False)
+        self.addTab(self.stage_positions, "Positions", checked=False)
+        self.addTab(self.grid_plan, "Grid", checked=False)
+
+    def isAxisUsed(self, key: str | QWidget) -> bool:
+        """Return True if the given axis is used in the sequence.
+
+        Parameters
+        ----------
+        key : str | QWidget
+            The axis to check. Can be one of "c", "t", "p", or "g", "z", or the
+            corresponding widget instance (e.g. self.channels, etc...)
+        """
+        if isinstance(key, str):
+            try:
+                key = {
+                    "c": self.channels,
+                    "t": self.time_plan,
+                    "p": self.stage_positions,
+                    "z": self.z_plan,
+                    "g": self.grid_plan,
+                }[key[0].lower()]
+            except KeyError as e:
+                raise ValueError(f"Invalid key: {key!r}") from e
+        return bool(self.isChecked(key))
+
+    def value(self) -> useq.MDASequence:
+        """Return the current sequence as a `useq-schema` MDASequence."""
+        return useq.MDASequence(
+            z_plan=self.z_plan.value() if self.isAxisUsed("z") else None,
+            time_plan=self.time_plan.value() if self.isAxisUsed("t") else None,
+            stage_positions=self.stage_positions.value()
+            if self.isAxisUsed("p")
+            else (),
+            channels=self.channels.value() if self.isAxisUsed("c") else (),
+            grid_plan=self.grid_plan.value() if self.isAxisUsed("g") else None,
+        )
+
+    def setValue(self, value: useq.MDASequence) -> None:
+        """Set widget value from a `useq-schema` MDASequence."""
+        if not isinstance(value, useq.MDASequence):
+            raise TypeError(f"Expected useq.MDASequence, got {type(value)}")
+
+        widget: ChannelTable | TimeTable | ZPlanWidget | PositionTable | GridPlanWidget
+        for f in ("channels", "time_plan", "z_plan", "stage_positions", "grid_plan"):
+            widget = getattr(self, f)
+            if (field_val := getattr(value, f)) is not None:
+                widget.setValue(field_val)
+                self.setChecked(widget, True)
+            else:
+                # widget.setValue(None)
+                self.setChecked(widget, False)
+
+
 class MDASequenceWidget(QWidget):
     """Widget for editing a `useq-schema` MDA sequence."""
 
@@ -33,18 +99,12 @@ class MDASequenceWidget(QWidget):
 
         # -------------- Main MDA Axis Widgets --------------
 
-        self.channels = ChannelTable(1)
-        self.time_plan = TimeTable(1)
-        self.z_plan = ZPlanWidget()
-        self.stage_positions = PositionTable(1)
-        self.grid_plan = GridPlanWidget()
-
-        self.tab_wdg = CheckableTabWidget()
-        self.tab_wdg.addTab(self.channels, "Channels", checked=False)
-        self.tab_wdg.addTab(self.time_plan, "Time", checked=False)
-        self.tab_wdg.addTab(self.z_plan, "Z Stack", checked=False)
-        self.tab_wdg.addTab(self.stage_positions, "Positions", checked=False)
-        self.tab_wdg.addTab(self.grid_plan, "Grid", checked=False)
+        self.tab_wdg = MDATabs()
+        self.channels = self.tab_wdg.channels
+        self.time_plan = self.tab_wdg.time_plan
+        self.z_plan = self.tab_wdg.z_plan
+        self.stage_positions = self.tab_wdg.stage_positions
+        self.grid_plan = self.tab_wdg.grid_plan
 
         # -------------- Other Widgets --------------
 
@@ -86,53 +146,13 @@ class MDASequenceWidget(QWidget):
 
     # -------------- Public API --------------
 
-    def isAxisUsed(self, key: str | QWidget) -> bool:
-        """Return True if the given axis is used in the sequence.
-
-        Parameters
-        ----------
-        key : str | QWidget
-            The axis to check. Can be one of "c", "t", "p", or "g", "z", or the
-            corresponding widget instance (e.g. self.channels, etc...)
-        """
-        if isinstance(key, str):
-            try:
-                key = {
-                    "c": self.channels,
-                    "t": self.time_plan,
-                    "p": self.stage_positions,
-                    "z": self.z_plan,
-                    "g": self.grid_plan,
-                }[key[0].lower()]
-            except KeyError as e:
-                raise ValueError(f"Invalid key: {key!r}") from e
-        return bool(self.tab_wdg.isChecked(key))
-
     def value(self) -> useq.MDASequence:
         """Return the current sequence as a `useq-schema` MDASequence."""
-        return useq.MDASequence(
-            z_plan=self.z_plan.value() if self.isAxisUsed("z") else None,
-            time_plan=self.time_plan.value() if self.isAxisUsed("t") else None,
-            stage_positions=self.stage_positions.value()
-            if self.isAxisUsed("p")
-            else (),
-            channels=self.channels.value() if self.isAxisUsed("c") else (),
-            grid_plan=self.grid_plan.value() if self.isAxisUsed("g") else None,
-        )
+        return self.tab_wdg.value()
 
     def setValue(self, value: useq.MDASequence) -> None:
-        if not isinstance(value, useq.MDASequence):
-            raise TypeError(f"Expected useq.MDASequence, got {type(value)}")
-
-        widget: ChannelTable | TimeTable | ZPlanWidget | PositionTable | GridPlanWidget
-        for f in ("channels", "time_plan", "z_plan", "stage_positions", "grid_plan"):
-            widget = getattr(self, f)
-            if (field_val := getattr(value, f)) is not None:
-                widget.setValue(field_val)
-                self.tab_wdg.setChecked(widget, True)
-            else:
-                # widget.setValue(None)
-                self.tab_wdg.setChecked(widget, False)
+        """Set widget value from a `useq-schema` MDASequence."""
+        self.tab_wdg.setValue(value)
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current sequence to a file."""

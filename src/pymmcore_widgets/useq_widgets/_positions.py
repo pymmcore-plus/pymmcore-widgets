@@ -5,7 +5,6 @@ from typing import Sequence, cast
 
 import useq
 from fonticon_mdi6 import MDI6
-from PyQt5.QtWidgets import QWidget
 from qtpy.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -25,21 +24,21 @@ class _MDAPopup(QDialog):
     def __init__(
         self, value: useq.MDASequence | None = None, parent: QWidget | None = None
     ) -> None:
-        from ._mda_sequence import MDASequenceWidget
+        from ._mda_sequence import MDATabs
 
         super().__init__(parent)
 
-        self.mda = MDASequenceWidget(self)
+        self.mda_tabs = MDATabs(self)
         if value:
-            self.mda.setValue(value)
-        self.mda.tab_wdg.removeTab(3)
+            self.mda_tabs.setValue(value)
+        self.mda_tabs.removeTab(3)
 
         self._btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self._btns.accepted.connect(self.accept)
         self._btns.rejected.connect(self.reject)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(self.mda)
+        layout.addWidget(self.mda_tabs)
         layout.addWidget(self._btns)
 
 
@@ -53,7 +52,7 @@ class MDAButton(QPushButton):
     def _on_click(self):
         dialog = _MDAPopup(self._value)
         if dialog.exec_():
-            self._value = dialog.mda.value()
+            self._value = dialog.mda_tabs.value()
 
     def value(self):
         return self._value

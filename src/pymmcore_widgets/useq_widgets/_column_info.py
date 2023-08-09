@@ -7,8 +7,8 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Callable, ClassVar, Generic, TypeVar, cast
 
 import pint
-from qtpy.QtCore import Qt, SignalInstance
-from qtpy.QtGui import QValidator
+from qtpy.QtCore import Qt, Signal, SignalInstance
+from qtpy.QtGui import QFocusEvent, QValidator
 from qtpy.QtWidgets import (
     QCheckBox,
     QDoubleSpinBox,
@@ -310,12 +310,15 @@ def parse_timedelta(time_str: str) -> timedelta:
 
 
 class QQuantityLineEdit(QLineEdit):
+    textModified = Signal(str, str)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._validator = QQuantityValidator(parent=self)
         self.setValidator(self._validator)
         self._last_valid: str = self.text()
         self.editingFinished.connect(self._on_editing_finished)
+        self.returnPressed.connect(self.clearFocus)
 
     def setDimensionality(self, dimensionality: str | None) -> None:
         self._validator.dimensionality = dimensionality
@@ -325,9 +328,19 @@ class QQuantityLineEdit(QLineEdit):
             raise TypeError(f"ureg must be a pint.UnitRegistry, not {type(ureg)}")
         self._validator.ureg = ureg
 
-    def focusOutEvent(self, event: Any) -> None:
+    def focusInEvent(self, event: QFocusEvent):
+        if event.reason() != Qt.FocusReason.PopupFocusReason:
+            self._before = self.text()
+        super().focusInEvent(event)
+
+    def focusOutEvent(self, event: QFocusEvent) -> None:
         # When the widget loses focus, check if the text is valid
         self._on_editing_finished()
+        if (
+            event.reason() != Qt.FocusReason.PopupFocusReason
+            and self._before != self.text()
+        ):
+            self.textModified.emit(self._before, self.text())
         super().focusOutEvent(event)
 
     def setText(self, value: str | None) -> None:
@@ -368,7 +381,7 @@ TableTimeWidget = WdgGetSet(
     QTimeLineEdit,
     QTimeLineEdit.value,
     QTimeLineEdit.setValue,
-    lambda w, cb: w.editingFinished.connect(cb),
+    lambda w, cb: w.textModified.connect(cb),
 )
 
 
