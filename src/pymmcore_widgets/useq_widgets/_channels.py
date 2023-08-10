@@ -11,7 +11,7 @@ class ChannelTable(DataTableWidget):
 
     # fmt: off
     GROUP = TextColumn(key="group", default="Channel", hidden=True)
-    CONFIG = TextColumn(key="config", default="#{idx}", is_row_selector=True)
+    CONFIG = TextColumn(key="config", default=None, is_row_selector=True)
     EXPOSURE = FloatColumn(key="exposure", header="Exposure [ms]", default=100.0, minimum=1)  # noqa
     ACUIRE_EVERY = IntColumn(key="acquire_every", default=1, minimum=1)
     DO_STACK = BoolColumn(key="do_stack", default=True)
@@ -20,10 +20,12 @@ class ChannelTable(DataTableWidget):
 
     def value(self, exclude_unchecked: bool = True) -> list[useq.Channel]:
         """Return the current value of the table as a list of channels."""
-        return [
-            useq.Channel(**r)
-            for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
-        ]
+        out = []
+        for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked):
+            if not r.get("name", True):
+                r.pop("name", None)
+            out.append(useq.Channel(**r))
+        return out
 
     def setValue(self, value: Iterable[useq.Channel]) -> None:
         """Set the current value of the table."""

@@ -43,22 +43,27 @@ class _MDAPopup(QDialog):
 
 
 class MDAButton(QPushButton):
+    _value: useq.MDASequence | None
+
     def __init__(self):
         super().__init__()
-        self.setIcon(icon(MDI6.axis_arrow))
         self.clicked.connect(self._on_click)
-        self._value = None
+        self.setValue(None)
 
     def _on_click(self):
         dialog = _MDAPopup(self._value)
         if dialog.exec_():
-            self._value = dialog.mda_tabs.value()
+            self.setValue(dialog.mda_tabs.value())
 
     def value(self):
         return self._value
 
-    def setValue(self, value):
+    def setValue(self, value: useq.MDASequence | None):
         self._value = value
+        if value is not None:
+            self.setIcon(icon(MDI6.axis_arrow, color="green"))
+        else:
+            self.setIcon(icon(MDI6.axis))
 
 
 MDAButton = WdgGetSet(
@@ -79,7 +84,7 @@ class SubSeqColumn(WidgetColumn):
 class PositionTable(DataTableWidget):
     """Table for editing a list of `useq.Positions`."""
 
-    NAME = TextColumn(key="name", default="#{idx}", is_row_selector=True)
+    NAME = TextColumn(key="name", default=None, is_row_selector=True)
     X = FloatColumn(key="x", header="X [mm]", default=0.0)
     Y = FloatColumn(key="y", header="Y [mm]", default=0.0)
     Z = FloatColumn(key="z", header="Z [mm]", default=0.0)
@@ -110,10 +115,12 @@ class PositionTable(DataTableWidget):
 
     def value(self, exclude_unchecked: bool = True) -> list[useq.Position]:
         """Return the current value of the table as a list of channels."""
-        return [
-            useq.Position(**r)
-            for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
-        ]
+        out = []
+        for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked):
+            if not r.get("name", True):
+                r.pop("name", None)
+            out.append(useq.Position(**r))
+        return out
 
     def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore
         """Set the current value of the table."""

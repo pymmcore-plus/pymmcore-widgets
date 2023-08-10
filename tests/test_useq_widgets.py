@@ -82,7 +82,29 @@ def test_data_table(qtbot: QtBot) -> None:
     assert table.rowCount() == 0
 
 
+SUB_SEQ = useq.MDASequence(
+    time_plan=useq.TIntervalLoops(interval=4, loops=4),
+    z_plan=useq.ZRangeAround(range=4, step=0.2),
+    grid_plan=useq.GridRowsColumns(rows=14, columns=3),
+    channels=[{"config": "FITC", "exposure": 32}],
+)
+
+MDA = useq.MDASequence(
+    time_plan=useq.TIntervalLoops(interval=4, loops=3),
+    stage_positions=[(0, 1, 2), useq.Position(x=42, y=0, z=3, sequence=SUB_SEQ)],
+    channels=[{"config": "DAPI", "exposure": 42}],
+    z_plan=useq.ZRangeAround(range=10, step=0.3),
+    grid_plan=useq.GridRowsColumns(rows=10, columns=3),
+)
+
+
 def test_mda_wdg(qtbot: QtBot):
     wdg = MDASequenceWidget()
     qtbot.addWidget(wdg)
     wdg.show()
+
+    wdg.setValue(MDA)
+    assert wdg.value() == MDA
+
+    wdg.setValue(SUB_SEQ)
+    assert wdg.value() == SUB_SEQ

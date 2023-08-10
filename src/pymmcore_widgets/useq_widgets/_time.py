@@ -14,7 +14,7 @@ from ._data_table import DataTableWidget
 class TimeTable(DataTableWidget):
     """Table for editing a `useq-schema` time plan."""
 
-    PHASE = TextColumn(key="phase", default="#{idx}", is_row_selector=True)
+    PHASE = TextColumn(key="phase", default=None, is_row_selector=True)
     INTERVAL = TimeDeltaColumn(key="interval", default="1 s")
     DURATION = TimeDeltaColumn(key="duration", default="0 s")
     LOOPS = IntColumn(key="loops", default=1, minimum=1)
@@ -95,7 +95,9 @@ class TimeTable(DataTableWidget):
             finally:
                 self._emitting = False
 
-    def value(self, exclude_unchecked: bool = True) -> MultiPhaseTimePlan:
+    def value(
+        self, exclude_unchecked: bool = True
+    ) -> MultiPhaseTimePlan | TIntervalLoops | TIntervalDuration:
         """Return the current value of the table as a list of channels."""
         duration_col = self.table().indexOf(self.DURATION)
         active_key = "duration" if self._active_column == duration_col else "loops"
@@ -103,7 +105,8 @@ class TimeTable(DataTableWidget):
             {"interval": p["interval"], active_key: p[active_key]}
             for p in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
         ]
-        return MultiPhaseTimePlan(phases=phases)
+        plan = MultiPhaseTimePlan(phases=phases)
+        return plan.phases[0] if len(plan.phases) == 1 else plan  # type: ignore
 
     def setValue(self, value: Any) -> None:
         """Set the current value of the table."""

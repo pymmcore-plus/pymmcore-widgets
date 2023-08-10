@@ -78,8 +78,8 @@ class TextColumn(ColumnInfo):
         self, table: QTableWidget, row: int, col: int, change_signal: SignalInstance
     ) -> None:
         # make a new QTableWidgetItem with the default value
-        default = self.default.format(idx=row + 1) if self.default else ""
-        item = QTableWidgetItem(default)
+        # default = self.default.format(idx=row + 1) if self.default else ""
+        item = QTableWidgetItem(self.default)
 
         if self.is_row_selector or self.checkable:
             ch = Qt.CheckState.Checked if self.checked else Qt.CheckState.Unchecked
@@ -213,16 +213,16 @@ class TableDoubleSpinBox(QDoubleSpinBox, _TableSpinboxMixin):
 
 TableIntWidget = WdgGetSet(
     TableSpinBox,
-    QSpinBox.value,
-    QSpinBox.setValue,
+    TableSpinBox.value,
+    TableSpinBox.setValue,
     lambda w, cb: w.valueChanged.connect(cb),
 )
 
 
 TableFloatWidget = WdgGetSet(
     TableDoubleSpinBox,
-    QDoubleSpinBox.value,
-    QDoubleSpinBox.setValue,
+    TableDoubleSpinBox.value,
+    TableDoubleSpinBox.setValue,
     lambda w, cb: w.valueChanged.connect(cb),
 )
 

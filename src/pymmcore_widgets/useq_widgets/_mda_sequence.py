@@ -38,6 +38,7 @@ class MDATabs(CheckableTabWidget):
         self.addTab(self.z_plan, "Z Stack", checked=False)
         self.addTab(self.stage_positions, "Positions", checked=False)
         self.addTab(self.grid_plan, "Grid", checked=False)
+        self.setCurrentIndex(0)
 
     def isAxisUsed(self, key: str | QWidget) -> bool:
         """Return True if the given axis is used in the sequence.
@@ -57,7 +58,7 @@ class MDATabs(CheckableTabWidget):
                     "z": self.z_plan,
                     "g": self.grid_plan,
                 }[key[0].lower()]
-            except KeyError as e:
+            except KeyError as e:  # pragma: no cover
                 raise ValueError(f"Invalid key: {key!r}") from e
         return bool(self.isChecked(key))
 
@@ -75,13 +76,13 @@ class MDATabs(CheckableTabWidget):
 
     def setValue(self, value: useq.MDASequence) -> None:
         """Set widget value from a `useq-schema` MDASequence."""
-        if not isinstance(value, useq.MDASequence):
+        if not isinstance(value, useq.MDASequence):  # pragma: no cover
             raise TypeError(f"Expected useq.MDASequence, got {type(value)}")
 
         widget: ChannelTable | TimeTable | ZPlanWidget | PositionTable | GridPlanWidget
         for f in ("channels", "time_plan", "z_plan", "stage_positions", "grid_plan"):
             widget = getattr(self, f)
-            if (field_val := getattr(value, f)) is not None:
+            if field_val := getattr(value, f):
                 widget.setValue(field_val)
                 self.setChecked(widget, True)
             else:
@@ -115,6 +116,7 @@ class MDASequenceWidget(QWidget):
         self._time_warning.setPixmap(warning_icon.pixmap(24, 24))
         self._time_warning.hide()
         self._duration_label = QLabel()
+        self._duration_label.setWordWrap(True)
 
         self._save_button = QPushButton("Save")
         self._save_button.clicked.connect(self.save)
@@ -199,7 +201,12 @@ class MDASequenceWidget(QWidget):
     def _update_time_estimate(self) -> None:
         """Update the time estimate label."""
         val = self.value()
-        self._time_estimate = val.estimate_duration()
+        try:
+            self._time_estimate = val.estimate_duration()
+        except ValueError as e:  # pragma: no cover
+            self._duration_label.setText(f"Error estimating time:\n{e}")
+            return
+
         self._time_warning.setVisible(self._time_estimate.time_interval_exceeded)
 
         d = Quantity(self._time_estimate.total_duration, "s").to_compact()

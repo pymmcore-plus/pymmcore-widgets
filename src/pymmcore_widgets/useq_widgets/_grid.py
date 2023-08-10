@@ -46,13 +46,11 @@ class GridPlanWidget(QWidget):
     valueChanged = Signal(object)
 
     _mode: Mode
-    _fov_width: float
-    _fov_height: float
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self._fov_width: float = 1.0
-        self._fov_height: float = 1.0
+        self._fov_width: float | None = None
+        self._fov_height: float | None = None
 
         self.rows = QSpinBox()
         self.rows.setRange(1, 1000)
