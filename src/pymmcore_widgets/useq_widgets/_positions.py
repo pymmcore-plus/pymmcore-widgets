@@ -5,6 +5,7 @@ from typing import Sequence, cast
 
 import useq
 from fonticon_mdi6 import MDI6
+from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -18,6 +19,8 @@ from superqt.fonticon import icon
 
 from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
+
+OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
 
 
 class _MDAPopup(QDialog):
@@ -33,7 +36,7 @@ class _MDAPopup(QDialog):
             self.mda_tabs.setValue(value)
         self.mda_tabs.removeTab(3)
 
-        self._btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self._btns = QDialogButtonBox(OK_CANCEL)
         self._btns.accepted.connect(self.accept)
         self._btns.rejected.connect(self.reject)
 
@@ -43,6 +46,7 @@ class _MDAPopup(QDialog):
 
 
 class MDAButton(QPushButton):
+    valueChanged = Signal()
     _value: useq.MDASequence | None
 
     def __init__(self):
@@ -51,7 +55,7 @@ class MDAButton(QPushButton):
         self.setValue(None)
 
     def _on_click(self):
-        dialog = _MDAPopup(self._value)
+        dialog = _MDAPopup(self._value, self)
         if dialog.exec_():
             self.setValue(dialog.mda_tabs.value())
 
@@ -59,18 +63,20 @@ class MDAButton(QPushButton):
         return self._value
 
     def setValue(self, value: useq.MDASequence | None):
-        self._value = value
-        if value is not None:
-            self.setIcon(icon(MDI6.axis_arrow, color="green"))
-        else:
-            self.setIcon(icon(MDI6.axis))
+        old_val, self._value = getattr(self, "_value", None), value
+        if old_val != value:
+            if value is not None:
+                self.setIcon(icon(MDI6.axis_arrow, color="green"))
+            else:
+                self.setIcon(icon(MDI6.axis))
+            self.valueChanged.emit()
 
 
 MDAButton = WdgGetSet(
     MDAButton,
     MDAButton.value,
     MDAButton.setValue,
-    lambda w, cb: None,
+    lambda w, cb: w.valueChanged.connect(cb),
 )
 
 
@@ -99,8 +105,8 @@ class PositionTable(DataTableWidget):
         self._save_button.clicked.connect(self.save)
         self._load_button = QPushButton("Load...")
         self._load_button.clicked.connect(self.load)
-        self._custom_button = QPushButton("Custom...")
-        self._custom_button.clicked.connect(self._custom)
+        # self._custom_button = QPushButton("Custom...")
+        # self._custom_button.clicked.connect(self._custom)
         # self._optimize_button = QPushButton("Optimize...")
         # self._optimize_button.clicked.connect(self._optimize)
 
@@ -108,7 +114,7 @@ class PositionTable(DataTableWidget):
         btn_row.addStretch()
         btn_row.addWidget(self._save_button)
         btn_row.addWidget(self._load_button)
-        btn_row.addWidget(self._custom_button)
+        # btn_row.addWidget(self._custom_button)
         # btn_row.addWidget(self._optimize_button)
 
         layout.addLayout(btn_row)
@@ -126,7 +132,7 @@ class PositionTable(DataTableWidget):
         """Set the current value of the table."""
         _values = []
         for v in value:
-            if not isinstance(v, useq.Position):
+            if not isinstance(v, useq.Position):  # pragma: no cover
                 raise TypeError(f"Expected useq.Position, got {type(v)}")
             _values.append(v.model_dump(exclude_unset=True))
         super().setValue(_values)
@@ -169,10 +175,10 @@ class PositionTable(DataTableWidget):
         except Exception as e:
             raise ValueError(f"Failed to load MDASequence file: {src}") from e
 
-    def _custom(self) -> None:
-        """Customize positions."""
-        print("Not Implemented")
+    # def _custom(self) -> None:
+    #     """Customize positions."""
+    #     print("Not Implemented")
 
-    def _optimize(self) -> None:
-        """Optimize positions."""
-        print("Not Implemented")
+    # def _optimize(self) -> None:
+    #     """Optimize positions."""
+    #     print("Not Implemented")

@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 import useq
 from pytestqt.qtbot import QtBot
+from qtpy.QtCore import QTimer
 
 from pymmcore_widgets.useq_widgets import (
     ChannelTable,
@@ -13,10 +14,8 @@ from pymmcore_widgets.useq_widgets import (
     TimeTable,
     ZPlanWidget,
 )
-from pymmcore_widgets.useq_widgets._column_info import (
-    FloatColumn,
-    TextColumn,
-)
+from pymmcore_widgets.useq_widgets._column_info import FloatColumn, TextColumn
+from pymmcore_widgets.useq_widgets._positions import QFileDialog, _MDAPopup
 
 
 class MyEnum(enum.Enum):
@@ -143,3 +142,49 @@ def test_mda_wdg_load_save(
         assert dest.read_text() == MDA.model_dump_json()
     # the yaml dump is correct, but varies from our input because of pydantic set/unset
     # json just includes all fields
+
+
+def test_position_table(qtbot: QtBot):
+    wdg = PositionTable()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    wdg.table().setRowCount(1)
+    seq_col = wdg.table().indexOf(wdg.SEQ)
+    btn = wdg.table().cellWidget(0, seq_col)
+
+    def handle_dialog():
+        popup = btn.findChild(_MDAPopup)
+        popup.mda_tabs.setChecked(0, True)
+        popup.mda_tabs.setChecked(1, True)
+        popup.mda_tabs.setChecked(2, True)
+        popup.accept()
+
+    QTimer.singleShot(100, handle_dialog)
+
+    with qtbot.waitSignal(wdg.valueChanged):
+        btn.click()
+
+    positions = wdg.value()
+    assert positions[0].sequence is not None
+    assert positions[0].sequence.z_plan is not None
+    assert len(positions[0].sequence.channels) == 1
+
+
+def test_position_load_save(
+    qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    wdg = PositionTable()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    dest = tmp_path / "positions.json"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a: (dest, None))
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *a: (dest, None))
+
+    wdg.setValue(MDA.stage_positions)
+    wdg.save()
+    wdg.table().setRowCount(0)
+    assert wdg.value() != MDA.stage_positions
+    wdg.load()
+    assert wdg.value() == MDA.stage_positions

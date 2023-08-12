@@ -39,6 +39,8 @@ class DataTable(QTableWidget):
     COLUMNS: ClassVar[tuple[ColumnInfo, ...]] = ()
 
     def __init_subclass__(cls) -> None:
+        # this isn't covered in tests, because all of our subclasses are from
+        # DataTableWidget instead of this class directly
         cls.COLUMNS = tuple(
             i for i in cls.__dict__.values() if isinstance(i, ColumnInfo)
         )
@@ -142,7 +144,8 @@ class DataTable(QTableWidget):
 
     def setRowData(self, row: int, data: Record) -> None:
         if not isinstance(data, dict):
-            breakpoint()
+            raise TypeError(f"Expected dict, got {type(data)}")  # pragma: no cover
+
         for col in range(self.columnCount()):
             if info := self.columnInfo(col):
                 info.set_cell_data(self, row, col, data.get(info.key))
@@ -154,7 +157,7 @@ class DataTable(QTableWidget):
             return True
         if item := self.item(row, selector_col):
             return item.checkState() == Qt.CheckState.Checked  # type: ignore
-        return False
+        return False  # pragma: no cover
 
     def _check_all(self, state: Qt.CheckState) -> None:
         if (selector_col := self._get_selector_col()) >= 0:
@@ -167,7 +170,7 @@ class DataTable(QTableWidget):
             if info := self.columnInfo(col):
                 if info.is_row_selector:
                     return col
-        return -1
+        return -1  # pragma: no cover
 
     def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
         # when a new row is inserted by any means, populate it with default values

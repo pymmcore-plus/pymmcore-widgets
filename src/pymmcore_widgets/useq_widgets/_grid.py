@@ -367,14 +367,3 @@ class _GridRendering(QWidget):
 
     def sizeHint(self) -> QSize:
         return QSize(95, 95)
-
-
-if __name__ == "__main__":
-    import sys
-
-    from qtpy.QtWidgets import QApplication
-
-    app = QApplication(sys.argv)
-    w = GridPlanWidget()
-    w.show()
-    sys.exit(app.exec_())

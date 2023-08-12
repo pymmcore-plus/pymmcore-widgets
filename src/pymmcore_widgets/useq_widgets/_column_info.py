@@ -277,7 +277,7 @@ class QQuantityValidator(QValidator):
 
     def text_to_quant(self, text: str | None) -> pint.Quantity | None:
         if not text:
-            return None
+            return None  # pragma: no cover
 
         with contextlib.suppress(pint.UndefinedUnitError, AssertionError):
             q = self.ureg.parse_expression(text)
@@ -290,7 +290,7 @@ class QQuantityValidator(QValidator):
         with contextlib.suppress(ValueError):
             td = parse_timedelta(text)
             return self.ureg.Quantity(td.total_seconds(), "second")
-        return None
+        return None  # pragma: no cover
 
 
 pattern = r"(?:(?P<hours>\d+):)?(?:(?P<min>\d+):)?(?P<sec>\d+)([.,](?P<ms>\d+))?"
@@ -299,7 +299,7 @@ pattern = r"(?:(?P<hours>\d+):)?(?:(?P<min>\d+):)?(?P<sec>\d+)([.,](?P<ms>\d+))?
 def parse_timedelta(time_str: str) -> timedelta:
     match = re.match(pattern, time_str)
 
-    if not match:
+    if not match:  # pragma: no cover
         raise ValueError(f"Invalid time interval format: {time_str}")
 
     hours = int(match["hours"]) if match["hours"] else 0
@@ -324,20 +324,21 @@ class QQuantityLineEdit(QLineEdit):
         self._validator.dimensionality = dimensionality
 
     def setUreg(self, ureg: pint.UnitRegistry) -> None:
-        if not isinstance(ureg, pint.UnitRegistry):
+        if not isinstance(ureg, pint.UnitRegistry):  # pragma: no cover
             raise TypeError(f"ureg must be a pint.UnitRegistry, not {type(ureg)}")
         self._validator.ureg = ureg
 
-    def focusInEvent(self, event: QFocusEvent):
-        if event.reason() != Qt.FocusReason.PopupFocusReason:
+    def focusInEvent(self, event: QFocusEvent | None) -> None:
+        if event and event.reason() != Qt.FocusReason.PopupFocusReason:
             self._before = self.text()
         super().focusInEvent(event)
 
-    def focusOutEvent(self, event: QFocusEvent) -> None:
+    def focusOutEvent(self, event: QFocusEvent | None) -> None:
         # When the widget loses focus, check if the text is valid
         self._on_editing_finished()
         if (
-            event.reason() != Qt.FocusReason.PopupFocusReason
+            event
+            and event.reason() != Qt.FocusReason.PopupFocusReason
             and self._before != self.text()
         ):
             self.textModified.emit(self._before, self.text())
@@ -345,7 +346,7 @@ class QQuantityLineEdit(QLineEdit):
 
     def setText(self, value: str | None) -> None:
         if (valid_q := self._validator.text_to_quant(value)) is None:
-            raise ValueError(f"Invalid value: {value!r}")
+            raise ValueError(f"Invalid value: {value!r}")  # pragma: no cover
         text = f"{valid_q.to_compact():~P}"  # short pretty format
         super().setText(text)
         self._last_valid = text

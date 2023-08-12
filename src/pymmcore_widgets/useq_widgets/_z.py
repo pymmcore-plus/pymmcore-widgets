@@ -403,13 +403,3 @@ class ZPlanWidget(QWidget):
         for col in range(grid.columnCount()):
             if (item := grid.itemAtPosition(idx, col)) and (wdg := item.widget()):
                 wdg.setVisible(visible)
-
-
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
-
-    app = QApplication([])
-    w = ZPlanWidget()
-    w.show()
-    w.valueChanged.connect(print)
-    app.exec_()
