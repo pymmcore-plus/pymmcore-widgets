@@ -20,18 +20,16 @@ class ChannelTable(DataTableWidget):
 
     def value(self, exclude_unchecked: bool = True) -> list[useq.Channel]:
         """Return the current value of the table as a list of channels."""
-        out = []
-        for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked):
-            if not r.get("name", True):
-                r.pop("name", None)
-            out.append(useq.Channel(**r))
-        return out
+        return [
+            useq.Channel(**r)
+            for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
+        ]
 
     def setValue(self, value: Iterable[useq.Channel]) -> None:
         """Set the current value of the table."""
         _values = []
         for v in value:
-            if not isinstance(v, useq.Channel):
+            if not isinstance(v, useq.Channel):  # pragma: no cover
                 raise TypeError(f"Expected useq.Channel, got {type(v)}")
             _values.append(v.model_dump(exclude_unset=True))
         super().setValue(_values)

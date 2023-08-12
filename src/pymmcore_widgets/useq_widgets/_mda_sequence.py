@@ -162,7 +162,7 @@ class MDASequenceWidget(QWidget):
             file, _ = QFileDialog.getSaveFileName(
                 self, "Save MDASequence and filename.", "", "json(*.json), yaml(*.yaml)"
             )
-            if not file:
+            if not file:  # pragma: no cover
                 return
 
         dest = Path(file)
@@ -170,7 +170,7 @@ class MDASequenceWidget(QWidget):
             data = cast("str", self.value().yaml())
         elif dest.suffix == ".json":
             data = self.value().json()
-        else:
+        else:  # pragma: no cover
             raise ValueError(f"Invalid file extension: {dest.suffix!r}")
 
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -182,16 +182,16 @@ class MDASequenceWidget(QWidget):
             file, _ = QFileDialog.getOpenFileName(
                 self, "Select an MDAsequence file.", "", "json(*.json), yaml(*.yaml)"
             )
-            if not file:
+            if not file:  # pragma: no cover
                 return
 
         src = Path(file)
-        if not src.is_file():
+        if not src.is_file():  # pragma: no cover
             raise FileNotFoundError(f"File not found: {src}")
 
         try:
             mda_seq = useq.MDASequence.from_file(src)
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             raise ValueError(f"Failed to load MDASequence file: {src}") from e
 
         self.setValue(mda_seq)

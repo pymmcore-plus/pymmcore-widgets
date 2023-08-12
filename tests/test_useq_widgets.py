@@ -1,4 +1,5 @@
 import enum
+from pathlib import Path
 
 import pytest
 import useq
@@ -108,3 +109,37 @@ def test_mda_wdg(qtbot: QtBot):
 
     wdg.setValue(SUB_SEQ)
     assert wdg.value() == SUB_SEQ
+
+
+@pytest.mark.parametrize("ext", ["json", "yaml", "foo"])
+def test_mda_wdg_load_save(
+    qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str
+):
+    from pymmcore_widgets.useq_widgets._mda_sequence import QFileDialog
+
+    wdg = MDASequenceWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    dest = tmp_path / f"sequence.{ext}"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a: (dest, None))
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *a: (dest, None))
+    dest.write_text("")
+
+    if ext == "foo":
+        with pytest.raises(ValueError):
+            wdg.load()
+        with pytest.raises(ValueError):
+            wdg.save()
+        return
+
+    dest.write_text(MDA.yaml() if ext == "yaml" else MDA.model_dump_json())
+
+    wdg.load()
+    assert wdg.value() == MDA
+
+    wdg.save()
+    if ext == "json":
+        assert dest.read_text() == MDA.model_dump_json()
+    # the yaml dump is correct, but varies from our input because of pydantic set/unset
+    # json just includes all fields

@@ -107,7 +107,7 @@ T = TypeVar("T")
 W = TypeVar("W", bound=QWidget)
 
 
-@dataclass
+@dataclass(frozen=True)
 class WdgGetSet(Generic[W, T]):
     widget: type[W]
     getter: Callable[[W], T]
