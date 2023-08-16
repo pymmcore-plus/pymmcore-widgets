@@ -119,14 +119,14 @@ class PositionTable(DataTableWidget):
 
         layout.addLayout(btn_row)
 
-    def value(self, exclude_unchecked: bool = True) -> list[useq.Position]:
+    def value(self, exclude_unchecked: bool = True) -> tuple[useq.Position, ...]:
         """Return the current value of the table as a list of channels."""
         out = []
         for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked):
             if not r.get("name", True):
                 r.pop("name", None)
             out.append(useq.Position(**r))
-        return out
+        return tuple(out)
 
     def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore
         """Set the current value of the table."""
@@ -153,8 +153,9 @@ class PositionTable(DataTableWidget):
         if dest.suffix != ".json":
             raise ValueError(f"Invalid file extension: {dest.suffix!r}, expected .json")
 
-        data = json.dumps([x.model_dump() for x in self.value()], indent=2)
-        dest.write_text(data)
+        # doing it this way because model_json_dump knows how to serialize everything.
+        inner = ",\n".join([x.model_dump_json() for x in self.value()])
+        dest.write_text(f"[\n{inner}\n]\n")
 
     def load(self, file: str | Path | None = None) -> None:
         """Load positions from a file."""

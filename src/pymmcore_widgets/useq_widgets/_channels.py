@@ -18,12 +18,12 @@ class ChannelTable(DataTableWidget):
     Z_OFFSET = FloatColumn(key="z_offset", default=0.0, minimum=-10000, maximum=10000)
     # fmt: on
 
-    def value(self, exclude_unchecked: bool = True) -> list[useq.Channel]:
+    def value(self, exclude_unchecked: bool = True) -> tuple[useq.Channel, ...]:
         """Return the current value of the table as a list of channels."""
-        return [
+        return tuple(
             useq.Channel(**r)
             for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
-        ]
+        )
 
     def setValue(self, value: Iterable[useq.Channel]) -> None:
         """Set the current value of the table."""
