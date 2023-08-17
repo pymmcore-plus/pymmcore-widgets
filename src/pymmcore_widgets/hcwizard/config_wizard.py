@@ -4,16 +4,16 @@ from pathlib import Path
 from pymmcore_plus import CMMCorePlus, Device, DeviceType
 from qtpy.QtWidgets import (
     QButtonGroup,
+    QFileDialog,
     QHBoxLayout,
     QLineEdit,
-    QTableWidget,
+    QPushButton,
     QRadioButton,
+    QTableWidget,
     QVBoxLayout,
     QWidget,
-    QFileDialog,
     QWizard,
     QWizardPage,
-    QPushButton,
 )
 
 logger = logging.getLogger(__name__)
