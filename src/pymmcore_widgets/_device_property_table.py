@@ -45,6 +45,9 @@ class DevicePropertyTable(QTableWidget):
         Whether to enable each property widget, by default True
     mmcore : CMMCorePlus, optional
         CMMCore instance, by default None
+    connect_core : bool, optional
+        Whether to connect the widget to the core. If False, changes in the table
+        will not update the core. By default, True.
     """
 
     PROP_ROLE = QTableWidgetItem.ItemType.UserType + 1
@@ -55,12 +58,14 @@ class DevicePropertyTable(QTableWidget):
         *,
         enable_property_widgets: bool = True,
         mmcore: CMMCorePlus | None = None,
+        connect_core: bool = True,
     ):
         rows = 0
         cols = 2
         super().__init__(rows, cols, parent)
         self._rows_checkable: bool = False
         self._prop_widgets_enabled: bool = enable_property_widgets
+        self._connect_core = connect_core
 
         self._mmc = mmcore or CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
@@ -140,7 +145,12 @@ class DevicePropertyTable(QTableWidget):
                 item.setIcon(icon(icon_string, color="Gray"))
             self.setItem(i, 0, item)
 
-            wdg = PropertyWidget(prop.device, prop.name, mmcore=self._mmc)
+            wdg = PropertyWidget(
+                prop.device,
+                prop.name,
+                mmcore=self._mmc,
+                connect_core=self._connect_core,
+            )
             self.setCellWidget(i, 1, wdg)
             if not self._prop_widgets_enabled:
                 wdg.setEnabled(False)
@@ -175,7 +185,7 @@ class DevicePropertyTable(QTableWidget):
             if (
                 (prop.isReadOnly() and not include_read_only)
                 or (prop.deviceType() in exclude_devices)
-                or (query and query not in item.text().lower())
+                or (query and query.lower() not in item.text().lower())
             ):
                 self.hideRow(row)
             else:
@@ -190,13 +200,16 @@ class DevicePropertyTable(QTableWidget):
         # [(device, property, value_to_set), ...]
         dev_prop_val_list: list[tuple[str, str, str]] = []
         for r in range(self.rowCount()):
-            item = self.item(r, 0)
-            if item.checkState() == Qt.CheckState.Checked:
-                prop: DeviceProperty = item.data(self.PROP_ROLE)
-                wdg = cast("PropertyWidget", self.cellWidget(r, 1))
-                dev_prop_val_list.append((prop.device, prop.name, str(wdg.value())))
+            if self.item(r, 0).checkState() == Qt.CheckState.Checked:
+                dev_prop_val_list.append(self.getRowData(r))
 
         return dev_prop_val_list
+
+    def getRowData(self, row: int):
+        item = self.item(row, 0)
+        prop: DeviceProperty = item.data(self.PROP_ROLE)
+        wdg = cast("PropertyWidget", self.cellWidget(row, 1))
+        return (prop.device, prop.name, str(wdg.value()))
 
     def setPropertyWidgetsEnabled(self, enabled: bool) -> None:
         """Set whether each widget is enabled."""

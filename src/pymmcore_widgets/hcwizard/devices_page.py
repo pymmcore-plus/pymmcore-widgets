@@ -245,7 +245,7 @@ class _AvailableDeviceTable(QWidget):
         assert dev.initialized and dev in self._model.devices
         self.touchedModel.emit()
         # TODO refresh the devices table
-
+        print(list(dev.pre_init_props()))
         if dev.device_type == DeviceType.Hub:
             peripherals: list[Device] = []
             for child in dev.children:

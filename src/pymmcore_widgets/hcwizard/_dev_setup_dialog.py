@@ -16,6 +16,8 @@ from qtpy.QtWidgets import (
 )
 from superqt.utils import exceptions_as_dialog
 
+from pymmcore_widgets._device_property_table import DevicePropertyTable
+
 logger = logging.getLogger(__name__)
 
 
@@ -52,7 +54,10 @@ class _DeviceSetupDialog(QDialog):
         btns.rejected.connect(self.reject)
         btns.helpRequested.connect(self._show_help)
 
-        # self.prop_table = QTableWidget()
+        self.prop_table = DevicePropertyTable(connect_core=False)
+        # The "-" suffix *should* be enough to select only this device...
+        # but it's a bit hacky
+        self.prop_table.filterDevices(f"{device.name}-", include_read_only=False)
 
         # self.com_table = QTableWidget()
 
@@ -66,6 +71,8 @@ class _DeviceSetupDialog(QDialog):
 
         layout = QVBoxLayout(self)
         layout.addLayout(top)
+        layout.addWidget(QLabel("Initialization Properties:"))
+        layout.addWidget(self.prop_table)
         layout.addWidget(btns)
 
         # DEVICE --------------
@@ -140,11 +147,13 @@ class _DeviceSetupDialog(QDialog):
         if self._device.initialized:
             self._device.load_in_core(reload=True)
 
-        # TODO: transfer props from properties_table to the device
-        # for row in prop_table.rows:
-        #     core.setProperty(dev.name, row.prop_name, row.prop_value)
+        # get properties from table
+        for r in range(self.prop_table.rowCount()):
+            if not self.prop_table.isRowHidden(r):
+                _, prop, val = self.prop_table.getRowData(r)
+                self._core.setProperty(self._device.name, prop, val)
 
-        self._device.update_from_core()
+        self._device.update_from_core(update_properties=True)
 
         with exceptions_as_dialog(
             msg_template="Failed to initialize port device: {exc_value}", parent=self

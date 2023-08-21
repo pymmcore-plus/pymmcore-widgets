@@ -270,6 +270,9 @@ class PropertyWidget(QWidget):
         By default, None. If not specified, the widget will use the active
         (or create a new)
         [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    connect_core : bool
+        Whether to connect the widget to the core. If False, the widget will not
+        update the core when the value changes. By default, True.
 
     Raises
     ------
@@ -287,6 +290,7 @@ class PropertyWidget(QWidget):
         *,
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
+        connect_core: bool = True,
     ) -> None:
         super().__init__(parent=parent)
 
@@ -302,7 +306,7 @@ class PropertyWidget(QWidget):
                 f"Available property names include: {names}"
             )
 
-        self._updates_core: bool = True  # whether to update the core on value change
+        self._updates_core: bool = connect_core  # whether to update the core on change
         self._device_label = device_label
         self._prop_name = prop_name
 
