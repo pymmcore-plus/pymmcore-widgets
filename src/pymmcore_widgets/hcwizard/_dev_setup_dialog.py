@@ -6,7 +6,6 @@ from pymmcore_plus.model import Device, Microscope
 from qtpy.QtWidgets import (
     QDialog,
     QDialogButtonBox,
-    QErrorMessage,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -14,6 +13,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.utils import exceptions_as_dialog
 
 logger = logging.getLogger(__name__)
 
@@ -70,11 +70,8 @@ class _DeviceSetupDialog(QDialog):
 
         # can not change pre-initialization properties on a device that was initialized
         if device.initialized:
-            try:
-                device.load_in_core(core, reload=True)
-            except Exception as e:
-                err = QErrorMessage()
-                err.showMessage(str(e))
+            with exceptions_as_dialog(use_error_message=True):
+                device.load_in_core(reload=True)
 
     def _show_help(self) -> None:
         from webbrowser import open
@@ -93,21 +90,14 @@ class _DeviceSetupDialog(QDialog):
                 )
                 return
 
-            try:
-                self._core.unloadDevice(old_name)
-                self._device.initialized = False
-                self._device.load_in_core(self._core)
-                self._core.setParentLabel(new_name, self._device.parent_name)
-            except Exception as e:
-                logger.exception(e)
-                QMessageBox.critical(
-                    self,
-                    "Error",
-                    f"Device failed to re-load with changed name: {e}",
-                )
+            with exceptions_as_dialog(
+                msg_template="Device failed to re-load with changed name: {exc_value}",
+                parent=self,
+            ) as ctx:
+                self._device.rename_in_core(new_name)
+            if ctx.exception:
+                logger.exception(ctx.exception)
                 return
-
-            self._device.name = new_name
 
         if not self._model.has_device_name(new_name):
             QMessageBox.critical(
@@ -123,18 +113,12 @@ class _DeviceSetupDialog(QDialog):
             except Exception as e:
                 logger.exception(e)
 
-        try:
+        with exceptions_as_dialog(
+            msg_template="Failed to initialize device: {exc_value}", parent=self
+        ) as ctx:
             success = self._initialize_device()
-        except Exception as e:
-            self._device.load_in_core(self._core, reload=True)
-            logger.exception(e)
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Failed to initialize device: {e}",
-            )
-            return
-        if not success:
+
+        if ctx.exception or not success:
             self._device.initialized = False
             return
 
@@ -152,27 +136,24 @@ class _DeviceSetupDialog(QDialog):
 
     def _initialize_device(self) -> bool:
         if self._device.initialized:
-            self._device.load_in_core(self._core, reload=True)
+            self._device.load_in_core(reload=True)
 
         # TODO: transfer props from properties_table to the device
         # for row in prop_table.rows:
         #     core.setProperty(dev.name, row.prop_name, row.prop_value)
 
-        self._device.load_data_from_hardware(self._core)
+        self._device.update_from_core()
 
-        try:
+        with exceptions_as_dialog(
+            msg_template="Failed to initialize port device: {exc_value}", parent=self
+        ) as ctx:
             self._initialize_port()
-        except Exception as e:
-            logger.exception(e)
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Failed to initialize port device: {e}",
-            )
+        if ctx.exception:
+            logger.exception(ctx.exception)
             return False
 
         self._core.initializeDevice(self._device.name)
-        self._device.load_data_from_hardware(self._core)
+        self._device.update_from_core()
         self._device.initialized = True
         return True
 
@@ -192,5 +173,5 @@ class _DeviceSetupDialog(QDialog):
                 # if port_dev.find_property(prop.name)...
         self._core.initializeDevice(port_dev.name)
         time.sleep(1)  # MMStudio does this
-        port_dev.load_data_from_hardware(self._core)
+        port_dev.update_from_core()
         self._model.assigned_com_ports[port_dev.name] = port_dev

@@ -2,7 +2,7 @@ import logging
 from typing import cast
 
 from pymmcore_plus import CMMCorePlus, DeviceType
-from pymmcore_plus.model import Device, HubDevice, Microscope
+from pymmcore_plus.model import Device, Microscope
 from qtpy.QtCore import QRegularExpression, Qt
 from qtpy.QtWidgets import (
     QErrorMessage,
@@ -129,7 +129,7 @@ class _AvailableDeviceTable(QWidget):
     def _updateVisibleItems(self) -> None:
         """Recursively update the visibility of items based on the given pattern."""
         pattern = self.filter.text()
-        dev_type = cast(DeviceType, self.dev_type.currentEnum())
+        dev_type = DeviceType[self.dev_type.currentText()]
 
         opt = QRegularExpression.PatternOption.CaseInsensitiveOption
         expressions = {QRegularExpression(p, opt) for p in pattern.split()}
@@ -137,7 +137,7 @@ class _AvailableDeviceTable(QWidget):
         for row in range(self.table.rowCount()):
             if dev_type not in (DeviceType.Any, DeviceType.Unknown):
                 dev = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
-                if cast("Device", dev).type != dev_type:
+                if cast("Device", dev).device_type != dev_type:
                     self.table.hideRow(row)
                     continue
 
@@ -156,8 +156,8 @@ class _AvailableDeviceTable(QWidget):
             item0.setData(Qt.ItemDataRole.UserRole, device)
             self.table.setItem(i, 0, item0)
             self.table.setItem(i, 1, QTableWidgetItem(device.adapter_name))
-            item = QTableWidgetItem(str(device.type))
-            icon_string = ICONS.get(device.type, None)
+            item = QTableWidgetItem(str(device.device_type))
+            icon_string = ICONS.get(device.device_type, None)
             if icon_string:
                 item.setIcon(icon(icon_string, color="Gray"))
 
@@ -191,7 +191,7 @@ class _AvailableDeviceTable(QWidget):
             # try to load the device
             self._core.loadDevice(new_name, device.library, device.adapter_name)
             # get the device with info loaded from core
-            dev = Device.create_from_core(self._core, new_name)
+            dev = Device(new_name, from_core=self._core)
         except Exception as e:
             logger.exception(e)
             em = QErrorMessage()
@@ -201,7 +201,8 @@ class _AvailableDeviceTable(QWidget):
         # TODO: feels like this should be a context manager
         self._model.devices.append(dev)
         # show the setup dialog
-        dlg = _DeviceSetupDialog(dev, self._model, self._core)
+        dlg = _DeviceSetupDialog(dev, self._model, self._core, parent=self)
+        dlg.setWindowFlags(Qt.WindowType.Sheet)
         if not dlg.exec():
             return
 
@@ -218,7 +219,7 @@ class _AvailableDeviceTable(QWidget):
         assert dev.initialized and dev in self._model.devices
         # TODO refresh the devices table
 
-        if isinstance(dev, HubDevice):
+        if dev.device_type == DeviceType.Hub:
             peripherals: list[Device] = []
             for child in dev.children:
                 if self._model.has_adapter_name(dev.library, dev.name, child):

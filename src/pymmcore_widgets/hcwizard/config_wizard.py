@@ -14,7 +14,7 @@ class ConfigWizard(QWizard):
     def __init__(self, core: CMMCorePlus | None = None, parent: QWidget | None = None):
         super().__init__(parent)
         self._core = core or CMMCorePlus.instance()
-        self._model = Microscope.create(self._core)
+        self._model = Microscope(from_core=self._core)
 
         self.setWindowTitle("Hardware Configuration Wizard")
         self.addPage(IntroPage(self._model, self._core))
