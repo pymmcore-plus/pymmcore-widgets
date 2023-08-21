@@ -49,7 +49,6 @@ class _DeviceTable(QTableWidget):
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.verticalHeader().setVisible(False)
 
-
     def rebuild(self, model: Microscope) -> None:
         self.setRowCount(len(model.devices))
         for i, device in enumerate(model.devices):
