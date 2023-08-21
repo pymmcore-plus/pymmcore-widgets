@@ -3,6 +3,7 @@ import time
 
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.model import Device, Microscope
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -29,6 +30,7 @@ class _DeviceSetupDialog(QDialog):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        self.setWindowFlags(Qt.WindowType.Sheet)
         self._device = device
         self._model = model
         self._core = core
@@ -86,12 +88,12 @@ class _DeviceSetupDialog(QDialog):
                 QMessageBox.critical(
                     self,
                     "Error",
-                    f"Device name {new_name} already exists. Please rename.",
+                    f"Device name {new_name!r} already exists. Please rename.",
                 )
                 return
 
             with exceptions_as_dialog(
-                msg_template="Device failed to re-load with changed name: {exc_value}",
+                msg_template="Failed to re-load device with new name: {exc_value}",
                 parent=self,
             ) as ctx:
                 self._device.rename_in_core(new_name)
@@ -103,7 +105,7 @@ class _DeviceSetupDialog(QDialog):
             QMessageBox.critical(
                 self,
                 "Error",
-                f"Device {new_name} is not loaded properly.\n" "Please try again.",
+                f"Device {new_name!r} is not loaded properly.\nPlease try again.",
             )
             return
 

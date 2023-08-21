@@ -1,11 +1,12 @@
 import logging
+from contextlib import suppress
 from typing import cast
 
+from psygnal import Signal
 from pymmcore_plus import CMMCorePlus, DeviceType
 from pymmcore_plus.model import Device, Microscope
-from qtpy.QtCore import QRegularExpression, Qt
+from qtpy.QtCore import QRegularExpression, Qt, Signal
 from qtpy.QtWidgets import (
-    QErrorMessage,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -18,6 +19,7 @@ from qtpy.QtWidgets import (
 )
 from superqt import QEnumComboBox
 from superqt.fonticon import icon
+from superqt.utils import exceptions_as_dialog
 
 from pymmcore_widgets._device_property_table import ICONS
 
@@ -31,9 +33,8 @@ logger = logging.getLogger(__name__)
 class _DeviceTable(QTableWidget):
     """Table of currently configured devices."""
 
-    def __init__(self, model: Microscope):
-        super().__init__()
-        self._model = model
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
         self.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
 
         h = self.horizontalHeader()
@@ -43,13 +44,47 @@ class _DeviceTable(QTableWidget):
         self.setColumnCount(len(headers))
         self.setHorizontalHeaderLabels(headers)
 
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.verticalHeader().setVisible(False)
+
+
+    def rebuild(self, model: Microscope) -> None:
+        self.setRowCount(len(model.devices))
+        for i, device in enumerate(model.devices):
+            item = QTableWidgetItem(device.name)
+            item.setData(Qt.ItemDataRole.UserRole, device)
+            self.setItem(i, 0, item)
+            self.setItem(i, 1, QTableWidgetItem(device.adapter_name))
+            self.setItem(i, 2, QTableWidgetItem(device.description))
+            if device.device_type == DeviceType.Core:
+                status = "Core"
+            else:
+                status = "OK" if device.initialized else "Failed"
+            self.setItem(i, 3, QTableWidgetItem(status))
+
 
 class _CurrentDevicesTable(QWidget):
-    ...
+    def __init__(self, model: Microscope, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._model = model
+        self.table = _DeviceTable(self)
+        self.rebuild_table()
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(QLabel("Installed Devices:"))
+        layout.addWidget(self.table)
+
+    def rebuild_table(self):
+        self.table.rebuild(self._model)
 
 
 class _AvailableDeviceTable(QWidget):
     """Table of all available devices."""
+
+    touchedModel = Signal()
 
     def __init__(self, model: Microscope, core: CMMCorePlus):
         super().__init__()
@@ -181,42 +216,35 @@ class _AvailableDeviceTable(QWidget):
         device = cast("Device", device)
 
         # generate a unique name for the device
-        new_name = device.adapter_name
+        tmp_name = device.adapter_name
         count = 0
-        while any(d.name == new_name for d in self._model.devices):
-            new_name = f"{device.adapter_name}-{count}"
+        while any(d.name == tmp_name for d in self._model.devices):
+            tmp_name = f"{device.adapter_name}-{count}"
             count += 1
 
-        try:
+        with exceptions_as_dialog(use_error_message=True) as ctx:
             # try to load the device
-            self._core.loadDevice(new_name, device.library, device.adapter_name)
             # get the device with info loaded from core
-            dev = Device(new_name, from_core=self._core)
-        except Exception as e:
-            logger.exception(e)
-            em = QErrorMessage()
-            em.showMessage(str(e))
+            self._core.loadDevice(tmp_name, device.library, device.adapter_name)
+            dev = Device(tmp_name, from_core=self._core)
+            self._model.devices.append(dev)
+
+        if ctx.exception:
+            logger.exception(ctx.exception)
             return
 
-        # TODO: feels like this should be a context manager
-        self._model.devices.append(dev)
-        # show the setup dialog
+        # open device setup dialog
         dlg = _DeviceSetupDialog(dev, self._model, self._core, parent=self)
-        dlg.setWindowFlags(Qt.WindowType.Sheet)
-        if not dlg.exec():
-            return
-
-        if not dev.initialized:
+        if not dlg.exec() or not dev.initialized:
             # user cancelled or things didn't work out
             self._model.devices.remove(dev)
-            try:
-                self._core.unloadDevice(new_name)
-            except Exception as e:
-                logger.exception(e)
-                return
+            with suppress(RuntimeError):
+                self._core.unloadDevice(tmp_name)
+            return
 
-        # device is initialized and in the model
+        # at this point device is initialized and added to the model
         assert dev.initialized and dev in self._model.devices
+        self.touchedModel.emit()
         # TODO refresh the devices table
 
         if dev.device_type == DeviceType.Hub:
@@ -256,17 +284,12 @@ class DevicesPage(_ConfigWizardPage):
             "this configuration."
         )
 
-        self.table = _DeviceTable(model)
+        self.table = _CurrentDevicesTable(model)
         self.available = _AvailableDeviceTable(model, core)
+        self.available.touchedModel.connect(self.table.rebuild_table)
 
         splitter = QSplitter(Qt.Orientation.Vertical)
-        top = QWidget()
-        layout = QVBoxLayout(top)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QLabel("Installed Devices:"))
-        layout.addWidget(self.table)
-
-        splitter.addWidget(top)
+        splitter.addWidget(self.table)
         splitter.addWidget(self.available)
 
         layout = QVBoxLayout(self)
