@@ -1,7 +1,7 @@
 import logging
 import time
-from typing import Sequence
 from contextlib import suppress
+from typing import Sequence
 
 from pymmcore_plus import CMMCorePlus, DeviceDetectionStatus, Keyword
 from pymmcore_plus.model import Device, Microscope
@@ -23,6 +23,7 @@ from pymmcore_widgets._device_property_table import DevicePropertyTable
 
 logger = logging.getLogger(__name__)
 PORT_SLEEP = 0.05  # revisit this  # TODO
+
 
 class _DeviceSetupDialog(QDialog):
     """Dialog that pops up when you click add or double-click an available device."""
@@ -69,7 +70,7 @@ class _DeviceSetupDialog(QDialog):
         if port_props:
             print(model.available_com_ports)
             self._port_device = next(
-                d for d in model.available_com_ports if d.adapter_name == 'COM4' #TODO
+                d for d in model.available_com_ports if d.adapter_name == "COM4"  # TODO
             )
         elif not model.available_com_ports:
             # needs to be done before the dialog # FIXME
