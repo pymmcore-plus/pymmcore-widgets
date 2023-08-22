@@ -1,7 +1,8 @@
 import logging
 import time
+from typing import Sequence
 
-from pymmcore_plus import CMMCorePlus
+from pymmcore_plus import CMMCorePlus, DeviceDetectionStatus, Keyword
 from pymmcore_plus.model import Device, Microscope
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
@@ -11,6 +12,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -39,25 +41,44 @@ class _DeviceSetupDialog(QDialog):
 
         self._port_device: Device | None = None
 
+        # NOTE:
+        # it's still not clear to me why MMStudio doesn't restrict this to
+        # JUST the device we're setting up at the moment...
+        # core.supportsDeviceDetection(device.name)
+        # even in the scan ports thread, we're only detecting `device`.
+        should_detect = False
+        for dev in self._model.devices:
+            for prop in dev.properties:
+                if prop.name == Keyword.Port and core.supportsDeviceDetection(dev.name):
+                    should_detect = True
+                    break
+
         self.setWindowTitle(f"Device: {device.adapter_name}; Library: {device.library}")
 
         # WIDGETS -------------
 
         self.name_edit = QLineEdit(device.name)
+        self.scan_ports_btn = QPushButton("Scan Ports")
+        self.scan_ports_btn.clicked.connect(self._scan_ports)
+        if not should_detect:
+            self.scan_ports_btn.setEnabled(False)
+            self.scan_ports_btn.setVisible(False)
 
         btns = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok
             | QDialogButtonBox.StandardButton.Cancel
             | QDialogButtonBox.StandardButton.Help
         )
-        btns.accepted.connect(self._pre_accept)
+        btns.accepted.connect(self._on_ok_clicked)
         btns.rejected.connect(self.reject)
         btns.helpRequested.connect(self._show_help)
 
         self.prop_table = DevicePropertyTable(connect_core=False)
         # The "-" suffix *should* be enough to select only this device...
         # but it's a bit hacky
-        self.prop_table.filterDevices(f"{device.name}-", include_read_only=False)
+        self.prop_table.filterDevices(
+            f"{device.name}-", include_read_only=False, init_props_only=True
+        )
 
         # self.com_table = QTableWidget()
 
@@ -73,6 +94,7 @@ class _DeviceSetupDialog(QDialog):
         layout.addLayout(top)
         layout.addWidget(QLabel("Initialization Properties:"))
         layout.addWidget(self.prop_table)
+        layout.addWidget(self.scan_ports_btn)
         layout.addWidget(btns)
 
         # DEVICE --------------
@@ -88,7 +110,7 @@ class _DeviceSetupDialog(QDialog):
         # TODO: some of these will be 404
         open(f"https://micro-manager.org/{self._device.library}")
 
-    def _pre_accept(self) -> None:
+    def _on_ok_clicked(self) -> None:
         old_name, new_name = self._device.name, self.name_edit.text()
         if old_name != new_name:
             if self._model.has_device_name(new_name):
@@ -153,8 +175,6 @@ class _DeviceSetupDialog(QDialog):
                 _, prop, val = self.prop_table.getRowData(r)
                 self._core.setProperty(self._device.name, prop, val)
 
-        self._device.update_from_core(update_properties=True)
-
         with exceptions_as_dialog(
             msg_template="Failed to initialize port device: {exc_value}", parent=self
         ) as ctx:
@@ -163,9 +183,8 @@ class _DeviceSetupDialog(QDialog):
             logger.exception(ctx.exception)
             return False
 
-        self._core.initializeDevice(self._device.name)
+        self._device.initialize_in_core()
         self._device.update_from_core()
-        self._device.initialized = True
         return True
 
     def _initialize_port(self) -> None:
@@ -173,7 +192,6 @@ class _DeviceSetupDialog(QDialog):
             return
 
         self._core.unloadDevice(port_dev.name)
-        self._core.waitForSystem()
         time.sleep(1)  # MMStudio does this
         self._core.loadDevice(port_dev.name, port_dev.library, port_dev.adapter_name)
         for prop in port_dev.properties:
@@ -186,3 +204,53 @@ class _DeviceSetupDialog(QDialog):
         time.sleep(1)  # MMStudio does this
         port_dev.update_from_core()
         self._model.assigned_com_ports[port_dev.name] = port_dev
+
+    def _scan_ports(self):
+        if _PortWarning(self).exec() == QMessageBox.StandardButton.Cancel:
+            return
+
+
+def detect_ports(
+    core: CMMCorePlus, device_name: str, available: Sequence[Device]
+) -> list[str]:
+    """Detect available devices.  Should be done in Thread."""
+    # in try/except block ?
+
+    ports_found_communcating: list[str] = []
+    for port_dev in available:
+        try:
+            core.setProperty(device_name, Keyword.Port, port_dev.name)
+        except Exception as e:
+            logger.exception(e)
+
+        # XXX: couldn't we do this before starting the thread?
+        # core.supportsDeviceDetection(device_name) ??
+        status = core.detectDevice(device_name)
+        if status == DeviceDetectionStatus.Unimplemented:
+            print(f"{device_name} does not support auto-detection")  # TODO
+            return
+
+        if status == DeviceDetectionStatus.CanCommunicate:
+            ports_found_communcating.append(port_dev.name)
+
+    if ports_found_communcating:
+        print(f"Found ports: {ports_found_communcating}")  # TODO
+    return ports_found_communcating
+
+
+class _PortWarning(QMessageBox):
+    def __init__(self, parent: QWidget):
+        btns = QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
+        super().__init__(
+            QMessageBox.Icon.Critical,
+            "Scan Serial Ports?",
+            "WARNING<br><br>This will send messages through all "
+            "connected serial ports, potentially interfering with other "
+            "serial devices connected to this computer.",
+            btns,
+            parent,
+        )
+        self.setDetailedText(
+            "We strongly recommend turning off all other serial devices prior to "
+            "starting this scan."
+        )

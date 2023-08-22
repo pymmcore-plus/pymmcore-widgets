@@ -236,7 +236,8 @@ class _AvailableDeviceTable(QWidget):
         dlg = _DeviceSetupDialog(dev, self._model, self._core, parent=self)
         if not dlg.exec() or not dev.initialized:
             # user cancelled or things didn't work out
-            self._model.devices.remove(dev)
+            with suppress(ValueError):
+                self._model.devices.remove(dev)
             with suppress(RuntimeError):
                 self._core.unloadDevice(tmp_name)
             return
