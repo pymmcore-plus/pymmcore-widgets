@@ -1,6 +1,7 @@
 import logging
 import time
 from typing import Sequence
+from contextlib import suppress
 
 from pymmcore_plus import CMMCorePlus, DeviceDetectionStatus, Keyword
 from pymmcore_plus.model import Device, Microscope
@@ -21,7 +22,7 @@ from superqt.utils import exceptions_as_dialog
 from pymmcore_widgets._device_property_table import DevicePropertyTable
 
 logger = logging.getLogger(__name__)
-
+PORT_SLEEP = 0.05  # revisit this  # TODO
 
 class _DeviceSetupDialog(QDialog):
     """Dialog that pops up when you click add or double-click an available device."""
@@ -52,6 +53,30 @@ class _DeviceSetupDialog(QDialog):
                 if prop.name == Keyword.Port and core.supportsDeviceDetection(dev.name):
                     should_detect = True
                     break
+
+        # get names of pre-init properties and any properties named "Port"
+        # (this still needs to be used...)
+        pre_init_props: list[str] = []
+        port_props: list[str] = []
+        for p in device.properties:
+            if p.pre_init:
+                pre_init_props.append(p.value)
+            if p.name == Keyword.Port:
+                port_props.append(p.value)
+
+        print("pre-init props", pre_init_props)
+        print("port props", port_props)
+        if port_props:
+            print(model.available_com_ports)
+            self._port_device = next(
+                d for d in model.available_com_ports if d.adapter_name == 'COM4' #TODO
+            )
+        elif not model.available_com_ports:
+            # needs to be done before the dialog # FIXME
+            raise RuntimeError("No available COM ports")
+        else:
+            pass
+            # if not port_props... hide the COMS table
 
         self.setWindowTitle(f"Device: {device.adapter_name}; Library: {device.library}")
 
@@ -183,7 +208,11 @@ class _DeviceSetupDialog(QDialog):
             logger.exception(ctx.exception)
             return False
 
+        # FIXME: move this
+        self._core.setProperty(self._device.name, Keyword.Port, self._port_device.name)
+        print("init", self._device.name)
         self._device.initialize_in_core()
+        print("update from core", self._device.name)
         self._device.update_from_core()
         return True
 
@@ -191,17 +220,20 @@ class _DeviceSetupDialog(QDialog):
         if (port_dev := self._port_device) is None:
             return
 
-        self._core.unloadDevice(port_dev.name)
-        time.sleep(1)  # MMStudio does this
+        with suppress(RuntimeError):
+            self._core.unloadDevice(port_dev.name)
+
+        time.sleep(PORT_SLEEP)  # MMStudio does this
         self._core.loadDevice(port_dev.name, port_dev.library, port_dev.adapter_name)
         for prop in port_dev.properties:
             if prop.pre_init:
+                print("set prop", prop)
                 self._core.setProperty(port_dev.name, prop.name, prop.value)
 
                 # TODO: ...
                 # if port_dev.find_property(prop.name)...
         self._core.initializeDevice(port_dev.name)
-        time.sleep(1)  # MMStudio does this
+        time.sleep(PORT_SLEEP)  # MMStudio does this
         port_dev.update_from_core()
         self._model.assigned_com_ports[port_dev.name] = port_dev
 
