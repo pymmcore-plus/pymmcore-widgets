@@ -2,7 +2,6 @@ import logging
 from contextlib import suppress
 from typing import cast
 
-from psygnal import Signal
 from pymmcore_plus import CMMCorePlus, DeviceType
 from pymmcore_plus.model import Device, Microscope
 from qtpy.QtCore import QRegularExpression, Qt, Signal
@@ -216,7 +215,7 @@ class _AvailableDeviceTable(QWidget):
 
         # generate a unique name for the device
         tmp_name = device.adapter_name
-        count = 0
+        count = 1
         while any(d.name == tmp_name for d in self._model.devices):
             tmp_name = f"{device.adapter_name}-{count}"
             count += 1

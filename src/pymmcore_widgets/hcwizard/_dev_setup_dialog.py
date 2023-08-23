@@ -1,12 +1,92 @@
+"""Device Setup Dialog.
+
+This dialog lets you set up a device, managing its initialization properties and
+com port devices in the process. It pops up when you click add or double-click an
+available device in the devices page hardware config wizard.
+
+Notes
+-----
+1. When the dialog is opened, it is assumed that the device name is already loaded
+   in core... but not yet initialized (TODO: maybe have the dialog do this?)
+2. It has a field to rename the device (so, if the user changes it, the device must
+   be RE-loaded in core with the new name)
+3. It has a table that shows all of the pre-initialization properties for the device.
+   These are the properties that must be defined prior to initialization (i.e. where
+   `core.isPropertyPreInit(...)` is True).
+4. It has another table to setup the com port device (if any) for the device.
+   The logic for setting up and associating com ports is a little implicit here:
+    - if a device has a property named "Port" (`pymmcore.g_Keyword_Port`), then it is
+      assumed that the value of the property points to the name of a loaded com port
+    - a "loaded" com port is a SerialManager device with an adapter_name that matches
+      the name of the desired com port (e.g. "COM4")
+    - the value of the "Port" property must match the NAME of the loaded SerialManager
+      device.
+    - By convention, to avoid confusion, SerialManager devices should be loaded with
+      the same name as their adapter_name (e.g. "COM4"):
+      `core.loadDevice("COM4", "SerialManager", "COM4")`
+
+Example
+-------
+This demonstrates how to setup a device with a com port device, and what this dialog
+is trying to accomplish for the user:
+
+```python
+from pymmcore_plus import CMMCorePlus, Keyword
+core = CMMCorePlus()
+
+COM_DEVICE = "name of some loaded SerialManager"
+COM_PORT = "COM4"  # the string name of the com port we want to use
+PORT = "Port"  # A special property name (string)
+assert PORT == Keyword.Port  # here's a constant for it
+
+# a SerialManager device with adapter_name COM_PORT
+# (conventionally, COM_DEVICE would equal COM_PORT, but this demonstrates that
+# it's the 3rd argument to load device that really matters for com association)
+core.loadDevice(COM_DEVICE, "SerialManager", COM_PORT)
+
+# some other device that uses a com port:
+core.loadDevice("MyDev", "ASIFW1000", "ASIFWController")
+
+# a property named "Port" is defined for this device, that's "special"
+# and it's what determines whether we show a COM table in the dialog
+assert PORT in core.getDevicePropertyNames('MyDev')
+
+# assign the "Port" property to the NAME of the loaded SerialManager device
+# (again, convention would have COM_DEVICE == COM_PORT but it's arbitrary.)
+core.setProperty("MyDev", PORT, COM_DEVICE)
+
+# Note: it's critical that we initialize the com port device first
+# or you might get hangs
+core.initializeDevice(COM_DEVICE)
+
+# NOW we can initialize the device using a com port properly
+core.initializeDevice("MyDev")
+```
+
+here's how you might find available serial devices:
+
+```python
+from pymmcore_plus import CMMCorePlus, DeviceType
+
+core = CMMCorePlus()
+for adapter in core.getDeviceAdapterNames():
+    try:
+        devs = core.getAvailableDevices(adapter)
+        types = core.getAvailableDeviceTypes(adapter)
+    except RuntimeError:
+        continue
+    for dev, type in zip(devs, types):
+        if type == DeviceType.Serial:
+            print(adapter, dev)
+"""
 import logging
-import time
-from contextlib import suppress
 from typing import Sequence
 
 from pymmcore_plus import CMMCorePlus, DeviceDetectionStatus, Keyword
 from pymmcore_plus.model import Device, Microscope
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QHBoxLayout,
@@ -60,19 +140,12 @@ class _DeviceSetupDialog(QDialog):
         pre_init_props: list[str] = []
         port_props: list[str] = []
         for p in device.properties:
-            if p.pre_init:
+            if p.is_pre_init:
                 pre_init_props.append(p.value)
             if p.name == Keyword.Port:
                 port_props.append(p.value)
 
-        print("pre-init props", pre_init_props)
-        print("port props", port_props)
-        if port_props:
-            print(model.available_com_ports)
-            self._port_device = next(
-                d for d in model.available_com_ports if d.adapter_name == "COM4"  # TODO
-            )
-        elif not model.available_com_ports:
+        if not model.available_com_ports:
             # needs to be done before the dialog # FIXME
             raise RuntimeError("No available COM ports")
         else:
@@ -105,6 +178,23 @@ class _DeviceSetupDialog(QDialog):
         self.prop_table.filterDevices(
             f"{device.name}-", include_read_only=False, init_props_only=True
         )
+        # FIXME: HACK
+        for row in range(self.prop_table.rowCount()):
+            if self.prop_table.isRowHidden(row):
+                continue
+            item = self.prop_table.item(row, 0)
+            prop = item.data(self.prop_table.PROP_ROLE)
+            if prop.name == Keyword.Port:
+                tmp = QWidget()
+                self.prop_table.cellWidget(row, 1).setParent(tmp)
+                wdg = QComboBox()
+                wdg.currentIndexChanged.connect(
+                    lambda: setattr(self, "_port_device", wdg.currentData())
+                )
+                wdg.value = lambda _w=wdg: _w.currentText()
+                for avail_port in model.available_com_ports:
+                    wdg.addItem(avail_port.name, avail_port)
+                self.prop_table.setCellWidget(row, 1, wdg)
 
         # self.com_table = QTableWidget()
 
@@ -171,9 +261,15 @@ class _DeviceSetupDialog(QDialog):
                 logger.exception(e)
 
         with exceptions_as_dialog(
-            msg_template="Failed to initialize device: {exc_value}", parent=self
+            title="Failed to initialize device", parent=self
         ) as ctx:
             success = self._initialize_device()
+        if ctx.exception:
+            import traceback
+
+            e = ctx.exception
+            traceback.print_exception(type(e), e, e.__traceback__)
+            return
 
         if ctx.exception or not success:
             self._device.initialized = False
@@ -192,50 +288,45 @@ class _DeviceSetupDialog(QDialog):
         return super().accept()
 
     def _initialize_device(self) -> bool:
-        if self._device.initialized:
-            self._device.load_in_core(reload=True)
+        print("-------------------")
+        # if self._device.initialized:
+        print("reloading")
+        self._device.load_in_core(reload=True)
 
         # get properties from table
         for r in range(self.prop_table.rowCount()):
             if not self.prop_table.isRowHidden(r):
                 _, prop, val = self.prop_table.getRowData(r)
+                print("setprop", self._device.name, prop, val)
                 self._core.setProperty(self._device.name, prop, val)
 
         with exceptions_as_dialog(
-            msg_template="Failed to initialize port device: {exc_value}", parent=self
+            msg_template="Failed to initialize port device:<br>{exc_value}", parent=self
         ) as ctx:
             self._initialize_port()
         if ctx.exception:
             logger.exception(ctx.exception)
             return False
 
-        # FIXME: move this
-        self._core.setProperty(self._device.name, Keyword.Port, self._port_device.name)
-        print("init", self._device.name)
+        # FIXME: move this ... or remove?
+        # if self._port_device:
+        #     print("setting port prop", self._device.name, Keyword.Port, self._port_device.name)
+        #     self._core.setProperty(
+        #         self._device.name, Keyword.Port, self._port_device.name
+        #     )
+
+        print("init in core")
         self._device.initialize_in_core()
-        print("update from core", self._device.name)
-        self._device.update_from_core()
         return True
 
     def _initialize_port(self) -> None:
         if (port_dev := self._port_device) is None:
             return
-
-        with suppress(RuntimeError):
-            self._core.unloadDevice(port_dev.name)
-
-        time.sleep(PORT_SLEEP)  # MMStudio does this
-        self._core.loadDevice(port_dev.name, port_dev.library, port_dev.adapter_name)
-        for prop in port_dev.properties:
-            if prop.pre_init:
-                print("set prop", prop)
-                self._core.setProperty(port_dev.name, prop.name, prop.value)
-
-                # TODO: ...
-                # if port_dev.find_property(prop.name)...
-        self._core.initializeDevice(port_dev.name)
-        time.sleep(PORT_SLEEP)  # MMStudio does this
-        port_dev.update_from_core()
+        print("init port dev", port_dev)
+        port_dev.initialize_in_core(self._core, reload=True)
+        # TODO: ...
+        # for prop in port_dev.properties:
+        #     if port_dev.find_property(prop.name)...
         self._model.assigned_com_ports[port_dev.name] = port_dev
 
     def _scan_ports(self):
