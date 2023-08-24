@@ -80,11 +80,12 @@ for adapter in core.getDeviceAdapterNames():
             print(adapter, dev)
 """
 import logging
-from typing import Sequence
+from contextlib import suppress
+from typing import Iterator, Sequence
 
-from pymmcore_plus import CMMCorePlus, DeviceDetectionStatus, Keyword
-from pymmcore_plus.model import Device, Microscope
-from qtpy.QtCore import Qt
+from pymmcore_plus import CMMCorePlus, Keyword
+from pymmcore_plus.model import DeviceType
+from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
@@ -93,75 +94,231 @@ from qtpy.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
-    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 from superqt.utils import exceptions_as_dialog
 
-from pymmcore_widgets._device_property_table import DevicePropertyTable
+from pymmcore_widgets._property_widget import PropertyWidget
 
 logger = logging.getLogger(__name__)
 PORT_SLEEP = 0.05  # revisit this  # TODO
 
 
-class _DeviceSetupDialog(QDialog):
-    """Dialog that pops up when you click add or double-click an available device."""
+class PortSelector(QComboBox):
+    """Simple combobox that emits (device_name, library_name) when changed."""
+
+    portChanged = Signal(str, str)  # device_name, library_name
 
     def __init__(
         self,
-        device: Device,
-        model: Microscope,
-        core: CMMCorePlus,
+        allowed_values: Sequence[tuple[str | None, str]],
         parent: QWidget | None = None,
-    ) -> None:
+    ):
         super().__init__(parent)
-        self.setWindowFlags(Qt.WindowType.Sheet)
-        self._device = device
-        self._model = model
+        for library, device_name in allowed_values:
+            self.addItem(device_name, library)
+        self.currentTextChanged.connect(self._on_current_text_changed)
+
+    def _on_current_text_changed(self, text: str) -> None:
+        self.portChanged.emit(text, self.currentData())
+
+    def value(self) -> str:
+        """Implement ValueWidget interface."""
+        return self.currentText()
+
+
+class PropTable(QTableWidget):
+    """Simple Property Table."""
+
+    portChanged = Signal(str, str)
+
+    def __init__(self, core: CMMCorePlus, parent=None):
+        super().__init__(0, 2, parent)
         self._core = core
+        self.setHorizontalHeaderLabels(["Property", "Value"])
+        self.setSizeAdjustPolicy(QTableWidget.SizeAdjustPolicy.AdjustToContents)
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.setSelectionMode(self.SelectionMode.NoSelection)
+        self.horizontalHeader().setStretchLastSection(True)
+        self.verticalHeader().setVisible(False)
+        self.verticalHeader().setDefaultSectionSize(24)
+        self.setColumnWidth(0, 200)
 
-        self._port_device: Device | None = None
+    def iterRows(self) -> Iterator[tuple[str, str]]:
+        """Iterate over rows, yielding (prop_name, prop_value)."""
+        for r in range(self.rowCount()):
+            wdg = self.cellWidget(r, 1)
+            if isinstance(wdg, PortSelector):
+                yield Keyword.Port, wdg.value()
+            elif isinstance(wdg, PropertyWidget):
+                yield self.item(r, 0).text(), wdg.value()
 
-        # NOTE:
-        # it's still not clear to me why MMStudio doesn't restrict this to
-        # JUST the device we're setting up at the moment...
-        # core.supportsDeviceDetection(device.name)
-        # even in the scan ports thread, we're only detecting `device`.
-        should_detect = False
-        for dev in self._model.devices:
-            for prop in dev.properties:
-                if prop.name == Keyword.Port and core.supportsDeviceDetection(dev.name):
-                    should_detect = True
-                    break
+    def rebuild(
+        self,
+        device: str,
+        prop_names: Sequence[str],
+        available_com_ports: Sequence[tuple[str, str]] = (),
+    ) -> None:
+        """Rebuild the table for the given device and prop_names."""
+        self.setRowCount(len(prop_names))
+        for i, prop_name in enumerate(prop_names):
+            self.setItem(i, 0, QTableWidgetItem(prop_name))
+            if prop_name == Keyword.Port:
+                # add the current property if it's not already in there
+                # it might be something like "Undefined"
+                allow: list[tuple[str | None, str]] = sorted(
+                    available_com_ports, key=lambda x: x[1]
+                )
+                current = self._core.getProperty(device, prop_name)
+                if not any(x[1] == current for x in allow):
+                    allow = [(None, current), *allow]
+                wdg = PortSelector(allow)
+                wdg.setCurrentText(current)
+                wdg.portChanged.connect(self.portChanged)
+            else:
+                wdg = PropertyWidget(
+                    device, prop_name, mmcore=self._core, connect_core=False
+                )
+            self.setCellWidget(i, 1, wdg)
+
+
+class ComTable(PropTable):
+    """Variant of the property table, for com port devices."""
+
+    _port_dev_name = ""
+
+    def rebuild(self, port_dev_name: str, port_library_name: str = "") -> None:
+        """Rebuild the table for the given port device.
+
+        if port_dev_name is not currently loaded, and port_library_name is given,
+        then it will be loaded, and the table will be rebuilt with the available
+        property names.
+        """
+        self.setRowCount(0)
+        self._port_dev_name = port_dev_name
+        if port_dev_name not in self._core.getLoadedDevices():
+            if not port_library_name:
+                return
+            self._core.loadDevice(port_dev_name, port_library_name, port_dev_name)
+        prop_names = self._core.getDevicePropertyNames(port_dev_name)
+        return super().rebuild(port_dev_name, prop_names)
+
+
+class LastValueLineEdit(QLineEdit):
+    """QLineEdit that stores the last value on focus in."""
+
+    def focusInEvent(self, a0) -> None:
+        """Store current value when editing starts."""
+        self._last_value = self.text()
+        return super().focusInEvent(a0)
+
+    def lastValue(self) -> str:
+        """Return the last value stored when editing started."""
+        return self._last_value
+
+
+class DeviceSetupDialog(QDialog):
+    """Dialog to assist with setting up a device or editing an existing device."""
+
+    @classmethod
+    def for_loaded_device(
+        cls,
+        core: CMMCorePlus,
+        device_label: str,
+        parent: QWidget | None = None,
+        available_com_ports: Sequence[tuple[str, str]] = (),
+    ):
+        """Create a dialog to edit an existing device."""
+        if device_label not in core.getLoadedDevices():
+            raise RuntimeError("No loaded device with label {device_label!r}")
+        library_name = core.getDeviceLibrary(device_label)
+        device_name = core.getDeviceName(device_label)
+        return cls(
+            core,
+            device_label,
+            library_name,
+            device_name,
+            existing_device=True,
+            parent=parent,
+            available_com_ports=available_com_ports,
+        )
+
+    @classmethod
+    def for_new_device(
+        cls,
+        core: CMMCorePlus,
+        library_name: str,
+        device_name: str,
+        device_label: str = "",
+        available_com_ports: Sequence[tuple[str, str]] = (),
+        parent: QWidget | None = None,
+    ):
+        """Create a dialog to add a new device."""
+        if not device_label:
+            device_label = device_name
+            count = 1
+            # generate a unique name for the device
+            while device_label in core.getLoadedDevices():
+                device_label = f"{device_name}-{count}"
+
+        elif device_label in core.getLoadedDevices():
+            raise RuntimeError(
+                f"There is already a loaded device with label {device_label!r}"
+            )
+
+        core.loadDevice(device_label, library_name, device_name)
+        return cls(
+            core,
+            device_label,
+            library_name,
+            device_name,
+            existing_device=False,
+            parent=parent,
+            available_com_ports=available_com_ports,
+        )
+
+    def __init__(
+        self,
+        core: CMMCorePlus,
+        device_label: str,
+        library_name: str,
+        device_name: str,
+        parent: QWidget | None = None,
+        existing_device: bool = False,
+        available_com_ports: Sequence[tuple[str, str]] = (),  # (lib_name, device_name)
+    ) -> None:
+        if device_label not in core.getLoadedDevices():
+            raise RuntimeError(
+                "No loaded device with label {device_label!r}. Use `for_new_device` to "
+                "create a dialog for a new device."
+            )
 
         # get names of pre-init properties and any properties named "Port"
         # (this still needs to be used...)
+        current_port = None
         pre_init_props: list[str] = []
-        port_props: list[str] = []
-        for p in device.properties:
-            if p.is_pre_init:
-                pre_init_props.append(p.value)
-            if p.name == Keyword.Port:
-                port_props.append(p.value)
+        for prop_name in core.getDevicePropertyNames(device_label):
+            if core.isPropertyPreInit(device_label, prop_name):
+                pre_init_props.append(prop_name)
+            if prop_name == Keyword.Port:
+                current_port = core.getProperty(device_label, prop_name)
 
-        if not model.available_com_ports:
-            # needs to be done before the dialog # FIXME
-            raise RuntimeError("No available COM ports")
-        else:
-            pass
-            # if not port_props... hide the COMS table
-
-        self.setWindowTitle(f"Device: {device.adapter_name}; Library: {device.library}")
+        self._library_name = library_name
+        self._device_name = device_name
+        self._existing_device = existing_device
+        self._available_com_ports = available_com_ports
+        self._core = core
+        self._device_label = device_label
+        super().__init__(parent)
+        self.setWindowTitle(f"Device: {device_name}; Library: {library_name}")
 
         # WIDGETS -------------
 
-        self.name_edit = QLineEdit(device.name)
-        self.scan_ports_btn = QPushButton("Scan Ports")
-        self.scan_ports_btn.clicked.connect(self._scan_ports)
-        if not should_detect:
-            self.scan_ports_btn.setEnabled(False)
-            self.scan_ports_btn.setVisible(False)
+        self.name_edit = LastValueLineEdit(device_label)
+        self.name_edit.editingFinished.connect(self._on_name_changed)
 
         btns = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok
@@ -172,134 +329,87 @@ class _DeviceSetupDialog(QDialog):
         btns.rejected.connect(self.reject)
         btns.helpRequested.connect(self._show_help)
 
-        self.prop_table = DevicePropertyTable(connect_core=False)
-        # The "-" suffix *should* be enough to select only this device...
-        # but it's a bit hacky
-        self.prop_table.filterDevices(
-            f"{device.name}-", include_read_only=False, init_props_only=True
-        )
-        # FIXME: HACK
-        for row in range(self.prop_table.rowCount()):
-            if self.prop_table.isRowHidden(row):
-                continue
-            item = self.prop_table.item(row, 0)
-            prop = item.data(self.prop_table.PROP_ROLE)
-            if prop.name == Keyword.Port:
-                tmp = QWidget()
-                self.prop_table.cellWidget(row, 1).setParent(tmp)
-                wdg = QComboBox()
-                wdg.currentIndexChanged.connect(
-                    lambda: setattr(self, "_port_device", wdg.currentData())
-                )
-                wdg.value = lambda _w=wdg: _w.currentText()
-                for avail_port in model.available_com_ports:
-                    wdg.addItem(avail_port.name, avail_port)
-                self.prop_table.setCellWidget(row, 1, wdg)
+        self.prop_table = PropTable(core)
+        if pre_init_props:
+            self.prop_table.rebuild(device_label, pre_init_props, available_com_ports)
+        else:
+            self.prop_table.hide()
 
-        # self.com_table = QTableWidget()
+        self.com_table = ComTable(core)
+        self.prop_table.portChanged.connect(self.com_table.rebuild)
+        if current_port is not None:
+            self.com_table.rebuild(current_port)
+        else:
+            self.com_table.hide()
 
         # LAYOUT -------------
 
         top = QHBoxLayout()
         top.addWidget(QLabel("Device Name:"))
         top.addWidget(self.name_edit)
-        if device.parent_name:
-            top.addWidget(QLabel(f"Parent Device: {device.parent_name}"))
+
+        if parent_label := core.getParentLabel(device_label):
+            top.addWidget(QLabel(f"Parent Device: {parent_label}"))
 
         layout = QVBoxLayout(self)
+        lbl = QLabel(f"Setting up: {library_name}::{device_name}")
+        # make bold
+        font = lbl.font()
+        font.setBold(True)
+        lbl.setFont(font)
+        layout.addWidget(lbl)
         layout.addLayout(top)
-        layout.addWidget(QLabel("Initialization Properties:"))
+        if pre_init_props:
+            layout.addWidget(QLabel("Initialization Properties:"))
         layout.addWidget(self.prop_table)
-        layout.addWidget(self.scan_ports_btn)
+        layout.addWidget(self.com_table)
         layout.addWidget(btns)
 
         # DEVICE --------------
 
         # can not change pre-initialization properties on a device that was initialized
-        if device.initialized:
-            with exceptions_as_dialog(use_error_message=True):
-                device.load_in_core(reload=True)
+        # if device.initialized:
+        #     with exceptions_as_dialog(use_error_message=True):
+        #         device.load_in_core(reload=True)
 
-    def _show_help(self) -> None:
-        from webbrowser import open
-
-        # TODO: some of these will be 404
-        open(f"https://micro-manager.org/{self._device.library}")
-
-    def _on_ok_clicked(self) -> None:
-        old_name, new_name = self._device.name, self.name_edit.text()
-        if old_name != new_name:
-            if self._model.has_device_name(new_name):
+    def _on_name_changed(self) -> None:
+        new_name = self.name_edit.text()
+        old_name = self.name_edit.lastValue()
+        if new_name != old_name:
+            if new_name in self._core.getLoadedDevices():
+                self.name_edit.setText(old_name)
                 QMessageBox.critical(
                     self,
-                    "Error",
+                    "Name Taken",
                     f"Device name {new_name!r} already exists. Please rename.",
                 )
                 return
+            with suppress(RuntimeError):
+                self._core.unloadDevice(old_name)
+            self._core.loadDevice(new_name, self._library_name, self._device_name)
+            self._device_label = new_name
 
-            with exceptions_as_dialog(
-                msg_template="Failed to re-load device with new name: {exc_value}",
-                parent=self,
-            ) as ctx:
-                self._device.rename_in_core(new_name)
-            if ctx.exception:
-                logger.exception(ctx.exception)
-                return
+    def deviceLabel(self) -> str:
+        """The device label, currently loaded in core."""
+        return self._device_label
 
-        if not self._model.has_device_name(new_name):
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Device {new_name!r} is not loaded properly.\nPlease try again.",
-            )
-            return
-
-        if self._device.initialized:
-            try:
-                self._device.load_in_core(self._core, reload=True)
-            except Exception as e:
-                logger.exception(e)
-
+    def _on_ok_clicked(self) -> None:
         with exceptions_as_dialog(
             title="Failed to initialize device", parent=self
         ) as ctx:
             success = self._initialize_device()
-        if ctx.exception:
-            import traceback
-
-            e = ctx.exception
-            traceback.print_exception(type(e), e, e.__traceback__)
-            return
-
         if ctx.exception or not success:
-            self._device.initialized = False
+            self._reload_device()
             return
-
-        if self._port_device:
-            self._model.assigned_com_ports[self._port_device.name] = self._port_device
-        # model.setModified
-
-        # make sure parent refs are up to date
-        if old_name != new_name:
-            for dev in self._model.devices:
-                if dev.parent_name == old_name:
-                    dev.parent_name = new_name
 
         return super().accept()
 
+    def _reload_device(self) -> None:
+        with suppress(RuntimeError):
+            self._core.unloadDevice(self._device_label)
+        self._core.loadDevice(self._device_label, self._library_name, self._device_name)
+
     def _initialize_device(self) -> bool:
-        print("-------------------")
-        # if self._device.initialized:
-        print("reloading")
-        self._device.load_in_core(reload=True)
-
-        # get properties from table
-        for r in range(self.prop_table.rowCount()):
-            if not self.prop_table.isRowHidden(r):
-                _, prop, val = self.prop_table.getRowData(r)
-                print("setprop", self._device.name, prop, val)
-                self._core.setProperty(self._device.name, prop, val)
-
         with exceptions_as_dialog(
             msg_template="Failed to initialize port device:<br>{exc_value}", parent=self
         ) as ctx:
@@ -308,73 +418,75 @@ class _DeviceSetupDialog(QDialog):
             logger.exception(ctx.exception)
             return False
 
-        # FIXME: move this ... or remove?
-        # if self._port_device:
-        #     print("setting port prop", self._device.name, Keyword.Port, self._port_device.name)
-        #     self._core.setProperty(
-        #         self._device.name, Keyword.Port, self._port_device.name
-        #     )
-
-        print("init in core")
-        self._device.initialize_in_core()
+        # NOTE: this only needs to be done if the device was already initialized...
+        # but it's not always easy to know if it was or not
+        if self._existing_device:
+            self._reload_device()
+        # get properties from table
+        for prop_name, prop_value in self.prop_table.iterRows():
+            self._core.setProperty(self._device_label, prop_name, prop_value)
+        self._core.initializeDevice(self._device_label)
         return True
 
     def _initialize_port(self) -> None:
-        if (port_dev := self._port_device) is None:
-            return
-        print("init port dev", port_dev)
-        port_dev.initialize_in_core(self._core, reload=True)
-        # TODO: ...
-        # for prop in port_dev.properties:
-        #     if port_dev.find_property(prop.name)...
-        self._model.assigned_com_ports[port_dev.name] = port_dev
-
-    def _scan_ports(self):
-        if _PortWarning(self).exec() == QMessageBox.StandardButton.Cancel:
+        port_dev_label = self.com_table._port_dev_name
+        if port_dev_label not in self._core.getLoadedDevices():
             return
 
+        for prop_name, prop_value in self.com_table.iterRows():
+            self._core.setProperty(port_dev_label, prop_name, prop_value)
 
-def detect_ports(
-    core: CMMCorePlus, device_name: str, available: Sequence[Device]
-) -> list[str]:
-    """Detect available devices.  Should be done in Thread."""
-    # in try/except block ?
+        self._core.initializeDevice(port_dev_label)
 
-    ports_found_communcating: list[str] = []
-    for port_dev in available:
+    def _show_help(self) -> None:
+        from webbrowser import open
+
+        # TODO: some of these will be 404
+        open(f"https://micro-manager.org/{self._library_name}")
+
+    def reject(self) -> None:
+        """Dialog has been rejected. Unload the device if it was new."""
+        if not self._existing_device:
+            with suppress(RuntimeError):
+                self._core.unloadDevice(self._device_label)
+        super().reject()
+
+
+if __name__ == "__main__":
+    import random
+
+    from qtpy.QtWidgets import QApplication
+
+    app = QApplication([])
+
+    core = CMMCorePlus()
+
+    avail: list[tuple[str, str]] = []
+    devs = []
+    for library in core.getDeviceAdapterNames():
         try:
-            core.setProperty(device_name, Keyword.Port, port_dev.name)
-        except Exception as e:
-            logger.exception(e)
+            device_names = core.getAvailableDevices(library)
+            types = core.getAvailableDeviceTypes(library)
+        except RuntimeError:
+            continue
+        for dname, devtype in zip(device_names, types):
+            if devtype == DeviceType.Serial:
+                avail.append((library, dname))
+            else:
+                devs.append((library, dname))
 
-        # XXX: couldn't we do this before starting the thread?
-        # core.supportsDeviceDetection(device_name) ??
-        status = core.detectDevice(device_name)
-        if status == DeviceDetectionStatus.Unimplemented:
-            print(f"{device_name} does not support auto-detection")  # TODO
-            return
+    random.shuffle(devs)
+    dlg1 = DeviceSetupDialog.for_new_device(core, *devs[0], available_com_ports=avail)
 
-        if status == DeviceDetectionStatus.CanCommunicate:
-            ports_found_communcating.append(port_dev.name)
+    # dlg1 = DeviceSetupDialog.for_new_device(
+    #     core, "ASIFW1000", "ASIFWController", available_com_ports=avail
+    # )
 
-    if ports_found_communcating:
-        print(f"Found ports: {ports_found_communcating}")  # TODO
-    return ports_found_communcating
-
-
-class _PortWarning(QMessageBox):
-    def __init__(self, parent: QWidget):
-        btns = QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
-        super().__init__(
-            QMessageBox.Icon.Critical,
-            "Scan Serial Ports?",
-            "WARNING<br><br>This will send messages through all "
-            "connected serial ports, potentially interfering with other "
-            "serial devices connected to this computer.",
-            btns,
-            parent,
+    if dlg1.exec():
+        dlg2 = DeviceSetupDialog.for_loaded_device(
+            core, dlg1.deviceLabel(), available_com_ports=avail
         )
-        self.setDetailedText(
-            "We strongly recommend turning off all other serial devices prior to "
-            "starting this scan."
-        )
+        if dlg2.exec():
+            print("OK", dlg2.deviceLabel())
+
+    print(core.getLoadedDevices())

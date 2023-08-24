@@ -3,7 +3,8 @@ from pymmcore_plus.model import Microscope
 from qtpy.QtCore import QSize
 from qtpy.QtWidgets import QLabel, QVBoxLayout, QWidget, QWizard
 
-from ._base_page import DelayPage, FinishPage, LabelsPage, RolesPage
+from ._base_page import DelayPage, FinishPage, LabelsPage
+from .defaults_page import DefaultsPage
 from .devices_page import DevicesPage
 from .intro_page import IntroPage
 
@@ -15,11 +16,12 @@ class ConfigWizard(QWizard):
         super().__init__(parent)
         self._core = core or CMMCorePlus.instance()
         self._model = Microscope(from_core=self._core)
+        self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
 
         self.setWindowTitle("Hardware Configuration Wizard")
         self.addPage(IntroPage(self._model, self._core))
         self.addPage(DevicesPage(self._model, self._core))
-        self.addPage(RolesPage(self._model, self._core))
+        self.addPage(DefaultsPage(self._model, self._core))
         self.addPage(DelayPage(self._model, self._core))
         self.addPage(LabelsPage(self._model, self._core))
         self.addPage(FinishPage(self._model, self._core))

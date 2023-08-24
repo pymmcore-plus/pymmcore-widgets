@@ -139,6 +139,7 @@ class ChoiceWidget(QComboBox):
         self._mmc = mmcore
         self._dev = dev
         self._prop = prop
+        self._prop_type = mmcore.getPropertyType(dev, prop)
         self._allowed: tuple[str, ...] = ()
 
         self._mmc.events.systemConfigurationLoaded.connect(self._refresh_choices)
@@ -152,8 +153,12 @@ class ChoiceWidget(QComboBox):
     def _refresh_choices(self) -> None:
         with utils.signals_blocked(self):
             self.clear()
-            self._allowed = self._get_allowed()
-            self.addItems(self._allowed)
+            allowed = list(self._get_allowed())
+            with contextlib.suppress(ValueError):
+                # natural sort for numbers
+                allowed.sort(key=float)
+
+            self.addItems(allowed)
 
     def _get_allowed(self) -> tuple[str, ...]:
         if allowed := self._mmc.getAllowedPropertyValues(self._dev, self._prop):

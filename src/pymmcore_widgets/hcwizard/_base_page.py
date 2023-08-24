@@ -37,11 +37,6 @@ class _ConfigWizardPage(QWizardPage):
         return super().isComplete()
 
 
-class RolesPage(_ConfigWizardPage):
-    def __init__(self, model: Microscope, core: CMMCorePlus):
-        super().__init__(model, core)
-        self.setTitle("Select default devices and choose auto-shutter setting")
-
 
 class DelayPage(_ConfigWizardPage):
     def __init__(self, model: Microscope, core: CMMCorePlus):

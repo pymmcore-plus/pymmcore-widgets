@@ -74,3 +74,10 @@ class IntroPage(_ConfigWizardPage):
 
         self.file_edit.setText(self._model.config_file)
         return super().cleanupPage()
+
+    def validatePage(self) -> bool:
+        if self.btn_group.checkedButton() is self.new_btn:
+            self._model = Microscope()
+        else:
+            self._model = Microscope(config_file=self.file_edit.text())
+        return super().validatePage()
