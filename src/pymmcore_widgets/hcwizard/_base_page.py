@@ -37,7 +37,6 @@ class _ConfigWizardPage(QWizardPage):
         return super().isComplete()
 
 
-
 class DelayPage(_ConfigWizardPage):
     def __init__(self, model: Microscope, core: CMMCorePlus):
         super().__init__(model, core)
