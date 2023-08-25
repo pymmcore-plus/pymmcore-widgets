@@ -50,7 +50,6 @@ class _DeviceTable(QTableWidget):
 
     def rebuild(self, model: Microscope) -> None:
         self.setRowCount(len(model.devices))
-        print("rebuild", len(model.devices), model.devices)
         for i, device in enumerate(model.devices):
             item = QTableWidgetItem(device.name)
             item.setData(Qt.ItemDataRole.UserRole, device)
@@ -85,10 +84,10 @@ class _CurrentDevicesTable(QWidget):
 
         self.table.cellDoubleClicked.connect(self._edit_selected_device)
 
-    def rebuild_table(self):
+    def rebuild_table(self) -> None:
         self.table.rebuild(self._model)
 
-    def _edit_selected_device(self):
+    def _edit_selected_device(self) -> None:
         if not (selected_items := self.table.selectedItems()):
             return
 
@@ -98,7 +97,9 @@ class _CurrentDevicesTable(QWidget):
         device = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
         device = cast("Device", device)
 
-        coms = [(a.library, a.adapter_name) for a in self._model.available_com_ports]
+        coms = [
+            (a.library, a.adapter_name) for a in self._model.available_serial_devices
+        ]
         with exceptions_as_dialog(use_error_message=True) as ctx:
             # open device setup dialog
             dlg = DeviceSetupDialog.for_loaded_device(
@@ -108,14 +109,14 @@ class _CurrentDevicesTable(QWidget):
                 parent=self,
             )
         if ctx.exception or not dlg.exec():
-            print("not exec", ctx.exception, dlg.result())
             return
 
-        dev = Device(dlg.deviceLabel(), from_core=self._core, initialized=True)
+        dev = Device.create_from_core(
+            self._core, name=dlg.deviceLabel(), initialized=True
+        )
         idx = self._model.devices.index(device)
         self._model.devices[idx] = dev
         self.rebuild_table()
-        print("exyesec", dev)
 
         # self._model.devices.append(dev)
         # self.touchedModel.emit()
@@ -273,7 +274,10 @@ class _AvailableDeviceTable(QWidget):
         if ctx.exception or not dlg.exec():
             return
 
-        dev = Device(dlg.deviceLabel(), from_core=self._core, initialized=True)
+        dev = Device.create_from_core(
+            self._core, name=dlg.deviceLabel(), initialized=True
+        )
+
         self._model.devices.append(dev)
         self.touchedModel.emit()
 
@@ -327,6 +331,11 @@ class DevicesPage(_ConfigWizardPage):
         layout.addWidget(splitter)
 
     def initializePage(self) -> None:
+        self._model.initialize(self._core)
         self.table.rebuild_table()
         self.available.rebuild_table()
+        self._core.describe()
         return super().initializePage()
+
+    def validatePage(self) -> bool:
+        return super().validatePage()

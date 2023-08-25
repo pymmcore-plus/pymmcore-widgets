@@ -83,8 +83,7 @@ import logging
 from contextlib import suppress
 from typing import Iterator, Sequence
 
-from pymmcore_plus import CMMCorePlus, Keyword
-from pymmcore_plus.model import DeviceType
+from pymmcore_plus import CMMCorePlus, DeviceType, Keyword
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QComboBox,
@@ -402,6 +401,7 @@ class DeviceSetupDialog(QDialog):
             self._reload_device()
             return
 
+        self._core.describe()
         return super().accept()
 
     def _reload_device(self) -> None:

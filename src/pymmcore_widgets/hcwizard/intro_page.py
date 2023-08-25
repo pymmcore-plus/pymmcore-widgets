@@ -1,4 +1,5 @@
 import logging
+import os
 
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.model import Microscope
@@ -46,6 +47,9 @@ class IntroPage(_ConfigWizardPage):
         self.btn_group.addButton(self.new_btn)
         self.btn_group.addButton(self.modify_btn)
 
+        self.btn_group.buttonClicked.connect(self.completeChanged)
+        self.file_edit.textChanged.connect(self.completeChanged)
+
         layout = QVBoxLayout(self)
         layout.addWidget(self.new_btn)
         layout.addWidget(self.modify_btn)
@@ -77,7 +81,13 @@ class IntroPage(_ConfigWizardPage):
 
     def validatePage(self) -> bool:
         if self.btn_group.checkedButton() is self.new_btn:
-            self._model = Microscope()
+            self._model.reset()
         else:
-            self._model = Microscope(config_file=self.file_edit.text())
+            self._model.load_config(self.file_edit.text())
         return super().validatePage()
+
+    def isComplete(self) -> bool:
+        return bool(
+            self.btn_group.checkedButton() is not self.modify_btn
+            or os.path.isfile(self.file_edit.text())
+        )

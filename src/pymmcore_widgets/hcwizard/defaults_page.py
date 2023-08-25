@@ -1,6 +1,8 @@
-from pymmcore_plus import CMMCorePlus, DeviceType
+from pymmcore_plus import CMMCorePlus, DeviceType, Keyword
 from pymmcore_plus.model import Microscope
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QCheckBox, QComboBox, QFormLayout
+from superqt.utils import signals_blocked
 
 from ._base_page import _ConfigWizardPage
 
@@ -11,22 +13,65 @@ class DefaultsPage(_ConfigWizardPage):
         self.setTitle("Select default devices and choose auto-shutter setting")
 
         self.camera_combo = QComboBox()
+        self.camera_combo.currentTextChanged.connect(self._on_camera_changed)
         self.shutter_combo = QComboBox()
+        self.shutter_combo.currentTextChanged.connect(self._on_shutter_changed)
         self.focus_combo = QComboBox()
+        self.focus_combo.currentTextChanged.connect(self._on_focus_changed)
         self.auto_shutter_checkbox = QCheckBox()
+        self.auto_shutter_checkbox.stateChanged.connect(self._on_auto_shutter_changed)
 
-        # try/catch
-        if cameras := core.getLoadedDevicesOfType(DeviceType.CameraDevice):
-            self.camera_combo.addItems(("", *cameras))
-
-        if shutters := core.getLoadedDevicesOfType(DeviceType.ShutterDevice):
-            self.shutter_combo.addItems(("", *shutters))
-
-        if stages := core.getLoadedDevicesOfType(DeviceType.StageDevice):
-            self.focus_combo.addItems(("", *stages))
-
+        # TODO: focus directions
         layout = QFormLayout(self)
         layout.addRow("Default Camera", self.camera_combo)
         layout.addRow("Default Shutter", self.shutter_combo)
         layout.addRow("Default Focus Stage", self.focus_combo)
         layout.addRow("Use auto-shutter", self.auto_shutter_checkbox)
+
+    def initializePage(self) -> None:
+        # try/catch
+
+        # reset and populate the combo boxes with available devices
+        with signals_blocked(self.camera_combo):
+            self.camera_combo.clear()
+            if cameras := self._core.getLoadedDevicesOfType(DeviceType.CameraDevice):
+                self.camera_combo.addItems(("", *cameras))
+
+        with signals_blocked(self.shutter_combo):
+            self.shutter_combo.clear()
+            if shutters := self._core.getLoadedDevicesOfType(DeviceType.ShutterDevice):
+                self.shutter_combo.addItems(("", *shutters))
+
+        with signals_blocked(self.focus_combo):
+            self.focus_combo.clear()
+            if stages := self._core.getLoadedDevicesOfType(DeviceType.StageDevice):
+                self.focus_combo.addItems(("", *stages))
+
+        with signals_blocked(self.auto_shutter_checkbox):
+            self.auto_shutter_checkbox.setChecked(True)
+
+        # update values from the model
+        for prop in self._model.core_device.properties:
+            if prop.name == Keyword.CoreCamera:
+                self.camera_combo.setCurrentText(prop.value)
+            elif prop.name == Keyword.CoreShutter:
+                self.shutter_combo.setCurrentText(prop.value)
+            elif prop.name == Keyword.CoreFocus:
+                self.focus_combo.setCurrentText(prop.value)
+            elif prop.name == Keyword.CoreAutoShutter:
+                self.auto_shutter_checkbox.setChecked(prop.value == "1")
+
+        return super().initializePage()
+
+    def _on_camera_changed(self, text: str) -> None:
+        self._model.core_device.set_property(Keyword.CoreCamera, text)
+
+    def _on_shutter_changed(self, text: str) -> None:
+        self._model.core_device.set_property(Keyword.CoreShutter, text)
+
+    def _on_focus_changed(self, text: str) -> None:
+        self._model.core_device.set_property(Keyword.CoreFocus, text)
+
+    def _on_auto_shutter_changed(self, state: Qt.CheckState) -> None:
+        val = "1" if state == Qt.CheckState.Checked else "0"
+        self._model.core_device.set_property(Keyword.CoreAutoShutter, val)

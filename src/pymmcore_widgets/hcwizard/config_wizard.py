@@ -15,8 +15,8 @@ class ConfigWizard(QWizard):
     def __init__(self, core: CMMCorePlus | None = None, parent: QWidget | None = None):
         super().__init__(parent)
         self._core = core or CMMCorePlus.instance()
-        self._model = Microscope(from_core=self._core)
-        self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
+        self._model = Microscope.create_from_core(self._core)
+        # self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
 
         self.setWindowTitle("Hardware Configuration Wizard")
         self.addPage(IntroPage(self._model, self._core))
@@ -58,10 +58,8 @@ class ConfigWizard(QWizard):
                 label.setStyleSheet("color: gray;")
             label.setFont(font)
 
-    def accept(self) -> None:
-        print("accepted")
-        return super().accept()
+    # def accept(self) -> None:
+    #     return super().accept()
 
-    def reject(self) -> None:
-        print("rejected")
-        return super().reject()
+    # def reject(self) -> None:
+    #     return super().reject()
