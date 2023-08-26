@@ -342,7 +342,6 @@ class DevicesPage(ConfigWizardPage):
         self._model.initialize(self._core, on_fail=lambda d, e: err.update({d.name: e}))
         self.current.rebuild_table(err)
         self.available.rebuild_table()
-        self._core.describe()
         return super().initializePage()
 
     def validatePage(self) -> bool:

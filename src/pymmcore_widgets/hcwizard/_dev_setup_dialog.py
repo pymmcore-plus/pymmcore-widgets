@@ -83,7 +83,7 @@ import logging
 from contextlib import suppress
 from typing import Sequence
 
-from pymmcore_plus import CMMCorePlus, DeviceType, Keyword
+from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -319,8 +319,6 @@ class DeviceSetupDialog(QDialog):
         if ctx.exception or not success:
             self._reload_device()
             return
-
-        self._core.describe()
         return super().accept()
 
     def _reload_device(self) -> None:
@@ -369,43 +367,3 @@ class DeviceSetupDialog(QDialog):
             with suppress(RuntimeError):
                 self._core.unloadDevice(self._device_label)
         super().reject()
-
-
-if __name__ == "__main__":
-    import random
-
-    from qtpy.QtWidgets import QApplication
-
-    app = QApplication([])
-
-    core = CMMCorePlus()
-
-    avail: list[tuple[str, str]] = []
-    devs = []
-    for library in core.getDeviceAdapterNames():
-        try:
-            device_names = core.getAvailableDevices(library)
-            types = core.getAvailableDeviceTypes(library)
-        except RuntimeError:
-            continue
-        for dname, devtype in zip(device_names, types):
-            if devtype == DeviceType.Serial:
-                avail.append((library, dname))
-            else:
-                devs.append((library, dname))
-
-    random.shuffle(devs)
-    dlg1 = DeviceSetupDialog.for_new_device(core, *devs[0], available_com_ports=avail)
-
-    # dlg1 = DeviceSetupDialog.for_new_device(
-    #     core, "ASIFW1000", "ASIFWController", available_com_ports=avail
-    # )
-
-    if dlg1.exec():
-        dlg2 = DeviceSetupDialog.for_loaded_device(
-            core, dlg1.deviceLabel(), available_com_ports=avail
-        )
-        if dlg2.exec():
-            print("OK", dlg2.deviceLabel())
-
-    print(core.getLoadedDevices())
