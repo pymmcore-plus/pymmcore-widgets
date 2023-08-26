@@ -22,7 +22,7 @@ from superqt.utils import exceptions_as_dialog
 
 from pymmcore_widgets._device_property_table import ICONS
 
-from ._base_page import _ConfigWizardPage
+from ._base_page import ConfigWizardPage
 from ._dev_setup_dialog import DeviceSetupDialog
 from ._peripheral_setup_dialog import PeripheralSetupDlg
 
@@ -48,7 +48,9 @@ class _DeviceTable(QTableWidget):
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.verticalHeader().setVisible(False)
 
-    def rebuild(self, model: Microscope) -> None:
+    def rebuild(self, model: Microscope, errs: dict[str, str] | None) -> None:
+        errs = errs or {}
+
         self.setRowCount(len(model.devices))
         for i, device in enumerate(model.devices):
             item = QTableWidgetItem(device.name)
@@ -65,7 +67,10 @@ class _DeviceTable(QTableWidget):
             else:
                 status = "Failed"
                 _icon = icon(MDI6.alert, color="Red")
-            self.setItem(i, 3, QTableWidgetItem(_icon, status))
+            item = QTableWidgetItem(_icon, status)
+            if info := errs.get(device.name):
+                item.setToolTip(str(info))
+            self.setItem(i, 3, item)
 
 
 class _CurrentDevicesTable(QWidget):
@@ -84,8 +89,8 @@ class _CurrentDevicesTable(QWidget):
 
         self.table.cellDoubleClicked.connect(self._edit_selected_device)
 
-    def rebuild_table(self) -> None:
-        self.table.rebuild(self._model)
+    def rebuild_table(self, errs: dict[str, str] | None = None) -> None:
+        self.table.rebuild(self._model, errs)
 
     def _edit_selected_device(self) -> None:
         if not (selected_items := self.table.selectedItems()):
@@ -261,7 +266,9 @@ class _AvailableDeviceTable(QWidget):
         device = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
         device = cast("Device", device)
 
-        coms = [(a.library, a.adapter_name) for a in self._model.available_com_ports]
+        coms = [
+            (a.library, a.adapter_name) for a in self._model.available_serial_devices
+        ]
         with exceptions_as_dialog(use_error_message=True) as ctx:
             # open device setup dialog
             dlg = DeviceSetupDialog.for_new_device(
@@ -308,7 +315,7 @@ class _AvailableDeviceTable(QWidget):
                     return
 
 
-class DevicesPage(_ConfigWizardPage):
+class DevicesPage(ConfigWizardPage):
     """Page for adding and removing devices."""
 
     def __init__(self, model: Microscope, core: CMMCorePlus):
@@ -319,20 +326,21 @@ class DevicesPage(_ConfigWizardPage):
             "this configuration."
         )
 
-        self.table = _CurrentDevicesTable(model, core)
+        self.current = _CurrentDevicesTable(model, core)
         self.available = _AvailableDeviceTable(model, core)
-        self.available.touchedModel.connect(self.table.rebuild_table)
+        self.available.touchedModel.connect(self.current.rebuild_table)
 
         splitter = QSplitter(Qt.Orientation.Vertical)
-        splitter.addWidget(self.table)
+        splitter.addWidget(self.current)
         splitter.addWidget(self.available)
 
         layout = QVBoxLayout(self)
         layout.addWidget(splitter)
 
     def initializePage(self) -> None:
-        self._model.initialize(self._core)
-        self.table.rebuild_table()
+        err = {}
+        self._model.initialize(self._core, on_fail=lambda d, e: err.update({d.name: e}))
+        self.current.rebuild_table(err)
         self.available.rebuild_table()
         self._core.describe()
         return super().initializePage()

@@ -1,27 +1,45 @@
+from pathlib import Path
+
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.model import Microscope
 from qtpy.QtCore import QSize
-from qtpy.QtWidgets import QLabel, QVBoxLayout, QWidget, QWizard
+from qtpy.QtGui import QCloseEvent
+from qtpy.QtWidgets import (
+    QFileDialog,
+    QLabel,
+    QMessageBox,
+    QVBoxLayout,
+    QWidget,
+    QWizard,
+)
 
-from ._base_page import DelayPage, FinishPage, LabelsPage
-from .defaults_page import DefaultsPage
+from .defaults_page import RolesPage
+from .delay_page import DelayPage
 from .devices_page import DevicesPage
+from .finish_page import DEST_FIELD, FinishPage
 from .intro_page import IntroPage
+from .labels_page import LabelsPage
 
 
 class ConfigWizard(QWizard):
     """Hardware Configuration Wizard for Micro-Manager."""
 
-    def __init__(self, core: CMMCorePlus | None = None, parent: QWidget | None = None):
+    def __init__(
+        self,
+        config_file: str = "",
+        core: CMMCorePlus | None = None,
+        parent: QWidget | None = None,
+    ):
         super().__init__(parent)
         self._core = core or CMMCorePlus.instance()
-        self._model = Microscope.create_from_core(self._core)
+        self._model = Microscope(config_file=config_file)
+        self._model.load_available_devices(self._core)
         # self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
 
         self.setWindowTitle("Hardware Configuration Wizard")
         self.addPage(IntroPage(self._model, self._core))
         self.addPage(DevicesPage(self._model, self._core))
-        self.addPage(DefaultsPage(self._model, self._core))
+        self.addPage(RolesPage(self._model, self._core))
         self.addPage(DelayPage(self._model, self._core))
         self.addPage(LabelsPage(self._model, self._core))
         self.addPage(FinishPage(self._model, self._core))
@@ -63,3 +81,41 @@ class ConfigWizard(QWizard):
 
     # def reject(self) -> None:
     #     return super().reject()
+
+    def microscopeModel(self) -> Microscope:
+        return self._model
+
+    def save(self, path: str | Path) -> None:
+        self._model.save(path)
+
+    def closeEvent(self, event: QCloseEvent | None) -> None:
+        answer = QMessageBox.question(
+            self,
+            "Save changes?",
+            "Would you like to save your changes before exiting?",
+            QMessageBox.StandardButton.Save
+            | QMessageBox.StandardButton.Discard
+            | QMessageBox.StandardButton.Cancel,
+        )
+        if answer == QMessageBox.StandardButton.Cancel:
+            event.ignore()
+            return
+        elif answer == QMessageBox.StandardButton.Save:
+            (fname, _) = QFileDialog.getSaveFileName(
+                self, "Select Destination", "", "Config Files (*.cfg)"
+            )
+            if fname:
+                self.setField(DEST_FIELD, fname)
+                self.accept()
+            else:
+                event.ignore()
+                return
+        else:
+            self.reject()
+        return super().closeEvent(event)
+
+    def accept(self) -> bool:
+        dest = self.field(DEST_FIELD)
+        dest_path = Path(dest)
+        self._model.save(dest_path)
+        return super().accept()

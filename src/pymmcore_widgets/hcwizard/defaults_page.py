@@ -4,10 +4,10 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QCheckBox, QComboBox, QFormLayout
 from superqt.utils import signals_blocked
 
-from ._base_page import _ConfigWizardPage
+from ._base_page import ConfigWizardPage
 
 
-class DefaultsPage(_ConfigWizardPage):
+class RolesPage(ConfigWizardPage):
     def __init__(self, model: Microscope, core: CMMCorePlus):
         super().__init__(model, core)
         self.setTitle("Select default devices and choose auto-shutter setting")

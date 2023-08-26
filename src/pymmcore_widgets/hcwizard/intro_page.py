@@ -14,12 +14,12 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from ._base_page import _ConfigWizardPage
+from ._base_page import ConfigWizardPage
 
 logger = logging.getLogger(__name__)
 
 
-class IntroPage(_ConfigWizardPage):
+class IntroPage(ConfigWizardPage):
     def __init__(self, model: Microscope, core: CMMCorePlus):
         super().__init__(model, core)
         self.setTitle("Select Configuration File")

@@ -81,107 +81,25 @@ for adapter in core.getDeviceAdapterNames():
 """
 import logging
 from contextlib import suppress
-from typing import Iterator, Sequence
+from typing import Sequence
 
 from pymmcore_plus import CMMCorePlus, DeviceType, Keyword
-from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
-    QComboBox,
     QDialog,
     QDialogButtonBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
-    QTableWidget,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 from superqt.utils import exceptions_as_dialog
 
-from pymmcore_widgets._property_widget import PropertyWidget
+from ._simple_prop_table import PropTable
 
 logger = logging.getLogger(__name__)
 PORT_SLEEP = 0.05  # revisit this  # TODO
-
-
-class PortSelector(QComboBox):
-    """Simple combobox that emits (device_name, library_name) when changed."""
-
-    portChanged = Signal(str, str)  # device_name, library_name
-
-    def __init__(
-        self,
-        allowed_values: Sequence[tuple[str | None, str]],
-        parent: QWidget | None = None,
-    ):
-        super().__init__(parent)
-        for library, device_name in allowed_values:
-            self.addItem(device_name, library)
-        self.currentTextChanged.connect(self._on_current_text_changed)
-
-    def _on_current_text_changed(self, text: str) -> None:
-        self.portChanged.emit(text, self.currentData())
-
-    def value(self) -> str:
-        """Implement ValueWidget interface."""
-        return self.currentText()
-
-
-class PropTable(QTableWidget):
-    """Simple Property Table."""
-
-    portChanged = Signal(str, str)
-
-    def __init__(self, core: CMMCorePlus, parent=None):
-        super().__init__(0, 2, parent)
-        self._core = core
-        self.setHorizontalHeaderLabels(["Property", "Value"])
-        self.setSizeAdjustPolicy(QTableWidget.SizeAdjustPolicy.AdjustToContents)
-        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.setSelectionMode(self.SelectionMode.NoSelection)
-        self.horizontalHeader().setStretchLastSection(True)
-        self.verticalHeader().setVisible(False)
-        self.verticalHeader().setDefaultSectionSize(24)
-        self.setColumnWidth(0, 200)
-
-    def iterRows(self) -> Iterator[tuple[str, str]]:
-        """Iterate over rows, yielding (prop_name, prop_value)."""
-        for r in range(self.rowCount()):
-            wdg = self.cellWidget(r, 1)
-            if isinstance(wdg, PortSelector):
-                yield Keyword.Port, wdg.value()
-            elif isinstance(wdg, PropertyWidget):
-                yield self.item(r, 0).text(), wdg.value()
-
-    def rebuild(
-        self,
-        device: str,
-        prop_names: Sequence[str],
-        available_com_ports: Sequence[tuple[str, str]] = (),
-    ) -> None:
-        """Rebuild the table for the given device and prop_names."""
-        self.setRowCount(len(prop_names))
-        for i, prop_name in enumerate(prop_names):
-            self.setItem(i, 0, QTableWidgetItem(prop_name))
-            if prop_name == Keyword.Port:
-                # add the current property if it's not already in there
-                # it might be something like "Undefined"
-                allow: list[tuple[str | None, str]] = sorted(
-                    available_com_ports, key=lambda x: x[1]
-                )
-                current = self._core.getProperty(device, prop_name)
-                if not any(x[1] == current for x in allow):
-                    allow = [(None, current), *allow]
-                wdg = PortSelector(allow)
-                wdg.setCurrentText(current)
-                wdg.portChanged.connect(self.portChanged)
-            else:
-                wdg = PropertyWidget(
-                    device, prop_name, mmcore=self._core, connect_core=False
-                )
-            self.setCellWidget(i, 1, wdg)
 
 
 class ComTable(PropTable):
@@ -189,7 +107,7 @@ class ComTable(PropTable):
 
     _port_dev_name = ""
 
-    def rebuild(self, port_dev_name: str, port_library_name: str = "") -> None:
+    def rebuild_port(self, port_dev_name: str, port_library_name: str = "") -> None:
         """Rebuild the table for the given port device.
 
         if port_dev_name is not currently loaded, and port_library_name is given,
@@ -203,7 +121,7 @@ class ComTable(PropTable):
                 return
             self._core.loadDevice(port_dev_name, port_library_name, port_dev_name)
         prop_names = self._core.getDevicePropertyNames(port_dev_name)
-        return super().rebuild(port_dev_name, prop_names)
+        return super().rebuild([(port_dev_name, p) for p in prop_names])
 
 
 class LastValueLineEdit(QLineEdit):
@@ -330,14 +248,15 @@ class DeviceSetupDialog(QDialog):
 
         self.prop_table = PropTable(core)
         if pre_init_props:
-            self.prop_table.rebuild(device_label, pre_init_props, available_com_ports)
+            dev_props = [(device_label, p) for p in pre_init_props]
+            self.prop_table.rebuild(dev_props, available_com_ports)
         else:
             self.prop_table.hide()
 
         self.com_table = ComTable(core)
-        self.prop_table.portChanged.connect(self.com_table.rebuild)
+        self.prop_table.portChanged.connect(self.com_table.rebuild_port)
         if current_port is not None:
-            self.com_table.rebuild(current_port)
+            self.com_table.rebuild_port(current_port)
         else:
             self.com_table.hide()
 
