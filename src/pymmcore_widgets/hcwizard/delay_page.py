@@ -9,6 +9,7 @@ from qtpy.QtWidgets import (
     QTableWidgetItem,
     QToolButton,
     QVBoxLayout,
+    QWidget,
 )
 from superqt.fonticon import icon
 
@@ -26,7 +27,7 @@ class _DelaySpin(QDoubleSpinBox):
 class DelayTable(QTableWidget):
     """Simple Property Table."""
 
-    def __init__(self, model: Microscope, parent=None):
+    def __init__(self, model: Microscope, parent: QWidget | None = None) -> None:
         headers = ["", "Label", "Adapter", "Delay [ms]"]
         super().__init__(0, len(headers), parent)
         self._model = model
@@ -53,19 +54,22 @@ class DelayTable(QTableWidget):
             spin_wdg = _DelaySpin()
             self.setCellWidget(i, 3, spin_wdg)
 
-            @btn.clicked.connect
             def _on_click(state: bool, lib: str = dev.library) -> None:
                 webbrowser.open(f"https://micro-manager.org/{lib}")
 
-            @spin_wdg.valueChanged.connect
             def _on_change(v: float, d: Device = dev) -> None:
                 d.delay_ms = v
+
+            btn.clicked.connect(_on_click)
+            spin_wdg.valueChanged.connect(_on_change)
 
         hh = self.horizontalHeader()
         hh.resizeSections(hh.ResizeMode.ResizeToContents)
 
 
 class DelayPage(ConfigWizardPage):
+    """Page for setting device delays."""
+
     def __init__(self, model: Microscope, core: CMMCorePlus):
         super().__init__(model, core)
         self.setTitle("Set delays for devices without synchronization capabilities")
@@ -81,12 +85,7 @@ class DelayPage(ConfigWizardPage):
         layout = QVBoxLayout(self)
         layout.addWidget(self.delays_table)
 
-    def _show_help(self) -> None:
-        from webbrowser import open
-
-        # TODO: some of these will be 404
-        open(f"https://micro-manager.org/{lib_name}")
-
     def initializePage(self) -> None:
+        """Called to prepare the page just before it is shown."""
         self.delays_table.rebuild()
-        return super().initializePage()
+        super().initializePage()

@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 class IntroPage(ConfigWizardPage):
+    """First page, for selecting new or existing configuration."""
+
     def __init__(self, model: Microscope, core: CMMCorePlus):
         super().__init__(model, core)
         self.setTitle("Select Configuration File")
@@ -31,7 +33,7 @@ class IntroPage(ConfigWizardPage):
         self.file_edit.setReadOnly(True)
         self.file_edit.setPlaceholderText("Select a configuration file...")
         self.select_file_btn = QPushButton("Browse...")
-        self.select_file_btn.clicked.connect(self.select_file)
+        self.select_file_btn.clicked.connect(self._select_file)
 
         row = QWidget()
         row_layout = QHBoxLayout(row)
@@ -62,7 +64,7 @@ class IntroPage(ConfigWizardPage):
         else:
             self.new_btn.click()
 
-    def select_file(self) -> None:
+    def _select_file(self) -> None:
         (fname, _) = QFileDialog.getOpenFileName(
             self, "Select Configuration File", "", "Config Files (*.cfg)"
         )
@@ -70,6 +72,7 @@ class IntroPage(ConfigWizardPage):
             self.file_edit.setText(fname)
 
     def cleanupPage(self) -> None:
+        """Called to reset the page's contents when the user clicks BACK."""
         self._model.reset()
         try:
             self._core.unloadAllDevices()
@@ -77,16 +80,18 @@ class IntroPage(ConfigWizardPage):
             logger.exception(e)
 
         self.file_edit.setText(self._model.config_file)
-        return super().cleanupPage()
+        super().cleanupPage()
 
     def validatePage(self) -> bool:
+        """Validate. the page when the user clicks Next or Finish."""
         if self.btn_group.checkedButton() is self.new_btn:
             self._model.reset()
         else:
             self._model.load_config(self.file_edit.text())
-        return super().validatePage()
+        return super().validatePage()  # type: ignore
 
     def isComplete(self) -> bool:
+        """Called to determine whether the Next/Finish button should be enabled."""
         return bool(
             self.btn_group.checkedButton() is not self.modify_btn
             or os.path.isfile(self.file_edit.text())

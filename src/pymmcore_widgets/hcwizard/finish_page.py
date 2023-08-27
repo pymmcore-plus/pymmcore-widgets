@@ -17,6 +17,8 @@ DEST_FIELD = "destination"
 
 
 class FinishPage(ConfigWizardPage):
+    """Page for saving the configuration file."""
+
     def __init__(self, model: Microscope, core: CMMCorePlus):
         super().__init__(model, core)
         self.setTitle("Save configuration and exit")
@@ -38,11 +40,13 @@ class FinishPage(ConfigWizardPage):
         layout.addLayout(row_layout)
 
     def initializePage(self) -> None:
+        """Called to prepare the page just before it is shown."""
         if self._model.config_file:
             self.file_edit.setText(self._model.config_file)
         self._initial_dest = self.file_edit.text()
 
     def validatePage(self) -> bool:
+        """Validate. the page when the user clicks Next or Finish."""
         dest = self.file_edit.text()
         if dest == self._initial_dest and Path(dest).exists():
             result = QMessageBox.question(
@@ -53,7 +57,7 @@ class FinishPage(ConfigWizardPage):
             )
             if result == QMessageBox.StandardButton.No:
                 return False
-        return super().validatePage()
+        return super().validatePage()  # type: ignore
 
     def _select_file(self) -> None:
         (fname, _) = QFileDialog.getSaveFileName(

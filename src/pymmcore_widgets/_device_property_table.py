@@ -27,7 +27,8 @@ ICONS: dict[DeviceType, str] = {
     DeviceType.Stage: MDI6.arrow_up_down,
     DeviceType.State: MDI6.state_machine,
     DeviceType.Unknown: MDI6.dev_to,
-    DeviceType.XYStage: MDI6.tablet,
+    DeviceType.XYStage: MDI6.arrow_all,
+    DeviceType.Serial: MDI6.serial_port,
 }
 
 
@@ -207,7 +208,7 @@ class DevicePropertyTable(QTableWidget):
 
         return dev_prop_val_list
 
-    def getRowData(self, row: int):
+    def getRowData(self, row: int) -> tuple[str, str, str]:
         item = self.item(row, 0)
         prop: DeviceProperty = item.data(self.PROP_ROLE)
         wdg = cast("PropertyWidget", self.cellWidget(row, 1))

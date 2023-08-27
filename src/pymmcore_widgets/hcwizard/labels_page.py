@@ -9,7 +9,7 @@ from superqt.utils import signals_blocked
 from ._base_page import ConfigWizardPage
 
 
-class LabelTable(QTableWidget):
+class _LabelTable(QTableWidget):
     def __init__(self, model: Microscope):
         headers = ["State", "Label"]
         super().__init__(0, len(headers))
@@ -22,7 +22,8 @@ class LabelTable(QTableWidget):
 
         self.itemChanged.connect(self._on_item_changed)
 
-    def rebuild(self, dev_name: str):
+    def rebuild(self, dev_name: str) -> None:
+        """Rebuild the table for the given device."""
         if not dev_name:
             return
 
@@ -37,7 +38,7 @@ class LabelTable(QTableWidget):
             lbl.setData(Qt.ItemDataRole.UserRole, dev)
             self.setItem(i, 1, lbl)
 
-    def _on_item_changed(self, item: QTableWidgetItem):
+    def _on_item_changed(self, item: QTableWidgetItem) -> None:
         if item.column() != 1:
             return
         dev = cast(Device, item.data(Qt.ItemDataRole.UserRole))
@@ -45,12 +46,14 @@ class LabelTable(QTableWidget):
 
 
 class LabelsPage(ConfigWizardPage):
+    """Provide a table for defining position labels for state devices."""
+
     def __init__(self, model: Microscope, core: CMMCorePlus):
         super().__init__(model, core)
         self.setTitle("Define position labels for state devices")
 
         self.dev_combo = QComboBox()
-        self.labels_table = LabelTable(self._model)
+        self.labels_table = _LabelTable(self._model)
         self.dev_combo.currentTextChanged.connect(self.labels_table.rebuild)
 
         layout = QVBoxLayout(self)
@@ -58,6 +61,7 @@ class LabelsPage(ConfigWizardPage):
         layout.addWidget(self.labels_table)
 
     def initializePage(self) -> None:
+        """Called to prepare the page just before it is shown."""
         with signals_blocked(self.dev_combo):
             txt = self.dev_combo.currentText()
             self.dev_combo.clear()
@@ -69,4 +73,4 @@ class LabelsPage(ConfigWizardPage):
                 self.dev_combo.setCurrentText(txt)
 
         self.labels_table.rebuild(self.dev_combo.currentText())
-        return super().initializePage()
+        super().initializePage()

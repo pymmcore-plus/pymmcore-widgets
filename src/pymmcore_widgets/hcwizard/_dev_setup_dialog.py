@@ -79,11 +79,14 @@ for adapter in core.getDeviceAdapterNames():
         if type == DeviceType.Serial:
             print(adapter, dev)
 """
+from __future__ import annotations
+
 import logging
 from contextlib import suppress
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from pymmcore_plus import CMMCorePlus, Keyword
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -98,8 +101,12 @@ from superqt.utils import exceptions_as_dialog
 
 from ._simple_prop_table import PropTable
 
+if TYPE_CHECKING:
+    from qtpy.QtGui import QFocusEvent
+
 logger = logging.getLogger(__name__)
 PORT_SLEEP = 0.05  # revisit this  # TODO
+DEFAULT_FLAGS = Qt.WindowType.Sheet | Qt.WindowType.MSWindowsFixedSizeDialogHint
 
 
 class ComTable(PropTable):
@@ -127,10 +134,10 @@ class ComTable(PropTable):
 class LastValueLineEdit(QLineEdit):
     """QLineEdit that stores the last value on focus in."""
 
-    def focusInEvent(self, a0) -> None:
+    def focusInEvent(self, a0: QFocusEvent | None) -> None:
         """Store current value when editing starts."""
-        self._last_value = self.text()
-        return super().focusInEvent(a0)
+        self._last_value: str = self.text()
+        super().focusInEvent(a0)
 
     def lastValue(self) -> str:
         """Return the last value stored when editing started."""
@@ -147,7 +154,7 @@ class DeviceSetupDialog(QDialog):
         device_label: str,
         parent: QWidget | None = None,
         available_com_ports: Sequence[tuple[str, str]] = (),
-    ):
+    ) -> DeviceSetupDialog:
         """Create a dialog to edit an existing device."""
         if device_label not in core.getLoadedDevices():
             raise RuntimeError("No loaded device with label {device_label!r}")
@@ -172,7 +179,7 @@ class DeviceSetupDialog(QDialog):
         device_label: str = "",
         available_com_ports: Sequence[tuple[str, str]] = (),
         parent: QWidget | None = None,
-    ):
+    ) -> DeviceSetupDialog:
         """Create a dialog to add a new device."""
         if not device_label:
             device_label = device_name
@@ -206,6 +213,7 @@ class DeviceSetupDialog(QDialog):
         parent: QWidget | None = None,
         existing_device: bool = False,
         available_com_ports: Sequence[tuple[str, str]] = (),  # (lib_name, device_name)
+        flags: Qt.WindowType = DEFAULT_FLAGS,
     ) -> None:
         if device_label not in core.getLoadedDevices():
             raise RuntimeError(
@@ -229,7 +237,8 @@ class DeviceSetupDialog(QDialog):
         self._available_com_ports = available_com_ports
         self._core = core
         self._device_label = device_label
-        super().__init__(parent)
+
+        super().__init__(parent, flags)
         self.setWindowTitle(f"Device: {device_name}; Library: {library_name}")
 
         # WIDGETS -------------
@@ -266,17 +275,16 @@ class DeviceSetupDialog(QDialog):
         top.addWidget(QLabel("Device Name:"))
         top.addWidget(self.name_edit)
 
-        if parent_label := core.getParentLabel(device_label):
-            top.addWidget(QLabel(f"Parent Device: {parent_label}"))
-
         layout = QVBoxLayout(self)
-        lbl = QLabel(f"Setting up: {library_name}::{device_name}")
+        lbl = QLabel(f"Setting up: {library_name}-{device_name}")
         # make bold
         font = lbl.font()
         font.setBold(True)
         lbl.setFont(font)
         layout.addWidget(lbl)
         layout.addLayout(top)
+        if parent_label := core.getParentLabel(device_label):
+            layout.addWidget(QLabel(f"Parent Device: {parent_label}"))
         if pre_init_props:
             layout.addWidget(QLabel("Initialization Properties:"))
         layout.addWidget(self.prop_table)
@@ -319,7 +327,7 @@ class DeviceSetupDialog(QDialog):
         if ctx.exception or not success:
             self._reload_device()
             return
-        return super().accept()
+        super().accept()
 
     def _reload_device(self) -> None:
         with suppress(RuntimeError):

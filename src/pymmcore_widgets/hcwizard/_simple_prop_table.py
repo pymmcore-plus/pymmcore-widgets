@@ -28,7 +28,7 @@ class PortSelector(QComboBox):
 
     def value(self) -> str:
         """Implement ValueWidget interface."""
-        return self.currentText()
+        return self.currentText()  # type: ignore
 
 
 class PropTable(QTableWidget):
@@ -36,7 +36,7 @@ class PropTable(QTableWidget):
 
     portChanged = Signal(str, str)
 
-    def __init__(self, core: CMMCorePlus, parent=None):
+    def __init__(self, core: CMMCorePlus, parent: QWidget | None = None) -> None:
         super().__init__(0, 2, parent)
         self._core = core
         self.setHorizontalHeaderLabels(["Property", "Value"])

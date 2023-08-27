@@ -57,15 +57,15 @@ class ConfigWizard(QWizard):
         # Set the custom side widget
         self.setSideWidget(side_widget)
 
-        # Connect the currentIdChanged signal to the updateStepAppearance function
         self.currentIdChanged.connect(self._update_step)
         self._update_step(self.currentId())  # Initialize the appearance
 
     def sizeHint(self) -> QSize:
+        """Return the size hint for the wizard."""
         return super().sizeHint().expandedTo(QSize(750, 600))
 
-    # Define a function to update step appearance
-    def _update_step(self, current_index):
+    def _update_step(self, current_index: int) -> None:
+        """Change text on the left when the page changes."""
         for i, label in enumerate(self.step_labels):
             font = label.font()
             if i == current_index:
@@ -76,19 +76,18 @@ class ConfigWizard(QWizard):
                 label.setStyleSheet("color: gray;")
             label.setFont(font)
 
-    # def accept(self) -> None:
-    #     return super().accept()
-
-    # def reject(self) -> None:
-    #     return super().reject()
-
     def microscopeModel(self) -> Microscope:
+        """Return the microscope model."""
         return self._model
 
     def save(self, path: str | Path) -> None:
+        """Save the configuration to a file."""
         self._model.save(path)
 
     def closeEvent(self, event: QCloseEvent | None) -> None:
+        """Called when the window is closed."""
+        if not event:
+            return
         answer = QMessageBox.question(
             self,
             "Save changes?",
@@ -112,10 +111,10 @@ class ConfigWizard(QWizard):
                 return
         else:
             self.reject()
-        return super().closeEvent(event)
+        super().closeEvent(event)
 
-    def accept(self) -> bool:
+    def accept(self) -> None:
+        """Accept the wizard and save the configuration to a file."""
         dest = self.field(DEST_FIELD)
         dest_path = Path(dest)
         self._model.save(dest_path)
-        return super().accept()

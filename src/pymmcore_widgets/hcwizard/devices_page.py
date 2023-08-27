@@ -5,7 +5,9 @@ from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
 from pymmcore_plus.model import Device, Microscope
 from qtpy.QtCore import QRegularExpression, Qt, Signal
+from qtpy.QtGui import QKeyEvent
 from qtpy.QtWidgets import (
+    QComboBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -16,7 +18,6 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt import QEnumComboBox
 from superqt.fonticon import icon
 from superqt.utils import exceptions_as_dialog
 
@@ -33,31 +34,34 @@ class _DeviceTable(QTableWidget):
     """Table of currently configured devices."""
 
     def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        headers = ["", "Name", "Adapter/Module", "Description", "Status"]
+        super().__init__(0, len(headers), parent)
 
-        h = self.horizontalHeader()
-        h.setSectionResizeMode(h.ResizeMode.Stretch)
-
-        headers = ["Name", "Adapter/Module", "Description", "Status"]
-        self.setColumnCount(len(headers))
         self.setHorizontalHeaderLabels(headers)
-
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+
         self.verticalHeader().setVisible(False)
+        hh = self.horizontalHeader()
+        hh.setSectionResizeMode(hh.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(3, hh.ResizeMode.Stretch)
 
     def rebuild(self, model: Microscope, errs: dict[str, str] | None) -> None:
         errs = errs or {}
 
         self.setRowCount(len(model.devices))
         for i, device in enumerate(model.devices):
-            item = QTableWidgetItem(device.name)
+            type_icon = ICONS.get(device.device_type, "")
+            item = QTableWidgetItem(icon(type_icon, color="Gray"), "")
             item.setData(Qt.ItemDataRole.UserRole, device)
             self.setItem(i, 0, item)
-            self.setItem(i, 1, QTableWidgetItem(device.adapter_name))
-            self.setItem(i, 2, QTableWidgetItem(device.description))
+
+            item = QTableWidgetItem(device.name)
+            self.setItem(i, 1, item)
+            self.setItem(i, 2, QTableWidgetItem(device.adapter_name))
+            self.setItem(i, 3, QTableWidgetItem(device.description))
+
             if device.device_type == DeviceType.Core:
                 status = "Core"
                 _icon = icon(MDI6.heart_cog, color="gray")
@@ -70,10 +74,10 @@ class _DeviceTable(QTableWidget):
             item = QTableWidgetItem(_icon, status)
             if info := errs.get(device.name):
                 item.setToolTip(str(info))
-            self.setItem(i, 3, item)
+            self.setItem(i, 4, item)
 
 
-class _CurrentDevicesTable(QWidget):
+class _CurrentDevicesWidget(QWidget):
     def __init__(
         self, model: Microscope, core: CMMCorePlus, parent: QWidget | None = None
     ) -> None:
@@ -81,26 +85,67 @@ class _CurrentDevicesTable(QWidget):
         self._model = model
         self._core = core
         self.table = _DeviceTable(self)
+        self.table.cellDoubleClicked.connect(self._edit_selected_device)
+        self.table.itemSelectionChanged.connect(self._on_selection_changed)
+
+        self.edit_btn = QPushButton(icon(MDI6.pencil), "Edit")
+        self.edit_btn.setDisabled(True)
+        self.edit_btn.clicked.connect(self._edit_selected_device)
+
+        self.remove_btn = QPushButton(icon(MDI6.delete), "Remove")
+        self.remove_btn.setDisabled(True)
+        self.remove_btn.clicked.connect(self._remove_selected_device)
+
+        row = QHBoxLayout()
+        lbl = QLabel("Installed Devices:")
+        font = lbl.font()
+        font.setBold(True)
+        lbl.setFont(font)
+        row.addWidget(lbl)
+        row.addStretch()
+        row.addWidget(self.edit_btn)
+        row.addWidget(self.remove_btn)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QLabel("Installed Devices:"))
+        layout.setSpacing(6)
+        layout.addLayout(row)
         layout.addWidget(self.table)
-
-        self.table.cellDoubleClicked.connect(self._edit_selected_device)
 
     def rebuild_table(self, errs: dict[str, str] | None = None) -> None:
         self.table.rebuild(self._model, errs)
 
-    def _edit_selected_device(self) -> None:
+    def keyPressEvent(self, event: QKeyEvent | None) -> None:
+        if event and event.key() in {Qt.Key.Key_Backspace, Qt.Key.Key_Delete}:
+            self._remove_selected_device()
+        else:
+            super().keyPressEvent(event)
+
+    def _on_selection_changed(self) -> None:
+        something_selected = len(self.table.selectedItems()) > 0
+        self.edit_btn.setEnabled(something_selected)
+        self.remove_btn.setEnabled(something_selected)
+
+    def _selected_device(self) -> Device | None:
         if not (selected_items := self.table.selectedItems()):
-            return
+            return None
 
         # get selected device.
         # This will have been one of the devices in model.available_devices
         row = selected_items[0].row()
         device = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
-        device = cast("Device", device)
+        return cast("Device", device)
+
+    def _remove_selected_device(self) -> None:
+        if not (device := self._selected_device()):
+            return
+
+        self._model.devices.remove(device)
+        self.rebuild_table()
+
+    def _edit_selected_device(self) -> None:
+        if not (device := self._selected_device()):
+            return
 
         coms = [
             (a.library, a.adapter_name) for a in self._model.available_serial_devices
@@ -123,11 +168,8 @@ class _CurrentDevicesTable(QWidget):
         self._model.devices[idx] = dev
         self.rebuild_table()
 
-        # self._model.devices.append(dev)
-        # self.touchedModel.emit()
 
-
-class _AvailableDeviceTable(QWidget):
+class _AvailableDevicesWidget(QWidget):
     """Table of all available devices."""
 
     touchedModel = Signal()
@@ -142,24 +184,25 @@ class _AvailableDeviceTable(QWidget):
         self.filter.setClearButtonEnabled(True)
         self.filter.textChanged.connect(self._updateVisibleItems)
 
-        self.dev_type: QEnumComboBox = QEnumComboBox(self, DeviceType)
-        self.dev_type.removeItem(0)  # Remove "Unknown" option
+        self.dev_type = QComboBox()
+        avail = {x.device_type for x in self._model.available_devices}
+        for x in sorted(avail):
+            self.dev_type.addItem(icon(ICONS.get(x, "")), str(x), x)
         self.dev_type.currentIndexChanged.connect(self._updateVisibleItems)
 
-        self.table = QTableWidget(self)
+        headers = ["Module", "Adapter", "Type", "Description"]
+        self.table = QTableWidget(0, len(headers), self)
+        self.table.setHorizontalHeaderLabels(headers)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.cellDoubleClicked.connect(self._add_selected_device)
-        self.table.verticalHeader().setVisible(False)
+
         hh = self.table.horizontalHeader()
         hh.setSortIndicatorShown(True)
         hh.setSectionResizeMode(hh.ResizeMode.Stretch)
         hh.sectionClicked.connect(self._sort_by_col)
-
-        headers = ["Module", "Adapter", "Type", "Description"]
-        self.table.setColumnCount(len(headers))
-        self.table.setHorizontalHeaderLabels(headers)
+        self.table.verticalHeader().setVisible(False)
 
         # Initialize sorting order as ascending for the first column
         self._sorted_col = 0
@@ -189,13 +232,13 @@ class _AvailableDeviceTable(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 10, 0, 0)
-        layout.setSpacing(5)
+        layout.setSpacing(6)
         layout.addWidget(title)
         layout.addLayout(filter_row)
         layout.addWidget(self.table)
         layout.addLayout(bot_row)
 
-    def _sort_by_col(self, col: int):
+    def _sort_by_col(self, col: int) -> None:
         # Toggle sorting order if clicking on the same column
         if col == self._sorted_col:
             self._sort_order = (
@@ -215,7 +258,7 @@ class _AvailableDeviceTable(QWidget):
     def _updateVisibleItems(self) -> None:
         """Recursively update the visibility of items based on the given pattern."""
         pattern = self.filter.text()
-        dev_type = DeviceType[self.dev_type.currentText()]
+        dev_type = cast("DeviceType", self.dev_type.currentData())
 
         opt = QRegularExpression.PatternOption.CaseInsensitiveOption
         expressions = {QRegularExpression(p, opt) for p in pattern.split()}
@@ -235,7 +278,7 @@ class _AvailableDeviceTable(QWidget):
             else:
                 self.table.hideRow(row)
 
-    def rebuild_table(self):
+    def rebuild_table(self) -> None:
         self.table.setRowCount(len(self._model.available_devices))
         for i, device in enumerate(self._model.available_devices):
             item0 = QTableWidgetItem(device.library)
@@ -250,13 +293,13 @@ class _AvailableDeviceTable(QWidget):
             self.table.setItem(i, 2, item)
             self.table.setItem(i, 3, QTableWidgetItem(device.description))
 
-    def keyPressEvent(self, event):
-        if event.key() in {Qt.Key.Key_Return, Qt.Key.Key_Enter}:
+    def keyPressEvent(self, event: QKeyEvent | None) -> None:
+        if event and event.key() in {Qt.Key.Key_Return, Qt.Key.Key_Enter}:
             self._add_selected_device()
         else:
             super().keyPressEvent(event)
 
-    def _add_selected_device(self):
+    def _add_selected_device(self) -> None:
         if not (selected_items := self.table.selectedItems()):
             return
 
@@ -326,8 +369,8 @@ class DevicesPage(ConfigWizardPage):
             "this configuration."
         )
 
-        self.current = _CurrentDevicesTable(model, core)
-        self.available = _AvailableDeviceTable(model, core)
+        self.current = _CurrentDevicesWidget(model, core)
+        self.available = _AvailableDevicesWidget(model, core)
         self.available.touchedModel.connect(self.current.rebuild_table)
 
         splitter = QSplitter(Qt.Orientation.Vertical)
@@ -338,11 +381,9 @@ class DevicesPage(ConfigWizardPage):
         layout.addWidget(splitter)
 
     def initializePage(self) -> None:
+        """Called to prepare the page just before it is shown."""
         err = {}
         self._model.initialize(self._core, on_fail=lambda d, e: err.update({d.name: e}))
         self.current.rebuild_table(err)
         self.available.rebuild_table()
-        return super().initializePage()
-
-    def validatePage(self) -> bool:
-        return super().validatePage()
+        return

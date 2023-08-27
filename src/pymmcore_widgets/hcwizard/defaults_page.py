@@ -8,6 +8,8 @@ from ._base_page import ConfigWizardPage
 
 
 class RolesPage(ConfigWizardPage):
+    """Page for selecting default devices and auto-shutter setting."""
+
     def __init__(self, model: Microscope, core: CMMCorePlus):
         super().__init__(model, core)
         self.setTitle("Select default devices and choose auto-shutter setting")
@@ -29,6 +31,7 @@ class RolesPage(ConfigWizardPage):
         layout.addRow("Use auto-shutter", self.auto_shutter_checkbox)
 
     def initializePage(self) -> None:
+        """Called to prepare the page just before it is shown."""
         # try/catch
 
         # reset and populate the combo boxes with available devices
@@ -61,7 +64,7 @@ class RolesPage(ConfigWizardPage):
             elif prop.name == Keyword.CoreAutoShutter:
                 self.auto_shutter_checkbox.setChecked(prop.value == "1")
 
-        return super().initializePage()
+        super().initializePage()
 
     def _on_camera_changed(self, text: str) -> None:
         self._model.core_device.set_property(Keyword.CoreCamera, text)
