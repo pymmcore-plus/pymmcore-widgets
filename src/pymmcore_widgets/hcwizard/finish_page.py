@@ -57,11 +57,14 @@ class FinishPage(ConfigWizardPage):
             )
             if result == QMessageBox.StandardButton.No:
                 return False
-        return super().validatePage()  # type: ignore
+        return True
 
     def _select_file(self) -> None:
         (fname, _) = QFileDialog.getSaveFileName(
-            self, "Select Configuration File", "", "Config Files (*.cfg)"
+            self,
+            "Select Configuration File",
+            self.file_edit.text(),
+            "Config Files (*.cfg)",
         )
         if fname:
             self.file_edit.setText(fname)

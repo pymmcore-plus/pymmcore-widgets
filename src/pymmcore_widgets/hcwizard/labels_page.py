@@ -3,7 +3,14 @@ from typing import cast
 from pymmcore_plus import CMMCorePlus, DeviceType
 from pymmcore_plus.model import Device, Microscope
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QComboBox, QTableWidget, QTableWidgetItem, QVBoxLayout
+from qtpy.QtWidgets import (
+    QComboBox,
+    QHBoxLayout,
+    QLabel,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+)
 from superqt.utils import signals_blocked
 
 from ._base_page import ConfigWizardPage
@@ -15,9 +22,9 @@ class _LabelTable(QTableWidget):
         super().__init__(0, len(headers))
         self._model = model
 
+        self.setSelectionMode(self.SelectionMode.NoSelection)
         self.setHorizontalHeaderLabels(headers)
         self.horizontalHeader().setStretchLastSection(True)
-        self.setSelectionMode(self.SelectionMode.NoSelection)
         self.verticalHeader().setVisible(False)
 
         self.itemChanged.connect(self._on_item_changed)
@@ -51,13 +58,23 @@ class LabelsPage(ConfigWizardPage):
     def __init__(self, model: Microscope, core: CMMCorePlus):
         super().__init__(model, core)
         self.setTitle("Define position labels for state devices")
+        self.setSubTitle(
+            "Some devices, such as filter wheels and objective turrets, have discrete "
+            "positions that can have names assigned to them. For example, position 1 "
+            "of a filter wheel could be the DAPI channel, position 2 the FITC channel, "
+            "etc.<br><br>You may assign names to positions here."
+        )
 
         self.dev_combo = QComboBox()
         self.labels_table = _LabelTable(self._model)
         self.dev_combo.currentTextChanged.connect(self.labels_table.rebuild)
 
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Device:"))
+        row.addWidget(self.dev_combo, 1)
+
         layout = QVBoxLayout(self)
-        layout.addWidget(self.dev_combo)
+        layout.addLayout(row)
         layout.addWidget(self.labels_table)
 
     def initializePage(self) -> None:

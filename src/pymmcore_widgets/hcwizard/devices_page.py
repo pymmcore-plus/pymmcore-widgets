@@ -1,4 +1,5 @@
 import logging
+from contextlib import suppress
 from typing import cast
 
 from fonticon_mdi6 import MDI6
@@ -12,6 +13,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
@@ -33,13 +35,14 @@ logger = logging.getLogger(__name__)
 class _DeviceTable(QTableWidget):
     """Table of currently configured devices."""
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, core: CMMCorePlus, parent: QWidget | None = None):
         headers = ["", "Name", "Adapter/Module", "Description", "Status"]
         super().__init__(0, len(headers), parent)
+        self._core = core
 
         self.setHorizontalHeaderLabels(headers)
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
 
         self.verticalHeader().setVisible(False)
@@ -47,17 +50,26 @@ class _DeviceTable(QTableWidget):
         hh.setSectionResizeMode(hh.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(3, hh.ResizeMode.Stretch)
 
-    def rebuild(self, model: Microscope, errs: dict[str, str] | None) -> None:
+    def rebuild(self, model: Microscope, errs: dict[str, str] | None = None) -> None:
         errs = errs or {}
-
+        self.clearContents()
         self.setRowCount(len(model.devices))
         for i, device in enumerate(model.devices):
             type_icon = ICONS.get(device.device_type, "")
-            item = QTableWidgetItem(icon(type_icon, color="Gray"), "")
-            item.setData(Qt.ItemDataRole.UserRole, device)
-            self.setItem(i, 0, item)
+            if device.device_type == DeviceType.Hub:
+                btn = QPushButton(icon(type_icon, color="blue"), "")
+                btn.setToolTip("Add peripheral device")
+                btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                btn.clicked.connect(
+                    lambda _, d=device, m=model: self._edit_peripherals(d, m)
+                )
+                self.setCellWidget(i, 0, btn)
+            else:
+                item = QTableWidgetItem(icon(type_icon, color="Gray"), "")
+                self.setItem(i, 0, item)
 
             item = QTableWidgetItem(device.name)
+            item.setData(Qt.ItemDataRole.UserRole, device)
             self.setItem(i, 1, item)
             self.setItem(i, 2, QTableWidgetItem(device.adapter_name))
             self.setItem(i, 3, QTableWidgetItem(device.description))
@@ -76,6 +88,11 @@ class _DeviceTable(QTableWidget):
                 item.setToolTip(str(info))
             self.setItem(i, 4, item)
 
+    def _edit_peripherals(self, device: Device, model: Microscope) -> None:
+        dlg = PeripheralSetupDlg(device, model, self._core, self)
+        if dlg.exec():
+            self.rebuild(model)
+
 
 class _CurrentDevicesWidget(QWidget):
     def __init__(
@@ -84,7 +101,7 @@ class _CurrentDevicesWidget(QWidget):
         super().__init__(parent)
         self._model = model
         self._core = core
-        self.table = _DeviceTable(self)
+        self.table = _DeviceTable(core, self)
         self.table.cellDoubleClicked.connect(self._edit_selected_device)
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
 
@@ -94,7 +111,7 @@ class _CurrentDevicesWidget(QWidget):
 
         self.remove_btn = QPushButton(icon(MDI6.delete), "Remove")
         self.remove_btn.setDisabled(True)
-        self.remove_btn.clicked.connect(self._remove_selected_device)
+        self.remove_btn.clicked.connect(self._remove_selected_devices)
 
         row = QHBoxLayout()
         lbl = QLabel("Installed Devices:")
@@ -117,14 +134,15 @@ class _CurrentDevicesWidget(QWidget):
 
     def keyPressEvent(self, event: QKeyEvent | None) -> None:
         if event and event.key() in {Qt.Key.Key_Backspace, Qt.Key.Key_Delete}:
-            self._remove_selected_device()
+            self._remove_selected_devices()
         else:
             super().keyPressEvent(event)
 
     def _on_selection_changed(self) -> None:
-        something_selected = len(self.table.selectedItems()) > 0
-        self.edit_btn.setEnabled(something_selected)
-        self.remove_btn.setEnabled(something_selected)
+        selected_rows = {x.row() for x in self.table.selectedItems()}
+        n_selected = len(selected_rows)
+        self.edit_btn.setEnabled(n_selected == 1)
+        self.remove_btn.setEnabled(n_selected > 0)
 
     def _selected_device(self) -> Device | None:
         if not (selected_items := self.table.selectedItems()):
@@ -133,19 +151,39 @@ class _CurrentDevicesWidget(QWidget):
         # get selected device.
         # This will have been one of the devices in model.available_devices
         row = selected_items[0].row()
-        device = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+        device = self.table.item(row, 1).data(Qt.ItemDataRole.UserRole)
         return cast("Device", device)
 
-    def _remove_selected_device(self) -> None:
-        if not (device := self._selected_device()):
-            return
+    def _remove_selected_devices(self) -> None:
+        if not (selected_items := self.table.selectedItems()):
+            return None
 
-        self._model.devices.remove(device)
+        to_remove: set[Device] = set()
+        for item in selected_items:
+            data = self.table.item(item.row(), 1).data(Qt.ItemDataRole.UserRole)
+            device = cast("Device", data)
+            if device.device_type == DeviceType.Hub:
+                for dev in list(self._model.devices):
+                    if dev.parent_label == device.name:
+                        to_remove.add(dev)
+            to_remove.add(device)
+
+        for dev in to_remove:
+            self._model.devices.remove(dev)
+            with suppress(RuntimeError):
+                self._core.unloadDevice(dev.name)
+
         self.rebuild_table()
 
     def _edit_selected_device(self) -> None:
-        if not (device := self._selected_device()):
-            return
+        if not (selected_items := self.table.selectedItems()):
+            return None
+
+        # get selected device.
+        # This will have been one of the devices in model.available_devices
+        row = selected_items[0].row()
+        data = self.table.item(row, 1).data(Qt.ItemDataRole.UserRole)
+        device = cast("Device", data)
 
         coms = [
             (a.library, a.adapter_name) for a in self._model.available_serial_devices
@@ -186,7 +224,7 @@ class _AvailableDevicesWidget(QWidget):
 
         self.dev_type = QComboBox()
         avail = {x.device_type for x in self._model.available_devices}
-        for x in sorted(avail):
+        for x in (DeviceType.Any, *sorted(avail)):
             self.dev_type.addItem(icon(ICONS.get(x, "")), str(x), x)
         self.dev_type.currentIndexChanged.connect(self._updateVisibleItems)
 
@@ -297,6 +335,7 @@ class _AvailableDevicesWidget(QWidget):
         if event and event.key() in {Qt.Key.Key_Return, Qt.Key.Key_Enter}:
             self._add_selected_device()
         else:
+            print("keyPressEvent", event.key())
             super().keyPressEvent(event)
 
     def _add_selected_device(self) -> None:
@@ -305,9 +344,10 @@ class _AvailableDevicesWidget(QWidget):
 
         # get selected device.
         # This will have been one of the devices in model.available_devices
-        row = selected_items[0].row()
-        device = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
-        device = cast("Device", device)
+        item = self.table.item(selected_items[0].row(), 0)
+        if not item:
+            return
+        device = cast("Device", item.data(Qt.ItemDataRole.UserRole))
 
         coms = [
             (a.library, a.adapter_name) for a in self._model.available_serial_devices
@@ -331,31 +371,11 @@ class _AvailableDevicesWidget(QWidget):
         self._model.devices.append(dev)
         self.touchedModel.emit()
 
-        # TODO refresh the devices table
-        if dev.device_type == DeviceType.Hub:
-            peripherals: list[Device] = []
-            for child in dev.children:
-                if self._model.has_adapter_name(dev.library, dev.name, child):
-                    description = next(
-                        (
-                            d.description
-                            for d in self._model.available_devices
-                            if d.library == dev.library and d.adapter_name == child
-                        ),
-                        "",
-                    )
-                    new_dev = Device(
-                        name=child,
-                        library=dev.library,
-                        adapter_name=child,
-                        description=description,
-                    )
-                    peripherals.append(new_dev)
-
-            if peripherals:
-                dlg = PeripheralSetupDlg(dev, self._model, self._core)
-                if not dlg.exec():
-                    return
+        if (
+            dev.device_type == DeviceType.Hub
+            and PeripheralSetupDlg(dev, self._model, self._core, self).exec()
+        ):
+            self.touchedModel.emit()
 
 
 class DevicesPage(ConfigWizardPage):

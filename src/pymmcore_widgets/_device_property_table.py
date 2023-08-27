@@ -12,7 +12,7 @@ from superqt.fonticon import icon
 from pymmcore_widgets._property_widget import PropertyWidget
 
 ICONS: dict[DeviceType, str] = {
-    DeviceType.Any: MDI6.dev_to,
+    DeviceType.Any: MDI6.devices,
     DeviceType.AutoFocus: MDI6.auto_upload,
     DeviceType.Camera: MDI6.camera,
     DeviceType.Core: MDI6.checkbox_blank_circle_outline,

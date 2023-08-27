@@ -52,6 +52,7 @@ class DelayTable(QTableWidget):
             self.setItem(i, 1, QTableWidgetItem(dev.name))
             self.setItem(i, 2, QTableWidgetItem(dev.adapter_name))
             spin_wdg = _DelaySpin()
+            spin_wdg.setValue(dev.delay_ms)
             self.setCellWidget(i, 3, spin_wdg)
 
             def _on_click(state: bool, lib: str = dev.library) -> None:
@@ -76,8 +77,8 @@ class DelayPage(ConfigWizardPage):
         self.setSubTitle(
             "Set how long to wait for the device to act before Micro-Manager will "
             "move on (for example, waiting for a shutter to open before an image "
-            "is snapped). Many devices will determine this automatically; refer to "
-            "the help for more information."
+            "is snapped). Many devices will determine this automatically. You can click"
+            "on the info icon for more info on a specific device."
         )
 
         self.delays_table = DelayTable(self._model)

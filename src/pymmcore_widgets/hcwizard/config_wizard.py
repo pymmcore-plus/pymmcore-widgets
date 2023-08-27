@@ -13,12 +13,12 @@ from qtpy.QtWidgets import (
     QWizard,
 )
 
-from .defaults_page import RolesPage
 from .delay_page import DelayPage
 from .devices_page import DevicesPage
 from .finish_page import DEST_FIELD, FinishPage
 from .intro_page import IntroPage
 from .labels_page import LabelsPage
+from .roles_page import RolesPage
 
 
 class ConfigWizard(QWizard):
@@ -118,3 +118,4 @@ class ConfigWizard(QWizard):
         dest = self.field(DEST_FIELD)
         dest_path = Path(dest)
         self._model.save(dest_path)
+        super().accept()

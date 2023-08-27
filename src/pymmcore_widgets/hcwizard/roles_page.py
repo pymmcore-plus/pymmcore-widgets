@@ -13,7 +13,9 @@ class RolesPage(ConfigWizardPage):
     def __init__(self, model: Microscope, core: CMMCorePlus):
         super().__init__(model, core)
         self.setTitle("Select default devices and choose auto-shutter setting")
-
+        self.setSubTitle(
+            "Select the default device to use for certain important roles."
+        )
         self.camera_combo = QComboBox()
         self.camera_combo.currentTextChanged.connect(self._on_camera_changed)
         self.shutter_combo = QComboBox()
@@ -25,6 +27,7 @@ class RolesPage(ConfigWizardPage):
 
         # TODO: focus directions
         layout = QFormLayout(self)
+        layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         layout.addRow("Default Camera", self.camera_combo)
         layout.addRow("Default Shutter", self.shutter_combo)
         layout.addRow("Default Focus Stage", self.focus_combo)
