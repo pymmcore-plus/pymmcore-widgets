@@ -88,7 +88,6 @@ class PeripheralSetupDlg(QDialog):
             item = self.table.item(row, 0)
             if item and item.checkState() == Qt.CheckState.Checked:
                 dev = cast("Device", item.data(Qt.ItemDataRole.UserRole))
-                print("item.text()", item.text())
                 yield dev.replace(name=item.text(), parent_label=self._device.name)
 
     def accept(self) -> None:
@@ -103,7 +102,6 @@ class PeripheralSetupDlg(QDialog):
         dev.load(self._core)
         dev.apply_to_core(self._core)
         if any(p.is_pre_init for p in dev.properties):
-            print("devname", dev.name)
             dlg = DeviceSetupDialog(
                 self._core, dev.name, dev.library, dev.adapter_name, self
             )

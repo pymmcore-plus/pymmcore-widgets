@@ -18,6 +18,9 @@ from ._base_page import ConfigWizardPage
 
 logger = logging.getLogger(__name__)
 
+SRC_CONFIG = "src_config"
+EXISTING_CONFIG = "EXISTING_CONFIG"
+
 
 class IntroPage(ConfigWizardPage):
     """First page, for selecting new or existing configuration."""
@@ -32,6 +35,8 @@ class IntroPage(ConfigWizardPage):
         self.file_edit = QLineEdit()
         self.file_edit.setReadOnly(True)
         self.file_edit.setPlaceholderText("Select a configuration file...")
+        self.registerField(SRC_CONFIG, self.file_edit)
+
         self.select_file_btn = QPushButton("Browse...")
         self.select_file_btn.clicked.connect(self._select_file)
 
@@ -42,8 +47,10 @@ class IntroPage(ConfigWizardPage):
 
         self.new_btn = QRadioButton("Create new configuration")
         self.new_btn.clicked.connect(row.setDisabled)
+
         self.modify_btn = QRadioButton("Modify or explore existing configuration")
         self.modify_btn.clicked.connect(row.setEnabled)
+        self.registerField(EXISTING_CONFIG, self.modify_btn)
 
         self.btn_group = QButtonGroup(self)
         self.btn_group.addButton(self.new_btn)
@@ -57,19 +64,19 @@ class IntroPage(ConfigWizardPage):
         layout.addWidget(self.modify_btn)
         layout.addWidget(row)
 
-        # load settings:
-        if self._model.config_file:
-            self.file_edit.setText(self._model.config_file)
-            self.modify_btn.click()
-        else:
-            self.new_btn.click()
-
     def _select_file(self) -> None:
         (fname, _) = QFileDialog.getOpenFileName(
             self, "Select Configuration File", "", "Config Files (*.cfg)"
         )
         if fname:
             self.file_edit.setText(fname)
+
+    def initializePage(self) -> None:
+        """Called to prepare the page just before it is shown."""
+        if self.field(SRC_CONFIG):
+            self.modify_btn.click()
+        else:
+            self.new_btn.click()
 
     def cleanupPage(self) -> None:
         """Called to reset the page's contents when the user clicks BACK."""
@@ -88,6 +95,7 @@ class IntroPage(ConfigWizardPage):
             self._model.reset()
         else:
             self._model.load_config(self.file_edit.text())
+        self._model.mark_clean()
         return super().validatePage()  # type: ignore
 
     def isComplete(self) -> bool:

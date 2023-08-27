@@ -4,14 +4,16 @@ from typing import cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
-from pymmcore_plus.model import Device, Microscope
+from pymmcore_plus.model import AvailableDevice, Device, Microscope
 from qtpy.QtCore import QRegularExpression, Qt, Signal
 from qtpy.QtGui import QKeyEvent
 from qtpy.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QSizePolicy,
     QSplitter,
@@ -20,8 +22,8 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import icon
-from superqt.utils import exceptions_as_dialog
+from superqt.fonticon import icon, setTextIcon
+from superqt.utils import exceptions_as_dialog, signals_blocked
 
 from pymmcore_widgets._device_property_table import ICONS
 
@@ -57,16 +59,25 @@ class _DeviceTable(QTableWidget):
         for i, device in enumerate(model.devices):
             type_icon = ICONS.get(device.device_type, "")
             if device.device_type == DeviceType.Hub:
-                btn = QPushButton(icon(type_icon, color="blue"), "")
-                btn.setToolTip("Add peripheral device")
-                btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-                btn.clicked.connect(
+                wdg = QPushButton(icon(type_icon, color="blue"), "")
+                wdg.setToolTip("Add peripheral device")
+                wdg.setCursor(Qt.CursorShape.PointingHandCursor)
+                wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                wdg.clicked.connect(
                     lambda _, d=device, m=model: self._edit_peripherals(d, m)
                 )
-                self.setCellWidget(i, 0, btn)
+                wdg.setMaximumWidth(35)
+
             else:
-                item = QTableWidgetItem(icon(type_icon, color="Gray"), "")
-                self.setItem(i, 0, item)
+                wdg = QLabel()  # type: ignore
+                setTextIcon(wdg, type_icon, size=16)
+                wdg.setStyleSheet("QLabel { color: gray; }")
+
+            container = QWidget()
+            layout = QHBoxLayout(container)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.addWidget(wdg, 0, Qt.AlignmentFlag.AlignCenter)
+            self.setCellWidget(i, 0, container)
 
             item = QTableWidgetItem(device.name)
             item.setData(Qt.ItemDataRole.UserRole, device)
@@ -159,13 +170,28 @@ class _CurrentDevicesWidget(QWidget):
             return None
 
         to_remove: set[Device] = set()
+        asked = False
         for item in selected_items:
             data = self.table.item(item.row(), 1).data(Qt.ItemDataRole.UserRole)
             device = cast("Device", data)
             if device.device_type == DeviceType.Hub:
+                children: set[Device] = set()
                 for dev in list(self._model.devices):
                     if dev.parent_label == device.name:
-                        to_remove.add(dev)
+                        children.add(dev)
+                if children and not asked:
+                    child = f'{"child" if len(children) == 1 else "children"}'
+                    response = QMessageBox.question(
+                        self,
+                        "Remove Children?",
+                        f"Remove {len(children)} {child} of device {device.name!r}?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.Yes,
+                    )
+                    if response == QMessageBox.StandardButton.Yes:
+                        to_remove.update(children)
+                    asked = True
+
             to_remove.add(device)
 
         for dev in to_remove:
@@ -223,9 +249,6 @@ class _AvailableDevicesWidget(QWidget):
         self.filter.textChanged.connect(self._updateVisibleItems)
 
         self.dev_type = QComboBox()
-        avail = {x.device_type for x in self._model.available_devices}
-        for x in (DeviceType.Any, *sorted(avail)):
-            self.dev_type.addItem(icon(ICONS.get(x, "")), str(x), x)
         self.dev_type.currentIndexChanged.connect(self._updateVisibleItems)
 
         headers = ["Module", "Adapter", "Type", "Description"]
@@ -252,21 +275,24 @@ class _AvailableDevicesWidget(QWidget):
         filter_row.addWidget(QLabel("DeviceType:"))
         filter_row.addWidget(self.dev_type)
 
-        bot_row = QHBoxLayout()
-        bot_row.addStretch()
-        # bot_row.addWidget(QLabel("double-click or ->"))
-        add_btn = QPushButton("Add")
-        add_btn.clicked.connect(self._add_selected_device)
-        bot_row.addWidget(add_btn)
-        add_btn.setEnabled(False)
-        self.table.itemSelectionChanged.connect(
-            lambda: add_btn.setEnabled(len(self.table.selectedItems()) > 0)
-        )
-
         title = QLabel("Available Devices:")
         font = title.font()
         font.setBold(True)
         title.setFont(font)
+
+        add_btn = QPushButton("Add")
+        add_btn.clicked.connect(self._add_selected_device)
+        add_btn.setEnabled(False)
+        self.table.itemSelectionChanged.connect(
+            lambda: add_btn.setEnabled(len(self.table.selectedItems()) > 0)
+        )
+        self._show_children = QCheckBox("Show Hub Children")
+        self._show_children.stateChanged.connect(self._updateVisibleItems)
+
+        bot_row = QHBoxLayout()
+        bot_row.addWidget(self._show_children)
+        bot_row.addStretch()
+        bot_row.addWidget(add_btn)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 10, 0, 0)
@@ -297,16 +323,21 @@ class _AvailableDevicesWidget(QWidget):
         """Recursively update the visibility of items based on the given pattern."""
         pattern = self.filter.text()
         dev_type = cast("DeviceType", self.dev_type.currentData())
+        show_children = self._show_children.isChecked()
 
         opt = QRegularExpression.PatternOption.CaseInsensitiveOption
         expressions = {QRegularExpression(p, opt) for p in pattern.split()}
         cols = self.table.columnCount()
         for row in range(self.table.rowCount()):
+            dev = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+            dev = cast("AvailableDevice", dev)
             if dev_type not in (DeviceType.Any, DeviceType.Unknown):
-                dev = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
-                if cast("Device", dev).device_type != dev_type:
+                if dev.device_type != dev_type:
                     self.table.hideRow(row)
                     continue
+            if dev.library_hub and not show_children:
+                self.table.hideRow(row)
+                continue
 
             for col in range(cols):
                 text = self.table.item(row, col).text()
@@ -319,23 +350,42 @@ class _AvailableDevicesWidget(QWidget):
     def rebuild_table(self) -> None:
         self.table.setRowCount(len(self._model.available_devices))
         for i, device in enumerate(self._model.available_devices):
+            # -----------
             item0 = QTableWidgetItem(device.library)
             item0.setData(Qt.ItemDataRole.UserRole, device)
             self.table.setItem(i, 0, item0)
-            self.table.setItem(i, 1, QTableWidgetItem(device.adapter_name))
+            # -----------
+            item = QTableWidgetItem(device.adapter_name)
+            if device.library_hub:
+                item.setFlags(~Qt.ItemFlag.ItemIsEnabled)
+                item.setText(f"[{device.library_hub.adapter_name}] {item.text()}")
+            self.table.setItem(i, 1, item)
+            # -----------
             item = QTableWidgetItem(str(device.device_type))
             icon_string = ICONS.get(device.device_type, None)
             if icon_string:
                 item.setIcon(icon(icon_string, color="Gray"))
-
+            if device.library_hub:
+                item.setFlags(~Qt.ItemFlag.ItemIsEnabled)
             self.table.setItem(i, 2, item)
+            # -----------
             self.table.setItem(i, 3, QTableWidgetItem(device.description))
+
+        current = self.dev_type.currentData()
+        with signals_blocked(self.dev_type):
+            self.dev_type.clear()
+            avail = {x.device_type for x in self._model.available_devices}
+            for x in (DeviceType.Any, *sorted(avail)):
+                self.dev_type.addItem(icon(ICONS.get(x, "")), str(x), x)
+            if current in avail:
+                self.dev_type.setCurrentText(str(current))
+
+        self._updateVisibleItems()
 
     def keyPressEvent(self, event: QKeyEvent | None) -> None:
         if event and event.key() in {Qt.Key.Key_Return, Qt.Key.Key_Enter}:
             self._add_selected_device()
         else:
-            print("keyPressEvent", event.key())
             super().keyPressEvent(event)
 
     def _add_selected_device(self) -> None:
@@ -403,7 +453,10 @@ class DevicesPage(ConfigWizardPage):
     def initializePage(self) -> None:
         """Called to prepare the page just before it is shown."""
         err = {}
+        # TODO: there are errors that occur outside of this call that could also be
+        # shown in the tooltip above...
         self._model.initialize(self._core, on_fail=lambda d, e: err.update({d.name: e}))
+        self._model.mark_clean()
         self.current.rebuild_table(err)
         self.available.rebuild_table()
         return

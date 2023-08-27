@@ -15,8 +15,8 @@ from qtpy.QtWidgets import (
 
 from .delay_page import DelayPage
 from .devices_page import DevicesPage
-from .finish_page import DEST_FIELD, FinishPage
-from .intro_page import IntroPage
+from .finish_page import DEST_CONFIG, FinishPage
+from .intro_page import SRC_CONFIG, IntroPage
 from .labels_page import LabelsPage
 from .roles_page import RolesPage
 
@@ -32,7 +32,7 @@ class ConfigWizard(QWizard):
     ):
         super().__init__(parent)
         self._core = core or CMMCorePlus.instance()
-        self._model = Microscope(config_file=config_file)
+        self._model = Microscope()
         self._model.load_available_devices(self._core)
         # self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
 
@@ -43,6 +43,8 @@ class ConfigWizard(QWizard):
         self.addPage(DelayPage(self._model, self._core))
         self.addPage(LabelsPage(self._model, self._core))
         self.addPage(FinishPage(self._model, self._core))
+
+        self.setField(SRC_CONFIG, config_file)
 
         # Create a custom widget for the side panel, to show what step we're on
         side_widget = QWidget()
@@ -88,34 +90,35 @@ class ConfigWizard(QWizard):
         """Called when the window is closed."""
         if not event:
             return
-        answer = QMessageBox.question(
-            self,
-            "Save changes?",
-            "Would you like to save your changes before exiting?",
-            QMessageBox.StandardButton.Save
-            | QMessageBox.StandardButton.Discard
-            | QMessageBox.StandardButton.Cancel,
-        )
-        if answer == QMessageBox.StandardButton.Cancel:
-            event.ignore()
-            return
-        elif answer == QMessageBox.StandardButton.Save:
-            (fname, _) = QFileDialog.getSaveFileName(
-                self, "Select Destination", "", "Config Files (*.cfg)"
+        if self._model.is_dirty():
+            answer = QMessageBox.question(
+                self,
+                "Save changes?",
+                "Would you like to save your changes before exiting?",
+                QMessageBox.StandardButton.Save
+                | QMessageBox.StandardButton.Discard
+                | QMessageBox.StandardButton.Cancel,
             )
-            if fname:
-                self.setField(DEST_FIELD, fname)
-                self.accept()
-            else:
+            if answer == QMessageBox.StandardButton.Cancel:
                 event.ignore()
                 return
-        else:
-            self.reject()
+            elif answer == QMessageBox.StandardButton.Save:
+                (fname, _) = QFileDialog.getSaveFileName(
+                    self, "Select Destination", "", "Config Files (*.cfg)"
+                )
+                if fname:
+                    self.setField(DEST_CONFIG, fname)
+                    self.accept()
+                else:
+                    event.ignore()
+                    return
+            else:
+                self.reject()
         super().closeEvent(event)
 
     def accept(self) -> None:
         """Accept the wizard and save the configuration to a file."""
-        dest = self.field(DEST_FIELD)
+        dest = self.field(DEST_CONFIG)
         dest_path = Path(dest)
         self._model.save(dest_path)
         super().accept()

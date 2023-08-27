@@ -13,7 +13,7 @@ from qtpy.QtWidgets import (
 
 from ._base_page import ConfigWizardPage
 
-DEST_FIELD = "destination"
+DEST_CONFIG = "dest_config"
 
 
 class FinishPage(ConfigWizardPage):
@@ -26,7 +26,7 @@ class FinishPage(ConfigWizardPage):
 
         self.file_edit = QLineEdit()
         self.file_edit.setPlaceholderText("Select a destination ...")
-        self.registerField(DEST_FIELD + "*", self.file_edit)
+        self.registerField(f"{DEST_CONFIG}*", self.file_edit)
 
         self.select_file_btn = QPushButton("Browse...")
         self.select_file_btn.clicked.connect(self._select_file)
