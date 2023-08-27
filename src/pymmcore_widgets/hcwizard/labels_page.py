@@ -34,6 +34,7 @@ class _LabelTable(QTableWidget):
         if not dev_name:
             return
 
+        self.clearContents()
         dev = self._model.get_device(dev_name)
         self.setRowCount(len(dev.labels))
         for i, label in enumerate(dev.labels):
@@ -65,8 +66,9 @@ class LabelsPage(ConfigWizardPage):
             "etc.<br><br>You may assign names to positions here."
         )
 
-        self.dev_combo = QComboBox()
         self.labels_table = _LabelTable(self._model)
+
+        self.dev_combo = QComboBox()
         self.dev_combo.currentTextChanged.connect(self.labels_table.rebuild)
 
         row = QHBoxLayout()

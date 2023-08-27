@@ -3,6 +3,7 @@ from pathlib import Path
 from pymmcore_plus import CMMCorePlus
 
 from pymmcore_widgets.hcwizard.config_wizard import ConfigWizard
+from pymmcore_widgets.hcwizard.finish_page import DEST_CONFIG
 
 TEST_CONFIG = Path(__file__).parent / "test_config.cfg"
 
@@ -16,6 +17,7 @@ def _non_empty_lines(path: Path) -> list[str]:
 
 
 def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
+    out = tmp_path / "out.cfg"
     wiz = ConfigWizard(str(TEST_CONFIG), global_mmcore)
     qtbot.addWidget(wiz)
     wiz.show()
@@ -23,8 +25,15 @@ def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
     wiz.next()
     wiz.next()
     wiz.next()
-    wiz.next()
-    assert wiz.currentPage().isFinalPage()
+    wiz.setField(DEST_CONFIG, str(out))
+    wiz.accept()
 
-    out = tmp_path / "out.cfg"
-    wiz.save(out)
+    assert out.exists()
+
+    global_mmcore.loadSystemConfiguration(str(TEST_CONFIG))
+    st1 = global_mmcore.getSystemState()
+
+    global_mmcore.loadSystemConfiguration(str(out))
+    st2 = global_mmcore.getSystemState()
+
+    assert st1 == st2

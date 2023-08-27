@@ -66,11 +66,11 @@ class _DeviceTable(QTableWidget):
                 wdg.clicked.connect(
                     lambda _, d=device, m=model: self._edit_peripherals(d, m)
                 )
-                wdg.setMaximumWidth(35)
+                wdg.setMaximumWidth(28)
 
             else:
                 wdg = QLabel()  # type: ignore
-                setTextIcon(wdg, type_icon, size=16)
+                setTextIcon(wdg, type_icon, size=14)
                 wdg.setStyleSheet("QLabel { color: gray; }")
 
             container = QWidget()

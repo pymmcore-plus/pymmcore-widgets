@@ -22,7 +22,7 @@ class FinishPage(ConfigWizardPage):
     def __init__(self, model: Microscope, core: CMMCorePlus):
         super().__init__(model, core)
         self.setTitle("Save configuration and exit")
-        self.setSubTitle("All done! Choose where to save your config file.")
+        self.setSubTitle("All done!<br><br>Choose where to save your config file.")
 
         self.file_edit = QLineEdit()
         self.file_edit.setPlaceholderText("Select a destination ...")
