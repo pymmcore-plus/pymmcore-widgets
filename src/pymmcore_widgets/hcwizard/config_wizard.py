@@ -47,7 +47,7 @@ class ConfigWizard(QWizard):
         self.setField(SRC_CONFIG, config_file)
 
         # Create a custom widget for the side panel, to show what step we're on
-        side_widget = QWidget()
+        side_widget = QWidget(self)
         side_layout = QVBoxLayout(side_widget)
         side_layout.addStretch()
         titles = ["Config File", "Devices", "Roles", "Delays", "Labels", "Finish"]

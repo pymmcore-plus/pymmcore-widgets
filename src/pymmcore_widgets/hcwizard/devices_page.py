@@ -85,7 +85,8 @@ class _DeviceTable(QTableWidget):
             self.setItem(i, 2, QTableWidgetItem(device.adapter_name))
             self.setItem(i, 3, QTableWidgetItem(device.description))
 
-            if device.device_type == DeviceType.Core:
+            if device.device_type == DeviceType.Core:  # pragma: no cover
+                # shouldn't be possible to have a core device in this list
                 status = "Core"
                 _icon = icon(MDI6.heart_cog, color="gray")
             elif device.initialized:
@@ -147,7 +148,7 @@ class _CurrentDevicesWidget(QWidget):
         if event and event.key() in {Qt.Key.Key_Backspace, Qt.Key.Key_Delete}:
             self._remove_selected_devices()
         else:
-            super().keyPressEvent(event)
+            super().keyPressEvent(event)  # pragma: no cover
 
     def _on_selection_changed(self) -> None:
         selected_rows = {x.row() for x in self.table.selectedItems()}
@@ -155,19 +156,9 @@ class _CurrentDevicesWidget(QWidget):
         self.edit_btn.setEnabled(n_selected == 1)
         self.remove_btn.setEnabled(n_selected > 0)
 
-    def _selected_device(self) -> Device | None:
-        if not (selected_items := self.table.selectedItems()):
-            return None
-
-        # get selected device.
-        # This will have been one of the devices in model.available_devices
-        row = selected_items[0].row()
-        device = self.table.item(row, 1).data(Qt.ItemDataRole.UserRole)
-        return cast("Device", device)
-
     def _remove_selected_devices(self) -> None:
         if not (selected_items := self.table.selectedItems()):
-            return None
+            return None  # pragma: no cover
 
         to_remove: set[Device] = set()
         asked = False
@@ -203,7 +194,7 @@ class _CurrentDevicesWidget(QWidget):
 
     def _edit_selected_device(self) -> None:
         if not (selected_items := self.table.selectedItems()):
-            return None
+            return None  # pragma: no cover
 
         # get selected device.
         # This will have been one of the devices in model.available_devices
@@ -223,7 +214,7 @@ class _CurrentDevicesWidget(QWidget):
                 parent=self,
             )
         if ctx.exception or not dlg.exec():
-            return
+            return  # pragma: no cover
 
         dev = Device.create_from_core(
             self._core, name=dlg.deviceLabel(), initialized=True
@@ -331,11 +322,10 @@ class _AvailableDevicesWidget(QWidget):
         for row in range(self.table.rowCount()):
             dev = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
             dev = cast("AvailableDevice", dev)
-            if dev_type not in (DeviceType.Any, DeviceType.Unknown):
-                if dev.device_type != dev_type:
-                    self.table.hideRow(row)
-                    continue
-            if dev.library_hub and not show_children:
+            if (
+                dev_type not in (DeviceType.Any, DeviceType.Unknown)
+                and dev.device_type != dev_type
+            ) or (dev.library_hub and not show_children):
                 self.table.hideRow(row)
                 continue
 
@@ -386,17 +376,17 @@ class _AvailableDevicesWidget(QWidget):
         if event and event.key() in {Qt.Key.Key_Return, Qt.Key.Key_Enter}:
             self._add_selected_device()
         else:
-            super().keyPressEvent(event)
+            super().keyPressEvent(event)  # pragma: no cover
 
     def _add_selected_device(self) -> None:
         if not (selected_items := self.table.selectedItems()):
-            return
+            return  # pragma: no cover
 
         # get selected device.
         # This will have been one of the devices in model.available_devices
         item = self.table.item(selected_items[0].row(), 0)
         if not item:
-            return
+            return  # pragma: no cover
         device = cast("Device", item.data(Qt.ItemDataRole.UserRole))
 
         coms = [
@@ -412,7 +402,7 @@ class _AvailableDevicesWidget(QWidget):
                 parent=self,
             )
         if ctx.exception or not dlg.exec():
-            return
+            return  # pragma: no cover
 
         dev = Device.create_from_core(
             self._core, name=dlg.deviceLabel(), initialized=True
