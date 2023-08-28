@@ -48,9 +48,13 @@ def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
     assert st1 == st2
 
 
+# TODO: Long integration test here... maybe split it up
 def test_config_wizard_devices(
     global_mmcore: CMMCorePlus, qtbot: "QtBot", tmp_path: Path, qapp
 ):
+    global_mmcore.unloadAllDevices()
+    assert global_mmcore.getLoadedDevices() == ("Core",)
+
     wiz = ConfigWizard(core=global_mmcore)
     wiz.show()
     page = wiz.page(1)
@@ -59,6 +63,7 @@ def test_config_wizard_devices(
     out = tmp_path / "out.cfg"
     wiz.setField(DEST_CONFIG, str(out))
     wiz.next()
+
     assert page.available.table.rowCount()
 
     # test sorting
@@ -105,6 +110,9 @@ def test_config_wizard_devices(
     # confirm added to top table
     assert page.current.table.rowCount() == 2
 
+    wiz.next()
+    wiz.back()
+
     def accept3():
         # accept the device setup dialog
         d = next(i for i in qapp.topLevelWidgets() if isinstance(i, DeviceSetupDialog))
@@ -126,3 +134,5 @@ def test_config_wizard_devices(
     QTimer.singleShot(100, accept4)
     qtbot.keyPress(page.current, Qt.Key.Key_Delete)
     assert page.current.table.rowCount() == 0
+    assert not wiz._model.devices
+    assert global_mmcore.getLoadedDevices() == ("Core",)
