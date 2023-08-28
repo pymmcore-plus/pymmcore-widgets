@@ -110,8 +110,8 @@ class StackViewer(QtWidgets.QWidget):
             else:
                 self.current_channel = idx
 
-    def _handle_channel_clim(self, low, high, channel: int, set_autoscale=True):
-        self.images[channel].clim = (low, high)
+    def _handle_channel_clim(self, values, channel: int, set_autoscale=True):
+        self.images[channel].clim = values
         if self.channel_boxes[channel].autoscale.isChecked() and set_autoscale:
             self.channel_boxes[channel].autoscale.setCheckState(QtCore.Qt.Unchecked)
         self._canvas.update()
@@ -128,10 +128,10 @@ class StackViewer(QtWidgets.QWidget):
     def _handle_channel_autoscale(self, state, channel: int):
         if state == 0:
             slider = self.channel_boxes[channel].slider
-            self._handle_channel_clim(slider.low(), slider.high(), channel, set_autoscale=False)
+            self._handle_channel_clim(slider.value(), channel, set_autoscale=False)
         else:
             clim = (np.min(self.images[channel]._data), np.max(self.images[channel]._data))
-            self._handle_channel_clim(clim[0], clim[1], channel, set_autoscale=False)
+            self._handle_channel_clim(clim, channel, set_autoscale=False)
 
     def handle_sliders(self, sequence: MDASequence):
         for dim in DIMENSIONS[:3]:
@@ -165,7 +165,7 @@ class StackViewer(QtWidgets.QWidget):
             channel_box = ChannelBox(Channel(config="empty"), CMAPS=self.cmaps)
             channel_box.show_channel.stateChanged.connect(lambda state, i=i: self._handle_channel_visibility(state, i))
             channel_box.autoscale.stateChanged.connect(lambda state, i=i: self._handle_channel_autoscale(state, i))
-            channel_box.slider.sliderMoved.connect(lambda low, high, i=i: self._handle_channel_clim(low, high, i))
+            channel_box.slider.sliderMoved.connect(lambda values, i=i: self._handle_channel_clim(values, i))
             channel_box.color_choice.selectedColor.connect(lambda color, i=i: self._handle_channel_cmap(color, i))
             channel_box.color_choice.setColor(i)
             channel_box.clicked.connect(self._handle_channel_choice)
