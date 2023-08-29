@@ -77,7 +77,7 @@ class _TabWidget(QTabWidget):
 
     def setValue(self, grid: dict | useq.AnyGridPlan) -> None:
         _grid = cast_grid_plan(grid)
-        if isinstance(_grid, useq.GridRelative):
+        if isinstance(_grid, useq.GridRowsColumns):
             self._rowcol.setValue(_grid)
         elif isinstance(_grid, useq.GridFromEdges):
             self.edges.setValue(_grid)
@@ -146,20 +146,20 @@ class _RowsColsWdg(QWidget):
         layout.addWidget(spin)
         return spin
 
-    def value(self) -> useq.GridRelative:
-        """Return useq.GridRelative instance with state of widget."""
-        return useq.GridRelative(
+    def value(self) -> useq.GridRowsColumns:
+        """Return useq.GridRowsColumns instance with state of widget."""
+        return useq.GridRowsColumns(
             rows=self.n_rows.value(),
             columns=self.n_columns.value(),
             relative_to=self.relative_combo.currentText(),
         )
 
-    def setValue(self, grid: dict | useq.GridRelative) -> None:
-        """Set widget state from object that can be cast to useq.GridRelative."""
+    def setValue(self, grid: dict | useq.GridRowsColumns) -> None:
+        """Set widget state from object that can be cast to useq.GridRowsColumns."""
         try:
-            _grid = useq.GridRelative.validate(grid)
+            _grid = useq.GridRowsColumns.validate(grid)
         except ValueError as e:  # pragma: no cover
-            warnings.warn(f"Invalid GridRelative value: {e}", stacklevel=2)
+            warnings.warn(f"Invalid GridRowsColumns value: {e}", stacklevel=2)
             return
 
         self.n_rows.setValue(_grid.rows)
@@ -525,7 +525,9 @@ class _MoveToWidget(QGroupBox):
         if grid is None:
             return
 
-        if isinstance(grid, useq.GridRelative) and (curr_x is None or curr_y is None):
+        if isinstance(grid, useq.GridRowsColumns) and (
+            curr_x is None or curr_y is None
+        ):
             return
 
         _move_to_row = int(self._move_to_row.currentText())
@@ -544,7 +546,7 @@ class _MoveToWidget(QGroupBox):
         # positions without checking all positions in the grid for equality.
         for pos in grid.iter_grid_positions(width, height):
             if pos.row == row and pos.col == col:
-                if isinstance(grid, useq.GridRelative):
+                if isinstance(grid, useq.GridRowsColumns):
                     xpos = curr_x + pos.x
                     ypos = curr_y + pos.y
                 else:
@@ -683,12 +685,12 @@ class GridWidget(QWidget):
         overlap_x *= width / 100
         overlap_y *= height / 100
 
-        if isinstance(cur_grid, useq.GridRelative):
+        if isinstance(cur_grid, useq.GridRowsColumns):
             x = (width - overlap_x) * cur_grid.columns / 1000
             y = (height - overlap_y) * cur_grid.rows / 1000
             rows = cur_grid.rows
             cols = cur_grid.columns
-        else:
+        elif isinstance(cur_grid, useq.GridFromEdges):
             grid_width = abs(cur_grid.right - cur_grid.left) + width
             grid_height = abs(cur_grid.top - cur_grid.bottom) + height
 
@@ -696,6 +698,8 @@ class GridWidget(QWidget):
             cols = math.ceil(grid_width / width)
             x = grid_width / 1000
             y = grid_height / 1000
+        else:
+            raise TypeError(f"Unsupported grid type: {type(cur_grid)}")
 
         self.info_lbl.setText(
             f"Height: {y:.3f} mm    Width: {x:.3f} mm    "
@@ -726,7 +730,7 @@ class GridWidget(QWidget):
 
             self.overlap_and_mode.setValue(grid_plan)
             self.tab.setValue(grid_plan)
-            idx = 0 if isinstance(grid_plan, useq.GridRelative) else 1
+            idx = 0 if isinstance(grid_plan, useq.GridRowsColumns) else 1
             self.tab.setCurrentIndex(idx)
             self._update_info()
         self.valueChanged.emit(grid_plan)
