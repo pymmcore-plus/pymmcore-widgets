@@ -3,7 +3,6 @@ from __future__ import annotations
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import (
     QFileDialog,
-    QGroupBox,
     QHBoxLayout,
     QLineEdit,
     QPushButton,
@@ -13,7 +12,7 @@ from qtpy.QtWidgets import (
 from ._core import load_system_config
 
 
-class ConfigurationWidget(QGroupBox):
+class ConfigurationWidget(QWidget):
     """A Widget to select and load a micromanager system configuration.
 
     Parameters
@@ -37,8 +36,6 @@ class ConfigurationWidget(QGroupBox):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self.setTitle("Micro-Manager Configuration")
-
         self.cfg_LineEdit = QLineEdit()
         self.cfg_LineEdit.setPlaceholderText("MMConfig_demo.cfg")
 
@@ -49,6 +46,7 @@ class ConfigurationWidget(QGroupBox):
         self.load_cfg_Button.clicked.connect(self._load_cfg)
 
         self.setLayout(QHBoxLayout())
+        self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addWidget(self.cfg_LineEdit)
         self.layout().addWidget(self.browse_cfg_Button)
         self.layout().addWidget(self.load_cfg_Button)
