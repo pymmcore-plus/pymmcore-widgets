@@ -184,7 +184,7 @@ class GridPlanWidget(QWidget):
 
         if val is not None:  # temporary
             draw_grid = val.replace(relative_to="top_left")
-            if isinstance(val, useq.GridRelative):
+            if isinstance(val, useq.GridRowsColumns):
                 draw_grid.fov_height = 1 / ((val.rows - 1) or 1)
                 draw_grid.fov_width = 1 / ((val.columns - 1) or 1)
             if isinstance(val, useq.GridFromEdges):
@@ -262,9 +262,9 @@ class GridPlanWidget(QWidget):
             )
         raise NotImplementedError
 
-    def setValue(self, value: useq.GridFromEdges | useq.GridRelative) -> None:
+    def setValue(self, value: useq.GridFromEdges | useq.GridRowsColumns) -> None:
         with signals_blocked(self):
-            if isinstance(value, useq.GridRelative):
+            if isinstance(value, useq.GridRowsColumns):
                 self.rows.setValue(value.rows)
                 self.columns.setValue(value.columns)
                 self.relative_to.setCurrentText(value.relative_to.value)
@@ -278,9 +278,7 @@ class GridPlanWidget(QWidget):
                 self.area_height.setValue(value.height)
                 self.relative_to.setCurrentText(value.relative_to.value)
             else:
-                raise TypeError(
-                    f"Expected useq.GridFromEdges or GridRelative, got {type(value)}"
-                )
+                raise TypeError(f"Expected useq grid plan, got {type(value)}")
 
             if value.fov_height:
                 self._fov_height = value.fov_height
