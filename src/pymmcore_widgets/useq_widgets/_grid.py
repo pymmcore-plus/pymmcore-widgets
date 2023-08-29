@@ -295,10 +295,10 @@ class GridPlanWidget(QWidget):
         self._fov_height = value
         self._on_change()
 
-    def fovWidth(self) -> float:
+    def fovWidth(self) -> float | None:
         return self._fov_width
 
-    def fovHeight(self) -> float:
+    def fovHeight(self) -> float | None:
         return self._fov_height
 
 

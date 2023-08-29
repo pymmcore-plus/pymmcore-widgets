@@ -49,20 +49,20 @@ class MDAButton(QPushButton):
     valueChanged = Signal()
     _value: useq.MDASequence | None
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.clicked.connect(self._on_click)
         self.setValue(None)
 
-    def _on_click(self):
+    def _on_click(self) -> None:
         dialog = _MDAPopup(self._value, self)
         if dialog.exec_():
             self.setValue(dialog.mda_tabs.value())
 
-    def value(self):
+    def value(self) -> useq.MDASequence | None:
         return self._value
 
-    def setValue(self, value: useq.MDASequence | None):
+    def setValue(self, value: useq.MDASequence | None) -> None:
         old_val, self._value = getattr(self, "_value", None), value
         if old_val != value:
             if value is not None:
@@ -72,7 +72,7 @@ class MDAButton(QPushButton):
             self.valueChanged.emit()
 
 
-MDAButton = WdgGetSet(
+_MDAButton = WdgGetSet(
     MDAButton,
     MDAButton.value,
     MDAButton.setValue,
@@ -84,7 +84,7 @@ MDAButton = WdgGetSet(
 class SubSeqColumn(WidgetColumn):
     """Column for editing a `useq.MDASequence`."""
 
-    data_type: WdgGetSet = MDAButton
+    data_type: WdgGetSet = _MDAButton
 
 
 class PositionTable(DataTableWidget):
