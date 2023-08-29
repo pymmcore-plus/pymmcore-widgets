@@ -193,7 +193,7 @@ class StateDeviceWidget(DeviceWidget):
         """Return current state (label) of the device."""
         return self._mmc.getStateLabel(self._device_label)
 
-    def stateLabels(self) -> tuple[str]:
+    def stateLabels(self) -> tuple[str, ...]:
         """Return all state labels of the device."""
         return self._mmc.getStateLabels(self._device_label)
 

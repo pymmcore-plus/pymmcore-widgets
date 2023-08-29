@@ -132,7 +132,6 @@ filterwarnings = [
     "error",
     "ignore:distutils Version classes are deprecated",
     # warning, but not error, that will show up on useq<0.3.3
-    "ignore:GridRelative got unknown keyword:UserWarning",
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
