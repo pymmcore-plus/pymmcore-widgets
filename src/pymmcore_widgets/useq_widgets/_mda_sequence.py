@@ -11,6 +11,7 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -116,6 +117,9 @@ class MDASequenceWidget(QWidget):
         self._time_warning.setPixmap(warning_icon.pixmap(24, 24))
         self._time_warning.hide()
         self._duration_label = QLabel()
+        self._duration_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         self._duration_label.setWordWrap(True)
 
         self._save_button = QPushButton("Save")
@@ -128,7 +132,6 @@ class MDASequenceWidget(QWidget):
         bot_row = QHBoxLayout()
         bot_row.addWidget(self._time_warning)
         bot_row.addWidget(self._duration_label)
-        bot_row.addStretch()
         bot_row.addWidget(self._save_button)
         bot_row.addWidget(self._load_button)
 
@@ -210,16 +213,7 @@ class MDASequenceWidget(QWidget):
         self._time_warning.setVisible(self._time_estimate.time_interval_exceeded)
 
         d = Quantity(self._time_estimate.total_duration, "s").to_compact()
-        self._duration_label.setText(f"Estimated duration: {d:.1f~#P}")
-
-
-if __name__ == "__main__":
-    import sys
-
-    from qtpy.QtWidgets import QApplication
-
-    app = QApplication(sys.argv)
-    widget = MDASequenceWidget()
-    widget.valueChanged.connect(lambda: print(widget.value()))
-    widget.show()
-    sys.exit(app.exec_())
+        if d:
+            self._duration_label.setText(f"Estimated duration: {d:.1f~#P}")
+        else:
+            self._duration_label.setText("")
