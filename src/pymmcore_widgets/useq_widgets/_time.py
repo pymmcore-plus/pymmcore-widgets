@@ -1,14 +1,18 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from fonticon_mdi6 import MDI6
 from qtpy.QtGui import QIcon
-from qtpy.QtWidgets import QWidget
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 from useq import MultiPhaseTimePlan, TDurationLoops, TIntervalDuration, TIntervalLoops
 
 from ._column_info import IntColumn, TextColumn, TimeDeltaColumn
 from ._data_table import DataTableWidget
+
+if TYPE_CHECKING:
+    from qtpy.QtWidgets import QWidget
 
 
 class TimeTable(DataTableWidget):

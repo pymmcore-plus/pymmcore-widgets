@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import enum
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 import useq
-from pytestqt.qtbot import QtBot
 from qtpy.QtCore import QTimer
 
 from pymmcore_widgets.useq_widgets import (
@@ -16,6 +17,11 @@ from pymmcore_widgets.useq_widgets import (
 )
 from pymmcore_widgets.useq_widgets._column_info import FloatColumn, TextColumn
 from pymmcore_widgets.useq_widgets._positions import QFileDialog, _MDAPopup
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from pytestqt.qtbot import QtBot
 
 
 class MyEnum(enum.Enum):
