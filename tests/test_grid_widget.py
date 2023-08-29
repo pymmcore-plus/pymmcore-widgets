@@ -62,7 +62,7 @@ def test_grid_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
     grid_wdg = GridWidget()
     qtbot.addWidget(grid_wdg)
 
-    grid_rel = useq.GridRelative(
+    grid_rel = useq.GridRowsColumns(
         rows=3, columns=3, relative_to="top_left", overlap=15.0, mode="row_wise_snake"
     )
 
@@ -110,7 +110,7 @@ def test_grid_on_px_size_changed(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     assert mmc.getProperty("Objective", "Label") == "Nikon 10X S Fluor"
     assert mmc.getPixelSizeUm() == 1.0
-    grid_wdg.set_state(useq.GridRelative(rows=2, columns=2))
+    grid_wdg.set_state(useq.GridRowsColumns(rows=2, columns=2))
     assert (
         grid_wdg.info_lbl.text()
         == "Height: 1.024 mm    Width: 1.024 mm    (Rows: 2    Columns: 2)"
