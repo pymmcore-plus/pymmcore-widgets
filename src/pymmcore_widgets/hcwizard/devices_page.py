@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 import logging
 from contextlib import suppress
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
 from pymmcore_plus.model import AvailableDevice, Device, Microscope
 from qtpy.QtCore import QRegularExpression, Qt, Signal
-from qtpy.QtGui import QKeyEvent
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -30,6 +31,9 @@ from pymmcore_widgets._device_property_table import ICONS
 from ._base_page import ConfigWizardPage
 from ._dev_setup_dialog import DeviceSetupDialog
 from ._peripheral_setup_dialog import PeripheralSetupDlg
+
+if TYPE_CHECKING:
+    from qtpy.QtGui import QKeyEvent
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +73,7 @@ class _DeviceTable(QTableWidget):
                 wdg.setMaximumWidth(28)
 
             else:
-                wdg = QLabel()  # type: ignore
+                wdg = QLabel()
                 setTextIcon(wdg, type_icon, size=14)
                 wdg.setStyleSheet("QLabel { color: gray; }")
 

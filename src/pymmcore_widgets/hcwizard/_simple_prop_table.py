@@ -1,4 +1,6 @@
 """Simple Property Table, with no connections to core like in DevicePropertyBrowser."""
+from __future__ import annotations
+
 from typing import Iterator, Sequence
 
 from pymmcore_plus import CMMCorePlus, Keyword

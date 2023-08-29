@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.model import Microscope
 from qtpy.QtCore import QSize
-from qtpy.QtGui import QCloseEvent
 from qtpy.QtWidgets import (
     QFileDialog,
     QLabel,
@@ -19,6 +21,9 @@ from .finish_page import DEST_CONFIG, FinishPage
 from .intro_page import SRC_CONFIG, IntroPage
 from .labels_page import LabelsPage
 from .roles_page import RolesPage
+
+if TYPE_CHECKING:
+    from qtpy.QtGui import QCloseEvent
 
 
 class ConfigWizard(QWizard):

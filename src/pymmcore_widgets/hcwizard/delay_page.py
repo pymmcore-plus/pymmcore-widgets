@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import webbrowser
+from typing import TYPE_CHECKING
 
 from fonticon_mdi6 import MDI6
-from pymmcore_plus import CMMCorePlus
-from pymmcore_plus.model import Device, Microscope
 from qtpy.QtWidgets import (
     QDoubleSpinBox,
     QTableWidget,
@@ -14,6 +15,10 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 
 from ._base_page import ConfigWizardPage
+
+if TYPE_CHECKING:
+    from pymmcore_plus import CMMCorePlus
+    from pymmcore_plus.model import Device, Microscope
 
 
 class _DelaySpin(QDoubleSpinBox):

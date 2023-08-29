@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import QMessageBox
 
@@ -12,6 +13,7 @@ from pymmcore_widgets.hcwizard.devices_page import DevicesPage
 from pymmcore_widgets.hcwizard.finish_page import DEST_CONFIG
 
 if TYPE_CHECKING:
+    from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
 TEST_CONFIG = Path(__file__).parent / "test_config.cfg"
@@ -50,7 +52,7 @@ def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
 
 # TODO: Long integration test here... maybe split it up
 def test_config_wizard_devices(
-    global_mmcore: CMMCorePlus, qtbot: "QtBot", tmp_path: Path, qapp
+    global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path, qapp
 ):
     global_mmcore.unloadAllDevices()
     assert global_mmcore.getLoadedDevices() == ("Core",)
