@@ -159,7 +159,7 @@ class _RowsColsWdg(QWidget):
         try:
             _grid = useq.GridRowsColumns.validate(grid)
         except ValueError as e:  # pragma: no cover
-            warnings.warn(f"Invalid GridRelative value: {e}", stacklevel=2)
+            warnings.warn(f"Invalid GridRowsColumns value: {e}", stacklevel=2)
             return
 
         self.n_rows.setValue(_grid.rows)
