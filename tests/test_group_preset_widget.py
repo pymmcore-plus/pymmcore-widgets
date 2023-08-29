@@ -55,7 +55,7 @@ def test_populating_group_preset_table(global_mmcore: CMMCorePlus, qtbot: QtBot)
             assert global_mmcore.getProperty("Camera", "OnCameraCCDXSize") == "256"
 
         elif group_name == "_slider_test":
-            assert type(wdg.value()) == float
+            assert isinstance(wdg.value(), float)
             wdg.setValue(0.1)
             assert global_mmcore.getProperty("Camera", "TestProperty1") == "0.1000"
 
