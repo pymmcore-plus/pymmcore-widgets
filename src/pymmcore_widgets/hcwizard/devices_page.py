@@ -351,7 +351,7 @@ class _AvailableDevicesWidget(QWidget):
             # -----------
             item = QTableWidgetItem(device.adapter_name)
             if device.library_hub:
-                item.setFlags(~Qt.ItemFlag.ItemIsEnabled)
+                item.setFlags(Qt.ItemFlag.NoItemFlags)
                 item.setText(f"[{device.library_hub.adapter_name}] {item.text()}")
             self.table.setItem(i, 1, item)
             # -----------
@@ -360,7 +360,7 @@ class _AvailableDevicesWidget(QWidget):
             if icon_string:
                 item.setIcon(icon(icon_string, color="Gray"))
             if device.library_hub:
-                item.setFlags(~Qt.ItemFlag.ItemIsEnabled)
+                item.setFlags(Qt.ItemFlag.NoItemFlags)
             self.table.setItem(i, 2, item)
             # -----------
             self.table.setItem(i, 3, QTableWidgetItem(device.description))
@@ -413,6 +413,11 @@ class _AvailableDevicesWidget(QWidget):
         )
 
         self._model.devices.append(dev)
+        if dev.port:
+            for port_dev in self._model.available_serial_devices:
+                if dev.port == port_dev.name:
+                    port_dev.update_from_core(self._core)
+
         self.touchedModel.emit()
 
         if (
