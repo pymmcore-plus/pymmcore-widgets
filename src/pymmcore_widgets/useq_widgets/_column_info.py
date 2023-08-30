@@ -11,9 +11,11 @@ from qtpy.QtCore import Qt, Signal, SignalInstance
 from qtpy.QtGui import QFocusEvent, QValidator
 from qtpy.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QDoubleSpinBox,
     QHBoxLayout,
     QLineEdit,
+    QSizePolicy,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
@@ -51,6 +53,14 @@ class ColumnInfo:
         self, table: QTableWidget, row: int, col: int, value: Any
     ) -> None:
         raise NotImplementedError("Must be implemented by subclass")
+
+    def isChecked(self, table: QTableWidget, row: int, col: int) -> bool:
+        return False
+
+    def setCheckState(
+        self, table: QTableWidget, row: int, col: int, checked: bool
+    ) -> None:
+        pass
 
 
 CHECKABLE_FLAGS = (
@@ -101,6 +111,17 @@ class TextColumn(ColumnInfo):
         if value is not None and (item := table.item(row, col)):
             item.setText(value)
             # Checkstate?
+
+    def isChecked(self, table: QTableWidget, row: int, col: int) -> bool:
+        if item := table.item(row, col):
+            return item.checkState() == Qt.CheckState.Checked
+        return False
+
+    def setCheckState(
+        self, table: QTableWidget, row: int, col: int, state: Qt.CheckState
+    ) -> None:
+        if item := table.item(row, col):
+            item.setCheckState(state)
 
 
 T = TypeVar("T")
@@ -388,4 +409,70 @@ TableTimeWidget = WdgGetSet(
 
 @dataclass(frozen=True)
 class TimeDeltaColumn(WidgetColumn):
-    data_type: WdgGetSet = TableTimeWidget
+    data_type: WdgGetSet[QTimeLineEdit, float] = TableTimeWidget
+
+
+class CheckableCombo(QWidget):
+    currentTextChanged = Signal(str)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._checkbox = QCheckBox()
+        self._checkbox.setChecked(True)
+        self._checkbox.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self._combo = QComboBox()
+        self._combo.currentTextChanged.connect(self.currentTextChanged)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(5, 0, 0, 0)
+        layout.addWidget(self._checkbox)
+        layout.addWidget(self._combo)
+
+    def currentText(self) -> str:
+        return self._combo.currentText()
+
+    def setCurrentText(self, value: str) -> None:
+        self._combo.setCurrentText(value)
+
+    def addItems(self, items: list[str]) -> None:
+        self._combo.addItems(items)
+
+    def clear(self) -> None:
+        self._combo.clear()
+
+    def isChecked(self) -> bool:
+        return self._checkbox.isChecked()
+
+    def setCheckState(self, state: Qt.CheckState) -> bool:
+        return self._checkbox.setCheckState(state)
+
+
+ChoiceWidget = WdgGetSet(
+    CheckableCombo,
+    CheckableCombo.currentText,
+    CheckableCombo.setCurrentText,
+    lambda w, cb: w.currentTextChanged.connect(cb),
+)
+
+
+@dataclass(frozen=True)
+class ChoiceColumn(WidgetColumn):
+    data_type: WdgGetSet[CheckableCombo, str] = ChoiceWidget
+    allowed_values: tuple[str, ...] | None = None
+
+    def _init_widget(self) -> CheckableCombo:
+        wdg = self.data_type.widget()
+        if self.allowed_values:
+            wdg.addItems(self.allowed_values)
+        else:
+            wdg.clear()
+        return wdg
+
+    def isChecked(self, table: QTableWidget, row: int, col: int) -> bool:
+        wdg = cast("CheckableCombo", table.cellWidget(row, col))
+        return wdg.isChecked() if wdg else False
+
+    def setCheckState(
+        self, table: QTableWidget, row: int, col: int, state: Qt.CheckState
+    ) -> None:
+        wdg = cast("CheckableCombo", table.cellWidget(row, col))
+        wdg.setCheckState(state)

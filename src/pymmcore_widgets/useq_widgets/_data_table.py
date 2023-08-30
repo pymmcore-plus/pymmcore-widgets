@@ -155,15 +155,20 @@ class DataTable(QTableWidget):
     def _is_row_checked(self, row: int, selector_col: int) -> bool:
         if selector_col < 0:
             return True
-        if item := self.item(row, selector_col):
-            return item.checkState() == Qt.CheckState.Checked  # type: ignore
+
+        if info := self.columnInfo(selector_col):
+            return info.isChecked(self, row, selector_col)
+
         return False  # pragma: no cover
 
     def _check_all(self, state: Qt.CheckState) -> None:
         if (selector_col := self._get_selector_col()) >= 0:
             for row in range(self.rowCount()):
-                if item := self.item(row, selector_col):
-                    item.setCheckState(state)
+                if info := self.columnInfo(selector_col):
+                    info.setCheckState(self, row, selector_col, state)
+
+                # if item := self.item(row, selector_col):
+                #     item.setCheckState(state)
 
     def _get_selector_col(self) -> int:
         for col in range(self.columnCount()):
