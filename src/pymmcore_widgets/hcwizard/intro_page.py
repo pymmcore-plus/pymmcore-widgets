@@ -46,10 +46,10 @@ class IntroPage(ConfigWizardPage):
         row_layout.addWidget(self.select_file_btn)
 
         self.new_btn = QRadioButton("Create new configuration")
-        self.new_btn.clicked.connect(row.setDisabled)
+        self.new_btn.clicked.connect(lambda: row.setDisabled(True))
 
         self.modify_btn = QRadioButton("Modify or explore existing configuration")
-        self.modify_btn.clicked.connect(row.setEnabled)
+        self.modify_btn.clicked.connect(lambda: row.setEnabled(True))
         self.registerField(EXISTING_CONFIG, self.modify_btn)
 
         self.btn_group = QButtonGroup(self)
