@@ -2,6 +2,65 @@ from superqt import QRangeSlider
 from qtpy import QtCore, QtWidgets, QtGui
 from useq import Channel
 
+from vispy import color
+CMAPS = [color.Colormap([[0, 0, 0], [1, 1, 0]]),
+         color.Colormap([[0, 0, 0], [1, 0, 1]]),
+         color.Colormap([[0, 0, 0], [0, 1, 1]]),
+         color.Colormap([[0, 0, 0], [1, 0, 0]]),
+         color.Colormap([[0, 0, 0], [0, 1, 0]]),
+         color.Colormap([[0, 0, 0], [0, 0, 1]])]
+
+
+
+class ChannelRow(QtWidgets.QWidget):
+    """Row of channel boxes."""
+    visible = QtCore.Signal(bool, int)
+    autoscale = QtCore.Signal(bool, int)
+    new_clims = QtCore.Signal(tuple, int)
+    new_cmap = QtCore.Signal(QtGui.QColor, int)
+    selected = QtCore.Signal(int)
+
+    def __init__(self, num_channels: int = 5, cmaps: list[color.Colormap] = CMAPS, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cmaps = cmaps
+
+
+        self.setLayout(QtWidgets.QHBoxLayout())
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                                        QtWidgets.QSizePolicy.Fixed)
+        self.boxes = []
+        #TODO: Ideally we would know beforehand how many of these we need.
+        for i in range(num_channels):
+            channel_box = ChannelBox(Channel(config="empty"), CMAPS=self.cmaps)
+            channel_box.show_channel.stateChanged.connect(lambda state, i=i: self.visible.emit(state, i))
+            channel_box.autoscale_chbx.stateChanged.connect(lambda state, i=i: self.autoscale.emit(state, i))
+            channel_box.slider.sliderMoved.connect(lambda values, i=i: self.new_clims.emit(values, i))
+            channel_box.color_choice.selectedColor.connect(lambda color, i=i: self.new_cmap.emit(color, i))
+            channel_box.color_choice.setColor(i)
+            channel_box.clicked.connect(self._handle_channel_choice)
+            channel_box.mousePressEvent(None)
+            channel_box.hide()
+            self.current_channel = i
+            self.boxes.append(channel_box)
+            self.layout().addWidget(channel_box)
+
+    def box_visibility(self, i: int, name:str = None):
+        self.boxes[i].visible = True
+        self.boxes[i].show()
+        self.boxes[i].autoscale_chbx.setChecked(True)
+        self.boxes[i].show_channel.setText(name)
+        self.boxes[i].channel = name
+        self.boxes[i].mousePressEvent(None)
+
+    def _handle_channel_choice(self, channel: str):
+        for idx, channel_box in enumerate(self.boxes):
+            if channel_box.channel != channel:
+                channel_box.setStyleSheet("ChannelBox{border: 1px solid}")
+            else:
+                self.selected.emit(idx)
+
+
+
 class ChannelBox(QtWidgets.QFrame):
     """Box that represents a channel and gives some way of interaction."""
 
@@ -17,15 +76,14 @@ class ChannelBox(QtWidgets.QFrame):
         self.layout().addWidget(self.show_channel, 0, 0)
         self.color_choice = QColorComboBox()
 
-        CMAPS = CMAPS or ["grays", "reds", "greens"]
         for cmap in CMAPS:
             self.color_choice.addColors([list(cmap.colors[-1].RGB[0])])
 
         # self.color_choice.setStyle(QtWidgets.QStyleFactory.create('fusion'))
         self.layout().addWidget(self.color_choice, 0, 1)
-        self.autoscale = QtWidgets.QCheckBox("Auto")
-        self.autoscale.setChecked(False)
-        self.layout().addWidget(self.autoscale, 0, 2)
+        self.autoscale_chbx = QtWidgets.QCheckBox("Auto")
+        self.autoscale_chbx.setChecked(False)
+        self.layout().addWidget(self.autoscale_chbx, 0, 2)
         self.slider = QRangeSlider(QtCore.Qt.Horizontal)
         self.layout().addWidget(self.slider, 1, 0, 1, 3)
         self.setStyleSheet("ChannelBox{border: 1px solid}")
@@ -127,114 +185,7 @@ class QColorComboBox(QtWidgets.QComboBox):
             self.lineEdit().setStyleSheet("background-color: "+self._currentColor.name())
 
 
-class QLabeledSlider(QtWidgets.QWidget):
-    """Slider that shows name of the axis and current value."""
-    valueChanged = QtCore.Signal([int], [int, str])
-    sliderPressed = QtCore.Signal()
-    sliderMoved = QtCore.Signal()
-    sliderReleased = QtCore.Signal()
 
-    def __init__(self, name: str = "", orientation=QtCore.Qt.Horizontal , *args, **kwargs):
-        # super().__init__(self, *args, **kwargs)
-        super().__init__()
-        self.name = name
-
-        self.label = QtWidgets.QLabel()
-        self.label.setText(name.upper())
-        self.label.setAlignment(QtCore.Qt.AlignRight)
-        self.label.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        self.slider = QtWidgets.QSlider(orientation)
-        for function in ["blockSignals", "setTickInterval","setTickPosition", "tickInterval",
-                         "tickPosition", "minimum", "maximum", "setTracking", "value"]:
-            func = getattr(self.slider, function)
-            setattr(self, function, func)
-
-        self.current_value = QtWidgets.QLabel()
-        self.current_value.setText("0")
-        self.current_value.setAlignment(QtCore.Qt.AlignLeft)
-        self.current_value.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-
-        self.play_btn = QtWidgets.QPushButton("▶")
-        self.play_btn.setStyleSheet("QPushButton {padding: 2px;}")
-        self.play_btn.setFont(QtGui.QFont("Times", 14))
-        self.play_btn.clicked.connect(self.play_clk)
-
-        # self.layout = QtWidgets.QHBoxLayout(self)
-        self.setLayout(QtWidgets.QHBoxLayout())
-        self.layout().addWidget(self.label)
-        self.layout().addWidget(self.play_btn)
-        self.layout().addWidget(self.slider)
-        self.layout().addWidget(self.current_value)
-        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
-
-        self.slider.valueChanged.connect(self.on_drag_timer)
-        self.slider.sliderPressed.connect(self.sliderPressed)
-        self.slider.sliderMoved.connect(self.sliderMoved)
-        self.slider.sliderReleased.connect(self.sliderReleased)
-        self.playing = False
-
-
-        self.play_timer = QtCore.QTimer(interval=10)
-        self.play_timer.timeout.connect(self.on_play_timer)
-
-        self.drag_timer = QtCore.QTimer(interval=10)
-        self.drag_timer.timeout.connect(self.on_drag_timer)
-
-    def _start_play_timer(self, playing):
-        if playing:
-            self.play_timer.start(0.01)
-        else:
-            self.play_timer.stop()
-
-    def on_play_timer(self, _=None):
-        value = self.value() + 1
-        value = value % self.maximum()
-        self.setValue(value)
-
-    def setMaximum(self, maximum: int):
-        self.current_value.setText(f"{str(self.value())}/{str(maximum)}")
-        self.slider.setMaximum(maximum)
-
-    def setRange(self, minimum, maximum):
-        self.current_value.setText(f"{str(self.value())}/{str(maximum)}")
-        self.slider.setMaximum(maximum)
-
-    def setValue(self, value):
-        self.current_value.setText(f"{str(value)}/{str(self.maximum())}")
-        self.slider.setValue(value)
-
-    def play_clk(self):
-        if self.playing:
-            self.play_btn.setText("▶")
-            self.play_timer.stop()
-        else:
-            self.play_btn.setText("■")
-            self.play_timer.start()
-        self.playing = not self.playing
-
-    def on_slider_press(self):
-        self.slider.valueChanged.disconnect(self.on_drag_timer)
-        self.drag_timer.start()
-
-    def on_slider_release(self):
-        self.drag_timer.stop()
-        self.slider.valueChanged.connect(self.on_drag_timer)
-
-    def on_drag_timer(self):
-        self.valueChanged[int, str].emit(self.value(), self.name)
-
-class LabeledVisibilitySlider(QLabeledSlider):
-    def __init__(self, name, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
-
-    def _visibility(self, settings):
-        if not settings['index'] == self.name:
-            return
-        if settings['show']:
-            self.show()
-        else:
-            self.hide()
-        self.setRange(0, settings['max'])
 
 if __name__ == "__main__":
     import sys
@@ -246,6 +197,5 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     w = ChannelBox(Channel(config="empty"), CMAPS=CMAPS)
     w.show()
-    s = QLabeledSlider("test")
-    s.show()
+
     sys.exit(app.exec_())
