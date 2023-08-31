@@ -1,15 +1,17 @@
-
-from qtpy import QtCore, QtWidgets, QtGui
+from qtpy import QtCore, QtGui, QtWidgets
 
 
 class QLabeledSlider(QtWidgets.QWidget):
     """Slider that shows name of the axis and current value."""
+
     valueChanged = QtCore.Signal([int], [int, str])
     sliderPressed = QtCore.Signal()
     sliderMoved = QtCore.Signal()
     sliderReleased = QtCore.Signal()
 
-    def __init__(self, name: str = "", orientation=QtCore.Qt.Horizontal , *args, **kwargs):
+    def __init__(
+        self, name: str = "", orientation=QtCore.Qt.Horizontal, *args, **kwargs
+    ):
         # super().__init__(self, *args, **kwargs)
         super().__init__()
         self.name = name
@@ -17,17 +19,30 @@ class QLabeledSlider(QtWidgets.QWidget):
         self.label = QtWidgets.QLabel()
         self.label.setText(name.upper())
         self.label.setAlignment(QtCore.Qt.AlignRight)
-        self.label.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        self.label.setSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
+        )
         self.slider = QtWidgets.QSlider(orientation)
-        for function in ["blockSignals", "setTickInterval","setTickPosition", "tickInterval",
-                         "tickPosition", "minimum", "maximum", "setTracking", "value"]:
+        for function in [
+            "blockSignals",
+            "setTickInterval",
+            "setTickPosition",
+            "tickInterval",
+            "tickPosition",
+            "minimum",
+            "maximum",
+            "setTracking",
+            "value",
+        ]:
             func = getattr(self.slider, function)
             setattr(self, function, func)
 
         self.current_value = QtWidgets.QLabel()
         self.current_value.setText("0")
         self.current_value.setAlignment(QtCore.Qt.AlignLeft)
-        self.current_value.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        self.current_value.setSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
+        )
 
         self.play_btn = QtWidgets.QPushButton("▶")
         self.play_btn.setStyleSheet("QPushButton {padding: 2px;}")
@@ -48,7 +63,6 @@ class QLabeledSlider(QtWidgets.QWidget):
         self.slider.sliderReleased.connect(self.sliderReleased)
         self.playing = False
 
-
         self.play_timer = QtCore.QTimer(interval=10)
         self.play_timer.timeout.connect(self.on_play_timer)
 
@@ -67,15 +81,15 @@ class QLabeledSlider(QtWidgets.QWidget):
         self.setValue(value)
 
     def setMaximum(self, maximum: int):
-        self.current_value.setText(f"{str(self.value())}/{str(maximum)}")
+        self.current_value.setText(f"{self.value()!s}/{maximum!s}")
         self.slider.setMaximum(maximum)
 
     def setRange(self, minimum, maximum):
-        self.current_value.setText(f"{str(self.value())}/{str(maximum)}")
+        self.current_value.setText(f"{self.value()!s}/{maximum!s}")
         self.slider.setMaximum(maximum)
 
     def setValue(self, value):
-        self.current_value.setText(f"{str(value)}/{str(self.maximum())}")
+        self.current_value.setText(f"{value!s}/{self.maximum()!s}")
         self.slider.setValue(value)
 
     def play_clk(self):
@@ -98,15 +112,16 @@ class QLabeledSlider(QtWidgets.QWidget):
     def on_drag_timer(self):
         self.valueChanged[int, str].emit(self.value(), self.name)
 
+
 class LabeledVisibilitySlider(QLabeledSlider):
     def __init__(self, name, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
 
     def _visibility(self, settings):
-        if not settings['index'] == self.name:
+        if not settings["index"] == self.name:
             return
-        if settings['show']:
+        if settings["show"]:
             self.show()
         else:
             self.hide()
-        self.setRange(0, settings['max'])
+        self.setRange(0, settings["max"])

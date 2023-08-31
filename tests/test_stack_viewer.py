@@ -1,23 +1,22 @@
-from pymmcore_widgets._mda._stack_viewer import StackViewer
-
-from pymmcore_widgets._mda._datastore import  QLocalDataStore
 from pymmcore_plus import CMMCorePlus
-
-from useq import MDASequence
 from qtpy import QtCore
+from useq import MDASequence
+
+from pymmcore_widgets._mda._datastore import QLocalDataStore
+from pymmcore_widgets._mda._stack_viewer import StackViewer
 
 sequence = MDASequence(
     channels=[{"config": "DAPI", "exposure": 10}, {"config": "FITC", "exposure": 10}],
-    time_plan={"interval": 0.5, "loops":20},
+    time_plan={"interval": 0.5, "loops": 20},
     axis_order="tpcz",
-    )
+)
 
 
 def test_local(qtbot):
     mmcore = CMMCorePlus.instance()
     mmcore.loadSystemConfiguration()
     datastore = QLocalDataStore(shape=[20, 1, 2, 512, 512], mmcore=mmcore)
-    canvas = StackViewer(mmcore = mmcore, datastore=datastore)
+    canvas = StackViewer(mmcore=mmcore, datastore=datastore)
     canvas.show()
     qtbot.addWidget(canvas)
     mmcore.run_mda(sequence)

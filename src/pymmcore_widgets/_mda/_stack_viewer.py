@@ -1,20 +1,19 @@
-import numpy as np
 import copy
 
-from qtpy import QtWidgets, QtCore, QtGui
-
+import numpy as np
 from pymmcore_plus import CMMCorePlus
+from qtpy import QtCore, QtGui, QtWidgets
 from useq import MDASequence
 
+from pymmcore_widgets._mda._datastore import QLocalDataStore
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
 from pymmcore_widgets._mda._util._labeled_slider import LabeledVisibilitySlider
-from pymmcore_widgets._mda._datastore import QLocalDataStore
 
 DIMENSIONS = ["t", "z", "c", "p", "g"]
-AUTOCLIM_RATE = 1 #Hz   0 = inf
+AUTOCLIM_RATE = 1  # Hz   0 = inf
 
 try:
-    from vispy import scene, color
+    from vispy import color, scene
 except ImportError as e:
     raise ImportError(
         "vispy is required for ImagePreview. "
@@ -24,26 +23,30 @@ except ImportError as e:
 
 class StackViewer(QtWidgets.QWidget):
     """A viewer to follow MDA acquisitions started by MDASequence in mmcore-plus events."""
+
     _slider_settings = QtCore.Signal(dict)
     _new_channel = QtCore.Signal(int, str)
 
-    def __init__(self,
-                 sequence: MDASequence = None,
-                 mmcore: CMMCorePlus = None,
-                 datastore: QLocalDataStore = None,
-                 parent: QtWidgets.QWidget|None = None):
-
+    def __init__(
+        self,
+        sequence: MDASequence = None,
+        mmcore: CMMCorePlus = None,
+        datastore: QLocalDataStore = None,
+        parent: QtWidgets.QWidget | None = None,
+    ):
         super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
         self.sequence = sequence
 
-        self._clim = 'auto'
-        self.cmaps = [color.Colormap([[0, 0, 0], [1, 1, 0]]),
-                      color.Colormap([[0, 0, 0], [1, 0, 1]]),
-                      color.Colormap([[0, 0, 0], [0, 1, 1]]),
-                      color.Colormap([[0, 0, 0], [1, 0, 0]]),
-                      color.Colormap([[0, 0, 0], [0, 1, 0]]),
-                      color.Colormap([[0, 0, 0], [0, 0, 1]])]
+        self._clim = "auto"
+        self.cmaps = [
+            color.Colormap([[0, 0, 0], [1, 1, 0]]),
+            color.Colormap([[0, 0, 0], [1, 0, 1]]),
+            color.Colormap([[0, 0, 0], [0, 1, 1]]),
+            color.Colormap([[0, 0, 0], [1, 0, 0]]),
+            color.Colormap([[0, 0, 0], [0, 1, 0]]),
+            color.Colormap([[0, 0, 0], [0, 0, 1]]),
+        ]
         self.display_index = {dim: 0 for dim in DIMENSIONS}
 
         self.setLayout(QtWidgets.QVBoxLayout())
@@ -51,7 +54,9 @@ class StackViewer(QtWidgets.QWidget):
         self.layout().addWidget(self._canvas.native)
 
         self.info_bar = QtWidgets.QLabel()
-        self.info_bar.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        self.info_bar.setSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
+        )
         self.layout().addWidget(self.info_bar)
 
         self._create_sliders(sequence)
@@ -71,8 +76,9 @@ class StackViewer(QtWidgets.QWidget):
 
     def construct_canvas(self):
         img_size = (self._mmc.getImageHeight(), self._mmc.getImageWidth())
-        self._canvas = scene.SceneCanvas( size=img_size, parent=self,
-                                         autoswap=False, vsync=True, keys=None)
+        self._canvas = scene.SceneCanvas(
+            size=img_size, parent=self, autoswap=False, vsync=True, keys=None
+        )
         self._canvas._send_hover_events = True
         self._canvas.events.mouse_move.connect(self.on_mouse_move)
         self.view = self._canvas.central_widget.add_view()
@@ -83,22 +89,27 @@ class StackViewer(QtWidgets.QWidget):
     def on_sequence_start(self, sequence: MDASequence):
         """Sequence started by the mmcore. Adjust our settings, make layers etc."""
         self.sequence = sequence
-        #Sliders
+        # Sliders
         for dim in DIMENSIONS[:3]:
             if sequence.sizes[dim] > 1:
-                self._slider_settings.emit({"index": dim,"show": True,
-                                            "max": sequence.sizes[dim] - 1})
+                self._slider_settings.emit(
+                    {"index": dim, "show": True, "max": sequence.sizes[dim] - 1}
+                )
             else:
                 self._slider_settings.emit({"index": dim, "show": False, "max": 1})
 
-        #Channels
-        nc = sequence.sizes['c']
+        # Channels
+        nc = sequence.sizes["c"]
         self.images = []
         for i in range(nc):
-            image = scene.visuals.Image(np.zeros(self._canvas.size).astype(self.datastore.dtype),
-                                        parent=self.view.scene, cmap=self.cmaps[i], clim=[0,1])
+            image = scene.visuals.Image(
+                np.zeros(self._canvas.size).astype(self.datastore.dtype),
+                parent=self.view.scene,
+                cmap=self.cmaps[i],
+                clim=[0, 1],
+            )
             if i > 0:
-                image.set_gl_state('additive', depth_test=False)
+                image.set_gl_state("additive", depth_test=False)
             self.images.append(image)
             self.current_channel = i
             self._new_channel.emit(i, sequence.channels[i].config)
@@ -106,16 +117,20 @@ class StackViewer(QtWidgets.QWidget):
     def _handle_channel_clim(self, values, channel: int, set_autoscale=True):
         self.images[channel].clim = values
         if self.channel_row.boxes[channel].autoscale_chbx.isChecked() and set_autoscale:
-            self.channel_row.boxes[channel].autoscale_chbx.setCheckState(QtCore.Qt.Unchecked)
+            self.channel_row.boxes[channel].autoscale_chbx.setCheckState(
+                QtCore.Qt.Unchecked
+            )
         self._canvas.update()
 
-    def _handle_channel_cmap(self, my_color:QtGui.QColor, channel: int):
-        my_color = [x//255 for x in my_color.getRgb()[:3]]
+    def _handle_channel_cmap(self, my_color: QtGui.QColor, channel: int):
+        my_color = [x // 255 for x in my_color.getRgb()[:3]]
         self.images[channel].cmap = color.Colormap([[0, 0, 0], my_color])
         self._canvas.update()
 
     def _handle_channel_visibility(self, state, channel: int):
-        self.images[channel].visible = self.channel_row.boxes[channel].show_channel.isChecked()
+        self.images[channel].visible = self.channel_row.boxes[
+            channel
+        ].show_channel.isChecked()
         self._canvas.update()
 
     def _handle_channel_autoscale(self, state, channel: int):
@@ -123,14 +138,17 @@ class StackViewer(QtWidgets.QWidget):
             slider = self.channel_row.boxes[channel].slider
             self._handle_channel_clim(slider.value(), channel, set_autoscale=False)
         else:
-            clim = (np.min(self.images[channel]._data), np.max(self.images[channel]._data))
+            clim = (
+                np.min(self.images[channel]._data),
+                np.max(self.images[channel]._data),
+            )
             self._handle_channel_clim(clim, channel, set_autoscale=False)
 
     def _handle_channel_choice(self, channel: int):
         self.current_channel = channel
 
     def _create_sliders(self, sequence: MDASequence = None):
-        n_channels = 5 if sequence is None else sequence.sizes['c']
+        n_channels = 5 if sequence is None else sequence.sizes["c"]
         self.channel_row = ChannelRow(n_channels, self.cmaps)
         self.channel_row.visible.connect(self._handle_channel_visibility)
         self.channel_row.autoscale.connect(self._handle_channel_autoscale)
@@ -143,10 +161,10 @@ class StackViewer(QtWidgets.QWidget):
             dims = [x for x in sequence.sizes.keys() if sequence.sizes[x] > 0]
         else:
             dims = DIMENSIONS
-        dims.remove('c')
+        dims.remove("c")
         self.sliders = []
         for dim in dims:
-            slider = LabeledVisibilitySlider(dim,  orientation=QtCore.Qt.Horizontal)
+            slider = LabeledVisibilitySlider(dim, orientation=QtCore.Qt.Horizontal)
             slider.valueChanged[int, str].connect(self.on_display_timer)
             self._slider_settings.connect(slider._visibility)
             self.layout().addWidget(slider)
@@ -156,7 +174,7 @@ class StackViewer(QtWidgets.QWidget):
 
     def on_mouse_move(self, event):
         "Mouse moved on the canvas, display the pixel value and position."
-        transform = self.images[self.current_channel].get_transform('canvas', 'visual')
+        transform = self.images[self.current_channel].get_transform("canvas", "visual")
         p = [int(x) for x in transform.map(event.pos)]
         if p[0] < 0 or p[1] < 0:
             info = f"[{p[0]}, {p[1]}]"
@@ -176,8 +194,10 @@ class StackViewer(QtWidgets.QWidget):
             self.display_index[slider.name] = slider.value()
         if old_index == self.display_index:
             return
-        for c in range(self.sequence.sizes['c']):
-            frame = self.datastore.get_frame([self.display_index['t'], self.display_index['z'],  c])
+        for c in range(self.sequence.sizes["c"]):
+            frame = self.datastore.get_frame(
+                [self.display_index["t"], self.display_index["z"], c]
+            )
             self.display_image(frame, c)
         self._canvas.update()
 
@@ -189,15 +209,19 @@ class StackViewer(QtWidgets.QWidget):
         # Update internal image parameters
         self.width, self.height = img.shape
         if sum(indices.values()) == 0:
-            self.view.camera.rect = ((0, 0, *img.shape))
-        #Update display
+            self.view.camera.rect = (0, 0, *img.shape)
+        # Update display
         self.display_image(img, indices["c"])
         self._set_sliders(indices)
         # Handle Autoscaling
         slider = self.channel_row.boxes[indices["c"]].slider
-        slider.setRange(min(slider.minimum(), img.min()), max(slider.maximum(), img.max()))
+        slider.setRange(
+            min(slider.minimum(), img.min()), max(slider.maximum(), img.max())
+        )
         if self.channel_row.boxes[indices["c"]].autoscale_chbx.isChecked():
-            slider.setValue([min(slider.minimum(), img.min()), max(slider.maximum(), img.max())])
+            slider.setValue(
+                [min(slider.minimum(), img.min()), max(slider.maximum(), img.max())]
+            )
         self.on_clim_timer(indices["c"])
 
     def _set_sliders(self, indices: dict):
@@ -211,27 +235,33 @@ class StackViewer(QtWidgets.QWidget):
         self.images[channel].set_data(img)
 
     def on_clim_timer(self, channel=None):
-        channel_list = list(range(len(self.channel_boxes))) if channel is None else [channel]
+        channel_list = (
+            list(range(len(self.channel_boxes))) if channel is None else [channel]
+        )
         for channel in channel_list:
-            if (self.channel_row.boxes[channel].autoscale_chbx.isChecked() and
-                self.images[channel].visible):
-                #TODO: already using percentile here, could be integrated into the clim in the gui
+            if (
+                self.channel_row.boxes[channel].autoscale_chbx.isChecked()
+                and self.images[channel].visible
+            ):
+                # TODO: already using percentile here, could be integrated into the clim in the gui
                 clim = np.percentile(self.images[channel]._data, [0, 100])
                 self.images[channel].clim = clim
 
     def complement_indices(self, index):
         "MDAEvents not always have all the dimensions, complement."
-        indeces = dict(copy.deepcopy(dict(index)))
+        indices = dict(copy.deepcopy(dict(index)))
         for i in DIMENSIONS:
-            if i not in indeces:
-                indeces[i] = 0
-        return indeces
+            if i not in indices:
+                indices[i] = 0
+        return indices
 
 
 if __name__ == "__main__":
     size = 1028
-    from pymmcore_widgets._mda._datastore import QLocalDataStore
     import sys
+
+    from pymmcore_widgets._mda._datastore import QLocalDataStore
+
     mmcore = CMMCorePlus.instance()
     mmcore.loadSystemConfiguration()
 
@@ -241,14 +271,14 @@ if __name__ == "__main__":
     qapp = QtWidgets.QApplication(sys.argv)
 
     sequence = MDASequence(
-    channels=[{"config": "FITC", "exposure": 1}, {"config": "DAPI", "exposure": 1}],
-    time_plan={"interval": 0.5, "loops": 20},
-    axis_order="tpcz", )
+        channels=[{"config": "FITC", "exposure": 1}, {"config": "DAPI", "exposure": 1}],
+        time_plan={"interval": 0.5, "loops": 20},
+        axis_order="tpcz",
+    )
 
     datastore = QLocalDataStore([40, 1, 2, size, size], mmcore=mmcore)
     w = StackViewer(sequence=sequence, mmcore=mmcore, datastore=datastore)
     w.show()
-
 
     mmcore.run_mda(sequence)
     qapp.exec_()
