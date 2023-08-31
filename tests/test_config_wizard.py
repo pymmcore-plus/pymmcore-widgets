@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from qtpy.QtCore import Qt, QTimer
-from qtpy.QtWidgets import QMessageBox
 
 from pymmcore_widgets.hcwizard._dev_setup_dialog import DeviceSetupDialog
 from pymmcore_widgets.hcwizard._peripheral_setup_dialog import PeripheralSetupDlg
