@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from contextlib import suppress
+from itertools import permutations
 from pathlib import Path
 from typing import cast
 
 import useq
-from pint import Quantity
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QComboBox,
@@ -17,6 +16,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.utils import signals_blocked
 
 from pymmcore_widgets._mda._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
@@ -24,6 +24,22 @@ from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
 from pymmcore_widgets.useq_widgets._positions import PositionTable
 from pymmcore_widgets.useq_widgets._time import TimeTable
 from pymmcore_widgets.useq_widgets._z import ZPlanWidget
+
+try:
+    from pint import Quantity
+
+    def _format_duration(duration: float) -> str:
+        d = Quantity(duration, "s").to_compact()
+        return f"{d:.1f~#P}" if d else ""
+
+except ImportError:  # pragma: no cover
+
+    def _format_duration(duration: float) -> str:
+        return f"{duration:.3f} s" if duration else ""
+
+
+# these are the only axis orders we currently support
+AXIS_ORDERS = ("tpgcz", "tpgzc", "tpcgz", "tpzgc", "pgtzc", "ptzgc", "ptcgz", "pgtcz")
 
 
 class MDATabs(CheckableTabWidget):
@@ -59,16 +75,17 @@ class MDATabs(CheckableTabWidget):
             corresponding widget instance (e.g. self.channels, etc...)
         """
         if isinstance(key, str):
-            try:
-                key = {
-                    "c": self.channels,
-                    "t": self.time_plan,
-                    "p": self.stage_positions,
-                    "z": self.z_plan,
-                    "g": self.grid_plan,
-                }[key[0].lower()]
-            except KeyError as e:  # pragma: no cover
-                raise ValueError(f"Invalid key: {key!r}") from e
+            _map: dict[str, QWidget] = {
+                "c": self.channels,
+                "t": self.time_plan,
+                "p": self.stage_positions,
+                "z": self.z_plan,
+                "g": self.grid_plan,
+            }
+            if (lower_key := key[0].lower()) in _map:
+                key = _map[lower_key]
+            else:
+                raise ValueError(f"Invalid key: {key!r}")
         return bool(self.isChecked(key))
 
     def usedAxes(self) -> tuple[str, ...]:
@@ -150,8 +167,6 @@ class MDASequenceWidget(QWidget):
         self.axis_order = QComboBox()
         self.axis_order.setToolTip("Slowest to fastest axis order.")
         self.axis_order.setMinimumWidth(80)
-        self.tab_wdg.tabChecked.connect(self._on_tab_checked)
-        self.tab_wdg.setChecked(self.channels, True)
 
         self._save_button = QPushButton("Save")
         self._save_button.clicked.connect(self.save)
@@ -183,8 +198,11 @@ class MDASequenceWidget(QWidget):
         self.stage_positions.valueChanged.connect(self.valueChanged)
         self.z_plan.valueChanged.connect(self.valueChanged)
         self.grid_plan.valueChanged.connect(self.valueChanged)
-        self.tab_wdg.tabChecked.connect(self.valueChanged)
+        self.tab_wdg.tabChecked.connect(self._on_tab_checked)
+        self.axis_order.currentTextChanged.connect(self.valueChanged)
         self.valueChanged.connect(self._update_time_estimate)
+
+        self.tab_wdg.setChecked(self.channels, True)
 
     # -------------- Public API --------------
 
@@ -237,24 +255,24 @@ class MDASequenceWidget(QWidget):
         self.setValue(mda_seq)
 
     # -------------- Private API --------------
+
     def _on_tab_checked(self, idx: int, checked: bool) -> None:
         """Handle tabChecked signal.
 
         Hide columns in the channels tab accordingly.
         """
-        used_axes = self.tab_wdg.usedAxes()
-        self.axis_order.clear()
+        with signals_blocked(self.axis_order):
+            self.axis_order.clear()
 
-        # get all permutations of the used axes
-        from itertools import permutations
+            # show allowed permutations of selected axes
+            for p in permutations(self.tab_wdg.usedAxes()):
+                strp = "".join(p)
+                if any(strp in x for x in AXIS_ORDERS):
+                    self.axis_order.addItem(strp)
 
-        for p in permutations(used_axes):
-            with suppress(ValueError):
-                if p.index("z") < p.index("p"):
-                    continue
-            self.axis_order.addItem("".join(p))
+            self.axis_order.setEnabled(self.axis_order.count() > 1)
 
-        self.axis_order.setEnabled(self.axis_order.count() > 1)
+        self.valueChanged.emit()
 
     def _update_time_estimate(self) -> None:
         """Update the time estimate label."""
@@ -267,8 +285,6 @@ class MDASequenceWidget(QWidget):
 
         self._time_warning.setVisible(self._time_estimate.time_interval_exceeded)
 
-        d = Quantity(self._time_estimate.total_duration, "s").to_compact()
-        if d:
-            self._duration_label.setText(f"Estimated duration: {d:.1f~#P}")
-        else:
-            self._duration_label.setText("")
+        d = _format_duration(self._time_estimate.total_duration)
+        d = f"Estimated duration: {d}" if d else ""
+        self._duration_label.setText(d)
