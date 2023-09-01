@@ -14,6 +14,7 @@ from qtpy.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -33,32 +34,63 @@ class _MDAPopup(QDialog):
 
         super().__init__(parent)
 
+        # create a new MDA tab widget without the stage positions tab
         self.mda_tabs = MDATabs(self)
+        self.mda_tabs.removeTab(self.mda_tabs.indexOf(self.mda_tabs.stage_positions))
+
+        # use the parent's channel groups if possible
+        par = self.parent()
+        while par:
+            if isinstance(par, MDATabs):
+                self.mda_tabs.channels.setChannelGroups(par.channels.channelGroups())
+                break
+            par = par.parent()
+
+        # set the value if provided
         if value:
             self.mda_tabs.setValue(value)
-        self.mda_tabs.removeTab(3)
 
+        # create ok and cancel buttons
         self._btns = QDialogButtonBox(OK_CANCEL)
         self._btns.accepted.connect(self.accept)
         self._btns.rejected.connect(self.reject)
 
+        # create layout
         layout = QVBoxLayout(self)
         layout.addWidget(self.mda_tabs)
         layout.addWidget(self._btns)
 
 
-class MDAButton(QPushButton):
+class MDAButton(QWidget):
     valueChanged = Signal()
     _value: useq.MDASequence | None
 
     def __init__(self) -> None:
         super().__init__()
-        self.clicked.connect(self._on_click)
+        self.seq_btn = QPushButton()
+        self.seq_btn.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred
+        )
+        self.seq_btn.clicked.connect(self._on_click)
+        self.seq_btn.setIcon(icon(MDI6.axis))
+
+        self.clear_btn = QPushButton()
+        self.clear_btn.setIcon(icon(MDI6.close_circle, color="red"))
+        self.clear_btn.setFixedWidth(20)
+        self.clear_btn.hide()
+        self.clear_btn.clicked.connect(lambda: self.setValue(None))
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(4, 0, 4, 0)
+        layout.setSpacing(4)
+        layout.addWidget(self.seq_btn)
+        layout.addWidget(self.clear_btn)
+
         self.setValue(None)
 
     def _on_click(self) -> None:
         dialog = _MDAPopup(self._value, self)
-        if dialog.exec_():
+        if dialog.exec():
             self.setValue(dialog.mda_tabs.value())
 
     def value(self) -> useq.MDASequence | None:
@@ -68,10 +100,14 @@ class MDAButton(QPushButton):
         old_val, self._value = getattr(self, "_value", None), value
         if old_val != value:
             if value is not None:
-                self.setIcon(icon(MDI6.axis_arrow, color="green"))
+                self.seq_btn.setIcon(icon(MDI6.axis_arrow, color="green"))
             else:
-                self.setIcon(icon(MDI6.axis))
+                self.seq_btn.setIcon(icon(MDI6.axis))
             self.valueChanged.emit()
+            if value is None:
+                self.clear_btn.hide()
+            else:
+                self.clear_btn.show()
 
 
 _MDAButton = WdgGetSet(

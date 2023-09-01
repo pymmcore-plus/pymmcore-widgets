@@ -4,8 +4,16 @@ from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 import useq
 from qtpy.QtWidgets import QComboBox, QWidgetAction
+from superqt.utils import signals_blocked
 
-from ._column_info import BoolColumn, ChoiceColumn, FloatColumn, IntColumn, TextColumn
+from ._column_info import (
+    BoolColumn,
+    ChoiceColumn,
+    ColumnInfo,
+    FloatColumn,
+    IntColumn,
+    TextColumn,
+)
 from ._data_table import DataTableWidget
 
 if TYPE_CHECKING:
@@ -21,7 +29,7 @@ class ChannelTable(DataTableWidget):
     GROUP = TextColumn(key="group", default="Channel", hidden=True)
     CONFIG = TextColumn(key="config", default=None, is_row_selector=True)
     EXPOSURE = FloatColumn(key="exposure", header="Exposure [ms]", default=100.0, minimum=1)  # noqa
-    ACUIRE_EVERY = IntColumn(key="acquire_every", default=1, minimum=1)
+    ACQUIRE_EVERY = IntColumn(key="acquire_every", default=1, minimum=1)
     DO_STACK = BoolColumn(key="do_stack", default=True)
     Z_OFFSET = FloatColumn(key="z_offset", default=0.0, minimum=-10000, maximum=10000)
     # fmt: on
@@ -29,11 +37,9 @@ class ChannelTable(DataTableWidget):
         super().__init__(rows, parent)
         self._group_combo = QComboBox()
         self._group_combo.currentTextChanged.connect(self._on_group_changed)
-        a0 = next(x for x in self.toolBar().children() if isinstance(x, QWidgetAction))
-        self.toolBar().insertWidget(a0, self._group_combo)
-        # self._group_combo.hide()
+        self._groups: Mapping[str, Sequence[str]] = {}
 
-    def setChannelGroups(self, groups: Mapping[str, Sequence[str]]) -> None:
+    def setChannelGroups(self, groups: Mapping[str, Sequence[str]] | None) -> None:
         """Set the groups that can be selected in the table.
 
         Parameters
@@ -42,15 +48,26 @@ class ChannelTable(DataTableWidget):
             A mapping of group names to a sequence of config names.
             {'Channel': ['DAPI', 'FITC']}
         """
-        self._groups = groups
-        self._group_combo.clear()
+        # store new groups
+        groups = groups or {}
+        self._groups, ngroups_before = groups, len(self._groups)
 
-        if not self._groups:
-            self._group_combo.hide()
-        else:
+        # update the group combo
+        with signals_blocked(self._group_combo):
+            self._group_combo.clear()
             for group_name in groups:
                 self._group_combo.addItem(group_name)
-            self._group_combo.show()
+
+        # update the to show the combobox if there are more than one group
+        toolbar = self.toolBar()
+        actions = [x for x in toolbar.children() if isinstance(x, QWidgetAction)]
+        if len(self._groups) <= 1:
+            if ngroups_before > 1:
+                toolbar.removeAction(actions[1])
+        else:
+            toolbar.insertWidget(actions[0], self._group_combo)
+
+        self._on_group_changed()
 
     def channelGroups(self) -> Mapping[str, Sequence[str]]:
         return self._groups
@@ -81,14 +98,13 @@ class ChannelTable(DataTableWidget):
 
         table = self.table()
         table.removeColumn(group_col)
-
-        if config_names := self._groups[group]:
-            col = ChoiceColumn(
+        if group and (config_names := self._groups[group]):
+            col: ColumnInfo = ChoiceColumn(
                 key="config",
                 default=config_names[0],
                 is_row_selector=True,
                 allowed_values=tuple(config_names),
             )
         else:
-            col = self.GROUP
+            col = self.CONFIG
         table.addColumn(col, group_col)

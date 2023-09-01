@@ -4,7 +4,7 @@ import contextlib
 import re
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Callable, ClassVar, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, ClassVar, Generic, Iterable, TypeVar, cast
 
 import pint
 from qtpy.QtCore import Qt, Signal, SignalInstance
@@ -114,7 +114,7 @@ class TextColumn(ColumnInfo):
 
     def isChecked(self, table: QTableWidget, row: int, col: int) -> bool:
         if item := table.item(row, col):
-            return item.checkState() == Qt.CheckState.Checked
+            return bool(item.checkState() == Qt.CheckState.Checked)
         return False
 
     def setCheckState(
@@ -428,22 +428,22 @@ class CheckableCombo(QWidget):
         layout.addWidget(self._combo)
 
     def currentText(self) -> str:
-        return self._combo.currentText()
+        return self._combo.currentText()  # type: ignore
 
     def setCurrentText(self, value: str) -> None:
         self._combo.setCurrentText(value)
 
-    def addItems(self, items: list[str]) -> None:
+    def addItems(self, items: Iterable[str]) -> None:
         self._combo.addItems(items)
 
     def clear(self) -> None:
         self._combo.clear()
 
     def isChecked(self) -> bool:
-        return self._checkbox.isChecked()
+        return self._checkbox.isChecked()  # type: ignore
 
     def setCheckState(self, state: Qt.CheckState) -> bool:
-        return self._checkbox.setCheckState(state)
+        return self._checkbox.setCheckState(state)  # type: ignore
 
 
 ChoiceWidget = WdgGetSet(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from pathlib import Path
 from typing import cast
 
@@ -7,6 +8,7 @@ import useq
 from pint import Quantity
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
+    QComboBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -27,19 +29,25 @@ from pymmcore_widgets.useq_widgets._z import ZPlanWidget
 class MDATabs(CheckableTabWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        # self.setMovable(True)
+        self.tabChecked.connect(self._on_tab_checked)
 
-        self.channels = ChannelTable(1)
         self.time_plan = TimeTable(1)
-        self.z_plan = ZPlanWidget()
         self.stage_positions = PositionTable(1)
         self.grid_plan = GridPlanWidget()
+        self.z_plan = ZPlanWidget()
+        self.channels = ChannelTable(1)
 
-        self.addTab(self.channels, "Channels", checked=False)
         self.addTab(self.time_plan, "Time", checked=False)
-        self.addTab(self.z_plan, "Z Stack", checked=False)
         self.addTab(self.stage_positions, "Positions", checked=False)
         self.addTab(self.grid_plan, "Grid", checked=False)
-        self.setCurrentIndex(0)
+        self.addTab(self.z_plan, "Z Stack", checked=False)
+        self.addTab(self.channels, "Channels", checked=False)
+        self.setCurrentIndex(self.indexOf(self.channels))
+
+        ch_table = self.channels.table()
+        ch_table.hideColumn(ch_table.indexOf(self.channels.DO_STACK))
+        ch_table.hideColumn(ch_table.indexOf(self.channels.ACQUIRE_EVERY))
 
     def isAxisUsed(self, key: str | QWidget) -> bool:
         """Return True if the given axis is used in the sequence.
@@ -62,6 +70,10 @@ class MDATabs(CheckableTabWidget):
             except KeyError as e:  # pragma: no cover
                 raise ValueError(f"Invalid key: {key!r}") from e
         return bool(self.isChecked(key))
+
+    def usedAxes(self) -> tuple[str, ...]:
+        """Return a tuple of the axes currently used in the sequence."""
+        return tuple(k for k in ("tpgzc") if self.isAxisUsed(k))
 
     def value(self) -> useq.MDASequence:
         """Return the current sequence as a `useq-schema` MDASequence."""
@@ -89,6 +101,19 @@ class MDATabs(CheckableTabWidget):
             else:
                 # widget.setValue(None)
                 self.setChecked(widget, False)
+
+    def _on_tab_checked(self, idx: int, checked: bool) -> None:
+        """Handle tabChecked signal.
+
+        Hide columns in the channels tab accordingly.
+        """
+        _map = {
+            self.indexOf(self.z_plan): self.channels.DO_STACK,
+            self.indexOf(self.time_plan): self.channels.ACQUIRE_EVERY,
+        }
+        if idx in _map:
+            ch_table = self.channels.table()
+            ch_table.setColumnHidden(ch_table.indexOf(_map[idx]), not checked)
 
 
 class MDASequenceWidget(QWidget):
@@ -122,12 +147,23 @@ class MDASequenceWidget(QWidget):
         )
         self._duration_label.setWordWrap(True)
 
+        self.axis_order = QComboBox()
+        self.axis_order.setToolTip("Slowest to fastest axis order.")
+        self.axis_order.setMinimumWidth(80)
+        self.tab_wdg.tabChecked.connect(self._on_tab_checked)
+        self.tab_wdg.setChecked(self.channels, True)
+
         self._save_button = QPushButton("Save")
         self._save_button.clicked.connect(self.save)
         self._load_button = QPushButton("Load")
         self._load_button.clicked.connect(self.load)
 
         # -------------- Main Layout --------------
+
+        top_row = QHBoxLayout()
+        top_row.addWidget(QLabel("Axis Order:"))
+        top_row.addWidget(self.axis_order)
+        top_row.addStretch()
 
         bot_row = QHBoxLayout()
         bot_row.addWidget(self._time_warning)
@@ -136,6 +172,7 @@ class MDASequenceWidget(QWidget):
         bot_row.addWidget(self._load_button)
 
         layout = QVBoxLayout(self)
+        layout.addLayout(top_row)
         layout.addWidget(self.tab_wdg)
         layout.addLayout(bot_row)
 
@@ -200,6 +237,24 @@ class MDASequenceWidget(QWidget):
         self.setValue(mda_seq)
 
     # -------------- Private API --------------
+    def _on_tab_checked(self, idx: int, checked: bool) -> None:
+        """Handle tabChecked signal.
+
+        Hide columns in the channels tab accordingly.
+        """
+        used_axes = self.tab_wdg.usedAxes()
+        self.axis_order.clear()
+
+        # get all permutations of the used axes
+        from itertools import permutations
+
+        for p in permutations(used_axes):
+            with suppress(ValueError):
+                if p.index("z") < p.index("p"):
+                    continue
+            self.axis_order.addItem("".join(p))
+
+        self.axis_order.setEnabled(self.axis_order.count() > 1)
 
     def _update_time_estimate(self) -> None:
         """Update the time estimate label."""
