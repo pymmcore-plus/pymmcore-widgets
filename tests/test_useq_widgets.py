@@ -232,6 +232,37 @@ def test_channel_groups(qtbot: QtBot) -> None:
         wdg.act_add_row.trigger()
 
 
+def test_time_table(qtbot: QtBot):
+    wdg = TimeTable()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    wdg.setValue(useq.TIntervalLoops(interval=0.5, loops=11))
+    interval = wdg.table().cellWidget(0, wdg.table().indexOf(wdg.INTERVAL))
+    duration = wdg.table().cellWidget(0, wdg.table().indexOf(wdg.DURATION))
+    loops = wdg.table().cellWidget(0, wdg.table().indexOf(wdg.LOOPS))
+    assert interval.value() == 0.5
+    assert duration.value() == 5
+    assert loops.value() == 11
+    loops.setValue(21)
+    assert duration.value() == 10
+
+    # this simulates clicking on the duration column and editing it
+    wdg.table().setCurrentCell(0, wdg.table().indexOf(wdg.DURATION))
+    duration.setText("20 s")
+    duration.textModified.emit("", "")
+    assert loops.value() == 41
+
+    wdg.table().setCurrentCell(0, wdg.table().indexOf(wdg.INTERVAL))
+    interval.setText("1 s")
+    interval.textModified.emit("", "")
+    assert duration.value() == 20
+    assert loops.value() == 21
+
+    wdg.setValue(None)
+    assert wdg.table().rowCount() == 0
+
+
 def test_qquant_line_edit(qtbot: QtBot):
     wdg = QQuantityLineEdit("1 s")
     wdg.show()

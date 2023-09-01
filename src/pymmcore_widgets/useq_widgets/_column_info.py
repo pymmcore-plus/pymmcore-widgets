@@ -133,6 +133,8 @@ class WdgGetSet(Generic[W, T]):
     widget: type[W]
     getter: Callable[[W], T]
     setter: Callable[[W, T], None]
+    # takes the widget instance and a callback function
+    # that will be called when the widget's value changes
     connect: Callable[[W, Callable[[T], None]], Any]
 
 
@@ -213,7 +215,8 @@ class BoolColumn(WidgetColumn):
 
 
 class _TableSpinboxMixin:
-    def __init__(self: QDoubleSpinBox | QSpinBox) -> None:
+    def __init__(self: QDoubleSpinBox | QSpinBox, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
         self.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
         self.setKeyboardTracking(False)
         self.setMinimumWidth(70)
@@ -224,11 +227,11 @@ class _TableSpinboxMixin:
         pass  # pragma: no cover
 
 
-class TableSpinBox(QSpinBox, _TableSpinboxMixin):
+class TableSpinBox(_TableSpinboxMixin, QSpinBox):
     pass
 
 
-class TableDoubleSpinBox(QDoubleSpinBox, _TableSpinboxMixin):
+class TableDoubleSpinBox(_TableSpinboxMixin, QDoubleSpinBox):
     pass
 
 
@@ -341,6 +344,7 @@ class QQuantityLineEdit(QLineEdit):
         self.setValidator(self._validator)
         self._last_valid: str = self.text()
         self.editingFinished.connect(self._on_editing_finished)
+        self._last_val: str = self.text()
 
     def keyPressEvent(self, a0: QKeyEvent | None) -> None:
         if a0 and a0.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
@@ -357,22 +361,16 @@ class QQuantityLineEdit(QLineEdit):
             raise TypeError(f"ureg must be a pint.UnitRegistry, not {type(ureg)}")
         self._validator.ureg = ureg
 
-    def focusInEvent(self, event: QFocusEvent | None) -> None:
+    def focusInEvent(self, event: QFocusEvent) -> None:
         # When the widget gains focus, store the text
         # so we can restore it if the editing is cancelled or invalid
         if event and event.reason() != Qt.FocusReason.PopupFocusReason:
-            self._before = self.text()
+            self._last_val = self.text()
         super().focusInEvent(event)
 
-    def focusOutEvent(self, event: QFocusEvent | None) -> None:
+    def focusOutEvent(self, event: QFocusEvent) -> None:
         # When the widget loses focus, check if the text is valid
         self._on_editing_finished()
-        if (
-            event
-            and event.reason() != Qt.FocusReason.PopupFocusReason
-            and self._before != self.text()
-        ):
-            self.textModified.emit(self._before, self.text())
         super().focusOutEvent(event)
 
     def setText(self, value: str | None) -> None:
@@ -380,19 +378,20 @@ class QQuantityLineEdit(QLineEdit):
             raise ValueError(f"Invalid value: {value!r}")  # pragma: no cover
         text = f"{valid_q.to_compact():~P}"  # short pretty format
         super().setText(text)
-        self._last_valid = text
+        self._last_val = text
 
     def _on_editing_finished(self) -> None:
         # When the editing is finished, check if the final text is valid
-        final_text = self.text()
+        before, final_text = self._last_val, self.text()
         if valid_q := self._validator.text_to_quant(final_text):
             text = f"{valid_q:~P}"  # short pretty format
-            self._last_valid = text
-            self.setText(text)
+            if before != text:
+                self.setText(text)
+                self.textModified.emit(before, text)
         else:
-            self.setText(self._last_valid)
+            self.setText(self._last_val)
 
-    def quantity(self) -> pint.Quantity:
+    def quantity(self) -> pint.Quantity | int | float:
         return self._validator.ureg.parse_expression(self.text())
 
 
@@ -403,7 +402,10 @@ class QTimeLineEdit(QQuantityLineEdit):
         self.setStyleSheet("QLineEdit { border: none; }")
 
     def value(self) -> float:
-        return self.quantity().to("second").magnitude  # type: ignore
+        q = self.quantity()
+        if isinstance(q, (int, float)):
+            q = self._validator.ureg.Quantity(q, "second")
+        return q.to("second").magnitude  # type: ignore
 
     def setValue(self, value: float) -> None:
         self.setText(str(value))
