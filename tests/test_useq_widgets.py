@@ -161,15 +161,15 @@ def test_position_table(qtbot: QtBot):
 
     def handle_dialog():
         popup = btn.findChild(_MDAPopup)
-        popup.mda_tabs.setChecked(0, True)
-        popup.mda_tabs.setChecked(1, True)
-        popup.mda_tabs.setChecked(2, True)
+        mda = popup.mda_tabs
+        mda.setChecked(mda.indexOf(mda.z_plan), True)
+        mda.setChecked(mda.indexOf(mda.channels), True)
         popup.accept()
 
     QTimer.singleShot(100, handle_dialog)
 
     with qtbot.waitSignal(wdg.valueChanged):
-        btn.click()
+        btn.seq_btn.click()
 
     positions = wdg.value()
     assert positions[0].sequence is not None
