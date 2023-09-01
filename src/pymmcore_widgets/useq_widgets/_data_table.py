@@ -41,7 +41,7 @@ class DataTable(QTableWidget):
     def __init_subclass__(cls) -> None:
         # this isn't covered in tests, because all of our subclasses are from
         # DataTableWidget instead of this class directly
-        cls.COLUMNS = tuple(
+        cls.COLUMNS = tuple(  # pragma: no cover
             i for i in cls.__dict__.values() if isinstance(i, ColumnInfo)
         )
 

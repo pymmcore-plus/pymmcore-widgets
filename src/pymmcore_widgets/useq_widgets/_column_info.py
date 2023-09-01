@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Callable, ClassVar, Generic, Iterable, TypeVar
 
 import pint
 from qtpy.QtCore import Qt, Signal, SignalInstance
-from qtpy.QtGui import QFocusEvent, QValidator
+from qtpy.QtGui import QFocusEvent, QKeyEvent, QValidator
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -55,12 +55,12 @@ class ColumnInfo:
         raise NotImplementedError("Must be implemented by subclass")
 
     def isChecked(self, table: QTableWidget, row: int, col: int) -> bool:
-        return False
+        return False  # pragma: no cover
 
     def setCheckState(
         self, table: QTableWidget, row: int, col: int, checked: bool
     ) -> None:
-        pass
+        pass  # pragma: no cover
 
 
 CHECKABLE_FLAGS = (
@@ -115,7 +115,7 @@ class TextColumn(ColumnInfo):
     def isChecked(self, table: QTableWidget, row: int, col: int) -> bool:
         if item := table.item(row, col):
             return bool(item.checkState() == Qt.CheckState.Checked)
-        return False
+        return False  # pragma: no cover
 
     def setCheckState(
         self, table: QTableWidget, row: int, col: int, state: Qt.CheckState
@@ -333,13 +333,21 @@ def parse_timedelta(time_str: str) -> timedelta:
 class QQuantityLineEdit(QLineEdit):
     textModified = Signal(str, str)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
+    def __init__(
+        self, contents: str | None = None, parent: QWidget | None = None
+    ) -> None:
+        super().__init__(contents, parent)
         self._validator = QQuantityValidator(parent=self)
         self.setValidator(self._validator)
         self._last_valid: str = self.text()
         self.editingFinished.connect(self._on_editing_finished)
-        self.returnPressed.connect(self.clearFocus)
+
+    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
+        if a0 and a0.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self.clearFocus()
+            self.editingFinished.emit()
+            return
+        super().keyPressEvent(a0)  # pragma: no cover
 
     def setDimensionality(self, dimensionality: str | None) -> None:
         self._validator.dimensionality = dimensionality
@@ -350,6 +358,8 @@ class QQuantityLineEdit(QLineEdit):
         self._validator.ureg = ureg
 
     def focusInEvent(self, event: QFocusEvent | None) -> None:
+        # When the widget gains focus, store the text
+        # so we can restore it if the editing is cancelled or invalid
         if event and event.reason() != Qt.FocusReason.PopupFocusReason:
             self._before = self.text()
         super().focusInEvent(event)
@@ -388,7 +398,7 @@ class QQuantityLineEdit(QLineEdit):
 
 class QTimeLineEdit(QQuantityLineEdit):
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
+        super().__init__(None, parent)
         self.setDimensionality("second")
         self.setStyleSheet("QLineEdit { border: none; }")
 

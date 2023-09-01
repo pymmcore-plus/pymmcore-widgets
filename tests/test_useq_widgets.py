@@ -3,9 +3,10 @@ from __future__ import annotations
 import enum
 from typing import TYPE_CHECKING
 
+import pint
 import pytest
 import useq
-from qtpy.QtCore import QTimer
+from qtpy.QtCore import Qt, QTimer
 
 from pymmcore_widgets.useq_widgets import (
     ChannelTable,
@@ -15,7 +16,11 @@ from pymmcore_widgets.useq_widgets import (
     TimeTable,
     ZPlanWidget,
 )
-from pymmcore_widgets.useq_widgets._column_info import FloatColumn, TextColumn
+from pymmcore_widgets.useq_widgets._column_info import (
+    FloatColumn,
+    QQuantityLineEdit,
+    TextColumn,
+)
 from pymmcore_widgets.useq_widgets._positions import QFileDialog, _MDAPopup
 
 if TYPE_CHECKING:
@@ -225,3 +230,17 @@ def test_channel_groups(qtbot: QtBot) -> None:
     assert val[1].config == ""
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.act_add_row.trigger()
+
+
+def test_qquant_line_edit(qtbot: QtBot):
+    wdg = QQuantityLineEdit("1 s")
+    wdg.show()
+    qtbot.addWidget(wdg)
+    wdg.setUreg(pint.UnitRegistry())
+    wdg.setFocus()
+    with pytest.raises(ValueError):
+        wdg.setText("sadsfsd")
+    with qtbot.waitSignal(wdg.editingFinished):
+        qtbot.keyPress(wdg, Qt.Key.Key_Enter)
+    assert not wdg.hasFocus()
+    assert wdg.text() == "1.0 s"

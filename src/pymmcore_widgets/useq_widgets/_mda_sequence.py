@@ -85,7 +85,7 @@ class MDATabs(CheckableTabWidget):
             if (lower_key := key[0].lower()) in _map:
                 key = _map[lower_key]
             else:
-                raise ValueError(f"Invalid key: {key!r}")
+                raise ValueError(f"Invalid key: {key!r}")  # pragma: no cover
         return bool(self.isChecked(key))
 
     def usedAxes(self) -> tuple[str, ...]:
