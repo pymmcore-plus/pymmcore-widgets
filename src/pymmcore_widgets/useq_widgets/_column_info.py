@@ -216,7 +216,7 @@ class BoolColumn(WidgetColumn):
 
 class _TableSpinboxMixin:
     def __init__(self: QDoubleSpinBox | QSpinBox, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # type: ignore
         self.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
         self.setKeyboardTracking(False)
         self.setMinimumWidth(70)
