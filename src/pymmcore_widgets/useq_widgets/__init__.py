@@ -3,6 +3,7 @@
 from ._channels import ChannelTable
 from ._column_info import (
     BoolColumn,
+    ChoiceColumn,
     FloatColumn,
     IntColumn,
     TextColumn,
@@ -21,6 +22,7 @@ __all__ = [
     "TimeTable",
     "DataTable",
     "MDASequenceWidget",
+    "ChoiceColumn",
     "TextColumn",
     "FloatColumn",
     "IntColumn",
