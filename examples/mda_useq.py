@@ -1,7 +1,8 @@
+import useq
 from qtpy.QtWidgets import QApplication
 
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
-import useq
+
 app = QApplication([])
 
 wdg = MDASequenceWidget()
