@@ -6,6 +6,6 @@ app = QApplication([])
 
 wdg = MDASequenceWidget()
 wdg.show()
-wdg.channels.setChannelGroups({"Channel": ["DAPI", "FITC"]})
+wdg.channels.setChannelGroups({"Channel": ["DAPI", "FITC"], "Other": ["foo", "bar"]})
 wdg.valueChanged.connect(lambda: print(wdg.value()))
 app.exec()

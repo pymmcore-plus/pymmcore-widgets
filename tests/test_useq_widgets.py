@@ -194,3 +194,34 @@ def test_position_load_save(
     assert wdg.value() != MDA.stage_positions
     wdg.load()
     assert wdg.value() == MDA.stage_positions
+
+
+def test_channel_groups(qtbot: QtBot) -> None:
+    wdg = ChannelTable()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    GROUPS = {"Channel": ["DAPI", "FITC"], "Other": ["foo", "bar"]}
+    wdg.setChannelGroups(GROUPS)
+    assert wdg.channelGroups() == GROUPS
+    wdg.act_add_row.trigger()
+    with qtbot.waitSignal(wdg.valueChanged):
+        wdg.act_add_row.trigger()
+    val = wdg.value()
+    assert val[0].group == "Channel"
+    assert val[0].config == "DAPI"
+    assert val[1].config == "FITC"
+
+    wdg._group_combo.setCurrentText("Other")
+    val = wdg.value()
+    assert val[0].group == "Other"
+    assert val[0].config == "foo"
+
+    wdg.setChannelGroups(None)
+
+    val = wdg.value()
+    assert val[0].group == "Channel"
+    assert val[0].config == ""
+    assert val[1].config == ""
+    with qtbot.waitSignal(wdg.valueChanged):
+        wdg.act_add_row.trigger()
