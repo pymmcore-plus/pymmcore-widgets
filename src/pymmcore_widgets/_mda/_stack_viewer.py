@@ -7,9 +7,7 @@ import numpy as np
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore, QtGui, QtWidgets
 from qtpy.QtCore import Signal
-from useq import MDAEvent, MDASequence
 
-from pymmcore_widgets._mda._datastore import QLocalDataStore
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
 from pymmcore_widgets._mda._util._labeled_slider import LabeledVisibilitySlider
 
@@ -25,7 +23,10 @@ except ImportError as e:
     ) from e
 
 if TYPE_CHECKING:
+    from useq import MDAEvent, MDASequence
     from vispy.scene.events import SceneMouseEvent
+
+    from pymmcore_widgets._mda._datastore import QLocalDataStore
 
 
 class StackViewer(QtWidgets.QWidget):
@@ -171,10 +172,10 @@ class StackViewer(QtWidgets.QWidget):
         else:
             dims = DIMENSIONS
         dims.remove("c")
-        self.sliders = []
+        self.sliders: list[LabeledVisibilitySlider] = []
         for dim in dims:
             slider = LabeledVisibilitySlider(dim, orientation=QtCore.Qt.Horizontal)
-            slider.valueChanged[int, str].connect(self.on_display_timer)
+            slider.valueChanged.connect(self.on_display_timer)
             self._slider_settings.connect(slider._visibility)
             self.layout().addWidget(slider)
             slider.hide()
@@ -198,7 +199,7 @@ class StackViewer(QtWidgets.QWidget):
             info = f"[{p[0]}, {p[1]}]"
             self.info_bar.setText(info)
 
-    def on_display_timer(self, value: int, name: str) -> None:
+    def on_display_timer(self) -> None:
         """Update display, usually triggered by QTimer started by slider click."""
         old_index = self.display_index.copy()
         for slider in self.sliders:
@@ -266,29 +267,3 @@ class StackViewer(QtWidgets.QWidget):
             if i not in indices:
                 indices[i] = 0
         return indices
-
-
-if __name__ == "__main__":
-    size = 1028
-    import sys
-
-    mmcore = CMMCorePlus.instance()
-    mmcore.loadSystemConfiguration()
-
-    mmcore.setProperty("Camera", "OnCameraCCDXSize", size)
-    mmcore.setProperty("Camera", "OnCameraCCDYSize", size)
-    mmcore.setProperty("Camera", "StripeWidth", 0.7)
-    qapp = QtWidgets.QApplication(sys.argv)
-
-    sequence = MDASequence(
-        channels=({"config": "FITC", "exposure": 1}, {"config": "DAPI", "exposure": 1}),
-        time_plan={"interval": 0.5, "loops": 20},
-        axis_order="tpcz",
-    )
-
-    datastore = QLocalDataStore((40, 1, 2, size, size), mmcore=mmcore)
-    w = StackViewer(sequence=sequence, mmcore=mmcore, datastore=datastore)
-    w.show()
-
-    mmcore.run_mda(sequence)
-    qapp.exec_()
