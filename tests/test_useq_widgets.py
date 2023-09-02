@@ -11,10 +11,13 @@ from qtpy.QtCore import Qt, QTimer
 from pymmcore_widgets.useq_widgets import (
     ChannelTable,
     DataTableWidget,
+    GridPlanWidget,
     MDASequenceWidget,
     PositionTable,
     TimePlanWidget,
     ZPlanWidget,
+    _grid,
+    _z,
 )
 from pymmcore_widgets.useq_widgets._column_info import (
     FloatColumn,
@@ -22,9 +25,6 @@ from pymmcore_widgets.useq_widgets._column_info import (
     TextColumn,
 )
 from pymmcore_widgets.useq_widgets._positions import QFileDialog, _MDAPopup
-from pymmcore_widgets.useq_widgets._z import (
-    Mode,
-)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -158,6 +158,20 @@ def test_mda_wdg_load_save(
     # json just includes all fields
 
 
+def test_qquant_line_edit(qtbot: QtBot):
+    wdg = QQuantityLineEdit("1 s")
+    wdg.show()
+    qtbot.addWidget(wdg)
+    wdg.setUreg(pint.UnitRegistry())
+    wdg.setFocus()
+    with pytest.raises(ValueError):
+        wdg.setText("sadsfsd")
+    with qtbot.waitSignal(wdg.editingFinished):
+        qtbot.keyPress(wdg, Qt.Key.Key_Enter)
+    assert not wdg.hasFocus()
+    assert wdg.text() == "1.0 s"
+
+
 def test_position_table(qtbot: QtBot):
     wdg = PositionTable()
     qtbot.addWidget(wdg)
@@ -235,7 +249,7 @@ def test_channel_groups(qtbot: QtBot) -> None:
         wdg.act_add_row.trigger()
 
 
-def test_time_table(qtbot: QtBot):
+def test_time_table(qtbot: QtBot) -> None:
     wdg = TimePlanWidget()
     qtbot.addWidget(wdg)
     wdg.show()
@@ -266,14 +280,14 @@ def test_time_table(qtbot: QtBot):
     assert wdg.table().rowCount() == 0
 
 
-def test_z_plan_widget(qtbot: QtBot):
+def test_z_plan_widget(qtbot: QtBot) -> None:
     wdg = ZPlanWidget()
     qtbot.addWidget(wdg)
     wdg.show()
 
     wdg.setMode("top_bottom")
 
-    assert wdg.mode() == Mode.TOP_BOTTOM
+    assert wdg.mode() == _z.Mode.TOP_BOTTOM
     assert wdg.top.isVisible()
     assert not wdg.above.isVisible()
     wdg._mode_range.trigger()
@@ -322,15 +336,42 @@ def test_z_plan_widget(qtbot: QtBot):
         wdg.setValue(plan)
 
 
-def test_qquant_line_edit(qtbot: QtBot):
-    wdg = QQuantityLineEdit("1 s")
-    wdg.show()
+def test_grid_plan_widget(qtbot: QtBot) -> None:
+    wdg = GridPlanWidget()
     qtbot.addWidget(wdg)
-    wdg.setUreg(pint.UnitRegistry())
-    wdg.setFocus()
-    with pytest.raises(ValueError):
-        wdg.setText("sadsfsd")
-    with qtbot.waitSignal(wdg.editingFinished):
-        qtbot.keyPress(wdg, Qt.Key.Key_Enter)
-    assert not wdg.hasFocus()
-    assert wdg.text() == "1.0 s"
+    wdg.show()
+
+    wdg.setMode("bounds")
+    assert isinstance(wdg.value(), useq.GridFromEdges)
+    wdg.setMode("number")
+    assert isinstance(wdg.value(), useq.GridRowsColumns)
+    wdg.setMode("area")
+    assert isinstance(wdg.value(), useq.GridWidthHeight)
+
+    plan = useq.GridRowsColumns(rows=3, columns=3, mode="spiral")
+    with qtbot.waitSignal(wdg.valueChanged):
+        wdg.setValue(plan)
+    assert wdg.mode() == _grid.Mode.NUMBER
+    assert wdg.value() == plan
+    # not sure why this isn't triggering
+    wdg._grid_img.paintEvent(None)
+
+    plan = useq.GridFromEdges(left=1, right=2, top=3, bottom=4)
+    with qtbot.waitSignal(wdg.valueChanged):
+        wdg.setValue(plan)
+    assert wdg.mode() == _grid.Mode.BOUNDS
+    assert wdg.value() == plan
+
+    plan = useq.GridWidthHeight(width=1, height=2, fov_height=3, fov_width=4)
+    with qtbot.waitSignal(wdg.valueChanged):
+        wdg.setValue(plan)
+    assert wdg.mode() == _grid.Mode.AREA
+    assert wdg.value() == plan
+
+    assert wdg._fov_height == 3
+    wdg.setFovHeight(5)
+    assert wdg.fovHeight() == 5
+
+    assert wdg._fov_width == 4
+    wdg.setFovWidth(6)
+    assert wdg.fovWidth() == 6

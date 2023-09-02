@@ -10,6 +10,7 @@ from ._column_info import (
     TimeDeltaColumn,
 )
 from ._data_table import DataTable, DataTableWidget
+from ._grid import GridPlanWidget
 from ._mda_sequence import MDASequenceWidget
 from ._positions import PositionTable
 from ._time import TimePlanWidget
@@ -23,6 +24,7 @@ __all__ = [
     "DataTable",
     "MDASequenceWidget",
     "ChoiceColumn",
+    "GridPlanWidget",
     "TextColumn",
     "FloatColumn",
     "IntColumn",

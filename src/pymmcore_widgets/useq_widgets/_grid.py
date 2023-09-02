@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Sequence, cast
+from typing import Literal, Sequence, cast
 
 import useq
 from qtpy.QtCore import QPoint, QSize, Qt, Signal
@@ -47,10 +47,9 @@ class Mode(Enum):
 class GridPlanWidget(QWidget):
     valueChanged = Signal(object)
 
-    _mode: Mode
-
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
+        self._mode: Mode = Mode.AREA  # will change to NUMBER below in init
         self._fov_width: float | None = None
         self._fov_height: float | None = None
 
@@ -200,7 +199,9 @@ class GridPlanWidget(QWidget):
     def mode(self) -> Mode:
         return self._mode
 
-    def setMode(self, mode: Mode | str | None = None) -> None:
+    def setMode(
+        self, mode: Mode | Literal["number", "area", "bounds"] | None = None
+    ) -> None:
         btn = None
         btn_map: dict[QAbstractButton, Mode] = {
             self._mode_number_radio: Mode.NUMBER,
@@ -279,13 +280,22 @@ class GridPlanWidget(QWidget):
                 self.area_width.setValue(value.width)
                 self.area_height.setValue(value.height)
                 self.relative_to.setCurrentText(value.relative_to.value)
-            else:
+            else:  # pragma: no cover
                 raise TypeError(f"Expected useq grid plan, got {type(value)}")
 
             if value.fov_height:
                 self._fov_height = value.fov_height
             if value.fov_width:
                 self._fov_width = value.fov_width
+
+            self.order.setCurrentEnum(OrderMode(value.mode.value))
+
+            mode = {
+                useq.GridRowsColumns: Mode.NUMBER,
+                useq.GridFromEdges: Mode.BOUNDS,
+                useq.GridWidthHeight: Mode.AREA,
+            }[type(value)]
+            self.setMode(mode)
 
         self._on_change()
 
@@ -323,7 +333,7 @@ class _GridRendering(QWidget):
 
     def paintEvent(self, e: QPaintEvent | None) -> None:
         if not self.grid:
-            return
+            return  # pragma: no cover
 
         # Calculate the actual positions from normalized indices
         fraction = 0.8  # fraction of the widget to use
@@ -336,7 +346,7 @@ class _GridRendering(QWidget):
         ]
 
         if len(points) < 2:
-            return
+            return  # pragma: no cover
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
@@ -353,7 +363,7 @@ class _GridRendering(QWidget):
 
     def resizeEvent(self, event: QResizeEvent | None) -> None:
         if not event:
-            return
+            return  # pragma: no cover
         size = event.size()
         new_width = size.width()
         new_height = size.height()
