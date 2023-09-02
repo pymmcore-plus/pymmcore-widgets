@@ -146,7 +146,7 @@ class QColorComboBox(QtWidgets.QComboBox):
         if enableUserDefColors:
             self.addItem(self._userDefEntryText)
 
-        self._currentColor = None
+        self._currentColor: QtGui.QColor = QtGui.QColor()
 
         self.activated.connect(self._color_selected)
         # self.setStyleSheet("QComboBox:drop-down {
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     ]
 
     app = QtWidgets.QApplication(sys.argv)
-    w = ChannelBox(Channel(config="empty"), CMAPS=CMAPS)
+    w = ChannelBox(Channel(config="empty"), cmaps=CMAPS)
     w.show()
 
     sys.exit(app.exec_())
