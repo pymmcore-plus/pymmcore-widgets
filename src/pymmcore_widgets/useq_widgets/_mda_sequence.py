@@ -38,8 +38,23 @@ except ImportError:  # pragma: no cover
         return f"{duration:.3f} s" if duration else ""
 
 
-# these are the only axis orders we currently support
-AXIS_ORDERS = ("tpgcz", "tpgzc", "tpcgz", "tpzgc", "pgtzc", "ptzgc", "ptcgz", "pgtcz")
+def _check_order(x: str, first: str, second: str) -> bool:
+    return first in x and second in x and x.index(first) > x.index(second)
+
+
+AXES = "tpgcz"
+ALLOWED_ORDERS = {"".join(p) for x in range(1, 6) for p in permutations(AXES, x)}
+for x in list(ALLOWED_ORDERS):
+    for first, second in (
+        ("t", "c"),  # t cannot come after c
+        ("t", "z"),  # t cannot come after z
+        ("p", "g"),  # p cannot come after g
+        ("p", "c"),  # p cannot come after c
+        ("p", "z"),  # p cannot come after z
+        ("g", "z"),  # g cannot come after z
+    ):
+        if _check_order(x, first, second):
+            ALLOWED_ORDERS.discard(x)
 
 
 class MDATabs(CheckableTabWidget):
@@ -92,7 +107,7 @@ class MDATabs(CheckableTabWidget):
         """Return a tuple of the axes currently used in the sequence."""
         return tuple(k for k in ("tpgzc") if self.isAxisUsed(k))
 
-    def value(self) -> useq.MDASequence:
+    def value(self, *, axis_order: str | None = None) -> useq.MDASequence:
         """Return the current sequence as a `useq-schema` MDASequence."""
         return useq.MDASequence(
             z_plan=self.z_plan.value() if self.isAxisUsed("z") else None,
@@ -102,6 +117,7 @@ class MDATabs(CheckableTabWidget):
             else (),
             channels=self.channels.value() if self.isAxisUsed("c") else (),
             grid_plan=self.grid_plan.value() if self.isAxisUsed("g") else None,
+            **({"axis_order": axis_order.lower()} if axis_order else {}),
         )
 
     def setValue(self, value: useq.MDASequence) -> None:
@@ -208,7 +224,7 @@ class MDASequenceWidget(QWidget):
 
     def value(self) -> useq.MDASequence:
         """Return the current sequence as a `useq-schema` MDASequence."""
-        return self.tab_wdg.value()
+        return self.tab_wdg.value(axis_order=self.axis_order.currentText())
 
     def setValue(self, value: useq.MDASequence) -> None:
         """Set widget value from a `useq-schema` MDASequence."""
@@ -266,9 +282,8 @@ class MDASequenceWidget(QWidget):
 
             # show allowed permutations of selected axes
             for p in permutations(self.tab_wdg.usedAxes()):
-                strp = "".join(p)
-                if any(strp in x for x in AXIS_ORDERS):
-                    self.axis_order.addItem(strp)
+                if (strp := "".join(p)) in ALLOWED_ORDERS:
+                    self.axis_order.addItem(strp.upper())
 
             self.axis_order.setEnabled(self.axis_order.count() > 1)
 
