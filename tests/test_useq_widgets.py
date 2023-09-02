@@ -13,7 +13,7 @@ from pymmcore_widgets.useq_widgets import (
     DataTableWidget,
     MDASequenceWidget,
     PositionTable,
-    TimeTable,
+    TimePlanWidget,
     ZPlanWidget,
 )
 from pymmcore_widgets.useq_widgets._column_info import (
@@ -22,6 +22,9 @@ from pymmcore_widgets.useq_widgets._column_info import (
     TextColumn,
 )
 from pymmcore_widgets.useq_widgets._positions import QFileDialog, _MDAPopup
+from pymmcore_widgets.useq_widgets._z import (
+    Mode,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -34,7 +37,7 @@ class MyEnum(enum.Enum):
     baz = "qux"
 
 
-@pytest.mark.parametrize("Wdg", [PositionTable, ChannelTable, TimeTable])
+@pytest.mark.parametrize("Wdg", [PositionTable, ChannelTable, TimePlanWidget])
 def test_useq_table(qtbot: QtBot, Wdg: type[DataTableWidget]) -> None:
     wdg = Wdg()
     qtbot.addWidget(wdg)
@@ -233,7 +236,7 @@ def test_channel_groups(qtbot: QtBot) -> None:
 
 
 def test_time_table(qtbot: QtBot):
-    wdg = TimeTable()
+    wdg = TimePlanWidget()
     qtbot.addWidget(wdg)
     wdg.show()
 
@@ -261,6 +264,62 @@ def test_time_table(qtbot: QtBot):
 
     wdg.setValue(None)
     assert wdg.table().rowCount() == 0
+
+
+def test_z_plan_widget(qtbot: QtBot):
+    wdg = ZPlanWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    wdg.setMode("top_bottom")
+
+    assert wdg.mode() == Mode.TOP_BOTTOM
+    assert wdg.top.isVisible()
+    assert not wdg.above.isVisible()
+    wdg._mode_range.trigger()
+    assert wdg.range.isVisible()
+    assert not wdg.top.isVisible()
+    wdg._mode_above_below.trigger()
+    assert wdg.above.isVisible()
+    assert not wdg.range.isVisible()
+
+    assert wdg.step.value() == 1
+    wdg.setSuggestedStep(0.5)
+    assert wdg.suggestedStep() == 0.5
+    wdg.useSuggestedStep()
+    assert wdg.step.value() == 0.5
+
+    assert wdg.isGoUp()
+    wdg.setGoUp(False)
+    assert wdg._top_to_bottom.isChecked()
+    assert not wdg.isGoUp()
+
+    plan = useq.ZTopBottom(top=1, bottom=2, step=0.2)
+    wdg.setValue(plan)
+    assert wdg.value() == plan
+    assert wdg.top.isVisible()
+
+    plan = useq.ZRangeAround(range=4, step=0.2)
+    wdg.setValue(plan)
+    assert wdg.value() == plan
+    assert not wdg.above.isVisible()
+
+    plan = useq.ZAboveBelow(above=1, below=2, step=0.2)
+    wdg.setValue(plan)
+    assert wdg.value() == plan
+    assert wdg.above.isVisible()
+
+    assert wdg.currentZRange() == plan.above + plan.below
+
+    assert wdg.steps.value() == 16
+    with qtbot.waitSignal(wdg.valueChanged):
+        wdg.steps.setValue(6)
+    assert wdg.steps.value() == 6
+    assert wdg.value().step == 0.5
+
+    with pytest.raises(TypeError):
+        plan = useq.ZAbsolutePositions(absolute=[1, 2, 3])
+        wdg.setValue(plan)
 
 
 def test_qquant_line_edit(qtbot: QtBot):

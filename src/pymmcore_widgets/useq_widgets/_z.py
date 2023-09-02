@@ -260,6 +260,8 @@ class ZPlanWidget(QWidget):
         self.setMode(Mode.ABOVE_BELOW)
         # self.setSuggestedStep(1)
 
+    # ------------------------- Public API -------------------------
+
     def setMode(
         self,
         mode: Mode | Literal["top_bottom", "range_around", "above_below", None] = None,
@@ -309,6 +311,10 @@ class ZPlanWidget(QWidget):
         else:
             self._use_suggested_btn.setText("")
             self._use_suggested_btn.hide()
+
+    def suggestedStep(self) -> float | None:
+        """Return suggested step size."""
+        return float(self._suggested) if self._suggested else None
 
     def useSuggestedStep(self) -> None:
         """Apply the suggested step size to the step field."""
@@ -373,7 +379,7 @@ class ZPlanWidget(QWidget):
 
     Mode: Final[type[Mode]] = Mode
 
-    # #################### Private ####################
+    # ------------------------- Private API -------------------------
 
     def _on_change(self, update_steps: bool = True) -> None:
         """Called when any of the widgets change."""
