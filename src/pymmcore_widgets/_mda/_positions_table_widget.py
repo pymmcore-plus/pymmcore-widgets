@@ -32,7 +32,7 @@ from qtpy.QtWidgets import (
 from superqt import fonticon
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
-from useq import AxesBasedAF, GridFromEdges, GridRelative, MDASequence, Position
+from useq import AxesBasedAF, GridFromEdges, GridRowsColumns, MDASequence, Position
 
 from pymmcore_widgets._util import cast_grid_plan, fov_kwargs
 
@@ -491,7 +491,7 @@ class PositionTable(QWidget):
             return ""
 
         tooltip: dict[str, Any] = {}
-        if isinstance(grid_type, GridRelative):
+        if isinstance(grid_type, GridRowsColumns):
             tooltip["rows"] = grid["rows"]
             tooltip["columns"] = grid["columns"]
             tooltip["relative_to"] = grid["relative_to"]

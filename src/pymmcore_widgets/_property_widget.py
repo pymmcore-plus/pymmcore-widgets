@@ -224,29 +224,32 @@ class ReadOnlyWidget(QLabel):
 
 def _creat_prop_widget(mmcore: CMMCorePlus, dev: str, prop: str) -> PPropValueWidget:
     """The type -> widget selection part used in the above function."""
-    if mmcore.isPropertyReadOnly(dev, prop):
-        return ReadOnlyWidget()
-
     ptype = mmcore.getPropertyType(dev, prop)
-    if allowed := mmcore.getAllowedPropertyValues(dev, prop):
+    wdg: Any
+    if mmcore.isPropertyReadOnly(dev, prop):
+        wdg = ReadOnlyWidget()
+
+    elif allowed := mmcore.getAllowedPropertyValues(dev, prop):
         if ptype is PropertyType.Integer and set(allowed) == {"0", "1"}:
             return IntBoolWidget()
-        return ChoiceWidget(mmcore, dev, prop)
-    if prop in {STATE, LABEL} and mmcore.getDeviceType(dev) == DeviceType.StateDevice:
+        wdg = ChoiceWidget(mmcore, dev, prop)
+    elif prop in {STATE, LABEL} and mmcore.getDeviceType(dev) == DeviceType.StateDevice:
         # TODO: This logic is very similar to StateDeviceWidget. use this in the future?
-        return ChoiceWidget(mmcore, dev, prop)
-    if ptype in (PropertyType.Integer, PropertyType.Float):
+        wdg = ChoiceWidget(mmcore, dev, prop)
+    elif ptype in (PropertyType.Integer, PropertyType.Float):
         if not mmcore.hasPropertyLimits(dev, prop):
-            return IntegerWidget() if ptype is PropertyType.Integer else FloatWidget()
-        wdg = (
-            RangedIntegerWidget()
-            if ptype is PropertyType.Integer
-            else RangedFloatWidget()
-        )
-        wdg.setMinimum(wdg.type_cast(mmcore.getPropertyLowerLimit(dev, prop)))
-        wdg.setMaximum(wdg.type_cast(mmcore.getPropertyUpperLimit(dev, prop)))
-        return wdg
-    return cast(PPropValueWidget, StringWidget())
+            wdg = IntegerWidget() if ptype is PropertyType.Integer else FloatWidget()
+        else:
+            wdg = (
+                RangedIntegerWidget()
+                if ptype is PropertyType.Integer
+                else RangedFloatWidget()
+            )
+            wdg.setMinimum(wdg.type_cast(mmcore.getPropertyLowerLimit(dev, prop)))
+            wdg.setMaximum(wdg.type_cast(mmcore.getPropertyUpperLimit(dev, prop)))
+    else:
+        wdg = StringWidget()
+    return cast(PPropValueWidget, wdg)
 
 
 # -----------------------------------------------------------------------
