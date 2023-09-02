@@ -3,7 +3,15 @@ from typing import Optional
 from qtpy import QtCore, QtGui, QtWidgets
 from superqt import QRangeSlider
 from useq import Channel
-from vispy import color
+
+try:
+    from vispy import color
+except ImportError as e:
+    raise ImportError(
+        "vispy is required for Channel_row. "
+        "Please run `pip install pymmcore-widgets[image]`"
+    ) from e
+
 
 CMAPS = [
     color.Colormap([[0, 0, 0], [1, 1, 0]]),
@@ -28,10 +36,8 @@ class ChannelRow(QtWidgets.QWidget):
         self,
         num_channels: int = 5,
         cmaps: list[color.Colormap] = CMAPS,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
+    ) -> None:
+        super().__init__()
         self.cmaps = cmaps
 
         self.setLayout(QtWidgets.QHBoxLayout())
@@ -39,7 +45,7 @@ class ChannelRow(QtWidgets.QWidget):
         self.boxes = []
         # TODO: Ideally we would know beforehand how many of these we need.
         for i in range(num_channels):
-            channel_box = ChannelBox(Channel(config="empty"), CMAPS=self.cmaps)
+            channel_box = ChannelBox(Channel(config="empty"), cmaps=self.cmaps)
             channel_box.show_channel.stateChanged.connect(
                 lambda state, i=i: self.visible.emit(state, i)
             )
@@ -60,7 +66,7 @@ class ChannelRow(QtWidgets.QWidget):
             self.boxes.append(channel_box)
             self.layout().addWidget(channel_box)
 
-    def box_visibility(self, i: int, name: Optional[str] = None):
+    def box_visibility(self, i: int, name: Optional[str] = None) -> None:
         self.boxes[i].visible = True
         self.boxes[i].show()
         self.boxes[i].autoscale_chbx.setChecked(True)
@@ -68,7 +74,7 @@ class ChannelRow(QtWidgets.QWidget):
         self.boxes[i].channel = name
         self.boxes[i].mousePressEvent(None)
 
-    def _handle_channel_choice(self, channel: str):
+    def _handle_channel_choice(self, channel: str) -> None:
         for idx, channel_box in enumerate(self.boxes):
             if channel_box.channel != channel:
                 channel_box.setStyleSheet("ChannelBox{border: 1px solid}")
@@ -81,8 +87,12 @@ class ChannelBox(QtWidgets.QFrame):
 
     clicked = QtCore.Signal(str)
 
-    def __init__(self, channel: Channel, CMAPS: Optional[list] = None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        channel: Channel,
+        cmaps: Optional[list] = None,
+    ) -> None:
+        super().__init__()
         self.channel = channel.config
         self.setLayout(QtWidgets.QGridLayout())
         self.show_channel = QtWidgets.QCheckBox(channel.config)
@@ -91,7 +101,9 @@ class ChannelBox(QtWidgets.QFrame):
         self.layout().addWidget(self.show_channel, 0, 0)
         self.color_choice = QColorComboBox()
 
-        for cmap in CMAPS:
+        if cmaps is None:
+            cmaps = CMAPS
+        for cmap in cmaps:
             self.color_choice.addColors([list(cmap.colors[-1].RGB[0])])
 
         # self.color_choice.setStyle(QtWidgets.QStyleFactory.create('fusion'))
@@ -103,7 +115,7 @@ class ChannelBox(QtWidgets.QFrame):
         self.layout().addWidget(self.slider, 1, 0, 1, 3)
         self.setStyleSheet("ChannelBox{border: 1px solid}")
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event: QtGui.QMouseEvent | None) -> None:
         self.setStyleSheet("ChannelBox{border: 3px solid}")
         self.clicked.emit(self.channel)
 
@@ -116,8 +128,9 @@ class QColorComboBox(QtWidgets.QComboBox):
     # signal emitted if a color has been selected
     selectedColor = QtCore.Signal(QtGui.QColor)
 
-    def __init__(self, parent=None, enableUserDefColors=False):
-        """If the user shall not be able to define colors on its own, then set enableUserDefColors=False."""
+    def __init__(
+        self, parent: QtWidgets.QWidget | None = None, enableUserDefColors: bool = False
+    ) -> None:
         # init QComboBox
         super().__init__(parent)
 
@@ -126,7 +139,8 @@ class QColorComboBox(QtWidgets.QComboBox):
         # read only so that there is no blinking cursor or sth editable
         self.lineEdit().setReadOnly(True)
         # self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        # text that shall be displayed for the option to pop up the QColorDialog for user defined colors
+        # text that shall be displayed for the option
+        # to pop up the QColorDialog for user defined colors
         self._userDefEntryText = "New"
         # add the option for user defined colors
         if enableUserDefColors:
@@ -135,9 +149,12 @@ class QColorComboBox(QtWidgets.QComboBox):
         self._currentColor = None
 
         self.activated.connect(self._color_selected)
-        # self.setStyleSheet("QComboBox:drop-down {image: none; background: red; border: 1px grey;}")
+        # self.setStyleSheet("QComboBox:drop-down {
+        # image: none; background: red; border: 1px grey;}")
 
-    def addColors(self, colors):
+    def addColors(
+        self, colors: list[list[QtGui.QColor]] | list[list[int]] | list[list[float]]
+    ) -> None:
         """Adds colors to the QComboBox."""
         for a_color in colors:
             # if input is not a QColor, try to make it one
@@ -157,11 +174,11 @@ class QColorComboBox(QtWidgets.QComboBox):
                     self.count() - 1, QtGui.QColor(a_color), QtCore.Qt.BackgroundRole
                 )
 
-    def addColor(self, color):
+    def addColor(self, color: QtGui.QColor) -> None:
         """Adds the color to the QComboBox."""
         self.addColors([color])
 
-    def setColor(self, color):
+    def setColor(self, color: QtGui.QColor) -> None:
         """Adds the color to the QComboBox and selects it."""
         if isinstance(color, int):
             self.setCurrentIndex(color)
@@ -172,13 +189,11 @@ class QColorComboBox(QtWidgets.QComboBox):
         else:
             self._color_selected(self.findData(color), False)
 
-    def getCurrentColor(self):
-        """Returns the currently selected QColor
-        Returns None if non has been selected yet.
-        """
+    def getCurrentColor(self) -> QtGui.QColor | None:
+        """Returns the currently selected QColor or None if not yet selected."""
         return self._currentColor
 
-    def _color_selected(self, index, emitSignal=True):
+    def _color_selected(self, index: int, emitSignal: bool = True) -> None:
         """Processes the selection of the QComboBox."""
         # if a color is selected, emit the selectedColor signal
         if self.itemText(index) == "":
