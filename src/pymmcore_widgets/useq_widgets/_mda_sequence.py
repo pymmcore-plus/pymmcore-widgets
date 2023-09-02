@@ -229,6 +229,7 @@ class MDASequenceWidget(QWidget):
     def setValue(self, value: useq.MDASequence) -> None:
         """Set widget value from a `useq-schema` MDASequence."""
         self.tab_wdg.setValue(value)
+        self.axis_order.setCurrentText(value.axis_order.upper())
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current sequence to a file."""

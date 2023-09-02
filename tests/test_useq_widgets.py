@@ -101,6 +101,7 @@ SUB_SEQ = useq.MDASequence(
     z_plan=useq.ZRangeAround(range=4, step=0.2),
     grid_plan=useq.GridRowsColumns(rows=14, columns=3),
     channels=[{"config": "FITC", "exposure": 32}],
+    axis_order="gtcz",
 )
 
 MDA = useq.MDASequence(
@@ -109,6 +110,7 @@ MDA = useq.MDASequence(
     channels=[{"config": "DAPI", "exposure": 42}],
     z_plan=useq.ZRangeAround(range=10, step=0.3),
     grid_plan=useq.GridRowsColumns(rows=10, columns=3),
+    axis_order="tpgzc",
 )
 
 
