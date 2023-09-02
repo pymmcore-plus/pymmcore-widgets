@@ -22,7 +22,7 @@ from pymmcore_widgets._mda._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
 from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
 from pymmcore_widgets.useq_widgets._positions import PositionTable
-from pymmcore_widgets.useq_widgets._time import TimeTable
+from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 from pymmcore_widgets.useq_widgets._z import ZPlanWidget
 
 try:
@@ -48,7 +48,7 @@ class MDATabs(CheckableTabWidget):
         # self.setMovable(True)
         self.tabChecked.connect(self._on_tab_checked)
 
-        self.time_plan = TimeTable(1)
+        self.time_plan = TimePlanWidget(1)
         self.stage_positions = PositionTable(1)
         self.grid_plan = GridPlanWidget()
         self.z_plan = ZPlanWidget()
@@ -109,7 +109,7 @@ class MDATabs(CheckableTabWidget):
         if not isinstance(value, useq.MDASequence):  # pragma: no cover
             raise TypeError(f"Expected useq.MDASequence, got {type(value)}")
 
-        widget: ChannelTable | TimeTable | ZPlanWidget | PositionTable | GridPlanWidget
+        widget: ChannelTable | TimePlanWidget | ZPlanWidget | PositionTable | GridPlanWidget  # noqa
         for f in ("channels", "time_plan", "z_plan", "stage_positions", "grid_plan"):
             widget = getattr(self, f)
             if field_val := getattr(value, f):

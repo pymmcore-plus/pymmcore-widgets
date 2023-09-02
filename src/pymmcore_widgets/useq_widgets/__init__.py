@@ -12,14 +12,14 @@ from ._column_info import (
 from ._data_table import DataTable, DataTableWidget
 from ._mda_sequence import MDASequenceWidget
 from ._positions import PositionTable
-from ._time import TimeTable
+from ._time import TimePlanWidget
 from ._z import ZPlanWidget
 
 __all__ = [
     "PositionTable",
     "ChannelTable",
     "DataTableWidget",
-    "TimeTable",
+    "TimePlanWidget",
     "DataTable",
     "MDASequenceWidget",
     "ChoiceColumn",

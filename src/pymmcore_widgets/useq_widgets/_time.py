@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from qtpy.QtWidgets import QWidget
 
 
-class TimeTable(DataTableWidget):
+class TimePlanWidget(DataTableWidget):
     """Table for editing a `useq-schema` time plan."""
 
     PHASE = TextColumn(key="phase", default=None, is_row_selector=True)
