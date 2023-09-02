@@ -182,13 +182,13 @@ class PositionTable(DataTableWidget):
                 self, "Save MDASequence and filename.", "", "json(*.json)"
             )
             if not file:
-                return
+                return  # pragma: no cover
 
         dest = Path(file)
         if not dest.suffix:
             dest = dest.with_suffix(".json")
 
-        if dest.suffix != ".json":
+        if dest.suffix != ".json":  # pragma: no cover
             raise ValueError(f"Invalid file extension: {dest.suffix!r}, expected .json")
 
         # doing it this way because model_json_dump knows how to serialize everything.
@@ -202,16 +202,16 @@ class PositionTable(DataTableWidget):
                 self, "Select an MDAsequence file.", "", "json(*.json)"
             )
             if not file:
-                return
+                return  # pragma: no cover
 
         src = Path(file)
-        if not src.is_file():
+        if not src.is_file():  # pragma: no cover
             raise FileNotFoundError(f"File not found: {src}")
 
         try:
             data = json.loads(src.read_text())
             self.setValue([useq.Position(**d) for d in data])
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             raise ValueError(f"Failed to load MDASequence file: {src}") from e
 
     # def _custom(self) -> None:
