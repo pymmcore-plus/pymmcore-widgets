@@ -157,12 +157,10 @@ def test_mda_wdg_load_save(
 
     wdg.save()
     if ext == "json":
-        assert (
-            dest.read_text()
-            == MDA.replace(
-                metadata={"pymmcore_widgets": {"version": pymmcore_widgets.__version__}}
-            ).model_dump_json()
+        mda_no_meta = MDA.replace(
+            metadata={"pymmcore_widgets": {"version": pymmcore_widgets.__version__}}
         )
+        assert dest.read_text() == mda_no_meta.model_dump_json(exclude_defaults=True)
     # the yaml dump is correct, but varies from our input because of pydantic set/unset
     # json just includes all fields
 
