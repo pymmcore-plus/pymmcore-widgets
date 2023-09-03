@@ -253,16 +253,22 @@ class MDASequenceWidget(QWidget):
         """Save the current sequence to a file."""
         if not isinstance(file, (str, Path)):
             file, _ = QFileDialog.getSaveFileName(
-                self, "Save MDASequence and filename.", "", "json(*.json), yaml(*.yaml)"
+                self,
+                "Save MDASequence and filename.",
+                "",
+                "All (*.yaml *yml *json);;YAML (*.yaml *.yml);;JSON (*.json)",
             )
             if not file:  # pragma: no cover
                 return
 
         dest = Path(file)
+        if not dest.suffix:
+            dest = dest.with_suffix(".yaml")
         if dest.suffix in {".yaml", ".yml"}:
-            data = cast("str", self.value().yaml())
+            yaml = self.value().yaml(exclude_unset=True, exclude_defaults=True)
+            data = cast("str", yaml)
         elif dest.suffix == ".json":
-            data = self.value().json()
+            data = self.value().json(exclude_unset=True, exclude_defaults=True)
         else:  # pragma: no cover
             raise ValueError(f"Invalid file extension: {dest.suffix!r}")
 
@@ -273,7 +279,10 @@ class MDASequenceWidget(QWidget):
         """Load sequence from a file."""
         if not isinstance(file, (str, Path)):
             file, _ = QFileDialog.getOpenFileName(
-                self, "Select an MDAsequence file.", "", "json(*.json), yaml(*.yaml)"
+                self,
+                "Select an MDAsequence file.",
+                "",
+                "All (*.yaml *yml *json);;YAML (*.yaml *.yml);;JSON (*.json)",
             )
             if not file:  # pragma: no cover
                 return
