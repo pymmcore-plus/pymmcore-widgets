@@ -59,7 +59,7 @@ class ZPlanWidget(QWidget):
     range: QDoubleSpinBox
     above: QDoubleSpinBox
     below: QDoubleSpinBox
-    close_shutter: QCheckBox
+    leave_shutter_open: QCheckBox
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -163,8 +163,8 @@ class ZPlanWidget(QWidget):
         self._direction_group.addButton(self._top_to_bottom)
         self._bottom_to_top.setChecked(True)
 
-        self.close_shutter = QCheckBox("Close shutter during move")
-        self.close_shutter.setChecked(True)
+        self.leave_shutter_open = QCheckBox("Leave shutter open across Z positions")
+        self.leave_shutter_open.setChecked(False)
 
         # #################### Other Widgets ####################
 
@@ -184,7 +184,7 @@ class ZPlanWidget(QWidget):
         self.above.valueChanged.connect(self._on_change)
         self.below.valueChanged.connect(self._on_change)
         self._direction_group.buttonToggled.connect(self._on_change)
-        self.close_shutter.toggled.connect(self._on_change)
+        self.leave_shutter_open.toggled.connect(self._on_change)
 
         self.range.valueChanged.connect(self._on_range_changed)
         self.steps.valueChanged.connect(self._on_steps_changed)
@@ -237,7 +237,7 @@ class ZPlanWidget(QWidget):
 
         left_half = QVBoxLayout()
         left_half.addWidget(self._range_readout)
-        left_half.addWidget(self.close_shutter)
+        left_half.addWidget(self.leave_shutter_open)
 
         right_half = QVBoxLayout()
         right_half.addWidget(self._bottom_to_top)

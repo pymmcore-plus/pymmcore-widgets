@@ -8,6 +8,7 @@ import pytest
 import useq
 from qtpy.QtCore import Qt, QTimer
 
+import pymmcore_widgets
 from pymmcore_widgets.useq_widgets import (
     ChannelTable,
     DataTableWidget,
@@ -111,6 +112,7 @@ MDA = useq.MDASequence(
     z_plan=useq.ZRangeAround(range=10, step=0.3),
     grid_plan=useq.GridRowsColumns(rows=10, columns=3),
     axis_order="tpgzc",
+    keep_shutter_open_across=("z",),
 )
 
 
@@ -120,10 +122,10 @@ def test_mda_wdg(qtbot: QtBot):
     wdg.show()
 
     wdg.setValue(MDA)
-    assert wdg.value() == MDA
+    assert wdg.value().replace(metadata={}) == MDA
 
     wdg.setValue(SUB_SEQ)
-    assert wdg.value() == SUB_SEQ
+    assert wdg.value().replace(metadata={}) == SUB_SEQ
 
 
 @pytest.mark.parametrize("ext", ["json", "yaml", "foo"])
@@ -151,11 +153,16 @@ def test_mda_wdg_load_save(
     dest.write_text(MDA.yaml() if ext == "yaml" else MDA.model_dump_json())
 
     wdg.load()
-    assert wdg.value() == MDA
+    assert wdg.value().replace(metadata={}) == MDA
 
     wdg.save()
     if ext == "json":
-        assert dest.read_text() == MDA.model_dump_json()
+        assert (
+            dest.read_text()
+            == MDA.replace(
+                metadata={"pymmcore_widgets": {"version": pymmcore_widgets.__version__}}
+            ).model_dump_json()
+        )
     # the yaml dump is correct, but varies from our input because of pydantic set/unset
     # json just includes all fields
 

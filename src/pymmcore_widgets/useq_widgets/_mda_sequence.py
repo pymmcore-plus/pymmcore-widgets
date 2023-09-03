@@ -18,6 +18,7 @@ from qtpy.QtWidgets import (
 )
 from superqt.utils import signals_blocked
 
+import pymmcore_widgets
 from pymmcore_widgets._mda._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
 from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
@@ -107,17 +108,17 @@ class MDATabs(CheckableTabWidget):
         """Return a tuple of the axes currently used in the sequence."""
         return tuple(k for k in ("tpgzc") if self.isAxisUsed(k))
 
-    def value(self, *, axis_order: str | None = None) -> useq.MDASequence:
+    def value(self) -> useq.MDASequence:
         """Return the current sequence as a `useq-schema` MDASequence."""
         return useq.MDASequence(
             z_plan=self.z_plan.value() if self.isAxisUsed("z") else None,
             time_plan=self.time_plan.value() if self.isAxisUsed("t") else None,
-            stage_positions=self.stage_positions.value()
-            if self.isAxisUsed("p")
-            else (),
+            stage_positions=(
+                self.stage_positions.value() if self.isAxisUsed("p") else ()
+            ),
             channels=self.channels.value() if self.isAxisUsed("c") else (),
             grid_plan=self.grid_plan.value() if self.isAxisUsed("g") else None,
-            **({"axis_order": axis_order.lower()} if axis_order else {}),
+            metadata={"pymmcore_widgets": {"version": pymmcore_widgets.__version__}},
         )
 
     def setValue(self, value: useq.MDASequence) -> None:
@@ -160,11 +161,16 @@ class MDASequenceWidget(QWidget):
         # -------------- Main MDA Axis Widgets --------------
 
         self.tab_wdg = MDATabs()
+        # aliases
         self.channels = self.tab_wdg.channels
         self.time_plan = self.tab_wdg.time_plan
         self.z_plan = self.tab_wdg.z_plan
         self.stage_positions = self.tab_wdg.stage_positions
         self.grid_plan = self.tab_wdg.grid_plan
+
+        self.axis_order = QComboBox()
+        self.axis_order.setToolTip("Slowest to fastest axis order.")
+        self.axis_order.setMinimumWidth(80)
 
         # -------------- Other Widgets --------------
 
@@ -179,10 +185,6 @@ class MDASequenceWidget(QWidget):
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         self._duration_label.setWordWrap(True)
-
-        self.axis_order = QComboBox()
-        self.axis_order.setToolTip("Slowest to fastest axis order.")
-        self.axis_order.setMinimumWidth(80)
 
         self._save_button = QPushButton("Save")
         self._save_button.clicked.connect(self.save)
@@ -224,12 +226,24 @@ class MDASequenceWidget(QWidget):
 
     def value(self) -> useq.MDASequence:
         """Return the current sequence as a `useq-schema` MDASequence."""
-        return self.tab_wdg.value(axis_order=self.axis_order.currentText())
+        val = self.tab_wdg.value()
+        shutters: tuple[str, ...] = ()
+        if self.z_plan.leave_shutter_open.isChecked():
+            shutters += ("z",)
+        if self.time_plan.leave_shutter_open.isChecked():
+            shutters += ("t",)
+        return val.replace(
+            axis_order=self.axis_order.currentText(), keep_shutter_open_across=shutters
+        )
 
     def setValue(self, value: useq.MDASequence) -> None:
         """Set widget value from a `useq-schema` MDASequence."""
         self.tab_wdg.setValue(value)
-        self.axis_order.setCurrentText(value.axis_order.upper())
+        self.axis_order.setCurrentText(value.axis_order)
+
+        keep_shutter_open = value.keep_shutter_open_across
+        self.z_plan.leave_shutter_open.setChecked("z" in keep_shutter_open)
+        self.time_plan.leave_shutter_open.setChecked("t" in keep_shutter_open)
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current sequence to a file."""
@@ -284,7 +298,7 @@ class MDASequenceWidget(QWidget):
             # show allowed permutations of selected axes
             for p in permutations(self.tab_wdg.usedAxes()):
                 if (strp := "".join(p)) in ALLOWED_ORDERS:
-                    self.axis_order.addItem(strp.upper())
+                    self.axis_order.addItem(strp)
 
             self.axis_order.setEnabled(self.axis_order.count() > 1)
 
