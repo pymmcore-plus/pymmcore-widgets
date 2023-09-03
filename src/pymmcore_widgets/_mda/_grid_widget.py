@@ -272,7 +272,7 @@ class _FromCornersWdg(QWidget):
         )
 
     def setValue(self, grid: dict | useq.GridFromEdges) -> None:
-        """Set value from object that can be cast to GridRelative."""
+        """Set value from object that can be cast to GridFromEdges."""
         try:
             _grid = useq.GridFromEdges.validate(grid)
         except ValueError as e:  # pragma: no cover
