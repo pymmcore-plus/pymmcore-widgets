@@ -178,6 +178,10 @@ class MDASequenceWidget(QWidget):
         style = self.style()
         warning_icon = style.standardIcon(style.StandardPixmap.SP_MessageBoxWarning)
         self._time_warning = QLabel()
+        self._time_warning.setToolTip(
+            "The current settings will be unable to satisfy<br>"
+            "the time interval requested in the time tab."
+        )
         self._time_warning.setPixmap(warning_icon.pixmap(24, 24))
         self._time_warning.hide()
         self._duration_label = QLabel()

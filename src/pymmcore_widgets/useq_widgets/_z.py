@@ -24,9 +24,9 @@ from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
 if TYPE_CHECKING:
-    from PyQt6.QtGui import QAction
+    from PyQt6.QtGui import QAction, QActionGroup
 else:
-    from qtpy.QtGui import QAction
+    from qtpy.QtGui import QAction, QActionGroup
 
 
 class Mode(enum.Enum):
@@ -70,23 +70,37 @@ class ZPlanWidget(QWidget):
         # #################### Mode Buttons ####################
         color = "#555"
 
+        # ------------------- actions ----------
+
         self._mode_top_bot = QAction(
-            icon(MDI6.arrow_expand_vertical, color=color), "Top/Bottom"
+            icon(MDI6.arrow_expand_vertical, color=color), "Mark top and bottom."
         )
+        self._mode_top_bot.setCheckable(True)
         self._mode_top_bot.setData(Mode.TOP_BOTTOM)
         self._mode_top_bot.triggered.connect(self.setMode)
 
         self._mode_range = QAction(
-            icon(MDI6.arrow_split_horizontal, color=color), "Range Around"
+            icon(MDI6.arrow_split_horizontal, color=color),
+            "Range symmetric around reference.",
         )
+        self._mode_range.setCheckable(True)
         self._mode_range.setData(Mode.RANGE_AROUND)
         self._mode_range.triggered.connect(self.setMode)
 
         self._mode_above_below = QAction(
-            icon(MDI6.arrow_expand_up, color=color), "Above/Below"
+            icon(MDI6.arrow_expand_up, color=color),
+            "Range asymmetrically above/below reference.",
         )
+        self._mode_above_below.setCheckable(True)
         self._mode_above_below.setData(Mode.ABOVE_BELOW)
         self._mode_above_below.triggered.connect(self.setMode)
+
+        self._mode_group = QActionGroup(self)
+        self._mode_group.addAction(self._mode_top_bot)
+        self._mode_group.addAction(self._mode_range)
+        self._mode_group.addAction(self._mode_above_below)
+
+        # -------------------
 
         btn_top_bot = QToolButton()
         btn_top_bot.setDefaultAction(self._mode_top_bot)
@@ -257,7 +271,7 @@ class ZPlanWidget(QWidget):
 
         # #################### Defaults ####################
 
-        self.setMode(Mode.ABOVE_BELOW)
+        self.setMode(Mode.TOP_BOTTOM)
         # self.setSuggestedStep(1)
 
     # ------------------------- Public API -------------------------
@@ -282,16 +296,19 @@ class ZPlanWidget(QWidget):
         self._mode = cast(Mode, mode)
 
         if self._mode is Mode.TOP_BOTTOM:
+            self._mode_top_bot.setChecked(True)
             self._set_row_visible(ROW_RANGE_AROUND, False)
             self._set_row_visible(ROW_ABOVE_BELOW, False)
             self._set_row_visible(ROW_TOP_BOTTOM, True)
 
         elif self._mode is Mode.RANGE_AROUND:
+            self._mode_range.setChecked(True)
             self._set_row_visible(ROW_TOP_BOTTOM, False)
             self._set_row_visible(ROW_ABOVE_BELOW, False)
             self._set_row_visible(ROW_RANGE_AROUND, True)
 
         elif self._mode is Mode.ABOVE_BELOW:
+            self._mode_above_below.setChecked(True)
             self._set_row_visible(ROW_RANGE_AROUND, False)
             self._set_row_visible(ROW_TOP_BOTTOM, False)
             self._set_row_visible(ROW_ABOVE_BELOW, True)
