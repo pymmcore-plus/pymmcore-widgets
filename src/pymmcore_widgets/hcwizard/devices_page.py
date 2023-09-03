@@ -454,7 +454,9 @@ class DevicesPage(ConfigWizardPage):
         err = {}
         # TODO: there are errors that occur outside of this call that could also be
         # shown in the tooltip above...
-        self._model.initialize(self._core, on_fail=lambda d, e: err.update({d.name: e}))
+        self._model.initialize(
+            self._core, on_fail=lambda d, e: err.update({d.name: str(e)})
+        )
         self._model.mark_clean()
         self.current.rebuild_table(err)
         self.available.rebuild_table()

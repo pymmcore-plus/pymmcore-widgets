@@ -58,14 +58,21 @@ class RolesPage(ConfigWizardPage):
 
         # update values from the model
         for prop in self._model.core_device.properties:
-            if prop.name == Keyword.CoreCamera:
+            if prop.name == Keyword.CoreCamera and prop.value:
                 self.camera_combo.setCurrentText(prop.value)
-            elif prop.name == Keyword.CoreShutter:
+            elif prop.name == Keyword.CoreShutter and prop.value:
                 self.shutter_combo.setCurrentText(prop.value)
-            elif prop.name == Keyword.CoreFocus:
+            elif prop.name == Keyword.CoreFocus and prop.value:
                 self.focus_combo.setCurrentText(prop.value)
             elif prop.name == Keyword.CoreAutoShutter:
                 self.auto_shutter_checkbox.setChecked(prop.value == "1")
+
+        if cameras and not self.camera_combo.currentText():
+            self.camera_combo.setCurrentText(cameras[0])
+        if shutters and not self.shutter_combo.currentText():
+            self.shutter_combo.setCurrentText(shutters[0])
+        if stages and not self.focus_combo.currentText():
+            self.focus_combo.setCurrentText(stages[0])
 
         super().initializePage()
 

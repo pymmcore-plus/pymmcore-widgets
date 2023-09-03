@@ -117,7 +117,7 @@ def test_config_wizard_devices(
     # FLAKY TEST
     # def accept3():
     #     print("here")
-    #     d = next(i for i in qapp.topLevelWidgets() if isinstance(i, DeviceSetupDialog))
+    #     d = next(i for i in qapp.topLevelWidgets() if isinstance(i, DeviceSetupDialog)
     #     with qtbot.waitSignal(d.accepted):
     #         d.accept()
     #         d.close()
