@@ -156,13 +156,13 @@ def test_mda_wdg_load_save(
     assert wdg.value().replace(metadata={}) == MDA
 
     wdg.save()
+    mda_no_meta = MDA.replace(
+        metadata={"pymmcore_widgets": {"version": pymmcore_widgets.__version__}}
+    )
     if ext == "json":
-        mda_no_meta = MDA.replace(
-            metadata={"pymmcore_widgets": {"version": pymmcore_widgets.__version__}}
-        )
         assert dest.read_text() == mda_no_meta.model_dump_json(exclude_defaults=True)
-    # the yaml dump is correct, but varies from our input because of pydantic set/unset
-    # json just includes all fields
+    elif ext == "yaml":
+        assert dest.read_text() == mda_no_meta.yaml(exclude_defaults=True)
 
 
 def test_qquant_line_edit(qtbot: QtBot):
