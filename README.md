@@ -10,28 +10,11 @@
 
 A set of widgets for the [pymmcore-plus](https://github.com/pymmcore-plus/pymmcore-plus) package.
 This package can be used to build custom user interfaces for micromanager in a python/Qt environment.
+It forms the basis of [`napari-micromanager`](https://github.com/pymmcore-plus/napari-micromanager)
 
-[Documentation](https://pymmcore-plus.github.io/pymmcore-widgets)
+### [:book: Documentation](https://pymmcore-plus.github.io/pymmcore-widgets)
 
-## Usage
-
-```python
-from pymmcore_plus import CMMCorePlus
-from pymmcore_widgets import StageWidget  # as an example... see below
-from qtpy.QtWidgets import QApplication
-
-mmcore = CMMCorePlus.instance()
-mmcore.loadSystemConfiguration()
-
-if __name__ == '__main__':
-    app = QApplication([])
-    stage = StageWidget('XY')
-    stage.show()
-    app.exec_()
-```
-
-![Screen Shot 2022-08-01 at 2 18 12 PM](https://user-images.githubusercontent.com/1609449/182217639-7f52a217-16f6-416a-a54f-2db63b7165c5.png)
-
+<img width="1721" alt="mm_widgets" src="https://github.com/pymmcore-plus/pymmcore-widgets/assets/1609449/20747052-8621-4c6d-a9ab-473792b411ac">
 
 See complete list of available widgets in the [documentation](https://pymmcore-plus.github.io/pymmcore-widgets/#widgets)
 
