@@ -211,7 +211,7 @@ class StackViewer(QtWidgets.QWidget):
             return
         for c in range(sequence.sizes.get("c", 0)):
             frame = self.datastore.get_frame(
-                [self.display_index["t"], self.display_index["z"], c]
+                (self.display_index["t"], self.display_index["z"], c)
             )
             self.display_image(frame, c)
         self._canvas.update()

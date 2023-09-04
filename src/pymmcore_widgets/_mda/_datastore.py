@@ -67,7 +67,7 @@ class QLocalDataStore(QtCore.QObject):
         self.frame_ready.emit(event)
 
     def get_frame(self, key: tuple) -> np.ndarray:
-        return self.array[key]
+        return np.array(self.array[key])
 
     def complement_indices(self, event: MDAEvent) -> dict:
         indices = dict(copy.deepcopy(dict(event.index)))
