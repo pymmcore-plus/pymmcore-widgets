@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Mapping
 import numpy as np
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore, QtGui, QtWidgets
-from qtpy.QtWidgets import QWidget
 from qtpy.QtCore import Signal
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
@@ -24,6 +23,7 @@ except ImportError as e:
     ) from e
 
 if TYPE_CHECKING:
+    from qtpy.QtWidgets import QWidget
     from useq import MDAEvent, MDASequence
     from vispy.scene.events import SceneMouseEvent
 
