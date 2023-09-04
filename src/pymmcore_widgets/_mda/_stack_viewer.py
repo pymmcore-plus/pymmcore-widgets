@@ -223,7 +223,7 @@ class StackViewer(QtWidgets.QWidget):
 
         # Update internal image parameters
         if sum(indices.values()) == 0:
-            self.view.camera.rect = (0, 0, *img.shape)
+            self.view.camera.rect = (0, 0, img.shape[0], img.shape[1])
         # Update display
         self.display_image(img, indices["c"])
         self._set_sliders(indices)
