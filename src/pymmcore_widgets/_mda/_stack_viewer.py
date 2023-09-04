@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Mapping
 import numpy as np
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore, QtGui, QtWidgets
+from qtpy.QtWidgets import QWidget
 from qtpy.QtCore import Signal
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
@@ -40,7 +41,7 @@ class StackViewer(QtWidgets.QWidget):
         datastore: QLocalDataStore,
         sequence: MDASequence | None = None,
         mmcore: CMMCorePlus | None = None,
-        parent: QtWidgets.QWidget | None = None,
+        parent: QWidget | None = None,
     ):
         super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()

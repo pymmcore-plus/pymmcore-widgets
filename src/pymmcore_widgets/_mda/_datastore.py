@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import copy
 
 import numpy as np
 import numpy.typing as npt
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore, QtGui, QtWidgets
+from qtpy.QtWidgets import QWidget
 from qtpy.QtCore import Signal
 from useq import MDAEvent
 
@@ -19,7 +22,7 @@ class QLocalDataStore(QtCore.QObject):
         self,
         shape: tuple[int, ...],
         dtype: npt.DTypeLike = np.uint16,
-        parent: QtWidgets.QWidget | None = None,
+        parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
     ):
         super().__init__(parent=parent)
