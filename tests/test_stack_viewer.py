@@ -18,12 +18,8 @@ def test_local(qtbot):
     canvas = StackViewer(mmcore=mmcore, datastore=datastore)
     canvas.show()
     qtbot.addWidget(canvas)
-    mmcore.run_mda(sequence)
-    if qtbot:
-        with qtbot.waitSignal(datastore.frame_ready, timeout=5000):
-            pass
-        with qtbot.waitSignal(datastore.frame_ready, timeout=5000):
-            pass
+    with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
+        mmcore.mda.run(sequence)
     assert canvas.images[0]._data.shape == (512, 512)
     assert canvas.images[0]._data.flatten()[0] != 0
     assert canvas.images[1]._data.shape == (512, 512)
