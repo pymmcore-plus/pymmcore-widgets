@@ -1,12 +1,11 @@
 import sys
 
 from pymmcore_plus import CMMCorePlus
-from useq import MDASequence
 from qtpy import QtWidgets
+from useq import MDASequence
 
-from pymmcore_widgets._mda._stack_viewer import StackViewer
 from pymmcore_widgets._mda._datastore import QLocalDataStore
-
+from pymmcore_widgets._mda._stack_viewer import StackViewer
 
 size = 1028
 
