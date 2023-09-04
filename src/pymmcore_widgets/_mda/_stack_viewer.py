@@ -256,7 +256,7 @@ class StackViewer(QtWidgets.QWidget):
                 self.channel_row.boxes[channel].autoscale_chbx.isChecked()
                 and self.images[channel].visible
             ):
-                # TODO: perdentile here, could be in gui
+                # TODO: percentile here, could be in gui
                 clim = np.percentile(self.images[channel]._data, [0, 100])
                 self.images[channel].clim = clim
 
