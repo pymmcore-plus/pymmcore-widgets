@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import copy
+from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
 from pymmcore_plus import CMMCorePlus
-from qtpy import QtCore, QtGui, QtWidgets
-from qtpy.QtWidgets import QWidget
+from qtpy import QtCore, QtGui
 from qtpy.QtCore import Signal
 from useq import MDAEvent
+
+if TYPE_CHECKING:
+    from qtpy.QtWidgets import QWidget
 
 DIMENSIONS = ["t", "c", "z"]
 
