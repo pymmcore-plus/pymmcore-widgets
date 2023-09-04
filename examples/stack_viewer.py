@@ -1,3 +1,6 @@
+
+from __future__ import annotations
+
 import sys
 
 from pymmcore_plus import CMMCorePlus
@@ -19,7 +22,7 @@ qapp = QtWidgets.QApplication(sys.argv)
 
 sequence = MDASequence(
     channels=({"config": "FITC", "exposure": 1}, {"config": "DAPI", "exposure": 1}),
-    time_plan={"interval": 0.5, "loops": 20},
+    time_plan={"interval": 0.2, "loops": 10},
     axis_order="tpcz",
 )
 

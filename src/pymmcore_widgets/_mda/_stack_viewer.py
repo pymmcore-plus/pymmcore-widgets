@@ -172,10 +172,10 @@ class StackViewer(QtWidgets.QWidget):
         else:
             dims = DIMENSIONS
         dims.remove("c")
-        self.sliders = []
+        self.sliders: list[LabeledVisibilitySlider] = []
         for dim in dims:
             slider = LabeledVisibilitySlider(dim, orientation=QtCore.Qt.Horizontal)
-            slider.valueChanged[int, str].connect(self.on_display_timer)
+            slider.valueChanged.connect(self.on_display_timer)
             self._slider_settings.connect(slider._visibility)
             self.layout().addWidget(slider)
             slider.hide()
@@ -199,7 +199,7 @@ class StackViewer(QtWidgets.QWidget):
             info = f"[{p[0]}, {p[1]}]"
             self.info_bar.setText(info)
 
-    def on_display_timer(self, value: int, name: str) -> None:
+    def on_display_timer(self) -> None:
         """Update display, usually triggered by QTimer started by slider click."""
         old_index = self.display_index.copy()
         for slider in self.sliders:
