@@ -37,6 +37,7 @@ QPushButton {{
     border-radius: {RADIUS}px;
     border: 0.5px solid #DCDCDC;
     background-color: #FFF;
+    padding: 2px 6px;
 }}
 QPushButton:hover {{
     background-color: #EEE;
@@ -52,6 +53,7 @@ QPushButton {{
     border-bottom-{side}-radius: {radius}px;
     border: 0.5px solid #DCDCDC;
     background-color: #FFF;
+    padding: 2px 6px;
     {extra}
 }}
 QPushButton:hover {{
@@ -76,14 +78,14 @@ class XYBoundsControl(QWidget):
         self.right_edit = _PositionSpinBox()
         self.bottom_edit = _PositionSpinBox()
 
-        self.btn_top = _MarkVisit(ICONS["top"])
-        self.btn_left = _MarkVisit(ICONS["left"], visit_on_right=False)
-        self.btn_right = _MarkVisit(ICONS["right"])
-        self.btn_bottom = _MarkVisit(ICONS["bottom"])
-        self.btn_top_left = _MarkVisit(ICONS["top_left"], visit_on_right=False)
-        self.btn_top_right = _MarkVisit(ICONS["top_right"])
-        self.btn_bottom_left = _MarkVisit(ICONS["bottom_left"], visit_on_right=False)
-        self.btn_bottom_right = _MarkVisit(ICONS["bottom_right"])
+        self.btn_top = MarkVisit(ICONS["top"])
+        self.btn_left = MarkVisit(ICONS["left"], visit_on_right=False)
+        self.btn_right = MarkVisit(ICONS["right"])
+        self.btn_bottom = MarkVisit(ICONS["bottom"])
+        self.btn_top_left = MarkVisit(ICONS["top_left"], visit_on_right=False)
+        self.btn_top_right = MarkVisit(ICONS["top_right"])
+        self.btn_bottom_left = MarkVisit(ICONS["bottom_left"], visit_on_right=False)
+        self.btn_bottom_right = MarkVisit(ICONS["bottom_right"])
 
         self.go_middle = QPushButton(icon(ICONS["visit"]), "")
         self.go_middle.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -186,18 +188,19 @@ class _PositionSpinBox(QDoubleSpinBox):
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
 
-class _MarkVisit(QWidget):
+class MarkVisit(QWidget):
     def __init__(
         self,
         mark_glyph: str,
         visit_glyph: str = ICONS["visit"],
+        mark_text: str = "",
         icon_size: int = ICON_SIZE,
         radius: int = RADIUS,
         visit_on_right: bool = True,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self.mark = QPushButton(icon(mark_glyph), "")
+        self.mark = QPushButton(icon(mark_glyph), mark_text)
         self.mark.setIconSize(QSize(icon_size, icon_size))
         self.mark.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 

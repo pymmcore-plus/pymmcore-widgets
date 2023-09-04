@@ -225,6 +225,7 @@ class _TableSpinboxMixin:
         self.setKeyboardTracking(False)
         self.setMinimumWidth(70)
         self.setStyleSheet("QAbstractSpinBox { border: none; }")
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
     def wheelEvent(self, event: Any) -> None:
         # disable mouse wheel scrolling on table spinboxes

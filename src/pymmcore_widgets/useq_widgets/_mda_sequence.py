@@ -64,6 +64,7 @@ class MDATabs(CheckableTabWidget):
         parent: QWidget | None = None,
         *,
         position_wdg: PositionTable | None = None,
+        z_wdg: ZPlanWidget | None = None,
     ) -> None:
         super().__init__(parent)
         # self.setMovable(True)
@@ -72,7 +73,7 @@ class MDATabs(CheckableTabWidget):
         self.time_plan = TimePlanWidget(1)
         self.stage_positions = position_wdg or PositionTable(1)
         self.grid_plan = GridPlanWidget()
-        self.z_plan = ZPlanWidget()
+        self.z_plan = z_wdg or ZPlanWidget()
         self.channels = ChannelTable(1)
 
         self.addTab(self.time_plan, "Time", checked=False)
@@ -167,12 +168,13 @@ class MDASequenceWidget(QWidget):
         parent: QWidget | None = None,
         *,
         position_wdg: PositionTable | None = None,
+        z_wdg: ZPlanWidget | None = None,
     ) -> None:
         super().__init__(parent)
 
         # -------------- Main MDA Axis Widgets --------------
 
-        self.tab_wdg = MDATabs(position_wdg=position_wdg)
+        self.tab_wdg = MDATabs(position_wdg=position_wdg, z_wdg=z_wdg)
 
         self.axis_order = QComboBox()
         self.axis_order.setToolTip("Slowest to fastest axis order.")

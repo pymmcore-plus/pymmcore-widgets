@@ -218,11 +218,3 @@ class PositionTable(DataTableWidget):
     def _on_include_z_toggled(self, checked: bool) -> None:
         z_col = self.table().indexOf(self.Z)
         self.table().setColumnHidden(z_col, not checked)
-
-    # def _custom(self) -> None:
-    #     """Customize positions."""
-    #     print("Not Implemented")
-
-    # def _optimize(self) -> None:
-    #     """Optimize positions."""
-    #     print("Not Implemented")
