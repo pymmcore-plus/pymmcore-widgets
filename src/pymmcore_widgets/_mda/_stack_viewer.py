@@ -219,7 +219,7 @@ class StackViewer(QtWidgets.QWidget):
     def on_frame_ready(self, event: MDAEvent) -> None:
         """Frame received from acquisition, display the image, update sliders etc."""
         indices = self.complement_indices(event.index)
-        img = self.datastore.get_frame([indices["t"], indices["z"], indices["c"]])
+        img = self.datastore.get_frame((indices["t"], indices["z"], indices["c"]))
 
         # Update internal image parameters
         if sum(indices.values()) == 0:
