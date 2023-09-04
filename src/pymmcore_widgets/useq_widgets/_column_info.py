@@ -430,15 +430,12 @@ class TimeDeltaColumn(WidgetColumn):
 
 
 class CheckableCombo(QWidget):
-    currentTextChanged = Signal(str)
-
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._checkbox = QCheckBox()
         self._checkbox.setChecked(True)
         self._checkbox.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._combo = QComboBox()
-        self._combo.currentTextChanged.connect(self.currentTextChanged)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(5, 0, 0, 0)
         layout.addWidget(self._checkbox)
@@ -462,16 +459,16 @@ class CheckableCombo(QWidget):
     def setCheckState(self, state: Qt.CheckState) -> bool:
         return self._checkbox.setCheckState(state)  # type: ignore
 
-    def connect(self, cb: Callable[[str], None]) -> None:
-        self.currentTextChanged.connect(cb)
+    def _connect(self, cb: Callable[[str], None]) -> None:
         self._checkbox.toggled.connect(cb)
+        self._combo.currentTextChanged.connect(cb)
 
 
 ChoiceWidget = WdgGetSet(
     CheckableCombo,
     CheckableCombo.currentText,
     CheckableCombo.setCurrentText,
-    CheckableCombo.connect,
+    CheckableCombo._connect,
 )
 
 
