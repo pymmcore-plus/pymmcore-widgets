@@ -7,9 +7,7 @@ import numpy as np
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore, QtGui, QtWidgets
 from qtpy.QtCore import Signal
-from useq import MDAEvent, MDASequence
 
-from pymmcore_widgets._mda._datastore import QLocalDataStore
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
 from pymmcore_widgets._mda._util._labeled_slider import LabeledVisibilitySlider
 
@@ -25,7 +23,10 @@ except ImportError as e:
     ) from e
 
 if TYPE_CHECKING:
+    from useq import MDAEvent, MDASequence
     from vispy.scene.events import SceneMouseEvent
+
+    from pymmcore_widgets._mda._datastore import QLocalDataStore
 
 
 class StackViewer(QtWidgets.QWidget):
