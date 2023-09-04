@@ -471,7 +471,7 @@ ChoiceWidget = WdgGetSet(
     CheckableCombo,
     CheckableCombo.currentText,
     CheckableCombo.setCurrentText,
-    lambda w, cb: w.connect(cb),
+    CheckableCombo.connect,
 )
 
 
