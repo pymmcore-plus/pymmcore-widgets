@@ -1,10 +1,13 @@
 from __future__ import annotations
-from typing import Optional
+
+from typing import TYPE_CHECKING
 
 from qtpy import QtCore, QtGui, QtWidgets
-from qtpy.QtGui import QMouseEvent
 from superqt import QRangeSlider
 from useq import Channel
+
+if TYPE_CHECKING:
+    from qtpy.QtGui import QMouseEvent
 
 try:
     from vispy import color
@@ -71,7 +74,7 @@ class ChannelRow(QtWidgets.QWidget):
             self.boxes.append(channel_box)
             self.layout().addWidget(channel_box)
 
-    def box_visibility(self, i: int, name: Optional[str] = None) -> None:
+    def box_visibility(self, i: int, name: str | None = None) -> None:
         self.boxes[i].visible = True
         self.boxes[i].show()
         self.boxes[i].autoscale_chbx.setChecked(True)
@@ -95,7 +98,7 @@ class ChannelBox(QtWidgets.QFrame):
     def __init__(
         self,
         channel: Channel,
-        cmaps: Optional[list] = None,
+        cmaps: list | None = None,
     ) -> None:
         super().__init__()
         self.channel = channel.config
