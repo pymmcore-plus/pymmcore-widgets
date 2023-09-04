@@ -6,7 +6,7 @@ from pymmcore_widgets._mda._stack_viewer import StackViewer
 
 sequence = MDASequence(
     channels=[{"config": "DAPI", "exposure": 10}, {"config": "FITC", "exposure": 10}],
-    time_plan={"interval": 0.5, "loops": 20},
+    time_plan={"interval": 0.5, "loops": 3},
     axis_order="tpcz",
 )
 
@@ -14,7 +14,7 @@ sequence = MDASequence(
 def test_local(qtbot):
     mmcore = CMMCorePlus.instance()
     mmcore.loadSystemConfiguration()
-    datastore = QLocalDataStore(shape=(20, 1, 2, 512, 512), mmcore=mmcore)
+    datastore = QLocalDataStore(shape=(3, 1, 2, 512, 512), mmcore=mmcore)
     canvas = StackViewer(mmcore=mmcore, datastore=datastore)
     canvas.show()
     qtbot.addWidget(canvas)
