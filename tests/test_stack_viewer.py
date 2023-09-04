@@ -1,5 +1,4 @@
 from pymmcore_plus import CMMCorePlus
-from qtpy import QtCore
 from useq import MDASequence
 
 from pymmcore_widgets._mda._datastore import QLocalDataStore
