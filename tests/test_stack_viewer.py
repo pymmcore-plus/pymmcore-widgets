@@ -28,7 +28,7 @@ def test_local(qtbot):
     assert canvas.images[0]._data.shape == (512, 512)
     assert canvas.images[0]._data.flatten()[0] != 0
     assert canvas.images[1]._data.shape == (512, 512)
-    # assert len(canvas.channel_boxes) == 5
+    assert len(canvas.channel_row.boxes) == 5
     assert len(canvas.sliders) > 1
 
     qtbot.wait(1000)
