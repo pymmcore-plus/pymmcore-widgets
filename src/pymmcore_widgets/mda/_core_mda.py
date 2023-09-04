@@ -4,7 +4,7 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, cast
 
 from fonticon_mdi6 import MDI6
-from pymmcore_plus import CMMCorePlus
+from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QSize
 from qtpy.QtWidgets import (
     QBoxLayout,
@@ -17,10 +17,12 @@ from qtpy.QtWidgets import (
     QLineEdit,
     QPushButton,
     QWidget,
+    QWidgetAction,
 )
 from superqt.fonticon import icon
 
-from pymmcore_widgets.useq_widgets import MDASequenceWidget
+from pymmcore_widgets.useq_widgets import MDASequenceWidget, PositionTable
+from pymmcore_widgets.useq_widgets._column_info import ButtonColumn
 
 if TYPE_CHECKING:
     from typing import TypedDict
@@ -34,17 +36,64 @@ if TYPE_CHECKING:
         should_save: bool
 
 
+class CoreConnectedPositionTable(PositionTable):
+    def __init__(
+        self,
+        rows: int = 0,
+        mmcore: CMMCorePlus | None = None,
+        parent: QWidget | None = None,
+    ):
+        super().__init__(rows, parent)
+        self._mmc = mmcore or CMMCorePlus.instance()
+
+        self.move_to_selection = QCheckBox("Move Stage to Selected Point")
+        # add a button to update XY to the current position
+        xy_btn = ButtonColumn(
+            key="xy_btn", glyph=MDI6.arrow_right, on_click=self._set_xy_from_core
+        )
+        self.table().addColumn(xy_btn, 1)
+
+        # add move_to_selection to toolbar and link up callback
+        toolbar = self.toolBar()
+        action0 = next(x for x in toolbar.children() if isinstance(x, QWidgetAction))
+        toolbar.insertWidget(action0, self.move_to_selection)
+        self.table().itemSelectionChanged.connect(self._on_selection_change)
+
+    def _set_xy_from_core(self, row: int, col: int) -> None:
+        data = {
+            self.X.key: self._mmc.getXPosition(),
+            self.Y.key: self._mmc.getYPosition(),
+        }
+        self.table().setRowData(row, data)
+
+    def _on_selection_change(self) -> None:
+        if not self.move_to_selection.isChecked():
+            return
+
+        selected_rows: set[int] = {i.row() for i in self.table().selectedItems()}
+        if len(selected_rows) == 1:
+            row = next(iter(selected_rows))
+            data = self.table().rowData(row)
+            x = data.get(self.X.key, self._mmc.getXPosition())
+            y = data.get(self.Y.key, self._mmc.getYPosition())
+            self._mmc.setXYPosition(x, y)
+
+
 class MDAWidget(MDASequenceWidget):
     def __init__(
         self, *, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
     ) -> None:
-        super().__init__(parent=parent)
-        self.save_info = _SaveGroupBox(parent=self)
-
         self._mmc = mmcore or CMMCorePlus.instance()
-        self._update_channel_groups()
+        position_wdg = CoreConnectedPositionTable(1, self._mmc)
 
+        super().__init__(parent=parent, position_wdg=position_wdg)
+        self.save_info = _SaveGroupBox(parent=self)
         self.control_btns = _MDAControlButtons(self._mmc, self)
+
+        # -------- initialize -----------
+
+        self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
+        self._update_channel_groups()
 
         # ------------ layout ------------
 
@@ -204,8 +253,28 @@ class _MDAControlButtons(QWidget):
             self.pause_btn.setIcon(icon(MDI6.pause_circle_outline, color="green"))
             self.pause_btn.setText("Pause")
 
-    def _disconnect(self):
+    def _disconnect(self) -> None:
         with suppress(Exception):
             self._mmc.mda.events.sequencePauseToggled.disconnect(self._on_mda_paused)
             self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
             self._mmc.mda.events.sequenceFinished.disconnect(self._on_mda_finished)
+
+
+def _guess_NA(core: CMMCorePlus) -> float | None:
+    with suppress(RuntimeError):
+        if not (pix_cfg := core.getCurrentPixelSizeConfig()):
+            return None
+
+        data = core.getPixelSizeConfigData(pix_cfg)
+        for obj in core.guessObjectiveDevices():
+            key = (obj, Keyword.Label)
+            if key in data:
+                val = data[key]
+                for word in val.split():
+                    try:
+                        na = float(word)
+                    except ValueError:
+                        continue
+                    if 0.1 < na < 1.5:
+                        return na
+    return None

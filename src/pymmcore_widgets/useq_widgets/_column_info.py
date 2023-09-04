@@ -15,12 +15,14 @@ from qtpy.QtWidgets import (
     QDoubleSpinBox,
     QHBoxLayout,
     QLineEdit,
+    QPushButton,
     QSizePolicy,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QWidget,
 )
+from superqt.fonticon import icon
 
 if TYPE_CHECKING:
     from typing import Any
@@ -39,7 +41,9 @@ class ColumnInfo:
     default: Any = None
 
     def header_text(self) -> str:
-        return self.header or self.key.title().replace("_", " ")
+        if self.header is None:
+            return self.key.title().replace("_", " ")
+        return self.header
 
     def init_cell(
         self, table: QTableWidget, row: int, col: int, change_signal: SignalInstance
@@ -492,3 +496,68 @@ class ChoiceColumn(WidgetColumn):
     ) -> None:
         wdg = cast("CheckableCombo", table.cellWidget(row, col))
         wdg.setCheckState(state)
+
+
+ButtonWidget = WdgGetSet(
+    QPushButton,
+    QPushButton.text,
+    QPushButton.setText,
+    lambda w, cb: w.clicked.connect(cb),
+)
+
+
+@dataclass(frozen=True)
+class ButtonColumn(WidgetColumn):
+    data_type: WdgGetSet[QPushButton, str] = ButtonWidget
+    glyph: str = ""
+    text: str = ""
+    header: str = ""
+    checkable: bool = False
+    checked: bool = True
+    on_click: Callable[[int, int], Any] | None = None
+
+    def isChecked(self, table: QTableWidget, row: int, col: int) -> bool:
+        if wdg := table.cellWidget(row, col):
+            return cast("QPushButton", wdg).isChecked()  # type: ignore
+        return False
+
+    def setCheckState(
+        self, table: QTableWidget, row: int, col: int, checked: bool
+    ) -> None:
+        if wdg := table.cellWidget(row, col):
+            cast("QPushButton", wdg).setChecked(checked)
+
+    def init_cell(
+        self, table: QTableWidget, row: int, col: int, change_signal: SignalInstance
+    ) -> None:
+        new_wdg = self.data_type.widget()
+        if self.text:
+            new_wdg.setText(self.text)
+        if self.glyph:
+            new_wdg.setIcon(icon(self.glyph))
+        if self.checkable:
+            new_wdg.setCheckable(True)
+            new_wdg.setChecked(self.checked)
+
+        if callable(onclk := self.on_click):
+
+            def _cb(state: bool, tbl: QTableWidget = table) -> None:
+                for row in range(tbl.rowCount()):
+                    for col in range(tbl.columnCount()):
+                        if tbl.cellWidget(row, col) is new_wdg:
+                            onclk(row, col)
+                            return
+
+            new_wdg.clicked.connect(_cb)
+
+        table.setCellWidget(row, col, new_wdg)
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(col, header.ResizeMode.Fixed)
+
+    def get_cell_data(self, table: QTableWidget, row: int, col: int) -> dict[str, Any]:
+        return {}
+
+    def set_cell_data(
+        self, table: QTableWidget, row: int, col: int, value: Any
+    ) -> None:
+        pass

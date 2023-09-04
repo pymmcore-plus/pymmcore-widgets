@@ -59,13 +59,18 @@ for x in list(ALLOWED_ORDERS):
 
 
 class MDATabs(CheckableTabWidget):
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        position_wdg: PositionTable | None = None,
+    ) -> None:
         super().__init__(parent)
         # self.setMovable(True)
         self.tabChecked.connect(self._on_tab_checked)
 
         self.time_plan = TimePlanWidget(1)
-        self.stage_positions = PositionTable(1)
+        self.stage_positions = position_wdg or PositionTable(1)
         self.grid_plan = GridPlanWidget()
         self.z_plan = ZPlanWidget()
         self.channels = ChannelTable(1)
@@ -77,6 +82,8 @@ class MDATabs(CheckableTabWidget):
         self.addTab(self.channels, "Channels", checked=False)
         self.setCurrentIndex(self.indexOf(self.channels))
 
+        # we only show the DO_STACK and ACQUIRE_EVERY columns when the
+        # corresponding tab is checked
         ch_table = self.channels.table()
         ch_table.hideColumn(ch_table.indexOf(self.channels.DO_STACK))
         ch_table.hideColumn(ch_table.indexOf(self.channels.ACQUIRE_EVERY))
@@ -155,18 +162,17 @@ class MDASequenceWidget(QWidget):
 
     valueChanged = Signal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        position_wdg: PositionTable | None = None,
+    ) -> None:
         super().__init__(parent)
 
         # -------------- Main MDA Axis Widgets --------------
 
-        self.tab_wdg = MDATabs()
-        # aliases
-        self.channels = self.tab_wdg.channels
-        self.time_plan = self.tab_wdg.time_plan
-        self.z_plan = self.tab_wdg.z_plan
-        self.stage_positions = self.tab_wdg.stage_positions
-        self.grid_plan = self.tab_wdg.grid_plan
+        self.tab_wdg = MDATabs(position_wdg=position_wdg)
 
         self.axis_order = QComboBox()
         self.axis_order.setToolTip("Slowest to fastest axis order.")
@@ -226,6 +232,28 @@ class MDASequenceWidget(QWidget):
 
         with signals_blocked(self):
             self.tab_wdg.setChecked(self.channels, True)
+
+    # ----------- Aliases for tab_wdg widgets -----------
+
+    @property
+    def channels(self) -> ChannelTable:
+        return self.tab_wdg.channels
+
+    @property
+    def time_plan(self) -> TimePlanWidget:
+        return self.tab_wdg.time_plan
+
+    @property
+    def z_plan(self) -> ZPlanWidget:
+        return self.tab_wdg.z_plan
+
+    @property
+    def stage_positions(self) -> PositionTable:
+        return self.tab_wdg.stage_positions
+
+    @property
+    def grid_plan(self) -> GridPlanWidget:
+        return self.tab_wdg.grid_plan
 
     # -------------- Public API --------------
 
