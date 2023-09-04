@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import copy
-from typing import Mapping
+from typing import TYPE_CHECKING, Mapping
 
 import numpy as np
 from pymmcore_plus import CMMCorePlus
@@ -21,6 +23,9 @@ except ImportError as e:
         "vispy is required for StackViewer. "
         "Please run `pip install pymmcore-widgets[image]`"
     ) from e
+
+if TYPE_CHECKING:
+    from vispy.scene.events import SceneMouseEvent
 
 
 class StackViewer(QtWidgets.QWidget):
@@ -117,7 +122,7 @@ class StackViewer(QtWidgets.QWidget):
             self._new_channel.emit(i, sequence.channels[i].config)
 
     def _handle_channel_clim(
-        self, values: tuple[int], channel: int, set_autoscale: bool = True
+        self, values: tuple[int, int], channel: int, set_autoscale: bool = True
     ) -> None:
         self.images[channel].clim = values
         if self.channel_row.boxes[channel].autoscale_chbx.isChecked() and set_autoscale:
@@ -176,7 +181,7 @@ class StackViewer(QtWidgets.QWidget):
             self.sliders.append(slider)
         print("Number of sliders constructed: ", len(self.sliders))
 
-    def on_mouse_move(self, event: scene.events.MouseEvent) -> None:
+    def on_mouse_move(self, event: SceneMouseEvent) -> None:
         """Mouse moved on the canvas, display the pixel value and position."""
         transform = self.images[self.current_channel].get_transform("canvas", "visual")
         p = [int(x) for x in transform.map(event.pos)]
@@ -200,7 +205,9 @@ class StackViewer(QtWidgets.QWidget):
             self.display_index[slider.name] = slider.value()
         if old_index == self.display_index:
             return
-        for c in range(self.sequence.sizes["c"]):
+        if (sequence := self.sequence) is None:
+            return
+        for c in range(sequence.sizes.get("c", 0)):
             frame = self.datastore.get_frame(
                 [self.display_index["t"], self.display_index["z"], c]
             )
@@ -264,8 +271,6 @@ class StackViewer(QtWidgets.QWidget):
 if __name__ == "__main__":
     size = 1028
     import sys
-
-    from pymmcore_widgets._mda._datastore import QLocalDataStore
 
     mmcore = CMMCorePlus.instance()
     mmcore.loadSystemConfiguration()
