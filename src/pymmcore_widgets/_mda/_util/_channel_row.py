@@ -1,6 +1,8 @@
+from __future__ import annotations
 from typing import Optional
 
 from qtpy import QtCore, QtGui, QtWidgets
+from qtpy.QtGui import QMouseEvent
 from superqt import QRangeSlider
 from useq import Channel
 
@@ -118,7 +120,7 @@ class ChannelBox(QtWidgets.QFrame):
         self.layout().addWidget(self.slider, 1, 0, 1, 3)
         self.setStyleSheet("ChannelBox{border: 1px solid}")
 
-    def mousePressEvent(self, event: QtGui.QMouseEvent | None) -> None:
+    def mousePressEvent(self, event: QMouseEvent | None) -> None:
         self.setStyleSheet("ChannelBox{border: 3px solid}")
         self.clicked.emit(self.channel)
 
