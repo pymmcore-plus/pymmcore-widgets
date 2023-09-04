@@ -35,7 +35,8 @@ class ChannelRow(QtWidgets.QWidget):
     def __init__(
         self,
         num_channels: int = 5,
-        cmaps: list[color.Colormap] = CMAPS,
+        #https://cmap-docs.readthedocs.io/en/latest/
+        cmaps: list[color.Colormap] = CMAPS, # TODO: go with cmap to avoid vispy dependency
     ) -> None:
         super().__init__()
         self.cmaps = cmaps
