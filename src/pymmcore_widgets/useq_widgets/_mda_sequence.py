@@ -224,7 +224,8 @@ class MDASequenceWidget(QWidget):
         self.axis_order.currentTextChanged.connect(self.valueChanged)
         self.valueChanged.connect(self._update_time_estimate)
 
-        self.tab_wdg.setChecked(self.channels, True)
+        with signals_blocked(self):
+            self.tab_wdg.setChecked(self.channels, True)
 
     # -------------- Public API --------------
 

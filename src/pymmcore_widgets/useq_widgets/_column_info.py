@@ -457,12 +457,16 @@ class CheckableCombo(QWidget):
     def setCheckState(self, state: Qt.CheckState) -> bool:
         return self._checkbox.setCheckState(state)  # type: ignore
 
+    def connect(self, cb: Callable[[str], None]) -> None:
+        self.currentTextChanged.connect(cb)
+        self._checkbox.toggled.connect(cb)
+
 
 ChoiceWidget = WdgGetSet(
     CheckableCombo,
     CheckableCombo.currentText,
     CheckableCombo.setCurrentText,
-    lambda w, cb: w.currentTextChanged.connect(cb),
+    lambda w, cb: w.connect(cb),
 )
 
 

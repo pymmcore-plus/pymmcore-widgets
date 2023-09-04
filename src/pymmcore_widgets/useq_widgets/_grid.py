@@ -229,6 +229,7 @@ class GridPlanWidget(QWidget):
             for group, members in mode_groups.items():
                 for member in members:
                     member.setEnabled(_mode == group)
+            self.relative_to.setEnabled(_mode != Mode.BOUNDS)
 
             self._on_change()
 
