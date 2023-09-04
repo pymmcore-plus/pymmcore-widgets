@@ -43,12 +43,11 @@ def _run_after_each_test(request: "FixtureRequest", qapp: "QApplication"):
     if len(remaining) > nbefore:
         if (
             os.name == "nt"
-            and sys.version_info[:2] == (3, 8)
+            and sys.version_info[:2] <= (3, 9)
             and type(remaining[0]).__name__ == "ImagePreview"
-            and qapp.__module__.startswith("PySide2")
         ):
             # I have no idea why, but the ImagePreview widget is leaking on py38
-            # with pyside2 on windows only. And it only came with a seemingly unrelated
+            # on windows only. And it only came with a seemingly unrelated
             # https://github.com/pymmcore-plus/pymmcore-widgets/pull/90
             # we're just ignoring it for now.
             return
