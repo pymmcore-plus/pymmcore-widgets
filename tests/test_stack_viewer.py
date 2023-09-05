@@ -1,13 +1,11 @@
 from pymmcore_plus import CMMCorePlus
 from useq import MDASequence
+from vispy.app.canvas import MouseEvent
+from vispy.scene.events import SceneMouseEvent
 
 from pymmcore_widgets._mda._datastore import QLocalDataStore
 from pymmcore_widgets._mda._stack_viewer import StackViewer
 from pymmcore_widgets._mda._util._channel_row import CMAPS
-
-from vispy.scene.events import SceneMouseEvent
-from vispy.app.canvas import MouseEvent
-from qtpy import QtCore
 
 sequence = MDASequence(
     channels=[{"config": "DAPI", "exposure": 10}, {"config": "FITC", "exposure": 10}],
@@ -59,12 +57,12 @@ def test_interaction(qtbot):
     canvas.on_mouse_move(event)
     assert canvas.info_bar.text() != ""
 
-    #outside canvas
+    # outside canvas
     event._pos = [-10, 100, 0, 0]
     canvas.on_mouse_move(event)
     assert canvas.info_bar.text() != ""
 
-    #outside image
+    # outside image
     event._pos = [1000, 100, 0, 0]
     canvas.on_mouse_move(event)
     assert canvas.info_bar.text() != ""
@@ -73,8 +71,9 @@ def test_interaction(qtbot):
     canvas.on_clim_timer()
     color_selected = 2
     canvas.channel_row.boxes[0].color_choice._color_selected(color_selected)
-    assert (canvas.images[0].cmap.colors[-1].RGB ==
-            CMAPS[color_selected].colors[-1].RGB).all
+    assert (
+        canvas.images[0].cmap.colors[-1].RGB == CMAPS[color_selected].colors[-1].RGB
+    ).all
 
     canvas.channel_row.boxes[0].autoscale_chbx.setChecked(False)
     canvas.channel_row.boxes[0].slider.setValue((0, 255))

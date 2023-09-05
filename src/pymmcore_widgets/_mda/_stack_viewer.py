@@ -173,7 +173,7 @@ class StackViewer(QtWidgets.QWidget):
             print(dims)
         else:
             dims = DIMENSIONS
-        if 'c' in dims:
+        if "c" in dims:
             dims.remove("c")
         self.sliders: list[LabeledVisibilitySlider] = []
         for dim in dims:
