@@ -66,8 +66,11 @@ def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
                 wiz.closeEvent(QCloseEvent())
 
 
-@patch.object(devices_page.DeviceSetupDialog, "exec")
-@patch.object(devices_page.PeripheralSetupDlg, "exec")
+exec_ = "exec" if hasattr(devices_page.DeviceSetupDialog, "exec") else "exec_"
+
+
+@patch.object(devices_page.DeviceSetupDialog, exec_)
+@patch.object(devices_page.PeripheralSetupDlg, exec_)
 def test_config_wizard_devices(
     mock1, mock2, global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path, qapp
 ):
