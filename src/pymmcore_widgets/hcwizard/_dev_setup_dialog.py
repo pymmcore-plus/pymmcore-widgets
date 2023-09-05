@@ -109,41 +109,6 @@ PORT_SLEEP = 0.05  # revisit this  # TODO
 DEFAULT_FLAGS = Qt.WindowType.Sheet | Qt.WindowType.MSWindowsFixedSizeDialogHint
 
 
-class ComTable(PropTable):
-    """Variant of the property table, for com port devices."""
-
-    _port_dev_name = ""
-
-    def rebuild_port(self, port_dev_name: str, port_library_name: str = "") -> None:
-        """Rebuild the table for the given port device.
-
-        if port_dev_name is not currently loaded, and port_library_name is given,
-        then it will be loaded, and the table will be rebuilt with the available
-        property names.
-        """
-        self.setRowCount(0)
-        self._port_dev_name = port_dev_name
-        if port_dev_name not in self._core.getLoadedDevices():
-            if not port_library_name:
-                return
-            self._core.loadDevice(port_dev_name, port_library_name, port_dev_name)
-        prop_names = self._core.getDevicePropertyNames(port_dev_name)
-        return super().rebuild([(port_dev_name, p) for p in prop_names])
-
-
-class LastValueLineEdit(QLineEdit):
-    """QLineEdit that stores the last value on focus in."""
-
-    def focusInEvent(self, a0: QFocusEvent | None) -> None:
-        """Store current value when editing starts."""
-        self._last_value: str = self.text()
-        super().focusInEvent(a0)
-
-    def lastValue(self) -> str:
-        """Return the last value stored when editing started."""
-        return self._last_value
-
-
 class DeviceSetupDialog(QDialog):
     """Dialog to assist with setting up a device or editing an existing device."""
 
@@ -156,7 +121,7 @@ class DeviceSetupDialog(QDialog):
         available_com_ports: Sequence[tuple[str, str]] = (),
     ) -> DeviceSetupDialog:
         """Create a dialog to edit an existing device."""
-        if device_label not in core.getLoadedDevices():
+        if device_label not in core.getLoadedDevices():  # pragma: no cover
             raise RuntimeError("No loaded device with label {device_label!r}")
         library_name = core.getDeviceLibrary(device_label)
         device_name = core.getDeviceName(device_label)
@@ -188,7 +153,7 @@ class DeviceSetupDialog(QDialog):
             while device_label in core.getLoadedDevices():
                 device_label = f"{device_name}-{count}"
 
-        elif device_label in core.getLoadedDevices():
+        elif device_label in core.getLoadedDevices():  # pragma: no cover
             raise RuntimeError(
                 f"There is already a loaded device with label {device_label!r}"
             )
@@ -215,7 +180,7 @@ class DeviceSetupDialog(QDialog):
         available_com_ports: Sequence[tuple[str, str]] = (),  # (lib_name, device_name)
         flags: Qt.WindowType = DEFAULT_FLAGS,
     ) -> None:
-        if device_label not in core.getLoadedDevices():
+        if device_label not in core.getLoadedDevices():  # pragma: no cover
             raise RuntimeError(
                 "No loaded device with label {device_label!r}. Use `for_new_device` to "
                 "create a dialog for a new device."
@@ -324,7 +289,7 @@ class DeviceSetupDialog(QDialog):
             title="Failed to initialize device", parent=self
         ) as ctx:
             success = self._initialize_device()
-        if ctx.exception or not success:
+        if ctx.exception or not success:  # pragma: no cover
             self._reload_device()
             return
         super().accept()
@@ -339,7 +304,7 @@ class DeviceSetupDialog(QDialog):
             msg_template="Failed to initialize port device:<br>{exc_value}", parent=self
         ) as ctx:
             self._initialize_port()
-        if ctx.exception:
+        if ctx.exception:  # pragma: no cover
             logger.exception(ctx.exception)
             return False
 
@@ -363,7 +328,7 @@ class DeviceSetupDialog(QDialog):
 
         self._core.initializeDevice(port_dev_label)
 
-    def _show_help(self) -> None:
+    def _show_help(self) -> None:  # pragma: no cover
         from webbrowser import open
 
         # TODO: some of these will be 404
@@ -375,3 +340,38 @@ class DeviceSetupDialog(QDialog):
             with suppress(RuntimeError):
                 self._core.unloadDevice(self._device_label)
         super().reject()
+
+
+class ComTable(PropTable):
+    """Variant of the property table, for com port devices."""
+
+    _port_dev_name = ""
+
+    def rebuild_port(self, port_dev_name: str, port_library_name: str = "") -> None:
+        """Rebuild the table for the given port device.
+
+        if port_dev_name is not currently loaded, and port_library_name is given,
+        then it will be loaded, and the table will be rebuilt with the available
+        property names.
+        """
+        self.setRowCount(0)
+        self._port_dev_name = port_dev_name
+        if port_dev_name not in self._core.getLoadedDevices():
+            if not port_library_name:
+                return
+            self._core.loadDevice(port_dev_name, port_library_name, port_dev_name)
+        prop_names = self._core.getDevicePropertyNames(port_dev_name)
+        return super().rebuild([(port_dev_name, p) for p in prop_names])
+
+
+class LastValueLineEdit(QLineEdit):
+    """QLineEdit that stores the last value on focus in."""
+
+    def focusInEvent(self, a0: QFocusEvent | None) -> None:
+        """Store current value when editing starts."""
+        self._last_value: str = self.text()
+        super().focusInEvent(a0)
+
+    def lastValue(self) -> str:
+        """Return the last value stored when editing started."""
+        return getattr(self, "_last_value", "")
