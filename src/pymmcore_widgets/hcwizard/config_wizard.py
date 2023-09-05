@@ -27,7 +27,17 @@ if TYPE_CHECKING:
 
 
 class ConfigWizard(QWizard):
-    """Hardware Configuration Wizard for Micro-Manager."""
+    """Hardware Configuration Wizard for Micro-Manager.
+
+    Parameters
+    ----------
+    config_file : str, optional
+        Path to a configuration file to load, by default "".
+    core : CMMCorePlus, optional
+        A CMMCorePlus instance, by default, uses the global singleton.
+    parent : QWidget, optional
+        The parent widget, by default None.
+    """
 
     def __init__(
         self,
@@ -70,18 +80,6 @@ class ConfigWizard(QWizard):
     def sizeHint(self) -> QSize:
         """Return the size hint for the wizard."""
         return super().sizeHint().expandedTo(QSize(750, 600))
-
-    def _update_step(self, current_index: int) -> None:
-        """Change text on the left when the page changes."""
-        for i, label in enumerate(self.step_labels):
-            font = label.font()
-            if i == current_index:
-                font.setBold(True)
-                label.setStyleSheet("color: black;")
-            else:
-                font.setBold(False)
-                label.setStyleSheet("color: gray;")
-            label.setFont(font)
 
     def microscopeModel(self) -> Microscope:
         """Return the microscope model."""
@@ -127,3 +125,15 @@ class ConfigWizard(QWizard):
         dest_path = Path(dest)
         self._model.save(dest_path)
         super().accept()
+
+    def _update_step(self, current_index: int) -> None:
+        """Change text on the left when the page changes."""
+        for i, label in enumerate(self.step_labels):
+            font = label.font()
+            if i == current_index:
+                font.setBold(True)
+                label.setStyleSheet("color: black;")
+            else:
+                font.setBold(False)
+                label.setStyleSheet("color: gray;")
+            label.setFont(font)
