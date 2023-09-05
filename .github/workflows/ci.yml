@@ -9,6 +9,10 @@ on:
   pull_request: {}
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check-manifest:
     name: Check Manifest
@@ -27,7 +31,7 @@ jobs:
       fail-fast: false
       matrix:
         platform: [macos-latest, windows-latest]
-        python-version: ["3.8", "3.10"]
+        python-version: ["3.8", "3.11"]
         backend: [pyside2, pyqt5]
         include:
           - platform: windows-latest
@@ -42,13 +46,11 @@ jobs:
           - platform: windows-latest
             python-version: "3.9"
             backend: pyqt5
+        exclude:
+          - python-version: "3.11"
+            backend: pyside2
 
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.11.0
-        with:
-          access_token: ${{ github.token }}
-
       - uses: actions/checkout@v3
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -114,7 +116,6 @@ jobs:
       - name: Run napari-micromanager tests
         run: python -m pytest -v --color=yes -W ignore
         working-directory: napari-micromanager
-
 
   deploy:
     name: Deploy
