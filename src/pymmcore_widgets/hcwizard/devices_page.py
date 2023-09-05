@@ -68,7 +68,7 @@ class _DeviceTable(QTableWidget):
                 wdg.setCursor(Qt.CursorShape.PointingHandCursor)
                 wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
                 wdg.clicked.connect(
-                    lambda _, d=device, m=model: self._edit_peripherals(d, m)
+                    lambda *_, d=device, m=model: self._edit_peripherals(d, m)
                 )
                 wdg.setMaximumWidth(28)
 
