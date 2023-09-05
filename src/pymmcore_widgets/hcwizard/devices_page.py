@@ -321,7 +321,7 @@ class _AvailableDevicesWidget(QWidget):
         show_children = self._show_children.isChecked()
 
         opt = QRegularExpression.PatternOption.CaseInsensitiveOption
-        expressions = {QRegularExpression(p, opt) for p in pattern.split()}
+        expressions = tuple(QRegularExpression(p, opt) for p in pattern.split())
         cols = self.table.columnCount()
         for row in range(self.table.rowCount()):
             dev = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
