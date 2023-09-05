@@ -13,23 +13,22 @@ sequence = MDASequence(
 
 def test_local(qtbot):
     mmcore = CMMCorePlus.instance()
-    mmcore.loadSystemConfiguration()
     datastore = QLocalDataStore(shape=(3, 1, 2, 512, 512), mmcore=mmcore)
     canvas = StackViewer(mmcore=mmcore, datastore=datastore)
     canvas.show()
     qtbot.addWidget(canvas)
+
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)
-    assert canvas.images[0]._data.shape == (512, 512)
     assert canvas.images[0]._data.flatten()[0] != 0
     assert canvas.images[1]._data.shape == (512, 512)
     assert len(canvas.channel_row.boxes) == 5
     assert len(canvas.sliders) > 1
 
-    # qtbot.wait(1000)
+    qtbot.wait(1000)
 
-    # qtbot.mouseMove(canvas, QtCore.QPoint(500, 500))
-    # qtbot.wait(500)
-    # qtbot.mouseMove(canvas, QtCore.QPoint(200, 200))
-    # qtbot.wait(1000)
-    # assert canvas.info_bar.text() != ""
+    qtbot.mouseMove(canvas, QtCore.QPoint(500, 500))
+    qtbot.wait(500)
+    qtbot.mouseMove(canvas, QtCore.QPoint(200, 200))
+    qtbot.wait(1000)
+    assert canvas.info_bar.text() != ""
