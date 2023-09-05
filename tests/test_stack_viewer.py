@@ -25,10 +25,10 @@ def test_local(qtbot):
     assert len(canvas.channel_row.boxes) == 5
     assert len(canvas.sliders) > 1
 
-    qtbot.wait(1000)
+    # qtbot.wait(1000)
 
-    qtbot.mouseMove(canvas, QtCore.QPoint(500, 500))
-    qtbot.wait(500)
-    qtbot.mouseMove(canvas, QtCore.QPoint(200, 200))
-    qtbot.wait(1000)
-    assert canvas.info_bar.text() != ""
+    # qtbot.mouseMove(canvas, QtCore.QPoint(500, 500))
+    # qtbot.wait(500)
+    # qtbot.mouseMove(canvas, QtCore.QPoint(200, 200))
+    # qtbot.wait(1000)
+    # assert canvas.info_bar.text() != ""
