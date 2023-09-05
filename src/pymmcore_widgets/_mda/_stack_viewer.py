@@ -170,9 +170,11 @@ class StackViewer(QtWidgets.QWidget):
 
         if sequence is not None:
             dims = [x for x in sequence.sizes.keys() if sequence.sizes[x] > 0]
+            print(dims)
         else:
             dims = DIMENSIONS
-        dims.remove("c")
+        if 'c' in dims:
+            dims.remove("c")
         self.sliders: list[LabeledVisibilitySlider] = []
         for dim in dims:
             slider = LabeledVisibilitySlider(dim, orientation=QtCore.Qt.Horizontal)
