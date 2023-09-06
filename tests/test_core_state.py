@@ -50,11 +50,12 @@ def _full_state(core: CMMCorePlus) -> dict:
 
 @pytest.mark.parametrize("widget", ALL_WIDGETS, ids=lambda x: x.__name__)
 def test_core_state_unchanged(
-    global_mmcore: CMMCorePlus, widget: type[QWidget], qapp: Any
+    global_mmcore: CMMCorePlus, widget: type[QWidget], qtbot
 ) -> None:
     before = _full_state(global_mmcore)
     kwargs = {**ALL_WIDGETS[widget]}
-    widget(**kwargs)
+    w = widget(**kwargs)
+    qtbot.addWidget(w)
     after = _full_state(global_mmcore)
     assert before == after
 
