@@ -79,11 +79,11 @@ class PeripheralSetupDlg(QDialog):
             self.table.setItem(row, 0, item)
 
             item = QTableWidgetItem(child.adapter_name)
-            item.setFlags(~Qt.ItemFlag.ItemIsEditable)
+            item.setFlags(Qt.ItemFlag.NoItemFlags)
             self.table.setItem(row, 1, item)
 
             item = QTableWidgetItem(child.description)
-            item.setFlags(~Qt.ItemFlag.ItemIsEditable)
+            item.setFlags(Qt.ItemFlag.NoItemFlags)
             self.table.setItem(row, 2, item)
 
     def selectedPeripherals(self) -> Iterable[Device]:
