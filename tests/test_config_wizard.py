@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import patch
 
 import pytest
 from pymmcore_plus.model import Microscope
@@ -15,12 +14,10 @@ from pymmcore_widgets.hcwizard._peripheral_setup_dialog import PeripheralSetupDl
 from pymmcore_widgets.hcwizard.config_wizard import (
     ConfigWizard,
 )
-from pymmcore_widgets.hcwizard.devices_page import DevicesPage
 from pymmcore_widgets.hcwizard.finish_page import DEST_CONFIG
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
-    from pytestqt.qtbot import QtBot
 
 TEST_CONFIG = Path(__file__).parent / "test_config.cfg"
 
