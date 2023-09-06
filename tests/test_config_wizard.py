@@ -7,15 +7,13 @@ from unittest.mock import patch
 import pytest
 from pymmcore_plus.model import Microscope
 from qtpy.QtCore import Qt
-from qtpy.QtGui import QCloseEvent, QFocusEvent
+from qtpy.QtGui import QFocusEvent
 
 from pymmcore_widgets.hcwizard import devices_page
 from pymmcore_widgets.hcwizard._dev_setup_dialog import DeviceSetupDialog
 from pymmcore_widgets.hcwizard._peripheral_setup_dialog import PeripheralSetupDlg
 from pymmcore_widgets.hcwizard.config_wizard import (
     ConfigWizard,
-    QFileDialog,
-    QMessageBox,
 )
 from pymmcore_widgets.hcwizard.devices_page import DevicesPage
 from pymmcore_widgets.hcwizard.finish_page import DEST_CONFIG
