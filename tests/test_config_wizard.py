@@ -51,12 +51,6 @@ def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
     assert st1 == st2
     wiz._model.devices.pop()
 
-    if os.name == "nt":
-        return
-
-    if API_NAME == "PySide2":
-        return  # these seem to hang on CI
-
     with patch.object(
         QMessageBox, "question", lambda *_: QMessageBox.StandardButton.Save
     ):
@@ -95,13 +89,11 @@ def test_config_wizard_devices(
     dev_page.available.table.selectRow(r)
     assert dev_page.available.table.selectedItems()
 
-    exec_ = "exec" if hasattr(devices_page.DeviceSetupDialog, "exec") else "exec_"
-    with patch.object(devices_page.DeviceSetupDialog, exec_):
-        with patch.object(devices_page.PeripheralSetupDlg, exec_):
-            dev_page.available._add_selected_device()
 
-    if API_NAME == "PySide2":
-        return  # these seem to hang on CI
+    exec_ = "exec_" if hasattr(devices_page.DeviceSetupDialog, "exec_") else "exec"
+    with patch.object(devices_page.DeviceSetupDialog, exec_, lambda *_: 1):
+        with patch.object(devices_page.PeripheralSetupDlg, exec_, lambda *_: 1):
+            dev_page.available._add_selected_device()
 
     dev_page.current.table.selectAll()
     assert dev_page.current.table.selectedItems()
