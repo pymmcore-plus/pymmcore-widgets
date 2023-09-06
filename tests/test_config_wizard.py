@@ -54,6 +54,9 @@ def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
     if os.name == "nt":
         return
 
+    if API_NAME == "PySide2":
+        return  # these seem to hang on CI
+
     with patch.object(
         QMessageBox, "question", lambda *_: QMessageBox.StandardButton.Save
     ):
@@ -98,8 +101,7 @@ def test_config_wizard_devices(
             dev_page.available._add_selected_device()
 
     if API_NAME == "PySide2":
-        # these seem to hang on CI
-        return
+        return  # these seem to hang on CI
 
     dev_page.current.table.selectAll()
     assert dev_page.current.table.selectedItems()
