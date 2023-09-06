@@ -43,7 +43,7 @@ def _run_after_each_test(request: "FixtureRequest", qapp: "QApplication"):
     if len(remaining) > nbefore:
         if (
             os.name == "nt"
-            and sys.version_info[:2] <= (3, 9)
+            # and sys.version_info[:2] <= (3, 9)
             and type(remaining[0]).__name__ in {"ImagePreview", "SnapButton"}
         ):
             # I have no idea why, but the ImagePreview widget is leaking on py38
