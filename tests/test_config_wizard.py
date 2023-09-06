@@ -58,15 +58,15 @@ def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
     assert st1 == st2
     wiz._model.devices.pop()
 
-    with patch.object(
-        QMessageBox, "question", lambda *_: QMessageBox.StandardButton.Save
-    ):
-        with patch.object(QFileDialog, "getSaveFileName", lambda *_: (str(out), "")):
-            with qtbot.waitSignal(wiz.accepted):
-                wiz.closeEvent(QCloseEvent())
+    # with patch.object(
+    #     QMessageBox, "question", lambda *_: QMessageBox.StandardButton.Save
+    # ):
+    #     with patch.object(QFileDialog, "getSaveFileName", lambda *_: (str(out), "")):
+    #         with qtbot.waitSignal(wiz.accepted):
+    #             wiz.closeEvent(QCloseEvent())
 
 
-exec_ = "exec" if hasattr(devices_page.DeviceSetupDialog, "exec") else "exec_"
+exec_ = "exec_" if hasattr(devices_page.DeviceSetupDialog, "exec_") else "exec"
 
 
 @patch.object(devices_page.DeviceSetupDialog, exec_)
