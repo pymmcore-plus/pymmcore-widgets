@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 from pymmcore_plus.model import Microscope
-from qtpy import API_NAME
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QCloseEvent, QFocusEvent
 
@@ -88,7 +86,6 @@ def test_config_wizard_devices(
             break
     dev_page.available.table.selectRow(r)
     assert dev_page.available.table.selectedItems()
-
 
     exec_ = "exec_" if hasattr(devices_page.DeviceSetupDialog, "exec_") else "exec"
     with patch.object(devices_page.DeviceSetupDialog, exec_, lambda *_: 1):
