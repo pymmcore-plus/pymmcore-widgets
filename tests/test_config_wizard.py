@@ -4,10 +4,10 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
-from qtpy import API_NAME
 
 import pytest
 from pymmcore_plus.model import Microscope
+from qtpy import API_NAME
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QCloseEvent, QFocusEvent
 
