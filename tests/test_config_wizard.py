@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 from pymmcore_plus.model import Microscope
@@ -18,6 +19,7 @@ from pymmcore_widgets.hcwizard.finish_page import DEST_CONFIG
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
+    from pytestqt.qtbot import QtBot
 
 TEST_CONFIG = Path(__file__).parent / "test_config.cfg"
 
@@ -61,50 +63,44 @@ def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
     #             wiz.closeEvent(QCloseEvent())
 
 
-exec_ = "exec_" if hasattr(devices_page.DeviceSetupDialog, "exec_") else "exec"
+def test_config_wizard_devices(
+    global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path, qapp
+):
+    global_mmcore.unloadAllDevices()
+    assert global_mmcore.getLoadedDevices() == ("Core",)
 
+    wiz = ConfigWizard(core=global_mmcore)
+    wiz.show()
+    dev_page = wiz.page(1)
+    assert isinstance(dev_page, devices_page.DevicesPage)
+    qtbot.addWidget(wiz)
+    out = tmp_path / "out.cfg"
+    wiz.setField(DEST_CONFIG, str(out))
+    wiz.next()
 
-# @patch.object(devices_page.DeviceSetupDialog, exec_)
-# @patch.object(devices_page.PeripheralSetupDlg, exec_)
-# def test_config_wizard_devices(
-#     mock1, mock2, global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path, qapp
-# ):
-#     global_mmcore.unloadAllDevices()
-#     assert global_mmcore.getLoadedDevices() == ("Core",)
+    assert dev_page.available.table.rowCount()
 
-#     wiz = ConfigWizard(core=global_mmcore)
-#     wiz.show()
-#     dev_page = wiz.page(1)
-#     assert isinstance(dev_page, DevicesPage)
-#     qtbot.addWidget(wiz)
-#     out = tmp_path / "out.cfg"
-#     wiz.setField(DEST_CONFIG, str(out))
-#     wiz.next()
+    # test sorting
+    dev_page.available.table.horizontalHeader().sectionClicked.emit(1)
+    assert dev_page.available._sorted_col == 1
 
-#     assert dev_page.available.table.rowCount()
+    # enter text in filter and select a row
+    dev_page.available.filter.setText("Demo Camera")
+    for r in range(dev_page.available.table.rowCount()):
+        item = dev_page.available.table.item(r, 1)
+        if item.text() == "DHub":
+            break
+    dev_page.available.table.selectRow(r)
+    assert dev_page.available.table.selectedItems()
 
-#     # test sorting
-#     dev_page.available.table.horizontalHeader().sectionClicked.emit(1)
-#     assert dev_page.available._sorted_col == 1
+    with patch.object(devices_page.DeviceSetupDialog, "exec"):
+        with patch.object(devices_page.PeripheralSetupDlg, "exec"):
+            dev_page.available._add_selected_device()
 
-#     # enter text in filter and select a row
-#     dev_page.available.filter.setText("Demo Camera")
-#     for r in range(dev_page.available.table.rowCount()):
-#         item = dev_page.available.table.item(r, 1)
-#         if item.text() == "DHub":
-#             break
-#     dev_page.available.table.selectRow(r)
-#     assert dev_page.available.table.selectedItems()
-
-#     dev_page.available._add_selected_device()
-
-#     dev_page.current.table.selectAll()
-#     assert dev_page.current.table.selectedItems()
-#     dev_page.current._remove_selected_devices()
-#     assert not dev_page._model.devices
-
-#     mock1.assert_called_once()
-#     mock2.assert_called_once()
+    dev_page.current.table.selectAll()
+    assert dev_page.current.table.selectedItems()
+    dev_page.current._remove_selected_devices()
+    assert not dev_page._model.devices
 
 
 def test_device_setup_dialog(qtbot, global_mmcore: CMMCorePlus):
