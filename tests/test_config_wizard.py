@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -7,13 +8,15 @@ from unittest.mock import patch
 import pytest
 from pymmcore_plus.model import Microscope
 from qtpy.QtCore import Qt
-from qtpy.QtGui import QFocusEvent
+from qtpy.QtGui import QCloseEvent, QFocusEvent
 
 from pymmcore_widgets.hcwizard import devices_page
 from pymmcore_widgets.hcwizard._dev_setup_dialog import DeviceSetupDialog
 from pymmcore_widgets.hcwizard._peripheral_setup_dialog import PeripheralSetupDlg
 from pymmcore_widgets.hcwizard.config_wizard import (
     ConfigWizard,
+    QFileDialog,
+    QMessageBox,
 )
 from pymmcore_widgets.hcwizard.finish_page import DEST_CONFIG
 
@@ -22,14 +25,6 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 TEST_CONFIG = Path(__file__).parent / "test_config.cfg"
-
-
-def _non_empty_lines(path: Path) -> list[str]:
-    return [
-        ln
-        for line in path.read_text().splitlines()
-        if (ln := line.strip()) and not ln.startswith("#")
-    ]
 
 
 def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
@@ -55,12 +50,15 @@ def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
     assert st1 == st2
     wiz._model.devices.pop()
 
-    # with patch.object(
-    #     QMessageBox, "question", lambda *_: QMessageBox.StandardButton.Save
-    # ):
-    #     with patch.object(QFileDialog, "getSaveFileName", lambda *_: (str(out), "")):
-    #         with qtbot.waitSignal(wiz.accepted):
-    #             wiz.closeEvent(QCloseEvent())
+    if os.name == "nt":
+        return
+
+    with patch.object(
+        QMessageBox, "question", lambda *_: QMessageBox.StandardButton.Save
+    ):
+        with patch.object(QFileDialog, "getSaveFileName", lambda *_: (str(out), "")):
+            with qtbot.waitSignal(wiz.accepted):
+                wiz.closeEvent(QCloseEvent())
 
 
 def test_config_wizard_devices(
