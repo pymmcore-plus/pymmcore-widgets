@@ -93,8 +93,9 @@ def test_config_wizard_devices(
     dev_page.available.table.selectRow(r)
     assert dev_page.available.table.selectedItems()
 
-    with patch.object(devices_page.DeviceSetupDialog, "exec"):
-        with patch.object(devices_page.PeripheralSetupDlg, "exec"):
+    exec_ = "exec" if hasattr(devices_page.DeviceSetupDialog, "exec") else "exec_"
+    with patch.object(devices_page.DeviceSetupDialog, exec_):
+        with patch.object(devices_page.PeripheralSetupDlg, exec_):
             dev_page.available._add_selected_device()
 
     dev_page.current.table.selectAll()
