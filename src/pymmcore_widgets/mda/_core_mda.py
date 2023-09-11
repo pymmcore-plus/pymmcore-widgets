@@ -38,20 +38,25 @@ if TYPE_CHECKING:
 
 
 class MDAWidget(MDASequenceWidget):
+    """Widget for running MDA experiments, connecting to a MMCorePlus instance."""
+
     def __init__(
         self, *, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
     ) -> None:
+        # create a couple core-connected variants of the tab widgets
         self._mmc = mmcore or CMMCorePlus.instance()
         position_wdg = CoreConnectedPositionTable(1, self._mmc)
         z_wdg = CoreConnectedZPlanWidgert(self._mmc)
 
         super().__init__(parent=parent, position_wdg=position_wdg, z_wdg=z_wdg)
+
         self.save_info = _SaveGroupBox(parent=self)
         self.control_btns = _MDAControlButtons(self._mmc, self)
 
         # -------- initialize -----------
 
         self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
+        # TODO: connect objective change event to update suggested step
         self._update_channel_groups()
 
         # ------------ layout ------------
@@ -72,14 +77,18 @@ class MDAWidget(MDASequenceWidget):
         self.destroyed.connect(self._disconnect)
 
     def value(self) -> MDASequence:
+        """Set the current state of the widget."""
         val = super().value()
         meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
         meta.update(self.save_info.value())
         return val
 
     def setValue(self, value: MDASequence) -> None:
+        """Get the current state of the widget."""
         super().setValue(value)
         self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
+
+    # ------------------- private API ----------------------
 
     def _update_channel_groups(self) -> None:
         ch = self._mmc.getChannelGroup()
@@ -118,6 +127,7 @@ class _SaveGroupBox(QGroupBox):
     ) -> None:
         super().__init__(title, parent)
         self.setCheckable(True)
+        self.setChecked(False)
 
         self.save_dir = QLineEdit()
         self.save_dir.setPlaceholderText("Select Save Directory")
@@ -161,6 +171,8 @@ class _SaveGroupBox(QGroupBox):
 
 
 class _MDAControlButtons(QWidget):
+    """Run, pause, and cancel buttons at the bottom of the MDA Widget."""
+
     def __init__(self, mmcore: CMMCorePlus, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
