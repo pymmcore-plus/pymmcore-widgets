@@ -73,6 +73,7 @@ class MDAWidget(MDASequenceWidget):
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.events.channelGroupChanged.connect(self._update_channel_groups)
+        self._mmc.events.systemConfigurationLoaded.connect(self._update_channel_groups)
 
         self.destroyed.connect(self._disconnect)
 
@@ -91,8 +92,14 @@ class MDAWidget(MDASequenceWidget):
     # ------------------- private API ----------------------
 
     def _update_channel_groups(self) -> None:
-        ch = self._mmc.getChannelGroup()
-        self.channels.setChannelGroups({ch: self._mmc.getAvailableConfigs(ch)})
+        self.channels.setChannelGroups(
+            {
+                group_name: self._mmc.getAvailableConfigs(group_name)
+                for group_name in self._mmc.getAvailableConfigGroups()
+            }
+        )
+        if ch := self._mmc.getChannelGroup():
+            self.channels._group_combo.setCurrentText(ch)
 
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
