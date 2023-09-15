@@ -22,6 +22,7 @@ from superqt.fonticon import icon
 
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 
+from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidgert
 
@@ -47,8 +48,14 @@ class MDAWidget(MDASequenceWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
         position_wdg = CoreConnectedPositionTable(1, self._mmc)
         z_wdg = CoreConnectedZPlanWidgert(self._mmc)
+        self.grid_wdg = CoreConnectedGridPlanWidget(self._mmc)
 
-        super().__init__(parent=parent, position_wdg=position_wdg, z_wdg=z_wdg)
+        super().__init__(
+            parent=parent,
+            position_wdg=position_wdg,
+            z_wdg=z_wdg,
+            grid_wdg=self.grid_wdg,
+        )
 
         self.save_info = _SaveGroupBox(parent=self)
         self.control_btns = _MDAControlButtons(self._mmc, self)
@@ -65,6 +72,8 @@ class MDAWidget(MDASequenceWidget):
         layout.insertWidget(0, self.save_info)
         layout.addWidget(self.control_btns)
 
+        self._update_fov_size()
+
         # ------------ connect signals ------------
 
         self.control_btns.run_btn.clicked.connect(self._on_run_clicked)
@@ -73,7 +82,8 @@ class MDAWidget(MDASequenceWidget):
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.events.channelGroupChanged.connect(self._update_channel_groups)
-        self._mmc.events.systemConfigurationLoaded.connect(self._update_channel_groups)
+        self._mmc.events.systemConfigurationLoaded.connect(self._update_fov_size)
+        self._mmc.events.pixelSizeChanged.connect(self._update_fov_size)
 
         self.destroyed.connect(self._disconnect)
 
@@ -91,15 +101,18 @@ class MDAWidget(MDASequenceWidget):
 
     # ------------------- private API ----------------------
 
-    def _update_channel_groups(self) -> None:
-        self.channels.setChannelGroups(
-            {
-                group_name: self._mmc.getAvailableConfigs(group_name)
-                for group_name in self._mmc.getAvailableConfigGroups()
-            }
+    def _update_fov_size(self) -> None:
+        # TODO: add if not px size
+        self.grid_wdg.setFovWidth(
+            self._mmc.getImageWidth() * self._mmc.getPixelSizeUm()
         )
-        if ch := self._mmc.getChannelGroup():
-            self.channels._group_combo.setCurrentText(ch)
+        self.grid_wdg.setFovHeight(
+            self._mmc.getImageHeight() * self._mmc.getPixelSizeUm()
+        )
+
+    def _update_channel_groups(self) -> None:
+        ch = self._mmc.getChannelGroup()
+        self.channels.setChannelGroups({ch: self._mmc.getAvailableConfigs(ch)})
 
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
