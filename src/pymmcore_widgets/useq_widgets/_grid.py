@@ -183,21 +183,18 @@ class GridPlanWidget(QWidget):
     def _on_change(self) -> None:
         val = self.value()
 
-        if val is None:
-            return
-
-        if isinstance(val, useq.GridRowsColumns):
+        if val is not None:  # temporary
             draw_grid = val.replace(relative_to="top_left")
-            draw_grid.fov_height = 1 / ((val.rows - 1) or 1)
-            draw_grid.fov_width = 1 / ((val.columns - 1) or 1)
+            if isinstance(val, useq.GridRowsColumns):
+                draw_grid.fov_height = 1 / ((val.rows - 1) or 1)
+                draw_grid.fov_width = 1 / ((val.columns - 1) or 1)
+            if isinstance(val, useq.GridFromEdges):
+                draw_grid.fov_height = 1 / ((val.bottom - val.top) or 1)
+                draw_grid.fov_width = 1 / ((val.right - val.left) or 1)
             self._grid_img.grid = draw_grid
-        else:
-            # TODO: draw also when GridWidthHeight and GridFromEdges
-            self._grid_img.grid = None
+            self._grid_img.update()
 
-        self._grid_img.update()
-
-        self.valueChanged.emit(val)
+            self.valueChanged.emit(val)
 
     def mode(self) -> Mode:
         return self._mode
