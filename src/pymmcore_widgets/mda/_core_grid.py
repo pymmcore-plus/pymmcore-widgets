@@ -64,7 +64,7 @@ class CoreConnectedGridPlanWidget(GridPlanWidget):
 
     def _on_change(self) -> None:
         # TODO: owerriding this for now because there is some issue in the rendering of
-        # the GridFromEdges. Will work on it in the future
+        # the GridFromEdges.
 
         val = self.value()
 
@@ -86,6 +86,7 @@ class CoreConnectedGridPlanWidget(GridPlanWidget):
 
     def value(self) -> useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight:
         value = super().value()
+
         if isinstance(value, useq.GridWidthHeight):
             # convert from mm to um
             value = value.replace(width=value.width * 1000, height=value.height * 1000)
