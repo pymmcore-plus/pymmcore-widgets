@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from contextlib import suppress
 from typing import TYPE_CHECKING, cast
 
@@ -16,6 +17,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QTabBar,
     QWidget,
 )
 from superqt.fonticon import icon
@@ -36,6 +38,9 @@ if TYPE_CHECKING:
         file_name: str
         split_positions: bool
         should_save: bool
+
+
+TAB_POS = QTabBar.ButtonPosition.LeftSide
 
 
 class MDAWidget(MDASequenceWidget):
@@ -100,15 +105,33 @@ class MDAWidget(MDASequenceWidget):
         self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
 
     # ------------------- private API ----------------------
-
     def _update_fov_size(self) -> None:
-        # TODO: add if not px size
-        self.grid_wdg.setFovWidth(
-            self._mmc.getImageWidth() * self._mmc.getPixelSizeUm()
-        )
-        self.grid_wdg.setFovHeight(
-            self._mmc.getImageHeight() * self._mmc.getPixelSizeUm()
-        )
+        """Update the FOV size in the grid plan widget.
+
+        If no pixel size is defined, the grid plan widget is disabled.
+        """
+        tab_idx = self.tab_wdg.indexOf(self.tab_wdg.grid_plan)
+        tab_bar = self.tab_wdg.tabBar()
+        grid_checkbox = cast("QCheckBox", tab_bar.tabButton(tab_idx, TAB_POS))
+
+        px = self._mmc.getPixelSizeUm()
+        if not px:
+            warnings.warn(
+                "No pixel size defined. GridPlan Widgets will be disabled.",
+                stacklevel=2,
+            )
+            # disable grid plan widget
+            grid_checkbox.setChecked(False)
+            grid_checkbox.setEnabled(False)
+            fov_width = fov_height = 0.0
+        else:
+            # set get fov and enable grid plan widget
+            grid_checkbox.setEnabled(True)
+            fov_width = self._mmc.getImageWidth() * px
+            fov_height = self._mmc.getImageHeight() * px
+
+        self.grid_wdg.setFovWidth(fov_width)
+        self.grid_wdg.setFovHeight(fov_height)
 
     def _update_channel_groups(self) -> None:
         ch = self._mmc.getChannelGroup()
