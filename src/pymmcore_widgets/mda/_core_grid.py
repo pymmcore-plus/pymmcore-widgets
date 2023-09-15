@@ -1,5 +1,6 @@
 from typing import cast
 
+import useq
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import (
     QGridLayout,
@@ -44,9 +45,6 @@ class CoreConnectedGridPlanWidget(GridPlanWidget):
         self.right.valueChanged.connect(self._on_change)
         self.bottom.valueChanged.connect(self._on_change)
 
-    def _on_toggle(self, checked: bool) -> None:
-        self._core_xy_bounds.setEnabled(checked)
-
     def _hide_widgets(self, layout: QLayout) -> None:
         """Recursively hide all widgets in the GridPlanWidget GridFromEdges layout."""
         for i in range(layout.count()):
@@ -60,3 +58,36 @@ class CoreConnectedGridPlanWidget(GridPlanWidget):
                 wdg.hide()
             else:
                 self._hide_widgets(item)
+
+    def _on_toggle(self, checked: bool) -> None:
+        self._core_xy_bounds.setEnabled(checked)
+
+    def _on_change(self) -> None:
+        # TODO: owerriding this for now because there is some issue in the rendering of
+        # the GridFromEdges. Will work on it in the future
+
+        val = self.value()
+
+        if val is None:
+            return
+
+        if isinstance(val, useq.GridRowsColumns):
+            draw_grid = val.replace(relative_to="top_left")
+            draw_grid.fov_height = 1 / ((val.rows - 1) or 1)
+            draw_grid.fov_width = 1 / ((val.columns - 1) or 1)
+            self._grid_img.grid = draw_grid
+        else:
+            # TODO: draw also GridWidthHeight and GridFromEdges
+            self._grid_img.grid = None
+
+        self._grid_img.update()
+
+        self.valueChanged.emit(val)
+
+    def value(self) -> useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight:
+        value = super().value()
+        if isinstance(value, useq.GridWidthHeight):
+            # convert from mm to um
+            value = value.replace(width=value.width * 1000, height=value.height * 1000)
+
+        return value
