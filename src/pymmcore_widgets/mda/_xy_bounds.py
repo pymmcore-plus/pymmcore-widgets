@@ -15,6 +15,7 @@ from qtpy.QtWidgets import (
     QFormLayout,
     QGridLayout,
     QHBoxLayout,
+    QLabel,
     QPushButton,
     QSizePolicy,
     QWidget,
@@ -89,10 +90,13 @@ class XYBoundsControl(QWidget):
     ) -> None:
         super().__init__(parent)
 
-        self.top_edit = _PositionSpinBox()
-        self.left_edit = _PositionSpinBox()
-        self.right_edit = _PositionSpinBox()
-        self.bottom_edit = _PositionSpinBox()
+        self.top_edit = _PositionLabel("Top:")
+        self.left_edit = _PositionLabel("Left:")
+        self.right_edit = _PositionLabel("Right:")
+        self.bottom_edit = _PositionLabel("Bottom:")
+        self.top_edit._lbl.setMinimumWidth(self.bottom_edit._lbl.sizeHint().width())
+        self.left_edit._lbl.setMinimumWidth(self.bottom_edit._lbl.sizeHint().width())
+        self.right_edit._lbl.setMinimumWidth(self.bottom_edit._lbl.sizeHint().width())
 
         self.btn_top = _MarkVisitButton("top")
         self.btn_left = _MarkVisitButton("left")
@@ -236,6 +240,35 @@ class _PositionSpinBox(QDoubleSpinBox):
         self.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
         self.setRange(-99999999, 99999999)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setSuffix(" µm")
+
+
+class _MarkVisitButton(QPushButton):
+    def __init__(
+        self,
+        name: str,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._name = name
+        self._mark_icon = ICONS_MARK[self._name]
+        self._visit_icon = ICONS_GO[self._name]
+
+        self.setIcon(self._mark_icon)
+        self.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setStyleSheet(BTN_STYLE)
+        self.setToolTip(f"Mark the {self._name} bound.")
+
+    def setMark(self) -> None:
+        """Set the icon to the mark icon."""
+        self.setIcon(self._mark_icon)
+        self.setToolTip(f"Mark the {self._name} bound.")
+
+    def setVisit(self) -> None:
+        """Set the icon to the visit icon."""
+        self.setIcon(icon(self._visit_icon))
+        self.setToolTip(f"Move to the {self._name} bound.")
 
 
 class _MarkVisitButton(QPushButton):
