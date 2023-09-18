@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from contextlib import suppress
 from typing import TYPE_CHECKING, cast
 
@@ -17,7 +16,6 @@ from qtpy.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QTabBar,
     QWidget,
 )
 from superqt.fonticon import icon
@@ -39,8 +37,6 @@ if TYPE_CHECKING:
         split_positions: bool
         should_save: bool
 
-
-TAB_POS = QTabBar.ButtonPosition.LeftSide
 
 
 class MDAWidget(MDASequenceWidget):
@@ -77,8 +73,6 @@ class MDAWidget(MDASequenceWidget):
         layout.insertWidget(0, self.save_info)
         layout.addWidget(self.control_btns)
 
-        self._update_fov_size()
-
         # ------------ connect signals ------------
 
         self.control_btns.run_btn.clicked.connect(self._on_run_clicked)
@@ -87,8 +81,6 @@ class MDAWidget(MDASequenceWidget):
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.events.channelGroupChanged.connect(self._update_channel_groups)
-        self._mmc.events.systemConfigurationLoaded.connect(self._update_fov_size)
-        self._mmc.events.pixelSizeChanged.connect(self._update_fov_size)
 
         self.destroyed.connect(self._disconnect)
 
@@ -105,33 +97,6 @@ class MDAWidget(MDASequenceWidget):
         self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
 
     # ------------------- private API ----------------------
-    def _update_fov_size(self) -> None:
-        """Update the FOV size in the grid plan widget.
-
-        If no pixel size is defined, the grid plan widget is disabled.
-        """
-        tab_idx = self.tab_wdg.indexOf(self.tab_wdg.grid_plan)
-        tab_bar = self.tab_wdg.tabBar()
-        grid_checkbox = cast("QCheckBox", tab_bar.tabButton(tab_idx, TAB_POS))
-
-        px = self._mmc.getPixelSizeUm()
-        if not px:
-            warnings.warn(
-                "No pixel size defined. GridPlan Widgets will be disabled.",
-                stacklevel=2,
-            )
-            # disable grid plan widget
-            grid_checkbox.setChecked(False)
-            grid_checkbox.setEnabled(False)
-            fov_width = fov_height = 0.0
-        else:
-            # set get fov and enable grid plan widget
-            grid_checkbox.setEnabled(True)
-            fov_width = self._mmc.getImageWidth() * px
-            fov_height = self._mmc.getImageHeight() * px
-
-        self.grid_wdg.setFovWidth(fov_width)
-        self.grid_wdg.setFovHeight(fov_height)
 
     def _update_channel_groups(self) -> None:
         ch = self._mmc.getChannelGroup()

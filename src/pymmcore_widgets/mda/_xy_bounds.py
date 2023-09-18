@@ -209,23 +209,6 @@ class CoreXYBoundsControl(XYBoundsControl):
         self._mmc.setXYPosition(device, x, y)
         self._mmc.waitForDevice(device)
 
-    def setEnabled(self, state: bool) -> None:
-        """Enable or disable all the buttons."""
-        self.go_middle.setEnabled(state)
-        for btn in [
-            self.btn_top,
-            self.btn_left,
-            self.btn_right,
-            self.btn_bottom,
-            self.btn_top_left,
-            self.btn_top_right,
-            self.btn_bottom_left,
-            self.btn_bottom_right,
-        ]:
-            btn.setEnabled(state)
-        for wdg in [self.top_edit, self.bottom_edit, self.left_edit, self.right_edit]:
-            wdg.setEnabled(state)
-
 
 # -------- helpers --------
 
