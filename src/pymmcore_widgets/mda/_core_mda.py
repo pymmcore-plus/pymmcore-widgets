@@ -38,7 +38,6 @@ if TYPE_CHECKING:
         should_save: bool
 
 
-
 class MDAWidget(MDASequenceWidget):
     """Widget for running MDA experiments, connecting to a MMCorePlus instance."""
 
@@ -99,8 +98,14 @@ class MDAWidget(MDASequenceWidget):
     # ------------------- private API ----------------------
 
     def _update_channel_groups(self) -> None:
-        ch = self._mmc.getChannelGroup()
-        self.channels.setChannelGroups({ch: self._mmc.getAvailableConfigs(ch)})
+        ch_group = self._mmc.getChannelGroup()
+        # if there is no channel group available, use all available groups
+        names = [ch_group] if ch_group else self._mmc.getAvailableConfigGroups()
+        groups = {
+            group_name: self._mmc.getAvailableConfigs(group_name)
+            for group_name in names
+        }
+        self.channels.setChannelGroups(groups)
 
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
