@@ -34,10 +34,10 @@ class CoreConnectedGridPlanWidget(GridPlanWidget):
 
         # replace GridPlanWidget attributes with CoreXYBoundsControl attributes so we
         # can use the same super() methods.
-        self.top = self._core_xy_bounds.top_edit._spin
-        self.left = self._core_xy_bounds.left_edit._spin
-        self.right = self._core_xy_bounds.right_edit._spin
-        self.bottom = self._core_xy_bounds.bottom_edit._spin
+        self.top = self._core_xy_bounds.top_edit
+        self.left = self._core_xy_bounds.left_edit
+        self.right = self._core_xy_bounds.right_edit
+        self.bottom = self._core_xy_bounds.bottom_edit
 
         # connect
         self.top.valueChanged.connect(self._on_change)

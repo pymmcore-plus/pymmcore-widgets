@@ -12,12 +12,11 @@ from qtpy.QtWidgets import (
     QApplication,
     QCheckBox,
     QDoubleSpinBox,
+    QFormLayout,
     QGridLayout,
     QHBoxLayout,
-    QLabel,
     QPushButton,
     QSizePolicy,
-    QVBoxLayout,
     QWidget,
 )
 from superqt.fonticon import icon
@@ -90,13 +89,10 @@ class XYBoundsControl(QWidget):
     ) -> None:
         super().__init__(parent)
 
-        self.top_edit = _PositionLabel("Top:")
-        self.left_edit = _PositionLabel("Left:")
-        self.right_edit = _PositionLabel("Right:")
-        self.bottom_edit = _PositionLabel("Bottom:")
-        self.top_edit._lbl.setMinimumWidth(self.bottom_edit._lbl.sizeHint().width())
-        self.left_edit._lbl.setMinimumWidth(self.bottom_edit._lbl.sizeHint().width())
-        self.right_edit._lbl.setMinimumWidth(self.bottom_edit._lbl.sizeHint().width())
+        self.top_edit = _PositionSpinBox()
+        self.left_edit = _PositionSpinBox()
+        self.right_edit = _PositionSpinBox()
+        self.bottom_edit = _PositionSpinBox()
 
         self.btn_top = _MarkVisitButton("top")
         self.btn_left = _MarkVisitButton("left")
@@ -128,21 +124,22 @@ class XYBoundsControl(QWidget):
 
         grid_layout.addWidget(self.go_middle, 2, 2, CTR)
 
-        values = QWidget()
-        values.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        values.setContentsMargins(0, 0, 0, 0)
-        values_layout = QVBoxLayout(values)
+        values_layout = QFormLayout()
+        values_layout.setContentsMargins(0, 0, 0, 0)
         values_layout.setSpacing(10)
-        values_layout.addWidget(self.top_edit)
-        values_layout.addWidget(self.bottom_edit)
-        values_layout.addWidget(self.left_edit)
-        values_layout.addWidget(self.right_edit)
+        values_layout.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+        )
+        values_layout.addRow("Top:", self.top_edit)
+        values_layout.addRow("Left:", self.bottom_edit)
+        values_layout.addRow("Right:", self.left_edit)
+        values_layout.addRow("Bottom:", self.right_edit)
 
         top_layout = QHBoxLayout()
         top_layout.setContentsMargins(0, 0, 0, 0)
         top_layout.setSpacing(15)
         top_layout.addWidget(grid)
-        top_layout.addWidget(values)
+        top_layout.addLayout(values_layout)
 
         self.setLayout(top_layout)
         self.setWindowTitle("Mark XY Boundaries")
@@ -231,33 +228,14 @@ class CoreXYBoundsControl(XYBoundsControl):
 
 
 # -------- helpers --------
-class _PositionLabel(QWidget):
-    def __init__(self, label: str) -> None:
+
+
+class _PositionSpinBox(QDoubleSpinBox):
+    def __init__(self) -> None:
         super().__init__()
-
-        self._lbl = QLabel()
-        self._lbl.setText(label)
-        self._lbl.setSizePolicy(*FIXED_POLICY)
-
-        self._spin = QDoubleSpinBox()
-        self._spin.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
-        self._spin.setRange(-99999999, 99999999)
-        self._spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._spin.setSuffix(" µm")
-
-        main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(5)
-        main_layout.addWidget(self._lbl)
-        main_layout.addWidget(self._spin)
-
-        self.setLayout(main_layout)
-
-    def value(self) -> float:
-        return self._spin.value()  # type: ignore
-
-    def setValue(self, value: float) -> None:
-        self._spin.setValue(value)
+        self.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
+        self.setRange(-99999999, 99999999)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
 
 class _MarkVisitButton(QPushButton):
