@@ -1,17 +1,23 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt
+from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QApplication,
+    QCheckBox,
     QDoubleSpinBox,
     QGridLayout,
     QHBoxLayout,
+    QLabel,
     QPushButton,
+    QSizePolicy,
+    QVBoxLayout,
     QWidget,
 )
 from superqt.fonticon import icon
@@ -19,18 +25,30 @@ from superqt.fonticon import icon
 if TYPE_CHECKING:
     from pymmcore import CMMCore
 
+FIXED_POLICY = (QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+CTR = Qt.AlignmentFlag.AlignCenter
 RADIUS = 4
 ICON_SIZE = 24
-ICONS: dict[str, str] = {
-    "top": MDI6.arrow_collapse_up,  # or arrow_up
-    "left": MDI6.arrow_collapse_left,  # or arrow_left
-    "right": MDI6.arrow_collapse_right,  # or arrow_right
-    "bottom": MDI6.arrow_collapse_down,  # or arrow_down
-    "top_left": MDI6.arrow_top_left,
-    "top_right": MDI6.arrow_top_right,
-    "bottom_left": MDI6.arrow_bottom_left,
-    "bottom_right": MDI6.arrow_bottom_right,
-    "visit": MDI6.language_go,
+ICONS_GO: dict[str, str] = {
+    "top": MDI6.arrow_up_thick,
+    "left": MDI6.arrow_left_thick,
+    "right": MDI6.arrow_right_thick,
+    "bottom": MDI6.arrow_down_thick,
+    "top_left": MDI6.arrow_top_left_thick,
+    "top_right": MDI6.arrow_top_right_thick,
+    "bottom_left": MDI6.arrow_bottom_left_thick,
+    "bottom_right": MDI6.arrow_bottom_right_thick,
+}
+ICONS_MARK_PATH = Path(__file__).parent / "ICONS"
+ICONS_MARK: dict[str, QIcon] = {
+    "top": QIcon(str(ICONS_MARK_PATH / "top.svg")),
+    "left": QIcon(str(ICONS_MARK_PATH / "left.svg")),
+    "right": QIcon(str(ICONS_MARK_PATH / "right.svg")),
+    "bottom": QIcon(str(ICONS_MARK_PATH / "bottom.svg")),
+    "top_left": QIcon(str(ICONS_MARK_PATH / "top_left.svg")),
+    "top_right": QIcon(str(ICONS_MARK_PATH / "top_right.svg")),
+    "bottom_left": QIcon(str(ICONS_MARK_PATH / "bottom_left.svg")),
+    "bottom_right": QIcon(str(ICONS_MARK_PATH / "bottom_right.svg")),
 }
 BTN_STYLE = f"""
 QPushButton {{
@@ -54,7 +72,6 @@ QPushButton {{
     border: 0.5px solid #DCDCDC;
     background-color: #FFF;
     padding: 2px 6px;
-    {extra}
 }}
 QPushButton:hover {{
     background-color: #EEE;
@@ -73,31 +90,32 @@ class XYBoundsControl(QWidget):
     ) -> None:
         super().__init__(parent)
 
-        self.top_edit = _PositionSpinBox()
-        self.left_edit = _PositionSpinBox()
-        self.right_edit = _PositionSpinBox()
-        self.bottom_edit = _PositionSpinBox()
+        self.top_edit = _PositionLabel("Top:")
+        self.left_edit = _PositionLabel("Left:")
+        self.right_edit = _PositionLabel("Right:")
+        self.bottom_edit = _PositionLabel("Bottom:")
+        self.top_edit._lbl.setMinimumWidth(self.bottom_edit._lbl.sizeHint().width())
+        self.left_edit._lbl.setMinimumWidth(self.bottom_edit._lbl.sizeHint().width())
+        self.right_edit._lbl.setMinimumWidth(self.bottom_edit._lbl.sizeHint().width())
 
-        self.btn_top = MarkVisit(ICONS["top"])
-        self.btn_left = MarkVisit(ICONS["left"], visit_on_right=False)
-        self.btn_right = MarkVisit(ICONS["right"])
-        self.btn_bottom = MarkVisit(ICONS["bottom"])
-        self.btn_top_left = MarkVisit(ICONS["top_left"], visit_on_right=False)
-        self.btn_top_right = MarkVisit(ICONS["top_right"])
-        self.btn_bottom_left = MarkVisit(ICONS["bottom_left"], visit_on_right=False)
-        self.btn_bottom_right = MarkVisit(ICONS["bottom_right"])
+        self.btn_top = _MarkVisitButton("top")
+        self.btn_left = _MarkVisitButton("left")
+        self.btn_right = _MarkVisitButton("right")
+        self.btn_bottom = _MarkVisitButton("bottom")
+        self.btn_top_left = _MarkVisitButton("top_left")
+        self.btn_top_right = _MarkVisitButton("top_right")
+        self.btn_bottom_left = _MarkVisitButton("bottom_left")
+        self.btn_bottom_right = _MarkVisitButton("bottom_right")
 
-        self.go_middle = QPushButton(icon(ICONS["visit"]), "")
-        self.go_middle.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.go_middle.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
-        self.go_middle.setStyleSheet(BTN_STYLE)
+        self.go_middle = QCheckBox("Move")
+        self.go_middle.setSizePolicy(*FIXED_POLICY)
+        self.go_middle.toggled.connect(self._update_buttons_icon)
 
-        grid_layout = QGridLayout()
-        CTR = Qt.AlignmentFlag.AlignCenter
-        grid_layout.addWidget(self.top_edit, 1, 2, CTR)
-        grid_layout.addWidget(self.left_edit, 2, 0 if compact_layout else 1, CTR)
-        grid_layout.addWidget(self.right_edit, 2, 4 if compact_layout else 3, CTR)
-        grid_layout.addWidget(self.bottom_edit, 3, 2, CTR)
+        grid = QWidget()
+        grid.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        grid_layout = QGridLayout(grid)
+        grid_layout.setSpacing(10)
+        grid_layout.setContentsMargins(0, 0, 0, 0)
         grid_layout.addWidget(self.btn_top, 0, 2, CTR)
         grid_layout.addWidget(self.btn_left, 1 if compact_layout else 2, 0, CTR)
         grid_layout.addWidget(self.btn_right, 1 if compact_layout else 2, 4, CTR)
@@ -107,11 +125,42 @@ class XYBoundsControl(QWidget):
         grid_layout.addWidget(self.btn_top_right, 0, 4, CTR)
         grid_layout.addWidget(self.btn_bottom_left, 4, 0, CTR)
         grid_layout.addWidget(self.btn_bottom_right, 4, 4, CTR)
+
         grid_layout.addWidget(self.go_middle, 2, 2, CTR)
 
-        self.setLayout(grid_layout)
-        self.setWindowTitle("XY Stage Control")
+        values = QWidget()
+        values.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        values.setContentsMargins(0, 0, 0, 0)
+        values_layout = QVBoxLayout(values)
+        values_layout.setSpacing(10)
+        values_layout.addWidget(self.top_edit)
+        values_layout.addWidget(self.bottom_edit)
+        values_layout.addWidget(self.left_edit)
+        values_layout.addWidget(self.right_edit)
+
+        top_layout = QHBoxLayout()
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(15)
+        top_layout.addWidget(grid)
+        top_layout.addWidget(values)
+
+        self.setLayout(top_layout)
+        self.setWindowTitle("Mark XY Boundaries")
         self.show()
+
+    def _update_buttons_icon(self, state: bool) -> None:
+        """Switch the icon of the buttons between `mark` and `visit`."""
+        for btn in [
+            self.btn_top,
+            self.btn_left,
+            self.btn_right,
+            self.btn_bottom,
+            self.btn_top_left,
+            self.btn_top_right,
+            self.btn_bottom_left,
+            self.btn_bottom_right,
+        ]:
+            btn.setVisit() if state else btn.setMark()
 
 
 class CoreXYBoundsControl(XYBoundsControl):
@@ -128,25 +177,17 @@ class CoreXYBoundsControl(XYBoundsControl):
         self._mmc = core or CMMCorePlus.instance()
         self._device = device
 
-        self.btn_top.mark.clicked.connect(lambda: self._mark(top=True))
-        self.btn_left.mark.clicked.connect(lambda: self._mark(left=True))
-        self.btn_right.mark.clicked.connect(lambda: self._mark(left=False))
-        self.btn_bottom.mark.clicked.connect(lambda: self._mark(top=False))
-        self.btn_top_left.mark.clicked.connect(lambda: self._mark(True, True))
-        self.btn_top_right.mark.clicked.connect(lambda: self._mark(True, False))
-        self.btn_bottom_left.mark.clicked.connect(lambda: self._mark(False, True))
-        self.btn_bottom_right.mark.clicked.connect(lambda: self._mark(False, False))
+        self.btn_top.clicked.connect(lambda: self._mark_or_visit(top=True))
+        self.btn_left.clicked.connect(lambda: self._mark_or_visit(left=True))
+        self.btn_right.clicked.connect(lambda: self._mark_or_visit(left=False))
+        self.btn_bottom.clicked.connect(lambda: self._mark_or_visit(top=False))
+        self.btn_top_left.clicked.connect(lambda: self._mark_or_visit(True, True))
+        self.btn_top_right.clicked.connect(lambda: self._mark_or_visit(True, False))
+        self.btn_bottom_left.clicked.connect(lambda: self._mark_or_visit(False, True))
+        self.btn_bottom_right.clicked.connect(lambda: self._mark_or_visit(False, False))
 
-        self.btn_top.visit.clicked.connect(lambda: self._visit(top=True))
-        self.btn_left.visit.clicked.connect(lambda: self._visit(left=True))
-        self.btn_right.visit.clicked.connect(lambda: self._visit(left=False))
-        self.btn_bottom.visit.clicked.connect(lambda: self._visit(top=False))
-        self.btn_top_left.visit.clicked.connect(lambda: self._visit(True, True))
-        self.btn_top_right.visit.clicked.connect(lambda: self._visit(True, False))
-        self.btn_bottom_left.visit.clicked.connect(lambda: self._visit(False, True))
-        self.btn_bottom_right.visit.clicked.connect(lambda: self._visit(False, False))
-
-        self.go_middle.clicked.connect(self._visit_middle)
+    def _mark_or_visit(self, top: bool | None = None, left: bool | None = None) -> None:
+        self._visit(top, left) if self.go_middle.isChecked() else self._mark(top, left)
 
     def _mark(self, top: bool | None = None, left: bool | None = None) -> None:
         device = self._device or self._mmc.getXYStageDevice()
@@ -171,59 +212,114 @@ class CoreXYBoundsControl(XYBoundsControl):
         self._mmc.setXYPosition(device, x, y)
         self._mmc.waitForDevice(device)
 
-    def _visit_middle(self) -> None:
-        device = self._device or self._mmc.getXYStageDevice()
-        x = (self.left_edit.value() + self.right_edit.value()) / 2
-        y = (self.top_edit.value() + self.bottom_edit.value()) / 2
-        self._mmc.setXYPosition(device, x, y)
-        self._mmc.waitForDevice(device)
+    def setEnabled(self, state: bool) -> None:
+        """Enable or disable all the buttons."""
+        self.go_middle.setEnabled(state)
+        for btn in [
+            self.btn_top,
+            self.btn_left,
+            self.btn_right,
+            self.btn_bottom,
+            self.btn_top_left,
+            self.btn_top_right,
+            self.btn_bottom_left,
+            self.btn_bottom_right,
+        ]:
+            btn.setEnabled(state)
+        for wdg in [self.top_edit, self.bottom_edit, self.left_edit, self.right_edit]:
+            wdg.setEnabled(state)
 
 
 # -------- helpers --------
-class _PositionSpinBox(QDoubleSpinBox):
-    def __init__(self) -> None:
+class _PositionLabel(QWidget):
+    def __init__(self, label: str) -> None:
         super().__init__()
-        self.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
-        self.setRange(-99999999, 99999999)
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._lbl = QLabel()
+        self._lbl.setText(label)
+        self._lbl.setSizePolicy(*FIXED_POLICY)
+
+        self._spin = QDoubleSpinBox()
+        self._spin.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
+        self._spin.setRange(-99999999, 99999999)
+        self._spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._spin.setSuffix(" µm")
+
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(5)
+        main_layout.addWidget(self._lbl)
+        main_layout.addWidget(self._spin)
+
+        self.setLayout(main_layout)
+
+    def value(self) -> float:
+        return self._spin.value()  # type: ignore
+
+    def setValue(self, value: float) -> None:
+        self._spin.setValue(value)
+
+
+class _MarkVisitButton(QPushButton):
+    def __init__(
+        self,
+        name: str,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._name = name
+        self._mark_icon = ICONS_MARK[self._name]
+        self._visit_icon = ICONS_GO[self._name]
+
+        self.setIcon(self._mark_icon)
+        self.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setStyleSheet(BTN_STYLE)
+        self.setToolTip(f"Mark the {self._name} bound.")
+
+    def setMark(self) -> None:
+        """Set the icon to the mark icon."""
+        self.setIcon(self._mark_icon)
+        self.setToolTip(f"Mark the {self._name} bound.")
+
+    def setVisit(self) -> None:
+        """Set the icon to the visit icon."""
+        self.setIcon(icon(self._visit_icon))
+        self.setToolTip(f"Move to the {self._name} bound.")
 
 
 class MarkVisit(QWidget):
     def __init__(
         self,
         mark_glyph: str,
-        visit_glyph: str = ICONS["visit"],
         mark_text: str = "",
         icon_size: int = ICON_SIZE,
         radius: int = RADIUS,
-        visit_on_right: bool = True,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
+
+        mode = "top" if "top" in mark_text.lower() else "bottom"
+
         self.mark = QPushButton(icon(mark_glyph), mark_text)
         self.mark.setIconSize(QSize(icon_size, icon_size))
         self.mark.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        self.visit = QPushButton(icon(visit_glyph), "")
+        self.visit = QPushButton(icon(ICONS_GO[mode]), "")
         self.visit.setIconSize(QSize(icon_size, icon_size))
         self.visit.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.visit.setToolTip(f"Move to {mode}.")
 
-        left_style = SS.format(side="left", radius=radius, extra="border-right: none;")
-        right_style = SS.format(side="right", radius=radius, extra="")
+        left_style = SS.format(side="left", radius=radius)
+        right_style = SS.format(side="right", radius=radius)
 
         layout = QHBoxLayout(self)
         layout.setSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
-        if visit_on_right:
-            self.mark.setStyleSheet(left_style)
-            self.visit.setStyleSheet(right_style)
-            layout.addWidget(self.mark)
-            layout.addWidget(self.visit)
-        else:
-            self.mark.setStyleSheet(right_style)
-            self.visit.setStyleSheet(left_style)
-            layout.addWidget(self.visit)
-            layout.addWidget(self.mark)
+        self.mark.setStyleSheet(left_style)
+        self.visit.setStyleSheet(right_style)
+        layout.addWidget(self.mark)
+        layout.addWidget(self.visit)
 
 
 if __name__ == "__main__":

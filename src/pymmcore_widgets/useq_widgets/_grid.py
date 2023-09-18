@@ -242,6 +242,7 @@ class GridPlanWidget(QWidget):
             "fov_width": self._fov_width,
             "fov_height": self._fov_height,
         }
+
         if self._mode == Mode.NUMBER:
             return useq.GridRowsColumns(
                 rows=self.rows.value(),
