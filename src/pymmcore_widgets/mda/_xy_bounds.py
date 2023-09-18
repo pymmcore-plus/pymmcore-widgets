@@ -250,34 +250,6 @@ class _MarkVisitButton(QPushButton):
         self.setToolTip(f"Move to the {self._name} bound.")
 
 
-class _MarkVisitButton(QPushButton):
-    def __init__(
-        self,
-        name: str,
-        parent: QWidget | None = None,
-    ) -> None:
-        super().__init__(parent)
-        self._name = name
-        self._mark_icon = ICONS_MARK[self._name]
-        self._visit_icon = ICONS_GO[self._name]
-
-        self.setIcon(self._mark_icon)
-        self.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
-        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.setStyleSheet(BTN_STYLE)
-        self.setToolTip(f"Mark the {self._name} bound.")
-
-    def setMark(self) -> None:
-        """Set the icon to the mark icon."""
-        self.setIcon(self._mark_icon)
-        self.setToolTip(f"Mark the {self._name} bound.")
-
-    def setVisit(self) -> None:
-        """Set the icon to the visit icon."""
-        self.setIcon(icon(self._visit_icon))
-        self.setToolTip(f"Move to the {self._name} bound.")
-
-
 class MarkVisit(QWidget):
     def __init__(
         self,
