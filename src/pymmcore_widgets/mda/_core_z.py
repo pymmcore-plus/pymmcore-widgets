@@ -1,12 +1,16 @@
-from typing import Literal
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QWidget
 
 from pymmcore_widgets.useq_widgets._z import ROW_TOP_BOTTOM, Mode, ZPlanWidget
 
 from ._xy_bounds import MarkVisit
+
+if TYPE_CHECKING:
+    from qtpy.QtWidgets import QWidget
 
 
 class CoreConnectedZPlanWidgert(ZPlanWidget):
