@@ -38,7 +38,6 @@ if TYPE_CHECKING:
         should_save: bool
 
 
-
 class MDAWidget(MDASequenceWidget):
     """Widget for running MDA experiments, connecting to a MMCorePlus instance."""
 
