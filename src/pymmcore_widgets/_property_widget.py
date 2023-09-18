@@ -139,6 +139,7 @@ class ChoiceWidget(QComboBox):
         self._mmc = mmcore
         self._dev = dev
         self._prop = prop
+        self._prop_type = mmcore.getPropertyType(dev, prop)
         self._allowed: tuple[str, ...] = ()
 
         self._mmc.events.systemConfigurationLoaded.connect(self._refresh_choices)
@@ -152,8 +153,12 @@ class ChoiceWidget(QComboBox):
     def _refresh_choices(self) -> None:
         with utils.signals_blocked(self):
             self.clear()
-            self._allowed = self._get_allowed()
-            self.addItems(self._allowed)
+            allowed = list(self._get_allowed())
+            with contextlib.suppress(ValueError):
+                # natural sort for numbers
+                allowed.sort(key=float)
+
+            self.addItems(allowed)
 
     def _get_allowed(self) -> tuple[str, ...]:
         if allowed := self._mmc.getAllowedPropertyValues(self._dev, self._prop):
@@ -273,6 +278,9 @@ class PropertyWidget(QWidget):
         By default, None. If not specified, the widget will use the active
         (or create a new)
         [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    connect_core : bool
+        Whether to connect the widget to the core. If False, the widget will not
+        update the core when the value changes. By default, True.
 
     Raises
     ------
@@ -290,6 +298,7 @@ class PropertyWidget(QWidget):
         *,
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
+        connect_core: bool = True,
     ) -> None:
         super().__init__(parent=parent)
 
@@ -305,7 +314,7 @@ class PropertyWidget(QWidget):
                 f"Available property names include: {names}"
             )
 
-        self._updates_core: bool = True  # whether to update the core on value change
+        self._updates_core: bool = connect_core  # whether to update the core on change
         self._device_label = device_label
         self._prop_name = prop_name
 
