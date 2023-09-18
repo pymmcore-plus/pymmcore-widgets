@@ -80,6 +80,7 @@ class MDAWidget(MDASequenceWidget):
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.events.channelGroupChanged.connect(self._update_channel_groups)
+        self._mmc.events.systemConfigurationLoaded.connect(self._update_channel_groups)
 
         self.destroyed.connect(self._disconnect)
 
