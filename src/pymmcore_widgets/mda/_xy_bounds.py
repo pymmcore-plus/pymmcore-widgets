@@ -15,7 +15,6 @@ from qtpy.QtWidgets import (
     QFormLayout,
     QGridLayout,
     QHBoxLayout,
-    QLabel,
     QPushButton,
     QSizePolicy,
     QWidget,
@@ -90,13 +89,10 @@ class XYBoundsControl(QWidget):
     ) -> None:
         super().__init__(parent)
 
-        self.top_edit = _PositionLabel("Top:")
-        self.left_edit = _PositionLabel("Left:")
-        self.right_edit = _PositionLabel("Right:")
-        self.bottom_edit = _PositionLabel("Bottom:")
-        self.top_edit._lbl.setMinimumWidth(self.bottom_edit._lbl.sizeHint().width())
-        self.left_edit._lbl.setMinimumWidth(self.bottom_edit._lbl.sizeHint().width())
-        self.right_edit._lbl.setMinimumWidth(self.bottom_edit._lbl.sizeHint().width())
+        self.top_edit = _PositionSpinBox()
+        self.left_edit = _PositionSpinBox()
+        self.right_edit = _PositionSpinBox()
+        self.bottom_edit = _PositionSpinBox()
 
         self.btn_top = _MarkVisitButton("top")
         self.btn_left = _MarkVisitButton("left")
