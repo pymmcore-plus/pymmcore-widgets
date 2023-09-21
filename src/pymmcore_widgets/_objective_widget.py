@@ -73,7 +73,7 @@ class ObjectivesWidget(QWidget):
 
     def _create_objective_combo(
         self, device_label: str | None
-    ) -> StateDeviceWidget | QComboBox:
+    ) -> _ObjectiveStateWidget | QComboBox:
         if device_label:
             combo = _ObjectiveStateWidget(device_label, parent=self, mmcore=self._mmc)
             combo.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
