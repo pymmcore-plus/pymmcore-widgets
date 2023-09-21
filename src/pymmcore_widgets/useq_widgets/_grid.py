@@ -65,6 +65,9 @@ class GridPlanWidget(QWidget):
         self.area_width = QDoubleSpinBox()
         self.area_width.setRange(0.01, 100)
         self.area_width.setDecimals(2)
+        # here for area_width and area_height we are using mm instead of µm because
+        # (as in GridWidthHeight) because it is probably easier for a user to define
+        # the area in mm
         self.area_width.setSuffix(" mm")
         self.area_width.setSingleStep(0.1)
         self.area_height = QDoubleSpinBox()
@@ -248,9 +251,10 @@ class GridPlanWidget(QWidget):
                 **common,
             )
         elif self._mode == Mode.AREA:
+            # converting width and height to microns because GridWidthHeight expects µm
             return useq.GridWidthHeight(
-                width=self.area_width.value(),
-                height=self.area_height.value(),
+                width=self.area_width.value() * 1000,
+                height=self.area_height.value() * 1000,
                 relative_to=cast("RelativeTo", self.relative_to.currentEnum()).value,
                 **common,
             )
@@ -268,8 +272,10 @@ class GridPlanWidget(QWidget):
                 self.bottom.setValue(value.bottom)
                 self.right.setValue(value.right)
             elif isinstance(value, useq.GridWidthHeight):
-                self.area_width.setValue(value.width)
-                self.area_height.setValue(value.height)
+                # GridWidthHeight width and height are expressed in µm but this widget
+                # uses mm, so we convert width and height to mm here
+                self.area_width.setValue(value.width / 1000)
+                self.area_height.setValue(value.height / 1000)
                 self.relative_to.setCurrentText(value.relative_to.value)
             else:  # pragma: no cover
                 raise TypeError(f"Expected useq grid plan, got {type(value)}")
