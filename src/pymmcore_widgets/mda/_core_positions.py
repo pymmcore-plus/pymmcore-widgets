@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from fonticon_mdi6 import MDI6
@@ -35,13 +36,13 @@ class CoreConnectedPositionTable(PositionTable):
 
         self.move_to_selection = QCheckBox("Move Stage to Selected Point")
         # add a button to update XY to the current position
-        xy_btn = ButtonColumn(
+        self._xy_btn_col = ButtonColumn(
             key="xy_btn", glyph=MDI6.arrow_right, on_click=self._set_xy_from_core
         )
         self._z_btn_col = ButtonColumn(
             key="z_btn", glyph=MDI6.arrow_left, on_click=self._set_z_from_core
         )
-        self.table().addColumn(xy_btn, self.table().indexOf(self.X))
+        self.table().addColumn(self._xy_btn_col, self.table().indexOf(self.X))
         self.table().addColumn(self._z_btn_col, self.table().indexOf(self.Z) + 1)
 
         # add move_to_selection to toolbar and link up callback
@@ -50,18 +51,19 @@ class CoreConnectedPositionTable(PositionTable):
         toolbar.insertWidget(action0, self.move_to_selection)
         self.table().itemSelectionChanged.connect(self._on_selection_change)
 
-    def _set_xy_from_core(self, row: int, col: int) -> None:
+    def _set_xy_from_core(self, row: int, col: int = 0) -> None:
         data = {
             self.X.key: self._mmc.getXPosition(),
             self.Y.key: self._mmc.getYPosition(),
         }
         self.table().setRowData(row, data)
 
-    def _set_z_from_core(self, row: int, col: int) -> None:
+    def _set_z_from_core(self, row: int, col: int = 0) -> None:
         data = {self.Z.key: self._mmc.getPosition(self._mmc.getFocusDevice())}
         self.table().setRowData(row, data)
 
     def _on_selection_change(self) -> None:
+        """Move stage to (single) selected row if move_to_selection enabled."""
         if not self.move_to_selection.isChecked():
             return
 
@@ -71,7 +73,13 @@ class CoreConnectedPositionTable(PositionTable):
             data = self.table().rowData(row)
             x = data.get(self.X.key, self._mmc.getXPosition())
             y = data.get(self.Y.key, self._mmc.getYPosition())
-            self._mmc.setXYPosition(x, y)
+            z = data.get(self.Z.key, self._mmc.getZPosition())
+            try:
+                self._mmc.setXYPosition(x, y)
+                self._mmc.setZPosition(z)
+            except RuntimeError:
+                logging.error("Failed to move stage to selected position.")
+            self._mmc.waitForSystem()
 
     def _on_include_z_toggled(self, checked: bool) -> None:
         super()._on_include_z_toggled(checked)
