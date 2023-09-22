@@ -36,13 +36,13 @@ class CoreConnectedPositionTable(PositionTable):
 
         self.move_to_selection = QCheckBox("Move Stage to Selected Point")
         # add a button to update XY to the current position
-        self._xy_btn = ButtonColumn(
+        self._xy_btn_col = ButtonColumn(
             key="xy_btn", glyph=MDI6.arrow_right, on_click=self._set_xy_from_core
         )
         self._z_btn_col = ButtonColumn(
             key="z_btn", glyph=MDI6.arrow_left, on_click=self._set_z_from_core
         )
-        self.table().addColumn(self._xy_btn, self.table().indexOf(self.X))
+        self.table().addColumn(self._xy_btn_col, self.table().indexOf(self.X))
         self.table().addColumn(self._z_btn_col, self.table().indexOf(self.Z) + 1)
 
         # add move_to_selection to toolbar and link up callback

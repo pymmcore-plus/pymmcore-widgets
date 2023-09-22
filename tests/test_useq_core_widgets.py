@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import useq
 
@@ -48,7 +48,8 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
     qtbot.addWidget(wdg)
     wdg.show()
 
-    pos_table = cast(CoreConnectedPositionTable, wdg.stage_positions)
+    pos_table = wdg.stage_positions
+    assert isinstance(pos_table, CoreConnectedPositionTable)
     pos_table.setValue(MDA.stage_positions)
     assert pos_table.table().rowCount() == 2
 
@@ -59,8 +60,11 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
 
     wdg._mmc.setXYPosition(11, 22)
     wdg._mmc.setZPosition(33)
-    pos_table._set_xy_from_core(0)
-    pos_table._set_z_from_core(0)
+    xyidx = pos_table.table().indexOf(pos_table._xy_btn_col)
+    z_idx = pos_table.table().indexOf(pos_table._z_btn_col)
+    # i'm not sure why click() isn't working... but this is
+    pos_table.table().cellWidget(0, xyidx).clicked.emit()
+    pos_table.table().cellWidget(0, z_idx).clicked.emit()
     p0 = pos_table.value()[0]
     assert round(p0.x) == 11
     assert round(p0.y) == 22
