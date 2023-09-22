@@ -21,6 +21,7 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 
+from ._autofocus import _AutofocusZDeviceWidget
 from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
 
@@ -130,9 +131,10 @@ class PositionTable(DataTableWidget):
     """Table for editing a list of `useq.Positions`."""
 
     NAME = TextColumn(key="name", default=None, is_row_selector=True)
-    X = FloatColumn(key="x", header="X [mm]", default=0.0)
-    Y = FloatColumn(key="y", header="Y [mm]", default=0.0)
-    Z = FloatColumn(key="z", header="Z [mm]", default=0.0)
+    X = FloatColumn(key="x", header="X [µm]", default=0.0)
+    Y = FloatColumn(key="y", header="Y [µm]", default=0.0)
+    Z = FloatColumn(key="z", header="Z [µm]", default=0.0)
+    AF = FloatColumn(key="af", header="AF [µm]", default=0.0)
     SEQ = SubSeqColumn(key="sequence", header="Sub-Sequence", default=None)
 
     def __init__(self, rows: int = 0, parent: QWidget | None = None):
@@ -142,13 +144,18 @@ class PositionTable(DataTableWidget):
         self.include_z.setChecked(True)
         self.include_z.toggled.connect(self._on_include_z_toggled)
 
+        self.use_af = _AutofocusZDeviceWidget()
+        self.use_af.toggled.connect(self._on_use_af_toggled)
+
         self._save_button = QPushButton("Save...")
         self._save_button.clicked.connect(self.save)
         self._load_button = QPushButton("Load...")
         self._load_button.clicked.connect(self.load)
 
         btn_row = QHBoxLayout()
+        btn_row.setSpacing(15)
         btn_row.addWidget(self.include_z)
+        btn_row.addWidget(self.use_af)
         btn_row.addStretch()
         btn_row.addWidget(self._save_button)
         btn_row.addWidget(self._load_button)
@@ -164,7 +171,23 @@ class PositionTable(DataTableWidget):
                 r.pop(self.NAME.key, None)
             if not self.include_z.isChecked():
                 r.pop(self.Z.key, None)
-            out.append(useq.Position(**r))
+            pos = useq.Position(**r)
+
+            # add any autofocus plan to the position sub-sequence
+            af_device = self.use_af.value()
+            af_offset = r.get(self.AF.key, None)
+            if af_device is not None and af_offset is not None:
+                pos = pos.replace(
+                    sequence=useq.MDASequence(
+                        autofocus_plan=useq.AxesBasedAF(
+                            autofocus_device_name=af_device,
+                            autofocus_motor_offset=af_offset,
+                            axes=("t", "p", "g"),
+                        )
+                    )
+                )
+            out.append(pos)
+
         return tuple(out)
 
     def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore
@@ -218,3 +241,7 @@ class PositionTable(DataTableWidget):
     def _on_include_z_toggled(self, checked: bool) -> None:
         z_col = self.table().indexOf(self.Z)
         self.table().setColumnHidden(z_col, not checked)
+
+    def _on_use_af_toggled(self, checked: bool) -> None:
+        af_col = self.table().indexOf(self.AF)
+        self.table().setColumnHidden(af_col, not checked)
