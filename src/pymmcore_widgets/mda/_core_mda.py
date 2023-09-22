@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize
+from qtpy.QtCore import QSize, Signal
 from qtpy.QtWidgets import (
     QBoxLayout,
     QCheckBox,
@@ -77,6 +77,7 @@ class MDAWidget(MDASequenceWidget):
         self.control_btns.run_btn.clicked.connect(self._on_run_clicked)
         self.control_btns.pause_btn.released.connect(self._mmc.mda.toggle_pause)
         self.control_btns.cancel_btn.released.connect(self._mmc.mda.cancel)
+        self.save_info.valueChanged.connect(self.valueChanged)
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.events.channelGroupChanged.connect(self._update_channel_groups)
@@ -133,8 +134,9 @@ class MDAWidget(MDASequenceWidget):
 
 
 class _SaveGroupBox(QGroupBox):
-    ...
     """A Widget to gather information about MDA file saving."""
+
+    valueChanged = Signal(object)
 
     def __init__(
         self, title: str = "Save Acquisition", parent: QWidget | None = None
@@ -159,6 +161,15 @@ class _SaveGroupBox(QGroupBox):
         grid.addWidget(QLabel("File Name:"), 1, 0)
         grid.addWidget(self.file_name, 1, 1)
         grid.addWidget(self.split_positions, 2, 0, 1, 3)
+
+        # connect
+        self.toggled.connect(self._on_value_changed)
+        self.save_dir.textChanged.connect(self._on_value_changed)
+        self.file_name.textChanged.connect(self._on_value_changed)
+        self.split_positions.toggled.connect(self._on_value_changed)
+
+    def _on_value_changed(self) -> None:
+        self.valueChanged.emit(self.value())
 
     def value(self) -> SaveInfo:
         """Return current state of the dialog."""
