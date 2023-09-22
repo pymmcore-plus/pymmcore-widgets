@@ -539,7 +539,7 @@ class ButtonColumn(WidgetColumn):
 
         if callable(onclk := self.on_click):
 
-            def _cb(state: bool, tbl: QTableWidget = table) -> None:
+            def _cb(*_: Any, tbl: QTableWidget = table) -> None:
                 for row in range(tbl.rowCount()):
                     for col in range(tbl.columnCount()):
                         if tbl.cellWidget(row, col) is new_wdg:
