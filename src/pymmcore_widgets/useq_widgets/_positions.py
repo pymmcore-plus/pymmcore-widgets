@@ -145,6 +145,7 @@ class PositionTable(DataTableWidget):
         self.include_z.toggled.connect(self._on_include_z_toggled)
 
         self.use_af = _AutofocusZDeviceWidget()
+        self.use_af.af_combo.setEditable(True)
         self.use_af.toggled.connect(self._on_use_af_toggled)
 
         self._save_button = QPushButton("Save...")

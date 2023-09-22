@@ -48,6 +48,8 @@ class CoreConnectedPositionTable(PositionTable):
         self.table().addColumn(self._z_btn_col, self.table().indexOf(self.Z) + 1)
         self.table().addColumn(self._af_btn_col, self.table().indexOf(self.AF) + 1)
 
+        self.use_af.af_combo.setEditable(False)
+
         # add move_to_selection to toolbar and link up callback
         toolbar = self.toolBar()
         action0 = next(x for x in toolbar.children() if isinstance(x, QWidgetAction))
