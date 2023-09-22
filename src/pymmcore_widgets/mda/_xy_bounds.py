@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt
-from qtpy.QtGui import QIcon
+from qtpy.QtGui import QTransform
 from qtpy.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -24,10 +24,17 @@ from superqt.fonticon import icon
 if TYPE_CHECKING:
     from pymmcore import CMMCore
 
+
 FIXED_POLICY = (QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 CTR = Qt.AlignmentFlag.AlignCenter
 RADIUS = 4
 ICON_SIZE = 24
+
+
+def _rotate(deg: int, size: int = ICON_SIZE) -> QTransform:
+    return QTransform().translate(size, size).rotate(deg).translate(-size, -size)
+
+
 ICONS_GO: dict[str, str] = {
     "top": MDI6.arrow_up_thick,
     "left": MDI6.arrow_left_thick,
@@ -39,16 +46,17 @@ ICONS_GO: dict[str, str] = {
     "bottom_right": MDI6.arrow_bottom_right_thick,
 }
 ICONS_MARK_PATH = Path(__file__).parent / "ICONS"
-ICONS_MARK: dict[str, QIcon] = {
-    "top": QIcon(str(ICONS_MARK_PATH / "top.svg")),
-    "left": QIcon(str(ICONS_MARK_PATH / "left.svg")),
-    "right": QIcon(str(ICONS_MARK_PATH / "right.svg")),
-    "bottom": QIcon(str(ICONS_MARK_PATH / "bottom.svg")),
-    "top_left": QIcon(str(ICONS_MARK_PATH / "top_left.svg")),
-    "top_right": QIcon(str(ICONS_MARK_PATH / "top_right.svg")),
-    "bottom_left": QIcon(str(ICONS_MARK_PATH / "bottom_left.svg")),
-    "bottom_right": QIcon(str(ICONS_MARK_PATH / "bottom_right.svg")),
+ICONS_MARK: dict[str, tuple[str, QTransform | None]] = {
+    "top": (MDI6.border_top_variant, None),
+    "left": (MDI6.border_left_variant, None),
+    "right": (MDI6.border_right_variant, None),
+    "bottom": (MDI6.border_bottom_variant, None),
+    "top_left": (MDI6.border_style, None),
+    "top_right": (MDI6.border_style, _rotate(90)),
+    "bottom_left": (MDI6.border_style, _rotate(270)),
+    "bottom_right": (MDI6.border_style, _rotate(180)),
 }
+
 BTN_STYLE = f"""
 QPushButton {{
     border-radius: {RADIUS}px;
@@ -221,8 +229,9 @@ class _MarkVisitButton(QPushButton):
     ) -> None:
         super().__init__(parent)
         self._name = name
-        self._mark_icon = ICONS_MARK[self._name]
-        self._visit_icon = ICONS_GO[self._name]
+        self._visit_icon = icon(ICONS_GO[self._name])
+        glyph, transform = ICONS_MARK[self._name]
+        self._mark_icon = icon(glyph, transform=transform)
 
         self.setIcon(self._mark_icon)
         self.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
@@ -237,7 +246,7 @@ class _MarkVisitButton(QPushButton):
 
     def setVisit(self) -> None:
         """Set the icon to the visit icon."""
-        self.setIcon(icon(self._visit_icon))
+        self.setIcon(self._visit_icon)
         self.setToolTip(f"Move to the {self._name} bound.")
 
 
