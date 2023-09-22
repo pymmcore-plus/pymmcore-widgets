@@ -148,7 +148,8 @@ class DataTable(QTableWidget):
 
         for col in range(self.columnCount()):
             if info := self.columnInfo(col):
-                info.set_cell_data(self, row, col, data.get(info.key))
+                if info.key in data:
+                    info.set_cell_data(self, row, col, data[info.key])
 
     # ############################## Private #################
 
@@ -203,9 +204,13 @@ class DataTableWidget(QWidget):
     COLUMNS: ClassVar[tuple[ColumnInfo, ...]]
 
     def __init_subclass__(cls) -> None:
-        cls.COLUMNS = tuple(
-            i for i in cls.__dict__.values() if isinstance(i, ColumnInfo)
-        )
+        cols = {}  # use a dict to avoid duplicates
+        # superclasses too, but subclasses override superclasses
+        for base in reversed(cls.__mro__):
+            cols.update(
+                {i.key: i for i in base.__dict__.values() if isinstance(i, ColumnInfo)}
+            )
+        cls.COLUMNS = tuple(cols.values())
 
     def __init__(self, rows: int = 0, parent: QWidget | None = None):
         super().__init__(parent=parent)

@@ -38,6 +38,8 @@ class TimePlanWidget(DataTableWidget):
         self.valueChanged.connect(self._on_value_changed)
 
         self.leave_shutter_open = QCheckBox("Leave shutter open across time points")
+        self.leave_shutter_open.toggled.connect(self.valueChanged)
+
         self.layout().addWidget(self.leave_shutter_open)
 
     def _on_value_changed(self) -> None:

@@ -128,15 +128,58 @@ class CheckableTabWidget(QTabWidget):
         checked : bool
             Whether the QCheckbox is checked. By default, False.
         """
+        return self.insertTab(
+            self.count(),
+            widget,
+            *args,
+            position=position,
+            checked=checked,
+        )
+
+    @overload
+    def insertTab(
+        self,
+        index: int,
+        widget: QWidget | None,
+        a2: str | None,
+        /,
+        *,
+        position: QTabBar.ButtonPosition = ...,
+        checked: bool = ...,
+    ) -> int:
+        ...
+
+    @overload
+    def insertTab(
+        self,
+        index: int,
+        widget: QWidget | None,
+        icon: QIcon,
+        label: str | None,
+        /,
+        *,
+        position: QTabBar.ButtonPosition = ...,
+        checked: bool = ...,
+    ) -> int:
+        ...
+
+    def insertTab(
+        self,
+        index: int,
+        widget: QWidget | None,
+        *args: Any,
+        position: QTabBar.ButtonPosition = QTabBar.ButtonPosition.LeftSide,
+        checked: bool = False,
+    ) -> int:
         if widget is not None:
             widget.setEnabled(checked)
-        idx = super().addTab(widget, *args)
+        super().insertTab(index, widget, *args)
         self._cbox = QCheckBox(parent=self.tabBar())
         self._cbox.toggled.connect(self._on_tab_checkbox_toggled)
         if tab_bar := self.tabBar():
-            tab_bar.setTabButton(idx, position, self._cbox)
+            tab_bar.setTabButton(index, position, self._cbox)
             self._cbox.setChecked(checked)
-        return idx  # type: ignore
+        return index
 
     def _on_tab_checkbox_toggled(self, checked: bool) -> None:
         """Enable/disable the widget in the tab."""
