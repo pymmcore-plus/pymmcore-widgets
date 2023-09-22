@@ -164,6 +164,14 @@ class PositionTable(DataTableWidget):
         layout = cast("QVBoxLayout", self.layout())
         layout.addLayout(btn_row)
 
+    def _get_autofocus_plan(self, af_offset: float) -> useq.AxesBasedAF:
+        af_device = self.use_af.value()
+        return useq.AxesBasedAF(
+            autofocus_device_name=af_device,
+            autofocus_motor_offset=af_offset,
+            axes=("t", "p", "g"),
+        )
+
     def value(self, exclude_unchecked: bool = True) -> tuple[useq.Position, ...]:
         """Return the current value of the table as a list of channels."""
         out = []
@@ -178,15 +186,21 @@ class PositionTable(DataTableWidget):
             af_device = self.use_af.value()
             af_offset = r.get(self.AF.key, None)
             if af_device is not None and af_offset is not None:
-                pos = pos.replace(
-                    sequence=useq.MDASequence(
-                        autofocus_plan=useq.AxesBasedAF(
-                            autofocus_device_name=af_device,
-                            autofocus_motor_offset=af_offset,
-                            axes=("t", "p", "g"),
+                if pos.sequence is None:
+                    # if there is no sub-sequence, create a new one with the autofocus
+                    pos = pos.replace(
+                        sequence=useq.MDASequence(
+                            autofocus_plan=self._get_autofocus_plan(af_offset)
                         )
                     )
-                )
+                else:
+                    # if there is a sub-sequence, add the autofocus plan to it
+                    pos = pos.replace(
+                        sequence=pos.sequence.replace(
+                            autofocus_plan=self._get_autofocus_plan(af_offset)
+                        )
+                    )
+
             out.append(pos)
 
         return tuple(out)
