@@ -4,8 +4,8 @@ from enum import Enum
 from typing import Literal, Sequence, cast
 
 import useq
-from qtpy.QtCore import QPoint, QSize, Qt, Signal
-from qtpy.QtGui import QPainter, QPaintEvent, QPen, QResizeEvent
+from qtpy.QtCore import Qt, Signal
+from qtpy.QtGui import QPainter, QPaintEvent, QPen
 from qtpy.QtWidgets import (
     QAbstractButton,
     QButtonGroup,
@@ -65,6 +65,9 @@ class GridPlanWidget(QWidget):
         self.area_width = QDoubleSpinBox()
         self.area_width.setRange(0.01, 100)
         self.area_width.setDecimals(2)
+        # here for area_width and area_height we are using mm instead of µm because
+        # (as in GridWidthHeight) because it is probably easier for a user to define
+        # the area in mm
         self.area_width.setSuffix(" mm")
         self.area_width.setSingleStep(0.1)
         self.area_height = QDoubleSpinBox()
@@ -154,9 +157,7 @@ class GridPlanWidget(QWidget):
         bot_left.addRow("Order:", self.order)
         bot_left.addRow("Relative to:", self.relative_to)
 
-        self._grid_img = _GridRendering()
         bottom_stuff.addLayout(bot_left)
-        bottom_stuff.addWidget(self._grid_img, 1, Qt.AlignmentFlag.AlignCenter)
 
         layout = QVBoxLayout(self)
         layout.addLayout(row_col_layout)
@@ -191,13 +192,6 @@ class GridPlanWidget(QWidget):
     def _on_change(self) -> None:
         if (val := self.value()) is None:
             return
-        # make a tmp grid object to pass to the _GridRendering widget
-        if isinstance(val, useq.GridRowsColumns):
-            draw_grid = val.replace(relative_to="top_left")
-            draw_grid.fov_height = 1 / ((draw_grid.rows - 1) or 1)
-            draw_grid.fov_width = 1 / ((draw_grid.columns - 1) or 1)
-            self._grid_img.setGrid(draw_grid)
-
         self.valueChanged.emit(val)
 
     def mode(self) -> Mode:
@@ -257,9 +251,10 @@ class GridPlanWidget(QWidget):
                 **common,
             )
         elif self._mode == Mode.AREA:
+            # converting width and height to microns because GridWidthHeight expects µm
             return useq.GridWidthHeight(
-                width=self.area_width.value(),
-                height=self.area_height.value(),
+                width=self.area_width.value() * 1000,
+                height=self.area_height.value() * 1000,
                 relative_to=cast("RelativeTo", self.relative_to.currentEnum()).value,
                 **common,
             )
@@ -277,8 +272,10 @@ class GridPlanWidget(QWidget):
                 self.bottom.setValue(value.bottom)
                 self.right.setValue(value.right)
             elif isinstance(value, useq.GridWidthHeight):
-                self.area_width.setValue(value.width)
-                self.area_height.setValue(value.height)
+                # GridWidthHeight width and height are expressed in µm but this widget
+                # uses mm, so we convert width and height to mm here
+                self.area_width.setValue(value.width / 1000)
+                self.area_height.setValue(value.height / 1000)
                 self.relative_to.setCurrentText(value.relative_to.value)
             else:  # pragma: no cover
                 raise TypeError(f"Expected useq grid plan, got {type(value)}")
@@ -323,61 +320,3 @@ class _SeparatorWidget(QWidget):
         painter = QPainter(self)
         painter.setPen(QPen(Qt.GlobalColor.gray, 1, Qt.PenStyle.SolidLine))
         painter.drawLine(self.rect().topLeft(), self.rect().topRight())
-
-
-class _GridRendering(QWidget):
-    def __init__(self, grid: useq.AnyGridPlan | None = None, line_width: int = 1):
-        super().__init__()
-        self.grid = grid
-        self.line_width = line_width
-
-    def setGrid(self, grid: useq.AnyGridPlan) -> None:
-        self.grid = grid
-        self.update()
-
-    def paintEvent(self, e: QPaintEvent | None) -> None:
-        if not self.grid:
-            return  # pragma: no cover
-
-        # Calculate the actual positions from normalized indices
-        fraction = 0.8  # fraction of the widget to use
-        w, h = self.width(), self.height()
-        half_w = w * (1 - fraction) / 2
-        half_h = h * (1 - fraction) / 2
-        points = [
-            QPoint(int(w * p.x * fraction + half_w), -int(h * p.y * fraction - half_h))
-            for p in self.grid
-        ]
-
-        if len(points) < 2:
-            return  # pragma: no cover
-
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-
-        line_pen = QPen(Qt.GlobalColor.black, self.line_width, Qt.PenStyle.SolidLine)
-        point_pen = QPen(Qt.GlobalColor.red, self.line_width, Qt.PenStyle.SolidLine)
-
-        for i in range(len(points) - 1):
-            painter.setPen(line_pen)
-            painter.drawLine(points[i], points[i + 1])
-            painter.setPen(point_pen)
-            painter.drawEllipse(points[i], self.line_width + 2, self.line_width + 2)
-        painter.drawEllipse(points[-1], self.line_width + 2, self.line_width + 2)
-
-    def resizeEvent(self, event: QResizeEvent | None) -> None:
-        if not event:
-            return  # pragma: no cover
-        size = event.size()
-        new_width = size.width()
-        new_height = size.height()
-
-        if new_width / new_height > 1:
-            new_width = int(new_height * 1)
-        else:
-            new_height = int(new_width / 1)
-
-        self.resize(new_width, new_height)
-
-    def sizeHint(self) -> QSize:
-        return QSize(95, 95)
