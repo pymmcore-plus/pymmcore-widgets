@@ -377,7 +377,6 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     assert wdg.mode() == _grid.Mode.BOUNDS
     assert wdg.value() == plan
 
-    # width and height are in micron
     plan = useq.GridWidthHeight(width=1000, height=2000, fov_height=3, fov_width=4)
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.setValue(plan)
