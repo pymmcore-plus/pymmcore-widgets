@@ -190,7 +190,7 @@ class GridPlanWidget(QWidget):
 
     def _on_change(self) -> None:
         if (val := self.value()) is None:
-            return
+            return  # pragma: no cover
         # make a tmp grid object to pass to the _GridRendering widget
         if isinstance(val, useq.GridRowsColumns):
             draw_grid = val.replace(relative_to="top_left")

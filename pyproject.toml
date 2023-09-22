@@ -156,6 +156,7 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "raise NotImplementedError",
 ]
+show_missing = true
 [tool.coverage.run]
 source = ['pymmcore_widgets']
 
