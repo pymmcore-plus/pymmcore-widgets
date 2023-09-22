@@ -105,9 +105,18 @@ SUB_SEQ = useq.MDASequence(
     axis_order="gtcz",
 )
 
+
+AF = useq.AxesBasedAF(
+    autofocus_device_name="", autofocus_motor_offset=0.0, axes=("t", "p", "g")
+)
+
+
 MDA = useq.MDASequence(
     time_plan=useq.TIntervalLoops(interval=4, loops=3),
-    stage_positions=[(0, 1, 2), useq.Position(x=42, y=0, z=3, sequence=SUB_SEQ)],
+    stage_positions=[
+        useq.Position(x=0, y=1, z=2, sequence=useq.MDASequence(autofocus_plan=AF)),
+        useq.Position(x=42, y=0, z=3, sequence=SUB_SEQ.replace(autofocus_plan=AF)),
+    ],
     channels=[{"config": "DAPI", "exposure": 42}],
     z_plan=useq.ZRangeAround(range=10, step=0.3),
     grid_plan=useq.GridRowsColumns(rows=10, columns=3),
@@ -181,6 +190,7 @@ def test_qquant_line_edit(qtbot: QtBot):
 
 def test_position_table(qtbot: QtBot):
     wdg = PositionTable()
+    wdg.use_af.af_checkbox.setChecked(False)
     qtbot.addWidget(wdg)
     wdg.show()
 
@@ -360,8 +370,6 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.NUMBER
     assert wdg.value() == plan
-    # not sure why this isn't triggering
-    wdg._grid_img.paintEvent(None)
 
     plan = useq.GridFromEdges(left=1, right=2, top=3, bottom=4)
     with qtbot.waitSignal(wdg.valueChanged):
@@ -369,7 +377,8 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     assert wdg.mode() == _grid.Mode.BOUNDS
     assert wdg.value() == plan
 
-    plan = useq.GridWidthHeight(width=1, height=2, fov_height=3, fov_width=4)
+    # width and height are in micron
+    plan = useq.GridWidthHeight(width=1000, height=2000, fov_height=3, fov_width=4)
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.AREA
