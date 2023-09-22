@@ -147,16 +147,7 @@ class XYBoundsControl(QWidget):
 
     def _update_buttons_icon(self, state: bool) -> None:
         """Switch the icon of the buttons between `mark` and `visit`."""
-        for btn in [
-            self.btn_top,
-            self.btn_left,
-            self.btn_right,
-            self.btn_bottom,
-            self.btn_top_left,
-            self.btn_top_right,
-            self.btn_bottom_left,
-            self.btn_bottom_right,
-        ]:
+        for btn in self.findChildren(_MarkVisitButton):
             btn.setVisit() if state else btn.setMark()
 
 
