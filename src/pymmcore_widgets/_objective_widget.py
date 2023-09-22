@@ -73,13 +73,12 @@ class ObjectivesWidget(QWidget):
 
     def _create_objective_combo(
         self, device_label: str | None
-    ) -> StateDeviceWidget | QComboBox:
+    ) -> _ObjectiveStateWidget | QComboBox:
         if device_label:
-            combo = (
-                _ObjectiveStateWidget(device_label, parent=self, mmcore=self._mmc)
-                if self._mmc.getFocusDevice()
-                else StateDeviceWidget(device_label, parent=self, mmcore=self._mmc)
-            )
+            combo = _ObjectiveStateWidget(device_label, parent=self, mmcore=self._mmc)
+            combo.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            self.setMinimumWidth(0)
+            combo.adjustSize()
             combo._combo.currentIndexChanged.connect(self._on_obj_changed)
         else:
             combo = QComboBox(parent=self)
@@ -103,13 +102,18 @@ class _ObjectiveStateWidget(StateDeviceWidget):
     # TODO: this should be a preference, not a requirement.
 
     def _pre_change_hook(self) -> None:
-        # drop focus motor
+        if not self._mmc.getFocusDevice():
+            # drop focus motor
+            return
+        self._mmc.waitForDevice(self._device_label)
         zdev = self._mmc.getFocusDevice()
         self._previous_z = self._mmc.getZPosition()
         self._mmc.setPosition(zdev, 0)
         self._mmc.waitForDevice(zdev)
 
     def _post_change_hook(self) -> None:
+        if not self._mmc.getFocusDevice():
+            return
         # raise focus motor
         self._mmc.waitForDevice(self._device_label)
         zdev = self._mmc.getFocusDevice()

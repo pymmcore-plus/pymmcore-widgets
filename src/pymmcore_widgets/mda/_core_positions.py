@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from fonticon_mdi6 import MDI6
@@ -35,7 +36,7 @@ class CoreConnectedPositionTable(PositionTable):
 
         self.move_to_selection = QCheckBox("Move Stage to Selected Point")
         # add a button to update XY to the current position
-        xy_btn = ButtonColumn(
+        self._xy_btn_col = ButtonColumn(
             key="xy_btn", glyph=MDI6.arrow_right, on_click=self._set_xy_from_core
         )
         self._z_btn_col = ButtonColumn(
@@ -44,7 +45,7 @@ class CoreConnectedPositionTable(PositionTable):
         self._af_btn_col = ButtonColumn(
             key="af_btn", glyph=MDI6.arrow_left, on_click=self._set_af_from_core
         )
-        self.table().addColumn(xy_btn, self.table().indexOf(self.X))
+        self.table().addColumn(self._xy_btn_col, self.table().indexOf(self.X))
         self.table().addColumn(self._z_btn_col, self.table().indexOf(self.Z) + 1)
         self.table().addColumn(self._af_btn_col, self.table().indexOf(self.AF) + 1)
 
@@ -124,18 +125,28 @@ class CoreConnectedPositionTable(PositionTable):
 
             x = data.get(self.X.key, self._mmc.getXPosition())
             y = data.get(self.Y.key, self._mmc.getYPosition())
-            self._mmc.setXYPosition(x, y)
 
-            if self.use_af.af_checkbox.isChecked():
-                af_device = self.use_af.value()
-                if af_device is None:
-                    return
-                af = data.get(self.AF.key, self._mmc.getPosition(af_device))
-                self._mmc.setPosition(af_device, af)
+            key, focus_device = self._get_z_focus_device()
+            z = data.get(key, self._mmc.getPosition(focus_device))
 
-            elif self.include_z.isChecked():
-                z = data.get(self.Z.key, self._mmc.getZPosition())
-                self._mmc.setZPosition(z)
+            try:
+                self._mmc.setXYPosition(x, y)
+                self._mmc.setPosition(focus_device, z)
+            except RuntimeError:
+                logging.error("Failed to move stage to selected position.")
+            self._mmc.waitForSystem()
+
+    def _get_z_focus_device(self) -> tuple[str, str]:
+        """Return the key and device name for the Z position."""
+        if self.use_af.af_checkbox.isChecked():
+            focus_device = self.use_af.value()
+            if focus_device is None:
+                return self.Z.key, self._mmc.getFocusDevice()
+            else:
+                return self.AF.key, focus_device
+        else:
+            focus_device = self._mmc.getFocusDevice()
+            return self.Z.key, self._mmc.getFocusDevice()
 
     def _on_include_z_toggled(self, checked: bool) -> None:
         super()._on_include_z_toggled(checked)
