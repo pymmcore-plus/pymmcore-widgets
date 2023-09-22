@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fonticon_mdi6 import MDI6
@@ -45,7 +44,6 @@ ICONS_GO: dict[str, str] = {
     "bottom_left": MDI6.arrow_bottom_left_thick,
     "bottom_right": MDI6.arrow_bottom_right_thick,
 }
-ICONS_MARK_PATH = Path(__file__).parent / "ICONS"
 ICONS_MARK: dict[str, tuple[str, QTransform | None]] = {
     "top": (MDI6.border_top_variant, None),
     "left": (MDI6.border_left_variant, None),
