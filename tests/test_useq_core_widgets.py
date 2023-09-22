@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
-from numpy import delete
 
 import useq
 
