@@ -9,6 +9,7 @@ import useq
 from fonticon_mdi6 import MDI6
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
+    QCheckBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
@@ -137,32 +138,32 @@ class PositionTable(DataTableWidget):
     def __init__(self, rows: int = 0, parent: QWidget | None = None):
         super().__init__(rows, parent)
 
-        layout = cast("QVBoxLayout", self.layout())
+        self.include_z = QCheckBox("Include Z")
+        self.include_z.setChecked(True)
+        self.include_z.toggled.connect(self._on_include_z_toggled)
 
         self._save_button = QPushButton("Save...")
         self._save_button.clicked.connect(self.save)
         self._load_button = QPushButton("Load...")
         self._load_button.clicked.connect(self.load)
-        # self._custom_button = QPushButton("Custom...")
-        # self._custom_button.clicked.connect(self._custom)
-        # self._optimize_button = QPushButton("Optimize...")
-        # self._optimize_button.clicked.connect(self._optimize)
 
         btn_row = QHBoxLayout()
+        btn_row.addWidget(self.include_z)
         btn_row.addStretch()
         btn_row.addWidget(self._save_button)
         btn_row.addWidget(self._load_button)
-        # btn_row.addWidget(self._custom_button)
-        # btn_row.addWidget(self._optimize_button)
 
+        layout = cast("QVBoxLayout", self.layout())
         layout.addLayout(btn_row)
 
     def value(self, exclude_unchecked: bool = True) -> tuple[useq.Position, ...]:
         """Return the current value of the table as a list of channels."""
         out = []
         for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked):
-            if not r.get("name", True):
-                r.pop("name", None)
+            if not r.get(self.NAME.key, True):
+                r.pop(self.NAME.key, None)
+            if not self.include_z.isChecked():
+                r.pop(self.Z.key, None)
             out.append(useq.Position(**r))
         return tuple(out)
 
@@ -214,10 +215,6 @@ class PositionTable(DataTableWidget):
         except Exception as e:  # pragma: no cover
             raise ValueError(f"Failed to load MDASequence file: {src}") from e
 
-    # def _custom(self) -> None:
-    #     """Customize positions."""
-    #     print("Not Implemented")
-
-    # def _optimize(self) -> None:
-    #     """Optimize positions."""
-    #     print("Not Implemented")
+    def _on_include_z_toggled(self, checked: bool) -> None:
+        z_col = self.table().indexOf(self.Z)
+        self.table().setColumnHidden(z_col, not checked)

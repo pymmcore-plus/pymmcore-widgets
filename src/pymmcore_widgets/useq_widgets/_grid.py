@@ -126,7 +126,9 @@ class GridPlanWidget(QWidget):
         width_height_layout.addWidget(QLabel("Height:"))
         width_height_layout.addWidget(self.area_height, 1)
 
-        lrtb_grid = QGridLayout()
+        self.lrtb_wdg = QWidget()
+        lrtb_grid = QGridLayout(self.lrtb_wdg)
+        lrtb_grid.setContentsMargins(0, 0, 0, 0)
         lrtb_grid.addWidget(QLabel("Left:"), 0, 0, Qt.AlignmentFlag.AlignRight)
         lrtb_grid.addWidget(self.left, 0, 1)
         lrtb_grid.addWidget(QLabel("Top:"), 0, 2, Qt.AlignmentFlag.AlignRight)
@@ -138,9 +140,9 @@ class GridPlanWidget(QWidget):
         lrtb_grid.setColumnStretch(1, 1)
         lrtb_grid.setColumnStretch(3, 1)
 
-        bounds_layout = QHBoxLayout()
-        bounds_layout.addWidget(self._mode_bounds_radio)
-        bounds_layout.addLayout(lrtb_grid, 1)
+        self.bounds_layout = QHBoxLayout()
+        self.bounds_layout.addWidget(self._mode_bounds_radio)
+        self.bounds_layout.addWidget(self.lrtb_wdg, 1)
 
         bottom_stuff = QHBoxLayout()
 
@@ -161,10 +163,16 @@ class GridPlanWidget(QWidget):
         layout.addWidget(_SeparatorWidget())
         layout.addLayout(width_height_layout)  # hiding until useq supports it
         layout.addWidget(_SeparatorWidget())
-        layout.addLayout(bounds_layout)
+        layout.addLayout(self.bounds_layout)
         layout.addWidget(_SeparatorWidget())
         layout.addLayout(bottom_stuff)
         layout.addStretch()
+
+        self.mode_groups: dict[Mode, Sequence[QWidget]] = {
+            Mode.NUMBER: (self.rows, self.columns),
+            Mode.AREA: (self.area_width, self.area_height),
+            Mode.BOUNDS: (self.left, self.top, self.right, self.bottom),
+        }
 
         self.setMode(Mode.NUMBER)
 
@@ -181,20 +189,16 @@ class GridPlanWidget(QWidget):
         self.relative_to.currentIndexChanged.connect(self._on_change)
 
     def _on_change(self) -> None:
-        val = self.value()
-
-        if val is not None:  # temporary
+        if (val := self.value()) is None:
+            return  # pragma: no cover
+        # make a tmp grid object to pass to the _GridRendering widget
+        if isinstance(val, useq.GridRowsColumns):
             draw_grid = val.replace(relative_to="top_left")
-            if isinstance(val, useq.GridRowsColumns):
-                draw_grid.fov_height = 1 / ((val.rows - 1) or 1)
-                draw_grid.fov_width = 1 / ((val.columns - 1) or 1)
-            if isinstance(val, useq.GridFromEdges):
-                draw_grid.fov_height = 1 / ((val.bottom - val.top) or 1)
-                draw_grid.fov_width = 1 / ((val.right - val.left) or 1)
-            self._grid_img.grid = draw_grid
-            self._grid_img.update()
+            draw_grid.fov_height = 1 / ((draw_grid.rows - 1) or 1)
+            draw_grid.fov_width = 1 / ((draw_grid.columns - 1) or 1)
+            self._grid_img.setGrid(draw_grid)
 
-            self.valueChanged.emit(val)
+        self.valueChanged.emit(val)
 
     def mode(self) -> Mode:
         return self._mode
@@ -221,15 +225,10 @@ class GridPlanWidget(QWidget):
 
         previous, self._mode = getattr(self, "_mode", None), _mode
         if previous != self._mode:
-            mode_groups: dict[Mode, Sequence[QWidget]] = {
-                Mode.NUMBER: (self.rows, self.columns),
-                Mode.AREA: (self.area_width, self.area_height),
-                Mode.BOUNDS: (self.left, self.top, self.right, self.bottom),
-            }
-            for group, members in mode_groups.items():
+            for group, members in self.mode_groups.items():
                 for member in members:
                     member.setEnabled(_mode == group)
-
+            self.relative_to.setEnabled(_mode != Mode.BOUNDS)
             self._on_change()
 
     def value(self) -> useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight:
@@ -241,6 +240,7 @@ class GridPlanWidget(QWidget):
             "fov_width": self._fov_width,
             "fov_height": self._fov_height,
         }
+
         if self._mode == Mode.NUMBER:
             return useq.GridRowsColumns(
                 rows=self.rows.value(),
@@ -330,6 +330,10 @@ class _GridRendering(QWidget):
         super().__init__()
         self.grid = grid
         self.line_width = line_width
+
+    def setGrid(self, grid: useq.AnyGridPlan) -> None:
+        self.grid = grid
+        self.update()
 
     def paintEvent(self, e: QPaintEvent | None) -> None:
         if not self.grid:
