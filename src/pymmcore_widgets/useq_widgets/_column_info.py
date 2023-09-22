@@ -558,4 +558,4 @@ class ButtonColumn(WidgetColumn):
     def set_cell_data(
         self, table: QTableWidget, row: int, col: int, value: Any
     ) -> None:
-        pass
+        pass  # pragma: no cover
