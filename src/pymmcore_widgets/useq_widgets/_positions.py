@@ -29,7 +29,9 @@ OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton
 
 class _MDAPopup(QDialog):
     def __init__(
-        self, value: useq.MDASequence | None = None, parent: QWidget | None = None
+        self,
+        value: useq.MDASequence | dict | None = None,
+        parent: QWidget | None = None,
     ) -> None:
         from ._mda_sequence import MDATabs
 
@@ -48,7 +50,8 @@ class _MDAPopup(QDialog):
             par = par.parent()
 
         # set the value if provided
-        if value:
+        if value is not None:
+            value = useq.MDASequence(**value) if isinstance(value, dict) else value
             self.mda_tabs.setValue(value)
 
         # create ok and cancel buttons
@@ -173,8 +176,27 @@ class PositionTable(DataTableWidget):
         for v in value:
             if not isinstance(v, useq.Position):  # pragma: no cover
                 raise TypeError(f"Expected useq.Position, got {type(v)}")
+
+            # if sub-sequence is not none but empty (e.g. equal to useq.MDASequence())
+            # set it to None
+            if v.sequence is not None and self._is_sequence_empty(v.sequence):
+                v = v.replace(sequence=None)
+
             _values.append(v.model_dump(exclude_unset=True))
         super().setValue(_values)
+
+    def _is_sequence_empty(self, sequence: useq.MDASequence | None) -> bool:
+        """Return True if the useq.MDASequence is empty."""
+        if sequence is None:
+            return True
+        return (
+            not sequence.channels
+            and not sequence.stage_positions
+            and not sequence.z_plan
+            and not sequence.grid_plan
+            and not sequence.time_plan
+            and not sequence.autofocus_plan
+        )
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current positions to a file."""

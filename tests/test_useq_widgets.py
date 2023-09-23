@@ -206,6 +206,29 @@ def test_position_table(qtbot: QtBot):
     assert len(positions[0].sequence.channels) == 1
 
 
+def test_position_table_set_value(qtbot: QtBot):
+    wdg = PositionTable()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    pos = useq.Position(x=1, y=2, z=3, sequence=useq.MDASequence())
+    wdg.setValue([pos])
+
+    assert len(wdg.value()) == 1
+    # make sure to not set any sub-sequence if the sub-sequence is not None but empty
+    assert wdg.table().cellWidget(0, wdg.table().indexOf(wdg.SEQ)).clear_btn.isHidden()
+
+
+@pytest.mark.parametrize("type", ["seq", "dict"])
+def test_mda_popup_value_type(type: str):
+    value = (
+        useq.MDASequence()
+        if type == "seq"
+        else {"grid_plan": {"rows": 2, "columns": 3}}
+    )
+    _MDAPopup(value)
+
+
 def test_position_load_save(
     qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
