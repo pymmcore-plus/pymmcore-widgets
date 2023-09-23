@@ -192,7 +192,6 @@ class GridPlanWidget(QWidget):
     def _on_change(self) -> None:
         if (val := self.value()) is None:
             return  # pragma: no cover
-
         self.valueChanged.emit(val)
 
     def mode(self) -> Mode:
