@@ -215,7 +215,7 @@ class PositionTable(DataTableWidget):
         """Set the current value of the table."""
         _values = []
         _use_af = False
-        _af_devices = set()
+        _af_devices: set[str] = set()
         for v in value:
             if not isinstance(v, useq.Position):  # pragma: no cover
                 raise TypeError(f"Expected useq.Position, got {type(v)}")
@@ -233,30 +233,11 @@ class PositionTable(DataTableWidget):
                 _af_device = v.sequence.autofocus_plan.autofocus_device_name
 
                 # set the autofocus offset that will be added to the table
-                _af = {self.AF.key: _af_offset}
-
-                if _af_offset is None or not _af_device:
-                    _af = {}
-                    warnings.warn(
-                        f"Autofocus plan missing autofocus device name or offset: {v}. "
-                        "Autofocus plan will be ignored.",
-                        stacklevel=2,
-                    )
-
-                # check if autofocus device is the same for all positions. The reference
-                # autofocus device name is the one from the first position that has the
-                # autofocus plan. If the autofocus device name is different from the
-                # reference, we warn the user and skip the position.
-                _af_devices.add(_af_device)
-                if len(_af_devices) > 1:
-                    _af = {}
-                    warnings.warn(
-                        f"Cannot use multiple autofocus devices. Autofocus device: "
-                        f"{next(iter(_af_devices))}. Current Position Autofocus device:"
-                        f" {_af_device}. Autofocus plan for this position will be "
-                        "ignored.",
-                        stacklevel=2,
-                    )
+                _af = (
+                    {self.AF.key: _af_offset}
+                    if self._is_af_valid(_af_offset, _af_devices, _af_device)
+                    else {}
+                )
 
                 # remopve autofocus plan from sub-sequence
                 v = v.replace(sequence=sub_seq)
@@ -270,6 +251,35 @@ class PositionTable(DataTableWidget):
             _values.append({**v.model_dump(exclude_unset=True), **_af})
 
         super().setValue(_values)
+
+    def _is_af_valid(
+        self, _af_offset: float | None, _af_devices: set[str], _af_device: str
+    ) -> bool:
+        # if autofocus offset is None or autofocus device name is None, we do not
+        # use the autofocus plan.
+        if _af_offset is None or not _af_device:
+            warnings.warn(
+                "Autofocus plan missing autofocus device name or offset and it will be "
+                "ignored.",
+                stacklevel=2,
+            )
+            return False
+
+        # check if autofocus device is the same for all positions. The reference
+        # autofocus device name is the one from the first position that has the
+        # autofocus plan. If the autofocus device name is different from the
+        # reference, we do not use the autofocus plan.
+        _af_devices.add(_af_device)
+        if len(_af_devices) > 1:
+            warnings.warn(
+                f"Cannot use multiple autofocus devices. Autofocus device: "
+                f"{next(iter(_af_devices))}. Current Position Autofocus device:"
+                f" {_af_device}. Autofocus plan for this position will be "
+                "ignored.",
+                stacklevel=2,
+            )
+            return False
+        return True
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current positions to a file."""
