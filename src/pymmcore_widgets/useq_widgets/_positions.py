@@ -211,52 +211,43 @@ class PositionTable(DataTableWidget):
     def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore
         """Set the current value of the table."""
         _values = []
+        _use_af = False
         for v in value:
             if not isinstance(v, useq.Position):  # pragma: no cover
                 raise TypeError(f"Expected useq.Position, got {type(v)}")
 
-            from rich import print
+            _af = {}
 
-            print()
-            print("v:", v)
-            print("v sub-seq:", v.sequence)
+            if v.sequence is not None:
+                # if sub-sequence is not none but empty (e.g. useq.MDASequence()) set it
+                # to None
+                if not v.sequence.model_dump(exclude_unset=True):
+                    v = v.replace(sequence=None)
 
-            # if sub-sequence is not none but empty (e.g. equal to useq.MDASequence())
-            # set it to None
-            if v.sequence is not None and self._is_sequence_empty(v.sequence):
-                v = v.replace(sequence=None)
-
-            # if sub-sequence has an autofocus plan
-            elif v.sequence is not None and v.sequence.autofocus_plan is not None:
                 # we don't want to add the autofocus plan as a useq.Position sequence
-                sub_seq: useq.MDASequence | None = v.sequence.replace(
-                    autofocus_plan=None
-                )
-                # if the sub-sequence is empty, set it to None
-                if self._is_sequence_empty(sub_seq):
-                    sub_seq = None
-                v = v.replace(sequence=sub_seq)
+                elif v.sequence is not None and v.sequence.autofocus_plan is not None:
+                    # if the sub-sequence is empty, set it to None. Else we simply
+                    # exclude the autofocus plan
+                    sub_seq_dict = v.sequence.model_dump(
+                        exclude_unset=True, exclude={"autofocus_plan"}
+                    )
+                    sub_seq = useq.MDASequence(**sub_seq_dict) if sub_seq_dict else None
+                    # get autofocus plan device name and offset
+                    _af_device = v.sequence.autofocus_plan.autofocus_device_name
+                    _af_offset = v.sequence.autofocus_plan.autofocus_motor_offset
+                    # remopve autofocus plan from sub-sequence
+                    v = v.replace(sequence=sub_seq)
 
-            print("after", v.sequence)
+                    if not _use_af:
+                        self.use_af.af_checkbox.setChecked(True)
+                        self.use_af.af_combo.setCurrentText(_af_device)
 
-            _values.append(v.model_dump(exclude_unset=True))
+                    # set the autofocus offset that will be added to the table
+                    _af = {self.AF.key: _af_offset}
 
-            print("_values:", _values)
+            _values.append({**v.model_dump(exclude_unset=True), **_af})
 
         super().setValue(_values)
-
-    def _is_sequence_empty(self, sequence: useq.MDASequence | None) -> bool:
-        """Return True if the useq.MDASequence is empty."""
-        if sequence is None:
-            return True
-        return (
-            not sequence.channels
-            and not sequence.stage_positions
-            and not sequence.z_plan
-            and not sequence.grid_plan
-            and not sequence.time_plan
-            and not sequence.autofocus_plan
-        )
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current positions to a file."""
