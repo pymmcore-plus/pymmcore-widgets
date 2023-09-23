@@ -25,6 +25,7 @@ from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
 
 OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+NULL_SEQUENCE = useq.MDASequence()
 
 
 class _MDAPopup(QDialog):
@@ -103,15 +104,15 @@ class MDAButton(QWidget):
     def setValue(self, value: useq.MDASequence | None) -> None:
         old_val, self._value = getattr(self, "_value", None), value
         if old_val != value:
-            if value is not None:
+            # if sub-sequence is equal to the null sequence (useq.MDASequence())
+            # treat it as None
+            if value and value != NULL_SEQUENCE:
                 self.seq_btn.setIcon(icon(MDI6.axis_arrow, color="green"))
+                self.clear_btn.show()
             else:
                 self.seq_btn.setIcon(icon(MDI6.axis))
-            self.valueChanged.emit()
-            if value is None:
                 self.clear_btn.hide()
-            else:
-                self.clear_btn.show()
+            self.valueChanged.emit()
 
 
 _MDAButton = WdgGetSet(
@@ -176,12 +177,6 @@ class PositionTable(DataTableWidget):
         for v in value:
             if not isinstance(v, useq.Position):  # pragma: no cover
                 raise TypeError(f"Expected useq.Position, got {type(v)}")
-
-            # if sub-sequence is not none but empty (e.g. equal to useq.MDASequence())
-            # set it to None
-            if v.sequence is not None and not v.sequence.model_dump(exclude_unset=True):
-                v = v.replace(sequence=None)
-
             _values.append(v.model_dump(exclude_unset=True))
         super().setValue(_values)
 
