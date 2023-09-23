@@ -101,7 +101,7 @@ class MDAButton(QWidget):
     def setValue(self, value: useq.MDASequence | dict | None) -> None:
         if isinstance(value, dict):
             value = useq.MDASequence(**value)
-        elif value is not None and not isinstance(value, useq.MDASequence):
+        elif value and not isinstance(value, useq.MDASequence):  # pragma: no cover
             raise TypeError(f"Expected useq.MDASequence, got {type(value)}")
         old_val, self._value = getattr(self, "_value", None), value
         if old_val != value:
