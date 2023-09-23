@@ -25,7 +25,7 @@ from pymmcore_widgets.useq_widgets._column_info import (
     QQuantityLineEdit,
     TextColumn,
 )
-from pymmcore_widgets.useq_widgets._positions import QFileDialog, _MDAPopup
+from pymmcore_widgets.useq_widgets._positions import MDAButton, QFileDialog, _MDAPopup
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -204,6 +204,34 @@ def test_position_table(qtbot: QtBot):
     assert positions[0].sequence is not None
     assert positions[0].sequence.z_plan is not None
     assert len(positions[0].sequence.channels) == 1
+
+
+def test_position_table_set_value(qtbot: QtBot) -> None:
+    wdg = PositionTable()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    pos = useq.Position(x=1, y=2, z=3, sequence=useq.MDASequence())
+    wdg.setValue([pos])
+
+    assert len(wdg.value()) == 1
+    # make sure to not set any sub-sequence if the sub-sequence is not None but empty
+    seq_btn_idx = wdg.table().indexOf(wdg.SEQ)
+    mda_btn = wdg.table().cellWidget(0, seq_btn_idx)
+    assert isinstance(mda_btn, MDAButton)
+    assert mda_btn.clear_btn.isHidden()
+
+    pos = useq.Position(
+        x=1,
+        y=2,
+        z=3,
+        sequence=useq.MDASequence(grid_plan=useq.GridRowsColumns(rows=1, columns=1)),
+    )
+    wdg.setValue([pos])
+
+    mda_btn = wdg.table().cellWidget(0, seq_btn_idx)
+    assert isinstance(mda_btn, MDAButton)
+    assert mda_btn.clear_btn.isVisible()
 
 
 def test_position_load_save(

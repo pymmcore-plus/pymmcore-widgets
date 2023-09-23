@@ -25,6 +25,7 @@ from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
 
 OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+NULL_SEQUENCE = useq.MDASequence()
 
 
 class _MDAPopup(QDialog):
@@ -97,18 +98,22 @@ class MDAButton(QWidget):
     def value(self) -> useq.MDASequence | None:
         return self._value
 
-    def setValue(self, value: useq.MDASequence | None) -> None:
+    def setValue(self, value: useq.MDASequence | dict | None) -> None:
+        if isinstance(value, dict):
+            value = useq.MDASequence(**value)
+        elif value and not isinstance(value, useq.MDASequence):  # pragma: no cover
+            raise TypeError(f"Expected useq.MDASequence, got {type(value)}")
         old_val, self._value = getattr(self, "_value", None), value
         if old_val != value:
-            if value is not None:
+            # if sub-sequence is equal to the null sequence (useq.MDASequence())
+            # treat it as None
+            if value and value != NULL_SEQUENCE:
                 self.seq_btn.setIcon(icon(MDI6.axis_arrow, color="green"))
+                self.clear_btn.show()
             else:
                 self.seq_btn.setIcon(icon(MDI6.axis))
-            self.valueChanged.emit()
-            if value is None:
                 self.clear_btn.hide()
-            else:
-                self.clear_btn.show()
+            self.valueChanged.emit()
 
 
 _MDAButton = WdgGetSet(
