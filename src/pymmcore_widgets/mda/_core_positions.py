@@ -74,9 +74,6 @@ class CoreConnectedPositionTable(PositionTable):
         af_device = self._mmc.getAutoFocusDevice()
         self.use_af.setEnabled(bool(af_device))
 
-        print("af_device", af_device)
-        print("enabled", self.use_af.isEnabled())
-
         if not af_device:
             return
 

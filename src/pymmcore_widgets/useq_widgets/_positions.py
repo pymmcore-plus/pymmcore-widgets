@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence, cast
@@ -214,6 +215,7 @@ class PositionTable(DataTableWidget):
         """Set the current value of the table."""
         _values = []
         _use_af = False
+        _af_devices = set()
         for v in value:
             if not isinstance(v, useq.Position):  # pragma: no cover
                 raise TypeError(f"Expected useq.Position, got {type(v)}")
@@ -227,17 +229,43 @@ class PositionTable(DataTableWidget):
                 )
                 sub_seq = useq.MDASequence(**sub_seq_dict) if sub_seq_dict else None
                 # get autofocus plan device name and offset
-                _af_device = v.sequence.autofocus_plan.autofocus_device_name
                 _af_offset = v.sequence.autofocus_plan.autofocus_motor_offset
-                # remopve autofocus plan from sub-sequence
-                v = v.replace(sequence=sub_seq)
-
-                if not _use_af:
-                    self.use_af.af_checkbox.setChecked(True)
-                    self.use_af.af_combo.setCurrentText(_af_device)
+                _af_device = v.sequence.autofocus_plan.autofocus_device_name
 
                 # set the autofocus offset that will be added to the table
                 _af = {self.AF.key: _af_offset}
+
+                if _af_offset is None or not _af_device:
+                    _af = {}
+                    warnings.warn(
+                        f"Autofocus plan missing autofocus device name or offset: {v}. "
+                        "Autofocus plan will be ignored.",
+                        stacklevel=2,
+                    )
+
+                # check if autofocus device is the same for all positions. The reference
+                # autofocus device name is the one from the first position that has the
+                # autofocus plan. If the autofocus device name is different from the
+                # reference, we warn the user and skip the position.
+                _af_devices.add(_af_device)
+                if len(_af_devices) > 1:
+                    _af = {}
+                    warnings.warn(
+                        f"Cannot use multiple autofocus devices. Autofocus device: "
+                        f"{next(iter(_af_devices))}. Current Position Autofocus device:"
+                        f" {_af_device}. Autofocus plan for this position will be "
+                        "ignored.",
+                        stacklevel=2,
+                    )
+
+                # remopve autofocus plan from sub-sequence
+                v = v.replace(sequence=sub_seq)
+
+                # check autofocus checkbox and set the autofocus device name
+                # in the autofocus combo only once
+                if not _use_af:
+                    self.use_af.af_checkbox.setChecked(True)
+                    self.use_af.af_combo.setCurrentText(_af_device)
 
             _values.append({**v.model_dump(exclude_unset=True), **_af})
 
