@@ -25,7 +25,7 @@ from pymmcore_widgets.useq_widgets._column_info import (
     QQuantityLineEdit,
     TextColumn,
 )
-from pymmcore_widgets.useq_widgets._positions import QFileDialog, _MDAPopup
+from pymmcore_widgets.useq_widgets._positions import MDAButton, QFileDialog, _MDAPopup
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -206,6 +206,34 @@ def test_position_table(qtbot: QtBot):
     assert len(positions[0].sequence.channels) == 1
 
 
+def test_position_table_set_value(qtbot: QtBot) -> None:
+    wdg = PositionTable()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    pos = useq.Position(x=1, y=2, z=3, sequence=useq.MDASequence())
+    wdg.setValue([pos])
+
+    assert len(wdg.value()) == 1
+    # make sure to not set any sub-sequence if the sub-sequence is not None but empty
+    seq_btn_idx = wdg.table().indexOf(wdg.SEQ)
+    mda_btn = wdg.table().cellWidget(0, seq_btn_idx)
+    assert isinstance(mda_btn, MDAButton)
+    assert mda_btn.clear_btn.isHidden()
+
+    pos = useq.Position(
+        x=1,
+        y=2,
+        z=3,
+        sequence=useq.MDASequence(grid_plan=useq.GridRowsColumns(rows=1, columns=1)),
+    )
+    wdg.setValue([pos])
+
+    mda_btn = wdg.table().cellWidget(0, seq_btn_idx)
+    assert isinstance(mda_btn, MDAButton)
+    assert mda_btn.clear_btn.isVisible()
+
+
 def test_position_load_save(
     qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
@@ -360,8 +388,6 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.NUMBER
     assert wdg.value() == plan
-    # not sure why this isn't triggering
-    wdg._grid_img.paintEvent(None)
 
     plan = useq.GridFromEdges(left=1, right=2, top=3, bottom=4)
     with qtbot.waitSignal(wdg.valueChanged):
@@ -369,7 +395,7 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     assert wdg.mode() == _grid.Mode.BOUNDS
     assert wdg.value() == plan
 
-    plan = useq.GridWidthHeight(width=1, height=2, fov_height=3, fov_width=4)
+    plan = useq.GridWidthHeight(width=1000, height=2000, fov_height=3, fov_width=4)
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.AREA

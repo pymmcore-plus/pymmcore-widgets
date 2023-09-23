@@ -5,10 +5,9 @@ from typing import TYPE_CHECKING, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize
+from qtpy.QtCore import QSize, Signal
 from qtpy.QtWidgets import (
     QBoxLayout,
-    QCheckBox,
     QFileDialog,
     QGridLayout,
     QGroupBox,
@@ -33,9 +32,7 @@ if TYPE_CHECKING:
 
     class SaveInfo(TypedDict):
         save_dir: str
-        file_name: str
-        split_positions: bool
-        should_save: bool
+        save_name: str
 
 
 class MDAWidget(MDASequenceWidget):
@@ -58,6 +55,7 @@ class MDAWidget(MDASequenceWidget):
         )
 
         self.save_info = _SaveGroupBox(parent=self)
+        self.save_info.valueChanged.connect(self.valueChanged)
         self.control_btns = _MDAControlButtons(self._mmc, self)
 
         # -------- initialize -----------
@@ -91,7 +89,8 @@ class MDAWidget(MDASequenceWidget):
         """Set the current state of the widget."""
         val = super().value()
         meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
-        meta.update(self.save_info.value())
+        if self.save_info.isChecked():
+            meta.update(self.save_info.value())
         return val
 
     def setValue(self, value: MDASequence) -> None:
@@ -136,8 +135,9 @@ class MDAWidget(MDASequenceWidget):
 
 
 class _SaveGroupBox(QGroupBox):
-    ...
     """A Widget to gather information about MDA file saving."""
+
+    valueChanged = Signal()
 
     def __init__(
         self, title: str = "Save Acquisition", parent: QWidget | None = None
@@ -148,9 +148,8 @@ class _SaveGroupBox(QGroupBox):
 
         self.save_dir = QLineEdit()
         self.save_dir.setPlaceholderText("Select Save Directory")
-        self.file_name = QLineEdit()
-        self.file_name.setPlaceholderText("Choose File Name")
-        self.split_positions = QCheckBox(text="Save XY Positions in separate files")
+        self.save_name = QLineEdit()
+        self.save_name.setPlaceholderText("Enter Experiment Name")
 
         browse_btn = QPushButton(text="...")
         browse_btn.clicked.connect(self._on_browse_clicked)
@@ -159,25 +158,24 @@ class _SaveGroupBox(QGroupBox):
         grid.addWidget(QLabel("Directory:"), 0, 0)
         grid.addWidget(self.save_dir, 0, 1)
         grid.addWidget(browse_btn, 0, 2)
-        grid.addWidget(QLabel("File Name:"), 1, 0)
-        grid.addWidget(self.file_name, 1, 1)
-        grid.addWidget(self.split_positions, 2, 0, 1, 3)
+        grid.addWidget(QLabel("Name:"), 1, 0)
+        grid.addWidget(self.save_name, 1, 1)
+
+        # connect
+        self.toggled.connect(self.valueChanged)
+        self.save_dir.textChanged.connect(self.valueChanged)
+        self.save_name.textChanged.connect(self.valueChanged)
 
     def value(self) -> SaveInfo:
         """Return current state of the dialog."""
         return {
             "save_dir": self.save_dir.text(),
-            "file_name": self.file_name.text() or "Experiment",
-            "split_positions": (
-                self.split_positions.isEnabled() and self.split_positions.isChecked()
-            ),
-            "should_save": self.isChecked(),
+            "save_name": self.save_name.text() or "Experiment",
         }
 
     def setValue(self, value: SaveInfo | dict) -> None:
         self.save_dir.setText(value.get("save_dir", ""))
-        self.file_name.setText(value.get("file_name", ""))
-        self.split_positions.setChecked(value.get("split_positions", False))
+        self.save_name.setText(value.get("save_name", ""))
         self.setChecked(value.get("should_save", False))
 
     def _on_browse_clicked(self) -> None:
