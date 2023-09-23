@@ -31,9 +31,7 @@ NULL_SEQUENCE = useq.MDASequence()
 
 class _MDAPopup(QDialog):
     def __init__(
-        self,
-        value: useq.MDASequence | dict | None = None,
-        parent: QWidget | None = None,
+        self, value: useq.MDASequence | None = None, parent: QWidget | None = None
     ) -> None:
         from ._mda_sequence import MDATabs
 
@@ -52,8 +50,7 @@ class _MDAPopup(QDialog):
             par = par.parent()
 
         # set the value if provided
-        if value is not None:
-            value = useq.MDASequence(**value) if isinstance(value, dict) else value
+        if value:
             self.mda_tabs.setValue(value)
 
         # create ok and cancel buttons
@@ -222,33 +219,25 @@ class PositionTable(DataTableWidget):
                 raise TypeError(f"Expected useq.Position, got {type(v)}")
 
             _af = {}
+            if v.sequence is not None and v.sequence.autofocus_plan is not None:
+                # if the sub-sequence is empty, set it to None. Else we simply
+                # exclude the autofocus plan
+                sub_seq_dict = v.sequence.model_dump(
+                    exclude_unset=True, exclude={"autofocus_plan"}
+                )
+                sub_seq = useq.MDASequence(**sub_seq_dict) if sub_seq_dict else None
+                # get autofocus plan device name and offset
+                _af_device = v.sequence.autofocus_plan.autofocus_device_name
+                _af_offset = v.sequence.autofocus_plan.autofocus_motor_offset
+                # remopve autofocus plan from sub-sequence
+                v = v.replace(sequence=sub_seq)
 
-            if v.sequence is not None:
-                # if sub-sequence is not none but empty (e.g. useq.MDASequence()) set it
-                # to None
-                if not v.sequence.model_dump(exclude_unset=True):
-                    v = v.replace(sequence=None)
+                if not _use_af:
+                    self.use_af.af_checkbox.setChecked(True)
+                    self.use_af.af_combo.setCurrentText(_af_device)
 
-                # we don't want to add the autofocus plan as a useq.Position sequence
-                elif v.sequence is not None and v.sequence.autofocus_plan is not None:
-                    # if the sub-sequence is empty, set it to None. Else we simply
-                    # exclude the autofocus plan
-                    sub_seq_dict = v.sequence.model_dump(
-                        exclude_unset=True, exclude={"autofocus_plan"}
-                    )
-                    sub_seq = useq.MDASequence(**sub_seq_dict) if sub_seq_dict else None
-                    # get autofocus plan device name and offset
-                    _af_device = v.sequence.autofocus_plan.autofocus_device_name
-                    _af_offset = v.sequence.autofocus_plan.autofocus_motor_offset
-                    # remopve autofocus plan from sub-sequence
-                    v = v.replace(sequence=sub_seq)
-
-                    if not _use_af:
-                        self.use_af.af_checkbox.setChecked(True)
-                        self.use_af.af_combo.setCurrentText(_af_device)
-
-                    # set the autofocus offset that will be added to the table
-                    _af = {self.AF.key: _af_offset}
+                # set the autofocus offset that will be added to the table
+                _af = {self.AF.key: _af_offset}
 
             _values.append({**v.model_dump(exclude_unset=True), **_af})
 
