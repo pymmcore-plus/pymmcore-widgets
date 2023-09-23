@@ -73,3 +73,22 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
     pos_table.move_to_selection.setChecked(True)
     pos_table.table().selectRow(0)
     pos_table._on_selection_change()
+
+
+# def test_core_connected_position_wdg_autofocus(qtbot: QtBot, qapp) -> None:
+#     wdg = MDAWidget()
+#     qtbot.addWidget(wdg)
+#     wdg.show()
+
+#     pos_table = wdg.stage_positions
+#     assert isinstance(pos_table, CoreConnectedPositionTable)
+
+#     pos = MDA.stage_positions[1].replace(
+#         sequence=useq.MDASequence(
+#             autofocus_plan=useq.AxesBasedAF(
+#                 axes=("t", "p", "g"),
+#                 autofocus_device_name="Z",
+#                 autofocus_motor_offset=10,
+#             )
+#         ),
+#     )

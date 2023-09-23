@@ -73,9 +73,13 @@ class CoreConnectedPositionTable(PositionTable):
         self.use_af.af_checkbox.setChecked(False)
         af_device = self._mmc.getAutoFocusDevice()
         self.use_af.setEnabled(bool(af_device))
+
+        print("af_device", af_device)
+        print("enabled", self.use_af.isEnabled())
+
         if not af_device:
-            self.use_af.setEnabled(False)
             return
+
         stage_devices = list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
         self.use_af.af_combo.addItems(stage_devices)
         self.use_af.af_checkbox.setChecked(False)
