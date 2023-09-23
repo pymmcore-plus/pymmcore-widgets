@@ -279,7 +279,7 @@ class MDAWidget(QWidget):
             raise TypeError("state must be an MDASequence, dict, or yaml file")
 
         self.acquisition_order_widget.acquisition_order_comboBox.setCurrentText(
-            state.axis_order
+            "".join(state.axis_order)
         )
 
         # set channel table
