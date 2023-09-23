@@ -388,8 +388,6 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.NUMBER
     assert wdg.value() == plan
-    # not sure why this isn't triggering
-    wdg._grid_img.paintEvent(None)
 
     plan = useq.GridFromEdges(left=1, right=2, top=3, bottom=4)
     with qtbot.waitSignal(wdg.valueChanged):
@@ -397,7 +395,7 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     assert wdg.mode() == _grid.Mode.BOUNDS
     assert wdg.value() == plan
 
-    plan = useq.GridWidthHeight(width=1, height=2, fov_height=3, fov_width=4)
+    plan = useq.GridWidthHeight(width=1000, height=2000, fov_height=3, fov_width=4)
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.AREA
