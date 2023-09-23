@@ -278,7 +278,7 @@ class MDASequenceWidget(QWidget):
     def setValue(self, value: useq.MDASequence) -> None:
         """Set widget value from a `useq-schema` MDASequence."""
         self.tab_wdg.setValue(value)
-        self.axis_order.setCurrentText(value.axis_order)
+        self.axis_order.setCurrentText("".join(value.axis_order))
 
         keep_shutter_open = value.keep_shutter_open_across
         self.z_plan.leave_shutter_open.setChecked("z" in keep_shutter_open)
