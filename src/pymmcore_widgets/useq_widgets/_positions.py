@@ -30,9 +30,7 @@ NULL_SEQUENCE = useq.MDASequence()
 
 class _MDAPopup(QDialog):
     def __init__(
-        self,
-        value: useq.MDASequence | dict | None = None,
-        parent: QWidget | None = None,
+        self, value: useq.MDASequence | None = None, parent: QWidget | None = None
     ) -> None:
         from ._mda_sequence import MDATabs
 
@@ -51,8 +49,7 @@ class _MDAPopup(QDialog):
             par = par.parent()
 
         # set the value if provided
-        if value is not None:
-            value = useq.MDASequence(**value) if isinstance(value, dict) else value
+        if value:
             self.mda_tabs.setValue(value)
 
         # create ok and cancel buttons
@@ -101,7 +98,11 @@ class MDAButton(QWidget):
     def value(self) -> useq.MDASequence | None:
         return self._value
 
-    def setValue(self, value: useq.MDASequence | None) -> None:
+    def setValue(self, value: useq.MDASequence | dict | None) -> None:
+        if isinstance(value, dict):
+            value = useq.MDASequence(**value)
+        elif value is not None and not isinstance(value, useq.MDASequence):
+            raise TypeError(f"Expected useq.MDASequence, got {type(value)}")
         old_val, self._value = getattr(self, "_value", None), value
         if old_val != value:
             # if sub-sequence is equal to the null sequence (useq.MDASequence())
