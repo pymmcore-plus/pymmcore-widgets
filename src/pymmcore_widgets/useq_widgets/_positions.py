@@ -179,24 +179,11 @@ class PositionTable(DataTableWidget):
 
             # if sub-sequence is not none but empty (e.g. equal to useq.MDASequence())
             # set it to None
-            if v.sequence is not None and self._is_sequence_empty(v.sequence):
+            if v.sequence is not None and not v.sequence.model_dump(exclude_unset=True):
                 v = v.replace(sequence=None)
 
             _values.append(v.model_dump(exclude_unset=True))
         super().setValue(_values)
-
-    def _is_sequence_empty(self, sequence: useq.MDASequence | None) -> bool:
-        """Return True if the useq.MDASequence is empty."""
-        if sequence is None:
-            return True
-        return (
-            not sequence.channels
-            and not sequence.stage_positions
-            and not sequence.z_plan
-            and not sequence.grid_plan
-            and not sequence.time_plan
-            and not sequence.autofocus_plan
-        )
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current positions to a file."""
