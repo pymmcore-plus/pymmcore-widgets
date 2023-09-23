@@ -218,6 +218,15 @@ def test_position_table_set_value(qtbot: QtBot):
     # make sure to not set any sub-sequence if the sub-sequence is not None but empty
     assert wdg.table().cellWidget(0, wdg.table().indexOf(wdg.SEQ)).clear_btn.isHidden()
 
+    pos = useq.Position(
+        x=1,
+        y=2,
+        z=3,
+        sequence=useq.MDASequence(grid_plan=useq.GridRowsColumns(rows=1, columns=1)),
+    )
+    wdg.setValue([pos])
+    assert wdg.table().cellWidget(0, wdg.table().indexOf(wdg.SEQ)).clear_btn.isVisible()
+
 
 @pytest.mark.parametrize("type", ["seq", "dict"])
 def test_mda_popup_value_type(type: str):
