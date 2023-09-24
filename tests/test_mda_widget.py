@@ -148,7 +148,7 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.position_widget._table.rowCount() == 0
 
 
-def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
+def test_mda_methods(qtbot: QtBot):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
