@@ -408,3 +408,19 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     assert wdg._fov_width == 4
     wdg.setFovWidth(6)
     assert wdg.fovWidth() == 6
+
+
+def test_proper_checked_index(qtbot):
+    """Testing that the proper tab is checked when setting a value
+
+    https://github.com/pymmcore-plus/pymmcore-widgets/issues/205
+    """
+    import useq
+
+    from pymmcore_widgets.useq_widgets._positions import _MDAPopup
+
+    seq = useq.MDASequence(grid_plan=useq.GridRowsColumns(rows=2, columns=3))
+    pop = _MDAPopup(seq)
+    qtbot.addWidget(pop)
+    assert pop.mda_tabs.grid_plan.isEnabled()
+    assert pop.mda_tabs.isChecked(pop.mda_tabs.grid_plan)
