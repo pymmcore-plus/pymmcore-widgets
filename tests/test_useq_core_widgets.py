@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import useq
@@ -8,8 +9,11 @@ from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
 
 if TYPE_CHECKING:
+    from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
+
+TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")
 MDA = useq.MDASequence(
     time_plan=useq.TIntervalLoops(interval=0.01, loops=2),
     stage_positions=[(0, 1, 2), useq.Position(x=42, y=0, z=3)],
@@ -75,20 +79,36 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
     pos_table._on_selection_change()
 
 
-# def test_core_connected_position_wdg_autofocus(qtbot: QtBot, qapp) -> None:
-#     wdg = MDAWidget()
-#     qtbot.addWidget(wdg)
-#     wdg.show()
+def test_core_connected_position_wdg_autofocus(
+    qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    mmc = global_mmcore
+    mmc.unloadDevice("Autofocus")
 
-#     pos_table = wdg.stage_positions
-#     assert isinstance(pos_table, CoreConnectedPositionTable)
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
 
-#     pos = MDA.stage_positions[1].replace(
-#         sequence=useq.MDASequence(
-#             autofocus_plan=useq.AxesBasedAF(
-#                 axes=("t", "p", "g"),
-#                 autofocus_device_name="Z",
-#                 autofocus_motor_offset=10,
-#             )
-#         ),
-#     )
+    pos_table = wdg.stage_positions
+    wdg.setValue(MDA)
+
+    assert not pos_table.use_af.af_checkbox.isChecked()
+    assert not pos_table.use_af.isEnabled()
+    assert (
+        pos_table.use_af.af_checkbox.toolTip() == "No Core Autofocus device selected."
+    )
+
+    with qtbot.waitSignal(mmc.events.systemConfigurationLoaded):
+        mmc.loadSystemConfiguration(TEST_CONFIG)
+
+    assert not pos_table.use_af.af_checkbox.isChecked()
+    assert pos_table.use_af.isEnabled()
+    assert not pos_table.use_af.af_checkbox.toolTip()
+    assert wdg.value().stage_positions == MDA.stage_positions
+
+    pos_table.use_af.af_checkbox.setChecked(True)
+    assert pos_table.use_af.af_combo.currentText() == "Z1"
+
+    assert wdg.value().stage_positions[0].sequence.autofocus_plan == useq.AxesBasedAF(
+        axes=("t", "p", "g"), autofocus_device_name="Z1", autofocus_motor_offset=0.0
+    )
