@@ -20,6 +20,7 @@ from pymmcore_widgets.useq_widgets import (
     _grid,
     _z,
 )
+from pymmcore_widgets.useq_widgets._autofocus import _AutofocusZDeviceWidget
 from pymmcore_widgets.useq_widgets._column_info import (
     FloatColumn,
     QQuantityLineEdit,
@@ -106,17 +107,9 @@ SUB_SEQ = useq.MDASequence(
 )
 
 
-AF = useq.AxesBasedAF(
-    autofocus_device_name="", autofocus_motor_offset=0.0, axes=("t", "p", "g")
-)
-
-
 MDA = useq.MDASequence(
     time_plan=useq.TIntervalLoops(interval=4, loops=3),
-    stage_positions=[
-        useq.Position(x=0, y=1, z=2, sequence=useq.MDASequence(autofocus_plan=AF)),
-        useq.Position(x=42, y=0, z=3, sequence=SUB_SEQ.replace(autofocus_plan=AF)),
-    ],
+    stage_positions=[(0, 1, 2), useq.Position(x=42, y=0, z=3, sequence=SUB_SEQ)],
     channels=[{"config": "DAPI", "exposure": 42}],
     z_plan=useq.ZRangeAround(range=10, step=0.3),
     grid_plan=useq.GridRowsColumns(rows=10, columns=3),
@@ -127,6 +120,7 @@ MDA = useq.MDASequence(
 
 def test_mda_wdg(qtbot: QtBot):
     wdg = MDASequenceWidget()
+    wdg.stage_positions.use_af.af_checkbox.setChecked(False)
     qtbot.addWidget(wdg)
     wdg.show()
 
@@ -144,6 +138,7 @@ def test_mda_wdg_load_save(
     from pymmcore_widgets.useq_widgets._mda_sequence import QFileDialog
 
     wdg = MDASequenceWidget()
+    wdg.stage_positions.use_af.af_checkbox.setChecked(False)
     qtbot.addWidget(wdg)
     wdg.show()
 
@@ -418,3 +413,62 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     assert wdg._fov_width == 4
     wdg.setFovWidth(6)
     assert wdg.fovWidth() == 6
+
+
+def test_autofocus_wdg(qtbot: QtBot):
+    wdg = _AutofocusZDeviceWidget()
+    qtbot.addWidget(wdg)
+
+    wdg.af_checkbox.setChecked(True)
+    wdg.af_combo.addItem("Z")
+
+    assert wdg.value() == "Z"
+
+    with pytest.warns(UserWarning, match="Autofocus device 'Z1' not found"):
+        wdg.setValue("Z1")
+
+
+axes = ("t", "p", "g")
+AF1 = useq.MDASequence(
+    autofocus_plan=useq.AxesBasedAF(
+        autofocus_device_name="", autofocus_motor_offset=10.0, axes=axes
+    )
+)
+AF2 = useq.MDASequence(
+    autofocus_plan=useq.AxesBasedAF(
+        autofocus_device_name="Z1", autofocus_motor_offset=10.0, axes=axes
+    )
+)
+AF3 = useq.MDASequence(
+    autofocus_plan=useq.AxesBasedAF(
+        autofocus_device_name="Z", autofocus_motor_offset=10.0, axes=axes
+    )
+)
+
+MDA = useq.MDASequence(axis_order="p", stage_positions=[(0, 1, 2)])
+
+
+def test_mda_wdg_with_autofocus(qtbot: QtBot):
+    wdg = MDASequenceWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    mda = MDA.replace(stage_positions=[useq.Position(x=0, y=1, z=2, sequence=AF1)])
+    with pytest.warns(
+        UserWarning, match="Autofocus plan missing autofocus device name or offset"
+    ):
+        wdg.setValue(mda)
+    assert wdg.value().replace(metadata={}) == MDA
+
+    wdg.stage_positions.use_af.af_combo.addItem("Z")
+
+    mda = MDA.replace(stage_positions=[useq.Position(x=0, y=1, z=2, sequence=AF2)])
+    with pytest.warns(UserWarning, match="Z1 is not a valid options"):
+        wdg.setValue(mda)
+    assert wdg.value().replace(metadata={}) == MDA
+
+    wdg.stage_positions.use_af.af_combo.addItem("Z")
+    mda = MDA.replace(stage_positions=[useq.Position(x=0, y=1, z=2, sequence=AF3)])
+
+    wdg.setValue(mda)
+    assert wdg.value().replace(metadata={}) == mda

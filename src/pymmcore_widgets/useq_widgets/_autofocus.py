@@ -56,7 +56,8 @@ class _AutofocusZDeviceWidget(QWidget):
 
     def value(self) -> str | None:
         """Return the current autofocus z device."""
-        return self.af_combo.currentText() if self.af_checkbox.isChecked() else None
+        _af_z_device = self.af_combo.currentText()
+        return _af_z_device if self.af_checkbox.isChecked() and _af_z_device else None
 
     def setValue(self, value: str) -> None:
         """Set the autofocus device to use."""
@@ -71,6 +72,6 @@ class _AutofocusZDeviceWidget(QWidget):
         else:
             self.af_checkbox.setChecked(False)
             warnings.warn(
-                f"Autofocus device '{value}' not found in device list: [{items}]",
+                f"Autofocus device '{value}' not found in device list: {items}",
                 stacklevel=2,
             )
