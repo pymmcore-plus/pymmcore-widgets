@@ -77,7 +77,7 @@ class CoreConnectedPositionTable(PositionTable):
         self.use_af.setEnabled(bool(af_device))
 
         if not af_device:
-            self.use_af.af_checkbox.setToolTip("No autofocus device selected.")
+            self.use_af.af_checkbox.setToolTip("No Core Autofocus device selected.")
             return
 
         stage_devices = list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
