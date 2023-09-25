@@ -189,9 +189,9 @@ class PositionTable(DataTableWidget):
             pos = useq.Position(**r)
 
             # add any autofocus plan to the position sub-sequence
-            af_device = self.use_af.value()
+            af_z_device = self.use_af.value()
             af_offset = r.get(self.AF.key, None)
-            if af_device is not None and af_offset is not None:
+            if af_z_device is not None and af_offset is not None:
                 if pos.sequence is None:
                     # if there is no sub-sequence, create a new one with the autofocus
                     pos = pos.replace(
@@ -215,7 +215,7 @@ class PositionTable(DataTableWidget):
         """Set the current value of the table."""
         _values = []
         _use_af = False
-        _af_devices: set[str] = set()
+        _af_z_devices: set[str] = set()
         for v in value:
             if not isinstance(v, useq.Position):  # pragma: no cover
                 raise TypeError(f"Expected useq.Position, got {type(v)}")
@@ -231,12 +231,12 @@ class PositionTable(DataTableWidget):
 
                 # get autofocus plan device name and offset
                 _af_offset = v.sequence.autofocus_plan.autofocus_motor_offset
-                _af_device = v.sequence.autofocus_plan.autofocus_device_name
+                _af_z_device = v.sequence.autofocus_plan.autofocus_device_name
 
                 # set the autofocus offset that will be added to the table
                 _af = (
                     {self.AF.key: _af_offset}
-                    if self._is_af_valid(_af_offset, _af_devices, _af_device)
+                    if self._is_af_valid(_af_offset, _af_z_devices, _af_z_device)
                     else {}
                 )
 
@@ -245,7 +245,7 @@ class PositionTable(DataTableWidget):
 
                 # check autofocus checkbox and set the autofocus device name
                 # in the autofocus combo only once
-                if not _use_af and _af_device:
+                if not _use_af and _af_z_device:
                     _af_device_options = [
                         self.use_af.af_combo.itemText(i)
                         for i in range(self.use_af.af_combo.count())
@@ -254,19 +254,19 @@ class PositionTable(DataTableWidget):
                     # use the autofocus plan for this position. This is necessary
                     # because the setCurrentText() combo method doe not give any
                     # error if the text is not in the combo items.
-                    if _af_device not in _af_device_options:
+                    if _af_z_device not in _af_device_options:
                         _af = {}
-                        _af_devices.remove(_af_device)
+                        _af_z_devices.remove(_af_z_device)
                         self.use_af.af_checkbox.setChecked(False)
                         warnings.warn(
-                            f"{_af_device} is not a valid options. "
+                            f"{_af_z_device} is not a valid options. "
                             f"Should be one of: {_af_device_options}. "
                             "Autofocus plan for this position will be ignored.",
                             stacklevel=2,
                         )
                     else:
                         self.use_af.af_checkbox.setChecked(True)
-                        self.use_af.af_combo.setCurrentText(_af_device)
+                        self.use_af.af_combo.setCurrentText(_af_z_device)
 
             _values.append({**v.model_dump(exclude_unset=True), **_af})
 

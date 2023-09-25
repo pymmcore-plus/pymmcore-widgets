@@ -109,10 +109,10 @@ class CoreConnectedPositionTable(PositionTable):
         self.table().setRowData(row, data)
 
     def _set_af_from_core(self, row: int, col: int) -> None:
-        af_device = self.use_af.value()
-        if af_device is None:
+        af_z_device = self.use_af.value()
+        if af_z_device is None:
             return
-        data = {self.AF.key: self._mmc.getPosition(af_device)}
+        data = {self.AF.key: self._mmc.getPosition(af_z_device)}
         self.table().setRowData(row, data)
 
     def _on_selection_change(self) -> None:
