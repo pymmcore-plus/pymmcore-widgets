@@ -414,7 +414,7 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     wdg.setFovWidth(6)
     assert wdg.fovWidth() == 6
 
-    
+
 def test_proper_checked_index(qtbot):
     """Testing that the proper tab is checked when setting a value
 
