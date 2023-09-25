@@ -71,11 +71,13 @@ class CoreConnectedPositionTable(PositionTable):
         """Update the autofocus device combo box."""
         self.use_af.af_combo.clear()
         self.use_af.af_checkbox.setChecked(False)
+        self.use_af.af_checkbox.setToolTip("")
         af_device = self._mmc.getAutoFocusDevice()
 
         self.use_af.setEnabled(bool(af_device))
 
         if not af_device:
+            self.use_af.af_checkbox.setToolTip("No autofocus device selected.")
             return
 
         stage_devices = list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
