@@ -61,8 +61,6 @@ class CoreConnectedPositionTable(PositionTable):
         self._mmc.events.systemConfigurationLoaded.connect(self._update_use_af_combo)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
-        self._mmc.events.systemConfigurationLoaded.connect(self._p)
-
         self.destroyed.connect(self._disconnect)
 
         # update the autofocus widget
