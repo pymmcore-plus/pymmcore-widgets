@@ -61,7 +61,9 @@ class CoreConnectedPositionTable(PositionTable):
         self._mmc.events.systemConfigurationLoaded.connect(self._update_use_af_combo)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
-        self._disconnect()
+        self._mmc.events.systemConfigurationLoaded.connect(self._p)
+
+        self.destroyed.connect(self._disconnect)
 
         # update the autofocus widget
         self._update_use_af_combo()
@@ -72,6 +74,7 @@ class CoreConnectedPositionTable(PositionTable):
         self.use_af.af_combo.clear()
         self.use_af.af_checkbox.setChecked(False)
         af_device = self._mmc.getAutoFocusDevice()
+
         self.use_af.setEnabled(bool(af_device))
 
         if not af_device:
