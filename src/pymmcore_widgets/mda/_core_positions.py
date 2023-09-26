@@ -130,18 +130,20 @@ class CoreConnectedPositionTable(PositionTable):
             x = data.get(self.X.key, self._mmc.getXPosition())
             y = data.get(self.Y.key, self._mmc.getYPosition())
             z = data.get(self.Z.key, self._mmc.getZPosition())
-            af = data.get(self.AF.key, None)
+            af = data.get(self.AF.key, 0.0)
+
             try:
                 self._mmc.setXYPosition(x, y)
                 self._mmc.setZPosition(z)
                 self._perform_autofocus(af)
+
             except RuntimeError:
                 logging.error("Failed to move stage to selected position.")
             self._mmc.waitForSystem()
 
     def _perform_autofocus(self, af: float | None) -> None:
         af_z_device = self.use_af.value()
-        if af is None or not af_z_device:
+        if not af or not af_z_device:
             return
 
         # get if af is on
@@ -157,7 +159,8 @@ class CoreConnectedPositionTable(PositionTable):
         self._mmc.waitForSystem()
 
         # run autofocus
-        self._mmc.fullFocus()
+        # self._mmc.fullFocus()
+        self._mmc.setZPosition(100)
         self._mmc.waitForSystem()
 
         # if was on, switch back on
