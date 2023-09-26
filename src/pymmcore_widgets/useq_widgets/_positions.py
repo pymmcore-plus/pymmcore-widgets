@@ -167,7 +167,6 @@ class PositionTable(DataTableWidget):
         for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked):
             if not r.get(self.NAME.key, True):
                 r.pop(self.NAME.key, None)
-
             if not self.include_z.isChecked():
                 r.pop(self.Z.key, None)
             out.append(useq.Position(**r))
