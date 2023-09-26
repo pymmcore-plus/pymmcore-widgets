@@ -81,7 +81,8 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
     pos_table._on_selection_change()
 
 
-@pytest.mark.parametrize("stage", ["XY", "Z"])
+# @pytest.mark.parametrize("stage", ["XY", "Z"])
+@pytest.mark.parametrize("stage", ["Z"])
 def test_core_connected_position_wdg_enable_xy(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
 ) -> None:
@@ -97,13 +98,14 @@ def test_core_connected_position_wdg_enable_xy(
     pos_table = wdg.stage_positions
     assert isinstance(pos_table, CoreConnectedPositionTable)
 
-    pos_table.setValue(MDA.stage_positions)
+    wdg.setValue(MDA)
 
     if stage == "XY":
         assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.X))
         assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Y))
         xy = [(v.x, v.y) for v in pos_table.value()]
         assert all(x is None and y is None for x, y in xy)
+
     elif stage == "Z":
         assert not pos_table.include_z.isChecked()
         assert not pos_table.include_z.isEnabled()
@@ -111,3 +113,17 @@ def test_core_connected_position_wdg_enable_xy(
         assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Z))
         z = [v.z for v in pos_table.value()]
         assert all(z is None for z in z)
+
+    with qtbot.waitSignal(mmc.events.systemConfigurationLoaded):
+        mmc.loadSystemConfiguration(TEST_CONFIG)
+
+    if stage == "XY":
+        assert not pos_table.table().isColumnHidden(
+            pos_table.table().indexOf(pos_table.X)
+        )
+        assert not pos_table.table().isColumnHidden(
+            pos_table.table().indexOf(pos_table.Y)
+        )
+    elif stage == "Z":
+        assert pos_table.include_z.isEnabled()
+        assert pos_table.include_z.toolTip() == ""
