@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from fonticon_mdi6 import MDI6
@@ -51,6 +50,36 @@ class CoreConnectedPositionTable(PositionTable):
         toolbar.insertWidget(action0, self.move_to_selection)
         self.table().itemSelectionChanged.connect(self._on_selection_change)
 
+        # connect
+        self._mmc.events.systemConfigurationLoaded.connect(self._update_include_z)
+        self._mmc.events.propertyChanged.connect(self._on_property_changed)
+
+        self.destroyed.connect(self._disconnect)
+
+        self._update_include_z()
+
+    def _update_include_z(self) -> None:
+        """Update the include z checkbox."""
+        z_device = self._mmc.getFocusDevice()
+        self.include_z.setChecked(bool(z_device))
+        self.include_z.setEnabled(bool(z_device))
+        self.include_z.setToolTip("" if z_device else "No Focus device selected.")
+
+    def _on_property_changed(self, device: str, prop: str, value: str) -> None:
+        """Update the autofocus device combo box when the autofocus device changes."""
+        if device != "Core" or prop != "Focus":
+            return
+        self._update_include_z()
+
+    def _add_row(self) -> None:
+        """Add a new to the end of the table."""
+        super()._add_row()
+        row = self.table().rowCount() - 1
+        if self._mmc.getXYStageDevice():
+            self._set_xy_from_core(row, self.table().indexOf(self.X))
+        if self._mmc.getFocusDevice():
+            self._set_z_from_core(row, self.table().indexOf(self.Z))
+
     def _set_xy_from_core(self, row: int, col: int = 0) -> None:
         data = {
             self.X.key: self._mmc.getXPosition(),
@@ -63,25 +92,33 @@ class CoreConnectedPositionTable(PositionTable):
         self.table().setRowData(row, data)
 
     def _on_selection_change(self) -> None:
-        """Move stage to (single) selected row if move_to_selection enabled."""
         if not self.move_to_selection.isChecked():
+            return
+
+        if not self._mmc.getXYStageDevice() and not self._mmc.getFocusDevice():
             return
 
         selected_rows: set[int] = {i.row() for i in self.table().selectedItems()}
         if len(selected_rows) == 1:
             row = next(iter(selected_rows))
             data = self.table().rowData(row)
-            x = data.get(self.X.key, self._mmc.getXPosition())
-            y = data.get(self.Y.key, self._mmc.getYPosition())
-            z = data.get(self.Z.key, self._mmc.getZPosition())
-            try:
+
+            if self._mmc.getXYStageDevice():
+                x = data.get(self.X.key, self._mmc.getXPosition())
+                y = data.get(self.Y.key, self._mmc.getYPosition())
                 self._mmc.setXYPosition(x, y)
+
+            if self._mmc.getFocusDevice():
+                z = data.get(self.Z.key, self._mmc.getZPosition())
                 self._mmc.setZPosition(z)
-            except RuntimeError:
-                logging.error("Failed to move stage to selected position.")
+
             self._mmc.waitForSystem()
 
     def _on_include_z_toggled(self, checked: bool) -> None:
         super()._on_include_z_toggled(checked)
         z_btn_col = self.table().indexOf(self._z_btn_col)
         self.table().setColumnHidden(z_btn_col, not checked)
+
+    def _disconnect(self) -> None:
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._update_include_z)
+        self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
