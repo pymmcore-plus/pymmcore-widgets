@@ -67,7 +67,7 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
     wdg._mmc.setZPosition(33)
     xyidx = pos_table.table().indexOf(pos_table._xy_btn_col)
     z_idx = pos_table.table().indexOf(pos_table._z_btn_col)
-    # i'm not sure why click() isn't working... but this is
+    # # i'm not sure why click() isn't working... but this is
     pos_table.table().cellWidget(0, xyidx).clicked.emit()
     pos_table.table().cellWidget(0, z_idx).clicked.emit()
     p0 = pos_table.value()[0]
@@ -75,6 +75,7 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
     assert round(p0.y) == 22
     assert round(p0.z) == 33
 
+    wdg._mmc.waitForSystem()
     pos_table.move_to_selection.setChecked(True)
     pos_table.table().selectRow(0)
     pos_table._on_selection_change()
@@ -99,8 +100,14 @@ def test_core_connected_position_wdg_enable_xy(
     pos_table.setValue(MDA.stage_positions)
 
     if stage == "XY":
+        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.X))
+        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Y))
         xy = [(v.x, v.y) for v in pos_table.value()]
         assert all(x is None and y is None for x, y in xy)
     elif stage == "Z":
+        assert not pos_table.include_z.isChecked()
+        assert not pos_table.include_z.isEnabled()
+        assert pos_table.include_z.toolTip() == "No Focus device selected."
+        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Z))
         z = [v.z for v in pos_table.value()]
         assert all(z is None for z in z)
