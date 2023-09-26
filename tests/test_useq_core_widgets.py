@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+import pytest
 import useq
 
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
 
 if TYPE_CHECKING:
+    from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
+
+TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")
 
 MDA = useq.MDASequence(
     time_plan=useq.TIntervalLoops(interval=0.01, loops=2),
@@ -73,3 +78,29 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
     pos_table.move_to_selection.setChecked(True)
     pos_table.table().selectRow(0)
     pos_table._on_selection_change()
+
+
+@pytest.mark.parametrize("stage", ["XY", "Z"])
+def test_core_connected_position_wdg_enable_xy(
+    stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    # if there is no XY device or Z device, the XY or Z columns should be hidden and
+    # values() should return None for x, y and/or z
+    mmc = global_mmcore
+    mmc.unloadDevice(stage)
+
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    pos_table = wdg.stage_positions
+    assert isinstance(pos_table, CoreConnectedPositionTable)
+
+    pos_table.setValue(MDA.stage_positions)
+
+    if stage == "XY":
+        xy = [(v.x, v.y) for v in pos_table.value()]
+        assert all(x is None and y is None for x, y in xy)
+    elif stage == "Z":
+        z = [v.z for v in pos_table.value()]
+        assert all(z is None for z in z)
