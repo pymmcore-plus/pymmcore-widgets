@@ -51,15 +51,30 @@ class CoreConnectedPositionTable(PositionTable):
         self.table().itemSelectionChanged.connect(self._on_selection_change)
 
         # connect
-        self._mmc.events.systemConfigurationLoaded.connect(self._update_include_z)
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
         self.destroyed.connect(self._disconnect)
 
-        self._update_include_z()
+        self._on_sys_config_loaded()
 
-    def _update_include_z(self) -> None:
-        """Update the include z checkbox."""
+    def _on_sys_config_loaded(self) -> None:
+        """Update the table when the system configuration is loaded."""
+        self._enable_xy()
+        self._enable_z()
+
+    def _enable_xy(self) -> None:
+        """Enable/disable the XY columns and button."""
+        xy_device = self._mmc.getXYStageDevice()
+        x_col = self.table().indexOf(self.X)
+        y_col = self.table().indexOf(self.Y)
+        self.table().setColumnHidden(x_col, not bool(xy_device))
+        self.table().setColumnHidden(y_col, not bool(xy_device))
+        xy_btn_col = self.table().indexOf(self._xy_btn_col)
+        self.table().setColumnHidden(xy_btn_col, not bool(xy_device))
+
+    def _enable_z(self) -> None:
+        """Enable/disable the Z columns and button."""
         z_device = self._mmc.getFocusDevice()
         self.include_z.setChecked(bool(z_device))
         self.include_z.setEnabled(bool(z_device))
@@ -67,9 +82,12 @@ class CoreConnectedPositionTable(PositionTable):
 
     def _on_property_changed(self, device: str, prop: str, value: str) -> None:
         """Update the autofocus device combo box when the autofocus device changes."""
-        if device != "Core" or prop != "Focus":
+        if device != "Core" or prop not in {"XYStage", "Focus"}:
             return
-        self._update_include_z()
+        if prop == "XYStage":
+            self._enable_xy()
+        elif prop == "Focus":
+            self._enable_z()
 
     def _add_row(self) -> None:
         """Add a new to the end of the table."""
@@ -120,5 +138,7 @@ class CoreConnectedPositionTable(PositionTable):
         self.table().setColumnHidden(z_btn_col, not checked)
 
     def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self._update_include_z)
+        self._mmc.events.systemConfigurationLoaded.disconnect(
+            self._on_sys_config_loaded
+        )
         self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
