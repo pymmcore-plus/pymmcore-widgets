@@ -129,16 +129,40 @@ class CoreConnectedPositionTable(PositionTable):
 
             x = data.get(self.X.key, self._mmc.getXPosition())
             y = data.get(self.Y.key, self._mmc.getYPosition())
-
-            key, focus_device = self._get_z_focus_device()
-            z = data.get(key, self._mmc.getPosition(focus_device))
-
+            z = data.get(self.Z.key, self._mmc.getZPosition())
+            af = data.get(self.AF.key, None)
             try:
                 self._mmc.setXYPosition(x, y)
-                self._mmc.setPosition(focus_device, z)
+                self._mmc.setZPosition(z)
+                self._perform_autofocus(af)
             except RuntimeError:
                 logging.error("Failed to move stage to selected position.")
             self._mmc.waitForSystem()
+
+    def _perform_autofocus(self, af: float | None) -> None:
+        af_z_device = self.use_af.value()
+        if af is None or not af_z_device:
+            return
+
+        # get if af is on
+        _af_enabled = self._mmc.isContinuousFocusEnabled()
+
+        # switch off autofocus device before performing fullFocus()
+        # or fullFocus() doe not perform well
+        if _af_enabled:
+            self._mmc.enableContinuousFocus(False)
+
+        # set af position
+        self._mmc.setPosition(af_z_device, af)
+        self._mmc.waitForSystem()
+
+        # run autofocus
+        self._mmc.fullFocus()
+        self._mmc.waitForSystem()
+
+        # if was on, switch back on
+        if _af_enabled:
+            self._mmc.enableContinuousFocus(True)
 
     def _get_z_focus_device(self) -> tuple[str, str]:
         """Return the key and device name for the Z position."""
