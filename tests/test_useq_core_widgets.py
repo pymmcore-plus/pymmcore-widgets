@@ -81,13 +81,13 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
     pos_table._on_selection_change()
 
 
-# @pytest.mark.parametrize("stage", ["XY", "Z"])
-@pytest.mark.parametrize("stage", ["Z"])
-def test_core_connected_position_wdg_enable_xy(
+@pytest.mark.parametrize("stage", ["XY", "Z"])
+def test_core_connected_position_wdg_cfg_loaded(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
 ) -> None:
-    # if there is no XY device or Z device, the XY or Z columns should be hidden and
-    # values() should return None for x, y and/or z
+    # if XY or Z device is not loaded, the XY or Z columns should be hidden and
+    # values() should return None for x, y and/or z. This behavior should change
+    # when a new cfg with XY or Z device is loaded.
     mmc = global_mmcore
     mmc.unloadDevice(stage)
 
@@ -127,3 +127,56 @@ def test_core_connected_position_wdg_enable_xy(
     elif stage == "Z":
         assert pos_table.include_z.isEnabled()
         assert pos_table.include_z.toolTip() == ""
+
+
+@pytest.mark.parametrize("stage", ["XY", "Z"])
+def test_core_connected_position_wdg_property_changed(
+    stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    # if XY or Z device is are loaded but not set as default device, the XY or Z columns
+    # should be hidden and values() should return None for x, y and/or z. This behavior
+    # should change when XY or Z device is set as default device.
+    mmc = global_mmcore
+
+    with qtbot.waitSignal(mmc.events.propertyChanged):
+        if stage == "XY":
+            mmc.setProperty("Core", "XYStage", "")
+        elif stage == "Z":
+            mmc.setProperty("Core", "Focus", "")
+
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    pos_table = wdg.stage_positions
+    assert isinstance(pos_table, CoreConnectedPositionTable)
+
+    wdg.setValue(MDA)
+
+    if stage == "XY":
+        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.X))
+        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Y))
+        xy = [(v.x, v.y) for v in pos_table.value()]
+        assert all(x is None and y is None for x, y in xy)
+
+    elif stage == "Z":
+        assert not pos_table.include_z.isChecked()
+        assert not pos_table.include_z.isEnabled()
+        assert pos_table.include_z.toolTip() == "No Focus device selected."
+        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Z))
+        z = [v.z for v in pos_table.value()]
+        assert all(z is None for z in z)
+
+    with qtbot.waitSignal(mmc.events.propertyChanged):
+        if stage == "XY":
+            mmc.setProperty("Core", "XYStage", "XY")
+            assert not pos_table.table().isColumnHidden(
+                pos_table.table().indexOf(pos_table.X)
+            )
+            assert not pos_table.table().isColumnHidden(
+                pos_table.table().indexOf(pos_table.Y)
+            )
+        elif stage == "Z":
+            mmc.setProperty("Core", "Focus", "Z")
+            assert pos_table.include_z.isEnabled()
+            assert pos_table.include_z.toolTip() == ""
