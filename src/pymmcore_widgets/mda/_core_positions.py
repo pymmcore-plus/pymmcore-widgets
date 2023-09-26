@@ -159,7 +159,8 @@ class CoreConnectedPositionTable(PositionTable):
         self._mmc.waitForSystem()
 
         # run autofocus
-        self._mmc.fullFocus()
+        # self._mmc.fullFocus()
+        self._mmc.setZPosition(100)
         self._mmc.waitForSystem()
 
         # if was on, switch back on
