@@ -168,11 +168,6 @@ class PositionTable(DataTableWidget):
             if not r.get(self.NAME.key, True):
                 r.pop(self.NAME.key, None)
 
-            x_col, y_col = self.table().indexOf(self.X), self.table().indexOf(self.Y)
-            if self.table().isColumnHidden(x_col) or self.table().isColumnHidden(y_col):
-                r.pop(self.X.key, None)
-                r.pop(self.Y.key, None)
-
             if not self.include_z.isChecked():
                 r.pop(self.Z.key, None)
             out.append(useq.Position(**r))
