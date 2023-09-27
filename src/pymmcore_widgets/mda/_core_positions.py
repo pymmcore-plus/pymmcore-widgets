@@ -121,6 +121,10 @@ class CoreConnectedPositionTable(PositionTable):
         }
         self.table().setRowData(row, data)
 
+    def _set_z_from_core(self, row: int, col: int = 0) -> None:
+        data = {self.Z.key: self._mmc.getPosition(self._mmc.getFocusDevice())}
+        self.table().setRowData(row, data)
+
     def _set_af_from_core(self, row: int, col: int) -> None:
         data = {self.AF.key: self._mmc.getAutoFocusOffset()}
         self.table().setRowData(row, data)
