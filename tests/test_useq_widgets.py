@@ -20,7 +20,6 @@ from pymmcore_widgets.useq_widgets import (
     _grid,
     _z,
 )
-from pymmcore_widgets.useq_widgets._autofocus import _AutofocusZDeviceWidget
 from pymmcore_widgets.useq_widgets._column_info import (
     FloatColumn,
     QQuantityLineEdit,
@@ -431,37 +430,10 @@ def test_proper_checked_index(qtbot):
     assert pop.mda_tabs.isChecked(pop.mda_tabs.grid_plan)
 
 
-def test_autofocus_wdg(qtbot: QtBot):
-    wdg = _AutofocusZDeviceWidget()
-    qtbot.addWidget(wdg)
-
-    wdg.af_checkbox.setChecked(True)
-    wdg.af_combo.addItem("Z")
-
-    assert wdg.value() == "Z"
-
-    with pytest.warns(UserWarning, match="Autofocus device 'Z1' not found"):
-        wdg.setValue("Z1")
-
-
-axes = ("t", "p", "g")
-AF1 = useq.MDASequence(
-    autofocus_plan=useq.AxesBasedAF(
-        autofocus_device_name="", autofocus_motor_offset=10.0, axes=axes
-    )
-)
-AF2 = useq.MDASequence(
-    autofocus_plan=useq.AxesBasedAF(
-        autofocus_device_name="Z1", autofocus_motor_offset=10.0, axes=axes
-    )
-)
-AF3 = useq.MDASequence(
-    autofocus_plan=useq.AxesBasedAF(
-        autofocus_device_name="Z", autofocus_motor_offset=10.0, axes=axes
-    )
-)
-
 MDA = useq.MDASequence(axis_order="p", stage_positions=[(0, 1, 2)])
+AF = useq.MDASequence(
+    autofocus_plan=useq.AxesBasedAF(autofocus_motor_offset=10.0, axes=("p",))
+)
 
 
 def test_mda_wdg_with_autofocus(qtbot: QtBot):
@@ -469,22 +441,9 @@ def test_mda_wdg_with_autofocus(qtbot: QtBot):
     qtbot.addWidget(wdg)
     wdg.show()
 
-    mda = MDA.replace(stage_positions=[useq.Position(x=0, y=1, z=2, sequence=AF1)])
-    with pytest.warns(
-        UserWarning, match="Autofocus plan missing autofocus device name or offset"
-    ):
-        wdg.setValue(mda)
+    wdg.setValue(MDA)
     assert wdg.value().replace(metadata={}) == MDA
 
-    wdg.stage_positions.use_af.af_combo.addItem("Z")
-
-    mda = MDA.replace(stage_positions=[useq.Position(x=0, y=1, z=2, sequence=AF2)])
-    with pytest.warns(UserWarning, match="Z1 is not a valid options"):
-        wdg.setValue(mda)
-    assert wdg.value().replace(metadata={}) == MDA
-
-    wdg.stage_positions.use_af.af_combo.addItem("Z")
-    mda = MDA.replace(stage_positions=[useq.Position(x=0, y=1, z=2, sequence=AF3)])
-
-    wdg.setValue(mda)
-    assert wdg.value().replace(metadata={}) == mda
+    MDA1 = MDA.replace(stage_positions=[useq.Position(x=0, y=1, z=2, sequence=AF)])
+    wdg.setValue(MDA1)
+    assert wdg.value().replace(metadata={}) == MDA1

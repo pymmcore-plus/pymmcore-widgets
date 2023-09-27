@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence, cast
@@ -22,7 +21,6 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 
-from ._autofocus import _AutofocusZDeviceWidget
 from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
 
@@ -150,9 +148,9 @@ class PositionTable(DataTableWidget):
         self.include_z.setChecked(True)
         self.include_z.toggled.connect(self._on_include_z_toggled)
 
-        self.use_af = _AutofocusZDeviceWidget()
-        self.use_af.af_combo.setEditable(True)
+        self.use_af = QCheckBox("Use Autofocus")
         self.use_af.toggled.connect(self._on_use_af_toggled)
+        self._on_use_af_toggled(False)
 
         self._save_button = QPushButton("Save...")
         self._save_button.clicked.connect(self.save)
@@ -171,12 +169,7 @@ class PositionTable(DataTableWidget):
         layout.addLayout(btn_row)
 
     def _get_autofocus_plan(self, af_offset: float) -> useq.AxesBasedAF:
-        af_device = self.use_af.value()
-        return useq.AxesBasedAF(
-            autofocus_device_name=af_device,
-            autofocus_motor_offset=af_offset,
-            axes=("t", "p", "g"),
-        )
+        return useq.AxesBasedAF(autofocus_motor_offset=af_offset, axes=("p",))  # type: ignore  # noqa E501
 
     def value(self, exclude_unchecked: bool = True) -> tuple[useq.Position, ...]:
         """Return the current value of the table as a list of channels."""
@@ -186,12 +179,14 @@ class PositionTable(DataTableWidget):
                 r.pop(self.NAME.key, None)
             if not self.include_z.isChecked():
                 r.pop(self.Z.key, None)
-            pos = useq.Position(**r)
 
-            # add any autofocus plan to the position sub-sequence
-            af_z_device = self.use_af.value()
-            af_offset = r.get(self.AF.key, None)
-            if af_z_device is not None and af_offset is not None:
+            if not self.use_af.isChecked():
+                r.pop(self.AF.key, None)
+                pos = useq.Position(**r)
+
+            else:
+                pos = useq.Position(**r)
+                af_offset = r.get(self.AF.key, None)
                 if pos.sequence is None:
                     # if there is no sub-sequence, create a new one with the autofocus
                     pos = pos.replace(
@@ -208,14 +203,13 @@ class PositionTable(DataTableWidget):
                     )
 
             out.append(pos)
-
         return tuple(out)
 
     def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore
         """Set the current value of the table."""
         _values = []
         _use_af = False
-        _af_z_devices: set[str] = set()
+        # _af_z_devices: set[str] = set()
         for v in value:
             if not isinstance(v, useq.Position):  # pragma: no cover
                 raise TypeError(f"Expected useq.Position, got {type(v)}")
@@ -231,75 +225,20 @@ class PositionTable(DataTableWidget):
 
                 # get autofocus plan device name and offset
                 _af_offset = v.sequence.autofocus_plan.autofocus_motor_offset
-                _af_z_device = v.sequence.autofocus_plan.autofocus_device_name
 
                 # set the autofocus offset that will be added to the table
-                _af = (
-                    {self.AF.key: _af_offset}
-                    if self._is_af_valid(_af_offset, _af_z_devices, _af_z_device)
-                    else {}
-                )
+                _af = {self.AF.key: _af_offset}
 
                 # remopve autofocus plan from sub-sequence
                 v = v.replace(sequence=sub_seq)
 
-                # check autofocus checkbox and set the autofocus device name
-                # in the autofocus combo only once
-                if not _use_af and _af_z_device:
-                    _af_device_options = [
-                        self.use_af.af_combo.itemText(i)
-                        for i in range(self.use_af.af_combo.count())
-                    ]
-                    # if autofocus device name is not in the combo items, we do not
-                    # use the autofocus plan for this position. This is necessary
-                    # because the setCurrentText() combo method doe not give any
-                    # error if the text is not in the combo items.
-                    if _af_z_device not in _af_device_options:
-                        _af = {}
-                        _af_z_devices.remove(_af_z_device)
-                        self.use_af.af_checkbox.setChecked(False)
-                        warnings.warn(
-                            f"{_af_z_device} is not a valid options. "
-                            f"Should be one of: {_af_device_options}. "
-                            "Autofocus plan for this position will be ignored.",
-                            stacklevel=2,
-                        )
-                    else:
-                        self.use_af.af_checkbox.setChecked(True)
-                        self.use_af.af_combo.setCurrentText(_af_z_device)
+                _use_af = True
 
             _values.append({**v.model_dump(exclude_unset=True), **_af})
 
+        self.use_af.setChecked(_use_af)
+
         super().setValue(_values)
-
-    def _is_af_valid(
-        self, _af_offset: float | None, _af_devices: set[str], _af_device: str
-    ) -> bool:
-        # if autofocus offset is None or autofocus device name is None, we do not
-        # use the autofocus plan.
-        if _af_offset is None or not _af_device:
-            warnings.warn(
-                "Autofocus plan missing autofocus device name or offset and it will be "
-                "ignored.",
-                stacklevel=2,
-            )
-            return False
-
-        # check if autofocus device is the same for all positions. The reference
-        # autofocus device name is the one from the first position that has the
-        # autofocus plan. If the autofocus device name is different from the
-        # reference, we do not use the autofocus plan.
-        _af_devices.add(_af_device)
-        if len(_af_devices) > 1:
-            warnings.warn(
-                f"Cannot use multiple autofocus devices. Autofocus device: "
-                f"{next(iter(_af_devices))}. Current Position Autofocus device:"
-                f" {_af_device}. Autofocus plan for this position will be "
-                "ignored.",
-                stacklevel=2,
-            )
-            return False
-        return True
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current positions to a file."""
