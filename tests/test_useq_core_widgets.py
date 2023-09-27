@@ -122,6 +122,9 @@ def _assert_position_wdg_state(
         # the set position button should be hidden
         af_btn_col = pos_table.table().indexOf(pos_table._af_btn_col)
         assert pos_table.table().isColumnHidden(af_btn_col)
+        if is_hidden:
+            sub_seq = [v.sequence for v in pos_table.value()]
+            assert all(s is None for s in sub_seq)
         # the use autofocus checkbox should be unchecked
         assert not pos_table.use_af.isChecked()
         # the use autofocus checkbox should be disabled if Autofocus device is not
