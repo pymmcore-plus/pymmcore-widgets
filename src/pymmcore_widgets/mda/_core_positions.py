@@ -167,10 +167,13 @@ class CoreConnectedPositionTable(PositionTable):
         if _af_enabled:
             self._mmc.enableContinuousFocus(False)
 
+        # set af position
         self._mmc.setAutoFocusOffset(af)
         self._mmc.waitForSystem()
 
         # run autofocus
+        self._mmc.fullFocus()
+        self._mmc.waitForSystem()
 
         # if was on, switch back on
         if _af_enabled:
