@@ -171,8 +171,9 @@ class CoreConnectedPositionTable(PositionTable):
             self.table().setRowData(row, data)
 
     def _set_af_from_core(self, row: int, col: int = 0) -> None:
-        data = {self.AF.key: self._mmc.getAutoFocusOffset()}
-        self.table().setRowData(row, data)
+        if self._mmc.getAutoFocusDevice():
+            data = {self.AF.key: self._mmc.getAutoFocusOffset()}
+            self.table().setRowData(row, data)
 
     def _on_selection_change(self) -> None:
         if not self.move_to_selection.isChecked():
