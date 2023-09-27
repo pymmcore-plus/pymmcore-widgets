@@ -187,6 +187,11 @@ class CoreConnectedPositionTable(PositionTable):
             row = next(iter(selected_rows))
             data = self.table().rowData(row)
 
+            # TODO:
+            # ... and x and y are visible
+            # ... and include z is checked
+            # ... and use af is checked
+
             if self._mmc.getXYStageDevice():
                 x = data.get(self.X.key, self._mmc.getXPosition())
                 y = data.get(self.Y.key, self._mmc.getYPosition())
@@ -203,6 +208,8 @@ class CoreConnectedPositionTable(PositionTable):
             self._mmc.waitForSystem()
 
     def _perform_autofocus(self, af: float) -> None:
+        # TODO: isContinuousFocusEnabled vs isContinuousFocusLocked
+
         # get if af is on
         _af_enabled = self._mmc.isContinuousFocusEnabled()
 
