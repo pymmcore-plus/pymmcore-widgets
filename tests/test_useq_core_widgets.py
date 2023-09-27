@@ -182,7 +182,7 @@ def test_core_connected_position_wdg_property_changed(
             assert pos_table.include_z.toolTip() == ""
 
 
-def test_core_position_table_add_position(qtbot: QtBot, qapp) -> None:
+def test_core_position_table_add_position(qtbot: QtBot) -> None:
     wdg = MDAWidget()
     qtbot.addWidget(wdg)
     wdg.show()
@@ -193,9 +193,7 @@ def test_core_position_table_add_position(qtbot: QtBot, qapp) -> None:
     wdg._mmc.setXYPosition(11, 22)
     wdg._mmc.setZPosition(33)
     with qtbot.waitSignals([pos_table.valueChanged], order="strict", timeout=1000):
-        print("hi")
         pos_table.act_add_row.trigger()
-        qapp.processEvents()
     val = pos_table.value()[-1]
     assert round(val.x, 1) == 11
     assert round(val.y, 1) == 22
