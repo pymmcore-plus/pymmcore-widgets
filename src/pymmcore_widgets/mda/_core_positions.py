@@ -154,6 +154,7 @@ class CoreConnectedPositionTable(PositionTable):
             for row_idx in range(start, end + 1):
                 self._set_xy_from_core(row_idx)
                 self._set_z_from_core(row_idx)
+                self._set_af_from_core(row_idx)
         self.valueChanged.emit()
 
     def _set_xy_from_core(self, row: int, col: int = 0) -> None:
@@ -169,7 +170,7 @@ class CoreConnectedPositionTable(PositionTable):
             data = {self.Z.key: self._mmc.getPosition(self._mmc.getFocusDevice())}
             self.table().setRowData(row, data)
 
-    def _set_af_from_core(self, row: int, col: int) -> None:
+    def _set_af_from_core(self, row: int, col: int = 0) -> None:
         data = {self.AF.key: self._mmc.getAutoFocusOffset()}
         self.table().setRowData(row, data)
 
