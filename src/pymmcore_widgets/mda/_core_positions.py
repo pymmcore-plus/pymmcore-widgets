@@ -68,7 +68,9 @@ class CoreConnectedPositionTable(PositionTable):
         self._enable_xy()
         self._enable_z()
         self._enable_autofocus()
-        self.use_af.setChecked(False)
+        # need to trigger this manually since the autofocus checkbox is not checked
+        # by default
+        self._on_use_af_toggled(False)
 
     def _enable_xy(self) -> None:
         """Enable/disable the XY columns and button."""
@@ -206,5 +208,7 @@ class CoreConnectedPositionTable(PositionTable):
         return tuple(_value)
 
     def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self._enable_autofocus)
+        self._mmc.events.systemConfigurationLoaded.disconnect(
+            self._on_sys_config_loaded
+        )
         self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
