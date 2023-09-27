@@ -39,6 +39,7 @@ class ColumnInfo:
     is_row_selector: bool = False
     hidden: bool = False
     default: Any = None
+    default_factory: Callable[[], Any] | None = None
 
     def header_text(self) -> str:
         if self.header is None:
@@ -160,7 +161,9 @@ class WidgetColumn(ColumnInfo, Generic[W, T]):
     ) -> None:
         new_wdg = self._init_widget()
 
-        if self.default is not None:
+        if self.default_factory:
+            self.data_type.setter(new_wdg, self.default_factory())
+        elif self.default is not None:
             self.data_type.setter(new_wdg, self.default)
 
         # if self.alignment and hasattr(new_wdg, "setAlignment"):

@@ -299,6 +299,8 @@ class DataTableWidget(QWidget):
 
     def _add_row(self) -> None:
         """Add a new to the end of the table."""
+        # this method is only called when act_add_row is triggered
+        # not anytime a row is added programmatically
         self._table.insertRow(self._table.rowCount())
 
     def _check_all(self) -> None:
