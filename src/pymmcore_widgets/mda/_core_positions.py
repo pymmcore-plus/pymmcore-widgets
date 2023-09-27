@@ -13,8 +13,6 @@ from pymmcore_widgets.useq_widgets._column_info import ButtonColumn
 if TYPE_CHECKING:
     from typing import TypedDict
 
-    import useq
-
     class SaveInfo(TypedDict):
         save_dir: str
         file_name: str
@@ -60,22 +58,6 @@ class CoreConnectedPositionTable(PositionTable):
         self.destroyed.connect(self._disconnect)
 
         self._on_sys_config_loaded()
-
-    def value(self, exclude_unchecked: bool = True) -> tuple[useq.Position, ...]:
-        """Return the current value of the table as a list of channels.
-
-        Overridden to remove the X and Y values if the columns are hidden.
-        """
-        value = super().value(exclude_unchecked)
-
-        x_col, y_col = self.table().indexOf(self.X), self.table().indexOf(self.Y)
-        if not self.table().isColumnHidden(x_col) or not self.table().isColumnHidden(
-            y_col
-        ):
-            return value
-
-        _value = [v.replace(x=None, y=None) for v in value]
-        return tuple(_value)
 
     # ----------------------- private methods -----------------------
 
