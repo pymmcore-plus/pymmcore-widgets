@@ -26,6 +26,7 @@ from ._data_table import DataTableWidget
 
 OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
 NULL_SEQUENCE = useq.MDASequence()
+MAX = 9999999
 
 
 class _MDAPopup(QDialog):
@@ -134,12 +135,11 @@ class SubSeqColumn(WidgetColumn):
 class PositionTable(DataTableWidget):
     """Table for editing a list of `useq.Positions`."""
 
-    v_max, v_min = (9999999, -9999999)
     NAME = TextColumn(key="name", default=None, is_row_selector=True)
-    X = FloatColumn(key="x", header="X [mm]", default=0.0, maximum=v_max, minimum=v_min)
-    Y = FloatColumn(key="y", header="Y [mm]", default=0.0, maximum=v_max, minimum=v_min)
-    Z = FloatColumn(key="z", header="Z [mm]", default=0.0, maximum=v_max, minimum=v_min)
-    AF = FloatColumn(key="af", header="AF", default=0.0, maximum=v_max, minimum=v_min)
+    X = FloatColumn(key="x", header="X [mm]", default=0.0, maximum=MAX, minimum=-MAX)
+    Y = FloatColumn(key="y", header="Y [mm]", default=0.0, maximum=MAX, minimum=-MAX)
+    Z = FloatColumn(key="z", header="Z [mm]", default=0.0, maximum=MAX, minimum=-MAX)
+    AF = FloatColumn(key="af", header="AF", default=0.0, maximum=MAX, minimum=-MAX)
     SEQ = SubSeqColumn(key="sequence", header="Sub-Sequence", default=None)
 
     def __init__(self, rows: int = 0, parent: QWidget | None = None):
