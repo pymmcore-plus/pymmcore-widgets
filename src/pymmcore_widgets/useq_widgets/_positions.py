@@ -174,19 +174,19 @@ class PositionTable(DataTableWidget):
     def _get_autofocus_plan(self, af_offset: float) -> useq.AxesBasedAF:
         return useq.AxesBasedAF(autofocus_motor_offset=af_offset, axes=("p",))  # type: ignore  # noqa E501
 
-    def value(self, exclude_unchecked: bool = True) -> tuple[useq.Position, ...]:
+    def value(
+        self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
+    ) -> tuple[useq.Position, ...]:
         """Return the current value of the table as a list of channels."""
         out = []
-        for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked):
+        for r in self.table().iterRecords(
+            exclude_unchecked=exclude_unchecked, exclude_hidden_cols=exclude_hidden_cols
+        ):
             if not r.get(self.NAME.key, True):
                 r.pop(self.NAME.key, None)
-            if not self.include_z.isChecked():
-                r.pop(self.Z.key, None)
 
             if not self.use_af.isChecked():
-                r.pop(self.AF.key, None)
                 pos = useq.Position(**r)
-
             else:
                 pos = useq.Position(**r)
                 af_offset = r.get(self.AF.key, None)
@@ -285,7 +285,9 @@ class PositionTable(DataTableWidget):
     def _on_include_z_toggled(self, checked: bool) -> None:
         z_col = self.table().indexOf(self.Z)
         self.table().setColumnHidden(z_col, not checked)
+        self.valueChanged.emit()
 
     def _on_use_af_toggled(self, checked: bool) -> None:
         af_col = self.table().indexOf(self.AF)
         self.table().setColumnHidden(af_col, not checked)
+        self.valueChanged.emit()

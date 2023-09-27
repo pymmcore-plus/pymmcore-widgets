@@ -51,6 +51,10 @@ class CoreConnectedPositionTable(PositionTable):
         # to update the new values from the core position
         self.table().model().rowsInserted.connect(self._on_rows_inserted)
 
+        # when a new row is inserted, call _on_rows_inserted
+        # to update the new values from the core position
+        self.table().model().rowsInserted.connect(self._on_rows_inserted)
+
         # add move_to_selection to toolbar and link up callback
         toolbar = self.toolBar()
         action0 = next(x for x in toolbar.children() if isinstance(x, QWidgetAction))
@@ -65,12 +69,16 @@ class CoreConnectedPositionTable(PositionTable):
 
         self._on_sys_config_loaded()
 
-    def value(self, exclude_unchecked: bool = True) -> tuple[useq.Position, ...]:
+    def value(
+        self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
+    ) -> tuple[useq.Position, ...]:
         """Return the current value of the table as a list of channels.
 
         Overridden to remove the X and Y values if the columns are hidden.
         """
-        value = super().value(exclude_unchecked)
+        value = super().value(
+            exclude_unchecked=exclude_unchecked, exclude_hidden_cols=exclude_hidden_cols
+        )
 
         x_col, y_col = self.table().indexOf(self.X), self.table().indexOf(self.Y)
         if not self.table().isColumnHidden(x_col) or not self.table().isColumnHidden(
