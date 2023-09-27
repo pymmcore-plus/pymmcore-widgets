@@ -119,7 +119,6 @@ MDA = useq.MDASequence(
 
 def test_mda_wdg(qtbot: QtBot):
     wdg = MDASequenceWidget()
-    wdg.stage_positions.use_af.af_checkbox.setChecked(False)
     qtbot.addWidget(wdg)
     wdg.show()
 
@@ -137,7 +136,6 @@ def test_mda_wdg_load_save(
     from pymmcore_widgets.useq_widgets._mda_sequence import QFileDialog
 
     wdg = MDASequenceWidget()
-    wdg.stage_positions.use_af.af_checkbox.setChecked(False)
     qtbot.addWidget(wdg)
     wdg.show()
 
@@ -184,7 +182,6 @@ def test_qquant_line_edit(qtbot: QtBot):
 
 def test_position_table(qtbot: QtBot):
     wdg = PositionTable()
-    wdg.use_af.af_checkbox.setChecked(False)
     qtbot.addWidget(wdg)
     wdg.show()
 
