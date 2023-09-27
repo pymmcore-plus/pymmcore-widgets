@@ -187,40 +187,36 @@ class CoreConnectedPositionTable(PositionTable):
             row = next(iter(selected_rows))
             data = self.table().rowData(row)
 
+            # check if autofocus is locked before moving
+            _af_locked = self._mmc.isContinuousFocusLocked()
+
             if self._mmc.getXYStageDevice():
                 x = data.get(self.X.key, self._mmc.getXPosition())
                 y = data.get(self.Y.key, self._mmc.getYPosition())
                 self._mmc.setXYPosition(x, y)
 
-            if self._mmc.getFocusDevice():
+            if self._mmc.getFocusDevice() and self.include_z.isChecked():
                 z = data.get(self.Z.key, self._mmc.getZPosition())
                 self._mmc.setZPosition(z)
 
-            if self._mmc.getAutoFocusDevice():
+            if self._mmc.getAutoFocusDevice() and self.use_af.isChecked():
                 af = data.get(self.AF.key, self._mmc.getAutoFocusOffset())
-                self._perform_autofocus(af)
+                self._perform_autofocus(af, _af_locked)
 
             self._mmc.waitForSystem()
 
-    def _perform_autofocus(self, af: float) -> None:
-        # get if af is on
-        _af_enabled = self._mmc.isContinuousFocusEnabled()
-
-        # switch off autofocus device before performing fullFocus()
-        # or fullFocus() doe not perform well
-        if _af_enabled:
-            self._mmc.enableContinuousFocus(False)
-
+    def _perform_autofocus(self, af: float, locked: bool) -> None:
         # set af position
         self._mmc.setAutoFocusOffset(af)
         self._mmc.waitForSystem()
 
         # run autofocus
+        # TODO: perform fullFocus() more times
         self._mmc.fullFocus()
         self._mmc.waitForSystem()
 
         # if was on, switch back on
-        if _af_enabled:
+        if locked:
             self._mmc.enableContinuousFocus(True)
 
     def _on_include_z_toggled(self, checked: bool) -> None:
