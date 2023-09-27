@@ -110,7 +110,9 @@ class DataTable(QTableWidget):
                     return col
         return -1
 
-    def iterRecords(self, exclude_unchecked: bool = False) -> Iterator[Record]:
+    def iterRecords(
+        self, exclude_unchecked: bool = False, exclude_hidden_cols: bool = False
+    ) -> Iterator[Record]:
         """Return an iterator over the data in the table in records format.
 
         (Records are a list of dicts mapping {'column header' -> value} for each row.)
@@ -118,7 +120,7 @@ class DataTable(QTableWidget):
         selector_col = self._get_selector_col() if exclude_unchecked else -1
         for row in range(self.rowCount()):
             if self._is_row_checked(row, selector_col):
-                if data := self.rowData(row):
+                if data := self.rowData(row, exclude_hidden_cols):
                     yield data
 
     def setValue(self, records: Iterable[Record]) -> None:
@@ -135,9 +137,11 @@ class DataTable(QTableWidget):
     def clearChecks(self) -> None:
         self._check_all(Qt.CheckState.Unchecked)
 
-    def rowData(self, row: int) -> Record:
+    def rowData(self, row: int, exclude_hidden_cols: bool = False) -> Record:
         d: Record = {}
         for col in range(self.columnCount()):
+            if exclude_hidden_cols and self.isColumnHidden(col):
+                continue
             if info := self.columnInfo(col):
                 d.update(info.get_cell_data(self, row, col))
         return d
@@ -299,6 +303,8 @@ class DataTableWidget(QWidget):
 
     def _add_row(self) -> None:
         """Add a new to the end of the table."""
+        # this method is only called when act_add_row is triggered
+        # not anytime a row is added programmatically
         self._table.insertRow(self._table.rowCount())
 
     def _check_all(self) -> None:
