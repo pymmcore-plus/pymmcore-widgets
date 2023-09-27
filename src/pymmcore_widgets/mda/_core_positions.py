@@ -61,15 +61,25 @@ class CoreConnectedPositionTable(PositionTable):
         self.destroyed.connect(self._disconnect)
 
         self._on_sys_config_loaded()
-        self._on_use_af_toggled(False)
 
     def _on_sys_config_loaded(self) -> None:
-        self._update_include_z()
+        self._enable_xy()
+        self._enable_z()
         self._use_autofocus()
         self.use_af.setChecked(False)
 
-    def _update_include_z(self) -> None:
-        """Update the include z checkbox."""
+    def _enable_xy(self) -> None:
+        """Enable/disable the XY columns and button."""
+        xy_device = self._mmc.getXYStageDevice()
+        x_col = self.table().indexOf(self.X)
+        y_col = self.table().indexOf(self.Y)
+        self.table().setColumnHidden(x_col, not bool(xy_device))
+        self.table().setColumnHidden(y_col, not bool(xy_device))
+        xy_btn_col = self.table().indexOf(self._xy_btn_col)
+        self.table().setColumnHidden(xy_btn_col, not bool(xy_device))
+
+    def _enable_z(self) -> None:
+        """Enable/disable the Z columns and button."""
         z_device = self._mmc.getFocusDevice()
         self.include_z.setChecked(bool(z_device))
         self.include_z.setEnabled(bool(z_device))
@@ -84,10 +94,12 @@ class CoreConnectedPositionTable(PositionTable):
 
     def _on_property_changed(self, device: str, prop: str, value: str) -> None:
         """Update the autofocus device combo box when the autofocus device changes."""
-        if device != "Core" or prop not in ["Focus", "AutoFocus"]:
+        if device != "Core" or prop not in ["XYStage", "Focus", "AutoFocus"]:
             return
-        if prop == "Focus":
-            self._update_include_z()
+        if prop == "XYStage":
+            self._enable_xy()
+        elif prop == "Focus":
+            self._enable_z()
         elif prop == "AutoFocus":
             self._use_autofocus()
 
@@ -102,15 +114,11 @@ class CoreConnectedPositionTable(PositionTable):
         if self._mmc.getAutoFocusDevice():
             self._set_af_from_core(row, self.table().indexOf(self.AF))
 
-    def _set_xy_from_core(self, row: int, col: int) -> None:
+    def _set_xy_from_core(self, row: int, col: int = 0) -> None:
         data = {
             self.X.key: self._mmc.getXPosition(),
             self.Y.key: self._mmc.getYPosition(),
         }
-        self.table().setRowData(row, data)
-
-    def _set_z_from_core(self, row: int, col: int) -> None:
-        data = {self.Z.key: self._mmc.getPosition(self._mmc.getFocusDevice())}
         self.table().setRowData(row, data)
 
     def _set_af_from_core(self, row: int, col: int) -> None:
@@ -153,13 +161,10 @@ class CoreConnectedPositionTable(PositionTable):
         if _af_enabled:
             self._mmc.enableContinuousFocus(False)
 
-        # set af position
         self._mmc.setAutoFocusOffset(af)
         self._mmc.waitForSystem()
 
         # run autofocus
-        self._mmc.fullFocus()
-        self._mmc.waitForSystem()
 
         # if was on, switch back on
         if _af_enabled:
