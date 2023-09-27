@@ -67,7 +67,7 @@ class CoreConnectedPositionTable(PositionTable):
     def _on_sys_config_loaded(self) -> None:
         self._enable_xy()
         self._enable_z()
-        self._use_autofocus()
+        self._enable_autofocus()
         self.use_af.setChecked(False)
 
     def _enable_xy(self) -> None:
@@ -87,7 +87,7 @@ class CoreConnectedPositionTable(PositionTable):
         self.include_z.setEnabled(bool(z_device))
         self.include_z.setToolTip("" if z_device else "No Focus device selected.")
 
-    def _use_autofocus(self) -> None:
+    def _enable_autofocus(self) -> None:
         """Update the autofocus device combo box."""
         af_device = self._mmc.getAutoFocusDevice()
         self.use_af.setEnabled(bool(af_device))
@@ -103,7 +103,7 @@ class CoreConnectedPositionTable(PositionTable):
         elif prop == "Focus":
             self._enable_z()
         elif prop == "AutoFocus":
-            self._use_autofocus()
+            self._enable_autofocus()
 
     def _add_row(self) -> None:
         """Add a new to the end of the table."""
@@ -206,5 +206,5 @@ class CoreConnectedPositionTable(PositionTable):
         return tuple(_value)
 
     def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self._use_autofocus)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._enable_autofocus)
         self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
