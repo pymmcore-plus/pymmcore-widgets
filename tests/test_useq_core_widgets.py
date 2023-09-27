@@ -122,9 +122,9 @@ def _assert_position_wdg_state(
 def test_core_connected_position_wdg_cfg_loaded(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
 ) -> None:
-    # if XY or Z device is not loaded, the XY or Z columns should be hidden and
-    # values() should return None for x, y and/or z. This behavior should change
-    # when a new cfg with XY or Z device is loaded.
+    # stage device is not loaded, the respective columns should be hidden and
+    # values() should return None. This behavior should change
+    # when a new cfg stage device is loaded.
     mmc = global_mmcore
     mmc.unloadDevice(stage)
 
@@ -151,9 +151,9 @@ def test_core_connected_position_wdg_cfg_loaded(
 def test_core_connected_position_wdg_property_changed(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
 ) -> None:
-    # if XY or Z device is are loaded but not set as default device, the XY or Z columns
-    # should be hidden and values() should return None for x, y and/or z. This behavior
-    # should change when XY or Z device is set as default device.
+    # if stage device are loaded but not set as default device, their respective columns
+    # should be hidden and values() should return None. This behavior should change when
+    # stage device is set as default device.
     mmc = global_mmcore
 
     with qtbot.waitSignal(mmc.events.propertyChanged):
