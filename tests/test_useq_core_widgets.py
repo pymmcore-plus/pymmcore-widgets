@@ -81,7 +81,37 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
     pos_table._on_selection_change()
 
 
-@pytest.mark.parametrize("stage", ["XY", "Z"])
+def _assert(stage: str, pos_table: CoreConnectedPositionTable) -> None:
+    if stage == "Autofocus":
+        af_col = pos_table.table().indexOf(pos_table.AF)
+        af_btn_col = pos_table.table().indexOf(pos_table._af_btn_col)
+        assert not pos_table.use_af.isChecked()
+        assert not pos_table.use_af.isEnabled()
+        assert pos_table.use_af.toolTip() == "No Autofocus device selected."
+        assert pos_table.table().isColumnHidden(af_col)
+        assert pos_table.table().isColumnHidden(af_btn_col)
+    elif stage == "XY":
+        x_col = pos_table.table().indexOf(pos_table.X)
+        y_col = pos_table.table().indexOf(pos_table.Y)
+        xy_btn_col = pos_table.table().indexOf(pos_table._xy_btn_col)
+        assert pos_table.table().isColumnHidden(x_col)
+        assert pos_table.table().isColumnHidden(y_col)
+        assert pos_table.table().isColumnHidden(xy_btn_col)
+        xy = [(v.x, v.y) for v in pos_table.value()]
+        assert all(x is None and y is None for x, y in xy)
+    elif stage == "Z":
+        z_col = pos_table.table().indexOf(pos_table.Z)
+        z_btn_col = pos_table.table().indexOf(pos_table._z_btn_col)
+        assert not pos_table.include_z.isChecked()
+        assert not pos_table.include_z.isEnabled()
+        assert pos_table.include_z.toolTip() == "No Focus device selected."
+        assert pos_table.table().isColumnHidden(z_col)
+        assert pos_table.table().isColumnHidden(z_btn_col)
+        z = [v.z for v in pos_table.value()]
+        assert all(z is None for z in z)
+
+
+@pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
 def test_core_connected_position_wdg_cfg_loaded(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
 ) -> None:
@@ -99,20 +129,7 @@ def test_core_connected_position_wdg_cfg_loaded(
     assert isinstance(pos_table, CoreConnectedPositionTable)
 
     wdg.setValue(MDA)
-
-    if stage == "XY":
-        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.X))
-        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Y))
-        xy = [(v.x, v.y) for v in pos_table.value()]
-        assert all(x is None and y is None for x, y in xy)
-
-    elif stage == "Z":
-        assert not pos_table.include_z.isChecked()
-        assert not pos_table.include_z.isEnabled()
-        assert pos_table.include_z.toolTip() == "No Focus device selected."
-        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Z))
-        z = [v.z for v in pos_table.value()]
-        assert all(z is None for z in z)
+    _assert(stage, pos_table)
 
     with qtbot.waitSignal(mmc.events.systemConfigurationLoaded):
         mmc.loadSystemConfiguration(TEST_CONFIG)
@@ -128,8 +145,12 @@ def test_core_connected_position_wdg_cfg_loaded(
         assert pos_table.include_z.isEnabled()
         assert pos_table.include_z.toolTip() == ""
 
+    elif stage == "Autofocus":
+        assert pos_table.use_af.isEnabled()
+        assert pos_table.use_af.toolTip() == ""
 
-@pytest.mark.parametrize("stage", ["XY", "Z"])
+
+@pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
 def test_core_connected_position_wdg_property_changed(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
 ) -> None:
@@ -143,6 +164,9 @@ def test_core_connected_position_wdg_property_changed(
             mmc.setProperty("Core", "XYStage", "")
         elif stage == "Z":
             mmc.setProperty("Core", "Focus", "")
+        elif stage == "Autofocus":
+            mmc.setProperty("Core", "AutoFocus", "")
+        mmc.waitForSystem()
 
     wdg = MDAWidget()
     qtbot.addWidget(wdg)
@@ -152,20 +176,7 @@ def test_core_connected_position_wdg_property_changed(
     assert isinstance(pos_table, CoreConnectedPositionTable)
 
     wdg.setValue(MDA)
-
-    if stage == "XY":
-        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.X))
-        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Y))
-        xy = [(v.x, v.y) for v in pos_table.value()]
-        assert all(x is None and y is None for x, y in xy)
-
-    elif stage == "Z":
-        assert not pos_table.include_z.isChecked()
-        assert not pos_table.include_z.isEnabled()
-        assert pos_table.include_z.toolTip() == "No Focus device selected."
-        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Z))
-        z = [v.z for v in pos_table.value()]
-        assert all(z is None for z in z)
+    _assert(stage, pos_table)
 
     with qtbot.waitSignal(mmc.events.propertyChanged):
         if stage == "XY":
@@ -180,3 +191,7 @@ def test_core_connected_position_wdg_property_changed(
             mmc.setProperty("Core", "Focus", "Z")
             assert pos_table.include_z.isEnabled()
             assert pos_table.include_z.toolTip() == ""
+        elif stage == "Autofocus":
+            mmc.setProperty("Core", "AutoFocus", "Autofocus")
+            assert pos_table.use_af.isEnabled()
+            assert pos_table.use_af.toolTip() == ""
