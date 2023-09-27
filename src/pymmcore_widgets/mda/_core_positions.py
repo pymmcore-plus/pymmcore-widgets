@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import (
-    QCheckBox,
-    QWidget,
-    QWidgetAction,
-)
+from qtpy.QtWidgets import QCheckBox, QWidget, QWidgetAction
+from superqt.utils import signals_blocked
 
 from pymmcore_widgets.useq_widgets import PositionTable
 from pymmcore_widgets.useq_widgets._column_info import ButtonColumn
@@ -46,6 +43,10 @@ class CoreConnectedPositionTable(PositionTable):
         self.table().addColumn(self._xy_btn_col, self.table().indexOf(self.X))
         self.table().addColumn(self._z_btn_col, self.table().indexOf(self.Z) + 1)
 
+        # when a new row is inserted, call _on_rows_inserted
+        # to update the new values from the core position
+        self.table().model().rowsInserted.connect(self._on_rows_inserted)
+
         # add move_to_selection to toolbar and link up callback
         toolbar = self.toolBar()
         action0 = next(x for x in toolbar.children() if isinstance(x, QWidgetAction))
@@ -60,56 +61,88 @@ class CoreConnectedPositionTable(PositionTable):
 
         self._on_sys_config_loaded()
 
+    def value(self, exclude_unchecked: bool = True) -> tuple[useq.Position, ...]:
+        """Return the current value of the table as a list of channels.
+
+        Overridden to remove the X and Y values if the columns are hidden.
+        """
+        value = super().value(exclude_unchecked)
+
+        x_col, y_col = self.table().indexOf(self.X), self.table().indexOf(self.Y)
+        if not self.table().isColumnHidden(x_col) or not self.table().isColumnHidden(
+            y_col
+        ):
+            return value
+
+        _value = [v.replace(x=None, y=None) for v in value]
+        return tuple(_value)
+
+    # ----------------------- private methods -----------------------
+
     def _on_sys_config_loaded(self) -> None:
         """Update the table when the system configuration is loaded."""
-        self._enable_xy()
-        self._enable_z()
+        self._update_xy_enablement()
+        self._update_z_enablement()
 
-    def _enable_xy(self) -> None:
+    def _on_property_changed(self, device: str, prop: str, _val: str = "") -> None:
+        """Update the autofocus device combo box when the autofocus device changes."""
+        if device == "Core":
+            if prop == "XYStage":
+                self._update_xy_enablement()
+            elif prop == "Focus":
+                self._update_z_enablement()
+
+    def _update_xy_enablement(self) -> None:
         """Enable/disable the XY columns and button."""
         xy_device = self._mmc.getXYStageDevice()
         x_col = self.table().indexOf(self.X)
         y_col = self.table().indexOf(self.Y)
+        xy_btn_col = self.table().indexOf(self._xy_btn_col)
         self.table().setColumnHidden(x_col, not bool(xy_device))
         self.table().setColumnHidden(y_col, not bool(xy_device))
-        xy_btn_col = self.table().indexOf(self._xy_btn_col)
         self.table().setColumnHidden(xy_btn_col, not bool(xy_device))
 
-    def _enable_z(self) -> None:
+    def _update_z_enablement(self) -> None:
         """Enable/disable the Z columns and button."""
-        z_device = self._mmc.getFocusDevice()
-        self.include_z.setChecked(bool(z_device))
-        self.include_z.setEnabled(bool(z_device))
-        self.include_z.setToolTip("" if z_device else "No Focus device selected.")
-
-    def _on_property_changed(self, device: str, prop: str, value: str) -> None:
-        """Update the autofocus device combo box when the autofocus device changes."""
-        if device != "Core" or prop not in {"XYStage", "Focus"}:
-            return
-        if prop == "XYStage":
-            self._enable_xy()
-        elif prop == "Focus":
-            self._enable_z()
+        z_device = bool(self._mmc.getFocusDevice())
+        self.include_z.setEnabled(z_device)
+        if not z_device:
+            # but don't recheck it if it's already unchecked
+            self.include_z.setChecked(False)
+        self.include_z.setToolTip("" if z_device else "Focus device unavailable.")
 
     def _add_row(self) -> None:
-        """Add a new to the end of the table."""
-        super()._add_row()
-        row = self.table().rowCount() - 1
-        if self._mmc.getXYStageDevice():
-            self._set_xy_from_core(row, self.table().indexOf(self.X))
-        if self._mmc.getFocusDevice():
-            self._set_z_from_core(row, self.table().indexOf(self.Z))
+        """Add a new to the end of the table and use the current core position."""
+        # note: _add_row is only called when act_add_row is triggered
+        # (e.g. when the + button is clicked). Not when a row is added programmatically
+
+        # block the signal that's going to be emitted until _on_rows_inserted
+        # has had a chance to update the values from the current stage position
+        with signals_blocked(self):
+            super()._add_row()
+        self.valueChanged.emit()
+
+    def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
+        # when a new row is inserted by any means, populate it with default values
+        # this is connected above in __init_ with self.model().rowsInserted.connect
+        with signals_blocked(self):
+            for row_idx in range(start, end + 1):
+                self._set_xy_from_core(row_idx)
+                self._set_z_from_core(row_idx)
+        self.valueChanged.emit()
 
     def _set_xy_from_core(self, row: int, col: int = 0) -> None:
-        data = {
-            self.X.key: self._mmc.getXPosition(),
-            self.Y.key: self._mmc.getYPosition(),
-        }
-        self.table().setRowData(row, data)
+        if self._mmc.getXYStageDevice():
+            data = {
+                self.X.key: self._mmc.getXPosition(),
+                self.Y.key: self._mmc.getYPosition(),
+            }
+            self.table().setRowData(row, data)
 
     def _set_z_from_core(self, row: int, col: int = 0) -> None:
-        data = {self.Z.key: self._mmc.getPosition(self._mmc.getFocusDevice())}
-        self.table().setRowData(row, data)
+        if self._mmc.getFocusDevice():
+            data = {self.Z.key: self._mmc.getPosition(self._mmc.getFocusDevice())}
+            self.table().setRowData(row, data)
 
     def _on_selection_change(self) -> None:
         if not self.move_to_selection.isChecked():
@@ -138,22 +171,6 @@ class CoreConnectedPositionTable(PositionTable):
         super()._on_include_z_toggled(checked)
         z_btn_col = self.table().indexOf(self._z_btn_col)
         self.table().setColumnHidden(z_btn_col, not checked)
-
-    def value(self, exclude_unchecked: bool = True) -> tuple[useq.Position, ...]:
-        """Return the current value of the table as a list of channels.
-
-        Overridden to remove the X and Y values if the columns are hidden.
-        """
-        value = super().value(exclude_unchecked)
-
-        x_col, y_col = self.table().indexOf(self.X), self.table().indexOf(self.Y)
-        if not self.table().isColumnHidden(x_col) or not self.table().isColumnHidden(
-            y_col
-        ):
-            return value
-
-        _value = [v.replace(x=None, y=None) for v in value]
-        return tuple(_value)
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(

@@ -109,7 +109,7 @@ def test_core_connected_position_wdg_cfg_loaded(
     elif stage == "Z":
         assert not pos_table.include_z.isChecked()
         assert not pos_table.include_z.isEnabled()
-        assert pos_table.include_z.toolTip() == "No Focus device selected."
+        assert pos_table.include_z.toolTip() == "Focus device unavailable."
         assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Z))
         z = [v.z for v in pos_table.value()]
         assert all(z is None for z in z)
@@ -162,7 +162,7 @@ def test_core_connected_position_wdg_property_changed(
     elif stage == "Z":
         assert not pos_table.include_z.isChecked()
         assert not pos_table.include_z.isEnabled()
-        assert pos_table.include_z.toolTip() == "No Focus device selected."
+        assert pos_table.include_z.toolTip() == "Focus device unavailable."
         assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Z))
         z = [v.z for v in pos_table.value()]
         assert all(z is None for z in z)
@@ -180,3 +180,23 @@ def test_core_connected_position_wdg_property_changed(
             mmc.setProperty("Core", "Focus", "Z")
             assert pos_table.include_z.isEnabled()
             assert pos_table.include_z.toolTip() == ""
+
+
+def test_core_position_table_add_position(qtbot: QtBot, qapp) -> None:
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    pos_table = wdg.stage_positions
+    assert isinstance(pos_table, CoreConnectedPositionTable)
+
+    wdg._mmc.setXYPosition(11, 22)
+    wdg._mmc.setZPosition(33)
+    with qtbot.waitSignals([pos_table.valueChanged], order="strict", timeout=1000):
+        print("hi")
+        pos_table.act_add_row.trigger()
+        qapp.processEvents()
+    val = pos_table.value()[-1]
+    assert round(val.x, 1) == 11
+    assert round(val.y, 1) == 22
+    assert round(val.z, 1) == 33
