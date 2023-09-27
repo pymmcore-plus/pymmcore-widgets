@@ -161,14 +161,16 @@ class PositionTable(DataTableWidget):
         layout = cast("QVBoxLayout", self.layout())
         layout.addLayout(btn_row)
 
-    def value(self, exclude_unchecked: bool = True) -> tuple[useq.Position, ...]:
+    def value(
+        self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
+    ) -> tuple[useq.Position, ...]:
         """Return the current value of the table as a list of channels."""
         out = []
-        for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked):
+        for r in self.table().iterRecords(
+            exclude_unchecked=exclude_unchecked, exclude_hidden_cols=exclude_hidden_cols
+        ):
             if not r.get(self.NAME.key, True):
                 r.pop(self.NAME.key, None)
-            if not self.include_z.isChecked():
-                r.pop(self.Z.key, None)
             out.append(useq.Position(**r))
         return tuple(out)
 
@@ -223,3 +225,4 @@ class PositionTable(DataTableWidget):
     def _on_include_z_toggled(self, checked: bool) -> None:
         z_col = self.table().indexOf(self.Z)
         self.table().setColumnHidden(z_col, not checked)
+        self.valueChanged.emit()
