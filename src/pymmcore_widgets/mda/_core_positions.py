@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from fonticon_mdi6 import MDI6
-from pymmcore_plus import CMMCorePlus, DeviceType
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import (
     QCheckBox,
     QWidget,
@@ -48,8 +48,6 @@ class CoreConnectedPositionTable(PositionTable):
         self.table().addColumn(self._z_btn_col, self.table().indexOf(self.Z) + 1)
         self.table().addColumn(self._af_btn_col, self.table().indexOf(self.AF) + 1)
 
-        self.use_af.af_combo.setEditable(False)
-
         # add move_to_selection to toolbar and link up callback
         toolbar = self.toolBar()
         action0 = next(x for x in toolbar.children() if isinstance(x, QWidgetAction))
@@ -63,11 +61,12 @@ class CoreConnectedPositionTable(PositionTable):
         self.destroyed.connect(self._disconnect)
 
         self._on_sys_config_loaded()
+        self._on_use_af_toggled(False)
 
     def _on_sys_config_loaded(self) -> None:
         self._update_include_z()
-        self._update_use_af_combo()
-        self.use_af._on_checkbox_toggled(False)
+        self._use_autofocus()
+        self.use_af.setChecked(False)
 
     def _update_include_z(self) -> None:
         """Update the include z checkbox."""
@@ -76,53 +75,21 @@ class CoreConnectedPositionTable(PositionTable):
         self.include_z.setEnabled(bool(z_device))
         self.include_z.setToolTip("" if z_device else "No Focus device selected.")
 
-    def _update_use_af_combo(self) -> None:
+    def _use_autofocus(self) -> None:
         """Update the autofocus device combo box."""
-        self.use_af.af_combo.clear()
-        self.use_af.af_checkbox.setChecked(False)
-        self.use_af.af_checkbox.setToolTip("")
         af_device = self._mmc.getAutoFocusDevice()
-
         self.use_af.setEnabled(bool(af_device))
-
-        if not af_device:
-            self.use_af.af_checkbox.setToolTip("No Core Autofocus device selected.")
-            return
-
-        stage_devices = list(self._mmc.getLoadedDevicesOfType(DeviceType.StageDevice))
-
-        if not stage_devices:
-            self.use_af.setEnabled(False)
-            self.use_af.af_checkbox.setToolTip(
-                "No Focus devices loaded. Cannot use Core Autofocus."
-            )
-            return
-
-        self.use_af.af_combo.addItems(stage_devices)
-        self.use_af.af_checkbox.setChecked(False)
-        # if more than one device, set the autofocus device to the first stage device
-        # that is not the current focus device
-        if len(stage_devices) == 1:
-            return
-        for dev in stage_devices:
-            if dev != self._mmc.getFocusDevice():
-                self.use_af.af_combo.setCurrentText(dev)
-                break
+        self.use_af.setEnabled(bool(af_device))
+        self.use_af.setToolTip("" if af_device else "No Autofocus device selected.")
 
     def _on_property_changed(self, device: str, prop: str, value: str) -> None:
         """Update the autofocus device combo box when the autofocus device changes."""
         if device != "Core" or prop not in ["Focus", "AutoFocus"]:
             return
-
-        # if Focus device changes, update include_z
         if prop == "Focus":
             self._update_include_z()
-            return
-
-        # if AutoFocus device changes, update autofocus widget
-        self.use_af.af_checkbox.setChecked(False)
-        self.use_af.af_checkbox.setEnabled(bool(value))
-        self._update_use_af_combo()
+        elif prop == "AutoFocus":
+            self._use_autofocus()
 
     def _add_row(self) -> None:
         """Add a new to the end of the table."""
@@ -147,10 +114,7 @@ class CoreConnectedPositionTable(PositionTable):
         self.table().setRowData(row, data)
 
     def _set_af_from_core(self, row: int, col: int) -> None:
-        af_z_device = self.use_af.value()
-        if af_z_device is None:
-            return
-        data = {self.AF.key: self._mmc.getPosition(af_z_device)}
+        data = {self.AF.key: self._mmc.getAutoFocusOffset()}
         self.table().setRowData(row, data)
 
     def _on_selection_change(self) -> None:
@@ -175,16 +139,12 @@ class CoreConnectedPositionTable(PositionTable):
                 self._mmc.setZPosition(z)
 
             if self._mmc.getAutoFocusDevice():
-                af = data.get(self.AF.key, 0.0)
+                af = data.get(self.AF.key, self._mmc.getAutoFocusOffset())
                 self._perform_autofocus(af)
 
             self._mmc.waitForSystem()
 
-    def _perform_autofocus(self, af: float | None) -> None:
-        af_z_device = self.use_af.value()
-        if not af or not af_z_device:
-            return
-
+    def _perform_autofocus(self, af: float) -> None:
         # get if af is on
         _af_enabled = self._mmc.isContinuousFocusEnabled()
 
@@ -194,7 +154,7 @@ class CoreConnectedPositionTable(PositionTable):
             self._mmc.enableContinuousFocus(False)
 
         # set af position
-        self._mmc.setPosition(af_z_device, af)
+        self._mmc.setAutoFocusOffset(af)
         self._mmc.waitForSystem()
 
         # run autofocus
@@ -216,5 +176,5 @@ class CoreConnectedPositionTable(PositionTable):
         self.table().setColumnHidden(af_btn_col, not checked)
 
     def _disconnect(self) -> None:
-        self._mmc.events.systemConfigurationLoaded.disconnect(self._update_use_af_combo)
+        self._mmc.events.systemConfigurationLoaded.disconnect(self._use_autofocus)
         self._mmc.events.propertyChanged.disconnect(self._on_property_changed)

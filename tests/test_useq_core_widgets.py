@@ -92,11 +92,9 @@ def test_core_connected_position_wdg_autofocus(
     pos_table = wdg.stage_positions
     wdg.setValue(MDA)
 
-    assert not pos_table.use_af.af_checkbox.isChecked()
+    assert not pos_table.use_af.isChecked()
     assert not pos_table.use_af.isEnabled()
-    assert (
-        pos_table.use_af.af_checkbox.toolTip() == "No Core Autofocus device selected."
-    )
+    assert pos_table.use_af.toolTip() == "No Autofocus device selected."
 
     with qtbot.waitSignal(mmc.events.systemConfigurationLoaded):
         mmc.loadSystemConfiguration(TEST_CONFIG)
