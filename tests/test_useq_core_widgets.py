@@ -81,6 +81,43 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
     pos_table._on_selection_change()
 
 
+def _assert_position_wdg_state(
+    stage: str, pos_table: CoreConnectedPositionTable, is_hidden: bool
+) -> None:
+    """Assert the correct widget state for the given stage."""
+    if stage == "XY":
+        # both x and y columns should be hidden if XY device is not loaded/selected
+        x_col = pos_table.table().indexOf(pos_table.X)
+        y_col = pos_table.table().indexOf(pos_table.Y)
+        x_hidden = pos_table.table().isColumnHidden(x_col)
+        y_hidden = pos_table.table().isColumnHidden(y_col)
+        assert x_hidden == is_hidden
+        assert y_hidden == is_hidden
+        # the set position button should be hidden if XY device is not loaded/selected
+        xy_btn_col = pos_table.table().indexOf(pos_table._xy_btn_col)
+        xy_btn_hidden = pos_table.table().isColumnHidden(xy_btn_col)
+        assert xy_btn_hidden == is_hidden
+        # values() should return None for x and y if XY device is not loaded/selected
+        if is_hidden:
+            xy = [(v.x, v.y) for v in pos_table.value()]
+            assert all(x is None and y is None for x, y in xy)
+    elif stage == "Z":
+        # the set position button should be hidden
+        z_btn_col = pos_table.table().indexOf(pos_table._z_btn_col)
+        assert pos_table.table().isColumnHidden(z_btn_col)
+        # values() should return None for z
+        if is_hidden:
+            z = [v.z for v in pos_table.value()]
+            assert all(z is None for z in z)
+        # the include z checkbox should be unchecked
+        assert not pos_table.include_z.isChecked()
+        # the include z checkbox should be disabled if Z device is not loaded/selected
+        assert pos_table.include_z.isEnabled() == (not is_hidden)
+        # tooltip should should change if Z device is not loaded/selected
+        tooltip = "Focus device unavailable." if is_hidden else ""
+        assert pos_table.include_z.toolTip() == tooltip
+
+
 @pytest.mark.parametrize("stage", ["XY", "Z"])
 def test_core_connected_position_wdg_cfg_loaded(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
@@ -100,33 +137,14 @@ def test_core_connected_position_wdg_cfg_loaded(
 
     wdg.setValue(MDA)
 
-    if stage == "XY":
-        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.X))
-        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Y))
-        xy = [(v.x, v.y) for v in pos_table.value()]
-        assert all(x is None and y is None for x, y in xy)
-
-    elif stage == "Z":
-        assert not pos_table.include_z.isChecked()
-        assert not pos_table.include_z.isEnabled()
-        assert pos_table.include_z.toolTip() == "Focus device unavailable."
-        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Z))
-        z = [v.z for v in pos_table.value()]
-        assert all(z is None for z in z)
+    # stage is not loaded
+    _assert_position_wdg_state(stage, pos_table, is_hidden=True)
 
     with qtbot.waitSignal(mmc.events.systemConfigurationLoaded):
         mmc.loadSystemConfiguration(TEST_CONFIG)
 
-    if stage == "XY":
-        assert not pos_table.table().isColumnHidden(
-            pos_table.table().indexOf(pos_table.X)
-        )
-        assert not pos_table.table().isColumnHidden(
-            pos_table.table().indexOf(pos_table.Y)
-        )
-    elif stage == "Z":
-        assert pos_table.include_z.isEnabled()
-        assert pos_table.include_z.toolTip() == ""
+    # stage is loaded (systemConfigurationLoaded is triggered)
+    _assert_position_wdg_state(stage, pos_table, is_hidden=False)
 
 
 @pytest.mark.parametrize("stage", ["XY", "Z"])
@@ -153,33 +171,17 @@ def test_core_connected_position_wdg_property_changed(
 
     wdg.setValue(MDA)
 
-    if stage == "XY":
-        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.X))
-        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Y))
-        xy = [(v.x, v.y) for v in pos_table.value()]
-        assert all(x is None and y is None for x, y in xy)
-
-    elif stage == "Z":
-        assert not pos_table.include_z.isChecked()
-        assert not pos_table.include_z.isEnabled()
-        assert pos_table.include_z.toolTip() == "Focus device unavailable."
-        assert pos_table.table().isColumnHidden(pos_table.table().indexOf(pos_table.Z))
-        z = [v.z for v in pos_table.value()]
-        assert all(z is None for z in z)
+    # stage is not set as default device
+    _assert_position_wdg_state(stage, pos_table, is_hidden=True)
 
     with qtbot.waitSignal(mmc.events.propertyChanged):
         if stage == "XY":
             mmc.setProperty("Core", "XYStage", "XY")
-            assert not pos_table.table().isColumnHidden(
-                pos_table.table().indexOf(pos_table.X)
-            )
-            assert not pos_table.table().isColumnHidden(
-                pos_table.table().indexOf(pos_table.Y)
-            )
         elif stage == "Z":
             mmc.setProperty("Core", "Focus", "Z")
-            assert pos_table.include_z.isEnabled()
-            assert pos_table.include_z.toolTip() == ""
+
+    # stage is set as default device (propertyChanged is triggered)
+    _assert_position_wdg_state(stage, pos_table, is_hidden=False)
 
 
 def test_core_position_table_add_position(qtbot: QtBot, qapp) -> None:
