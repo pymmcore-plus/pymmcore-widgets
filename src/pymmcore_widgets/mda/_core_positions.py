@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Any
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
+from pymmcore_plus._logger import logger
+from pymmcore_plus._util import retry
 from qtpy.QtWidgets import QCheckBox, QWidget, QWidgetAction
 from superqt.utils import signals_blocked
 
@@ -183,6 +185,7 @@ class CoreConnectedPositionTable(PositionTable):
             return
 
         selected_rows: set[int] = {i.row() for i in self.table().selectedItems()}
+
         if len(selected_rows) == 1:
             row = next(iter(selected_rows))
             data = self.table().rowData(row)
@@ -201,23 +204,25 @@ class CoreConnectedPositionTable(PositionTable):
 
             if self._mmc.getAutoFocusDevice() and self.use_af.isChecked():
                 af = data.get(self.AF.key, self._mmc.getAutoFocusOffset())
-                self._perform_autofocus(af, _af_locked)
+                self._mmc.setAutoFocusOffset(af)
+                try:
+                    self._perform_autofocus()
+                    self._mmc.enableContinuousFocus(_af_locked)
+                except RuntimeError as e:
+                    logger.warning("Hardware autofocus failed. %s", e)
 
             self._mmc.waitForSystem()
 
-    def _perform_autofocus(self, af: float, locked: bool) -> None:
-        # set af position
-        self._mmc.setAutoFocusOffset(af)
-        self._mmc.waitForSystem()
+    def _perform_autofocus(self) -> None:
+        # run autofocus (run 3 times in case it fails)
+        @retry(exceptions=RuntimeError, tries=3, logger=logger.warning)
+        def _perform_full_focus() -> None:
+            self._mmc.fullFocus()
+            self._mmc.waitForSystem()
+            raise RuntimeError()
 
-        # run autofocus
-        # TODO: perform fullFocus() more times
-        self._mmc.fullFocus()
         self._mmc.waitForSystem()
-
-        # if was on, switch back on
-        if locked:
-            self._mmc.enableContinuousFocus(True)
+        _perform_full_focus()
 
     def _on_include_z_toggled(self, checked: bool) -> None:
         super()._on_include_z_toggled(checked)

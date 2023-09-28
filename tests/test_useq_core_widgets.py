@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 import useq
@@ -55,7 +56,7 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
 
     pos_table = wdg.stage_positions
     assert isinstance(pos_table, CoreConnectedPositionTable)
-    pos_table.setValue(MDA.stage_positions)
+    wdg.setValue(MDA)
     assert pos_table.table().rowCount() == 2
 
     p0 = pos_table.value()[0]
@@ -67,9 +68,8 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
     wdg._mmc.setZPosition(33)
     xyidx = pos_table.table().indexOf(pos_table._xy_btn_col)
     z_idx = pos_table.table().indexOf(pos_table._z_btn_col)
-    # # i'm not sure why click() isn't working... but this is
-    pos_table.table().cellWidget(0, xyidx).clicked.emit()
-    pos_table.table().cellWidget(0, z_idx).clicked.emit()
+    pos_table.table().cellWidget(0, xyidx).click()
+    pos_table.table().cellWidget(0, z_idx).click()
     p0 = pos_table.value()[0]
     assert round(p0.x) == 11
     assert round(p0.y) == 22
@@ -206,7 +206,20 @@ def test_core_connected_position_wdg_property_changed(
     _assert_position_wdg_state(stage, pos_table, is_hidden=False)
 
 
-def test_core_position_table_add_position(qtbot: QtBot) -> None:
+@pytest.fixture
+def mock_getAutoFocusOffset(global_mmcore: CMMCorePlus):
+    # using se/get_auto_focus_offset with the demo Autofocus device does not do
+    # anything, so we need to mock it
+    def _getAutoFocusOffset():
+        return 10
+
+    with patch.object(global_mmcore, "getAutoFocusOffset", _getAutoFocusOffset):
+        yield
+
+
+def test_core_position_table_add_position(
+    qtbot: QtBot, mock_getAutoFocusOffset
+) -> None:
     wdg = MDAWidget()
     qtbot.addWidget(wdg)
     wdg.show()
@@ -216,9 +229,15 @@ def test_core_position_table_add_position(qtbot: QtBot) -> None:
 
     wdg._mmc.setXYPosition(11, 22)
     wdg._mmc.setZPosition(33)
+    # setting it to to 10 because the mock_getAutoFocusOffset() returns 10
+    wdg._mmc.setAutoFocusOffset(10)
+
+    wdg.stage_positions.use_af.setChecked(True)
+
     with qtbot.waitSignals([pos_table.valueChanged], order="strict", timeout=1000):
         pos_table.act_add_row.trigger()
     val = pos_table.value()[-1]
     assert round(val.x, 1) == 11
     assert round(val.y, 1) == 22
     assert round(val.z, 1) == 33
+    assert val.sequence.autofocus_plan.autofocus_motor_offset == 10
