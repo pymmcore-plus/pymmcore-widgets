@@ -168,6 +168,7 @@ class CoreConnectedPositionTable(PositionTable):
     def _update_autofocus_enablement(self) -> None:
         """Update the autofocus device combo box."""
         af_device = self._mmc.getAutoFocusDevice()
+        self.use_af.setText(f"Use {af_device}" or "Use Autofocus")
         self.use_af.setEnabled(bool(af_device))
         self.use_af.setEnabled(bool(af_device))
         self.use_af.setToolTip("" if af_device else "AutoFocus device unavailable.")
