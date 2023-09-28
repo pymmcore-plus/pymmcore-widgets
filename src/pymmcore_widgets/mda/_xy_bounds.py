@@ -28,11 +28,14 @@ if TYPE_CHECKING:
 FIXED_POLICY = (QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 CTR = Qt.AlignmentFlag.AlignCenter
 RADIUS = 4
-ICON_SIZE = 24
-# TRANSLATE_ICON = ICON_SIZE * 2 if "darwin" in sys.platform else ICON_SIZE
-TRANSLATE_ICON = ICON_SIZE if os.name == "nt" else ICON_SIZE * 2
+ICON_SIZE = TRANSLATE_ICON = 24
+if os.name != "nt":
+    TRANSLATE_ICON *= 2
 
 
+# we have zero idea why this works. But we found that the classic
+# translate -> rotate -> inverse-translate does not work on Windows
+# We don't know why this would be OS dependent in the first place
 def _rotate(deg: int, size_x: int, size_y: int) -> QTransform:
     return QTransform().translate(size_x, size_y).rotate(deg)
 
@@ -54,7 +57,7 @@ ICONS_MARK: dict[str, tuple[str, QTransform | None]] = {
     "bottom": (MDI6.border_bottom_variant, None),
     "top_left": (MDI6.border_style, None),
     "top_right": (MDI6.border_style, _rotate(90, TRANSLATE_ICON, 0)),
-    "bottom_left": (MDI6.border_style, _rotate(-90, 0, TRANSLATE_ICON)),
+    "bottom_left": (MDI6.border_style, _rotate(270, 0, TRANSLATE_ICON)),
     "bottom_right": (MDI6.border_style, _rotate(180, TRANSLATE_ICON, TRANSLATE_ICON)),
 }
 
