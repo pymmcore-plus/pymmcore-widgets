@@ -23,7 +23,7 @@ from pymmcore_widgets.useq_widgets import MDASequenceWidget
 
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
-from ._core_z import CoreConnectedZPlanWidgert
+from ._core_z import CoreConnectedZPlanWidget
 
 if TYPE_CHECKING:
     from typing import TypedDict
@@ -44,7 +44,7 @@ class MDAWidget(MDASequenceWidget):
         # create a couple core-connected variants of the tab widgets
         self._mmc = mmcore or CMMCorePlus.instance()
         position_wdg = CoreConnectedPositionTable(1, self._mmc)
-        z_wdg = CoreConnectedZPlanWidgert(self._mmc)
+        z_wdg = CoreConnectedZPlanWidget(self._mmc)
         self.grid_wdg = CoreConnectedGridPlanWidget(self._mmc)
 
         super().__init__(
