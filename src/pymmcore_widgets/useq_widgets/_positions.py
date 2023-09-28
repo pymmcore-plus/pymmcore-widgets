@@ -21,9 +21,6 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 
-from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
-from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
-
 from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
 
@@ -39,6 +36,9 @@ class _MDAPopup(QDialog):
         parent: QWidget | None = None,
         core_connected: bool = False,
     ) -> None:
+        from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
+        from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
+
         from ._mda_sequence import MDATabs
 
         super().__init__(parent)

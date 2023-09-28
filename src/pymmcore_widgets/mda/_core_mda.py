@@ -43,7 +43,7 @@ class MDAWidget(MDASequenceWidget):
     ) -> None:
         # create a couple core-connected variants of the tab widgets
         self._mmc = mmcore or CMMCorePlus.instance()
-        position_wdg = CoreConnectedPositionTable(1, self._mmc)
+        position_wdg = CoreConnectedPositionTable(0, self._mmc)
         z_wdg = CoreConnectedZPlanWidget(self._mmc)
         self.grid_wdg = CoreConnectedGridPlanWidget(self._mmc)
 
