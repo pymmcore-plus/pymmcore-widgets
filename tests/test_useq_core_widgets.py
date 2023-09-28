@@ -269,3 +269,26 @@ def test_position_table_connected_popup(qtbot: QtBot):
 
     with qtbot.waitSignal(wdg.valueChanged):
         btn.seq_btn.click()
+
+
+def test_core_connected_relative_z_plan(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    wdg._mmc.setXYPosition(11, 22)
+    wdg._mmc.setZPosition(33)
+    wdg._mmc.waitForSystem()
+
+    MDA = useq.MDASequence(
+        channels=[{"config": "DAPI", "exposure": 1}],
+        z_plan=useq.ZRangeAround(range=1, step=0.3),
+        axis_order="pzc",
+    )
+    wdg.setValue(MDA)
+
+    val = wdg.value().stage_positions[-1]
+    assert round(val.x, 1) == 11
+    assert round(val.y, 1) == 22
+    assert round(val.z, 1) == 33
+    assert not val.sequence

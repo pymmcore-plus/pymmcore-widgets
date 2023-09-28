@@ -18,6 +18,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.fonticon import icon
+from useq import AxesBasedAF, MDASequence, Position
 
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 
@@ -27,8 +28,6 @@ from ._core_z import CoreConnectedZPlanWidget
 
 if TYPE_CHECKING:
     from typing import TypedDict
-
-    from useq import MDASequence
 
     class SaveInfo(TypedDict):
         save_dir: str
@@ -88,10 +87,32 @@ class MDAWidget(MDASequenceWidget):
     def value(self) -> MDASequence:
         """Set the current state of the widget."""
         val = super().value()
+
+        # if the z plan is relative, and there are no stage positions, add the current
+        # stage position as the relative starting one
+        if val.z_plan and val.z_plan.is_relative and not val.stage_positions:
+            val = val.replace(stage_positions=[self._get_current_stage_position()])
+
         meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
         if self.save_info.isChecked():
             meta.update(self.save_info.value())
         return val
+
+    def _get_current_stage_position(self) -> Position:
+        """Return the current stage position."""
+        x = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
+        y = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
+        z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
+        sub_seq = (
+            MDASequence(
+                autofocus_plan=AxesBasedAF(  # type: ignore  # until useq release
+                    autofocus_motor_offset=self._mmc.getAutoFocusOffset(), axes=("p",)
+                )
+            )
+            if self._mmc.isContinuousFocusLocked()
+            else None
+        )
+        return Position(x=x, y=y, z=z, sequence=sub_seq)
 
     def setValue(self, value: MDASequence) -> None:
         """Get the current state of the widget."""
