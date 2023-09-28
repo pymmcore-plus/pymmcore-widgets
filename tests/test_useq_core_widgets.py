@@ -208,7 +208,7 @@ def test_core_connected_position_wdg_property_changed(
 
 @pytest.fixture
 def mock_getAutoFocusOffset(global_mmcore: CMMCorePlus):
-    # using se/get_auto_focus_offset with the demo Autofocus device does not do
+    # core.getAutoFocusOffset() with the demo Autofocus device does not do
     # anything, so we need to mock it
     def _getAutoFocusOffset():
         return 10
@@ -229,8 +229,6 @@ def test_core_position_table_add_position(
 
     wdg._mmc.setXYPosition(11, 22)
     wdg._mmc.setZPosition(33)
-    # setting it to to 10 because the mock_getAutoFocusOffset() returns 10
-    wdg._mmc.setAutoFocusOffset(10)
 
     wdg.stage_positions.use_af.setChecked(True)
 
@@ -240,4 +238,5 @@ def test_core_position_table_add_position(
     assert round(val.x, 1) == 11
     assert round(val.y, 1) == 22
     assert round(val.z, 1) == 33
+    # setting it to to 10 because the mock_getAutoFocusOffset() returns 10
     assert val.sequence.autofocus_plan.autofocus_motor_offset == 10
