@@ -21,6 +21,8 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 
+from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
+
 from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
 
@@ -38,7 +40,7 @@ class _MDAPopup(QDialog):
         super().__init__(parent)
 
         # create a new MDA tab widget without the stage positions tab
-        self.mda_tabs = MDATabs(self)
+        self.mda_tabs = MDATabs(self, grid_wdg=CoreConnectedGridPlanWidget())
         self.mda_tabs.removeTab(self.mda_tabs.indexOf(self.mda_tabs.stage_positions))
 
         # use the parent's channel groups if possible
