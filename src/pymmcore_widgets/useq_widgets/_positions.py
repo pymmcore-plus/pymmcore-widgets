@@ -33,14 +33,18 @@ MAX = 9999999
 
 class _MDAPopup(QDialog):
     def __init__(
-        self, value: useq.MDASequence | None = None, parent: QWidget | None = None
+        self,
+        value: useq.MDASequence | None = None,
+        parent: QWidget | None = None,
+        core_connected: bool = False,
     ) -> None:
         from ._mda_sequence import MDATabs
 
         super().__init__(parent)
 
         # create a new MDA tab widget without the stage positions tab
-        self.mda_tabs = MDATabs(self, grid_wdg=CoreConnectedGridPlanWidget())
+        _grid_wdg = CoreConnectedGridPlanWidget() if core_connected else None
+        self.mda_tabs = MDATabs(self, grid_wdg=_grid_wdg)
         self.mda_tabs.removeTab(self.mda_tabs.indexOf(self.mda_tabs.stage_positions))
 
         # use the parent's channel groups if possible
