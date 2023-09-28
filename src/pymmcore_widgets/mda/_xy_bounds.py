@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from typing import TYPE_CHECKING
 
@@ -28,10 +29,12 @@ FIXED_POLICY = (QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 CTR = Qt.AlignmentFlag.AlignCenter
 RADIUS = 4
 ICON_SIZE = 24
+# TRANSLATE_ICON = ICON_SIZE * 2 if "darwin" in sys.platform else ICON_SIZE
+TRANSLATE_ICON = ICON_SIZE if os.name == "nt" else ICON_SIZE * 2
 
 
-def _rotate(deg: int, size: int = ICON_SIZE) -> QTransform:
-    return QTransform().translate(size, size).rotate(deg).translate(-size, -size)
+def _rotate(deg: int, size_x: int, size_y: int) -> QTransform:
+    return QTransform().translate(size_x, size_y).rotate(deg)
 
 
 ICONS_GO: dict[str, str] = {
@@ -50,9 +53,9 @@ ICONS_MARK: dict[str, tuple[str, QTransform | None]] = {
     "right": (MDI6.border_right_variant, None),
     "bottom": (MDI6.border_bottom_variant, None),
     "top_left": (MDI6.border_style, None),
-    "top_right": (MDI6.border_style, _rotate(90)),
-    "bottom_left": (MDI6.border_style, _rotate(270)),
-    "bottom_right": (MDI6.border_style, _rotate(180)),
+    "top_right": (MDI6.border_style, _rotate(90, TRANSLATE_ICON, 0)),
+    "bottom_left": (MDI6.border_style, _rotate(-90, 0, TRANSLATE_ICON)),
+    "bottom_right": (MDI6.border_style, _rotate(180, TRANSLATE_ICON, TRANSLATE_ICON)),
 }
 
 BTN_STYLE = f"""
