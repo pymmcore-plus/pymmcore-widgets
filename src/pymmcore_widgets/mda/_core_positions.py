@@ -254,7 +254,6 @@ class CoreConnectedPositionTable(PositionTable):
         def _perform_full_focus() -> None:
             self._mmc.fullFocus()
             self._mmc.waitForSystem()
-            raise RuntimeError()
 
         self._mmc.waitForSystem()
         _perform_full_focus()
