@@ -36,17 +36,22 @@ class _MDAPopup(QDialog):
         parent: QWidget | None = None,
         core_connected: bool = False,
     ) -> None:
-        from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
-        from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
-
         from ._mda_sequence import MDATabs
 
         super().__init__(parent)
 
+        # make the same type of MDA tab widget that
+        # we are currently inside of (if possible)
+        tab_type = MDATabs
+        wdg = self.parent()
+        while wdg is not None:
+            if isinstance(wdg, MDATabs):
+                tab_type = type(wdg)
+                break
+            wdg = wdg.parent()
+
         # create a new MDA tab widget without the stage positions tab
-        _grid_wdg = CoreConnectedGridPlanWidget() if core_connected else None
-        _z_wdg = CoreConnectedZPlanWidget() if core_connected else None
-        self.mda_tabs = MDATabs(self, grid_wdg=_grid_wdg, z_wdg=_z_wdg)
+        self.mda_tabs = tab_type(self)
         self.mda_tabs.removeTab(self.mda_tabs.indexOf(self.mda_tabs.stage_positions))
 
         # use the parent's channel groups if possible

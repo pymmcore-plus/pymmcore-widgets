@@ -20,6 +20,9 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
+from pymmcore_widgets.useq_widgets._channels import ChannelTable
+from pymmcore_widgets.useq_widgets._mda_sequence import MDATabs
+from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
@@ -35,6 +38,21 @@ if TYPE_CHECKING:
         save_name: str
 
 
+class CoreMDATabs(MDATabs):
+    def __init__(
+        self, parent: QWidget | None = None, core: CMMCorePlus | None = None
+    ) -> None:
+        self._mmc = core or CMMCorePlus.instance()
+        super().__init__(parent)
+
+    def create_subwidgets(self) -> None:
+        self.time_plan = TimePlanWidget(1)
+        self.stage_positions = CoreConnectedPositionTable(1, self._mmc)
+        self.z_plan = CoreConnectedZPlanWidget(self._mmc)
+        self.grid_plan = CoreConnectedGridPlanWidget(self._mmc)
+        self.channels = ChannelTable(1)
+
+
 class MDAWidget(MDASequenceWidget):
     """Widget for running MDA experiments, connecting to a MMCorePlus instance."""
 
@@ -43,16 +61,8 @@ class MDAWidget(MDASequenceWidget):
     ) -> None:
         # create a couple core-connected variants of the tab widgets
         self._mmc = mmcore or CMMCorePlus.instance()
-        position_wdg = CoreConnectedPositionTable(0, self._mmc)
-        z_wdg = CoreConnectedZPlanWidget(self._mmc)
-        self.grid_wdg = CoreConnectedGridPlanWidget(self._mmc)
 
-        super().__init__(
-            parent=parent,
-            position_wdg=position_wdg,
-            z_wdg=z_wdg,
-            grid_wdg=self.grid_wdg,
-        )
+        super().__init__(parent=parent, tab_widget=CoreMDATabs(None, self._mmc))
 
         self.save_info = _SaveGroupBox(parent=self)
         self.save_info.valueChanged.connect(self.valueChanged)
