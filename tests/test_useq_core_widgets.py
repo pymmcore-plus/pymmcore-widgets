@@ -222,4 +222,3 @@ def test_core_connected_relative_z_plan(qtbot: QtBot):
     assert round(val.x, 1) == 11
     assert round(val.y, 1) == 22
     assert round(val.z, 1) == 33
-    assert not val.sequence

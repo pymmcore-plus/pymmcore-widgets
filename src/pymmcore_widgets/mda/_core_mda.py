@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.fonticon import icon
-from useq import AxesBasedAF, MDASequence, Position
+from useq import MDASequence, Position
 
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 
@@ -103,16 +103,7 @@ class MDAWidget(MDASequenceWidget):
         x = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         y = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
-        sub_seq = (
-            MDASequence(
-                autofocus_plan=AxesBasedAF(  # type: ignore  # until useq release
-                    autofocus_motor_offset=self._mmc.getAutoFocusOffset(), axes=("p",)
-                )
-            )
-            if self._mmc.isContinuousFocusLocked()
-            else None
-        )
-        return Position(x=x, y=y, z=z, sequence=sub_seq)
+        return Position(x=x, y=y, z=z)
 
     def setValue(self, value: MDASequence) -> None:
         """Get the current state of the widget."""
