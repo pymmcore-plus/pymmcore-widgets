@@ -318,7 +318,4 @@ def test_autofocus_axes(qtbot: QtBot):
     )
 
     wdg.setValue(MDA)
-
-    from rich import print
-
-    print(wdg.value())
+    assert wdg.value().stage_positions[0].sequence.autofocus_plan.axes == ("p", "g")
