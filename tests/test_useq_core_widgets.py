@@ -292,3 +292,33 @@ def test_core_connected_relative_z_plan(qtbot: QtBot):
     assert round(val.y, 1) == 22
     assert round(val.z, 1) == 33
     assert not val.sequence
+
+
+def test_autofocus_axes(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    MDA = useq.MDASequence(
+        axis_order="pc",
+        channels=[{"config": "DAPI", "exposure": 1}],
+        stage_positions=[
+            useq.Position(
+                x=1,
+                y=2,
+                z=3,
+                sequence=useq.MDASequence(
+                    grid_plan=useq.GridRowsColumns(rows=2, columns=1),
+                    autofocus_plan=useq.AxesBasedAF(
+                        autofocus_motor_offset=10.0, axes=("p",)
+                    ),
+                ),
+            )
+        ],
+    )
+
+    wdg.setValue(MDA)
+
+    from rich import print
+
+    print(wdg.value())
