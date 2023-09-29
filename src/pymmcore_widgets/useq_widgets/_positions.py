@@ -37,8 +37,18 @@ class _MDAPopup(QDialog):
 
         super().__init__(parent)
 
+        # make the same type of MDA tab widget that
+        # we are currently inside of (if possible)
+        tab_type = MDATabs
+        wdg = self.parent()
+        while wdg is not None:
+            if isinstance(wdg, MDATabs):
+                tab_type = type(wdg)
+                break
+            wdg = wdg.parent()
+
         # create a new MDA tab widget without the stage positions tab
-        self.mda_tabs = MDATabs(self)
+        self.mda_tabs = tab_type(self)
         self.mda_tabs.removeTab(self.mda_tabs.indexOf(self.mda_tabs.stage_positions))
 
         # use the parent's channel groups if possible
