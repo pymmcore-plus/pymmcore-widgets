@@ -318,4 +318,4 @@ def test_autofocus_axes(qtbot: QtBot):
     )
 
     wdg.setValue(MDA)
-    assert wdg.value().stage_positions[0].sequence.autofocus_plan.axes == ("p", "g")
+    assert wdg.value().stage_positions[0].sequence.autofocus_plan.axes == ("g", "p")
