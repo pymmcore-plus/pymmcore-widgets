@@ -59,23 +59,18 @@ for x in list(ALLOWED_ORDERS):
 
 
 class MDATabs(CheckableTabWidget):
-    def __init__(
-        self,
-        parent: QWidget | None = None,
-        *,
-        position_wdg: PositionTable | None = None,
-        z_wdg: ZPlanWidget | None = None,
-        grid_wdg: GridPlanWidget | None = None,
-    ) -> None:
+    time_plan: TimePlanWidget
+    stage_positions: PositionTable
+    grid_plan: GridPlanWidget
+    z_plan: ZPlanWidget
+    channels: ChannelTable
+
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         # self.setMovable(True)
         self.tabChecked.connect(self._on_tab_checked)
 
-        self.time_plan = TimePlanWidget(1)
-        self.stage_positions = position_wdg or PositionTable(1)
-        self.grid_plan = grid_wdg or GridPlanWidget()
-        self.z_plan = z_wdg or ZPlanWidget()
-        self.channels = ChannelTable(1)
+        self.create_subwidgets()
 
         self.addTab(self.time_plan, "Time", checked=False)
         self.addTab(self.stage_positions, "Positions", checked=False)
@@ -89,6 +84,13 @@ class MDATabs(CheckableTabWidget):
         ch_table = self.channels.table()
         ch_table.hideColumn(ch_table.indexOf(self.channels.DO_STACK))
         ch_table.hideColumn(ch_table.indexOf(self.channels.ACQUIRE_EVERY))
+
+    def create_subwidgets(self) -> None:
+        self.time_plan = TimePlanWidget(1)
+        self.stage_positions = PositionTable(1)
+        self.grid_plan = GridPlanWidget()
+        self.z_plan = ZPlanWidget()
+        self.channels = ChannelTable(1)
 
     def isAxisUsed(self, key: str | QWidget) -> bool:
         """Return True if the given axis is used in the sequence.
@@ -168,17 +170,13 @@ class MDASequenceWidget(QWidget):
         self,
         parent: QWidget | None = None,
         *,
-        position_wdg: PositionTable | None = None,
-        z_wdg: ZPlanWidget | None = None,
-        grid_wdg: GridPlanWidget | None = None,
+        tab_widget: MDATabs | None = None,
     ) -> None:
         super().__init__(parent)
 
         # -------------- Main MDA Axis Widgets --------------
 
-        self.tab_wdg = MDATabs(
-            position_wdg=position_wdg, z_wdg=z_wdg, grid_wdg=grid_wdg
-        )
+        self.tab_wdg = tab_widget or MDATabs(self)
 
         self.axis_order = QComboBox()
         self.axis_order.setToolTip("Slowest to fastest axis order.")
