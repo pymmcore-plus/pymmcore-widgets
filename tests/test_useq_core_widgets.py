@@ -200,3 +200,25 @@ def test_core_position_table_add_position(qtbot: QtBot) -> None:
     assert round(val.x, 1) == 11
     assert round(val.y, 1) == 22
     assert round(val.z, 1) == 33
+
+
+def test_core_position_table_move_toggle(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    pos_table = wdg.stage_positions
+    assert isinstance(pos_table, CoreConnectedPositionTable)
+
+    wdg.setValue(MDA)
+
+    xy_btn_col = pos_table.table().indexOf(pos_table._xy_btn_col)
+    z_btn_col = pos_table.table().indexOf(pos_table._z_btn_col)
+
+    assert not pos_table.move_to_selection.isChecked()
+    assert not pos_table.table().isColumnHidden(xy_btn_col)
+    assert not pos_table.table().isColumnHidden(z_btn_col)
+
+    pos_table.move_to_selection.setChecked(True)
+    assert pos_table.table().isColumnHidden(xy_btn_col)
+    assert pos_table.table().isColumnHidden(z_btn_col)
