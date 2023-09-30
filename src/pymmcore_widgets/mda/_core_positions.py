@@ -52,6 +52,7 @@ class CoreConnectedPositionTable(PositionTable):
         self.table().itemSelectionChanged.connect(self._on_selection_change)
 
         # connect
+        self.move_to_selection.toggled.connect(self._on_move_to_selection_toggled)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
@@ -60,6 +61,13 @@ class CoreConnectedPositionTable(PositionTable):
         self._on_sys_config_loaded()
 
     # ----------------------- private methods -----------------------
+
+    def _on_move_to_selection_toggled(self, checked: bool) -> None:
+        """Hide or show the axes "set button" when move_to_selection is toggled."""
+        xy_btn_col = self.table().indexOf(self._xy_btn_col)
+        z_btn_col = self.table().indexOf(self._z_btn_col)
+        self.table().setColumnHidden(xy_btn_col, checked)
+        self.table().setColumnHidden(z_btn_col, checked)
 
     def _on_sys_config_loaded(self) -> None:
         """Update the table when the system configuration is loaded."""
