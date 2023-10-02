@@ -434,7 +434,10 @@ class _OverlapAndOrderModeWdg(QGroupBox):
             "mode": self.ordermode_combo.currentText(),
         }
 
-    def setValue(self, value: dict | useq.AnyGridPlan) -> None:
+    def setValue(
+        self,
+        value: dict | useq.GridRowsColumns | useq.GridFromEdges | useq.GridWidthHeight,
+    ) -> None:
         try:
             _grid = cast_grid_plan(value)
         except ValueError as e:  # pragma: no cover
@@ -711,7 +714,7 @@ class GridWidget(QWidget):
             [str(r) for r in range(1, rows + 1)], [str(r) for r in range(1, cols + 1)]
         )
 
-    def value(self) -> useq.AnyGridPlan:
+    def value(self) -> useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromEdges:
         """Return the current GridPlan settings.
 
         Note that output dict will match the Channel from useq schema:
@@ -720,7 +723,10 @@ class GridWidget(QWidget):
         replace = {**self.overlap_and_mode.value(), **fov_kwargs(self._mmc)}
         return self.tab.value().replace(**replace)
 
-    def set_state(self, grid: dict | useq.AnyGridPlan) -> None:
+    def set_state(
+        self,
+        grid: dict | useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromEdges,
+    ) -> None:
         """Set the state of the widget from a useq AnyGridPlan or dictionary."""
         with signals_blocked(self):
             grid_plan = cast_grid_plan(grid)
