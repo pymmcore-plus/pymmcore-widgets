@@ -93,7 +93,9 @@ def block_core(mmcore_events: CMMCoreSignaler | PCoreSignaler) -> ContextManager
         return signals_blocked(mmcore_events)  # type: ignore
 
 
-def cast_grid_plan(grid: dict | useq.AnyGridPlan) -> useq.AnyGridPlan | None:
+def cast_grid_plan(
+    grid: dict | useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromEdges,
+) -> useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromEdges | None:
     """Get the grid type from the grid_plan."""
     if not grid:
         return None
