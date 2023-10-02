@@ -319,3 +319,42 @@ def test_autofocus_axes(qtbot: QtBot):
 
     wdg.setValue(MDA)
     assert "p" and "g" in wdg.value().stage_positions[0].sequence.autofocus_plan.axes
+
+
+def test_core_position_table_move_toggle(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+    pos_table = wdg.stage_positions
+    assert isinstance(pos_table, CoreConnectedPositionTable)
+
+    wdg.setValue(MDA)
+
+    # set buttons
+    xy_btn_col = pos_table.table().indexOf(pos_table._xy_btn_col)
+    z_btn_col = pos_table.table().indexOf(pos_table._z_btn_col)
+    seq = pos_table.table().indexOf(pos_table.SEQ)
+    # x, y, z columns
+    x_col = pos_table.table().indexOf(pos_table.X)
+    y_col = pos_table.table().indexOf(pos_table.Y)
+    z_col = pos_table.table().indexOf(pos_table.Z)
+
+    assert not pos_table.move_to_selection.isChecked()
+    # set buttons should be visible
+    assert not pos_table.table().isColumnHidden(xy_btn_col)
+    assert not pos_table.table().isColumnHidden(z_btn_col)
+    assert not pos_table.table().isColumnHidden(seq)
+    # x, y, z TableDoubleSpinBox should be editable
+    assert not pos_table.table().cellWidget(0, x_col).lineEdit().isReadOnly()
+    assert not pos_table.table().cellWidget(0, y_col).lineEdit().isReadOnly()
+    assert not pos_table.table().cellWidget(0, z_col).lineEdit().isReadOnly()
+
+    pos_table.move_to_selection.setChecked(True)
+    # set buttons should be hidden
+    assert pos_table.table().isColumnHidden(xy_btn_col)
+    assert pos_table.table().isColumnHidden(z_btn_col)
+    assert pos_table.table().isColumnHidden(seq)
+    # x, y, z TableDoubleSpinBox should be read only
+    assert pos_table.table().cellWidget(0, x_col).lineEdit().isReadOnly()
+    assert pos_table.table().cellWidget(0, y_col).lineEdit().isReadOnly()
+    assert pos_table.table().cellWidget(0, z_col).lineEdit().isReadOnly()
