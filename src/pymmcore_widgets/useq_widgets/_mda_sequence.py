@@ -86,11 +86,11 @@ class MDATabs(CheckableTabWidget):
         ch_table.hideColumn(ch_table.indexOf(self.channels.ACQUIRE_EVERY))
 
     def create_subwidgets(self) -> None:
-        self.time_plan = TimePlanWidget()
-        self.stage_positions = PositionTable()
+        self.time_plan = TimePlanWidget(1)
+        self.stage_positions = PositionTable(1)
         self.grid_plan = GridPlanWidget()
         self.z_plan = ZPlanWidget()
-        self.channels = ChannelTable()
+        self.channels = ChannelTable(1)
 
     def isAxisUsed(self, key: str | QWidget) -> bool:
         """Return True if the given axis is used in the sequence.
