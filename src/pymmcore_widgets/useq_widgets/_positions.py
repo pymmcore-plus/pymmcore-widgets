@@ -149,9 +149,9 @@ class PositionTable(DataTableWidget):
     """Table for editing a list of `useq.Positions`."""
 
     NAME = TextColumn(key="name", default=None, is_row_selector=True)
-    X = FloatColumn(key="x", header="X [mm]", default=0.0, maximum=MAX, minimum=-MAX)
-    Y = FloatColumn(key="y", header="Y [mm]", default=0.0, maximum=MAX, minimum=-MAX)
-    Z = FloatColumn(key="z", header="Z [mm]", default=0.0, maximum=MAX, minimum=-MAX)
+    X = FloatColumn(key="x", header="X [µm]", default=0.0, maximum=MAX, minimum=-MAX)
+    Y = FloatColumn(key="y", header="Y [µm]", default=0.0, maximum=MAX, minimum=-MAX)
+    Z = FloatColumn(key="z", header="Z [µm]", default=0.0, maximum=MAX, minimum=-MAX)
     AF = FloatColumn(key="af", header="AF", default=0.0, maximum=MAX, minimum=-MAX)
     SEQ = SubSeqColumn(key="sequence", header="Sub-Sequence", default=None)
 
