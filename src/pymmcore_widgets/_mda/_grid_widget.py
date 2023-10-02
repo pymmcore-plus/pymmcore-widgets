@@ -67,7 +67,7 @@ class _TabWidget(QTabWidget):
 
         self.currentChanged.connect(self._on_tab_changed)
 
-    def value(self) -> useq.AnyGridPlan:
+    def value(self) -> useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromEdges:
         if self.currentIndex() == 0:
             return self._rowcol.value()
         elif self.currentIndex() == 1:
@@ -75,7 +75,10 @@ class _TabWidget(QTabWidget):
         else:
             return self.corners.value()
 
-    def setValue(self, grid: dict | useq.AnyGridPlan) -> None:
+    def setValue(
+        self,
+        grid: dict | useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromEdges,
+    ) -> None:
         _grid = cast_grid_plan(grid)
         if isinstance(_grid, useq.GridRowsColumns):
             self._rowcol.setValue(_grid)
