@@ -186,7 +186,7 @@ class PositionTable(DataTableWidget):
         layout.addLayout(btn_row)
 
     def _get_autofocus_plan(self, af_offset: float) -> useq.AxesBasedAF:
-        return useq.AxesBasedAF(autofocus_motor_offset=af_offset, axes=("p",))  # type: ignore  # noqa E501
+        return useq.AxesBasedAF(autofocus_motor_offset=af_offset, axes=("p",))
 
     def value(
         self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True

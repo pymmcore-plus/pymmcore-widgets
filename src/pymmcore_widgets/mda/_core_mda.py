@@ -145,7 +145,7 @@ class MDAWidget(MDASequenceWidget):
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
         sub_seq = (
             MDASequence(
-                autofocus_plan=AxesBasedAF(  # type: ignore  # until useq release
+                autofocus_plan=AxesBasedAF(
                     autofocus_motor_offset=self._mmc.getAutoFocusOffset(), axes=("p",)
                 )
             )
