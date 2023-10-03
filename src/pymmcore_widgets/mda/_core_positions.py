@@ -55,10 +55,6 @@ class CoreConnectedPositionTable(PositionTable):
         # to update the new values from the core position
         self.table().model().rowsInserted.connect(self._on_rows_inserted)
 
-        # when a new row is inserted, call _on_rows_inserted
-        # to update the new values from the core position
-        self.table().model().rowsInserted.connect(self._on_rows_inserted)
-
         # add move_to_selection to toolbar and link up callback
         toolbar = self.toolBar()
         action0 = next(x for x in toolbar.children() if isinstance(x, QWidgetAction))
