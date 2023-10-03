@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -21,12 +21,6 @@ if TYPE_CHECKING:
     from typing import TypedDict
 
     import useq
-
-    from pymmcore_widgets.useq_widgets._column_info import (
-        FloatColumn,
-        TableDoubleSpinBox,
-        WidgetColumn,
-    )
 
     class SaveInfo(TypedDict):
         save_dir: str
@@ -104,7 +98,6 @@ class CoreConnectedPositionTable(PositionTable):
         self.table().itemSelectionChanged.connect(self._on_selection_change)
 
         # connect
-        self.move_to_selection.toggled.connect(self._on_move_to_selection_toggled)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
@@ -133,35 +126,6 @@ class CoreConnectedPositionTable(PositionTable):
         return tuple(_value)
 
     # ----------------------- private methods -----------------------
-
-    def _on_move_to_selection_toggled(self, checked: bool) -> None:
-        """Hide/show the axes "set button" and set table as RedaOnly."""
-        # hide x, y, and z
-        self._hide_widget_columns(checked, [self._xy_btn_col, self.SEQ])
-        # hide z
-        hide_z = not self.include_z.isChecked() or checked
-        self._hide_widget_columns(hide_z, [self._z_btn_col])
-        # hide autofocus
-        hide_af = not self.use_af.isChecked() or checked
-        self._hide_widget_columns(hide_af, [self._af_btn_col])
-        # set x, y, z and af as read only
-        self._set_read_only_float_columns(checked, [self.X, self.Y, self.Z, self.AF])
-
-    def _hide_widget_columns(self, hide: bool, buttons: list[WidgetColumn]) -> None:
-        """Hide/show the given ButtonColumn."""
-        for btn in buttons:
-            col = self.table().indexOf(btn)
-            self.table().setColumnHidden(col, hide)
-
-    def _set_read_only_float_columns(
-        self, read_only: bool, columns: list[FloatColumn]
-    ) -> None:
-        """Set the read only state of the given FloatColumn."""
-        for column in columns:
-            col = self.table().indexOf(column)
-            for row in range(self.table().rowCount()):
-                wdg = cast("TableDoubleSpinBox", self.table().cellWidget(row, col))
-                wdg.lineEdit().setReadOnly(read_only)
 
     def _on_sys_config_loaded(self) -> None:
         """Update the table when the system configuration is loaded."""
@@ -295,24 +259,14 @@ class CoreConnectedPositionTable(PositionTable):
         _perform_full_focus()
 
     def _on_include_z_toggled(self, checked: bool) -> None:
-        # hide set button
-        z_btn_col = self.table().indexOf(self._z_btn_col)
-        if checked and self.move_to_selection.isChecked() or not checked:
-            self.table().setColumnHidden(z_btn_col, True)
-        else:
-            self.table().setColumnHidden(z_btn_col, False)
-        # hide z spinbox
         super()._on_include_z_toggled(checked)
+        z_btn_col = self.table().indexOf(self._z_btn_col)
+        self.table().setColumnHidden(z_btn_col, not checked)
 
     def _on_use_af_toggled(self, checked: bool) -> None:
-        # hide set button
-        af_btn_col = self.table().indexOf(self._af_btn_col)
-        if self.move_to_selection.isChecked():
-            self.table().setColumnHidden(af_btn_col, True)
-        else:
-            self.table().setColumnHidden(af_btn_col, not checked)
-        # hide af spinbox
         super()._on_use_af_toggled(checked)
+        af_btn_col = self.table().indexOf(self._af_btn_col)
+        self.table().setColumnHidden(af_btn_col, not checked)
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(
