@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from fonticon_mdi6 import MDI6
@@ -11,9 +10,7 @@ from superqt.utils import signals_blocked
 from pymmcore_widgets.useq_widgets import PositionTable
 from pymmcore_widgets.useq_widgets._column_info import (
     ButtonColumn,
-    WdgGetSet,
 )
-from pymmcore_widgets.useq_widgets._positions import MDAButton, SubSeqColumn, _MDAPopup
 
 if TYPE_CHECKING:
     from typing import TypedDict
@@ -25,36 +22,7 @@ if TYPE_CHECKING:
         should_save: bool
 
 
-class CoreConnectedMDAButton(MDAButton):
-    """MDAButton that is connected to the core."""
-
-    def __init__(self) -> None:
-        super().__init__()
-
-    def _on_click(self) -> None:
-        dialog = _MDAPopup(self._value, self, core_connected=True)
-        if dialog.exec():
-            self.setValue(dialog.mda_tabs.value())
-
-
-_CoreConnectedMDAButton = WdgGetSet(
-    CoreConnectedMDAButton,
-    CoreConnectedMDAButton.value,
-    CoreConnectedMDAButton.setValue,
-    lambda w, cb: w.valueChanged.connect(cb),
-)
-
-
-@dataclass(frozen=True)
-class CoreConnectedSubSeqColumn(SubSeqColumn):
-    """Column for editing a `useq.MDASequence`."""
-
-    data_type: WdgGetSet = _CoreConnectedMDAButton
-
-
 class CoreConnectedPositionTable(PositionTable):
-    SEQ = CoreConnectedSubSeqColumn(key="sequence", header="Sub-Sequence", default=None)
-
     def __init__(
         self,
         rows: int = 0,
