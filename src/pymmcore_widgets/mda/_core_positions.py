@@ -70,9 +70,12 @@ class CoreConnectedPositionTable(PositionTable):
 
     def _on_move_to_selection_toggled(self, checked: bool) -> None:
         """Hide/show the axes "set button" and set table as RedaOnly."""
-        self._hide_widget_columns(
-            checked, [self._xy_btn_col, self._z_btn_col, self.SEQ]
-        )
+        # hide x, y, and z
+        self._hide_widget_columns(checked, [self._xy_btn_col, self.SEQ])
+        # hide z
+        hide_z = not self.include_z.isChecked() or checked
+        self._hide_widget_columns(hide_z, [self._z_btn_col])
+        # set x, y, z and af as read only
         self._set_read_only_float_columns(checked, [self.X, self.Y, self.Z])
 
     def _hide_widget_columns(self, hide: bool, buttons: list[WidgetColumn]) -> None:
@@ -180,9 +183,14 @@ class CoreConnectedPositionTable(PositionTable):
             self._mmc.waitForSystem()
 
     def _on_include_z_toggled(self, checked: bool) -> None:
-        super()._on_include_z_toggled(checked)
+        # hide set button
         z_btn_col = self.table().indexOf(self._z_btn_col)
-        self.table().setColumnHidden(z_btn_col, not checked)
+        if checked and self.move_to_selection.isChecked() or not checked:
+            self.table().setColumnHidden(z_btn_col, True)
+        else:
+            self.table().setColumnHidden(z_btn_col, False)
+        # hide z spinbox
+        super()._on_include_z_toggled(checked)
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(
