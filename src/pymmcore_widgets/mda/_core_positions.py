@@ -8,7 +8,9 @@ from qtpy.QtWidgets import QCheckBox, QWidget, QWidgetAction
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets.useq_widgets import PositionTable
-from pymmcore_widgets.useq_widgets._column_info import ButtonColumn
+from pymmcore_widgets.useq_widgets._column_info import (
+    ButtonColumn,
+)
 
 if TYPE_CHECKING:
     from typing import TypedDict

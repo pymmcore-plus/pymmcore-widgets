@@ -5,9 +5,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 import useq
+from qtpy.QtCore import QTimer
 
 from pymmcore_widgets.mda import MDAWidget
+from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
+from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
+from pymmcore_widgets.useq_widgets._positions import _MDAPopup
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -222,3 +226,28 @@ def test_core_connected_relative_z_plan(qtbot: QtBot):
     assert round(val.x, 1) == 11
     assert round(val.y, 1) == 22
     assert round(val.z, 1) == 33
+
+
+def test_position_table_connected_popup(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    wdg.setValue(MDA)
+
+    pos_table = wdg.stage_positions
+    assert isinstance(pos_table, CoreConnectedPositionTable)
+    seq_col = pos_table.table().indexOf(pos_table.SEQ)
+    btn = pos_table.table().cellWidget(0, seq_col)
+
+    def handle_dialog():
+        popup = btn.findChild(_MDAPopup)
+        mda = popup.mda_tabs
+        assert isinstance(mda.z_plan, CoreConnectedZPlanWidget)
+        assert isinstance(mda.grid_plan, CoreConnectedGridPlanWidget)
+        popup.accept()
+
+    QTimer.singleShot(100, handle_dialog)
+
+    with qtbot.waitSignal(wdg.valueChanged):
+        btn.seq_btn.click()
