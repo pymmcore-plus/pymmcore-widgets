@@ -311,7 +311,7 @@ class MDAWidget(QWidget):
             self.p_cbox.setChecked(False)
 
         # set grid
-        if state.grid_plan:
+        if state.grid_plan and not isinstance(state.grid_plan, useq.RandomPoints):
             self.g_cbox.setChecked(True)
             self.grid_widget.set_state(state.grid_plan)
         else:

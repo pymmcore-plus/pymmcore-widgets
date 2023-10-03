@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from qtpy.QtWidgets import QWidget
 
 
-class CoreConnectedZPlanWidgert(ZPlanWidget):
+class CoreConnectedZPlanWidget(ZPlanWidget):
     def __init__(
         self, mmcore: CMMCorePlus | None = None, parent: QWidget | None = None
     ) -> None:

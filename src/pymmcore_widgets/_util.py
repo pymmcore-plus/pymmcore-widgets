@@ -97,10 +97,11 @@ def cast_grid_plan(
     grid: dict | useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromEdges,
 ) -> useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromEdges | None:
     """Get the grid type from the grid_plan."""
-    if not grid:
+    if not grid or isinstance(grid, useq.RandomPoints):
         return None
     if isinstance(grid, dict):
-        return useq.MDASequence(grid_plan=grid).grid_plan
+        _grid = useq.MDASequence(grid_plan=grid).grid_plan
+        return None if isinstance(_grid, useq.RandomPoints) else _grid
     return grid
 
 
