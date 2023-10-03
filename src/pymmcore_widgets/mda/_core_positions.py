@@ -223,14 +223,14 @@ class CoreConnectedPositionTable(PositionTable):
         _perform_full_focus()
 
     def _on_include_z_toggled(self, checked: bool) -> None:
-        super()._on_include_z_toggled(checked)
         z_btn_col = self.table().indexOf(self._z_btn_col)
         self.table().setColumnHidden(z_btn_col, not checked)
+        super()._on_include_z_toggled(checked)
 
     def _on_use_af_toggled(self, checked: bool) -> None:
-        super()._on_use_af_toggled(checked)
         af_btn_col = self.table().indexOf(self._af_btn_col)
         self.table().setColumnHidden(af_btn_col, not checked)
+        super()._on_use_af_toggled(checked)
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(
