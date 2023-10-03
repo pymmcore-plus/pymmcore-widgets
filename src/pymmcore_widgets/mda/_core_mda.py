@@ -18,17 +18,16 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.fonticon import icon
+from useq import MDASequence, Position
 
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
-from ._core_z import CoreConnectedZPlanWidgert
+from ._core_z import CoreConnectedZPlanWidget
 
 if TYPE_CHECKING:
     from typing import TypedDict
-
-    from useq import MDASequence
 
     class SaveInfo(TypedDict):
         save_dir: str
@@ -43,8 +42,8 @@ class MDAWidget(MDASequenceWidget):
     ) -> None:
         # create a couple core-connected variants of the tab widgets
         self._mmc = mmcore or CMMCorePlus.instance()
-        position_wdg = CoreConnectedPositionTable(1, self._mmc)
-        z_wdg = CoreConnectedZPlanWidgert(self._mmc)
+        position_wdg = CoreConnectedPositionTable(0, self._mmc)
+        z_wdg = CoreConnectedZPlanWidget(self._mmc)
         self.grid_wdg = CoreConnectedGridPlanWidget(self._mmc)
 
         super().__init__(
@@ -88,10 +87,27 @@ class MDAWidget(MDASequenceWidget):
     def value(self) -> MDASequence:
         """Set the current state of the widget."""
         val = super().value()
+
+        # if the z plan is relative, and there are no stage positions, add the current
+        # stage position as the relative starting one.
+        # Note: this is not the final solution, it shiud be better to move this in
+        # pymmcore-plus runner but only after we introduce a concept of a "relative
+        # position" in useq.MDAEvent. At the moment, since the pymmcore-plus runner is
+        # not aware of the core, we cannot move it there.
+        if val.z_plan and val.z_plan.is_relative and not val.stage_positions:
+            val = val.replace(stage_positions=[self._get_current_stage_position()])
+
         meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
         if self.save_info.isChecked():
             meta.update(self.save_info.value())
         return val
+
+    def _get_current_stage_position(self) -> Position:
+        """Return the current stage position."""
+        x = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
+        y = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
+        z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
+        return Position(x=x, y=y, z=z)
 
     def setValue(self, value: MDASequence) -> None:
         """Get the current state of the widget."""
