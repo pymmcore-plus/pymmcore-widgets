@@ -319,3 +319,28 @@ def test_autofocus_axes(qtbot: QtBot):
 
     wdg.setValue(MDA)
     assert "p" and "g" in wdg.value().stage_positions[0].sequence.autofocus_plan.axes
+
+
+def test_core_position_table_checkboxes_toggled(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+    pos_table = wdg.stage_positions
+    assert isinstance(pos_table, CoreConnectedPositionTable)
+
+    wdg.setValue(MDA)
+
+    z_btn_col = pos_table.table().indexOf(pos_table._z_btn_col)
+    af_btn_col = pos_table.table().indexOf(pos_table._af_btn_col)
+
+    pos_table.include_z.setChecked(False)
+    pos_table.use_af.setChecked(False)
+
+    assert pos_table.table().isColumnHidden(z_btn_col)
+    assert pos_table.table().isColumnHidden(af_btn_col)
+
+    pos_table.include_z.setChecked(True)
+    pos_table.use_af.setChecked(True)
+
+    assert not pos_table.table().isColumnHidden(z_btn_col)
+    assert not pos_table.table().isColumnHidden(af_btn_col)
