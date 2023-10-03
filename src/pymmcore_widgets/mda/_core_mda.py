@@ -45,8 +45,8 @@ class CoreMDATabs(MDATabs):
         super().__init__(parent)
 
     def create_subwidgets(self) -> None:
-        self.time_plan = TimePlanWidget(1)
-        self.stage_positions = CoreConnectedPositionTable(mmcore=self._mmc)
+        self.time_plan = TimePlanWidget()
+        self.stage_positions = CoreConnectedPositionTable(1, self._mmc)
         self.z_plan = CoreConnectedZPlanWidget(self._mmc)
         self.grid_plan = CoreConnectedGridPlanWidget(self._mmc)
         self.channels = ChannelTable()
@@ -91,9 +91,9 @@ class MDAWidget(MDASequenceWidget):
 
     def _on_sys_config_loaded(self) -> None:
         # TODO: connect objective change event to update suggested step
-        self.stage_positions._remove_all()
         self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
         self._update_channel_groups()
+        self.stage_positions._remove_all()
 
     def value(self) -> MDASequence:
         """Set the current state of the widget."""
