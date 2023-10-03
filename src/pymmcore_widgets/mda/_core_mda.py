@@ -45,11 +45,11 @@ class CoreMDATabs(MDATabs):
         super().__init__(parent)
 
     def create_subwidgets(self) -> None:
-        self.time_plan = TimePlanWidget()
-        self.stage_positions = CoreConnectedPositionTable(1, self._mmc)
+        self.time_plan = TimePlanWidget(1)
+        self.stage_positions = CoreConnectedPositionTable(1, mmcore=self._mmc)
         self.z_plan = CoreConnectedZPlanWidget(self._mmc)
         self.grid_plan = CoreConnectedGridPlanWidget(self._mmc)
-        self.channels = ChannelTable()
+        self.channels = ChannelTable(1)
 
 
 class MDAWidget(MDASequenceWidget):
