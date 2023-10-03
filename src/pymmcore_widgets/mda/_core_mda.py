@@ -91,6 +91,7 @@ class MDAWidget(MDASequenceWidget):
 
     def _on_sys_config_loaded(self) -> None:
         # TODO: connect objective change event to update suggested step
+        self.stage_positions._remove_all()
         self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
         self._update_channel_groups()
 
