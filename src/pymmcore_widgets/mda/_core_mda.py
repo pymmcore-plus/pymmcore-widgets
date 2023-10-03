@@ -89,7 +89,11 @@ class MDAWidget(MDASequenceWidget):
         val = super().value()
 
         # if the z plan is relative, and there are no stage positions, add the current
-        # stage position as the relative starting one
+        # stage position as the relative starting one.
+        # Note: this is not the final solution, it shiud be better to move this in
+        # pymmcore-plus runner but only after we introduce a concept of a "relative
+        # position" in useq.MDAEvent. At the moment, since the pymmcore-plus runner is
+        # not aware of the core, we cannot move it there.
         if val.z_plan and val.z_plan.is_relative and not val.stage_positions:
             val = val.replace(stage_positions=[self._get_current_stage_position()])
 
