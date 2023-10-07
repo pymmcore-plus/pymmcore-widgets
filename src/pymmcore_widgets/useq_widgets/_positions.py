@@ -226,7 +226,6 @@ class PositionTable(DataTableWidget):
         """Set the current value of the table."""
         _values = []
         _use_af = False
-        # _af_z_devices: set[str] = set()
         for v in value:
             if not isinstance(v, useq.Position):  # pragma: no cover
                 raise TypeError(f"Expected useq.Position, got {type(v)}")

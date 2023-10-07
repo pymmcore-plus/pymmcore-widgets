@@ -93,7 +93,6 @@ class MDAWidget(MDASequenceWidget):
         # TODO: connect objective change event to update suggested step
         self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
         self._update_channel_groups()
-        self.stage_positions._remove_all()
 
     def value(self) -> MDASequence:
         """Set the current state of the widget."""
