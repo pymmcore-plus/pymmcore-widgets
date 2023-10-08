@@ -199,13 +199,14 @@ class PositionTable(DataTableWidget):
             if self.use_af.isChecked():
                 af_offset = r.get(self.AF.key, None)
                 if af_offset is not None:
-                    # get the current sub-sequence or create a new one
-                    sub_seq: useq.MDASequence = r.get("sequence") or useq.MDASequence()
+                    # get the current sub-sequence as dict or create a new one
+                    sub_seq = r.get("sequence")
+                    sub_seq = (
+                        sub_seq.dict() if isinstance(sub_seq, useq.MDASequence) else {}
+                    )
                     # add the autofocus plan to the sub-sequence
-                    sub_seq = sub_seq.replace(
-                        autofocus_plan=useq.AxesBasedAF(
-                            autofocus_motor_offset=af_offset, axes=("p",)
-                        )
+                    sub_seq["autofocus_plan"] = useq.AxesBasedAF(
+                        autofocus_motor_offset=af_offset, axes=("p",)
                     )
                     # update the sub-sequence dict in the record
                     r["sequence"] = sub_seq
