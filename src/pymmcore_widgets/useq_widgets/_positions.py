@@ -185,9 +185,6 @@ class PositionTable(DataTableWidget):
         layout = cast("QVBoxLayout", self.layout())
         layout.addLayout(btn_row)
 
-    def _get_autofocus_plan(self, af_offset: float) -> useq.AxesBasedAF:
-        return useq.AxesBasedAF(autofocus_motor_offset=af_offset, axes=("p",))
-
     def value(
         self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
     ) -> tuple[useq.Position, ...]:
@@ -199,27 +196,23 @@ class PositionTable(DataTableWidget):
             if not r.get(self.NAME.key, True):
                 r.pop(self.NAME.key, None)
 
-            if not self.use_af.isChecked():
-                pos = useq.Position(**r)
-            else:
-                pos = useq.Position(**r)
+            if self.use_af.isChecked():
                 af_offset = r.get(self.AF.key, None)
-                if pos.sequence is None:
-                    # if there is no sub-sequence, create a new one with the autofocus
-                    pos = pos.replace(
-                        sequence=useq.MDASequence(
-                            autofocus_plan=self._get_autofocus_plan(af_offset)
+                if af_offset is not None:
+                    # get the current sub-sequence or create a new one
+                    sub_seq = r.get("sequence") or useq.MDASequence()
+                    # add the autofocus plan to the sub-sequence
+                    sub_seq = sub_seq.replace(
+                        autofocus_plan=useq.AxesBasedAF(
+                            autofocus_motor_offset=af_offset, axes=("p",)
                         )
                     )
-                else:
-                    # if there is a sub-sequence, add the autofocus plan to it
-                    pos = pos.replace(
-                        sequence=pos.sequence.replace(
-                            autofocus_plan=self._get_autofocus_plan(af_offset)
-                        )
-                    )
+                    # update the sub-sequence dict in the record
+                    r["sequence"] = sub_seq
 
+            pos = useq.Position(**r)
             out.append(pos)
+
         return tuple(out)
 
     def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore
