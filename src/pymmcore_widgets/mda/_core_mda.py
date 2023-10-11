@@ -107,39 +107,13 @@ class MDAWidget(MDASequenceWidget):
         if val.z_plan and val.z_plan.is_relative and not val.stage_positions:
             val = val.replace(stage_positions=[self._get_current_stage_position()])
 
-        # if autofocus is enabled, update autofocus axes
-        if self.stage_positions.use_af.isChecked() and val.stage_positions:
-            axes = self._get_autofocus_axes(val)
-            _stage_positions = []
-            for p in val.stage_positions:
-                if not p.sequence or not p.sequence.autofocus_plan:
-                    continue
-                # update current autofocus plan with the new axes
-                af = p.sequence.autofocus_plan.replace(axes=axes)
-                # update the original sub_sequence with updated autofocus plan
-                sub_seq = p.sequence.replace(autofocus_plan=af)
-                # replace the sub_sequence in the stage position with the updated one
-                p = p.replace(sequence=sub_seq)
-                _stage_positions.append(p)
-            val = val.replace(stage_positions=_stage_positions)
+        # TODO: find a way to update the autofocus plan axis (e.g. use checkboxes in the
+        # widget)
 
         meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
         if self.save_info.isChecked():
             meta.update(self.save_info.value())
         return val
-
-    def _get_autofocus_axes(self, value: MDASequence) -> tuple[str, ...]:
-        axes = set(value.axis_order)
-        # update axes with sub-sequence axes
-        for p in value.stage_positions:
-            if not p.sequence:
-                continue
-            axes.update(p.sequence.used_axes)
-        # we don't need to autofocus on the channel or the z axes
-        for ax in ("c", "z"):
-            if ax in axes:
-                axes.remove(ax)
-        return tuple(axes)
 
     def _get_current_stage_position(self) -> Position:
         """Return the current stage position."""

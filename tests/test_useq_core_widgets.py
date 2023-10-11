@@ -294,33 +294,6 @@ def test_position_table_connected_popup(qtbot: QtBot):
         btn.seq_btn.click()
 
 
-def test_autofocus_axes(qtbot: QtBot):
-    wdg = MDAWidget()
-    qtbot.addWidget(wdg)
-    wdg.show()
-
-    MDA = useq.MDASequence(
-        axis_order="pc",
-        channels=[{"config": "DAPI", "exposure": 1}],
-        stage_positions=[
-            useq.Position(
-                x=1,
-                y=2,
-                z=3,
-                sequence=useq.MDASequence(
-                    grid_plan=useq.GridRowsColumns(rows=2, columns=1),
-                    autofocus_plan=useq.AxesBasedAF(
-                        autofocus_motor_offset=10.0, axes=("p",)
-                    ),
-                ),
-            )
-        ],
-    )
-
-    wdg.setValue(MDA)
-    assert "p" and "g" in wdg.value().stage_positions[0].sequence.autofocus_plan.axes
-
-
 def test_core_position_table_checkboxes_toggled(qtbot: QtBot):
     wdg = MDAWidget()
     qtbot.addWidget(wdg)
