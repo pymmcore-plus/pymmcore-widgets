@@ -189,7 +189,7 @@ class PositionTable(DataTableWidget):
         self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
     ) -> tuple[useq.Position, ...]:
         """Return the current value of the table as a list of channels."""
-        out = []
+        out: list[useq.Position] = []
         for r in self.table().iterRecords(
             exclude_unchecked=exclude_unchecked, exclude_hidden_cols=exclude_hidden_cols
         ):
