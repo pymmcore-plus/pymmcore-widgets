@@ -226,12 +226,12 @@ class PositionTable(DataTableWidget):
 
             _af = {}
             if v.sequence is not None and v.sequence.autofocus_plan is not None:
-                # if the sub-sequence is empty, set it to None. Else we simply
-                # exclude the autofocus plan
-                sub_seq_dict = v.sequence.model_dump(
-                    exclude_unset=True, exclude={"autofocus_plan"}
+                # set sub-sequence to None if empty or we simply exclude the af plan
+                sub_seq: useq.MDASequence | None = useq.MDASequence(
+                    **v.sequence.dict(exclude={"autofocus_plan"})
                 )
-                sub_seq = useq.MDASequence(**sub_seq_dict) if sub_seq_dict else None
+                if sub_seq == NULL_SEQUENCE:
+                    sub_seq = None
 
                 # get autofocus plan device name and offset
                 _af_offset = v.sequence.autofocus_plan.autofocus_motor_offset
