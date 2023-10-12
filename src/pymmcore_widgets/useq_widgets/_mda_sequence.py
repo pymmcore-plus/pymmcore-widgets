@@ -266,9 +266,15 @@ class MDASequenceWidget(QWidget):
         """Return the current sequence as a `useq-schema` MDASequence."""
         val = self.tab_wdg.value()
         shutters: tuple[str, ...] = ()
-        if self.z_plan.leave_shutter_open.isChecked():
+        if (
+            self.z_plan.leave_shutter_open.isChecked()
+            and self.z_plan.leave_shutter_open.isEnabled()
+        ):
             shutters += ("z",)
-        if self.time_plan.leave_shutter_open.isChecked():
+        if (
+            self.time_plan.leave_shutter_open.isChecked()
+            and self.time_plan.leave_shutter_open.isEnabled()
+        ):
             shutters += ("t",)
         val = val.replace(
             axis_order=self.axis_order.currentText(), keep_shutter_open_across=shutters
