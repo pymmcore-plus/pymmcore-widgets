@@ -37,9 +37,6 @@ if TYPE_CHECKING:
         save_name: str
 
 
-NULL_SEQUENCE = MDASequence()
-
-
 class CoreMDATabs(MDATabs):
     def __init__(
         self, parent: QWidget | None = None, core: CMMCorePlus | None = None
@@ -120,14 +117,15 @@ class MDAWidget(MDASequenceWidget):
         x = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         y = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
-        sub_seq = (
-            MDASequence(
-                autofocus_plan=AxesBasedAF(
-                    autofocus_motor_offset=self._mmc.getAutoFocusOffset(), axes=("p",)
-                )
+        if not self._mmc.isContinuousFocusLocked():
+            return Position(x=x, y=y, z=z)
+
+        # if continuous focus is currently engaged and locked,
+        # add an autofocus plan to the sequence
+        sub_seq = MDASequence(
+            autofocus_plan=AxesBasedAF(
+                autofocus_motor_offset=self._mmc.getAutoFocusOffset(), axes=("p",)
             )
-            if self._mmc.isContinuousFocusLocked()
-            else None
         )
         return Position(x=x, y=y, z=z, sequence=sub_seq)
 
