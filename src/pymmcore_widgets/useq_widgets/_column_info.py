@@ -263,7 +263,7 @@ TableFloatWidget = WdgGetSet(
 class _RangeColumn(WidgetColumn, Generic[W, T]):
     data_type: WdgGetSet[W, float]
     minimum: float = 0
-    maximum: float = 10_000
+    maximum: float = 999_999
 
     def _init_widget(self) -> W:
         wdg = self.data_type.widget()

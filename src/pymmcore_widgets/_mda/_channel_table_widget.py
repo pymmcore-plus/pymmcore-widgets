@@ -209,7 +209,7 @@ class ChannelTable(QWidget):
         return available[0]
 
     def _create_spinbox(
-        self, range: tuple[int, int], double: bool = False
+        self, range: tuple[int | float, int | float], double: bool = False
     ) -> QDoubleSpinBox:
         dspinbox = QDoubleSpinBox() if double else QSpinBox()
         dspinbox.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
@@ -249,8 +249,7 @@ class ChannelTable(QWidget):
         channel_combo.setCurrentText(channel.config)
 
         # exposure spinbox
-        channel_exp_spinbox = self._create_spinbox((0, 10000), True)
-        channel_exp_spinbox.setMinimum(1)
+        channel_exp_spinbox = self._create_spinbox((0.01, 999999), True)
         channel_exp_spinbox.setValue(channel.exposure or self._mmc.getExposure() or 100)
 
         # z offset spinbox
