@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from logging import getLogger
 from typing import Iterable, cast
 
 from fonticon_mdi6 import MDI6
@@ -30,6 +31,8 @@ ICONS: dict[DeviceType, str] = {
     DeviceType.XYStage: MDI6.arrow_all,
     DeviceType.Serial: MDI6.serial_port,
 }
+
+logger = getLogger(__name__)
 
 
 class DevicePropertyTable(QTableWidget):
@@ -140,18 +143,24 @@ class DevicePropertyTable(QTableWidget):
         for i, prop in enumerate(props):
             item = QTableWidgetItem(f"{prop.device}-{prop.name}")
             item.setData(self.PROP_ROLE, prop)
-            # TODO: make sure to add icons for all possible device types
-            icon_string = ICONS.get(prop.deviceType(), None)
+            icon_string = ICONS.get(prop.deviceType())
             if icon_string:
                 item.setIcon(icon(icon_string, color="Gray"))
             self.setItem(i, 0, item)
 
-            wdg = PropertyWidget(
-                prop.device,
-                prop.name,
-                mmcore=self._mmc,
-                connect_core=self._connect_core,
-            )
+            try:
+                wdg = PropertyWidget(
+                    prop.device,
+                    prop.name,
+                    mmcore=self._mmc,
+                    connect_core=self._connect_core,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error creating widget for {prop.device}-{prop.name}: {e}"
+                )
+                continue
+
             self.setCellWidget(i, 1, wdg)
             if not self._prop_widgets_enabled:
                 wdg.setEnabled(False)
