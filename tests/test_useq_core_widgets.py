@@ -317,3 +317,60 @@ def test_core_position_table_checkboxes_toggled(qtbot: QtBot):
 
     assert not pos_table.table().isColumnHidden(z_btn_col)
     assert not pos_table.table().isColumnHidden(af_btn_col)
+
+
+def test_core_mda_autofocus(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    AF = useq.AxesBasedAF(autofocus_motor_offset=10, axes=("p",))
+    POS = [
+        useq.Position(x=0, y=0, z=0, sequence=useq.MDASequence(autofocus_plan=AF)),
+        useq.Position(x=1, y=1, z=1, sequence=useq.MDASequence(autofocus_plan=AF)),
+    ]
+    MDA = useq.MDASequence(stage_positions=POS)
+    wdg.setValue(MDA)
+
+    assert wdg.value().autofocus_plan
+    assert wdg.value().autofocus_plan.autofocus_motor_offset == 10
+    assert not wdg.value().stage_positions[0].sequence
+    assert not wdg.value().stage_positions[1].sequence
+
+    AF1 = useq.AxesBasedAF(autofocus_motor_offset=15, axes=("p",))
+    POS1 = [
+        useq.Position(x=0, y=0, z=0, sequence=useq.MDASequence(autofocus_plan=AF)),
+        useq.Position(x=1, y=1, z=1, sequence=useq.MDASequence(autofocus_plan=AF1)),
+    ]
+    MDA = MDA.replace(stage_positions=POS1)
+
+    wdg.setValue(MDA)
+    assert not wdg.value().autofocus_plan
+    assert (
+        wdg.value().stage_positions[0].sequence.autofocus_plan.autofocus_motor_offset
+        == 10
+    )
+    assert (
+        wdg.value().stage_positions[1].sequence.autofocus_plan.autofocus_motor_offset
+        == 15
+    )
+
+    POS2 = [
+        useq.Position(x=0, y=0, z=0, sequence=useq.MDASequence(autofocus_plan=AF)),
+        useq.Position(
+            x=0,
+            y=0,
+            z=0,
+            sequence=useq.MDASequence(
+                autofocus_plan=AF,
+                grid_plan=useq.GridRowsColumns(rows=2, columns=1),
+            ),
+        ),
+    ]
+    MDA = MDA.replace(stage_positions=POS2)
+
+    wdg.setValue(MDA)
+    assert wdg.value().autofocus_plan
+    assert wdg.value().autofocus_plan.autofocus_motor_offset == 10
+    assert not wdg.value().stage_positions[0].sequence
+    assert wdg.value().stage_positions[1].sequence

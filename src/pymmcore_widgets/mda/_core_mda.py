@@ -37,6 +37,9 @@ if TYPE_CHECKING:
         save_name: str
 
 
+NULL_SEQUENCE = MDASequence()
+
+
 class CoreMDATabs(MDATabs):
     def __init__(
         self, parent: QWidget | None = None, core: CMMCorePlus | None = None
@@ -116,15 +119,24 @@ class MDAWidget(MDASequenceWidget):
                 if pos.sequence is not None and pos.sequence.autofocus_plan
             }
             if len(autofocus_offsets) == 1:
+                stage_positions = []
+                for pos in val.stage_positions:
+                    if pos.sequence:
+                        # remove autofocus plan from the position
+                        pos = pos.replace(
+                            sequence=pos.sequence.replace(autofocus_plan=None)
+                        )
+                        # after removing the autofocus plan, if the sequence is empty,
+                        # replace it with None
+                        if pos.sequence == NULL_SEQUENCE:
+                            pos = pos.replace(sequence=None)
+                    stage_positions.append(pos)
+
                 val = val.replace(
                     autofocus_plan=AxesBasedAF(
                         autofocus_motor_offset=autofocus_offsets.pop(), axes=("p",)
                     ),
-                    stage_positions=[
-                        pos.replace(sequence=pos.sequence.replace(autofocus_plan=None))
-                        for pos in val.stage_positions
-                        if pos.sequence
-                    ],
+                    stage_positions=stage_positions,
                 )
 
         # TODO: find a way to update the autofocus plan axis (e.g. use checkboxes in the
