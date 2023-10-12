@@ -31,7 +31,7 @@ class CoreConnectedPositionTable(PositionTable):
         mmcore: CMMCorePlus | None = None,
         parent: QWidget | None = None,
     ):
-        # must come before __init__ since it is used in _on_use_af_toggled
+        # must come before __init__ since it is used in super()._on_use_af_toggled
         self._af_btn_col = ButtonColumn(
             key="af_btn", glyph=MDI6.arrow_left, on_click=self._set_af_from_core
         )
@@ -67,6 +67,8 @@ class CoreConnectedPositionTable(PositionTable):
         self.destroyed.connect(self._disconnect)
 
         self._on_sys_config_loaded()
+        # hide the set-AF-offset button to begin with.
+        self._on_use_af_toggled(self.use_af.isChecked())
 
     # ----------------------- private methods -----------------------
 
@@ -75,9 +77,6 @@ class CoreConnectedPositionTable(PositionTable):
         self._update_xy_enablement()
         self._update_z_enablement()
         self._update_autofocus_enablement()
-        # need to trigger this manually since the autofocus checkbox is not checked
-        # by default
-        self._on_use_af_toggled(False)
 
     def _on_property_changed(self, device: str, prop: str, _val: str = "") -> None:
         """Update the autofocus device combo box when the autofocus device changes."""
@@ -112,7 +111,6 @@ class CoreConnectedPositionTable(PositionTable):
         """Update the autofocus device combo box."""
         af_device = self._mmc.getAutoFocusDevice()
         self.use_af.setText(f"Use {af_device}" if af_device else "Use Autofocus")
-        self.use_af.setEnabled(bool(af_device))
         self.use_af.setEnabled(bool(af_device))
         self.use_af.setToolTip("" if af_device else "AutoFocus device unavailable.")
 
