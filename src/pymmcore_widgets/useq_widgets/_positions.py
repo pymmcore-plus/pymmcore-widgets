@@ -164,10 +164,7 @@ class PositionTable(DataTableWidget):
 
         self.use_af = QCheckBox("Use Autofocus")
         self.use_af.toggled.connect(self._on_use_af_toggled)
-        # not calling _on_use_af_toggled here because it will create issue on the
-        # connected core version
-        af_col = self.table().indexOf(self.AF)
-        self.table().setColumnHidden(af_col, True)
+        self._on_use_af_toggled(False)
 
         self._save_button = QPushButton("Save...")
         self._save_button.clicked.connect(self.save)

@@ -33,6 +33,10 @@ class CoreConnectedPositionTable(PositionTable):
         mmcore: CMMCorePlus | None = None,
         parent: QWidget | None = None,
     ):
+        # must come before __init__ since it is used in _on_use_af_toggled
+        self._af_btn_col = ButtonColumn(
+            key="af_btn", glyph=MDI6.arrow_left, on_click=self._set_af_from_core
+        )
         super().__init__(rows, parent)
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -43,9 +47,6 @@ class CoreConnectedPositionTable(PositionTable):
         )
         self._z_btn_col = ButtonColumn(
             key="z_btn", glyph=MDI6.arrow_left, on_click=self._set_z_from_core
-        )
-        self._af_btn_col = ButtonColumn(
-            key="af_btn", glyph=MDI6.arrow_left, on_click=self._set_af_from_core
         )
         self.table().addColumn(self._xy_btn_col, self.table().indexOf(self.X))
         self.table().addColumn(self._z_btn_col, self.table().indexOf(self.Z) + 1)
