@@ -110,38 +110,6 @@ class MDAWidget(MDASequenceWidget):
         if val.z_plan and val.z_plan.is_relative and not val.stage_positions:
             val = val.replace(stage_positions=[self._get_current_stage_position()])
 
-        # if the autofocus offsets are the same for all positions, make a general
-        # autofocus plan and remove it from each single position
-        if val.stage_positions:
-            autofocus_offsets = {
-                pos.sequence.autofocus_plan.autofocus_motor_offset
-                for pos in val.stage_positions
-                if pos.sequence is not None and pos.sequence.autofocus_plan
-            }
-            if len(autofocus_offsets) == 1:
-                stage_positions = []
-                for pos in val.stage_positions:
-                    if pos.sequence:
-                        # remove autofocus plan from the position
-                        pos = pos.replace(
-                            sequence=pos.sequence.replace(autofocus_plan=None)
-                        )
-                        # after removing the autofocus plan, if the sequence is empty,
-                        # replace it with None
-                        if pos.sequence == NULL_SEQUENCE:
-                            pos = pos.replace(sequence=None)
-                    stage_positions.append(pos)
-
-                val = val.replace(
-                    autofocus_plan=AxesBasedAF(
-                        autofocus_motor_offset=autofocus_offsets.pop(), axes=("p",)
-                    ),
-                    stage_positions=stage_positions,
-                )
-
-        # TODO: find a way to update the autofocus plan axis (e.g. use checkboxes in the
-        # widget)
-
         meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
         if self.save_info.isChecked():
             meta.update(self.save_info.value())

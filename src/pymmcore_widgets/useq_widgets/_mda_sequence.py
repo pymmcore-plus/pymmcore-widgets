@@ -43,6 +43,7 @@ def _check_order(x: str, first: str, second: str) -> bool:
     return first in x and second in x and x.index(first) > x.index(second)
 
 
+NULL_SEQUENCE = useq.MDASequence()
 AXES = "tpgcz"
 ALLOWED_ORDERS = {"".join(p) for x in range(1, 6) for p in permutations(AXES, x)}
 for x in list(ALLOWED_ORDERS):
@@ -269,9 +270,43 @@ class MDASequenceWidget(QWidget):
             shutters += ("z",)
         if self.time_plan.leave_shutter_open.isChecked():
             shutters += ("t",)
-        return val.replace(
+        val = val.replace(
             axis_order=self.axis_order.currentText(), keep_shutter_open_across=shutters
         )
+
+        # if the autofocus offsets are the same for all positions, make a general
+        # autofocus plan and remove it from each single position
+        if val.stage_positions:
+            autofocus_offsets = {
+                pos.sequence.autofocus_plan.autofocus_motor_offset
+                for pos in val.stage_positions
+                if pos.sequence is not None and pos.sequence.autofocus_plan
+            }
+            if len(autofocus_offsets) == 1:
+                stage_positions = []
+                for pos in val.stage_positions:
+                    if pos.sequence and pos.sequence.autofocus_plan:
+                        # remove autofocus plan from the position
+                        pos = pos.replace(
+                            sequence=pos.sequence.replace(autofocus_plan=None)
+                        )
+                        # after removing the autofocus plan, if the sequence is empty,
+                        # replace it with None
+                        if pos.sequence == NULL_SEQUENCE:
+                            pos = pos.replace(sequence=None)
+                    stage_positions.append(pos)
+
+                val = val.replace(
+                    autofocus_plan=useq.AxesBasedAF(
+                        autofocus_motor_offset=autofocus_offsets.pop(), axes=("p",)
+                    ),
+                    stage_positions=stage_positions,
+                )
+
+        # TODO: find a way to update the autofocus plan axis (e.g. use checkboxes in the
+        # widget)
+
+        return val
 
     def setValue(self, value: useq.MDASequence) -> None:
         """Set widget value from a `useq-schema` MDASequence."""

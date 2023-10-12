@@ -431,6 +431,9 @@ MDA = useq.MDASequence(axis_order="p", stage_positions=[(0, 1, 2)])
 AF = useq.MDASequence(
     autofocus_plan=useq.AxesBasedAF(autofocus_motor_offset=10.0, axes=("p",))
 )
+AF1 = useq.MDASequence(
+    autofocus_plan=useq.AxesBasedAF(autofocus_motor_offset=20.0, axes=("p",))
+)
 
 
 def test_mda_wdg_with_autofocus(qtbot: QtBot):
@@ -441,6 +444,22 @@ def test_mda_wdg_with_autofocus(qtbot: QtBot):
     wdg.setValue(MDA)
     assert wdg.value().replace(metadata={}) == MDA
 
-    MDA1 = MDA.replace(stage_positions=[useq.Position(x=0, y=1, z=2, sequence=AF)])
+    MDA1 = MDA.replace(
+        stage_positions=[
+            useq.Position(x=0, y=1, z=2, sequence=AF),
+            useq.Position(x=0, y=1, z=2, sequence=AF1),
+        ]
+    )
     wdg.setValue(MDA1)
     assert wdg.value().replace(metadata={}) == MDA1
+
+    MDA2 = MDA.replace(
+        stage_positions=[
+            useq.Position(x=0, y=1, z=2, sequence=AF),
+            useq.Position(x=0, y=1, z=2, sequence=AF),
+        ]
+    )
+    wdg.setValue(MDA2)
+    assert wdg.value().autofocus_plan
+    assert not wdg.value().stage_positions[0].sequence
+    assert not wdg.value().stage_positions[1].sequence
