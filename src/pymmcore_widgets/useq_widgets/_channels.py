@@ -30,7 +30,7 @@ class ChannelTable(DataTableWidget):
     # fmt: off
     GROUP = TextColumn(key="group", default=DEFAULT_GROUP, hidden=True)
     CONFIG = TextColumn(key="config", default=None, is_row_selector=True)
-    EXPOSURE = FloatColumn(key="exposure", header="Exposure [ms]", default=100.0, minimum=1)  # noqa
+    EXPOSURE = FloatColumn(key="exposure", header="Exposure [ms]", default=100.0, minimum=0.01)  # noqa
     ACQUIRE_EVERY = IntColumn(key="acquire_every", default=1, minimum=1)
     DO_STACK = BoolColumn(key="do_stack", default=True)
     Z_OFFSET = FloatColumn(key="z_offset", default=0.0, minimum=-10000, maximum=10000)
