@@ -105,6 +105,7 @@ SUB_SEQ = useq.MDASequence(
     axis_order="gtcz",
 )
 
+
 MDA = useq.MDASequence(
     time_plan=useq.TIntervalLoops(interval=4, loops=3),
     stage_positions=[(0, 1, 2), useq.Position(x=42, y=0, z=3, sequence=SUB_SEQ)],
@@ -424,3 +425,41 @@ def test_proper_checked_index(qtbot):
     qtbot.addWidget(pop)
     assert pop.mda_tabs.grid_plan.isEnabled()
     assert pop.mda_tabs.isChecked(pop.mda_tabs.grid_plan)
+
+
+MDA = useq.MDASequence(axis_order="p", stage_positions=[(0, 1, 2)])
+AF = useq.MDASequence(
+    autofocus_plan=useq.AxesBasedAF(autofocus_motor_offset=10.0, axes=("p",))
+)
+AF1 = useq.MDASequence(
+    autofocus_plan=useq.AxesBasedAF(autofocus_motor_offset=20.0, axes=("p",))
+)
+
+
+def test_mda_wdg_with_autofocus(qtbot: QtBot):
+    wdg = MDASequenceWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    wdg.setValue(MDA)
+    assert wdg.value().replace(metadata={}) == MDA
+
+    MDA1 = MDA.replace(
+        stage_positions=[
+            useq.Position(x=0, y=1, z=2, sequence=AF),
+            useq.Position(x=0, y=1, z=2, sequence=AF1),
+        ]
+    )
+    wdg.setValue(MDA1)
+    assert wdg.value().replace(metadata={}) == MDA1
+
+    MDA2 = MDA.replace(
+        stage_positions=[
+            useq.Position(x=0, y=1, z=2, sequence=AF),
+            useq.Position(x=0, y=1, z=2, sequence=AF),
+        ]
+    )
+    wdg.setValue(MDA2)
+    assert wdg.value().autofocus_plan
+    assert not wdg.value().stage_positions[0].sequence
+    assert not wdg.value().stage_positions[1].sequence

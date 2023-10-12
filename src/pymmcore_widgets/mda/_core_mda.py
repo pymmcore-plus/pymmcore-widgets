@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.fonticon import icon
-from useq import MDASequence, Position
+from useq import AxesBasedAF, MDASequence, Position
 
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
@@ -46,7 +46,7 @@ class CoreMDATabs(MDATabs):
 
     def create_subwidgets(self) -> None:
         self.time_plan = TimePlanWidget(1)
-        self.stage_positions = CoreConnectedPositionTable(1, self._mmc)
+        self.stage_positions = CoreConnectedPositionTable(1, mmcore=self._mmc)
         self.z_plan = CoreConnectedZPlanWidget(self._mmc)
         self.grid_plan = CoreConnectedGridPlanWidget(self._mmc)
         self.channels = ChannelTable(1)
@@ -117,7 +117,17 @@ class MDAWidget(MDASequenceWidget):
         x = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         y = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
-        return Position(x=x, y=y, z=z)
+        if not self._mmc.isContinuousFocusLocked():
+            return Position(x=x, y=y, z=z)
+
+        # if continuous focus is currently engaged and locked,
+        # add an autofocus plan to the sequence
+        sub_seq = MDASequence(
+            autofocus_plan=AxesBasedAF(
+                autofocus_motor_offset=self._mmc.getAutoFocusOffset(), axes=("p",)
+            )
+        )
+        return Position(x=x, y=y, z=z, sequence=sub_seq)
 
     def setValue(self, value: MDASequence) -> None:
         """Get the current state of the widget."""
