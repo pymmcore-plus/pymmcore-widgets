@@ -174,11 +174,11 @@ class CoreConnectedPositionTable(PositionTable):
                 y = data.get(self.Y.key, self._mmc.getYPosition())
                 self._mmc.setXYPosition(x, y)
 
-            if self._mmc.getFocusDevice() and self.include_z.isChecked():
+            if self.include_z.isChecked() and self._mmc.getFocusDevice():
                 z = data.get(self.Z.key, self._mmc.getZPosition())
                 self._mmc.setZPosition(z)
 
-            if self._mmc.getAutoFocusDevice() and self.use_af.isChecked():
+            if self.use_af.isChecked() and self._mmc.getAutoFocusDevice():
                 af = data.get(self.AF.key, self._mmc.getAutoFocusOffset())
                 self._mmc.setAutoFocusOffset(af)
                 try:

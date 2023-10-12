@@ -267,13 +267,13 @@ class MDASequenceWidget(QWidget):
         val = self.tab_wdg.value()
         shutters: tuple[str, ...] = ()
         if (
-            self.z_plan.leave_shutter_open.isChecked()
-            and self.z_plan.leave_shutter_open.isEnabled()
+            self.tab_wdg.isChecked(self.z_plan)
+            and self.z_plan.leave_shutter_open.isChecked()
         ):
             shutters += ("z",)
         if (
-            self.time_plan.leave_shutter_open.isChecked()
-            and self.time_plan.leave_shutter_open.isEnabled()
+            self.tab_wdg.isChecked(self.time_plan)
+            and self.time_plan.leave_shutter_open.isChecked()
         ):
             shutters += ("t",)
         val = val.replace(
@@ -282,36 +282,10 @@ class MDASequenceWidget(QWidget):
 
         # if the autofocus offsets are the same for all positions, make a general
         # autofocus plan and remove it from each single position
-        if val.stage_positions:
-            autofocus_offsets = {
-                pos.sequence.autofocus_plan.autofocus_motor_offset
-                for pos in val.stage_positions
-                if pos.sequence is not None and pos.sequence.autofocus_plan
-            }
-            if len(autofocus_offsets) == 1:
-                stage_positions = []
-                for pos in val.stage_positions:
-                    if pos.sequence and pos.sequence.autofocus_plan:
-                        # remove autofocus plan from the position
-                        pos = pos.replace(
-                            sequence=pos.sequence.replace(autofocus_plan=None)
-                        )
-                        # after removing the autofocus plan, if the sequence is empty,
-                        # replace it with None
-                        if pos.sequence == NULL_SEQUENCE:
-                            pos = pos.replace(sequence=None)
-                    stage_positions.append(pos)
-
-                val = val.replace(
-                    autofocus_plan=useq.AxesBasedAF(
-                        autofocus_motor_offset=autofocus_offsets.pop(), axes=("p",)
-                    ),
-                    stage_positions=stage_positions,
-                )
+        val = _simplify_af_offsets(val)
 
         # TODO: find a way to update the autofocus plan axis (e.g. use checkboxes in the
         # widget)
-
         return val
 
     def setValue(self, value: useq.MDASequence) -> None:
@@ -405,3 +379,36 @@ class MDASequenceWidget(QWidget):
         d = _format_duration(self._time_estimate.total_duration)
         d = f"Estimated duration: {d}" if d else ""
         self._duration_label.setText(d)
+
+
+def _simplify_af_offsets(seq: useq.MDASequence) -> useq.MDASequence:
+    """If all positions in seq have the same af offset, remove it from each position.
+
+    Instead, add a global autofocus plan to the sequence.
+    """
+    if not seq.stage_positions:
+        return seq
+
+    # gather all the autofocus offsets in the subsequences
+    af_offsets = {
+        pos.sequence.autofocus_plan.autofocus_motor_offset
+        for pos in seq.stage_positions
+        if pos.sequence is not None and pos.sequence.autofocus_plan
+    }
+    # if they aren't all the same, there's nothing we can do to simplify it.
+    if len(af_offsets) != 1:
+        return seq
+
+    # otherwise, make a global AF plan and remove it from each position
+    stage_positions = []
+    for pos in seq.stage_positions:
+        if pos.sequence and pos.sequence.autofocus_plan:
+            # remove autofocus plan from the position
+            pos = pos.replace(sequence=pos.sequence.replace(autofocus_plan=None))
+            # after removing the autofocus plan, if the sequence is empty,
+            # remove it altogether.
+            if pos.sequence == NULL_SEQUENCE:
+                pos = pos.replace(sequence=None)
+        stage_positions.append(pos)
+    af_plan = useq.AxesBasedAF(autofocus_motor_offset=af_offsets.pop(), axes=("p",))
+    return seq.replace(autofocus_plan=af_plan, stage_positions=stage_positions)
