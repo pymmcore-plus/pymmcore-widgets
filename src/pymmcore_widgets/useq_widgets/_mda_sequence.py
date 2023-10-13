@@ -189,11 +189,11 @@ class AutofocusAxis(QWidget):
     def value(self) -> tuple[str, ...]:
         """Return the autofocus axes."""
         af_axis: tuple[str, ...] = ()
-        if self.use_af_t.isChecked() and self.use_af_t.isEnabled():
+        if self.use_af_t.isChecked():
             af_axis += ("t",)
-        if self.use_af_g.isChecked() and self.use_af_g.isEnabled():
+        if self.use_af_g.isChecked():
             af_axis += ("g",)
-        if self.use_af_p.isChecked() and self.use_af_p.isEnabled():
+        if self.use_af_p.isChecked():
             af_axis += ("p",)
         return af_axis
 
