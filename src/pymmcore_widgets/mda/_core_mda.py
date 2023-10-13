@@ -122,9 +122,12 @@ class MDAWidget(MDASequenceWidget):
 
         # if continuous focus is currently engaged and locked,
         # add an autofocus plan to the sequence
+        # if 'p' is not in the axes, add it
+        self.af_axis.use_af_p.setChecked(True)
         sub_seq = MDASequence(
             autofocus_plan=AxesBasedAF(
-                autofocus_motor_offset=self._mmc.getAutoFocusOffset(), axes=("p",)
+                autofocus_motor_offset=self._mmc.getAutoFocusOffset(),
+                axes=self.af_axis.value(),
             )
         )
         return Position(x=x, y=y, z=z, sequence=sub_seq)
