@@ -69,7 +69,7 @@ class MDA(QWidget):
         """Called each time a frame is acquired."""
         self.current_event.setText(
             f"index: {event.index}\n"
-            f"channel: {event.channel.config}\n"
+            f"channel: {getattr(event.channel, 'config', 'None')}\n"
             f"exposure: {event.exposure}\n"
             f"pos_name: {event.pos_name}\n"
             f"xyz: ({event.x_pos}, {event.y_pos}, {event.z_pos})\n"

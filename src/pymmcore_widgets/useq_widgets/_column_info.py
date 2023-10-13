@@ -263,7 +263,7 @@ TableFloatWidget = WdgGetSet(
 class _RangeColumn(WidgetColumn, Generic[W, T]):
     data_type: WdgGetSet[W, float]
     minimum: float = 0
-    maximum: float = 10_000
+    maximum: float = 999_999
 
     def _init_widget(self) -> W:
         wdg = self.data_type.widget()
@@ -391,7 +391,8 @@ class QQuantityLineEdit(QLineEdit):
     def _on_editing_finished(self) -> None:
         # When the editing is finished, check if the final text is valid
         before, final_text = self._last_val, self.text()
-        if valid_q := self._validator.text_to_quant(final_text):
+        valid_q = self._validator.text_to_quant(final_text)
+        if valid_q is not None:
             text = f"{valid_q:~P}"  # short pretty format
             if before != text:
                 self.setText(text)

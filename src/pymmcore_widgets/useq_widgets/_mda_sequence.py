@@ -43,6 +43,7 @@ def _check_order(x: str, first: str, second: str) -> bool:
     return first in x and second in x and x.index(first) > x.index(second)
 
 
+NULL_SEQUENCE = useq.MDASequence()
 AXES = "tpgcz"
 ALLOWED_ORDERS = {"".join(p) for x in range(1, 6) for p in permutations(AXES, x)}
 for x in list(ALLOWED_ORDERS):
@@ -59,23 +60,18 @@ for x in list(ALLOWED_ORDERS):
 
 
 class MDATabs(CheckableTabWidget):
-    def __init__(
-        self,
-        parent: QWidget | None = None,
-        *,
-        position_wdg: PositionTable | None = None,
-        z_wdg: ZPlanWidget | None = None,
-        grid_wdg: GridPlanWidget | None = None,
-    ) -> None:
+    time_plan: TimePlanWidget
+    stage_positions: PositionTable
+    grid_plan: GridPlanWidget
+    z_plan: ZPlanWidget
+    channels: ChannelTable
+
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         # self.setMovable(True)
         self.tabChecked.connect(self._on_tab_checked)
 
-        self.time_plan = TimePlanWidget(1)
-        self.stage_positions = position_wdg or PositionTable(1)
-        self.grid_plan = grid_wdg or GridPlanWidget()
-        self.z_plan = z_wdg or ZPlanWidget()
-        self.channels = ChannelTable(1)
+        self.create_subwidgets()
 
         self.addTab(self.time_plan, "Time", checked=False)
         self.addTab(self.stage_positions, "Positions", checked=False)
@@ -89,6 +85,13 @@ class MDATabs(CheckableTabWidget):
         ch_table = self.channels.table()
         ch_table.hideColumn(ch_table.indexOf(self.channels.DO_STACK))
         ch_table.hideColumn(ch_table.indexOf(self.channels.ACQUIRE_EVERY))
+
+    def create_subwidgets(self) -> None:
+        self.time_plan = TimePlanWidget(1)
+        self.stage_positions = PositionTable(1)
+        self.grid_plan = GridPlanWidget()
+        self.z_plan = ZPlanWidget()
+        self.channels = ChannelTable(1)
 
     def isAxisUsed(self, key: str | QWidget) -> bool:
         """Return True if the given axis is used in the sequence.
@@ -168,17 +171,13 @@ class MDASequenceWidget(QWidget):
         self,
         parent: QWidget | None = None,
         *,
-        position_wdg: PositionTable | None = None,
-        z_wdg: ZPlanWidget | None = None,
-        grid_wdg: GridPlanWidget | None = None,
+        tab_widget: MDATabs | None = None,
     ) -> None:
         super().__init__(parent)
 
         # -------------- Main MDA Axis Widgets --------------
 
-        self.tab_wdg = MDATabs(
-            position_wdg=position_wdg, z_wdg=z_wdg, grid_wdg=grid_wdg
-        )
+        self.tab_wdg = tab_widget or MDATabs(self)
 
         self.axis_order = QComboBox()
         self.axis_order.setToolTip("Slowest to fastest axis order.")
@@ -267,13 +266,27 @@ class MDASequenceWidget(QWidget):
         """Return the current sequence as a `useq-schema` MDASequence."""
         val = self.tab_wdg.value()
         shutters: tuple[str, ...] = ()
-        if self.z_plan.leave_shutter_open.isChecked():
+        if (
+            self.tab_wdg.isChecked(self.z_plan)
+            and self.z_plan.leave_shutter_open.isChecked()
+        ):
             shutters += ("z",)
-        if self.time_plan.leave_shutter_open.isChecked():
+        if (
+            self.tab_wdg.isChecked(self.time_plan)
+            and self.time_plan.leave_shutter_open.isChecked()
+        ):
             shutters += ("t",)
-        return val.replace(
+        val = val.replace(
             axis_order=self.axis_order.currentText(), keep_shutter_open_across=shutters
         )
+
+        # if the autofocus offsets are the same for all positions, make a general
+        # autofocus plan and remove it from each single position
+        val = _simplify_af_offsets(val)
+
+        # TODO: find a way to update the autofocus plan axis (e.g. use checkboxes in the
+        # widget)
+        return val
 
     def setValue(self, value: useq.MDASequence) -> None:
         """Set widget value from a `useq-schema` MDASequence."""
@@ -366,3 +379,36 @@ class MDASequenceWidget(QWidget):
         d = _format_duration(self._time_estimate.total_duration)
         d = f"Estimated duration: {d}" if d else ""
         self._duration_label.setText(d)
+
+
+def _simplify_af_offsets(seq: useq.MDASequence) -> useq.MDASequence:
+    """If all positions in seq have the same af offset, remove it from each position.
+
+    Instead, add a global autofocus plan to the sequence.
+    """
+    if not seq.stage_positions:
+        return seq
+
+    # gather all the autofocus offsets in the subsequences
+    af_offsets = {
+        pos.sequence.autofocus_plan.autofocus_motor_offset
+        for pos in seq.stage_positions
+        if pos.sequence is not None and pos.sequence.autofocus_plan
+    }
+    # if they aren't all the same, there's nothing we can do to simplify it.
+    if len(af_offsets) != 1:
+        return seq
+
+    # otherwise, make a global AF plan and remove it from each position
+    stage_positions = []
+    for pos in seq.stage_positions:
+        if pos.sequence and pos.sequence.autofocus_plan:
+            # remove autofocus plan from the position
+            pos = pos.replace(sequence=pos.sequence.replace(autofocus_plan=None))
+            # after removing the autofocus plan, if the sequence is empty,
+            # remove it altogether.
+            if pos.sequence == NULL_SEQUENCE:
+                pos = pos.replace(sequence=None)
+        stage_positions.append(pos)
+    af_plan = useq.AxesBasedAF(autofocus_motor_offset=af_offsets.pop(), axes=("p",))
+    return seq.replace(autofocus_plan=af_plan, stage_positions=stage_positions)
