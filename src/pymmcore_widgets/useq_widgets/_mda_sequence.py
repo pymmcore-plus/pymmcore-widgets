@@ -169,7 +169,7 @@ class AutofocusAxis(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        lbl = QLabel("Autofocus Axis:")
+        lbl = QLabel("Autofocus on Axis:")
         self.use_af_p = QCheckBox("p")
         self.use_af_t = QCheckBox("t")
         self.use_af_g = QCheckBox("g")
@@ -210,7 +210,7 @@ class KeepShutterOpen(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        lbl = QLabel("Keep Shutter Open Across:")
+        lbl = QLabel("Keep Shutter Open Across Axis:")
         self.leave_open_t = QCheckBox("t")
         self.leave_open_z = QCheckBox("z")
 
