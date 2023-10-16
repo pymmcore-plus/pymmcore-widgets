@@ -169,7 +169,7 @@ class AutofocusAxis(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        lbl = QLabel("Autofocus on Axis:")
+        lbl = QLabel("Use Autofocus on Axis:")
         self.use_af_p = QCheckBox("p")
         self.use_af_t = QCheckBox("t")
         self.use_af_g = QCheckBox("g")
@@ -189,12 +189,12 @@ class AutofocusAxis(QWidget):
     def value(self) -> tuple[str, ...]:
         """Return the autofocus axes."""
         af_axis: tuple[str, ...] = ()
+        if self.use_af_p.isChecked():
+            af_axis += ("p",)
         if self.use_af_t.isChecked():
             af_axis += ("t",)
         if self.use_af_g.isChecked():
             af_axis += ("g",)
-        if self.use_af_p.isChecked():
-            af_axis += ("p",)
         return af_axis
 
     def setValue(self, value: tuple[str, ...]) -> None:
@@ -322,8 +322,9 @@ class MDASequenceWidget(QWidget):
         self.axis_order.currentTextChanged.connect(self.valueChanged)
         self.valueChanged.connect(self._update_time_estimate)
 
-        self.stage_positions.use_af.toggled.connect(self._on_af_toggled)
-        self.tab_wdg.tabChecked.connect(self._on_position_tab_checked)
+        self.keep_shutter_open.valueChanged.connect(self.valueChanged)
+        self.af_axis.valueChanged.connect(self.valueChanged)
+        self.stage_positions.af_per_position.toggled.connect(self._on_af_toggled)
 
         with signals_blocked(self):
             self.tab_wdg.setChecked(self.channels, True)
@@ -362,9 +363,20 @@ class MDASequenceWidget(QWidget):
         # update keep_shutter_open_across
         val = val.replace(keep_shutter_open_across=self.keep_shutter_open.value())
 
-        # if the autofocus offsets are the same for all positions, make a general
-        # autofocus plan and remove it from each single position
-        val = self._simplify_af_offsets(val)
+        # if autofocus is enabled, use it as global autofocus plan with the specified
+        # axes. Note: override this method in the core connected widget to use the
+        # current offset position.
+        if (
+            self.af_axis.value()
+            and not self.stage_positions.af_per_position.isChecked()
+        ):
+            val = val.replace(
+                autofocus_plan=useq.AxesBasedAF(axes=self.af_axis.value())
+            )
+        else:
+            # if the autofocus offsets are the same for all positions, make a general
+            # autofocus plan and remove it from each single position
+            val = self._simplify_af_offsets(val)
 
         return val
 
@@ -437,20 +449,11 @@ class MDASequenceWidget(QWidget):
 
     # -------------- Private API --------------
 
-    def _on_position_tab_checked(self, tab_number: int, checked: bool) -> None:
-        if tab_number != 1:
-            return
-        if checked:
-            self._on_af_toggled(self.stage_positions.use_af.isChecked())
-        else:
-            self.af_axis.use_af_p.setEnabled(True)
-
     def _on_af_toggled(self, checked: bool) -> None:
+        # if the 'af_per_position' checkbox in the PositionTable is checked, set checked
+        # also the autofocus p axis checkbox.
         if checked and self.tab_wdg.isChecked(self.stage_positions):
             self.af_axis.use_af_p.setChecked(True)
-            self.af_axis.use_af_p.setEnabled(False)
-        else:
-            self.af_axis.use_af_p.setEnabled(True)
 
     def _on_tab_checked(self, idx: int, checked: bool) -> None:
         """Handle tabChecked signal.
@@ -524,13 +527,10 @@ class MDASequenceWidget(QWidget):
         self, positions: tuple[useq.Position, ...]
     ) -> tuple[useq.Position, ...]:
         """Update the autofocus axes in the sequence."""
-        # get the autofocus axes
-        af_axes = self.af_axis.value()
-
         updated_pos = []
         for pos in positions:
             if pos.sequence and pos.sequence.autofocus_plan:
-                af_plan = pos.sequence.autofocus_plan.replace(axes=af_axes)
+                af_plan = pos.sequence.autofocus_plan.replace(axes=self.af_axis.value())
                 updated_pos.append(
                     pos.replace(sequence=pos.sequence.replace(autofocus_plan=af_plan))
                 )

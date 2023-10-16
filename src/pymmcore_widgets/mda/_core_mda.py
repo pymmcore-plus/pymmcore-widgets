@@ -8,6 +8,8 @@ from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QSize, Signal
 from qtpy.QtWidgets import (
     QBoxLayout,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QGridLayout,
     QGroupBox,
@@ -15,10 +17,11 @@ from qtpy.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QVBoxLayout,
     QWidget,
 )
 from superqt.fonticon import icon
-from useq import AxesBasedAF, MDASequence, Position
+from useq import MDASequence, Position
 
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
@@ -35,6 +38,9 @@ if TYPE_CHECKING:
     class SaveInfo(TypedDict):
         save_dir: str
         save_name: str
+
+
+OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
 
 
 class CoreMDATabs(MDATabs):
@@ -107,6 +113,15 @@ class MDAWidget(MDASequenceWidget):
         if val.z_plan and val.z_plan.is_relative and not val.stage_positions:
             val = val.replace(stage_positions=[self._get_current_stage_position()])
 
+        # if there is an autofocus_plan but the autofocus_motor_offset is None, set it
+        # to the current value
+        if val.autofocus_plan and val.autofocus_plan.autofocus_motor_offset is None:
+            val = val.replace(
+                autofocus_plan=val.autofocus_plan.replace(
+                    autofocus_motor_offset=self._mmc.getAutoFocusOffset()
+                )
+            )
+
         meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
         if self.save_info.isChecked():
             meta.update(self.save_info.value())
@@ -117,20 +132,7 @@ class MDAWidget(MDASequenceWidget):
         x = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         y = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
-        if not self._mmc.isContinuousFocusLocked():
-            return Position(x=x, y=y, z=z)
-
-        # if continuous focus is currently engaged and locked,
-        # add an autofocus plan to the sequence
-        # if 'p' is not in the axes, add it
-        self.af_axis.use_af_p.setChecked(True)
-        sub_seq = MDASequence(
-            autofocus_plan=AxesBasedAF(
-                autofocus_motor_offset=self._mmc.getAutoFocusOffset(),
-                axes=self.af_axis.value(),
-            )
-        )
-        return Position(x=x, y=y, z=z, sequence=sub_seq)
+        return Position(x=x, y=y, z=z)
 
     def setValue(self, value: MDASequence) -> None:
         """Get the current state of the widget."""
@@ -151,6 +153,18 @@ class MDAWidget(MDASequenceWidget):
 
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
+        # if 'af_per_position' is not checked and the autofocus is not locked, open
+        # AutofocusWarning
+        if (
+            not self.stage_positions.af_per_position.isChecked()
+            and not self._mmc.isContinuousFocusLocked()
+            and self.af_axis.value()
+        ):
+            af_warning = AutofocusWarning(
+                self._mmc.getAutoFocusDevice(), self.af_axis.value(), self
+            )
+            if not af_warning.exec():
+                return
         # run the MDA experiment asynchronously
         self._mmc.run_mda(self.value())
         return
@@ -171,6 +185,27 @@ class MDAWidget(MDASequenceWidget):
             self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
             self._mmc.mda.events.sequenceFinished.disconnect(self._on_mda_finished)
             self._mmc.events.channelGroupChanged.disconnect(self._update_channel_groups)
+
+
+class AutofocusWarning(QDialog):
+    def __init__(
+        self, device: str, axis: tuple[str, ...], parent: QWidget | None = None
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(f"{device} Warning")
+
+        af_warning = QDialogButtonBox(OK_CANCEL)
+        af_warning.accepted.connect(self.accept)
+        af_warning.rejected.connect(self.reject)
+
+        layout = QVBoxLayout(self)
+        message = QLabel(
+            f"The '{device}' Autofocus Device wants to be used across the "
+            f"({', '.join(axis)}) axis. \nHowever it is NOT Locked. Do you wish to "
+            "continue?"
+        )
+        layout.addWidget(message)
+        layout.addWidget(af_warning)
 
 
 class _SaveGroupBox(QGroupBox):

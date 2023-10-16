@@ -47,8 +47,6 @@ class MDA(QWidget):
         # instantiate the MDAWidget, and a couple labels for feedback
         self.mda = MDAWidget()
         self.mda.valueChanged.connect(self._update_sequence)
-        self.mda.af_axis.valueChanged.connect(self._update_sequence)
-        self.mda.keep_shutter_open.valueChanged.connect(self._update_sequence)
         self.current_sequence = QLabel('... enter info and click "Run"')
         self.current_event = QLabel("... current event info will appear here")
 

@@ -12,7 +12,7 @@ from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
-from pymmcore_widgets.useq_widgets._positions import _MDAPopup
+from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP, _MDAPopup
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -130,13 +130,13 @@ def _assert_position_wdg_state(
             sub_seq = [v.sequence for v in pos_table.value()]
             assert all(s is None for s in sub_seq)
         # the use autofocus checkbox should be unchecked
-        assert not pos_table.use_af.isChecked()
+        assert not pos_table.af_per_position.isChecked()
         # the use autofocus checkbox should be disabled if Autofocus device is not
         # loaded/selected
-        assert pos_table.use_af.isEnabled() == (not is_hidden)
+        assert pos_table.af_per_position.isEnabled() == (not is_hidden)
         # tooltip should should change if Autofocus device is not loaded/selected
-        tooltip = "AutoFocus device unavailable." if is_hidden else ""
-        assert pos_table.use_af.toolTip() == tooltip
+        tooltip = "AutoFocus device unavailable." if is_hidden else AF_DEFAULT_TOOLTIP
+        assert pos_table.af_per_position.toolTip() == tooltip
 
 
 @pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
@@ -234,10 +234,12 @@ def test_core_position_table_add_position(
     wdg._mmc.setXYPosition(11, 22)
     wdg._mmc.setZPosition(33)
 
-    wdg.stage_positions.use_af.setChecked(True)
+    with pytest.warns(UserWarning, match="Autofocus Device is NOT Locked"):
+        wdg.stage_positions.af_per_position.setChecked(True)
 
     with qtbot.waitSignals([pos_table.valueChanged], order="strict", timeout=1000):
         pos_table.act_add_row.trigger()
+
     val = pos_table.value()[-1]
     assert round(val.x, 1) == 11
     assert round(val.y, 1) == 22
@@ -307,13 +309,14 @@ def test_core_position_table_checkboxes_toggled(qtbot: QtBot):
     af_btn_col = pos_table.table().indexOf(pos_table._af_btn_col)
 
     pos_table.include_z.setChecked(False)
-    pos_table.use_af.setChecked(False)
+    pos_table.af_per_position.setChecked(False)
 
     assert pos_table.table().isColumnHidden(z_btn_col)
     assert pos_table.table().isColumnHidden(af_btn_col)
 
     pos_table.include_z.setChecked(True)
-    pos_table.use_af.setChecked(True)
+    with pytest.warns(UserWarning, match="Autofocus Device is NOT Locked"):
+        pos_table.af_per_position.setChecked(True)
 
     assert not pos_table.table().isColumnHidden(z_btn_col)
     assert not pos_table.table().isColumnHidden(af_btn_col)
