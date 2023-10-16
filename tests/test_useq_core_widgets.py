@@ -333,7 +333,8 @@ def test_core_mda_autofocus(qtbot: QtBot):
         useq.Position(x=1, y=1, z=1, sequence=useq.MDASequence(autofocus_plan=AF)),
     ]
     MDA = useq.MDASequence(stage_positions=POS)
-    wdg.setValue(MDA)
+    with pytest.warns(UserWarning, match="Autofocus Device is NOT Locked"):
+        wdg.setValue(MDA)
 
     assert wdg.value().autofocus_plan
     assert wdg.value().autofocus_plan.autofocus_motor_offset == 10
@@ -347,7 +348,8 @@ def test_core_mda_autofocus(qtbot: QtBot):
     ]
     MDA = MDA.replace(stage_positions=POS1)
 
-    wdg.setValue(MDA)
+    with pytest.warns(UserWarning, match="Autofocus Device is NOT Locked"):
+        wdg.setValue(MDA)
     assert not wdg.value().autofocus_plan
     assert (
         wdg.value().stage_positions[0].sequence.autofocus_plan.autofocus_motor_offset
@@ -372,7 +374,8 @@ def test_core_mda_autofocus(qtbot: QtBot):
     ]
     MDA = MDA.replace(stage_positions=POS2)
 
-    wdg.setValue(MDA)
+    with pytest.warns(UserWarning, match="Autofocus Device is NOT Locked"):
+        wdg.setValue(MDA)
     assert wdg.value().autofocus_plan
     assert wdg.value().autofocus_plan.autofocus_motor_offset == 10
     assert not wdg.value().stage_positions[0].sequence
