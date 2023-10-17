@@ -161,8 +161,10 @@ class MDAWidget(MDASequenceWidget):
             af_warning = AutofocusWarning(
                 self._mmc.getAutoFocusDevice(), self.af_axis.value(), self
             )
-            if not af_warning.exec():
-                return
+            if af_warning.exec():
+                self._mmc.run_mda(self.value())
+            return
+
         # run the MDA experiment asynchronously
         self._mmc.run_mda(self.value())
         return
