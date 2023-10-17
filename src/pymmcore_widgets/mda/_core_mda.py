@@ -38,9 +38,6 @@ if TYPE_CHECKING:
         save_name: str
 
 
-OK_CANCEL = QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
-
-
 class CoreMDATabs(MDATabs):
     def __init__(
         self, parent: QWidget | None = None, core: CMMCorePlus | None = None
@@ -151,23 +148,33 @@ class MDAWidget(MDASequenceWidget):
 
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
-        # if 'af_per_position' is not checked and the autofocus is not locked, open
-        # AutofocusWarning
+        # if 'af_per_position' is not checked and the autofocus is not locked, show
+        # a warning QMessageBox
         if (
             not self.stage_positions.af_per_position.isChecked()
             and not self._mmc.isContinuousFocusLocked()
             and self.af_axis.value()
         ):
-            af_warning = AutofocusWarning(
-                self._mmc.getAutoFocusDevice(), self.af_axis.value(), self
-            )
-            if af_warning.exec():
-                self._mmc.run_mda(self.value())
-            return
+            af_warning = self._show_af_warning()
+            if af_warning == QMessageBox.StandardButton.Cancel:
+                return
 
         # run the MDA experiment asynchronously
         self._mmc.run_mda(self.value())
         return
+
+    def _show_af_warning(self) -> QMessageBox:
+        return QMessageBox.warning(
+            self,
+            f"{self._mmc.getAutoFocusDevice()} Warning",
+            (
+                f"The '{self._mmc.getAutoFocusDevice()}' Autofocus Device wants to "
+                f"be used across the ({', '.join(self.af_axis.value())}) axis. "
+                "\n\nHowever it is NOT Locked in focus."
+                "\n\nDo you wish to continue?"
+            ),
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
 
     def _enable_widgets(self, enable: bool) -> None:
         for child in self.children():
@@ -185,23 +192,6 @@ class MDAWidget(MDASequenceWidget):
             self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
             self._mmc.mda.events.sequenceFinished.disconnect(self._on_mda_finished)
             self._mmc.events.channelGroupChanged.disconnect(self._update_channel_groups)
-
-
-class AutofocusWarning(QMessageBox):
-    def __init__(
-        self, device: str, axis: tuple[str, ...], parent: QWidget | None = None
-    ) -> None:
-        super().__init__(parent)
-        self.setWindowTitle(f"{device} Warning")
-        self.setIcon(QMessageBox.Icon.Warning)
-        self.setText(
-            f"The '{device}' Autofocus Device wants to be used across the "
-            f"({', '.join(axis)}) axis. \n\nHowever it is NOT Locked in focus."
-            "\n\nDo you wish to continue?"
-        )
-        self.setStandardButtons(OK_CANCEL)
-        self.accepted.connect(self.accept)
-        self.rejected.connect(self.reject)
 
 
 class _SaveGroupBox(QGroupBox):
