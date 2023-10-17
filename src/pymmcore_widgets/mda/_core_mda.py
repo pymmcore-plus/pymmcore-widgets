@@ -8,16 +8,14 @@ from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QSize, Signal
 from qtpy.QtWidgets import (
     QBoxLayout,
-    QDialog,
-    QDialogButtonBox,
     QFileDialog,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
-    QVBoxLayout,
     QWidget,
 )
 from superqt.fonticon import icon
@@ -40,7 +38,7 @@ if TYPE_CHECKING:
         save_name: str
 
 
-OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+OK_CANCEL = QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
 
 
 class CoreMDATabs(MDATabs):
@@ -187,25 +185,21 @@ class MDAWidget(MDASequenceWidget):
             self._mmc.events.channelGroupChanged.disconnect(self._update_channel_groups)
 
 
-class AutofocusWarning(QDialog):
+class AutofocusWarning(QMessageBox):
     def __init__(
         self, device: str, axis: tuple[str, ...], parent: QWidget | None = None
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle(f"{device} Warning")
-
-        af_warning = QDialogButtonBox(OK_CANCEL)
-        af_warning.accepted.connect(self.accept)
-        af_warning.rejected.connect(self.reject)
-
-        layout = QVBoxLayout(self)
-        message = QLabel(
+        self.setIcon(QMessageBox.Icon.Warning)
+        self.setText(
             f"The '{device}' Autofocus Device wants to be used across the "
-            f"({', '.join(axis)}) axis. \nHowever it is NOT Locked. Do you wish to "
-            "continue?"
+            f"({', '.join(axis)}) axis. \n\nHowever it is NOT Locked in focus."
+            "\n\nDo you wish to continue?"
         )
-        layout.addWidget(message)
-        layout.addWidget(af_warning)
+        self.setStandardButtons(OK_CANCEL)
+        self.accepted.connect(self.accept)
+        self.rejected.connect(self.reject)
 
 
 class _SaveGroupBox(QGroupBox):
