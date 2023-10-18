@@ -390,8 +390,10 @@ class MDASequenceWidget(QWidget):
 
         # update autofocus axes checkboxes
         axis: set[str] = set()
+        # update from global autofocus plan
         if value.autofocus_plan:
             axis.update(value.autofocus_plan.axes)
+        # update from autofocus plans in each position sub-sequence
         if value.stage_positions:
             for pos in value.stage_positions:
                 if pos.sequence and pos.sequence.autofocus_plan:
