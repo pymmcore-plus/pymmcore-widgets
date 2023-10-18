@@ -169,7 +169,7 @@ class MDAWidget(MDASequenceWidget):
             (
                 f"The '{self._mmc.getAutoFocusDevice()}' Autofocus Device wants to "
                 f"be used across the ({', '.join(self.af_axis.value())}) axis. "
-                "\n\nHowever it is NOT Locked in focus."
+                "\n\nHowever it is NOT Locked in Focus."
                 "\n\nDo you wish to continue?"
             ),
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
