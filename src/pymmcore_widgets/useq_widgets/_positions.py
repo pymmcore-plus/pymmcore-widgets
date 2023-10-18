@@ -57,8 +57,6 @@ class _MDAPopup(QDialog):
         # create a new MDA tab widget without the stage positions tab
         self.mda_tabs = tab_type(self)
         self.mda_tabs.removeTab(self.mda_tabs.indexOf(self.mda_tabs.stage_positions))
-        self.mda_tabs.time_plan.leave_shutter_open.hide()
-        self.mda_tabs.z_plan.leave_shutter_open.hide()
 
         # use the parent's channel groups if possible
         par = self.parent()
