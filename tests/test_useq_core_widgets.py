@@ -12,6 +12,7 @@ from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
+from pymmcore_widgets.useq_widgets._mda_sequence import AutofocusAxis, KeepShutterOpen
 from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP, _MDAPopup
 
 if TYPE_CHECKING:
@@ -378,3 +379,21 @@ def test_core_mda_autofocus(qtbot: QtBot):
     assert wdg.value().autofocus_plan.autofocus_motor_offset == 10
     assert not wdg.value().stage_positions[0].sequence
     assert wdg.value().stage_positions[1].sequence
+
+
+def test_af_axis_wdg(qtbot: QtBot):
+    wdg = AutofocusAxis()
+    qtbot.addWidget(wdg)
+
+    assert not wdg.value()
+    wdg.setValue(("p", "t", "g"))
+    assert wdg.value() == ("p", "t", "g")
+
+
+def test_keep_shutter_open_wdg(qtbot: QtBot):
+    wdg = KeepShutterOpen()
+    qtbot.addWidget(wdg)
+
+    assert not wdg.value()
+    wdg.setValue(("z", "t"))
+    assert wdg.value() == ("z", "t")
