@@ -148,13 +148,12 @@ class MDAWidget(MDASequenceWidget):
 
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
-        # if 'af_per_position' is not checked and the autofocus is not locked, show
-        # a warning QMessageBox
+        # if 'af_per_position' or 'stage_positions' are not checked and the autofocus is
+        # not locked, show a warning QMessageBox
         if (
-            not self.stage_positions.af_per_position.isChecked()
-            and not self._mmc.isContinuousFocusLocked()
-            and self.af_axis.value()
-        ):
+            not self.tab_wdg.isChecked(self.stage_positions)
+            or not self.stage_positions.af_per_position.isChecked()
+        ) and (not self._mmc.isContinuousFocusLocked() and self.af_axis.value()):
             af_warning = self._show_af_warning()
             if af_warning == QMessageBox.StandardButton.Cancel:
                 return
