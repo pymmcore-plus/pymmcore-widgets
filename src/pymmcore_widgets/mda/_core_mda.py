@@ -173,6 +173,7 @@ class MDAWidget(MDASequenceWidget):
                 "\n\nDo you wish to continue?"
             ),
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
         )
 
     def _enable_widgets(self, enable: bool) -> None:

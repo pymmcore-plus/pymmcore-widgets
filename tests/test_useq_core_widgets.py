@@ -384,6 +384,7 @@ def test_core_mda_autofocus(qtbot: QtBot):
 def test_af_axis_wdg(qtbot: QtBot):
     wdg = AutofocusAxis()
     qtbot.addWidget(wdg)
+    wdg.show()
 
     assert not wdg.value()
     wdg.setValue(("p", "t", "g"))
@@ -393,7 +394,30 @@ def test_af_axis_wdg(qtbot: QtBot):
 def test_keep_shutter_open_wdg(qtbot: QtBot):
     wdg = KeepShutterOpen()
     qtbot.addWidget(wdg)
+    wdg.show()
 
     assert not wdg.value()
     wdg.setValue(("z", "t"))
     assert wdg.value() == ("z", "t")
+
+
+# TODO: to fix
+# def test_run_mda_with_af(qtbot: QtBot):
+#     wdg = MDAWidget()
+#     qtbot.addWidget(wdg)
+#     wdg.show()
+
+#     MDA = useq.MDASequence(
+#         autofocus_plan=useq.AxesBasedAF(
+#             autofocus_device_name=None,
+#             autofocus_motor_offset=10,
+#             axes=("p", "t"),
+#         )
+#     )
+#     wdg.setValue(MDA)
+
+#     with mock.patch(
+#         "qtpy.QtWidgets.QMessageBox.warning",
+#         return_value=QMessageBox.StandardButton.Cancel,
+#     ):
+#         wdg.control_btns.run_btn.click()
