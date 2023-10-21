@@ -186,6 +186,7 @@ class DevicePropertyTable(QTableWidget):
         query: str = "",
         exclude_devices: Iterable[DeviceType] = (),
         include_read_only: bool = True,
+        include_pre_init: bool = True,
         init_props_only: bool = False,
     ) -> None:
         """Update the table to only show devices that match the given query/filter."""
@@ -195,6 +196,7 @@ class DevicePropertyTable(QTableWidget):
             prop = cast(DeviceProperty, item.data(self.PROP_ROLE))
             if (
                 (prop.isReadOnly() and not include_read_only)
+                or (prop.isPreInit() and not include_pre_init)
                 or (init_props_only and not prop.isPreInit())
                 or (prop.deviceType() in exclude_devices)
                 or (query and query.lower() not in item.text().lower())
