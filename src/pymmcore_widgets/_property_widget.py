@@ -336,17 +336,17 @@ class PropertyWidget(QWidget):
         self.layout().addWidget(cast(QWidget, self._value_widget))
         self.destroyed.connect(self._disconnect)
 
-        # disable for any device init state besides 0 (Uninitialized)
-        if hasattr(self._mmc, "getDeviceInitializationState") and (
-            self._mmc.isPropertyPreInit(device_label, prop_name)
-            and self._mmc.getDeviceInitializationState(device_label)
-        ):
-            self.setDisabled(True)
-
     def _try_update_from_core(self) -> None:
         # set current value from core, ignoring errors
         with contextlib.suppress(RuntimeError, ValueError):
             self._value_widget.setValue(self._mmc.getProperty(*self._dp))
+
+        # disable for any device init state besides 0 (Uninitialized)
+        if hasattr(self._mmc, "getDeviceInitializationState") and (
+            self._mmc.isPropertyPreInit(self._device_label, self._prop_name)
+            and self._mmc.getDeviceInitializationState(self._device_label)
+        ):
+            self.setDisabled(True)
 
     # connect events and queue for disconnection on widget destroyed
     def _on_core_change(self, dev_label: str, prop_name: str, new_val: Any) -> None:
