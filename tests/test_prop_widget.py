@@ -16,7 +16,7 @@ dev_props = [
     (dev, prop)
     for dev in CORE.getLoadedDevices()
     for prop in CORE.getDevicePropertyNames(dev)
-    if dev != "LED" and prop != "Number of positions"
+    if dev != "LED" and prop not in {"Number of positions", "Initialize"}
 ]
 
 
@@ -59,7 +59,14 @@ def test_property_widget(dev, prop, qtbot):
     else:
         val = "some string"
 
+    before = wdg.value()
     wdg.setValue(val)
+    if CORE.isPropertyPreInit(dev, prop):
+        # as of pymmcore 10.7.0.71.0, setting pre-init properties
+        # after the device has been initialized does nothing.
+        _assert_equal(wdg.value(), before)
+        return
+
     _assert_equal(wdg.value(), val)
     _assert_equal(CORE.getProperty(dev, prop), val)
 

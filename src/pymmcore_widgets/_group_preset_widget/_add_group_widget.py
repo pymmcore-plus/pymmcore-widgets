@@ -140,7 +140,10 @@ class AddGroupWidget(QDialog):
     def _update_filter(self) -> None:
         filt = self._filter_text.text().lower()
         self._prop_table.filterDevices(
-            filt, self._device_filters.filters(), self._device_filters.showReadOnly()
+            filt,
+            exclude_devices=self._device_filters.filters(),
+            include_read_only=self._device_filters.showReadOnly(),
+            include_pre_init=self._device_filters.showPreInitProps(),
         )
 
     def _add_group(self) -> None:
