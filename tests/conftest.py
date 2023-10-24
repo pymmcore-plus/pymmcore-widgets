@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -43,7 +42,8 @@ def _run_after_each_test(request: "FixtureRequest", qapp: "QApplication"):
         if (
             # os.name == "nt"
             # and sys.version_info[:2] <= (3, 9)
-            type(remaining[0]).__name__ in {"ImagePreview", "SnapButton"}
+            type(remaining[0]).__name__
+            in {"ImagePreview", "SnapButton"}
         ):
             # I have no idea why, but the ImagePreview widget is leaking.
             # And it only came with a seemingly unrelated
