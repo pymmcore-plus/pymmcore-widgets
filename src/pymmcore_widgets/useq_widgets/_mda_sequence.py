@@ -505,9 +505,7 @@ class MDASequenceWidget(QWidget):
 
         # if they aren't all the same, there's nothing we can do to simplify it.
         if len(af_offsets) != 1:
-            positions = self._update_af_axes(seq.stage_positions)
-            return {"stage_positions": positions}
-            # return seq.replace(stage_positions=positions)
+            return {"stage_positions": self._update_af_axes(seq.stage_positions)}
 
         # otherwise, make a global AF plan and remove it from each position
         stage_positions = []
@@ -524,20 +522,16 @@ class MDASequenceWidget(QWidget):
             autofocus_motor_offset=af_offsets.pop(), axes=self.af_axis.value()
         )
         return {"autofocus_plan": af_plan, "stage_positions": stage_positions}
-        # return seq.replace(autofocus_plan=af_plan, stage_positions=stage_positions)
 
     def _update_af_axes(
         self, positions: tuple[useq.Position, ...]
     ) -> tuple[useq.Position, ...]:
-        """Update the autofocus axes in the sequence."""
-        updated_pos = []
+        """Add the autofocus axes to each subsequence."""
+        new_pos = []
         for pos in positions:
-            if pos.sequence and pos.sequence.autofocus_plan:
-                af_plan = pos.sequence.autofocus_plan.replace(axes=self.af_axis.value())
-                updated_pos.append(
-                    pos.replace(sequence=pos.sequence.replace(autofocus_plan=af_plan))
-                )
-            else:
-                updated_pos.append(pos)
+            if (seq := pos.sequence) and (af_plan := seq.autofocus_plan):
+                af_plan = af_plan.replace(axes=self.af_axis.value())
+                pos = pos.replace(sequence=seq.replace(autofocus_plan=af_plan))
+            new_pos.append(pos)
 
-        return tuple(updated_pos)
+        return tuple(new_pos)
