@@ -5,7 +5,6 @@ try:
     __version__ = version("pymmcore-widgets")
 except PackageNotFoundError:
     __version__ = "uninstalled"
-
 from ._camera_roi_widget import CameraRoiWidget
 from ._channel_group_widget import ChannelGroupWidget
 from ._channel_widget import ChannelWidget
@@ -13,6 +12,7 @@ from ._device_widget import DeviceWidget, StateDeviceWidget
 from ._exposure_widget import DefaultCameraExposureWidget, ExposureWidget
 from ._group_preset_widget._group_preset_table_widget import GroupPresetTableWidget
 from ._image_widget import ImagePreview
+from ._install_widget import InstallWidget
 from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
 from ._mda import (
@@ -45,6 +45,7 @@ __all__ = [
     "GridWidget",
     "GroupPresetTableWidget",
     "ImagePreview",
+    "InstallWidget",
     "LiveButton",
     "MDAWidget",
     "ObjectivesWidget",
