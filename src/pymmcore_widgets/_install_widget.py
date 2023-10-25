@@ -208,7 +208,7 @@ class SubprocessThread(QThread):
             self.process.send_signal(signal.SIGINT)
 
 
-def _reveal(path: str) -> None:
+def _reveal(path: str) -> None:  # pragma: no cover
     """Reveal a path in the file explorer."""
     if hasattr(os, "startfile"):
         os.startfile(path)
