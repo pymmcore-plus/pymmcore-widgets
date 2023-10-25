@@ -125,14 +125,20 @@ class _InstallTable(QTableWidget):
 
     def refresh(self) -> None:
         self.setRowCount(0)
-        for full_path in sorted(find_micromanager(return_first=False)):
+        for i, full_path in enumerate(find_micromanager(return_first=False)):
             location, version = full_path.rsplit(os.path.sep, 1)
-            self.insertRow(0)
+            self.insertRow(i)
 
-            self.setItem(0, 0, QTableWidgetItem(version))
+            ver = QTableWidgetItem(version)
+            if i == 0:
+                f = ver.font()
+                f.setBold(True)
+                ver.setFont(f)
+            self.setItem(i, 0, ver)
+
             loc = QTableWidgetItem(location)
             loc.setData(LOC_ROLE, full_path)
-            self.setItem(0, self.LOC_COL, loc)
+            self.setItem(i, self.LOC_COL, loc)
 
     def reveal(self) -> None:
         """Reveal the currently selected row in the file explorer."""
