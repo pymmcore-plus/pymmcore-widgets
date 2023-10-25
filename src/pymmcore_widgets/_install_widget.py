@@ -25,6 +25,9 @@ from superqt import QSearchableComboBox
 
 LOC_ROLE = Qt.ItemDataRole.UserRole + 1
 
+# src/pymmcore_widgets/_install_widget.py
+# 83-98, 101-105, 144-148, 152-170, 180-182, 186-199, 203-204, 209-214
+
 
 class InstallWidget(QWidget):
     """Widget to manage installation of MicroManager."""
@@ -86,10 +89,12 @@ class InstallWidget(QWidget):
             return
 
         selected_version = self.version_combo.currentText()
-        cmd = ["mmcore", "install", "--release", selected_version]
-        self.feedback_textbox.append(f'Running: {" ".join(cmd)}')
+        cmd = ["mmcore", "install", "--release", selected_version, "--plain-output"]
+        if dest := getattr(self, "_install_dest", None):  # for pytest, could expose
+            cmd = [*cmd, "--dest", dest]
 
-        self._cmd_thread = SubprocessThread([*cmd, "--plain-output"])
+        self.feedback_textbox.append(f'Running:\n{" ".join(cmd)}')
+        self._cmd_thread = SubprocessThread(cmd)
         self._cmd_thread.stdout_ready.connect(self.feedback_textbox.append)
         self._cmd_thread.process_finished.connect(self._on_finished)
 
@@ -181,7 +186,7 @@ class SubprocessThread(QThread):
         self.cmd = cmd
         self.process: subprocess.Popen | None = None
 
-    def run(self) -> None:
+    def run(self) -> None:  # pragma: no cover
         """Run the command and emit stdout and returncode."""
         self.process = process = subprocess.Popen(
             self.cmd,
@@ -194,7 +199,6 @@ class SubprocessThread(QThread):
         # Emit the read line for every line from stdout
         for line in iter(process.stdout.readline, ""):  # type: ignore
             self.stdout_ready.emit(line.strip())
-
         process.communicate()  # Ensure process completes
         self.process_finished.emit(process.returncode)
 
