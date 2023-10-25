@@ -29,28 +29,23 @@ LOC_ROLE = Qt.ItemDataRole.UserRole + 1
 class InstallWidget(QWidget):
     """Widget to manage installation of MicroManager."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
         self._cmd_thread: SubprocessThread | None = None
 
-        self.table = _InstallTable()
+        self.table = _InstallTable(self)
 
         # Toolbar ------------------------
 
-        self.toolbar = QToolBar()
+        self.toolbar = QToolBar(self)
         self.toolbar.addAction("Refresh", self.table.refresh)
-        reveal = self.toolbar.addAction("Reveal", self.table.reveal)
-        reveal.setEnabled(False)
-        uninstall = self.toolbar.addAction("Uninstall", self.table.uninstall)
-        uninstall.setEnabled(False)
+        self._act_reveal = self.toolbar.addAction("Reveal", self.table.reveal)
+        self._act_reveal.setEnabled(False)
+        self._act_uninstall = self.toolbar.addAction("Uninstall", self.table.uninstall)
+        self._act_uninstall.setEnabled(False)
+        self.table.itemSelectionChanged.connect(self._on_selection_changed)
 
-        @self.table.itemSelectionChanged.connect  # type: ignore
-        def _on_selection_changed() -> None:
-            has_selection = bool(self.table.selectedIndexes())
-            reveal.setEnabled(has_selection)
-            uninstall.setEnabled(has_selection)
-
-        # install row ------------------------
+        # # install row ------------------------
 
         self.version_combo = QSearchableComboBox()
         self.version_combo.lineEdit().setReadOnly(True)
@@ -60,13 +55,13 @@ class InstallWidget(QWidget):
         self.install_btn = QPushButton("Install")
         self.install_btn.clicked.connect(self._on_install_clicked)
 
-        # feedback ------------------------
+        # # feedback ------------------------
 
         self.feedback_textbox = QTextEdit()
         self.feedback_textbox.setReadOnly(True)
         self.feedback_textbox.hide()
 
-        # Layout ------------------------
+        # # Layout ------------------------
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.toolbar)
@@ -78,7 +73,11 @@ class InstallWidget(QWidget):
         layout.addLayout(row)
         layout.addWidget(self.feedback_textbox)
 
-        self.resize(500, 300)
+    def _on_selection_changed(self) -> None:
+        """Hide/Show reveal uninstall buttons based on selection."""
+        has_selection = bool(self.table.selectedIndexes())
+        self._act_reveal.setEnabled(has_selection)
+        self._act_uninstall.setEnabled(has_selection)
 
     def _on_install_clicked(self) -> None:
         if self._cmd_thread:
