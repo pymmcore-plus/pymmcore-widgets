@@ -70,9 +70,9 @@ class InstallWidget(QWidget):
         layout.addWidget(self.toolbar)
         layout.addWidget(self.table)
         row = QHBoxLayout()
-        row.addWidget(self.install_btn, 1)
-        row.addWidget(QLabel("Release:"), 0)
+        row.addWidget(QLabel("Install release:"), 0)
         row.addWidget(self.version_combo, 1)
+        row.addWidget(self.install_btn, 1)
         layout.addLayout(row)
         layout.addWidget(self.feedback_textbox)
 
