@@ -357,26 +357,24 @@ class MDASequenceWidget(QWidget):
         """Return the current sequence as a `useq-schema` MDASequence."""
         val = self.tab_wdg.value()
 
-        # update mda axis order
-        val = val.replace(axis_order=self.axis_order.currentText())
+        # things to update
+        replace: dict = {
+            # update mda axis order
+            "axis_order": self.axis_order.currentText(),
+            # update keep_shutter_open_across
+            "keep_shutter_open_across": self.keep_shutter_open.value(),
+        }
 
-        # update keep_shutter_open_across
-        val = val.replace(keep_shutter_open_across=self.keep_shutter_open.value())
+        if self.stage_positions.af_per_position.isChecked():
+            # check if the autofocus offsets are the same for all positions
+            # and simplify to a single global autofocus plan if so.
+            replace.update(self._simplify_af_offsets(val))
+        elif af_axes := self.af_axis.value():
+            # otherwise use selected af axes as global autofocus plan
+            replace["autofocus_plan"] = useq.AxesBasedAF(axes=af_axes)
 
-        # if autofocus is enabled, use it as global autofocus plan with the specified
-        # axes. Note: override this method in the core connected widget to use the
-        # current offset position.
-        if (
-            self.af_axis.value()
-            and not self.stage_positions.af_per_position.isChecked()
-        ):
-            val = val.replace(
-                autofocus_plan=useq.AxesBasedAF(axes=self.af_axis.value())
-            )
-        else:
-            # if the autofocus offsets are the same for all positions, make a general
-            # autofocus plan and remove it from each single position
-            val = self._simplify_af_offsets(val)
+        if replace:
+            val = val.replace(**replace)
 
         return val
 
@@ -489,13 +487,14 @@ class MDASequenceWidget(QWidget):
         d = f"Estimated duration: {d}" if d else ""
         self._duration_label.setText(d)
 
-    def _simplify_af_offsets(self, seq: useq.MDASequence) -> useq.MDASequence:
+    def _simplify_af_offsets(self, seq: useq.MDASequence) -> dict:
         """If all positions have the same af offset, remove it from each position.
 
         Instead, add a global autofocus plan to the sequence.
+        This function returns a dict of fields to update in the sequence.
         """
         if not seq.stage_positions:
-            return seq
+            return {}
 
         # gather all the autofocus offsets in the subsequences
         af_offsets = {
@@ -507,7 +506,8 @@ class MDASequenceWidget(QWidget):
         # if they aren't all the same, there's nothing we can do to simplify it.
         if len(af_offsets) != 1:
             positions = self._update_af_axes(seq.stage_positions)
-            return seq.replace(stage_positions=positions)
+            return {"stage_positions": positions}
+            # return seq.replace(stage_positions=positions)
 
         # otherwise, make a global AF plan and remove it from each position
         stage_positions = []
@@ -523,7 +523,8 @@ class MDASequenceWidget(QWidget):
         af_plan = useq.AxesBasedAF(
             autofocus_motor_offset=af_offsets.pop(), axes=self.af_axis.value()
         )
-        return seq.replace(autofocus_plan=af_plan, stage_positions=stage_positions)
+        return {"autofocus_plan": af_plan, "stage_positions": stage_positions}
+        # return seq.replace(autofocus_plan=af_plan, stage_positions=stage_positions)
 
     def _update_af_axes(
         self, positions: tuple[useq.Position, ...]
