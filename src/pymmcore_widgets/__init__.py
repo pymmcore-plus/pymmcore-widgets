@@ -12,7 +12,7 @@ from ._device_widget import DeviceWidget, StateDeviceWidget
 from ._exposure_widget import DefaultCameraExposureWidget, ExposureWidget
 from ._group_preset_widget._group_preset_table_widget import GroupPresetTableWidget
 from ._image_widget import ImagePreview
-from ._installation_widget import InstallWidget
+from ._install_widget import InstallWidget
 from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
 from ._mda import (
