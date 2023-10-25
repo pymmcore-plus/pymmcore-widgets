@@ -98,6 +98,7 @@ class MDAWidget(MDASequenceWidget):
     def value(self) -> MDASequence:
         """Set the current state of the widget."""
         val = super().value()
+        replace = {}
 
         # if the z plan is relative, and there are no stage positions, add the current
         # stage position as the relative starting one.
@@ -106,16 +107,16 @@ class MDAWidget(MDASequenceWidget):
         # position" in useq.MDAEvent. At the moment, since the pymmcore-plus runner is
         # not aware of the core, we cannot move it there.
         if val.z_plan and val.z_plan.is_relative and not val.stage_positions:
-            val = val.replace(stage_positions=[self._get_current_stage_position()])
+            replace["stage_positions"] = (self._get_current_stage_position(),)
 
         # if there is an autofocus_plan but the autofocus_motor_offset is None, set it
         # to the current value
-        if val.autofocus_plan and val.autofocus_plan.autofocus_motor_offset is None:
-            val = val.replace(
-                autofocus_plan=val.autofocus_plan.replace(
-                    autofocus_motor_offset=self._mmc.getAutoFocusOffset()
-                )
-            )
+        if (afplan := val.autofocus_plan) and afplan.autofocus_motor_offset is None:
+            p2 = afplan.replace(autofocus_motor_offset=self._mmc.getAutoFocusOffset())
+            replace["autofocus_plan"] = p2
+
+        if replace:
+            val = val.replace(**replace)
 
         meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
         if self.save_info.isChecked():
@@ -148,33 +149,37 @@ class MDAWidget(MDASequenceWidget):
 
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
-        # if 'af_per_position' or 'stage_positions' are not checked and the autofocus is
-        # not locked, show a warning QMessageBox
+        # if autofocus has been requested, but the autofocus device is not engaged,
+        # and position-specific offsets haven't been set, show a warning
+        pos = self.stage_positions
         if (
-            not self.tab_wdg.isChecked(self.stage_positions)
-            or not self.stage_positions.af_per_position.isChecked()
-        ) and (not self._mmc.isContinuousFocusLocked() and self.af_axis.value()):
-            af_warning = self._show_af_warning()
-            if af_warning == QMessageBox.StandardButton.Cancel:
-                return
+            self.af_axis.value()
+            and not self._mmc.isContinuousFocusLocked()
+            and not (self.tab_wdg.isChecked(pos) and pos.af_per_position.isChecked())
+            and not self._confirm_af_intentions()
+        ):
+            return
 
         # run the MDA experiment asynchronously
         self._mmc.run_mda(self.value())
         return
 
-    def _show_af_warning(self) -> QMessageBox:
-        return QMessageBox.warning(
+    def _confirm_af_intentions(self) -> bool:
+        msg = (
+            "You've selected to use autofocus for this experiment, "
+            f"but the autofocus device ({self._mmc.getAutoFocusDevice()!r}) "
+            "is not currently engaged. "
+            "\n\nRun anyway?"
+        )
+
+        response = QMessageBox.warning(
             self,
-            f"{self._mmc.getAutoFocusDevice()} Warning",
-            (
-                f"The '{self._mmc.getAutoFocusDevice()}' Autofocus Device wants to "
-                f"be used across the ({', '.join(self.af_axis.value())}) axis. "
-                "\n\nHowever it is NOT Locked in Focus."
-                "\n\nDo you wish to continue?"
-            ),
+            "Confirm AutoFocus",
+            msg,
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Cancel,
         )
+        return response == QMessageBox.StandardButton.Ok
 
     def _enable_widgets(self, enable: bool) -> None:
         for child in self.children():
