@@ -31,5 +31,5 @@ repos:
       - id: mypy
         files: "^src/"
         additional_dependencies:
-          - pymmcore-plus >=0.7.1
+          - pymmcore-plus >=0.8.1
           - useq-schema >=0.4.7
