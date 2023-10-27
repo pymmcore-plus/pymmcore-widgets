@@ -187,6 +187,8 @@ class AutofocusAxis(QWidget):
         self.use_af_t.toggled.connect(self.valueChanged)
         self.use_af_g.toggled.connect(self.valueChanged)
 
+        self.setToolTip("Use Hardware Autofocus on the selected axes.")
+
     def value(self) -> tuple[str, ...]:
         """Return the autofocus axes."""
         af_axis: tuple[str, ...] = ()
@@ -225,6 +227,8 @@ class KeepShutterOpen(QWidget):
 
         self.leave_open_t.toggled.connect(self.valueChanged)
         self.leave_open_z.toggled.connect(self.valueChanged)
+
+        self.setToolTip("Keep the shutter open across the selected axes.")
 
     def value(self) -> tuple[str, ...]:
         """Return the axes to keep the shutter open across."""
