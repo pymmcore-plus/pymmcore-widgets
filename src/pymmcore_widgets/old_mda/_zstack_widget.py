@@ -207,7 +207,7 @@ class ZAboveBelowSelect(QWidget):
         return self._above_spinbox.value() + self._below_spinbox.value()  # type: ignore
 
 
-class ZStackWidget(QWidget):
+class OldZStackWidget(QWidget):
     """Widget providing options for setting up a z-stack range and step size.
 
     Each tab represents a different way of specifying a z-stack range. The `value()`

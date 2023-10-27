@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 from qtpy.QtWidgets import QFileDialog, QTableWidget
 
-from pymmcore_widgets._mda import PositionTable
+from pymmcore_widgets.old_mda import OldPositionTable
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -34,7 +34,7 @@ def _get_values(table: QTableWidget, row: int) -> list[str | float]:
 
 
 def test_single_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    p = PositionTable()
+    p = OldPositionTable()
     qtbot.addWidget(p)
 
     mmc = global_mmcore
@@ -69,7 +69,7 @@ def test_single_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
 
 def test_replace_pos(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    p = PositionTable()
+    p = OldPositionTable()
     qtbot.addWidget(p)
 
     mmc = global_mmcore
@@ -87,7 +87,7 @@ def test_replace_pos(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
 
 def test_go_to_pos(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    p = PositionTable()
+    p = OldPositionTable()
     qtbot.addWidget(p)
 
     mmc = global_mmcore
@@ -170,7 +170,7 @@ def pos():
     return pos_1, pos_2, pos_3
 
 
-def _wdg_value_no_fov(wdg: PositionTable):
+def _wdg_value_no_fov(wdg: OldPositionTable):
     val = wdg.value()
     for pos in val:
         if "sequence" in pos and "grid_plan" in (pos["sequence"] or {}):
@@ -184,7 +184,7 @@ def test_relative_grid_position(
 ):
     pos_1, pos_2, _ = pos
 
-    pos_wdg = PositionTable()
+    pos_wdg = OldPositionTable()
     qtbot.addWidget(pos_wdg)
 
     mmc = global_mmcore
@@ -244,7 +244,7 @@ def test_absolute_grid_position(
     global_mmcore: CMMCorePlus, qtbot: QtBot, pos: tuple[dict[str, Any], ...]
 ):
     _, _, pos_3 = pos
-    pos_wdg = PositionTable()
+    pos_wdg = OldPositionTable()
     qtbot.addWidget(pos_wdg)
 
     tb = pos_wdg._table
@@ -283,7 +283,7 @@ def test_pos_table_set_and_get_state(
     global_mmcore: CMMCorePlus, qtbot: QtBot, pos: tuple[dict[str, Any], ...]
 ):
     pos_1, pos_2, pos_3 = pos
-    pos_wdg = PositionTable()
+    pos_wdg = OldPositionTable()
     qtbot.addWidget(pos_wdg)
 
     pos_wdg.set_state([pos_1, pos_2, pos_3])
@@ -298,7 +298,7 @@ def test_pos_table_set_and_get_state(
 
 
 def test_autofocus_position(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    p = PositionTable()
+    p = OldPositionTable()
     qtbot.addWidget(p)
 
     mmc = global_mmcore
@@ -328,7 +328,7 @@ def test_no_z_stage(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mmc = global_mmcore
     mmc.unloadDevice("Z")
 
-    p = PositionTable()
+    p = OldPositionTable()
     qtbot.addWidget(p)
 
     tb = p._table
@@ -353,7 +353,7 @@ def test_no_xy_stage(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mmc = global_mmcore
     mmc.unloadDevice("XY")
 
-    p = PositionTable()
+    p = OldPositionTable()
     qtbot.addWidget(p)
 
     tb = p._table
@@ -374,7 +374,7 @@ def test_no_autofocus(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mmc = global_mmcore
     mmc.unloadDevice("Autofocus")
 
-    p = PositionTable()
+    p = OldPositionTable()
     qtbot.addWidget(p)
 
     assert not p._autofocus_wdg._af_checkbox.isEnabled()
@@ -382,7 +382,7 @@ def test_no_autofocus(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
 
 def test_set_state_with_autofocus(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    p = PositionTable()
+    p = OldPositionTable()
     qtbot.addWidget(p)
     tb = p._table
 
@@ -414,7 +414,7 @@ def test_set_state_with_autofocus(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
 
 def test_apply_grid_to_all_positions(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    p = PositionTable()
+    p = OldPositionTable()
     qtbot.addWidget(p)
     tb = p._table
 
@@ -463,7 +463,7 @@ def test_apply_grid_to_all_positions(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
 
 def test_on_property_changed_focus(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    p = PositionTable()
+    p = OldPositionTable()
     qtbot.addWidget(p)
     tb = p._table
     mmc = global_mmcore
@@ -475,7 +475,7 @@ def test_on_property_changed_focus(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
 
 def test_on_property_changed_autofocus(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    p = PositionTable()
+    p = OldPositionTable()
     qtbot.addWidget(p)
     mmc = global_mmcore
 
@@ -538,7 +538,7 @@ def test_save_and_load_position(qtbot: QtBot):
             return Path(tmp) / "test.json", None
 
         with patch.object(QFileDialog, "getSaveFileName", _path):
-            p = PositionTable()
+            p = OldPositionTable()
             qtbot.addWidget(p)
 
             pos = _pos_for_save_load(load=False)
@@ -569,7 +569,7 @@ def test_save_and_load_position(qtbot: QtBot):
 def test_set_state_with_different_z_af_devicies(
     global_mmcore: CMMCorePlus, qtbot: QtBot
 ):
-    p = PositionTable()
+    p = OldPositionTable()
     qtbot.addWidget(p)
     tb = p._table
 
@@ -591,7 +591,7 @@ def test_set_state_with_different_z_af_devicies(
 
 
 def test_set_state_autofocus_wrong_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    p = PositionTable()
+    p = OldPositionTable()
     qtbot.addWidget(p)
     tb = p._table
 

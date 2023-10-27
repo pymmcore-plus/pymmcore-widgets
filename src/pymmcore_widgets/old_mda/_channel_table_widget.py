@@ -27,7 +27,7 @@ from superqt import fonticon
 from superqt.utils import signals_blocked
 
 
-class ChannelTable(QWidget):
+class OldChannelTable(QWidget):
     """Widget providing options for setting up a multi-channel acquisition.
 
     The `value()` method returns a dictionary with the current state of the widget, in a

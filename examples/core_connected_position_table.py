@@ -1,20 +1,20 @@
-"""Example usage of the TimePlanWidget class.
+"""Example usage of the PositionTable class.
 
-Check also the 'mda_widget.py' example to see the TimePlanWidget
+Check also the 'mda_widget.py' example to see the PositionTable
 used in combination of other widgets.
 """
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets.useq_widgets import TimePlanWidget
+from pymmcore_widgets.mda import CoreConnectedPositionTable
 
 app = QApplication([])
 
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-t_wdg = TimePlanWidget()
-t_wdg.show()
+pos_wdg = CoreConnectedPositionTable()
+pos_wdg.show()
 
 app.exec_()

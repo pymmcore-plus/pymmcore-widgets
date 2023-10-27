@@ -7,14 +7,14 @@ used in combination of other widgets.
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets.useq_widgets import TimePlanWidget
+from pymmcore_widgets import OldTimePlanWidget
 
 app = QApplication([])
 
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-t_wdg = TimePlanWidget()
+t_wdg = OldTimePlanWidget()
 t_wdg.show()
 
 app.exec_()

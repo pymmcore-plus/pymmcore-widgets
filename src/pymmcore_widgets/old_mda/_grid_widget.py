@@ -562,7 +562,7 @@ class _MoveToWidget(QGroupBox):
                 return
 
 
-class GridWidget(QWidget):
+class OldGridWidget(QWidget):
     """A subwidget to setup the acquisition of a grid of images.
 
     The `value()` method returns a dictionary with the current state of the widget, in a

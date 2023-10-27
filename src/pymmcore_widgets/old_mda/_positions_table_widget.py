@@ -37,7 +37,7 @@ from useq import AxesBasedAF, GridFromEdges, GridRowsColumns, MDASequence, Posit
 from pymmcore_widgets._util import cast_grid_plan, fov_kwargs
 
 from ._autofocus_device_widget import _AutofocusZDeviceWidget
-from ._grid_widget import GridWidget
+from ._grid_widget import OldGridWidget
 
 if TYPE_CHECKING:
     from typing_extensions import TypedDict
@@ -96,14 +96,16 @@ class GridDialog(QDialog):
     ) -> None:
         super().__init__(parent)
 
-        self._grid_wdg = GridWidget(mmcore=mmcore, current_stage_pos=current_stage_pos)
+        self._grid_wdg = OldGridWidget(
+            mmcore=mmcore, current_stage_pos=current_stage_pos
+        )
         self.setLayout(QVBoxLayout())
         self.layout().setSpacing(0)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addWidget(self._grid_wdg)
 
 
-class PositionTable(QWidget):
+class OldPositionTable(QWidget):
     """Widget providing options for setting up a multi-position acquisition.
 
     The `value()` method returns a dictionary with the current state of the widget, in a

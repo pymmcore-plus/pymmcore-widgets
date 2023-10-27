@@ -5,7 +5,7 @@ from unittest.mock import Mock, call
 
 import useq
 
-from pymmcore_widgets._mda import GridWidget
+from pymmcore_widgets.old_mda import OldGridWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    grid_wdg = GridWidget()
+    grid_wdg = OldGridWidget()
     qtbot.addWidget(grid_wdg)
 
     global_mmcore.setProperty("Objective", "Label", "Objective-2")
@@ -59,7 +59,7 @@ def test_mda_grid(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_grid_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    grid_wdg = GridWidget()
+    grid_wdg = OldGridWidget()
     qtbot.addWidget(grid_wdg)
 
     grid_rel = useq.GridRowsColumns(
@@ -87,7 +87,7 @@ def test_grid_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_grid_from_edges_set_button(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    grid_wdg = GridWidget()
+    grid_wdg = OldGridWidget()
     qtbot.addWidget(grid_wdg)
     mmc = global_mmcore
 
@@ -104,7 +104,7 @@ def test_grid_from_edges_set_button(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_grid_on_px_size_changed(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    grid_wdg = GridWidget()
+    grid_wdg = OldGridWidget()
     qtbot.addWidget(grid_wdg)
     mmc = global_mmcore
 
@@ -136,7 +136,7 @@ def test_grid_move_to(qtbot: QtBot, global_mmcore: CMMCorePlus):
     mmc = global_mmcore
     mmc.setXYPosition(100.0, 100.0)
 
-    grid_wdg = GridWidget(current_stage_pos=(mmc.getXPosition(), mmc.getYPosition()))
+    grid_wdg = OldGridWidget(current_stage_pos=(mmc.getXPosition(), mmc.getYPosition()))
     qtbot.addWidget(grid_wdg)
     _move = grid_wdg.move_to
 

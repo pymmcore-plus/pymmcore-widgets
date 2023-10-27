@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 from qtpy.QtWidgets import QFileDialog
 from useq import MDASequence
 
-from pymmcore_widgets._mda import MDAWidget
+from pymmcore_widgets.old_mda import OldMDAWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 def test_mda_widget_load_state(qtbot: QtBot) -> None:
-    wdg = MDAWidget(include_run_button=True)
+    wdg = OldMDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
     assert wdg.position_widget._table.rowCount() == 0
     assert wdg.channel_widget._table.rowCount() == 0
@@ -122,7 +122,7 @@ def test_mda_widget_load_state(qtbot: QtBot) -> None:
 
 
 def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = MDAWidget(include_run_button=True)
+    wdg = OldMDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
     wdg.ch_cbox.setChecked(True)
@@ -149,7 +149,7 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_mda_methods(qtbot: QtBot):
-    wdg = MDAWidget(include_run_button=True)
+    wdg = OldMDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
     wdg.p_cbox.setChecked(True)
@@ -182,7 +182,7 @@ def test_mda_methods(qtbot: QtBot):
 
 
 def test_enable_run_button(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = MDAWidget(include_run_button=True)
+    wdg = OldMDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
     wdg.show()
     mmc = global_mmcore
@@ -209,7 +209,7 @@ def test_enable_run_button(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
 
 def test_absolute_grid_warning(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = MDAWidget(include_run_button=True)
+    wdg = OldMDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
     wdg.show()
 
@@ -239,7 +239,7 @@ def test_save_and_load_sequence(qtbot: QtBot):
             return Path(tmp) / "sequence.json", None
 
         with patch.object(QFileDialog, "getSaveFileName", _path):
-            mda = MDAWidget()
+            mda = OldMDAWidget()
             qtbot.addWidget(mda)
 
             seq = MDASequence(
@@ -291,7 +291,7 @@ def test_set_state_without_xystage(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mmc = global_mmcore
     mmc.unloadDevice("XY")
     mmc.unloadDevice("Z")
-    wdg = MDAWidget(include_run_button=True)
+    wdg = OldMDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
     p_table = wdg.position_widget._table

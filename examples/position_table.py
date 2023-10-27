@@ -7,7 +7,7 @@ used in combination of other widgets.
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets import PositionTable
+from pymmcore_widgets.useq_widgets import PositionTable
 
 app = QApplication([])
 

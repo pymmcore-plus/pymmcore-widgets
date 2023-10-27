@@ -1,20 +1,20 @@
-"""Example usage of the TimePlanWidget class.
+"""Example usage of the ZStackWidget class.
 
-Check also the 'mda_widget.py' example to see the TimePlanWidget
+Check also the 'mda_widget.py' example to see the ZStackWidget
 used in combination of other widgets.
 """
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets.useq_widgets import TimePlanWidget
+from pymmcore_widgets.useq_widgets import ZPlanWidget
 
 app = QApplication([])
 
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-t_wdg = TimePlanWidget()
-t_wdg.show()
+z_wdg = ZPlanWidget()
+z_wdg.show()
 
 app.exec_()

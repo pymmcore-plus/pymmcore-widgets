@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import useq
 
-from pymmcore_widgets._mda import ChannelTable
+from pymmcore_widgets.old_mda import OldChannelTable
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -16,7 +16,7 @@ def _values(combo: QComboBox) -> list:
 
 
 def test_channel_table_widget(qtbot: QtBot):
-    ct = ChannelTable(channel_group="Camera")
+    ct = OldChannelTable(channel_group="Camera")
     qtbot.addWidget(ct)
 
     assert ct.channel_group_combo.currentText() == "Camera"
@@ -59,7 +59,7 @@ def test_channel_table_widget(qtbot: QtBot):
 
 
 def test_set_get_state(qtbot: QtBot) -> None:
-    ct = ChannelTable(channel_group="Camera")
+    ct = OldChannelTable(channel_group="Camera")
     qtbot.addWidget(ct)
 
     state = [

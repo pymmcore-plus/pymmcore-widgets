@@ -42,7 +42,7 @@ INTERVAL = 0
 TIMEPOINTS = 1
 
 
-class TimePlanWidget(QWidget):
+class OldTimePlanWidget(QWidget):
     """Widget providing options for setting up a timelapse acquisition.
 
     The `value()` method returns a dictionary with the current state of the widget, in a

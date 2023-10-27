@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, cast
 import pytest
 from pydantic import ValidationError
 
-from pymmcore_widgets._mda import TimePlanWidget
+from pymmcore_widgets.old_mda import OldTimePlanWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -24,7 +24,7 @@ def _value(table: QTableWidget, row: int):
 
 
 def test_time_table_widget(qtbot: QtBot):
-    t = TimePlanWidget()
+    t = OldTimePlanWidget()
     qtbot.addWidget(t)
 
     assert t._table.rowCount() == 0
@@ -45,7 +45,7 @@ def test_time_table_widget(qtbot: QtBot):
 
 
 def test_set_get_state(qtbot: QtBot) -> None:
-    t = TimePlanWidget()
+    t = OldTimePlanWidget()
     qtbot.addWidget(t)
 
     state = {

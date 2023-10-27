@@ -19,17 +19,17 @@ from qtpy.QtWidgets import (
 )
 from useq import MDASequence
 
-from ._channel_table_widget import ChannelTable
+from ._channel_table_widget import OldChannelTable
 from ._checkable_tabwidget_widget import CheckableTabWidget
 from ._general_mda_widgets import (
     _AcquisitionOrderWidget,
     _MDAControlButtons,
     _SaveLoadSequenceWidget,
 )
-from ._grid_widget import GridWidget
-from ._positions_table_widget import PositionTable
-from ._time_plan_widget import TimePlanWidget
-from ._zstack_widget import ZStackWidget
+from ._grid_widget import OldGridWidget
+from ._positions_table_widget import OldPositionTable
+from ._time_plan_widget import OldTimePlanWidget
+from ._zstack_widget import OldZStackWidget
 
 if TYPE_CHECKING:
     from typing_extensions import TypedDict
@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 LBL_SIZEPOLICY = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
 
-class Grid(GridWidget):
+class Grid(OldGridWidget):
     """Sunclass GridWidget to emit valueChanged when grid is changed."""
 
     def __init__(self, parent: QWidget | None = None):
@@ -60,7 +60,7 @@ class Grid(GridWidget):
         self.valueChanged.emit(self.value())
 
 
-class MDAWidget(QWidget):
+class OldMDAWidget(QWidget):
     """A Multi-dimensional acquisition Widget.
 
     The `MDAWidget` provides a GUI to construct a
@@ -111,11 +111,11 @@ class MDAWidget(QWidget):
         self._tab.setMovable(False)
 
         # Channels, Time, Z Stack, Positions and Grid widgets
-        self.channel_widget = ChannelTable()
-        self.time_widget = TimePlanWidget()
-        self.stack_widget = ZStackWidget()
+        self.channel_widget = OldChannelTable()
+        self.time_widget = OldTimePlanWidget()
+        self.stack_widget = OldZStackWidget()
         self.stack_widget.setFixedHeight(self.stack_widget.minimumSizeHint().height())
-        self.position_widget = PositionTable()
+        self.position_widget = OldPositionTable()
         self.grid_widget = Grid()
         self.grid_widget.layout().itemAt(
             self.grid_widget.layout().count() - 1
@@ -428,7 +428,7 @@ class MDAWidget(QWidget):
     # DEPRECATIONS
 
     @property
-    def channel_groupbox(self) -> ChannelTable:
+    def channel_groupbox(self) -> OldChannelTable:
         warnings.warn(
             "MDAWidget.channel_groupbox has been renamed to MDAWidget.channel_widget. "
             "In the future, this will raise an exception.",
@@ -439,7 +439,7 @@ class MDAWidget(QWidget):
         return self.channel_widget
 
     @property
-    def position_groupbox(self) -> PositionTable:
+    def position_groupbox(self) -> OldPositionTable:
         warnings.warn(
             "MDAWidget.position_groupbox has been renamed to MDAWidget.position_widget."
             " In the future, this will raise an exception.",
@@ -450,7 +450,7 @@ class MDAWidget(QWidget):
         return self.position_widget
 
     @property
-    def time_groupbox(self) -> ChannelTable:
+    def time_groupbox(self) -> OldChannelTable:
         warnings.warn(
             "MDAWidget.time_groupbox has been renamed to MDAWidget.time_widget. "
             "In the future, this will raise an exception.",
@@ -461,7 +461,7 @@ class MDAWidget(QWidget):
         return self.time_widget
 
     @property
-    def stack_groupbox(self) -> PositionTable:
+    def stack_groupbox(self) -> OldPositionTable:
         warnings.warn(
             "MDAWidget.stack_groupbox has been renamed to MDAWidget.stack_widget."
             " In the future, this will raise an exception.",

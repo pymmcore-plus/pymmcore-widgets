@@ -7,9 +7,9 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import MDAEvent
+from useq import MDAEvent, MDASequence
 
-from pymmcore_widgets.mda._core_mda import MDAWidget
+from pymmcore_widgets import OldMDAWidget
 
 
 class MDA(QWidget):
@@ -40,36 +40,45 @@ class MDA(QWidget):
 
         # connect MDA acquisition events to local callbacks
         # in this example we're just printing the current state of the acquisition
+        self.mmc.mda.events.sequenceStarted.connect(self._on_start)
         self.mmc.mda.events.frameReady.connect(self._on_frame)
         self.mmc.mda.events.sequenceFinished.connect(self._on_end)
         self.mmc.mda.events.sequencePauseToggled.connect(self._on_pause)
 
         # instantiate the MDAWidget, and a couple labels for feedback
-        self.mda = MDAWidget()
-        self.mda.valueChanged.connect(self._update_sequence)
+        self.mda = OldMDAWidget(include_run_button=True)
         self.current_sequence = QLabel('... enter info and click "Run"')
         self.current_event = QLabel("... current event info will appear here")
 
+        # below here is just GUI layout stuff
+        mda_wdg = QGroupBox()
+        mda_wdg.setMaximumWidth(600)
+        mda_wdg.setLayout(QVBoxLayout())
+        mda_wdg.layout().setContentsMargins(0, 0, 0, 0)
+        mda_wdg.layout().addWidget(self.mda)
+
         lbl_wdg = QGroupBox()
-        lbl_layout = QVBoxLayout(lbl_wdg)
-        lbl_layout.addWidget(QLabel(text="<h3>ACQUISITION SEQUENCE</h3>"))
-        lbl_layout.addWidget(self.current_sequence)
-        lbl_layout.addWidget(QLabel(text="<h3>ACQUISITION EVENT</h3>"))
-        lbl_layout.addWidget(self.current_event)
+        lbl_wdg.setMinimumWidth(275)
+        lbl_wdg.setLayout(QVBoxLayout())
+        lbl_wdg.layout().addWidget(QLabel(text="<h3>ACQUISITION SEQUENCE</h3>"))
+        lbl_wdg.layout().addWidget(self.current_sequence)
+        lbl_wdg.layout().addWidget(QLabel(text="<h3>ACQUISITION EVENT</h3>"))
+        lbl_wdg.layout().addWidget(self.current_event)
 
-        layout = QHBoxLayout(self)
-        layout.addWidget(self.mda)
-        layout.addWidget(lbl_wdg)
+        self.setLayout(QHBoxLayout())
+        self.layout().addWidget(mda_wdg)
+        self.layout().addWidget(lbl_wdg)
+        self.resize(900, 800)
 
-    def _update_sequence(self) -> None:
+    def _on_start(self, sequence: MDASequence) -> None:
         """Called when the MDA sequence starts."""
-        self.current_sequence.setText(self.mda.value().yaml(exclude_defaults=True))
+        self.current_sequence.setText(sequence.yaml())
 
     def _on_frame(self, image, event: MDAEvent) -> None:
         """Called each time a frame is acquired."""
         self.current_event.setText(
             f"index: {event.index}\n"
-            f"channel: {getattr(event.channel, 'config', 'None')}\n"
+            f"channel: {event.channel.config}\n"
             f"exposure: {event.exposure}\n"
             f"pos_name: {event.pos_name}\n"
             f"xyz: ({event.x_pos}, {event.y_pos}, {event.z_pos})\n"
