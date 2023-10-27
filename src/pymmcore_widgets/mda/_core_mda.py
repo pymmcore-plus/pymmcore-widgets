@@ -179,7 +179,7 @@ class MDAWidget(MDASequenceWidget):
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Cancel,
         )
-        return response == QMessageBox.StandardButton.Ok
+        return bool(response == QMessageBox.StandardButton.Ok)
 
     def _enable_widgets(self, enable: bool) -> None:
         for child in self.children():

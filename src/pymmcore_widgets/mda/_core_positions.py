@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any
 
 from fonticon_mdi6 import MDI6
@@ -208,14 +207,6 @@ class CoreConnectedPositionTable(PositionTable):
         super()._on_include_z_toggled(checked)
 
     def _on_af_per_position_toggled(self, checked: bool) -> None:
-        if checked and not self._mmc.isContinuousFocusLocked():
-            warnings.warn(
-                (
-                    f"The '{self._mmc.getAutoFocusDevice()}' Autofocus Device is NOT "
-                    "Locked!"
-                ),
-                stacklevel=2,
-            )
         af_btn_col = self.table().indexOf(self._af_btn_col)
         self.table().setColumnHidden(af_btn_col, not checked)
         super()._on_af_per_position_toggled(checked)
