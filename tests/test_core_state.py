@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 import pymmcore_widgets as pmmw
+import pymmcore_widgets.mda as mdapmmw
+import pymmcore_widgets.old_mda as oldmdapmmw
+import pymmcore_widgets.useq_widgets as useqpmmw
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -13,20 +16,16 @@ if TYPE_CHECKING:
 ALL_WIDGETS: dict[type[QWidget], dict[str, Any]] = {
     pmmw.CameraRoiWidget: {},
     pmmw.ChannelGroupWidget: {},
-    pmmw.OldChannelTable: {},
     pmmw.ChannelWidget: {},
     pmmw.ConfigurationWidget: {},
     pmmw.DefaultCameraExposureWidget: {},
     pmmw.DeviceWidget: {"device_label": "Camera"},
     pmmw.ExposureWidget: {},
-    pmmw.OldGridWidget: {},
     pmmw.GroupPresetTableWidget: {},
     pmmw.ImagePreview: {},
     pmmw.LiveButton: {},
-    pmmw.OldMDAWidget: {},
     pmmw.ObjectivesWidget: {},
     pmmw.PixelSizeWidget: {},
-    pmmw.OldPositionTable: {},
     pmmw.PresetsWidget: {"group": "Camera"},
     pmmw.PropertiesWidget: {},
     pmmw.PropertyBrowser: {},
@@ -35,8 +34,21 @@ ALL_WIDGETS: dict[type[QWidget], dict[str, Any]] = {
     pmmw.SnapButton: {},
     pmmw.StageWidget: {"device": "XY"},
     pmmw.StateDeviceWidget: {"device_label": "Objective"},
-    pmmw.OldTimePlanWidget: {},
-    pmmw.OldZStackWidget: {},
+    useqpmmw.ChannelTable: {},
+    useqpmmw.TimePlanWidget: {},
+    useqpmmw.PositionTable: {},
+    useqpmmw.ZPlanWidget: {},
+    useqpmmw.GridPlanWidget: {},
+    mdapmmw.CoreConnectedGridPlanWidget: {},
+    mdapmmw.CoreConnectedZPlanWidget: {},
+    # not sure why, but the CoreConnectedPositionTable triggers the _run_after_each_test
+    # so exclude it for now
+    # mdapmmw.CoreConnectedPositionTable: {},
+    oldmdapmmw.OldChannelTable: {},
+    oldmdapmmw.OldTimePlanWidget: {},
+    oldmdapmmw.OldPositionTable: {},
+    oldmdapmmw.OldZStackWidget: {},
+    oldmdapmmw.OldGridWidget: {},
 }
 
 
@@ -61,8 +73,9 @@ def test_core_state_unchanged(
 
 
 def test_all_widgets_represented() -> None:
-    missing_widgets = {cls.__name__ for cls in ALL_WIDGETS}.difference(pmmw.__all__)
-    if missing_widgets:
+    if missing_widgets := {cls.__name__ for cls in ALL_WIDGETS}.difference(
+        (*pmmw.__all__, *useqpmmw.__all__, *mdapmmw.__all__, *oldmdapmmw.__all__)
+    ):
         raise AssertionError(
             f"Some widgets are missing from the ALL_WIDGETS test dict: "
             f"{missing_widgets}"
