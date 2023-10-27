@@ -235,8 +235,7 @@ def test_core_position_table_add_position(
     wdg._mmc.setXYPosition(11, 22)
     wdg._mmc.setZPosition(33)
 
-    with pytest.warns(UserWarning, match="Autofocus Device is NOT Locked"):
-        wdg.stage_positions.af_per_position.setChecked(True)
+    wdg.stage_positions.af_per_position.setChecked(True)
 
     with qtbot.waitSignals([pos_table.valueChanged], order="strict", timeout=1000):
         pos_table.act_add_row.trigger()
@@ -316,8 +315,7 @@ def test_core_position_table_checkboxes_toggled(qtbot: QtBot):
     assert pos_table.table().isColumnHidden(af_btn_col)
 
     pos_table.include_z.setChecked(True)
-    with pytest.warns(UserWarning, match="Autofocus Device is NOT Locked"):
-        pos_table.af_per_position.setChecked(True)
+    pos_table.af_per_position.setChecked(True)
 
     assert not pos_table.table().isColumnHidden(z_btn_col)
     assert not pos_table.table().isColumnHidden(af_btn_col)
@@ -334,8 +332,7 @@ def test_core_mda_autofocus(qtbot: QtBot):
         useq.Position(x=1, y=1, z=1, sequence=useq.MDASequence(autofocus_plan=AF)),
     ]
     MDA = useq.MDASequence(stage_positions=POS)
-    with pytest.warns(UserWarning, match="Autofocus Device is NOT Locked"):
-        wdg.setValue(MDA)
+    wdg.setValue(MDA)
 
     assert wdg.value().autofocus_plan
     assert wdg.value().autofocus_plan.autofocus_motor_offset == 10

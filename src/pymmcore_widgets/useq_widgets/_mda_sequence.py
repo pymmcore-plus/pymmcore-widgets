@@ -181,6 +181,7 @@ class AutofocusAxis(QWidget):
         layout.addWidget(self.use_af_p)
         layout.addWidget(self.use_af_t)
         layout.addWidget(self.use_af_g)
+        layout.addStretch()
 
         self.use_af_p.toggled.connect(self.valueChanged)
         self.use_af_t.toggled.connect(self.valueChanged)
@@ -220,6 +221,7 @@ class KeepShutterOpen(QWidget):
         layout.addWidget(lbl)
         layout.addWidget(self.leave_open_z)
         layout.addWidget(self.leave_open_t)
+        layout.addStretch()
 
         self.leave_open_t.toggled.connect(self.valueChanged)
         self.leave_open_z.toggled.connect(self.valueChanged)
@@ -292,9 +294,9 @@ class MDASequenceWidget(QWidget):
 
         self.keep_shutter_open = KeepShutterOpen()
         self.af_axis = AutofocusAxis()
-        cbox_row = QHBoxLayout()
+        cbox_row = QVBoxLayout()
         cbox_row.setContentsMargins(0, 0, 0, 0)
-        cbox_row.setSpacing(10)
+        cbox_row.setSpacing(5)
         cbox_row.addWidget(self.keep_shutter_open)
         cbox_row.addWidget(self.af_axis)
         cbox_row.addStretch()
