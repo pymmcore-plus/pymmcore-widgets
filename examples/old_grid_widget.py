@@ -1,7 +1,7 @@
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets import OldGridWidget
+from pymmcore_widgets.old_mda import OldGridWidget
 
 app = QApplication([])
 

@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 from textwrap import dedent
 
@@ -15,7 +16,7 @@ TEMPLATE = """
 
 
 
-::: pymmcore_widgets.{widget}
+::: {sub_module}.{widget}
 
 ## Example
 
@@ -25,19 +26,29 @@ TEMPLATE = """
 """
 
 
-def _widget_list() -> list[str]:
+def _get_widget_list(module: str) -> list[tuple[str, str]]:
     from qtpy.QtWidgets import QWidget
 
-    import pymmcore_widgets
-
     widgets = []
-    for name in dir(pymmcore_widgets):
+    for name in dir(module):
         if name.startswith("_"):
             continue
-        obj = getattr(pymmcore_widgets, name)
+        obj = getattr(module, name)
         if isinstance(obj, type) and issubclass(obj, QWidget):
-            widgets.append(name)
-    return sorted(widgets)
+            widgets.append((name, module.__name__))
+    return widgets
+
+
+def _widget_list() -> list[tuple[str, str]]:
+    import pymmcore_widgets
+    import pymmcore_widgets.mda
+    import pymmcore_widgets.useq_widgets
+
+    widgets = _get_widget_list(pymmcore_widgets)
+    widgets.extend(_get_widget_list(pymmcore_widgets.useq_widgets))
+    widgets.extend(_get_widget_list(pymmcore_widgets.mda))
+
+    return sorted(widgets, key=lambda x: x[0])
 
 
 def _camel_to_snake(name: str) -> str:
@@ -53,7 +64,9 @@ SEEN: set[int] = set()
 def _example_screenshot(cls_name: str, dest: str) -> None:
     path = EXAMPLES / f"{_camel_to_snake(cls_name)}.py"
     if not path.exists():
-        raise ValueError(f"Could not find example: {path}")
+        # raise ValueError(f"Could not find example: {path}")
+        warnings.warn(f"Could not find example: {path}", stacklevel=2)
+        return
 
     from qtpy.QtWidgets import QApplication
 
@@ -75,21 +88,29 @@ def _example_screenshot(cls_name: str, dest: str) -> None:
     widget.setMinimumWidth(300)  # turns out this is very important for grab
     widget.grab().save(dest)
 
+    widget.grab().save(f"/Users/fdrgsp/Desktop/test/{_camel_to_snake(cls_name)}.png")
+
     for w in app.topLevelWidgets():
         w.deleteLater()
 
 
-def _generate_widget_page(widget: str) -> None:
+def _generate_widget_page(widget: list[tuple[str, str]]) -> None:
     """Auto-Generate pages in the widgets folder."""
+    widget, sub_module = widget
     filename = f"widgets/{widget}.md"
     snake = _camel_to_snake(widget)
     print("Generating", filename)
     img = f"images/{snake}.png"
     with mkdocs_gen_files.open(img, "wb") as f:
         _example_screenshot(widget, f.name)
-
     with mkdocs_gen_files.open(filename, "w") as f:
-        f.write(dedent(TEMPLATE.format(widget=widget, snake=snake, img=img)))
+        f.write(
+            dedent(
+                TEMPLATE.format(
+                    widget=widget, sub_module=sub_module, snake=snake, img=img
+                )
+            )
+        )
 
     mkdocs_gen_files.set_edit_path(filename, Path(__file__).name)
 

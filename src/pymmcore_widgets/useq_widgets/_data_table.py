@@ -34,6 +34,8 @@ else:
 
 
 class DataTable(QTableWidget):
+    """DataTable."""
+
     valueChanged = Signal()
 
     COLUMNS: ClassVar[tuple[ColumnInfo, ...]] = ()
@@ -203,6 +205,8 @@ class DataTable(QTableWidget):
 
 
 class DataTableWidget(QWidget):
+    """DataTableWidget."""
+
     valueChanged = Signal()
 
     COLUMNS: ClassVar[tuple[ColumnInfo, ...]]

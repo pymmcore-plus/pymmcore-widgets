@@ -25,6 +25,8 @@ if TYPE_CHECKING:
 
 
 class CoreConnectedPositionTable(PositionTable):
+    """CoreConnectedPositionTable."""
+
     def __init__(
         self,
         rows: int = 0,

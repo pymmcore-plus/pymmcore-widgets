@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 
 
 class CoreConnectedZPlanWidget(ZPlanWidget):
+    """CoreConnectedZPlanWidget."""
+
     def __init__(
         self, mmcore: CMMCorePlus | None = None, parent: QWidget | None = None
     ) -> None:

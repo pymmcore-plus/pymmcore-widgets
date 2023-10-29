@@ -9,7 +9,7 @@ from qtpy.QtWidgets import (
 )
 from useq import MDAEvent
 
-from pymmcore_widgets import MDAWidget
+from pymmcore_widgets.mda import MDAWidget
 
 
 class MDA(QWidget):

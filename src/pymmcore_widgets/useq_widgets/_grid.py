@@ -45,6 +45,8 @@ class Mode(Enum):
 
 
 class GridPlanWidget(QWidget):
+    """Widget for defining a grid plan."""
+
     valueChanged = Signal(object)
 
     def __init__(self, parent: QWidget | None = None):
