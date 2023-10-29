@@ -27,5 +27,5 @@ def _get_widget_table_list(module: str) -> list[str]:
         obj = getattr(module, name)
         if isinstance(obj, type) and issubclass(obj, QWidget):
             doc = (obj.__doc__ or "").strip().splitlines()[0]
-            table.append(f"| [{name}][{module}.{name}] | {doc} |")
+            table.append(f"| [{name}][{module.__name__}.{name}] | {doc} |")
     return "\n".join(table)
