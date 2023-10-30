@@ -339,7 +339,13 @@ class ZPlanWidget(QWidget):
             self.step.setValue(float(self._suggested))
 
     def value(self) -> useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom | None:
-        """Return the current [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans)."""
+        """Return the current value of the widget.
+
+        Returns
+        -------
+        useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom | None
+            The current [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans) value of the widget.
+        """  # noqa: E501
         if self.step.value() == 0:
             return None
 
@@ -367,8 +373,8 @@ class ZPlanWidget(QWidget):
         Parameters
         ----------
         value : useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom
-            One of the available [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans).
-        """
+            The [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans) to set.
+        """  # noqa: E501
         if isinstance(value, useq.ZTopBottom):
             self.top.setValue(value.top)
             self.bottom.setValue(value.bottom)
