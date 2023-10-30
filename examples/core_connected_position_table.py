@@ -14,7 +14,7 @@ app = QApplication([])
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-pos_wdg = CoreConnectedPositionTable()
+pos_wdg = CoreConnectedPositionTable(rows=1)
 pos_wdg.show()
 
 app.exec_()

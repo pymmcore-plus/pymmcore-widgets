@@ -14,7 +14,7 @@ app = QApplication([])
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-ch_table_wdg = ChannelTable()
+ch_table_wdg = ChannelTable(rows=1)
 ch_table_wdg.show()
 
 app.exec_()
