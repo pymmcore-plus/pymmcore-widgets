@@ -74,10 +74,17 @@ class ChannelTable(DataTableWidget):
         self._on_group_changed()
 
     def channelGroups(self) -> Mapping[str, Sequence[str]]:
+        """Return the current groups that can be selected in the table."""
         return self._groups
 
     def value(self, exclude_unchecked: bool = True) -> tuple[useq.Channel, ...]:
-        """Return the current value of the table as a list of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel)."""
+        """Return the current value of the table.
+
+        Returns
+        -------
+        tuple[useq.Channel, ...]
+            A tuple of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+        """
         return tuple(
             useq.Channel(**r)
             for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
@@ -89,7 +96,7 @@ class ChannelTable(DataTableWidget):
         Parameters
         ----------
         value : Iterable[useq.Channel]
-            A `Sequence` of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+            An Iterable of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
         """
         _values = []
         for v in value:
