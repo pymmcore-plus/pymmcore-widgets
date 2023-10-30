@@ -47,7 +47,7 @@ L_ARR = "\u2B05"  # LEFTWARDS BLACK ARROW
 
 
 class ZPlanWidget(QWidget):
-    """Widget to define a [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans)."""
+    """Widget to edit a [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans)."""
 
     valueChanged = Signal(object)
 

@@ -25,7 +25,7 @@ DEFAULT_GROUP = "Channel"
 
 
 class ChannelTable(DataTableWidget):
-    """Table for editing a list of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel)."""
+    """Table to edit a list of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel)."""
 
     # fmt: off
     GROUP = TextColumn(key="group", default=DEFAULT_GROUP, hidden=True)

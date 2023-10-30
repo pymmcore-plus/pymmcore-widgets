@@ -45,7 +45,7 @@ class Mode(Enum):
 
 
 class GridPlanWidget(QWidget):
-    """Widget to define a [useq.GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)."""
+    """Widget to edit a [useq.GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)."""
 
     valueChanged = Signal(object)
 

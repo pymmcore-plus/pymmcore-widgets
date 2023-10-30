@@ -148,7 +148,7 @@ class SubSeqColumn(WidgetColumn):
 
 
 class PositionTable(DataTableWidget):
-    """Table for editing a list of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position)."""
+    """Table to edit a list of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position)."""
 
     NAME = TextColumn(key="name", default=None, is_row_selector=True)
     X = FloatColumn(key="x", header="X [µm]", default=0.0, maximum=MAX, minimum=-MAX)

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class TimePlanWidget(DataTableWidget):
-    """Table for editing a [useq.TimePlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#time-plans)."""
+    """Table to edit a [useq.TimePlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#time-plans)."""
 
     PHASE = TextColumn(key="phase", default=None, is_row_selector=True)
     INTERVAL = TimeDeltaColumn(key="interval", default="1 s")

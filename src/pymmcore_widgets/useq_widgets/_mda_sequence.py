@@ -169,7 +169,7 @@ class MDATabs(CheckableTabWidget):
 
 
 class MDASequenceWidget(QWidget):
-    """Widget for editing a [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)."""
+    """Widget to edit a [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)."""
 
     valueChanged = Signal()
 
