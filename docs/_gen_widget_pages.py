@@ -1,4 +1,3 @@
-import warnings
 from pathlib import Path
 from textwrap import dedent
 
@@ -24,6 +23,7 @@ TEMPLATE = """
 --8<-- "examples/{snake}.py"
 ```
 """
+EXCLUDE = ["DataTable", "DataTableWidget"]
 
 
 def _get_widget_list(module: str) -> list[tuple[str, str]]:
@@ -34,9 +34,9 @@ def _get_widget_list(module: str) -> list[tuple[str, str]]:
         if name.startswith("_"):
             continue
         obj = getattr(module, name)
-        if isinstance(obj, type) and issubclass(obj, QWidget):
+        if isinstance(obj, type) and issubclass(obj, QWidget) and name not in EXCLUDE:
             widgets.append((name, module.__name__))
-    return widgets
+    return sorted(widgets, key=lambda x: x[0])
 
 
 def _widget_list() -> list[tuple[str, str]]:
@@ -44,11 +44,11 @@ def _widget_list() -> list[tuple[str, str]]:
     import pymmcore_widgets.mda
     import pymmcore_widgets.useq_widgets
 
-    widgets = _get_widget_list(pymmcore_widgets)
-    widgets.extend(_get_widget_list(pymmcore_widgets.useq_widgets))
+    widgets = _get_widget_list(pymmcore_widgets.useq_widgets)
+    widgets.extend(_get_widget_list(pymmcore_widgets))
     widgets.extend(_get_widget_list(pymmcore_widgets.mda))
 
-    return sorted(widgets, key=lambda x: x[0])
+    return widgets
 
 
 def _camel_to_snake(name: str) -> str:
@@ -64,9 +64,7 @@ SEEN: set[int] = set()
 def _example_screenshot(cls_name: str, dest: str) -> None:
     path = EXAMPLES / f"{_camel_to_snake(cls_name)}.py"
     if not path.exists():
-        # raise ValueError(f"Could not find example: {path}")
-        warnings.warn(f"Could not find example: {path}", stacklevel=2)
-        return
+        raise ValueError(f"Could not find example: {path}")
 
     from qtpy.QtWidgets import QApplication
 
