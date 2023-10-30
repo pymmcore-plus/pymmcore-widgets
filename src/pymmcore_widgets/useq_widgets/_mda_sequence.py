@@ -60,6 +60,11 @@ for x in list(ALLOWED_ORDERS):
 
 
 class MDATabs(CheckableTabWidget):
+    """Checkable QTabWidget for editing a useq.MDASequence.
+
+    It contains a Tab for each of the MDASequence, axis (channels, positions, etc...).
+    """
+
     time_plan: TimePlanWidget
     stage_positions: PositionTable
     grid_plan: GridPlanWidget
@@ -87,6 +92,7 @@ class MDATabs(CheckableTabWidget):
         ch_table.hideColumn(ch_table.indexOf(self.channels.ACQUIRE_EVERY))
 
     def create_subwidgets(self) -> None:
+        """Create the Tabs of the widget."""
         self.time_plan = TimePlanWidget(1)
         self.stage_positions = PositionTable(1)
         self.grid_plan = GridPlanWidget()
@@ -99,7 +105,7 @@ class MDATabs(CheckableTabWidget):
         Parameters
         ----------
         key : str | QWidget
-            The axis to check. Can be one of "c", "t", "p", or "g", "z", or the
+            The axis to check. Can be one of "c", "t", "p", "g", "z", or the
             corresponding widget instance (e.g. self.channels, etc...)
         """
         if isinstance(key, str):
@@ -121,7 +127,7 @@ class MDATabs(CheckableTabWidget):
         return tuple(k for k in ("tpgzc") if self.isAxisUsed(k))
 
     def value(self) -> useq.MDASequence:
-        """Return the current sequence as a `useq-schema` MDASequence."""
+        """Return the current sequence as a [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)."""
         return useq.MDASequence(
             z_plan=self.z_plan.value() if self.isAxisUsed("z") else None,
             time_plan=self.time_plan.value() if self.isAxisUsed("t") else None,
@@ -134,7 +140,7 @@ class MDATabs(CheckableTabWidget):
         )
 
     def setValue(self, value: useq.MDASequence) -> None:
-        """Set widget value from a `useq-schema` MDASequence."""
+        """Set widget value from a [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)."""
         if not isinstance(value, useq.MDASequence):  # pragma: no cover
             raise TypeError(f"Expected useq.MDASequence, got {type(value)}")
 
@@ -163,7 +169,7 @@ class MDATabs(CheckableTabWidget):
 
 
 class MDASequenceWidget(QWidget):
-    """Widget for editing a `useq-schema` MDA sequence."""
+    """Widget for editing a [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)."""
 
     valueChanged = Signal()
 
@@ -263,7 +269,14 @@ class MDASequenceWidget(QWidget):
     # -------------- Public API --------------
 
     def value(self) -> useq.MDASequence:
-        """Return the current sequence as a `useq-schema` MDASequence."""
+        """Return the current value of the widget.
+
+        Returns
+        -------
+        useq.MDASequence
+            The current [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)
+            value of the widget.
+        """
         val = self.tab_wdg.value()
         shutters: tuple[str, ...] = ()
         if (
@@ -289,7 +302,14 @@ class MDASequenceWidget(QWidget):
         return val
 
     def setValue(self, value: useq.MDASequence) -> None:
-        """Set widget value from a `useq-schema` MDASequence."""
+        """Set the current value of the widget.
+
+        Parameters
+        ----------
+        value : useq.MDASequence
+            The [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)
+            to set.
+        """
         self.tab_wdg.setValue(value)
         self.axis_order.setCurrentText("".join(value.axis_order))
 
@@ -298,7 +318,7 @@ class MDASequenceWidget(QWidget):
         self.time_plan.leave_shutter_open.setChecked("t" in keep_shutter_open)
 
     def save(self, file: str | Path | None = None) -> None:
-        """Save the current sequence to a file."""
+        """Save the current MDASequence to a file."""
         if not isinstance(file, (str, Path)):
             file, _ = QFileDialog.getSaveFileName(
                 self,
@@ -324,7 +344,7 @@ class MDASequenceWidget(QWidget):
         dest.write_text(data)
 
     def load(self, file: str | Path | None = None) -> None:
-        """Load sequence from a file."""
+        """Load a MDASequence from a file."""
         if not isinstance(file, (str, Path)):
             file, _ = QFileDialog.getOpenFileName(
                 self,
