@@ -80,6 +80,11 @@ class ChannelTable(DataTableWidget):
     def value(self, exclude_unchecked: bool = True) -> tuple[useq.Channel, ...]:
         """Return the current value of the table.
 
+        Parameters
+        ----------
+        exclude_unchecked : bool, optional
+            Exclude unchecked rows, by default True
+
         Returns
         -------
         tuple[useq.Channel, ...]
