@@ -45,7 +45,7 @@ class Mode(Enum):
 
 
 class GridPlanWidget(QWidget):
-    """Widget for defining a grid plan."""
+    """Widget to define a [useq.GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)."""
 
     valueChanged = Signal(object)
 
@@ -191,17 +191,23 @@ class GridPlanWidget(QWidget):
         self.order.currentIndexChanged.connect(self._on_change)
         self.relative_to.currentIndexChanged.connect(self._on_change)
 
-    def _on_change(self) -> None:
-        if (val := self.value()) is None:
-            return  # pragma: no cover
-        self.valueChanged.emit(val)
+    # ------------------------- Public API -------------------------
 
     def mode(self) -> Mode:
+        """Return the current mode."""
         return self._mode
 
     def setMode(
         self, mode: Mode | Literal["number", "area", "bounds"] | None = None
     ) -> None:
+        """Set the current mode.
+
+        Parameters
+        ----------
+        mode : Mode | Literal["number", "area", "bounds"] | None, optional
+            The mode to set.
+            (If None, the mode is determined by the sender().data(), for internal usage)
+        """
         btn = None
         btn_map: dict[QAbstractButton, Mode] = {
             self._mode_number_radio: Mode.NUMBER,
@@ -228,6 +234,14 @@ class GridPlanWidget(QWidget):
             self._on_change()
 
     def value(self) -> useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight:
+        """Return the current value of the widget.
+
+        Returns
+        -------
+        useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
+            The current [useq.GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
+            value of the widget.
+        """
         over = self.overlap.value() / 100
         _order = cast("OrderMode", self.order.currentEnum())
         common = {
@@ -263,6 +277,13 @@ class GridPlanWidget(QWidget):
         raise NotImplementedError
 
     def setValue(self, value: useq.GridFromEdges | useq.GridRowsColumns) -> None:
+        """Set the current value of the widget.
+
+        Parameters
+        ----------
+        value : useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
+            The [useq.GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans) to set.
+        """  # noqa: E501
         with signals_blocked(self):
             if isinstance(value, useq.GridRowsColumns):
                 self.rows.setValue(value.rows)
@@ -299,18 +320,29 @@ class GridPlanWidget(QWidget):
         self._on_change()
 
     def setFovWidth(self, value: float) -> None:
+        """Set the current field of view width."""
         self._fov_width = value
         self._on_change()
 
     def setFovHeight(self, value: float) -> None:
+        """Set the current field of view height."""
         self._fov_height = value
         self._on_change()
 
     def fovWidth(self) -> float | None:
+        """Return the current field of view width."""
         return self._fov_width
 
     def fovHeight(self) -> float | None:
+        """Return the current field of view height."""
         return self._fov_height
+
+    # ------------------------- Private API -------------------------
+
+    def _on_change(self) -> None:
+        if (val := self.value()) is None:
+            return  # pragma: no cover
+        self.valueChanged.emit(val)
 
 
 class _SeparatorWidget(QWidget):
