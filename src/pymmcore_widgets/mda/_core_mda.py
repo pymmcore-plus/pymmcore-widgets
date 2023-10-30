@@ -53,7 +53,18 @@ class CoreMDATabs(MDATabs):
 
 
 class MDAWidget(MDASequenceWidget):
-    """Widget for running MDA experiments, connecting to a MMCorePlus instance."""
+    """A [MDASequenceWidget](../MDASequenceWidget#) Connected to a [`pymmcore_plus.CMMCorePlus`][] instance.
+
+    Parameters
+    ----------
+    parent : QWidget | None
+        Optional parent widget, by default None.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    """  # noqa: E501
 
     def __init__(
         self, *, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
