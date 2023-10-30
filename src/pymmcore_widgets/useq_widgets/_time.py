@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class TimePlanWidget(DataTableWidget):
-    """Table for editing a `useq-schema` time plan."""
+    """Table for editing a [useq.TimePlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#time-plans)."""
 
     PHASE = TextColumn(key="phase", default=None, is_row_selector=True)
     INTERVAL = TimeDeltaColumn(key="interval", default="1 s")
@@ -41,6 +41,58 @@ class TimePlanWidget(DataTableWidget):
         self.leave_shutter_open.toggled.connect(self.valueChanged)
 
         self.layout().addWidget(self.leave_shutter_open)
+
+    # ------------------------- Public API -------------------------
+
+    def value(
+        self, exclude_unchecked: bool = True
+    ) -> MultiPhaseTimePlan | TIntervalLoops | TIntervalDuration:
+        """Return the current value of the table.
+
+        Returns
+        -------
+        MultiPhaseTimePlan | TIntervalLoops | TIntervalDuration
+            The current [useq.TimePlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#time-plans)
+            value of the table.
+        """
+        duration_col = self.table().indexOf(self.DURATION)
+        active_key = "duration" if self._mode_column == duration_col else "loops"
+        phases = [
+            {"interval": p["interval"], active_key: p[active_key]}
+            for p in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
+        ]
+        plan = MultiPhaseTimePlan(phases=phases)
+        return plan.phases[0] if len(plan.phases) == 1 else plan  # type: ignore
+
+    def setValue(self, value: Any) -> None:
+        """Set the current value of the table.
+
+        Parameters
+        ----------
+        value : MultiPhaseTimePlan | TIntervalLoops | TDurationLoops | TIntervalDuration | None
+            The [useq.TimePlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#time-plans) to set.
+        """  # noqa: E501
+        if isinstance(value, MultiPhaseTimePlan):
+            _phases = value.phases
+        elif isinstance(value, (TDurationLoops, TIntervalLoops, TIntervalDuration)):
+            _phases = [value]
+        elif value is None:
+            _phases = []
+        else:
+            raise TypeError(f"Expected useq.TimePlan or None, got {type(value)}.")
+        if not _phases:
+            self.table().setRowCount(0)
+            return
+
+        super().setValue([p.model_dump(exclude_unset=True) for p in _phases])
+
+        col_idx = self.table().indexOf(
+            self.DURATION if isinstance(_phases[0], TIntervalDuration) else self.LOOPS
+        )
+        self.table().setCurrentCell(self.table().rowCount() - 1, col_idx)
+        self._resolve_duration()
+
+    # ------------------------- Private API -------------------------
 
     def _on_value_changed(self) -> None:
         self._resolve_duration()
@@ -107,38 +159,3 @@ class TimePlanWidget(DataTableWidget):
                 self.valueChanged.emit()
             finally:
                 self._emitting = False
-
-    def value(
-        self, exclude_unchecked: bool = True
-    ) -> MultiPhaseTimePlan | TIntervalLoops | TIntervalDuration:
-        """Return the current value of the table as a list of channels."""
-        duration_col = self.table().indexOf(self.DURATION)
-        active_key = "duration" if self._mode_column == duration_col else "loops"
-        phases = [
-            {"interval": p["interval"], active_key: p[active_key]}
-            for p in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
-        ]
-        plan = MultiPhaseTimePlan(phases=phases)
-        return plan.phases[0] if len(plan.phases) == 1 else plan  # type: ignore
-
-    def setValue(self, value: Any) -> None:
-        """Set the current value of the table."""
-        if isinstance(value, MultiPhaseTimePlan):
-            _phases = value.phases
-        elif isinstance(value, (TDurationLoops, TIntervalLoops, TIntervalDuration)):
-            _phases = [value]
-        elif value is None:
-            _phases = []
-        else:
-            raise TypeError(f"Expected useq.TimePlan or None, got {type(value)}.")
-        if not _phases:
-            self.table().setRowCount(0)
-            return
-
-        super().setValue([p.model_dump(exclude_unset=True) for p in _phases])
-
-        col_idx = self.table().indexOf(
-            self.DURATION if isinstance(_phases[0], TIntervalDuration) else self.LOOPS
-        )
-        self.table().setCurrentCell(self.table().rowCount() - 1, col_idx)
-        self._resolve_duration()
