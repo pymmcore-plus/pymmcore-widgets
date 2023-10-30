@@ -106,7 +106,14 @@ class MDAWidget(MDASequenceWidget):
         self._update_channel_groups()
 
     def value(self) -> MDASequence:
-        """Set the current state of the widget."""
+        """Return the current value of the widget.
+
+        Returns
+        -------
+        useq.MDASequence
+            The current [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)
+            value of the widget.
+        """
         val = super().value()
 
         # if the z plan is relative, and there are no stage positions, add the current
@@ -122,6 +129,18 @@ class MDAWidget(MDASequenceWidget):
         if self.save_info.isChecked():
             meta.update(self.save_info.value())
         return val
+
+    def setValue(self, value: MDASequence) -> None:
+        """Set the current value of the widget.
+
+        Parameters
+        ----------
+        value : useq.MDASequence
+            The [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)
+            to set.
+        """
+        super().setValue(value)
+        self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
 
     def _get_current_stage_position(self) -> Position:
         """Return the current stage position."""
@@ -139,11 +158,6 @@ class MDAWidget(MDASequenceWidget):
             )
         )
         return Position(x=x, y=y, z=z, sequence=sub_seq)
-
-    def setValue(self, value: MDASequence) -> None:
-        """Get the current state of the widget."""
-        super().setValue(value)
-        self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
 
     # ------------------- private API ----------------------
 
