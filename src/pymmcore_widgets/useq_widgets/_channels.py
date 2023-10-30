@@ -44,7 +44,7 @@ class ChannelTable(DataTableWidget):
         self._config_column: ColumnInfo = self.CONFIG
 
     def setChannelGroups(self, groups: Mapping[str, Sequence[str]] | None) -> None:
-        """Set the groups that can be selected in the table.
+        """Set the channel groups that can be selected in the table.
 
         Parameters
         ----------
@@ -74,7 +74,7 @@ class ChannelTable(DataTableWidget):
         self._on_group_changed()
 
     def channelGroups(self) -> Mapping[str, Sequence[str]]:
-        """Return the current groups that can be selected in the table."""
+        """Return the current channel groups that can be selected in the table."""
         return self._groups
 
     def value(self, exclude_unchecked: bool = True) -> tuple[useq.Channel, ...]:
