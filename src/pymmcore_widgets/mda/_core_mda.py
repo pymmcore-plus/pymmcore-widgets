@@ -60,7 +60,7 @@ class MDAWidget(MDASequenceWidget):
     parent : QWidget | None
         Optional parent widget, by default None.
     mmcore : CMMCorePlus | None
-        Optional [`CMMCorePlus`][`pymmcore_plus.CMMCorePlus`] micromanager core.
+        Optional [`CMMCorePlus`][pymmcore_plus.CMMCorePlus] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
         [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
