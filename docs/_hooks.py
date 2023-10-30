@@ -14,8 +14,8 @@ def _widget_table():
     import pymmcore_widgets.useq_widgets
 
     table = _get_widget_table_list(pymmcore_widgets.useq_widgets)
-    table += _get_widget_table_list(pymmcore_widgets)
     table += _get_widget_table_list(pymmcore_widgets.mda)
+    table += _get_widget_table_list(pymmcore_widgets)
 
     return table
 
