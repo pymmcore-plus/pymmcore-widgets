@@ -25,7 +25,7 @@ DEFAULT_GROUP = "Channel"
 
 
 class ChannelTable(DataTableWidget):
-    """Table for editing a list of `useq.Channels`."""
+    """Table for editing a list of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel)."""
 
     # fmt: off
     GROUP = TextColumn(key="group", default=DEFAULT_GROUP, hidden=True)
@@ -77,14 +77,20 @@ class ChannelTable(DataTableWidget):
         return self._groups
 
     def value(self, exclude_unchecked: bool = True) -> tuple[useq.Channel, ...]:
-        """Return the current value of the table as a list of channels."""
+        """Return the current value of the table as a list of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel)."""
         return tuple(
             useq.Channel(**r)
             for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
         )
 
     def setValue(self, value: Iterable[useq.Channel]) -> None:
-        """Set the current value of the table."""
+        """Set the current value of the table.
+
+        Parameters
+        ----------
+        value : Iterable[useq.Channel]
+            A `Sequence` of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+        """
         _values = []
         for v in value:
             if not isinstance(v, useq.Channel):  # pragma: no cover
