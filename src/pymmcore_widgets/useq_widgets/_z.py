@@ -47,7 +47,7 @@ L_ARR = "\u2B05"  # LEFTWARDS BLACK ARROW
 
 
 class ZPlanWidget(QWidget):
-    """Widget to setup a [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans)."""
+    """Widget to define a [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans)."""
 
     valueChanged = Signal(object)
 
@@ -284,10 +284,10 @@ class ZPlanWidget(QWidget):
 
         Parameters
         ----------
-        mode : Mode |  Literal["top_bottom", "range_around", "above_below"]
+        mode : Mode |  Literal["top_bottom", "range_around", "above_below"] | None, optional
             The mode to set.
             (If None, the mode is determined by the sender().data(), for internal usage)
-        """
+        """  # noqa: E501
         if isinstance(mode, str):
             mode = Mode(mode)
         elif isinstance(mode, (bool, type(None))):
@@ -344,8 +344,9 @@ class ZPlanWidget(QWidget):
         Returns
         -------
         useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom | None
-            The current [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans) value of the widget.
-        """  # noqa: E501
+            The current [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans)
+            value of the widget.
+        """
         if self.step.value() == 0:
             return None
 
