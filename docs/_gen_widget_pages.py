@@ -44,9 +44,9 @@ def _widget_list() -> list[tuple[str, str]]:
     import pymmcore_widgets.mda
     import pymmcore_widgets.useq_widgets
 
-    widgets = _get_widget_list(pymmcore_widgets.useq_widgets)
+    widgets = _get_widget_list(pymmcore_widgets)
+    widgets.extend(_get_widget_list(pymmcore_widgets.useq_widgets))
     widgets.extend(_get_widget_list(pymmcore_widgets.mda))
-    widgets.extend(_get_widget_list(pymmcore_widgets))
 
     return widgets
 
