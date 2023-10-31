@@ -80,7 +80,7 @@ SS = """
 QPushButton {{
     border-top-{side}-radius: {radius}px;
     border-bottom-{side}-radius: {radius}px;
-    border: 1px solid #8A8A8A;
+    border: 1px solid #A3A3A3;
     padding: 2px 6px;
 }}
 QPushButton:hover {{
