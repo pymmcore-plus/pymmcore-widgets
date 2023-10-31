@@ -80,15 +80,14 @@ SS = """
 QPushButton {{
     border-top-{side}-radius: {radius}px;
     border-bottom-{side}-radius: {radius}px;
-    border: 0.5px solid #DCDCDC;
-    background-color: #FFF;
+    border: 1px solid #8A8A8A;
     padding: 2px 6px;
 }}
 QPushButton:hover {{
-    background-color: #EEE;
+    background-color: #ABABAB;
 }}
 QPushButton:pressed {{
-    background-color: #AAA;
+    background-color: #8C8C8C;
 }}
 """
 

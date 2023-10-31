@@ -68,7 +68,7 @@ class ZPlanWidget(QWidget):
         self._suggested: float | None = None
 
         # #################### Mode Buttons ####################
-        color = "#555"
+        color = "#363636"
 
         # ------------------- actions ----------
 
