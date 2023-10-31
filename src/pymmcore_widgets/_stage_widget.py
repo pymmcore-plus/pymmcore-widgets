@@ -95,6 +95,7 @@ class StageWidget(QWidget):
         self,
         device: str,
         levels: int | None = 2,
+        step: float | None = 10,
         *,
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
@@ -109,18 +110,24 @@ class StageWidget(QWidget):
         self._dtype = self._mmc.getDeviceType(self._device)
         assert self._dtype in STAGE_DEVICES, f"{self._dtype} not in {STAGE_DEVICES}"
 
-        self._create_widget()
-
+        self._create_widget(step)
         self._connect_events()
-
         self._set_as_default()
 
         self.destroyed.connect(self._disconnect)
 
-    def _create_widget(self) -> None:
+    def step(self) -> float:
+        """Return the current step size."""
+        return self._step.value()
+
+    def setStep(self, step: float) -> None:
+        """Set the step size."""
+        self._step.setValue(step)
+
+    def _create_widget(self, step: float) -> None:
         self._step = QDoubleSpinBox()
-        self._step.setValue(10)
-        self._step.setMaximum(9999)
+        self._step.setValue(step)
+        self._step.setMaximum(99999)
         self._step.valueChanged.connect(self._update_ttips)
         self._step.clearFocus()
         self._step.setAttribute(Qt.WidgetAttribute.WA_MacShowFocusRect, 0)
