@@ -63,6 +63,8 @@ class StageWidget(QWidget):
         Stage device.
     levels: int | None:
         Number of "arrow" buttons per widget per direction, by default, 2.
+    step: float | None:
+        Starting step size to use for the spinbox in the middle, by default, 10.
     parent : QWidget | None
         Optional parent widget.
     mmcore : CMMCorePlus | None
@@ -95,8 +97,8 @@ class StageWidget(QWidget):
         self,
         device: str,
         levels: int | None = 2,
-        step: float | None = 10,
         *,
+        step: float = 10,
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
     ):
@@ -118,7 +120,7 @@ class StageWidget(QWidget):
 
     def step(self) -> float:
         """Return the current step size."""
-        return self._step.value()
+        return self._step.value()  # type: ignore
 
     def setStep(self, step: float) -> None:
         """Set the step size."""
