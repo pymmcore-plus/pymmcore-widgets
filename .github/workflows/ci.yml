@@ -38,13 +38,13 @@ jobs:
             python-version: "3.10"
             backend: pyside6
           - platform: macos-latest
-            python-version: "3.10"
+            python-version: "3.11"
             backend: pyqt6
           - platform: windows-latest
             python-version: "3.10"
             backend: pyside6
           - platform: windows-latest
-            python-version: "3.10"
+            python-version: "3.11"
             backend: pyqt6
           - platform: windows-latest
             python-version: "3.9"
