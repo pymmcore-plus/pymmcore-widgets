@@ -86,5 +86,11 @@ class RolesPage(ConfigWizardPage):
         self._model.core_device.set_property(Keyword.CoreFocus, text)
 
     def _on_auto_shutter_changed(self, state: Qt.CheckState) -> None:
-        val = "1" if state == Qt.CheckState.Checked else "0"
+        try:
+            # if PyQt6 or PySide6
+            val = "1" if state == Qt.CheckState.Checked.value else "0"
+        except AttributeError:
+            # if PyQt5 or PySide2
+            val = "1" if state == Qt.CheckState.Checked else "0"
+
         self._model.core_device.set_property(Keyword.CoreAutoShutter, val)
