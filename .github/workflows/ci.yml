@@ -34,6 +34,12 @@ jobs:
         python-version: ["3.8", "3.11"]
         backend: [pyside2, pyqt5]
         include:
+          - platform: macos-latest
+            python-version: "3.10"
+            backend: pyside6
+          - platform: macos-latest
+            python-version: "3.10"
+            backend: pyqt6
           - platform: windows-latest
             python-version: "3.10"
             backend: pyside6
