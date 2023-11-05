@@ -58,14 +58,6 @@ class PixelTable(DataTableWidget):
     def _edit_pixel_size(self) -> None:
         pass
 
-    def _new_config(self) -> None:
-        """Add a new to the end of the table."""
-        self._new = NewPixelConfiguration()
-        self._new.show()
-
-        if self._new.exec_():
-            self._add_row()
-
     def _add_row(self) -> None:
         """Add a new to the end of the table."""
         # self._new = NewPixelConfiguration()

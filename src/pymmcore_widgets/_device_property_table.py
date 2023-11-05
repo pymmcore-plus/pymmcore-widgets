@@ -110,7 +110,6 @@ class DevicePropertyTable(QTableWidget):
         presets = self._mmc.getAvailableConfigs(group)
         if not presets:
             return
-
         included = [tuple(c)[:2] for c in self._mmc.getConfigData(group, presets[0])]
         for row in range(self.rowCount()):
             prop = cast(DeviceProperty, self.item(row, 0).data(self.PROP_ROLE))
@@ -188,6 +187,7 @@ class DevicePropertyTable(QTableWidget):
         include_read_only: bool = True,
         include_pre_init: bool = True,
         init_props_only: bool = False,
+        include_checked_only: bool = False,
     ) -> None:
         """Update the table to only show devices that match the given query/filter."""
         exclude_devices = set(exclude_devices)
@@ -200,6 +200,7 @@ class DevicePropertyTable(QTableWidget):
                 or (init_props_only and not prop.isPreInit())
                 or (prop.deviceType() in exclude_devices)
                 or (query and query.lower() not in item.text().lower())
+                or (include_checked_only and item.checkState() != Qt.CheckState.Checked)
             ):
                 self.hideRow(row)
             else:
