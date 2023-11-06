@@ -30,6 +30,8 @@ ID_ROLE = QTableWidgetItem.ItemType.UserType + 1
 
 
 class PixelConfigurationWidget(QWidget):
+    """A Widget to configure the pixel size configurations."""
+
     valueChanged = Signal(object)
 
     def __init__(
