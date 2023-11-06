@@ -133,6 +133,8 @@ class PixelConfigurationWidget(QWidget):
             self._update()
             self._props._device_filters.setShowCheckedOnly(False)
 
+        self.valueChanged.emit(self.value())
+
     def _on_props_value_changed(self) -> None:
         """Update the data of the pixel table when props selection changes."""
         items = self._px_table._table.selectedItems()
