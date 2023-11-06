@@ -30,7 +30,7 @@ ID_ROLE = QTableWidgetItem.ItemType.UserType + 1
 
 
 class PixelConfigurationWidget(QWidget):
-    """A Widget to configure the pixel size configurations."""
+    """A Widget to define the pixel size configurations."""
 
     valueChanged = Signal(object)
 
@@ -88,15 +88,15 @@ class PixelConfigurationWidget(QWidget):
 
         Example:
         -------
-        output = {
-            resolutionID: {
-                'px': 0.325,
-                'dev1': {'prop1': 'val1', 'prop2': 'val2', ...},
-                'dev2': {'prop1': 'val1', 'prop2': 'val2', ...},
+            output = {
+                resolutionID: {
+                    'px': 0.325,
+                    'dev1': {'prop1': 'val1', 'prop2': 'val2', ...},
+                    'dev2': {'prop1': 'val1', 'prop2': 'val2', ...},
+                    ...
+                },
                 ...
-            },
-            ...
-        }
+            }
         """
         return {
             resolutionID[ID]: {
