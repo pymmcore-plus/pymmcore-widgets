@@ -14,6 +14,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.utils import signals_blocked
 
 from pymmcore_widgets._device_property_table import DevicePropertyTable
 from pymmcore_widgets._device_type_filter import DeviceTypeFilters
@@ -216,7 +217,8 @@ class PixelConfigurationWidget(QWidget):
                     "PropertyWidget",
                     self._props_selector._prop_table.cellWidget(row_props_table, 1),
                 )
-                wdg.setValue(val)
+                with signals_blocked(wdg._value_widget):
+                    wdg.setValue(val)
 
     def _on_props_selector_value_changed(self) -> None:
         """Update the data of the pixel table when props selection changes."""
@@ -225,6 +227,8 @@ class PixelConfigurationWidget(QWidget):
             return
         self._update_current_resolutionID_data(items[0].row())
         self._update_resolutionIDs_data(items[0].row())
+
+        self.valueChanged.emit(self.value())
 
     def _on_px_table_value_changed(self) -> None:
         # unchecked all properties rows if the table is empty
@@ -244,7 +248,9 @@ class PixelConfigurationWidget(QWidget):
             # skip the selected resolutionID
             if r == selected_resID_row:
                 continue
+
             item = self._px_table._table.item(r, 0)
+
             # get the dev-prop-val of the resolutionID
             data = cast(list, item.data(ID_ROLE))
 
