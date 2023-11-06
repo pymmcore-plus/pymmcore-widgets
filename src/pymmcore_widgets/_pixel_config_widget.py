@@ -14,7 +14,6 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from rich import print
 
 from pymmcore_widgets._device_property_table import DevicePropertyTable
 from pymmcore_widgets._device_type_filter import DeviceTypeFilters
@@ -277,21 +276,11 @@ class PixelConfigurationWidget(QWidget):
         # define the new pixel size configurations
         for row, rec in enumerate(self._px_table.table().iterRecords()):
             data = self._px_table._table.item(row, 0).data(ID_ROLE)
-
-            print(data)
-
             for dev, prop, val in data:
                 self._mmc.definePixelSizeConfig(rec[ID], dev, prop, val)
                 self._mmc.setPixelSizeUm(rec[ID], rec[PX])
 
-        for c in self._mmc.getAvailablePixelSizeConfigs():
-            print(
-                c,
-                self._mmc.getPixelSizeUmByID(c),
-                self._mmc.getPixelSizeConfigData(c).dict(),
-            )
-
-        # self.close()
+        self.close()
 
     def _check_for_errors(self) -> bool:
         """Check for errors in the pixel configurations."""
