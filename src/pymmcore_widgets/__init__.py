@@ -24,6 +24,7 @@ from ._mda import (
     ZStackWidget,
 )
 from ._objective_widget import ObjectivesWidget
+from ._pixel_config_widget import PixelConfigurationWidget
 from ._pixel_size_widget import PixelSizeWidget
 from ._presets_widget import PresetsWidget
 from ._properties_widget import PropertiesWidget
@@ -50,6 +51,7 @@ __all__ = [
     "MDAWidget",
     "ObjectivesWidget",
     "PixelSizeWidget",
+    "PixelConfigurationWidget",
     "PositionTable",
     "PresetsWidget",
     "PropertiesWidget",
