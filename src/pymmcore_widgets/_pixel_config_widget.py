@@ -127,12 +127,12 @@ class PixelConfigurationWidget(QWidget):
         # select first config
         self._px_table._table.selectRow(0)
         resolutionID = cast(str, cfgs[0][ID])
-        self._update(resolutionID, 0)
+        self._update_widget(resolutionID, 0)
 
     def _on_px_table_value_changed(self) -> None:
         # unchecked all properties rows if the table is empty
         if not self._px_table.value():
-            self._update()
+            self._update_widget()
             self._props._device_filters.setShowCheckedOnly(False)
 
         self.valueChanged.emit(self.value())
@@ -142,7 +142,7 @@ class PixelConfigurationWidget(QWidget):
         items = self._px_table._table.selectedItems()
         if len(items) != 1:
             return
-        self._update_pixel_table_data(items[0].row())
+        self._update_resolutionID_data(items[0].row())
 
         self.valueChanged.emit(self.value())
 
@@ -152,9 +152,9 @@ class PixelConfigurationWidget(QWidget):
         if len(items) != 1:
             return
         resolutionID, row = items[0].text(), items[0].row()
-        self._update(resolutionID, row)
+        self._update_widget(resolutionID, row)
 
-    def _update(self, px_cfg: str = "", row: int | None = None) -> None:
+    def _update_widget(self, px_cfg: str = "", row: int | None = None) -> None:
         """Update the widget.
 
         Check the properties that are included in the specified configuration and
@@ -180,7 +180,7 @@ class PixelConfigurationWidget(QWidget):
                 # update the value of the property widget
                 self._update_wdg_value(px_cfg, prop, r)
                 # update the data of the pixel table
-                self._update_pixel_table_data(row)
+                self._update_resolutionID_data(row)
             else:
                 item.setCheckState(Qt.CheckState.Unchecked)
         # unchecked the 'show checked-only' checkbox if 'included' is empty
@@ -199,7 +199,7 @@ class PixelConfigurationWidget(QWidget):
                 wdg = cast("PropertyWidget", self._props._prop_table.cellWidget(row, 1))
                 wdg.setValue(val)
 
-    def _update_pixel_table_data(self, row: int | None) -> None:
+    def _update_resolutionID_data(self, row: int | None) -> None:
         """Update the data of the pixel table."""
         if row is None:
             return
@@ -209,7 +209,7 @@ class PixelConfigurationWidget(QWidget):
         item.setData(ID_ROLE, data)
 
         # check if the current devices and properties are the same in all the px cfgs
-        self._update_all_px_props(row, data)
+        self._update_resolutionIDs_data(row, data)
 
     def _get_data(self, props: list[tuple[str, str, str]]) -> dict:
         """Return the updated data dictionary for the pixel table."""
@@ -222,13 +222,13 @@ class PixelConfigurationWidget(QWidget):
                 data[dev] = {prop: val}
         return data
 
-    def _update_all_px_props(self, row: int, data: dict) -> None:
+    def _update_resolutionIDs_data(self, row: int, data: dict) -> None:
         """Update the data of in all resolutionIDs if different than 'data'.
 
         All the resolutionIDs should have the same devices and properties.
         """
         # get the dev-prop-val of the selected resolutionID (data)
-        data_dpv = self._get_dpv_list(data)
+        data_dpv = self._dict_to_list_of_tuples(data)
 
         for r in range(self._px_table._table.rowCount()):
             # skip the selected resolutionID
@@ -236,7 +236,7 @@ class PixelConfigurationWidget(QWidget):
                 continue
             item = self._px_table._table.item(r, 0)
             # get the dev-prop-val of the resolutionID
-            res_id_dpv = self._get_dpv_list(item.data(ID_ROLE))
+            res_id_dpv = self._dict_to_list_of_tuples(item.data(ID_ROLE))
 
             # remove the devs-props that are not in the selected resolutionID (not data)
             data_dp = [(dev, prop) for dev, prop, _ in data_dpv]
@@ -251,7 +251,7 @@ class PixelConfigurationWidget(QWidget):
                     res_id_dpv.append((dev, prop, val))
             item.setData(ID_ROLE, self._get_data(res_id_dpv))
 
-    def _get_dpv_list(self, data: dict) -> list[tuple[str, str, str]]:
+    def _dict_to_list_of_tuples(self, data: dict) -> list[tuple[str, str, str]]:
         """Return a list of dev-prop-val from a 'data' dict.
 
         Example:
@@ -277,7 +277,7 @@ class PixelConfigurationWidget(QWidget):
             data = cast(dict, data)
             px_size = data.pop(PX)
 
-            for dev, prop, val in self._get_dpv_list(data):
+            for dev, prop, val in self._dict_to_list_of_tuples(data):
                 self._mmc.definePixelSizeConfig(resolutionID, dev, prop, val)
                 self._mmc.setPixelSizeUm(resolutionID, px_size)
 
