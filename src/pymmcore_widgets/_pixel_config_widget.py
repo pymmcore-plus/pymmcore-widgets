@@ -134,9 +134,8 @@ class PixelConfigurationWidget(QWidget):
         # set dict of 'devs props vals' as data for each resolutionID
         for row in range(self._px_table._table.rowCount()):
             resolutionID = cast(str, cfgs[row][ID])
-            props = self._mmc.getPixelSizeConfigData(resolutionID).dict()
-            data = self._dict_to_list_of_tuples(props)
-            self._px_table._table.item(row, 0).setData(ID_ROLE, data)
+            props = list(self._mmc.getPixelSizeConfigData(resolutionID))
+            self._px_table._table.item(row, 0).setData(ID_ROLE, props)
             # connect the valueChanged signal of the spinbox
             wdg = cast(QDoubleSpinBox, self._px_table._table.cellWidget(row, 1))
             wdg.valueChanged.connect(lambda: self.valueChanged.emit(self.value()))
