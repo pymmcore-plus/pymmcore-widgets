@@ -163,8 +163,6 @@ class PixelConfigurationWidget(QWidget):
         self._update_current_resolutionID_data(items[0].row())
         self._update_resolutionIDs_data(items[0].row())
 
-        # self.valueChanged.emit(self.value())
-
     def _on_px_table_value_changed(self) -> None:
         # unchecked all properties rows if the table is empty
         if not self._px_table.value():
