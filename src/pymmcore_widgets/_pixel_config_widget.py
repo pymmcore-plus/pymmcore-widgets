@@ -420,7 +420,7 @@ class _PropertySelector(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(central_wdg)
 
-        self._prop_table.itemChanged.connect(self._emit_checked_properties)
+        self._prop_table.itemChanged.connect(self.valueChanged.emit)
 
     def _update_filter(self) -> None:
         filt = self._filter_text.text().lower()
@@ -436,8 +436,4 @@ class _PropertySelector(QWidget):
         """Connect the valueChanged signal of all the the property widgets."""
         for row in range(self._prop_table.rowCount()):
             wdg = cast("PropertyWidget", self._prop_table.cellWidget(row, 1))
-            wdg._value_widget.valueChanged.connect(self._emit_checked_properties)
-
-    def _emit_checked_properties(self) -> None:
-        """Emit all the chacked properties."""
-        self.valueChanged.emit(self._prop_table.getCheckedProperties())
+            wdg._value_widget.valueChanged.connect(self.valueChanged.emit)
