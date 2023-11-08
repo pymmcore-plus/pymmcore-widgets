@@ -370,7 +370,7 @@ class _PixelTable(DataTableWidget):
 
 
 class _PropertySelector(QWidget):
-    valueChanged = Signal(object, object)
+    valueChanged = Signal(object)
 
     def __init__(
         self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
