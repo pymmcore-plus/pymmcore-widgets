@@ -39,7 +39,6 @@ ID_ROLE = QTableWidgetItem.ItemType.UserType + 1
 class ConfigMap:
     """A dataclass to store the data of the pixel configurations."""
 
-    row: int
     resolutionID: str
     px_size: float
     props: list[tuple[str, str, str]]
@@ -161,7 +160,7 @@ class PixelConfigurationWidget(QWidget):
             px_size = self._mmc.getPixelSizeUmByID(resolutionID)
             props = list(self._mmc.getPixelSizeConfigData(resolutionID))
             # store the data in the map
-            self._map[row] = ConfigMap(row, resolutionID, px_size, props)
+            self._map[row] = ConfigMap(resolutionID, px_size, props)
             # add pixel size configurations to table
             to_table.append({ID: resolutionID, PX: px_size})
 
@@ -218,7 +217,7 @@ class PixelConfigurationWidget(QWidget):
             self._map[selected_resID_row].props = props
         except KeyError:
             # is it is a newly added resolutionID
-            self._map[selected_resID_row] = ConfigMap(selected_resID_row, NEW, 0, props)
+            self._map[selected_resID_row] = ConfigMap(NEW, 0, props)
 
     def _update_other_resolutionIDs(self, selected_resID_row: int) -> None:
         """Update the data of in all resolutionIDs if different than the data of the
