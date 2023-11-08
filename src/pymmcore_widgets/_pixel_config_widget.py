@@ -225,6 +225,7 @@ class PixelConfigurationWidget(QWidget):
         properties.
         """  # noqa: D205
         selected_resID_props = self._map[selected_resID_row].props
+        selected_dev_prop = {(dev, prop) for dev, prop, _ in selected_resID_props}
 
         for r in range(self._px_table._table.rowCount()):
             # skip the selected resolutionID
@@ -235,16 +236,19 @@ class PixelConfigurationWidget(QWidget):
             props = self._map[r].props
 
             # remove the devs-props that are not in the selected resolutionID (not data)
-            dev_prop = [(dev, prop) for dev, prop, _ in selected_resID_props]
-            for dev, prop, val in props:
-                if (dev, prop) not in dev_prop:
-                    props.remove((dev, prop, val))
+            props_to_remove = [
+                (d, p, v) for d, p, v in props if (d, p) not in selected_dev_prop
+            ]
+            for dpv in props_to_remove:
+                props.remove(dpv)
 
             # add the missing devices and properties
-            res_id_dp = [(dev, prop) for dev, prop, _ in props]
-            for dev, prop, val in selected_resID_props:
-                if (dev, prop) not in res_id_dp:
-                    props.append((dev, prop, val))
+            res_id_dp = {(dev, prop) for dev, prop, _ in props}
+            props_to_add = [
+                (d, p, v) for d, p, v in selected_resID_props if (d, p) not in res_id_dp
+            ]
+            for dpv in props_to_add:
+                props.append(dpv)
 
             self._map[r].props = sorted(props, key=lambda x: x[0])
 
