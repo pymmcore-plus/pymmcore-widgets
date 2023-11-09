@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING, Mapping
 
 import numpy as np
 from pymmcore_plus import CMMCorePlus
-from qtpy import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Signal
+from superqt.cmap._cmap_utils import try_cast_colormap
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
 from pymmcore_widgets._mda._util._labeled_slider import LabeledVisibilitySlider
-from superqt.cmap._cmap_utils import try_cast_colormap
 
 DIMENSIONS = ["t", "z", "c", "p", "g"]
 AUTOCLIM_RATE = 1  # Hz   0 = inf

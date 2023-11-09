@@ -2,16 +2,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from qtpy import QtCore, QtGui, QtWidgets
-from superqt import QRangeSlider, QColormapComboBox
-from useq import Channel
 import cmap
+from qtpy import QtCore, QtGui, QtWidgets
+from superqt import QColormapComboBox, QRangeSlider
+from useq import Channel
 
 if TYPE_CHECKING:
     from qtpy.QtGui import QMouseEvent
+    from vispy import color
 
 try:
-    from vispy import color
+    pass
 except ImportError as e:
     raise ImportError(
         "vispy is required for Channel_row. "
@@ -226,8 +227,6 @@ class QColorComboBox(QtWidgets.QComboBox):
 
 if __name__ == "__main__":
     import sys
-
-    from vispy import color
 
     app = QtWidgets.QApplication(sys.argv)
     w = ChannelBox(Channel(config="empty"), cmaps=CMAPS)
