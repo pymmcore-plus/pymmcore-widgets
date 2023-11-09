@@ -85,6 +85,8 @@ class StackViewer(QtWidgets.QWidget):
 
     def construct_canvas(self) -> None:
         img_size = (self._mmc.getImageHeight(), self._mmc.getImageWidth())
+        if img_size == (0, 0):
+            img_size = (512, 512)
         self._canvas = scene.SceneCanvas(
             size=img_size, parent=self, autoswap=False, vsync=True, keys=None
         )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from qtpy import QtCore, QtGui, QtWidgets
-from superqt import QRangeSlider
+from superqt import QRangeSlider, QColormapComboBox
 from useq import Channel
 
 if TYPE_CHECKING:
@@ -18,14 +18,7 @@ except ImportError as e:
     ) from e
 
 
-CMAPS = [
-    color.Colormap([[0, 0, 0], [1, 1, 0]]),
-    color.Colormap([[0, 0, 0], [1, 0, 1]]),
-    color.Colormap([[0, 0, 0], [0, 1, 1]]),
-    color.Colormap([[0, 0, 0], [1, 0, 0]]),
-    color.Colormap([[0, 0, 0], [0, 1, 0]]),
-    color.Colormap([[0, 0, 0], [0, 0, 1]]),
-]
+CMAPS = ["Greys", "BOP_Blue", "BOP_Purple"]
 
 
 class ChannelRow(QtWidgets.QWidget):
@@ -63,10 +56,10 @@ class ChannelRow(QtWidgets.QWidget):
             channel_box.slider.sliderMoved.connect(
                 lambda values, i=i: self.new_clims.emit(values, i)
             )
-            channel_box.color_choice.selectedColor.connect(
+            channel_box.color_choice.currentColormapChanged.connect(
                 lambda color, i=i: self.new_cmap.emit(color, i)
             )
-            channel_box.color_choice.setColor(i)
+            channel_box.color_choice.setCurrentIndex(i)
             channel_box.clicked.connect(self._handle_channel_choice)
             channel_box.mousePressEvent(None)
             channel_box.hide()
@@ -107,14 +100,13 @@ class ChannelBox(QtWidgets.QFrame):
         self.show_channel.setChecked(True)
         self.show_channel.setStyleSheet("font-weight: bold")
         self.layout().addWidget(self.show_channel, 0, 0)
-        self.color_choice = QColorComboBox()
+        self.color_choice = QColormapComboBox(allow_user_colormaps=True)
 
         if cmaps is None:
             cmaps = CMAPS
         for cmap in cmaps:
-            self.color_choice.addColors([list(cmap.colors[-1].RGB[0])])
+            self.color_choice.addColormap(cmap)
 
-        # self.color_choice.setStyle(QtWidgets.QStyleFactory.create('fusion'))
         self.layout().addWidget(self.color_choice, 0, 1)
         self.autoscale_chbx = QtWidgets.QCheckBox("Auto")
         self.autoscale_chbx.setChecked(False)
@@ -234,15 +226,6 @@ if __name__ == "__main__":
     import sys
 
     from vispy import color
-
-    CMAPS = [
-        color.Colormap([[0, 0, 0], [1, 1, 0]]),
-        color.Colormap([[0, 0, 0], [1, 0, 1]]),
-        color.Colormap([[0, 0, 0], [0, 1, 1]]),
-        color.Colormap([[0, 0, 0], [1, 0, 0]]),
-        color.Colormap([[0, 0, 0], [0, 1, 0]]),
-        color.Colormap([[0, 0, 0], [0, 0, 1]]),
-    ]
 
     app = QtWidgets.QApplication(sys.argv)
     w = ChannelBox(Channel(config="empty"), cmaps=CMAPS)
