@@ -106,9 +106,8 @@ class ChannelBox(QtWidgets.QFrame):
 
         if cmaps is None:
             cmaps = CMAPS
-        for cmap in cmaps:
-            print(cmap)
-            self.color_choice.addColormap(cmap)
+        for my_cmap in cmaps:
+            self.color_choice.addColormap(my_cmap)
 
         self.layout().addWidget(self.color_choice, 0, 1)
         self.autoscale_chbx = QtWidgets.QCheckBox("Auto")

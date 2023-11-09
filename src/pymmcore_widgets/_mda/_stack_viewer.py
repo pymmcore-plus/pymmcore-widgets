@@ -16,7 +16,7 @@ DIMENSIONS = ["t", "z", "c", "p", "g"]
 AUTOCLIM_RATE = 1  # Hz   0 = inf
 
 try:
-    from vispy import color, scene
+    from vispy import scene
 except ImportError as e:
     raise ImportError(
         "vispy is required for StackViewer. "
@@ -24,6 +24,7 @@ except ImportError as e:
     ) from e
 
 if TYPE_CHECKING:
+    import cmap
     from qtpy.QtWidgets import QWidget
     from useq import MDAEvent, MDASequence
     from vispy.scene.events import SceneMouseEvent
@@ -49,8 +50,8 @@ class StackViewer(QtWidgets.QWidget):
         self.sequence = sequence
 
         self._clim = "auto"
-        self.cmaps = ["Greys", "BOP_Blue", "BOP_Purple"]
-        self.cmaps = [try_cast_colormap(x) for x in self.cmaps]
+        self.cmap_names = ["Greys", "BOP_Blue", "BOP_Purple"]
+        self.cmaps = [try_cast_colormap(x) for x in self.cmap_names]
         self.display_index = {dim: 0 for dim in DIMENSIONS}
 
         self.setLayout(QtWidgets.QVBoxLayout())
