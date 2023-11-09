@@ -10,6 +10,7 @@ from qtpy.QtCore import Signal
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
 from pymmcore_widgets._mda._util._labeled_slider import LabeledVisibilitySlider
+from superqt.cmap._cmap_utils import try_cast_colormap
 
 DIMENSIONS = ["t", "z", "c", "p", "g"]
 AUTOCLIM_RATE = 1  # Hz   0 = inf
@@ -48,14 +49,8 @@ class StackViewer(QtWidgets.QWidget):
         self.sequence = sequence
 
         self._clim = "auto"
-        self.cmaps = [
-            color.Colormap([[0, 0, 0], [1, 1, 0]]),
-            color.Colormap([[0, 0, 0], [1, 0, 1]]),
-            color.Colormap([[0, 0, 0], [0, 1, 1]]),
-            color.Colormap([[0, 0, 0], [1, 0, 0]]),
-            color.Colormap([[0, 0, 0], [0, 1, 0]]),
-            color.Colormap([[0, 0, 0], [0, 0, 1]]),
-        ]
+        self.cmaps = ["Greys", "BOP_Blue", "BOP_Purple"]
+        self.cmaps = [try_cast_colormap(x) for x in self.cmaps]
         self.display_index = {dim: 0 for dim in DIMENSIONS}
 
         self.setLayout(QtWidgets.QVBoxLayout())
@@ -116,7 +111,7 @@ class StackViewer(QtWidgets.QWidget):
             image = scene.visuals.Image(
                 np.zeros(self._canvas.size).astype(self.datastore.dtype),
                 parent=self.view.scene,
-                cmap=self.cmaps[i],
+                cmap=self.cmaps[i].to_vispy(),
                 clim=(0, 1),
             )
             if i > 0:
@@ -135,9 +130,8 @@ class StackViewer(QtWidgets.QWidget):
             )
         self._canvas.update()
 
-    def _handle_channel_cmap(self, my_color: QtGui.QColor, channel: int) -> None:
-        my_color_rgb = [x // 255 for x in my_color.getRgb()[:3]]
-        self.images[channel].cmap = color.Colormap([[0, 0, 0], my_color_rgb])
+    def _handle_channel_cmap(self, colormap: cmap.Colormap, channel: int) -> None:
+        self.images[channel].cmap = colormap.to_vispy()
         self._canvas.update()
 
     def _handle_channel_visibility(self, state: bool, channel: int) -> None:

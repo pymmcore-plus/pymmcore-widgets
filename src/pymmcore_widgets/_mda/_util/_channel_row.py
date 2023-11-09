@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from qtpy import QtCore, QtGui, QtWidgets
 from superqt import QRangeSlider, QColormapComboBox
 from useq import Channel
+import cmap
 
 if TYPE_CHECKING:
     from qtpy.QtGui import QMouseEvent
@@ -27,7 +28,7 @@ class ChannelRow(QtWidgets.QWidget):
     visible = QtCore.Signal(bool, int)
     autoscale = QtCore.Signal(bool, int)
     new_clims = QtCore.Signal(tuple, int)
-    new_cmap = QtCore.Signal(QtGui.QColor, int)
+    new_cmap = QtCore.Signal(cmap.Colormap, int)
     selected = QtCore.Signal(int)
 
     def __init__(
@@ -105,6 +106,7 @@ class ChannelBox(QtWidgets.QFrame):
         if cmaps is None:
             cmaps = CMAPS
         for cmap in cmaps:
+            print(cmap)
             self.color_choice.addColormap(cmap)
 
         self.layout().addWidget(self.color_choice, 0, 1)

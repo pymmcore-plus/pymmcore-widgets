@@ -3,6 +3,7 @@ from useq import MDASequence
 from vispy.app.canvas import MouseEvent
 from vispy.scene.events import SceneMouseEvent
 
+from superqt.cmap._cmap_utils import try_cast_colormap
 from pymmcore_widgets._mda._datastore import QLocalDataStore
 from pymmcore_widgets._mda._stack_viewer import StackViewer
 from pymmcore_widgets._mda._util._channel_row import CMAPS
@@ -70,9 +71,10 @@ def test_interaction(qtbot):
     canvas.sliders[0].setValue(1)
     canvas.on_clim_timer()
     color_selected = 2
-    canvas.channel_row.boxes[0].color_choice._color_selected(color_selected)
+    canvas.channel_row.boxes[0].color_choice.setCurrentIndex(color_selected)
     assert (
-        canvas.images[0].cmap.colors[-1].RGB == CMAPS[color_selected].colors[-1].RGB
+        canvas.images[0].cmap.colors[-1].RGB ==
+        try_cast_colormap(CMAPS[color_selected]).to_vispy().colors[-1].RGB
     ).all
 
     canvas.channel_row.boxes[0].autoscale_chbx.setChecked(False)
