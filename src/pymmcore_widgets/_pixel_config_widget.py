@@ -60,7 +60,7 @@ class PixelConfigurationWidget(QWidget):
 
         self.setWindowTitle(title)
 
-        self._map: dict[int, ConfigMap] = {}
+        self._config_map: dict[int, ConfigMap] = {}
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -93,9 +93,6 @@ class PixelConfigurationWidget(QWidget):
         self._px_table._table.itemSelectionChanged.connect(
             self._on_px_table_selection_changed
         )
-        # self._px_table._table.itemChanged.connect(
-        #     lambda: self.valueChanged.emit(self.value())
-        # )
         self._props_selector.valueChanged.connect(self._on_props_selector_value_changed)
         apply_btn.clicked.connect(self._on_apply)
         cancel_btn.clicked.connect(self.close)
@@ -105,44 +102,49 @@ class PixelConfigurationWidget(QWidget):
     # -------------- Public API --------------
 
     def value(self) -> dict:
-        """Return the value of the widget.
+        """Return the current state of the widget describing the pixel configurations.
 
         Example:
         -------
             output = {
                 Res10x: {
-                    'px': 0.325,
+                    'px': 0.65,
                     'props': [('dev1', 'prop1', 'val1'), ...],
+                },
+                Res20x: {
+                    'px': 0.325,
+                    'props': [('dev1', 'prop1', 'val2'), ...],
                 },
                 ...
         """
         return {
-            self._map[row].resolutionID: {
-                PX: self._map[row].px_size,
-                PROPS: self._map[row].props,
+            self._config_map[row].resolutionID: {
+                PX: self._config_map[row].px_size,
+                PROPS: self._config_map[row].props,
             }
-            for row in self._map
+            for row in self._config_map
         }
 
     # -------------- Private API --------------
 
     def _on_resolutionID_name_changed(self, item: QTableWidgetItem) -> None:
-        """Update the resolutionID name in the map."""
-        self._map[item.row()].resolutionID = item.text()
+        """Update the resolutionID name in the configuration map."""
+        self._config_map[item.row()].resolutionID = item.text()
 
         self.valueChanged.emit(self.value())
 
     def _on_px_value_changed(self) -> None:
-        """Update the pixel size value in the map."""
+        """Update the pixel size value in the configuration map."""
         spin = cast(QDoubleSpinBox, self.sender())
         table = cast(DataTable, self.sender().parent().parent())
         row = table.indexAt(spin.pos()).row()
-        self._map[row].px_size = spin.value()
+        self._config_map[row].px_size = spin.value()
 
         self.valueChanged.emit(self.value())
 
     def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
         """Set the data of a newly inserted resolutionID."""
+        # end is the last row inserted
         self._update_current_resolutionID(end)
         # connect the valueChanged signal of the spinbox
         wdg = cast(QDoubleSpinBox, self._px_table._table.cellWidget(end, 1))
@@ -159,8 +161,8 @@ class PixelConfigurationWidget(QWidget):
             # get the data of the resolutionID
             px_size = self._mmc.getPixelSizeUmByID(resolutionID)
             props = list(self._mmc.getPixelSizeConfigData(resolutionID))
-            # store the data in the map
-            self._map[row] = ConfigMap(resolutionID, px_size, props)
+            # store the data in the configuration map
+            self._config_map[row] = ConfigMap(resolutionID, px_size, props)
             # add pixel size configurations to table
             to_table.append({ID: resolutionID, PX: px_size})
 
@@ -199,9 +201,9 @@ class PixelConfigurationWidget(QWidget):
 
     def _on_px_table_value_changed(self) -> None:
         """Update the data of the pixel table when the value changes."""
-        # if the table is empty clear map and unchecked all properties rows
+        # if the table is empty clear the configuration map and unchecked all rows
         if not self._px_table.value():
-            self._map.clear()
+            self._config_map.clear()
             self._props_selector._device_filters.setShowCheckedOnly(False)
             for row in range(self._props_selector._prop_table.rowCount()):
                 item = self._props_selector._prop_table.item(row, 0)
@@ -213,18 +215,18 @@ class PixelConfigurationWidget(QWidget):
             self._props_selector._prop_table.getCheckedProperties(), key=lambda x: x[0]
         )
         try:
-            # if the resolutionID already exists in the map
-            self._map[selected_resID_row].props = props
+            # if the resolutionID already exists in the configuration map
+            self._config_map[selected_resID_row].props = props
         except KeyError:
             # is it is a newly added resolutionID
-            self._map[selected_resID_row] = ConfigMap(NEW, 0, props)
+            self._config_map[selected_resID_row] = ConfigMap(NEW, 0, props)
 
     def _update_other_resolutionIDs(self, selected_resID_row: int) -> None:
         """Update the data of in all resolutionIDs if different than the data of the
         selected resolutionID. All the resolutionIDs should have the same devices and
         properties.
         """  # noqa: D205
-        selected_resID_props = self._map[selected_resID_row].props
+        selected_resID_props = self._config_map[selected_resID_row].props
         selected_dev_prop = {(dev, prop) for dev, prop, _ in selected_resID_props}
 
         for r in range(self._px_table._table.rowCount()):
@@ -233,7 +235,7 @@ class PixelConfigurationWidget(QWidget):
                 continue
 
             # get the dev-prop-val of the resolutionID
-            props = self._map[r].props
+            props = self._config_map[r].props
 
             # remove the devs-props that are not in the selected resolutionID (not data)
             props_to_remove = [
@@ -250,7 +252,7 @@ class PixelConfigurationWidget(QWidget):
             for dpv in props_to_add:
                 props.append(dpv)
 
-            self._map[r].props = sorted(props, key=lambda x: x[0])
+            self._config_map[r].props = sorted(props, key=lambda x: x[0])
 
     def _update_properties(self, resID_row: int) -> None:
         """Update properties in the properties table for the selected resolutionID."""
@@ -278,7 +280,7 @@ class PixelConfigurationWidget(QWidget):
         Use the both the properties from the map and the checked properties in the
         properties table.
         """
-        data = self._map[resID_row].props
+        data = self._config_map[resID_row].props
         included = [(d, p) for d, p, _ in data] if data is not None else []
         # update included list with the checked properties if not already included
         for d, p, _ in self._props_selector._prop_table.getCheckedProperties():
@@ -292,7 +294,7 @@ class PixelConfigurationWidget(QWidget):
         """Update the value of the property widget."""
         if resID_row is None:
             return
-        data = self._map[resID_row].props
+        data = self._config_map[resID_row].props
         for dev, prop, val in data:
             if dev == property.device and prop == property.name:
                 wdg = cast(
@@ -314,7 +316,7 @@ class PixelConfigurationWidget(QWidget):
 
         # define the new pixel size configurations
         for row, rec in enumerate(self._px_table.table().iterRecords()):
-            props = self._map[row].props
+            props = self._config_map[row].props
             for dev, prop, val in props:
                 self._mmc.definePixelSizeConfig(rec[ID], dev, prop, val)
                 self._mmc.setPixelSizeUm(rec[ID], rec[PX])
@@ -339,7 +341,7 @@ class PixelConfigurationWidget(QWidget):
 
         # check if there are duplicated devices and properties
         for row in range(self._px_table._table.rowCount()):
-            props = self._map[row].props
+            props = self._config_map[row].props
             if len(props) != len(set(props)):
                 return self._show_error_message(
                     "There are duplicated devices and properties in resolutionID: "
