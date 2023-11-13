@@ -154,6 +154,8 @@ class PixelConfigurationWidget(QWidget):
         wdg = cast(QDoubleSpinBox, self._px_table._table.cellWidget(end, 1))
         wdg.valueChanged.connect(self._on_px_value_changed)
 
+        self._px_table._table.selectRow(end)
+
         self.valueChanged.emit(self.value())
 
     def _on_sys_config_loaded(self) -> None:
