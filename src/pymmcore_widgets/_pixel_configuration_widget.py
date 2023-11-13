@@ -16,6 +16,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from rich import print
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets._device_property_table import DevicePropertyTable
@@ -144,7 +145,11 @@ class PixelConfigurationWidget(QWidget):
 
     def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
         """Set the data of a newly inserted resolutionID."""
-        # end is the last row inserted
+        # "end" is the last row inserted. if "self._config_map[end]" exists, it means it
+        #  is not a new row added by clicking on the "add" button but is a row added by
+        # "_on_sys_config_loaded".
+        if self._config_map.get(end):
+            return
         self._update_current_resolutionID(end)
         # connect the valueChanged signal of the spinbox
         wdg = cast(QDoubleSpinBox, self._px_table._table.cellWidget(end, 1))
@@ -155,7 +160,6 @@ class PixelConfigurationWidget(QWidget):
     def _on_sys_config_loaded(self) -> None:
         self._px_table._remove_all()
 
-        to_table: list[dict[str, Any]] = []
         # set dict of 'devs props vals' as data for each resolutionID
         for row, resolutionID in enumerate(self._mmc.getAvailablePixelSizeConfigs()):
             # get the data of the resolutionID
@@ -164,19 +168,17 @@ class PixelConfigurationWidget(QWidget):
             # store the data in the configuration map
             self._config_map[row] = ConfigMap(resolutionID, px_size, props)
             # add pixel size configurations to table
-            to_table.append({ID: resolutionID, PX: px_size})
-
-        # add the resolutionID data to the table
-        with signals_blocked(self._px_table._table):
-            self._px_table.setValue(to_table)
-
-        # connect the valueChanged signal of the px table spinboxes. Not doing it before
-        # to avoid KeyErrors for accessing _on_px_value_changed
-        for row in range(self._px_table._table.rowCount()):
+            data = {
+                self._px_table.ID.key: resolutionID,
+                self._px_table.VALUE.key: px_size,
+            }
+            self._px_table._add_row()
+            self._px_table.table().setRowData(row, data)
+            # connect the valueChanged signal of the px table spinboxes.
             wdg = cast(QDoubleSpinBox, self._px_table._table.cellWidget(row, 1))
             wdg.valueChanged.connect(self._on_px_value_changed)
 
-        # select first config
+        # select first config and trigger update properties
         self._px_table._table.selectRow(0)
 
     def _on_px_table_selection_changed(self) -> None:
@@ -306,22 +308,23 @@ class PixelConfigurationWidget(QWidget):
 
     def _on_apply(self) -> None:
         """Update the current pixel size configurations."""
-        # check if there are errors in the pixel configurations
-        if self._check_for_errors():
-            return
+        print(self._config_map)
+        # # check if there are errors in the pixel configurations
+        # if self._check_for_errors():
+        #     return
 
-        # delete all the pixel size configurations
-        for resolutionID in self._mmc.getAvailablePixelSizeConfigs():
-            self._mmc.deletePixelSizeConfig(resolutionID)
+        # # delete all the pixel size configurations
+        # for resolutionID in self._mmc.getAvailablePixelSizeConfigs():
+        #     self._mmc.deletePixelSizeConfig(resolutionID)
 
-        # define the new pixel size configurations
-        for row, rec in enumerate(self._px_table.table().iterRecords()):
-            props = self._config_map[row].props
-            for dev, prop, val in props:
-                self._mmc.definePixelSizeConfig(rec[ID], dev, prop, val)
-                self._mmc.setPixelSizeUm(rec[ID], rec[PX])
+        # # define the new pixel size configurations
+        # for row, rec in enumerate(self._px_table.table().iterRecords()):
+        #     props = self._config_map[row].props
+        #     for dev, prop, val in props:
+        #         self._mmc.definePixelSizeConfig(rec[ID], dev, prop, val)
+        #         self._mmc.setPixelSizeUm(rec[ID], rec[PX])
 
-        self.close()
+        # self.close()
 
     def _check_for_errors(self) -> bool:
         """Check for errors in the pixel configurations."""

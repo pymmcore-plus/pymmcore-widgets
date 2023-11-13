@@ -144,6 +144,7 @@ class AddGroupWidget(QDialog):
             exclude_devices=self._device_filters.filters(),
             include_read_only=self._device_filters.showReadOnly(),
             include_pre_init=self._device_filters.showPreInitProps(),
+            include_checked_only=self._device_filters.showCheckedOnly(),
         )
 
     def _add_group(self) -> None:

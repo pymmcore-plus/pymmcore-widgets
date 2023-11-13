@@ -27,7 +27,7 @@ from ._mda import (
 )
 from ._objective_widget import ObjectivesWidget
 from ._objectives_pixel_configuration_widget import ObjectivesPixelConfigurationWidget
-from ._pixel_config_widget import PixelConfigurationWidget
+from ._pixel_configuration_widget import PixelConfigurationWidget
 from ._presets_widget import PresetsWidget
 from ._properties_widget import PropertiesWidget
 from ._property_browser import PropertyBrowser
