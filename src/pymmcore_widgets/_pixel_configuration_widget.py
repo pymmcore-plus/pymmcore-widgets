@@ -16,7 +16,6 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from rich import print
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets._device_property_table import DevicePropertyTable
@@ -308,23 +307,22 @@ class PixelConfigurationWidget(QWidget):
 
     def _on_apply(self) -> None:
         """Update the current pixel size configurations."""
-        print(self._config_map)
-        # # check if there are errors in the pixel configurations
-        # if self._check_for_errors():
-        #     return
+        # check if there are errors in the pixel configurations
+        if self._check_for_errors():
+            return
 
-        # # delete all the pixel size configurations
-        # for resolutionID in self._mmc.getAvailablePixelSizeConfigs():
-        #     self._mmc.deletePixelSizeConfig(resolutionID)
+        # delete all the pixel size configurations
+        for resolutionID in self._mmc.getAvailablePixelSizeConfigs():
+            self._mmc.deletePixelSizeConfig(resolutionID)
 
-        # # define the new pixel size configurations
-        # for row, rec in enumerate(self._px_table.table().iterRecords()):
-        #     props = self._config_map[row].props
-        #     for dev, prop, val in props:
-        #         self._mmc.definePixelSizeConfig(rec[ID], dev, prop, val)
-        #         self._mmc.setPixelSizeUm(rec[ID], rec[PX])
+        # define the new pixel size configurations
+        for row, rec in enumerate(self._px_table.table().iterRecords()):
+            props = self._config_map[row].props
+            for dev, prop, val in props:
+                self._mmc.definePixelSizeConfig(rec[ID], dev, prop, val)
+                self._mmc.setPixelSizeUm(rec[ID], rec[PX])
 
-        # self.close()
+        self.close()
 
     def _check_for_errors(self) -> bool:
         """Check for errors in the pixel configurations."""
