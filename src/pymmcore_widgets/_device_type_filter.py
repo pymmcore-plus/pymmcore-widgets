@@ -61,16 +61,10 @@ class DeviceTypeFilters(QWidget):
         self._pre_init_checkbox.toggled.connect(self.filtersChanged)
         self._pre_init_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        self._show_checked = QCheckBox("Show checked-only")
-        self._show_checked.setChecked(False)
-        self._show_checked.toggled.connect(self.filtersChanged)
-        self._show_checked.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-
         layout = QVBoxLayout()
         layout.addWidget(self._dev_gb)
         layout.addWidget(self._read_only_checkbox)
         layout.addWidget(self._pre_init_checkbox)
-        layout.addWidget(self._show_checked)
         layout.addStretch()
         self.setLayout(layout)
 
@@ -102,11 +96,4 @@ class DeviceTypeFilters(QWidget):
 
     def setShowPreInitProps(self, show: bool) -> None:
         self._pre_init_checkbox.setChecked(show)
-        self.filtersChanged.emit()
-
-    def showCheckedOnly(self) -> bool:
-        return self._show_checked.isChecked()  # type: ignore
-
-    def setShowCheckedOnly(self, show: bool) -> None:
-        self._show_checked.setChecked(show)
         self.filtersChanged.emit()

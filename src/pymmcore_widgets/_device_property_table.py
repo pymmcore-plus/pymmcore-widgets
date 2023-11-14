@@ -118,6 +118,16 @@ class DevicePropertyTable(QTableWidget):
             else:
                 self.item(row, 0).setCheckState(Qt.CheckState.Unchecked)
 
+    # def checkResolutionID(self, resolutionID: str) -> None:
+    #     """Check all properties that are in the given resolutionID (pixel configuration)."""  # noqa: E501
+    #     for dev, prop, _ in self._mmc.getPixelSizeConfigData(resolutionID):
+    #         for row in range(self.rowCount()):
+    #             p = cast(DeviceProperty, self.item(row, 0).data(self.PROP_ROLE))
+    #             if p.device == dev and p.name == prop:
+    #                 self.item(row, 0).setCheckState(Qt.CheckState.Checked)
+    #             else:
+    #                 self.item(row, 0).setCheckState(Qt.CheckState.Unchecked)
+
     def setRowNumbersVisible(self, visible: bool = True) -> None:
         """Set whether line numbers are visible."""
         self.verticalHeader().setVisible(visible)
@@ -187,7 +197,6 @@ class DevicePropertyTable(QTableWidget):
         include_read_only: bool = True,
         include_pre_init: bool = True,
         init_props_only: bool = False,
-        include_checked_only: bool = False,
     ) -> None:
         """Update the table to only show devices that match the given query/filter."""
         exclude_devices = set(exclude_devices)
@@ -200,7 +209,6 @@ class DevicePropertyTable(QTableWidget):
                 or (init_props_only and not prop.isPreInit())
                 or (prop.deviceType() in exclude_devices)
                 or (query and query.lower() not in item.text().lower())
-                or (include_checked_only and item.checkState() != Qt.CheckState.Checked)
             ):
                 self.hideRow(row)
             else:

@@ -29,7 +29,6 @@ class PropertyBrowser(QDialog):
 
         self._prop_table = DevicePropertyTable(mmcore=mmcore)
         self._device_filters = DeviceTypeFilters()
-        self._device_filters._show_checked.hide()
         self._device_filters.filtersChanged.connect(self._update_filter)
 
         self._filter_text = QLineEdit()

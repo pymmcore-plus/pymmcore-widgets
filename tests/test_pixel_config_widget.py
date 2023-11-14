@@ -50,17 +50,23 @@ def test_pixel_config_wdg_prop_selection(qtbot: QtBot, global_mmcore: CMMCorePlu
 
     row_checkbox.setCheckState(Qt.CheckState.Checked)
     # ("Camera", "AllowMultiROI", "0") should be in all configs
-    for x in [wdg._config_map[i].props for i in wdg._config_map]:
+    for x in [
+        wdg._props_selector._resID_map[i].props for i in wdg._props_selector._resID_map
+    ]:
         assert ("Camera", "AllowMultiROI", "0") in x
 
     row_checkbox.setCheckState(Qt.CheckState.Unchecked)
     # ("Camera", "AllowMultiROI", "0") should be removed in all configs
-    for x in [wdg._config_map[i].props for i in wdg._config_map]:
+    for x in [
+        wdg._props_selector._resID_map[i].props for i in wdg._props_selector._resID_map
+    ]:
         assert ("Camera", "AllowMultiROI", "0") not in x
 
     wdg._px_table._add_row()
     assert wdg._px_table.value()[-1][ID] == NEW
-    wdg._config_map[3].props = [("Objective", "Label", "Nikon 20X Plan Fluor ELWD")]
+    wdg._props_selector._resID_map[3].props = [
+        ("Objective", "Label", "Nikon 20X Plan Fluor ELWD")
+    ]
 
 
 def test_pixel_config_wdg_prop_change(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -72,7 +78,7 @@ def test_pixel_config_wdg_prop_change(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert row_wdg.value() == "Nikon 10X S Fluor"
 
     row_wdg.setValue("Nikon 40X Plan Fluor ELWD")
-    assert wdg._config_map[0].props == [
+    assert wdg._props_selector._resID_map[0].props == [
         ("Objective", "Label", "Nikon 40X Plan Fluor ELWD")
     ]
 
@@ -100,13 +106,13 @@ def test_pixel_config_wdg_core(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg._px_table._table.item(0, 0).setText("test")
     wdg._px_table._table.cellWidget(0, 1).setValue(10)
 
-    assert wdg._config_map[0].resolutionID == "test"
-    assert wdg._config_map[0].px_size == 10.0
-    assert not wdg._config_map[0].props
+    assert wdg._props_selector._resID_map[0].resolutionID == "test"
+    assert wdg._props_selector._resID_map[0].px_size == 10.0
+    assert not wdg._props_selector._resID_map[0].props
 
     row_checkbox = wdg._props_selector._prop_table.item(0, 0)
     row_checkbox.setCheckState(Qt.CheckState.Checked)
-    assert wdg._config_map[0].props == [("Camera", "AllowMultiROI", "0")]
+    assert wdg._props_selector._resID_map[0].props == [("Camera", "AllowMultiROI", "0")]
 
 
 def test_pixel_config_wdg_enabled(qtbot: QtBot, global_mmcore: CMMCorePlus):
