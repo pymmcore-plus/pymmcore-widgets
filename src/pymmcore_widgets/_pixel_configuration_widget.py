@@ -111,6 +111,7 @@ class PixelConfigurationWidget(QWidget):
         self._on_sys_config_loaded()
 
     # -------------- Public API --------------
+
     def value(self) -> list[ConfigMap]:
         """Return the current state of the widget describing the pixel configurations.
 
@@ -149,7 +150,7 @@ class PixelConfigurationWidget(QWidget):
         self._resID_map.clear()
 
         if not value:
-            self._uncheck_all()
+            self._props_selector._prop_table.uncheck_all()
             self._props_selector.setEnabled(False)
             return
 
@@ -172,7 +173,7 @@ class PixelConfigurationWidget(QWidget):
 
         px_configs = self._mmc.getAvailablePixelSizeConfigs()
         if not px_configs:
-            self._uncheck_all()
+            self._props_selector._prop_table.uncheck_all()
             self._props_selector.setEnabled(False)
             return
 
@@ -236,13 +237,7 @@ class PixelConfigurationWidget(QWidget):
         # if the table is empty clear the configuration map and unchecked all rows
         if not self._px_table.value():
             self._resID_map.clear()
-            self._uncheck_all()
-
-    def _uncheck_all(self) -> None:
-        """Uncheck all the rows in the property table."""
-        for row in range(self._props_selector._prop_table.rowCount()):
-            item = self._props_selector._prop_table.item(row, 0)
-            item.setCheckState(Qt.CheckState.Unchecked)
+            self._props_selector._prop_table.uncheck_all()
 
     def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
         """Set the data of a newly inserted resolutionID in the _px_table."""
@@ -359,6 +354,8 @@ class PixelConfigurationWidget(QWidget):
 
 
 class _PixelTable(DataTableWidget):
+    """A table to add and display the pixel size configurations."""
+
     ID = TextColumn(
         key=ID, header="pixel configuration name", default=NEW, is_row_selector=False
     )
@@ -478,6 +475,47 @@ class PropertySelector(QWidget):
 
         self.destroyed.connect(self._disconnect)
 
+    # -------------- Public API --------------
+
+    def value(self) -> list[tuple[str, str, str]]:
+        """Return the list of checked (device, property, value)."""
+        return self._prop_table.getCheckedProperties()
+
+    def setValue(self, value: list[tuple[str, str, str]]) -> None:
+        """Set the (device, property) to be checked in the DevicePropertyTable."""
+        # if value is empty, uncheck all the rows
+        if not value:
+            self._prop_table.uncheck_all()
+            return
+
+        # Convert value to a dictionary for faster lookups
+        value_dict = {(dev, prop): val for dev, prop, val in value}
+
+        # check only the rows that are in value
+        for row in range(self._prop_table.rowCount()):
+            dev_prop = cast(
+                DeviceProperty,
+                self._prop_table.item(row, 0).data(self._prop_table.PROP_ROLE),
+            )
+            val_wdg = cast(PropertyWidget, self._prop_table.cellWidget(row, 1))
+
+            with signals_blocked(self._prop_table):
+                # check if the device-property is in value
+                if (dev_prop.device, dev_prop.name) in value_dict:
+                    # get the value of the PropertyWidget from value
+                    val = value_dict[(dev_prop.device, dev_prop.name)]
+                    # update the value of the PropertyWidget
+                    with signals_blocked(val_wdg._value_widget):
+                        val_wdg.setValue(val)
+
+                    self._prop_table.item(row, 0).setCheckState(Qt.CheckState.Checked)
+                else:
+                    self._prop_table.item(row, 0).setCheckState(Qt.CheckState.Unchecked)
+
+        self._on_item_changed()
+
+    # -------------- Private API --------------
+
     def _update_filter(self) -> None:
         filt = self._filter_text.text().lower()
         self._prop_table.filterDevices(
@@ -537,44 +575,6 @@ class PropertySelector(QWidget):
             wdg.setValue(value)
 
         self.valueChanged.emit(self.value())
-
-    def value(self) -> list[tuple[str, str, str]]:
-        """Return the list of checked (device, property, value)."""
-        return self._prop_table.getCheckedProperties()
-
-    def setValue(self, value: list[tuple[str, str, str]]) -> None:
-        """Set the (device, property) to be checked in the DevicePropertyTable."""
-        # if value is empty, uncheck all the rows
-        if not value:
-            for row in range(self._prop_table.rowCount()):
-                self._prop_table.item(row, 0).setCheckState(Qt.CheckState.Unchecked)
-            return
-
-        # Convert value to a dictionary for faster lookups
-        value_dict = {(dev, prop): val for dev, prop, val in value}
-
-        # check only the rows that are in value
-        for row in range(self._prop_table.rowCount()):
-            dev_prop = cast(
-                DeviceProperty,
-                self._prop_table.item(row, 0).data(self._prop_table.PROP_ROLE),
-            )
-            val_wdg = cast(PropertyWidget, self._prop_table.cellWidget(row, 1))
-
-            with signals_blocked(self._prop_table):
-                # check if the device-property is in value
-                if (dev_prop.device, dev_prop.name) in value_dict:
-                    # get the value of the PropertyWidget from value
-                    val = value_dict[(dev_prop.device, dev_prop.name)]
-                    # update the value of the PropertyWidget
-                    with signals_blocked(val_wdg._value_widget):
-                        val_wdg.setValue(val)
-
-                    self._prop_table.item(row, 0).setCheckState(Qt.CheckState.Checked)
-                else:
-                    self._prop_table.item(row, 0).setCheckState(Qt.CheckState.Unchecked)
-
-        self._on_item_changed()
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._update_filter)
