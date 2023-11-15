@@ -172,7 +172,8 @@ class PixelConfigurationWidget(QWidget):
 
         px_configs = self._mmc.getAvailablePixelSizeConfigs()
         if not px_configs:
-            self.setValue([])
+            self._uncheck_all()
+            self._props_selector.setEnabled(False)
             return
 
         # set dict of 'devs props vals' as data for each resolutionID
@@ -252,20 +253,16 @@ class PixelConfigurationWidget(QWidget):
             return
 
         # Otherwise it is a new row added by clicking on the "add" button and we need to
-        # set the data.
-        try:
-            # if there are already resolutionIDs, get the properties of the first one
-            fist_resID = self._resID_map[0]
-            props = fist_resID.properties if fist_resID else []
-        except KeyError:
-            # if there are no resolutionIDs, set props to an empty list
-            props = []
+        # set the data. If there are already resolutionIDs, get the properties of the
+        # first one, if there are no resolutionIDs, set props to an empty list
+        props = self._resID_map[0].properties if self._resID_map else []
         self._resID_map[end] = ConfigMap(NEW, 0, props)
 
         # connect the valueChanged signal of the spinbox
         wdg = cast(QDoubleSpinBox, self._px_table._table.cellWidget(end, 1))
         wdg.valueChanged.connect(self._on_px_value_changed)
 
+        # select the added row
         self._px_table._table.selectRow(end)
 
     def _update_other_resolutionIDs(
