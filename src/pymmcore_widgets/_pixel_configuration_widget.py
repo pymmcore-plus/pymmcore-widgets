@@ -1,3 +1,4 @@
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -47,8 +48,6 @@ class ConfigMap:
 class PixelConfigurationWidget(QWidget):
     """A Widget to define the pixel size configurations."""
 
-    valueChanged = Signal(object)
-
     def __init__(
         self,
         parent: QWidget | None = None,
@@ -65,7 +64,7 @@ class PixelConfigurationWidget(QWidget):
         self._resID_map: dict[int, ConfigMap] = {}
 
         self._px_table = _PixelTable()
-        self._props_selector = _PropertySelector(mmcore=self._mmc)
+        self._props_selector = PropertySelector(mmcore=self._mmc)
 
         # buttons
         apply_btn = QPushButton("Apply and Close")
@@ -87,15 +86,18 @@ class PixelConfigurationWidget(QWidget):
         main_layout.addLayout(btns_layout, 2, 1)
 
         # connect signals
-        self._px_table.table().model().rowsInserted.connect(self._on_rows_inserted)
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._px_table._table.itemChanged.connect(self._on_resolutionID_name_changed)
         self._px_table.valueChanged.connect(self._on_px_table_value_changed)
         self._px_table._table.itemSelectionChanged.connect(
             self._on_px_table_selection_changed
         )
+        self._px_table.table().model().rowsInserted.connect(self._on_rows_inserted)
         self._props_selector.valueChanged.connect(self._on_viewer_value_changed)
         apply_btn.clicked.connect(self._on_apply)
         cancel_btn.clicked.connect(self.close)
+
+        self.destroyed.connect(self._disconnect)
 
         self._on_sys_config_loaded()
 
@@ -125,6 +127,40 @@ class PixelConfigurationWidget(QWidget):
             for row in self._resID_map
         }
 
+    def setValue(self, value: list[ConfigMap]) -> None:
+        """Display the pixel size configurations and their properties in the widget.
+
+        Example:
+        -------
+            input = [
+                ConfigMap(
+                    resolutionID=Res10x,
+                    px_size=0.65,
+                    props=[('dev1', 'prop1', 'val1'), ...],
+                ),
+                ConfigMap(
+                    resolutionID=Res20x,
+                    px_size=0.325,
+                    props=[('dev1', 'prop1', 'val2'), ...],
+                ),
+                ...
+            ]
+        """
+        if not value:
+            return
+
+        self._px_table._remove_all()
+        for row, rec in enumerate(value):
+            self._resID_map[row] = rec
+            self._px_table._add_row()
+            data = {
+                self._px_table.ID.key: rec.resolutionID,
+                self._px_table.VALUE.key: rec.px_size,
+            }
+            self._px_table.table().setRowData(row, data)
+
+        self._px_table._table.selectRow(0)
+
     # -------------- Private API --------------
 
     def _on_sys_config_loaded(self) -> None:
@@ -150,28 +186,18 @@ class PixelConfigurationWidget(QWidget):
 
             if row == 0:
                 # check all the device-property for the first resolutionID
-                self.checkResolutionIDProperties(row)
+                self._props_selector.setValue(dev_prop_val)
                 # select first row of px_table corresponding to the first resolutionID
-                self._px_table._table.selectRow(row)
+                with signals_blocked(self._px_table._table):
+                    self._px_table._table.selectRow(row)
 
-    def checkResolutionIDProperties(self, row: int) -> None:
-        """Check all properties that are in the given resolutionID (pixel configuration)."""  # noqa: E501
-        for dev, prop, _ in self._resID_map[row].props:
-            for row in range(self._props_selector._prop_table.rowCount()):
-                p = cast(
-                    DeviceProperty,
-                    self._props_selector._prop_table.item(row, 0).data(
-                        self._props_selector._prop_table.PROP_ROLE
-                    ),
-                )
-                if p.device == dev and p.name == prop:
-                    self._props_selector._prop_table.item(row, 0).setCheckState(
-                        Qt.CheckState.Checked
-                    )
-                else:
-                    self._props_selector._prop_table.item(row, 0).setCheckState(
-                        Qt.CheckState.Unchecked
-                    )
+    def _on_viewer_value_changed(self, value: Any) -> None:
+        # get row of the selected resolutionID
+        items = self._px_table._table.selectedItems()
+        if len(items) != 1:
+            return
+        self._resID_map[items[0].row()].props = value
+        self._update_other_resolutionIDs(items[0].row(), value)
 
     def _on_px_table_selection_changed(self) -> None:
         """Update property and viewer table when selection in the px table changes."""
@@ -183,29 +209,11 @@ class PixelConfigurationWidget(QWidget):
         if len(items) != 1:
             return
         row = items[0].row()
-        # check the resolutionID props in the _prop_table
-        with signals_blocked(self._props_selector._prop_table):
-            self.checkResolutionIDProperties(row)
-        # update the value in _prop_viewer
-        for r, (_, _, val) in enumerate(self._resID_map[row].props):
-            wdg = cast(
-                "PropertyWidget", self._props_selector._prop_viewer.cellWidget(r, 1)
-            )
-            wdg.setValue(val)
-
-    def _on_viewer_value_changed(self, value: Any) -> None:
-        # get row of the selected resolutionID
-        items = self._px_table._table.selectedItems()
-        if len(items) != 1:
-            return
-        self._resID_map[items[0].row()].props = value
-        self._update_other_resolutionIDs(items[0].row(), value)
+        self._props_selector.setValue(self._resID_map[row].props)
 
     def _on_resolutionID_name_changed(self, item: QTableWidgetItem) -> None:
         """Update the resolutionID name in the configuration map."""
         self._resID_map[item.row()].resolutionID = item.text()
-
-        self.valueChanged.emit(self.value())
 
     def _on_px_value_changed(self) -> None:
         """Update the pixel size value in the configuration map."""
@@ -213,8 +221,6 @@ class PixelConfigurationWidget(QWidget):
         table = cast(DataTable, self.sender().parent().parent())
         row = table.indexAt(spin.pos()).row()
         self._resID_map[row].px_size = spin.value()
-
-        self.valueChanged.emit(self.value())
 
     def _on_px_table_value_changed(self) -> None:
         """Update the data of the pixel table when the value changes."""
@@ -225,6 +231,26 @@ class PixelConfigurationWidget(QWidget):
                 item = self._props_selector._prop_table.item(row, 0)
                 item.setCheckState(Qt.CheckState.Unchecked)
 
+    def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
+        """Set the data of a newly inserted resolutionID in the _px_table."""
+        # "end" is the last row inserted.
+        # if "self._config_map[end]" exists, it means it is a row added by
+        # "_on_sys_config_loaded" so we don't need to set the data and we return.
+        if self._resID_map.get(end):
+            return
+
+        # Otherwise it is a new row added by clicking on the "add" button and we need to
+        # set the data.
+        fist_resID = self._resID_map[0]
+        props = fist_resID.props if fist_resID else []
+        self._resID_map[end] = ConfigMap(NEW, 0, props)
+
+        # connect the valueChanged signal of the spinbox
+        wdg = cast(QDoubleSpinBox, self._px_table._table.cellWidget(end, 1))
+        wdg.valueChanged.connect(self._on_px_value_changed)
+
+        self._px_table._table.selectRow(end)
+
     def _update_other_resolutionIDs(
         self, selected_resID_row: int, selected_resID_props: list[tuple[str, str, str]]
     ) -> None:
@@ -232,7 +258,6 @@ class PixelConfigurationWidget(QWidget):
         selected resolutionID. All the resolutionIDs should have the same devices and
         properties.
         """  # noqa: D205
-        # selected_resID_props = self._config_map[selected_resID_row].props
         selected_dev_prop = {(dev, prop) for dev, prop, _ in selected_resID_props}
 
         for r in range(self._px_table._table.rowCount()):
@@ -260,26 +285,6 @@ class PixelConfigurationWidget(QWidget):
 
             self._resID_map[r].props = sorted(props, key=lambda x: x[0])
 
-    def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
-        """Set the data of a newly inserted resolutionID in the _px_table."""
-        # "end" is the last row inserted. if "self._config_map[end]" exists, it means it
-        #  is not a new row added by clicking on the "add" button but is a row added by
-        # "_on_sys_config_loaded". so we don't need to set the data.
-        if self._resID_map.get(end):
-            return
-
-        fist_resID = self._resID_map[0]
-        props = fist_resID.props if fist_resID else []
-        self._resID_map[end] = ConfigMap(NEW, 0, props)
-
-        # connect the valueChanged signal of the spinbox
-        wdg = cast(QDoubleSpinBox, self._px_table._table.cellWidget(end, 1))
-        wdg.valueChanged.connect(self._on_px_value_changed)
-
-        self._px_table._table.selectRow(end)
-
-        self.valueChanged.emit(self.value())
-
     def _on_apply(self) -> None:
         """Update the current pixel size configurations."""
         # check if there are errors in the pixel configurations
@@ -292,7 +297,7 @@ class PixelConfigurationWidget(QWidget):
 
         # define the new pixel size configurations
         for row, rec in enumerate(self._px_table.table().iterRecords()):
-            props = self._config_map[row].props
+            props = self._resID_map[row].props
             for dev, prop, val in props:
                 self._mmc.definePixelSizeConfig(rec[ID], dev, prop, val)
                 self._mmc.setPixelSizeUm(rec[ID], rec[PX])
@@ -309,7 +314,7 @@ class PixelConfigurationWidget(QWidget):
                 return self._show_error_message("All resolutionIDs must have a name.")
 
         # check if there are duplicated resolutionIDs
-        if len(resolutionIDs) != len(set(resolutionIDs)):
+        if [item for item, count in Counter(resolutionIDs).items() if count > 1]:
             return self._show_error_message(
                 "There are duplicated resolutionIDs: "
                 f"{list({x for x in resolutionIDs if resolutionIDs.count(x) > 1})}"
@@ -333,6 +338,11 @@ class PixelConfigurationWidget(QWidget):
         )
         return bool(response == QMessageBox.StandardButton.Close)
 
+    def _disconnect(self) -> None:
+        self._mmc.events.systemConfigurationLoaded.disconnect(
+            self._on_sys_config_loaded
+        )
+
 
 class _PixelTable(DataTableWidget):
     ID = TextColumn(
@@ -350,10 +360,8 @@ class _PixelTable(DataTableWidget):
         self._toolbar.actions()[2].setVisible(False)  # separator
 
 
-class _PropertyViewer(QTableWidget):
+class _PropertyViewerTable(QTableWidget):
     """A table to view the properties of a selected pixel configuration."""
-
-    valueChanged = Signal(object)
 
     def __init__(
         self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
@@ -371,17 +379,6 @@ class _PropertyViewer(QTableWidget):
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
 
-    def value(self) -> list[tuple[str, str, str]]:
-        """Return the list of (device, property, value) of the table."""
-        value = []
-        for row in range(self.rowCount()):
-            item_data = cast(DeviceProperty, self.item(row, 0).data(DEV_PROP_ROLE))
-            dev, prop = item_data.device, item_data.name
-            wdg = cast("PropertyWidget", self.cellWidget(row, 1))
-            val = wdg.value()
-            value.append((dev, prop, val))
-        return value
-
     def setValue(self, value: list[tuple[str, str, str, PropertyWidget]]) -> None:
         """Populate the table with (device, property, value_widget) info."""
         self.setRowCount(0)
@@ -393,11 +390,10 @@ class _PropertyViewer(QTableWidget):
             self.setCellWidget(row, 1, wdg)
             with signals_blocked(wdg._value_widget):
                 wdg.setValue(val)
-        self.valueChanged.emit(self.value())
 
 
-class _PropertySelector(QWidget):
-    """A widget to select the properties to be assigned to the pixel configurations."""
+class PropertySelector(QWidget):
+    """A Widget to select a list of micromanager (device, property, value)."""
 
     valueChanged = Signal(object)
 
@@ -414,13 +410,12 @@ class _PropertySelector(QWidget):
         self._filter_text.setPlaceholderText("Filter by device or property name...")
         self._filter_text.textChanged.connect(self._update_filter)
 
-        self._prop_viewer = _PropertyViewer(mmcore=self._mmc)
+        self._prop_viewer = _PropertyViewerTable(mmcore=self._mmc)
 
         self._prop_table = DevicePropertyTable(
             connect_core=False, enable_property_widgets=False
         )
         self._prop_table.setRowsCheckable(True)
-        # self._connect_property_widgets()
 
         splitter = QSplitter(Qt.Orientation.Vertical)
         # avoid splitter hiding completely widgets
@@ -459,10 +454,10 @@ class _PropertySelector(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(central_wdg)
 
-        self._prop_viewer.setMinimumHeight(right.minimumSizeHint().height() / 2)
+        self._prop_viewer.setMinimumHeight(int(right.minimumSizeHint().height() / 2))
 
+        # connect
         self._prop_table.itemChanged.connect(self._on_item_changed)
-        self._prop_viewer.valueChanged.connect(self.valueChanged)
 
     def _update_filter(self) -> None:
         filt = self._filter_text.text().lower()
@@ -473,7 +468,7 @@ class _PropertySelector(QWidget):
             include_pre_init=self._device_filters.showPreInitProps(),
         )
 
-    def _on_item_changed(self, value: Any) -> None:
+    def _on_item_changed(self) -> None:
         """Add [(device, property, value), ...] to the _PropertyValueViewer.
 
         Triggered when the checkbox of the DevicePropertyTable is checked or unchecked.
@@ -481,7 +476,7 @@ class _PropertySelector(QWidget):
         to_view_table: list[tuple[str, str, str, PropertyWidget]] = []
         for dev, prop, val in self._prop_table.getCheckedProperties():
             # create a PropertyWidget that will be added to the
-            # _PropertyValueViewer.
+            # _PropertyValueViewer table.
             wdg = PropertyWidget(
                 dev,
                 prop,
@@ -498,10 +493,13 @@ class _PropertySelector(QWidget):
         # update the _PropertyValueViewer
         self._prop_viewer.setValue(to_view_table)
 
-        self.valueChanged.emit(self._prop_viewer.value())
+        self.valueChanged.emit(self.value())
 
     def _update_property_table(self, value: Any) -> None:
-        """Update the value of the PropertyWidget in the DevicePropertyTable."""
+        """Update the value of the PropertyWidget in the DevicePropertyTable.
+
+        Triggered when the value of the PropertyWidget in _PropertyValueViewer changes.
+        """
         # row from the _PropertyValueViewer
         row = self._prop_viewer.indexAt(self.sender().parent().pos()).row()
         # get device and property from the _PropertyValueViewer using the row
@@ -516,4 +514,42 @@ class _PropertySelector(QWidget):
         with signals_blocked(wdg._value_widget):
             wdg.setValue(value)
 
-        self.valueChanged.emit(self._prop_viewer.value())
+        self.valueChanged.emit(self.value())
+
+    def value(self) -> list[tuple[str, str, str]]:
+        """Return the list of (device, property, value) of the DevicePropertyTable."""
+        return self._prop_table.getCheckedProperties()
+
+    def setValue(self, value: list[tuple[str, str, str]]) -> None:
+        """Set the (device, property) to be checked in the DevicePropertyTable."""
+        # if value is empty, uncheck all the rows
+        if not value:
+            for row in range(self._prop_table.rowCount()):
+                self._prop_table.item(row, 0).setCheckState(Qt.CheckState.Unchecked)
+            return
+
+        # Convert value to a dictionary for faster lookups
+        value_dict = {(dev, prop): val for dev, prop, val in value}
+
+        # check only the rows that are in value
+        for row in range(self._prop_table.rowCount()):
+            dev_prop = cast(
+                DeviceProperty,
+                self._prop_table.item(row, 0).data(self._prop_table.PROP_ROLE),
+            )
+            val_wdg = cast(PropertyWidget, self._prop_table.cellWidget(row, 1))
+
+            with signals_blocked(self._prop_table):
+                # check if the device-property is in value
+                if (dev_prop.device, dev_prop.name) in value_dict:
+                    # get the value of the PropertyWidget from value
+                    val = value_dict[(dev_prop.device, dev_prop.name)]
+                    # update the value of the PropertyWidget
+                    with signals_blocked(val_wdg._value_widget):
+                        val_wdg.setValue(val)
+
+                    self._prop_table.item(row, 0).setCheckState(Qt.CheckState.Checked)
+                else:
+                    self._prop_table.item(row, 0).setCheckState(Qt.CheckState.Unchecked)
+
+        self._on_item_changed()

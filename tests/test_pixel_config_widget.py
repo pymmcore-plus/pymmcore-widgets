@@ -36,6 +36,23 @@ def test_pixel_config_wdg_load(qtbot: QtBot, global_mmcore: CMMCorePlus):
     ]
 
 
+def test_pixel_config_wdg_enabled(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    wdg = PixelConfigurationWidget()
+    qtbot.addWidget(wdg)
+
+    items = wdg._px_table._table.selectedItems()
+    assert len(items) == 1
+    assert wdg._props_selector.isEnabled()
+
+    wdg._px_table._table.clearSelection()
+    assert not wdg._props_selector.isEnabled()
+
+
+def test_pixel_config_wdg_errors(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    wdg = PixelConfigurationWidget()
+    qtbot.addWidget(wdg)
+
+
 def test_pixel_config_wdg_prop_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = PixelConfigurationWidget()
     qtbot.addWidget(wdg)
@@ -113,20 +130,3 @@ def test_pixel_config_wdg_core(qtbot: QtBot, global_mmcore: CMMCorePlus):
     row_checkbox = wdg._props_selector._prop_table.item(0, 0)
     row_checkbox.setCheckState(Qt.CheckState.Checked)
     assert wdg._props_selector._resID_map[0].props == [("Camera", "AllowMultiROI", "0")]
-
-
-def test_pixel_config_wdg_enabled(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = PixelConfigurationWidget()
-    qtbot.addWidget(wdg)
-
-    items = wdg._px_table._table.selectedItems()
-    assert len(items) == 1
-    assert wdg._props_selector.isEnabled()
-
-    wdg._px_table._table.clearSelection()
-    assert not wdg._props_selector.isEnabled()
-
-
-def test_pixel_config_wdg_errors(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = PixelConfigurationWidget()
-    qtbot.addWidget(wdg)
