@@ -8,7 +8,7 @@ app = QApplication([])
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-px_wdg = PixelConfigurationWidget(title="Pixel Configuration Widget")
+px_wdg = PixelConfigurationWidget()
 px_wdg.show()
 
 app.exec_()

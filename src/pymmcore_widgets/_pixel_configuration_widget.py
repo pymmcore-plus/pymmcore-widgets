@@ -28,21 +28,21 @@ from pymmcore_widgets.useq_widgets import DataTable, DataTableWidget
 from pymmcore_widgets.useq_widgets._column_info import FloatColumn, TextColumn
 
 FIXED = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-ROW = "row"
 PX = "px"
 ID = "id"
-PROPS = "props"
+PX_SIZE = "pixel_size"
+PROP = "properties"
 NEW = "New"
 DEV_PROP_ROLE = QTableWidgetItem.ItemType.UserType + 1
 
 
 @dataclass
 class ConfigMap:
-    """A dataclass to store the data of the pixel configurations."""
+    """A dataclass to store the data of a pixel configuration."""
 
     resolutionID: str
     px_size: float
-    props: list[tuple[str, str, str]]
+    properties: list[tuple[str, str, str]]
 
 
 class PixelConfigurationWidget(QWidget):
@@ -52,12 +52,11 @@ class PixelConfigurationWidget(QWidget):
         self,
         parent: QWidget | None = None,
         *,
-        title: str = "",
         mmcore: CMMCorePlus | None = None,
     ):
         super().__init__(parent)
 
-        self.setWindowTitle(title)
+        self.setWindowTitle("Pixel Configuration Widget")
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -103,59 +102,56 @@ class PixelConfigurationWidget(QWidget):
 
     # -------------- Public API --------------
 
-    def value(self) -> dict:
+    def value(self) -> dict[str, dict[str, Any]]:
         """Return the current state of the widget describing the pixel configurations.
 
         Example:
         -------
             output = {
                 Res10x: {
-                    'px': 0.65,
-                    'props': [('dev1', 'prop1', 'val1'), ...],
+                    'pixel_size': 0.65,
+                    'properties': [('dev1', 'prop1', 'val1'), ...],
                 },
                 Res20x: {
-                    'px': 0.325,
-                    'props': [('dev1', 'prop1', 'val2'), ...],
+                    'pixel_size': 0.325,
+                    'properties': [('dev1', 'prop1', 'val2'), ...],
                 },
                 ...
         """
         return {
             self._resID_map[row].resolutionID: {
-                PX: self._resID_map[row].px_size,
-                PROPS: self._resID_map[row].props,
+                PX_SIZE: self._resID_map[row].px_size,
+                PROP: self._resID_map[row].properties,
             }
             for row in self._resID_map
         }
 
-    def setValue(self, value: list[ConfigMap]) -> None:
-        """Display the pixel size configurations and their properties in the widget.
+    def setValue(self, value: dict[str, dict[str, Any]]) -> None:
+        """Set the state of the widget describing the pixel configurations.
 
         Example:
         -------
-            input = [
-                ConfigMap(
-                    resolutionID=Res10x,
-                    px_size=0.65,
-                    props=[('dev1', 'prop1', 'val1'), ...],
-                ),
-                ConfigMap(
-                    resolutionID=Res20x,
-                    px_size=0.325,
-                    props=[('dev1', 'prop1', 'val2'), ...],
-                ),
+            input = {
+                Res10x: {
+                    'pixel_size': 0.65,
+                    'properties': [('dev1', 'prop1', 'val1'), ...],
+                },
+                Res20x: {
+                    'pixel_size': 0.325,
+                    'properties': [('dev1', 'prop1', 'val2'), ...],
+                },
                 ...
-            ]
         """
         if not value:
             return
 
         self._px_table._remove_all()
         for row, rec in enumerate(value):
-            self._resID_map[row] = rec
+            self._resID_map[row] = ConfigMap(rec, value[rec][PX_SIZE], value[rec][PROP])
             self._px_table._add_row()
             data = {
-                self._px_table.ID.key: rec.resolutionID,
-                self._px_table.VALUE.key: rec.px_size,
+                self._px_table.ID.key: rec,
+                self._px_table.VALUE.key: value[rec][PX_SIZE],
             }
             self._px_table.table().setRowData(row, data)
 
@@ -196,7 +192,7 @@ class PixelConfigurationWidget(QWidget):
         items = self._px_table._table.selectedItems()
         if len(items) != 1:
             return
-        self._resID_map[items[0].row()].props = value
+        self._resID_map[items[0].row()].properties = value
         self._update_other_resolutionIDs(items[0].row(), value)
 
     def _on_px_table_selection_changed(self) -> None:
@@ -209,7 +205,7 @@ class PixelConfigurationWidget(QWidget):
         if len(items) != 1:
             return
         row = items[0].row()
-        self._props_selector.setValue(self._resID_map[row].props)
+        self._props_selector.setValue(self._resID_map[row].properties)
 
     def _on_resolutionID_name_changed(self, item: QTableWidgetItem) -> None:
         """Update the resolutionID name in the configuration map."""
@@ -242,7 +238,7 @@ class PixelConfigurationWidget(QWidget):
         # Otherwise it is a new row added by clicking on the "add" button and we need to
         # set the data.
         fist_resID = self._resID_map[0]
-        props = fist_resID.props if fist_resID else []
+        props = fist_resID.properties if fist_resID else []
         self._resID_map[end] = ConfigMap(NEW, 0, props)
 
         # connect the valueChanged signal of the spinbox
@@ -266,7 +262,7 @@ class PixelConfigurationWidget(QWidget):
                 continue
 
             # get the dev-prop-val of the resolutionID
-            props = self._resID_map[r].props
+            props = self._resID_map[r].properties
 
             # remove the devs-props that are not in the selected resolutionID (not data)
             props_to_remove = [
@@ -283,7 +279,7 @@ class PixelConfigurationWidget(QWidget):
             for dpv in props_to_add:
                 props.append(dpv)
 
-            self._resID_map[r].props = sorted(props, key=lambda x: x[0])
+            self._resID_map[r].properties = sorted(props, key=lambda x: x[0])
 
     def _on_apply(self) -> None:
         """Update the current pixel size configurations."""
@@ -297,7 +293,7 @@ class PixelConfigurationWidget(QWidget):
 
         # define the new pixel size configurations
         for row, rec in enumerate(self._px_table.table().iterRecords()):
-            props = self._resID_map[row].props
+            props = self._resID_map[row].properties
             for dev, prop, val in props:
                 self._mmc.definePixelSizeConfig(rec[ID], dev, prop, val)
                 self._mmc.setPixelSizeUm(rec[ID], rec[PX])
@@ -322,7 +318,7 @@ class PixelConfigurationWidget(QWidget):
 
         # check if there are duplicated devices and properties
         for row in range(self._px_table._table.rowCount()):
-            props = self._resID_map[row].props
+            props = self._resID_map[row].properties
             if len(props) != len(set(props)):
                 return self._show_error_message(
                     "There are duplicated devices and properties in resolutionID: "
@@ -405,28 +401,32 @@ class PropertySelector(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         # property table (right wdg)
+        self._prop_viewer = _PropertyViewerTable(mmcore=self._mmc)
+
         self._filter_text = QLineEdit()
         self._filter_text.setClearButtonEnabled(True)
         self._filter_text.setPlaceholderText("Filter by device or property name...")
         self._filter_text.textChanged.connect(self._update_filter)
-
-        self._prop_viewer = _PropertyViewerTable(mmcore=self._mmc)
 
         self._prop_table = DevicePropertyTable(
             connect_core=False, enable_property_widgets=False
         )
         self._prop_table.setRowsCheckable(True)
 
+        table_and_filter = QWidget()
+        table_and_filter_layout = QVBoxLayout(table_and_filter)
+        table_and_filter_layout.addWidget(self._filter_text)
+        table_and_filter_layout.addWidget(self._prop_table)
+
         splitter = QSplitter(Qt.Orientation.Vertical)
         # avoid splitter hiding completely widgets
         splitter.setChildrenCollapsible(False)
         splitter.addWidget(self._prop_viewer)
-        splitter.addWidget(self._prop_table)
+        splitter.addWidget(table_and_filter)
 
         right = QWidget()
         right_layout = QVBoxLayout(right)
         right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.addWidget(self._filter_text)
         right_layout.addWidget(splitter)
 
         self._device_filters = DeviceTypeFilters()
