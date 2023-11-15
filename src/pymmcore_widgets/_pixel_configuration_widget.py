@@ -256,30 +256,30 @@ class PixelConfigurationWidget(QWidget):
         """  # noqa: D205
         selected_dev_prop = {(dev, prop) for dev, prop, _ in selected_resID_props}
 
-        for r in range(self._px_table._table.rowCount()):
+        for row in range(self._px_table._table.rowCount()):
             # skip the selected resolutionID
-            if r == selected_resID_row:
+            if row == selected_resID_row:
                 continue
 
             # get the dev-prop-val of the resolutionID
-            props = self._resID_map[r].properties
+            properties = self._resID_map[row].properties
 
             # remove the devs-props that are not in the selected resolutionID
-            props_to_remove = [
-                (d, p, v) for d, p, v in props if (d, p) not in selected_dev_prop
+            properties = [
+                (dev, prop, val)
+                for dev, prop, val in properties
+                if (dev, prop) in selected_dev_prop
             ]
-            for dpv in props_to_remove:
-                props.remove(dpv)
 
             # add the missing devices and properties
-            res_id_dp = {(dev, prop) for dev, prop, _ in props}
-            props_to_add = [
-                (d, p, v) for d, p, v in selected_resID_props if (d, p) not in res_id_dp
+            res_id_dev_prop = {(dev, prop) for dev, prop, _ in properties}
+            properties += [
+                (dev, prop, val)
+                for dev, prop, val in selected_resID_props
+                if (dev, prop) not in res_id_dev_prop
             ]
-            for dpv in props_to_add:
-                props.append(dpv)
 
-            self._resID_map[r].properties = sorted(props, key=lambda x: x[0])
+            self._resID_map[row].properties = sorted(properties, key=lambda x: x[0])
 
     def _on_apply(self) -> None:
         """Update the current pixel size configurations."""
