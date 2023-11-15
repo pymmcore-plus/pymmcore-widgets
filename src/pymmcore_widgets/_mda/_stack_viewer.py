@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Mapping
 import numpy as np
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore, QtWidgets
-from qtpy.QtCore import Signal
+from qtpy.QtCore import Signal, QTimer
 from superqt.cmap._cmap_utils import try_cast_colormap
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
@@ -50,7 +50,7 @@ class StackViewer(QtWidgets.QWidget):
         self.sequence = sequence
 
         self._clim = "auto"
-        self.cmap_names = ["Greys", "BOP_Blue", "BOP_Purple"]
+        self.cmap_names = ["Greys", "cyan", "magenta"]
         self.cmaps = [try_cast_colormap(x) for x in self.cmap_names]
         self.display_index = {dim: 0 for dim in DIMENSIONS}
 
@@ -74,10 +74,15 @@ class StackViewer(QtWidgets.QWidget):
 
         self.images: list[scene.visuals.Image] = []
         self.frame = 0
+        self.ready = False
+        self.current_channel = 0
 
         self.clim_timer = QtCore.QTimer()
         self.clim_timer.setInterval(int(1000 // AUTOCLIM_RATE))
         self.clim_timer.timeout.connect(self.on_clim_timer)
+
+        if sequence:
+            self.on_sequence_start(sequence)
 
     def construct_canvas(self) -> None:
         img_size = (self._mmc.getImageHeight(), self._mmc.getImageWidth())
@@ -95,10 +100,12 @@ class StackViewer(QtWidgets.QWidget):
 
     def on_sequence_start(self, sequence: MDASequence) -> None:
         """Sequence started by the mmcore. Adjust our settings, make layers etc."""
+        self.ready = False
         self.sequence = sequence
+
         # Sliders
         for dim in DIMENSIONS[:3]:
-            if sequence.sizes[dim] > 1:
+            if sequence.sizes.get(dim, 1) > 1:
                 self._slider_settings.emit(
                     {"index": dim, "show": True, "max": sequence.sizes[dim] - 1}
                 )
@@ -120,6 +127,7 @@ class StackViewer(QtWidgets.QWidget):
             self.images.append(image)
             self.current_channel = i
             self._new_channel.emit(i, sequence.channels[i].config)
+        self.ready = True
 
     def _handle_channel_clim(
         self, values: tuple[int, int], channel: int, set_autoscale: bool = True
@@ -167,7 +175,6 @@ class StackViewer(QtWidgets.QWidget):
 
         if sequence is not None:
             dims = [x for x in sequence.sizes.keys() if sequence.sizes[x] > 0]
-            print(dims)
         else:
             dims = DIMENSIONS
         if "c" in dims:
@@ -180,7 +187,7 @@ class StackViewer(QtWidgets.QWidget):
             self.layout().addWidget(slider)
             slider.hide()
             self.sliders.append(slider)
-        print("Number of sliders constructed: ", len(self.sliders))
+        # print("Number of sliders constructed: ", len(self.sliders))
 
     def on_mouse_move(self, event: SceneMouseEvent) -> None:
         """Mouse moved on the canvas, display the pixel value and position."""
@@ -217,6 +224,12 @@ class StackViewer(QtWidgets.QWidget):
 
     def on_frame_ready(self, event: MDAEvent) -> None:
         """Frame received from acquisition, display the image, update sliders etc."""
+        if not self.ready:
+            timer = QTimer()
+            timer.setSingleShot(True)
+            timer.timeout.connect(lambda: self.on_frame_ready(event))
+            timer.start(100)
+            return
         indices = self.complement_indices(event.index)
         img = self.datastore.get_frame((indices["t"], indices["z"], indices["c"]))
 

@@ -69,7 +69,7 @@ class QLocalDataStore(QtCore.QObject):
     def get_frame(self, key: tuple) -> np.ndarray:
         return np.array(self.array[key])
 
-    def complement_indices(self, event: MDAEvent) -> dict:
+    def complement_indices(self, event: MDAEvent|dict) -> dict:
         indices = dict(copy.deepcopy(dict(event.index)))
         for i in DIMENSIONS:
             if i not in indices:
