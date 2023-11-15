@@ -2,7 +2,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Any, cast
 
-from pymmcore_plus import CMMCorePlus, DeviceProperty
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import (
     QDoubleSpinBox,
     QGridLayout,
@@ -11,13 +11,11 @@ from qtpy.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QSpacerItem,
-    QTableWidget,
     QTableWidgetItem,
     QWidget,
 )
 
 from pymmcore_widgets._property_selector import PropertySelector
-from pymmcore_widgets._property_widget import PropertyWidget
 from pymmcore_widgets.useq_widgets import DataTable, DataTableWidget
 from pymmcore_widgets.useq_widgets._column_info import FloatColumn, TextColumn
 
@@ -363,33 +361,3 @@ class _PixelTable(DataTableWidget):
         self._toolbar.removeAction(self.act_check_all)
         self._toolbar.removeAction(self.act_check_none)
         self._toolbar.actions()[2].setVisible(False)  # separator
-
-
-class _PropertyViewerTable(QTableWidget):
-    """A table to view the properties of a selected pixel configuration."""
-
-    def __init__(
-        self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
-    ):
-        super().__init__(parent)
-
-        self._mmc = mmcore or CMMCorePlus.instance()
-
-        self.setColumnCount(2)
-        self.verticalHeader().setVisible(False)
-        self.setHorizontalHeaderLabels(["Property", "Value"])
-        self.horizontalHeader().setSectionResizeMode(
-            self.horizontalHeader().ResizeMode.Stretch
-        )
-        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-
-    def setValue(self, value: list[tuple[str, str, PropertyWidget]]) -> None:
-        """Populate the table with (device, property, value_widget) info."""
-        self.setRowCount(0)
-        self.setRowCount(len(value))
-        for row, (dev, prop, wdg) in enumerate(value):
-            item = QTableWidgetItem(f"{dev}-{prop}")
-            item.setData(DEV_PROP_ROLE, DeviceProperty(dev, prop, self._mmc))
-            self.setItem(row, 0, item)
-            self.setCellWidget(row, 1, wdg)
