@@ -264,7 +264,7 @@ class PixelConfigurationWidget(QWidget):
             # get the dev-prop-val of the resolutionID
             props = self._resID_map[r].properties
 
-            # remove the devs-props that are not in the selected resolutionID (not data)
+            # remove the devs-props that are not in the selected resolutionID
             props_to_remove = [
                 (d, p, v) for d, p, v in props if (d, p) not in selected_dev_prop
             ]
