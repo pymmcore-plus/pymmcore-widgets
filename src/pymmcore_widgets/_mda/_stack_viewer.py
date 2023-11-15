@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Mapping
 import numpy as np
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore, QtWidgets
-from qtpy.QtCore import Signal, QTimer
+from qtpy.QtCore import QTimer, Signal
 from superqt.cmap._cmap_utils import try_cast_colormap
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
