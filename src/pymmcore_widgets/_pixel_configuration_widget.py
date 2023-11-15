@@ -254,7 +254,7 @@ class PixelConfigurationWidget(QWidget):
         selected resolutionID. All the resolutionIDs should have the same devices and
         properties.
         """  # noqa: D205
-        selected_dev_prop = {(dev, prop) for dev, prop, _ in selected_resID_props}
+        selected_dev_prop = [(dev, prop) for dev, prop, _ in selected_resID_props]
 
         for row in range(self._px_table._table.rowCount()):
             # skip the selected resolutionID
