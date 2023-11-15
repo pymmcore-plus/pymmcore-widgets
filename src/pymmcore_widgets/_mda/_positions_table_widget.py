@@ -305,7 +305,7 @@ class PositionTable(QWidget):
 
         if not state:
             for v in self.value():
-                if v.get("sequence") and v.get("sequence").get("grid_plan"):  # type: ignore  # noqa E501
+                if v.get("sequence") and v.get("sequence").get("grid_plan"):  # type: ignore  # E501
                     self._warn_icon.show()
                     return
         self._warn_icon.hide()
