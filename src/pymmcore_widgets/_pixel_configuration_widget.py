@@ -161,6 +161,7 @@ class PixelConfigurationWidget(QWidget):
 
     def _on_sys_config_loaded(self) -> None:
         self._px_table._remove_all()
+        self._resID_map.clear()
 
         # set dict of 'devs props vals' as data for each resolutionID
         for row, resolutionID in enumerate(self._mmc.getAvailablePixelSizeConfigs()):
