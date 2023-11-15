@@ -158,3 +158,14 @@ def test_pixel_config_wdg_prop_change(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg._resID_map[0].properties == [
         ("Objective", "Label", "Nikon 40X Plan Fluor ELWD")
     ]
+
+
+def test_pixel_config_wdg_sys_cfg_load(qtbot: QtBot):
+    # test that a new config is loaded correctly
+    from pathlib import Path
+
+    TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")
+    wdg = PixelConfigurationWidget()
+    qtbot.addWidget(wdg)
+    wdg._mmc.loadSystemConfiguration(TEST_CONFIG)
+    assert wdg.value()

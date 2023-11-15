@@ -223,9 +223,10 @@ class DevicePropertyTable(QTableWidget):
         # [(device, property, value_to_set), ...]
         dev_prop_val_list: list[tuple[str, str, str]] = []
         for r in range(self.rowCount()):
+            if self.item(r, 0) is None:
+                continue
             if self.item(r, 0).checkState() == Qt.CheckState.Checked:
                 dev_prop_val_list.append(self.getRowData(r))
-
         return dev_prop_val_list
 
     def getRowData(self, row: int) -> tuple[str, str, str]:
