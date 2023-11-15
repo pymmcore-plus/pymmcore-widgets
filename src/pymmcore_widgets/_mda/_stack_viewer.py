@@ -50,7 +50,7 @@ class StackViewer(QtWidgets.QWidget):
         self.sequence = sequence
 
         self._clim = "auto"
-        self.cmap_names = ["Greys", "cyan", "magenta"]
+        self.cmap_names = ["gray", "cyan", "magenta"]
         self.cmaps = [try_cast_colormap(x) for x in self.cmap_names]
         self.display_index = {dim: 0 for dim in DIMENSIONS}
 

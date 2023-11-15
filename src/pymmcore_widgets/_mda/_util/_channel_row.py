@@ -20,7 +20,7 @@ except ImportError as e:
     ) from e
 
 
-CMAPS = ["Greys", "BOP_Blue", "BOP_Purple"]
+CMAPS = ["gray", "BOP_Blue", "BOP_Purple"]
 
 
 class ChannelRow(QtWidgets.QWidget):

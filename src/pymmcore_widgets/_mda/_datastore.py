@@ -49,7 +49,8 @@ class QLocalDataStore(QtCore.QObject):
             self._mmc.mda.events.frameReady.connect(self.on_frame_ready)
 
         def on_frame_ready(self, img: np.ndarray, event: MDAEvent) -> None:
-            self.frame_ready.emit(img, event)
+            if event:
+                self.frame_ready.emit(img, event)
 
         def closeEvent(self, event: QtGui.QCloseEvent) -> None:
             super().exit()
