@@ -36,14 +36,14 @@ class ConfigMap:
     ----------
     resolutionID : str
         The name of the pixel configuration.
-    px_size : float
+    pixel_size : float
         The pixel size in µm.
     properties : list[tuple[str, str, str]]
         The list of (device, property, value) of the pixel configuration.
     """
 
     resolutionID: str
-    px_size: float
+    pixel_size: float
     properties: list[tuple[str, str, str]]
 
 
@@ -151,7 +151,7 @@ class PixelConfigurationWidget(QWidget):
             self._px_table._add_row()
             data = {
                 self._px_table.ID.key: rec.resolutionID,
-                self._px_table.VALUE.key: rec.px_size,
+                self._px_table.VALUE.key: rec.pixel_size,
             }
             self._px_table.table().setRowData(row, data)
 
@@ -222,7 +222,7 @@ class PixelConfigurationWidget(QWidget):
         spin = cast(QDoubleSpinBox, self.sender())
         table = cast(DataTable, self.sender().parent().parent())
         row = table.indexAt(spin.pos()).row()
-        self._resID_map[row].px_size = spin.value()
+        self._resID_map[row].pixel_size = spin.value()
 
     def _on_px_table_value_changed(self) -> None:
         """Update the data of the pixel table when the value changes."""
