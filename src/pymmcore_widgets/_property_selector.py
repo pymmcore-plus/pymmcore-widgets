@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty
+from pymmcore_plus.model import Setting
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QHBoxLayout,
@@ -110,22 +111,25 @@ class PropertySelector(QWidget):
 
     # -------------- Public API --------------
 
-    def value(self) -> list[tuple[str, str, str]]:
+    def value(self) -> list[Setting]:
         """Return the list of checked (device, property, value).
 
         Parameters
         ----------
-        value : list[tuple[str, str, str]]
+        value : list[Setting][pymmcore_plus.model.Setting]
             List of (device, property, value) to be checked in the DevicePropertyTable.
         """
-        return self._prop_table.getCheckedProperties()
+        return [
+            Setting(dev, prop, val)
+            for dev, prop, val in self._prop_table.getCheckedProperties()
+        ]
 
-    def setValue(self, value: list[tuple[str, str, str]]) -> None:
+    def setValue(self, value: list[Setting]) -> None:
         """Set the (device, property) to be checked in the DevicePropertyTable.
 
         Parameters
         ----------
-        value : list[tuple[str, str, str]]
+        value : list[Setting][pymmcore_plus.model.Setting]
             List of (device, property, value) to be checked in the DevicePropertyTable.
         """
         # if value is empty, uncheck all the rows
@@ -134,7 +138,10 @@ class PropertySelector(QWidget):
             return
 
         # Convert value to a dictionary for faster lookups
-        value_dict = {(dev, prop): val for dev, prop, val in value}
+        value_dict = {
+            (setting.device_name, setting.property_name): setting.property_value
+            for setting in value
+        }
 
         # check only the rows that are in value
         for row in range(self._prop_table.rowCount()):

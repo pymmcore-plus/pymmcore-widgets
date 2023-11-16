@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from pymmcore_plus import CMMCorePlus
+from pymmcore_plus.model import PixelSizeGroup, PixelSizePreset, Setting
 from qtpy.QtWidgets import (
     QDoubleSpinBox,
     QGridLayout,
@@ -16,6 +17,7 @@ from qtpy.QtWidgets import (
     QTableWidgetItem,
     QWidget,
 )
+from rich import print
 
 from pymmcore_widgets._property_selector import PropertySelector
 from pymmcore_widgets.useq_widgets import DataTable, DataTableWidget
@@ -64,7 +66,7 @@ class PixelConfigurationWidget(QWidget):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self._resID_map: dict[int, ConfigMap] = {}
+        self._resID_map: dict[int, PixelSizePreset] = {}
 
         self._px_table = _PixelTable()
         self._props_selector = PropertySelector(mmcore=self._mmc)
@@ -106,37 +108,43 @@ class PixelConfigurationWidget(QWidget):
 
     # -------------- Public API --------------
 
-    def value(self) -> list[ConfigMap]:
+    def value(self) -> dict[str, PixelSizePreset]:
         """Return the current state of the widget describing the pixel configurations.
 
         Returns
         -------
-        list[ConfigMap][pymmcore_widgets._pixel_configuration_widget.ConfigMap]
+        list[PixelSizePreset][pymmcore_plus.model.PixelSizePreset]
             A list of pixel configurations data.
 
         Example:
         -------
-            output = [
-                ConfigMap(Res10x, 0.65, [('dev1', 'prop1', 'val1'), ...]),
-                ConfigMap(Res20x, 0.325, [('dev1', 'prop1', 'val2'), ...]),
+            output = {
+                'Res10x': PixelSizePreset(
+                    name='Res10x',
+                    settings=[Setting('Objective', 'Label', 'Nikon 10X S Fluor'))],
+                    pixel_size_um=1.0
+                ),
                 ...
-            ]
+            }
         """
-        return [self._resID_map[row] for row in self._resID_map]
+        return {rec.name: rec for rec in self._resID_map.values()}
 
-    def setValue(self, value: list[ConfigMap]) -> None:
+    def setValue(self, value: list[PixelSizePreset]) -> None:
         """Set the state of the widget describing the pixel configurations.
 
         Parameters
         ----------
-        value : list[ConfigMap][pymmcore_widgets._pixel_configuration_widget.ConfigMap]
+        value : list[PixelSizePreset][pymmcore_plus.model.PixelSizePreset]
             The list of pixel configurations data to set.
 
         Example:
         -------
             input = [
-                ConfigMap(Res10x, 0.65, [('dev1', 'prop1', 'val1'), ...]),
-                ConfigMap(Res20x, 0.325, [('dev1', 'prop1', 'val2'), ...]),
+                PixelSizePreset(
+                    name='Res10x',
+                    settings=[Setting('Objective', 'Label', 'Nikon 10X S Fluor'))],
+                    pixel_size_um=1.0
+                ),
                 ...
             ]
         """
@@ -152,8 +160,8 @@ class PixelConfigurationWidget(QWidget):
             self._resID_map[row] = value[row]
             self._px_table._add_row()
             data = {
-                self._px_table.ID.key: rec.resolutionID,
-                self._px_table.VALUE.key: rec.pixel_size,
+                self._px_table.ID.key: rec.name,
+                self._px_table.VALUE.key: rec.pixel_size_um,
             }
             self._px_table.table().setRowData(row, data)
 
@@ -165,23 +173,17 @@ class PixelConfigurationWidget(QWidget):
         self._px_table._remove_all()
         self._resID_map.clear()
 
-        px_configs = self._mmc.getAvailablePixelSizeConfigs()
-        if not px_configs:
+        px_groups = PixelSizeGroup.create_from_core(self._mmc)
+        if not px_groups.presets:
             self._props_selector._prop_table.uncheckAll()
             self._props_selector.setEnabled(False)
             return
 
-        # set dict of 'devs props vals' as data for each resolutionID
-        for row, resolutionID in enumerate(px_configs):
-            # get the data of the resolutionID
-            px_size = self._mmc.getPixelSizeUmByID(resolutionID)
-            dev_prop_val = list(self._mmc.getPixelSizeConfigData(resolutionID))
-            # store the data in the configuration map
-            self._resID_map[row] = ConfigMap(resolutionID, px_size, dev_prop_val)
-            # add pixel size configurations to table
+        for row, px_preset in enumerate(px_groups.presets.values()):
+            self._resID_map[row] = px_preset
             data = {
-                self._px_table.ID.key: resolutionID,
-                self._px_table.VALUE.key: px_size,
+                self._px_table.ID.key: px_preset.name,
+                self._px_table.VALUE.key: px_preset.pixel_size_um,
             }
             self._px_table._add_row()
             self._px_table.table().setRowData(row, data)
@@ -191,16 +193,16 @@ class PixelConfigurationWidget(QWidget):
 
             if row == 0:
                 # check all the device-property for the first resolutionID
-                self._props_selector.setValue(dev_prop_val)
+                self._props_selector.setValue(px_preset.settings)
                 # select first row of px_table corresponding to the first resolutionID
                 self._px_table._table.selectRow(row)
 
-    def _on_viewer_value_changed(self, value: Any) -> None:
+    def _on_viewer_value_changed(self, value: list[Setting]) -> None:
         # get row of the selected resolutionID
         items = self._px_table._table.selectedItems()
         if len(items) != 1:
             return
-        self._resID_map[items[0].row()].properties = value
+        self._resID_map[items[0].row()].settings = value
         self._update_other_resolutionIDs(items[0].row(), value)
 
     def _on_px_table_selection_changed(self) -> None:
@@ -213,18 +215,18 @@ class PixelConfigurationWidget(QWidget):
         if len(items) != 1:
             return
         row = items[0].row()
-        self._props_selector.setValue(self._resID_map[row].properties)
+        self._props_selector.setValue(self._resID_map[row].settings)
 
     def _on_resolutionID_name_changed(self, item: QTableWidgetItem) -> None:
         """Update the resolutionID name in the configuration map."""
-        self._resID_map[item.row()].resolutionID = item.text()
+        self._resID_map[item.row()].name = item.text()
 
     def _on_px_value_changed(self) -> None:
         """Update the pixel size value in the configuration map."""
         spin = cast(QDoubleSpinBox, self.sender())
         table = cast(DataTable, self.sender().parent().parent())
         row = table.indexAt(spin.pos()).row()
-        self._resID_map[row].pixel_size = spin.value()
+        self._resID_map[row].pixel_size_um = spin.value()
 
     def _on_px_table_value_changed(self) -> None:
         """Update the data of the pixel table when the value changes."""
@@ -244,8 +246,8 @@ class PixelConfigurationWidget(QWidget):
         # Otherwise it is a new row added by clicking on the "add" button and we need to
         # set the data. If there are already resolutionIDs, get the properties of the
         # first one, if there are no resolutionIDs, set props to an empty list
-        props = self._resID_map[0].properties if self._resID_map else []
-        self._resID_map[end] = ConfigMap(NEW, 0, props)
+        props = self._resID_map[0].settings if self._resID_map else []
+        self._resID_map[end] = PixelSizePreset(NEW, props)
 
         # connect the valueChanged signal of the spinbox
         wdg = cast(QDoubleSpinBox, self._px_table._table.cellWidget(end, 1))
@@ -255,13 +257,19 @@ class PixelConfigurationWidget(QWidget):
         self._px_table._table.selectRow(end)
 
     def _update_other_resolutionIDs(
-        self, selected_resID_row: int, selected_resID_props: list[tuple[str, str, str]]
+        self,
+        selected_resID_row: int,
+        selected_resID_props: list[Setting],
     ) -> None:
         """Update the data of in all resolutionIDs if different than the data of the
         selected resolutionID. All the resolutionIDs should have the same devices and
         properties.
         """  # noqa: D205
-        selected_dev_prop = [(dev, prop) for dev, prop, _ in selected_resID_props]
+        # selected_dev_prop = [(dev, prop) for dev, prop, _ in selected_resID_props]
+        selected_dev_prop = [
+            (setting.device_name, setting.property_name)
+            for setting in selected_resID_props
+        ]
 
         for row in range(self._px_table._table.rowCount()):
             # skip the selected resolutionID
@@ -269,24 +277,28 @@ class PixelConfigurationWidget(QWidget):
                 continue
 
             # get the dev-prop-val of the resolutionID
-            properties = self._resID_map[row].properties
+            properties = self._resID_map[row].settings
 
             # remove the devs-props that are not in the selected resolutionID
             properties = [
-                (dev, prop, val)
-                for dev, prop, val in properties
-                if (dev, prop) in selected_dev_prop
+                setting
+                for setting in properties
+                if (setting.device_name, setting.property_name) in selected_dev_prop
             ]
 
             # add the missing devices and properties
-            res_id_dev_prop = {(dev, prop) for dev, prop, _ in properties}
+            res_id_dev_prop = {
+                (setting.device_name, setting.property_name) for setting in properties
+            }
             properties += [
-                (dev, prop, val)
-                for dev, prop, val in selected_resID_props
-                if (dev, prop) not in res_id_dev_prop
+                setting
+                for setting in selected_resID_props
+                if (setting.device_name, setting.property_name) not in res_id_dev_prop
             ]
 
-            self._resID_map[row].properties = sorted(properties, key=lambda x: x[0])
+            self._resID_map[row].settings = sorted(
+                properties, key=lambda x: x.device_name
+            )
 
     def _on_apply(self) -> None:
         """Update the current pixel size configurations."""
@@ -298,14 +310,11 @@ class PixelConfigurationWidget(QWidget):
         for resolutionID in self._mmc.getAvailablePixelSizeConfigs():
             self._mmc.deletePixelSizeConfig(resolutionID)
 
-        # define the new pixel size configurations
-        for row, rec in enumerate(self._px_table.table().iterRecords()):
-            props = self._resID_map[row].properties
-            for dev, prop, val in props:
-                self._mmc.definePixelSizeConfig(rec[ID], dev, prop, val)
-                self._mmc.setPixelSizeUm(rec[ID], rec[PX])
-
-        self.close()
+        px_groups = PixelSizeGroup(presets=self.value())
+        # print(px_groups)
+        px_groups.apply_to_core(self._mmc, then_update=False)
+        print(self._mmc.getAvailablePixelSizeConfigs())
+        # self.close()
 
     def _check_for_errors(self) -> bool:
         """Check for errors in the pixel configurations."""
@@ -321,6 +330,12 @@ class PixelConfigurationWidget(QWidget):
             return self._show_error_message(
                 "There are duplicated resolutionIDs: "
                 f"{list({x for x in resolutionIDs if resolutionIDs.count(x) > 1})}"
+            )
+
+        # check that each resolutionID have at least one property
+        if not all(self._resID_map[row].settings for row in range(len(resolutionIDs))):
+            return self._show_error_message(
+                "Each resolutionID must have at least one property."
             )
 
         return False
