@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
 from typing import Any, cast
 
 from pymmcore_plus import CMMCorePlus
@@ -17,7 +16,6 @@ from qtpy.QtWidgets import (
     QTableWidgetItem,
     QWidget,
 )
-from rich import print
 
 from pymmcore_widgets._property_selector import PropertySelector
 from pymmcore_widgets.useq_widgets import DataTable, DataTableWidget
@@ -30,25 +28,6 @@ PX_SIZE = "pixel_size"
 PROP = "properties"
 NEW = "New"
 DEV_PROP_ROLE = QTableWidgetItem.ItemType.UserType + 1
-
-
-@dataclass
-class ConfigMap:
-    """A dataclass to store the data of a pixel configuration.
-
-    Attributes
-    ----------
-    resolutionID : str
-        The name of the pixel configuration.
-    pixel_size : float
-        The pixel size in µm.
-    properties : list[tuple[str, str, str]]
-        The list of (device, property, value) of the pixel configuration.
-    """
-
-    resolutionID: str
-    pixel_size: float
-    properties: list[tuple[str, str, str]]
 
 
 class PixelConfigurationWidget(QWidget):
@@ -310,11 +289,10 @@ class PixelConfigurationWidget(QWidget):
         for resolutionID in self._mmc.getAvailablePixelSizeConfigs():
             self._mmc.deletePixelSizeConfig(resolutionID)
 
+        # create the new pixel size configurations
         px_groups = PixelSizeGroup(presets=self.value())
-        # print(px_groups)
-        px_groups.apply_to_core(self._mmc, then_update=False)
-        print(self._mmc.getAvailablePixelSizeConfigs())
-        # self.close()
+        px_groups.apply_to_core(self._mmc)
+        self.close()
 
     def _check_for_errors(self) -> bool:
         """Check for errors in the pixel configurations."""
