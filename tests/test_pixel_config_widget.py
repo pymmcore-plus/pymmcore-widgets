@@ -142,14 +142,43 @@ def test_pixel_config_wdg_prop_change(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = PixelConfigurationWidget()
     qtbot.addWidget(wdg)
 
-    # row 67 is the ("Objective", "Label") property
-    row_wdg = wdg._props_selector._prop_table.cellWidget(67, 1)
-    assert row_wdg.value() == "Nikon 10X S Fluor"
+    assert wdg._px_table._table.selectedItems()[0].text() == "Res10x"
 
-    row_wdg.setValue("Nikon 40X Plan Fluor ELWD")
-    assert wdg._resID_map[0].properties == [
+    viewer_wdg = wdg._props_selector._prop_viewer.cellWidget(0, 1)
+    assert viewer_wdg.value() == "Nikon 10X S Fluor"
+    assert wdg._props_selector.value() == [("Objective", "Label", "Nikon 10X S Fluor")]
+
+    # row 67 is the ("Objective", "Label") property
+    prop_wdg = wdg._props_selector._prop_table.cellWidget(67, 1)
+    assert prop_wdg.value() == "Nikon 10X S Fluor"
+
+    viewer_wdg.setValue("Nikon 40X Plan Fluor ELWD")
+    assert wdg._props_selector.value() == [
         ("Objective", "Label", "Nikon 40X Plan Fluor ELWD")
     ]
+    assert prop_wdg.value() == "Nikon 40X Plan Fluor ELWD"
+
+
+def test_pixel_config_wdg_px_table(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    wdg = PixelConfigurationWidget()
+    qtbot.addWidget(wdg)
+
+    assert wdg._px_table._table.selectedItems()[0].text() == "Res10x"
+    assert wdg._props_selector.value() == [("Objective", "Label", "Nikon 10X S Fluor")]
+
+    wdg._px_table._table.selectRow(1)
+    assert wdg._px_table._table.selectedItems()[0].text() == "Res20x"
+    assert wdg._props_selector.value() == [
+        ("Objective", "Label", "Nikon 20X Plan Fluor ELWD")
+    ]
+
+    assert wdg._resID_map[1].pixel_size == 0.5
+    spin = wdg._px_table._table.cellWidget(1, 1)
+    spin.setValue(10)
+    # the above setValue does not trigger the signal, so we need to manually call it
+    spin.valueChanged.emit(10)
+    assert wdg.value()[1].pixel_size == 10
+    assert wdg._resID_map[1].pixel_size == 10
 
 
 def test_pixel_config_wdg_errors(qtbot: QtBot, global_mmcore: CMMCorePlus):
