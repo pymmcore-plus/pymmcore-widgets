@@ -43,7 +43,6 @@ ROW_TOP_BOTTOM = 4
 ROW_ABOVE_BELOW = 6
 
 UM = "\u00B5m"  # MICRO SIGN
-L_ARR = "\u2B05"  # LEFTWARDS BLACK ARROW
 
 
 class ZPlanWidget(QWidget):
@@ -68,7 +67,7 @@ class ZPlanWidget(QWidget):
         self._suggested: float | None = None
 
         # #################### Mode Buttons ####################
-        color = "#555"
+        color = "#363636"
 
         # ------------------- actions ----------
 
@@ -183,6 +182,7 @@ class ZPlanWidget(QWidget):
         # #################### Other Widgets ####################
 
         self._use_suggested_btn = QPushButton()
+        self._use_suggested_btn.setIcon(icon(MDI6.arrow_left_thick))
         self._use_suggested_btn.clicked.connect(self.useSuggestedStep)
         self._use_suggested_btn.hide()
 
@@ -323,7 +323,7 @@ class ZPlanWidget(QWidget):
         """Set the suggested step size and update the button text."""
         self._suggested = value
         if value:
-            self._use_suggested_btn.setText(f"{L_ARR} {value} {UM}")
+            self._use_suggested_btn.setText(f"{value} {UM}")
             self._use_suggested_btn.show()
         else:
             self._use_suggested_btn.setText("")
