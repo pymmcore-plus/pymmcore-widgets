@@ -128,7 +128,7 @@ class PropertySelector(QWidget):
         """
         # if value is empty, uncheck all the rows
         if not value:
-            self._prop_table.uncheck_all()
+            self._prop_table.uncheckAll()
             return
 
         # Convert value to a dictionary for faster lookups

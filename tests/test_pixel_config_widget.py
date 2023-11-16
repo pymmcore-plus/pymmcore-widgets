@@ -7,6 +7,7 @@ from qtpy.QtCore import Qt
 from pymmcore_widgets._pixel_configuration_widget import (
     ID,
     NEW,
+    ConfigMap,
     PixelConfigurationWidget,
 )
 
@@ -14,43 +15,28 @@ if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
-
-TEST_VALUE = {
-    "test_1": {
-        "pixel_size": 0.5,
-        "properties": [
-            ("Camera", "Binning", "1"),
-            ("Camera", "BitDepth", "16"),
-        ],
-    },
-    "test_2": {
-        "pixel_size": 2.0,
-        "properties": [
-            ("Camera", "Binning", "2"),
-            ("Camera", "BitDepth", "12"),
-        ],
-    },
-}
+TEST_VALUE = [
+    ConfigMap(
+        "test_1", 0.5, [("Camera", "Binning", "1"), ("Camera", "BitDepth", "16")]
+    ),
+    ConfigMap(
+        "test_2", 2.0, [("Camera", "Binning", "2"), ("Camera", "BitDepth", "12")]
+    ),
+]
 
 
-def test_pixel_config_wdg_load(qtbot: QtBot, global_mmcore: CMMCorePlus):
+def test_pixel_config_wdg(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = PixelConfigurationWidget()
     qtbot.addWidget(wdg)
 
-    assert wdg.value() == {
-        "Res10x": {
-            "pixel_size": 1.0,
-            "properties": [("Objective", "Label", "Nikon 10X S Fluor")],
-        },
-        "Res20x": {
-            "pixel_size": 0.5,
-            "properties": [("Objective", "Label", "Nikon 20X Plan Fluor ELWD")],
-        },
-        "Res40x": {
-            "pixel_size": 0.25,
-            "properties": [("Objective", "Label", "Nikon 40X Plan Fluor ELWD")],
-        },
-    }
+    assert wdg.value() == [
+        ConfigMap("Res10x", 1.0, [("Objective", "Label", "Nikon 10X S Fluor")]),
+        ConfigMap("Res20x", 0.5, [("Objective", "Label", "Nikon 20X Plan Fluor ELWD")]),
+        ConfigMap(
+            "Res40x", 0.25, [("Objective", "Label", "Nikon 40X Plan Fluor ELWD")]
+        ),
+    ]
+
     assert wdg._props_selector._prop_table.getCheckedProperties() == [
         ("Objective", "Label", "Nikon 10X S Fluor")
     ]
@@ -62,7 +48,18 @@ def test_pixel_config_wdg_load(qtbot: QtBot, global_mmcore: CMMCorePlus):
     ]
 
 
-def test_pixel_config_wdg_core(qtbot: QtBot, global_mmcore: CMMCorePlus):
+def test_pixel_config_wdg_sys_cfg_load(qtbot: QtBot):
+    # test that a new config is loaded correctly
+    from pathlib import Path
+
+    TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")
+    wdg = PixelConfigurationWidget()
+    qtbot.addWidget(wdg)
+    wdg._mmc.loadSystemConfiguration(TEST_CONFIG)
+    assert wdg.value()
+
+
+def test_pixel_config_wdg_define_configs(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = PixelConfigurationWidget()
     qtbot.addWidget(wdg)
 
@@ -98,11 +95,6 @@ def test_pixel_config_wdg_core(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg._mmc.getPixelSizeUmByID("test_2") == 2.0
 
 
-def test_pixel_config_wdg_errors(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    wdg = PixelConfigurationWidget()
-    qtbot.addWidget(wdg)
-
-
 def test_pixel_config_wdg_enabled(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = PixelConfigurationWidget()
     qtbot.addWidget(wdg)
@@ -120,7 +112,7 @@ def test_pixel_config_wdg_prop_selection(qtbot: QtBot, global_mmcore: CMMCorePlu
     qtbot.addWidget(wdg)
 
     wdg._px_table._table.selectRow(1)
-    assert wdg._props_selector._prop_table.getCheckedProperties() == [
+    assert wdg._props_selector.value() == [
         ("Objective", "Label", "Nikon 20X Plan Fluor ELWD")
     ]
 
@@ -160,12 +152,6 @@ def test_pixel_config_wdg_prop_change(qtbot: QtBot, global_mmcore: CMMCorePlus):
     ]
 
 
-def test_pixel_config_wdg_sys_cfg_load(qtbot: QtBot):
-    # test that a new config is loaded correctly
-    from pathlib import Path
-
-    TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")
+def test_pixel_config_wdg_errors(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = PixelConfigurationWidget()
     qtbot.addWidget(wdg)
-    wdg._mmc.loadSystemConfiguration(TEST_CONFIG)
-    assert wdg.value()

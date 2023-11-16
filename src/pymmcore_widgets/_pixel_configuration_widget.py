@@ -109,8 +109,8 @@ class PixelConfigurationWidget(QWidget):
 
         Returns
         -------
-        list[ConfigMap]
-            A list of ConfigMap objects containing the data of the pixel configurations.
+        list[ConfigMap][pymmcore_widgets._pixel_configuration_widget.ConfigMap]
+            A list of pixel configurations data.
 
         Example:
         -------
@@ -127,7 +127,7 @@ class PixelConfigurationWidget(QWidget):
 
         Parameters
         ----------
-        value : list[ConfigMap]
+        value : list[ConfigMap][pymmcore_widgets._pixel_configuration_widget.ConfigMap]
             The list of pixel configurations data to set.
 
         Example:
@@ -142,7 +142,7 @@ class PixelConfigurationWidget(QWidget):
         self._resID_map.clear()
 
         if not value:
-            self._props_selector._prop_table.uncheck_all()
+            self._props_selector._prop_table.uncheckAll()
             self._props_selector.setEnabled(False)
             return
 
@@ -165,7 +165,7 @@ class PixelConfigurationWidget(QWidget):
 
         px_configs = self._mmc.getAvailablePixelSizeConfigs()
         if not px_configs:
-            self._props_selector._prop_table.uncheck_all()
+            self._props_selector._prop_table.uncheckAll()
             self._props_selector.setEnabled(False)
             return
 
@@ -229,7 +229,7 @@ class PixelConfigurationWidget(QWidget):
         # if the table is empty clear the configuration map and unchecked all rows
         if not self._px_table.value():
             self._resID_map.clear()
-            self._props_selector._prop_table.uncheck_all()
+            self._props_selector._prop_table.uncheckAll()
 
     def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
         """Set the data of a newly inserted resolutionID in the _px_table."""

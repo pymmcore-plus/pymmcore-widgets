@@ -242,7 +242,7 @@ class DevicePropertyTable(QTableWidget):
             for row in range(self.rowCount()):
                 self.cellWidget(row, 1).setEnabled(enabled)
 
-    def uncheck_all(self) -> None:
+    def uncheckAll(self) -> None:
         """Uncheck all rows."""
         for row in range(self.rowCount()):
             if self.item(row, 0) is None:

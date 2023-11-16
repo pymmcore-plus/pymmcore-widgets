@@ -13,7 +13,7 @@ TEMPLATE = """
   </figcaption>
 </figure>
 
-
+{extra}
 
 ::: pymmcore_widgets.{widget}
 
@@ -89,7 +89,14 @@ def _generate_widget_page(widget: str) -> None:
         _example_screenshot(widget, f.name)
 
     with mkdocs_gen_files.open(filename, "w") as f:
-        f.write(dedent(TEMPLATE.format(widget=widget, snake=snake, img=img)))
+        if widget == "PixelConfigurationWidget":
+            extra = "::: pymmcore_widgets._pixel_configuration_widget.ConfigMap"
+        else:
+            extra = ""
+
+        f.write(
+            dedent(TEMPLATE.format(widget=widget, snake=snake, img=img, extra=extra))
+        )
 
     mkdocs_gen_files.set_edit_path(filename, Path(__file__).name)
 
