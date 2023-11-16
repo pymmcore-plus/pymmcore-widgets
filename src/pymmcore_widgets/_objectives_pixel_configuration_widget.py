@@ -540,7 +540,7 @@ class ObjectivesPixelConfigurationWidget(QDialog):
         with block_core(self._mmc.events):
             self._delete_if_exist(resolutionID, obj_label)
             self._mmc.definePixelSizeConfig(
-                resolutionID, self.objective_device, "Label", obj_label  # type: ignore # noqa: E501
+                resolutionID, self.objective_device, "Label", obj_label  # type: ignore
             )
             self._mmc.setPixelSizeUm(resolutionID, px_size_um)
 
