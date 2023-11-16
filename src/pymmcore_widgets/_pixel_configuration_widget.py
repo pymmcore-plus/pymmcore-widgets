@@ -321,15 +321,6 @@ class PixelConfigurationWidget(QWidget):
                 f"{list({x for x in resolutionIDs if resolutionIDs.count(x) > 1})}"
             )
 
-        # check if there are duplicated devices and properties
-        for row in range(self._px_table._table.rowCount()):
-            props = self._resID_map[row].properties
-            if len(props) != len(set(props)):
-                return self._show_error_message(
-                    "There are duplicated devices and properties in resolutionID: "
-                    f"{resolutionIDs[row]}"
-                )
-
         return False
 
     def _show_error_message(self, msg: str) -> bool:

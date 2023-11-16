@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 from qtpy.QtCore import Qt
 
@@ -184,3 +185,14 @@ def test_pixel_config_wdg_px_table(qtbot: QtBot, global_mmcore: CMMCorePlus):
 def test_pixel_config_wdg_errors(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = PixelConfigurationWidget()
     qtbot.addWidget(wdg)
+
+    def _show_msg(msg: str):
+        return msg
+
+    wdg.setValue([ConfigMap("", 0.5, [])])
+    with patch.object(wdg, "_show_error_message", _show_msg):
+        assert wdg._check_for_errors() == "All resolutionIDs must have a name."
+
+    wdg.setValue([ConfigMap("test", 0.5, []), ConfigMap("test", 2.0, [])])
+    with patch.object(wdg, "_show_error_message", _show_msg):
+        assert wdg._check_for_errors() == "There are duplicated resolutionIDs: ['test']"
