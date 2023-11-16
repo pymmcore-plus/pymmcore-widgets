@@ -118,16 +118,6 @@ class DevicePropertyTable(QTableWidget):
             else:
                 self.item(row, 0).setCheckState(Qt.CheckState.Unchecked)
 
-    # def checkResolutionID(self, resolutionID: str) -> None:
-    #     """Check all properties that are in the given resolutionID (pixel configuration)."""  # noqa: E501
-    #     for dev, prop, _ in self._mmc.getPixelSizeConfigData(resolutionID):
-    #         for row in range(self.rowCount()):
-    #             p = cast(DeviceProperty, self.item(row, 0).data(self.PROP_ROLE))
-    #             if p.device == dev and p.name == prop:
-    #                 self.item(row, 0).setCheckState(Qt.CheckState.Checked)
-    #             else:
-    #                 self.item(row, 0).setCheckState(Qt.CheckState.Unchecked)
-
     def setRowNumbersVisible(self, visible: bool = True) -> None:
         """Set whether line numbers are visible."""
         self.verticalHeader().setVisible(visible)
