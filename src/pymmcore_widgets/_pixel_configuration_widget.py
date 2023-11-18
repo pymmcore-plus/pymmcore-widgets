@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from collections import Counter
 from typing import Any, cast
 
@@ -198,7 +199,22 @@ class PixelConfigurationWidget(QWidget):
 
     def _on_resolutionID_name_changed(self, item: QTableWidgetItem) -> None:
         """Update the resolutionID name in the configuration map."""
-        self._resID_map[item.row()].name = item.text()
+        res_ID_row, res_ID_name = item.row(), item.text()
+
+        # get the old res_ID_name
+        old_res_ID_name = self._resID_map[res_ID_row].name
+
+        # if the name is the same as the current one, return
+        if res_ID_name == old_res_ID_name:
+            return
+
+        # if the name already exists, raise a warning and return
+        if res_ID_name in self.value():
+            warnings.warn(f"ResolutionID {res_ID_name} already exists.", stacklevel=2)
+            self._px_table.table().item(res_ID_row, 0).setText(old_res_ID_name)
+            return
+
+        self._resID_map[item.row()].name = res_ID_name
 
     def _on_px_value_changed(self) -> None:
         """Update the pixel size value in the configuration map."""
