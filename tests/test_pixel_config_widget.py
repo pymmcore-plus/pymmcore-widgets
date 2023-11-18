@@ -224,3 +224,27 @@ def test_pixel_config_wdg_warning(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     with pytest.warns(UserWarning, match="ResolutionID 'Res40x' already exists."):
         wdg._px_table._table.item(0, 0).setText("Res40x")
+
+
+def test_pixel_config_wdg_delete_resID(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    wdg = PixelConfigurationWidget()
+    qtbot.addWidget(wdg)
+
+    assert len(wdg._resID_map) == 3
+
+    wdg._px_table._table.selectRow(1)
+    assert wdg._px_table._table.selectedItems()[0].text() == "Res20x"
+
+    wdg._px_table._remove_selected()
+
+    assert len(wdg._resID_map) == 2
+    assert wdg._resID_map[0].name == "Res10x"
+    assert wdg._resID_map[1].name == "Res40x"
+    assert wdg.value() == {
+        "Res10x": PixelSizePreset(
+            "Res10x", [Setting("Objective", "Label", "Nikon 10X S Fluor")], 1.0
+        ),
+        "Res40x": PixelSizePreset(
+            "Res40x", [Setting("Objective", "Label", "Nikon 40X Plan Fluor ELWD")], 0.25
+        ),
+    }
