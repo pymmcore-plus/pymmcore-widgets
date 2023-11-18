@@ -210,7 +210,7 @@ class PixelConfigurationWidget(QWidget):
 
         # if the name already exists, raise a warning and return
         if res_ID_name in self.value():
-            warnings.warn(f"ResolutionID {res_ID_name} already exists.", stacklevel=2)
+            warnings.warn(f"ResolutionID '{res_ID_name}' already exists.", stacklevel=2)
             self._px_table.table().item(res_ID_row, 0).setText(old_res_ID_name)
             return
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+import pytest
 from pymmcore_plus.model import PixelSizePreset, Setting
 from qtpy.QtCore import Qt
 
@@ -215,3 +216,11 @@ def test_pixel_config_wdg_errors(qtbot: QtBot, global_mmcore: CMMCorePlus):
         assert wdg._check_for_errors() == (
             "Each resolutionID must have at least one property."
         )
+
+
+def test_pixel_config_wdg_warning(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    wdg = PixelConfigurationWidget()
+    qtbot.addWidget(wdg)
+
+    with pytest.warns(UserWarning, match="ResolutionID 'Res40x' already exists."):
+        wdg._px_table._table.item(0, 0).setText("Res40x")
