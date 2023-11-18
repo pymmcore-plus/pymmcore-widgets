@@ -230,6 +230,26 @@ class PixelConfigurationWidget(QWidget):
             self._resID_map.clear()
             self._props_selector._prop_table.uncheckAll()
 
+        # if an item is deleted, remove it from the configuration map
+        if len(self._px_table.value()) != len(self._resID_map):
+            # get the resolutionIDs in the pixel table
+            res_IDs = [rec[ID] for rec in self._px_table.value()]
+            # get the resolutionIDs to delete
+            to_delete: list[int] = [
+                row
+                for row in self._resID_map
+                if self._resID_map[row].name not in res_IDs
+            ]
+            # delete the resolutionIDs from the configuration map
+            for row in to_delete:
+                del self._resID_map[row]
+
+            # renumber the keys in the configuration map
+            self._resID_map = {
+                new_key: self._resID_map[old_key]
+                for new_key, old_key in enumerate(self._resID_map)
+            }
+
     def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
         """Set the data of a newly inserted resolutionID in the _px_table."""
         # "end" is the last row inserted.
