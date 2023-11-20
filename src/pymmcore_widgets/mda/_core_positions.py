@@ -13,6 +13,7 @@ from pymmcore_widgets.useq_widgets import PositionTable
 from pymmcore_widgets.useq_widgets._column_info import (
     ButtonColumn,
 )
+from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP
 
 if TYPE_CHECKING:
     from typing import TypedDict
@@ -83,7 +84,7 @@ class CoreConnectedPositionTable(PositionTable):
 
         self._on_sys_config_loaded()
         # hide the set-AF-offset button to begin with.
-        self._on_use_af_toggled(self.use_af.isChecked())
+        self._on_af_per_position_toggled(self.af_per_position.isChecked())
 
     # ----------------------- private methods -----------------------
 
@@ -125,9 +126,10 @@ class CoreConnectedPositionTable(PositionTable):
     def _update_autofocus_enablement(self) -> None:
         """Update the autofocus device combo box."""
         af_device = self._mmc.getAutoFocusDevice()
-        self.use_af.setText(f"Use {af_device}" if af_device else "Use Autofocus")
-        self.use_af.setEnabled(bool(af_device))
-        self.use_af.setToolTip("" if af_device else "AutoFocus device unavailable.")
+        self.af_per_position.setEnabled(bool(af_device))
+        self.af_per_position.setToolTip(
+            AF_DEFAULT_TOOLTIP if af_device else "AutoFocus device unavailable."
+        )
 
     def _add_row(self) -> None:
         """Add a new to the end of the table and use the current core position."""
@@ -193,7 +195,7 @@ class CoreConnectedPositionTable(PositionTable):
                 z = data.get(self.Z.key, self._mmc.getZPosition())
                 self._mmc.setZPosition(z)
 
-            if self.use_af.isChecked() and self._mmc.getAutoFocusDevice():
+            if self.af_per_position.isChecked() and self._mmc.getAutoFocusDevice():
                 af = data.get(self.AF.key, self._mmc.getAutoFocusOffset())
                 self._mmc.setAutoFocusOffset(af)
                 try:
@@ -219,10 +221,10 @@ class CoreConnectedPositionTable(PositionTable):
         self.table().setColumnHidden(z_btn_col, not checked)
         super()._on_include_z_toggled(checked)
 
-    def _on_use_af_toggled(self, checked: bool) -> None:
+    def _on_af_per_position_toggled(self, checked: bool) -> None:
         af_btn_col = self.table().indexOf(self._af_btn_col)
         self.table().setColumnHidden(af_btn_col, not checked)
-        super()._on_use_af_toggled(checked)
+        super()._on_af_per_position_toggled(checked)
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(

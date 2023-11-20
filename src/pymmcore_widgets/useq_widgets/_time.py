@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any
 
 from fonticon_mdi6 import MDI6
 from qtpy.QtGui import QIcon
-from qtpy.QtWidgets import QCheckBox
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 from useq import MultiPhaseTimePlan, TDurationLoops, TIntervalDuration, TIntervalLoops
@@ -37,10 +36,10 @@ class TimePlanWidget(DataTableWidget):
 
         self.valueChanged.connect(self._on_value_changed)
 
-        self.leave_shutter_open = QCheckBox("Leave shutter open across time points")
-        self.leave_shutter_open.toggled.connect(self.valueChanged)
+        # self.leave_shutter_open = QCheckBox("Leave shutter open across time points")
+        # self.leave_shutter_open.toggled.connect(self.valueChanged)
 
-        self.layout().addWidget(self.leave_shutter_open)
+        # self.layout().addWidget(self.leave_shutter_open)
 
     # ------------------------- Public API -------------------------
 
