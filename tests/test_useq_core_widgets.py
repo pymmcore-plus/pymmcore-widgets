@@ -12,7 +12,8 @@ from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
-from pymmcore_widgets.useq_widgets._positions import _MDAPopup
+from pymmcore_widgets.useq_widgets._mda_sequence import AutofocusAxis, KeepShutterOpen
+from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP, _MDAPopup
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -130,13 +131,13 @@ def _assert_position_wdg_state(
             sub_seq = [v.sequence for v in pos_table.value()]
             assert all(s is None for s in sub_seq)
         # the use autofocus checkbox should be unchecked
-        assert not pos_table.use_af.isChecked()
+        assert not pos_table.af_per_position.isChecked()
         # the use autofocus checkbox should be disabled if Autofocus device is not
         # loaded/selected
-        assert pos_table.use_af.isEnabled() == (not is_hidden)
+        assert pos_table.af_per_position.isEnabled() == (not is_hidden)
         # tooltip should should change if Autofocus device is not loaded/selected
-        tooltip = "AutoFocus device unavailable." if is_hidden else ""
-        assert pos_table.use_af.toolTip() == tooltip
+        tooltip = "AutoFocus device unavailable." if is_hidden else AF_DEFAULT_TOOLTIP
+        assert pos_table.af_per_position.toolTip() == tooltip
 
 
 @pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
@@ -234,10 +235,11 @@ def test_core_position_table_add_position(
     wdg._mmc.setXYPosition(11, 22)
     wdg._mmc.setZPosition(33)
 
-    wdg.stage_positions.use_af.setChecked(True)
+    wdg.stage_positions.af_per_position.setChecked(True)
 
     with qtbot.waitSignals([pos_table.valueChanged], order="strict", timeout=1000):
         pos_table.act_add_row.trigger()
+
     val = pos_table.value()[-1]
     assert round(val.x, 1) == 11
     assert round(val.y, 1) == 22
@@ -307,13 +309,13 @@ def test_core_position_table_checkboxes_toggled(qtbot: QtBot):
     af_btn_col = pos_table.table().indexOf(pos_table._af_btn_col)
 
     pos_table.include_z.setChecked(False)
-    pos_table.use_af.setChecked(False)
+    pos_table.af_per_position.setChecked(False)
 
     assert pos_table.table().isColumnHidden(z_btn_col)
     assert pos_table.table().isColumnHidden(af_btn_col)
 
     pos_table.include_z.setChecked(True)
-    pos_table.use_af.setChecked(True)
+    pos_table.af_per_position.setChecked(True)
 
     assert not pos_table.table().isColumnHidden(z_btn_col)
     assert not pos_table.table().isColumnHidden(af_btn_col)
@@ -374,3 +376,45 @@ def test_core_mda_autofocus(qtbot: QtBot):
     assert wdg.value().autofocus_plan.autofocus_motor_offset == 10
     assert not wdg.value().stage_positions[0].sequence
     assert wdg.value().stage_positions[1].sequence
+
+
+def test_af_axis_wdg(qtbot: QtBot):
+    wdg = AutofocusAxis()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    assert not wdg.value()
+    wdg.setValue(("p", "t", "g"))
+    assert wdg.value() == ("p", "t", "g")
+
+
+def test_keep_shutter_open_wdg(qtbot: QtBot):
+    wdg = KeepShutterOpen()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    assert not wdg.value()
+    wdg.setValue(("z", "t"))
+    assert wdg.value() == ("z", "t")
+
+
+# TODO: to fix
+# def test_run_mda_with_af(qtbot: QtBot):
+#     wdg = MDAWidget()
+#     qtbot.addWidget(wdg)
+#     wdg.show()
+
+#     MDA = useq.MDASequence(
+#         autofocus_plan=useq.AxesBasedAF(
+#             autofocus_device_name=None,
+#             autofocus_motor_offset=10,
+#             axes=("p", "t"),
+#         )
+#     )
+#     wdg.setValue(MDA)
+
+#     with mock.patch(
+#         "qtpy.QtWidgets.QMessageBox.warning",
+#         return_value=QMessageBox.StandardButton.Cancel,
+#     ):
+#         wdg.control_btns.run_btn.click()

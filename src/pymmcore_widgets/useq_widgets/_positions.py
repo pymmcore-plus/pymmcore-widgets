@@ -27,6 +27,10 @@ from ._data_table import DataTableWidget
 OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
 NULL_SEQUENCE = useq.MDASequence()
 MAX = 9999999
+AF_DEFAULT_TOOLTIP = (
+    "If checked, the user can set a different Hardware Autofocus Offset for each "
+    "Position in the table."
+)
 
 
 class _MDAPopup(QDialog):
@@ -53,8 +57,6 @@ class _MDAPopup(QDialog):
         # create a new MDA tab widget without the stage positions tab
         self.mda_tabs = tab_type(self)
         self.mda_tabs.removeTab(self.mda_tabs.indexOf(self.mda_tabs.stage_positions))
-        self.mda_tabs.time_plan.leave_shutter_open.hide()
-        self.mda_tabs.z_plan.leave_shutter_open.hide()
 
         # use the parent's channel groups if possible
         par = self.parent()
@@ -164,9 +166,10 @@ class PositionTable(DataTableWidget):
         self.include_z.setChecked(True)
         self.include_z.toggled.connect(self._on_include_z_toggled)
 
-        self.use_af = QCheckBox("Use Autofocus")
-        self.use_af.toggled.connect(self._on_use_af_toggled)
-        self._on_use_af_toggled(self.use_af.isChecked())
+        self.af_per_position = QCheckBox("Set AF Offset per Position")
+        self.af_per_position.setToolTip(AF_DEFAULT_TOOLTIP)
+        self.af_per_position.toggled.connect(self._on_af_per_position_toggled)
+        self._on_af_per_position_toggled(self.af_per_position.isChecked())
 
         self._save_button = QPushButton("Save...")
         self._save_button.clicked.connect(self.save)
@@ -176,7 +179,7 @@ class PositionTable(DataTableWidget):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(15)
         btn_row.addWidget(self.include_z)
-        btn_row.addWidget(self.use_af)
+        btn_row.addWidget(self.af_per_position)
         btn_row.addStretch()
         btn_row.addWidget(self._save_button)
         btn_row.addWidget(self._load_button)
@@ -195,7 +198,7 @@ class PositionTable(DataTableWidget):
             if not r.get(self.NAME.key, True):
                 r.pop(self.NAME.key, None)
 
-            if self.use_af.isChecked():
+            if self.af_per_position.isChecked():
                 af_offset = r.get(self.AF.key, None)
                 if af_offset is not None:
                     # get the current sub-sequence as dict or create a new one
@@ -245,7 +248,7 @@ class PositionTable(DataTableWidget):
 
             _values.append({**v.model_dump(exclude_unset=True), **_af})
 
-        self.use_af.setChecked(_use_af)
+        self.af_per_position.setChecked(_use_af)
 
         super().setValue(_values)
 
@@ -293,7 +296,7 @@ class PositionTable(DataTableWidget):
         self.table().setColumnHidden(z_col, not checked)
         self.valueChanged.emit()
 
-    def _on_use_af_toggled(self, checked: bool) -> None:
+    def _on_af_per_position_toggled(self, checked: bool) -> None:
         af_col = self.table().indexOf(self.AF)
         self.table().setColumnHidden(af_col, not checked)
         self.valueChanged.emit()
