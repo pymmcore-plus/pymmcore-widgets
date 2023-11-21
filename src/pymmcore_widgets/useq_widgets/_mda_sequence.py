@@ -128,7 +128,7 @@ class MDATabs(CheckableTabWidget):
         return tuple(k for k in ("tpgzc") if self.isAxisUsed(k))
 
     def value(self) -> useq.MDASequence:
-        """Return the current sequence as a [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)."""
+        """Return the current sequence as a [`useq.MDASequence`][]."""
         return useq.MDASequence(
             z_plan=self.z_plan.value() if self.isAxisUsed("z") else None,
             time_plan=self.time_plan.value() if self.isAxisUsed("t") else None,
@@ -141,7 +141,7 @@ class MDATabs(CheckableTabWidget):
         )
 
     def setValue(self, value: useq.MDASequence) -> None:
-        """Set widget value from a [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)."""
+        """Set widget value from a [`useq.MDASequence`][]."""
         if not isinstance(value, useq.MDASequence):  # pragma: no cover
             raise TypeError(f"Expected useq.MDASequence, got {type(value)}")
 
@@ -252,7 +252,7 @@ class KeepShutterOpen(QWidget):
 
 
 class MDASequenceWidget(QWidget):
-    """Widget to edit a [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)."""
+    """A widget that provides a GUI to construct and edit a [`useq.MDASequence`][]."""
 
     valueChanged = Signal()
 
@@ -366,13 +366,12 @@ class MDASequenceWidget(QWidget):
     # -------------- Public API --------------
 
     def value(self) -> useq.MDASequence:
-        """Return the current value of the widget as a [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence).
+        """Return the current value of the widget as a [`useq.MDASequence`][].
 
         Returns
         -------
         useq.MDASequence
-            The current [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)
-            value of the widget.
+            The current [`useq.MDASequence`][] value of the widget.
         """
         val = self.tab_wdg.value()
 
@@ -398,13 +397,12 @@ class MDASequenceWidget(QWidget):
         return val
 
     def setValue(self, value: useq.MDASequence) -> None:
-        """Set the current value of the widget from a [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence).
+        """Set the current value of the widget from a [`useq.MDASequence`][].
 
         Parameters
         ----------
         value : useq.MDASequence
-            The [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence)
-            to set.
+            The [`useq.MDASequence`][] to set.
         """
         self.tab_wdg.setValue(value)
         self.axis_order.setCurrentText("".join(value.axis_order))
@@ -425,7 +423,7 @@ class MDASequenceWidget(QWidget):
         self.af_axis.setValue(tuple(axis))
 
     def save(self, file: str | Path | None = None) -> None:
-        """Save the current [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence) to a file."""  # noqa: E501
+        """Save the current [`useq.MDASequence`][] to a file."""
         if not isinstance(file, (str, Path)):
             file, _ = QFileDialog.getSaveFileName(
                 self,
@@ -451,7 +449,7 @@ class MDASequenceWidget(QWidget):
         dest.write_text(data)
 
     def load(self, file: str | Path | None = None) -> None:
-        """Load a [useq.MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#sequence) from a file."""  # noqa: E501
+        """Load a [`useq.MDASequence`][] from a file."""
         if not isinstance(file, (str, Path)):
             file, _ = QFileDialog.getOpenFileName(
                 self,

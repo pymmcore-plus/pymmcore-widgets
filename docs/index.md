@@ -15,7 +15,7 @@ pip install pymmcore-widgets
 ```
 
 !!! Important
-    This package does **NOT** include a [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) backend, you must install one yourself (e.g. ```pip install PyQt5```).
+    This package does **NOT** include a [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) backend, you must install one yourself (e.g. ```pip install PyQt6```).
 
 !!! Note
     Widgets are tested on:
