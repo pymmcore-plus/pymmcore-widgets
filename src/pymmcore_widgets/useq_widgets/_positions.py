@@ -150,7 +150,7 @@ class SubSeqColumn(WidgetColumn):
 
 
 class PositionTable(DataTableWidget):
-    """Table for editing a list of `useq.Positions`."""
+    """Table to edit a list of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position)."""
 
     NAME = TextColumn(key="name", default=None, is_row_selector=True)
     X = FloatColumn(key="x", header="X [µm]", default=0.0, maximum=MAX, minimum=-MAX)
@@ -187,10 +187,25 @@ class PositionTable(DataTableWidget):
         layout = cast("QVBoxLayout", self.layout())
         layout.addLayout(btn_row)
 
+    # ------------------------- Public API -------------------------
+
     def value(
         self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
     ) -> tuple[useq.Position, ...]:
-        """Return the current value of the table as a list of channels."""
+        """Return the current value of the table as a tuple of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
+
+        Parameters
+        ----------
+        exclude_unchecked : bool, optional
+            Exclude unchecked rows, by default True
+        exclude_hidden_cols : bool, optional
+            Exclude hidden columns, by default True
+
+        Returns
+        -------
+        tuple[useq.Position, ...]
+            A tuple of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
+        """
         out: list[useq.Position] = []
         for r in self.table().iterRecords(
             exclude_unchecked=exclude_unchecked, exclude_hidden_cols=exclude_hidden_cols
@@ -219,7 +234,13 @@ class PositionTable(DataTableWidget):
         return tuple(out)
 
     def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore
-        """Set the current value of the table."""
+        """Set the current value of the table from a Sequence of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
+
+        Parameters
+        ----------
+        value : Sequence[useq.Position]
+            A Sequence of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
+        """
         _values = []
         _use_af = False
         for v in value:
@@ -253,7 +274,7 @@ class PositionTable(DataTableWidget):
         super().setValue(_values)
 
     def save(self, file: str | Path | None = None) -> None:
-        """Save the current positions to a file."""
+        """Save the current positions to a JSON file."""
         if not isinstance(file, (str, Path)):
             file, _ = QFileDialog.getSaveFileName(
                 self, "Save MDASequence and filename.", "", "json(*.json)"
@@ -273,7 +294,7 @@ class PositionTable(DataTableWidget):
         dest.write_text(f"[\n{inner}\n]\n")
 
     def load(self, file: str | Path | None = None) -> None:
-        """Load positions from a file."""
+        """Load positions from a JSON file and set the table value."""
         if not isinstance(file, (str, Path)):
             file, _ = QFileDialog.getOpenFileName(
                 self, "Select an MDAsequence file.", "", "json(*.json)"
@@ -290,6 +311,8 @@ class PositionTable(DataTableWidget):
             self.setValue([useq.Position(**d) for d in data])
         except Exception as e:  # pragma: no cover
             raise ValueError(f"Failed to load MDASequence file: {src}") from e
+
+    # ------------------------- Private API -------------------------
 
     def _on_include_z_toggled(self, checked: bool) -> None:
         z_col = self.table().indexOf(self.Z)

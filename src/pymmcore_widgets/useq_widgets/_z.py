@@ -45,7 +45,7 @@ UM = "\u00B5m"  # MICRO SIGN
 
 
 class ZPlanWidget(QWidget):
-    """Widget representing a useq Zplan sequence."""
+    """Widget to edit a [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans)."""
 
     valueChanged = Signal(object)
 
@@ -175,9 +175,6 @@ class ZPlanWidget(QWidget):
         self._direction_group.addButton(self._top_to_bottom)
         self._bottom_to_top.setChecked(True)
 
-        # self.leave_shutter_open = QCheckBox("Leave shutter open across Z positions")
-        # self.leave_shutter_open.setChecked(False)
-
         # #################### Other Widgets ####################
 
         self._use_suggested_btn = QPushButton()
@@ -279,14 +276,14 @@ class ZPlanWidget(QWidget):
         self,
         mode: Mode | Literal["top_bottom", "range_around", "above_below", None] = None,
     ) -> None:
-        """Set the current mode.
+        """Set the current mode, one of "top_bottom", "range_around", or "above_below".
 
         Parameters
         ----------
-        mode : Mode |  Literal["top_bottom", "range_around", "above_below"]
+        mode : Mode |  Literal["top_bottom", "range_around", "above_below"] | None, optional
             The mode to set.
             (If None, the mode is determined by the sender().data(), for internal usage)
-        """
+        """  # noqa: E501
         if isinstance(mode, str):
             mode = Mode(mode)
         elif isinstance(mode, (bool, type(None))):
@@ -315,11 +312,11 @@ class ZPlanWidget(QWidget):
         self._on_change()
 
     def mode(self) -> Mode:
-        """Return the current mode."""
+        """Return the current mode, one of "top_bottom", "range_around", or "above_below"."""  # noqa: E501
         return self._mode
 
     def setSuggestedStep(self, value: float | None) -> None:
-        """Set the suggested step size and update the button text."""
+        """Set the suggested z step size and update the button text."""
         self._suggested = value
         if value:
             self._use_suggested_btn.setText(f"{value} {UM}")
@@ -329,16 +326,23 @@ class ZPlanWidget(QWidget):
             self._use_suggested_btn.hide()
 
     def suggestedStep(self) -> float | None:
-        """Return suggested step size."""
+        """Return suggested z step size."""
         return float(self._suggested) if self._suggested else None
 
     def useSuggestedStep(self) -> None:
-        """Apply the suggested step size to the step field."""
+        """Apply the suggested z step size to the step field."""
         if self._suggested:
             self.step.setValue(float(self._suggested))
 
     def value(self) -> useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom | None:
-        """Return the current value."""
+        """Return the current value of the widget as a [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans).
+
+        Returns
+        -------
+        useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom | None
+        The current [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans)
+        value of the widget.
+        """
         if self.step.value() == 0:
             return None
 
@@ -361,7 +365,13 @@ class ZPlanWidget(QWidget):
     def setValue(
         self, value: useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom
     ) -> None:
-        """Set the current value."""
+        """Set the current value of the widget from a [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans).
+
+        Parameters
+        ----------
+        value : useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom
+            The [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans) to set.
+        """  # noqa: E501
         if isinstance(value, useq.ZTopBottom):
             self.top.setValue(value.top)
             self.bottom.setValue(value.bottom)
