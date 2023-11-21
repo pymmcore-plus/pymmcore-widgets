@@ -15,14 +15,6 @@ from ._image_widget import ImagePreview
 from ._install_widget import InstallWidget
 from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
-from ._mda import (
-    ChannelTable,
-    GridWidget,
-    MDAWidget,
-    PositionTable,
-    TimePlanWidget,
-    ZStackWidget,
-)
 from ._objective_widget import ObjectivesWidget
 from ._pixel_size_widget import PixelSizeWidget
 from ._presets_widget import PresetsWidget
@@ -32,6 +24,15 @@ from ._property_widget import PropertyWidget
 from ._shutter_widget import ShuttersWidget
 from ._snap_button_widget import SnapButton
 from ._stage_widget import StageWidget
+from .mda import MDAWidget
+from .useq_widgets import (
+    ChannelTable,
+    GridPlanWidget,
+    MDASequenceWidget,
+    PositionTable,
+    TimePlanWidget,
+    ZPlanWidget,
+)
 
 __all__ = [
     "CameraRoiWidget",
@@ -42,12 +43,13 @@ __all__ = [
     "DefaultCameraExposureWidget",
     "DeviceWidget",
     "ExposureWidget",
-    "GridWidget",
+    "GridPlanWidget",
     "GroupPresetTableWidget",
     "ImagePreview",
     "InstallWidget",
     "LiveButton",
     "MDAWidget",
+    "MDASequenceWidget",
     "ObjectivesWidget",
     "PixelSizeWidget",
     "PositionTable",
@@ -61,4 +63,5 @@ __all__ = [
     "StateDeviceWidget",
     "TimePlanWidget",
     "ZStackWidget",
+    "ZPlanWidget",
 ]
