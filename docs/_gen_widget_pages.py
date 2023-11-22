@@ -103,4 +103,4 @@ def _generate_widget_pages() -> None:
     list(map(_generate_widget_page, widgets))
 
 
-_generate_widget_pages()
+# _generate_widget_pages()
