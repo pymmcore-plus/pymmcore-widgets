@@ -4,6 +4,7 @@ config_wdgs = [
     "PixelSizeWidget",
     "ConfigurationWidget",
     "PresetsWidget",
+    "ConfigWizard",
 ]
 dev_prop_wdgs = ["PropertyBrowser", "PropertyWidget", "PropertiesWidget"]
 mda_wdgs = [
@@ -15,8 +16,6 @@ mda_wdgs = [
     "GridPlanWidget",
     "MDASequenceWidget",
 ]
-cam_wdgs = ["CameraRoiWidget", "DefaultCameraExposureWidget", "ExposureWidget"]
-stage_wdgs = ["StageWidget"]
 misc = [
     "ObjectivesWidget",
     "ShuttersWidget",
@@ -25,6 +24,10 @@ misc = [
     "ImagePreview",
     "SnapButton",
     "LiveButton",
+    "CameraRoiWidget",
+    "DefaultCameraExposureWidget",
+    "ExposureWidget",
+    "StageWidget",
 ]
 
 
