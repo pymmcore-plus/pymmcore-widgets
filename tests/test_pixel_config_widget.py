@@ -22,11 +22,13 @@ TEST_VALUE = [
         "test_1",
         [Setting("Camera", "Binning", "1"), Setting("Camera", "BitDepth", "16")],
         0.5,
+        (0.5, 0.0, 0.0, 0.0, 0.5, 0.0),
     ),
     PixelSizePreset(
         "test_2",
         [Setting("Camera", "Binning", "2"), Setting("Camera", "BitDepth", "12")],
         2.0,
+        (2, 0.0, 0.0, 0.0, 2, 0.0),
     ),
 ]
 
@@ -56,6 +58,9 @@ def test_pixel_config_wdg(qtbot: QtBot, global_mmcore: CMMCorePlus):
         ("Camera", "Binning", "1"),
         ("Camera", "BitDepth", "16"),
     ]
+
+    assert wdg.value()["test_1"].affine == (0.5, 0.0, 0.0, 0.0, 0.5, 0.0)
+    assert wdg.value()["test_2"].affine == (2, 0.0, 0.0, 0.0, 2, 0.0)
 
 
 def test_pixel_config_wdg_sys_cfg_load(qtbot: QtBot):
@@ -94,10 +99,13 @@ def test_pixel_config_wdg_define_configs(qtbot: QtBot, global_mmcore: CMMCorePlu
         ("Camera", "Binning", "1"),
         ("Camera", "BitDepth", "16"),
     ]
+    assert wdg._resID_map[0].affine == (0.5, 0.0, 0.0, 0.0, 0.5, 0.0)
 
     wdg._on_apply()
 
     assert list(wdg._mmc.getAvailablePixelSizeConfigs()) == ["test_1", "test_2"]
+    assert wdg._mmc.getPixelSizeAffineByID("test_1") == (0.5, 0.0, 0.0, 0.0, 0.5, 0.0)
+    assert wdg._mmc.getPixelSizeAffineByID("test_2") == (2, 0.0, 0.0, 0.0, 2, 0.0)
 
 
 def test_pixel_config_wdg_enabled(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -183,7 +191,9 @@ def test_pixel_config_wdg_px_table(qtbot: QtBot, global_mmcore: CMMCorePlus):
     # the above setValue does not trigger the signal, so we need to manually call it
     spin.valueChanged.emit(10)
     assert wdg.value()["Res20x"].pixel_size_um == 10
+    assert wdg._affine_table.value() == (10, 0.0, 0.0, 0.0, 10, 0.0)
     assert wdg._resID_map[1].pixel_size_um == 10
+    assert wdg._resID_map[1].affine == (10, 0.0, 0.0, 0.0, 10, 0.0)
 
 
 def test_pixel_config_wdg_errors(qtbot: QtBot, global_mmcore: CMMCorePlus):
