@@ -263,7 +263,7 @@ class PixelConfigurationWidget(QWidget):
         if not self._px_table.value():
             self._resID_map.clear()
             self._props_selector._prop_table.uncheckAll()
-            self._affine_table.reset_values()
+            self._affine_table.setValue(DEFAULT_AFFINE)
             return
 
         # if an item is deleted, remove it from the configuration map
