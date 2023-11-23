@@ -1,6 +1,6 @@
 """Example usage of the PositionTable class.
 
-Check also the 'position_table.py' and 'mda_widget.py' example to see the PositionTable
+Check also the 'mda_widget.py' example to see the PositionTable
 used in combination of other widgets.
 """
 
