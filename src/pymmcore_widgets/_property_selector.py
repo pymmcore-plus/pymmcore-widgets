@@ -62,10 +62,12 @@ class PropertySelector(QWidget):
 
         table_and_filter = QWidget()
         table_and_filter_layout = QVBoxLayout(table_and_filter)
+        table_and_filter_layout.setContentsMargins(0, 0, 0, 0)
         table_and_filter_layout.addWidget(self._filter_text)
         table_and_filter_layout.addWidget(self._prop_table)
 
         splitter = QSplitter(Qt.Orientation.Vertical)
+        splitter.setContentsMargins(0, 0, 0, 0)
         # avoid splitter hiding completely widgets
         splitter.setChildrenCollapsible(False)
         splitter.addWidget(self._prop_viewer)
@@ -87,6 +89,7 @@ class PropertySelector(QWidget):
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.addWidget(self._device_filters)
+        left.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
 
         # central widget
         central_wdg = QWidget()
@@ -100,8 +103,6 @@ class PropertySelector(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(central_wdg)
-
-        self._prop_viewer.setMinimumHeight(int(right.minimumSizeHint().height() / 2))
 
         # connect
         self._mmc.events.systemConfigurationLoaded.connect(self._update_filter)
