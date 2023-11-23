@@ -1,20 +1,27 @@
 from __future__ import annotations
 
+import itertools
 import warnings
 from collections import Counter
 from typing import Any, cast
 
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.model import PixelSizeGroup, PixelSizePreset, Setting
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
+    QAbstractSpinBox,
     QDoubleSpinBox,
     QGridLayout,
     QHBoxLayout,
+    QHeaderView,
+    QLabel,
     QMessageBox,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
+    QTableWidget,
     QTableWidgetItem,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -50,6 +57,8 @@ class PixelConfigurationWidget(QWidget):
 
         self._px_table = _PixelTable()
         self._props_selector = PropertySelector(mmcore=self._mmc)
+        affine_lbl = QLabel("Affine Transformations:")
+        self._affine_table = AffineTable()
 
         # buttons
         apply_btn = QPushButton("Apply and Close")
@@ -66,9 +75,12 @@ class PixelConfigurationWidget(QWidget):
 
         # main layout
         main_layout = QGridLayout(self)
+        main_layout.setSpacing(5)
         main_layout.addWidget(self._px_table, 0, 0)
-        main_layout.addWidget(self._props_selector, 0, 1)
-        main_layout.addLayout(btns_layout, 2, 1)
+        main_layout.addWidget(affine_lbl, 1, 0)
+        main_layout.addWidget(self._affine_table, 2, 0)
+        main_layout.addWidget(self._props_selector, 0, 1, 3, 1)
+        main_layout.addLayout(btns_layout, 3, 1)
 
         # connect signals
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
@@ -384,3 +396,81 @@ class _PixelTable(DataTableWidget):
         self._toolbar.removeAction(self.act_check_all)
         self._toolbar.removeAction(self.act_check_none)
         self._toolbar.actions()[2].setVisible(False)  # separator
+
+        # ResizeToContents the header of the table
+        h_header = cast("QHeaderView", self._table.horizontalHeader())
+        h_header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+
+
+class AffineTable(QTableWidget):
+    """A table to display the affine transformations matrix."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+
+        h_header = cast("QHeaderView", self.horizontalHeader())
+        h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        v_header = cast("QHeaderView", self.verticalHeader())
+        v_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+
+        self.setColumnCount(3)
+        self.setRowCount(3)
+
+        self.verticalHeader().setVisible(False)
+        self.horizontalHeader().setVisible(False)
+
+        # add a spinbox in each cell of the table
+        self._add_table_spinboxes()
+
+        # main layout
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.addWidget(self)
+
+        self.setMaximumHeight(self.minimumSizeHint().height())
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+    def _add_table_spinboxes(self) -> None:
+        """Add a spinbox in each cell of the table."""
+        for row, col in itertools.product(range(3), range(3)):
+            spin = QDoubleSpinBox()
+            spin.setRange(-100000, 100000)
+            spin.setDecimals(1)
+            spin.setValue(0.0)
+            spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+            self.setCellWidget(row, col, spin)
+            # disable the spinboxes in the last row
+            if row == 2:
+                spin.setReadOnly(True)
+                spin.setEnabled(False)
+                # set the value of the last row to 1.0
+                if col == 2:
+                    spin.setValue(1.0)
+
+    def value(self) -> list[list[float]]:
+        """Return the current widget value describing the affine transformation."""
+        return [
+            [
+                cast(QDoubleSpinBox, self.cellWidget(row, col)).value()
+                for col in range(3)
+            ]
+            for row in range(3)
+        ]
+
+    def setValue(self, value: list[list[float]]) -> None:
+        """Set the current widget value describing the affine transformation."""
+        for row, col in itertools.product(range(2), range(2)):
+            spin = cast(QDoubleSpinBox, self.cellWidget(row, col))
+            spin.setValue(value[row][col])
+
+
+if __name__ == "__main__":
+    from qtpy.QtWidgets import QApplication
+
+    app = QApplication([])
+    widget = PixelConfigurationWidget()
+    widget.show()
+    app.exec_()
