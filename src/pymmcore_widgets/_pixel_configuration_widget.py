@@ -9,6 +9,7 @@ from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.model import PixelSizeGroup, PixelSizePreset, Setting
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
+    QAbstractScrollArea,
     QAbstractSpinBox,
     QDoubleSpinBox,
     QGridLayout,
@@ -21,6 +22,7 @@ from qtpy.QtWidgets import (
     QSpacerItem,
     QTableWidget,
     QTableWidgetItem,
+    QVBoxLayout,
     QWidget,
 )
 from superqt.utils import signals_blocked
@@ -56,10 +58,20 @@ class PixelConfigurationWidget(QWidget):
 
         self._resID_map: dict[int, PixelSizePreset] = {}
 
+        # pixel and affine tables widget
+        left = QWidget()
+        left_layout = QVBoxLayout(left)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(5)
         self._px_table = _PixelTable()
-        self._props_selector = PropertySelector(mmcore=self._mmc)
         affine_lbl = QLabel("Affine Transformations:")
         self._affine_table = AffineTable()
+        left_layout.addWidget(self._px_table)
+        left_layout.addWidget(affine_lbl)
+        left_layout.addWidget(self._affine_table)
+        left.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+
+        self._props_selector = PropertySelector(mmcore=self._mmc)
 
         # buttons
         apply_btn = QPushButton("Apply and Close")
@@ -76,12 +88,9 @@ class PixelConfigurationWidget(QWidget):
 
         # main layout
         main_layout = QGridLayout(self)
-        main_layout.setSpacing(5)
-        main_layout.addWidget(self._px_table, 0, 0)
-        main_layout.addWidget(affine_lbl, 1, 0)
-        main_layout.addWidget(self._affine_table, 2, 0)
-        main_layout.addWidget(self._props_selector, 0, 1, 3, 1)
-        main_layout.addLayout(btns_layout, 3, 1)
+        main_layout.addWidget(left, 0, 0)
+        main_layout.addWidget(self._props_selector, 0, 1)
+        main_layout.addLayout(btns_layout, 1, 1)
 
         # connect signals
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
@@ -420,11 +429,14 @@ class _PixelTable(DataTableWidget):
         self._toolbar.removeAction(self.act_check_none)
         self._toolbar.actions()[2].setVisible(False)  # separator
 
-        # ResizeToContents the header of the table
         h_header = cast("QHeaderView", self._table.horizontalHeader())
         h_header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self._table.setSizeAdjustPolicy(
+            QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents
+        )
 
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        # set the minimum width of the header to the width of the first column
+        self._table.horizontalHeader().setMinimumSectionSize(h_header.sectionSize(0))
 
 
 class AffineTable(QTableWidget):
@@ -451,7 +463,6 @@ class AffineTable(QTableWidget):
         self.setValue(DEFAULT_AFFINE)
 
         self.setMaximumHeight(self.minimumSizeHint().height())
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
     def _add_table_spinboxes(self) -> None:
         """Add a spinbox in each cell of the table."""
@@ -489,16 +500,3 @@ class AffineTable(QTableWidget):
         for row, col in itertools.product(range(2), range(3)):
             spin = cast(QDoubleSpinBox, self.cellWidget(row, col))
             spin.setValue(value[row * 3 + col])
-
-
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
-
-    mmc = CMMCorePlus.instance()
-    mmc.loadSystemConfiguration()
-
-    app = QApplication([])
-    widget = PixelConfigurationWidget()
-    widget.show()
-
-    app.exec_()
