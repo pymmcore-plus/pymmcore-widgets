@@ -71,8 +71,8 @@ class PixelConfigurationWidget(QWidget):
         btns_layout.addSpacerItem(
             QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         )
-        btns_layout.addWidget(apply_btn)
         btns_layout.addWidget(cancel_btn)
+        btns_layout.addWidget(apply_btn)
 
         # main layout
         main_layout = QGridLayout(self)
