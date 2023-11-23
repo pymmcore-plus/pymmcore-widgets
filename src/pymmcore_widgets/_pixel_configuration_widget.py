@@ -3,11 +3,11 @@ from __future__ import annotations
 import itertools
 import warnings
 from collections import Counter
-from typing import Any, cast
+from typing import Any, Sequence, cast
 
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.model import PixelSizeGroup, PixelSizePreset, Setting
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QDoubleSpinBox,
@@ -21,9 +21,9 @@ from qtpy.QtWidgets import (
     QSpacerItem,
     QTableWidget,
     QTableWidgetItem,
-    QVBoxLayout,
     QWidget,
 )
+from superqt.utils import signals_blocked
 
 from pymmcore_widgets._property_selector import PropertySelector
 from pymmcore_widgets.useq_widgets import DataTable, DataTableWidget
@@ -36,6 +36,7 @@ PX_SIZE = "pixel_size"
 PROP = "properties"
 NEW = "New"
 DEV_PROP_ROLE = QTableWidgetItem.ItemType.UserType + 1
+DEFAULT_AFFINE = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0)
 
 
 class PixelConfigurationWidget(QWidget):
@@ -91,6 +92,7 @@ class PixelConfigurationWidget(QWidget):
         )
         self._px_table.table().model().rowsInserted.connect(self._on_rows_inserted)
         self._props_selector.valueChanged.connect(self._on_viewer_value_changed)
+        self._affine_table.valueChanged.connect(self._on_affine_value_changed)
         apply_btn.clicked.connect(self._on_apply)
         cancel_btn.clicked.connect(self.close)
 
@@ -208,6 +210,8 @@ class PixelConfigurationWidget(QWidget):
             return
         row = items[0].row()
         self._props_selector.setValue(self._resID_map[row].settings)
+        with signals_blocked(self._affine_table):
+            self._affine_table.setValue(self._resID_map[row].affine)
 
     def _on_resolutionID_name_changed(self, item: QTableWidgetItem) -> None:
         """Update the resolutionID name in the configuration map."""
@@ -234,6 +238,24 @@ class PixelConfigurationWidget(QWidget):
         table = cast(DataTable, self.sender().parent().parent())
         row = table.indexAt(spin.pos()).row()
         self._resID_map[row].pixel_size_um = spin.value()
+        self._update_affine_transformations(spin.value())
+
+    def _update_affine_transformations(self, px_value: float) -> None:
+        """Update the affine transformations."""
+        self._affine_table.setValue([px_value, 0.0, 0.0, 0.0, px_value, 0.0])
+        affine = self._affine_table.value()
+        items = self._px_table._table.selectedItems()
+        if len(items) != 1:
+            return
+        self._resID_map[items[0].row()].affine = affine
+
+    def _on_affine_value_changed(self) -> None:
+        """Update the affine transformations in the configuration map."""
+        affine = self._affine_table.value()
+        items = self._px_table._table.selectedItems()
+        if len(items) != 1:
+            return
+        self._resID_map[items[0].row()].affine = affine
 
     def _on_px_table_value_changed(self) -> None:
         """Update the data of the pixel table when the value changes."""
@@ -241,6 +263,7 @@ class PixelConfigurationWidget(QWidget):
         if not self._px_table.value():
             self._resID_map.clear()
             self._props_selector._prop_table.uncheckAll()
+            self._affine_table.reset_values()
             return
 
         # if an item is deleted, remove it from the configuration map
@@ -407,6 +430,8 @@ class _PixelTable(DataTableWidget):
 class AffineTable(QTableWidget):
     """A table to display the affine transformations matrix."""
 
+    valueChanged = Signal()
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
 
@@ -423,11 +448,7 @@ class AffineTable(QTableWidget):
 
         # add a spinbox in each cell of the table
         self._add_table_spinboxes()
-
-        # main layout
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(5, 5, 5, 5)
-        main_layout.addWidget(self)
+        self.setValue(DEFAULT_AFFINE)
 
         self.setMaximumHeight(self.minimumSizeHint().height())
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -438,7 +459,6 @@ class AffineTable(QTableWidget):
             spin = QDoubleSpinBox()
             spin.setRange(-100000, 100000)
             spin.setDecimals(1)
-            spin.setValue(0.0)
             spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
             spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
             self.setCellWidget(row, col, spin)
@@ -449,20 +469,23 @@ class AffineTable(QTableWidget):
                 # set the value of the last row to 1.0
                 if col == 2:
                     spin.setValue(1.0)
+            # connect the valueChanged signal of the spinboxes to global valueChanged
+            else:
+                spin.valueChanged.connect(self.valueChanged)
 
-    def value(self) -> list[float]:
+    def value(self) -> tuple[float, float, float, float, float, float]:
         """Return the current widget value describing the affine transformation."""
         value: list[float] = []
         for row, col in itertools.product(range(2), range(3)):
             spin = cast(QDoubleSpinBox, self.cellWidget(row, col))
-            spin.interpretText()
             value.append(spin.value())
-        return value
+        return tuple(value)  # type: ignore
 
-    def setValue(self, value: list[float]) -> None:
+    def setValue(self, value: Sequence[float]) -> None:
         """Set the current widget value describing the affine transformation."""
         if len(value) != 6:
             raise ValueError("The affine transformation must have 6 values.")
+
         for row, col in itertools.product(range(2), range(3)):
             spin = cast(QDoubleSpinBox, self.cellWidget(row, col))
             spin.setValue(value[row * 3 + col])
@@ -471,11 +494,11 @@ class AffineTable(QTableWidget):
 if __name__ == "__main__":
     from qtpy.QtWidgets import QApplication
 
+    mmc = CMMCorePlus.instance()
+    mmc.loadSystemConfiguration()
+
     app = QApplication([])
     widget = PixelConfigurationWidget()
     widget.show()
-
-    widget._affine_table.setValue([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-    print(widget._affine_table.value())
 
     app.exec_()
