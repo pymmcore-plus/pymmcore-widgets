@@ -1,7 +1,7 @@
 """Example usage of the GridPlanWidget class.
 
-Check also the 'mda_widget.py' example to see the PositionTable
-used in combination of other widgets.
+Check also the 'position_table.py' and 'mda_widget.py' examples to see the
+GridPlanWidget used in combination of other widgets.
 """
 
 from pymmcore_plus import CMMCorePlus
