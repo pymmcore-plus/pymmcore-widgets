@@ -64,6 +64,5 @@ __all__ = [
     "StageWidget",
     "StateDeviceWidget",
     "TimePlanWidget",
-    "ZStackWidget",
     "ZPlanWidget",
 ]
