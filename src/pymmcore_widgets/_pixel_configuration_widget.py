@@ -450,21 +450,22 @@ class AffineTable(QTableWidget):
                 if col == 2:
                     spin.setValue(1.0)
 
-    def value(self) -> list[list[float]]:
+    def value(self) -> list[float]:
         """Return the current widget value describing the affine transformation."""
-        return [
-            [
-                cast(QDoubleSpinBox, self.cellWidget(row, col)).value()
-                for col in range(3)
-            ]
-            for row in range(3)
-        ]
-
-    def setValue(self, value: list[list[float]]) -> None:
-        """Set the current widget value describing the affine transformation."""
-        for row, col in itertools.product(range(2), range(2)):
+        value: list[float] = []
+        for row, col in itertools.product(range(2), range(3)):
             spin = cast(QDoubleSpinBox, self.cellWidget(row, col))
-            spin.setValue(value[row][col])
+            spin.interpretText()
+            value.append(spin.value())
+        return value
+
+    def setValue(self, value: list[float]) -> None:
+        """Set the current widget value describing the affine transformation."""
+        if len(value) != 6:
+            raise ValueError("The affine transformation must have 6 values.")
+        for row, col in itertools.product(range(2), range(3)):
+            spin = cast(QDoubleSpinBox, self.cellWidget(row, col))
+            spin.setValue(value[row * 3 + col])
 
 
 if __name__ == "__main__":
@@ -473,4 +474,8 @@ if __name__ == "__main__":
     app = QApplication([])
     widget = PixelConfigurationWidget()
     widget.show()
+
+    widget._affine_table.setValue([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    print(widget._affine_table.value())
+
     app.exec_()
