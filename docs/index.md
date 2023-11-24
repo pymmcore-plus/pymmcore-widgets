@@ -59,10 +59,10 @@ The code above will create a Qt application that looks like this:
 
 ![PropertyBrowser](./images/property_browser.png)
 
-
-A more detailed description on how to use the Widgets is explained in the [Getting Started](getting_started.md) section.
+A more detailed description on how to use the [pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) package is explained in the [Getting Started](getting_started.md) section.
 
 For a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).
+
 
 ## Widgets List
 
@@ -80,7 +80,7 @@ The widgets in this section can be used to **control** any Micro-Manager device 
 
 ### *Configurations Widgets*
 
-The widgets in this section can be used to **create, load and modify** a Micro-Manager configuration file.
+The widgets in this section can be used to **create, load and modify a Micro-Manager configuration** file.
 
 {{ CONFIGURATION_WIDGETS }}
 
