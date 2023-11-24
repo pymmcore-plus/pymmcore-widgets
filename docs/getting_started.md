@@ -1,6 +1,6 @@
 # installation
 
-mention conda/mamba
+!!! mention conda/mamba
 
 You can install the latest release of [pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) using pip:
 
@@ -8,12 +8,15 @@ You can install the latest release of [pymmcore-widgets](https://pypi.org/projec
 pip install pymmcore-widgets
 ```
 
-This package is based on [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) , so you must install one yourself.
-For example, to install PyQt6, you can use:
+This package relies on either the [PyQt](https://riverbankcomputing.com/software/pyqt/) or [PySide](https://www.qt.io/qt-for-python) libraries. Ensure to install one of these dependencies prior to using the package (it has been tested with `PyQt5`, `PyQt6`,`PySide2` & `PySide6`).
+
+For example, to install [PyQt6](https://riverbankcomputing.com/software/pyqt/download), you can use:
 
 ```sh
 pip install PyQt6
 ```
+
+!!! mention that this is installing pymmcore-plus as well but that you need to install the [Micro-Manager adapters](https://pymmcore-plus.github.io/pymmcore-plus/install/#installing-micro-manager-device-adapters) yourself.
 
 
 
