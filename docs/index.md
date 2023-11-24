@@ -1,6 +1,6 @@
 # Overview
 
-[pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) is a library of [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) widgets that can be used in combination with [pymmcore-plus](https://pymmcore-plus.github.io/pymmcore-plus) to build custom graphical user interfaces to interact with the [Micro-Manager](https://micro-manager.org) software in a pure python/C++ environment.
+[pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) is a library of [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) widgets that can be used in combination with [pymmcore-plus](https://pymmcore-plus.github.io/pymmcore-plus) to create custom GUIs (Graphical User Interfaces) for the [Micro-Manager](https://micro-manager.org) software in a pure python/C++ environment.
 
 ![all_widgets](./images/all_widgets.png)
 
@@ -27,7 +27,13 @@ For a more detailed description on how to install the package, see the [Getting 
 
 ## Usage
 
-As a quick example, let's create a simple Qt application that creates a Micro-Manager [core instance](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance), loads the default Micro-Manager system configuration and shows a [PropertyBrowser](widgets/PropertyBrowser.md) widget. You can use this widget to **browse and modify the properties** of any of the loaded devices.
+As a quick example, let's create a simple Qt Application that:
+
+- creates a Micro-Manager [core instance](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance)
+
+- loads the default Micro-Manager system configuration
+
+- shows a [PropertyBrowser](widgets/PropertyBrowser.md) widget. You can use this widget to **view and modify the properties** of any of the loaded devices.
 
 ```python
 # import the necessary packages
@@ -52,7 +58,7 @@ pb_wdg.show()
 app.exec_()
 ```
 
-The code above will create a Qt application that looks like this:
+The code above will create a Qt Application that looks like this:
 
 ![PropertyBrowser](./images/property_browser.png)
 
@@ -65,7 +71,7 @@ For a pre-made user interface, see [napari-micromanager](https://pypi.org/projec
 
 Below there is a list of all the widgets available in this package **grouped by their functionality**.
 
-More detailed information on each widget can be found in the individual widgets documentation.
+More detailed information on each widget can be found in [their individual documentation](./widgets/CameraRoiWidget/).
 
 
 ### *Cameras Widgets*
