@@ -1,8 +1,9 @@
 # Overview
 
-[pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) ([github](https://github.com/pymmcore-plus/pymmcore-widgets)) is a library of [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) widgets that can be used in combination with [pymmcore-plus](https://pymmcore-plus.github.io/pymmcore-plus) ([github](https://github.com/pymmcore-plus/pymmcore-plus)) to build custom user interfaces for [Micro-Manager](https://micro-manager.org) in a python/C++ environment.
+[pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) is a library of [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) widgets that can be used in combination with [pymmcore-plus](https://pymmcore-plus.github.io/pymmcore-plus) to build custom graphical user interfaces to interact with the [Micro-Manager](https://micro-manager.org) software in a pure python/C++ environment.
 
-![add image]()
+![all_widgets](./images/all_widgets.png)
+
 
 ## Installation
 
@@ -23,9 +24,10 @@ pip install pymmcore-widgets
 
 For a more detailed description on how to install the package, see the [Getting Started](getting_started.md) section.
 
+
 ## Usage
 
-As a quick example, let's create a simple Qt application that loads the default Micro-Manager system configuration and shows a [PropertyBrowser](widgets/PropertyBrowser.md) widget. You can use this widget to **browse and modify the properties** of any loaded device in a Micro-Manager ([core instance](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance)).
+As a quick example, let's create a simple Qt application that creates a Micro-Manager [core instance](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance), loads the default Micro-Manager system configuration and shows a [PropertyBrowser](widgets/PropertyBrowser.md) widget. You can use this widget to **browse and modify the properties** of any of the loaded devices.
 
 ```python
 # import the necessary packages
