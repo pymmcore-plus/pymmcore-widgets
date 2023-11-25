@@ -9,10 +9,8 @@ from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.model import PixelSizeGroup, PixelSizePreset, Setting
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
-    QAbstractScrollArea,
     QAbstractSpinBox,
     QDoubleSpinBox,
-    QGridLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -20,6 +18,7 @@ from qtpy.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QSpacerItem,
+    QSplitter,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -69,9 +68,15 @@ class PixelConfigurationWidget(QWidget):
         left_layout.addWidget(self._px_table)
         left_layout.addWidget(affine_lbl)
         left_layout.addWidget(self._affine_table)
-        left.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
 
         self._props_selector = PropertySelector(mmcore=self._mmc)
+
+        splitter = QSplitter()
+        splitter.setContentsMargins(0, 0, 0, 0)
+        # avoid splitter hiding completely widgets
+        splitter.setChildrenCollapsible(False)
+        splitter.addWidget(left)
+        splitter.addWidget(self._props_selector)
 
         # buttons
         apply_btn = QPushButton("Apply and Close")
@@ -87,10 +92,9 @@ class PixelConfigurationWidget(QWidget):
         btns_layout.addWidget(apply_btn)
 
         # main layout
-        main_layout = QGridLayout(self)
-        main_layout.addWidget(left, 0, 0)
-        main_layout.addWidget(self._props_selector, 0, 1)
-        main_layout.addLayout(btns_layout, 1, 1)
+        main_layout = QVBoxLayout(self)
+        main_layout.addWidget(splitter)
+        main_layout.addLayout(btns_layout)
 
         # connect signals
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
@@ -415,9 +419,7 @@ class PixelConfigurationWidget(QWidget):
 class _PixelTable(DataTableWidget):
     """A table to add and display the pixel size configurations."""
 
-    ID = TextColumn(
-        key=ID, header="pixel configuration name", default=NEW, is_row_selector=False
-    )
+    ID = TextColumn(key=ID, header="ResolutionID", default=NEW, is_row_selector=False)
     VALUE = FloatColumn(
         key=PX, header="pixel value [µm]", default=0, is_row_selector=False
     )
@@ -430,13 +432,8 @@ class _PixelTable(DataTableWidget):
         self._toolbar.actions()[2].setVisible(False)  # separator
 
         h_header = cast("QHeaderView", self._table.horizontalHeader())
-        h_header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        self._table.setSizeAdjustPolicy(
-            QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents
-        )
-
-        # set the minimum width of the header to the width of the first column
-        self._table.horizontalHeader().setMinimumSectionSize(h_header.sectionSize(0))
+        h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        h_header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
 
 
 class AffineTable(QTableWidget):
@@ -447,16 +444,13 @@ class AffineTable(QTableWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
 
-        h_header = cast("QHeaderView", self.horizontalHeader())
-        h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        v_header = cast("QHeaderView", self.verticalHeader())
-        v_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.horizontalHeader().setVisible(False)
+        self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.verticalHeader().setVisible(False)
 
         self.setColumnCount(3)
         self.setRowCount(3)
-
-        self.verticalHeader().setVisible(False)
-        self.horizontalHeader().setVisible(False)
 
         # add a spinbox in each cell of the table
         self._add_table_spinboxes()
