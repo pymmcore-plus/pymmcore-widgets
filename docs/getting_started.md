@@ -20,6 +20,10 @@ pip install PyQt6
 
 
 
+# getting started
+
+- you can specify which Micro-Manager core instance to use. If not specified, each widget will use the the active one or will create a new instance if none is active. If you want to create a core yourself, we suggest to use CMMCorePlus.instance() if you want all widget to listen to the same core instance. 
+
 ```python
 # import the necessary packages
 from qtpy.QtWidgets import QGridLayout, QWidget
@@ -74,3 +78,7 @@ if __name__ == "__main__":
 
 The code above will create a Qt application that looks like this:
 ![MyWidget](./images/my_widget_example.png)
+
+
+
+!!! note that at the moment we don't have any mda viewer but it is on development. If you want to see the acquired images, you need to create a viewer yourself. For example, you can use [napari](https://napari.org/) and have a look at napari-micromanager.
