@@ -27,4 +27,4 @@ pip install pymmcore-widgets
 
 For a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).
 
-Detailed description and usage of each Widget is explained in their [respective pages](#widgets).
+Detailed description and usage of each Widget is explained in their [respective pages](./widgets/CameraRoiWidget/).
