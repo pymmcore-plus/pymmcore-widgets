@@ -54,7 +54,7 @@ class CoreMDATabs(MDATabs):
 
 
 class MDAWidget(MDASequenceWidget):
-    """A [MDASequenceWidget](../MDASequenceWidget#) Connected to a [`pymmcore_plus.CMMCorePlus`][] instance.
+    """[MDASequenceWidget](../MDASequenceWidget#) connected to a [`pymmcore_plus.CMMCorePlus`][] instance.
 
     It provides a GUI to construct and run a [`useq.MDASequence`][].
 

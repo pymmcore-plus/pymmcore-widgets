@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 class CoreConnectedPositionTable(PositionTable):
-    """A [PositionTable](../PositionTable#) Connected to a [`pymmcore_plus.CMMCorePlus`][] instance.
+    """[PositionTable](../PositionTable#) connected to a Micro-Manager core instance.
 
     Parameters
     ----------
@@ -39,7 +39,7 @@ class CoreConnectedPositionTable(PositionTable):
         [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     parent : QWidget | None
         Optional parent widget, by default None.
-    """  # noqa: E501
+    """
 
     def __init__(
         self,
