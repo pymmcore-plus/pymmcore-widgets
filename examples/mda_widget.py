@@ -14,6 +14,7 @@ from pymmcore_widgets import MDAWidget
 
 class MDA(QWidget):
     """An example of using the MDAWidget to create and acquire a useq.MDASequence.
+
     The `MDAWidget` provides a GUI to construct a `useq.MDASequence` object.
     This object describes a full multi-dimensional acquisition;
     In this example, we set the `MDAWidget` parameter `include_run_button` to `True`,
@@ -25,7 +26,7 @@ class MDA(QWidget):
     https://github.com/pymmcore-plus/pymmcore-plus.
     In this example, we've also connected callbacks to the CMMCorePlus object's `mda`
     events to print out the current state of the acquisition.
-    """  # noqa: D205
+    """
 
     def __init__(self) -> None:
         super().__init__()

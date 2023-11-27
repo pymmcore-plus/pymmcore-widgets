@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class CoreConnectedGridPlanWidget(GridPlanWidget):
-    """A [GridPlanWidget](../GridPlanWidget#) Connected to a [`pymmcore_plus.CMMCorePlus`][] instance.
+    """[GridPlanWidget](../GridPlanWidget#) connected to a Micro-Manager core instance.
 
     Parameters
     ----------
@@ -24,7 +24,7 @@ class CoreConnectedGridPlanWidget(GridPlanWidget):
         [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     parent : QWidget | None
         Optional parent widget, by default None.
-    """  # noqa: E501
+    """
 
     def __init__(
         self, mmcore: CMMCorePlus | None = None, parent: QWidget | None = None

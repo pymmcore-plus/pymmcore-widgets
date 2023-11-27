@@ -282,8 +282,9 @@ class GridPlanWidget(QWidget):
         Parameters
         ----------
         value : useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
-            The [useq.GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans) to set.
-        """  # noqa: E501
+            The [useq.GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
+            to set.
+        """
         with signals_blocked(self):
             if isinstance(value, useq.GridRowsColumns):
                 self.rows.setValue(value.rows)

@@ -276,14 +276,16 @@ class ZPlanWidget(QWidget):
         self,
         mode: Mode | Literal["top_bottom", "range_around", "above_below", None] = None,
     ) -> None:
-        """Set the current mode, one of "top_bottom", "range_around", or "above_below".
+        """Set the current mode.
+
+        One of "top_bottom", "range_around", or "above_below".
 
         Parameters
         ----------
-        mode : Mode |  Literal["top_bottom", "range_around", "above_below"] | None, optional
-            The mode to set.
-            (If None, the mode is determined by the sender().data(), for internal usage)
-        """  # noqa: E501
+        mode : Mode | Literal["top_bottom", "range_around", "above_below"] | None
+            The mode to set. By default, None.
+            If None, the mode is determined by the sender().data(), for internal usage.
+        """
         if isinstance(mode, str):
             mode = Mode(mode)
         elif isinstance(mode, (bool, type(None))):
@@ -312,7 +314,10 @@ class ZPlanWidget(QWidget):
         self._on_change()
 
     def mode(self) -> Mode:
-        """Return the current mode, one of "top_bottom", "range_around", or "above_below"."""  # noqa: E501
+        """Return the current mode.
+
+        One of "top_bottom", "range_around", or "above_below".
+        """
         return self._mode
 
     def setSuggestedStep(self, value: float | None) -> None:
@@ -370,8 +375,10 @@ class ZPlanWidget(QWidget):
         Parameters
         ----------
         value : useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom
-            The [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans) to set.
-        """  # noqa: E501
+            The
+            [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans)
+            to set.
+        """
         if isinstance(value, useq.ZTopBottom):
             self.top.setValue(value.top)
             self.bottom.setValue(value.bottom)

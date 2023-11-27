@@ -64,7 +64,9 @@ class TimePlanWidget(DataTableWidget):
         Parameters
         ----------
         value : MultiPhaseTimePlan | TIntervalLoops | TDurationLoops | TIntervalDuration | None
-            The [useq.TimePlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#time-plans) to set.
+            The
+            [useq.TimePlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#time-plans)
+            to set.
         """  # noqa: E501
         if isinstance(value, MultiPhaseTimePlan):
             _phases = value.phases
