@@ -375,8 +375,10 @@ class ZPlanWidget(QWidget):
         Parameters
         ----------
         value : useq.ZAboveBelow | useq.ZRangeAround | useq.ZTopBottom
-            The [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans) to set.
-        """  # noqa: E501
+            The
+            [useq.ZPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#z-plans)
+            to set.
+        """
         if isinstance(value, useq.ZTopBottom):
             self.top.setValue(value.top)
             self.bottom.setValue(value.bottom)
