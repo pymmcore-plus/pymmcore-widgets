@@ -92,7 +92,7 @@ The widgets in this section can be used to **create, load and modify a Micro-Man
 
 ### *Devices and Properties Widgets*
 
-The widgets in this section can be used to **control and intract with the devices and properties** of a Micro-Manager core [(CMMCorePlus)](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#cmmcoreplus).
+The widgets in this section can be used to **control and intract with the devices and properties** of a Micro-Manager core ([CMMCorePlus](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#cmmcoreplus)).
 
 {{ DEVICE_PROPERTY_WIDGETS }}
 
