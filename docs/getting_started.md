@@ -9,7 +9,7 @@ You can install the latest release of [pymmcore-widgets](https://pypi.org/projec
 pip install pymmcore-widgets
 ```
 
-### Installing PyQt/PySide
+### Installing PyQt or PySide
 
 Since [pymmcore-widgets](./index.md) relies on either the [PyQt](https://riverbankcomputing.com/software/pyqt/) or [PySide](https://www.qt.io/qt-for-python) libraries, you also **need** to install one of these packages. You can use any of the available versions of these libraries, [PyQt5](https://pypi.org/project/PyQt5/), [PyQt6](https://pypi.org/project/PyQt6/), [PySide2](https://pypi.org/project/PySide2/) or [PySide6](https://pypi.org/project/PySide6/). For example, to install [PyQt6](https://riverbankcomputing.com/software/pyqt/download), you can use:
 
@@ -22,9 +22,9 @@ pip install PyQt6
 The installation of the `pymmcore-widgets` package automatically includes [pymmcore-plus](https://pymmcore-plus.github.io/pymmcore-plus), as it is a key dependency for `pymmcore-widgets`. However, you still need to install [Micro-Manager](https://micro-manager.org/) yourself (in particular the `Micro-Manager` device adapters). You can do that using the [pymmcore-plus command line tool](https://pymmcore-plus.github.io/pymmcore-plus/install/#installing-micro-manager-device-adapters) or manually from the [Micro-Manager](https://micro-manager.org/Micro-Manager_Nightly_Builds) website.
 
 !!! Note
-    If using the mauanl installation method, be sure to download the **latest nightly build** or you might get an `adapter device error`similar to [this one](#incompatible-device-interface-version).
+    If using the mauanl installation method, be sure to download the **latest nightly build** or you might get an `Incompatible device interface version` error similar to [this one](#incompatible-device-interface-version).
 
-It is quite easy to install the latest release of `Micro-Manager` using the `pymmcore-plus` command line tool. `Micro-Manager` will be downloaded and installed in the the `pymmcore-plus` folder simply by running:
+It is quite easy to install the latest release of `Micro-Manager` using the `pymmcore-plus` **command line tool**. `Micro-Manager` will be downloaded and installed in the the `pymmcore-plus` folder simply by running:
 
 ```sh
 mmcore install
@@ -42,7 +42,7 @@ To manually specify the `Micro-Manager` installation that `pymmcore-plus` should
 export MICROMANAGER_PATH=/path/to/installation
 ```
 
-For more information on `pymmcore-plus` installation, visit the [pymmcore-plus documentation page](https://pymmcore-plus.github.io/pymmcore-plus/install/#installing-micro-manager-device-adapters).
+For more information on `pymmcore-plus` installation, visit the [pymmcore-plus documentation](https://pymmcore-plus.github.io/pymmcore-plus/install/#installing-micro-manager-device-adapters) page.
 
 
 ## **Usage**
@@ -112,13 +112,15 @@ The code above will create a Qt application that looks like this:
 ## **Troubleshooting**
 
 ### PyQt or PySide errors
+
+#### *No Qt bindings*
 ```sh
 qtpy.QtBindingsNotFoundError: No Qt bindings could be found
 ```
 
 If you get an error similar to the one above, it means that you did not install one of the necessary [PyQt](https://riverbankcomputing.com/software/pyqt/) or [PySide](https://www.qt.io/qt-for-python) libraries (for example, you can run `pip install PyQt6` to install [PyQt6](https://pypi.org/project/PyQt6/)).
 
-See the [installation](#installing-pyqtpyside) section for more details.
+See the [Installing PyQt or PySide](#installing-pyqt-or-pyside) section for more details.
 
 
 ### Micro-Manager errors

@@ -22,7 +22,7 @@ pip install pymmcore-widgets
     * `PyQt5 & PyQt6`
     * `PySide2 & PySide6`
 
-For a more detailed description on how to install the package, see the [Getting Started](getting_started.md) section.
+For a more detailed description on how to install the package, see the [Getting Started](getting_started.md#installation) section.
 
 
 ## Usage
@@ -33,7 +33,7 @@ As a quick example, let's create a simple Qt Application that:
 
 - loads the default Micro-Manager system configuration
 
-- shows a [PropertyBrowser](widgets/PropertyBrowser.md) widget. You can use this widget to **view and modify the properties** of any of the loaded devices.
+- creates and shows a [PropertyBrowser](widgets/PropertyBrowser.md) widget. You can use this widget to **view and modify the properties** of any of the loaded devices.
 
 ```python
 # import the necessary packages
@@ -61,6 +61,8 @@ app.exec_()
 The code above will create a Qt Application that looks like this:
 
 ![PropertyBrowser](./images/property_browser.png)
+
+You can add to this simple code any other widgets from this package to control and interact with the `Micro-Manager` core.
 
 A more detailed description on how to use the [pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) package is explained in the [Getting Started](getting_started.md) section.
 
