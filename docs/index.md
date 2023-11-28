@@ -62,7 +62,7 @@ The code above will create a Qt Application that looks like this:
 
 ![PropertyBrowser](./images/property_browser.png)
 
-You can add to this simple code any other widgets from this package to control and interact with the `Micro-Manager` core.
+You can add to this simple code any other widgets from this package to control and interact with the same `Micro-Manager` core.
 
 A more detailed description on how to use the [pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) package is explained in the [Getting Started](getting_started.md) section.
 
