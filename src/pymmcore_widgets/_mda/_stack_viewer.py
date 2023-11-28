@@ -16,7 +16,7 @@ DIMENSIONS = ["t", "z", "c", "p", "g"]
 AUTOCLIM_RATE = 1  # Hz   0 = inf
 
 try:
-    from vispy import scene
+    from vispy import scene, visuals
 except ImportError as e:
     raise ImportError(
         "vispy is required for StackViewer. "
@@ -44,11 +44,17 @@ class StackViewer(QtWidgets.QWidget):
         sequence: MDASequence | None = None,
         mmcore: CMMCorePlus | None = None,
         parent: QWidget | None = None,
+        size: tuple[int, int] | None = None,
+        transform: tuple[int, bool, bool] = (0, True, False),
     ):
+        """Create a new StackViewer widget.
+        transform: (int, bool, bool) rotation mirror_x mirror_y"""
         super().__init__(parent=parent)
+        self.reload_position()
         self._mmc = mmcore or CMMCorePlus.instance()
         self.sequence = sequence
-
+        self.canvas_size = size
+        self.transform = transform
         self._clim = "auto"
         self.cmap_names = ["gray", "cyan", "magenta"]
         self.cmaps = [try_cast_colormap(x) for x in self.cmap_names]
@@ -85,18 +91,22 @@ class StackViewer(QtWidgets.QWidget):
             self.on_sequence_start(sequence)
 
     def construct_canvas(self) -> None:
-        img_size = (self._mmc.getImageHeight(), self._mmc.getImageWidth())
-        if img_size == (0, 0):
-            img_size = (512, 512)
+        if self.canvas_size:
+            self.img_size = self.canvas_size
+        else:
+            self.img_size = (self._mmc.getImageHeight(), self._mmc.getImageWidth())
+        if self.img_size == (0, 0):
+            self.img_size = (512, 512)
         self._canvas = scene.SceneCanvas(
-            size=img_size, parent=self, autoswap=False, vsync=True, keys=None
+            size=self.img_size, parent=self, keys="interactive"
         )
         self._canvas._send_hover_events = True
         self._canvas.events.mouse_move.connect(self.on_mouse_move)
         self.view = self._canvas.central_widget.add_view()
         self.view.camera = scene.PanZoomCamera(aspect=1)
-        self.view.camera.flip = (0, 1, 0)
-        self.view.camera.set_range()
+        self.view.camera.flip = (self.transform[1], self.transform[2], False)
+        self.view.camera.set_range((0, self.img_size[0]), (0, self.img_size[1]), margin=0)
+        self.view.camera.aspect = 1
 
     def on_sequence_start(self, sequence: MDASequence) -> None:
         """Sequence started by the mmcore. Adjust our settings, make layers etc."""
@@ -122,6 +132,11 @@ class StackViewer(QtWidgets.QWidget):
                 cmap=self.cmaps[i].to_vispy(),
                 clim=(0, 1),
             )
+            trans = visuals.transforms.linear.MatrixTransform()
+            trans.rotate(self.transform[0], (0, 0, 1))
+            print("rotation: ", self.transform[0])
+            trans.translate((self.img_size[0], 0, 0))
+            image.transform = trans
             if i > 0:
                 image.set_gl_state("additive", depth_test=False)
             self.images.append(image)
@@ -272,6 +287,7 @@ class StackViewer(QtWidgets.QWidget):
                 # TODO: percentile here, could be in gui
                 clim = np.percentile(self.images[channel]._data, [0, 100])
                 self.images[channel].clim = clim
+        self._canvas.update()
 
     def complement_indices(self, index: Mapping[str, int]) -> dict:
         """MDAEvents not always have all the dimensions, complement."""
@@ -280,3 +296,14 @@ class StackViewer(QtWidgets.QWidget):
             if i not in indices:
                 indices[i] = 0
         return indices
+
+    def reload_position(self) -> None:
+        self.qt_settings = QtCore.QSettings("pymmcore_plus", self.__class__.__name__)
+        self.resize(self.qt_settings.value("size", QtCore.QSize(270, 225)))
+        self.move(self.qt_settings.value("pos", QtCore.QPoint(50, 50)))
+
+    def closeEvent(self, e):
+        """Write window size and position to config file."""
+        self.qt_settings.setValue("size", self.size())
+        self.qt_settings.setValue("pos", self.pos())
+        super().closeEvent(e)
