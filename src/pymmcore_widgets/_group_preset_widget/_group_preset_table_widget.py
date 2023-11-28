@@ -402,7 +402,7 @@ class GroupPresetTableWidget(QGroupBox):
         )
         if filename:
             self._mmc.saveSystemConfiguration(
-                filename if filename.endswith(".cfg") else f"{filename}.cfg"
+                filename if str(filename).endswith(".cfg") else f"{filename}.cfg"
             )
 
     def _load_cfg(self) -> None:
