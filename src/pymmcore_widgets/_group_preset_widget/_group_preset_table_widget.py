@@ -401,7 +401,9 @@ class GroupPresetTableWidget(QGroupBox):
             self, "Save Micro-Manager Configuration."
         )
         if filename:
-            self._mmc.saveSystemConfiguration(filename)
+            self._mmc.saveSystemConfiguration(
+                filename if filename.endswith(".cfg") else f"{filename}.cfg"
+            )
 
     def _load_cfg(self) -> None:
         """Open file dialog to select a config file."""
