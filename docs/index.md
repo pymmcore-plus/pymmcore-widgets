@@ -29,13 +29,13 @@ For a more detailed description on how to install the package, see the [Getting 
 
 As a quick example, let's create a simple Qt Application that:
 
-- creates a `Micro-Manager` [core instance](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance)
+- creates a [Micro-Manager core instance](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance)
 
 - loads the default `Micro-Manager` system configuration
 
 - creates and shows a [PropertyBrowser](widgets/PropertyBrowser.md) widget. You can use this widget to **view and modify the properties** of any of the loaded devices.
 
-```python
+```py
 # import the necessary packages
 from qtpy.QtWidgets import QApplication
 from pymmcore_plus import CMMCorePlus
@@ -51,18 +51,46 @@ mmc = CMMCorePlus().instance()
 # configuration, use mmc.loadSystemConfiguration("path/to/config.cfg") instead
 mmc.loadSystemConfiguration()
 
-# create a PropertyBrowser widget and show it
-pb_wdg = PropertyBrowser()
-pb_wdg.show()
+# create a PropertyBrowser widget
+pb_widget = PropertyBrowser()
+
+# show the created widget
+pb_widget.show()
 
 app.exec_()
 ```
 
 The code above will create a Qt Application that looks like this:
 
-![PropertyBrowser](./images/property_browser.png)
+![PropertyBrowser](./images/PropertyBrowser.png)
 
-You can add to this simple code any other widgets from this package to control and interact with the same `Micro-Manager` core.
+By substituting the code segments responsible for creating the `Micro-Manager` core instance and loading the configuration file with the [ConfigurationWidget](./widgets/ConfigurationWidget/) widget, we enable the flexibility to load any `Micro-Manager` configuration file. This change also ensures that all pymmcore-widgets are automatically updated to interact with the newly loaded configuration.
+
+```py
+# import the necessary packages
+from qtpy.QtWidgets import QApplication
+from pymmcore_plus import CMMCorePlus
+from pymmcore_widgets import ConfigurationWidget, PropertyBrowser
+
+# create a QApplication
+app = QApplication([])
+
+# create the ConfigurationWidget
+cfg_widget = ConfigurationWidget()
+
+# create a PropertyBrowser widget
+pb_widget = PropertyBrowser()
+
+# show the created widgets
+cfg_widget.show()
+pb_widget.show()
+
+app.exec_()
+```
+
+![PropertyBrowser_and_ConfigurationWidget](./images/PropertyBrowser_and_ConfigurationWidget.png)
+
+You can add to this simple code any other widgets from this package to control and interact with the same [Micro-Manager core instance](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance).
 
 A more detailed description on how to use the [pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) package is explained in the [Getting Started](getting_started.md) section.
 
