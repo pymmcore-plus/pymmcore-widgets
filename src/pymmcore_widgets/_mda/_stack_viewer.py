@@ -48,7 +48,8 @@ class StackViewer(QtWidgets.QWidget):
         transform: tuple[int, bool, bool] = (0, True, False),
     ):
         """Create a new StackViewer widget.
-        transform: (int, bool, bool) rotation mirror_x mirror_y"""
+        transform: (int, bool, bool) rotation mirror_x mirror_y
+        """
         super().__init__(parent=parent)
         self.reload_position()
         self._mmc = mmcore or CMMCorePlus.instance()
@@ -105,7 +106,9 @@ class StackViewer(QtWidgets.QWidget):
         self.view = self._canvas.central_widget.add_view()
         self.view.camera = scene.PanZoomCamera(aspect=1)
         self.view.camera.flip = (self.transform[1], self.transform[2], False)
-        self.view.camera.set_range((0, self.img_size[0]), (0, self.img_size[1]), margin=0)
+        self.view.camera.set_range(
+            (0, self.img_size[0]), (0, self.img_size[1]), margin=0
+        )
         self.view.camera.aspect = 1
 
     def on_sequence_start(self, sequence: MDASequence) -> None:
