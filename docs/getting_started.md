@@ -49,6 +49,32 @@ For more information on `pymmcore-plus` installation, visit the [pymmcore-plus d
 
 - you can specify which Micro-Manager core instance to use. If not specified, each widget will use the the active one or will create a new instance if none is active. If you want to create a core yourself, we suggest to use CMMCorePlus.instance() if you want all widget to listen to the same core instance. 
 
+By substituting the code segments responsible for creating the `Micro-Manager` core instance and loading the configuration file with the [ConfigurationWidget](./widgets/ConfigurationWidget/) widget, we enable the flexibility to load any `Micro-Manager` configuration file. This change also ensures that all pymmcore-widgets are automatically updated to interact with the newly loaded configuration.
+
+```py
+# import the necessary packages
+from qtpy.QtWidgets import QApplication
+from pymmcore_plus import CMMCorePlus
+from pymmcore_widgets import ConfigurationWidget, PropertyBrowser
+
+# create a QApplication
+app = QApplication([])
+
+# create the ConfigurationWidget
+cfg_widget = ConfigurationWidget()
+
+# create a PropertyBrowser widget
+pb_widget = PropertyBrowser()
+
+# show the created widgets
+cfg_widget.show()
+pb_widget.show()
+
+app.exec_()
+```
+
+![PropertyBrowser_and_ConfigurationWidget](./images/PropertyBrowser_and_ConfigurationWidget.png)
+
 ```python
 # import the necessary packages
 from qtpy.QtWidgets import QGridLayout, QWidget
