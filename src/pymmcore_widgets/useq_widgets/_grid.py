@@ -97,7 +97,7 @@ class GridPlanWidget(QWidget):
         self.bottom.setDecimals(3)
         self.bottom.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
 
-        self.overlap = QSpinBox()
+        self.overlap = QDoubleSpinBox()
         self.overlap.setRange(-1000, 1000)
         self.overlap.setValue(0)
         self.overlap.setSuffix(" %")
