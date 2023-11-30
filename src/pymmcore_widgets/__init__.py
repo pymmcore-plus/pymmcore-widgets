@@ -1,4 +1,5 @@
 """A set of widgets for the pymmcore-plus module."""
+import warnings
 from importlib.metadata import PackageNotFoundError, version
 
 try:
@@ -34,6 +35,25 @@ from .useq_widgets import (
     TimePlanWidget,
     ZPlanWidget,
 )
+
+
+def __getattr__(name: str) -> object:
+    if name == "ZStackWidget":
+        warnings.warn(
+            "'ZStackWidget' is deprecated, using 'ZPlanWidget' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return ZPlanWidget
+    if name == "GridWidget":
+        warnings.warn(
+            "'GridWidget' is deprecated, using 'GridPlanWidget' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return GridPlanWidget
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
 
 __all__ = [
     "CameraRoiWidget",
