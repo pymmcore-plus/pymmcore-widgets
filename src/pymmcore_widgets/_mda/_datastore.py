@@ -27,6 +27,7 @@ class QLocalDataStore(QtCore.QObject):
         dtype: npt.DTypeLike = np.uint16,
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
+        gui: bool = True
     ):
         super().__init__(parent=parent)
         self.dtype = np.dtype(dtype)
@@ -37,6 +38,9 @@ class QLocalDataStore(QtCore.QObject):
         self.listener = self.EventListener(self._mmc)
         self.listener.start()
         self.listener.frame_ready.connect(self.new_frame)
+        if gui:
+            from ._util._save_button import SaveButton
+            self.gui = SaveButton(self)
 
     class EventListener(QtCore.QThread):
         """Receive events in a separate thread."""
@@ -53,6 +57,7 @@ class QLocalDataStore(QtCore.QObject):
                 self.frame_ready.emit(img, event)
 
         def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+            self._mmc.mda.events.frameReady.disconnect(self.on_frame_ready)
             super().exit()
             event.accept()
 
@@ -60,7 +65,7 @@ class QLocalDataStore(QtCore.QObject):
         self.shape = img.shape
         indices = self.complement_indices(event)
         try:
-            self.array[indices["t"], indices["z"], indices["c"], :, :] = img
+            self.array[indices["t"], indices["z"], indices["c"], indices.get('g', 0) :, :] = img
         except IndexError:
             self.correct_shape(indices)
             self.new_frame(img, event)
@@ -79,7 +84,7 @@ class QLocalDataStore(QtCore.QObject):
 
     def correct_shape(self, indices: dict) -> None:
         """The initialised shape does not fit the data, extend the array."""
-        min_shape = [indices["t"], indices["z"], indices["c"]]
+        min_shape = [indices["t"], indices["z"], indices["c"], indices.get('g', 0)]
         diff = [x - y + 1 for x, y in zip(min_shape, self.array.shape[:-2])]
         for i, app in enumerate(diff):
             if app > 0:
@@ -93,3 +98,4 @@ class QLocalDataStore(QtCore.QObject):
     def __del__(self) -> None:
         self.listener.exit()
         self.listener.wait()
+        super().__del__()

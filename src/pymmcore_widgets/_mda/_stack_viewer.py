@@ -8,6 +8,7 @@ from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import QTimer, Signal
 from superqt.cmap._cmap_utils import try_cast_colormap
+from useq import MDASequence
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
 from pymmcore_widgets._mda._util._labeled_slider import LabeledVisibilitySlider
@@ -56,7 +57,6 @@ class StackViewer(QtWidgets.QWidget):
         self.canvas_size = size
         self.transform = transform
         self._clim = "auto"
-        self.cmap_names = ["gray", "cyan", "magenta"]
         self.cmaps = [try_cast_colormap(x) for x in self.cmap_names]
         self.display_index = {dim: 0 for dim in DIMENSIONS}
 
@@ -87,6 +87,8 @@ class StackViewer(QtWidgets.QWidget):
         self.clim_timer.setInterval(int(1000 // AUTOCLIM_RATE))
         self.clim_timer.timeout.connect(self.on_clim_timer)
 
+        self.destroyed.connect(self._disconnect)
+
         if sequence:
             self.on_sequence_start(sequence)
 
@@ -112,7 +114,7 @@ class StackViewer(QtWidgets.QWidget):
         """Sequence started by the mmcore. Adjust our settings, make layers etc."""
         self.ready = False
         self.sequence = sequence
-
+        self.pixel_size = self._mmc.getPixelSizeUm()
         # Sliders
         for dim in DIMENSIONS[:3]:
             if sequence.sizes.get(dim, 1) > 1:
@@ -123,31 +125,35 @@ class StackViewer(QtWidgets.QWidget):
                 self._slider_settings.emit({"index": dim, "show": False, "max": 1})
 
         # Channels
-        nc = sequence.sizes["c"]
+        nc = sequence.sizes.get("c", 1)
+        self.ng = sequence.sizes.get("g", 1)
         self.images = []
-        for i in range(nc):
-            image = scene.visuals.Image(
-                np.zeros(self._canvas.size).astype(self.datastore.dtype),
-                parent=self.view.scene,
-                cmap=self.cmaps[i].to_vispy(),
-                clim=(0, 1),
-            )
-            trans = visuals.transforms.linear.MatrixTransform()
-            trans.rotate(self.transform[0], (0, 0, 1))
-            print("rotation: ", self.transform[0])
-            trans.translate((self.img_size[0], 0, 0))
-            image.transform = trans
-            if i > 0:
-                image.set_gl_state("additive", depth_test=False)
-            self.images.append(image)
-            self.current_channel = i
-            self._new_channel.emit(i, sequence.channels[i].config)
+
+        for c in range(nc):
+            self.images.append([])
+            for g in range(self.ng):
+                image = scene.visuals.Image(
+                    np.zeros(self._canvas.size).astype(self.datastore.dtype),
+                    parent=self.view.scene,
+                    cmap=self.cmaps[c].to_vispy(),
+                    clim=(0, 1),
+                )
+                trans = visuals.transforms.linear.MatrixTransform()
+                trans.rotate(self.transform[0], (0, 0, 1))
+                image.transform = self._get_image_position(trans, sequence, g)
+                if c > 0:
+                    image.set_gl_state("additive", depth_test=False)
+                self.images[c].append(image)
+            self.current_channel = c
+            self._new_channel.emit(c, sequence.channels[c].config)
         self.ready = True
+        self.view.camera.set_range(margin=0)
 
     def _handle_channel_clim(
         self, values: tuple[int, int], channel: int, set_autoscale: bool = True
     ) -> None:
-        self.images[channel].clim = values
+        for g in range(self.ng):
+            self.images[channel][g].clim = values
         if self.channel_row.boxes[channel].autoscale_chbx.isChecked() and set_autoscale:
             self.channel_row.boxes[channel].autoscale_chbx.setCheckState(
                 QtCore.Qt.Unchecked
@@ -155,13 +161,16 @@ class StackViewer(QtWidgets.QWidget):
         self._canvas.update()
 
     def _handle_channel_cmap(self, colormap: cmap.Colormap, channel: int) -> None:
-        self.images[channel].cmap = colormap.to_vispy()
+        for g in range(self.ng):
+            self.images[channel][g].cmap = colormap.to_vispy()
+        self.cmap_names[channel] = colormap.name
         self._canvas.update()
 
     def _handle_channel_visibility(self, state: bool, channel: int) -> None:
-        self.images[channel].visible = self.channel_row.boxes[
-            channel
-        ].show_channel.isChecked()
+        for g in range(self.ng):
+            self.images[channel][g].visible = self.channel_row.boxes[
+                channel
+            ].show_channel.isChecked()
         self._canvas.update()
 
     def _handle_channel_autoscale(self, state: bool, channel: int) -> None:
@@ -206,7 +215,7 @@ class StackViewer(QtWidgets.QWidget):
 
     def on_mouse_move(self, event: SceneMouseEvent) -> None:
         """Mouse moved on the canvas, display the pixel value and position."""
-        transform = self.images[self.current_channel].get_transform("canvas", "visual")
+        transform = self.images[self.current_channel][0].get_transform("canvas", "visual")
         p = [int(x) for x in transform.map(event.pos)]
         if p[0] < 0 or p[1] < 0:
             info = f"[{p[0]}, {p[1]}]"
@@ -214,7 +223,7 @@ class StackViewer(QtWidgets.QWidget):
             return
         try:
             pos = f"[{p[0]}, {p[1]}]"
-            value = f"{self.images[self.current_channel]._data[p[1], p[0]]}"
+            value = f"{self.images[self.current_channel][0]._data[p[1], p[0]]}"
             info = f"{pos}: {value}"
             self.info_bar.setText(info)
         except IndexError:
@@ -230,11 +239,12 @@ class StackViewer(QtWidgets.QWidget):
             return
         if (sequence := self.sequence) is None:
             return
-        for c in range(sequence.sizes.get("c", 0)):
-            frame = self.datastore.get_frame(
-                (self.display_index["t"], self.display_index["z"], c)
-            )
-            self.display_image(frame, c)
+        for g in range(sequence.sizes.get("g", 1)):
+            for c in range(sequence.sizes.get("c", 1)):
+                frame = self.datastore.get_frame(
+                    (self.display_index["t"], self.display_index["z"], c, g)
+                )
+                self.display_image(frame, c, g)
         self._canvas.update()
 
     def on_frame_ready(self, event: MDAEvent) -> None:
@@ -246,13 +256,13 @@ class StackViewer(QtWidgets.QWidget):
             timer.start(100)
             return
         indices = self.complement_indices(event.index)
-        img = self.datastore.get_frame((indices["t"], indices["z"], indices["c"]))
+        img = self.datastore.get_frame((indices["t"], indices["z"], indices["c"], indices.get("g", 0)))
 
         # Update internal image parameters
         if sum(indices.values()) == 0:
             self.view.camera.rect = (0, 0, img.shape[0], img.shape[1])
         # Update display
-        self.display_image(img, indices["c"])
+        self.display_image(img, indices.get("c", 0), indices.get("g", 0))
         self._set_sliders(indices)
         # Handle Autoscaling
         slider = self.channel_row.boxes[indices["c"]].slider
@@ -272,22 +282,34 @@ class StackViewer(QtWidgets.QWidget):
             slider.setValue(indices[slider.name])
             slider.blockSignals(False)
 
-    def display_image(self, img: np.ndarray, channel: int = 0) -> None:
-        self.images[channel].set_data(img)
+    def display_image(self, img: np.ndarray, channel: int = 0, grid: int = 0) -> None:
+        self.images[channel][grid].set_data(img)
 
     def on_clim_timer(self, channel: int | None = None) -> None:
         channel_list = (
             list(range(len(self.channel_row.boxes))) if channel is None else [channel]
         )
-        for channel in channel_list:
-            if (
-                self.channel_row.boxes[channel].autoscale_chbx.isChecked()
-                and self.images[channel].visible
-            ):
-                # TODO: percentile here, could be in gui
-                clim = np.percentile(self.images[channel]._data, [0, 100])
-                self.images[channel].clim = clim
+        for grid in range(self.ng):
+            for channel in channel_list:
+                if (
+                    self.channel_row.boxes[channel].autoscale_chbx.isChecked()
+                    and self.images[channel][grid].visible
+                ):
+                    # TODO: percentile here, could be in gui
+                    clim = np.percentile(self.images[channel][grid]._data, [0, 100])
+                    self.images[channel][grid].clim = clim
         self._canvas.update()
+
+    def _get_image_position(self, trans, sequence, g):
+        if sequence.grid_plan:
+            sub_seq = MDASequence(grid_plan=sequence.grid_plan)
+            sub_event = list(sub_seq.iter_events())[g]
+            trans.translate((-sub_event.x_pos/self.pixel_size,
+                             sub_event.y_pos/self.pixel_size,
+                             0))
+        else:
+            trans.translate((self.img_size[0], 0, 0))
+        return trans
 
     def complement_indices(self, index: Mapping[str, int]) -> dict:
         """MDAEvents not always have all the dimensions, complement."""
@@ -297,13 +319,19 @@ class StackViewer(QtWidgets.QWidget):
                 indices[i] = 0
         return indices
 
+    def _disconnect(self) -> None:
+        self._mmc.mda.events.sequenceStarted.disconnect(self.on_sequence_start)
+        self.datastore.frame_ready.disconnect(self.on_frame_ready)
+
     def reload_position(self) -> None:
         self.qt_settings = QtCore.QSettings("pymmcore_plus", self.__class__.__name__)
         self.resize(self.qt_settings.value("size", QtCore.QSize(270, 225)))
         self.move(self.qt_settings.value("pos", QtCore.QPoint(50, 50)))
+        self.cmap_names = self.qt_settings.value("cmaps", ["gray", "cyan", "magenta"])
 
     def closeEvent(self, e):
         """Write window size and position to config file."""
         self.qt_settings.setValue("size", self.size())
         self.qt_settings.setValue("pos", self.pos())
+        self.qt_settings.setValue("cmaps", self.cmap_names)
         super().closeEvent(e)
