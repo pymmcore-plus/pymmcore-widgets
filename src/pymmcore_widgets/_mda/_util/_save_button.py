@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 from fonticon_mdi6 import MDI6
-from pymmcore_plus import OMETiffWriter
+from pymmcore_plus import ImageSequenceWriter
 from qtpy.QtCore import QSize
 from qtpy.QtWidgets import QFileDialog, QPushButton, QWidget
 from superqt import fonticon
@@ -31,7 +31,7 @@ class SaveButton(QPushButton):
 
     def on_click(self):
         self.save_loc, _ = QFileDialog.getSaveFileName(directory=self.save_loc)
-        saver = OMETiffWriter(self.save_loc)
+        saver = ImageSequenceWriter(self.save_loc)
         shape = self.datastore.array.shape
         indices = np.stack(
             np.meshgrid(
