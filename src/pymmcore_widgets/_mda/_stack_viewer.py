@@ -218,7 +218,9 @@ class StackViewer(QtWidgets.QWidget):
 
     def on_mouse_move(self, event: SceneMouseEvent) -> None:
         """Mouse moved on the canvas, display the pixel value and position."""
-        transform = self.images[self.current_channel][0].get_transform("canvas", "visual")
+        transform = self.images[self.current_channel][0].get_transform(
+            "canvas", "visual"
+        )
         p = [int(x) for x in transform.map(event.pos)]
         if p[0] < 0 or p[1] < 0:
             info = f"[{p[0]}, {p[1]}]"
@@ -259,7 +261,9 @@ class StackViewer(QtWidgets.QWidget):
             timer.start(100)
             return
         indices = self.complement_indices(event.index)
-        img = self.datastore.get_frame((indices["t"], indices["z"], indices["c"], indices.get("g", 0)))
+        img = self.datastore.get_frame(
+            (indices["t"], indices["z"], indices["c"], indices.get("g", 0))
+        )
 
         # Update internal image parameters
         if sum(indices.values()) == 0:
@@ -307,9 +311,13 @@ class StackViewer(QtWidgets.QWidget):
         if sequence.grid_plan:
             sub_seq = MDASequence(grid_plan=sequence.grid_plan)
             sub_event = list(sub_seq.iter_events())[g]
-            trans.translate((-sub_event.x_pos/self.pixel_size,
-                             sub_event.y_pos/self.pixel_size,
-                             0))
+            trans.translate(
+                (
+                    -sub_event.x_pos / self.pixel_size,
+                    sub_event.y_pos / self.pixel_size,
+                    0,
+                )
+            )
         else:
             trans.translate((self.img_size[0], 0, 0))
         return trans
