@@ -128,24 +128,66 @@ class CheckableTabWidget(QTabWidget):
         checked : bool
             Whether the QCheckbox is checked. By default, False.
         """
+        return self.insertTab(
+            self.count(),
+            widget,
+            *args,
+            position=position,
+            checked=checked,
+        )
+
+    @overload
+    def insertTab(
+        self,
+        index: int,
+        widget: QWidget | None,
+        a2: str | None,
+        /,
+        *,
+        position: QTabBar.ButtonPosition = ...,
+        checked: bool = ...,
+    ) -> int:
+        ...
+
+    @overload
+    def insertTab(
+        self,
+        index: int,
+        widget: QWidget | None,
+        icon: QIcon,
+        label: str | None,
+        /,
+        *,
+        position: QTabBar.ButtonPosition = ...,
+        checked: bool = ...,
+    ) -> int:
+        ...
+
+    def insertTab(
+        self,
+        index: int,
+        widget: QWidget | None,
+        *args: Any,
+        position: QTabBar.ButtonPosition = QTabBar.ButtonPosition.LeftSide,
+        checked: bool = False,
+    ) -> int:
+        """Insert `widget` in a tab with a checkable QCheckbox at the given index."""
+        super().insertTab(index, widget, *args)
+        self._cbox = QCheckBox(parent=self.tabBar())
         if widget is not None:
             widget.setEnabled(checked)
-        idx = super().addTab(widget, *args)
-        self._cbox = QCheckBox(parent=self.tabBar())
-        self._cbox.toggled.connect(self._on_tab_checkbox_toggled)
+            self._cbox.toggled.connect(
+                lambda c: self._on_tab_checkbox_toggled(c, widget)
+            )
         if tab_bar := self.tabBar():
-            tab_bar.setTabButton(idx, position, self._cbox)
+            tab_bar.setTabButton(index, position, self._cbox)
             self._cbox.setChecked(checked)
-        return idx  # type: ignore
+        return index
 
-    def _on_tab_checkbox_toggled(self, checked: bool) -> None:
-        """Enable/disable the widget in the tab."""
-        sender = cast("QCheckBox", self.sender())
-        if tab_bar := self.tabBar():
-            tab_index = tab_bar.tabAt(sender.pos())
-            if wdg := self.widget(tab_index):
-                wdg.setEnabled(checked)
-            if checked and self.change_tab_on_check:
-                self.setCurrentIndex(tab_index)
-
-            self.tabChecked.emit(tab_index, checked)
+    def _on_tab_checkbox_toggled(self, checked: bool, wdg: QWidget) -> None:
+        """When checkbox is toggled, enable/disable the widget in the tab."""
+        wdg.setEnabled(checked)
+        tab_index = self.indexOf(wdg)
+        if checked and self.change_tab_on_check:
+            self.setCurrentIndex(tab_index)
+        self.tabChecked.emit(tab_index, checked)

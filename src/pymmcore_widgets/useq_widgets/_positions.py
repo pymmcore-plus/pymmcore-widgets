@@ -9,6 +9,7 @@ import useq
 from fonticon_mdi6 import MDI6
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
+    QCheckBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
@@ -24,18 +25,33 @@ from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
 
 OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+NULL_SEQUENCE = useq.MDASequence()
+MAX = 9999999
 
 
 class _MDAPopup(QDialog):
     def __init__(
-        self, value: useq.MDASequence | None = None, parent: QWidget | None = None
+        self,
+        value: useq.MDASequence | None = None,
+        parent: QWidget | None = None,
+        core_connected: bool = False,
     ) -> None:
         from ._mda_sequence import MDATabs
 
         super().__init__(parent)
 
+        # make the same type of MDA tab widget that
+        # we are currently inside of (if possible)
+        tab_type = MDATabs
+        wdg = self.parent()
+        while wdg is not None:
+            if isinstance(wdg, MDATabs):
+                tab_type = type(wdg)
+                break
+            wdg = wdg.parent()
+
         # create a new MDA tab widget without the stage positions tab
-        self.mda_tabs = MDATabs(self)
+        self.mda_tabs = tab_type(self)
         self.mda_tabs.removeTab(self.mda_tabs.indexOf(self.mda_tabs.stage_positions))
 
         # use the parent's channel groups if possible
@@ -96,18 +112,22 @@ class MDAButton(QWidget):
     def value(self) -> useq.MDASequence | None:
         return self._value
 
-    def setValue(self, value: useq.MDASequence | None) -> None:
+    def setValue(self, value: useq.MDASequence | dict | None) -> None:
+        if isinstance(value, dict):
+            value = useq.MDASequence(**value)
+        elif value and not isinstance(value, useq.MDASequence):  # pragma: no cover
+            raise TypeError(f"Expected useq.MDASequence, got {type(value)}")
         old_val, self._value = getattr(self, "_value", None), value
         if old_val != value:
-            if value is not None:
+            # if sub-sequence is equal to the null sequence (useq.MDASequence())
+            # treat it as None
+            if value and value != NULL_SEQUENCE:
                 self.seq_btn.setIcon(icon(MDI6.axis_arrow, color="green"))
+                self.clear_btn.show()
             else:
                 self.seq_btn.setIcon(icon(MDI6.axis))
-            self.valueChanged.emit()
-            if value is None:
                 self.clear_btn.hide()
-            else:
-                self.clear_btn.show()
+            self.valueChanged.emit()
 
 
 _MDAButton = WdgGetSet(
@@ -129,40 +149,42 @@ class PositionTable(DataTableWidget):
     """Table for editing a list of `useq.Positions`."""
 
     NAME = TextColumn(key="name", default=None, is_row_selector=True)
-    X = FloatColumn(key="x", header="X [mm]", default=0.0)
-    Y = FloatColumn(key="y", header="Y [mm]", default=0.0)
-    Z = FloatColumn(key="z", header="Z [mm]", default=0.0)
+    X = FloatColumn(key="x", header="X [µm]", default=0.0, maximum=MAX, minimum=-MAX)
+    Y = FloatColumn(key="y", header="Y [µm]", default=0.0, maximum=MAX, minimum=-MAX)
+    Z = FloatColumn(key="z", header="Z [µm]", default=0.0, maximum=MAX, minimum=-MAX)
     SEQ = SubSeqColumn(key="sequence", header="Sub-Sequence", default=None)
 
     def __init__(self, rows: int = 0, parent: QWidget | None = None):
         super().__init__(rows, parent)
 
-        layout = cast("QVBoxLayout", self.layout())
+        self.include_z = QCheckBox("Include Z")
+        self.include_z.setChecked(True)
+        self.include_z.toggled.connect(self._on_include_z_toggled)
 
         self._save_button = QPushButton("Save...")
         self._save_button.clicked.connect(self.save)
         self._load_button = QPushButton("Load...")
         self._load_button.clicked.connect(self.load)
-        # self._custom_button = QPushButton("Custom...")
-        # self._custom_button.clicked.connect(self._custom)
-        # self._optimize_button = QPushButton("Optimize...")
-        # self._optimize_button.clicked.connect(self._optimize)
 
         btn_row = QHBoxLayout()
+        btn_row.addWidget(self.include_z)
         btn_row.addStretch()
         btn_row.addWidget(self._save_button)
         btn_row.addWidget(self._load_button)
-        # btn_row.addWidget(self._custom_button)
-        # btn_row.addWidget(self._optimize_button)
 
+        layout = cast("QVBoxLayout", self.layout())
         layout.addLayout(btn_row)
 
-    def value(self, exclude_unchecked: bool = True) -> tuple[useq.Position, ...]:
+    def value(
+        self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
+    ) -> tuple[useq.Position, ...]:
         """Return the current value of the table as a list of channels."""
         out = []
-        for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked):
-            if not r.get("name", True):
-                r.pop("name", None)
+        for r in self.table().iterRecords(
+            exclude_unchecked=exclude_unchecked, exclude_hidden_cols=exclude_hidden_cols
+        ):
+            if not r.get(self.NAME.key, True):
+                r.pop(self.NAME.key, None)
             out.append(useq.Position(**r))
         return tuple(out)
 
@@ -214,10 +236,7 @@ class PositionTable(DataTableWidget):
         except Exception as e:  # pragma: no cover
             raise ValueError(f"Failed to load MDASequence file: {src}") from e
 
-    # def _custom(self) -> None:
-    #     """Customize positions."""
-    #     print("Not Implemented")
-
-    # def _optimize(self) -> None:
-    #     """Optimize positions."""
-    #     print("Not Implemented")
+    def _on_include_z_toggled(self, checked: bool) -> None:
+        z_col = self.table().indexOf(self.Z)
+        self.table().setColumnHidden(z_col, not checked)
+        self.valueChanged.emit()

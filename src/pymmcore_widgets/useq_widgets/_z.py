@@ -38,9 +38,9 @@ class Mode(enum.Enum):
 
 
 ROW_STEPS = 0
-ROW_RANGE_AROUND = 1
-ROW_TOP_BOTTOM = 2
-ROW_ABOVE_BELOW = 3
+ROW_RANGE_AROUND = 2
+ROW_TOP_BOTTOM = 4
+ROW_ABOVE_BELOW = 6
 
 UM = "\u00B5m"  # MICRO SIGN
 L_ARR = "\u2B05"  # LEFTWARDS BLACK ARROW
@@ -266,8 +266,8 @@ class ZPlanWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.addLayout(btn_layout)
         layout.addLayout(self._grid_layout)
-        layout.addLayout(below_grid)
         layout.addStretch()
+        layout.addLayout(below_grid)
 
         # #################### Defaults ####################
 
@@ -346,13 +346,17 @@ class ZPlanWidget(QWidget):
         common = {"step": self.step.value(), "go_up": self._bottom_to_top.isChecked()}
         if self._mode is Mode.TOP_BOTTOM:
             return useq.ZTopBottom(
-                top=self.top.value(), bottom=self.bottom.value(), **common
+                top=round(self.top.value(), 4),
+                bottom=round(self.bottom.value(), 4),
+                **common,
             )
         elif self._mode is Mode.RANGE_AROUND:
-            return useq.ZRangeAround(range=self.range.value(), **common)
+            return useq.ZRangeAround(range=round(self.range.value(), 4), **common)
         elif self._mode is Mode.ABOVE_BELOW:
             return useq.ZAboveBelow(
-                above=self.above.value(), below=self.below.value(), **common
+                above=round(self.above.value(), 4),
+                below=round(self.below.value(), 4),
+                **common,
             )
 
     def setValue(

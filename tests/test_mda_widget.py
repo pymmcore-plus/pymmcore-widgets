@@ -148,26 +148,28 @@ def test_mda_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.position_widget._table.rowCount() == 0
 
 
-def test_mda_methods(qtbot: QtBot, global_mmcore: CMMCorePlus):
+def test_mda_methods(qtbot: QtBot):
     wdg = MDAWidget(include_run_button=True)
     qtbot.addWidget(wdg)
 
     wdg.p_cbox.setChecked(True)
     wdg.z_cbox.setChecked(True)
     wdg.t_cbox.setChecked(True)
-    seq = MDASequence()
-    global_mmcore.mda.events.sequenceStarted.emit(seq)
+
+    wdg._on_mda_started()
+    wdg.buttons_wdg._on_mda_started()
     assert not wdg.time_widget.isEnabled()
     assert not wdg.acquisition_order_widget.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_widget.isEnabled()
     assert not wdg.position_widget.isEnabled()
     assert not wdg.stack_widget.isEnabled()
     assert not wdg.grid_widget.isEnabled()
-    assert wdg.buttons_wdg.run_button.isHidden()
     assert not wdg.buttons_wdg.pause_button.isHidden()
     assert not wdg.buttons_wdg.cancel_button.isHidden()
+    assert wdg.buttons_wdg.run_button.isHidden()
 
-    global_mmcore.mda.events.sequenceFinished.emit(seq)
+    wdg._on_mda_finished()
+    wdg.buttons_wdg._on_mda_finished()
     assert wdg.time_widget.isEnabled()
     assert wdg.acquisition_order_widget.acquisition_order_comboBox.isEnabled()
     assert not wdg.channel_widget.isEnabled()

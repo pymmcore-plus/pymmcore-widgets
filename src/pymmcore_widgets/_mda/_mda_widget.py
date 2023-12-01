@@ -279,7 +279,7 @@ class MDAWidget(QWidget):
             raise TypeError("state must be an MDASequence, dict, or yaml file")
 
         self.acquisition_order_widget.acquisition_order_comboBox.setCurrentText(
-            state.axis_order
+            "".join(state.axis_order)
         )
 
         # set channel table
@@ -311,7 +311,7 @@ class MDAWidget(QWidget):
             self.p_cbox.setChecked(False)
 
         # set grid
-        if state.grid_plan:
+        if state.grid_plan and not isinstance(state.grid_plan, useq.RandomPoints):
             self.g_cbox.setChecked(True)
             self.grid_widget.set_state(state.grid_plan)
         else:
