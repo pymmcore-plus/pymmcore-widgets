@@ -61,7 +61,11 @@ def test_property_widget(dev, prop, qtbot):
 
     before = wdg.value()
     wdg.setValue(val)
-    if CORE.isPropertyPreInit(dev, prop):
+
+    strict_init = hasattr(CORE, "isFeatureEnabled") and CORE.isFeatureEnabled(
+        "StrictInitializationChecks"
+    )
+    if CORE.isPropertyPreInit(dev, prop) and strict_init:
         # as of pymmcore 10.7.0.71.0, setting pre-init properties
         # after the device has been initialized does nothing.
         _assert_equal(wdg.value(), before)
