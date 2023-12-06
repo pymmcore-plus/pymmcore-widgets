@@ -45,7 +45,7 @@ class Mode(Enum):
 
 
 class GridPlanWidget(QWidget):
-    """Widget to edit a [useq.GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)."""
+    """Widget to edit a [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)."""
 
     valueChanged = Signal(object)
 
@@ -234,12 +234,12 @@ class GridPlanWidget(QWidget):
             self._on_change()
 
     def value(self) -> useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight:
-        """Return the current value of the widget as a [useq.GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans).
+        """Return the current value of the widget as a [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans).
 
         Returns
         -------
         useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
-            The current [useq.GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
+            The current [GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
             value of the widget.
         """
         over = self.overlap.value()
@@ -277,12 +277,12 @@ class GridPlanWidget(QWidget):
         raise NotImplementedError
 
     def setValue(self, value: useq.GridFromEdges | useq.GridRowsColumns) -> None:
-        """Set the current value of the widget from a [useq.GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans).
+        """Set the current value of the widget from a [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans).
 
         Parameters
         ----------
         value : useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
-            The [useq.GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
+            The [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
             to set.
         """
         with signals_blocked(self):
