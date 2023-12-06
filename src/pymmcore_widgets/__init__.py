@@ -1,4 +1,5 @@
 """A set of widgets for the pymmcore-plus module."""
+import warnings
 from importlib.metadata import PackageNotFoundError, version
 
 try:
@@ -15,14 +16,6 @@ from ._image_widget import ImagePreview
 from ._install_widget import InstallWidget
 from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
-from ._mda import (
-    ChannelTable,
-    GridWidget,
-    MDAWidget,
-    PositionTable,
-    TimePlanWidget,
-    ZStackWidget,
-)
 from ._objective_widget import ObjectivesWidget
 from ._pixel_size_widget import PixelSizeWidget
 from ._presets_widget import PresetsWidget
@@ -32,6 +25,35 @@ from ._property_widget import PropertyWidget
 from ._shutter_widget import ShuttersWidget
 from ._snap_button_widget import SnapButton
 from ._stage_widget import StageWidget
+from .hcwizard import ConfigWizard
+from .mda import MDAWidget
+from .useq_widgets import (
+    ChannelTable,
+    GridPlanWidget,
+    MDASequenceWidget,
+    PositionTable,
+    TimePlanWidget,
+    ZPlanWidget,
+)
+
+
+def __getattr__(name: str) -> object:
+    if name == "ZStackWidget":
+        warnings.warn(
+            "'ZStackWidget' is deprecated, using 'ZPlanWidget' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return ZPlanWidget
+    if name == "GridWidget":
+        warnings.warn(
+            "'GridWidget' is deprecated, using 'GridPlanWidget' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return GridPlanWidget
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
 
 __all__ = [
     "CameraRoiWidget",
@@ -39,15 +61,17 @@ __all__ = [
     "ChannelTable",
     "ChannelWidget",
     "ConfigurationWidget",
+    "ConfigWizard",
     "DefaultCameraExposureWidget",
     "DeviceWidget",
     "ExposureWidget",
-    "GridWidget",
+    "GridPlanWidget",
     "GroupPresetTableWidget",
     "ImagePreview",
     "InstallWidget",
     "LiveButton",
     "MDAWidget",
+    "MDASequenceWidget",
     "ObjectivesWidget",
     "PixelSizeWidget",
     "PositionTable",
@@ -60,5 +84,5 @@ __all__ = [
     "StageWidget",
     "StateDeviceWidget",
     "TimePlanWidget",
-    "ZStackWidget",
+    "ZPlanWidget",
 ]

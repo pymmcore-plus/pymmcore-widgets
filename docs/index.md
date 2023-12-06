@@ -1,6 +1,7 @@
 # Overview
 
-[pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) is a library of
+[pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/)
+([github](https://github.com/pymmcore-plus/pymmcore-widgets)) is a library of
 [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python)
 widgets that can be used in combination with
 [pymmcore-plus](https://pymmcore-plus.github.io/pymmcore-plus)
@@ -15,7 +16,7 @@ pip install pymmcore-widgets
 ```
 
 !!! Important
-    This package does **NOT** include a [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) backend, you must install one yourself (e.g. ```pip install PyQt5```).
+    This package does **NOT** include a [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) backend, you must install one yourself (e.g. ```pip install PyQt6```).
 
 !!! Note
     Widgets are tested on:
@@ -33,4 +34,4 @@ pip install pymmcore-widgets
 
 For a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).
 
-Detailed description and usage of each Widget is explained in their [respective pages](#widgets).
+Detailed description and usage of each Widget is explained in their [respective pages](./widgets/CameraRoiWidget/).

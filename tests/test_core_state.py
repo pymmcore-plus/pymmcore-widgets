@@ -19,11 +19,12 @@ ALL_WIDGETS: dict[type[QWidget], dict[str, Any]] = {
     pmmw.DefaultCameraExposureWidget: {},
     pmmw.DeviceWidget: {"device_label": "Camera"},
     pmmw.ExposureWidget: {},
-    pmmw.GridWidget: {},
+    pmmw.GridPlanWidget: {},
     pmmw.GroupPresetTableWidget: {},
     pmmw.ImagePreview: {},
     pmmw.LiveButton: {},
     pmmw.MDAWidget: {},
+    pmmw.MDASequenceWidget: {},
     pmmw.ObjectivesWidget: {},
     pmmw.PixelSizeWidget: {},
     pmmw.PositionTable: {},
@@ -36,7 +37,7 @@ ALL_WIDGETS: dict[type[QWidget], dict[str, Any]] = {
     pmmw.StageWidget: {"device": "XY"},
     pmmw.StateDeviceWidget: {"device_label": "Objective"},
     pmmw.TimePlanWidget: {},
-    pmmw.ZStackWidget: {},
+    pmmw.ZPlanWidget: {},
 }
 
 
