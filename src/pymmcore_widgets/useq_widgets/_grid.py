@@ -97,7 +97,7 @@ class GridPlanWidget(QWidget):
         self.bottom.setDecimals(3)
         self.bottom.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
 
-        self.overlap = QSpinBox()
+        self.overlap = QDoubleSpinBox()
         self.overlap.setRange(-1000, 1000)
         self.overlap.setValue(0)
         self.overlap.setSuffix(" %")
@@ -226,7 +226,7 @@ class GridPlanWidget(QWidget):
             self._on_change()
 
     def value(self) -> useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight:
-        over = self.overlap.value() / 100
+        over = self.overlap.value()
         _order = cast("OrderMode", self.order.currentEnum())
         common = {
             "overlap": (over, over),
@@ -284,6 +284,9 @@ class GridPlanWidget(QWidget):
                 self._fov_height = value.fov_height
             if value.fov_width:
                 self._fov_width = value.fov_width
+
+            if value.overlap:
+                self.overlap.setValue(value.overlap[0])
 
             self.order.setCurrentEnum(OrderMode(value.mode.value))
 

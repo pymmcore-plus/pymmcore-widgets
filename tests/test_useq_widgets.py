@@ -384,13 +384,13 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     wdg.setMode("area")
     assert isinstance(wdg.value(), useq.GridWidthHeight)
 
-    plan = useq.GridRowsColumns(rows=3, columns=3, mode="spiral")
+    plan = useq.GridRowsColumns(rows=3, columns=3, mode="spiral", overlap=10)
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.NUMBER
     assert wdg.value() == plan
 
-    plan = useq.GridFromEdges(left=1, right=2, top=3, bottom=4)
+    plan = useq.GridFromEdges(left=1, right=2, top=3, bottom=4, overlap=10)
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.BOUNDS
