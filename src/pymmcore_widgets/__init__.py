@@ -58,7 +58,6 @@ def __getattr__(name: str) -> object:
     raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
-
 def __getattr__(name: str) -> object:
     if name == "PixelSizeWidget":
         warnings.warn(
