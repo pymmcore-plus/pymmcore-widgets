@@ -99,7 +99,7 @@ class GridPlanWidget(QWidget):
         self.bottom.setDecimals(3)
         self.bottom.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
 
-        self.overlap = QSpinBox()
+        self.overlap = QDoubleSpinBox()
         self.overlap.setRange(-1000, 1000)
         self.overlap.setValue(0)
         self.overlap.setSuffix(" %")
@@ -242,7 +242,7 @@ class GridPlanWidget(QWidget):
             The current [useq.GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
             value of the widget.
         """
-        over = self.overlap.value() / 100
+        over = self.overlap.value()
         _order = cast("OrderMode", self.order.currentEnum())
         common = {
             "overlap": (over, over),
@@ -308,6 +308,9 @@ class GridPlanWidget(QWidget):
                 self._fov_height = value.fov_height
             if value.fov_width:
                 self._fov_width = value.fov_width
+
+            if value.overlap:
+                self.overlap.setValue(value.overlap[0])
 
             self.order.setCurrentEnum(OrderMode(value.mode.value))
 
