@@ -54,7 +54,20 @@ class CoreMDATabs(MDATabs):
 
 
 class MDAWidget(MDASequenceWidget):
-    """Widget for running MDA experiments, connecting to a MMCorePlus instance."""
+    """[MDASequenceWidget](../MDASequenceWidget#) connected to a [`pymmcore_plus.CMMCorePlus`][] instance.
+
+    It provides a GUI to construct and run a [`useq.MDASequence`][].
+
+    Parameters
+    ----------
+    parent : QWidget | None
+        Optional parent widget, by default None.
+    mmcore : CMMCorePlus | None
+        Optional [`CMMCorePlus`][pymmcore_plus.CMMCorePlus] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    """  # noqa: E501
 
     def __init__(
         self, *, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
@@ -96,7 +109,7 @@ class MDAWidget(MDASequenceWidget):
         self._update_channel_groups()
 
     def value(self) -> MDASequence:
-        """Set the current state of the widget."""
+        """Set the current state of the widget from a [`useq.MDASequence`][]."""
         val = super().value()
         replace = {}
 
@@ -123,19 +136,19 @@ class MDAWidget(MDASequenceWidget):
             meta.update(self.save_info.value())
         return val
 
+    def setValue(self, value: MDASequence) -> None:
+        """Get the current state of the widget as a [`useq.MDASequence`][]."""
+        super().setValue(value)
+        self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
+
+    # ------------------- private API ----------------------
+
     def _get_current_stage_position(self) -> Position:
         """Return the current stage position."""
         x = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
         y = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
         return Position(x=x, y=y, z=z)
-
-    def setValue(self, value: MDASequence) -> None:
-        """Get the current state of the widget."""
-        super().setValue(value)
-        self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
-
-    # ------------------- private API ----------------------
 
     def _update_channel_groups(self) -> None:
         ch_group = self._mmc.getChannelGroup()
