@@ -18,17 +18,17 @@ Since [pymmcore-widgets](./index.md) relies on either the [PyQt](https://riverba
 pip install PyQt6
 ```
 
-### Installing Micro-Manager
-
-The installation of the `pymmcore-widgets` package automatically includes [pymmcore-plus](https://pymmcore-plus.github.io/pymmcore-plus), as it is a key dependency for `pymmcore-widgets`. However, you still need to install the `Micro-Manager` device adapters and C++ core provided by [mmCoreAndDevices](https://github.com/micro-manager/mmCoreAndDevices#mmcoreanddevices). This can be done by following the steps described in the `pymmcore-plus` [documentation page](https://pymmcore-plus.github.io/pymmcore-plus/install/#installing-micro-manager-device-adapters).
-
 !!! Note
     Widgets are tested on:
 
     * `macOS & Windows`
-    * `Python 3.8, 3.9 & 3.10`
+    * `Python 3.8, 3.9 3.10 & 3.11`
     * `PyQt5 & PyQt6`
     * `PySide2 & PySide6`
+
+### Installing Micro-Manager
+
+The installation of the `pymmcore-widgets` package automatically includes [pymmcore-plus](https://pymmcore-plus.github.io/pymmcore-plus), as it is a key dependency for `pymmcore-widgets`. However, you still need to install the `Micro-Manager` device adapters and C++ core provided by [mmCoreAndDevices](https://github.com/micro-manager/mmCoreAndDevices#mmcoreanddevices). This can be done by following the steps described in the `pymmcore-plus` [documentation page](https://pymmcore-plus.github.io/pymmcore-plus/install/#installing-micro-manager-device-adapters).
 
 ## Usage
 
@@ -55,7 +55,7 @@ from pymmcore_widgets import ConfigurationWidget, GroupPresetTableWidget
 app = QApplication([])
 
 # create a CMMCorePlus instance.
-mmc = CMMCorePlus().instance()
+mmc = CMMCorePlus.instance()
 
 # create a ConfigurationWidget
 cfg_widget = ConfigurationWidget()
@@ -77,7 +77,7 @@ The code above will create a Qt application with the `ConfigurationWidget` and `
 !!! Note
     Most widgets, by default, utilize the active core or instantiate a new one if none is currently active. This eliminates the need for manual core instance creation.
 
-    For example, in the case above, the `ConfigurationWidget` is the first widget to be instantiated and will automatically create a new core instance. This makes the `mmc = CMMCorePlus().instance()` line redundant and removable.
+    For example, in the case above, the `ConfigurationWidget` is the first widget to be instantiated and will automatically create a new core instance. This makes the `mmc = CMMCorePlus.instance()` line redundant and removable.
     
     However, if a specific core instance is required, you can create a core instance first and then pass it as the `mmcore` argument to the widget (if available, not all the widgets have it), like so: `GroupPresetTableWidget(mmcore=my_core)`.
 
@@ -85,7 +85,7 @@ You can add to this simple code any other widgets from this package to control a
 
 ### Custom GUI
 
-- requires a bit deeper understanding of Qt environment. 
+- requires a bit deeper understanding of Qt environment.
 
 ```python
 # import the necessary packages
@@ -142,4 +142,5 @@ if __name__ == "__main__":
 The code above will create a Qt application that looks like this:
 ![MyWidget](./images/my_widget_example.png)
 
-!!! note that at the moment we don't have any mda viewer but it is on development. If you want to see the acquired images, you need to create a viewer yourself. For example, you can use [napari](https://napari.org/) and have a look at napari-micromanager.
+!!! Note
+    at the moment we don't have any mda viewer but it is on development. If you want to see the acquired images, you need to create a viewer yourself. For example, you can use [napari](https://napari.org/) and have a look at napari-micromanager.

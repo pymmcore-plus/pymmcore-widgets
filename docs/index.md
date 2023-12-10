@@ -37,7 +37,7 @@ from pymmcore_widgets import PropertyBrowser
 app = QApplication([])
 
 # create a CMMCorePlus instance
-mmc = CMMCorePlus().instance()
+mmc = CMMCorePlus.instance()
 
 # load the default Micro-Manager system configuration. To load a specific 
 # configuration, provide the "path/to/config.cfg" file as an argument.
