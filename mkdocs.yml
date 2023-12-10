@@ -43,6 +43,8 @@ nav:
       - Overview: index.md
       - Getting Started: getting_started.md
       - Widgets: widgets/
+      - Trobleshooting: troubleshooting.md
+      - Contributing: contributing.md
 
 markdown_extensions:
   - tables

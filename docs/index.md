@@ -4,7 +4,6 @@
 
 ![all_widgets](./images/all_widgets.png)
 
-
 ## Installation
 
 ```sh
@@ -24,14 +23,13 @@ pip install pymmcore-widgets
 
 For a more detailed description on how to install the package, see the [Getting Started](getting_started.md#installation) section.
 
-
 ## Usage
 
 As a quick example, let's create a simple Qt Application that:
 
-- creates a [Micro-Manager core instance](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance)
+- creates a [Micro-Manager core instance](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance) so that all the widgets can control the same core.
 
-- loads the default `Micro-Manager` system configuration
+- loads the default `Micro-Manager` system configuration.
 
 - creates and shows a [PropertyBrowser](widgets/PropertyBrowser.md) widget. You can use this widget to **view and modify the properties** of any of the loaded devices.
 
@@ -51,7 +49,8 @@ mmc = CMMCorePlus().instance()
 # configuration, use mmc.loadSystemConfiguration("path/to/config.cfg") instead
 mmc.loadSystemConfiguration()
 
-# create a PropertyBrowser widget
+# create a PropertyBrowser widget. By default, this widget will use the active
+# Micro-Manager core instance.
 pb_widget = PropertyBrowser()
 
 # show the created widget
@@ -66,10 +65,9 @@ The code above will create a Qt Application that looks like this:
 
 You can add to this simple code any other widgets from this package to control and interact with the same [Micro-Manager core instance](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance).
 
-A more detailed description on how to use the `pymmcore-widgets` package is explained in the [Getting Started](getting_started.md) section.
+A more detailed description on how to use the `pymmcore-widgets` package is explained in the [Getting Started](getting_started.md#usage) section.
 
 For a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).
-
 
 ## Widgets List
 
@@ -77,50 +75,43 @@ Below there is a list of all the widgets available in this package **grouped by 
 
 More detailed information on each widget can be found in their [individual documentation](./widgets/CameraRoiWidget/).
 
-
-### *Cameras Widgets*
+### Cameras Widgets
 
 The widgets in this section can be used to **control** any `Micro-Manager` device of type **[CameraDevice](https://pymmcore-plus.github.io/pymmcore-plus/api/constants/#pymmcore_plus.core._constants.DeviceType.CameraDevice)**.
 
 {{ CAMERA_WIDGETS }}
 
-
-### *Configurations Widgets*
+### Configurations Widgets
 
 The widgets in this section can be used to **create, load and modify a Micro-Manager configuration** file.
 
 {{ CONFIGURATION_WIDGETS }}
 
-
-### *Devices and Properties Widgets*
+### Devices and Properties Widgets
 
 The widgets in this section can be used to **control and intract with the devices and properties** of a `Micro-Manager` core ([CMMCorePlus](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#cmmcoreplus)).
 
 {{ DEVICE_PROPERTY_WIDGETS }}
 
-
-### *Multi-Dimensional Acquisition Widgets*
+### Multi-Dimensional Acquisition Widgets
 
 The widgets in this section can be used to **define (and run) a multi-dimensional acquisition** based on the [useq-schema MDASequence](https://pymmcore-plus.github.io/useq-schema/schema/sequence/#useq.MDASequence).
 
 {{ MDA_WIDGETS }}
 
-
-### *Shutters Widgets*
+### Shutters Widgets
 
 The widgets in this section can be used to **control** any `Micro-Manager` device of type **[ShutterDevice](https://pymmcore-plus.github.io/pymmcore-plus/api/constants/#pymmcore_plus.core._constants.DeviceType.ShutterDevice)**.
 
 {{ SHUTTER_WIDGETS }}
 
-
-### *Stages Widgets*
+### Stages Widgets
 
 The widgets in this section can be used to **control** any `Micro-Manager` device of type **[StageDevice](https://pymmcore-plus.github.io/pymmcore-plus/api/constants/#pymmcore_plus.core._constants.DeviceType.StageDevice)**.
 
 {{ STAGE_WIDGETS }}
 
-
-### *Misc Widgets*
+### Misc Widgets
 
 The widgets in this section are **miscellaneous** widgets that can be used for different purposes. See their [individual documentation](./widgets/ChannelGroupWidget/) for more details.
 
