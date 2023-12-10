@@ -13,13 +13,7 @@ pip install pymmcore-widgets
 !!! Important
     This package does **NOT** include a [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) backend, you must install one yourself (e.g. ```pip install PyQt6```).
 
-!!! Note
-    Widgets are tested on:
-
-    * `macOS & Windows`
-    * `Python 3.8, 3.9 & 3.10`
-    * `PyQt5 & PyQt6`
-    * `PySide2 & PySide6`
+    It also **requires** the `Micro-Manager` device adapters and C++ core provided by [mmCoreAndDevices](https://github.com/micro-manager/mmCoreAndDevices#mmcoreanddevices).
 
 For a more detailed description on how to install the package, see the [Getting Started](getting_started.md#installation) section.
 
@@ -46,7 +40,7 @@ app = QApplication([])
 mmc = CMMCorePlus().instance()
 
 # load the default Micro-Manager system configuration. To load a specific 
-# configuration, use mmc.loadSystemConfiguration("path/to/config.cfg") instead
+# configuration, provide the "path/to/config.cfg" file as an argument.
 mmc.loadSystemConfiguration()
 
 # create a PropertyBrowser widget. By default, this widget will use the active
@@ -71,7 +65,7 @@ For a pre-made user interface, see [napari-micromanager](https://pypi.org/projec
 
 Below there is a list of all the widgets available in this package **grouped by their functionality**.
 
-More detailed information on each widget can be found in their [individual documentation](./widgets/CameraRoiWidget/).
+For a more detailed information on each widget, explore their [individual documentation](./widgets/CameraRoiWidget/).
 
 ### Cameras Widgets
 

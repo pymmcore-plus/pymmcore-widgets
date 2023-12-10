@@ -22,6 +22,14 @@ pip install PyQt6
 
 The installation of the `pymmcore-widgets` package automatically includes [pymmcore-plus](https://pymmcore-plus.github.io/pymmcore-plus), as it is a key dependency for `pymmcore-widgets`. However, you still need to install the `Micro-Manager` device adapters and C++ core provided by [mmCoreAndDevices](https://github.com/micro-manager/mmCoreAndDevices#mmcoreanddevices). This can be done by following the steps described in the `pymmcore-plus` [documentation page](https://pymmcore-plus.github.io/pymmcore-plus/install/#installing-micro-manager-device-adapters).
 
+!!! Note
+    Widgets are tested on:
+
+    * `macOS & Windows`
+    * `Python 3.8, 3.9 & 3.10`
+    * `PyQt5 & PyQt6`
+    * `PySide2 & PySide6`
+
 ## Usage
 
 For a deeper understanding of each widget's functionality, refer to their [individual documentation](./widgets/CameraWidget.md/) pages, where we provide short examples of usage.
