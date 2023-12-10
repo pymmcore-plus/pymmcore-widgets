@@ -63,8 +63,6 @@ The code above will create a Qt Application that looks like this:
 
 ![PropertyBrowser](./images/PropertyBrowser.png)
 
-You can add to this simple code any other widgets from this package to control and interact with the same [Micro-Manager core instance](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance).
-
 A more detailed description on how to use the `pymmcore-widgets` package is explained in the [Getting Started](getting_started.md#usage) section.
 
 For a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).

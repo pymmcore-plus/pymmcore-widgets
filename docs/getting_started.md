@@ -24,7 +24,7 @@ The installation of the `pymmcore-widgets` package automatically includes [pymmc
 
 ## Usage
 
-To better understand how each widget works, in each of their [individual documentation](./widgets/CameraWidget.md/) page we provide a short example on how to use them.
+For a deeper understanding of each widget's functionality, refer to their [individual documentation](./widgets/CameraWidget.md/) pages, where we provide short examples of usage.
 
 ### Basic usage
 
@@ -35,7 +35,7 @@ As shown in the example from the [Overview](./index.md#usage) section, for a bas
 3. load a configuration file.
 4. create and show the wanted widgets.
 
-We can replace step 3 with the [ConfigurationWidget](./widgets/ConfigurationWidget/) widget which allows us to load any `Micro-Manager` configuration file. In this example, we will also load the [GroupPresetTableWidget](./widgets/GroupPresetTableWidget/) widget which allows us to interact with the `groups` and `presets` stored in the configuration file and the 
+In this example, we substitute step 3 with the [ConfigurationWidget](./widgets/ConfigurationWidget/) widget. This widget enables us to load any `Micro-Manager` configuration file. Additionally, we use the [GroupPresetTableWidget](./widgets/GroupPresetTableWidget/) widget, which provides an interactive interface for the `groups` and `presets` stored in the configuration file.
 
 ```python
 # import the necessary packages
@@ -47,8 +47,6 @@ from pymmcore_widgets import ConfigurationWidget, GroupPresetTableWidget
 app = QApplication([])
 
 # create a CMMCorePlus instance.
-# This can actually be an optional step since most of the widget will use the active
-# Micro-Manager core instance or automatically create a new one if none is active.
 mmc = CMMCorePlus().instance()
 
 # create a ConfigurationWidget
@@ -64,13 +62,22 @@ gp_widget.show()
 app.exec_()
 ```
 
-The code above will create a Qt application that looks like this:
+The code above will create a Qt application with the `ConfigurationWidget` and `GroupPresetTableWidget`:
 
-...
+![basic_usage](./images/basic_usage.png)
+
+!!! Note
+    Most widgets, by default, utilize the active core or instantiate a new one if none is currently active. This eliminates the need for manual core instance creation.
+
+    For example, in the case above, the `ConfigurationWidget` is the first widget to be instantiated and will automatically create a new core instance. This makes the `mmc = CMMCorePlus().instance()` line redundant and removable.
+    
+    However, if a specific core instance is required, you can create a core instance first and then pass it as the `mmcore` argument to the widget (if available, not all the widgets have it), like so: `GroupPresetTableWidget(mmcore=my_core)`.
+
+You can add to this simple code any other widgets from this package to control and interact with the same [Micro-Manager core instance](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance).
 
 ### Custom GUI
 
-- you can specify which Micro-Manager core instance to use. If not specified, each widget will use the the active one or will create a new instance if none is active. If you want to create a core yourself, we suggest to use CMMCorePlus.instance() if you want all widget to listen to the same core instance.
+- requires a bit deeper understanding of Qt environment. 
 
 ```python
 # import the necessary packages
