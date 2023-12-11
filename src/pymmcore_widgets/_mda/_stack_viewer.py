@@ -8,6 +8,8 @@ from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import QTimer, Signal
 from superqt.cmap._cmap_utils import try_cast_colormap
+from superqt import fonticon
+from fonticon_mdi6 import MDI6
 from useq import MDASequence
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
@@ -52,7 +54,7 @@ class StackViewer(QtWidgets.QWidget):
         transform: (int, bool, bool) rotation mirror_x mirror_y
         """
         super().__init__(parent=parent)
-        self.reload_position()
+        self._reload_position()
         self._mmc = mmcore or CMMCorePlus.instance()
         self.sequence = sequence
         self.canvas_size = size
@@ -90,6 +92,13 @@ class StackViewer(QtWidgets.QWidget):
 
         self.destroyed.connect(self._disconnect)
 
+        self.collapse_btn = QtWidgets.QPushButton()
+        self.collapse_btn.setIcon(fonticon.icon(MDI6.arrow_collapse_all))
+        self.collapse_btn.clicked.connect(self._collapse_view)
+        self.bottom_buttons = QtWidgets.QHBoxLayout()
+        self.bottom_buttons.addWidget(self.collapse_btn)
+        self.layout().addLayout(self.bottom_buttons)
+
         if sequence:
             self.on_sequence_start(sequence)
 
@@ -111,6 +120,8 @@ class StackViewer(QtWidgets.QWidget):
         self.view.camera.set_range(
             (0, self.img_size[0]), (0, self.img_size[1]), margin=0
         )
+        rect = self.view.camera.rect
+        self.view_rect = (rect.pos, rect.size)
         self.view.camera.aspect = 1
 
     def on_sequence_start(self, sequence: MDASequence) -> None:
@@ -144,13 +155,14 @@ class StackViewer(QtWidgets.QWidget):
                 trans = visuals.transforms.linear.MatrixTransform()
                 trans.rotate(self.transform[0], (0, 0, 1))
                 image.transform = self._get_image_position(trans, sequence, g)
+                image.interactive = True
                 if c > 0:
                     image.set_gl_state("additive", depth_test=False)
                 self.images[c].append(image)
             self.current_channel = c
             self._new_channel.emit(c, sequence.channels[c].config)
+        self._collapse_view()
         self.ready = True
-        self.view.camera.set_range(margin=0)
 
     def _handle_channel_clim(
         self, values: tuple[int, int], channel: int, set_autoscale: bool = True
@@ -166,6 +178,8 @@ class StackViewer(QtWidgets.QWidget):
     def _handle_channel_cmap(self, colormap: cmap.Colormap, channel: int) -> None:
         for g in range(self.ng):
             self.images[channel][g].cmap = colormap.to_vispy()
+        if not colormap.name in self.cmap_names:
+            self.cmap_names.append(self.cmap_names[channel])
         self.cmap_names[channel] = colormap.name
         self._canvas.update()
 
@@ -174,6 +188,9 @@ class StackViewer(QtWidgets.QWidget):
             self.images[channel][g].visible = self.channel_row.boxes[
                 channel
             ].show_channel.isChecked()
+        if self.current_channel == channel:
+            channel_to_set = channel - 1 if channel > 0 else channel + 1
+            self.channel_row._handle_channel_choice(self.channel_row.boxes[channel_to_set].channel)
         self._canvas.update()
 
     def _handle_channel_autoscale(self, state: bool, channel: int) -> None:
@@ -209,6 +226,7 @@ class StackViewer(QtWidgets.QWidget):
         self.sliders: list[LabeledVisibilitySlider] = []
         for dim in dims:
             slider = LabeledVisibilitySlider(dim, orientation=QtCore.Qt.Horizontal)
+            #TODO: this should trigger a timer instead of directly calling the function
             slider.valueChanged.connect(self.on_display_timer)
             self._slider_settings.connect(slider._visibility)
             self.layout().addWidget(slider)
@@ -218,17 +236,33 @@ class StackViewer(QtWidgets.QWidget):
 
     def on_mouse_move(self, event: SceneMouseEvent) -> None:
         """Mouse moved on the canvas, display the pixel value and position."""
-        transform = self.images[self.current_channel][0].get_transform(
-            "canvas", "visual"
-        )
-        p = [int(x) for x in transform.map(event.pos)]
-        if p[0] < 0 or p[1] < 0:
+        # https://groups.google.com/g/vispy/c/sUNKoDL1Gc0/m/E5AG7lgPFQAJ
+        self.view.interactive = False
+        images = []
+        # Get the images the mouse is over
+        while image := self._canvas.visual_at(event.pos):
+            images.append(image)
+            image.interactive = False
+        for image in images:
+            image.interactive = True
+        self.view.interactive = True
+        if images == []:
+            transform = self.view.get_transform("canvas", "visual")
+            p = [int(x) for x in transform.map(event.pos)]
             info = f"[{p[0]}, {p[1]}]"
             self.info_bar.setText(info)
             return
+        # Adjust channel index is channel(s) are not visible
+        real_channel = self.current_channel
+        for i in range(self.current_channel):
+            i_visible = self.channel_row.boxes[i].show_channel.isChecked()
+            real_channel = real_channel - 1 if not i_visible else real_channel
+        images.reverse()
+        transform = images[real_channel].get_transform("canvas", "visual")
+        p = [int(x) for x in transform.map(event.pos)]
         try:
             pos = f"[{p[0]}, {p[1]}]"
-            value = f"{self.images[self.current_channel][0]._data[p[1], p[0]]}"
+            value = f"{images[real_channel]._data[p[1], p[0]]}"
             info = f"{pos}: {value}"
             self.info_bar.setText(info)
         except IndexError:
@@ -265,9 +299,6 @@ class StackViewer(QtWidgets.QWidget):
             (indices["t"], indices["z"], indices["c"], indices.get("g", 0))
         )
 
-        # Update internal image parameters
-        if sum(indices.values()) == 0:
-            self.view.camera.rect = (0, 0, img.shape[0], img.shape[1])
         # Update display
         self.display_image(img, indices.get("c", 0), indices.get("g", 0))
         self._set_sliders(indices)
@@ -291,6 +322,8 @@ class StackViewer(QtWidgets.QWidget):
 
     def display_image(self, img: np.ndarray, channel: int = 0, grid: int = 0) -> None:
         self.images[channel][grid].set_data(img)
+        #Should we do this? Might it slow down acquisition while we are in the same thread?
+        self._canvas.update()
 
     def on_clim_timer(self, channel: int | None = None) -> None:
         channel_list = (
@@ -318,9 +351,31 @@ class StackViewer(QtWidgets.QWidget):
                     0,
                 )
             )
+            self._expand_canvas_view(sub_event)
         else:
             trans.translate((self.img_size[0], 0, 0))
+            self.view_rect = ((0 + self.img_size[0]/2,
+                               0 - self.img_size[1]/2), (self.img_size[0], self.img_size[1]))
         return trans
+
+    def _expand_canvas_view(self, event: MDAEvent) -> None:
+        """Expand the canvas view to include the new image."""
+        img_position = (-event.x_pos / self.pixel_size - self.img_size[0]/2,
+                        -event.x_pos / self.pixel_size + self.img_size[0]/2,
+                        event.y_pos / self.pixel_size - self.img_size[1]/2,
+                        event.y_pos / self.pixel_size + self.img_size[1]/2)
+        camera_rect = [self.view_rect[0][0], self.view_rect[0][0] + self.view_rect[1][0],
+                       self.view_rect[0][1], self.view_rect[0][1] + self.view_rect[1][1]]
+        if camera_rect[0] > img_position[0]:
+            camera_rect[0] = img_position[0]
+        if camera_rect[1] < img_position[1]:
+            camera_rect[1] = img_position[1]
+        if camera_rect[2] > img_position[2]:
+            camera_rect[2] = img_position[2]
+        if camera_rect[3] < img_position[3]:
+            camera_rect[3] = img_position[3]
+        self.view_rect = ((camera_rect[0], camera_rect[2]),
+                          (camera_rect[1]-camera_rect[0], camera_rect[3]-camera_rect[2]))
 
     def complement_indices(self, index: Mapping[str, int]) -> dict:
         """MDAEvents not always have all the dimensions, complement."""
@@ -334,11 +389,17 @@ class StackViewer(QtWidgets.QWidget):
         self._mmc.mda.events.sequenceStarted.disconnect(self.on_sequence_start)
         self.datastore.frame_ready.disconnect(self.on_frame_ready)
 
-    def reload_position(self) -> None:
+    def _reload_position(self) -> None:
         self.qt_settings = QtCore.QSettings("pymmcore_plus", self.__class__.__name__)
         self.resize(self.qt_settings.value("size", QtCore.QSize(270, 225)))
         self.move(self.qt_settings.value("pos", QtCore.QPoint(50, 50)))
         self.cmap_names = self.qt_settings.value("cmaps", ["gray", "cyan", "magenta"])
+
+    def _collapse_view(self):
+        view_rect = ((self.view_rect[0][0] - self.img_size[0]/2,
+                     self.view_rect[0][1] + self.img_size[1]/2),
+                     self.view_rect[1])
+        self.view.camera.rect = view_rect
 
     def closeEvent(self, e):
         """Write window size and position to config file."""
