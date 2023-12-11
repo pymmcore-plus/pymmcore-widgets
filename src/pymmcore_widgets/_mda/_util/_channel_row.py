@@ -6,7 +6,6 @@ import cmap
 from qtpy import QtCore, QtGui, QtWidgets
 from superqt import QColormapComboBox, QRangeSlider
 from useq import Channel
-from ._hist import HistPlot
 
 if TYPE_CHECKING:
     from qtpy.QtGui import QMouseEvent
