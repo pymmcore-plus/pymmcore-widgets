@@ -159,7 +159,6 @@ if __name__ == "__main__":
 ```
 
 The code above will create a Qt Application that looks like this:
-<!-- ![MyWidget](./images/my_widget_example.png) -->
 ![MyWidget](./images/MyWidget.mov)
 
 For a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).

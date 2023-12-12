@@ -1,6 +1,12 @@
 # Overview
 
-[pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) is a library of [PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python) widgets that can be used in combination with [pymmcore-plus](https://pymmcore-plus.github.io/pymmcore-plus) to create custom GUIs (Graphical User Interfaces) for the [Micro-Manager](https://micro-manager.org) software in a pure python/C++ environment.
+[pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/)
+([github](https://github.com/pymmcore-plus/pymmcore-widgets)) is a library of
+[PyQt](https://riverbankcomputing.com/software/pyqt/)/[PySide](https://www.qt.io/qt-for-python)
+widgets that can be used in combination with
+[pymmcore-plus](https://pymmcore-plus.github.io/pymmcore-plus)
+([github](https://github.com/pymmcore-plus/pymmcore-plus)) to create custom GUIs (Graphical User
+Interfaces) for the [Micro-Manager](https://micro-manager.org) in a pure python/C++ environment.
 
 ![all_widgets](./images/all_widgets.png)
 
