@@ -70,7 +70,7 @@ gp_widget.show()
 app.exec_()
 ```
 
-The code above will create a Qt application with the `ConfigurationWidget` and `GroupPresetTableWidget`:
+The code above will create a Qt Application with the `ConfigurationWidget` and `GroupPresetTableWidget`:
 
 ![basic_usage](./images/basic_usage.png)
 
@@ -136,8 +136,9 @@ class MyWidget(QWidget):
         layout = QGridLayout(self)
 
         # Add the wanted pymmcore_widgets to the layout.
-        # The first two arguments of 'addWidget' specify the grid position in terms 
-        # of rows and columns. The third and fourth arguments define the span of the # widget across multiple rows and columns.
+        # The first two arguments of 'addWidget' specify the grid position
+        # in terms of rows and columns. The third and fourth arguments
+        # define the span of the # widget across multiple rows and columns.
         layout.addWidget(cfg, 0, 0, 1, 3)
         layout.addWidget(ch_group_combo, 1, 0)
         layout.addWidget(ch_combo, 1, 1)
@@ -157,7 +158,8 @@ if __name__ == "__main__":
     app.exec_()
 ```
 
-The code above will create a Qt application that looks like this:
-![MyWidget](./images/my_widget_example.png)
+The code above will create a Qt Application that looks like this:
+<!-- ![MyWidget](./images/my_widget_example.png) -->
+![MyWidget](./images/MyWidget.mov)
 
 For a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).
