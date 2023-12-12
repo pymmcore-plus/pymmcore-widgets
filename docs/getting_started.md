@@ -41,7 +41,7 @@ As shown in the example from the [Overview](./index.md#usage) section, for a bas
 1. create a Qt Application.
 2. create a Micro-Manager [core](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance) instance so that all the widgets will control the same core.
 3. load a configuration file.
-4. create and show the wanted widgets.
+4. create and show the wanted widget(s).
 
 In this example, we substitute step 3 with the [ConfigurationWidget](./widgets/ConfigurationWidget/) widget which enables us to load any `Micro-Manager` configuration file. Additionally, we use the [GroupPresetTableWidget](./widgets/GroupPresetTableWidget/) widget, which provides an interactive interface for the `groups` and `presets` stored in the configuration file.
 
