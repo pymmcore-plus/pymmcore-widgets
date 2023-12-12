@@ -72,7 +72,7 @@ app.exec_()
 
 The code above will create a Qt Application with the `ConfigurationWidget` and `GroupPresetTableWidget`:
 
-![basic_usage](./images/basic_usage.png)
+![basic_usage](./images/basic_usage.mov)
 
 !!! Note
     Most widgets, by default, utilize the active core or instantiate a new one if none is currently active. This eliminates the need for manual core instance creation.
