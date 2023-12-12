@@ -85,9 +85,11 @@ You can add to this simple code any other widgets from this package to control a
 
 ### Custom GUI
 
-Building a custom GUI with the widgets provided by this package requires a more in-depth understanding of the Qt environment, such as [PyQt6](https://pypi.org/project/PyQt6/)..
+Building a custom GUI with the widgets provided by this package requires a more in-depth understanding of the Qt environment, such as [PyQt6](https://pypi.org/project/PyQt6/).
 
 In the following example, we construct a [QWidget](https://doc.qt.io/qt-6/qwidget.html) that incorporates several `pymmcore-widgets`: [ConfigurationWidget](./widgets/ConfigurationWidget/), [ChannelGroupWidget](./widgets/ChannelGroupWidget/), [ChannelWidget](./widgets/ChannelWidget/), [DefaultCameraExposureWidget](./widgets/DefaultCameraExposureWidget/), [ImagePreview](./widgets/ImagePreview/), [SnapButton](./widgets/SnapButton/), and [LiveButton](./widgets/LiveButton/).
+
+![MyWidget](./images/MyWidget.mov)
 
 This simple GUI enables you to load a `Micro-Manager` configuration file, snap an image or live stream images from the camera, with the flexibility to select a channel and adjust the exposure time.
 
@@ -157,8 +159,5 @@ if __name__ == "__main__":
     widget.show()
     app.exec_()
 ```
-
-The code above will create a Qt Application that looks like this:
-![MyWidget](./images/MyWidget.mov)
 
 For a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).
