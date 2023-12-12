@@ -25,7 +25,7 @@ As a quick example, let's create a simple Qt Application that:
 
 - loads the default `Micro-Manager` system configuration.
 
-- creates and shows a [PropertyBrowser](widgets/PropertyBrowser.md) widget. You can use this widget to **view and modify the properties** of any of the loaded devices.
+- creates and shows a [PropertyBrowser](widgets/PropertyBrowser.md) widget. You can use this widget to view and modify the properties of any of the loaded devices.
 
 ```py
 # import the necessary packages
@@ -69,7 +69,7 @@ For a more detailed information on each widget, explore their [individual docume
 
 ### Cameras Widgets
 
-The widgets in this section can be used to **control** any `Micro-Manager` device of type **[CameraDevice](https://pymmcore-plus.github.io/pymmcore-plus/api/constants/#pymmcore_plus.core._constants.DeviceType.CameraDevice)**.
+The widgets in this section can be used to **control** any `Micro-Manager` device of type [CameraDevice](https://pymmcore-plus.github.io/pymmcore-plus/api/constants/#pymmcore_plus.core._constants.DeviceType.CameraDevice).
 
 {{ CAMERA_WIDGETS }}
 
@@ -93,13 +93,13 @@ The widgets in this section can be used to **define (and run) a multi-dimensiona
 
 ### Shutters Widgets
 
-The widgets in this section can be used to **control** any `Micro-Manager` device of type **[ShutterDevice](https://pymmcore-plus.github.io/pymmcore-plus/api/constants/#pymmcore_plus.core._constants.DeviceType.ShutterDevice)**.
+The widgets in this section can be used to **control** any `Micro-Manager` device of type [ShutterDevice](https://pymmcore-plus.github.io/pymmcore-plus/api/constants/#pymmcore_plus.core._constants.DeviceType.ShutterDevice).
 
 {{ SHUTTER_WIDGETS }}
 
 ### Stages Widgets
 
-The widgets in this section can be used to **control** any `Micro-Manager` device of type **[StageDevice](https://pymmcore-plus.github.io/pymmcore-plus/api/constants/#pymmcore_plus.core._constants.DeviceType.StageDevice)**.
+The widgets in this section can be used to **control** any `Micro-Manager` device of type [StageDevice](https://pymmcore-plus.github.io/pymmcore-plus/api/constants/#pymmcore_plus.core._constants.DeviceType.StageDevice).
 
 {{ STAGE_WIDGETS }}
 
