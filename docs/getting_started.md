@@ -32,7 +32,7 @@ The installation of the `pymmcore-widgets` package automatically includes [pymmc
 
 ## Usage
 
-For a deeper understanding of each widget's functionality, refer to their [individual documentation](./widgets/CameraWidget.md/) pages, where we provide short examples of usage.
+For a deeper understanding of each widget's functionality, refer to their [individual documentation](./widgets/CameraRoiWidget.md/) pages, where we provide short examples of usage.
 
 ### Basic usage
 
