@@ -89,67 +89,7 @@ Building a custom GUI with the widgets provided by this package requires a more 
 
 In the following example, we construct a [QWidget](https://doc.qt.io/qt-6/qwidget.html) that incorporates several `pymmcore-widgets`: [ConfigurationWidget](./widgets/ConfigurationWidget/), [ChannelGroupWidget](./widgets/ChannelGroupWidget/), [ChannelWidget](./widgets/ChannelWidget/), [DefaultCameraExposureWidget](./widgets/DefaultCameraExposureWidget/), [ImagePreview](./widgets/ImagePreview/), [SnapButton](./widgets/SnapButton/), and [LiveButton](./widgets/LiveButton/).
 
-This simple GUI enables you to load a MicroManager configuration file, snap an image or live stream images from the camera, with the flexibility to select a channel and adjust the exposure time.
-
-The code below will create a Qt application that looks like this:
-![MyWidget](./images/my_widget_example.png)
-
-We first need to create a `QWidget` class that we can call `MyWidget`:
-
-```python
-# import the necessary packages
-from qtpy.QtWidgets import QWidget
-
-
-# create a QWidget class named MyWidget
-class MyWidget(QWidget):
-    """An example QWidget that uses some of the widgets in pymmcore_widgets."""
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent=parent)
-```
-
-Then, we create the wanted `pymmcore_widgets` as shown in the [basic usage](#basic-usage) example:
-
-```python
-# Import the necessary packages
-from qtpy.QtWidgets import QWidget
-from pymmcore_plus import CMMCorePlus
-from pymmcore_widgets import (
-    ChannelGroupWidget,
-    ChannelWidget,
-    ConfigurationWidget,
-    DefaultCameraExposureWidget,
-    ImagePreview,
-    LiveButton,
-    SnapButton,
-)
-
-
-# Create a QWidget class named MyWidget
-class MyWidget(QWidget):
-    """An example QWidget that uses some of the widgets in pymmcore_widgets."""
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent=parent)
-
-        # This is not strictly necessary but we can create a Micro-Manager core
-        # nstance so that all the widgets can control the same core. If you don't
-        # create a core instance, the first widget to be instantiated will create
-        # a new core instance.
-        core = CMMCorePlus.instance()
-
-        # Create the wanted pymmcore_widgets
-        cfg = ConfigurationWidget()
-        ch_group_combo = ChannelGroupWidget()
-        ch_combo = ChannelWidget()
-        exp = DefaultCameraExposureWidget()
-        preview = ImagePreview()
-        snap = SnapButton()
-        live = LiveButton()
-```
-
-Next, we'll incorporate the created widgets into the `MyWidget` class. In Qt, a [layout](https://doc.qt.io/qt-6/layout.html) is used to add widgets to a `QWidget`. For this example, we'll employ a [QGridLayout](https://doc.qt.io/qt-6/qgridlayout.html) to organize the widgets in a grid-like arrangement:
+This simple GUI enables you to load a `Micro-Manager` configuration file, snap an image or live stream images from the camera, with the flexibility to select a channel and adjust the exposure time.
 
 ```python
 # Import the necessary packages
@@ -189,61 +129,10 @@ class MyWidget(QWidget):
         live = LiveButton()
 
         # Create the layout for MyWidget
-        layout = QGridLayout(self)
-
-        # Add the wanted pymmcore_widgets to the layout.
-        # The first two arguments of 'addWidget' specify the grid position in terms 
-        # of rows and columns. The third and fourth arguments define the span of the
-        # widget across multiple rows and columns.
-        layout.addWidget(cfg, 0, 0, 1, 3)
-        layout.addWidget(ch_group_combo, 1, 0)
-        layout.addWidget(ch_combo, 1, 1)
-        layout.addWidget(exp, 1, 2)
-        layout.addWidget(preview, 2, 0, 1, 3)
-        layout.addWidget(snap, 3, 1)
-        layout.addWidget(live, 3, 2)
-```
-
-The concluding step involves creating a [QApplication](https://doc.qt.io/qt-6/qapplication.html) and displaying the `MyWidget` class:
-
-```python
-# Import the necessary packages
-from qtpy.QtWidgets import QGridLayout, QWidget
-from pymmcore_plus import CMMCorePlus
-from pymmcore_widgets import (
-    ChannelGroupWidget,
-    ChannelWidget,
-    ConfigurationWidget,
-    DefaultCameraExposureWidget,
-    ImagePreview,
-    LiveButton,
-    SnapButton,
-)
-
-
-# Create a QWidget class named MyWidget
-class MyWidget(QWidget):
-    """An example QWidget that uses some of the widgets in pymmcore_widgets."""
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent=parent)
-
-        # This is not strictly necessary but we can create a Micro-Manager core
-        # nstance so that all the widgets can control the same core. If you don't
-        # create a core instance, the first widget to be instantiated will create
-        # a new core instance.
-        core = CMMCorePlus.instance()
-
-        # Create the wanted pymmcore_widgets
-        cfg = ConfigurationWidget()
-        ch_group_combo = ChannelGroupWidget()
-        ch_combo = ChannelWidget()
-        exp = DefaultCameraExposureWidget()
-        preview = ImagePreview()
-        snap = SnapButton()
-        live = LiveButton()
-
-        # Create the layout for MyWidget
+        # In Qt, a `layout` (https://doc.qt.io/qt-6/layout.html) is used to add
+        # widgets to a `QWidget`. For this example, we'll employ a
+        # `QGridLayout` (https://doc.qt.io/qt-6/qgridlayout.html) to organize the 
+        # widgets in a grid-like arrangement.
         layout = QGridLayout(self)
 
         # Add the wanted pymmcore_widgets to the layout.
@@ -267,5 +156,8 @@ if __name__ == "__main__":
     widget.show()
     app.exec_()
 ```
+
+The code above will create a Qt application that looks like this:
+![MyWidget](./images/my_widget_example.png)
 
 For a pre-made user interface, see [napari-micromanager](https://pypi.org/project/napari-micromanager/) ([github](https://github.com/pymmcore-plus/napari-micromanager)).
