@@ -24,16 +24,22 @@ class QLabeledSlider(superqt.QLabeledSlider):
         self._length_label = QtWidgets.QLabel()
         self.rangeChanged.connect(self._on_range_changed)
 
-        self.play_btn = QtWidgets.QPushButton(icon(MDI6.play), "", self)
+        self.play_btn = QtWidgets.QPushButton(icon(MDI6.play, color="gray"), "", self)
         self.play_btn.setMaximumWidth(24)
         self.play_btn.setCheckable(True)
         self.play_btn.toggled.connect(self._on_play_toggled)
+
+        self.lock_btn = QtWidgets.QPushButton(icon(MDI6.lock_open_outline, color="gray"), "", self)
+        self.lock_btn.setCheckable(True)
+        self.lock_btn.setMaximumWidth(24)
+        self.lock_btn.toggled.connect(self._on_lock_toggled)
 
         layout = cast(QtWidgets.QBoxLayout, self.layout())
         layout.insertWidget(0, self.play_btn, 0, QtCore.Qt.AlignmentFlag.AlignRight)
         layout.insertWidget(0, name_label)
         # FIXME: the padding/vertical alignment is a bit off here
         layout.addWidget(self._length_label, 0, QtCore.Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(self.lock_btn, 0, QtCore.Qt.AlignmentFlag.AlignVCenter)
 
     def _on_play_toggled(self, state: bool) -> None:
         if state:
@@ -42,6 +48,12 @@ class QLabeledSlider(superqt.QLabeledSlider):
         else:
             self.play_btn.setIcon(icon(MDI6.play))
             self.killTimer(self._timer_id)
+
+    def _on_lock_toggled(self, state: bool) -> None:
+        if state:
+            self.lock_btn.setIcon(icon(MDI6.lock_outline, color="red"))
+        else:
+            self.lock_btn.setIcon(icon(MDI6.lock_open_outline, color="gray"))
 
     def timerEvent(self, e: QtCore.QTimerEvent) -> None:
         self.setValue((self.value() + 1) % self.maximum())

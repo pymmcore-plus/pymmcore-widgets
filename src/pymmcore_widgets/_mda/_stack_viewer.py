@@ -298,27 +298,32 @@ class StackViewer(QtWidgets.QWidget):
         img = self.datastore.get_frame(
             (indices["t"], indices["z"], indices["c"], indices.get("g", 0))
         )
-
         # Update display
-        self.display_image(img, indices.get("c", 0), indices.get("g", 0))
-        self._set_sliders(indices)
-        # Handle Autoscaling
-        slider = self.channel_row.boxes[indices["c"]].slider
-        slider.setRange(
-            min(slider.minimum(), img.min()), max(slider.maximum(), img.max())
-        )
-        if self.channel_row.boxes[indices["c"]].autoscale_chbx.isChecked():
-            slider.setValue(
-                [min(slider.minimum(), img.min()), max(slider.maximum(), img.max())]
+        display_indices = self._set_sliders(indices)
+        if display_indices == indices:
+            self.display_image(img, indices.get("c", 0), indices.get("g", 0))
+            # Handle Autoscaling
+            clim_slider = self.channel_row.boxes[indices["c"]].slider
+            clim_slider.setRange(
+                min(clim_slider.minimum(), img.min()), max(clim_slider.maximum(), img.max())
             )
-        self.on_clim_timer(indices["c"])
+            if self.channel_row.boxes[indices["c"]].autoscale_chbx.isChecked():
+                clim_slider.setValue(
+                    [min(clim_slider.minimum(), img.min()), max(clim_slider.maximum(), img.max())]
+                )
+            self.on_clim_timer(indices["c"])
 
     def _set_sliders(self, indices: dict) -> None:
         """New indices from outside the sliders, update."""
+        display_indices = copy.deepcopy(indices)
         for slider in self.sliders:
+            if slider.lock_btn.isChecked():
+                display_indices[slider.name] = slider.value()
+                continue
             slider.blockSignals(True)
             slider.setValue(indices[slider.name])
             slider.blockSignals(False)
+        return display_indices
 
     def display_image(self, img: np.ndarray, channel: int = 0, grid: int = 0) -> None:
         self.images[channel][grid].set_data(img)
