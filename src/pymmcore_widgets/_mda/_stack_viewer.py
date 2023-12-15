@@ -4,12 +4,12 @@ import copy
 from typing import TYPE_CHECKING, Mapping
 
 import numpy as np
+from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import QTimer, Signal
-from superqt.cmap._cmap_utils import try_cast_colormap
 from superqt import fonticon
-from fonticon_mdi6 import MDI6
+from superqt.cmap._cmap_utils import try_cast_colormap
 from useq import MDASequence
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
@@ -178,7 +178,7 @@ class StackViewer(QtWidgets.QWidget):
     def _handle_channel_cmap(self, colormap: cmap.Colormap, channel: int) -> None:
         for g in range(self.ng):
             self.images[channel][g].cmap = colormap.to_vispy()
-        if not colormap.name in self.cmap_names:
+        if colormap.name not in self.cmap_names:
             self.cmap_names.append(self.cmap_names[channel])
         self.cmap_names[channel] = colormap.name
         self._canvas.update()
@@ -190,7 +190,9 @@ class StackViewer(QtWidgets.QWidget):
             ].show_channel.isChecked()
         if self.current_channel == channel:
             channel_to_set = channel - 1 if channel > 0 else channel + 1
-            self.channel_row._handle_channel_choice(self.channel_row.boxes[channel_to_set].channel)
+            self.channel_row._handle_channel_choice(
+                self.channel_row.boxes[channel_to_set].channel
+            )
         self._canvas.update()
 
     def _handle_channel_autoscale(self, state: bool, channel: int) -> None:
@@ -226,7 +228,7 @@ class StackViewer(QtWidgets.QWidget):
         self.sliders: list[LabeledVisibilitySlider] = []
         for dim in dims:
             slider = LabeledVisibilitySlider(dim, orientation=QtCore.Qt.Horizontal)
-            #TODO: this should trigger a timer instead of directly calling the function
+            # TODO: this should trigger a timer instead of directly calling the function
             slider.valueChanged.connect(self.on_display_timer)
             self._slider_settings.connect(slider._visibility)
             self.layout().addWidget(slider)
@@ -327,7 +329,7 @@ class StackViewer(QtWidgets.QWidget):
 
     def display_image(self, img: np.ndarray, channel: int = 0, grid: int = 0) -> None:
         self.images[channel][grid].set_data(img)
-        #Should we do this? Might it slow down acquisition while we are in the same thread?
+        # Should we do this? Might it slow down acquisition while we are in the same thread?
         self._canvas.update()
 
     def on_clim_timer(self, channel: int | None = None) -> None:
@@ -359,18 +361,26 @@ class StackViewer(QtWidgets.QWidget):
             self._expand_canvas_view(sub_event)
         else:
             trans.translate((self.img_size[0], 0, 0))
-            self.view_rect = ((0 + self.img_size[0]/2,
-                               0 - self.img_size[1]/2), (self.img_size[0], self.img_size[1]))
+            self.view_rect = (
+                (0 + self.img_size[0] / 2, 0 - self.img_size[1] / 2),
+                (self.img_size[0], self.img_size[1]),
+            )
         return trans
 
     def _expand_canvas_view(self, event: MDAEvent) -> None:
         """Expand the canvas view to include the new image."""
-        img_position = (-event.x_pos / self.pixel_size - self.img_size[0]/2,
-                        -event.x_pos / self.pixel_size + self.img_size[0]/2,
-                        event.y_pos / self.pixel_size - self.img_size[1]/2,
-                        event.y_pos / self.pixel_size + self.img_size[1]/2)
-        camera_rect = [self.view_rect[0][0], self.view_rect[0][0] + self.view_rect[1][0],
-                       self.view_rect[0][1], self.view_rect[0][1] + self.view_rect[1][1]]
+        img_position = (
+            -event.x_pos / self.pixel_size - self.img_size[0] / 2,
+            -event.x_pos / self.pixel_size + self.img_size[0] / 2,
+            event.y_pos / self.pixel_size - self.img_size[1] / 2,
+            event.y_pos / self.pixel_size + self.img_size[1] / 2,
+        )
+        camera_rect = [
+            self.view_rect[0][0],
+            self.view_rect[0][0] + self.view_rect[1][0],
+            self.view_rect[0][1],
+            self.view_rect[0][1] + self.view_rect[1][1],
+        ]
         if camera_rect[0] > img_position[0]:
             camera_rect[0] = img_position[0]
         if camera_rect[1] < img_position[1]:
@@ -379,8 +389,10 @@ class StackViewer(QtWidgets.QWidget):
             camera_rect[2] = img_position[2]
         if camera_rect[3] < img_position[3]:
             camera_rect[3] = img_position[3]
-        self.view_rect = ((camera_rect[0], camera_rect[2]),
-                          (camera_rect[1]-camera_rect[0], camera_rect[3]-camera_rect[2]))
+        self.view_rect = (
+            (camera_rect[0], camera_rect[2]),
+            (camera_rect[1] - camera_rect[0], camera_rect[3] - camera_rect[2]),
+        )
 
     def complement_indices(self, index: Mapping[str, int]) -> dict:
         """MDAEvents not always have all the dimensions, complement."""
@@ -401,9 +413,13 @@ class StackViewer(QtWidgets.QWidget):
         self.cmap_names = self.qt_settings.value("cmaps", ["gray", "cyan", "magenta"])
 
     def _collapse_view(self):
-        view_rect = ((self.view_rect[0][0] - self.img_size[0]/2,
-                     self.view_rect[0][1] + self.img_size[1]/2),
-                     self.view_rect[1])
+        view_rect = (
+            (
+                self.view_rect[0][0] - self.img_size[0] / 2,
+                self.view_rect[0][1] + self.img_size[1] / 2,
+            ),
+            self.view_rect[1],
+        )
         self.view.camera.rect = view_rect
 
     def closeEvent(self, e):
