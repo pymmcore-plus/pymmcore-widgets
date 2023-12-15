@@ -29,7 +29,9 @@ class QLabeledSlider(superqt.QLabeledSlider):
         self.play_btn.setCheckable(True)
         self.play_btn.toggled.connect(self._on_play_toggled)
 
-        self.lock_btn = QtWidgets.QPushButton(icon(MDI6.lock_open_outline, color="gray"), "", self)
+        self.lock_btn = QtWidgets.QPushButton(
+            icon(MDI6.lock_open_outline, color="gray"), "", self
+        )
         self.lock_btn.setCheckable(True)
         self.lock_btn.setMaximumWidth(24)
         self.lock_btn.toggled.connect(self._on_lock_toggled)

@@ -307,11 +307,15 @@ class StackViewer(QtWidgets.QWidget):
             # Handle Autoscaling
             clim_slider = self.channel_row.boxes[indices["c"]].slider
             clim_slider.setRange(
-                min(clim_slider.minimum(), img.min()), max(clim_slider.maximum(), img.max())
+                min(clim_slider.minimum(), img.min()),
+                max(clim_slider.maximum(), img.max()),
             )
             if self.channel_row.boxes[indices["c"]].autoscale_chbx.isChecked():
                 clim_slider.setValue(
-                    [min(clim_slider.minimum(), img.min()), max(clim_slider.maximum(), img.max())]
+                    [
+                        min(clim_slider.minimum(), img.min()),
+                        max(clim_slider.maximum(), img.max()),
+                    ]
                 )
             self.on_clim_timer(indices["c"])
 
