@@ -6,7 +6,6 @@ try:
     __version__ = version("pymmcore-widgets")
 except PackageNotFoundError:
     __version__ = "uninstalled"
-import warnings
 
 from ._camera_roi_widget import CameraRoiWidget
 from ._channel_group_widget import ChannelGroupWidget
@@ -55,10 +54,6 @@ def __getattr__(name: str) -> object:
             stacklevel=2,
         )
         return GridPlanWidget
-    raise AttributeError(f"module {__name__} has no attribute {name}")
-
-
-def __getattr__(name: str) -> object:
     if name == "PixelSizeWidget":
         warnings.warn(
             "PixelSizeWidget is deprecated, "
