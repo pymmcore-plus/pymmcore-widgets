@@ -203,25 +203,21 @@ def test_pixel_config_wdg_errors(qtbot: QtBot, global_mmcore: CMMCorePlus):
     def _show_msg(msg: str):
         return msg
 
-    wdg.setValue([PixelSizePreset("", [Setting["Camera", "AllowMultiROI", "0"]], 0.5)])
+    wdg.setValue([PixelSizePreset("", [Setting("Camera", "AllowMultiROI", "0")], 0.5)])
     with patch.object(wdg, "_show_error_message", _show_msg):
         assert wdg._check_for_errors() == "All resolutionIDs must have a name."
 
     wdg.setValue(
         [
-            PixelSizePreset("test", [Setting["Camera", "AllowMultiROI", "0"]], 0.5),
-            PixelSizePreset("test", [Setting["Camera", "AllowMultiROI", "1"]], 1),
+            PixelSizePreset("test", [Setting("Camera", "AllowMultiROI", "0")], 0.5),
+            PixelSizePreset("test", [Setting("Camera", "AllowMultiROI", "1")], 1),
         ]
     )
     with patch.object(wdg, "_show_error_message", _show_msg):
         assert wdg._check_for_errors() == "There are duplicated resolutionIDs: ['test']"
 
-    wdg.setValue(
-        [
-            PixelSizePreset("test1", [Setting["Camera", "AllowMultiROI", "0"]], 0.5),
-            PixelSizePreset("test2", [], 1),
-        ]
-    )
+    wdg.setValue([PixelSizePreset("test2", [], 1)])
+
     with patch.object(wdg, "_show_error_message", _show_msg):
         assert wdg._check_for_errors() == (
             "Each resolutionID must have at least one property."
