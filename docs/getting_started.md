@@ -85,13 +85,15 @@ You can add to this simple code any other widgets from this package to control a
 
 ### Custom GUI
 
-Building a custom GUI with the widgets provided by this package requires a more in-depth understanding of the Qt environment, such as [PyQt6](https://pypi.org/project/PyQt6/).
+Creating a custom GUI with the widgets from this package requires a deeper understanding of the Qt environment, such as [PyQt6](https://pypi.org/project/PyQt6/). However, this documentation does not primarily focus on this aspect.
 
-In the following example, we construct a [QWidget](https://doc.qt.io/qt-6/qwidget.html) that incorporates several `pymmcore-widgets`: [ConfigurationWidget](./widgets/ConfigurationWidget/), [ChannelGroupWidget](./widgets/ChannelGroupWidget/), [ChannelWidget](./widgets/ChannelWidget/), [DefaultCameraExposureWidget](./widgets/DefaultCameraExposureWidget/), [ImagePreview](./widgets/ImagePreview/), [SnapButton](./widgets/SnapButton/), and [LiveButton](./widgets/LiveButton/).
+As shown in the video below, in this section, we only provide a simple example to illustrate the process of building a custom GUI using some of the `pymmcore-widgets`.
 
 ![MyWidget](./images/MyWidget.mov)
 
-This simple GUI enables you to load a `Micro-Manager` configuration file, snap an image or live stream images from the camera, with the flexibility to select a channel and adjust the exposure time.
+Here we create a [Qt Application](https://doc.qt.io/qt-6/qapplication.html) with a general-purpose [QWidget](https://doc.qt.io/qt-6/qwidget.html) that incorporates a variety of `pymmcore-widgets`: [ConfigurationWidget](./widgets/ConfigurationWidget/), [ChannelGroupWidget](./widgets/ChannelGroupWidget/), [ChannelWidget](./widgets/ChannelWidget/), [DefaultCameraExposureWidget](./widgets/DefaultCameraExposureWidget/), [ImagePreview](./widgets/ImagePreview/), [SnapButton](./widgets/SnapButton/), and [LiveButton](./widgets/LiveButton/).
+
+This simple GUI can be used to load a `Micro-Manager` configuration file, snap an image or live stream images from the camera, with the flexibility to select a channel and adjust the exposure time.
 
 ```python
 # Import the necessary packages
@@ -140,7 +142,7 @@ class MyWidget(QWidget):
         # Add the wanted pymmcore_widgets to the layout.
         # The first two arguments of 'addWidget' specify the grid position
         # in terms of rows and columns. The third and fourth arguments
-        # define the span of the # widget across multiple rows and columns.
+        # define the span of the widget across multiple rows and columns.
         layout.addWidget(cfg, 0, 0, 1, 3)
         layout.addWidget(ch_group_combo, 1, 0)
         layout.addWidget(ch_combo, 1, 1)
