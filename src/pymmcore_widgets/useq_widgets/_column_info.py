@@ -325,11 +325,15 @@ class QQuantityValidator(QValidator):
         return None  # pragma: no cover
 
 
-pattern = r"^(?:(?P<hours>\d+):)?(?:(?P<min>\d+):)?(?P<sec>\d+)?(?:[.,](?P<frac>\d+))?$"
+time_pattern = re.compile(
+    r"^(?:(?P<hours>\d+):)?(?:(?P<min>\d+):)?(?P<sec>\d+)?(?:[.,](?P<frac>\d+))?$"
+)
 
 
+# dateutil is a better way to parse time intervals...
+# but it's an additional dependency for a tiny feature
 def parse_timedelta(time_str: str) -> timedelta:
-    match = re.match(pattern, time_str)
+    match = time_pattern.match(time_str)
 
     if not match:  # pragma: no cover
         raise ValueError(f"Invalid time interval format: {time_str}")

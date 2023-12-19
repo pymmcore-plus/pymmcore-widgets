@@ -468,5 +468,14 @@ def test_mda_wdg_with_autofocus(qtbot: QtBot) -> None:
 
 
 def test_parse_time() -> None:
-    assert parse_timedelta("1") == timedelta(seconds=1)
+    assert parse_timedelta("2") == timedelta(seconds=2)
     assert parse_timedelta("0.5") == timedelta(seconds=0.5)
+    assert parse_timedelta("0.500") == timedelta(seconds=0.5)
+    assert parse_timedelta("0.75") == timedelta(seconds=0.75)
+    # this syntax still fails... it assumes the 2 is hours, and the 30 is seconds...
+    # assert parse_timedelta("2:30") == timedelta(minutes=2, seconds=30)
+    assert parse_timedelta("1:20:15") == timedelta(hours=1, minutes=20, seconds=15)
+    assert parse_timedelta("0:00:00.500000") == timedelta(seconds=0.5)
+    assert parse_timedelta("3:40:10.500") == timedelta(
+        hours=3, minutes=40, seconds=10.5
+    )
