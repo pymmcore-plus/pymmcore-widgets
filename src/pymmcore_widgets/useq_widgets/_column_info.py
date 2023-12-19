@@ -325,7 +325,7 @@ class QQuantityValidator(QValidator):
         return None  # pragma: no cover
 
 
-pattern = r"(?:(?P<hours>\d+):)?(?:(?P<min>\d+):)?(?P<sec>\d+)([.,](?P<ms>\d+))?"
+pattern = r"^(?:(?P<hours>\d+):)?(?:(?P<min>\d+):)?(?P<sec>\d+)?(?:[.,](?P<frac>\d+))?$"
 
 
 def parse_timedelta(time_str: str) -> timedelta:
@@ -336,9 +336,10 @@ def parse_timedelta(time_str: str) -> timedelta:
 
     hours = int(match["hours"]) if match["hours"] else 0
     minutes = int(match["min"]) if match["min"] else 0
-    seconds = int(match["sec"])
-    ms = int(match["ms"]) if match["ms"] else 0
-    return timedelta(hours=hours, minutes=minutes, seconds=seconds, microseconds=ms)
+    seconds = int(match["sec"]) if match["sec"] else 0
+    frac_sec = match["frac"]
+    frac_sec = float(f"0.{frac_sec}") if frac_sec else 0
+    return timedelta(hours=hours, minutes=minutes, seconds=seconds + frac_sec)
 
 
 class QQuantityLineEdit(QLineEdit):
@@ -405,8 +406,10 @@ class QQuantityLineEdit(QLineEdit):
 
 
 class QTimeLineEdit(QQuantityLineEdit):
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(None, parent)
+    def __init__(
+        self, contents: str | None = None, parent: QWidget | None = None
+    ) -> None:
+        super().__init__(contents, parent)
         self.setDimensionality("second")
         self.setStyleSheet("QLineEdit { border: none; }")
 

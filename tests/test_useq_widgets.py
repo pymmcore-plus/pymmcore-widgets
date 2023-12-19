@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pint
@@ -22,8 +23,9 @@ from pymmcore_widgets.useq_widgets import (
 )
 from pymmcore_widgets.useq_widgets._column_info import (
     FloatColumn,
-    QQuantityLineEdit,
+    QTimeLineEdit,
     TextColumn,
+    parse_timedelta,
 )
 from pymmcore_widgets.useq_widgets._positions import MDAButton, QFileDialog, _MDAPopup
 
@@ -132,7 +134,7 @@ def test_mda_wdg(qtbot: QtBot):
 @pytest.mark.parametrize("ext", ["json", "yaml", "foo"])
 def test_mda_wdg_load_save(
     qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str
-):
+) -> None:
     from pymmcore_widgets.useq_widgets._mda_sequence import QFileDialog
 
     wdg = MDASequenceWidget()
@@ -166,8 +168,8 @@ def test_mda_wdg_load_save(
         assert dest.read_text() == mda_no_meta.yaml(exclude_defaults=True)
 
 
-def test_qquant_line_edit(qtbot: QtBot):
-    wdg = QQuantityLineEdit("1 s")
+def test_qquant_line_edit(qtbot: QtBot) -> None:
+    wdg = QTimeLineEdit("1.0 s")
     wdg.show()
     qtbot.addWidget(wdg)
     wdg.setUreg(pint.UnitRegistry())
@@ -411,7 +413,7 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     assert wdg.fovWidth() == 6
 
 
-def test_proper_checked_index(qtbot):
+def test_proper_checked_index(qtbot) -> None:
     """Testing that the proper tab is checked when setting a value
 
     https://github.com/pymmcore-plus/pymmcore-widgets/issues/205
@@ -436,7 +438,7 @@ AF1 = useq.MDASequence(
 )
 
 
-def test_mda_wdg_with_autofocus(qtbot: QtBot):
+def test_mda_wdg_with_autofocus(qtbot: QtBot) -> None:
     wdg = MDASequenceWidget()
     qtbot.addWidget(wdg)
     wdg.show()
@@ -463,3 +465,8 @@ def test_mda_wdg_with_autofocus(qtbot: QtBot):
     assert wdg.value().autofocus_plan
     assert not wdg.value().stage_positions[0].sequence
     assert not wdg.value().stage_positions[1].sequence
+
+
+def test_parse_time() -> None:
+    assert parse_timedelta("1") == timedelta(seconds=1)
+    assert parse_timedelta("0.5") == timedelta(seconds=0.5)
