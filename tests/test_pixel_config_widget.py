@@ -203,7 +203,8 @@ def test_pixel_config_wdg_errors(qtbot: QtBot, global_mmcore: CMMCorePlus):
     def _show_msg(msg: str):
         return msg
 
-    wdg.setValue([PixelSizePreset("", [Setting["Camera", "AllowMultiROI", "0"]], 0.5)])
+    settings = Setting["Camera", "AllowMultiROI", "0"]
+    wdg.setValue([PixelSizePreset("", [settings], 0.5)])
     with patch.object(wdg, "_show_error_message", _show_msg):
         assert wdg._check_for_errors() == "All resolutionIDs must have a name."
 
