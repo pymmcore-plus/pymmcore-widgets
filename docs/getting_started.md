@@ -118,7 +118,7 @@ class MyWidget(QWidget):
         super().__init__(parent=parent)
 
         # This is not strictly necessary but we can create a Micro-Manager core
-        # nstance so that all the widgets can control the same core. If you don't
+        # instance so that all the widgets can control the same core. If you don't
         # create a core instance, the first widget to be instantiated will create
         # a new core instance.
         core = CMMCorePlus.instance()
