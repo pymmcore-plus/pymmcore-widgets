@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 from fonticon_mdi6 import MDI6
-from pymmcore_plus import ImageSequenceWriter
+from pymmcore_plus.mda.handlers._img_sequence_writer import ImageSequenceWriter
 from qtpy.QtCore import QSize
 from qtpy.QtWidgets import QFileDialog, QPushButton, QWidget
 from superqt import fonticon
