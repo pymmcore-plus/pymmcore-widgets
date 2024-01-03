@@ -4,7 +4,6 @@ from useq import MDASequence
 from vispy.app.canvas import MouseEvent
 from vispy.scene.events import SceneMouseEvent
 
-
 from pymmcore_widgets._mda._stack_viewer import StackViewer
 from pymmcore_widgets._mda._util._channel_row import CMAPS
 
