@@ -3,9 +3,12 @@ from qtpy.QtWidgets import QApplication
 
 from pymmcore_widgets.hcwizard.config_wizard import ConfigWizard
 
-core = CMMCorePlus.instance()
-app = (inst := QApplication.instance()) or QApplication([])
+app = QApplication([])
+
+mmc = CMMCorePlus().instance()
+mmc.loadSystemConfiguration()
+
 wiz = ConfigWizard()
 wiz.show()
-if not inst:
-    app.exec_()
+
+app.exec_()

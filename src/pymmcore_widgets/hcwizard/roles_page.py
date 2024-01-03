@@ -1,6 +1,5 @@
 from pymmcore_plus import CMMCorePlus, DeviceType, Keyword
 from pymmcore_plus.model import Microscope
-from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QCheckBox, QComboBox, QFormLayout
 from superqt.utils import signals_blocked
 
@@ -85,6 +84,6 @@ class RolesPage(ConfigWizardPage):
     def _on_focus_changed(self, text: str) -> None:
         self._model.core_device.set_property(Keyword.CoreFocus, text)
 
-    def _on_auto_shutter_changed(self, state: Qt.CheckState) -> None:
-        val = "1" if state == Qt.CheckState.Checked else "0"
+    def _on_auto_shutter_changed(self, state: int) -> None:
+        val = "1" if bool(state) else "0"
         self._model.core_device.set_property(Keyword.CoreAutoShutter, val)

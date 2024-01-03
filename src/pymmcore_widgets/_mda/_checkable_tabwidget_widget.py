@@ -39,6 +39,7 @@ class CheckableTabWidget(QTabWidget):
 
         self.change_tab_on_check = change_tab_on_check
         self.tabBar().setElideMode(Qt.TextElideMode.ElideNone)
+        self._cboxes: list[QCheckBox] = []
 
     def isChecked(
         self,
@@ -173,15 +174,17 @@ class CheckableTabWidget(QTabWidget):
     ) -> int:
         """Insert `widget` in a tab with a checkable QCheckbox at the given index."""
         super().insertTab(index, widget, *args)
-        self._cbox = QCheckBox(parent=self.tabBar())
+        cbox = QCheckBox(parent=self)
+        # not sure why, but retaining a pointer to cbox seems to be necessary
+        # for self.tabBar().tabButton(idx, position) to later return a QCheckBox
+        # (instead of some other QWidget).
+        self._cboxes.append(cbox)
         if widget is not None:
             widget.setEnabled(checked)
-            self._cbox.toggled.connect(
-                lambda c: self._on_tab_checkbox_toggled(c, widget)
-            )
+            cbox.toggled.connect(lambda c: self._on_tab_checkbox_toggled(c, widget))
         if tab_bar := self.tabBar():
-            tab_bar.setTabButton(index, position, self._cbox)
-            self._cbox.setChecked(checked)
+            tab_bar.setTabButton(index, position, cbox)
+            cbox.setChecked(checked)
         return index
 
     def _on_tab_checkbox_toggled(self, checked: bool, wdg: QWidget) -> None:

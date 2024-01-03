@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
+from unittest.mock import patch
 
 import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QFileDialog
 
 from pymmcore_widgets import PresetsWidget
 from pymmcore_widgets._group_preset_widget._add_group_widget import AddGroupWidget
@@ -288,3 +292,17 @@ def test_delete_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert "LowRes" not in mmc.getAvailableConfigs("Camera")
     wdg = cast(PresetsWidget, gp.table_wdg.cellWidget(camera_group_row, 1))
     assert "LowRes" not in wdg.allowedValues()
+
+
+def test_save_cfg(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    with tempfile.TemporaryDirectory() as tmp:
+
+        def _path(*args, **kwargs):
+            return Path(tmp) / "test", None
+
+        with patch.object(QFileDialog, "getSaveFileName", _path):
+            gp = GroupPresetTableWidget()
+            qtbot.addWidget(gp)
+
+            gp._save_cfg()
+            assert (Path(tmp) / "test.cfg").exists()
