@@ -54,6 +54,7 @@ class QLocalDataStore(QtCore.QObject):
             self._mmc.mda.events.frameReady.connect(self.on_frame_ready)
 
         def on_frame_ready(self, img: np.ndarray, event: MDAEvent) -> None:
+            print("FRAME READY in DATASTORE LISTENER")
             if event:
                 self.frame_ready.emit(img, event)
 
@@ -74,6 +75,7 @@ class QLocalDataStore(QtCore.QObject):
             self.new_frame(img, event)
             return
         self.frame_ready.emit(event)
+        print("FRAME IN LOCAL DATASTORE")
 
     def get_frame(self, key: tuple) -> np.ndarray:
         return np.array(self.array[key])
@@ -101,4 +103,3 @@ class QLocalDataStore(QtCore.QObject):
     def __del__(self) -> None:
         self.listener.exit()
         self.listener.wait()
-        super().__del__()

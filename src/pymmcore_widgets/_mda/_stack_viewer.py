@@ -76,8 +76,6 @@ class StackViewer(QtWidgets.QWidget):
         self._create_sliders(sequence)
 
         self.datastore = datastore
-        self._mmc.mda.events.sequenceStarted.connect(self.on_sequence_start)
-        self.datastore.frame_ready.connect(self.on_frame_ready)
 
         self._new_channel.connect(self.channel_row.box_visibility)
 
@@ -288,12 +286,12 @@ class StackViewer(QtWidgets.QWidget):
                 self.display_image(frame, c, g)
         self._canvas.update()
 
-    def on_frame_ready(self, event: MDAEvent) -> None:
+    def frameReady(self, event: MDAEvent) -> None:
         """Frame received from acquisition, display the image, update sliders etc."""
         if not self.ready:
             timer = QTimer()
             timer.setSingleShot(True)
-            timer.timeout.connect(lambda: self.on_frame_ready(event))
+            timer.timeout.connect(lambda: self.frameReady(event))
             timer.start(100)
             return
         indices = self.complement_indices(event.index)
@@ -403,8 +401,9 @@ class StackViewer(QtWidgets.QWidget):
         return indices
 
     def _disconnect(self) -> None:
-        self._mmc.mda.events.sequenceStarted.disconnect(self.on_sequence_start)
-        self.datastore.frame_ready.disconnect(self.on_frame_ready)
+        pass
+        # self._mmc.mda.events.sequenceStarted.disconnect(self.on_sequence_start)
+        # self.datastore.frame_ready.disconnect(self.on_frame_ready)
 
     def _reload_position(self) -> None:
         self.qt_settings = QtCore.QSettings("pymmcore_plus", self.__class__.__name__)
