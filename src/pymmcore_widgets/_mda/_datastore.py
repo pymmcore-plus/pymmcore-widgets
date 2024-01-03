@@ -20,6 +20,7 @@ class QOMEZarrDatastore(OMEZarrWriter):
     ) -> None:
         super().frameReady(frame, event, meta)
         self.frame_ready.emit(event)
+        print("FRAME IN LOCAL DATASTORE")
 
     def get_frame(self, event) -> np.ndarray:
         key = f'{POS_PREFIX}{event.index.get("p", 0)}'

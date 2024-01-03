@@ -297,12 +297,12 @@ class StackViewer(QtWidgets.QWidget):
                 self.display_image(frame, c, g)
         self._canvas.update()
 
-    def on_frame_ready(self, event: MDAEvent) -> None:
+    def frameReady(self, event: MDAEvent) -> None:
         """Frame received from acquisition, display the image, update sliders etc."""
         if not self.ready:
             timer = QTimer()
             timer.setSingleShot(True)
-            timer.timeout.connect(lambda: self.on_frame_ready(event))
+            timer.timeout.connect(lambda: self.frameReady(event))
             timer.start(100)
             return
         indices = self.complement_indices(event.index)
