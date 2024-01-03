@@ -10,7 +10,7 @@ from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import QTimer, Signal
 from superqt import fonticon
 from superqt.cmap._cmap_utils import try_cast_colormap
-from useq import MDASequence
+from useq import MDASequence, MDAEvent
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
 from pymmcore_widgets._mda._util._labeled_slider import LabeledVisibilitySlider
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from vispy.scene.events import SceneMouseEvent
 
     from pymmcore_widgets._mda._datastore import QLocalDataStore
+    from ._datastore import QOMEZarrDatastore
 
 
 class StackViewer(QtWidgets.QWidget):
@@ -43,7 +44,7 @@ class StackViewer(QtWidgets.QWidget):
 
     def __init__(
         self,
-        datastore: QLocalDataStore,
+        datastore: QOMEZarrDatastore | None = None,
         sequence: MDASequence | None = None,
         mmcore: CMMCorePlus | None = None,
         parent: QWidget | None = None,
@@ -55,29 +56,34 @@ class StackViewer(QtWidgets.QWidget):
         """
         super().__init__(parent=parent)
         self._reload_position()
-        self._mmc = mmcore or CMMCorePlus.instance()
         self.sequence = sequence
         self.canvas_size = size
         self.transform = transform
+        self.datastore = datastore
+        self._mmc = mmcore
         self._clim = "auto"
         self.cmaps = [try_cast_colormap(x) for x in self.cmap_names]
         self.display_index = {dim: 0 for dim in DIMENSIONS}
 
-        self.setLayout(QtWidgets.QVBoxLayout())
+        self.main_layout = QtWidgets.QVBoxLayout()
+        self.setLayout(self.main_layout)
         self.construct_canvas()
-        self.layout().addWidget(self._canvas.native)
+        self.main_layout.addWidget(self._canvas.native)
 
         self.info_bar = QtWidgets.QLabel()
         self.info_bar.setSizePolicy(
             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
         )
-        self.layout().addWidget(self.info_bar)
+        self.main_layout.addWidget(self.info_bar)
 
         self._create_sliders(sequence)
 
-        self.datastore = datastore
-        self._mmc.mda.events.sequenceStarted.connect(self.on_sequence_start)
-        self.datastore.frame_ready.connect(self.on_frame_ready)
+        if self.datastore:
+            self.datastore.frame_ready.connect(self.on_frame_ready)
+
+        if self._mmc:
+            # Otherwise connect via listeners_connected or manually
+            self._mmc.mda.events.sequenceStarted.connect(self.on_sequence_start)
 
         self._new_channel.connect(self.channel_row.box_visibility)
 
@@ -97,7 +103,7 @@ class StackViewer(QtWidgets.QWidget):
         self.collapse_btn.clicked.connect(self._collapse_view)
         self.bottom_buttons = QtWidgets.QHBoxLayout()
         self.bottom_buttons.addWidget(self.collapse_btn)
-        self.layout().addLayout(self.bottom_buttons)
+        self.main_layout.addLayout(self.bottom_buttons)
 
         if sequence:
             self.on_sequence_start(sequence)
@@ -105,9 +111,9 @@ class StackViewer(QtWidgets.QWidget):
     def construct_canvas(self) -> None:
         if self.canvas_size:
             self.img_size = self.canvas_size
-        else:
+        elif self._mmc:
             self.img_size = (self._mmc.getImageHeight(), self._mmc.getImageWidth())
-        if self.img_size == (0, 0):
+        else:
             self.img_size = (512, 512)
         self._canvas = scene.SceneCanvas(
             size=self.img_size, parent=self, keys="interactive"
@@ -128,7 +134,7 @@ class StackViewer(QtWidgets.QWidget):
         """Sequence started by the mmcore. Adjust our settings, make layers etc."""
         self.ready = False
         self.sequence = sequence
-        self.pixel_size = self._mmc.getPixelSizeUm()
+        self.pixel_size = self._mmc.getPixelSizeUm() if self._mmc else 1
         # Sliders
         for dim in DIMENSIONS[:3]:
             if sequence.sizes.get(dim, 1) > 1:
@@ -139,15 +145,15 @@ class StackViewer(QtWidgets.QWidget):
                 self._slider_settings.emit({"index": dim, "show": False, "max": 1})
 
         # Channels
-        nc = sequence.sizes.get("c", 1)
-        self.ng = sequence.sizes.get("g", 1)
+        nc = max(sequence.sizes.get("c", 1), 1)
+        self.ng = max(sequence.sizes.get("g", 1), 1)
         self.images = []
 
         for c in range(nc):
             self.images.append([])
             for g in range(self.ng):
                 image = scene.visuals.Image(
-                    np.zeros(self._canvas.size).astype(self.datastore.dtype),
+                    np.zeros(self._canvas.size).astype(np.uint16),
                     parent=self.view.scene,
                     cmap=self.cmaps[c].to_vispy(),
                     clim=(0, 1),
@@ -158,6 +164,8 @@ class StackViewer(QtWidgets.QWidget):
                 image.interactive = True
                 if c > 0:
                     image.set_gl_state("additive", depth_test=False)
+                else:
+                    image.set_gl_state(depth_test=False)
                 self.images[c].append(image)
             self.current_channel = c
             self._new_channel.emit(c, sequence.channels[c].config)
@@ -229,7 +237,7 @@ class StackViewer(QtWidgets.QWidget):
         for dim in dims:
             slider = LabeledVisibilitySlider(dim, orientation=QtCore.Qt.Horizontal)
             # TODO: this should trigger a timer instead of directly calling the function
-            slider.valueChanged.connect(self.on_display_timer)
+            slider.sliderMoved.connect(self.on_display_timer)
             self._slider_settings.connect(slider._visibility)
             self.layout().addWidget(slider)
             slider.hide()
@@ -280,10 +288,11 @@ class StackViewer(QtWidgets.QWidget):
             return
         if (sequence := self.sequence) is None:
             return
-        for g in range(sequence.sizes.get("g", 1)):
+        for g in range(self.ng):
             for c in range(sequence.sizes.get("c", 1)):
-                frame = self.datastore.get_frame(
-                    (self.display_index["t"], self.display_index["z"], c, g)
+                frame = self.datastore.get_frame(MDAEvent(index =
+                    {"t": self.display_index["t"], "z": self.display_index["z"], "c": c, "g": g,
+                     "p": 0})
                 )
                 self.display_image(frame, c, g)
         self._canvas.update()
@@ -297,9 +306,7 @@ class StackViewer(QtWidgets.QWidget):
             timer.start(100)
             return
         indices = self.complement_indices(event.index)
-        img = self.datastore.get_frame(
-            (indices["t"], indices["z"], indices["c"], indices.get("g", 0))
-        )
+        img = self.datastore.get_frame(event)
         # Update display
         display_indices = self._set_sliders(indices)
         if display_indices == indices:
@@ -326,9 +333,11 @@ class StackViewer(QtWidgets.QWidget):
             if slider.lock_btn.isChecked():
                 display_indices[slider.name] = slider.value()
                 continue
-            slider.blockSignals(True)
-            slider.setValue(indices[slider.name])
-            slider.blockSignals(False)
+            # This blocking doesn't seem to work
+            #blocked = slider.blockSignals(True)
+            slider.setValue(display_indices[slider.name])
+            # slider.setValue(indices[slider.name])
+            #slider.blockSignals(blocked)
         return display_indices
 
     def display_image(self, img: np.ndarray, channel: int = 0, grid: int = 0) -> None:
@@ -407,7 +416,8 @@ class StackViewer(QtWidgets.QWidget):
         return indices
 
     def _disconnect(self) -> None:
-        self._mmc.mda.events.sequenceStarted.disconnect(self.on_sequence_start)
+        if self._mmc:
+            self._mmc.mda.events.sequenceStarted.disconnect(self.on_sequence_start)
         self.datastore.frame_ready.disconnect(self.on_frame_ready)
 
     def _reload_position(self) -> None:
