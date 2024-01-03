@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Mapping
 
 import numpy as np
 from fonticon_mdi6 import MDI6
-from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import QTimer, Signal
 from superqt import fonticon
@@ -14,6 +13,8 @@ from useq import MDAEvent, MDASequence
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
 from pymmcore_widgets._mda._util._labeled_slider import LabeledVisibilitySlider
+
+from ._datastore import QOMEZarrDatastore
 
 DIMENSIONS = ["t", "z", "c", "p", "g"]
 AUTOCLIM_RATE = 1  # Hz   0 = inf
@@ -28,15 +29,19 @@ except ImportError as e:
 
 if TYPE_CHECKING:
     import cmap
+    from pymmcore_plus import CMMCorePlus
+    from qtpy.QtCore import QCloseEvent
     from qtpy.QtWidgets import QWidget
-    from useq import MDAEvent, MDASequence
     from vispy.scene.events import SceneMouseEvent
-
-    from ._datastore import QOMEZarrDatastore
 
 
 class StackViewer(QtWidgets.QWidget):
-    """A viewer for MDA acquisitions started by MDASequence in pymmcore-plus events."""
+    """A viewer for MDA acquisitions started by MDASequence in pymmcore-plus events.
+
+    Parameters
+    ----------
+    transform: (int, bool, bool) rotation mirror_x mirror_y.
+    """
 
     _slider_settings = Signal(dict)
     _new_channel = Signal(int, str)
@@ -50,15 +55,11 @@ class StackViewer(QtWidgets.QWidget):
         size: tuple[int, int] | None = None,
         transform: tuple[int, bool, bool] = (0, True, False),
     ):
-        """Create a new StackViewer widget.
-        transform: (int, bool, bool) rotation mirror_x mirror_y
-        """
         super().__init__(parent=parent)
         self._reload_position()
         self.sequence = sequence
         self.canvas_size = size
         self.transform = transform
-        self.datastore = datastore
         self._mmc = mmcore
         self._clim = "auto"
         self.cmaps = [try_cast_colormap(x) for x in self.cmap_names]
@@ -77,8 +78,25 @@ class StackViewer(QtWidgets.QWidget):
 
         self._create_sliders(sequence)
 
-        if self.datastore:
-            self.datastore.frame_ready.connect(self.on_frame_ready)
+        self.datastore = datastore or QOMEZarrDatastore()
+        if datastore:
+            self.datastore.frame_ready.connect(self.frameReady)
+        else:
+            self.datastore.frame_ready.connect(self.frameReady)
+            if self._mmc:
+                self._mmc.mda.events.frameReady.connect(self.datastore.frameReady)
+                self._mmc.mda.events.sequenceFinished.connect(
+                    self.datastore.sequenceFinished
+                )
+                self._mmc.mda.events.sequenceStarted.connect(
+                    self.datastore.sequenceStarted
+                )
+            else:
+                import warnings
+
+                warnings.warn(
+                    "No datastore or mmcore provided, connect manually.", stacklevel=2
+                )
 
         if self._mmc:
             # Otherwise connect via listeners_connected or manually
@@ -218,7 +236,7 @@ class StackViewer(QtWidgets.QWidget):
 
     def _create_sliders(self, sequence: MDASequence | None = None) -> None:
         n_channels = 5 if sequence is None else sequence.sizes["c"]
-        self.channel_row = ChannelRow(n_channels, self.cmaps)
+        self.channel_row: ChannelRow = ChannelRow(n_channels, self.cmaps)
         self.channel_row.visible.connect(self._handle_channel_visibility)
         self.channel_row.autoscale.connect(self._handle_channel_autoscale)
         self.channel_row.new_clims.connect(self._handle_channel_clim)
@@ -332,7 +350,7 @@ class StackViewer(QtWidgets.QWidget):
                 )
             self.on_clim_timer(indices["c"])
 
-    def _set_sliders(self, indices: dict) -> None:
+    def _set_sliders(self, indices: dict) -> dict:
         """New indices from outside the sliders, update."""
         display_indices = copy.deepcopy(indices)
         for slider in self.sliders:
@@ -348,7 +366,7 @@ class StackViewer(QtWidgets.QWidget):
 
     def display_image(self, img: np.ndarray, channel: int = 0, grid: int = 0) -> None:
         self.images[channel][grid].set_data(img)
-        # Should we do this? Might it slow down acquisition while we are in the same thread?
+        # Should we do this? Might it slow down acquisition while in the same thread?
         self._canvas.update()
 
     def on_clim_timer(self, channel: int | None = None) -> None:
@@ -366,14 +384,21 @@ class StackViewer(QtWidgets.QWidget):
                     self.images[channel][grid].clim = clim
         self._canvas.update()
 
-    def _get_image_position(self, trans, sequence, g):
+    def _get_image_position(
+        self,
+        trans: visuals.transforms.linear.MatrixTransform,
+        sequence: MDASequence,
+        g: int,
+    ) -> visuals.transforms.linear.MatrixTransform:
         if sequence.grid_plan:
             sub_seq = MDASequence(grid_plan=sequence.grid_plan)
             sub_event = list(sub_seq.iter_events())[g]
+            x_pos = sub_event.x_pos or 0
+            y_pos = sub_event.y_pos or 0
             trans.translate(
                 (
-                    -sub_event.x_pos / self.pixel_size,
-                    sub_event.y_pos / self.pixel_size,
+                    -x_pos / self.pixel_size,
+                    y_pos / self.pixel_size,
                     0,
                 )
             )
@@ -388,11 +413,13 @@ class StackViewer(QtWidgets.QWidget):
 
     def _expand_canvas_view(self, event: MDAEvent) -> None:
         """Expand the canvas view to include the new image."""
+        x_pos = event.x_pos or 0
+        y_pos = event.y_pos or 0
         img_position = (
-            -event.x_pos / self.pixel_size - self.img_size[0] / 2,
-            -event.x_pos / self.pixel_size + self.img_size[0] / 2,
-            event.y_pos / self.pixel_size - self.img_size[1] / 2,
-            event.y_pos / self.pixel_size + self.img_size[1] / 2,
+            -x_pos / self.pixel_size - self.img_size[0] / 2,
+            -x_pos / self.pixel_size + self.img_size[0] / 2,
+            y_pos / self.pixel_size - self.img_size[1] / 2,
+            y_pos / self.pixel_size + self.img_size[1] / 2,
         )
         camera_rect = [
             self.view_rect[0][0],
@@ -432,7 +459,7 @@ class StackViewer(QtWidgets.QWidget):
         self.move(self.qt_settings.value("pos", QtCore.QPoint(50, 50)))
         self.cmap_names = self.qt_settings.value("cmaps", ["gray", "cyan", "magenta"])
 
-    def _collapse_view(self):
+    def _collapse_view(self) -> None:
         view_rect = (
             (
                 self.view_rect[0][0] - self.img_size[0] / 2,
@@ -442,7 +469,7 @@ class StackViewer(QtWidgets.QWidget):
         )
         self.view.camera.rect = view_rect
 
-    def closeEvent(self, e):
+    def closeEvent(self, e: QCloseEvent) -> None:
         """Write window size and position to config file."""
         self.qt_settings.setValue("size", self.size())
         self.qt_settings.setValue("pos", self.pos())

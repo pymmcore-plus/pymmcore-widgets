@@ -6,7 +6,6 @@ from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets
 from useq import MDASequence
 
-from pymmcore_widgets._mda._datastore import QOMEZarrDatastore
 from pymmcore_widgets._mda._stack_viewer import StackViewer
 
 size = 1028
@@ -25,11 +24,8 @@ sequence = MDASequence(
     axis_order="tpcz",
 )
 
-datastore = QOMEZarrDatastore()
-mmcore.mda.events.frameReady.connect(datastore.frameReady)
-mmcore.mda.events.sequenceFinished.connect(datastore.sequenceFinished)
-mmcore.mda.events.sequenceStarted.connect(datastore.sequenceStarted)
-w = StackViewer(sequence=sequence, mmcore=mmcore, datastore=datastore)
+
+w = StackViewer(sequence=sequence, mmcore=mmcore)
 w.show()
 
 mmcore.run_mda(sequence)
