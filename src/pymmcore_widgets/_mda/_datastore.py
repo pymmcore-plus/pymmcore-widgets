@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
-from pymmcore_plus.mda.handlers._ome_zarr_writer import OMEZarrWriter, POS_PREFIX
 from psygnal import Signal
+from pymmcore_plus.mda.handlers._ome_zarr_writer import POS_PREFIX, OMEZarrWriter
 from useq import MDAEvent
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import useq
 
 
 class QOMEZarrDatastore(OMEZarrWriter):
     frame_ready = Signal(MDAEvent)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, store=None, **kwargs)
 

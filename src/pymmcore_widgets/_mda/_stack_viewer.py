@@ -10,7 +10,7 @@ from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import QTimer, Signal
 from superqt import fonticon
 from superqt.cmap._cmap_utils import try_cast_colormap
-from useq import MDASequence, MDAEvent
+from useq import MDAEvent, MDASequence
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
 from pymmcore_widgets._mda._util._labeled_slider import LabeledVisibilitySlider
@@ -32,7 +32,6 @@ if TYPE_CHECKING:
     from useq import MDAEvent, MDASequence
     from vispy.scene.events import SceneMouseEvent
 
-    from pymmcore_widgets._mda._datastore import QLocalDataStore
     from ._datastore import QOMEZarrDatastore
 
 
@@ -290,9 +289,16 @@ class StackViewer(QtWidgets.QWidget):
             return
         for g in range(self.ng):
             for c in range(sequence.sizes.get("c", 1)):
-                frame = self.datastore.get_frame(MDAEvent(index =
-                    {"t": self.display_index["t"], "z": self.display_index["z"], "c": c, "g": g,
-                     "p": 0})
+                frame = self.datastore.get_frame(
+                    MDAEvent(
+                        index={
+                            "t": self.display_index["t"],
+                            "z": self.display_index["z"],
+                            "c": c,
+                            "g": g,
+                            "p": 0,
+                        }
+                    )
                 )
                 self.display_image(frame, c, g)
         self._canvas.update()
@@ -334,10 +340,10 @@ class StackViewer(QtWidgets.QWidget):
                 display_indices[slider.name] = slider.value()
                 continue
             # This blocking doesn't seem to work
-            #blocked = slider.blockSignals(True)
+            # blocked = slider.blockSignals(True)
             slider.setValue(display_indices[slider.name])
             # slider.setValue(indices[slider.name])
-            #slider.blockSignals(blocked)
+            # slider.blockSignals(blocked)
         return display_indices
 
     def display_image(self, img: np.ndarray, channel: int = 0, grid: int = 0) -> None:
