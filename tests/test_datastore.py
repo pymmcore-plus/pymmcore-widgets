@@ -1,4 +1,3 @@
-import numpy as np
 from pymmcore_plus import CMMCorePlus
 from useq import MDAEvent, MDASequence
 
@@ -23,5 +22,5 @@ def test_reception(qtbot):
     with qtbot.waitSignal(datastore.frame_ready, timeout=5000):
         pass
 
-    assert datastore.get_frame(MDAEvent(index={"c":0, "t": 0})).flatten()[0] != 0
+    assert datastore.get_frame(MDAEvent(index={"c": 0, "t": 0})).flatten()[0] != 0
     qtbot.wait(1000)
