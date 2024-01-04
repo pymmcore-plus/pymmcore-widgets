@@ -184,7 +184,10 @@ class StackViewer(QtWidgets.QWidget):
                     image.set_gl_state(depth_test=False)
                 self.images[c].append(image)
             self.current_channel = c
-            self._new_channel.emit(c, sequence.channels[c].config)
+            try:
+                self._new_channel.emit(c, sequence.channels[c].config)
+            except IndexError:
+                self._new_channel.emit(c, "Default")
         self._collapse_view()
         self.ready = True
 
@@ -337,19 +340,19 @@ class StackViewer(QtWidgets.QWidget):
         if display_indices == indices:
             self.display_image(img, indices.get("c", 0), indices.get("g", 0))
             # Handle Autoscaling
-            clim_slider = self.channel_row.boxes[indices["c"]].slider
+            clim_slider = self.channel_row.boxes[indices.get("c", 0)].slider
             clim_slider.setRange(
                 min(clim_slider.minimum(), img.min()),
                 max(clim_slider.maximum(), img.max()),
             )
-            if self.channel_row.boxes[indices["c"]].autoscale_chbx.isChecked():
+            if self.channel_row.boxes[indices.get("c", 0)].autoscale_chbx.isChecked():
                 clim_slider.setValue(
                     [
                         min(clim_slider.minimum(), img.min()),
                         max(clim_slider.maximum(), img.max()),
                     ]
                 )
-            self.on_clim_timer(indices["c"])
+            self.on_clim_timer(indices.get("c", 0))
 
     def _set_sliders(self, indices: dict) -> dict:
         """New indices from outside the sliders, update."""

@@ -77,3 +77,11 @@ def test_interaction(qtbot):
     canvas.channel_row.boxes[0].autoscale_chbx.setChecked(False)
     canvas.channel_row.boxes[0].slider.setValue((0, 255))
     canvas.channel_row.boxes[0].show_channel.setChecked(False)
+
+def test_sequence_no_channels(qtbot):
+    mmcore = CMMCorePlus.instance()
+    canvas = StackViewer(mmcore=mmcore)
+    qtbot.addWidget(canvas)
+    sequence = MDASequence(time_plan={"interval": 0.5, "loops": 3})
+    with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
+        mmcore.mda.run(sequence)
