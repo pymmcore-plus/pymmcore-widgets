@@ -73,6 +73,7 @@ class QLabeledSlider(superqt.QLabeledSlider):
         self.last_val = self.value()
         return super().eventFilter(source, event)
 
+
 class LabeledVisibilitySlider(QLabeledSlider):
     def _visibility(self, settings: dict[str, Any]) -> None:
         if settings["index"] != self.name:
