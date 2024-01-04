@@ -137,7 +137,6 @@ class StackViewer(QtWidgets.QWidget):
                 )
             else:
                 self._slider_settings.emit({"index": dim, "show": False, "max": 1})
-
         # Channels
         nc = sequence.sizes.get("c", 1)
         self.ng = sequence.sizes.get("g", 1)
@@ -190,6 +189,7 @@ class StackViewer(QtWidgets.QWidget):
             ].show_channel.isChecked()
         if self.current_channel == channel:
             channel_to_set = channel - 1 if channel > 0 else channel + 1
+            channel_to_set = 0 if len(self.channel_row.boxes) == 1 else channel_to_set
             self.channel_row._handle_channel_choice(
                 self.channel_row.boxes[channel_to_set].channel
             )
@@ -207,10 +207,11 @@ class StackViewer(QtWidgets.QWidget):
             self._handle_channel_clim(clim, channel, set_autoscale=False)
 
     def _handle_channel_choice(self, channel: int) -> None:
+        print("Setting current channel", channel)
         self.current_channel = channel
 
     def _create_sliders(self, sequence: MDASequence | None = None) -> None:
-        n_channels = 5 if sequence is None else sequence.sizes["c"]
+        n_channels = 5 if sequence is None else sequence.sizes.get('c', 1)
         self.channel_row = ChannelRow(n_channels, self.cmaps)
         self.channel_row.visible.connect(self._handle_channel_visibility)
         self.channel_row.autoscale.connect(self._handle_channel_autoscale)
