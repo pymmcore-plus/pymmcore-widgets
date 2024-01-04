@@ -391,23 +391,27 @@ class StackViewer(QtWidgets.QWidget):
         sequence: MDASequence,
         g: int,
     ) -> visuals.transforms.linear.MatrixTransform:
+        translate = [round(x) for x in ((1,1)-trans.matrix[:2,:2].dot((1,1)))/2]
         if sequence.grid_plan:
             sub_seq = MDASequence(grid_plan=sequence.grid_plan)
             sub_event = list(sub_seq.iter_events())[g]
             x_pos = sub_event.x_pos or 0
             y_pos = sub_event.y_pos or 0
-            trans.translate(
-                (
-                    -x_pos / self.pixel_size,
+            print("TRANSLATE", translate)
+            print(sub_event.x_pos, sub_event.y_pos)
+            trans.translate(((translate[1]-1)*self.img_size[0], translate[0]*self.img_size[1], 0))
+            trans.translate((
+                    x_pos / self.pixel_size,
                     y_pos / self.pixel_size,
                     0,
-                )
-            )
+                ))
+            print(trans)
             self._expand_canvas_view(sub_event)
         else:
-            trans.translate((self.img_size[0], 0, 0))
+            trans.translate(((1 - translate[1]) * self.img_size[0],
+                             translate[0] * self.img_size[1], 0))
             self.view_rect = (
-                (0 + self.img_size[0] / 2, 0 - self.img_size[1] / 2),
+                (0 - self.img_size[0] / 2, 0 - self.img_size[1] / 2),
                 (self.img_size[0], self.img_size[1]),
             )
         return trans
@@ -417,8 +421,8 @@ class StackViewer(QtWidgets.QWidget):
         x_pos = event.x_pos or 0
         y_pos = event.y_pos or 0
         img_position = (
-            -x_pos / self.pixel_size - self.img_size[0] / 2,
-            -x_pos / self.pixel_size + self.img_size[0] / 2,
+            x_pos / self.pixel_size - self.img_size[0] / 2,
+            x_pos / self.pixel_size + self.img_size[0] / 2,
             y_pos / self.pixel_size - self.img_size[1] / 2,
             y_pos / self.pixel_size + self.img_size[1] / 2,
         )
@@ -440,6 +444,7 @@ class StackViewer(QtWidgets.QWidget):
             (camera_rect[0], camera_rect[2]),
             (camera_rect[1] - camera_rect[0], camera_rect[3] - camera_rect[2]),
         )
+        print(self.view_rect)
 
     def complement_indices(self, index: Mapping[str, int]) -> dict:
         """MDAEvents not always have all the dimensions, complement."""
