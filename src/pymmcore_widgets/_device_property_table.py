@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from logging import getLogger
 from typing import Iterable, cast
 
 from fonticon_mdi6 import MDI6
@@ -30,6 +31,8 @@ ICONS: dict[DeviceType, str] = {
     DeviceType.XYStage: MDI6.arrow_all,
     DeviceType.Serial: MDI6.serial_port,
 }
+
+logger = getLogger(__name__)
 
 
 class DevicePropertyTable(QTableWidget):
@@ -140,18 +143,24 @@ class DevicePropertyTable(QTableWidget):
         for i, prop in enumerate(props):
             item = QTableWidgetItem(f"{prop.device}-{prop.name}")
             item.setData(self.PROP_ROLE, prop)
-            # TODO: make sure to add icons for all possible device types
-            icon_string = ICONS.get(prop.deviceType(), None)
+            icon_string = ICONS.get(prop.deviceType())
             if icon_string:
                 item.setIcon(icon(icon_string, color="Gray"))
             self.setItem(i, 0, item)
 
-            wdg = PropertyWidget(
-                prop.device,
-                prop.name,
-                mmcore=self._mmc,
-                connect_core=self._connect_core,
-            )
+            try:
+                wdg = PropertyWidget(
+                    prop.device,
+                    prop.name,
+                    mmcore=self._mmc,
+                    connect_core=self._connect_core,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error creating widget for {prop.device}-{prop.name}: {e}"
+                )
+                continue
+
             self.setCellWidget(i, 1, wdg)
             if not self._prop_widgets_enabled:
                 wdg.setEnabled(False)
@@ -177,6 +186,7 @@ class DevicePropertyTable(QTableWidget):
         query: str = "",
         exclude_devices: Iterable[DeviceType] = (),
         include_read_only: bool = True,
+        include_pre_init: bool = True,
         init_props_only: bool = False,
     ) -> None:
         """Update the table to only show devices that match the given query/filter."""
@@ -186,6 +196,7 @@ class DevicePropertyTable(QTableWidget):
             prop = cast(DeviceProperty, item.data(self.PROP_ROLE))
             if (
                 (prop.isReadOnly() and not include_read_only)
+                or (prop.isPreInit() and not include_pre_init)
                 or (init_props_only and not prop.isPreInit())
                 or (prop.deviceType() in exclude_devices)
                 or (query and query.lower() not in item.text().lower())

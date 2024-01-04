@@ -4,7 +4,6 @@ from useq import MDASequence
 from vispy.app.canvas import MouseEvent
 from vispy.scene.events import SceneMouseEvent
 
-from pymmcore_widgets._mda._datastore import QLocalDataStore
 from pymmcore_widgets._mda._stack_viewer import StackViewer
 from pymmcore_widgets._mda._util._channel_row import CMAPS
 
@@ -17,28 +16,27 @@ sequence = MDASequence(
 
 def test_acquisition(qtbot):
     mmcore = CMMCorePlus.instance()
-    datastore = QLocalDataStore(shape=(3, 1, 2, 512, 512), mmcore=mmcore)
-    canvas = StackViewer(mmcore=mmcore, datastore=datastore)
+    canvas = StackViewer(mmcore=mmcore)
     qtbot.addWidget(canvas)
 
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)
-    assert canvas.images[0]._data.flatten()[0] != 0
-    assert canvas.images[1]._data.shape == (512, 512)
+    assert canvas.images[0][0]._data.flatten()[0] != 0
+    assert canvas.images[1][0]._data.shape == (512, 512)
     assert len(canvas.channel_row.boxes) == 5
     assert len(canvas.sliders) > 1
 
 
 def test_init_with_sequence(qtbot):
     mmcore = CMMCorePlus.instance()
-    datastore = QLocalDataStore(shape=(3, 1, 2, 512, 512), mmcore=mmcore)
-    canvas = StackViewer(sequence=sequence, mmcore=mmcore, datastore=datastore)
+
+    canvas = StackViewer(sequence=sequence, mmcore=mmcore)
     qtbot.addWidget(canvas)
 
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)
-    assert canvas.images[0]._data.flatten()[0] != 0
-    assert canvas.images[1]._data.shape == (512, 512)
+    assert canvas.images[0][0]._data.flatten()[0] != 0
+    assert canvas.images[1][0]._data.shape == (512, 512)
     # Now only the necessary sliders/boxes should have been initialized
     assert len(canvas.channel_row.boxes) == 2
     assert len(canvas.sliders) == 1
@@ -46,8 +44,7 @@ def test_init_with_sequence(qtbot):
 
 def test_interaction(qtbot):
     mmcore = CMMCorePlus.instance()
-    datastore = QLocalDataStore(shape=(3, 1, 2, 512, 512), mmcore=mmcore)
-    canvas = StackViewer(mmcore=mmcore, datastore=datastore)
+    canvas = StackViewer(mmcore=mmcore)
     qtbot.addWidget(canvas)
 
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
@@ -73,7 +70,7 @@ def test_interaction(qtbot):
     color_selected = 2
     canvas.channel_row.boxes[0].color_choice.setCurrentIndex(color_selected)
     assert (
-        canvas.images[0].cmap.colors[-1].RGB
+        canvas.images[0][0].cmap.colors[-1].RGB
         == try_cast_colormap(CMAPS[color_selected]).to_vispy().colors[-1].RGB
     ).all
 

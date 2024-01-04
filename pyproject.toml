@@ -48,16 +48,16 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
     'fonticon-materialdesignicons6',
-    'pymmcore-plus >=0.8.1',
+    'pymmcore-plus >=0.8.3',
     'qtpy >=2.0',
     'superqt[quantity] >=0.5.3',
-    'useq-schema >=0.4.6',
+    'useq-schema >=0.4.7',
 ]
 
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-test = ["pytest>=6.0", "pytest-cov", "pytest-qt", "PyYAML", "vispy", "cmap"]
+test = ["pytest>=6.0", "pytest-cov", "pytest-qt", "PyYAML", "vispy", "cmap", "zarr"]
 pyqt5 = ["PyQt5"]
 pyside2 = ["PySide2"]
 pyqt6 = ["PyQt6"]

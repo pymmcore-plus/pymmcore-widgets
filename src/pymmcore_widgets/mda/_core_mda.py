@@ -14,6 +14,7 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QWidget,
 )
@@ -46,14 +47,27 @@ class CoreMDATabs(MDATabs):
 
     def create_subwidgets(self) -> None:
         self.time_plan = TimePlanWidget(1)
-        self.stage_positions = CoreConnectedPositionTable(1, self._mmc)
+        self.stage_positions = CoreConnectedPositionTable(1, mmcore=self._mmc)
         self.z_plan = CoreConnectedZPlanWidget(self._mmc)
         self.grid_plan = CoreConnectedGridPlanWidget(self._mmc)
         self.channels = ChannelTable(1)
 
 
 class MDAWidget(MDASequenceWidget):
-    """Widget for running MDA experiments, connecting to a MMCorePlus instance."""
+    """[MDASequenceWidget](../MDASequenceWidget#) connected to a [`pymmcore_plus.CMMCorePlus`][] instance.
+
+    It provides a GUI to construct and run a [`useq.MDASequence`][].
+
+    Parameters
+    ----------
+    parent : QWidget | None
+        Optional parent widget, by default None.
+    mmcore : CMMCorePlus | None
+        Optional [`CMMCorePlus`][pymmcore_plus.CMMCorePlus] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    """  # noqa: E501
 
     def __init__(
         self, *, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
@@ -95,8 +109,9 @@ class MDAWidget(MDASequenceWidget):
         self._update_channel_groups()
 
     def value(self) -> MDASequence:
-        """Set the current state of the widget."""
+        """Set the current state of the widget from a [`useq.MDASequence`][]."""
         val = super().value()
+        replace = {}
 
         # if the z plan is relative, and there are no stage positions, add the current
         # stage position as the relative starting one.
@@ -105,12 +120,28 @@ class MDAWidget(MDASequenceWidget):
         # position" in useq.MDAEvent. At the moment, since the pymmcore-plus runner is
         # not aware of the core, we cannot move it there.
         if val.z_plan and val.z_plan.is_relative and not val.stage_positions:
-            val = val.replace(stage_positions=[self._get_current_stage_position()])
+            replace["stage_positions"] = (self._get_current_stage_position(),)
+
+        # if there is an autofocus_plan but the autofocus_motor_offset is None, set it
+        # to the current value
+        if (afplan := val.autofocus_plan) and afplan.autofocus_motor_offset is None:
+            p2 = afplan.replace(autofocus_motor_offset=self._mmc.getAutoFocusOffset())
+            replace["autofocus_plan"] = p2
+
+        if replace:
+            val = val.replace(**replace)
 
         meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
         if self.save_info.isChecked():
             meta.update(self.save_info.value())
         return val
+
+    def setValue(self, value: MDASequence) -> None:
+        """Get the current state of the widget as a [`useq.MDASequence`][]."""
+        super().setValue(value)
+        self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
+
+    # ------------------- private API ----------------------
 
     def _get_current_stage_position(self) -> Position:
         """Return the current stage position."""
@@ -118,13 +149,6 @@ class MDAWidget(MDASequenceWidget):
         y = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
         return Position(x=x, y=y, z=z)
-
-    def setValue(self, value: MDASequence) -> None:
-        """Get the current state of the widget."""
-        super().setValue(value)
-        self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
-
-    # ------------------- private API ----------------------
 
     def _update_channel_groups(self) -> None:
         ch_group = self._mmc.getChannelGroup()
@@ -138,9 +162,37 @@ class MDAWidget(MDASequenceWidget):
 
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
+        # if autofocus has been requested, but the autofocus device is not engaged,
+        # and position-specific offsets haven't been set, show a warning
+        pos = self.stage_positions
+        if (
+            self.af_axis.value()
+            and not self._mmc.isContinuousFocusLocked()
+            and not (self.tab_wdg.isChecked(pos) and pos.af_per_position.isChecked())
+            and not self._confirm_af_intentions()
+        ):
+            return
+
         # run the MDA experiment asynchronously
         self._mmc.run_mda(self.value())
         return
+
+    def _confirm_af_intentions(self) -> bool:
+        msg = (
+            "You've selected to use autofocus for this experiment, "
+            f"but the autofocus device ({self._mmc.getAutoFocusDevice()!r}) "
+            "is not currently engaged. "
+            "\n\nRun anyway?"
+        )
+
+        response = QMessageBox.warning(
+            self,
+            "Confirm AutoFocus",
+            msg,
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        return bool(response == QMessageBox.StandardButton.Ok)
 
     def _enable_widgets(self, enable: bool) -> None:
         for child in self.children():

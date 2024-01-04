@@ -43,6 +43,9 @@ class QLabeledSlider(superqt.QLabeledSlider):
         layout.addWidget(self._length_label, 0, QtCore.Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(self.lock_btn, 0, QtCore.Qt.AlignmentFlag.AlignVCenter)
 
+        self.installEventFilter(self)
+        self.setPageStep(1)
+
     def _on_play_toggled(self, state: bool) -> None:
         if state:
             self.play_btn.setIcon(icon(MDI6.pause))
@@ -62,6 +65,13 @@ class QLabeledSlider(superqt.QLabeledSlider):
 
     def _on_range_changed(self, min_: int, max_: int) -> None:
         self._length_label.setText(f"/ {max_}")
+
+    def eventFilter(self, source, event):
+        if event.type() == QtCore.QEvent.Type.Paint and self.underMouse():
+            if self.value() != self.last_val:
+                self.sliderMoved.emit(self.value())
+        self.last_val = self.value()
+        return super().eventFilter(source, event)
 
 
 class LabeledVisibilitySlider(QLabeledSlider):
