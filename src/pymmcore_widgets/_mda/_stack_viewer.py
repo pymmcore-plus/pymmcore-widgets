@@ -239,7 +239,7 @@ class StackViewer(QtWidgets.QWidget):
         self.current_channel = channel
 
     def _create_sliders(self, sequence: MDASequence | None = None) -> None:
-        n_channels = 5 if sequence is None else sequence.sizes.get('c', 1)
+        n_channels = 5 if sequence is None else sequence.sizes.get("c", 1)
         self.channel_row: ChannelRow = ChannelRow(n_channels, self.cmaps)
         self.channel_row.visible.connect(self._handle_channel_visibility)
         self.channel_row.autoscale.connect(self._handle_channel_autoscale)
@@ -394,7 +394,7 @@ class StackViewer(QtWidgets.QWidget):
         sequence: MDASequence,
         g: int,
     ) -> visuals.transforms.linear.MatrixTransform:
-        translate = [round(x) for x in ((1,1)-trans.matrix[:2,:2].dot((1,1)))/2]
+        translate = [round(x) for x in ((1, 1) - trans.matrix[:2, :2].dot((1, 1))) / 2]
         if sequence.grid_plan:
             sub_seq = MDASequence(grid_plan=sequence.grid_plan)
             sub_event = list(sub_seq.iter_events())[g]
@@ -402,17 +402,30 @@ class StackViewer(QtWidgets.QWidget):
             y_pos = sub_event.y_pos or 0
             print("TRANSLATE", translate)
             print(sub_event.x_pos, sub_event.y_pos)
-            trans.translate(((translate[1]-1)*self.img_size[0], translate[0]*self.img_size[1], 0))
-            trans.translate((
+            trans.translate(
+                (
+                    (translate[1] - 1) * self.img_size[0],
+                    translate[0] * self.img_size[1],
+                    0,
+                )
+            )
+            trans.translate(
+                (
                     x_pos / self.pixel_size,
                     y_pos / self.pixel_size,
                     0,
-                ))
+                )
+            )
             print(trans)
             self._expand_canvas_view(sub_event)
         else:
-            trans.translate(((1 - translate[1]) * self.img_size[0],
-                             translate[0] * self.img_size[1], 0))
+            trans.translate(
+                (
+                    (1 - translate[1]) * self.img_size[0],
+                    translate[0] * self.img_size[1],
+                    0,
+                )
+            )
             self.view_rect = (
                 (0 - self.img_size[0] / 2, 0 - self.img_size[1] / 2),
                 (self.img_size[0], self.img_size[1]),

@@ -19,7 +19,9 @@ mmcore.setProperty("Camera", "StripeWidth", 0.7)
 qapp = QtWidgets.QApplication(sys.argv)
 
 sequence = MDASequence(
-    channels=({"config": "FITC", "exposure": 10},),# {"config": "DAPI", "exposure": 1}),
+    channels=(
+        {"config": "FITC", "exposure": 10},
+    ),  # {"config": "DAPI", "exposure": 1}),
     time_plan={"interval": 0.2, "loops": 2},
     grid_plan={"rows": 2, "columns": 2},
 )

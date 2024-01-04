@@ -78,6 +78,7 @@ def test_interaction(qtbot):
     canvas.channel_row.boxes[0].slider.setValue((0, 255))
     canvas.channel_row.boxes[0].show_channel.setChecked(False)
 
+
 def test_sequence_no_channels(qtbot):
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore)
