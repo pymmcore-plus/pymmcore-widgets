@@ -236,7 +236,7 @@ class StackViewer(QtWidgets.QWidget):
         self.current_channel = channel
 
     def _create_sliders(self, sequence: MDASequence | None = None) -> None:
-        n_channels = 5 if sequence is None else sequence.sizes.get('c', 1)
+        n_channels = 5 if sequence is None else sequence.sizes.get("c", 1)
         self.channel_row: ChannelRow = ChannelRow(n_channels, self.cmaps)
         self.channel_row.visible.connect(self._handle_channel_visibility)
         self.channel_row.autoscale.connect(self._handle_channel_autoscale)
