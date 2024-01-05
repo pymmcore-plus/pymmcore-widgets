@@ -108,6 +108,7 @@ class StackViewer(QtWidgets.QWidget):
         self.frame = 0
         self.ready = False
         self.current_channel = 0
+        self.pixel_size = 1
 
         self.clim_timer = QtCore.QTimer()
         self.clim_timer.setInterval(int(1000 // AUTOCLIM_RATE))
@@ -151,7 +152,8 @@ class StackViewer(QtWidgets.QWidget):
         """Sequence started by the mmcore. Adjust our settings, make layers etc."""
         self.ready = False
         self.sequence = sequence
-        self.pixel_size = self._mmc.getPixelSizeUm() if self._mmc else 1
+        self.pixel_size = self._mmc.getPixelSizeUm() if self._mmc else self.pixel_size
+        print("PIXEL_SIZE", self.pixel_size)
         # Sliders
         for dim in DIMENSIONS[:3]:
             if sequence.sizes.get(dim, 1) > 1:
