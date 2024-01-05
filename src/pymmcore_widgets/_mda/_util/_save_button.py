@@ -16,7 +16,6 @@ class SaveButton(QPushButton):
     def __init__(
         self,
         datastore: QOMEZarrDatastore,
-        mmcore: CMMCorePlus,
         parent: QWidget | None = None,
     ):
         super().__init__(parent=parent)
@@ -29,15 +28,6 @@ class SaveButton(QPushButton):
 
         self.datastore = datastore
         self.save_loc = Path.home()
-        self.current_sequence: None | MDASequence = None
-
-        if mmcore:
-            self._mmc = mmcore
-            self._mmc.mda.events.sequenceStarted.connect(self.sequenceStarted)
-
-    def sequenceStarted(self, sequence: MDASequence) -> None:
-        self.current_sequence = sequence
-        self._used_axes = tuple(sequence.used_axes)
 
     def _on_click(self) -> None:
         self.save_loc, _ = QFileDialog.getSaveFileName(directory=str(self.save_loc))
