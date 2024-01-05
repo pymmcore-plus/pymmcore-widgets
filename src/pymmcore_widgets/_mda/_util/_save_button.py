@@ -2,12 +2,10 @@ from pathlib import Path
 
 import zarr
 from fonticon_mdi6 import MDI6
-from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize
 from qtpy.QtGui import QCloseEvent
 from qtpy.QtWidgets import QFileDialog, QPushButton, QWidget
 from superqt import fonticon
-from useq import MDASequence
 
 from pymmcore_widgets._mda._datastore import QOMEZarrDatastore
 
@@ -36,7 +34,7 @@ class SaveButton(QPushButton):
             zarr.copy_store(self.datastore._group.attrs.store, dir_store)
 
     def closeEvent(self, a0: QCloseEvent | None) -> None:
-        return super().closeEvent(a0)
+        super().closeEvent(a0)
 
 
 if __name__ == "__main__":

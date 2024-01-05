@@ -110,7 +110,7 @@ class StackViewer(QtWidgets.QWidget):
         self.frame = 0
         self.ready = False
         self.current_channel = 0
-        self.pixel_size = 1
+        self.pixel_size = 1.0
 
         self.clim_timer = QtCore.QTimer()
         self.clim_timer.setInterval(int(1000 // AUTOCLIM_RATE))
