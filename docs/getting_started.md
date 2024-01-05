@@ -45,29 +45,8 @@ As shown in the example from the [Overview](./index.md#usage) section, for a bas
 
 In this example, we substitute step 3 with the [ConfigurationWidget](./widgets/ConfigurationWidget/) widget which enables us to load any `Micro-Manager` configuration file. Additionally, we use the [GroupPresetTableWidget](./widgets/GroupPresetTableWidget/) widget, which provides an interactive interface for the `groups` and `presets` stored in the configuration file.
 
-```python
-# import the necessary packages
-from qtpy.QtWidgets import QApplication
-from pymmcore_plus import CMMCorePlus
-from pymmcore_widgets import ConfigurationWidget, GroupPresetTableWidget
-
-# create a QApplication
-app = QApplication([])
-
-# create a CMMCorePlus instance.
-mmc = CMMCorePlus.instance()
-
-# create a ConfigurationWidget
-cfg_widget = ConfigurationWidget()
-
-# create a GroupPresetTableWidget
-gp_widget = GroupPresetTableWidget()
-
-# show the created widgets
-cfg_widget.show()
-gp_widget.show()
-
-app.exec_()
+```python title="basic_usage.py"
+--8<-- "examples/basic_usage.py"
 ```
 
 The code above will create a Qt Application with the `ConfigurationWidget` and `GroupPresetTableWidget`:
