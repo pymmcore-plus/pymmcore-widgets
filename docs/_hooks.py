@@ -1,15 +1,14 @@
+import json
 from pathlib import Path
 from typing import cast
 
-import yaml
-
-WIDGET_LIST_YAML = Path(__file__).parent / "widget_list.yaml"
+WIDGET_LIST = Path(__file__).parent / "widget_list.json"
 
 
 def on_page_markdown(md: str, **kwargs):
     """Called when the markdown for a page is loaded."""
-    with open(WIDGET_LIST_YAML) as f:
-        widget_dict = yaml.safe_load(f)
+    with open(WIDGET_LIST) as f:
+        widget_dict = json.load(f)
 
         for widget in widget_dict:
             widget = cast(str, widget)

@@ -1,10 +1,10 @@
+import json
 from pathlib import Path
 from textwrap import dedent
 
 import mkdocs_gen_files
-import yaml
 
-WIDGET_LIST_YAML = Path(__file__).parent / "widget_list.yaml"
+WIDGET_LIST = Path(__file__).parent / "widget_list.json"
 WIDGETS = Path(__file__).parent / "widgets"
 EXAMPLES = Path(__file__).parent.parent / "examples"
 TEMPLATE = """
@@ -82,8 +82,8 @@ def _generate_widget_page(widget: str) -> None:
 def _generate_widget_pages() -> None:
     # it would be nice to do this in parallel,
     # but mkdocs_gen_files doesn't work well with multiprocessing
-    with open(WIDGET_LIST_YAML) as f:
-        widget_dict = yaml.safe_load(f)
+    with open(WIDGET_LIST) as f:
+        widget_dict = json.load(f)
 
         for _, widgets in widget_dict.items():
             for widget in widgets:
