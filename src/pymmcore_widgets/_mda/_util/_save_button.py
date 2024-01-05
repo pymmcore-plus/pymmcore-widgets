@@ -30,8 +30,11 @@ class SaveButton(QPushButton):
     def _on_click(self) -> None:
         self.save_loc, _ = QFileDialog.getSaveFileName(directory=str(self.save_loc))
         if self.save_loc:
-            dir_store = zarr.DirectoryStore(self.save_loc)
-            zarr.copy_store(self.datastore._group.attrs.store, dir_store)
+            self._save_as_zarr(self.save_loc)
+
+    def _save_as_zarr(self, save_loc: str | Path) -> None:
+        dir_store = zarr.DirectoryStore(save_loc)
+        zarr.copy_store(self.datastore._group.attrs.store, dir_store)
 
     def closeEvent(self, a0: QCloseEvent | None) -> None:
         super().closeEvent(a0)
