@@ -53,10 +53,10 @@ The code above will create a Qt Application with the `ConfigurationWidget` and `
 
 ![basic_usage](./images/basic_usage.mov)
 
-!!! Note
-    Most widgets, by default, utilize the active core or instantiate a new one if none is currently active. This eliminates the need for manual core instance creation.
+!!! Choosing a `Micro-Manager` core
+    Most widgets, by default, utilize the [global singleton core](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance) or instantiate a new one if none exists. Once instantiated, the global singleton core can be accessed using `CMMCorePlus.instance()`. This eliminates the need for manual core instance creation.
 
-    For example, in the case above, the `ConfigurationWidget` is the first widget to be instantiated and will automatically create a new core instance. This makes the `mmc = CMMCorePlus.instance()` line redundant and removable.
+    For example, in the case above, the `ConfigurationWidget` is the first widget to be instantiated and it will automatically create a new core instance. This makes the `mmc = CMMCorePlus.instance()` line redundant and removable.
     
     However, if a specific core instance is required, you can create a core instance first and then pass it as the `mmcore` argument to the widget (if available, not all the widgets have it), like so: `GroupPresetTableWidget(mmcore=my_core)`.
 
