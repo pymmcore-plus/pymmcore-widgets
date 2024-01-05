@@ -1,22 +1,24 @@
 from pathlib import Path
-import zarr
 
-from qtpy.QtWidgets import QPushButton, QWidget, QFileDialog
+import zarr
+from fonticon_mdi6 import MDI6
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize
 from qtpy.QtGui import QCloseEvent
+from qtpy.QtWidgets import QFileDialog, QPushButton, QWidget
 from superqt import fonticon
-from pymmcore_plus import CMMCorePlus
 from useq import MDASequence
-
-from fonticon_mdi6 import MDI6
 
 from pymmcore_widgets._mda._datastore import QOMEZarrDatastore
 
+
 class SaveButton(QPushButton):
-    def __init__(self,
-                 datastore:QOMEZarrDatastore,
-                 mmcore: CMMCorePlus,
-                 parent: QWidget | None = None):
+    def __init__(
+        self,
+        datastore: QOMEZarrDatastore,
+        mmcore: CMMCorePlus,
+        parent: QWidget | None = None,
+    ):
         super().__init__(parent=parent)
         # self.setFont(QFont('Arial', 50))
         self.setMinimumHeight(40)
@@ -48,18 +50,21 @@ class SaveButton(QPushButton):
 
 
 if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
     from pymmcore_plus import CMMCorePlus
+    from qtpy.QtWidgets import QApplication
     from useq import MDASequence
+
     from pymmcore_widgets._mda._datastore import QOMEZarrDatastore
+
     mmc = CMMCorePlus()
     mmc.loadSystemConfiguration()
 
     app = QApplication([])
-    seq = MDASequence(time_plan={"interval":0.01, "loops": 10},
-                      z_plan={"range": 5, "step": 1},
-                      channels=[{"config": "DAPI", "exposure": 1},
-                                {"config": "FITC", "exposure": 1}])
+    seq = MDASequence(
+        time_plan={"interval": 0.01, "loops": 10},
+        z_plan={"range": 5, "step": 1},
+        channels=[{"config": "DAPI", "exposure": 1}, {"config": "FITC", "exposure": 1}],
+    )
     datastore = QOMEZarrDatastore()
     mmc.mda.events.sequenceStarted.connect(datastore.sequenceStarted)
     mmc.mda.events.frameReady.connect(datastore.frameReady)
