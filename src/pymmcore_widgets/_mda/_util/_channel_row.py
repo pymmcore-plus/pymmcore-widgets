@@ -75,9 +75,15 @@ class ChannelRow(QtWidgets.QWidget):
         self.boxes[i].autoscale_chbx.setChecked(True)
         self.boxes[i].show_channel.setText(name)
         self.boxes[i].channel = name
-        self.boxes[i].mousePressEvent(None)
+        if len(self.boxes) > 1:
+            self.boxes[i].mousePressEvent(None)
+        else:
+            self.boxes[0].setStyleSheet("ChannelBox{border: 3px solid}")
+            self.selected.emit(0)
 
     def _handle_channel_choice(self, channel: str) -> None:
+        if len(self.boxes) == 1:
+            return
         for idx, channel_box in enumerate(self.boxes):
             if channel_box.channel != channel:
                 channel_box.setStyleSheet("ChannelBox{border: 1px solid}")

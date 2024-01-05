@@ -108,6 +108,7 @@ class StackViewer(QtWidgets.QWidget):
         self.frame = 0
         self.ready = False
         self.current_channel = 0
+        self.pixel_size = 1
 
         self.clim_timer = QtCore.QTimer()
         self.clim_timer.setInterval(int(1000 // AUTOCLIM_RATE))
@@ -151,7 +152,8 @@ class StackViewer(QtWidgets.QWidget):
         """Sequence started by the mmcore. Adjust our settings, make layers etc."""
         self.ready = False
         self.sequence = sequence
-        self.pixel_size = self._mmc.getPixelSizeUm() if self._mmc else 1
+        self.pixel_size = self._mmc.getPixelSizeUm() if self._mmc else self.pixel_size
+        print("PIXEL_SIZE", self.pixel_size)
         # Sliders
         for dim in DIMENSIONS[:3]:
             if sequence.sizes.get(dim, 1) > 1:
@@ -160,7 +162,6 @@ class StackViewer(QtWidgets.QWidget):
                 )
             else:
                 self._slider_settings.emit({"index": dim, "show": False, "max": 1})
-
         # Channels
         nc = max(sequence.sizes.get("c", 1), 1)
         self.ng = max(sequence.sizes.get("g", 1), 1)
@@ -185,7 +186,10 @@ class StackViewer(QtWidgets.QWidget):
                     image.set_gl_state(depth_test=False)
                 self.images[c].append(image)
             self.current_channel = c
-            self._new_channel.emit(c, sequence.channels[c].config)
+            try:
+                self._new_channel.emit(c, sequence.channels[c].config)
+            except IndexError:
+                self._new_channel.emit(c, "Default")
         self._collapse_view()
         self.ready = True
 
@@ -215,6 +219,7 @@ class StackViewer(QtWidgets.QWidget):
             ].show_channel.isChecked()
         if self.current_channel == channel:
             channel_to_set = channel - 1 if channel > 0 else channel + 1
+            channel_to_set = 0 if len(self.channel_row.boxes) == 1 else channel_to_set
             self.channel_row._handle_channel_choice(
                 self.channel_row.boxes[channel_to_set].channel
             )
@@ -232,10 +237,11 @@ class StackViewer(QtWidgets.QWidget):
             self._handle_channel_clim(clim, channel, set_autoscale=False)
 
     def _handle_channel_choice(self, channel: int) -> None:
+        print("Setting current channel", channel)
         self.current_channel = channel
 
     def _create_sliders(self, sequence: MDASequence | None = None) -> None:
-        n_channels = 5 if sequence is None else sequence.sizes["c"]
+        n_channels = 5 if sequence is None else sequence.sizes.get("c", 1)
         self.channel_row: ChannelRow = ChannelRow(n_channels, self.cmaps)
         self.channel_row.visible.connect(self._handle_channel_visibility)
         self.channel_row.autoscale.connect(self._handle_channel_autoscale)
@@ -336,19 +342,19 @@ class StackViewer(QtWidgets.QWidget):
         if display_indices == indices:
             self.display_image(img, indices.get("c", 0), indices.get("g", 0))
             # Handle Autoscaling
-            clim_slider = self.channel_row.boxes[indices["c"]].slider
+            clim_slider = self.channel_row.boxes[indices.get("c", 0)].slider
             clim_slider.setRange(
                 min(clim_slider.minimum(), img.min()),
                 max(clim_slider.maximum(), img.max()),
             )
-            if self.channel_row.boxes[indices["c"]].autoscale_chbx.isChecked():
+            if self.channel_row.boxes[indices.get("c", 0)].autoscale_chbx.isChecked():
                 clim_slider.setValue(
                     [
                         min(clim_slider.minimum(), img.min()),
                         max(clim_slider.maximum(), img.max()),
                     ]
                 )
-            self.on_clim_timer(indices["c"])
+            self.on_clim_timer(indices.get("c", 0))
 
     def _set_sliders(self, indices: dict) -> dict:
         """New indices from outside the sliders, update."""
@@ -390,23 +396,40 @@ class StackViewer(QtWidgets.QWidget):
         sequence: MDASequence,
         g: int,
     ) -> visuals.transforms.linear.MatrixTransform:
+        translate = [round(x) for x in ((1, 1) - trans.matrix[:2, :2].dot((1, 1))) / 2]
         if sequence.grid_plan:
             sub_seq = MDASequence(grid_plan=sequence.grid_plan)
             sub_event = list(sub_seq.iter_events())[g]
             x_pos = sub_event.x_pos or 0
             y_pos = sub_event.y_pos or 0
+            print("TRANSLATE", translate)
+            print(sub_event.x_pos, sub_event.y_pos)
             trans.translate(
                 (
-                    -x_pos / self.pixel_size,
+                    (translate[1] - 1) * self.img_size[0],
+                    translate[0] * self.img_size[1],
+                    0,
+                )
+            )
+            trans.translate(
+                (
+                    x_pos / self.pixel_size,
                     y_pos / self.pixel_size,
                     0,
                 )
             )
+            print(trans)
             self._expand_canvas_view(sub_event)
         else:
-            trans.translate((self.img_size[0], 0, 0))
+            trans.translate(
+                (
+                    (1 - translate[1]) * self.img_size[0],
+                    translate[0] * self.img_size[1],
+                    0,
+                )
+            )
             self.view_rect = (
-                (0 + self.img_size[0] / 2, 0 - self.img_size[1] / 2),
+                (0 - self.img_size[0] / 2, 0 - self.img_size[1] / 2),
                 (self.img_size[0], self.img_size[1]),
             )
         return trans
@@ -416,8 +439,8 @@ class StackViewer(QtWidgets.QWidget):
         x_pos = event.x_pos or 0
         y_pos = event.y_pos or 0
         img_position = (
-            -x_pos / self.pixel_size - self.img_size[0] / 2,
-            -x_pos / self.pixel_size + self.img_size[0] / 2,
+            x_pos / self.pixel_size - self.img_size[0] / 2,
+            x_pos / self.pixel_size + self.img_size[0] / 2,
             y_pos / self.pixel_size - self.img_size[1] / 2,
             y_pos / self.pixel_size + self.img_size[1] / 2,
         )
@@ -439,6 +462,7 @@ class StackViewer(QtWidgets.QWidget):
             (camera_rect[0], camera_rect[2]),
             (camera_rect[1] - camera_rect[0], camera_rect[3] - camera_rect[2]),
         )
+        print(self.view_rect)
 
     def complement_indices(self, index: Mapping[str, int]) -> dict:
         """MDAEvents not always have all the dimensions, complement."""
