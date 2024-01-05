@@ -10,7 +10,7 @@ theme:
   name: "material"
   features:
     - content.tabs.link
-    - navigation.tabs
+    - content.code.copy
     - content.code.annotate
     - navigation.instant
     - navigation.tabs
@@ -43,7 +43,7 @@ nav:
       - Overview: index.md
       - Getting Started: getting_started.md
       - Widgets: widgets/
-      - Trobleshooting: troubleshooting.md
+      - Troubleshooting: troubleshooting.md
       - Contributing: contributing.md
 
 markdown_extensions:
