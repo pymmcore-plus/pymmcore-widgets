@@ -2,7 +2,8 @@
   "configuration_widgets": [
     "GroupPresetTableWidget",
     "InstallWidget",
-    "PixelSizeWidget",
+    "PixelConfigurationWidget",
+    "ObjectivesPixelConfigurationWidget",
     "ConfigurationWidget",
     "PresetsWidget",
     "ConfigWizard"

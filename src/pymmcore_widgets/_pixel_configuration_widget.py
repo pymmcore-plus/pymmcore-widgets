@@ -44,7 +44,23 @@ DEFAULT_AFFINE = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0)
 
 
 class PixelConfigurationWidget(QWidget):
-    """A Widget to define the pixel size configurations."""
+    """A Widget to define the pixel size configurations.
+
+    Each pixel size configuration can be linked to any device and property. However,
+    it's important to note that all pixel size configurations must include the same
+    devices and properties. The only variation allowed between different configurations
+    is in the values of the device properties.
+
+    Parameters
+    ----------
+    parent : QWidget | None
+        Optional parent widget, by default None
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    """
 
     def __init__(
         self,

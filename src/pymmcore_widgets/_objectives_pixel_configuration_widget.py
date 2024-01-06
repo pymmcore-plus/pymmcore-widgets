@@ -211,7 +211,7 @@ class PixelSizeTable(QTableWidget):
 
 
 class ObjectivesPixelConfigurationWidget(QDialog):
-    """A basic widget for pixel size control using objectives.
+    """A Widget to define the pixel size configurations using the objective device.
 
     It *requires* to have installed on the microscope a *motorzed objective turret*
     and allows to set the pixel size using only the *motorzed objective turret device*
