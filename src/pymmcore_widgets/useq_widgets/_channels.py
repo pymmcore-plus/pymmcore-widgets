@@ -25,7 +25,7 @@ DEFAULT_GROUP = "Channel"
 
 
 class ChannelTable(DataTableWidget):
-    """Table for editing a list of `useq.Channels`."""
+    """Table to edit a list of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel)."""
 
     # fmt: off
     GROUP = TextColumn(key="group", default=DEFAULT_GROUP, hidden=True)
@@ -44,7 +44,7 @@ class ChannelTable(DataTableWidget):
         self._config_column: ColumnInfo = self.CONFIG
 
     def setChannelGroups(self, groups: Mapping[str, Sequence[str]] | None) -> None:
-        """Set the groups that can be selected in the table.
+        """Set the channel groups that can be selected in the table.
 
         Parameters
         ----------
@@ -74,17 +74,35 @@ class ChannelTable(DataTableWidget):
         self._on_group_changed()
 
     def channelGroups(self) -> Mapping[str, Sequence[str]]:
+        """Return the current channel groups that can be selected in the table."""
         return self._groups
 
     def value(self, exclude_unchecked: bool = True) -> tuple[useq.Channel, ...]:
-        """Return the current value of the table as a list of channels."""
+        """Return the current value of the table as a tuple of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+
+        Parameters
+        ----------
+        exclude_unchecked : bool, optional
+            Exclude unchecked rows, by default True
+
+        Returns
+        -------
+        tuple[useq.Channel, ...]
+            A tuple of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+        """
         return tuple(
             useq.Channel(**r)
             for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
         )
 
     def setValue(self, value: Iterable[useq.Channel]) -> None:
-        """Set the current value of the table."""
+        """Set the current value of the table from an Iterable of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+
+        Parameters
+        ----------
+        value : Iterable[useq.Channel]
+            An Iterable of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+        """
         _values = []
         for v in value:
             if not isinstance(v, useq.Channel):  # pragma: no cover

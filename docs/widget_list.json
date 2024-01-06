@@ -1,0 +1,44 @@
+{
+  "configuration_widgets": [
+    "GroupPresetTableWidget",
+    "InstallWidget",
+    "PixelConfigurationWidget",
+    "ObjectivesPixelConfigurationWidget",
+    "ConfigurationWidget",
+    "PresetsWidget",
+    "ConfigWizard"
+  ],
+  "device_property_widgets": [
+    "PropertyBrowser",
+    "PropertyWidget",
+    "PropertiesWidget"
+  ],
+  "mda_widgets": [
+    "MDAWidget",
+    "ChannelTable",
+    "PositionTable",
+    "TimePlanWidget",
+    "ZPlanWidget",
+    "GridPlanWidget",
+    "MDASequenceWidget"
+  ],
+  "camera_widgets": [
+    "CameraRoiWidget",
+    "DefaultCameraExposureWidget",
+    "ExposureWidget"
+  ],
+  "stage_widgets": [
+    "StageWidget"
+  ],
+  "shutter_widgets": [
+    "ShuttersWidget"
+  ],
+  "misc_widgets": [
+    "ObjectivesWidget",
+    "ChannelGroupWidget",
+    "ChannelWidget",
+    "ImagePreview",
+    "SnapButton",
+    "LiveButton"
+  ]
+}

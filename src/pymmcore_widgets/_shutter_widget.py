@@ -22,7 +22,7 @@ COLOR_TYPE = Union[
 
 
 class ShuttersWidget(QWidget):
-    """A Widget for shutters and Micro-Manager autoshutter.
+    """A Widget to control shutters and Micro-Manager autoshutter.
 
     Parameters
     ----------

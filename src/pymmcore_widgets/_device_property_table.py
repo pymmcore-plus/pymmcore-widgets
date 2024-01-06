@@ -110,7 +110,6 @@ class DevicePropertyTable(QTableWidget):
         presets = self._mmc.getAvailableConfigs(group)
         if not presets:
             return
-
         included = [tuple(c)[:2] for c in self._mmc.getConfigData(group, presets[0])]
         for row in range(self.rowCount()):
             prop = cast(DeviceProperty, self.item(row, 0).data(self.PROP_ROLE))
@@ -213,10 +212,11 @@ class DevicePropertyTable(QTableWidget):
         # list of properties to add to the group
         # [(device, property, value_to_set), ...]
         dev_prop_val_list: list[tuple[str, str, str]] = []
-        for r in range(self.rowCount()):
-            if self.item(r, 0).checkState() == Qt.CheckState.Checked:
-                dev_prop_val_list.append(self.getRowData(r))
-
+        for row in range(self.rowCount()):
+            if self.item(row, 0) is None:
+                continue
+            if self.item(row, 0).checkState() == Qt.CheckState.Checked:
+                dev_prop_val_list.append(self.getRowData(row))
         return dev_prop_val_list
 
     def getRowData(self, row: int) -> tuple[str, str, str]:
@@ -231,3 +231,10 @@ class DevicePropertyTable(QTableWidget):
         if before != enabled:
             for row in range(self.rowCount()):
                 self.cellWidget(row, 1).setEnabled(enabled)
+
+    def uncheckAll(self) -> None:
+        """Uncheck all rows."""
+        for row in range(self.rowCount()):
+            if self.item(row, 0) is None:
+                continue
+            self.item(row, 0).setCheckState(Qt.CheckState.Unchecked)
