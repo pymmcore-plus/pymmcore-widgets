@@ -479,3 +479,18 @@ def test_parse_time() -> None:
     assert parse_timedelta("3:40:10.500") == timedelta(
         hours=3, minutes=40, seconds=10.5
     )
+
+
+def test_tab_check(qtbot: QtBot) -> None:
+    """Testing a bug on mac that occurs when checking tabs"""
+
+    mda = MDASequenceWidget()
+    qtbot.addWidget(mda)
+    mda.show()  # needed to show the bug
+    # this seems to be needed to show the bug
+    # qtbot.waitExposed(mda) and waitUntil(isVisible) don't seem to work work
+    # this may still occasionally pass, and longer wait times help...
+    qtbot.wait(220)
+
+    with qtbot.waitSignal(mda.valueChanged):
+        mda._on_tab_checked(2, True)
