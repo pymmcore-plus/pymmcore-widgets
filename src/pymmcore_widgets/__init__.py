@@ -6,6 +6,7 @@ try:
     __version__ = version("pymmcore-widgets")
 except PackageNotFoundError:
     __version__ = "uninstalled"
+
 from ._camera_roi_widget import CameraRoiWidget
 from ._channel_group_widget import ChannelGroupWidget
 from ._channel_widget import ChannelWidget
@@ -17,7 +18,8 @@ from ._install_widget import InstallWidget
 from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
 from ._objective_widget import ObjectivesWidget
-from ._pixel_size_widget import PixelSizeWidget
+from ._objectives_pixel_configuration_widget import ObjectivesPixelConfigurationWidget
+from ._pixel_configuration_widget import PixelConfigurationWidget
 from ._presets_widget import PresetsWidget
 from ._properties_widget import PropertiesWidget
 from ._property_browser import PropertyBrowser
@@ -52,6 +54,14 @@ def __getattr__(name: str) -> object:
             stacklevel=2,
         )
         return GridPlanWidget
+    if name == "PixelSizeWidget":
+        warnings.warn(
+            "PixelSizeWidget is deprecated, "
+            "using ObjectivesPixelConfigurationWidget instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return ObjectivesPixelConfigurationWidget
     raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
@@ -73,7 +83,8 @@ __all__ = [
     "MDAWidget",
     "MDASequenceWidget",
     "ObjectivesWidget",
-    "PixelSizeWidget",
+    "ObjectivesPixelConfigurationWidget",
+    "PixelConfigurationWidget",
     "PositionTable",
     "PresetsWidget",
     "PropertiesWidget",

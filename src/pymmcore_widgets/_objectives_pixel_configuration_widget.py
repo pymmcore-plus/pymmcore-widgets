@@ -210,8 +210,15 @@ class PixelSizeTable(QTableWidget):
         self._update_status()
 
 
-class PixelSizeWidget(QDialog):
-    """A widget for pixel size control.
+class ObjectivesPixelConfigurationWidget(QDialog):
+    """A Widget to define the pixel size configurations using the objective device.
+
+    It *requires* to have installed on the microscope a *motorzed objective turret*
+    and allows to set the pixel size using only the *motorzed objective turret device*
+    properties. No other properties can be assigned to the pixel configuration.
+    For this purpose, use the
+    [PixelConfigurationWidget][pymmcore_widgets.PixelConfigurationWidget] which is
+    more similar to the original micromanager pixel configuration widget.
 
     Parameters
     ----------

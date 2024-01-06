@@ -4,7 +4,10 @@ from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 
-from pymmcore_widgets._pixel_size_widget import PixelSizeTable, PixelSizeWidget
+from pymmcore_widgets._objectives_pixel_configuration_widget import (
+    ObjectivesPixelConfigurationWidget,
+    PixelSizeTable,
+)
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -30,7 +33,7 @@ def _get_wdg(table: PixelSizeTable) -> tuple[str, QWidget, QWidget, QWidget, QWi
 
 def test_pixel_size_table(qtbot: QtBot):
     mmc = CMMCorePlus.instance()
-    px_size_wdg = PixelSizeWidget()
+    px_size_wdg = ObjectivesPixelConfigurationWidget()
     table = px_size_wdg.table
     obj = px_size_wdg.objective_device
     qtbot.addWidget(px_size_wdg)
@@ -62,7 +65,7 @@ def test_pixel_size_table(qtbot: QtBot):
 
 def test_change_magnification(qtbot: QtBot):
     mmc = CMMCorePlus.instance()
-    px_size_wdg = PixelSizeWidget()
+    px_size_wdg = ObjectivesPixelConfigurationWidget()
     qtbot.addWidget(px_size_wdg)
     table = px_size_wdg.table
 
@@ -80,7 +83,7 @@ def test_change_magnification(qtbot: QtBot):
 
 def test_change_cam_pixel_size(qtbot: QtBot):
     mmc = CMMCorePlus.instance()
-    px_size_wdg = PixelSizeWidget()
+    px_size_wdg = ObjectivesPixelConfigurationWidget()
     qtbot.addWidget(px_size_wdg)
     table = px_size_wdg.table
 
@@ -100,7 +103,7 @@ def test_change_cam_pixel_size(qtbot: QtBot):
 
 def test_change_img_pixel_size(qtbot: QtBot):
     mmc = CMMCorePlus.instance()
-    px_size_wdg = PixelSizeWidget()
+    px_size_wdg = ObjectivesPixelConfigurationWidget()
     qtbot.addWidget(px_size_wdg)
     table = px_size_wdg.table
 
@@ -127,7 +130,7 @@ def test_change_img_pixel_size(qtbot: QtBot):
 
 def test_ResolutionID(qtbot: QtBot):
     mmc = CMMCorePlus.instance()
-    px_size_wdg = PixelSizeWidget()
+    px_size_wdg = ObjectivesPixelConfigurationWidget()
     qtbot.addWidget(px_size_wdg)
     table = px_size_wdg.table
 
@@ -157,7 +160,7 @@ def test_ResolutionID(qtbot: QtBot):
 
 def test_delete_button(qtbot: QtBot):
     mmc = CMMCorePlus.instance()
-    px_size_wdg = PixelSizeWidget()
+    px_size_wdg = ObjectivesPixelConfigurationWidget()
     qtbot.addWidget(px_size_wdg)
     table = px_size_wdg.table
 
@@ -178,7 +181,7 @@ def test_delete_button(qtbot: QtBot):
 
 def test_setPixelSizeUm(qtbot: QtBot):
     mmc = CMMCorePlus.instance()
-    px_size_wdg = PixelSizeWidget()
+    px_size_wdg = ObjectivesPixelConfigurationWidget()
     qtbot.addWidget(px_size_wdg)
     table = px_size_wdg.table
 
@@ -210,7 +213,7 @@ def test_setPixelSizeUm(qtbot: QtBot):
 
 def test_deletePixelSizeConfig(qtbot: QtBot):
     mmc = CMMCorePlus.instance()
-    px_size_wdg = PixelSizeWidget()
+    px_size_wdg = ObjectivesPixelConfigurationWidget()
     qtbot.addWidget(px_size_wdg)
     table = px_size_wdg.table
 
@@ -231,7 +234,7 @@ def test_deletePixelSizeConfig(qtbot: QtBot):
 
 def test_definePixelSizeConfig(qtbot: QtBot):
     mmc = CMMCorePlus.instance()
-    px_size_wdg = PixelSizeWidget()
+    px_size_wdg = ObjectivesPixelConfigurationWidget()
     qtbot.addWidget(px_size_wdg)
     table = px_size_wdg.table
 
