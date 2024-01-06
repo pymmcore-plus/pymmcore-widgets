@@ -493,4 +493,4 @@ def test_tab_check(qtbot: QtBot) -> None:
     qtbot.wait(220)
 
     with qtbot.waitSignal(mda.valueChanged):
-        mda._on_tab_checked(2, True)
+        mda.tab_wdg.setChecked(2, True)
