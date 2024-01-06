@@ -118,7 +118,7 @@ class PixelConfigurationWidget(QWidget):
 
     # -------------- Public API --------------
 
-    def value(self) -> dict[str, PixelSizePreset]:
+    def value(self) -> list[PixelSizePreset]:
         """Return the current state of the widget describing the pixel configurations.
 
         Returns
@@ -128,16 +128,16 @@ class PixelConfigurationWidget(QWidget):
 
         Example:
         -------
-            output = {
-                'Res10x': PixelSizePreset(
+            output = [
+                PixelSizePreset(
                     name='Res10x',
-                    settings=[Setting('Objective', 'Label', 'Nikon 10X S Fluor'))],
+                    settings=[Setting('Objective', 'Label', 'Nikon 10X S Fluor')],
                     pixel_size_um=1.0
                 ),
                 ...
-            }
+            ]
         """
-        return {rec.name: rec for rec in self._resID_map.values()}
+        return list(self._resID_map.values())
 
     def setValue(self, value: list[PixelSizePreset]) -> None:
         """Set the state of the widget describing the pixel configurations.
@@ -152,7 +152,7 @@ class PixelConfigurationWidget(QWidget):
             input = [
                 PixelSizePreset(
                     name='Res10x',
-                    settings=[Setting('Objective', 'Label', 'Nikon 10X S Fluor'))],
+                    settings=[Setting('Objective', 'Label', 'Nikon 10X S Fluor')],
                     pixel_size_um=1.0
                 ),
                 ...
@@ -241,12 +241,19 @@ class PixelConfigurationWidget(QWidget):
             return
 
         # if the name already exists, raise a warning and return
-        if res_ID_name in self.value():
+        # if res_ID_name in self.value():
+        if res_ID_name in self._value_to_dict(self.value()):
             warnings.warn(f"ResolutionID '{res_ID_name}' already exists.", stacklevel=2)
             self._px_table.table().item(res_ID_row, 0).setText(old_res_ID_name)
             return
 
         self._resID_map[item.row()].name = res_ID_name
+
+    def _value_to_dict(
+        self, value: list[PixelSizePreset]
+    ) -> dict[str, PixelSizePreset]:
+        """list[PixelSizePreset] to dict[PixelSizePreset.name: PixelSizePreset]."""
+        return {rec.name: rec for rec in value}
 
     def _on_px_value_changed(self) -> None:
         """Update the pixel size value in the configuration map."""
@@ -378,7 +385,8 @@ class PixelConfigurationWidget(QWidget):
             self._mmc.deletePixelSizeConfig(resolutionID)
 
         # create the new pixel size configurations
-        px_groups = PixelSizeGroup(presets=self.value())
+        # px_groups = PixelSizeGroup(presets=self.value())
+        px_groups = PixelSizeGroup(presets=self._value_to_dict(self.value()))
         px_groups.apply_to_core(self._mmc)
         self.close()
 

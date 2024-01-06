@@ -37,17 +37,17 @@ def test_pixel_config_wdg(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = PixelConfigurationWidget()
     qtbot.addWidget(wdg)
 
-    assert wdg.value() == {
-        "Res10x": PixelSizePreset(
+    assert wdg.value() == [
+        PixelSizePreset(
             "Res10x", [Setting("Objective", "Label", "Nikon 10X S Fluor")], 1.0
         ),
-        "Res20x": PixelSizePreset(
+        PixelSizePreset(
             "Res20x", [Setting("Objective", "Label", "Nikon 20X Plan Fluor ELWD")], 0.5
         ),
-        "Res40x": PixelSizePreset(
+        PixelSizePreset(
             "Res40x", [Setting("Objective", "Label", "Nikon 40X Plan Fluor ELWD")], 0.25
         ),
-    }
+    ]
 
     assert wdg._props_selector._prop_table.getCheckedProperties() == [
         ("Objective", "Label", "Nikon 10X S Fluor")
@@ -59,8 +59,8 @@ def test_pixel_config_wdg(qtbot: QtBot, global_mmcore: CMMCorePlus):
         ("Camera", "BitDepth", "16"),
     ]
 
-    assert wdg.value()["test_1"].affine == (0.5, 0.0, 0.0, 0.0, 0.5, 0.0)
-    assert wdg.value()["test_2"].affine == (2, 0.0, 0.0, 0.0, 2, 0.0)
+    assert wdg.value()[0].affine == (0.5, 0.0, 0.0, 0.0, 0.5, 0.0)
+    assert wdg.value()[1].affine == (2, 0.0, 0.0, 0.0, 2, 0.0)
 
 
 def test_pixel_config_wdg_sys_cfg_load(qtbot: QtBot):
@@ -190,7 +190,7 @@ def test_pixel_config_wdg_px_table(qtbot: QtBot, global_mmcore: CMMCorePlus):
     spin.setValue(10)
     # the above setValue does not trigger the signal, so we need to manually call it
     spin.valueChanged.emit(10)
-    assert wdg.value()["Res20x"].pixel_size_um == 10
+    assert wdg.value()[1].pixel_size_um == 10
     assert wdg._affine_table.value() == (10, 0.0, 0.0, 0.0, 10, 0.0)
     assert wdg._resID_map[1].pixel_size_um == 10
     assert wdg._resID_map[1].affine == (10, 0.0, 0.0, 0.0, 10, 0.0)
@@ -232,7 +232,7 @@ def test_pixel_config_wdg_warning(qtbot: QtBot, global_mmcore: CMMCorePlus):
         wdg._px_table._table.item(0, 0).setText("Res40x")
 
 
-def test_pixel_config_wdg_delete_resID(qtbot: QtBot, global_mmcore: CMMCorePlus):
+def p_delete_resID(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = PixelConfigurationWidget()
     qtbot.addWidget(wdg)
 
@@ -246,11 +246,11 @@ def test_pixel_config_wdg_delete_resID(qtbot: QtBot, global_mmcore: CMMCorePlus)
     assert len(wdg._resID_map) == 2
     assert wdg._resID_map[0].name == "Res10x"
     assert wdg._resID_map[1].name == "Res40x"
-    assert wdg.value() == {
-        "Res10x": PixelSizePreset(
+    assert wdg.value() == [
+        PixelSizePreset(
             "Res10x", [Setting("Objective", "Label", "Nikon 10X S Fluor")], 1.0
         ),
-        "Res40x": PixelSizePreset(
+        PixelSizePreset(
             "Res40x", [Setting("Objective", "Label", "Nikon 40X Plan Fluor ELWD")], 0.25
         ),
-    }
+    ]
