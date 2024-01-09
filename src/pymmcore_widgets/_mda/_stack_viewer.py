@@ -13,6 +13,7 @@ from useq import MDAEvent, MDASequence
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
 from pymmcore_widgets._mda._util._labeled_slider import LabeledVisibilitySlider
+from pymmcore_widgets._mda._util._save_button import SaveButton
 
 from ._datastore import QOMEZarrDatastore
 
@@ -54,6 +55,7 @@ class StackViewer(QtWidgets.QWidget):
         parent: QWidget | None = None,
         size: tuple[int, int] | None = None,
         transform: tuple[int, bool, bool] = (0, True, False),
+        save_button: bool = True,
     ):
         super().__init__(parent=parent)
         self._reload_position()
@@ -108,7 +110,7 @@ class StackViewer(QtWidgets.QWidget):
         self.frame = 0
         self.ready = False
         self.current_channel = 0
-        self.pixel_size = 1
+        self.pixel_size = 1.0
 
         self.clim_timer = QtCore.QTimer()
         self.clim_timer.setInterval(int(1000 // AUTOCLIM_RATE))
@@ -119,8 +121,12 @@ class StackViewer(QtWidgets.QWidget):
         self.collapse_btn = QtWidgets.QPushButton()
         self.collapse_btn.setIcon(fonticon.icon(MDI6.arrow_collapse_all))
         self.collapse_btn.clicked.connect(self._collapse_view)
+
         self.bottom_buttons = QtWidgets.QHBoxLayout()
         self.bottom_buttons.addWidget(self.collapse_btn)
+        if save_button:
+            self.save_btn = SaveButton(self.datastore)
+            self.bottom_buttons.addWidget(self.save_btn)
         self.main_layout.addLayout(self.bottom_buttons)
 
         if sequence:
