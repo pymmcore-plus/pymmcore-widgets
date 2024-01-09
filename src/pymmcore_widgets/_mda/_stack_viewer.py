@@ -413,7 +413,7 @@ class StackViewer(QtWidgets.QWidget):
             )
             trans.translate(
                 (
-                    x_pos / self.pixel_size,
+                    -x_pos / self.pixel_size,
                     y_pos / self.pixel_size,
                     0,
                 )
@@ -439,8 +439,8 @@ class StackViewer(QtWidgets.QWidget):
         x_pos = event.x_pos or 0
         y_pos = event.y_pos or 0
         img_position = (
-            x_pos / self.pixel_size - self.img_size[0] / 2,
-            x_pos / self.pixel_size + self.img_size[0] / 2,
+            -x_pos / self.pixel_size - self.img_size[0] / 2,
+            -x_pos / self.pixel_size + self.img_size[0] / 2,
             y_pos / self.pixel_size - self.img_size[1] / 2,
             y_pos / self.pixel_size + self.img_size[1] / 2,
         )
