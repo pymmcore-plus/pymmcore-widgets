@@ -126,3 +126,28 @@ def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     global_mmcore.setProperty("Core", "Focus", "Z1")
     assert stage_z.radiobutton.isChecked()
     assert not stage_z1.radiobutton.isChecked()
+
+
+def test_invert_axis(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    stage_xy = StageWidget("XY", levels=3)
+    qtbot.addWidget(stage_xy)
+
+    xy_up_3 = stage_xy._btns.layout().itemAtPosition(0, 3)
+    xy_left_1 = stage_xy._btns.layout().itemAtPosition(3, 2)
+
+    stage_xy.setStep(15.0)
+
+    xy_left_1.widget().click()
+    assert global_mmcore.getXPosition() == -15.0
+    global_mmcore.waitForSystem()
+    stage_xy._invert_x.setChecked(True)
+    xy_left_1.widget().click()
+    assert global_mmcore.getXPosition() == 0.0
+
+    global_mmcore.waitForSystem()
+    xy_up_3.widget().click()
+    assert global_mmcore.getYPosition() == 45.0
+    global_mmcore.waitForSystem()
+    stage_xy._invert_y.setChecked(True)
+    xy_up_3.widget().click()
+    assert global_mmcore.getYPosition() == 0.0

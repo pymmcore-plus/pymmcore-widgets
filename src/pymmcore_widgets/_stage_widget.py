@@ -169,6 +169,9 @@ class StageWidget(QWidget):
 
         self.snap_checkbox = QCheckBox(text="Snap on Click")
 
+        self._invert_x = QCheckBox(text="Invert X")
+        self._invert_y = QCheckBox(text="Invert Y")
+
         self.radiobutton = QRadioButton(text="Set as Default")
         self.radiobutton.toggled.connect(self._on_radiobutton_toggled)
 
@@ -183,13 +186,15 @@ class StageWidget(QWidget):
         bottom_row_1.layout().addWidget(self._readout)
 
         bottom_row_2 = QWidget()
-        bottom_row_2_layout = QHBoxLayout()
-        bottom_row_2_layout.setSpacing(10)
+        bottom_row_2_layout = QGridLayout()
+        bottom_row_2_layout.setSpacing(15)
         bottom_row_2_layout.setContentsMargins(0, 0, 0, 0)
         bottom_row_2_layout.setAlignment(AlignCenter)
         bottom_row_2.setLayout(bottom_row_2_layout)
-        bottom_row_2.layout().addWidget(self.snap_checkbox)
-        bottom_row_2.layout().addWidget(self._poll_cb)
+        bottom_row_2.layout().addWidget(self.snap_checkbox, 0, 0)
+        bottom_row_2.layout().addWidget(self._poll_cb, 0, 1)
+        bottom_row_2.layout().addWidget(self._invert_x, 1, 0)
+        bottom_row_2.layout().addWidget(self._invert_y, 1, 1)
 
         self.setLayout(QVBoxLayout())
         self.layout().setSpacing(0)
@@ -348,6 +353,12 @@ class StageWidget(QWidget):
     def _on_click(self) -> None:
         btn: QPushButton = self.sender()
         xmag, ymag = self.BTNS[f"{PREFIX}.{btn.text()}"][-2:]
+
+        if self._invert_x.isChecked():
+            xmag *= -1
+        if self._invert_y.isChecked():
+            ymag *= -1
+
         self._move_stage(self._scale(xmag), self._scale(ymag))
 
     def _move_stage(self, x: float, y: float) -> None:
