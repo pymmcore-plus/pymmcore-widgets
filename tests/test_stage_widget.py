@@ -132,6 +132,9 @@ def test_invert_axis(qtbot: QtBot, global_mmcore: CMMCorePlus):
     stage_xy = StageWidget("XY", levels=3)
     qtbot.addWidget(stage_xy)
 
+    assert not stage_xy._invert_x.isHidden()
+    assert not stage_xy._invert_y.isHidden()
+
     xy_up_3 = stage_xy._btns.layout().itemAtPosition(0, 3)
     xy_left_1 = stage_xy._btns.layout().itemAtPosition(3, 2)
 
@@ -151,3 +154,14 @@ def test_invert_axis(qtbot: QtBot, global_mmcore: CMMCorePlus):
     stage_xy._invert_y.setChecked(True)
     xy_up_3.widget().click()
     assert global_mmcore.getYPosition() == 0.0
+
+    stage_z = StageWidget("Z", levels=3)
+    qtbot.addWidget(stage_z)
+
+    assert stage_z._invert_x.isHidden()
+    assert stage_z._invert_y.isHidden()
+
+    z_up_2 = stage_z._btns.layout().itemAtPosition(1, 3)
+    z_up_2.widget().click()
+
+    assert global_mmcore.getPosition() == 20.0

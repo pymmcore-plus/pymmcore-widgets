@@ -204,6 +204,10 @@ class StageWidget(QWidget):
         self.layout().addWidget(bottom_row_1)
         self.layout().addWidget(bottom_row_2)
 
+        if self._dtype is not DeviceType.XYStage:
+            self._invert_x.hide()
+            self._invert_y.hide()
+
     def _connect_events(self) -> None:
         self._mmc.events.propertyChanged.connect(self._on_prop_changed)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_system_cfg)
