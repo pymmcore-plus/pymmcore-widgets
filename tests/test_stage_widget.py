@@ -128,8 +128,7 @@ def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert not stage_z1.radiobutton.isChecked()
 
 
-def test_invert_xy(qtbot: QtBot, global_mmcore: CMMCorePlus):
-    # test XY stage
+def test_invert_axis(qtbot: QtBot, global_mmcore: CMMCorePlus):
     stage_xy = StageWidget("XY", levels=3)
     qtbot.addWidget(stage_xy)
 
