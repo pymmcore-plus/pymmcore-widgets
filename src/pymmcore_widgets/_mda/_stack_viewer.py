@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Mapping
 
 import numpy as np
 from fonticon_mdi6 import MDI6
-from qtpy import QtCore, QtWidgets
+from qtpy import QtCore, QtWidgets, QtGui
 from qtpy.QtCore import QTimer, Signal
 from superqt import fonticon
 from superqt.cmap._cmap_utils import try_cast_colormap
@@ -121,6 +121,8 @@ class StackViewer(QtWidgets.QWidget):
         self.collapse_btn = QtWidgets.QPushButton()
         self.collapse_btn.setIcon(fonticon.icon(MDI6.arrow_collapse_all))
         self.collapse_btn.clicked.connect(self._collapse_view)
+        self.collapse_btn.setIconSize(QtCore.QSize(25, 25))
+        self.collapse_btn.setFixedSize(30, 30)
 
         self.bottom_buttons = QtWidgets.QHBoxLayout()
         self.bottom_buttons.addWidget(self.collapse_btn)
@@ -214,7 +216,7 @@ class StackViewer(QtWidgets.QWidget):
         for g in range(self.ng):
             self.images[channel][g].cmap = colormap.to_vispy()
         if colormap.name not in self.cmap_names:
-            self.cmap_names.append(self.cmap_names[channel])
+            self.cmap_names.append(colormap.name)
         self.cmap_names[channel] = colormap.name
         self._canvas.update()
 
@@ -223,16 +225,11 @@ class StackViewer(QtWidgets.QWidget):
             self.images[channel][g].visible = self.channel_row.boxes[
                 channel
             ].show_channel.isChecked()
-        if self.current_channel == channel:
-            channel_to_set = channel - 1 if channel > 0 else channel + 1
-            channel_to_set = 0 if len(self.channel_row.boxes) == 1 else channel_to_set
-            self.channel_row._handle_channel_choice(
-                self.channel_row.boxes[channel_to_set].channel
-            )
         self._canvas.update()
 
     def _handle_channel_autoscale(self, state: bool, channel: int) -> None:
         slider = self.channel_row.boxes[channel].slider
+        print(channel, "autoscale", state)
         if state == 0:
             self._handle_channel_clim(slider.value(), channel, set_autoscale=False)
         else:
@@ -243,7 +240,6 @@ class StackViewer(QtWidgets.QWidget):
             self._handle_channel_clim(clim, channel, set_autoscale=False)
 
     def _handle_channel_choice(self, channel: int) -> None:
-        print("Setting current channel", channel)
         self.current_channel = channel
 
     def _create_sliders(self, sequence: MDASequence | None = None) -> None:
@@ -348,19 +344,15 @@ class StackViewer(QtWidgets.QWidget):
         if display_indices == indices:
             self.display_image(img, indices.get("c", 0), indices.get("g", 0))
             # Handle Autoscaling
+            img_min, img_max = img.min(), img.max()
             clim_slider = self.channel_row.boxes[indices.get("c", 0)].slider
             clim_slider.setRange(
-                min(clim_slider.minimum(), img.min()),
-                max(clim_slider.maximum(), img.max()),
+                min(clim_slider.minimum(), img_min),
+                max(clim_slider.maximum(), img_max),
             )
             if self.channel_row.boxes[indices.get("c", 0)].autoscale_chbx.isChecked():
-                clim_slider.setValue(
-                    [
-                        min(clim_slider.minimum(), img.min()),
-                        max(clim_slider.maximum(), img.max()),
-                    ]
-                )
-            self.on_clim_timer(indices.get("c", 0))
+                clim_slider.setValue([img_min, img_max,])
+                self.images[indices.get("c", 0)][indices.get("g", 0)].clim = (img_min, img_max)
 
     def _set_sliders(self, indices: dict) -> dict:
         """New indices from outside the sliders, update."""

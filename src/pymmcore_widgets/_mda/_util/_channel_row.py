@@ -68,8 +68,10 @@ class ChannelRow(QtWidgets.QWidget):
             self.current_channel = i
             self.boxes.append(channel_box)
             self.layout().addWidget(channel_box)
+        self.visible.connect(self.channel_visibility)
 
     def box_visibility(self, i: int, name: str | None = None) -> None:
+        """Make a box visible and set its name."""
         self.boxes[i].visible = True
         self.boxes[i].show()
         self.boxes[i].autoscale_chbx.setChecked(True)
@@ -81,7 +83,22 @@ class ChannelRow(QtWidgets.QWidget):
             self.boxes[0].setStyleSheet("ChannelBox{border: 3px solid}")
             self.selected.emit(0)
 
+    def channel_visibility(self, visible:bool, channel:int) -> None:
+        """If the current channel is made invisible, choose a different one and unhide."""
+        if self.current_channel == channel and not visible:
+            channel_to_set = abs(channel - 1)
+            for idx, channel in enumerate(self.boxes):
+                if channel.show_channel.isChecked():
+                    channel_to_set = idx
+                    break
+            while channel_to_set > len(self.boxes) - 1:
+                channel_to_set -= 1
+            self._handle_channel_choice(
+                self.boxes[channel_to_set].channel
+            )
+
     def _handle_channel_choice(self, channel: str) -> None:
+        """Channel was chosen, adjust GUI and send signal"""
         if len(self.boxes) == 1:
             return
         for idx, channel_box in enumerate(self.boxes):
@@ -91,6 +108,7 @@ class ChannelRow(QtWidgets.QWidget):
                 channel_box.setStyleSheet("ChannelBox{border: 3px solid}")
                 channel_box.show_channel.setChecked(True)
                 self.selected.emit(idx)
+                self.current_channel = idx
 
 
 class ChannelBox(QtWidgets.QFrame):
