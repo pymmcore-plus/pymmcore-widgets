@@ -268,10 +268,12 @@ class StackViewer(QtWidgets.QWidget):
         images = []
         # Get the images the mouse is over
         while image := self._canvas.visual_at(event.pos):
-            images.append(image)
             image.interactive = False
+            images.append(image)
         for image in images:
             image.interactive = True
+        images = [image for image in images if image in
+                  [item for row in self.images for item in row]]
         self.view.interactive = True
         if images == []:
             transform = self.view.get_transform("canvas", "visual")
@@ -279,17 +281,13 @@ class StackViewer(QtWidgets.QWidget):
             info = f"[{p[0]}, {p[1]}]"
             self.info_bar.setText(info)
             return
-        # Adjust channel index is channel(s) are not visible
-        real_channel = self.current_channel
-        for i in range(self.current_channel):
-            i_visible = self.channel_row.boxes[i].show_channel.isChecked()
-            real_channel = real_channel - 1 if not i_visible else real_channel
+
         images.reverse()
-        transform = images[real_channel].get_transform("canvas", "visual")
+        transform = images[self.current_channel].get_transform("canvas", "visual")
         p = [int(x) for x in transform.map(event.pos)]
         try:
             pos = f"[{p[0]}, {p[1]}]"
-            value = f"{images[real_channel]._data[p[1], p[0]]}"
+            value = f"{images[self.current_channel]._data[p[1], p[0]]}"
             info = f"{pos}: {value}"
             self.info_bar.setText(info)
         except IndexError:
