@@ -5,10 +5,9 @@ from typing import TYPE_CHECKING, Mapping
 
 import numpy as np
 from fonticon_mdi6 import MDI6
-from qtpy import QtCore, QtWidgets, QtGui
+from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import QTimer, Signal
 from superqt import fonticon
-from superqt.cmap._cmap_utils import try_cast_colormap
 from useq import MDAEvent, MDASequence
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
@@ -64,7 +63,6 @@ class StackViewer(QtWidgets.QWidget):
         self.transform = transform
         self._mmc = mmcore
         self._clim = "auto"
-        self.cmaps = [try_cast_colormap(x) for x in self.cmap_names]
         self.display_index = {dim: 0 for dim in DIMENSIONS}
 
         self.main_layout = QtWidgets.QVBoxLayout()
@@ -161,7 +159,6 @@ class StackViewer(QtWidgets.QWidget):
         self.ready = False
         self.sequence = sequence
         self.pixel_size = self._mmc.getPixelSizeUm() if self._mmc else self.pixel_size
-        print("PIXEL_SIZE", self.pixel_size)
         # Sliders
         for dim in DIMENSIONS[:3]:
             if sequence.sizes.get(dim, 1) > 1:
@@ -181,7 +178,6 @@ class StackViewer(QtWidgets.QWidget):
                 image = scene.visuals.Image(
                     np.zeros(self._canvas.size).astype(np.uint16),
                     parent=self.view.scene,
-                    cmap=self.cmaps[c].to_vispy(),
                     clim=(0, 1),
                 )
                 trans = visuals.transforms.linear.MatrixTransform()
@@ -212,12 +208,9 @@ class StackViewer(QtWidgets.QWidget):
             )
         self._canvas.update()
 
-    def _handle_channel_cmap(self, colormap: cmap.Colormap, channel: int) -> None:
+    def _handle_channel_cmap(self, colormap: cmap.Colormap, idx: int) -> None:
         for g in range(self.ng):
-            self.images[channel][g].cmap = colormap.to_vispy()
-        if colormap.name not in self.cmap_names:
-            self.cmap_names.append(colormap.name)
-        self.cmap_names[channel] = colormap.name
+            self.images[idx][g].cmap = colormap.to_vispy()
         self._canvas.update()
 
     def _handle_channel_visibility(self, state: bool, channel: int) -> None:
@@ -229,7 +222,6 @@ class StackViewer(QtWidgets.QWidget):
 
     def _handle_channel_autoscale(self, state: bool, channel: int) -> None:
         slider = self.channel_row.boxes[channel].slider
-        print(channel, "autoscale", state)
         if state == 0:
             self._handle_channel_clim(slider.value(), channel, set_autoscale=False)
         else:
@@ -243,8 +235,8 @@ class StackViewer(QtWidgets.QWidget):
         self.current_channel = channel
 
     def _create_sliders(self, sequence: MDASequence | None = None) -> None:
-        n_channels = 5 if sequence is None else sequence.sizes.get("c", 1)
-        self.channel_row: ChannelRow = ChannelRow(n_channels, self.cmaps)
+        n_channels = 5 if sequence is None else max(1, sequence.sizes.get("c", 1))
+        self.channel_row: ChannelRow = ChannelRow(n_channels)
         self.channel_row.visible.connect(self._handle_channel_visibility)
         self.channel_row.autoscale.connect(self._handle_channel_autoscale)
         self.channel_row.new_clims.connect(self._handle_channel_clim)
@@ -361,11 +353,7 @@ class StackViewer(QtWidgets.QWidget):
             if slider.lock_btn.isChecked():
                 display_indices[slider.name] = slider.value()
                 continue
-            # This blocking doesn't seem to work
-            # blocked = slider.blockSignals(True)
             slider.setValue(display_indices[slider.name])
-            # slider.setValue(indices[slider.name])
-            # slider.blockSignals(blocked)
         return display_indices
 
     def display_image(self, img: np.ndarray, channel: int = 0, grid: int = 0) -> None:
@@ -400,8 +388,6 @@ class StackViewer(QtWidgets.QWidget):
             sub_event = list(sub_seq.iter_events())[g]
             x_pos = sub_event.x_pos or 0
             y_pos = sub_event.y_pos or 0
-            print("TRANSLATE", translate)
-            print(sub_event.x_pos, sub_event.y_pos)
             trans.translate(
                 (
                     (translate[1] - 1) * self.img_size[0],
@@ -416,7 +402,6 @@ class StackViewer(QtWidgets.QWidget):
                     0,
                 )
             )
-            print(trans)
             self._expand_canvas_view(sub_event)
         else:
             trans.translate(
@@ -460,7 +445,6 @@ class StackViewer(QtWidgets.QWidget):
             (camera_rect[0], camera_rect[2]),
             (camera_rect[1] - camera_rect[0], camera_rect[3] - camera_rect[2]),
         )
-        print(self.view_rect)
 
     def complement_indices(self, index: Mapping[str, int]) -> dict:
         """MDAEvents not always have all the dimensions, complement."""
@@ -479,7 +463,6 @@ class StackViewer(QtWidgets.QWidget):
         self.qt_settings = QtCore.QSettings("pymmcore_plus", self.__class__.__name__)
         self.resize(self.qt_settings.value("size", QtCore.QSize(270, 225)))
         self.move(self.qt_settings.value("pos", QtCore.QPoint(50, 50)))
-        self.cmap_names = self.qt_settings.value("cmaps", ["gray", "cyan", "magenta"])
 
     def _collapse_view(self) -> None:
         view_rect = (
@@ -495,5 +478,4 @@ class StackViewer(QtWidgets.QWidget):
         """Write window size and position to config file."""
         self.qt_settings.setValue("size", self.size())
         self.qt_settings.setValue("pos", self.pos())
-        self.qt_settings.setValue("cmaps", self.cmap_names)
         super().closeEvent(e)
