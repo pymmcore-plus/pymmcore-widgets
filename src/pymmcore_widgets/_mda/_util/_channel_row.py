@@ -3,14 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import cmap
-from superqt.cmap._cmap_utils import try_cast_colormap
 from qtpy import QtCore, QtGui, QtWidgets
 from superqt import QColormapComboBox, QRangeSlider
+from superqt.cmap._cmap_utils import try_cast_colormap
 from useq import Channel
 
 if TYPE_CHECKING:
     from qtpy.QtGui import QMouseEvent
-    from vispy import color
 
 try:
     pass
@@ -68,14 +67,16 @@ class ChannelRow(QtWidgets.QWidget):
         self.new_cmap.connect(self._handle_channel_cmap)
         self.visible.connect(self.channel_visibility)
 
-    def box_visibility(self, i: int, name: str | None = None) -> None:
+    def box_visibility(self, i: int, name: str) -> None:
         """Make a box visible and set its name."""
         self.boxes[i].visible = True
         self.boxes[i].show()
         self.boxes[i].autoscale_chbx.setChecked(True)
         self.boxes[i].show_channel.setText(name)
         self.boxes[i].channel = name
-        self.boxes[i].color_choice.setCurrentColormap(self.channel_cmaps.get(name, "gray"))
+        self.boxes[i].color_choice.setCurrentColormap(
+            self.channel_cmaps.get(name, "gray")
+        )
         if len(self.boxes) > 1:
             self.boxes[i].mousePressEvent(None)
         else:
@@ -83,8 +84,8 @@ class ChannelRow(QtWidgets.QWidget):
             self.selected.emit(0)
         self.new_cmap.emit(try_cast_colormap(self.channel_cmaps.get(name, "gray")), i)
 
-    def channel_visibility(self, visible:bool, channel:int) -> None:
-        """If the current channel is made invisible, choose a different one and unhide."""
+    def channel_visibility(self, visible: bool, channel: int) -> None:
+        """If the current channel is made invisible, choose a different one."""
         if self.current_channel == channel and not visible:
             channel_to_set = abs(channel - 1)
             for idx, channel in enumerate(self.boxes):
@@ -93,12 +94,10 @@ class ChannelRow(QtWidgets.QWidget):
                     break
             while channel_to_set > len(self.boxes) - 1:
                 channel_to_set -= 1
-            self._handle_channel_choice(
-                self.boxes[channel_to_set].channel
-            )
+            self._handle_channel_choice(self.boxes[channel_to_set].channel)
 
     def _handle_channel_choice(self, channel: str) -> None:
-        """Channel was chosen, adjust GUI and send signal"""
+        """Channel was chosen, adjust GUI and send signal."""
         if len(self.boxes) == 1:
             return
         for idx, channel_box in enumerate(self.boxes):
@@ -110,7 +109,7 @@ class ChannelRow(QtWidgets.QWidget):
                 self.selected.emit(idx)
                 self.current_channel = idx
 
-    def _handle_channel_cmap(self, colormap: cmap.Colormap|str, i: int) -> None:
+    def _handle_channel_cmap(self, colormap: cmap.Colormap | str, i: int) -> None:
         color = colormap if isinstance(colormap, str) else colormap.name
         if color in self.cmap_names:
             self.cmap_names.remove(color)
@@ -125,7 +124,9 @@ class ChannelRow(QtWidgets.QWidget):
     def restore_data(self) -> None:
         """Restore data from previous session."""
         self.qt_settings = QtCore.QSettings("pymmcore_widgets", self.__class__.__name__)
-        self.cmap_names = self.qt_settings.value("cmap_names", ["gray", "magenta", "cyan"])
+        self.cmap_names = self.qt_settings.value(
+            "cmap_names", ["gray", "magenta", "cyan"]
+        )
         self.channel_cmaps = self.qt_settings.value("channel_cmaps", {})
         print(self.channel_cmaps)
 

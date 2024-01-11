@@ -273,8 +273,11 @@ class StackViewer(QtWidgets.QWidget):
         for image in images:
             image.interactive = True
         # Somehow there are too many images, should be investigated
-        images = [image for image in images if image in
-                  [item for row in self.images for item in row]]
+        images = [
+            image
+            for image in images
+            if image in [item for row in self.images for item in row]
+        ]
         images.reverse()
         self.view.interactive = True
         if images == []:
@@ -285,8 +288,8 @@ class StackViewer(QtWidgets.QWidget):
             return
         # Handle if a channel is not visible
         real_channel = self.current_channel
-        for box in self.channel_row.boxes[:self.current_channel+1]:
-            if box.show_channel.isChecked() == False:
+        for box in self.channel_row.boxes[: self.current_channel + 1]:
+            if not box.show_channel.isChecked():
                 real_channel -= 1
 
         transform = images[real_channel].get_transform("canvas", "visual")
@@ -347,8 +350,16 @@ class StackViewer(QtWidgets.QWidget):
                 max(clim_slider.maximum(), img_max),
             )
             if self.channel_row.boxes[indices.get("c", 0)].autoscale_chbx.isChecked():
-                clim_slider.setValue([img_min, img_max,])
-                self.images[indices.get("c", 0)][indices.get("g", 0)].clim = (img_min, img_max)
+                clim_slider.setValue(
+                    [
+                        img_min,
+                        img_max,
+                    ]
+                )
+                self.images[indices.get("c", 0)][indices.get("g", 0)].clim = (
+                    img_min,
+                    img_max,
+                )
 
     def _set_sliders(self, indices: dict) -> dict:
         """New indices from outside the sliders, update."""
