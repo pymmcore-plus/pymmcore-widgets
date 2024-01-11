@@ -272,8 +272,10 @@ class StackViewer(QtWidgets.QWidget):
             images.append(image)
         for image in images:
             image.interactive = True
+        # Somehow there are too many images, should be investigated
         images = [image for image in images if image in
                   [item for row in self.images for item in row]]
+        images.reverse()
         self.view.interactive = True
         if images == []:
             transform = self.view.get_transform("canvas", "visual")
@@ -281,13 +283,17 @@ class StackViewer(QtWidgets.QWidget):
             info = f"[{p[0]}, {p[1]}]"
             self.info_bar.setText(info)
             return
+        # Handle if a channel is not visible
+        real_channel = self.current_channel
+        for box in self.channel_row.boxes[:self.current_channel+1]:
+            if box.show_channel.isChecked() == False:
+                real_channel -= 1
 
-        images.reverse()
-        transform = images[self.current_channel].get_transform("canvas", "visual")
+        transform = images[real_channel].get_transform("canvas", "visual")
         p = [int(x) for x in transform.map(event.pos)]
         try:
             pos = f"[{p[0]}, {p[1]}]"
-            value = f"{images[self.current_channel]._data[p[1], p[0]]}"
+            value = f"{images[real_channel]._data[p[1], p[0]]}"
             info = f"{pos}: {value}"
             self.info_bar.setText(info)
         except IndexError:
