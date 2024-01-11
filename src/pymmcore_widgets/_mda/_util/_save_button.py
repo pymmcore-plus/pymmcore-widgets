@@ -18,10 +18,10 @@ class SaveButton(QPushButton):
     ):
         super().__init__(parent=parent)
         # self.setFont(QFont('Arial', 50))
-        self.setMinimumHeight(40)
+        # self.setMinimumHeight(30)
         self.setIcon(fonticon.icon(MDI6.content_save_outline, color="gray"))
-        self.setIconSize(QSize(30, 30))
-        self.setFixedSize(40, 40)
+        self.setIconSize(QSize(25, 25))
+        self.setFixedSize(30, 30)
         self.clicked.connect(self._on_click)
 
         self.datastore = datastore
