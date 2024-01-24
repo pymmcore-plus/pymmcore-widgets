@@ -429,10 +429,6 @@ def test_run_mda_af_warning(qtbot: QtBot):
     MDA = useq.MDASequence(autofocus_plan=useq.AxesBasedAF(axes=("p", "t")))
     wdg.setValue(MDA)
 
-    from rich import print
-
-    print(wdg.value())
-
     def _cancel(*args, **kwargs):
         return QMessageBox.StandardButton.Cancel
 
