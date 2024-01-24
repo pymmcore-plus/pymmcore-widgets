@@ -180,7 +180,7 @@ class MDAWidget(MDASequenceWidget):
     def _confirm_af_intentions(self) -> bool:
         msg = (
             "You've selected to use autofocus for this experiment, "
-            f"but the autofocus device ({self._mmc.getAutoFocusDevice()!r}) "
+            f"but the '{self._mmc.getAutoFocusDevice()!r}' autofocus device "
             "is not currently engaged. "
             "\n\nRun anyway?"
         )

@@ -27,7 +27,6 @@ ALL_WIDGETS: dict[type[QWidget], dict[str, Any]] = {
     pmmw.MDASequenceWidget: {},
     pmmw.ObjectivesWidget: {},
     pmmw.ObjectivesPixelConfigurationWidget: {},
-    pmmw.PositionTable: {},
     pmmw.PixelConfigurationWidget: {},
     pmmw.PresetsWidget: {"group": "Camera"},
     pmmw.PropertiesWidget: {},
@@ -39,6 +38,7 @@ ALL_WIDGETS: dict[type[QWidget], dict[str, Any]] = {
     pmmw.StateDeviceWidget: {"device_label": "Objective"},
     pmmw.TimePlanWidget: {},
     pmmw.ZPlanWidget: {},
+    pmmw.PositionTable: {},
 }
 
 
