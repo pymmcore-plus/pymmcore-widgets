@@ -6,7 +6,7 @@ from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus._logger import logger
 from pymmcore_plus._util import retry
-from qtpy.QtWidgets import QCheckBox, QWidget, QWidgetAction
+from qtpy.QtWidgets import QCheckBox, QMessageBox, QWidget, QWidgetAction
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets.useq_widgets import PositionTable
@@ -165,8 +165,32 @@ class CoreConnectedPositionTable(PositionTable):
             data = {self.Z.key: self._mmc.getZPosition()}
             self.table().setRowData(row, data)
 
+    # def _set_af_from_core(self, row: int, col: int = 0) -> None:
+    #     if self._mmc.getAutoFocusDevice():
+    #         data = {self.AF.key: self._mmc.getAutoFocusOffset()}
+    #         self.table().setRowData(row, data)
+
     def _set_af_from_core(self, row: int, col: int = 0) -> None:
-        if self._mmc.getAutoFocusDevice():
+        if not self._mmc.getAutoFocusDevice():
+            return  # AF offset automatically set to 0.0
+
+        # 'Set AF Offset per Position' checked but the autofocus isn't locked in focus
+        if self.af_per_position.isChecked() and not self._mmc.isContinuousFocusLocked():
+            # delete last added row
+            self.table().removeRow(row)
+            # show warning message
+            af = f"'{self._mmc.getAutoFocusDevice()!r}'"
+            title = f"Warning: {af}"
+            msg = (
+                f"'{self.af_per_position.text()!r}' is checked, but the {af} autofocus "
+                f"device is not engaged. \n\nEngage the {af} device before "
+                "adding the position."
+            )
+            QMessageBox.warning(self, title, msg, QMessageBox.StandardButton.Ok)
+            return
+
+        # only if the autofocus device is locked in focus we can get the current offset
+        elif self._mmc.isContinuousFocusLocked():
             data = {self.AF.key: self._mmc.getAutoFocusOffset()}
             self.table().setRowData(row, data)
 
