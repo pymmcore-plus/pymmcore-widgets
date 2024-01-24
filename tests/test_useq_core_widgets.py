@@ -426,7 +426,11 @@ def test_run_mda_af_warning(qtbot: QtBot):
     qtbot.addWidget(wdg)
     wdg.show()
 
-    MDA = useq.MDASequence(autofocus_plan=useq.AxesBasedAF(axes=("p", "t")))
+    MDA = useq.MDASequence(
+        stage_positions=[useq.Position(x=0, y=0, z=0)],
+        time_plan=useq.TIntervalLoops(interval=1, loops=2),
+        autofocus_plan=useq.AxesBasedAF(axes=("p", "t")),
+    )
     wdg.setValue(MDA)
 
     def _cancel(*args, **kwargs):
@@ -441,6 +445,7 @@ def test_run_mda_af_warning(qtbot: QtBot):
         return QMessageBox.StandardButton.Ok
 
     with patch.object(QMessageBox, "warning", _ok):
-        wdg.control_btns.run_btn.click()
+        with qtbot.waitSignal(wdg._mmc.mda.events.sequenceStarted):
+            wdg.control_btns.run_btn.click()
 
     assert wdg._mmc.mda.is_running()
