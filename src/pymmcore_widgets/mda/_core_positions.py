@@ -207,7 +207,7 @@ class CoreConnectedPositionTable(PositionTable):
             self._mmc.waitForSystem()
 
     def _perform_autofocus(self) -> None:
-        # run autofocus (run 3 times in case it fails)
+        # run Autofocus (run 3 times in case it fails)
         @retry(exceptions=RuntimeError, tries=3, logger=logger.warning)
         def _perform_full_focus() -> None:
             self._mmc.fullFocus()
