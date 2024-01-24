@@ -18,7 +18,7 @@ jobs:
       matrix:
         python-version: ['3.8', '3.9', '3.10']
         platform: [macos-latest, windows-latest]
-        backend: [pyside2, pyqt5]
+        backend: [pyside2, pyqt5, pyside6]
 
     steps:
       - uses: actions/checkout@v4
