@@ -408,6 +408,7 @@ class _AvailableDevicesWidget(QWidget):
         if ctx.exception or not dlg.exec():
             return  # pragma: no cover
 
+        # getting here means that a new device was successfully loaded AND initialized
         dev = Device.create_from_core(
             self._core, name=dlg.deviceLabel(), initialized=True
         )
@@ -420,11 +421,18 @@ class _AvailableDevicesWidget(QWidget):
 
         self.touchedModel.emit()
 
-        if (
-            dev.device_type == DeviceType.Hub
-            and PeripheralSetupDlg(dev, self._model, self._core, self).exec()
-        ):
-            self.touchedModel.emit()
+        if dev.device_type == DeviceType.Hub:
+            # if a new hub was added to the loaded Devices, we need to reload
+            # the available devices list to include any new child peripherals
+            # (load_available_devices will call core.getInstalledDevices() on all hubs)
+            # NOTE: this is less efficient than it could be, since this triggers a
+            # complete reload of the available devices list, rather than simply adding
+            # new available devices that are children of the Hub...
+            # but that could come in a later PR if it becomes performance limiting.
+            self._model.load_available_devices(self._core)
+            dlg2 = PeripheralSetupDlg(dev, self._model, self._core, self)
+            if dlg2.exec():
+                self.touchedModel.emit()
 
 
 class DevicesPage(ConfigWizardPage):

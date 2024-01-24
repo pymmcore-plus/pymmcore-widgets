@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 import useq
 from qtpy.QtCore import QTimer
+from qtpy.QtWidgets import QMessageBox
 
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
@@ -237,8 +238,22 @@ def test_core_position_table_add_position(
 
     wdg.stage_positions.af_per_position.setChecked(True)
 
-    with qtbot.waitSignals([pos_table.valueChanged], order="strict", timeout=1000):
-        pos_table.act_add_row.trigger()
+    assert pos_table.table().rowCount() == 1
+
+    # test when autofocus is not engaged and af_per_position is checked
+    with patch.object(
+        QMessageBox, "warning", return_value=QMessageBox.StandardButton.Ok
+    ):
+        with qtbot.waitSignals([pos_table.valueChanged], order="strict", timeout=1000):
+            pos_table.act_add_row.trigger()
+
+    # a new position has NOT been added
+    assert pos_table.table().rowCount() == 1
+
+    # test when autofocus is engaged and af_per_position is checked
+    with patch.object(wdg._mmc, "isContinuousFocusLocked", return_value=True):
+        with qtbot.waitSignals([pos_table.valueChanged], order="strict", timeout=1000):
+            pos_table.act_add_row.trigger()
 
     val = pos_table.value()[-1]
     assert round(val.x, 1) == 11
@@ -246,6 +261,9 @@ def test_core_position_table_add_position(
     assert round(val.z, 1) == 33
     # setting it to to 10 because the mock_getAutoFocusOffset() returns 10
     assert val.sequence.autofocus_plan.autofocus_motor_offset == 10
+
+    # a new position has been added
+    assert pos_table.table().rowCount() == 2
 
 
 def test_core_connected_relative_z_plan(qtbot: QtBot):
@@ -346,7 +364,11 @@ def test_core_mda_autofocus(qtbot: QtBot):
     ]
     MDA = MDA.replace(stage_positions=POS1)
 
-    wdg.setValue(MDA)
+    # here we need to mock the core isContinuousFocusLocked method because the Autofocus
+    # demo device cannot be set as "Locked in Focus" and since af_per_position is
+    # checked, we would trigger a warning dialog (dialog is tested in previous test)
+    with patch.object(wdg._mmc, "isContinuousFocusLocked", return_value=True):
+        wdg.setValue(MDA)
     assert not wdg.value().autofocus_plan
     assert (
         wdg.value().stage_positions[0].sequence.autofocus_plan.autofocus_motor_offset
@@ -371,7 +393,8 @@ def test_core_mda_autofocus(qtbot: QtBot):
     ]
     MDA = MDA.replace(stage_positions=POS2)
 
-    wdg.setValue(MDA)
+    with patch.object(wdg._mmc, "isContinuousFocusLocked", return_value=True):
+        wdg.setValue(MDA)
     assert wdg.value().autofocus_plan
     assert wdg.value().autofocus_plan.autofocus_motor_offset == 10
     assert not wdg.value().stage_positions[0].sequence
@@ -398,23 +421,31 @@ def test_keep_shutter_open_wdg(qtbot: QtBot):
     assert wdg.value() == ("z", "t")
 
 
-# TODO: to fix
-# def test_run_mda_with_af(qtbot: QtBot):
-#     wdg = MDAWidget()
-#     qtbot.addWidget(wdg)
-#     wdg.show()
+def test_run_mda_af_warning(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
 
-#     MDA = useq.MDASequence(
-#         autofocus_plan=useq.AxesBasedAF(
-#             autofocus_device_name=None,
-#             autofocus_motor_offset=10,
-#             axes=("p", "t"),
-#         )
-#     )
-#     wdg.setValue(MDA)
+    MDA = useq.MDASequence(
+        stage_positions=[useq.Position(x=0, y=0, z=0)],
+        time_plan=useq.TIntervalLoops(interval=1, loops=2),
+        autofocus_plan=useq.AxesBasedAF(axes=("p", "t")),
+    )
+    wdg.setValue(MDA)
 
-#     with mock.patch(
-#         "qtpy.QtWidgets.QMessageBox.warning",
-#         return_value=QMessageBox.StandardButton.Cancel,
-#     ):
-#         wdg.control_btns.run_btn.click()
+    def _cancel(*args, **kwargs):
+        return QMessageBox.StandardButton.Cancel
+
+    with patch.object(QMessageBox, "warning", _cancel):
+        wdg.control_btns.run_btn.click()
+
+    assert not wdg._mmc.mda.is_running()
+
+    def _ok(*args, **kwargs):
+        return QMessageBox.StandardButton.Ok
+
+    with patch.object(QMessageBox, "warning", _ok):
+        with qtbot.waitSignal(wdg._mmc.mda.events.sequenceStarted):
+            wdg.control_btns.run_btn.click()
+
+    assert wdg._mmc.mda.is_running()
