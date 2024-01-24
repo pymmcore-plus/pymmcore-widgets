@@ -1,15 +1,20 @@
 from pymmcore_plus import CMMCorePlus
 from superqt.cmap._cmap_utils import try_cast_colormap
-from useq import MDASequence
+from useq import MDASequence, MDAEvent
 from vispy.app.canvas import MouseEvent
 from vispy.scene.events import SceneMouseEvent
+from qtpy import QtCore
 
 from pymmcore_widgets._mda._stack_viewer import StackViewer
 from pymmcore_widgets._mda._util._channel_row import CMAPS
 
+import pytest
+
 sequence = MDASequence(
     channels=[{"config": "DAPI", "exposure": 10}, {"config": "FITC", "exposure": 10}],
     time_plan={"interval": 0.5, "loops": 3},
+    grid_plan={"rows": 2, "columns": 2,
+               "fov_height": 512, "fov_width": 512},
     axis_order="tpcz",
 )
 
@@ -44,26 +49,32 @@ def test_init_with_sequence(qtbot):
 
 def test_interaction(qtbot):
     mmcore = CMMCorePlus.instance()
-    canvas = StackViewer(mmcore=mmcore)
+    canvas = StackViewer(mmcore=mmcore,
+                         transform=(90, False, False))
+    canvas.on_display_timer()
+    canvas.show()
     qtbot.addWidget(canvas)
-
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)
+    canvas.view_rect = ((0, 0), (512, 512))
+    canvas._collapse_view()
+    canvas._canvas.update()
 
     event = SceneMouseEvent(MouseEvent("mouse_move"), None)
-    event._pos = [100, 100, 0, 0]
+    event._pos = [100, 100]
     canvas.on_mouse_move(event)
-    assert canvas.info_bar.text() != ""
+    #There should be a number there as this is on the image
+    assert canvas.info_bar.text()[-1] != "]"
 
     # outside canvas
-    event._pos = [-10, 100, 0, 0]
+    event._pos = [-10, 100]
     canvas.on_mouse_move(event)
-    assert canvas.info_bar.text() != ""
+    assert canvas.info_bar.text()[-1] == "]"
 
     # outside image
-    event._pos = [1000, 100, 0, 0]
+    event._pos = [1000, 100]
     canvas.on_mouse_move(event)
-    assert canvas.info_bar.text() != ""
+    assert canvas.info_bar.text()[-1] == "]"
 
     canvas.sliders[0].setValue(1)
     canvas.on_clim_timer()
@@ -78,11 +89,72 @@ def test_interaction(qtbot):
     canvas.channel_row.boxes[0].slider.setValue((0, 255))
     canvas.channel_row.boxes[0].show_channel.setChecked(False)
 
+    canvas.on_display_timer()
+
 
 def test_sequence_no_channels(qtbot):
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore)
     qtbot.addWidget(canvas)
     sequence = MDASequence(time_plan={"interval": 0.5, "loops": 3})
+    with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
+        mmcore.mda.run(sequence)
+
+
+def test_connection_warning():
+    with pytest.warns(UserWarning):
+        canvas = StackViewer()
+
+def test_settings_on_close():
+    mmcore = CMMCorePlus.instance()
+    canvas = StackViewer(mmcore=mmcore)
+    name = canvas.__class__.__name__
+    canvas.move(QtCore.QPoint(50, 50))
+    canvas.move(QtCore.QPoint(100, 100))
+    canvas.close()
+    settings = QtCore.QSettings("pymmcore_plus", name)
+    assert settings.value("pos") == QtCore.QPoint(100, 100)
+
+
+def test_canvas_size():
+    mmcore = CMMCorePlus.instance()
+    canvas = StackViewer(mmcore=mmcore)
+    canvas.img_size = (128, 128)
+    canvas.view_rect = ((0, 0), (0, 0))
+    event = MDAEvent()
+    canvas._expand_canvas_view(event)
+    assert canvas.view_rect[0][0] <= 0
+    assert canvas.view_rect[0][1] <= 0
+    assert canvas.view_rect[1][0] >= 128
+    assert canvas.view_rect[1][1] >= 128
+    events = MDASequence(grid_plan={"rows": 2, "columns": 2,
+                                    "fov_height":128,
+                                    "fov_width": 128})
+    for event in events:
+        print(event)
+        canvas._expand_canvas_view(event)
+    assert canvas.view_rect[0][0] <= -128
+    assert canvas.view_rect[0][1] <= -128
+    assert canvas.view_rect[1][0] >= 256
+    assert canvas.view_rect[1][1] >= 256
+
+def test_disconnect(qtbot):
+    mmcore = CMMCorePlus.instance()
+    canvas = StackViewer(mmcore=mmcore)
+    qtbot.addWidget(canvas)
+    canvas._disconnect()
+    sequence = MDASequence(time_plan={"interval": 0.5, "loops": 3})
+    with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
+        mmcore.mda.run(sequence)
+    assert canvas.sequence == None
+    assert not canvas.ready
+
+def test_not_ready(qtbot):
+    mmcore = CMMCorePlus.instance()
+    canvas = StackViewer(mmcore=mmcore)
+    qtbot.addWidget(canvas)
+    sequence = MDASequence(time_plan={"interval": 0.5, "loops": 3})
+    #TODO: we should do something here that checks if the loop finishes
+    canvas.frameReady(MDAEvent())
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)

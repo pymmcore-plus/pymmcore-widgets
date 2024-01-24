@@ -8,6 +8,7 @@ from fonticon_mdi6 import MDI6
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import QTimer, Signal
 from superqt import fonticon
+from superqt.cmap._cmap_utils import try_cast_colormap
 from useq import MDAEvent, MDASequence
 
 from pymmcore_widgets._mda._util._channel_row import ChannelRow
@@ -63,6 +64,7 @@ class StackViewer(QtWidgets.QWidget):
         self.transform = transform
         self._mmc = mmcore
         self._clim = "auto"
+        self.cmaps = [try_cast_colormap(x) for x in self.cmap_names]
         self.display_index = {dim: 0 for dim in DIMENSIONS}
 
         self.main_layout = QtWidgets.QVBoxLayout()
@@ -79,10 +81,8 @@ class StackViewer(QtWidgets.QWidget):
         self._create_sliders(sequence)
 
         self.datastore = datastore or QOMEZarrDatastore()
-        if datastore:
-            self.datastore.frame_ready.connect(self.frameReady)
-        else:
-            self.datastore.frame_ready.connect(self.frameReady)
+        self.datastore.frame_ready.connect(self.frameReady)
+        if not datastore:
             if self._mmc:
                 self._mmc.mda.events.frameReady.connect(self.datastore.frameReady)
                 self._mmc.mda.events.sequenceFinished.connect(
@@ -93,14 +93,13 @@ class StackViewer(QtWidgets.QWidget):
                 )
             else:
                 import warnings
-
                 warnings.warn(
-                    "No datastore or mmcore provided, connect manually.", stacklevel=2
+                    "No datastore or mmcore provided, connect manually.", stacklevel=2,
                 )
 
         if self._mmc:
             # Otherwise connect via listeners_connected or manually
-            self._mmc.mda.events.sequenceStarted.connect(self.on_sequence_start)
+            self._mmc.mda.events.sequenceStarted.connect(self.sequenceStarted)
 
         self._new_channel.connect(self.channel_row.box_visibility)
 
@@ -119,8 +118,6 @@ class StackViewer(QtWidgets.QWidget):
         self.collapse_btn = QtWidgets.QPushButton()
         self.collapse_btn.setIcon(fonticon.icon(MDI6.arrow_collapse_all))
         self.collapse_btn.clicked.connect(self._collapse_view)
-        self.collapse_btn.setIconSize(QtCore.QSize(25, 25))
-        self.collapse_btn.setFixedSize(30, 30)
 
         self.bottom_buttons = QtWidgets.QHBoxLayout()
         self.bottom_buttons.addWidget(self.collapse_btn)
@@ -130,7 +127,7 @@ class StackViewer(QtWidgets.QWidget):
         self.main_layout.addLayout(self.bottom_buttons)
 
         if sequence:
-            self.on_sequence_start(sequence)
+            self.sequenceStarted(sequence)
 
     def construct_canvas(self) -> None:
         if self.canvas_size:
@@ -154,11 +151,12 @@ class StackViewer(QtWidgets.QWidget):
         self.view_rect = (rect.pos, rect.size)
         self.view.camera.aspect = 1
 
-    def on_sequence_start(self, sequence: MDASequence) -> None:
+    def sequenceStarted(self, sequence: MDASequence) -> None:
         """Sequence started by the mmcore. Adjust our settings, make layers etc."""
         self.ready = False
         self.sequence = sequence
         self.pixel_size = self._mmc.getPixelSizeUm() if self._mmc else self.pixel_size
+        print("PIXEL_SIZE", self.pixel_size)
         # Sliders
         for dim in DIMENSIONS[:3]:
             if sequence.sizes.get(dim, 1) > 1:
@@ -178,6 +176,7 @@ class StackViewer(QtWidgets.QWidget):
                 image = scene.visuals.Image(
                     np.zeros(self._canvas.size).astype(np.uint16),
                     parent=self.view.scene,
+                    cmap=self.cmaps[c].to_vispy(),
                     clim=(0, 1),
                 )
                 trans = visuals.transforms.linear.MatrixTransform()
@@ -208,9 +207,12 @@ class StackViewer(QtWidgets.QWidget):
             )
         self._canvas.update()
 
-    def _handle_channel_cmap(self, colormap: cmap.Colormap, idx: int) -> None:
+    def _handle_channel_cmap(self, colormap: cmap.Colormap, channel: int) -> None:
         for g in range(self.ng):
-            self.images[idx][g].cmap = colormap.to_vispy()
+            self.images[channel][g].cmap = colormap.to_vispy()
+        if colormap.name not in self.cmap_names:
+            self.cmap_names.append(self.cmap_names[channel])
+        self.cmap_names[channel] = colormap.name
         self._canvas.update()
 
     def _handle_channel_visibility(self, state: bool, channel: int) -> None:
@@ -218,6 +220,12 @@ class StackViewer(QtWidgets.QWidget):
             self.images[channel][g].visible = self.channel_row.boxes[
                 channel
             ].show_channel.isChecked()
+        if self.current_channel == channel:
+            channel_to_set = channel - 1 if channel > 0 else channel + 1
+            channel_to_set = 0 if len(self.channel_row.boxes) == 1 else channel_to_set
+            self.channel_row._handle_channel_choice(
+                self.channel_row.boxes[channel_to_set].channel
+            )
         self._canvas.update()
 
     def _handle_channel_autoscale(self, state: bool, channel: int) -> None:
@@ -232,10 +240,11 @@ class StackViewer(QtWidgets.QWidget):
             self._handle_channel_clim(clim, channel, set_autoscale=False)
 
     def _handle_channel_choice(self, channel: int) -> None:
+        print("Setting current channel", channel)
         self.current_channel = channel
 
     def _create_sliders(self, sequence: MDASequence | None = None) -> None:
-        n_channels = 5 if sequence is None else max(1, sequence.sizes.get("c", 1))
+        n_channels = 5 if sequence is None else sequence.sizes.get("c", 1)
         self.channel_row: ChannelRow = ChannelRow(n_channels)
         self.channel_row.visible.connect(self._handle_channel_visibility)
         self.channel_row.autoscale.connect(self._handle_channel_autoscale)
@@ -267,18 +276,12 @@ class StackViewer(QtWidgets.QWidget):
         self.view.interactive = False
         images = []
         # Get the images the mouse is over
+        print(event.pos)
         while image := self._canvas.visual_at(event.pos):
-            image.interactive = False
             images.append(image)
+            image.interactive = False
         for image in images:
             image.interactive = True
-        # Somehow there are too many images, should be investigated
-        images = [
-            image
-            for image in images
-            if image in [item for row in self.images for item in row]
-        ]
-        images.reverse()
         self.view.interactive = True
         if images == []:
             transform = self.view.get_transform("canvas", "visual")
@@ -286,12 +289,12 @@ class StackViewer(QtWidgets.QWidget):
             info = f"[{p[0]}, {p[1]}]"
             self.info_bar.setText(info)
             return
-        # Handle if a channel is not visible
+        # Adjust channel index is channel(s) are not visible
         real_channel = self.current_channel
-        for box in self.channel_row.boxes[: self.current_channel + 1]:
-            if not box.show_channel.isChecked():
-                real_channel -= 1
-
+        for i in range(self.current_channel):
+            i_visible = self.channel_row.boxes[i].show_channel.isChecked()
+            real_channel = real_channel - 1 if not i_visible else real_channel
+        images.reverse()
         transform = images[real_channel].get_transform("canvas", "visual")
         p = [int(x) for x in transform.map(event.pos)]
         try:
@@ -343,23 +346,19 @@ class StackViewer(QtWidgets.QWidget):
         if display_indices == indices:
             self.display_image(img, indices.get("c", 0), indices.get("g", 0))
             # Handle Autoscaling
-            img_min, img_max = img.min(), img.max()
             clim_slider = self.channel_row.boxes[indices.get("c", 0)].slider
             clim_slider.setRange(
-                min(clim_slider.minimum(), img_min),
-                max(clim_slider.maximum(), img_max),
+                min(clim_slider.minimum(), img.min()),
+                max(clim_slider.maximum(), img.max()),
             )
             if self.channel_row.boxes[indices.get("c", 0)].autoscale_chbx.isChecked():
                 clim_slider.setValue(
                     [
-                        img_min,
-                        img_max,
+                        min(clim_slider.minimum(), img.min()),
+                        max(clim_slider.maximum(), img.max()),
                     ]
                 )
-                self.images[indices.get("c", 0)][indices.get("g", 0)].clim = (
-                    img_min,
-                    img_max,
-                )
+            self.on_clim_timer(indices.get("c", 0))
 
     def _set_sliders(self, indices: dict) -> dict:
         """New indices from outside the sliders, update."""
@@ -368,7 +367,11 @@ class StackViewer(QtWidgets.QWidget):
             if slider.lock_btn.isChecked():
                 display_indices[slider.name] = slider.value()
                 continue
+            # This blocking doesn't seem to work
+            # blocked = slider.blockSignals(True)
             slider.setValue(display_indices[slider.name])
+            # slider.setValue(indices[slider.name])
+            # slider.blockSignals(blocked)
         return display_indices
 
     def display_image(self, img: np.ndarray, channel: int = 0, grid: int = 0) -> None:
@@ -412,7 +415,7 @@ class StackViewer(QtWidgets.QWidget):
             )
             trans.translate(
                 (
-                    -x_pos / self.pixel_size,
+                    x_pos / self.pixel_size,
                     y_pos / self.pixel_size,
                     0,
                 )
@@ -437,8 +440,8 @@ class StackViewer(QtWidgets.QWidget):
         x_pos = event.x_pos or 0
         y_pos = event.y_pos or 0
         img_position = (
-            -x_pos / self.pixel_size - self.img_size[0] / 2,
-            -x_pos / self.pixel_size + self.img_size[0] / 2,
+            x_pos / self.pixel_size - self.img_size[0] / 2,
+            x_pos / self.pixel_size + self.img_size[0] / 2,
             y_pos / self.pixel_size - self.img_size[1] / 2,
             y_pos / self.pixel_size + self.img_size[1] / 2,
         )
@@ -460,6 +463,7 @@ class StackViewer(QtWidgets.QWidget):
             (camera_rect[0], camera_rect[2]),
             (camera_rect[1] - camera_rect[0], camera_rect[3] - camera_rect[2]),
         )
+        print(self.view_rect)
 
     def complement_indices(self, index: Mapping[str, int]) -> dict:
         """MDAEvents not always have all the dimensions, complement."""
@@ -471,13 +475,14 @@ class StackViewer(QtWidgets.QWidget):
 
     def _disconnect(self) -> None:
         if self._mmc:
-            self._mmc.mda.events.sequenceStarted.disconnect(self.on_sequence_start)
-        self.datastore.frame_ready.disconnect(self.on_frame_ready)
+            self._mmc.mda.events.sequenceStarted.disconnect(self.sequenceStarted)
+        self.datastore.frame_ready.disconnect(self.frameReady)
 
     def _reload_position(self) -> None:
         self.qt_settings = QtCore.QSettings("pymmcore_plus", self.__class__.__name__)
         self.resize(self.qt_settings.value("size", QtCore.QSize(270, 225)))
         self.move(self.qt_settings.value("pos", QtCore.QPoint(50, 50)))
+        self.cmap_names = self.qt_settings.value("cmaps", ["gray", "cyan", "magenta"])
 
     def _collapse_view(self) -> None:
         view_rect = (
@@ -493,4 +498,5 @@ class StackViewer(QtWidgets.QWidget):
         """Write window size and position to config file."""
         self.qt_settings.setValue("size", self.size())
         self.qt_settings.setValue("pos", self.pos())
+        self.qt_settings.setValue("cmaps", self.cmap_names)
         super().closeEvent(e)
