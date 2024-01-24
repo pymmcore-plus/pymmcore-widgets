@@ -169,4 +169,5 @@ ignore = [
     "docs/**/*",
     "mkdocs.yml",
     "examples/**/*",
+    "CHANGELOG.md",
 ]
