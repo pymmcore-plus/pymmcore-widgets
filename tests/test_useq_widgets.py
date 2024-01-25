@@ -8,6 +8,7 @@ import pint
 import pytest
 import useq
 from qtpy.QtCore import Qt, QTimer
+from qtpy.QtWidgets import QWidgetAction
 
 import pymmcore_widgets
 from pymmcore_widgets.useq_widgets import (
@@ -261,8 +262,15 @@ def test_channel_groups(qtbot: QtBot) -> None:
     qtbot.addWidget(wdg)
     wdg.show()
 
+    actions = [x for x in wdg.toolBar().children() if isinstance(x, QWidgetAction)]
+    assert len(actions) == 1
+
     GROUPS = {"Channels": ["DAPI", "FITC"], "Other": ["foo", "bar"]}
     wdg.setChannelGroups(GROUPS)
+
+    actions = [x for x in wdg.toolBar().children() if isinstance(x, QWidgetAction)]
+    assert len(actions) == 2
+
     assert wdg.channelGroups() == GROUPS
     wdg.act_add_row.trigger()
     with qtbot.waitSignal(wdg.valueChanged):
