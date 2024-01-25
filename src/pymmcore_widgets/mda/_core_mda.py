@@ -22,10 +22,10 @@ from superqt.fonticon import icon
 from useq import MDASequence, Position
 
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
-from pymmcore_widgets.useq_widgets._channels import ChannelTable
 from pymmcore_widgets.useq_widgets._mda_sequence import MDATabs
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 
+from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
@@ -50,7 +50,7 @@ class CoreMDATabs(MDATabs):
         self.stage_positions = CoreConnectedPositionTable(1, mmcore=self._mmc)
         self.z_plan = CoreConnectedZPlanWidget(self._mmc)
         self.grid_plan = CoreConnectedGridPlanWidget(self._mmc)
-        self.channels = ChannelTable(1)
+        self.channels = CoreConnectedChannelTable(1)
 
 
 class MDAWidget(MDASequenceWidget):
