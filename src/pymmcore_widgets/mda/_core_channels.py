@@ -66,7 +66,5 @@ class CoreConnectedChannelTable(ChannelTable):
         if not self._mmc.getChannelGroup():
             return
 
-        data = {
-            self.GROUP.key: self._mmc.getChannelGroup(),
-        }
+        data = {self.GROUP.key: self._group_combo.currentText()}
         self.table().setRowData(row, data)
