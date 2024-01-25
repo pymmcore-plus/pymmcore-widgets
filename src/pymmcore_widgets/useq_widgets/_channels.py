@@ -74,6 +74,7 @@ class ChannelTable(DataTableWidget):
             if ngroups_before > 1:
                 toolbar.removeAction(actions[1])
         elif ngroups_before <= 1:
+            self._group_combo.show()
             toolbar.insertWidget(actions[0], self._group_combo)
 
         self._on_group_changed()
