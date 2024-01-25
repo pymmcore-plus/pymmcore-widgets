@@ -4,6 +4,7 @@ from collections import Counter
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
 import useq
+from pymmcore_plus import Keyword
 from qtpy.QtWidgets import QComboBox, QWidgetAction
 from superqt.utils import signals_blocked
 
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
     from qtpy.QtWidgets import QWidget
 
 NAMED_CONFIG = TextColumn(key="config", default=None, is_row_selector=True)
-DEFAULT_GROUP = "Channel"
+DEFAULT_GROUP = Keyword.Channel
 
 
 class ChannelTable(DataTableWidget):
