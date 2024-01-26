@@ -22,10 +22,10 @@ from superqt.fonticon import icon
 from useq import MDASequence, Position
 
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
-from pymmcore_widgets.useq_widgets._channels import ChannelTable
 from pymmcore_widgets.useq_widgets._mda_sequence import MDATabs
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 
+from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
@@ -47,10 +47,10 @@ class CoreMDATabs(MDATabs):
 
     def create_subwidgets(self) -> None:
         self.time_plan = TimePlanWidget(1)
-        self.stage_positions = CoreConnectedPositionTable(1, mmcore=self._mmc)
+        self.stage_positions = CoreConnectedPositionTable(1, self._mmc)
         self.z_plan = CoreConnectedZPlanWidget(self._mmc)
         self.grid_plan = CoreConnectedGridPlanWidget(self._mmc)
-        self.channels = ChannelTable(1)
+        self.channels = CoreConnectedChannelTable(1, self._mmc)
 
 
 class MDAWidget(MDASequenceWidget):
@@ -98,7 +98,6 @@ class MDAWidget(MDASequenceWidget):
         self.control_btns.cancel_btn.released.connect(self._mmc.mda.cancel)
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
-        self._mmc.events.channelGroupChanged.connect(self._update_channel_groups)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
 
         self.destroyed.connect(self._disconnect)
@@ -106,7 +105,6 @@ class MDAWidget(MDASequenceWidget):
     def _on_sys_config_loaded(self) -> None:
         # TODO: connect objective change event to update suggested step
         self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
-        self._update_channel_groups()
 
     def value(self) -> MDASequence:
         """Set the current state of the widget from a [`useq.MDASequence`][]."""
@@ -149,16 +147,6 @@ class MDAWidget(MDASequenceWidget):
         y = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
         return Position(x=x, y=y, z=z)
-
-    def _update_channel_groups(self) -> None:
-        ch_group = self._mmc.getChannelGroup()
-        # if there is no channel group available, use all available groups
-        names = [ch_group] if ch_group else self._mmc.getAvailableConfigGroups()
-        groups = {
-            group_name: self._mmc.getAvailableConfigs(group_name)
-            for group_name in names
-        }
-        self.channels.setChannelGroups(groups)
 
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
@@ -209,7 +197,6 @@ class MDAWidget(MDASequenceWidget):
         with suppress(Exception):
             self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
             self._mmc.mda.events.sequenceFinished.disconnect(self._on_mda_finished)
-            self._mmc.events.channelGroupChanged.disconnect(self._update_channel_groups)
 
 
 class _SaveGroupBox(QGroupBox):

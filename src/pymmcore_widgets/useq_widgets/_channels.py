@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 import useq
-from qtpy.QtWidgets import QComboBox, QWidgetAction
+from pymmcore_plus import Keyword
+from qtpy.QtWidgets import QComboBox, QHBoxLayout, QLabel, QWidget, QWidgetAction
 from superqt.utils import signals_blocked
 
 from ._column_info import (
@@ -17,11 +18,8 @@ from ._column_info import (
 )
 from ._data_table import DataTableWidget
 
-if TYPE_CHECKING:
-    from qtpy.QtWidgets import QWidget
-
 NAMED_CONFIG = TextColumn(key="config", default=None, is_row_selector=True)
-DEFAULT_GROUP = "Channel"
+DEFAULT_GROUP = Keyword.Channel
 
 
 class ChannelTable(DataTableWidget):
@@ -39,9 +37,21 @@ class ChannelTable(DataTableWidget):
         super().__init__(rows, parent)
         self._group_combo = QComboBox()
         self._group_combo.currentTextChanged.connect(self._on_group_changed)
+
+        self._group_wdg = QWidget()
+        layout = QHBoxLayout(self._group_wdg)
+        layout.addWidget(QLabel("Group:"))
+        layout.addWidget(self._group_combo)
+        layout.addStretch()
+        layout.setContentsMargins(5, 0, 0, 0)
+
         # These will change in on_group_changed... so we store the current values.
         self._groups: Mapping[str, Sequence[str]] = {}
         self._config_column: ColumnInfo = self.CONFIG
+
+        # when a new row is inserted, call _on_rows_inserted
+        # to update the new values from the _group_combo
+        self.table().model().rowsInserted.connect(self._on_rows_inserted)
 
     def setChannelGroups(self, groups: Mapping[str, Sequence[str]] | None) -> None:
         """Set the channel groups that can be selected in the table.
@@ -68,8 +78,9 @@ class ChannelTable(DataTableWidget):
         if len(self._groups) <= 1:
             if ngroups_before > 1:
                 toolbar.removeAction(actions[1])
-        else:
-            toolbar.insertWidget(actions[0], self._group_combo)
+        elif ngroups_before <= 1:
+            self._group_wdg.show()
+            toolbar.insertWidget(actions[0], self._group_wdg)
 
         self._on_group_changed()
 
@@ -165,3 +176,20 @@ class ChannelTable(DataTableWidget):
             )
 
         self.valueChanged.emit()
+
+    def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
+        # when a new row is inserted by any means, populate it
+        # this is connected above in __init_ with self.model().rowsInserted.connect
+        with signals_blocked(self):
+            for row_idx in range(start, end + 1):
+                self._set_channel_group_from_combo(row_idx)
+        self.valueChanged.emit()
+
+    def _set_channel_group_from_combo(self, row: int, col: int = 0) -> None:
+        """Set the current channel group form the combo at the given row."""
+        group = self._group_combo.currentText()
+        if not group:
+            return
+
+        data = {self.GROUP.key: group}
+        self.table().setRowData(row, data)

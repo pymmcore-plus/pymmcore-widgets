@@ -10,6 +10,7 @@ from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import QMessageBox
 
 from pymmcore_widgets.mda import MDAWidget
+from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
@@ -449,3 +450,35 @@ def test_run_mda_af_warning(qtbot: QtBot):
             wdg.control_btns.run_btn.click()
 
     assert wdg._mmc.mda.is_running()
+
+
+def test_core_connected_channel_wdg(qtbot: QtBot):
+    wdg = CoreConnectedChannelTable()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    # delete current channel group
+    wdg._mmc.deleteConfigGroup("Channel")
+
+    # "Channel" not in combo
+    assert "Channel" not in [
+        wdg._group_combo.itemText(i) for i in range(wdg._group_combo.count())
+    ]
+
+    # create new channel group called "Channels" (before it was "Channel")
+    wdg._mmc.defineConfig("Channels", "DAPI", "Dichroic", "Label", "400DCLP")
+    wdg._mmc.defineConfig("Channels", "FITC", "Dichroic", "Label", "Q505LP")
+
+    assert "Channel" not in wdg._mmc.getAvailableConfigGroups()
+    assert "Channels" in wdg._mmc.getAvailableConfigGroups()
+
+    wdg._group_combo.setCurrentText("Channels")
+
+    with qtbot.waitSignals([wdg.valueChanged], order="strict", timeout=1000):
+        wdg.act_add_row.trigger()
+        wdg.act_add_row.trigger()
+
+    value = wdg.value()
+    assert len(value) == 2
+    assert value[0].group == "Channels"
+    assert value[1].group == "Channels"
