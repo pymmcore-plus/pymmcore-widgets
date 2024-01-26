@@ -261,14 +261,15 @@ def test_channel_groups(qtbot: QtBot) -> None:
     qtbot.addWidget(wdg)
     wdg.show()
 
-    GROUPS = {"Channel": ["DAPI", "FITC"], "Other": ["foo", "bar"]}
+    GROUPS = {"Channels": ["DAPI", "FITC"], "Other": ["foo", "bar"]}
     wdg.setChannelGroups(GROUPS)
+
     assert wdg.channelGroups() == GROUPS
     wdg.act_add_row.trigger()
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.act_add_row.trigger()
     val = wdg.value()
-    assert val[0].group == "Channel"
+    assert val[0].group == "Channels"
     assert val[0].config == "DAPI"
     assert val[1].config == "FITC"
 
@@ -280,7 +281,7 @@ def test_channel_groups(qtbot: QtBot) -> None:
     wdg.setChannelGroups(None)
 
     val = wdg.value()
-    assert val[0].group == "Channel"
+    assert val[0].group == "Channel"  # default
     assert val[0].config == ""
     assert val[1].config == ""
     with qtbot.waitSignal(wdg.valueChanged):
