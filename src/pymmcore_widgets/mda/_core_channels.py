@@ -57,16 +57,6 @@ class CoreConnectedChannelTable(ChannelTable):
         if ch_group and ch_group in self.channelGroups():
             self._group_combo.setCurrentText(ch_group)
 
-    # def _update_channel_groups(self) -> None:
-    #     ch_group = self._mmc.getChannelGroup()
-    #     # if there is no channel group available, use all available groups
-    #     names = [ch_group] if ch_group else self._mmc.getAvailableConfigGroups()
-    #     groups = {
-    #         group_name: self._mmc.getAvailableConfigs(group_name)
-    #         for group_name in names
-    #     }
-    #     self.channels.setChannelGroups(groups)
-
     def _disconnect(self) -> None:
         """Disconnect from the core instance."""
         self._mmc.events.systemConfigurationLoaded.disconnect(
