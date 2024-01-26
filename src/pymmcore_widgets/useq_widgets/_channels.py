@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 import useq
 from pymmcore_plus import Keyword
-from qtpy.QtWidgets import QComboBox, QWidgetAction
+from qtpy.QtWidgets import QComboBox, QHBoxLayout, QLabel, QWidget, QWidgetAction
 from superqt.utils import signals_blocked
 
 from ._column_info import (
@@ -17,9 +17,6 @@ from ._column_info import (
     TextColumn,
 )
 from ._data_table import DataTableWidget
-
-if TYPE_CHECKING:
-    from qtpy.QtWidgets import QWidget
 
 NAMED_CONFIG = TextColumn(key="config", default=None, is_row_selector=True)
 DEFAULT_GROUP = Keyword.Channel
@@ -40,6 +37,14 @@ class ChannelTable(DataTableWidget):
         super().__init__(rows, parent)
         self._group_combo = QComboBox()
         self._group_combo.currentTextChanged.connect(self._on_group_changed)
+
+        self._group_wdg = QWidget()
+        layout = QHBoxLayout(self._group_wdg)
+        layout.addWidget(QLabel("Group:"))
+        layout.addWidget(self._group_combo)
+        layout.addStretch()
+        layout.setContentsMargins(5, 0, 0, 0)
+
         # These will change in on_group_changed... so we store the current values.
         self._groups: Mapping[str, Sequence[str]] = {}
         self._config_column: ColumnInfo = self.CONFIG
@@ -74,8 +79,8 @@ class ChannelTable(DataTableWidget):
             if ngroups_before > 1:
                 toolbar.removeAction(actions[1])
         elif ngroups_before <= 1:
-            self._group_combo.show()
-            toolbar.insertWidget(actions[0], self._group_combo)
+            self._group_wdg.show()
+            toolbar.insertWidget(actions[0], self._group_wdg)
 
         self._on_group_changed()
 
