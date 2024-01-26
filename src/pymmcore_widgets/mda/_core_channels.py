@@ -67,7 +67,6 @@ class CoreConnectedChannelTable(ChannelTable):
     #     }
     #     self.channels.setChannelGroups(groups)
 
-
     def _disconnect(self) -> None:
         """Disconnect from the core instance."""
         self._mmc.events.systemConfigurationLoaded.disconnect(
