@@ -47,10 +47,10 @@ class CoreMDATabs(MDATabs):
 
     def create_subwidgets(self) -> None:
         self.time_plan = TimePlanWidget(1)
-        self.stage_positions = CoreConnectedPositionTable(1, mmcore=self._mmc)
+        self.stage_positions = CoreConnectedPositionTable(1, self._mmc)
         self.z_plan = CoreConnectedZPlanWidget(self._mmc)
         self.grid_plan = CoreConnectedGridPlanWidget(self._mmc)
-        self.channels = CoreConnectedChannelTable(1)
+        self.channels = CoreConnectedChannelTable(1, self._mmc)
 
 
 class MDAWidget(MDASequenceWidget):
@@ -151,14 +151,17 @@ class MDAWidget(MDASequenceWidget):
         return Position(x=x, y=y, z=z)
 
     def _update_channel_groups(self) -> None:
-        ch_group = self._mmc.getChannelGroup()
-        # if there is no channel group available, use all available groups
-        names = [ch_group] if ch_group else self._mmc.getAvailableConfigGroups()
+        names = self._mmc.getAvailableConfigGroups()
         groups = {
             group_name: self._mmc.getAvailableConfigs(group_name)
             for group_name in names
         }
         self.channels.setChannelGroups(groups)
+
+        # set the current channel group in the channel combo
+        ch_group = self._mmc.getChannelGroup()
+        if ch_group and ch_group in self.channels.channelGroups():
+            self.channels._group_combo.setCurrentText(ch_group)
 
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
