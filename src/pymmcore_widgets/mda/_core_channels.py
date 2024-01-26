@@ -41,6 +41,9 @@ class CoreConnectedChannelTable(ChannelTable):
         self._mmc.events.systemConfigurationLoaded.connect(self._update_channel_groups)
         self._mmc.events.configGroupDeleted.connect(self._update_channel_groups)
         self._mmc.events.configDefined.connect(self._update_channel_groups)
+        self._mmc.events.channelGroupChanged.connect(self._update_channel_groups)
+
+        self.destroyed.connect(self._disconnect)
 
         self._update_channel_groups()
 
@@ -49,3 +52,16 @@ class CoreConnectedChannelTable(ChannelTable):
         gps = self._mmc.getAvailableConfigGroups()
         GROUPS = {group: self._mmc.getAvailableConfigs(group) for group in gps}
         self.setChannelGroups(GROUPS)
+
+        ch_group = self._mmc.getChannelGroup()
+        if ch_group and ch_group in self.channelGroups():
+            self._group_combo.setCurrentText(ch_group)
+
+    def _disconnect(self) -> None:
+        """Disconnect from the core instance."""
+        self._mmc.events.systemConfigurationLoaded.disconnect(
+            self._update_channel_groups
+        )
+        self._mmc.events.configGroupDeleted.disconnect(self._update_channel_groups)
+        self._mmc.events.configDefined.disconnect(self._update_channel_groups)
+        self._mmc.events.channelGroupChanged.disconnect(self._update_channel_groups)
