@@ -1,20 +1,18 @@
+import pytest
 from pymmcore_plus import CMMCorePlus
+from qtpy import QtCore
 from superqt.cmap._cmap_utils import try_cast_colormap
-from useq import MDASequence, MDAEvent
+from useq import MDAEvent, MDASequence
 from vispy.app.canvas import MouseEvent
 from vispy.scene.events import SceneMouseEvent
-from qtpy import QtCore
 
 from pymmcore_widgets._mda._stack_viewer import StackViewer
 from pymmcore_widgets._mda._util._channel_row import CMAPS
 
-import pytest
-
 sequence = MDASequence(
     channels=[{"config": "DAPI", "exposure": 10}, {"config": "FITC", "exposure": 10}],
     time_plan={"interval": 0.5, "loops": 3},
-    grid_plan={"rows": 2, "columns": 2,
-               "fov_height": 512, "fov_width": 512},
+    grid_plan={"rows": 2, "columns": 2, "fov_height": 512, "fov_width": 512},
     axis_order="tpcz",
 )
 
@@ -49,8 +47,7 @@ def test_init_with_sequence(qtbot):
 
 def test_interaction(qtbot):
     mmcore = CMMCorePlus.instance()
-    canvas = StackViewer(mmcore=mmcore, sequence=sequence,
-                         transform=(90, False, False))
+    canvas = StackViewer(mmcore=mmcore, sequence=sequence, transform=(90, False, False))
     canvas.on_display_timer()
     canvas.show()
     qtbot.addWidget(canvas)
@@ -63,7 +60,7 @@ def test_interaction(qtbot):
     event = SceneMouseEvent(MouseEvent("mouse_move"), None)
     event._pos = [100, 100]
     canvas.on_mouse_move(event)
-    #There should be a number there as this is on the image
+    # There should be a number there as this is on the image
     assert canvas.info_bar.text()[-1] != "]"
 
     # outside canvas
@@ -93,7 +90,7 @@ def test_interaction(qtbot):
     canvas.channel_row.boxes[0].autoscale_chbx.setChecked(False)
     canvas.channel_row.boxes[0].slider.setValue((0, 255))
     canvas.channel_row.boxes[0].show_channel.setChecked(False)
-    #should be current channel
+    # should be current channel
     canvas.current_channel = 1
     canvas.channel_row.boxes[1].show_channel.setChecked(False)
     canvas._canvas.update()
@@ -115,6 +112,7 @@ def test_sequence_no_channels(qtbot):
 def test_connection_warning():
     with pytest.warns(UserWarning):
         canvas = StackViewer()
+
 
 def test_settings_on_close():
     mmcore = CMMCorePlus.instance()
@@ -138,9 +136,9 @@ def test_canvas_size():
     assert canvas.view_rect[0][1] <= 0
     assert canvas.view_rect[1][0] >= 128
     assert canvas.view_rect[1][1] >= 128
-    events = MDASequence(grid_plan={"rows": 2, "columns": 2,
-                                    "fov_height":128,
-                                    "fov_width": 128})
+    events = MDASequence(
+        grid_plan={"rows": 2, "columns": 2, "fov_height": 128, "fov_width": 128}
+    )
     for event in events:
         print(event)
         canvas._expand_canvas_view(event)
@@ -148,6 +146,7 @@ def test_canvas_size():
     assert canvas.view_rect[0][1] <= -128
     assert canvas.view_rect[1][0] >= 256
     assert canvas.view_rect[1][1] >= 256
+
 
 def test_disconnect(qtbot):
     mmcore = CMMCorePlus.instance()
@@ -160,12 +159,13 @@ def test_disconnect(qtbot):
     assert canvas.sequence == None
     assert not canvas.ready
 
+
 def test_not_ready(qtbot):
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore)
     qtbot.addWidget(canvas)
     sequence = MDASequence(time_plan={"interval": 0.5, "loops": 3})
-    #TODO: we should do something here that checks if the loop finishes
+    # TODO: we should do something here that checks if the loop finishes
     canvas.frameReady(MDAEvent())
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)

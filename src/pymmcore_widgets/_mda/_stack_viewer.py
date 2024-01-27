@@ -93,8 +93,10 @@ class StackViewer(QtWidgets.QWidget):
                 )
             else:
                 import warnings
+
                 warnings.warn(
-                    "No datastore or mmcore provided, connect manually.", stacklevel=2,
+                    "No datastore or mmcore provided, connect manually.",
+                    stacklevel=2,
                 )
 
         if self._mmc:
