@@ -276,7 +276,6 @@ class StackViewer(QtWidgets.QWidget):
         self.view.interactive = False
         images = []
         # Get the images the mouse is over
-        print(event.pos)
         while image := self._canvas.visual_at(event.pos):
             images.append(image)
             image.interactive = False

@@ -49,7 +49,7 @@ def test_init_with_sequence(qtbot):
 
 def test_interaction(qtbot):
     mmcore = CMMCorePlus.instance()
-    canvas = StackViewer(mmcore=mmcore,
+    canvas = StackViewer(mmcore=mmcore, sequence=sequence,
                          transform=(90, False, False))
     canvas.on_display_timer()
     canvas.show()
@@ -77,6 +77,11 @@ def test_interaction(qtbot):
     assert canvas.info_bar.text()[-1] == "]"
 
     canvas.sliders[0].setValue(1)
+    canvas.sliders[0].lock_btn.setChecked(True)
+    event = MDAEvent(index={"t": 0, "c": 0, "g": 0})
+    canvas.frameReady(event)
+    assert canvas.sliders[0].value() == 1
+
     canvas.on_clim_timer()
     color_selected = 2
     canvas.channel_row.boxes[0].color_choice.setCurrentIndex(color_selected)
@@ -88,6 +93,12 @@ def test_interaction(qtbot):
     canvas.channel_row.boxes[0].autoscale_chbx.setChecked(False)
     canvas.channel_row.boxes[0].slider.setValue((0, 255))
     canvas.channel_row.boxes[0].show_channel.setChecked(False)
+    #should be current channel
+    canvas.current_channel = 1
+    canvas.channel_row.boxes[1].show_channel.setChecked(False)
+    canvas._canvas.update()
+    # Should have been set as all channels are deselected now
+    assert canvas.channel_row.boxes[0].show_channel.isChecked()
 
     canvas.on_display_timer()
 
