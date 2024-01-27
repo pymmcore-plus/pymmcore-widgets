@@ -112,6 +112,7 @@ def test_sequence_no_channels(qtbot):
 def test_connection_warning():
     with pytest.warns(UserWarning):
         canvas = StackViewer()
+    canvas.close()
 
 
 def test_settings_on_close():
@@ -156,7 +157,7 @@ def test_disconnect(qtbot):
     sequence = MDASequence(time_plan={"interval": 0.5, "loops": 3})
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)
-    assert canvas.sequence == None
+    assert canvas.sequence is None
     assert not canvas.ready
 
 
