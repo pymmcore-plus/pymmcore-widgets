@@ -50,8 +50,6 @@ if __name__ == "__main__":
     from qtpy.QtWidgets import QApplication
     from useq import MDASequence
 
-    from pymmcore_widgets._mda._datastore import QOMEZarrDatastore
-
     mmc = CMMCorePlus()
     mmc.loadSystemConfiguration()
 
