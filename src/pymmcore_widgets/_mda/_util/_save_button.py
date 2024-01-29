@@ -1,13 +1,18 @@
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import zarr
 from fonticon_mdi6 import MDI6
 from qtpy.QtCore import QSize
-from qtpy.QtGui import QCloseEvent
 from qtpy.QtWidgets import QFileDialog, QPushButton, QWidget
 from superqt import fonticon
 
 from pymmcore_widgets._mda._datastore import QOMEZarrDatastore
+
+if TYPE_CHECKING:
+    from qtpy.QtGui import QCloseEvent
 
 
 class SaveButton(QPushButton):
