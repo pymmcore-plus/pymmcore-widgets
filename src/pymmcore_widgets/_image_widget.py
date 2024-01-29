@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import suppress
 
 from typing import TYPE_CHECKING
 
@@ -92,10 +93,8 @@ class ImagePreview(QWidget):
         self.streaming_timer.setInterval(int(value))
 
     def _on_streaming_timeout(self) -> None:
-        try:
+        with suppress(RuntimeError, IndexError):
             self._update_image(self._mmc.getLastImage())
-        except (RuntimeError, IndexError):
-            return
 
     def _on_image_snapped(self) -> None:
         self._update_image(self._mmc.getImage())
