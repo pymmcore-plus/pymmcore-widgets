@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
@@ -60,7 +61,7 @@ class ImagePreview(QWidget):
         self.streaming_timer = QTimer(parent=self)
         self.streaming_timer.setTimerType(Qt.TimerType.PreciseTimer)
         self.streaming_timer.setInterval(int(self._mmc.getExposure()) or _DEFAULT_WAIT)
-        self.streaming_timer.timeout.connect(self._on_image_snapped)
+        self.streaming_timer.timeout.connect(self._on_streaming_timeout)
 
         ev = self._mmc.events
         ev.imageSnapped.connect(self._on_image_snapped)
@@ -91,13 +92,14 @@ class ImagePreview(QWidget):
     def _on_exposure_changed(self, device: str, value: str) -> None:
         self.streaming_timer.setInterval(int(value))
 
-    def _on_image_snapped(self, img: np.ndarray | None = None) -> None:
-        if img is None:
-            try:
-                img = self._mmc.getLastImage()
-            except (RuntimeError, IndexError):
-                return
+    def _on_streaming_timeout(self) -> None:
+        with suppress(RuntimeError, IndexError):
+            self._update_image(self._mmc.getLastImage())
 
+    def _on_image_snapped(self) -> None:
+        self._update_image(self._mmc.getImage())
+
+    def _update_image(self, img: np.ndarray) -> None:
         clim = (img.min(), img.max()) if self._clims == "auto" else self._clims
         if self.image is None:
             self.image = self._imcls(

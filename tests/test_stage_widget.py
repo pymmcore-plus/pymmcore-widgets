@@ -68,7 +68,6 @@ def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     with qtbot.waitSignal(global_mmcore.events.imageSnapped) as snap:
         global_mmcore.waitForDevice("XY")
         xy_up_3.widget().click()
-        assert isinstance(snap.args[0], np.ndarray)
 
     # test Z stage
     stage_z = StageWidget("Z", levels=3)
