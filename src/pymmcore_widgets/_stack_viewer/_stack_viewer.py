@@ -11,9 +11,9 @@ from superqt import fonticon
 from superqt.cmap._cmap_utils import try_cast_colormap
 from useq import MDAEvent, MDASequence
 
-from pymmcore_widgets._mda._util._channel_row import ChannelRow
-from pymmcore_widgets._mda._util._labeled_slider import LabeledVisibilitySlider
-from pymmcore_widgets._mda._util._save_button import SaveButton
+from pymmcore_widgets._stack_viewer._channel_row import ChannelRow
+from pymmcore_widgets._stack_viewer._labeled_slider import LabeledVisibilitySlider
+from pymmcore_widgets._stack_viewer._save_button import SaveButton
 
 from ._datastore import QOMEZarrDatastore
 

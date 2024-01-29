@@ -9,7 +9,7 @@ from qtpy.QtCore import QSize
 from qtpy.QtWidgets import QFileDialog, QPushButton, QWidget
 from superqt import fonticon
 
-from pymmcore_widgets._mda._datastore import QOMEZarrDatastore
+from pymmcore_widgets._stack_viewer._datastore import QOMEZarrDatastore
 
 if TYPE_CHECKING:
     from qtpy.QtGui import QCloseEvent

@@ -6,7 +6,7 @@ from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets
 from useq import MDASequence
 
-from pymmcore_widgets._mda._stack_viewer import StackViewer
+from pymmcore_widgets.experimental import StackViewer
 
 size = 2048
 
@@ -32,4 +32,4 @@ w = StackViewer(sequence=sequence, mmcore=mmcore, transform=(90, True, False))
 w.show()
 
 mmcore.run_mda(sequence)
-qapp.exec_()
+qapp.exec()

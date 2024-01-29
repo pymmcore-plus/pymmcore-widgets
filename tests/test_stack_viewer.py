@@ -6,8 +6,8 @@ from useq import MDAEvent, MDASequence
 from vispy.app.canvas import MouseEvent
 from vispy.scene.events import SceneMouseEvent
 
-from pymmcore_widgets._mda._stack_viewer import StackViewer
-from pymmcore_widgets._mda._util._channel_row import CMAPS
+from pymmcore_widgets._stack_viewer import CMAPS
+from pymmcore_widgets.experimental import StackViewer
 
 sequence = MDASequence(
     channels=[{"config": "DAPI", "exposure": 10}, {"config": "FITC", "exposure": 10}],
