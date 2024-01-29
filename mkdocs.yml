@@ -10,8 +10,10 @@ theme:
   name: "material"
   features:
     - content.tabs.link
-    - navigation.tabs
+    - content.code.copy
     - content.code.annotate
+    - navigation.instant
+    - navigation.tabs
   icon:
     logo: fontawesome/solid/microscope
     repo: fontawesome/brands/github
@@ -39,7 +41,10 @@ nav:
   - useq-schema: /useq-schema/
   - pymmcore-widgets:
       - Overview: index.md
+      - Getting Started: getting_started.md
       - Widgets: widgets/
+      - Troubleshooting: troubleshooting.md
+      - Contributing: contributing.md
 
 markdown_extensions:
   - tables

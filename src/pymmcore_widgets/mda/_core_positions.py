@@ -6,7 +6,7 @@ from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus._logger import logger
 from pymmcore_plus._util import retry
-from qtpy.QtWidgets import QCheckBox, QWidget, QWidgetAction
+from qtpy.QtWidgets import QCheckBox, QMessageBox, QWidget, QWidgetAction
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets.useq_widgets import PositionTable
@@ -166,7 +166,26 @@ class CoreConnectedPositionTable(PositionTable):
             self.table().setRowData(row, data)
 
     def _set_af_from_core(self, row: int, col: int = 0) -> None:
-        if self._mmc.getAutoFocusDevice():
+        if not self._mmc.getAutoFocusDevice():
+            return  # AF offset automatically set to 0.0
+
+        # 'Set AF Offset per Position' checked but the autofocus isn't locked in focus
+        if self.af_per_position.isChecked() and not self._mmc.isContinuousFocusLocked():
+            # delete last added row
+            self.table().removeRow(row)
+            # show warning message
+            af = f"'{self._mmc.getAutoFocusDevice()!r}'"
+            title = f"Warning: {af}"
+            msg = (
+                f"'{self.af_per_position.text()!r}' is checked, but the {af} autofocus "
+                f"device is not engaged. \n\nEngage the {af} device before "
+                "adding the position."
+            )
+            QMessageBox.warning(self, title, msg, QMessageBox.StandardButton.Ok)
+            return
+
+        # only if the autofocus device is locked in focus we can get the current offset
+        elif self._mmc.isContinuousFocusLocked():
             data = {self.AF.key: self._mmc.getAutoFocusOffset()}
             self.table().setRowData(row, data)
 
@@ -181,10 +200,11 @@ class CoreConnectedPositionTable(PositionTable):
 
         if len(selected_rows) == 1:
             row = next(iter(selected_rows))
-            data = self.table().rowData(row)
+            data = self.table().rowData(row, exclude_hidden_cols=True)
 
             # check if autofocus is locked before moving
-            _af_locked = self._mmc.isContinuousFocusLocked()
+            af_locked = self._mmc.isContinuousFocusLocked()
+            af_offset = self._mmc.getAutoFocusOffset() if af_locked else None
 
             if self._mmc.getXYStageDevice():
                 x = data.get(self.X.key, self._mmc.getXPosition())
@@ -195,12 +215,24 @@ class CoreConnectedPositionTable(PositionTable):
                 z = data.get(self.Z.key, self._mmc.getZPosition())
                 self._mmc.setZPosition(z)
 
-            if self.af_per_position.isChecked() and self._mmc.getAutoFocusDevice():
-                af = data.get(self.AF.key, self._mmc.getAutoFocusOffset())
-                self._mmc.setAutoFocusOffset(af)
+            # HANDLE AUTOFOCUS OFFSET___________________________________________________
+
+            # if 'af_per_position' is not checked, 'AF.key' will not be in 'data and
+            # 'table_af' will be None. here we get the autofocus offset from the table
+            table_af_offset = data.get(self.AF.key, None)
+
+            # if 'af_per_position' is checked, 'table_af' is not 'None' and we use it.
+            # if 'af_per_position' is not checked but the autofocus was locked before
+            # moving, we use the 'af_offset' (from before moving). Otherwise,
+            # if 'af_per_position' is not checked and the autofocus was not locked
+            # before moving, we do not use autofocus.
+            if table_af_offset is not None or af_offset is not None:
+                self._mmc.setAutoFocusOffset(
+                    table_af_offset if table_af_offset is not None else af_offset
+                )
                 try:
                     self._perform_autofocus()
-                    self._mmc.enableContinuousFocus(_af_locked)
+                    self._mmc.enableContinuousFocus(af_locked)
                 except RuntimeError as e:
                     logger.warning("Hardware autofocus failed. %s", e)
 
