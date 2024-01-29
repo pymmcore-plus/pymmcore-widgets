@@ -269,9 +269,9 @@ class PositionTable(DataTableWidget):
 
             _values.append({**v.model_dump(exclude_unset=True), **_af})
 
-        self.af_per_position.setChecked(_use_af)
-
         super().setValue(_values)
+
+        self.af_per_position.setChecked(_use_af)
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current positions to a JSON file."""
