@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from contextlib import suppress
+from typing import TYPE_CHECKING, Any
 
 import cmap
 from qtpy import QtCore, QtGui, QtWidgets
 from superqt import QColormapComboBox, QRangeSlider
-from superqt.cmap._cmap_utils import try_cast_colormap
 from useq import Channel
 
 if TYPE_CHECKING:
@@ -21,6 +21,15 @@ except ImportError as e:
 
 
 CMAPS = ["gray", "BOP_Blue", "BOP_Purple"]
+
+
+def try_cast_colormap(val: Any) -> cmap.Colormap | None:
+    """Try to cast `val` to a cmap.Colormap instance, return None if it fails."""
+    if isinstance(val, cmap.Colormap):
+        return val
+    with suppress(Exception):
+        return cmap.Colormap(val)
+    return None
 
 
 class ChannelRow(QtWidgets.QWidget):
