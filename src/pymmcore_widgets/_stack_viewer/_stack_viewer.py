@@ -62,7 +62,9 @@ class StackViewer(QtWidgets.QWidget):
         self.transform = transform
         self._mmc = mmcore
         self._clim = "auto"
-        self.cmaps = [try_cast_colormap(x) for x in self.cmap_names]
+        self.cmaps = [
+            cm for x in self.cmap_names if (cm := try_cast_colormap(x)) is not None
+        ]
         self.display_index = {dim: 0 for dim in DIMENSIONS}
 
         self.main_layout = QtWidgets.QVBoxLayout()
