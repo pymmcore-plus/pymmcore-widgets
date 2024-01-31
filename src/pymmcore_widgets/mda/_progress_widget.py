@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import sys
 from typing import TYPE_CHECKING, Mapping
-from PyQt6.QtCore import QSize
 
+from PyQt6.QtCore import QSize
 from qtpy.QtCore import QRectF, Qt
 from qtpy.QtGui import QBrush, QColor, QLinearGradient, QPainter, QPen
 from qtpy.QtWidgets import (
