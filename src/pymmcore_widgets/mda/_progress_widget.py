@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from typing import TYPE_CHECKING, Any, Mapping, cast
 
 from qtpy.QtCore import QRect, QRectF, Qt
@@ -9,7 +10,11 @@ from qtpy.QtWidgets import (
     QApplication,
     QFrame,
     QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
     QLabel,
+    QMessageBox,
+    QPushButton,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -18,6 +23,8 @@ from qtpy.QtWidgets import (
 if TYPE_CHECKING:
     from typing import TypeAlias
 
+    from pymmcore_plus.mda import MDARunner
+    from PySide6.QtCore import QTimerEvent
     from qtpy.QtGui import QPaintEvent
 
     ColorLike: TypeAlias = Qt.GlobalColor | QColor | int | str
@@ -63,6 +70,7 @@ def draw_chunks(
                 chunk_width - padding,
                 rect.height() - padding * 2,
             ),
+            # by using <=, the first chunk will be drawn as complete
             g_complete if i <= current_value else g_pending,
         )
 
@@ -156,24 +164,154 @@ class MultiDimensionProgressWidget(QFrame):
             self._dimension_bars[label].set_progress(units)
 
 
+class MDAProgress(QWidget):
+    def __init__(
+        self, runner: MDARunner | None = None, parent: QWidget | None = None
+    ) -> None:
+        super().__init__(parent)
+        self._t0: float = 0.0
+        self._sizes: dict[str, int] = {}
+        self._runner: MDARunner | None = runner
+        self.connect_runner(runner)
+
+        self._progress_widget = MultiDimensionProgressWidget()
+        prog_group = QGroupBox("Sequence Progress", self)
+        prog_group.setLayout(QVBoxLayout())
+        prog_group.layout().addWidget(self._progress_widget)
+
+        self._status = QLabel("Idle")
+        status = QGroupBox("Status", self)
+        status.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        status.setLayout(QHBoxLayout())
+        status.layout().addWidget(self._status)
+
+        self._elapsed_time = QLabel("Time elapsed: 0:00:00")
+        self._remaining_time = QLabel("Time remaining: 0:00:00")
+        time_row = QHBoxLayout()
+        time_row.addWidget(self._elapsed_time)
+        time_row.addWidget(self._remaining_time)
+
+        self._pause_button = QPushButton("Pause")
+        self._abort_button = QPushButton("Abort")
+        self._pause_button.clicked.connect(self._on_pause_clicked)
+        self._abort_button.clicked.connect(self._on_abort_clicked)
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_row.addWidget(self._pause_button)
+        btn_row.addWidget(self._abort_button)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(8)
+        layout.addWidget(prog_group)
+        layout.addLayout(time_row)
+        layout.addWidget(status)
+        layout.addLayout(btn_row)
+
+    def _on_pause_clicked(self) -> None:
+        if self._runner is not None:
+            self._runner.toggle_pause()
+
+    def _on_abort_clicked(self) -> None:
+        if self._runner is None:
+            return
+
+        # pause if not already paused while we ask the user
+        if not (was_paused := self._runner.is_paused()):
+            self._runner.toggle_pause()
+
+        msg = QMessageBox.warning(
+            self,
+            "Abort Sequence",
+            "Are you sure you want to abort the sequence?",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if msg == QMessageBox.StandardButton.Ok:
+            self._runner.cancel()
+            return
+
+        if not was_paused:
+            # resume
+            self._runner.toggle_pause()
+
+    def disconnect_runner(self) -> None:
+        runner, self._runner = self._runner, None
+        if runner is None:
+            return
+
+        runner.events.sequenceStarted.disconnect(self._on_sequence_started)
+        runner.events.sequencePauseToggled.disconnect(self._on_sequence_pause_toggled)
+        runner.events.sequenceFinished.disconnect(self._on_sequence_finished)
+        runner.events.frameReady.disconnect(self._on_frame)
+
+        if hasattr(runner.events, "awaitingEvent"):
+            runner.events.awaitingEvent.disconnect(self._on_awaiting_event)
+        if hasattr(runner.events, "eventStarted"):
+            runner.events.eventStarted.disconnect(self._on_event_started)
+
+    def connect_runner(self, runner: MDARunner | None) -> None:
+        self.disconnect_runner()
+        self._runner = runner
+        if runner is None:
+            return
+
+        runner.events.sequenceStarted.connect(self._on_sequence_started)
+        runner.events.sequencePauseToggled.connect(self._on_sequence_pause_toggled)
+        runner.events.sequenceFinished.connect(self._on_sequence_finished)
+        runner.events.frameReady.connect(self._on_frame)
+
+        if hasattr(runner.events, "awaitingEvent"):
+            runner.events.awaitingEvent.connect(self._on_awaiting_event)
+        if hasattr(runner.events, "eventStarted"):
+            runner.events.eventStarted.connect(self._on_event_started)
+
+    def _on_sequence_started(self, seq: useq.MDASequence) -> None:
+        self._t0 = time.perf_counter()
+        self._sizes = seq.sizes
+        if seq.sizes:
+            self._progress_widget.add_dimensions(seq.sizes)
+        self.startTimer(1)
+
+    def timerEvent(self, event: QTimerEvent) -> None:
+        elapsed = time.perf_counter() - self._t0
+        msg = "Time elapsed: " + time.strftime("%H:%M:%S", time.gmtime(elapsed))
+        self._elapsed_time.setText(msg)
+
+    def _on_sequence_pause_toggled(self, paused: bool) -> None:
+        if self._runner is not None:
+            if self._runner.is_paused():
+                self._pause_button.setText("Resume")
+            else:
+                self._pause_button.setText("Pause")
+
+    def _on_sequence_finished(self, seq: useq.MDASequence) -> None:
+        pass
+
+    def _on_awaiting_event(self, event: useq.MDAEvent, remaining_sec: float) -> None:
+        pass
+
+    def _on_event_started(self, event: useq.MDAEvent) -> None:
+        pass
+
+    def _on_frame(self, _ary: Any, event: useq.MDAEvent) -> None:
+        self._progress_widget.set_progress(event.index)
+
+
 if __name__ == "__main__":
     import useq
     from pymmcore_plus import CMMCorePlus
 
     app = QApplication(sys.argv)
 
-    widget = QWidget()
+    widget = MDAProgress()
     widget.resize(600, 150)
     widget.show()
-    layout = QVBoxLayout(widget)
-    layout.addWidget(QLabel("Progress:"))
-
-    progress_view = MultiDimensionProgressWidget()
-    layout.addWidget(progress_view)
 
     core = CMMCorePlus()
     core.loadSystemConfiguration()
     core.setExposure(100)
+
+    widget.connect_runner(core.mda)
+
     seq = useq.MDASequence(
         time_plan=useq.TIntervalLoops(interval=0.1, loops=20),
         channels=["DAPI", "FITC"],
@@ -181,12 +319,6 @@ if __name__ == "__main__":
         z_plan=useq.ZRangeAround(range=10, step=2),
         axis_order="tpzc",
     )
-
-    progress_view.add_dimensions(seq.sizes)
-
-    @core.mda.events.frameReady.connect
-    def _on_frame(_ary: Any, event: useq.MDAEvent) -> None:
-        progress_view.set_progress(event.index)
 
     core.run_mda(seq)
 
