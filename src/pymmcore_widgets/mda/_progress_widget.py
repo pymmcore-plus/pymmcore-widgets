@@ -30,52 +30,6 @@ if TYPE_CHECKING:
     ColorLike: TypeAlias = Qt.GlobalColor | QColor | int | str
 
 
-def draw_chunks(
-    painter: QPainter,
-    rect: QRect | QRectF,
-    total: int,
-    current_value: int,
-    color_pending: QColor,
-    color_complete: QColor,
-    max_chunk_width: float | None = None,
-    padding: float = 1,
-) -> None:
-    # Calculate the number of chunks to draw based on the current_units
-    while padding > 0:
-        # this while loop allows us to collapse the padding to zero if the
-        # chunks are too small
-        chunk_width = (rect.width() - padding) / total
-        if max_chunk_width is not None:
-            chunk_width = min(chunk_width, max_chunk_width)
-        if chunk_width >= (padding * 8):
-            break
-        padding -= 0.5
-
-    # color gradients for the chunks
-    g_pending = QLinearGradient(0, 0, 0, 1)
-    g_pending.setCoordinateMode(QLinearGradient.CoordinateMode.ObjectMode)
-    g_pending.setColorAt(0, color_pending.lighter(140))
-    g_pending.setColorAt(1, color_pending.darker(120))
-    g_complete = QLinearGradient(0, 0, 0, 1)
-    g_complete.setCoordinateMode(QLinearGradient.CoordinateMode.ObjectMode)
-    g_complete.setColorAt(0, color_complete.lighter(140))
-    g_complete.setColorAt(1, color_complete.darker(120))
-
-    # Draw each chunk
-    for i in range(total):
-        painter.fillRect(
-            QRectF(
-                rect.x() + i * chunk_width,
-                rect.y() + padding + 0.5,  # seems to look better w/ 0.5
-                chunk_width - padding,
-                rect.height() - padding * 2,
-            ),
-            # by using <=, the first chunk will be drawn as complete
-            g_complete if i <= current_value else g_pending,
-        )
-
-
-# QWidgets version
 class DimensionBar(QWidget):
     def __init__(
         self,
@@ -99,7 +53,7 @@ class DimensionBar(QWidget):
 
     def paintEvent(self, event: QPaintEvent) -> None:
         super().paintEvent(event)
-        draw_chunks(
+        _draw_chunks(
             QPainter(self),
             self.rect(),
             self.total,
@@ -116,7 +70,7 @@ class DimensionBar(QWidget):
         self.update()
 
 
-class MultiDimensionProgressWidget(QFrame):
+class MDAProgressBars(QFrame):
     """Widget for displaying progress across multiple dimensions."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -125,10 +79,10 @@ class MultiDimensionProgressWidget(QFrame):
         self._bar_height = 20
 
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
-        self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Raised)
+        # self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Raised)
 
         layout = QGridLayout(self)
-        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setHorizontalSpacing(6)
         layout.setVerticalSpacing(0)
         layout.setColumnStretch(1, 1)
@@ -164,19 +118,24 @@ class MultiDimensionProgressWidget(QFrame):
             self._dimension_bars[label].set_progress(units)
 
 
-class MDAProgress(QWidget):
+class MDAProgressWidget(QWidget):
     def __init__(
         self, runner: MDARunner | None = None, parent: QWidget | None = None
     ) -> None:
         super().__init__(parent)
         self._t0: float = 0.0
         self._sizes: dict[str, int] = {}
+        self._event_index: dict[str, int] = {}
+
         self._runner: MDARunner | None = runner
         self.connect_runner(runner)
 
-        self._progress_widget = MultiDimensionProgressWidget()
+        self._progress_widget = MDAProgressBars()
         prog_group = QGroupBox("Sequence Progress", self)
         prog_group.setLayout(QVBoxLayout())
+        prog_group.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum
+        )
         prog_group.layout().addWidget(self._progress_widget)
 
         self._status = QLabel("Idle")
@@ -279,21 +238,70 @@ class MDAProgress(QWidget):
     def _on_sequence_pause_toggled(self, paused: bool) -> None:
         if self._runner is not None:
             if self._runner.is_paused():
-                self._pause_button.setText("Resume")
+                self._pause_button.setText("Continue")
             else:
                 self._pause_button.setText("Pause")
 
     def _on_sequence_finished(self, seq: useq.MDASequence) -> None:
-        pass
+        self._sizes = {}
+        self._event_index = {}
+        self.killTimer(1)
 
     def _on_awaiting_event(self, event: useq.MDAEvent, remaining_sec: float) -> None:
-        pass
+        self._status.setText(f"Next event in {remaining_sec:.1f} sec")
 
     def _on_event_started(self, event: useq.MDAEvent) -> None:
-        pass
+        self._status.setText("")
 
     def _on_frame(self, _ary: Any, event: useq.MDAEvent) -> None:
+        self._event_index = dict(event.index)
         self._progress_widget.set_progress(event.index)
+
+
+def _draw_chunks(
+    painter: QPainter,
+    rect: QRect | QRectF,
+    total: int,
+    current_value: int,
+    color_pending: QColor,
+    color_complete: QColor,
+    max_chunk_width: float | None = None,
+    padding: float = 1,
+) -> None:
+    """Draw a chunked progress bar with `current_value` of `total` complete."""
+    # Calculate the number of chunks to draw based on the current_units
+    while padding > 0:
+        # this while loop allows us to collapse the padding to zero if the
+        # chunks are too small
+        chunk_width = (rect.width() - padding) / total
+        if max_chunk_width is not None:
+            chunk_width = min(chunk_width, max_chunk_width)
+        if chunk_width >= (padding * 8):
+            break
+        padding -= 0.5
+
+    # color gradients for the chunks
+    g_pending = QLinearGradient(0, 0, 0, 1)
+    g_pending.setCoordinateMode(QLinearGradient.CoordinateMode.ObjectMode)
+    g_pending.setColorAt(0, color_pending.lighter(140))
+    g_pending.setColorAt(1, color_pending.darker(120))
+    g_complete = QLinearGradient(0, 0, 0, 1)
+    g_complete.setCoordinateMode(QLinearGradient.CoordinateMode.ObjectMode)
+    g_complete.setColorAt(0, color_complete.lighter(140))
+    g_complete.setColorAt(1, color_complete.darker(120))
+
+    # Draw each chunk
+    for i in range(total):
+        painter.fillRect(
+            QRectF(
+                rect.x() + i * chunk_width,
+                rect.y() + padding + 0.5,  # seems to look better w/ 0.5
+                chunk_width - padding,
+                rect.height() - padding * 2,
+            ),
+            # by using <=, the first chunk will be drawn as complete
+            g_complete if i <= current_value else g_pending,
+        )
 
 
 if __name__ == "__main__":
@@ -302,7 +310,7 @@ if __name__ == "__main__":
 
     app = QApplication(sys.argv)
 
-    widget = MDAProgress()
+    widget = MDAProgressWidget()
     widget.resize(600, 150)
     widget.show()
 
@@ -313,7 +321,7 @@ if __name__ == "__main__":
     widget.connect_runner(core.mda)
 
     seq = useq.MDASequence(
-        time_plan=useq.TIntervalLoops(interval=0.1, loops=20),
+        time_plan=useq.TIntervalLoops(interval=10, loops=20),
         channels=["DAPI", "FITC"],
         stage_positions=[(0, 0), (100, 100), (200, 200)],
         z_plan=useq.ZRangeAround(range=10, step=2),
