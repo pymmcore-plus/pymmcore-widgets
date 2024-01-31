@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from typing import TYPE_CHECKING, Mapping
+from PyQt6.QtCore import QSize
 
 from qtpy.QtCore import QRectF, Qt
 from qtpy.QtGui import QBrush, QColor, QLinearGradient, QPainter, QPen
@@ -12,12 +13,16 @@ from qtpy.QtWidgets import (
     QGraphicsScene,
     QGraphicsTextItem,
     QGraphicsView,
-    QHBoxLayout,
+    QLabel,
+    QSizePolicy,
     QStyleOptionGraphicsItem,
+    QVBoxLayout,
     QWidget,
 )
 
 if TYPE_CHECKING:
+    from PyQt6.QtGui import QResizeEvent
+
     ColorLike = Qt.GlobalColor | QColor | int | str
 
 
@@ -122,17 +127,41 @@ class MultiDimensionProgressWidget(QGraphicsView):
         self._scene = QGraphicsScene()
         self.setScene(self._scene)
         self._dimension_bars: dict[str, DimensionBar] = {}
+        self._vert_spacing = 21
+        self._bar_height = self._vert_spacing - 1
+        self.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
     def add_dimensions(self, dimensions: dict[str, int]) -> None:
         """Add multiple dimensions at once."""
         for label, total in dimensions.items():
             self.add_dimension(label, total)
 
+    def resizeEvent(self, event: QResizeEvent | None) -> None:
+        super().resizeEvent(event)
+        if not event:
+            return
+        # FIXME:
+        # I'm not really sure about this logic, just a hack for now
+        scene_width = event.size().width() - 20
+        for i, bar in enumerate(self._dimension_bars.values()):
+            bar.setRect(0, i * self._vert_spacing, scene_width - 20, self._bar_height)
+        self._scene.setSceneRect(
+            -30, -5, scene_width, self._bar_height * len(self._dimension_bars) + 40
+        )
+
+    def sizeHint(self) -> QSize:
+        # HACK!
+        hint = super().sizeHint()
+        return hint.expandedTo(
+            QSize(200, self._bar_height * len(self._dimension_bars) + 110)
+        )
+
     def add_dimension(self, label: str, total: int) -> None:
         """Add a dimension to the progress view."""
         bar = DimensionBar(label, total)
-        y_offset = len(self._dimension_bars) * 21  # vertical spacing between bars
-        bar.setRect(0, y_offset, 480, 20)  # size of the bar
+        y_offset = len(self._dimension_bars) * self._vert_spacing
+        bar.setRect(0, y_offset, self.width() - 40, self._bar_height)
         self._scene.addItem(bar)
         self._dimension_bars[label] = bar
 
@@ -157,8 +186,11 @@ progress_view = MultiDimensionProgressWidget()
 # Create the main widget
 widget = QWidget()
 widget.resize(600, 150)
-layout = QHBoxLayout(widget)
+layout = QVBoxLayout(widget)
+layout.addWidget(QLabel("Progress:"))
 layout.addWidget(progress_view)
+layout.addWidget(QLabel("Time:"))
+layout.addStretch()
 widget.show()
 
 # Add dimensions (label, color, max_units)
