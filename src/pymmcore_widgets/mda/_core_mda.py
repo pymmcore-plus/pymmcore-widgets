@@ -111,13 +111,22 @@ class MDAWidget(MDASequenceWidget):
         val = super().value()
         replace = {}
 
-        # if the z plan is relative, and there are no stage positions, add the current
+        # if the z plan is relative, and there are no stage positions or there is only
+        # one position but the 'include_z" is unchecked, add the current
         # stage position as the relative starting one.
         # Note: this is not the final solution, it shiud be better to move this in
         # pymmcore-plus runner but only after we introduce a concept of a "relative
         # position" in useq.MDAEvent. At the moment, since the pymmcore-plus runner is
         # not aware of the core, we cannot move it there.
-        if val.z_plan and val.z_plan.is_relative and not val.stage_positions:
+        single_pos_no_z = (
+            len(val.stage_positions) == 1
+            and not self.stage_positions.include_z.isChecked()
+        )
+        if (
+            val.z_plan
+            and val.z_plan.is_relative
+            and (not val.stage_positions or single_pos_no_z)
+        ):
             replace["stage_positions"] = (self._get_current_stage_position(),)
 
         # if there is an autofocus_plan but the autofocus_motor_offset is None, set it
@@ -161,8 +170,28 @@ class MDAWidget(MDASequenceWidget):
         ):
             return
 
+        sequence = self.value()
+
+        # if the z plan is relative, and there are multiple stage positions, but the
+        # 'include z' is unchecked, raise an error since we cannot run a
+        # relative z plan without knowing the starting z for each position.
+        if (
+            sequence.z_plan
+            and sequence.z_plan.is_relative
+            and len(sequence.stage_positions) > 1
+            and not self.stage_positions.include_z.isChecked()
+        ):
+            QMessageBox.critical(
+                self,
+                "Z Plan Error",
+                "Cannot run a relative Z plan without including a starting Z position. "
+                "Make sure to check the 'Include Z' checkbox in the Positions tab.",
+                QMessageBox.StandardButton.Ok,
+            )
+            return
+
         # run the MDA experiment asynchronously
-        self._mmc.run_mda(self.value())
+        self._mmc.run_mda(sequence)
         return
 
     def _confirm_af_intentions(self) -> bool:
