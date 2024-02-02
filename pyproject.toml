@@ -83,6 +83,7 @@ docs = [
     "mkdocstrings-python",
     "mkdocs-literate-nav",
     "mkdocs-gen-files",
+    "mkdocs-video",
 ]
 
 [project.urls]
