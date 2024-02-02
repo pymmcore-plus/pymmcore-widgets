@@ -448,8 +448,8 @@ def test_run_mda_af_warning(qtbot: QtBot):
     with patch.object(QMessageBox, "warning", _ok):
         with qtbot.waitSignal(wdg._mmc.mda.events.sequenceStarted):
             wdg.control_btns.run_btn.click()
-
-    assert wdg._mmc.mda.is_running()
+        with qtbot.waitSignal(wdg._mmc.mda.events.sequenceFinished):
+            assert wdg._mmc.mda.is_running()
 
 
 def test_core_connected_channel_wdg(qtbot: QtBot):
