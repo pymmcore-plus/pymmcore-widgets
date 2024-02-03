@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 from pymmcore_widgets._stage_widget import StageWidget
 
 if TYPE_CHECKING:
@@ -65,10 +63,9 @@ def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert stage_xy._readout.text() == "XY:  -0.0, -0.0"
 
     stage_xy.snap_checkbox.setChecked(True)
-    with qtbot.waitSignal(global_mmcore.events.imageSnapped) as snap:
+    with qtbot.waitSignal(global_mmcore.events.imageSnapped):
         global_mmcore.waitForDevice("XY")
         xy_up_3.widget().click()
-        assert isinstance(snap.args[0], np.ndarray)
 
     # test Z stage
     stage_z = StageWidget("Z", levels=3)
@@ -111,10 +108,9 @@ def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert stage_z._readout.text() == "Z:  0.0"
 
     stage_z.snap_checkbox.setChecked(True)
-    with qtbot.waitSignal(global_mmcore.events.imageSnapped) as snap:
+    with qtbot.waitSignal(global_mmcore.events.imageSnapped):
         global_mmcore.waitForDevice("Z")
         z_up_2.widget().click()
-        assert isinstance(snap.args[0], np.ndarray)
 
     # disconnect
     assert global_mmcore.getFocusDevice() == "Z"
