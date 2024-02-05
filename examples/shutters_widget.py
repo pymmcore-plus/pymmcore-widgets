@@ -6,7 +6,6 @@ in micromanager are displayed with a 'ShuttersWidget'.
 The autoshutter checkbox is displayed only with the last shutter device.
 """
 
-
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtWidgets import QApplication, QHBoxLayout, QWidget
 

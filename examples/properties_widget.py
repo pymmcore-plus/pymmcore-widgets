@@ -3,6 +3,7 @@
 It creates widgets for a set of different properties, filtered based on
 the arguments to the constructor.
 """
+
 from pymmcore_plus import CMMCorePlus, PropertyType
 from qtpy.QtWidgets import QApplication
 
