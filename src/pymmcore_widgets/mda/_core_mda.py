@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Signal
+from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QBoxLayout,
     QFileDialog,
@@ -292,15 +292,18 @@ class _MDAControlButtons(QWidget):
 
         icon_size = QSize(24, 24)
         self.run_btn = QPushButton("Run")
+        self.run_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.run_btn.setIcon(icon(MDI6.play_circle_outline, color="lime"))
         self.run_btn.setIconSize(icon_size)
 
         self.pause_btn = QPushButton("Pause")
+        self.pause_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.pause_btn.setIcon(icon(MDI6.pause_circle_outline, color="green"))
         self.pause_btn.setIconSize(icon_size)
         self.pause_btn.hide()
 
         self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.cancel_btn.setIcon(icon(MDI6.stop_circle_outline, color="magenta"))
         self.cancel_btn.setIconSize(icon_size)
         self.cancel_btn.hide()
