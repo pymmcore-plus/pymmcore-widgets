@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 import numpy as np
+import useq
 from pymmcore_plus import CMMCorePlus
 
 from pymmcore_widgets import ImagePreview
@@ -31,3 +32,17 @@ def test_image_preview(qtbot: "QtBot"):
     assert widget.streaming_timer.isActive()
     mmcore.stopSequenceAcquisition()
     assert not widget.streaming_timer.isActive()
+
+
+def test_image_preview_while_running_mda(qtbot: "QtBot"):
+    widget = ImagePreview()
+    qtbot.addWidget(widget)
+    mmc = widget._mmc
+
+    assert widget.image is None
+
+    seq = useq.MDASequence(channels=["FITC"])
+
+    with qtbot.waitSignal(mmc.mda.events.sequenceFinished):
+        mmc.run_mda(seq)
+    assert widget.image is None

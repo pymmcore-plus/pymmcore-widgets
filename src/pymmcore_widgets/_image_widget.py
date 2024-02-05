@@ -97,6 +97,8 @@ class ImagePreview(QWidget):
             self._update_image(self._mmc.getLastImage())
 
     def _on_image_snapped(self) -> None:
+        if self._mmc.mda.is_running():
+            return
         self._update_image(self._mmc.getImage())
 
     def _update_image(self, img: np.ndarray) -> None:
