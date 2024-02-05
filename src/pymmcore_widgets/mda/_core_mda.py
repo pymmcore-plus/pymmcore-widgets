@@ -124,7 +124,7 @@ class MDAWidget(MDASequenceWidget):
     def value(self) -> MDASequence:
         """Set the current state of the widget from a [`useq.MDASequence`][]."""
         val = super().value()
-        replace = {}
+        replace: dict = {}
 
         # if the z plan is relative, and there are no stage positions, add the current
         # stage position as the relative starting one.
