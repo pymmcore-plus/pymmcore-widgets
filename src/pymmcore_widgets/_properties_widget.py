@@ -2,6 +2,7 @@
 
 It shows a number of properties, filtered by a given set of tags.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable, cast

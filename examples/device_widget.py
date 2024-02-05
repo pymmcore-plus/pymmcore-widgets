@@ -11,7 +11,6 @@ In this example all the devices of type 'StateDevice' that are loaded in microma
 are displayed with a 'DeviceWidget'.
 """
 
-
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtWidgets import QApplication, QFormLayout, QWidget
 

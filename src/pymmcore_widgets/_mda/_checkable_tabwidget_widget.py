@@ -92,8 +92,7 @@ class CheckableTabWidget(QTabWidget):
         *,
         position: QTabBar.ButtonPosition = ...,
         checked: bool = ...,
-    ) -> int:
-        ...
+    ) -> int: ...
 
     @overload
     def addTab(
@@ -105,8 +104,7 @@ class CheckableTabWidget(QTabWidget):
         *,
         position: QTabBar.ButtonPosition = ...,
         checked: bool = ...,
-    ) -> int:
-        ...
+    ) -> int: ...
 
     def addTab(
         self,
@@ -147,8 +145,7 @@ class CheckableTabWidget(QTabWidget):
         *,
         position: QTabBar.ButtonPosition = ...,
         checked: bool = ...,
-    ) -> int:
-        ...
+    ) -> int: ...
 
     @overload
     def insertTab(
@@ -161,8 +158,7 @@ class CheckableTabWidget(QTabWidget):
         *,
         position: QTabBar.ButtonPosition = ...,
         checked: bool = ...,
-    ) -> int:
-        ...
+    ) -> int: ...
 
     def insertTab(
         self,
