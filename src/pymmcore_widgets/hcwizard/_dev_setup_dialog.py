@@ -79,6 +79,7 @@ for adapter in core.getDeviceAdapterNames():
         if type == DeviceType.Serial:
             print(adapter, dev)
 """
+
 from __future__ import annotations
 
 import logging
