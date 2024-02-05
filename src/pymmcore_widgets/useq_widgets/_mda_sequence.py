@@ -147,7 +147,7 @@ class MDATabs(CheckableTabWidget):
 
         widget: (
             ChannelTable | TimePlanWidget | ZPlanWidget | PositionTable | GridPlanWidget
-        )  # noqa
+        )
         for f in ("channels", "time_plan", "z_plan", "stage_positions", "grid_plan"):
             widget = getattr(self, f)
             if field_val := getattr(value, f):
