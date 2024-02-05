@@ -95,6 +95,12 @@ plugins:
             # show_bases: false
             # members_order: alphabetical # alphabetical/source
             # docstring_section_style: list # or table/list/spacy
+  - mkdocs-video:
+      is_video: true
+      video_muted: true
+      video_controls: false
+      video_autoplay: true
+      video_loop: true
 
 extra_css:
   - stylesheets/extra.css
