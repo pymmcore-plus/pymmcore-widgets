@@ -199,10 +199,9 @@ class MDAWidget(MDASequenceWidget):
 
     def _enable_widgets(self, enable: bool) -> None:
         for child in self.children():
-            if child is not self.control_btns and hasattr(child, "setEnabled"):
-                if isinstance(child, CoreMDATabs):
-                    child._enable_tabs(enable)
-                    continue
+            if isinstance(child, CoreMDATabs):
+                child._enable_tabs(enable)
+            elif child is not self.control_btns and hasattr(child, "setEnabled"):
                 child.setEnabled(enable)
 
     def _on_mda_started(self) -> None:
