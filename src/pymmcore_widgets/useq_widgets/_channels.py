@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 import useq
-from qtpy.QtWidgets import QComboBox, QWidgetAction
+from pymmcore_plus import Keyword
+from qtpy.QtWidgets import QComboBox, QHBoxLayout, QLabel, QWidget, QWidgetAction
 from superqt.utils import signals_blocked
 
 from ._column_info import (
@@ -17,20 +18,17 @@ from ._column_info import (
 )
 from ._data_table import DataTableWidget
 
-if TYPE_CHECKING:
-    from qtpy.QtWidgets import QWidget
-
 NAMED_CONFIG = TextColumn(key="config", default=None, is_row_selector=True)
-DEFAULT_GROUP = "Channel"
+DEFAULT_GROUP = Keyword.Channel
 
 
 class ChannelTable(DataTableWidget):
-    """Table for editing a list of `useq.Channels`."""
+    """Table to edit a list of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel)."""
 
     # fmt: off
     GROUP = TextColumn(key="group", default=DEFAULT_GROUP, hidden=True)
     CONFIG = TextColumn(key="config", default=None, is_row_selector=True)
-    EXPOSURE = FloatColumn(key="exposure", header="Exposure [ms]", default=100.0, minimum=1)  # noqa
+    EXPOSURE = FloatColumn(key="exposure", header="Exposure [ms]", default=100.0, minimum=0.01)  # noqa
     ACQUIRE_EVERY = IntColumn(key="acquire_every", default=1, minimum=1)
     DO_STACK = BoolColumn(key="do_stack", default=True)
     Z_OFFSET = FloatColumn(key="z_offset", default=0.0, minimum=-10000, maximum=10000)
@@ -39,12 +37,24 @@ class ChannelTable(DataTableWidget):
         super().__init__(rows, parent)
         self._group_combo = QComboBox()
         self._group_combo.currentTextChanged.connect(self._on_group_changed)
+
+        self._group_wdg = QWidget()
+        layout = QHBoxLayout(self._group_wdg)
+        layout.addWidget(QLabel("Group:"))
+        layout.addWidget(self._group_combo)
+        layout.addStretch()
+        layout.setContentsMargins(5, 0, 0, 0)
+
         # These will change in on_group_changed... so we store the current values.
         self._groups: Mapping[str, Sequence[str]] = {}
         self._config_column: ColumnInfo = self.CONFIG
 
+        # when a new row is inserted, call _on_rows_inserted
+        # to update the new values from the _group_combo
+        self.table().model().rowsInserted.connect(self._on_rows_inserted)
+
     def setChannelGroups(self, groups: Mapping[str, Sequence[str]] | None) -> None:
-        """Set the groups that can be selected in the table.
+        """Set the channel groups that can be selected in the table.
 
         Parameters
         ----------
@@ -68,23 +78,42 @@ class ChannelTable(DataTableWidget):
         if len(self._groups) <= 1:
             if ngroups_before > 1:
                 toolbar.removeAction(actions[1])
-        else:
-            toolbar.insertWidget(actions[0], self._group_combo)
+        elif ngroups_before <= 1:
+            self._group_wdg.show()
+            toolbar.insertWidget(actions[0], self._group_wdg)
 
         self._on_group_changed()
 
     def channelGroups(self) -> Mapping[str, Sequence[str]]:
+        """Return the current channel groups that can be selected in the table."""
         return self._groups
 
     def value(self, exclude_unchecked: bool = True) -> tuple[useq.Channel, ...]:
-        """Return the current value of the table as a list of channels."""
+        """Return the current value of the table as a tuple of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+
+        Parameters
+        ----------
+        exclude_unchecked : bool, optional
+            Exclude unchecked rows, by default True
+
+        Returns
+        -------
+        tuple[useq.Channel, ...]
+            A tuple of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+        """
         return tuple(
             useq.Channel(**r)
             for r in self.table().iterRecords(exclude_unchecked=exclude_unchecked)
         )
 
     def setValue(self, value: Iterable[useq.Channel]) -> None:
-        """Set the current value of the table."""
+        """Set the current value of the table from an Iterable of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+
+        Parameters
+        ----------
+        value : Iterable[useq.Channel]
+            An Iterable of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
+        """
         _values = []
         for v in value:
             if not isinstance(v, useq.Channel):  # pragma: no cover
@@ -147,3 +176,20 @@ class ChannelTable(DataTableWidget):
             )
 
         self.valueChanged.emit()
+
+    def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
+        # when a new row is inserted by any means, populate it
+        # this is connected above in __init_ with self.model().rowsInserted.connect
+        with signals_blocked(self):
+            for row_idx in range(start, end + 1):
+                self._set_channel_group_from_combo(row_idx)
+        self.valueChanged.emit()
+
+    def _set_channel_group_from_combo(self, row: int, col: int = 0) -> None:
+        """Set the current channel group form the combo at the given row."""
+        group = self._group_combo.currentText()
+        if not group:
+            return
+
+        data = {self.GROUP.key: group}
+        self.table().setRowData(row, data)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pint
@@ -22,8 +23,9 @@ from pymmcore_widgets.useq_widgets import (
 )
 from pymmcore_widgets.useq_widgets._column_info import (
     FloatColumn,
-    QQuantityLineEdit,
+    QTimeLineEdit,
     TextColumn,
+    parse_timedelta,
 )
 from pymmcore_widgets.useq_widgets._positions import MDAButton, QFileDialog, _MDAPopup
 
@@ -105,6 +107,7 @@ SUB_SEQ = useq.MDASequence(
     axis_order="gtcz",
 )
 
+
 MDA = useq.MDASequence(
     time_plan=useq.TIntervalLoops(interval=4, loops=3),
     stage_positions=[(0, 1, 2), useq.Position(x=42, y=0, z=3, sequence=SUB_SEQ)],
@@ -131,7 +134,7 @@ def test_mda_wdg(qtbot: QtBot):
 @pytest.mark.parametrize("ext", ["json", "yaml", "foo"])
 def test_mda_wdg_load_save(
     qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str
-):
+) -> None:
     from pymmcore_widgets.useq_widgets._mda_sequence import QFileDialog
 
     wdg = MDASequenceWidget()
@@ -165,8 +168,8 @@ def test_mda_wdg_load_save(
         assert dest.read_text() == mda_no_meta.yaml(exclude_defaults=True)
 
 
-def test_qquant_line_edit(qtbot: QtBot):
-    wdg = QQuantityLineEdit("1 s")
+def test_qquant_line_edit(qtbot: QtBot) -> None:
+    wdg = QTimeLineEdit("1.0 s")
     wdg.show()
     qtbot.addWidget(wdg)
     wdg.setUreg(pint.UnitRegistry())
@@ -258,14 +261,15 @@ def test_channel_groups(qtbot: QtBot) -> None:
     qtbot.addWidget(wdg)
     wdg.show()
 
-    GROUPS = {"Channel": ["DAPI", "FITC"], "Other": ["foo", "bar"]}
+    GROUPS = {"Channels": ["DAPI", "FITC"], "Other": ["foo", "bar"]}
     wdg.setChannelGroups(GROUPS)
+
     assert wdg.channelGroups() == GROUPS
     wdg.act_add_row.trigger()
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.act_add_row.trigger()
     val = wdg.value()
-    assert val[0].group == "Channel"
+    assert val[0].group == "Channels"
     assert val[0].config == "DAPI"
     assert val[1].config == "FITC"
 
@@ -277,7 +281,7 @@ def test_channel_groups(qtbot: QtBot) -> None:
     wdg.setChannelGroups(None)
 
     val = wdg.value()
-    assert val[0].group == "Channel"
+    assert val[0].group == "Channel"  # default
     assert val[0].config == ""
     assert val[1].config == ""
     with qtbot.waitSignal(wdg.valueChanged):
@@ -383,13 +387,13 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     wdg.setMode("area")
     assert isinstance(wdg.value(), useq.GridWidthHeight)
 
-    plan = useq.GridRowsColumns(rows=3, columns=3, mode="spiral")
+    plan = useq.GridRowsColumns(rows=3, columns=3, mode="spiral", overlap=10)
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.NUMBER
     assert wdg.value() == plan
 
-    plan = useq.GridFromEdges(left=1, right=2, top=3, bottom=4)
+    plan = useq.GridFromEdges(left=1, right=2, top=3, bottom=4, overlap=10)
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.BOUNDS
@@ -410,7 +414,7 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     assert wdg.fovWidth() == 6
 
 
-def test_proper_checked_index(qtbot):
+def test_proper_checked_index(qtbot) -> None:
     """Testing that the proper tab is checked when setting a value
 
     https://github.com/pymmcore-plus/pymmcore-widgets/issues/205
@@ -424,3 +428,55 @@ def test_proper_checked_index(qtbot):
     qtbot.addWidget(pop)
     assert pop.mda_tabs.grid_plan.isEnabled()
     assert pop.mda_tabs.isChecked(pop.mda_tabs.grid_plan)
+
+
+MDA = useq.MDASequence(axis_order="p", stage_positions=[(0, 1, 2)])
+AF = useq.MDASequence(
+    autofocus_plan=useq.AxesBasedAF(autofocus_motor_offset=10.0, axes=("p",))
+)
+AF1 = useq.MDASequence(
+    autofocus_plan=useq.AxesBasedAF(autofocus_motor_offset=20.0, axes=("p",))
+)
+
+
+def test_mda_wdg_with_autofocus(qtbot: QtBot) -> None:
+    wdg = MDASequenceWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    wdg.setValue(MDA)
+    assert wdg.value().replace(metadata={}) == MDA
+
+    MDA1 = MDA.replace(
+        stage_positions=[
+            useq.Position(x=0, y=1, z=2, sequence=AF),
+            useq.Position(x=0, y=1, z=2, sequence=AF1),
+        ]
+    )
+    wdg.setValue(MDA1)
+    assert wdg.value().replace(metadata={}) == MDA1
+
+    MDA2 = MDA.replace(
+        stage_positions=[
+            useq.Position(x=0, y=1, z=2, sequence=AF),
+            useq.Position(x=0, y=1, z=2, sequence=AF),
+        ]
+    )
+    wdg.setValue(MDA2)
+    assert wdg.value().autofocus_plan
+    assert not wdg.value().stage_positions[0].sequence
+    assert not wdg.value().stage_positions[1].sequence
+
+
+def test_parse_time() -> None:
+    assert parse_timedelta("2") == timedelta(seconds=2)
+    assert parse_timedelta("0.5") == timedelta(seconds=0.5)
+    assert parse_timedelta("0.500") == timedelta(seconds=0.5)
+    assert parse_timedelta("0.75") == timedelta(seconds=0.75)
+    # this syntax still fails... it assumes the 2 is hours, and the 30 is seconds...
+    # assert parse_timedelta("2:30") == timedelta(minutes=2, seconds=30)
+    assert parse_timedelta("1:20:15") == timedelta(hours=1, minutes=20, seconds=15)
+    assert parse_timedelta("0:00:00.500000") == timedelta(seconds=0.5)
+    assert parse_timedelta("3:40:10.500") == timedelta(
+        hours=3, minutes=40, seconds=10.5
+    )

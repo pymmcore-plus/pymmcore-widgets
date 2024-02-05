@@ -2,19 +2,27 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 import useq
+from qtpy.QtCore import QTimer
+from qtpy.QtWidgets import QMessageBox
 
 from pymmcore_widgets.mda import MDAWidget
+from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
+from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
+from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
+from pymmcore_widgets.useq_widgets._mda_sequence import AutofocusAxis, KeepShutterOpen
+from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP, _MDAPopup
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
-TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")
 
+TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")
 MDA = useq.MDASequence(
     time_plan=useq.TIntervalLoops(interval=0.01, loops=2),
     stage_positions=[(0, 1, 2), useq.Position(x=42, y=0, z=3)],
@@ -55,7 +63,7 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
 
     pos_table = wdg.stage_positions
     assert isinstance(pos_table, CoreConnectedPositionTable)
-    pos_table.setValue(MDA.stage_positions)
+    wdg.setValue(MDA)
     assert pos_table.table().rowCount() == 2
 
     p0 = pos_table.value()[0]
@@ -67,9 +75,8 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
     wdg._mmc.setZPosition(33)
     xyidx = pos_table.table().indexOf(pos_table._xy_btn_col)
     z_idx = pos_table.table().indexOf(pos_table._z_btn_col)
-    # # i'm not sure why click() isn't working... but this is
-    pos_table.table().cellWidget(0, xyidx).clicked.emit()
-    pos_table.table().cellWidget(0, z_idx).clicked.emit()
+    pos_table.table().cellWidget(0, xyidx).click()
+    pos_table.table().cellWidget(0, z_idx).click()
     p0 = pos_table.value()[0]
     assert round(p0.x) == 11
     assert round(p0.y) == 22
@@ -101,6 +108,7 @@ def _assert_position_wdg_state(
         if is_hidden:
             xy = [(v.x, v.y) for v in pos_table.value()]
             assert all(x is None and y is None for x, y in xy)
+
     elif stage == "Z":
         # the set position button should be hidden
         z_btn_col = pos_table.table().indexOf(pos_table._z_btn_col)
@@ -117,8 +125,24 @@ def _assert_position_wdg_state(
         tooltip = "Focus device unavailable." if is_hidden else ""
         assert pos_table.include_z.toolTip() == tooltip
 
+    elif stage == "Autofocus":
+        # the set position button should be hidden
+        af_btn_col = pos_table.table().indexOf(pos_table._af_btn_col)
+        assert pos_table.table().isColumnHidden(af_btn_col)
+        if is_hidden:
+            sub_seq = [v.sequence for v in pos_table.value()]
+            assert all(s is None for s in sub_seq)
+        # the use autofocus checkbox should be unchecked
+        assert not pos_table.af_per_position.isChecked()
+        # the use autofocus checkbox should be disabled if Autofocus device is not
+        # loaded/selected
+        assert pos_table.af_per_position.isEnabled() == (not is_hidden)
+        # tooltip should should change if Autofocus device is not loaded/selected
+        tooltip = "AutoFocus device unavailable." if is_hidden else AF_DEFAULT_TOOLTIP
+        assert pos_table.af_per_position.toolTip() == tooltip
 
-@pytest.mark.parametrize("stage", ["XY", "Z"])
+
+@pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
 def test_core_connected_position_wdg_cfg_loaded(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
 ) -> None:
@@ -147,7 +171,7 @@ def test_core_connected_position_wdg_cfg_loaded(
     _assert_position_wdg_state(stage, pos_table, is_hidden=False)
 
 
-@pytest.mark.parametrize("stage", ["XY", "Z"])
+@pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
 def test_core_connected_position_wdg_property_changed(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
 ) -> None:
@@ -161,6 +185,9 @@ def test_core_connected_position_wdg_property_changed(
             mmc.setProperty("Core", "XYStage", "")
         elif stage == "Z":
             mmc.setProperty("Core", "Focus", "")
+        elif stage == "Autofocus":
+            mmc.setProperty("Core", "AutoFocus", "")
+        mmc.waitForSystem()
 
     wdg = MDAWidget()
     qtbot.addWidget(wdg)
@@ -179,12 +206,27 @@ def test_core_connected_position_wdg_property_changed(
             mmc.setProperty("Core", "XYStage", "XY")
         elif stage == "Z":
             mmc.setProperty("Core", "Focus", "Z")
+        elif stage == "Autofocus":
+            mmc.setProperty("Core", "AutoFocus", "Autofocus")
 
     # stage is set as default device (propertyChanged is triggered)
     _assert_position_wdg_state(stage, pos_table, is_hidden=False)
 
 
-def test_core_position_table_add_position(qtbot: QtBot) -> None:
+@pytest.fixture
+def mock_getAutoFocusOffset(global_mmcore: CMMCorePlus):
+    # core.getAutoFocusOffset() with the demo Autofocus device does not do
+    # anything, so we need to mock it
+    def _getAutoFocusOffset():
+        return 10
+
+    with patch.object(global_mmcore, "getAutoFocusOffset", _getAutoFocusOffset):
+        yield
+
+
+def test_core_position_table_add_position(
+    qtbot: QtBot, mock_getAutoFocusOffset
+) -> None:
     wdg = MDAWidget()
     qtbot.addWidget(wdg)
     wdg.show()
@@ -194,9 +236,249 @@ def test_core_position_table_add_position(qtbot: QtBot) -> None:
 
     wdg._mmc.setXYPosition(11, 22)
     wdg._mmc.setZPosition(33)
-    with qtbot.waitSignals([pos_table.valueChanged], order="strict", timeout=1000):
-        pos_table.act_add_row.trigger()
+
+    wdg.stage_positions.af_per_position.setChecked(True)
+
+    assert pos_table.table().rowCount() == 1
+
+    # test when autofocus is not engaged and af_per_position is checked
+    with patch.object(
+        QMessageBox, "warning", return_value=QMessageBox.StandardButton.Ok
+    ):
+        with qtbot.waitSignals([pos_table.valueChanged], order="strict", timeout=1000):
+            pos_table.act_add_row.trigger()
+
+    # a new position has NOT been added
+    assert pos_table.table().rowCount() == 1
+
+    # test when autofocus is engaged and af_per_position is checked
+    with patch.object(wdg._mmc, "isContinuousFocusLocked", return_value=True):
+        with qtbot.waitSignals([pos_table.valueChanged], order="strict", timeout=1000):
+            pos_table.act_add_row.trigger()
+
     val = pos_table.value()[-1]
     assert round(val.x, 1) == 11
     assert round(val.y, 1) == 22
     assert round(val.z, 1) == 33
+    # setting it to to 10 because the mock_getAutoFocusOffset() returns 10
+    assert val.sequence.autofocus_plan.autofocus_motor_offset == 10
+
+    # a new position has been added
+    assert pos_table.table().rowCount() == 2
+
+
+def test_core_connected_relative_z_plan(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    wdg._mmc.setXYPosition(11, 22)
+    wdg._mmc.setZPosition(33)
+    wdg._mmc.waitForSystem()
+
+    MDA = useq.MDASequence(
+        channels=[{"config": "DAPI", "exposure": 1}],
+        z_plan=useq.ZRangeAround(range=1, step=0.3),
+        axis_order="pzc",
+    )
+    wdg.setValue(MDA)
+
+    val = wdg.value().stage_positions[-1]
+    assert round(val.x, 1) == 11
+    assert round(val.y, 1) == 22
+    assert round(val.z, 1) == 33
+    assert not val.sequence
+
+
+def test_position_table_connected_popup(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    wdg.setValue(MDA)
+
+    pos_table = wdg.stage_positions
+    assert isinstance(pos_table, CoreConnectedPositionTable)
+    seq_col = pos_table.table().indexOf(pos_table.SEQ)
+    btn = pos_table.table().cellWidget(0, seq_col)
+
+    def handle_dialog():
+        popup = btn.findChild(_MDAPopup)
+        mda = popup.mda_tabs
+        assert isinstance(mda.z_plan, CoreConnectedZPlanWidget)
+        assert isinstance(mda.grid_plan, CoreConnectedGridPlanWidget)
+        popup.accept()
+
+    QTimer.singleShot(100, handle_dialog)
+
+    with qtbot.waitSignal(wdg.valueChanged):
+        btn.seq_btn.click()
+
+
+def test_core_position_table_checkboxes_toggled(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+    pos_table = wdg.stage_positions
+    assert isinstance(pos_table, CoreConnectedPositionTable)
+
+    wdg.setValue(MDA)
+
+    z_btn_col = pos_table.table().indexOf(pos_table._z_btn_col)
+    af_btn_col = pos_table.table().indexOf(pos_table._af_btn_col)
+
+    pos_table.include_z.setChecked(False)
+    pos_table.af_per_position.setChecked(False)
+
+    assert pos_table.table().isColumnHidden(z_btn_col)
+    assert pos_table.table().isColumnHidden(af_btn_col)
+
+    pos_table.include_z.setChecked(True)
+    pos_table.af_per_position.setChecked(True)
+
+    assert not pos_table.table().isColumnHidden(z_btn_col)
+    assert not pos_table.table().isColumnHidden(af_btn_col)
+
+
+def test_core_mda_autofocus(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    AF = useq.AxesBasedAF(autofocus_motor_offset=10, axes=("p",))
+    POS = [
+        useq.Position(x=0, y=0, z=0, sequence=useq.MDASequence(autofocus_plan=AF)),
+        useq.Position(x=1, y=1, z=1, sequence=useq.MDASequence(autofocus_plan=AF)),
+    ]
+    MDA = useq.MDASequence(stage_positions=POS)
+    wdg.setValue(MDA)
+
+    assert wdg.value().autofocus_plan
+    assert wdg.value().autofocus_plan.autofocus_motor_offset == 10
+    assert not wdg.value().stage_positions[0].sequence
+    assert not wdg.value().stage_positions[1].sequence
+
+    AF1 = useq.AxesBasedAF(autofocus_motor_offset=15, axes=("p",))
+    POS1 = [
+        useq.Position(x=0, y=0, z=0, sequence=useq.MDASequence(autofocus_plan=AF)),
+        useq.Position(x=1, y=1, z=1, sequence=useq.MDASequence(autofocus_plan=AF1)),
+    ]
+    MDA = MDA.replace(stage_positions=POS1)
+
+    # here we need to mock the core isContinuousFocusLocked method because the Autofocus
+    # demo device cannot be set as "Locked in Focus" and since af_per_position is
+    # checked, we would trigger a warning dialog (dialog is tested in previous test)
+    with patch.object(wdg._mmc, "isContinuousFocusLocked", return_value=True):
+        wdg.setValue(MDA)
+    assert not wdg.value().autofocus_plan
+    assert (
+        wdg.value().stage_positions[0].sequence.autofocus_plan.autofocus_motor_offset
+        == 10
+    )
+    assert (
+        wdg.value().stage_positions[1].sequence.autofocus_plan.autofocus_motor_offset
+        == 15
+    )
+
+    POS2 = [
+        useq.Position(x=0, y=0, z=0, sequence=useq.MDASequence(autofocus_plan=AF)),
+        useq.Position(
+            x=0,
+            y=0,
+            z=0,
+            sequence=useq.MDASequence(
+                autofocus_plan=AF,
+                grid_plan=useq.GridRowsColumns(rows=2, columns=1),
+            ),
+        ),
+    ]
+    MDA = MDA.replace(stage_positions=POS2)
+
+    with patch.object(wdg._mmc, "isContinuousFocusLocked", return_value=True):
+        wdg.setValue(MDA)
+    assert wdg.value().autofocus_plan
+    assert wdg.value().autofocus_plan.autofocus_motor_offset == 10
+    assert not wdg.value().stage_positions[0].sequence
+    assert wdg.value().stage_positions[1].sequence
+
+
+def test_af_axis_wdg(qtbot: QtBot):
+    wdg = AutofocusAxis()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    assert not wdg.value()
+    wdg.setValue(("p", "t", "g"))
+    assert wdg.value() == ("p", "t", "g")
+
+
+def test_keep_shutter_open_wdg(qtbot: QtBot):
+    wdg = KeepShutterOpen()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    assert not wdg.value()
+    wdg.setValue(("z", "t"))
+    assert wdg.value() == ("z", "t")
+
+
+def test_run_mda_af_warning(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    MDA = useq.MDASequence(
+        stage_positions=[useq.Position(x=0, y=0, z=0)],
+        time_plan=useq.TIntervalLoops(interval=1, loops=2),
+        autofocus_plan=useq.AxesBasedAF(axes=("p", "t")),
+    )
+    wdg.setValue(MDA)
+
+    def _cancel(*args, **kwargs):
+        return QMessageBox.StandardButton.Cancel
+
+    with patch.object(QMessageBox, "warning", _cancel):
+        wdg.control_btns.run_btn.click()
+
+    assert not wdg._mmc.mda.is_running()
+
+    def _ok(*args, **kwargs):
+        return QMessageBox.StandardButton.Ok
+
+    with patch.object(QMessageBox, "warning", _ok):
+        with qtbot.waitSignal(wdg._mmc.mda.events.sequenceStarted):
+            wdg.control_btns.run_btn.click()
+        with qtbot.waitSignal(wdg._mmc.mda.events.sequenceFinished):
+            assert wdg._mmc.mda.is_running()
+
+
+def test_core_connected_channel_wdg(qtbot: QtBot):
+    wdg = CoreConnectedChannelTable()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    # delete current channel group
+    wdg._mmc.deleteConfigGroup("Channel")
+
+    # "Channel" not in combo
+    assert "Channel" not in [
+        wdg._group_combo.itemText(i) for i in range(wdg._group_combo.count())
+    ]
+
+    # create new channel group called "Channels" (before it was "Channel")
+    wdg._mmc.defineConfig("Channels", "DAPI", "Dichroic", "Label", "400DCLP")
+    wdg._mmc.defineConfig("Channels", "FITC", "Dichroic", "Label", "Q505LP")
+
+    assert "Channel" not in wdg._mmc.getAvailableConfigGroups()
+    assert "Channels" in wdg._mmc.getAvailableConfigGroups()
+
+    wdg._group_combo.setCurrentText("Channels")
+
+    with qtbot.waitSignals([wdg.valueChanged], order="strict", timeout=1000):
+        wdg.act_add_row.trigger()
+        wdg.act_add_row.trigger()
+
+    value = wdg.value()
+    assert len(value) == 2
+    assert value[0].group == "Channels"
+    assert value[1].group == "Channels"

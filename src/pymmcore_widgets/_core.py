@@ -1,4 +1,5 @@
 """Functions and utils for managing the global mmcore singleton."""
+
 from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus

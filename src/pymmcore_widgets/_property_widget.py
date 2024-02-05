@@ -4,7 +4,11 @@ import contextlib
 from typing import Any, Callable, Protocol, TypeVar, cast
 
 import pymmcore
-from pymmcore_plus import CMMCorePlus, DeviceType, PropertyType
+from pymmcore_plus import (
+    CMMCorePlus,
+    DeviceType,
+    PropertyType,
+)
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -336,6 +340,13 @@ class PropertyWidget(QWidget):
         # set current value from core, ignoring errors
         with contextlib.suppress(RuntimeError, ValueError):
             self._value_widget.setValue(self._mmc.getProperty(*self._dp))
+
+        # disable for any device init state besides 0 (Uninitialized)
+        if hasattr(self._mmc, "getDeviceInitializationState") and (
+            self._mmc.isPropertyPreInit(self._device_label, self._prop_name)
+            and self._mmc.getDeviceInitializationState(self._device_label)
+        ):
+            self.setDisabled(True)
 
     # connect events and queue for disconnection on widget destroyed
     def _on_core_change(self, dev_label: str, prop_name: str, new_val: Any) -> None:

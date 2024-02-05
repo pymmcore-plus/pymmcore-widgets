@@ -45,6 +45,8 @@ class Mode(Enum):
 
 
 class GridPlanWidget(QWidget):
+    """Widget to edit a [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)."""
+
     valueChanged = Signal(object)
 
     def __init__(self, parent: QWidget | None = None):
@@ -97,7 +99,7 @@ class GridPlanWidget(QWidget):
         self.bottom.setDecimals(3)
         self.bottom.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
 
-        self.overlap = QSpinBox()
+        self.overlap = QDoubleSpinBox()
         self.overlap.setRange(-1000, 1000)
         self.overlap.setValue(0)
         self.overlap.setSuffix(" %")
@@ -189,17 +191,23 @@ class GridPlanWidget(QWidget):
         self.order.currentIndexChanged.connect(self._on_change)
         self.relative_to.currentIndexChanged.connect(self._on_change)
 
-    def _on_change(self) -> None:
-        if (val := self.value()) is None:
-            return  # pragma: no cover
-        self.valueChanged.emit(val)
+    # ------------------------- Public API -------------------------
 
     def mode(self) -> Mode:
+        """Return the current mode, one of "number", "area", or "bounds"."""
         return self._mode
 
     def setMode(
         self, mode: Mode | Literal["number", "area", "bounds"] | None = None
     ) -> None:
+        """Set the current mode, one of "number", "area", or "bounds".
+
+        Parameters
+        ----------
+        mode : Mode | Literal["number", "area", "bounds"] | None, optional
+            The mode to set.
+            (If None, the mode is determined by the sender().data(), for internal usage)
+        """
         btn = None
         btn_map: dict[QAbstractButton, Mode] = {
             self._mode_number_radio: Mode.NUMBER,
@@ -226,7 +234,15 @@ class GridPlanWidget(QWidget):
             self._on_change()
 
     def value(self) -> useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight:
-        over = self.overlap.value() / 100
+        """Return the current value of the widget as a [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans).
+
+        Returns
+        -------
+        useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
+            The current [GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
+            value of the widget.
+        """
+        over = self.overlap.value()
         _order = cast("OrderMode", self.order.currentEnum())
         common = {
             "overlap": (over, over),
@@ -261,6 +277,14 @@ class GridPlanWidget(QWidget):
         raise NotImplementedError
 
     def setValue(self, value: useq.GridFromEdges | useq.GridRowsColumns) -> None:
+        """Set the current value of the widget from a [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans).
+
+        Parameters
+        ----------
+        value : useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
+            The [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
+            to set.
+        """
         with signals_blocked(self):
             if isinstance(value, useq.GridRowsColumns):
                 self.rows.setValue(value.rows)
@@ -285,6 +309,9 @@ class GridPlanWidget(QWidget):
             if value.fov_width:
                 self._fov_width = value.fov_width
 
+            if value.overlap:
+                self.overlap.setValue(value.overlap[0])
+
             self.order.setCurrentEnum(OrderMode(value.mode.value))
 
             mode = {
@@ -297,18 +324,29 @@ class GridPlanWidget(QWidget):
         self._on_change()
 
     def setFovWidth(self, value: float) -> None:
+        """Set the current field of view width."""
         self._fov_width = value
         self._on_change()
 
     def setFovHeight(self, value: float) -> None:
+        """Set the current field of view height."""
         self._fov_height = value
         self._on_change()
 
     def fovWidth(self) -> float | None:
+        """Return the current field of view width."""
         return self._fov_width
 
     def fovHeight(self) -> float | None:
+        """Return the current field of view height."""
         return self._fov_height
+
+    # ------------------------- Private API -------------------------
+
+    def _on_change(self) -> None:
+        if (val := self.value()) is None:
+            return  # pragma: no cover
+        self.valueChanged.emit(val)
 
 
 class _SeparatorWidget(QWidget):

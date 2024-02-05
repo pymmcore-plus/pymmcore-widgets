@@ -263,7 +263,7 @@ TableFloatWidget = WdgGetSet(
 class _RangeColumn(WidgetColumn, Generic[W, T]):
     data_type: WdgGetSet[W, float]
     minimum: float = 0
-    maximum: float = 10_000
+    maximum: float = 999_999
 
     def _init_widget(self) -> W:
         wdg = self.data_type.widget()
@@ -325,20 +325,25 @@ class QQuantityValidator(QValidator):
         return None  # pragma: no cover
 
 
-pattern = r"(?:(?P<hours>\d+):)?(?:(?P<min>\d+):)?(?P<sec>\d+)([.,](?P<ms>\d+))?"
+time_pattern = re.compile(
+    r"^(?:(?P<hours>\d+):)?(?:(?P<min>\d+):)?(?P<sec>\d+)?(?:[.,](?P<frac>\d+))?$"
+)
 
 
+# dateutil is a better way to parse time intervals...
+# but it's an additional dependency for a tiny feature
 def parse_timedelta(time_str: str) -> timedelta:
-    match = re.match(pattern, time_str)
+    match = time_pattern.match(time_str)
 
     if not match:  # pragma: no cover
         raise ValueError(f"Invalid time interval format: {time_str}")
 
     hours = int(match["hours"]) if match["hours"] else 0
     minutes = int(match["min"]) if match["min"] else 0
-    seconds = int(match["sec"])
-    ms = int(match["ms"]) if match["ms"] else 0
-    return timedelta(hours=hours, minutes=minutes, seconds=seconds, microseconds=ms)
+    seconds = int(match["sec"]) if match["sec"] else 0
+    frac_sec = match["frac"]
+    frac_sec = float(f"0.{frac_sec}") if frac_sec else 0
+    return timedelta(hours=hours, minutes=minutes, seconds=seconds + frac_sec)
 
 
 class QQuantityLineEdit(QLineEdit):
@@ -391,7 +396,8 @@ class QQuantityLineEdit(QLineEdit):
     def _on_editing_finished(self) -> None:
         # When the editing is finished, check if the final text is valid
         before, final_text = self._last_val, self.text()
-        if valid_q := self._validator.text_to_quant(final_text):
+        valid_q = self._validator.text_to_quant(final_text)
+        if valid_q is not None:
             text = f"{valid_q:~P}"  # short pretty format
             if before != text:
                 self.setText(text)
@@ -404,8 +410,10 @@ class QQuantityLineEdit(QLineEdit):
 
 
 class QTimeLineEdit(QQuantityLineEdit):
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(None, parent)
+    def __init__(
+        self, contents: str | None = None, parent: QWidget | None = None
+    ) -> None:
+        super().__init__(contents, parent)
         self.setDimensionality("second")
         self.setStyleSheet("QLineEdit { border: none; }")
 

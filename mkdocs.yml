@@ -10,8 +10,10 @@ theme:
   name: "material"
   features:
     - content.tabs.link
-    - navigation.tabs
+    - content.code.copy
     - content.code.annotate
+    - navigation.instant
+    - navigation.tabs
   icon:
     logo: fontawesome/solid/microscope
     repo: fontawesome/brands/github
@@ -39,7 +41,10 @@ nav:
   - useq-schema: /useq-schema/
   - pymmcore-widgets:
       - Overview: index.md
+      - Getting Started: getting_started.md
       - Widgets: widgets/
+      - Troubleshooting: troubleshooting.md
+      - Contributing: contributing.md
 
 markdown_extensions:
   - tables
@@ -52,8 +57,8 @@ markdown_extensions:
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.emoji:
-      emoji_index: !!python/name:materialx.emoji.twemoji
-      emoji_generator: !!python/name:materialx.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - toc:
       permalink: "#"
 
@@ -90,6 +95,12 @@ plugins:
             # show_bases: false
             # members_order: alphabetical # alphabetical/source
             # docstring_section_style: list # or table/list/spacy
+  - mkdocs-video:
+      is_video: true
+      video_muted: true
+      video_controls: false
+      video_autoplay: true
+      video_loop: true
 
 extra_css:
   - stylesheets/extra.css

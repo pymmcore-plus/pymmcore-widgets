@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from logging import getLogger
 from typing import Iterable, cast
 
 from fonticon_mdi6 import MDI6
@@ -30,6 +31,8 @@ ICONS: dict[DeviceType, str] = {
     DeviceType.XYStage: MDI6.arrow_all,
     DeviceType.Serial: MDI6.serial_port,
 }
+
+logger = getLogger(__name__)
 
 
 class DevicePropertyTable(QTableWidget):
@@ -107,7 +110,6 @@ class DevicePropertyTable(QTableWidget):
         presets = self._mmc.getAvailableConfigs(group)
         if not presets:
             return
-
         included = [tuple(c)[:2] for c in self._mmc.getConfigData(group, presets[0])]
         for row in range(self.rowCount()):
             prop = cast(DeviceProperty, self.item(row, 0).data(self.PROP_ROLE))
@@ -140,18 +142,24 @@ class DevicePropertyTable(QTableWidget):
         for i, prop in enumerate(props):
             item = QTableWidgetItem(f"{prop.device}-{prop.name}")
             item.setData(self.PROP_ROLE, prop)
-            # TODO: make sure to add icons for all possible device types
-            icon_string = ICONS.get(prop.deviceType(), None)
+            icon_string = ICONS.get(prop.deviceType())
             if icon_string:
                 item.setIcon(icon(icon_string, color="Gray"))
             self.setItem(i, 0, item)
 
-            wdg = PropertyWidget(
-                prop.device,
-                prop.name,
-                mmcore=self._mmc,
-                connect_core=self._connect_core,
-            )
+            try:
+                wdg = PropertyWidget(
+                    prop.device,
+                    prop.name,
+                    mmcore=self._mmc,
+                    connect_core=self._connect_core,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error creating widget for {prop.device}-{prop.name}: {e}"
+                )
+                continue
+
             self.setCellWidget(i, 1, wdg)
             if not self._prop_widgets_enabled:
                 wdg.setEnabled(False)
@@ -177,6 +185,7 @@ class DevicePropertyTable(QTableWidget):
         query: str = "",
         exclude_devices: Iterable[DeviceType] = (),
         include_read_only: bool = True,
+        include_pre_init: bool = True,
         init_props_only: bool = False,
     ) -> None:
         """Update the table to only show devices that match the given query/filter."""
@@ -186,6 +195,7 @@ class DevicePropertyTable(QTableWidget):
             prop = cast(DeviceProperty, item.data(self.PROP_ROLE))
             if (
                 (prop.isReadOnly() and not include_read_only)
+                or (prop.isPreInit() and not include_pre_init)
                 or (init_props_only and not prop.isPreInit())
                 or (prop.deviceType() in exclude_devices)
                 or (query and query.lower() not in item.text().lower())
@@ -202,10 +212,11 @@ class DevicePropertyTable(QTableWidget):
         # list of properties to add to the group
         # [(device, property, value_to_set), ...]
         dev_prop_val_list: list[tuple[str, str, str]] = []
-        for r in range(self.rowCount()):
-            if self.item(r, 0).checkState() == Qt.CheckState.Checked:
-                dev_prop_val_list.append(self.getRowData(r))
-
+        for row in range(self.rowCount()):
+            if self.item(row, 0) is None:
+                continue
+            if self.item(row, 0).checkState() == Qt.CheckState.Checked:
+                dev_prop_val_list.append(self.getRowData(row))
         return dev_prop_val_list
 
     def getRowData(self, row: int) -> tuple[str, str, str]:
@@ -220,3 +231,10 @@ class DevicePropertyTable(QTableWidget):
         if before != enabled:
             for row in range(self.rowCount()):
                 self.cellWidget(row, 1).setEnabled(enabled)
+
+    def uncheckAll(self) -> None:
+        """Uncheck all rows."""
+        for row in range(self.rowCount()):
+            if self.item(row, 0) is None:
+                continue
+            self.item(row, 0).setCheckState(Qt.CheckState.Unchecked)

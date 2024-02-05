@@ -305,7 +305,7 @@ class PositionTable(QWidget):
 
         if not state:
             for v in self.value():
-                if v.get("sequence") and v.get("sequence").get("grid_plan"):  # type: ignore  # noqa E501
+                if v.get("sequence") and v.get("sequence").get("grid_plan"):  # type: ignore  # E501
                     self._warn_icon.show()
                     return
         self._warn_icon.hide()
@@ -585,10 +585,10 @@ class PositionTable(QWidget):
             return True
         return False
 
-    def _update_number(self, number: int, exixting_numbers: list[int]) -> int:
+    def _update_number(self, number: int, existing_numbers: list[int]) -> int:
         loop = True
         while loop:
-            if number in exixting_numbers:
+            if number in existing_numbers:
                 number += 1
             else:
                 loop = False

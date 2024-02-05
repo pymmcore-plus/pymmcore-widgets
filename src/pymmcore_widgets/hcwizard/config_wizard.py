@@ -29,6 +29,8 @@ if TYPE_CHECKING:
 class ConfigWizard(QWizard):
     """Hardware Configuration Wizard for Micro-Manager.
 
+    It can be used to create a new configuration file or edit an existing one.
+
     Parameters
     ----------
     config_file : str, optional

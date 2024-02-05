@@ -1,8 +1,10 @@
+import json
 from pathlib import Path
 from textwrap import dedent
 
 import mkdocs_gen_files
 
+WIDGET_LIST = Path(__file__).parent / "widget_list.json"
 WIDGETS = Path(__file__).parent / "widgets"
 EXAMPLES = Path(__file__).parent.parent / "examples"
 TEMPLATE = """
@@ -13,8 +15,6 @@ TEMPLATE = """
   </figcaption>
 </figure>
 
-
-
 ::: pymmcore_widgets.{widget}
 
 ## Example
@@ -23,21 +23,6 @@ TEMPLATE = """
 --8<-- "examples/{snake}.py"
 ```
 """
-
-
-def _widget_list() -> list[str]:
-    from qtpy.QtWidgets import QWidget
-
-    import pymmcore_widgets
-
-    widgets = []
-    for name in dir(pymmcore_widgets):
-        if name.startswith("_"):
-            continue
-        obj = getattr(pymmcore_widgets, name)
-        if isinstance(obj, type) and issubclass(obj, QWidget):
-            widgets.append(name)
-    return sorted(widgets)
 
 
 def _camel_to_snake(name: str) -> str:
@@ -60,6 +45,7 @@ def _example_screenshot(cls_name: str, dest: str) -> None:
     src = path.read_text().strip()
     src = src.replace("QApplication([])", "QApplication.instance() or QApplication([])")
     src = src.replace("app.exec_()", "")
+    src = src.replace("app.exec()", "")
     gl = {**globals().copy(), "__name__": "__main__"}
     exec(src, gl, gl)
 
@@ -94,12 +80,16 @@ def _generate_widget_page(widget: str) -> None:
 
 
 def _generate_widget_pages() -> None:
-    # skip classes that have manual examples
-    widgets = [w for w in _widget_list() if not (WIDGETS / f"{w}.md").exists()]
-
     # it would be nice to do this in parallel,
     # but mkdocs_gen_files doesn't work well with multiprocessing
-    list(map(_generate_widget_page, widgets))
+    with open(WIDGET_LIST) as f:
+        widget_dict = json.load(f)
+
+        for _, widgets in widget_dict.items():
+            for widget in widgets:
+                #  skip classes that have manual examples
+                if not (WIDGETS / f"{widget}.md").exists():
+                    _generate_widget_page(widget)
 
 
 _generate_widget_pages()

@@ -27,18 +27,35 @@ from ._data_table import DataTableWidget
 OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
 NULL_SEQUENCE = useq.MDASequence()
 MAX = 9999999
+AF_DEFAULT_TOOLTIP = (
+    "If checked, the user can set a different Hardware Autofocus Offset for each "
+    "Position in the table."
+)
 
 
 class _MDAPopup(QDialog):
     def __init__(
-        self, value: useq.MDASequence | None = None, parent: QWidget | None = None
+        self,
+        value: useq.MDASequence | None = None,
+        parent: QWidget | None = None,
+        core_connected: bool = False,
     ) -> None:
         from ._mda_sequence import MDATabs
 
         super().__init__(parent)
 
+        # make the same type of MDA tab widget that
+        # we are currently inside of (if possible)
+        tab_type = MDATabs
+        wdg = self.parent()
+        while wdg is not None:
+            if isinstance(wdg, MDATabs):
+                tab_type = type(wdg)
+                break
+            wdg = wdg.parent()
+
         # create a new MDA tab widget without the stage positions tab
-        self.mda_tabs = MDATabs(self)
+        self.mda_tabs = tab_type(self)
         self.mda_tabs.removeTab(self.mda_tabs.indexOf(self.mda_tabs.stage_positions))
 
         # use the parent's channel groups if possible
@@ -133,12 +150,13 @@ class SubSeqColumn(WidgetColumn):
 
 
 class PositionTable(DataTableWidget):
-    """Table for editing a list of `useq.Positions`."""
+    """Table to edit a list of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position)."""
 
     NAME = TextColumn(key="name", default=None, is_row_selector=True)
-    X = FloatColumn(key="x", header="X [mm]", default=0.0, maximum=MAX, minimum=-MAX)
-    Y = FloatColumn(key="y", header="Y [mm]", default=0.0, maximum=MAX, minimum=-MAX)
-    Z = FloatColumn(key="z", header="Z [mm]", default=0.0, maximum=MAX, minimum=-MAX)
+    X = FloatColumn(key="x", header="X [µm]", default=0.0, maximum=MAX, minimum=-MAX)
+    Y = FloatColumn(key="y", header="Y [µm]", default=0.0, maximum=MAX, minimum=-MAX)
+    Z = FloatColumn(key="z", header="Z [µm]", default=0.0, maximum=MAX, minimum=-MAX)
+    AF = FloatColumn(key="af", header="AF", default=0.0, maximum=MAX, minimum=-MAX)
     SEQ = SubSeqColumn(key="sequence", header="Sub-Sequence", default=None)
 
     def __init__(self, rows: int = 0, parent: QWidget | None = None):
@@ -148,13 +166,20 @@ class PositionTable(DataTableWidget):
         self.include_z.setChecked(True)
         self.include_z.toggled.connect(self._on_include_z_toggled)
 
+        self.af_per_position = QCheckBox("Set AF Offset per Position")
+        self.af_per_position.setToolTip(AF_DEFAULT_TOOLTIP)
+        self.af_per_position.toggled.connect(self._on_af_per_position_toggled)
+        self._on_af_per_position_toggled(self.af_per_position.isChecked())
+
         self._save_button = QPushButton("Save...")
         self._save_button.clicked.connect(self.save)
         self._load_button = QPushButton("Load...")
         self._load_button.clicked.connect(self.load)
 
         btn_row = QHBoxLayout()
+        btn_row.setSpacing(15)
         btn_row.addWidget(self.include_z)
+        btn_row.addWidget(self.af_per_position)
         btn_row.addStretch()
         btn_row.addWidget(self._save_button)
         btn_row.addWidget(self._load_button)
@@ -162,30 +187,94 @@ class PositionTable(DataTableWidget):
         layout = cast("QVBoxLayout", self.layout())
         layout.addLayout(btn_row)
 
+    # ------------------------- Public API -------------------------
+
     def value(
         self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
     ) -> tuple[useq.Position, ...]:
-        """Return the current value of the table as a list of channels."""
-        out = []
+        """Return the current value of the table as a tuple of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
+
+        Parameters
+        ----------
+        exclude_unchecked : bool, optional
+            Exclude unchecked rows, by default True
+        exclude_hidden_cols : bool, optional
+            Exclude hidden columns, by default True
+
+        Returns
+        -------
+        tuple[useq.Position, ...]
+            A tuple of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
+        """
+        out: list[useq.Position] = []
         for r in self.table().iterRecords(
             exclude_unchecked=exclude_unchecked, exclude_hidden_cols=exclude_hidden_cols
         ):
             if not r.get(self.NAME.key, True):
                 r.pop(self.NAME.key, None)
-            out.append(useq.Position(**r))
+
+            if self.af_per_position.isChecked():
+                af_offset = r.get(self.AF.key, None)
+                if af_offset is not None:
+                    # get the current sub-sequence as dict or create a new one
+                    sub_seq = r.get("sequence")
+                    sub_seq = (
+                        sub_seq.dict() if isinstance(sub_seq, useq.MDASequence) else {}
+                    )
+                    # add the autofocus plan to the sub-sequence
+                    sub_seq["autofocus_plan"] = useq.AxesBasedAF(
+                        autofocus_motor_offset=af_offset, axes=("p",)
+                    )
+                    # update the sub-sequence dict in the record
+                    r["sequence"] = sub_seq
+
+            pos = useq.Position(**r)
+            out.append(pos)
+
         return tuple(out)
 
     def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore
-        """Set the current value of the table."""
+        """Set the current value of the table from a Sequence of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
+
+        Parameters
+        ----------
+        value : Sequence[useq.Position]
+            A Sequence of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
+        """
         _values = []
+        _use_af = False
         for v in value:
             if not isinstance(v, useq.Position):  # pragma: no cover
                 raise TypeError(f"Expected useq.Position, got {type(v)}")
-            _values.append(v.model_dump(exclude_unset=True))
+
+            _af = {}
+            if v.sequence is not None and v.sequence.autofocus_plan is not None:
+                # set sub-sequence to None if empty or we simply exclude the af plan
+                sub_seq: useq.MDASequence | None = useq.MDASequence(
+                    **v.sequence.dict(exclude={"autofocus_plan"})
+                )
+                if sub_seq == NULL_SEQUENCE:
+                    sub_seq = None
+
+                # get autofocus plan device name and offset
+                _af_offset = v.sequence.autofocus_plan.autofocus_motor_offset
+
+                # set the autofocus offset that will be added to the table
+                _af = {self.AF.key: _af_offset}
+
+                # remopve autofocus plan from sub-sequence
+                v = v.replace(sequence=sub_seq)
+
+                _use_af = True
+
+            _values.append({**v.model_dump(exclude_unset=True), **_af})
+
         super().setValue(_values)
 
+        self.af_per_position.setChecked(_use_af)
+
     def save(self, file: str | Path | None = None) -> None:
-        """Save the current positions to a file."""
+        """Save the current positions to a JSON file."""
         if not isinstance(file, (str, Path)):
             file, _ = QFileDialog.getSaveFileName(
                 self, "Save MDASequence and filename.", "", "json(*.json)"
@@ -205,7 +294,7 @@ class PositionTable(DataTableWidget):
         dest.write_text(f"[\n{inner}\n]\n")
 
     def load(self, file: str | Path | None = None) -> None:
-        """Load positions from a file."""
+        """Load positions from a JSON file and set the table value."""
         if not isinstance(file, (str, Path)):
             file, _ = QFileDialog.getOpenFileName(
                 self, "Select an MDAsequence file.", "", "json(*.json)"
@@ -223,7 +312,14 @@ class PositionTable(DataTableWidget):
         except Exception as e:  # pragma: no cover
             raise ValueError(f"Failed to load MDASequence file: {src}") from e
 
+    # ------------------------- Private API -------------------------
+
     def _on_include_z_toggled(self, checked: bool) -> None:
         z_col = self.table().indexOf(self.Z)
         self.table().setColumnHidden(z_col, not checked)
+        self.valueChanged.emit()
+
+    def _on_af_per_position_toggled(self, checked: bool) -> None:
+        af_col = self.table().indexOf(self.AF)
+        self.table().setColumnHidden(af_col, not checked)
         self.valueChanged.emit()

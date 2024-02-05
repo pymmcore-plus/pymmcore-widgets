@@ -41,5 +41,5 @@ def test_exposure_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     # reset the camera to a working one
     global_mmcore.setProperty("Core", "Camera", "Camera")
     with qtbot.wait_signal(global_mmcore.events.exposureChanged):
-        wdg.spinBox.setValue(12)
-    assert global_mmcore.getExposure() == 12
+        wdg.spinBox.setValue(0.1)
+    assert global_mmcore.getExposure() == 0.1
