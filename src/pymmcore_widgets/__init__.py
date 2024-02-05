@@ -1,4 +1,5 @@
 """A set of widgets for the pymmcore-plus module."""
+
 import warnings
 from importlib.metadata import PackageNotFoundError, version
 
