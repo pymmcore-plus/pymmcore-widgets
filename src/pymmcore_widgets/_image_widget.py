@@ -31,7 +31,7 @@ class ImagePreview(QWidget):
         (or create a new)
         [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     use_with_mda: bool
-        If True, the widget will also update when a Multi-Dimensional Acquisition is
+        If False, the widget will not update when a Multi-Dimensional Acquisition is
         running. By default, True.
     """
 
