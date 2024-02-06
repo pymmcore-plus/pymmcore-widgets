@@ -111,23 +111,20 @@ class MDAWidget(MDASequenceWidget):
         val = super().value()
         replace: dict = {}
 
-        # if the z plan is relative, and there are no stage positions or there is only
-        # one position but the 'include_z" is unchecked, add the current
-        # stage position as the relative starting one.
-        # Note: this is not the final solution, it shiud be better to move this in
-        # pymmcore-plus runner but only after we introduce a concept of a "relative
-        # position" in useq.MDAEvent. At the moment, since the pymmcore-plus runner is
-        # not aware of the core, we cannot move it there.
-        single_pos_no_z = (
-            len(val.stage_positions) == 1
-            and not self.stage_positions.include_z.isChecked()
-        )
-        if (
-            val.z_plan
-            and val.z_plan.is_relative
-            and (not val.stage_positions or single_pos_no_z)
-        ):
-            replace["stage_positions"] = (self._get_current_stage_position(),)
+        # if the z plan is relative
+        if val.z_plan and val.z_plan.is_relative:
+            # if there are no stage positions add the current stage position as the
+            # relative starting one.
+            if not val.stage_positions:
+                replace["stage_positions"] = (self._get_current_stage_position(),)
+
+            # if there are stage positions but the 'include z' is unchecked, use the
+            # current z stage position as the relative starting one.
+            elif val.stage_positions and not self.stage_positions.include_z.isChecked():
+                replace["stage_positions"] = tuple(
+                    pos.replace(z=self._mmc.getPosition())
+                    for pos in val.stage_positions
+                )
 
         # if there is an autofocus_plan but the autofocus_motor_offset is None, set it
         # to the current value
@@ -170,28 +167,8 @@ class MDAWidget(MDASequenceWidget):
         ):
             return
 
-        sequence = self.value()
-
-        # if the z plan is relative, and there are multiple stage positions, but the
-        # 'include z' is unchecked, raise an error since we cannot run a
-        # relative z plan without knowing the starting z for each position.
-        if (
-            sequence.z_plan
-            and sequence.z_plan.is_relative
-            and len(sequence.stage_positions) > 1
-            and not self.stage_positions.include_z.isChecked()
-        ):
-            QMessageBox.critical(
-                self,
-                "Z Plan Error",
-                "Cannot run a relative Z plan without including a starting Z position. "
-                "Make sure to check the 'Include Z' checkbox in the Positions tab.",
-                QMessageBox.StandardButton.Ok,
-            )
-            return
-
         # run the MDA experiment asynchronously
-        self._mmc.run_mda(sequence)
+        self._mmc.run_mda(self.value())
         return
 
     def _confirm_af_intentions(self) -> bool:
