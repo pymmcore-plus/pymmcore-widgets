@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
 import pytest
@@ -12,6 +12,7 @@ from qtpy.QtWidgets import QMessageBox
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
+from pymmcore_widgets.mda._core_mda import CoreMDATabs
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
 from pymmcore_widgets.useq_widgets._mda_sequence import AutofocusAxis, KeepShutterOpen
@@ -482,6 +483,40 @@ def test_core_connected_channel_wdg(qtbot: QtBot):
     assert len(value) == 2
     assert value[0].group == "Channels"
     assert value[1].group == "Channels"
+
+
+def test_enable_core_tab(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    def wdgs_enabled(mda_tabs: CoreMDATabs) -> bool:
+        return (
+            mda_tabs.time_plan.isEnabled()
+            and mda_tabs.stage_positions.isEnabled()
+            and mda_tabs.z_plan.isEnabled()
+            and mda_tabs.grid_plan.isEnabled()
+            and mda_tabs.channels.isEnabled()
+        )
+
+    mda_tabs = cast(CoreMDATabs, wdg.tab_wdg)
+
+    mda_tabs._enable_tabs(True)
+    # all tabs are enabled (you can switch between them)
+    assert [mda_tabs.tabBar().isTabEnabled(t) for t in range(mda_tabs.count())]
+    # the tabs checkboxes are enabled
+    assert all(cbox.isEnabled() for cbox in mda_tabs._cboxes)
+    # the the tabs content is enabled
+    assert wdgs_enabled(mda_tabs)
+
+    mda_tabs._enable_tabs(False)
+
+    # all tabs are still enabled (you can still switch between them)
+    assert [mda_tabs.tabBar().isTabEnabled(t) for t in range(mda_tabs.count())]
+    # the tab checkboxes are disabled
+    assert not all(cbox.isEnabled() for cbox in mda_tabs._cboxes)
+    # the the tabs content is enabled
+    assert not wdgs_enabled(mda_tabs)
 
 
 def test_relative_z_with_no_include_z(global_mmcore: CMMCorePlus, qtbot: QtBot):
