@@ -83,7 +83,7 @@ jobs:
         run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes
 
       - name: Coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
 
   test-napari-micromanager:
     name: test napari-micromanager
