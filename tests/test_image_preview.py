@@ -35,22 +35,21 @@ def test_image_preview(qtbot: "QtBot"):
 
 
 def test_image_preview_while_running_mda(qtbot: "QtBot"):
-    widget = ImagePreview()
+    widget = ImagePreview(use_with_mda=False)
     qtbot.addWidget(widget)
     mmc = widget._mmc
 
     seq = useq.MDASequence(channels=["FITC"])
 
     assert widget.image is None
-    assert widget.use_with_mda
+    assert not widget.use_with_mda
 
-    with qtbot.waitSignal(mmc.mda.events.sequenceFinished):
-        mmc.run_mda(seq)
-    assert widget.image is not None
-
-    widget.image = None
-    widget.use_with_mda = False
-
-    with qtbot.waitSignal(mmc.mda.events.sequenceFinished):
+    with qtbot.waitSignals([mmc.events.imageSnapped, mmc.mda.events.sequenceFinished]):
         mmc.run_mda(seq)
     assert widget.image is None
+
+    widget.use_with_mda = True
+
+    with qtbot.waitSignals([mmc.events.imageSnapped, mmc.mda.events.sequenceFinished]):
+        mmc.run_mda(seq)
+    assert widget.image is not None
