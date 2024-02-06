@@ -18,8 +18,8 @@ _DEFAULT_WAIT = 10
 class ImagePreview(QWidget):
     """A Widget that displays the last image snapped by active core.
 
-    This widget will automatically update when the active core snaps an image
-    or when the active core starts streaming.
+    This widget will automatically update when the active core snaps an image, when the
+    active core starts streaming or when a Multi-Dimensional Acquisition is running.
 
     Parameters
     ----------
@@ -30,13 +30,17 @@ class ImagePreview(QWidget):
         By default, None. If not specified, the widget will use the active
         (or create a new)
         [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    use_with_mda: bool
+        If True, the widget will also update when a Multi-Dimensional Acquisition is
+        running. By default, True.
     """
 
     def __init__(
         self,
-        *,
         parent: QWidget | None = None,
+        *,
         mmcore: CMMCorePlus | None = None,
+        use_with_mda: bool = True,
     ):
         try:
             from vispy import scene
@@ -48,6 +52,7 @@ class ImagePreview(QWidget):
 
         super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
+        self._use_with_mda = use_with_mda
         self._imcls = scene.visuals.Image
         self._clims: tuple[float, float] | Literal["auto"] = "auto"
         self._cmap: str = "grays"
@@ -76,6 +81,22 @@ class ImagePreview(QWidget):
 
         self.destroyed.connect(self._disconnect)
 
+    @property
+    def use_with_mda(self) -> bool:
+        """Get whether the widget should update when a MDA is running."""
+        return self._use_with_mda
+
+    @use_with_mda.setter
+    def use_with_mda(self, use_with_mda: bool) -> None:
+        """Set whether the widget should update when a MDA is running.
+
+        Parameters
+        ----------
+        use_with_mda : bool
+            Whether the widget is used with MDA.
+        """
+        self._use_with_mda = use_with_mda
+
     def _disconnect(self) -> None:
         ev = self._mmc.events
         ev.imageSnapped.disconnect(self._on_image_snapped)
@@ -97,7 +118,7 @@ class ImagePreview(QWidget):
             self._update_image(self._mmc.getLastImage())
 
     def _on_image_snapped(self) -> None:
-        if self._mmc.mda.is_running():
+        if self._mmc.mda.is_running() and not self._use_with_mda:
             return
         self._update_image(self._mmc.getImage())
 
