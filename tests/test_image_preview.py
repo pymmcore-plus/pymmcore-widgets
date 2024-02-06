@@ -49,7 +49,7 @@ def test_image_preview_while_running_mda(qtbot: "QtBot"):
     assert widget.image is not None
 
     widget.image = None
-    widget.use_with_mda = True
+    widget.use_with_mda = False
 
     with qtbot.waitSignal(mmc.mda.events.sequenceFinished):
         mmc.run_mda(seq)
