@@ -39,7 +39,9 @@ def test_image_preview_while_running_mda(qtbot: "QtBot"):
     qtbot.addWidget(widget)
     mmc = widget._mmc
 
-    seq = useq.MDASequence(channels=["FITC"])
+    seq = useq.MDASequence(
+        channels=["FITC"], time_plan=useq.TIntervalLoops(interval=0.1, loops=2)
+    )
 
     assert widget.image is None
     assert not widget.use_with_mda
