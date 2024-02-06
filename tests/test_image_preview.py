@@ -34,24 +34,32 @@ def test_image_preview(qtbot: "QtBot"):
     assert not widget.streaming_timer.isActive()
 
 
-def test_image_preview_while_running_mda(qtbot: "QtBot"):
+seq = useq.MDASequence(
+    channels=["FITC"], time_plan=useq.TIntervalLoops(interval=0.1, loops=2)
+)
+
+
+def test_image_preview_update_while_running_mda(qtbot: "QtBot"):
+    widget = ImagePreview()
+    qtbot.addWidget(widget)
+    mmc = widget._mmc
+
+    assert widget.image is None
+    assert widget.use_with_mda
+
+    with qtbot.waitSignal(mmc.mda.events.sequenceFinished):
+        mmc.run_mda(seq)
+    assert widget.image is not None
+
+
+def test_image_preview_no_update_while_running_mda(qtbot: "QtBot"):
     widget = ImagePreview(use_with_mda=False)
     qtbot.addWidget(widget)
     mmc = widget._mmc
 
-    seq = useq.MDASequence(
-        channels=["FITC"], time_plan=useq.TIntervalLoops(interval=0.1, loops=2)
-    )
-
     assert widget.image is None
     assert not widget.use_with_mda
 
-    with qtbot.waitSignals([mmc.events.imageSnapped, mmc.mda.events.sequenceFinished]):
+    with qtbot.waitSignal(mmc.mda.events.sequenceFinished):
         mmc.run_mda(seq)
     assert widget.image is None
-
-    widget.use_with_mda = True
-
-    with qtbot.waitSignals([mmc.events.imageSnapped, mmc.mda.events.sequenceFinished]):
-        mmc.run_mda(seq)
-    assert widget.image is not None
