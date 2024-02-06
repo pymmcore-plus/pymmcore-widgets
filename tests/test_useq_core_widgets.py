@@ -482,3 +482,28 @@ def test_core_connected_channel_wdg(qtbot: QtBot):
     assert len(value) == 2
     assert value[0].group == "Channels"
     assert value[1].group == "Channels"
+
+
+def test_relative_z_with_no_include_z(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    MDA = useq.MDASequence(
+        channels=[{"config": "DAPI", "exposure": 1}],
+        stage_positions=[(1, 2, 3), (4, 5, 6)],
+        z_plan=useq.ZRangeAround(go_up=True, range=2.0, step=1.0),
+    )
+    wdg.setValue(MDA)
+
+    wdg._mmc.setZPosition(30)
+    wdg._mmc.waitForSystem()
+
+    assert wdg.stage_positions.include_z.isChecked()
+    assert wdg.value().stage_positions[0].z == 3
+    assert wdg.value().stage_positions[1].z == 6
+
+    wdg.stage_positions.include_z.setChecked(False)
+    assert not wdg.stage_positions.include_z.isChecked()
+    assert wdg.value().stage_positions[0].z == 30
+    assert wdg.value().stage_positions[1].z == 30

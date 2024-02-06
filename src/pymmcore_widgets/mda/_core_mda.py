@@ -121,9 +121,9 @@ class MDAWidget(MDASequenceWidget):
             # if there are stage positions but the 'include z' is unchecked, use the
             # current z stage position as the relative starting one.
             elif val.stage_positions and not self.stage_positions.include_z.isChecked():
+                z = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
                 replace["stage_positions"] = tuple(
-                    pos.replace(z=self._mmc.getPosition())
-                    for pos in val.stage_positions
+                    pos.replace(z=z) for pos in val.stage_positions
                 )
 
         # if there is an autofocus_plan but the autofocus_motor_offset is None, set it
