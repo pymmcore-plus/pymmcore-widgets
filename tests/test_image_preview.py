@@ -53,9 +53,11 @@ def test_image_preview_update_while_running_mda(qtbot: "QtBot"):
 
 
 def test_image_preview_no_update_while_running_mda(qtbot: "QtBot"):
-    widget = ImagePreview(use_with_mda=False)
+    widget = ImagePreview()
     qtbot.addWidget(widget)
     mmc = widget._mmc
+
+    widget.use_with_mda = False
 
     assert widget.image is None
     assert not widget.use_with_mda
