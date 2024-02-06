@@ -34,9 +34,7 @@ def test_image_preview(qtbot: "QtBot"):
     assert not widget.streaming_timer.isActive()
 
 
-seq = useq.MDASequence(
-    channels=["FITC"], time_plan=useq.TIntervalLoops(interval=0.1, loops=2)
-)
+seq = useq.MDASequence(channels=["FITC"])
 
 
 def test_image_preview_update_while_running_mda(qtbot: "QtBot"):
