@@ -93,7 +93,9 @@ class StageRecorder(QWidget):
             return
 
         self._visited_positions.append((x, y))
-        self._draw_fov(x, y, self._mmc.getImageWidth(), self._mmc.getImageHeight())
+        img_width = self._mmc.getImageWidth() * self._mmc.getPixelSizeUm()
+        img_height = self._mmc.getImageHeight() * self._mmc.getPixelSizeUm()
+        self._draw_fov(x, y, img_width, img_height)
         self._reset_view()
 
     def _draw_fov(self, x: float, y: float, width: int, height: int) -> None:
@@ -126,11 +128,11 @@ class StageRecorder(QWidget):
         The max size is stored in self._fov_max so that if during the session the image
         size changes, the max fov will be updated and the view will be properly reset.
         """
-        width = self._mmc.getImageWidth()
-        height = self._mmc.getImageHeight()
+        img_width = self._mmc.getImageWidth() * self._mmc.getPixelSizeUm()
+        img_height = self._mmc.getImageHeight() * self._mmc.getPixelSizeUm()
 
         current_width_max, current_height_max = self._fov_max
-        self._fov_max = (max(width, current_width_max), max(height, current_height_max))
+        self._fov_max = (max(img_width, current_width_max), max(img_height, current_height_max))
 
     def _clear(self) -> None:
         # clear visited position list
