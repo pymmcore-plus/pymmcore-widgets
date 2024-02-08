@@ -6,6 +6,7 @@ from pymmcore_plus import CMMCorePlus
 from pymmcore_widgets import StageWidget
 
 # from qtpy.QtWidgets import QApplication
+# from pymmcore_widgets._stage_recorder_no_img import StageRecorder
 from pymmcore_widgets._stage_recorder import StageRecorder
 
 # app = QApplication([])
@@ -14,6 +15,8 @@ mmc = CMMCorePlus().instance()
 # cfg = r"c:\Users\NIC\Desktop\mm\Ti2.cfg"
 # mmc.loadSystemConfiguration(cfg)
 mmc.loadSystemConfiguration()
+
+mmc.setProperty("Camera", "Mode", "Noise")
 
 rec = StageRecorder()
 rec.show()
@@ -24,18 +27,7 @@ rec.show()
 s = StageWidget("XY")
 s.show()
 
-# seq = useq.MDASequence(
-#     channels=["FITC"],
-#     grid_plan=useq.RandomPoints(
-#         num_points=10,
-#         max_width=-5000,
-#         max_height=5000,
-#         shape="rectangle",
-#         fov_width=mmc.getImageWidth(),
-#         fov_height=mmc.getImageHeight(),
-#         allow_overlap=False,
-#     ),
-# )
+
 seq = useq.MDASequence(
     channels=["FITC"],
     grid_plan=useq.GridRowsColumns(
@@ -44,15 +36,21 @@ seq = useq.MDASequence(
         fov_width=mmc.getImageWidth() * mmc.getPixelSizeUm(),
         fov_height=mmc.getImageHeight() * mmc.getPixelSizeUm(),
     ),
+    stage_positions=[(0, 0)],
+)
+
+seq1 = useq.MDASequence(
+    channels=["FITC"],
+    grid_plan=useq.RandomPoints(
+        num_points=10,
+        max_width=-5000,
+        max_height=5000,
+        shape="rectangle",
+        fov_width=mmc.getImageWidth() * mmc.getPixelSizeUm(),
+        fov_height=mmc.getImageHeight() * mmc.getPixelSizeUm(),
+        allow_overlap=False,
+    ),
+    stage_positions=[(0, 0)],
 )
 
 # app.exec_()
-
-
-# mmc.state(
-#     devices=False,
-#     image=False,
-#     config_groups=False,
-#     position=True,
-#     cached=False
-# )
