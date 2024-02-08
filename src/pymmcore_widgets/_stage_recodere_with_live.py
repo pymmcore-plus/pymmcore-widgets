@@ -1,9 +1,10 @@
+from contextlib import suppress
 from typing import Any, Optional
 
 import numpy as np
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import QSize, Qt, QTimer
 from qtpy.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 from skimage.transform import resize
 from superqt.fonticon import icon
@@ -35,6 +36,12 @@ class StageRecorder(QWidget):
 
         self._visited_positions: list[tuple[float, float]] = []
         self._fov_max: tuple[float, float] = (0, 0)
+        self._preview: Image | None = None
+
+        self.streaming_timer = QTimer(parent=self)
+        self.streaming_timer.setTimerType(Qt.TimerType.PreciseTimer)
+        self.streaming_timer.setInterval(int(self._mmc.getExposure()) or _DEFAULT_WAIT)
+        self.streaming_timer.timeout.connect(self._on_streaming_timeout)
 
         # comboboxes
         combos = QWidget()
@@ -49,10 +56,15 @@ class StageRecorder(QWidget):
         # autosnap checkbox
         self._autosnap_checkbox = QCheckBox("Auto Snap on double click")
         self._autosnap_checkbox.setChecked(False)
+        # track live mode checkbox
+        self._track_live_mode_checkbox = QCheckBox("Track Live Mode")
+        self._track_live_mode_checkbox.setChecked(False)
         # add combos to layout
-        combos_layout.addStretch(1)
         combos_layout.addWidget(self._auto_reset_checkbox)
         combos_layout.addWidget(self._autosnap_checkbox)
+        combos_layout.addWidget(self._track_live_mode_checkbox)
+
+        combos_layout.addStretch(1)
 
         # canvas and view
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
@@ -107,7 +119,13 @@ class StageRecorder(QWidget):
         main_layout.addWidget(btns)
 
         # this is to make the widget square
-        self.setMinimumHeight(self.minimumSizeHint().width())
+        # self.setMinimumHeight(self.minimumSizeHint().width())
+
+        ev = self._mmc.events
+        ev.imageSnapped.connect(self._on_image_snapped)
+        ev.continuousSequenceAcquisitionStarted.connect(self._on_streaming_start)
+        ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
+        ev.exposureChanged.connect(self._on_exposure_changed)
 
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
 
@@ -126,16 +144,37 @@ class StageRecorder(QWidget):
 
         self._mmc.setXYPosition(x * SCALE_FACTOR, y * SCALE_FACTOR)
 
-        print()
-        print("x, y:", x, y)
-        print(f"Moving stage to: {x * SCALE_FACTOR}, {y * SCALE_FACTOR}")
-
         if self._autosnap_checkbox.isChecked() and not self._mmc.isSequenceRunning():
+            # self._mmc.waitForSystem() # is it needed?
             self._mmc.snapImage()
 
     def _on_reset_view_toggle(self, state: bool) -> None:
         if state:
             self.reset_view()
+
+    def _on_streaming_start(self) -> None:
+        self.streaming_timer.start()
+
+    def _on_streaming_stop(self) -> None:
+        self.streaming_timer.stop()
+
+    def _on_exposure_changed(self, device: str, value: str) -> None:
+        self.streaming_timer.setInterval(int(value))
+
+    def _on_streaming_timeout(self) -> None:
+        """Update the preview rectangle position."""
+        if not self._track_live_mode_checkbox.isChecked():
+            return
+        # get last image
+        with suppress(RuntimeError, IndexError):
+            image = self._mmc.getLastImage()
+            # get current position
+            x, y = self._mmc.getXPosition(), self._mmc.getYPosition()
+            # update the scene with the image
+            self._update_scene_with_image(image, x / SCALE_FACTOR, y / SCALE_FACTOR)
+
+            if self._auto_reset_checkbox.isChecked():
+                self.reset_view()
 
     def _set_max_fov(self) -> None:
         """Set the max fov based on the image size.
@@ -240,6 +279,23 @@ class StageRecorder(QWidget):
         clim = (scaled_8bit.min(), scaled_8bit.max())
 
         frame = Image(scaled_8bit, cmap="grays", parent=self.view.scene, clim=clim)
+
+        # # if is a live mode
+        # if self.streaming_timer.isActive():
+        #     # check if the preview image exists. if it does, update the data,
+        #     # otherwise create a new image and store it in self._preview
+        #     if self._preview is None:
+        #         self._preview = Image(
+        #             scaled_8bit, cmap="grays", parent=self.view.scene, clim=clim
+        #         )
+        #     else:
+        #         self._preview.set_data(scaled_8bit)
+        #     frame = self._preview
+        # # otherwise, justy create a new image
+        # else:
+        #     frame = Image(
+        #       scaled_8bit, cmap="grays", parent=self.view.scene, clim=clim
+        # )
 
         # set the position of the image so that the center of the image is at the given
         # (x, y) position
