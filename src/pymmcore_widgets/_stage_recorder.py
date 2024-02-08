@@ -271,7 +271,7 @@ class StageRecorder(QWidget):
     def _add_image(self, image: np.ndarray, x: float, y: float) -> None:
         """Add an image to the scene."""
         width, height = self._get_image_size()
-        scaled = resize(image, (width, height))
+        scaled = resize(image, (height, width))
 
         scaled_8bit = (scaled / scaled.max()) * 255
         scaled_8bit = np.uint8(scaled_8bit)
