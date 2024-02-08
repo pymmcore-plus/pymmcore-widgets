@@ -42,6 +42,14 @@ class StageRecorder(QWidget):
         combos_layout.setSpacing(10)
         combos_layout.setContentsMargins(5, 5, 5, 5)
         combos.setLayout(combos_layout)
+        # flip horizontal checkbox
+        self._flip_horizontal_checkbox = QCheckBox("Flip Horizontal")
+        self._flip_horizontal_checkbox.setToolTip("Flip the image horizontally.")
+        self._flip_horizontal_checkbox.setChecked(False)
+        # flip vertical checkbox
+        self._flip_vertical_checkbox = QCheckBox("Flip Vertical")
+        self._flip_vertical_checkbox.setToolTip("Flip the image vertically.")
+        self._flip_vertical_checkbox.setChecked(False)
         # auto reset view checkbox
         self._auto_reset_checkbox = QCheckBox("Auto Reset View")
         self._auto_reset_checkbox.setChecked(True)
@@ -51,6 +59,8 @@ class StageRecorder(QWidget):
         self._autosnap_checkbox.setChecked(False)
         # add combos to layout
         combos_layout.addStretch(1)
+        combos_layout.addWidget(self._flip_horizontal_checkbox)
+        combos_layout.addWidget(self._flip_vertical_checkbox)
         combos_layout.addWidget(self._auto_reset_checkbox)
         combos_layout.addWidget(self._autosnap_checkbox)
 
@@ -92,8 +102,8 @@ class StageRecorder(QWidget):
             lambda: self._mmc.stop(self._mmc.getXYStageDevice())
         )
         # add buttons to layout
-        btns_layout.addStretch(1)
         btns_layout.addWidget(self._stop_stage_btn)
+        btns_layout.addStretch(1)
         btns_layout.addWidget(self._clear_btn)
         btns_layout.addWidget(self._reset_view_btn)
 
@@ -107,8 +117,9 @@ class StageRecorder(QWidget):
         main_layout.addWidget(btns)
 
         # this is to make the widget square
-        self.setMinimumHeight(self.minimumSizeHint().width())
+        # self.setMinimumHeight(self.minimumSizeHint().width())
 
+        self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
 
         self.canvas.events.mouse_double_click.connect(self._on_mouse_double_click)
@@ -125,10 +136,6 @@ class StageRecorder(QWidget):
         x, y, _, _ = self.view.camera.transform.imap(event.pos)
 
         self._mmc.setXYPosition(x * SCALE_FACTOR, y * SCALE_FACTOR)
-
-        print()
-        print("x, y:", x, y)
-        print(f"Moving stage to: {x * SCALE_FACTOR}, {y * SCALE_FACTOR}")
 
         if self._autosnap_checkbox.isChecked() and not self._mmc.isSequenceRunning():
             self._mmc.snapImage()
@@ -232,7 +239,15 @@ class StageRecorder(QWidget):
     def _add_image(self, image: np.ndarray, x: float, y: float) -> None:
         """Add an image to the scene."""
         width, height = self._get_image_size()
+
+        # scale
         scaled = resize(image, (height, width))
+        # flip horizontally
+        if self._flip_horizontal_checkbox.isChecked():
+            scaled = np.fliplr(scaled)
+        # flip vertically
+        if self._flip_vertical_checkbox.isChecked():
+            scaled = np.flipud(scaled)
 
         scaled_8bit = (scaled / scaled.max()) * 255
         scaled_8bit = np.uint8(scaled_8bit)
