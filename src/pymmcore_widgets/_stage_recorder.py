@@ -74,7 +74,7 @@ class StageRecorder(QWidget):
         self._stop_stage_btn = QPushButton()
         self._stop_stage_btn.setToolTip("Stop Stage")
         self._stop_stage_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._stop_stage_btn.setIcon(icon(MDI6.stop))
+        self._stop_stage_btn.setIcon(icon(MDI6.stop_circle_outline))
         self._stop_stage_btn.setIconSize(QSize(25, 25))
         self._stop_stage_btn.setFixedSize(*BTN_SIZE)
         self._stop_stage_btn.clicked.connect(
