@@ -1,10 +1,12 @@
 from typing import Any, Optional
 
+import numpy as np
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt, QTimer
 from qtpy.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 from superqt.fonticon import icon
+from useq import MDAEvent
 from vispy import scene
 from vispy.color import Color
 from vispy.scene.visuals import Rectangle
@@ -101,6 +103,8 @@ class StageRecorder(QWidget):
         ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
         ev.exposureChanged.connect(self._on_exposure_changed)
 
+        self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
+
         self.canvas.events.mouse_double_click.connect(self._on_mouse_double_click)
 
     def _on_mouse_double_click(self, event: Any) -> None:
@@ -143,11 +147,19 @@ class StageRecorder(QWidget):
         if self._auto_reset_checkbox.isChecked():
             self._reset_view()
 
+    def _on_frame_ready(self, img: np.ndarray, event: MDAEvent) -> None:
+        """Update the scene with the position from an MDA acquisition."""
+        x, y = event.x_pos, event.y_pos
+        if x is not None and y is not None:
+            self._update_scene(x, y)
+
     def _on_image_snapped(self) -> None:
-        """Draw the fov around the snapped position."""
+        """Update the scene with the current position."""
         # get current position (maybe find a different way to get the position)
         x, y = self._mmc.getXPosition(), self._mmc.getYPosition()
+        self._update_scene(x, y)
 
+    def _update_scene(self, x: float, y: float) -> None:
         # set the max fov depending on the image size
         self._set_max_fov()
 
