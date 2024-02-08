@@ -1,13 +1,12 @@
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
-import numpy as np
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 from superqt.fonticon import icon
 from vispy import scene
-from vispy.scene.visuals import Markers, Rectangle
+from vispy.scene.visuals import Rectangle
 
 BTN_SIZE = (60, 40)
 W = "white"
@@ -21,16 +20,13 @@ class StageRecorder(QWidget):
         parent: Optional[QWidget] = None,
         *,
         mmcore: Optional[CMMCorePlus] = None,
-        show_fov: bool = True,
     ) -> None:
         super().__init__(parent)
-
-        self._show_fov = show_fov
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._visited_positions: list[tuple[float, float]] = []
-        self._fov_max: tuple[int, int] = (1, 1)
+        self._fov_max: tuple[float, float] = (1, 1)
 
         layout = QVBoxLayout()
         layout.setSpacing(0)
@@ -64,6 +60,13 @@ class StageRecorder(QWidget):
         self._reset_view_btn.setIcon(icon(MDI6.home_outline))
         self._reset_view_btn.setIconSize(QSize(25, 25))
         self._reset_view_btn.setFixedSize(*BTN_SIZE)
+        # stop stage button
+        self._stop_stage_btn = QPushButton()
+        self._stop_stage_btn.setToolTip("Stop Stage")
+        self._stop_stage_btn.clicked.connect(
+            lambda: self._mmc.stop(self._mmc.getXYStageDevice())
+        )
+        self._stop_stage_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         # add buttons to layout
         btns_layout.addStretch(1)
         btns_layout.addWidget(self._clear_btn)
@@ -73,13 +76,16 @@ class StageRecorder(QWidget):
 
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
 
-    @property
-    def show_fov(self) -> bool:
-        return self._show_fov
+        self.canvas.events.mouse_double_click.connect(self._on_mouse_double_click)
 
-    @show_fov.setter
-    def show_fov(self, value: bool) -> None:
-        self._show_fov = value
+    def _on_mouse_double_click(self, event: Any) -> None:
+        # Get mouse position in camera coordinates
+        x, y, _, _ = self.view.camera.transform.imap(event.pos)
+        self._mmc.setXYPosition(x, y)
+
+        print()
+        print(self._mmc.getXYPosition())  # type: ignore
+        print(f"Mouse double click at: {x}, {y}")
 
     def _on_image_snapped(self) -> None:
         # get current position (maybe find a different way to get the position)
@@ -98,25 +104,22 @@ class StageRecorder(QWidget):
         self._draw_fov(x, y, img_width, img_height)
         self._reset_view()
 
-    def _draw_fov(self, x: float, y: float, width: int, height: int) -> None:
+    def _draw_fov(self, x: float, y: float, width: float, height: float) -> None:
         """Draw a the position on the canvas."""
-        if self._show_fov:
-            # draw the position as a fov around the (x, y) position coordinates
-            fov = Rectangle(center=(x, y), width=width, height=height, border_color=W)
-        else:
-            # draw the (x, y) position as a point
-            fov = Markers(pos=np.array([[x, y]]), edge_color=W, face_color=W)
+        # draw the position as a fov around the (x, y) position coordinates
+        fov = Rectangle(center=(x, y), width=width, height=height, border_color=W)
         self.view.add(fov)
 
-    def _get_edges_from_visited_positions(
+    def _get_edges_from_visited_points(
         self,
     ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
         x = [pos[0] for pos in self._visited_positions]
         y = [pos[1] for pos in self._visited_positions]
 
-        # take in consideration the max fov
-        x_min, x_max = min(x), max(x)
-        y_min, y_max = min(y), max(y)
+        x_min, x_max = (min(x), max(x))
+        y_min, y_max = (min(y), max(y))
+
+        # consider the fov size
         return (
             (x_min - self._fov_max[0], x_max + self._fov_max[0]),
             (y_min - self._fov_max[1], y_max + self._fov_max[1]),
@@ -132,7 +135,10 @@ class StageRecorder(QWidget):
         img_height = self._mmc.getImageHeight() * self._mmc.getPixelSizeUm()
 
         current_width_max, current_height_max = self._fov_max
-        self._fov_max = (max(img_width, current_width_max), max(img_height, current_height_max))
+        self._fov_max = (
+            max(img_width, current_width_max),
+            max(img_height, current_height_max),
+        )
 
     def _clear(self) -> None:
         # clear visited position list
@@ -150,5 +156,5 @@ class StageRecorder(QWidget):
         if not self._visited_positions:
             self.view.camera.set_range()
             return
-        (x_min, x_max), (y_min, y_max) = self._get_edges_from_visited_positions()
+        (x_min, x_max), (y_min, y_max) = self._get_edges_from_visited_points()
         self.view.camera.set_range(x=(x_min, x_max), y=(y_min, y_max))
