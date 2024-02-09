@@ -127,16 +127,6 @@ class StageRecorder(QWidget):
         self._reset_view_btn.setIconSize(QSize(25, 25))
         self._reset_view_btn.setFixedSize(*BTN_SIZE)
         self._reset_view_btn.clicked.connect(self.reset_view)
-        # stop stage button
-        self._stop_stage_btn = QPushButton()
-        self._stop_stage_btn.setToolTip("Stop the current Stage device.")
-        self._stop_stage_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._stop_stage_btn.setIcon(icon(MDI6.stop_circle_outline))
-        self._stop_stage_btn.setIconSize(QSize(25, 25))
-        self._stop_stage_btn.setFixedSize(*BTN_SIZE)
-        self._stop_stage_btn.clicked.connect(
-            lambda: self._mmc.stop(self._mmc.getXYStageDevice())
-        )
         # settings buttons
         self._settings_btn = QPushButton()
         self._settings_btn.setToolTip("Open settings menu.")
@@ -147,7 +137,6 @@ class StageRecorder(QWidget):
         self._settings_btn.clicked.connect(self._show_settings_menu)
         # add buttons to layout
         btns_layout.addStretch(1)
-        btns_layout.addWidget(self._stop_stage_btn)
         btns_layout.addWidget(self._clear_btn)
         btns_layout.addWidget(self._reset_view_btn)
         btns_layout.addWidget(self._settings_btn)
