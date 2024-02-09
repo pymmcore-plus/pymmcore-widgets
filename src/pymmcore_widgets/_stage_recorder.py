@@ -3,8 +3,15 @@ from typing import Any, Optional
 import numpy as np
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QSize, Qt
-from qtpy.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QVBoxLayout, QWidget
+from qtpy.QtCore import QPoint, QSize, Qt, Signal
+from qtpy.QtWidgets import (
+    QCheckBox,
+    QDialog,
+    QHBoxLayout,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 from skimage.transform import resize
 from superqt.fonticon import icon
 from useq import MDAEvent
@@ -13,11 +20,66 @@ from vispy.color import Color
 from vispy.scene.visuals import Image
 from vispy.visuals.transforms import STTransform
 
-_DEFAULT_WAIT = 100
 BTN_SIZE = (60, 40)
-SCALE_FACTOR = 2
+SCALE_FACTOR = 3
 W = Color("white")
 G = Color("green")
+
+
+class _Settings(QDialog):
+
+    autoresetChanged = Signal(bool)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        self.setWindowTitle("Settings")
+
+        combos_layout = QVBoxLayout()
+        combos_layout.setSpacing(10)
+        combos_layout.setContentsMargins(5, 5, 5, 5)
+        self.setLayout(combos_layout)
+        # flip horizontal checkbox
+        self._flip_horizontal_checkbox = QCheckBox("Flip Image Horizontally")
+        self._flip_horizontal_checkbox.setToolTip(
+            "Flip each acquired image horizontally."
+        )
+        self._flip_horizontal_checkbox.setChecked(False)
+        # flip vertical checkbox
+        self._flip_vertical_checkbox = QCheckBox("Flip Image Vertically")
+        self._flip_vertical_checkbox.setToolTip("Flip each acquired image vertically.")
+        self._flip_vertical_checkbox.setChecked(False)
+        # auto reset view checkbox
+        self._auto_reset_checkbox = QCheckBox("Auto Reset View")
+        self._auto_reset_checkbox.setToolTip("Automatically reset the view.")
+        self._auto_reset_checkbox.setChecked(True)
+        self._auto_reset_checkbox.toggled.connect(self._on_auto_reset_toggle)
+        # autosnap checkbox
+        self._autosnap_checkbox = QCheckBox("Auto Snap on double click")
+        self._autosnap_checkbox.setToolTip(
+            "Automatically snap an image when double clicking on the view."
+        )
+        self._autosnap_checkbox.setChecked(False)
+
+        combos_layout.addWidget(self._auto_reset_checkbox)
+        combos_layout.addWidget(self._autosnap_checkbox)
+        combos_layout.addWidget(self._flip_horizontal_checkbox)
+        combos_layout.addWidget(self._flip_vertical_checkbox)
+
+    def _on_auto_reset_toggle(self, state: bool) -> None:
+        self.autoresetChanged.emit(state)
+
+    def auto_reset(self) -> bool:
+        return bool(self._auto_reset_checkbox.isChecked())
+
+    def autosnap(self) -> bool:
+        return bool(self._autosnap_checkbox.isChecked())
+
+    def flip_horizontal(self) -> bool:
+        return bool(self._flip_horizontal_checkbox.isChecked())
+
+    def flip_vertical(self) -> bool:
+        return bool(self._flip_vertical_checkbox.isChecked())
 
 
 class StageRecorder(QWidget):
@@ -33,36 +95,10 @@ class StageRecorder(QWidget):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
+        self._settings_menu = _Settings(self)
+
         self._visited_positions: list[tuple[float, float]] = []
         self._fov_max: tuple[float, float] = (0, 0)
-
-        # comboboxes
-        combos = QWidget()
-        combos_layout = QHBoxLayout()
-        combos_layout.setSpacing(10)
-        combos_layout.setContentsMargins(5, 5, 5, 5)
-        combos.setLayout(combos_layout)
-        # flip horizontal checkbox
-        self._flip_horizontal_checkbox = QCheckBox("Flip Horizontal")
-        self._flip_horizontal_checkbox.setToolTip("Flip the image horizontally.")
-        self._flip_horizontal_checkbox.setChecked(False)
-        # flip vertical checkbox
-        self._flip_vertical_checkbox = QCheckBox("Flip Vertical")
-        self._flip_vertical_checkbox.setToolTip("Flip the image vertically.")
-        self._flip_vertical_checkbox.setChecked(False)
-        # auto reset view checkbox
-        self._auto_reset_checkbox = QCheckBox("Auto Reset View")
-        self._auto_reset_checkbox.setChecked(True)
-        self._auto_reset_checkbox.stateChanged.connect(self._on_reset_view_toggle)
-        # autosnap checkbox
-        self._autosnap_checkbox = QCheckBox("Auto Snap on double click")
-        self._autosnap_checkbox.setChecked(False)
-        # add combos to layout
-        combos_layout.addStretch(1)
-        combos_layout.addWidget(self._flip_horizontal_checkbox)
-        combos_layout.addWidget(self._flip_vertical_checkbox)
-        combos_layout.addWidget(self._auto_reset_checkbox)
-        combos_layout.addWidget(self._autosnap_checkbox)
 
         # canvas and view
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
@@ -77,7 +113,7 @@ class StageRecorder(QWidget):
         btns.setLayout(btns_layout)
         # clear button
         self._clear_btn = QPushButton()
-        self._clear_btn.setToolTip("Clear")
+        self._clear_btn.setToolTip("Clear the view.")
         self._clear_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._clear_btn.setIcon(icon(MDI6.close_box_outline))
         self._clear_btn.setIconSize(QSize(25, 25))
@@ -85,7 +121,7 @@ class StageRecorder(QWidget):
         self._clear_btn.clicked.connect(self.clear)
         # reset view button
         self._reset_view_btn = QPushButton()
-        self._reset_view_btn.setToolTip("Reset View")
+        self._reset_view_btn.setToolTip("Reset the view.")
         self._reset_view_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._reset_view_btn.setIcon(icon(MDI6.home_outline))
         self._reset_view_btn.setIconSize(QSize(25, 25))
@@ -93,7 +129,7 @@ class StageRecorder(QWidget):
         self._reset_view_btn.clicked.connect(self.reset_view)
         # stop stage button
         self._stop_stage_btn = QPushButton()
-        self._stop_stage_btn.setToolTip("Stop Stage")
+        self._stop_stage_btn.setToolTip("Stop the current Stage device.")
         self._stop_stage_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._stop_stage_btn.setIcon(icon(MDI6.stop_circle_outline))
         self._stop_stage_btn.setIconSize(QSize(25, 25))
@@ -101,28 +137,47 @@ class StageRecorder(QWidget):
         self._stop_stage_btn.clicked.connect(
             lambda: self._mmc.stop(self._mmc.getXYStageDevice())
         )
+        # settings buttons
+        self._settings_btn = QPushButton()
+        self._settings_btn.setToolTip("Open settings menu.")
+        self._settings_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._settings_btn.setIcon(icon(MDI6.cog_outline))
+        self._settings_btn.setIconSize(QSize(25, 25))
+        self._settings_btn.setFixedSize(*BTN_SIZE)
+        self._settings_btn.clicked.connect(self._show_settings_menu)
         # add buttons to layout
-        btns_layout.addWidget(self._stop_stage_btn)
         btns_layout.addStretch(1)
+        btns_layout.addWidget(self._stop_stage_btn)
         btns_layout.addWidget(self._clear_btn)
         btns_layout.addWidget(self._reset_view_btn)
+        btns_layout.addWidget(self._settings_btn)
 
         # add to main layout
         main_layout = QVBoxLayout()
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(5, 5, 5, 5)
         self.setLayout(main_layout)
-        main_layout.addWidget(combos)
+        # main_layout.addWidget(combos)
         main_layout.addWidget(self.canvas.native)
         main_layout.addWidget(btns)
 
         # this is to make the widget square
         # self.setMinimumHeight(self.minimumSizeHint().width())
 
+        # connect signals
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
 
         self.canvas.events.mouse_double_click.connect(self._on_mouse_double_click)
+
+        self._settings_menu.autoresetChanged.connect(self._on_reset_view_toggle)
+
+    def value(self) -> list[tuple[float, float]]:
+        """Return the visited positions."""
+        # return a copy of the list considering the SCALE_FACTOR
+        return [
+            (x * SCALE_FACTOR, y * SCALE_FACTOR) for x, y in self._visited_positions
+        ]
 
     def _on_mouse_double_click(self, event: Any) -> None:
         """Move the stage to the mouse position.
@@ -132,13 +187,32 @@ class StageRecorder(QWidget):
         if self._mmc.mda.is_running():
             return
 
-        # Get mouse position in camera coordinates
-        x, y, _, _ = self.view.camera.transform.imap(event.pos)
+        # if is the first position the scene is used, do not move the stage and just
+        # snap an image
+        if self._visited_positions:
+            # Get mouse position in camera coordinates
+            x, y, _, _ = self.view.camera.transform.imap(event.pos)
+            self._mmc.setXYPosition(x * SCALE_FACTOR, y * SCALE_FACTOR)
 
-        self._mmc.setXYPosition(x * SCALE_FACTOR, y * SCALE_FACTOR)
-
-        if self._autosnap_checkbox.isChecked() and not self._mmc.isSequenceRunning():
+        if self._settings_menu.autosnap() and not self._mmc.isSequenceRunning():
             self._mmc.snapImage()
+
+    def _show_settings_menu(self) -> None:
+        """Show the settings menu."""
+        # get the position of the settings button
+        pos = self._settings_btn.mapToGlobal(QPoint(0, 0))
+        # get the width and height of the settings button
+        button_width = self._settings_btn.width()
+        button_height = self._settings_btn.height()
+        # show the settings menu and move it to the top edge of the settings button
+        self._settings_menu.move(
+            pos.x() - (button_width * 2), pos.y() - (button_height * 3)
+        )
+        # Set window flags to make it unmovable and stay on top
+        self._settings_menu.setWindowFlags(
+            Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint
+        )
+        self._settings_menu.show()
 
     def _on_reset_view_toggle(self, state: bool) -> None:
         if state:
@@ -243,10 +317,10 @@ class StageRecorder(QWidget):
         # scale
         scaled = resize(image, (height, width))
         # flip horizontally
-        if self._flip_horizontal_checkbox.isChecked():
+        if self._settings_menu.flip_horizontal():
             scaled = np.fliplr(scaled)
         # flip vertically
-        if self._flip_vertical_checkbox.isChecked():
+        if self._settings_menu.flip_vertical():
             scaled = np.flipud(scaled)
 
         scaled_8bit = (scaled / scaled.max()) * 255
@@ -262,5 +336,5 @@ class StageRecorder(QWidget):
         y -= height / 2
         frame.transform = STTransform(translate=(x, y))
 
-        if self._auto_reset_checkbox.isChecked():
+        if self._settings_menu.auto_reset():
             self.reset_view()
