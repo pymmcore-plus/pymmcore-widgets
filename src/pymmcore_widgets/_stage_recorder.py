@@ -96,6 +96,10 @@ class StageRecorder(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._settings_menu = _Settings(self)
+        # Set window flags to make it unmovable and stay on top
+        self._settings_menu.setWindowFlags(
+            Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint
+        )
 
         self._visited_positions: list[tuple[float, float]] = []
         self._fov_max: tuple[float, float] = (0, 0)
@@ -197,11 +201,11 @@ class StageRecorder(QWidget):
         self._settings_menu.move(
             pos.x() - (button_width * 2), pos.y() - (button_height * 3)
         )
-        # Set window flags to make it unmovable and stay on top
-        self._settings_menu.setWindowFlags(
-            Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint
-        )
-        self._settings_menu.show()
+        # hide the menu if it is already visible, otherwise show it
+        if self._settings_menu.isVisible():
+            self._settings_menu.hide()
+        else:
+            self._settings_menu.show()
 
     def _on_reset_view_toggle(self, state: bool) -> None:
         if state:
