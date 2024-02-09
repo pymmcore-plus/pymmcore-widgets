@@ -147,6 +147,16 @@ class MDAWidget(MDASequenceWidget):
         # if there are no stage positions, use the current stage position
         if not val.stage_positions:
             replace["stage_positions"] = (self._get_current_stage_position(),)
+            # if "p" is not in the axis order, we need to add it or the position will
+            # not be in the event
+            if "p" not in val.axis_order:
+                axis_order = list(val.axis_order)
+                # add the "p" axis at the beginning or after the "t" as the default
+                if "t" in axis_order:
+                    axis_order.insert(axis_order.index("t") + 1, "p")
+                else:
+                    axis_order.insert(0, "p")
+                replace["axis_order"] = tuple(axis_order)
 
         if replace:
             val = val.replace(**replace)
