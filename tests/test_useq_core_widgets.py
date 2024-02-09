@@ -542,3 +542,20 @@ def test_relative_z_with_no_include_z(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert not wdg.stage_positions.include_z.isChecked()
     assert wdg.value().stage_positions[0].z == 30
     assert wdg.value().stage_positions[1].z == 30
+
+
+def test_mda_no_pos_set(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    global_mmcore.setXYPosition(10, 20)
+    global_mmcore.setZPosition(30)
+
+    MDA = useq.MDASequence(channels=[{"config": "DAPI", "exposure": 1}])
+    wdg.setValue(MDA)
+
+    assert wdg.value().stage_positions
+    assert round(wdg.value().stage_positions[0].x) == 10
+    assert round(wdg.value().stage_positions[0].y) == 20
+    assert round(wdg.value().stage_positions[0].z) == 30

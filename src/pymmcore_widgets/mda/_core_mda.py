@@ -126,26 +126,27 @@ class MDAWidget(MDASequenceWidget):
         val = super().value()
         replace: dict = {}
 
-        # if the z plan is relative
-        if val.z_plan and val.z_plan.is_relative:
-            # if there are no stage positions add the current stage position as the
-            # relative starting one.
-            if not val.stage_positions:
-                replace["stage_positions"] = (self._get_current_stage_position(),)
-
-            # if there are stage positions but the 'include z' is unchecked, use the
-            # current z stage position as the relative starting one.
-            elif val.stage_positions and not self.stage_positions.include_z.isChecked():
-                z = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
-                replace["stage_positions"] = tuple(
-                    pos.replace(z=z) for pos in val.stage_positions
-                )
+        # if the z plan is relative and there are stage positions but the 'include z' is
+        # unchecked, use the current z stage position as the relative starting one.
+        if (
+            val.z_plan
+            and val.z_plan.is_relative
+            and (val.stage_positions and not self.stage_positions.include_z.isChecked())
+        ):
+            z = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
+            replace["stage_positions"] = tuple(
+                pos.replace(z=z) for pos in val.stage_positions
+            )
 
         # if there is an autofocus_plan but the autofocus_motor_offset is None, set it
         # to the current value
         if (afplan := val.autofocus_plan) and afplan.autofocus_motor_offset is None:
             p2 = afplan.replace(autofocus_motor_offset=self._mmc.getAutoFocusOffset())
             replace["autofocus_plan"] = p2
+
+        # if there are no stage positions, use the current stage position
+        if not val.stage_positions:
+            replace["stage_positions"] = (self._get_current_stage_position(),)
 
         if replace:
             val = val.replace(**replace)
