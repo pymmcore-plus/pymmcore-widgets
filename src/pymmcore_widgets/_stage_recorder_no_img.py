@@ -149,9 +149,9 @@ class StageRecorder(QWidget):
 
     def _on_frame_ready(self, img: np.ndarray, event: MDAEvent) -> None:
         """Update the scene with the position from an MDA acquisition."""
-        x, y = event.x_pos, event.y_pos
-        if x is not None and y is not None:
-            self._update_scene(x, y)
+        x = event.x_pos or self._mmc.getXPosition()
+        y = event.y_pos or self._mmc.getYPosition()
+        self._update_scene(x, y)
 
     def _on_image_snapped(self) -> None:
         """Update the scene with the current position."""
