@@ -3,16 +3,24 @@ from typing import Any, Optional
 import numpy as np
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QSize, Qt, QTimer
-from qtpy.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QVBoxLayout, QWidget
+from qtpy.QtCore import Qt, QTimer
+from qtpy.QtWidgets import (
+    QAction,
+    QMenu,
+    QToolBar,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
 from superqt.fonticon import icon
 from useq import MDAEvent
 from vispy import scene
 from vispy.color import Color
 from vispy.scene.visuals import Rectangle
 
+GRAY = "#666"
+RESET = "Auto Reset View"
 _DEFAULT_WAIT = 100
-BTN_SIZE = (60, 40)
 W = Color("white")
 G = Color("green")
 
@@ -31,72 +39,66 @@ class StageRecorder(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._visited_positions: list[tuple[float, float]] = []
-        self._fov_max: tuple[float, float] = (1, 1)
-
-        layout = QVBoxLayout()
-        layout.setSpacing(0)
-        layout.setContentsMargins(5, 5, 5, 5)
-        self.setLayout(layout)
-
-        self.canvas = scene.SceneCanvas(keys="interactive", show=True)
-        layout.addWidget(self.canvas.native)
-
-        self.view = self.canvas.central_widget.add_view()
-        self.view.camera = scene.PanZoomCamera(aspect=1)
+        self._fov_max: tuple[float, float] = (0, 0)
+        self._auto_reset: bool = True
 
         self.streaming_timer = QTimer(parent=self)
         self.streaming_timer.setTimerType(Qt.TimerType.PreciseTimer)
         self.streaming_timer.setInterval(int(self._mmc.getExposure()) or _DEFAULT_WAIT)
         self.streaming_timer.timeout.connect(self._on_streaming_timeout)
 
-        btns = QWidget()
-        btns_layout = QHBoxLayout()
-        btns_layout.setSpacing(10)
-        btns_layout.setContentsMargins(5, 5, 5, 5)
-        btns.setLayout(btns_layout)
-        # clear button
-        self._clear_btn = QPushButton()
-        self._clear_btn.setToolTip("Clear")
-        self._clear_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._clear_btn.setIcon(icon(MDI6.close_box_outline))
-        self._clear_btn.setIconSize(QSize(25, 25))
-        self._clear_btn.setFixedSize(*BTN_SIZE)
-        self._clear_btn.clicked.connect(self._clear)
-        # reset view button
-        self._reset_view_btn = QPushButton()
-        self._reset_view_btn.setToolTip("Reset View")
-        self._reset_view_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._reset_view_btn.setIcon(icon(MDI6.home_outline))
-        self._reset_view_btn.setIconSize(QSize(25, 25))
-        self._reset_view_btn.setFixedSize(*BTN_SIZE)
-        self._reset_view_btn.clicked.connect(self._reset_view)
-        # stop stage button
-        self._stop_stage_btn = QPushButton()
-        self._stop_stage_btn.setToolTip("Stop Stage")
-        self._stop_stage_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._stop_stage_btn.setIcon(icon(MDI6.stop_circle_outline))
-        self._stop_stage_btn.setIconSize(QSize(25, 25))
-        self._stop_stage_btn.setFixedSize(*BTN_SIZE)
-        self._stop_stage_btn.clicked.connect(
-            lambda: self._mmc.stop(self._mmc.getXYStageDevice())
+        # canvas and view
+        self.canvas = scene.SceneCanvas(keys="interactive", show=True)
+        self.view = self.canvas.central_widget.add_view()
+        self.view.camera = scene.PanZoomCamera(aspect=1)
+
+        # add to main layout
+        main_layout = QVBoxLayout()
+        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(5, 5, 5, 5)
+        self.setLayout(main_layout)
+
+        # toolbar
+        toolbar = QToolBar()
+        toolbar.setMovable(False)
+
+        # reset view action
+        self.act_reset_view = QAction(
+            icon(MDI6.home_outline, color=GRAY), "Reset View", self
         )
-        # auto reset view checkbox
-        self._auto_reset_checkbox = QCheckBox("Auto Reset View")
-        self._auto_reset_checkbox.setChecked(True)
-        self._auto_reset_checkbox.stateChanged.connect(self._on_reset_view_toggle)
-        # autosnap checkbox
-        self._autosnap_checkbox = QCheckBox("Auto Snap on double click")
-        self._autosnap_checkbox.setChecked(False)
-        # add buttons to layout
-        btns_layout.addWidget(self._auto_reset_checkbox)
-        btns_layout.addWidget(self._autosnap_checkbox)
-        btns_layout.addStretch(1)
-        btns_layout.addWidget(self._stop_stage_btn)
-        btns_layout.addWidget(self._clear_btn)
-        btns_layout.addWidget(self._reset_view_btn)
+        self.act_reset_view.triggered.connect(self.reset_view)
+        toolbar.addAction(self.act_reset_view)
 
-        layout.addWidget(btns)
+        # clear action
+        self.act_clear = QAction(
+            icon(MDI6.close_box_outline, color=GRAY), "Clear View", self
+        )
+        self.act_clear.triggered.connect(self.clear_view)
+        toolbar.addAction(self.act_clear)
 
+        # settings button and context menu
+        # create settings button
+        self._settings_btn = QToolButton()
+        self._settings_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self._settings_btn.setToolTip("Settings Menu")
+        self._settings_btn.setIcon(icon(MDI6.cog_outline, color=GRAY))
+        toolbar.addWidget(self._settings_btn)
+        # create context menu
+        menu = QMenu(self)
+        # connect the menu to the button click
+        self._settings_btn.setMenu(menu)
+        # create actions for checkboxes
+        auto_reset_act = QAction(RESET, self, checkable=True, checked=True)
+        # add actions to the menu
+        menu.addAction(auto_reset_act)
+        # add actions to the checkboxes if needed
+        auto_reset_act.triggered.connect(self._on_setting_checked)
+
+        # add to main layout
+        main_layout.addWidget(toolbar)
+        main_layout.addWidget(self.canvas.native)
+
+        # connect signals
         ev = self._mmc.events
         ev.imageSnapped.connect(self._on_image_snapped)
         ev.continuousSequenceAcquisitionStarted.connect(self._on_streaming_start)
@@ -107,25 +109,25 @@ class StageRecorder(QWidget):
 
         self.canvas.events.mouse_double_click.connect(self._on_mouse_double_click)
 
-    def _on_mouse_double_click(self, event: Any) -> None:
-        """Move the stage to the mouse position.
+    def _on_setting_checked(self, checked: bool) -> None:
+        """Handle the settings checkboxes."""
+        self._auto_reset = checked
 
-        If the autosnap checkbox is checked, also snap an image.
-        """
+    def _on_mouse_double_click(self, event: Any) -> None:
+        """Move the stage to the mouse position."""
+        # if the mda is running, return
         if self._mmc.mda.is_running():
             return
 
-        # Get mouse position in camera coordinates
-        x, y, _, _ = self.view.camera.transform.imap(event.pos)
+        # if is the first position the scene is used, do not move the stage and just
+        # snap an image
+        if self._visited_positions:
+            # Get mouse position in camera coordinates
+            x, y, _, _ = self.view.camera.transform.imap(event.pos)
+            self._mmc.setXYPosition(x, y)
 
-        self._mmc.setXYPosition(x, y)
-
-        if self._autosnap_checkbox.isChecked() and not self._mmc.isSequenceRunning():
+        if not self._mmc.isSequenceRunning():
             self._mmc.snapImage()
-
-    def _on_reset_view_toggle(self, state: bool) -> None:
-        if state:
-            self._reset_view()
 
     def _on_streaming_start(self) -> None:
         self.streaming_timer.start()
@@ -144,8 +146,8 @@ class StageRecorder(QWidget):
         self._delete_scene_items(G)
         # draw the fov around the position
         self._draw_fov(x, y, G)
-        if self._auto_reset_checkbox.isChecked():
-            self._reset_view()
+        if self._auto_reset:
+            self.reset_view()
 
     def _on_frame_ready(self, img: np.ndarray, event: MDAEvent) -> None:
         """Update the scene with the position from an MDA acquisition."""
@@ -155,6 +157,10 @@ class StageRecorder(QWidget):
 
     def _on_image_snapped(self) -> None:
         """Update the scene with the current position."""
+        # if the mda is running, we will use the frameReady event to update the scene
+        if self._mmc.mda.is_running():
+            return
+
         # get current position (maybe find a different way to get the position)
         x, y = self._mmc.getXPosition(), self._mmc.getYPosition()
         self._update_scene(x, y)
@@ -174,8 +180,8 @@ class StageRecorder(QWidget):
         self._draw_fov(x, y, W)
 
         # reset the view if the auto reset checkbox is checked
-        if self._auto_reset_checkbox.isChecked():
-            self._reset_view()
+        if self._auto_reset:
+            self.reset_view()
 
     def _draw_fov(self, x: float, y: float, color: Color) -> None:
         """Draw a the position on the canvas."""
@@ -225,16 +231,16 @@ class StageRecorder(QWidget):
             ):
                 child.parent = None
 
-    def _clear(self) -> None:
+    def clear_view(self) -> None:
         """Clear the visited positions and the scene."""
         # clear visited position list
         self._visited_positions.clear()
         # clear scene
         self._delete_scene_items()
         # reset view
-        self._reset_view()
+        self.reset_view()
 
-    def _reset_view(self) -> None:
+    def reset_view(self) -> None:
         """Set the camera range to fit all the visited positions."""
         preview = self._get_preview_rect()
         if not self._visited_positions and not preview:
