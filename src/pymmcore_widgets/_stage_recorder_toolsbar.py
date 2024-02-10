@@ -112,6 +112,13 @@ class StageRecorder(QWidget):
 
         self.canvas.events.mouse_double_click.connect(self._on_mouse_double_click)
 
+    def value(self) -> list[tuple[float, float]]:
+        """Return the visited positions."""
+        # return a copy of the list considering the SCALE_FACTOR
+        return [
+            (x * SCALE_FACTOR, y * SCALE_FACTOR) for x, y in self._visited_positions
+        ]
+
     def _on_setting_checked(self, checked: bool) -> None:
         """Handle the settings checkboxes."""
         sender = cast(QAction, self.sender()).text()
@@ -123,13 +130,6 @@ class StageRecorder(QWidget):
             self._flip_h = checked
         elif sender == FLIP_V:
             self._flip_v = checked
-
-    def value(self) -> list[tuple[float, float]]:
-        """Return the visited positions."""
-        # return a copy of the list considering the SCALE_FACTOR
-        return [
-            (x * SCALE_FACTOR, y * SCALE_FACTOR) for x, y in self._visited_positions
-        ]
 
     def _on_mouse_double_click(self, event: Any) -> None:
         """Move the stage to the mouse position.
