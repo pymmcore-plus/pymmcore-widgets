@@ -22,13 +22,13 @@ from vispy.visuals.transforms import STTransform
 
 SCALE_FACTOR = 3
 GRAY = "#666"
+GREEN = Color("#0ba322")
 RESET = "Auto Reset View"
 SNAP = "Auto Snap on double click"
 FLIP_H = "Flip Image Horizontally"
 FLIP_V = "Flip Image Vertically"
 POLL = "Poll XY Stage Movements"
 POLL_INTERVAL = 250
-GREEN = Color("#0ba322")
 
 
 class StageRecorder(QWidget):
@@ -194,8 +194,10 @@ class StageRecorder(QWidget):
         if not self._mmc.getCameraDevice():
             return
         # draw the position as a fov around the (x, y) position coordinates
-        width, height = self._get_image_size()
-        fov = Rectangle(center=(x, y), width=width, height=height, border_color=GREEN)
+        w, h = self._get_image_size()
+        fov = Rectangle(
+            center=(x, y), width=w, height=h, border_color=GREEN, border_width=3
+        )
         self.view.add(fov)
 
     def _delete_preview(self) -> None:
