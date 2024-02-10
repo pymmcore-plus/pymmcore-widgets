@@ -3,12 +3,9 @@
 import useq
 from pymmcore_plus import CMMCorePlus
 
-from pymmcore_widgets import PropertyBrowser
-
-# from qtpy.QtWidgets import QApplication
+# from pymmcore_widgets import PropertyBrowser, MDAWidget, GroupPresetTableWidget
+from pymmcore_widgets._stage_recorder_no_images import StageTracker
 from pymmcore_widgets._stage_recorder_with_images import StageRecorder
-
-# app = QApplication([])
 
 mmc = CMMCorePlus().instance()
 cfg = r"c:\Users\NIC\Desktop\mm\Ti2.cfg"
@@ -20,11 +17,17 @@ mmc.loadSystemConfiguration()
 rec = StageRecorder()
 rec.show()
 
+track = StageTracker()
+track.show()
+
+# gp = GroupPresetTableWidget()
+# gp.show()
+
 # m = MDAWidget()
 # m.show()
 
-pb = PropertyBrowser()
-pb.show()
+# pb = PropertyBrowser()
+# pb.show()
 
 # s = StageWidget(mmc.getXYStageDevice())
 # s.show()
@@ -33,8 +36,8 @@ pb.show()
 seq = useq.MDASequence(
     channels=["FITC"],
     grid_plan=useq.GridRowsColumns(
-        rows=3,
-        columns=3,
+        rows=4,
+        columns=4,
         fov_width=mmc.getImageWidth() * mmc.getPixelSizeUm(),
         fov_height=mmc.getImageHeight() * mmc.getPixelSizeUm(),
     ),
@@ -54,5 +57,3 @@ seq1 = useq.MDASequence(
     ),
     stage_positions=[(0, 0)],
 )
-
-# app.exec_()

@@ -27,7 +27,7 @@ POLL = "Poll XY Stage Movements"
 POLL_INTERVAL = 250
 
 
-class StageRecorder(QWidget):
+class StageTracker(QWidget):
     """A stage positions viewer widget."""
 
     def __init__(
@@ -37,6 +37,7 @@ class StageRecorder(QWidget):
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
         super().__init__(parent)
+        self.setWindowTitle("Stage Tracker")
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -226,7 +227,7 @@ class StageRecorder(QWidget):
             return
         # draw the position as a fov around the (x, y) position coordinates
         w, h = self._get_image_size()
-        b_width = 3 if color == GREEN else 1
+        b_width = 4 if color == GREEN else 1
         fov = Rectangle(
             center=(x, y), width=w, height=h, border_color=color, border_width=b_width
         )

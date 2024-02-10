@@ -41,6 +41,7 @@ class StageRecorder(QWidget):
         mmcore: Optional[CMMCorePlus] = None,
     ) -> None:
         super().__init__(parent)
+        self.setWindowTitle("Stage Recorder")
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
