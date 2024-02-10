@@ -1,9 +1,9 @@
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import numpy as np
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt, QTimer
+from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import (
     QAction,
     QMenu,
@@ -20,7 +20,8 @@ from vispy.scene.visuals import Rectangle
 
 GRAY = "#666"
 RESET = "Auto Reset View"
-_DEFAULT_WAIT = 100
+POLL = "Poll XY Stage Movements"
+POLL_INTERVAL = 250
 W = Color("white")
 G = Color("green")
 
@@ -42,10 +43,9 @@ class StageRecorder(QWidget):
         self._fov_max: tuple[float, float] = (0, 0)
         self._auto_reset: bool = True
 
-        self.streaming_timer = QTimer(parent=self)
-        self.streaming_timer.setTimerType(Qt.TimerType.PreciseTimer)
-        self.streaming_timer.setInterval(int(self._mmc.getExposure()) or _DEFAULT_WAIT)
-        self.streaming_timer.timeout.connect(self._on_streaming_timeout)
+        self._poll_timer = QTimer()
+        self._poll_timer.setInterval(POLL_INTERVAL)
+        self._poll_timer.timeout.connect(self._on_stage_position_changed)
 
         # canvas and view
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
@@ -89,8 +89,10 @@ class StageRecorder(QWidget):
         self._settings_btn.setMenu(menu)
         # create actions for checkboxes
         auto_reset_act = QAction(RESET, self, checkable=True, checked=True)
+        poll_act = QAction(POLL, self, checkable=True, checked=True)
         # add actions to the menu
         menu.addAction(auto_reset_act)
+        menu.addAction(poll_act)
         # add actions to the checkboxes if needed
         auto_reset_act.triggered.connect(self._on_setting_checked)
 
@@ -99,19 +101,19 @@ class StageRecorder(QWidget):
         main_layout.addWidget(self.canvas.native)
 
         # connect signals
-        ev = self._mmc.events
-        ev.imageSnapped.connect(self._on_image_snapped)
-        ev.continuousSequenceAcquisitionStarted.connect(self._on_streaming_start)
-        ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
-        ev.exposureChanged.connect(self._on_exposure_changed)
-
+        self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
-
         self.canvas.events.mouse_double_click.connect(self._on_mouse_double_click)
+
+        self._toggle_poll_timer(True)
 
     def _on_setting_checked(self, checked: bool) -> None:
         """Handle the settings checkboxes."""
-        self._auto_reset = checked
+        sender = cast(QAction, self.sender()).text()
+        if sender == RESET:
+            self._auto_reset = checked
+        elif sender == POLL:
+            self._toggle_poll_timer(checked)
 
     def _on_mouse_double_click(self, event: Any) -> None:
         """Move the stage to the mouse position."""
@@ -129,16 +131,12 @@ class StageRecorder(QWidget):
         if not self._mmc.isSequenceRunning():
             self._mmc.snapImage()
 
-    def _on_streaming_start(self) -> None:
-        self.streaming_timer.start()
+    def _toggle_poll_timer(self, on: bool) -> None:
+        if not on:
+            self._delete_scene_items(G)
+        self._poll_timer.start() if on else self._poll_timer.stop()
 
-    def _on_streaming_stop(self) -> None:
-        self.streaming_timer.stop()
-
-    def _on_exposure_changed(self, device: str, value: str) -> None:
-        self.streaming_timer.setInterval(int(value))
-
-    def _on_streaming_timeout(self) -> None:
+    def _draw_preview(self) -> None:
         """Update the preview rectangle position."""
         # get current position
         x, y = self._mmc.getXPosition(), self._mmc.getYPosition()
@@ -149,7 +147,13 @@ class StageRecorder(QWidget):
         if self._auto_reset:
             self.reset_view()
 
-    def _on_frame_ready(self, img: np.ndarray, event: MDAEvent) -> None:
+    def _on_stage_position_changed(self) -> None:
+        """Update the scene with the current position."""
+        if self._mmc.mda.is_running():
+            return
+        self._draw_preview()
+
+    def _on_frame_ready(self, image: np.ndarray, event: MDAEvent) -> None:
         """Update the scene with the position from an MDA acquisition."""
         x = event.x_pos or self._mmc.getXPosition()
         y = event.y_pos or self._mmc.getYPosition()
@@ -157,6 +161,9 @@ class StageRecorder(QWidget):
 
     def _on_image_snapped(self) -> None:
         """Update the scene with the current position."""
+        # delete the previous preview rectangle if any
+        self._delete_scene_items(G)
+
         # if the mda is running, we will use the frameReady event to update the scene
         if self._mmc.mda.is_running():
             return

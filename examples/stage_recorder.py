@@ -3,18 +3,17 @@
 import useq
 from pymmcore_plus import CMMCorePlus
 
-from pymmcore_widgets import StageWidget, MDAWidget, PropertyBrowser
+from pymmcore_widgets import MDAWidget, PropertyBrowser, StageWidget
 
 # from qtpy.QtWidgets import QApplication
-# from pymmcore_widgets._stage_recorder_no_img import StageRecorder
-from pymmcore_widgets._stage_recorder import StageRecorder
+from pymmcore_widgets._stage_recorder_no_img import StageRecorder
 
 # app = QApplication([])
 
 mmc = CMMCorePlus().instance()
 cfg = r"c:\Users\NIC\Desktop\mm\Ti2.cfg"
-mmc.loadSystemConfiguration(cfg)
-# mmc.loadSystemConfiguration()
+# mmc.loadSystemConfiguration(cfg)
+mmc.loadSystemConfiguration()
 
 # mmc.setProperty("Camera", "Mode", "Noise")
 
