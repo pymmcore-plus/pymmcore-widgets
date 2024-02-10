@@ -3,6 +3,7 @@ from typing import Any, Optional, cast
 import numpy as np
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import (
     QAction,
     QMenu,
@@ -15,7 +16,8 @@ from skimage.transform import resize
 from superqt.fonticon import icon
 from useq import MDAEvent
 from vispy import scene
-from vispy.scene.visuals import Image
+from vispy.color import Color
+from vispy.scene.visuals import Image, Rectangle
 from vispy.visuals.transforms import STTransform
 
 SCALE_FACTOR = 3
@@ -24,6 +26,9 @@ RESET = "Auto Reset View"
 SNAP = "Auto Snap on double click"
 FLIP_H = "Flip Image Horizontally"
 FLIP_V = "Flip Image Vertically"
+POLL = "Poll XY Stage Movements"
+POLL_INTERVAL = 250
+GREEN = Color("#0ba322")
 
 
 class StageRecorder(QWidget):
@@ -45,6 +50,10 @@ class StageRecorder(QWidget):
         self._snap: bool = False
         self._flip_h: bool = False
         self._flip_v: bool = False
+
+        self._poll_timer = QTimer()
+        self._poll_timer.setInterval(POLL_INTERVAL)
+        self._poll_timer.timeout.connect(self._on_stage_position_changed)
 
         # canvas and view
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
@@ -88,29 +97,35 @@ class StageRecorder(QWidget):
         self._settings_btn.setMenu(menu)
         # create actions for checkboxes
         auto_reset_act = QAction(RESET, self, checkable=True, checked=True)
-        auto_snap_act = QAction(SNAP, self, checkable=True)
+        self.auto_snap_act = QAction(SNAP, self, checkable=True)
         flip_h_act = QAction(FLIP_H, self, checkable=True)
         flip_v_act = QAction(FLIP_V, self, checkable=True)
+        self.poll_act = QAction(POLL, self, checkable=True)
         # add actions to the menu
         menu.addAction(auto_reset_act)
-        menu.addAction(auto_snap_act)
+        menu.addAction(self.auto_snap_act)
         menu.addAction(flip_h_act)
         menu.addAction(flip_v_act)
-        # add actions to the checkboxes if needed
+        menu.addAction(self.poll_act)
+        # add actions to the checkboxes
         auto_reset_act.triggered.connect(self._on_setting_checked)
-        auto_snap_act.triggered.connect(self._on_setting_checked)
+        self.auto_snap_act.triggered.connect(self._on_setting_checked)
         flip_h_act.triggered.connect(self._on_setting_checked)
         flip_v_act.triggered.connect(self._on_setting_checked)
+        self.poll_act.triggered.connect(self._on_setting_checked)
 
         # add to main layout
         main_layout.addWidget(toolbar)
         main_layout.addWidget(self.canvas.native)
 
         # connect signals
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
+        self._mmc.events.propertyChanged.connect(self._on_property_changed)
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
-
         self.canvas.events.mouse_double_click.connect(self._on_mouse_double_click)
+
+        self._on_sys_config_loaded()
 
     def value(self) -> list[tuple[float, float]]:
         """Return the visited positions."""
@@ -118,6 +133,19 @@ class StageRecorder(QWidget):
         return [
             (x * SCALE_FACTOR, y * SCALE_FACTOR) for x, y in self._visited_positions
         ]
+
+    def _on_sys_config_loaded(self) -> None:
+        self.auto_snap_act.setEnabled(bool(self._mmc.getCameraDevice()))
+        self.poll_act.setEnabled(bool(self._mmc.getXYStageDevice()))
+        self.poll_act.setChecked(bool(self._mmc.getXYStageDevice()))
+        self._toggle_poll_timer(bool(self._mmc.getXYStageDevice()))
+
+    def _on_property_changed(self, device: str, property: str, value: str) -> None:
+        if device != "Core" or property not in {"Camera", "XYStage"}:
+            return
+
+        # update the settings checkboxes if Camera or XYStage
+        self._on_sys_config_loaded()
 
     def _on_setting_checked(self, checked: bool) -> None:
         """Handle the settings checkboxes."""
@@ -130,6 +158,58 @@ class StageRecorder(QWidget):
             self._flip_h = checked
         elif sender == FLIP_V:
             self._flip_v = checked
+        elif sender == POLL:
+            self._toggle_poll_timer(checked)
+
+    def _toggle_poll_timer(self, on: bool) -> None:
+        if not on:
+            self._delete_preview()
+
+        if not self._mmc.getXYStageDevice():
+            self._poll_timer.stop()
+            self.poll_act.setChecked(False)
+            return
+
+        self._poll_timer.start() if on else self._poll_timer.stop()
+
+    def _on_stage_position_changed(self) -> None:
+        """Update the scene with the current position."""
+        if self._mmc.mda.is_running():
+            return
+        self._update_preview()
+
+    def _update_preview(self) -> None:
+        """Update the preview rectangle position."""
+        # get current position
+        x, y = self._mmc.getXPosition(), self._mmc.getYPosition()
+        # delete the previous preview rectangle
+        self._delete_preview()
+        # draw the fov around the position
+        self._draw_fov(x / SCALE_FACTOR, y / SCALE_FACTOR)
+        if self._auto_reset:
+            self.reset_view()
+
+    def _draw_fov(self, x: float, y: float) -> None:
+        """Draw a the fov position on the canvas."""
+        if not self._mmc.getCameraDevice():
+            return
+        # draw the position as a fov around the (x, y) position coordinates
+        width, height = self._get_image_size()
+        fov = Rectangle(center=(x, y), width=width, height=height, border_color=GREEN)
+        self.view.add(fov)
+
+    def _delete_preview(self) -> None:
+        """Delete all images from the scene."""
+        for child in reversed(self.view.scene.children):
+            if isinstance(child, Rectangle):
+                child.parent = None
+
+    def _get_preview_rect(self) -> Rectangle | None:  # sourcery skip: use-next
+        """Get the preview rectangle from the scene."""
+        for child in self.view.scene.children:
+            if isinstance(child, Rectangle):
+                return child
+        return None
 
     def _on_mouse_double_click(self, event: Any) -> None:
         """Move the stage to the mouse position.
@@ -146,6 +226,10 @@ class StageRecorder(QWidget):
             # Get mouse position in camera coordinates
             x, y, _, _ = self.view.camera.transform.imap(event.pos)
             self._mmc.setXYPosition(x * SCALE_FACTOR, y * SCALE_FACTOR)
+
+        if not self._mmc.getCameraDevice():
+            self.auto_snap_act.setChecked(False)
+            return
 
         if self._snap and not self._mmc.isSequenceRunning():
             self._mmc.snapImage()
@@ -166,6 +250,8 @@ class StageRecorder(QWidget):
 
     def _on_image_snapped(self) -> None:
         """Update the scene with the current position."""
+        # delete the previous preview rectangle if any
+        self._delete_preview()
         # if the mda is running, we will use the frameReady event to update the scene
         if self._mmc.mda.is_running():
             return
@@ -196,7 +282,7 @@ class StageRecorder(QWidget):
             (y_min - self._fov_max[1], y_max + self._fov_max[1]),
         )
 
-    def _delete_scene_images(self) -> None:
+    def _delete_images(self) -> None:
         """Delete all images from the scene."""
         for child in reversed(self.view.scene.children):
             if isinstance(child, Image):
@@ -207,18 +293,42 @@ class StageRecorder(QWidget):
         # clear visited position list
         self._visited_positions.clear()
         # clear scene
-        self._delete_scene_images()
+        self._delete_images()
+        self._delete_preview()
         # reset view
-        self.reset_view()
+        if self._auto_reset:
+            self.reset_view()
 
     def reset_view(self) -> None:
         """Set the camera range to fit all the visited positions."""
-        if not self._visited_positions:
+        preview = self._get_preview_rect()
+
+        if not self._visited_positions and not preview:
             self.view.camera.set_range()
+            return
+
+        # if only the preview is present, set the range to the preview position
+        if not self._visited_positions and preview is not None:
+            # get preview center position
+            (x, y) = preview.center
+            self.view.camera.set_range(
+                x=(x - (preview.width / 2), x + (preview.width / 2)),
+                y=(y - (preview.height / 2), y + (preview.height / 2)),
+            )
             return
 
         # get the edges from all the visited positions
         (x_min, x_max), (y_min, y_max) = self._get_edges_from_visited_points()
+
+        # if there is a preview rectangle, also consider its positio to set the range
+        if preview is not None:
+            # get preview position
+            x, y = preview.center
+            # compare the preview position with the edges
+            x_min = min(x_min, x - (preview.width / 2))
+            x_max = max(x_max, x + (preview.width / 2))
+            y_min = min(y_min, y - (preview.height / 2))
+            y_max = max(y_max, y + (preview.height / 2))
 
         self.view.camera.set_range(x=(x_min, x_max), y=(y_min, y_max))
 

@@ -3,10 +3,10 @@
 import useq
 from pymmcore_plus import CMMCorePlus
 
-from pymmcore_widgets import MDAWidget, PropertyBrowser, StageWidget
+from pymmcore_widgets import PropertyBrowser
 
 # from qtpy.QtWidgets import QApplication
-from pymmcore_widgets._stage_recorder_no_img import StageRecorder
+from pymmcore_widgets._stage_recorder_with_images import StageRecorder
 
 # app = QApplication([])
 
@@ -20,14 +20,14 @@ mmc.loadSystemConfiguration()
 rec = StageRecorder()
 rec.show()
 
-m = MDAWidget()
-m.show()
+# m = MDAWidget()
+# m.show()
 
 pb = PropertyBrowser()
 pb.show()
 
-s = StageWidget(mmc.getXYStageDevice())
-s.show()
+# s = StageWidget(mmc.getXYStageDevice())
+# s.show()
 
 
 seq = useq.MDASequence(

@@ -89,23 +89,37 @@ class StageRecorder(QWidget):
         self._settings_btn.setMenu(menu)
         # create actions for checkboxes
         auto_reset_act = QAction(RESET, self, checkable=True, checked=True)
-        poll_act = QAction(POLL, self, checkable=True, checked=True)
+        self.poll_act = QAction(POLL, self, checkable=True)
         # add actions to the menu
         menu.addAction(auto_reset_act)
-        menu.addAction(poll_act)
-        # add actions to the checkboxes if needed
+        menu.addAction(self.poll_act)
+        # add actions to the checkboxes
         auto_reset_act.triggered.connect(self._on_setting_checked)
+        self.poll_act.triggered.connect(self._on_setting_checked)
 
         # add to main layout
         main_layout.addWidget(toolbar)
         main_layout.addWidget(self.canvas.native)
 
         # connect signals
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
+        self._mmc.events.propertyChanged.connect(self._on_property_changed)
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
         self.canvas.events.mouse_double_click.connect(self._on_mouse_double_click)
 
-        self._toggle_poll_timer(True)
+        self._on_sys_config_loaded()
+
+    def _on_sys_config_loaded(self) -> None:
+        self.poll_act.setEnabled(bool(self._mmc.getXYStageDevice()))
+        self.poll_act.setChecked(bool(self._mmc.getXYStageDevice()))
+        self._toggle_poll_timer(bool(self._mmc.getXYStageDevice()))
+
+    def _on_property_changed(self, device: str, property: str, value: str) -> None:
+        if device != "Core" or property not in {"Camera", "XYStage"}:
+            return
+        # update the settings checkboxes if Camera or XYStage
+        self._on_sys_config_loaded()
 
     def _on_setting_checked(self, checked: bool) -> None:
         """Handle the settings checkboxes."""
@@ -128,16 +142,25 @@ class StageRecorder(QWidget):
             x, y, _, _ = self.view.camera.transform.imap(event.pos)
             self._mmc.setXYPosition(x, y)
 
+        if not self._mmc.getCameraDevice():
+            return
+
         if not self._mmc.isSequenceRunning():
             self._mmc.snapImage()
 
     def _toggle_poll_timer(self, on: bool) -> None:
         if not on:
             self._delete_scene_items(G)
+
+        if not self._mmc.getXYStageDevice():
+            self._poll_timer.stop()
+            self.poll_act.setChecked(False)
+            return
+
         self._poll_timer.start() if on else self._poll_timer.stop()
 
-    def _draw_preview(self) -> None:
-        """Update the preview rectangle position."""
+    def _update_preview(self) -> None:
+        """Draw the preview rectangle position."""
         # get current position
         x, y = self._mmc.getXPosition(), self._mmc.getYPosition()
         # delete the previous preview rectangle
@@ -151,7 +174,7 @@ class StageRecorder(QWidget):
         """Update the scene with the current position."""
         if self._mmc.mda.is_running():
             return
-        self._draw_preview()
+        self._update_preview()
 
     def _on_frame_ready(self, image: np.ndarray, event: MDAEvent) -> None:
         """Update the scene with the position from an MDA acquisition."""
@@ -192,6 +215,8 @@ class StageRecorder(QWidget):
 
     def _draw_fov(self, x: float, y: float, color: Color) -> None:
         """Draw a the position on the canvas."""
+        if not self._mmc.getCameraDevice():
+            return
         # draw the position as a fov around the (x, y) position coordinates
         width = self._mmc.getImageWidth() * self._mmc.getPixelSizeUm()
         height = self._mmc.getImageHeight() * self._mmc.getPixelSizeUm()
@@ -245,7 +270,8 @@ class StageRecorder(QWidget):
         # clear scene
         self._delete_scene_items()
         # reset view
-        self.reset_view()
+        if self._auto_reset:
+            self.reset_view()
 
     def reset_view(self) -> None:
         """Set the camera range to fit all the visited positions."""
@@ -254,7 +280,7 @@ class StageRecorder(QWidget):
             self.view.camera.set_range()
             return
 
-        # if only the marker is present, set the range to the marker position
+        # if only the preview is present, set the range to the preview position
         if not self._visited_positions and preview is not None:
             # get preview center position
             (x, y) = preview.center
@@ -269,19 +295,12 @@ class StageRecorder(QWidget):
 
         # if there is a preview rectangle, also consider its positio to set the range
         if preview is not None:
-            # get marker position
+            # get preview position
             x, y = preview.center
-            # compare the marker position with the edges
+            # compare the preview position with the edges
             x_min = min(x_min, x - (preview.width / 2))
             x_max = max(x_max, x + (preview.width / 2))
             y_min = min(y_min, y - (preview.height / 2))
             y_max = max(y_max, y + (preview.height / 2))
 
         self.view.camera.set_range(x=(x_min, x_max), y=(y_min, y_max))
-
-    def _get_preview_rect(self) -> Rectangle | None:  # sourcery skip: use-next
-        """Get the preview rectangle from the scene using its border color."""
-        for child in self.view.scene.children:
-            if isinstance(child, Rectangle) and child.border_color == G:
-                return child
-        return None
