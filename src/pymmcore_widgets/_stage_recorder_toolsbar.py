@@ -60,45 +60,47 @@ class StageRecorder(QWidget):
         # toolbar
         toolbar = QToolBar()
         toolbar.setMovable(False)
+
         # reset view action
         self.act_reset_view = QAction(
             icon(MDI6.home_outline, color=GRAY), "Reset View", self
         )
         self.act_reset_view.triggered.connect(self.reset_view)
         toolbar.addAction(self.act_reset_view)
+
         # clear action
         self.act_clear = QAction(
             icon(MDI6.close_box_outline, color=GRAY), "Clear View", self
         )
         self.act_clear.triggered.connect(self.clear_view)
         toolbar.addAction(self.act_clear)
+
         # settings button and context menu
-        # create context menu
-        menu = QMenu(self)
         # create settings button
         self._settings_btn = QToolButton()
         self._settings_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self._settings_btn.setToolTip("Settings Menu")
         self._settings_btn.setIcon(icon(MDI6.cog_outline, color=GRAY))
         toolbar.addWidget(self._settings_btn)
+        # create context menu
+        menu = QMenu(self)
         # connect the menu to the button click
         self._settings_btn.setMenu(menu)
         # create actions for checkboxes
-        action1 = QAction(RESET, self, checkable=True, checked=True)
-        action2 = QAction(SNAP, self, checkable=True)
-        action3 = QAction(FLIP_H, self, checkable=True)
-        action4 = QAction(FLIP_V, self, checkable=True)
+        auto_reset_act = QAction(RESET, self, checkable=True, checked=True)
+        auto_snap_act = QAction(SNAP, self, checkable=True)
+        flip_h_act = QAction(FLIP_H, self, checkable=True)
+        flip_v_act = QAction(FLIP_V, self, checkable=True)
         # add actions to the menu
-        menu.addAction(action1)
-        menu.addAction(action2)
-        menu.addAction(action3)
-        menu.addAction(action4)
+        menu.addAction(auto_reset_act)
+        menu.addAction(auto_snap_act)
+        menu.addAction(flip_h_act)
+        menu.addAction(flip_v_act)
         # add actions to the checkboxes if needed
-        action1.triggered.connect(self._on_setting_checked)
-        action2.triggered.connect(self._on_setting_checked)
-        action3.triggered.connect(self._on_setting_checked)
-        action4.triggered.connect(self._on_setting_checked)
-        # ____________________________________________________________________
+        auto_reset_act.triggered.connect(self._on_setting_checked)
+        auto_snap_act.triggered.connect(self._on_setting_checked)
+        flip_h_act.triggered.connect(self._on_setting_checked)
+        flip_v_act.triggered.connect(self._on_setting_checked)
 
         # add to main layout
         main_layout.addWidget(toolbar)
