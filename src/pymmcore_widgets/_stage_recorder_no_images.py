@@ -58,7 +58,7 @@ class StageTracker(QWidget):
         # add to main layout
         main_layout = QVBoxLayout()
         main_layout.setSpacing(0)
-        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(main_layout)
 
         # toolbar
