@@ -19,11 +19,12 @@ from vispy.color import Color
 from vispy.scene.visuals import Rectangle
 
 GRAY = "#666"
+WHITE = Color("white")
+GREEN = Color("#0ba322")
 RESET = "Auto Reset View"
+SNAP = "Auto Snap on double click"
 POLL = "Poll XY Stage Movements"
 POLL_INTERVAL = 250
-W = Color("white")
-G = Color("green")
 
 
 class StageRecorder(QWidget):
@@ -42,6 +43,7 @@ class StageRecorder(QWidget):
         self._visited_positions: list[tuple[float, float]] = []
         self._fov_max: tuple[float, float] = (0, 0)
         self._auto_reset: bool = True
+        self._snap: bool = False
 
         self._poll_timer = QTimer()
         self._poll_timer.setInterval(POLL_INTERVAL)
@@ -89,12 +91,15 @@ class StageRecorder(QWidget):
         self._settings_btn.setMenu(menu)
         # create actions for checkboxes
         auto_reset_act = QAction(RESET, self, checkable=True, checked=True)
+        self.auto_snap_act = QAction(SNAP, self, checkable=True)
         self.poll_act = QAction(POLL, self, checkable=True)
         # add actions to the menu
         menu.addAction(auto_reset_act)
+        menu.addAction(self.auto_snap_act)
         menu.addAction(self.poll_act)
         # add actions to the checkboxes
         auto_reset_act.triggered.connect(self._on_setting_checked)
+        self.auto_snap_act.triggered.connect(self._on_setting_checked)
         self.poll_act.triggered.connect(self._on_setting_checked)
 
         # add to main layout
@@ -126,6 +131,8 @@ class StageRecorder(QWidget):
         sender = cast(QAction, self.sender()).text()
         if sender == RESET:
             self._auto_reset = checked
+        elif sender == SNAP:
+            self._snap = checked
         elif sender == POLL:
             self._toggle_poll_timer(checked)
 
@@ -145,12 +152,12 @@ class StageRecorder(QWidget):
         if not self._mmc.getCameraDevice():
             return
 
-        if not self._mmc.isSequenceRunning():
+        if self._snap and not self._mmc.isSequenceRunning():
             self._mmc.snapImage()
 
     def _toggle_poll_timer(self, on: bool) -> None:
         if not on:
-            self._delete_scene_items(G)
+            self._delete_scene_items(GREEN)
 
         if not self._mmc.getXYStageDevice():
             self._poll_timer.stop()
@@ -164,9 +171,9 @@ class StageRecorder(QWidget):
         # get current position
         x, y = self._mmc.getXPosition(), self._mmc.getYPosition()
         # delete the previous preview rectangle
-        self._delete_scene_items(G)
+        self._delete_scene_items(GREEN)
         # draw the fov around the position
-        self._draw_fov(x, y, G)
+        self._draw_fov(x, y, GREEN)
         if self._auto_reset:
             self.reset_view()
 
@@ -185,7 +192,7 @@ class StageRecorder(QWidget):
     def _on_image_snapped(self) -> None:
         """Update the scene with the current position."""
         # delete the previous preview rectangle if any
-        self._delete_scene_items(G)
+        self._delete_scene_items(GREEN)
 
         # if the mda is running, we will use the frameReady event to update the scene
         if self._mmc.mda.is_running():
@@ -207,7 +214,7 @@ class StageRecorder(QWidget):
         self._visited_positions.append((x, y))
 
         # draw the fov around the position
-        self._draw_fov(x, y, W)
+        self._draw_fov(x, y, WHITE)
 
         # reset the view if the auto reset checkbox is checked
         if self._auto_reset:
@@ -218,9 +225,11 @@ class StageRecorder(QWidget):
         if not self._mmc.getCameraDevice():
             return
         # draw the position as a fov around the (x, y) position coordinates
-        width = self._mmc.getImageWidth() * self._mmc.getPixelSizeUm()
-        height = self._mmc.getImageHeight() * self._mmc.getPixelSizeUm()
-        fov = Rectangle(center=(x, y), width=width, height=height, border_color=color)
+        w, h = self._get_image_size()
+        b_width = 3 if color == GREEN else 1
+        fov = Rectangle(
+            center=(x, y), width=w, height=h, border_color=color, border_width=b_width
+        )
         self.view.add(fov)
 
     def _get_edges_from_visited_points(
@@ -243,14 +252,19 @@ class StageRecorder(QWidget):
         The max size is stored in self._fov_max so that if during the session the image
         size changes, the max fov will be updated and the view will be properly reset.
         """
-        img_width = self._mmc.getImageWidth() * self._mmc.getPixelSizeUm()
-        img_height = self._mmc.getImageHeight() * self._mmc.getPixelSizeUm()
+        img_width, img_height = self._get_image_size()
 
         current_width_max, current_height_max = self._fov_max
         self._fov_max = (
             max(img_width, current_width_max),
             max(img_height, current_height_max),
         )
+
+    def _get_image_size(self) -> tuple[float, float]:
+        """Get the image size in pixel from the camera."""
+        img_width = self._mmc.getImageWidth() * self._mmc.getPixelSizeUm()
+        img_height = self._mmc.getImageHeight() * self._mmc.getPixelSizeUm()
+        return img_width, img_height
 
     def _delete_scene_items(self, color: Color | None = None) -> None:
         """Delete all items of a given class from the scene.
@@ -304,3 +318,10 @@ class StageRecorder(QWidget):
             y_max = max(y_max, y + (preview.height / 2))
 
         self.view.camera.set_range(x=(x_min, x_max), y=(y_min, y_max))
+
+    def _get_preview_rect(self) -> Rectangle | None:  # sourcery skip: use-next
+        """Get the preview rectangle from the scene."""
+        for child in self.view.scene.children:
+            if isinstance(child, Rectangle) and child.border_color == GREEN:
+                return child
+        return None
