@@ -116,6 +116,11 @@ class StageTracker(QWidget):
 
         self._on_sys_config_loaded()
 
+    def value(self) -> list[tuple[float, float]]:
+        """Return the visited positions."""
+        # return a copy of the list considering the SCALE_FACTOR
+        return self._visited_positions
+
     def _on_sys_config_loaded(self) -> None:
         self.poll_act.setEnabled(bool(self._mmc.getXYStageDevice()))
         self.poll_act.setChecked(bool(self._mmc.getXYStageDevice()))
