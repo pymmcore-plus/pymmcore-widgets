@@ -191,8 +191,8 @@ class StageTracker(QWidget):
 
     def _on_frame_ready(self, image: np.ndarray, event: MDAEvent) -> None:
         """Update the scene with the position from an MDA acquisition."""
-        x = event.x_pos or self._mmc.getXPosition()
-        y = event.y_pos or self._mmc.getYPosition()
+        x = event.x_pos if event.x_pos is not None else self._mmc.getXPosition()
+        y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
         self._update_scene(x, y)
 
     def _on_image_snapped(self) -> None:

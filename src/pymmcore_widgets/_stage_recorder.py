@@ -267,8 +267,8 @@ class StageRecorder(QWidget):
         self._update_scene_with_image(image, x / SCALE_FACTOR, y / SCALE_FACTOR)
 
     def _on_frame_ready(self, image: np.ndarray, event: MDAEvent) -> None:
-        x = event.x_pos or self._mmc.getXPosition()
-        y = event.y_pos or self._mmc.getYPosition()
+        x = event.x_pos if event.x_pos is not None else self._mmc.getXPosition()
+        y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
         self._update_scene_with_image(image, x / SCALE_FACTOR, y / SCALE_FACTOR)
 
     def _get_edges_from_visited_points(
