@@ -309,7 +309,7 @@ class _MDAControlButtons(QWidget):
 
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.cancel_btn.setIcon(icon(MDI6.stop_circle_outline, color="magenta"))
+        self.cancel_btn.setIcon(icon(MDI6.stop_circle_outline, color="#C33"))
         self.cancel_btn.setIconSize(icon_size)
         self.cancel_btn.hide()
 
