@@ -265,6 +265,30 @@ class StageRecorder(QWidget):
         elif sender == POLL:
             self._toggle_poll_timer(checked)
 
+    def _on_mouse_double_click(self, event: Any) -> None:
+        """Move the stage to the mouse position.
+
+        If the autosnap checkbox is checked, also snap an image.
+        """
+        # if the mda is running, return
+        if self._mmc.mda.is_running():
+            return
+
+        # if is the first position the scene is used, do not move the stage and just
+        # snap an image
+        if self._visited_positions:
+            # Get mouse position in camera coordinates
+            x, y, _, _ = self.view.camera.transform.imap(event.pos)
+            self._mmc.setXYPosition(x * SCALE_FACTOR, y * SCALE_FACTOR)
+
+        if not self._mmc.getCameraDevice():
+            self._auto_snap_act.setChecked(False)
+            self._snap = False
+            return
+
+        if self._snap and not self._mmc.isSequenceRunning():
+            self._mmc.snapImage()
+
     def _toggle_poll_timer(self, on: bool) -> None:
         if not on:
             self._delete_preview()
@@ -317,29 +341,6 @@ class StageRecorder(QWidget):
                 return child
         return None
 
-    def _on_mouse_double_click(self, event: Any) -> None:
-        """Move the stage to the mouse position.
-
-        If the autosnap checkbox is checked, also snap an image.
-        """
-        # if the mda is running, return
-        if self._mmc.mda.is_running():
-            return
-
-        # if is the first position the scene is used, do not move the stage and just
-        # snap an image
-        if self._visited_positions:
-            # Get mouse position in camera coordinates
-            x, y, _, _ = self.view.camera.transform.imap(event.pos)
-            self._mmc.setXYPosition(x * SCALE_FACTOR, y * SCALE_FACTOR)
-
-        if not self._mmc.getCameraDevice():
-            self._auto_snap_act.setChecked(False)
-            return
-
-        if self._snap and not self._mmc.isSequenceRunning():
-            self._mmc.snapImage()
-
     def _set_max_fov(self) -> None:
         """Set the max fov based on the image size.
 
@@ -353,26 +354,6 @@ class StageRecorder(QWidget):
             max(img_width, current_width_max),
             max(img_height, current_height_max),
         )
-
-    def _on_image_snapped(self) -> None:
-        """Update the scene with the current position."""
-        # delete the previous preview rectangle if any
-        self._delete_preview()
-        # if the mda is running, we will use the frameReady event to update the scene
-        if self._mmc.mda.is_running():
-            return
-
-        # get snapped image
-        image = self._mmc.getImage()
-        # get current position
-        x, y = self._mmc.getXPosition(), self._mmc.getYPosition()
-        # update the scene with the image
-        self._update_scene_with_image(image, x / SCALE_FACTOR, y / SCALE_FACTOR)
-
-    def _on_frame_ready(self, image: np.ndarray, event: MDAEvent) -> None:
-        x = event.x_pos if event.x_pos is not None else self._mmc.getXPosition()
-        y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
-        self._update_scene_with_image(image, x / SCALE_FACTOR, y / SCALE_FACTOR)
 
     def _get_edges_from_visited_points(
         self,
@@ -388,17 +369,31 @@ class StageRecorder(QWidget):
             (y_min - self._fov_max[1], y_max + self._fov_max[1]),
         )
 
-    def _delete_images(self) -> None:
-        """Delete all images from the scene."""
-        for child in reversed(self.view.scene.children):
-            if isinstance(child, Image):
-                child.parent = None
-
     def _get_image_size(self) -> tuple[float, float]:
         """Get the image size in pixel from the camera."""
         img_width = self._mmc.getImageWidth() * self._mmc.getPixelSizeUm()
         img_height = self._mmc.getImageHeight() * self._mmc.getPixelSizeUm()
         return img_width / SCALE_FACTOR, img_height / SCALE_FACTOR
+
+    def _on_frame_ready(self, image: np.ndarray, event: MDAEvent) -> None:
+        x = event.x_pos if event.x_pos is not None else self._mmc.getXPosition()
+        y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
+        self._update_scene_with_image(image, x / SCALE_FACTOR, y / SCALE_FACTOR)
+
+    def _on_image_snapped(self) -> None:
+        """Update the scene with the current position."""
+        # delete the previous preview rectangle if any
+        self._delete_preview()
+        # if the mda is running, we will use the frameReady event to update the scene
+        if self._mmc.mda.is_running():
+            return
+
+        # get snapped image
+        image = self._mmc.getImage()
+        # get current position
+        x, y = self._mmc.getXPosition(), self._mmc.getYPosition()
+        # update the scene with the image
+        self._update_scene_with_image(image, x / SCALE_FACTOR, y / SCALE_FACTOR)
 
     def _update_scene_with_image(self, image: np.ndarray, x: float, y: float) -> None:
         # return if the position is already visited
@@ -442,3 +437,9 @@ class StageRecorder(QWidget):
 
         if self._auto_reset:
             self.reset_view()
+
+    def _delete_images(self) -> None:
+        """Delete all images from the scene."""
+        for child in reversed(self.view.scene.children):
+            if isinstance(child, Image):
+                child.parent = None

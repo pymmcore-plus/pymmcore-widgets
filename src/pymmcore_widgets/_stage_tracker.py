@@ -164,6 +164,7 @@ class StageTracker(QWidget):
     def reset_view(self) -> None:
         """Set the camera range to fit all the visited positions."""
         preview = self._get_preview_rect()
+
         if not self._visited_positions and not preview:
             self.view.camera.set_range()
             return
@@ -222,7 +223,10 @@ class StageTracker(QWidget):
             self._toggle_poll_timer(checked)
 
     def _on_mouse_double_click(self, event: Any) -> None:
-        """Move the stage to the mouse position."""
+        """Move the stage to the mouse position.
+
+        If the autosnap checkbox is checked, also snap an image.
+        """
         # if the mda is running, return
         if self._mmc.mda.is_running():
             return
@@ -235,6 +239,8 @@ class StageTracker(QWidget):
             self._mmc.setXYPosition(x, y)
 
         if not self._mmc.getCameraDevice():
+            self._auto_snap_act.setChecked(False)
+            self._snap = False
             return
 
         if self._snap and not self._mmc.isSequenceRunning():
@@ -251,8 +257,14 @@ class StageTracker(QWidget):
 
         self._poll_timer.start() if on else self._poll_timer.stop()
 
+    def _on_stage_position_changed(self) -> None:
+        """Update the scene with the current position."""
+        if self._mmc.mda.is_running():
+            return
+        self._update_preview()
+
     def _update_preview(self) -> None:
-        """Draw the preview rectangle position."""
+        """Update the preview rectangle position."""
         # get current position
         x, y = self._mmc.getXPosition(), self._mmc.getYPosition()
         # delete the previous preview rectangle
@@ -262,11 +274,69 @@ class StageTracker(QWidget):
         if self._auto_reset:
             self.reset_view()
 
-    def _on_stage_position_changed(self) -> None:
-        """Update the scene with the current position."""
-        if self._mmc.mda.is_running():
+    def _draw_fov(self, x: float, y: float, color: Color) -> None:
+        """Draw a the position on the canvas."""
+        if not self._mmc.getCameraDevice():
             return
-        self._update_preview()
+        # draw the position as a fov around the (x, y) position coordinates
+        w, h = self._get_image_size()
+        b_width = 4 if color == GREEN else 1
+        fov = Rectangle(
+            center=(x, y), width=w, height=h, border_color=color, border_width=b_width
+        )
+        self.view.add(fov)
+
+    def _delete_scene_items(self, color: Color | None = None) -> None:
+        """Delete all items of a given class from the scene.
+
+        If color is specified, only the items with the given color will be deleted.
+        """
+        for child in reversed(self.view.scene.children):
+            if isinstance(child, Rectangle) and (
+                color is None or child.border_color == color
+            ):
+                child.parent = None
+
+    def _get_preview_rect(self) -> Rectangle | None:  # sourcery skip: use-next
+        """Get the preview rectangle from the scene."""
+        for child in self.view.scene.children:
+            if isinstance(child, Rectangle) and child.border_color == GREEN:
+                return child
+        return None
+
+    def _set_max_fov(self) -> None:
+        """Set the max fov based on the image size.
+
+        The max size is stored in self._fov_max so that if during the session the image
+        size changes, the max fov will be updated and the view will be properly reset.
+        """
+        img_width, img_height = self._get_image_size()
+
+        current_width_max, current_height_max = self._fov_max
+        self._fov_max = (
+            max(img_width, current_width_max),
+            max(img_height, current_height_max),
+        )
+
+    def _get_edges_from_visited_points(
+        self,
+    ) -> tuple[tuple[float, float], tuple[float, float]]:
+        """Get the edges of the visited positions."""
+        x = [pos[0] for pos in self._visited_positions]
+        y = [pos[1] for pos in self._visited_positions]
+        x_min, x_max = (min(x), max(x))
+        y_min, y_max = (min(y), max(y))
+        # consider the fov size
+        return (
+            (x_min - self._fov_max[0], x_max + self._fov_max[0]),
+            (y_min - self._fov_max[1], y_max + self._fov_max[1]),
+        )
+
+    def _get_image_size(self) -> tuple[float, float]:
+        """Get the image size in pixel from the camera."""
+        img_width = self._mmc.getImageWidth() * self._mmc.getPixelSizeUm()
+        img_height = self._mmc.getImageHeight() * self._mmc.getPixelSizeUm()
+        return img_width, img_height
 
     def _on_frame_ready(self, image: np.ndarray, event: MDAEvent) -> None:
         """Update the scene with the position from an MDA acquisition."""
@@ -304,67 +374,3 @@ class StageTracker(QWidget):
         # reset the view if the auto reset checkbox is checked
         if self._auto_reset:
             self.reset_view()
-
-    def _draw_fov(self, x: float, y: float, color: Color) -> None:
-        """Draw a the position on the canvas."""
-        if not self._mmc.getCameraDevice():
-            return
-        # draw the position as a fov around the (x, y) position coordinates
-        w, h = self._get_image_size()
-        b_width = 4 if color == GREEN else 1
-        fov = Rectangle(
-            center=(x, y), width=w, height=h, border_color=color, border_width=b_width
-        )
-        self.view.add(fov)
-
-    def _get_edges_from_visited_points(
-        self,
-    ) -> tuple[tuple[float, float], tuple[float, float]]:
-        """Get the edges of the visited positions."""
-        x = [pos[0] for pos in self._visited_positions]
-        y = [pos[1] for pos in self._visited_positions]
-        x_min, x_max = (min(x), max(x))
-        y_min, y_max = (min(y), max(y))
-        # consider the fov size
-        return (
-            (x_min - self._fov_max[0], x_max + self._fov_max[0]),
-            (y_min - self._fov_max[1], y_max + self._fov_max[1]),
-        )
-
-    def _set_max_fov(self) -> None:
-        """Set the max fov based on the image size.
-
-        The max size is stored in self._fov_max so that if during the session the image
-        size changes, the max fov will be updated and the view will be properly reset.
-        """
-        img_width, img_height = self._get_image_size()
-
-        current_width_max, current_height_max = self._fov_max
-        self._fov_max = (
-            max(img_width, current_width_max),
-            max(img_height, current_height_max),
-        )
-
-    def _get_image_size(self) -> tuple[float, float]:
-        """Get the image size in pixel from the camera."""
-        img_width = self._mmc.getImageWidth() * self._mmc.getPixelSizeUm()
-        img_height = self._mmc.getImageHeight() * self._mmc.getPixelSizeUm()
-        return img_width, img_height
-
-    def _delete_scene_items(self, color: Color | None = None) -> None:
-        """Delete all items of a given class from the scene.
-
-        If color is specified, only the items with the given color will be deleted.
-        """
-        for child in reversed(self.view.scene.children):
-            if isinstance(child, Rectangle) and (
-                color is None or child.border_color == color
-            ):
-                child.parent = None
-
-    def _get_preview_rect(self) -> Rectangle | None:  # sourcery skip: use-next
-        """Get the preview rectangle from the scene."""
-        for child in self.view.scene.children:
-            if isinstance(child, Rectangle) and child.border_color == GREEN:
-                return child
-        return None
