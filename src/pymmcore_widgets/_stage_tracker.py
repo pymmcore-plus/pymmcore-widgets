@@ -141,12 +141,12 @@ class StageTracker(QWidget):
         self._auto_snap_act.setChecked(value)
 
     @property
-    def poll(self) -> bool:
+    def poll_xy_stage(self) -> bool:
         """Return the poll setting."""
         return bool(self._poll_timer.isActive())
 
-    @poll.setter
-    def poll(self, value: bool) -> None:
+    @poll_xy_stage.setter
+    def poll_xy_stage(self, value: bool) -> None:
         """Set the poll setting."""
         self._toggle_poll_timer(value)
         self._poll_act.setChecked(value)
