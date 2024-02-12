@@ -72,18 +72,18 @@ class StageRecorder(QWidget):
         toolbar.setMovable(False)
 
         # reset view action
-        self.act_reset_view = QAction(
+        self._act_reset_view = QAction(
             icon(MDI6.home_outline, color=GRAY), "Reset View", self
         )
-        self.act_reset_view.triggered.connect(self.reset_view)
-        toolbar.addAction(self.act_reset_view)
+        self._act_reset_view.triggered.connect(self.reset_view)
+        toolbar.addAction(self._act_reset_view)
 
         # clear action
-        self.act_clear = QAction(
+        self._act_clear = QAction(
             icon(MDI6.close_box_outline, color=GRAY), "Clear View", self
         )
-        self.act_clear.triggered.connect(self.clear_view)
-        toolbar.addAction(self.act_clear)
+        self._act_clear.triggered.connect(self.clear_view)
+        toolbar.addAction(self._act_clear)
 
         # settings button and context menu
         # create settings button
@@ -97,23 +97,23 @@ class StageRecorder(QWidget):
         # connect the menu to the button click
         self._settings_btn.setMenu(menu)
         # create actions for checkboxes
-        auto_reset_act = QAction(RESET, self, checkable=True, checked=True)
-        self.auto_snap_act = QAction(SNAP, self, checkable=True)
-        flip_h_act = QAction(FLIP_H, self, checkable=True)
-        flip_v_act = QAction(FLIP_V, self, checkable=True)
-        self.poll_act = QAction(POLL, self, checkable=True)
+        self._auto_reset_act = QAction(RESET, self, checkable=True, checked=True)
+        self._auto_snap_act = QAction(SNAP, self, checkable=True)
+        self._flip_h_act = QAction(FLIP_H, self, checkable=True)
+        self._flip_v_act = QAction(FLIP_V, self, checkable=True)
+        self._poll_act = QAction(POLL, self, checkable=True)
         # add actions to the menu
-        menu.addAction(auto_reset_act)
-        menu.addAction(self.auto_snap_act)
-        menu.addAction(flip_h_act)
-        menu.addAction(flip_v_act)
-        menu.addAction(self.poll_act)
+        menu.addAction(self._auto_reset_act)
+        menu.addAction(self._auto_snap_act)
+        menu.addAction(self._flip_h_act)
+        menu.addAction(self._flip_v_act)
+        menu.addAction(self._poll_act)
         # add actions to the checkboxes
-        auto_reset_act.triggered.connect(self._on_setting_checked)
-        self.auto_snap_act.triggered.connect(self._on_setting_checked)
-        flip_h_act.triggered.connect(self._on_setting_checked)
-        flip_v_act.triggered.connect(self._on_setting_checked)
-        self.poll_act.triggered.connect(self._on_setting_checked)
+        self._auto_reset_act.triggered.connect(self._on_setting_checked)
+        self._auto_snap_act.triggered.connect(self._on_setting_checked)
+        self._flip_h_act.triggered.connect(self._on_setting_checked)
+        self._flip_v_act.triggered.connect(self._on_setting_checked)
+        self._poll_act.triggered.connect(self._on_setting_checked)
 
         # add to main layout
         main_layout.addWidget(toolbar)
@@ -128,6 +128,107 @@ class StageRecorder(QWidget):
 
         self._on_sys_config_loaded()
 
+    # __________________________PUBLIC METHODS__________________________
+
+    @property
+    def auto_reset(self) -> bool:
+        """Return the auto reset setting."""
+        return self._auto_reset
+
+    @auto_reset.setter
+    def auto_reset(self, value: bool) -> None:
+        """Set the auto reset setting."""
+        self._auto_reset = value
+        self._auto_reset_act.setChecked(value)
+
+    @property
+    def auto_snap(self) -> bool:
+        """Return the auto snap setting."""
+        return self._snap
+
+    @auto_snap.setter
+    def auto_snap(self, value: bool) -> None:
+        """Set the auto snap setting."""
+        self._snap = value
+        self._auto_snap_act.setChecked(value)
+
+    @property
+    def flip_h(self) -> bool:
+        """Return the flip horizontally setting."""
+        return self._flip_h
+
+    @flip_h.setter
+    def flip_h(self, value: bool) -> None:
+        """Set the flip horizontally setting."""
+        self._flip_h = value
+        self._flip_h_act.setChecked(value)
+
+    @property
+    def flip_v(self) -> bool:
+        """Return the flip vertically setting."""
+        return self._flip_v
+
+    @flip_v.setter
+    def flip_v(self, value: bool) -> None:
+        """Set the flip vertically setting."""
+        self._flip_v = value
+        self._flip_v_act.setChecked(value)
+
+    @property
+    def poll(self) -> bool:
+        """Return the poll setting."""
+        return bool(self._poll_timer.isActive())
+
+    @poll.setter
+    def poll(self, value: bool) -> None:
+        """Set the poll setting."""
+        self._toggle_poll_timer(value)
+        self._poll_act.setChecked(value)
+
+    def clear_view(self) -> None:
+        """Clear the scene and the visited positions."""
+        # clear visited position list
+        self._visited_positions.clear()
+        # clear scene
+        self._delete_images()
+        self._delete_preview()
+        # reset view
+        if self._auto_reset:
+            self.reset_view()
+
+    def reset_view(self) -> None:
+        """Set the camera range to fit all the visited positions."""
+        preview = self._get_preview_rect()
+
+        if not self._visited_positions and not preview:
+            self.view.camera.set_range()
+            return
+
+        # if only the preview is present, set the range to the preview position
+        if not self._visited_positions and preview is not None:
+            # get preview center position
+            (x, y) = preview.center
+            self.view.camera.set_range(
+                x=(x - (preview.width / 2), x + (preview.width / 2)),
+                y=(y - (preview.height / 2), y + (preview.height / 2)),
+            )
+            return
+
+        # get the edges from all the visited positions
+        (x_min, x_max), (y_min, y_max) = self._get_edges_from_visited_points()
+
+        # if there is a preview rectangle, also consider its positio to set the range
+        if preview is not None:
+            # get preview position
+            x, y = preview.center
+            # compare the preview position with the edges
+            x_min = min(x_min, x - (preview.width / 2))
+            x_max = max(x_max, x + (preview.width / 2))
+            y_min = min(y_min, y - (preview.height / 2))
+            y_max = max(y_max, y + (preview.height / 2))
+
+        self.view.camera.set_range(x=(x_min, x_max), y=(y_min, y_max))
+
     def value(self) -> list[tuple[float, float]]:
         """Return the visited positions."""
         # return a copy of the list considering the SCALE_FACTOR
@@ -135,10 +236,12 @@ class StageRecorder(QWidget):
             (x * SCALE_FACTOR, y * SCALE_FACTOR) for x, y in self._visited_positions
         ]
 
+    # __________________________PRIVATE METHODS__________________________
+
     def _on_sys_config_loaded(self) -> None:
-        self.auto_snap_act.setEnabled(bool(self._mmc.getCameraDevice()))
-        self.poll_act.setEnabled(bool(self._mmc.getXYStageDevice()))
-        self.poll_act.setChecked(bool(self._mmc.getXYStageDevice()))
+        self._auto_snap_act.setEnabled(bool(self._mmc.getCameraDevice()))
+        self._poll_act.setEnabled(bool(self._mmc.getXYStageDevice()))
+        self._poll_act.setChecked(bool(self._mmc.getXYStageDevice()))
         self._toggle_poll_timer(bool(self._mmc.getXYStageDevice()))
 
     def _on_property_changed(self, device: str, property: str, value: str) -> None:
@@ -168,7 +271,7 @@ class StageRecorder(QWidget):
 
         if not self._mmc.getXYStageDevice():
             self._poll_timer.stop()
-            self.poll_act.setChecked(False)
+            self._poll_act.setChecked(False)
             return
 
         self._poll_timer.start() if on else self._poll_timer.stop()
@@ -231,7 +334,7 @@ class StageRecorder(QWidget):
             self._mmc.setXYPosition(x * SCALE_FACTOR, y * SCALE_FACTOR)
 
         if not self._mmc.getCameraDevice():
-            self.auto_snap_act.setChecked(False)
+            self._auto_snap_act.setChecked(False)
             return
 
         if self._snap and not self._mmc.isSequenceRunning():
@@ -290,50 +393,6 @@ class StageRecorder(QWidget):
         for child in reversed(self.view.scene.children):
             if isinstance(child, Image):
                 child.parent = None
-
-    def clear_view(self) -> None:
-        """Clear the scene and the visited positions."""
-        # clear visited position list
-        self._visited_positions.clear()
-        # clear scene
-        self._delete_images()
-        self._delete_preview()
-        # reset view
-        if self._auto_reset:
-            self.reset_view()
-
-    def reset_view(self) -> None:
-        """Set the camera range to fit all the visited positions."""
-        preview = self._get_preview_rect()
-
-        if not self._visited_positions and not preview:
-            self.view.camera.set_range()
-            return
-
-        # if only the preview is present, set the range to the preview position
-        if not self._visited_positions and preview is not None:
-            # get preview center position
-            (x, y) = preview.center
-            self.view.camera.set_range(
-                x=(x - (preview.width / 2), x + (preview.width / 2)),
-                y=(y - (preview.height / 2), y + (preview.height / 2)),
-            )
-            return
-
-        # get the edges from all the visited positions
-        (x_min, x_max), (y_min, y_max) = self._get_edges_from_visited_points()
-
-        # if there is a preview rectangle, also consider its positio to set the range
-        if preview is not None:
-            # get preview position
-            x, y = preview.center
-            # compare the preview position with the edges
-            x_min = min(x_min, x - (preview.width / 2))
-            x_max = max(x_max, x + (preview.width / 2))
-            y_min = min(y_min, y - (preview.height / 2))
-            y_max = max(y_max, y + (preview.height / 2))
-
-        self.view.camera.set_range(x=(x_min, x_max), y=(y_min, y_max))
 
     def _get_image_size(self) -> tuple[float, float]:
         """Get the image size in pixel from the camera."""
