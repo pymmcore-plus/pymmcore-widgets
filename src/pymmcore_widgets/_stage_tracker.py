@@ -111,6 +111,8 @@ class StageTracker(QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
+        self._mmc.mda.events.sequenceStarted.connect(self._on_sequence_starded)
+        self._mmc.mda.events.sequenceFinished.connect(self._on_sequence_ended)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
         self.canvas.events.mouse_double_click.connect(self._on_mouse_double_click)
 
@@ -337,6 +339,15 @@ class StageTracker(QWidget):
         img_width = self._mmc.getImageWidth() * self._mmc.getPixelSizeUm()
         img_height = self._mmc.getImageHeight() * self._mmc.getPixelSizeUm()
         return img_width, img_height
+
+    def _on_sequence_starded(self) -> None:
+        if self._poll_timer.isActive():
+            self._poll_timer.stop()
+            self._delete_scene_items(GREEN)
+
+    def _on_sequence_ended(self) -> None:
+        if self._poll_act.isChecked():
+            self._poll_timer.start()
 
     def _on_frame_ready(self, image: np.ndarray, event: MDAEvent) -> None:
         """Update the scene with the position from an MDA acquisition."""
