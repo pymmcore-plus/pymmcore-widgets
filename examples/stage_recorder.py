@@ -3,10 +3,10 @@
 import useq
 from pymmcore_plus import CMMCorePlus
 
-from pymmcore_widgets._stage_recorder import StageRecorder
-
+# from pymmcore_widgets._stage_recorder import StageRecorder
+# from pymmcore_widgets._stage_tracker import StageTracker
 # from pymmcore_widgets import PropertyBrowser, MDAWidget, GroupPresetTableWidget
-from pymmcore_widgets._stage_tracker import StageTracker
+from pymmcore_widgets._stage_recorder_deque import StageRecorder
 
 mmc = CMMCorePlus().instance()
 cfg = r"c:\Users\NIC\Desktop\mm\Ti2.cfg"
@@ -18,8 +18,8 @@ mmc.loadSystemConfiguration()
 rec = StageRecorder()
 rec.show()
 
-track = StageTracker()
-track.show()
+# track = StageTracker()
+# track.show()
 
 # gp = GroupPresetTableWidget()
 # gp.show()
