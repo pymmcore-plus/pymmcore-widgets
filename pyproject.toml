@@ -83,6 +83,7 @@ docs = [
     "mkdocstrings-python",
     "mkdocs-literate-nav",
     "mkdocs-gen-files",
+    "mkdocs-section-index",
     "mkdocs-video",
 ]
 
