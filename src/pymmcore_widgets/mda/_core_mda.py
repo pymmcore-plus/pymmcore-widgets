@@ -69,9 +69,12 @@ class CoreMDATabs(MDATabs):
 
 
 class MDAWidget(MDASequenceWidget):
-    """[MDASequenceWidget](../MDASequenceWidget#) connected to a [`pymmcore_plus.CMMCorePlus`][] instance.
+    """Main MDA Widget connected to a [`pymmcore_plus.CMMCorePlus`][] instance.
 
-    It provides a GUI to construct and run a [`useq.MDASequence`][].
+    It provides a GUI to construct and run a [`useq.MDASequence`][].  Unlike
+    [`useq_widgets.MDASequenceWidget`][pymmcore_widgets.MDASequenceWidget], this
+    widget is connected to a [`pymmcore_plus.CMMCorePlus`][] instance, enabling
+    awareness and control of the current state of the microscope.
 
     Parameters
     ----------

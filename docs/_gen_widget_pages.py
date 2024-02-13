@@ -3,6 +3,7 @@ from pathlib import Path
 from textwrap import dedent
 
 import mkdocs_gen_files
+from pymmcore_plus.core import _mmcore_plus
 
 WIDGET_LIST = Path(__file__).parent / "widget_list.json"
 WIDGETS = Path(__file__).parent / "widgets"
@@ -54,12 +55,14 @@ def _example_screenshot(cls_name: str, dest: str) -> None:
     # remove all classes that are Qframe or QMenu
     new = [w for w in new if w.__class__.__name__ not in ["QFrame", "QMenu"]]
     SEEN.update(id(w) for w in new)
-    if not new:
-        return
-    widget = next((w for w in new if w.__class__.__name__ == cls_name), new[0])
-    widget.setMinimumWidth(300)  # turns out this is very important for grab
-    widget.grab().save(dest)
+    if new:
+        widget = next((w for w in new if w.__class__.__name__ == cls_name), new[0])
+        widget.setMinimumWidth(300)  # turns out this is very important for grab
+        widget.grab().save(dest)
 
+    # clean up core instance and application
+    del _mmcore_plus._instance
+    _mmcore_plus._instance = None
     for w in app.topLevelWidgets():
         w.deleteLater()
 
