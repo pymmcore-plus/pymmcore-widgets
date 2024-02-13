@@ -251,6 +251,7 @@ class _SaveGroupBox(QGroupBox):
         self.save_name.setPlaceholderText("Enter Experiment Name")
 
         browse_btn = QPushButton(text="...")
+        browse_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         browse_btn.clicked.connect(self._on_browse_clicked)
 
         grid = QGridLayout(self)
