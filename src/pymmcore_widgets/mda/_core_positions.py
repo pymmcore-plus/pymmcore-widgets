@@ -231,6 +231,7 @@ class CoreConnectedPositionTable(PositionTable):
                     table_af_offset if table_af_offset is not None else af_offset
                 )
                 try:
+                    self._mmc.enableContinuousFocus(False)
                     self._perform_autofocus()
                     self._mmc.enableContinuousFocus(af_locked)
                 except RuntimeError as e:
