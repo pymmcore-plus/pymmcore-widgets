@@ -71,14 +71,14 @@ class ZPlanWidget(QWidget):
         # ------------------- actions ----------
 
         self._mode_top_bot = QAction(
-            icon(MDI6.arrow_expand_vertical), "Mark top and bottom."
+            icon(MDI6.arrow_expand_vertical, scale_factor=1), "Mark top and bottom."
         )
         self._mode_top_bot.setCheckable(True)
         self._mode_top_bot.setData(Mode.TOP_BOTTOM)
         self._mode_top_bot.triggered.connect(self.setMode)
 
         self._mode_range = QAction(
-            icon(MDI6.arrow_split_horizontal),
+            icon(MDI6.arrow_split_horizontal, scale_factor=1),
             "Range symmetric around reference.",
         )
         self._mode_range.setCheckable(True)
@@ -86,7 +86,7 @@ class ZPlanWidget(QWidget):
         self._mode_range.triggered.connect(self.setMode)
 
         self._mode_above_below = QAction(
-            icon(MDI6.arrow_expand_up),
+            icon(MDI6.arrow_expand_up, scale_factor=1),
             "Range asymmetrically above/below reference.",
         )
         self._mode_above_below.setCheckable(True)
