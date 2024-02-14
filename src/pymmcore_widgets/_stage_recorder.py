@@ -243,8 +243,6 @@ class StageRecorder(QWidget):
     def _on_sys_config_loaded(self) -> None:
         self._auto_snap_act.setEnabled(bool(self._mmc.getCameraDevice()))
         self._poll_act.setEnabled(bool(self._mmc.getXYStageDevice()))
-        self._poll_act.setChecked(bool(self._mmc.getXYStageDevice()))
-        self._toggle_poll_timer(bool(self._mmc.getXYStageDevice()))
 
     def _on_property_changed(self, device: str, property: str, value: str) -> None:
         if device != "Core" or property not in {"Camera", "XYStage"}:
