@@ -254,7 +254,11 @@ class KeepShutterOpen(QWidget):
 
 
 class MDASequenceWidget(QWidget):
-    """A widget that provides a GUI to construct and edit a [`useq.MDASequence`][]."""
+    """A widget that provides a GUI to construct and edit a [`useq.MDASequence`][].
+
+    This widget requires no connection to a microscope or core instance.  It strictly
+    deals with loading and creating `useq-schema` [`useq.MDASequence`][] objects.
+    """
 
     valueChanged = Signal()
 
