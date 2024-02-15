@@ -328,6 +328,10 @@ class _SaveGroupBox(QGroupBox):
 
     def _on_toggle(self, checked: bool) -> None:
         """Emit valueChanged signal when a save format checkbox is toggled."""
+        # if none between ome-zarr, ome-tiff, and tiff-sequence is checked, check
+        # ome-zarr
+        if not self._get_checkboxes_state():
+            self.omezarr_checkbox.setChecked(True)
         self.valueChanged.emit()
 
     def _get_checkboxes_state(
