@@ -272,7 +272,7 @@ class _SaveGroupBox(QGroupBox):
         save_format_wdg = QWidget()
         save_format_layout = QHBoxLayout(save_format_wdg)
         save_format_layout.setContentsMargins(0, 0, 0, 0)
-        save_format_layout.setSpacing(20)
+        save_format_layout.setSpacing(10)
         label = QLabel("Save as:")
         label.setFixedSize(dir_label.sizeHint())
         self.omezarr_checkbox = QCheckBox("ome-zarr")
