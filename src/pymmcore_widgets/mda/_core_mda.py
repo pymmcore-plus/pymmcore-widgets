@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
+from pymmcore_plus.mda.handlers import (  # type: ignore
+    ImageSequenceWriter,
+    OMETiffWriter,
+    OMEZarrWriter,
+)
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QBoxLayout,
@@ -44,6 +50,7 @@ if TYPE_CHECKING:
 ZARR = "ome-zarr"
 TIFF = "ome-tiff"
 TIFF_SEQUENCE = "tiff-sequence"
+DEFAULT = "Experiment"
 
 
 class CoreMDATabs(MDATabs):
@@ -204,9 +211,27 @@ class MDAWidget(MDASequenceWidget):
         ):
             return
 
+        sequence = self.value()
+
+        # get saving info from the metadata
+        metadata = sequence.metadata.get("pymmcore_widgets", None)
+        save_dir = metadata.get("save_dir") if metadata else None
+        save_name = metadata.get("save_name") if metadata else DEFAULT
+        save_as = metadata.get("save_as") if metadata else []
+
+        # create the writers
+        writers: list = []
+        if save_dir:
+            path = Path(save_dir)
+            if ZARR in save_as:
+                writers.append(OMEZarrWriter(store=path / f"{save_name}.zarr"))
+            if TIFF in save_as:
+                writers.append(OMETiffWriter(path / f"{save_name}.tif"))
+            if TIFF_SEQUENCE in save_as:
+                writers.append(ImageSequenceWriter(path / f"{save_name}"))
+
         # run the MDA experiment asynchronously
-        self._mmc.run_mda(self.value())
-        return
+        self._mmc.run_mda(sequence, output=writers or None)  # type: ignore
 
     def _confirm_af_intentions(self) -> bool:
         msg = (
