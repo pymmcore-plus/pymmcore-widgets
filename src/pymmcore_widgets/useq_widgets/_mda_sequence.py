@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import cast
 
 import useq
-from qtpy.QtCore import Signal
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -177,7 +177,7 @@ class AutofocusAxis(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        lbl = QLabel("Use Autofocus on Axis:")
+        lbl = QLabel("Use Hardware Autofocus on Axis:")
         self.use_af_p = QCheckBox("p")
         self.use_af_t = QCheckBox("t")
         self.use_af_g = QCheckBox("g")
@@ -297,8 +297,10 @@ class MDASequenceWidget(QWidget):
         self._duration_label.setWordWrap(True)
 
         self._save_button = QPushButton("Save")
+        self._save_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._save_button.clicked.connect(self.save)
         self._load_button = QPushButton("Load")
+        self._load_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._load_button.clicked.connect(self.load)
 
         # -------------- Main Layout --------------
