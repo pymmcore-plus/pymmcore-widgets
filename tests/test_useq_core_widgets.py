@@ -517,3 +517,47 @@ def test_enable_core_tab(qtbot: QtBot):
     assert not all(cbox.isEnabled() for cbox in mda_tabs._cboxes)
     # the the tabs content is enabled
     assert not wdgs_enabled(mda_tabs)
+
+
+def test_relative_z_with_no_include_z(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    MDA = useq.MDASequence(
+        channels=[{"config": "DAPI", "exposure": 1}],
+        stage_positions=[(1, 2, 3), (4, 5, 6)],
+        z_plan=useq.ZRangeAround(go_up=True, range=2.0, step=1.0),
+    )
+    wdg.setValue(MDA)
+
+    wdg._mmc.setZPosition(30)
+    wdg._mmc.waitForSystem()
+
+    assert wdg.stage_positions.include_z.isChecked()
+    assert wdg.value().stage_positions[0].z == 3
+    assert wdg.value().stage_positions[1].z == 6
+
+    wdg.stage_positions.include_z.setChecked(False)
+    assert not wdg.stage_positions.include_z.isChecked()
+    assert wdg.value().stage_positions[0].z == 30
+    assert wdg.value().stage_positions[1].z == 30
+
+
+def test_mda_no_pos_set(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    global_mmcore.setXYPosition(10, 20)
+    global_mmcore.setZPosition(30)
+
+    MDA = useq.MDASequence(channels=[{"config": "DAPI", "exposure": 1}])
+    wdg.setValue(MDA)
+
+    assert wdg.value().stage_positions
+    assert round(wdg.value().stage_positions[0].x) == 10
+    assert round(wdg.value().stage_positions[0].y) == 20
+    assert round(wdg.value().stage_positions[0].z) == 30
+
+    assert "p" in wdg.value().axis_order

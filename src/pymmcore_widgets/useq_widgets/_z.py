@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Final, Literal, cast
 import useq
 from fonticon_mdi6 import MDI6
 from qtpy.QtCore import Qt, Signal
+from qtpy.QtGui import QPainter, QPaintEvent, QPen
 from qtpy.QtWidgets import (
     QButtonGroup,
     QDoubleSpinBox,
@@ -66,19 +67,18 @@ class ZPlanWidget(QWidget):
         self._suggested: float | None = None
 
         # #################### Mode Buttons ####################
-        color = "#363636"
 
         # ------------------- actions ----------
 
         self._mode_top_bot = QAction(
-            icon(MDI6.arrow_expand_vertical, color=color), "Mark top and bottom."
+            icon(MDI6.arrow_expand_vertical, scale_factor=1), "Mark top and bottom."
         )
         self._mode_top_bot.setCheckable(True)
         self._mode_top_bot.setData(Mode.TOP_BOTTOM)
         self._mode_top_bot.triggered.connect(self.setMode)
 
         self._mode_range = QAction(
-            icon(MDI6.arrow_split_horizontal, color=color),
+            icon(MDI6.arrow_split_horizontal, scale_factor=1),
             "Range symmetric around reference.",
         )
         self._mode_range.setCheckable(True)
@@ -86,7 +86,7 @@ class ZPlanWidget(QWidget):
         self._mode_range.triggered.connect(self.setMode)
 
         self._mode_above_below = QAction(
-            icon(MDI6.arrow_expand_up, color=color),
+            icon(MDI6.arrow_expand_up, scale_factor=1),
             "Range asymmetrically above/below reference.",
         )
         self._mode_above_below.setCheckable(True)
@@ -261,6 +261,7 @@ class ZPlanWidget(QWidget):
 
         layout = QVBoxLayout(self)
         layout.addLayout(btn_layout)
+        layout.addWidget(_SeparatorWidget())
         layout.addLayout(self._grid_layout)
         layout.addStretch()
         layout.addLayout(below_grid)
@@ -448,3 +449,14 @@ class ZPlanWidget(QWidget):
         for col in range(grid.columnCount()):
             if (item := grid.itemAtPosition(idx, col)) and (wdg := item.widget()):
                 wdg.setVisible(visible)
+
+
+class _SeparatorWidget(QWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setFixedHeight(1)
+
+    def paintEvent(self, a0: QPaintEvent | None) -> None:
+        painter = QPainter(self)
+        painter.setPen(QPen(Qt.GlobalColor.gray, 1, Qt.PenStyle.SolidLine))
+        painter.drawLine(self.rect().topLeft(), self.rect().topRight())

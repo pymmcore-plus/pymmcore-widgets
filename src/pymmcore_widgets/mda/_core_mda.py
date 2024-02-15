@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Signal
+from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QBoxLayout,
     QFileDialog,
@@ -16,6 +16,7 @@ from qtpy.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QWidget,
 )
 from superqt.fonticon import icon
@@ -129,20 +130,37 @@ class MDAWidget(MDASequenceWidget):
         val = super().value()
         replace: dict = {}
 
-        # if the z plan is relative, and there are no stage positions, add the current
-        # stage position as the relative starting one.
-        # Note: this is not the final solution, it shiud be better to move this in
-        # pymmcore-plus runner but only after we introduce a concept of a "relative
-        # position" in useq.MDAEvent. At the moment, since the pymmcore-plus runner is
-        # not aware of the core, we cannot move it there.
-        if val.z_plan and val.z_plan.is_relative and not val.stage_positions:
-            replace["stage_positions"] = (self._get_current_stage_position(),)
+        # if the z plan is relative and there are stage positions but the 'include z' is
+        # unchecked, use the current z stage position as the relative starting one.
+        if (
+            val.z_plan
+            and val.z_plan.is_relative
+            and (val.stage_positions and not self.stage_positions.include_z.isChecked())
+        ):
+            z = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
+            replace["stage_positions"] = tuple(
+                pos.replace(z=z) for pos in val.stage_positions
+            )
 
         # if there is an autofocus_plan but the autofocus_motor_offset is None, set it
         # to the current value
         if (afplan := val.autofocus_plan) and afplan.autofocus_motor_offset is None:
             p2 = afplan.replace(autofocus_motor_offset=self._mmc.getAutoFocusOffset())
             replace["autofocus_plan"] = p2
+
+        # if there are no stage positions, use the current stage position
+        if not val.stage_positions:
+            replace["stage_positions"] = (self._get_current_stage_position(),)
+            # if "p" is not in the axis order, we need to add it or the position will
+            # not be in the event
+            if "p" not in val.axis_order:
+                axis_order = list(val.axis_order)
+                # add the "p" axis at the beginning or after the "t" as the default
+                if "t" in axis_order:
+                    axis_order.insert(axis_order.index("t") + 1, "p")
+                else:
+                    axis_order.insert(0, "p")
+                replace["axis_order"] = tuple(axis_order)
 
         if replace:
             val = val.replace(**replace)
@@ -237,6 +255,8 @@ class _SaveGroupBox(QGroupBox):
         self.save_name.setPlaceholderText("Enter Experiment Name")
 
         browse_btn = QPushButton(text="...")
+        browse_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        browse_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         browse_btn.clicked.connect(self._on_browse_clicked)
 
         grid = QGridLayout(self)
@@ -283,16 +303,19 @@ class _MDAControlButtons(QWidget):
 
         icon_size = QSize(24, 24)
         self.run_btn = QPushButton("Run")
+        self.run_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.run_btn.setIcon(icon(MDI6.play_circle_outline, color="lime"))
         self.run_btn.setIconSize(icon_size)
 
         self.pause_btn = QPushButton("Pause")
+        self.pause_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.pause_btn.setIcon(icon(MDI6.pause_circle_outline, color="green"))
         self.pause_btn.setIconSize(icon_size)
         self.pause_btn.hide()
 
         self.cancel_btn = QPushButton("Cancel")
-        self.cancel_btn.setIcon(icon(MDI6.stop_circle_outline, color="magenta"))
+        self.cancel_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.cancel_btn.setIcon(icon(MDI6.stop_circle_outline, color="#C33"))
         self.cancel_btn.setIconSize(icon_size)
         self.cancel_btn.hide()
 

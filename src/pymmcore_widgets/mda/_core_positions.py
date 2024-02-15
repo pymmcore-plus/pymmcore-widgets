@@ -203,8 +203,8 @@ class CoreConnectedPositionTable(PositionTable):
             data = self.table().rowData(row, exclude_hidden_cols=True)
 
             # check if autofocus is locked before moving
-            af_locked = self._mmc.isContinuousFocusLocked()
-            af_offset = self._mmc.getAutoFocusOffset() if af_locked else None
+            af_engaged = self._mmc.isContinuousFocusLocked()
+            af_offset = self._mmc.getAutoFocusOffset() if af_engaged else None
 
             if self._mmc.getXYStageDevice():
                 x = data.get(self.X.key, self._mmc.getXPosition())
@@ -231,8 +231,10 @@ class CoreConnectedPositionTable(PositionTable):
                     table_af_offset if table_af_offset is not None else af_offset
                 )
                 try:
+                    self._mmc.enableContinuousFocus(False)
                     self._perform_autofocus()
-                    self._mmc.enableContinuousFocus(af_locked)
+                    self._mmc.enableContinuousFocus(af_engaged)
+                    self._mmc.waitForSystem()
                 except RuntimeError as e:
                     logger.warning("Hardware autofocus failed. %s", e)
 
