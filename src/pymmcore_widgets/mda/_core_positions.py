@@ -232,19 +232,19 @@ class CoreConnectedPositionTable(PositionTable):
                 )
                 try:
                     self._mmc.enableContinuousFocus(False)
-                    self._perform_autofocus(af_engaged)
+                    self._perform_autofocus()
+                    self._mmc.enableContinuousFocus(af_engaged)
+                    self._mmc.waitForSystem()
                 except RuntimeError as e:
                     logger.warning("Hardware autofocus failed. %s", e)
 
             self._mmc.waitForSystem()
 
-    def _perform_autofocus(self, af_engaged: bool) -> None:
+    def _perform_autofocus(self) -> None:
         # run autofocus (run 3 times in case it fails)
         @retry(exceptions=RuntimeError, tries=3, logger=logger.warning)
         def _perform_full_focus() -> None:
             self._mmc.fullFocus()
-            self._mmc.waitForSystem()
-            self._mmc.enableContinuousFocus(af_engaged)
             self._mmc.waitForSystem()
 
         self._mmc.waitForSystem()
