@@ -1,5 +1,26 @@
 # Changelog
 
+## [v0.6.1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.6.1) (2024-02-15)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.6.0...v0.6.1)
+
+**Fixed bugs:**
+
+- fix: update few MDAWidget issues [\#274](https://github.com/pymmcore-plus/pymmcore-widgets/pull/274) ([fdrgsp](https://github.com/fdrgsp))
+- fix: choose to update ImagePreview when mda is running [\#273](https://github.com/pymmcore-plus/pymmcore-widgets/pull/273) ([fdrgsp](https://github.com/fdrgsp))
+- fix: better handle enabling and disabling MDAWidget [\#267](https://github.com/pymmcore-plus/pymmcore-widgets/pull/267) ([fdrgsp](https://github.com/fdrgsp))
+- fix: fix bugs in  ChannelTable [\#265](https://github.com/pymmcore-plus/pymmcore-widgets/pull/265) ([fdrgsp](https://github.com/fdrgsp))
+
+**Merged pull requests:**
+
+- docs: bunch of documentations fixes [\#278](https://github.com/pymmcore-plus/pymmcore-widgets/pull/278) ([tlambert03](https://github.com/tlambert03))
+- docs: fix docs not grabbing widget png correctly [\#277](https://github.com/pymmcore-plus/pymmcore-widgets/pull/277) ([fdrgsp](https://github.com/fdrgsp))
+- ci\(dependabot\): bump codecov/codecov-action from 3 to 4 [\#276](https://github.com/pymmcore-plus/pymmcore-widgets/pull/276) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump codecov/codecov-action from 3 to 4 [\#275](https://github.com/pymmcore-plus/pymmcore-widgets/pull/275) ([dependabot[bot]](https://github.com/apps/dependabot))
+- test: fix test logging warning [\#270](https://github.com/pymmcore-plus/pymmcore-widgets/pull/270) ([tlambert03](https://github.com/tlambert03))
+- docs: use .mp4 + mkdocs-video [\#269](https://github.com/pymmcore-plus/pymmcore-widgets/pull/269) ([fdrgsp](https://github.com/fdrgsp))
+- refactor: relax expectations of imageSnapped callback [\#266](https://github.com/pymmcore-plus/pymmcore-widgets/pull/266) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.6.0](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.6.0) (2024-01-24)
 
 [Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.5.7...v0.6.0)
