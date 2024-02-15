@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QBoxLayout,
+    QCheckBox,
     QFileDialog,
     QGridLayout,
     QGroupBox,
@@ -37,6 +38,12 @@ if TYPE_CHECKING:
     class SaveInfo(TypedDict):
         save_dir: str
         save_name: str
+        save_as: list[Literal["ome-zarr", "ome-tiff", "tiff-sequence"]]
+
+
+ZARR = "ome-zarr"
+TIFF = "ome-tiff"
+TIFF_SEQUENCE = "tiff-sequence"
 
 
 class CoreMDATabs(MDATabs):
@@ -249,6 +256,9 @@ class _SaveGroupBox(QGroupBox):
         self.setCheckable(True)
         self.setChecked(False)
 
+        dir_label = QLabel("Directory:")
+        name_label = QLabel("Name:")
+
         self.save_dir = QLineEdit()
         self.save_dir.setPlaceholderText("Select Save Directory")
         self.save_name = QLineEdit()
@@ -259,29 +269,73 @@ class _SaveGroupBox(QGroupBox):
         browse_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         browse_btn.clicked.connect(self._on_browse_clicked)
 
+        save_format_wdg = QWidget()
+        save_format_layout = QHBoxLayout(save_format_wdg)
+        save_format_layout.setContentsMargins(0, 0, 0, 0)
+        save_format_layout.setSpacing(20)
+        label = QLabel("Save as:")
+        label.setFixedSize(dir_label.sizeHint())
+        self.omezarr_checkbox = QCheckBox("ome-zarr")
+        self.omezarr_checkbox.setChecked(True)
+        self.ometiff_checkbox = QCheckBox("ome-tiff")
+        self.tiffsequence_checkbox = QCheckBox("tiff-sequence")
+        save_format_layout.addWidget(label)
+        save_format_layout.addWidget(self.omezarr_checkbox)
+        save_format_layout.addWidget(self.ometiff_checkbox)
+        save_format_layout.addWidget(self.tiffsequence_checkbox)
+        save_format_layout.addStretch()
+
         grid = QGridLayout(self)
-        grid.addWidget(QLabel("Directory:"), 0, 0)
+        grid.addWidget(dir_label, 0, 0)
         grid.addWidget(self.save_dir, 0, 1)
         grid.addWidget(browse_btn, 0, 2)
-        grid.addWidget(QLabel("Name:"), 1, 0)
+        grid.addWidget(name_label, 1, 0)
         grid.addWidget(self.save_name, 1, 1)
+        grid.addWidget(save_format_wdg, 2, 0, 1, 2)
 
         # connect
         self.toggled.connect(self.valueChanged)
         self.save_dir.textChanged.connect(self.valueChanged)
         self.save_name.textChanged.connect(self.valueChanged)
+        self.omezarr_checkbox.toggled.connect(self._on_toggle)
+        self.ometiff_checkbox.toggled.connect(self._on_toggle)
+        self.tiffsequence_checkbox.toggled.connect(self._on_toggle)
+
+    def _on_toggle(self, checked: bool) -> None:
+        """Emit valueChanged signal when a save format checkbox is toggled."""
+        self.valueChanged.emit()
+
+    def _get_checkboxes_state(
+        self,
+    ) -> list[Literal["ome-zarr", "ome-tiff", "tiff-sequence"]]:
+        """Return the state of the save format checkboxes."""
+        state: list = []
+
+        if not self.isChecked():
+            return state
+
+        cb = (self.omezarr_checkbox, self.ometiff_checkbox, self.tiffsequence_checkbox)
+        state.extend(checkbox.text() for checkbox in cb if checkbox.isChecked())
+        return state
 
     def value(self) -> SaveInfo:
         """Return current state of the dialog."""
         return {
-            "save_dir": self.save_dir.text(),
+            "save_dir": self.save_dir.text() if self.isChecked() else "",
             "save_name": self.save_name.text() or "Experiment",
+            "save_as": self._get_checkboxes_state(),
         }
 
     def setValue(self, value: SaveInfo | dict) -> None:
-        self.save_dir.setText(value.get("save_dir", ""))
-        self.save_name.setText(value.get("save_name", ""))
-        self.setChecked(value.get("should_save", False))
+        save_dir = value.get("save_dir", "")
+        save_name = value.get("save_name", "")
+        self.save_dir.setText(save_dir)
+        self.save_name.setText(save_name)
+        if save_as := value.get("save_as", []):
+            self.omezarr_checkbox.setChecked(ZARR in save_as)
+            self.ometiff_checkbox.setChecked(TIFF in save_as)
+            self.tiffsequence_checkbox.setChecked(TIFF_SEQUENCE in save_as)
+        self.setChecked(bool(save_dir and save_as))
 
     def _on_browse_clicked(self) -> None:
         if save_dir := QFileDialog.getExistingDirectory(

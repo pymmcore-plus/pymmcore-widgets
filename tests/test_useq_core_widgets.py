@@ -561,3 +561,34 @@ def test_mda_no_pos_set(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert round(wdg.value().stage_positions[0].z) == 30
 
     assert "p" in wdg.value().axis_order
+
+
+def test_mda_save_groupbox(qtbot: QtBot):
+    mda = MDAWidget()
+    qtbot.addWidget(mda)
+
+    assert not mda.save_info.isChecked()
+    assert mda.save_info.value() == {
+        "save_dir": "",
+        "save_name": "Experiment",
+        "save_as": [],
+    }
+
+    seq = useq.MDASequence(
+        metadata={
+            "pymmcore_widgets": {
+                "save_dir": "test_dir",
+                "save_name": "test_name",
+                "save_as": ["ome-zarr", "ome-tiff", "tiff-sequence"],
+            }
+        }
+    )
+
+    mda.setValue(seq)
+
+    assert mda.save_info.isChecked()
+    assert mda.save_info.value() == seq.metadata["pymmcore_widgets"]
+
+    seq = useq.MDASequence(metadata={"pymmcore_widgets": {}})
+    mda.setValue(seq)
+    assert not mda.save_info.isChecked()
