@@ -373,12 +373,14 @@ class _SaveGroupBox(QGroupBox):
         save_name = value.get("save_name", "")
         self.save_dir.setText(save_dir)
         self.save_name.setText(save_name)
-        if extension := value.get("extension"):
-            _id = "-".join(extension.split(".")[-2:])
+        if extension := value.get("extension", ""):
+            _id = "-".join(extension.split(".")[-2:])  # e.g. ".ome.tif" -> "ome-tif"
             for btn in self._save_btn_group.buttons():
                 if btn.text() == _id:
                     btn.setChecked(True)
                     break
+        else:
+            self.tiffsequence_radio.setChecked(True)
         self.setChecked(bool(save_dir))
         self._update_save_name_text()
 

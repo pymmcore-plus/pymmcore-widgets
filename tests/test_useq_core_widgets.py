@@ -601,6 +601,25 @@ def test_mda_save_groupbox(qtbot: QtBot):
     assert not mda.save_info.isChecked()
 
 
+def test_mda_save_groupbox_tif_sequence(qtbot: QtBot):
+    mda = MDAWidget()
+    qtbot.addWidget(mda)
+
+    seq = useq.MDASequence(
+        metadata={
+            "pymmcore_widgets": {
+                "save_dir": "test_dir",
+                "save_name": "test_name",
+                "extension": "",
+            }
+        }
+    )
+    mda.setValue(seq)
+    assert mda.save_info.isChecked()
+    assert mda.save_info.save_name.text() == "test_name"
+    assert mda.save_info.tiffsequence_radio.isChecked()
+
+
 def test_mda_save_groupbox_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mda = MDAWidget(mmcore=global_mmcore)
     qtbot.addWidget(mda)
