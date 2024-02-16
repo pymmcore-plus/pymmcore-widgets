@@ -123,8 +123,8 @@ def ensure_unique(path: Path | str, extension: str = ".tif", ndigits: int = 3) -
         path = Path(path)
 
     # If the file or directory does not exist, return the original path
-    if not path.exists():
-        return path
+    if not path.with_suffix(extension).exists():
+        return path.parent / f"{path.stem}{extension}"
 
     p = path
     stem = p.stem
@@ -132,11 +132,11 @@ def ensure_unique(path: Path | str, extension: str = ".tif", ndigits: int = 3) -
     cur_num = stem.rsplit("_")[-1]
     if cur_num.isdigit() and len(cur_num) == ndigits:
         stem = stem[: -ndigits - 1]
-        current_max = int(cur_num) - 1
+        current_max = int(cur_num)
     else:
-        current_max = -1
+        current_max = 0
 
-    # # find the highest existing path (if dir)
+    # find the highest existing path (if dir)
     paths = (
         p.parent.glob(f"*{extension}")
         if extension
@@ -144,6 +144,8 @@ def ensure_unique(path: Path | str, extension: str = ".tif", ndigits: int = 3) -
     )
     for fn in paths:
         try:
+            if extension in str(fn):
+                fn = Path(str(fn).replace(extension, ""))
             current_max = max(current_max, int(fn.stem.rsplit("_")[-1]))
         except ValueError:
             continue
@@ -162,25 +164,32 @@ def get_next_available_path(path: Path | str, extension: str, ndigits: int = 3) 
         path = Path(path)
 
     stem = path.stem
-    current_max = -1
 
     # check if provided path already has an ndigit number in it
     cur_num = stem.rsplit("_")[-1]
     if cur_num.isdigit() and len(cur_num) == ndigits:
         stem = stem[: -ndigits - 1]
         current_max = int(cur_num)
+    else:
+        current_max = 0
 
     # find the highest existing path
     paths = path.parent.glob(f"{stem}_*{extension}")
     for fn in paths:
         try:
+            if extension in str(fn):
+                fn = Path(str(fn).replace(extension, ""))
             current_max = max(current_max, int(fn.stem.rsplit("_")[-1]))
         except ValueError:
             continue
 
-    # increment current_max
-    current_max += 1
-
     # build new path name
-    number = f"_{current_max:0{ndigits}d}"
-    return path.parent / f"{stem}{number}{extension}"
+    number = f"_{current_max+1:0{ndigits}d}"
+    new_path = path.parent / f"{stem}{number}{extension}"
+
+    # continue to increment the number until an available path is found
+    while new_path.exists():
+        number = f"_{current_max+1:0{ndigits}d}"
+        new_path = path.parent / f"{stem}{number}{extension}"
+
+    return new_path
