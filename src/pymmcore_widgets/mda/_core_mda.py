@@ -6,11 +6,6 @@ from typing import TYPE_CHECKING, Literal, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from pymmcore_plus.mda.handlers import (  # type: ignore
-    ImageSequenceWriter,
-    OMETiffWriter,
-    OMEZarrWriter,
-)
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QBoxLayout,
@@ -219,19 +214,19 @@ class MDAWidget(MDASequenceWidget):
         save_name = metadata.get("save_name") if metadata else DEFAULT
         save_as = metadata.get("save_as") if metadata else []
 
-        # create the writers
-        writers: list = []
+        # create the writers path
+        writer_path = []
         if save_dir:
             path = Path(save_dir)
             if ZARR in save_as:
-                writers.append(OMEZarrWriter(store=path / f"{save_name}.zarr"))
+                writer_path.append(path / f"{save_name}.zarr")
             if TIFF in save_as:
-                writers.append(OMETiffWriter(path / f"{save_name}.tif"))
+                writer_path.append(path / f"{save_name}.tif")
             if TIFF_SEQUENCE in save_as:
-                writers.append(ImageSequenceWriter(path / f"{save_name}"))
+                writer_path.append(path / f"{save_name}")
 
         # run the MDA experiment asynchronously
-        self._mmc.run_mda(sequence, output=writers or None)  # type: ignore
+        self._mmc.run_mda(sequence, output=writer_path or None)  # type: ignore
 
     def _confirm_af_intentions(self) -> bool:
         msg = (
@@ -328,10 +323,6 @@ class _SaveGroupBox(QGroupBox):
 
     def _on_toggle(self, checked: bool) -> None:
         """Emit valueChanged signal when a save format checkbox is toggled."""
-        # if none between ome-zarr, ome-tiff, and tiff-sequence is checked, check
-        # ome-zarr
-        if not self._get_checkboxes_state():
-            self.omezarr_checkbox.setChecked(True)
         self.valueChanged.emit()
 
     def _get_checkboxes_state(
