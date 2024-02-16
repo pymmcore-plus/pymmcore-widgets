@@ -632,7 +632,7 @@ def test_mda_save_groupbox_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
         seq = useq.MDASequence(
             metadata={
                 "pymmcore_widgets": {
-                    "save_dir": "test_dir",
+                    "save_dir": str(Path(__file__).parent),
                     "save_name": "test_name",
                     "save_as": "ome-zarr",
                 },
