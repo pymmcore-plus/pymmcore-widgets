@@ -591,6 +591,12 @@ def test_mda_save_groupbox(qtbot: QtBot):
     assert mda.save_info.save_name.text() == "test_name.ome.zarr"
     assert mda.save_info.value() == seq.metadata["pymmcore_widgets"]
 
+    mda.save_info.tiffsequence_radio.toggle()
+    assert mda.save_info.save_name.text() == "test_name"
+
+    mda.save_info.ometiff_radio.toggle()
+    assert mda.save_info.save_name.text() == "test_name.ome.tif"
+
     seq = useq.MDASequence(metadata={"pymmcore_widgets": {}})
     mda.setValue(seq)
     assert not mda.save_info.isChecked()
