@@ -41,26 +41,20 @@ if TYPE_CHECKING:
     class SaveInfo(TypedDict):
         save_dir: str
         save_name: str
-        save_as: Literal["ome-zarr", "ome-tiff", "tiff-sequence"] | None
+        extension: Literal[".ome.zarr", ".ome.tif", ""]
 
 
 DEFAULT = "Experiment"
 
 
 class SaveAs(NamedTuple):
-    id: Literal["ome-zarr", "ome-tiff", "tiff-sequence"]
-    extension: Literal[".ome.zarr", ".ome.tif", ""]
+    id: str
+    extension: str
 
 
 ZARR = SaveAs("ome-zarr", ".ome.zarr")
-TIFF = SaveAs("ome-tiff", ".ome.tif")
+TIFF = SaveAs("ome-tif", ".ome.tif")
 TIFF_SEQUENCE = SaveAs("tiff-sequence", "")
-
-SAVE_AS: dict[str, SaveAs] = {
-    ZARR.id: ZARR,
-    TIFF.id: TIFF,
-    TIFF_SEQUENCE.id: TIFF_SEQUENCE,
-}
 
 
 class CoreMDATabs(MDATabs):
@@ -227,12 +221,11 @@ class MDAWidget(MDASequenceWidget):
         metadata = sequence.metadata.get("pymmcore_widgets", None)
         save_dir = metadata.get("save_dir") if metadata else None
         save_name = metadata.get("save_name") if metadata else DEFAULT
-        save_as = metadata.get("save_as") if metadata else None
+        extension = metadata.get("extension") if metadata else None
 
         # create the writers path and make sure they are unique
         writer_path = None
-        if save_dir and save_as is not None:
-            extension = SAVE_AS[save_as].extension
+        if save_dir and extension is not None:
             path = Path(save_dir) / f"{save_name}"
             writer_path = ensure_unique(path, extension)
             self._update_save_name_text(path, extension)
@@ -326,6 +319,11 @@ class _SaveGroupBox(QGroupBox):
         self._save_btn_group.addButton(self.omezarr_radio)
         self._save_btn_group.addButton(self.ometiff_radio)
         self._save_btn_group.addButton(self.tiffsequence_radio)
+        self.EXTENSION: dict[str, str] = {
+            ZARR.id: ZARR.extension,
+            TIFF.id: TIFF.extension,
+            TIFF_SEQUENCE.id: TIFF_SEQUENCE.extension,
+        }
         self._save_btn_group.buttonToggled.connect(self._update_save_name_text)
 
         grid = QGridLayout(self)
@@ -349,40 +347,43 @@ class _SaveGroupBox(QGroupBox):
         """Update the save_name text with the correct extension."""
         if not self.save_name.text():
             return
-        save_as = self._get_save_as()
-        current_name = Path(self.save_name.text().replace(save_as.extension, "")).stem
-        self.save_name.setText(f"{current_name}{save_as.extension}")
+        extension = self._get_extension()
+        current_name = Path(self.save_name.text().replace(extension, "")).stem
+        self.save_name.setText(f"{current_name}{extension}")
         self.valueChanged.emit()
 
-    def _get_save_as(self) -> SaveAs:
+    def _get_extension(self) -> str:
         """Return the selected save as name."""
         for btn in self._save_btn_group.buttons():
             if btn.isChecked():
-                return SAVE_AS[btn.text()]
+                return self.EXTENSION[btn.text()]
         raise ValueError("No save as button is checked.")  # pragma: no cover
 
     def value(self) -> SaveInfo:
         """Return current state of the dialog."""
-        save_as = self._get_save_as()
-        return {
-            "save_dir": self.save_dir.text() if self.isChecked() else "",
-            "save_as": save_as.id,
-            # remove the extension if it exists
-            "save_name": self.save_name.text().replace(save_as.extension, "")
-            or DEFAULT,
-        }
+        extension = self._get_extension()
+        return cast(
+            SaveInfo,
+            {
+                "save_dir": self.save_dir.text() if self.isChecked() else "",
+                "save_name": self.save_name.text().replace(extension, "") or DEFAULT,
+                "extension": extension,
+            },
+        )
 
     def setValue(self, value: SaveInfo | dict) -> None:
+        """Set the current state of the save GroupBox."""
         save_dir = value.get("save_dir", "")
         save_name = value.get("save_name", "")
         self.save_dir.setText(save_dir)
         self.save_name.setText(save_name)
-        if save_as := value.get("save_as"):
-            self.omezarr_radio.setChecked(save_as == ZARR.id)
-            self.ometiff_radio.setChecked(save_as == TIFF.id)
-            self.tiffsequence_radio.setChecked(save_as == TIFF_SEQUENCE.id)
-
-        self.setChecked(bool(save_dir and save_as is not None))
+        if extension := value.get("extension"):
+            _id = "-".join(extension.split(".")[-2:])
+            for btn in self._save_btn_group.buttons():
+                if btn.text() == _id:
+                    btn.setChecked(True)
+                    break
+        self.setChecked(bool(save_dir))
         self._update_save_name_text()
 
     def _on_browse_clicked(self) -> None:

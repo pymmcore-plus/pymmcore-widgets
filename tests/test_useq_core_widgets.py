@@ -571,7 +571,7 @@ def test_mda_save_groupbox(qtbot: QtBot):
     assert mda.save_info.value() == {
         "save_dir": "",
         "save_name": "Experiment",
-        "save_as": "ome-zarr",
+        "extension": ".ome.zarr",
     }
 
     seq = useq.MDASequence(
@@ -579,23 +579,22 @@ def test_mda_save_groupbox(qtbot: QtBot):
             "pymmcore_widgets": {
                 "save_dir": "test_dir",
                 "save_name": "test_name",
-                "save_as": "ome-zarr",
+                "extension": ".ome.tif",
             }
         }
     )
 
-    with qtbot.waitSignal(mda.save_info.valueChanged):
-        mda.setValue(seq)
+    mda.setValue(seq)
 
     assert mda.save_info.isChecked()
-    assert mda.save_info.save_name.text() == "test_name.ome.zarr"
+    assert mda.save_info.save_name.text() == "test_name.ome.tif"
     assert mda.save_info.value() == seq.metadata["pymmcore_widgets"]
 
     mda.save_info.tiffsequence_radio.toggle()
     assert mda.save_info.save_name.text() == "test_name"
 
-    mda.save_info.ometiff_radio.toggle()
-    assert mda.save_info.save_name.text() == "test_name.ome.tif"
+    mda.save_info.omezarr_radio.toggle()
+    assert mda.save_info.save_name.text() == "test_name.ome.zarr"
 
     seq = useq.MDASequence(metadata={"pymmcore_widgets": {}})
     mda.setValue(seq)
