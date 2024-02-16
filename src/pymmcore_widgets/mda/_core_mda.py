@@ -25,7 +25,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from useq import MDASequence, Position
 
-from pymmcore_widgets._util import ensure_unique
+from pymmcore_widgets._util import ensure_unique, get_next_available_path
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 from pymmcore_widgets.useq_widgets._mda_sequence import MDATabs
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
@@ -224,14 +224,15 @@ class MDAWidget(MDASequenceWidget):
         if save_dir and extension is not None:
             path = Path(save_dir) / f"{save_name}"
             writer_path = ensure_unique(path, extension)
-            self._update_save_name_text(path, extension)
+            self._update_save_name_text(writer_path, extension)
 
         # run the MDA experiment asynchronously
         self._mmc.run_mda(sequence, output=writer_path or None)  # type: ignore
 
-    def _update_save_name_text(self, path: Path, extension: str) -> None:
+    def _update_save_name_text(self, writer_path: Path | str, extension: str) -> None:
         """Update the save_name text with the next available path."""
-        next_path = ensure_unique(path, extension, next=True)
+        path = str(writer_path).replace(extension, "")
+        next_path = get_next_available_path(path, extension)
         self.save_info.save_name.setText(next_path.name)
 
     def _confirm_af_intentions(self) -> bool:

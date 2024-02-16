@@ -640,7 +640,8 @@ def test_mda_save_groupbox_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
             channels=[{"config": "DAPI", "exposure": 1}],
         )
         mda.setValue(seq)
-        assert mda.save_info.isChecked()
+        mda._on_run_clicked()
+        assert mda.save_info.value()["save_name"] == "test_name_000"
 
         mda._on_run_clicked()
         assert mda.save_info.value()["save_name"] == "test_name_001"
