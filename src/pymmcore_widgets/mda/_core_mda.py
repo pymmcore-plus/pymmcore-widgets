@@ -9,6 +9,7 @@ from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QBoxLayout,
+    QButtonGroup,
     QFileDialog,
     QGridLayout,
     QGroupBox,
@@ -47,13 +48,19 @@ DEFAULT = "Experiment"
 
 
 class SaveAs(NamedTuple):
-    name: Literal["ome-zarr", "ome-tiff", "tiff-sequence"]
+    id: Literal["ome-zarr", "ome-tiff", "tiff-sequence"]
     extension: Literal[".ome.zarr", ".ome.tif", ""]
 
 
 ZARR = SaveAs("ome-zarr", ".ome.zarr")
 TIFF = SaveAs("ome-tiff", ".ome.tif")
 TIFF_SEQUENCE = SaveAs("tiff-sequence", "")
+
+SAVE_AS: dict[str, SaveAs] = {
+    ZARR.id: ZARR,
+    TIFF.id: TIFF,
+    TIFF_SEQUENCE.id: TIFF_SEQUENCE,
+}
 
 
 class CoreMDATabs(MDATabs):
@@ -225,23 +232,13 @@ class MDAWidget(MDASequenceWidget):
         # create the writers path and make sure they are unique
         writer_path = None
         if save_dir and save_as is not None:
-            if extension := self._get_extension(save_as):
-                path = Path(save_dir) / f"{save_name}"
-                writer_path = ensure_unique(path, extension)
-                self._update_save_name_text(path, extension)
+            extension = SAVE_AS[save_as].extension
+            path = Path(save_dir) / f"{save_name}"
+            writer_path = ensure_unique(path, extension)
+            self._update_save_name_text(path, extension)
 
         # run the MDA experiment asynchronously
         self._mmc.run_mda(sequence, output=writer_path or None)  # type: ignore
-
-    def _get_extension(self, save_as: str) -> str | None:
-        """Return the file extension from `save_as` TypeDict."""
-        if save_as == ZARR.name:
-            return ZARR.extension
-        elif save_as == TIFF.name:
-            return TIFF.extension
-        elif save_as == TIFF_SEQUENCE.name:
-            return TIFF_SEQUENCE.extension
-        return None
 
     def _update_save_name_text(self, path: Path, extension: str) -> None:
         """Update the save_name text with the next available path."""
@@ -315,15 +312,21 @@ class _SaveGroupBox(QGroupBox):
         save_format_layout.setSpacing(10)
         label = QLabel("Save as:")
         label.setFixedSize(dir_label.sizeHint())
-        self.omezarr_radio = QRadioButton(ZARR.name)
+        self.omezarr_radio = QRadioButton(ZARR.id)
         self.omezarr_radio.setChecked(True)
-        self.ometiff_radio = QRadioButton(TIFF.name)
-        self.tiffsequence_radio = QRadioButton(TIFF_SEQUENCE.name)
+        self.ometiff_radio = QRadioButton(TIFF.id)
+        self.tiffsequence_radio = QRadioButton(TIFF_SEQUENCE.id)
         save_format_layout.addWidget(label)
         save_format_layout.addWidget(self.omezarr_radio)
         save_format_layout.addWidget(self.ometiff_radio)
         save_format_layout.addWidget(self.tiffsequence_radio)
         save_format_layout.addStretch()
+
+        self._save_btn_group = QButtonGroup()
+        self._save_btn_group.addButton(self.omezarr_radio)
+        self._save_btn_group.addButton(self.ometiff_radio)
+        self._save_btn_group.addButton(self.tiffsequence_radio)
+        self._save_btn_group.buttonToggled.connect(self._update_save_name_text)
 
         grid = QGridLayout(self)
         grid.addWidget(dir_label, 0, 0)
@@ -346,37 +349,27 @@ class _SaveGroupBox(QGroupBox):
         """Update the save_name text with the correct extension."""
         if not self.save_name.text():
             return
-
-        save_as = self._get_save_as_state()
-        if save_as is None:
-            return
-
+        save_as = self._get_save_as()
         current_name = Path(self.save_name.text().replace(save_as.extension, "")).stem
         self.save_name.setText(f"{current_name}{save_as.extension}")
         self.valueChanged.emit()
 
-    def _get_save_as_state(self) -> SaveAs | None:
-        """Return which radio button is checked."""
-        if not self.isChecked():
-            return None
-        if self.omezarr_radio.isChecked():
-            return ZARR
-        elif self.ometiff_radio.isChecked():
-            return TIFF
-        elif self.tiffsequence_radio.isChecked():
-            return TIFF_SEQUENCE
-        return None
+    def _get_save_as(self) -> SaveAs:
+        """Return the selected save as name."""
+        for btn in self._save_btn_group.buttons():
+            if btn.isChecked():
+                return SAVE_AS[btn.text()]
+        raise ValueError("No save as button is checked.")  # pragma: no cover
 
     def value(self) -> SaveInfo:
         """Return current state of the dialog."""
-        save_as_state = self._get_save_as_state()
-        save_name = DEFAULT
-        if save_as_state is not None and self.save_name.text():
-            save_name = self.save_name.text().replace(save_as_state.extension, "")
+        save_as = self._get_save_as()
         return {
             "save_dir": self.save_dir.text() if self.isChecked() else "",
-            "save_as": save_as_state.name if save_as_state is not None else None,
-            "save_name": save_name,
+            "save_as": save_as.id,
+            # remove the extension if it exists
+            "save_name": self.save_name.text().replace(save_as.extension, "")
+            or DEFAULT,
         }
 
     def setValue(self, value: SaveInfo | dict) -> None:
@@ -385,9 +378,9 @@ class _SaveGroupBox(QGroupBox):
         self.save_dir.setText(save_dir)
         self.save_name.setText(save_name)
         if save_as := value.get("save_as"):
-            self.omezarr_radio.setChecked(save_as == ZARR.name)
-            self.ometiff_radio.setChecked(save_as == TIFF.name)
-            self.tiffsequence_radio.setChecked(save_as == TIFF_SEQUENCE.name)
+            self.omezarr_radio.setChecked(save_as == ZARR.id)
+            self.ometiff_radio.setChecked(save_as == TIFF.id)
+            self.tiffsequence_radio.setChecked(save_as == TIFF_SEQUENCE.id)
 
         self.setChecked(bool(save_dir and save_as is not None))
         self._update_save_name_text()

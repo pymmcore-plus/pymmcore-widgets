@@ -571,7 +571,7 @@ def test_mda_save_groupbox(qtbot: QtBot):
     assert mda.save_info.value() == {
         "save_dir": "",
         "save_name": "Experiment",
-        "save_as": None,
+        "save_as": "ome-zarr",
     }
 
     seq = useq.MDASequence(
