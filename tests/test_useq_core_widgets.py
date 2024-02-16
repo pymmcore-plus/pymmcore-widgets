@@ -571,7 +571,7 @@ def test_mda_save_groupbox(qtbot: QtBot):
     assert mda.save_info.value() == {
         "save_dir": "",
         "save_name": "Experiment",
-        "save_as": [],
+        "save_as": None,
     }
 
     seq = useq.MDASequence(
@@ -579,7 +579,7 @@ def test_mda_save_groupbox(qtbot: QtBot):
             "pymmcore_widgets": {
                 "save_dir": "test_dir",
                 "save_name": "test_name",
-                "save_as": ["ome-zarr", "ome-tiff", "tiff-sequence"],
+                "save_as": "ome-zarr",
             }
         }
     )

@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Literal, NamedTuple, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QBoxLayout,
-    QCheckBox,
     QFileDialog,
     QGridLayout,
     QGroupBox,
@@ -18,12 +17,14 @@ from qtpy.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QRadioButton,
     QSizePolicy,
     QWidget,
 )
 from superqt.fonticon import icon
 from useq import MDASequence, Position
 
+from pymmcore_widgets._util import ensure_unique
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 from pymmcore_widgets.useq_widgets._mda_sequence import MDATabs
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
@@ -39,13 +40,20 @@ if TYPE_CHECKING:
     class SaveInfo(TypedDict):
         save_dir: str
         save_name: str
-        save_as: list[Literal["ome-zarr", "ome-tiff", "tiff-sequence"]]
+        save_as: Literal["ome-zarr", "ome-tiff", "tiff-sequence"] | None
 
 
-ZARR = "ome-zarr"
-TIFF = "ome-tiff"
-TIFF_SEQUENCE = "tiff-sequence"
 DEFAULT = "Experiment"
+
+
+class SaveAs(NamedTuple):
+    name: Literal["ome-zarr", "ome-tiff", "tiff-sequence"]
+    extension: Literal[".ome.zarr", ".ome.tif", ""]
+
+
+ZARR = SaveAs("ome-zarr", ".ome.zarr")
+TIFF = SaveAs("ome-tiff", ".ome.tif")
+TIFF_SEQUENCE = SaveAs("tiff-sequence", "")
 
 
 class CoreMDATabs(MDATabs):
@@ -212,21 +220,31 @@ class MDAWidget(MDASequenceWidget):
         metadata = sequence.metadata.get("pymmcore_widgets", None)
         save_dir = metadata.get("save_dir") if metadata else None
         save_name = metadata.get("save_name") if metadata else DEFAULT
-        save_as = metadata.get("save_as") if metadata else []
+        save_as = metadata.get("save_as") if metadata else None
 
-        # create the writers path
-        writer_path = []
-        if save_dir:
-            path = Path(save_dir)
-            if ZARR in save_as:
-                writer_path.append(path / f"{save_name}.zarr")
-            if TIFF in save_as:
-                writer_path.append(path / f"{save_name}.tif")
-            if TIFF_SEQUENCE in save_as:
-                writer_path.append(path / f"{save_name}")
+        # create the writers path and make sure they are unique
+        writer_path = None
+        extension = None
+        if save_dir and save_as is not None:
+            if save_as == ZARR.name:
+                extension = ZARR.extension
+            elif save_as == TIFF.name:
+                extension = TIFF.extension
+            elif save_as == TIFF_SEQUENCE.name:
+                extension = TIFF_SEQUENCE.extension
+
+            if extension:
+                path = Path(save_dir) / f"{save_name.replace(extension, '')}"
+                writer_path = ensure_unique(path, extension)
+                self._update_save_name_text(path, extension)
 
         # run the MDA experiment asynchronously
         self._mmc.run_mda(sequence, output=writer_path or None)  # type: ignore
+
+    def _update_save_name_text(self, path: Path, extension: str) -> None:
+        """Update the save_name text with the next available path."""
+        next_path = ensure_unique(path, extension, next=True)
+        self.save_info.save_name.setText(next_path.name)
 
     def _confirm_af_intentions(self) -> bool:
         msg = (
@@ -295,14 +313,14 @@ class _SaveGroupBox(QGroupBox):
         save_format_layout.setSpacing(10)
         label = QLabel("Save as:")
         label.setFixedSize(dir_label.sizeHint())
-        self.omezarr_checkbox = QCheckBox("ome-zarr")
-        self.omezarr_checkbox.setChecked(True)
-        self.ometiff_checkbox = QCheckBox("ome-tiff")
-        self.tiffsequence_checkbox = QCheckBox("tiff-sequence")
+        self.omezarr_radio = QRadioButton(ZARR.name)
+        self.omezarr_radio.setChecked(True)
+        self.ometiff_radio = QRadioButton(TIFF.name)
+        self.tiffsequence_radio = QRadioButton(TIFF_SEQUENCE.name)
         save_format_layout.addWidget(label)
-        save_format_layout.addWidget(self.omezarr_checkbox)
-        save_format_layout.addWidget(self.ometiff_checkbox)
-        save_format_layout.addWidget(self.tiffsequence_checkbox)
+        save_format_layout.addWidget(self.omezarr_radio)
+        save_format_layout.addWidget(self.ometiff_radio)
+        save_format_layout.addWidget(self.tiffsequence_radio)
         save_format_layout.addStretch()
 
         grid = QGridLayout(self)
@@ -317,33 +335,43 @@ class _SaveGroupBox(QGroupBox):
         self.toggled.connect(self.valueChanged)
         self.save_dir.textChanged.connect(self.valueChanged)
         self.save_name.textChanged.connect(self.valueChanged)
-        self.omezarr_checkbox.toggled.connect(self._on_toggle)
-        self.ometiff_checkbox.toggled.connect(self._on_toggle)
-        self.tiffsequence_checkbox.toggled.connect(self._on_toggle)
+        self.save_name.editingFinished.connect(self._update_save_name_text)
+        self.omezarr_radio.toggled.connect(self._update_save_name_text)
+        self.ometiff_radio.toggled.connect(self._update_save_name_text)
+        self.tiffsequence_radio.toggled.connect(self._update_save_name_text)
 
-    def _on_toggle(self, checked: bool) -> None:
-        """Emit valueChanged signal when a save format checkbox is toggled."""
+    def _update_save_name_text(self) -> None:
+        """Update the save_name text with the correct extension."""
+        if not self.save_name.text():
+            return
+
+        save_as = self._get_save_as_state()
+        if save_as is None:
+            return
+
+        current_name = Path(self.save_name.text().replace(save_as.extension, "")).stem
+        self.save_name.setText(f"{current_name}{save_as.extension}")
         self.valueChanged.emit()
 
-    def _get_checkboxes_state(
-        self,
-    ) -> list[Literal["ome-zarr", "ome-tiff", "tiff-sequence"]]:
-        """Return the state of the save format checkboxes."""
-        state: list = []
-
+    def _get_save_as_state(self) -> SaveAs | None:
+        """Return which radio button is checked."""
         if not self.isChecked():
-            return state
-
-        cb = (self.omezarr_checkbox, self.ometiff_checkbox, self.tiffsequence_checkbox)
-        state.extend(checkbox.text() for checkbox in cb if checkbox.isChecked())
-        return state
+            return None
+        if self.omezarr_radio.isChecked():
+            return ZARR
+        elif self.ometiff_radio.isChecked():
+            return TIFF
+        elif self.tiffsequence_radio.isChecked():
+            return TIFF_SEQUENCE
+        return None
 
     def value(self) -> SaveInfo:
         """Return current state of the dialog."""
+        save_as_state = self._get_save_as_state()
         return {
             "save_dir": self.save_dir.text() if self.isChecked() else "",
             "save_name": self.save_name.text() or "Experiment",
-            "save_as": self._get_checkboxes_state(),
+            "save_as": save_as_state.name if save_as_state is not None else None,
         }
 
     def setValue(self, value: SaveInfo | dict) -> None:
@@ -351,11 +379,11 @@ class _SaveGroupBox(QGroupBox):
         save_name = value.get("save_name", "")
         self.save_dir.setText(save_dir)
         self.save_name.setText(save_name)
-        if save_as := value.get("save_as", []):
-            self.omezarr_checkbox.setChecked(ZARR in save_as)
-            self.ometiff_checkbox.setChecked(TIFF in save_as)
-            self.tiffsequence_checkbox.setChecked(TIFF_SEQUENCE in save_as)
-        self.setChecked(bool(save_dir and save_as))
+        if save_as := value.get("save_as"):
+            self.omezarr_radio.setChecked(save_as == ZARR.name)
+            self.ometiff_radio.setChecked(save_as == TIFF.name)
+            self.tiffsequence_radio.setChecked(save_as == TIFF_SEQUENCE.name)
+        self.setChecked(bool(save_dir and save_as is not None))
 
     def _on_browse_clicked(self) -> None:
         if save_dir := QFileDialog.getExistingDirectory(
