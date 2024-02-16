@@ -628,20 +628,23 @@ def test_mda_save_groupbox_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
         return
 
     with patch.object(global_mmcore, "run_mda", _run_mda):
+        path = Path(__file__).parent
+        assert not (path / "test_name.ome.zarr").exists()
 
         seq = useq.MDASequence(
             metadata={
                 "pymmcore_widgets": {
-                    "save_dir": str(Path(__file__).parent),
+                    "save_dir": str(path),
                     "save_name": "test_name",
-                    "save_as": "ome-zarr",
+                    "extension": "ome-zarr",
                 },
             },
             channels=[{"config": "DAPI", "exposure": 1}],
         )
         mda.setValue(seq)
-        mda._on_run_clicked()
-        assert mda.save_info.value()["save_name"] == "test_name_000"
 
         mda._on_run_clicked()
         assert mda.save_info.value()["save_name"] == "test_name_001"
+
+        mda._on_run_clicked()
+        assert mda.save_info.value()["save_name"] == "test_name_002"
