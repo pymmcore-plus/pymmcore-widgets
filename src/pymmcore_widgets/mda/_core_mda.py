@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, NamedTuple, cast
+from typing import Literal, NamedTuple, TypedDict, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
@@ -35,16 +35,11 @@ from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
 
-if TYPE_CHECKING:
-    from typing import TypedDict
 
-    class SaveInfo(TypedDict):
-        save_dir: str
-        save_name: str
-        extension: Literal[".ome.zarr", ".ome.tif", ""]
-
-
-DEFAULT = "Experiment"
+class SaveInfo(TypedDict):
+    save_dir: str
+    save_name: str
+    extension: Literal[".ome.zarr", ".ome.tif", ""]
 
 
 class SaveAs(NamedTuple):
@@ -52,6 +47,7 @@ class SaveAs(NamedTuple):
     extension: str
 
 
+DEFAULT = "Experiment"
 ZARR = SaveAs("ome-zarr", ".ome.zarr")
 TIFF = SaveAs("ome-tif", ".ome.tif")
 TIFF_SEQUENCE = SaveAs("tiff-sequence", "")
