@@ -584,11 +584,39 @@ def test_mda_save_groupbox(qtbot: QtBot):
         }
     )
 
-    mda.setValue(seq)
+    with qtbot.waitSignal(mda.save_info.valueChanged):
+        mda.setValue(seq)
 
     assert mda.save_info.isChecked()
+    assert mda.save_info.save_name.text() == "test_name.ome.zarr"
     assert mda.save_info.value() == seq.metadata["pymmcore_widgets"]
 
     seq = useq.MDASequence(metadata={"pymmcore_widgets": {}})
     mda.setValue(seq)
     assert not mda.save_info.isChecked()
+
+
+def test_mda_save_groupbox_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    mda = MDAWidget(mmcore=global_mmcore)
+    qtbot.addWidget(mda)
+
+    def _run_mda(*args, **kwargs):
+        return
+
+    with patch.object(global_mmcore, "run_mda", _run_mda):
+
+        seq = useq.MDASequence(
+            metadata={
+                "pymmcore_widgets": {
+                    "save_dir": "test_dir",
+                    "save_name": "test_name",
+                    "save_as": "ome-zarr",
+                },
+            },
+            channels=[{"config": "DAPI", "exposure": 1}],
+        )
+        mda.setValue(seq)
+        assert mda.save_info.isChecked()
+
+        mda._on_run_clicked()
+        assert mda.save_info.value()["save_name"] == "test_name_001"

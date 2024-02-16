@@ -224,22 +224,24 @@ class MDAWidget(MDASequenceWidget):
 
         # create the writers path and make sure they are unique
         writer_path = None
-        extension = None
         if save_dir and save_as is not None:
-            if save_as == ZARR.name:
-                extension = ZARR.extension
-            elif save_as == TIFF.name:
-                extension = TIFF.extension
-            elif save_as == TIFF_SEQUENCE.name:
-                extension = TIFF_SEQUENCE.extension
-
-            if extension:
-                path = Path(save_dir) / f"{save_name.replace(extension, '')}"
+            if extension := self._get_extension(save_as):
+                path = Path(save_dir) / f"{save_name}"
                 writer_path = ensure_unique(path, extension)
                 self._update_save_name_text(path, extension)
 
         # run the MDA experiment asynchronously
         self._mmc.run_mda(sequence, output=writer_path or None)  # type: ignore
+
+    def _get_extension(self, save_as: str) -> str | None:
+        """Return the file extension from `save_as` TypeDict."""
+        if save_as == ZARR.name:
+            return ZARR.extension
+        elif save_as == TIFF.name:
+            return TIFF.extension
+        elif save_as == TIFF_SEQUENCE.name:
+            return TIFF_SEQUENCE.extension
+        return None
 
     def _update_save_name_text(self, path: Path, extension: str) -> None:
         """Update the save_name text with the next available path."""
@@ -368,10 +370,13 @@ class _SaveGroupBox(QGroupBox):
     def value(self) -> SaveInfo:
         """Return current state of the dialog."""
         save_as_state = self._get_save_as_state()
+        save_name = DEFAULT
+        if save_as_state is not None and self.save_name.text():
+            save_name = self.save_name.text().replace(save_as_state.extension, "")
         return {
             "save_dir": self.save_dir.text() if self.isChecked() else "",
-            "save_name": self.save_name.text() or "Experiment",
             "save_as": save_as_state.name if save_as_state is not None else None,
+            "save_name": save_name,
         }
 
     def setValue(self, value: SaveInfo | dict) -> None:
@@ -383,7 +388,9 @@ class _SaveGroupBox(QGroupBox):
             self.omezarr_radio.setChecked(save_as == ZARR.name)
             self.ometiff_radio.setChecked(save_as == TIFF.name)
             self.tiffsequence_radio.setChecked(save_as == TIFF_SEQUENCE.name)
+
         self.setChecked(bool(save_dir and save_as is not None))
+        self._update_save_name_text()
 
     def _on_browse_clicked(self) -> None:
         if save_dir := QFileDialog.getExistingDirectory(
