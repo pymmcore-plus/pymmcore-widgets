@@ -114,6 +114,9 @@ def fov_kwargs(core: CMMCorePlus) -> dict:
     return {}
 
 
+# TODO: create a common method for ensure_unique and get_next_available_path
+
+
 def ensure_unique(path: Path | str, extension: str = ".tif", ndigits: int = 3) -> Path:
     """Get next suitable filepath (extension = ".tif") or folderpath (extension = "").
 
