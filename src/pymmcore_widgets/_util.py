@@ -162,6 +162,8 @@ def get_next_available_path(path: Path | str, extension: str, ndigits: int = 3) 
     """Get next available filepath.
 
     The filename is appended with a counter of ndigits.
+
+    Returns the path without the extension.
     """
     if isinstance(path, str):
         path = Path(path)
@@ -195,4 +197,4 @@ def get_next_available_path(path: Path | str, extension: str, ndigits: int = 3) 
         number = f"_{current_max+1:0{ndigits}d}"
         new_path = path.parent / f"{stem}{number}{extension}"
 
-    return new_path
+    return new_path.parent / f"{stem}{number}"

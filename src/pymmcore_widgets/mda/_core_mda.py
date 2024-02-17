@@ -6,7 +6,8 @@ from typing import Literal, NamedTuple, TypedDict, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Qt, Signal
+from qtpy.QtCore import QRegExp, QSize, Qt, Signal
+from qtpy.QtGui import QRegExpValidator
 from qtpy.QtWidgets import (
     QBoxLayout,
     QButtonGroup,
@@ -19,7 +20,6 @@ from qtpy.QtWidgets import (
     QMessageBox,
     QPushButton,
     QRadioButton,
-    QSizePolicy,
     QWidget,
 )
 from superqt.fonticon import icon
@@ -290,9 +290,9 @@ class _SaveGroupBox(QGroupBox):
         self.save_dir.setPlaceholderText("Select Save Directory")
         self.save_name = QLineEdit()
         self.save_name.setPlaceholderText("Enter Experiment Name")
+        self.extension_lbl = QLabel()
 
         browse_btn = QPushButton(text="...")
-        browse_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         browse_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         browse_btn.clicked.connect(self._on_browse_clicked)
 
@@ -329,24 +329,27 @@ class _SaveGroupBox(QGroupBox):
         grid.addWidget(browse_btn, 0, 2)
         grid.addWidget(name_label, 1, 0)
         grid.addWidget(self.save_name, 1, 1)
-        grid.addWidget(save_format_wdg, 2, 0, 1, 2)
+        grid.addWidget(self.extension_lbl, 1, 2)
+        grid.addWidget(save_format_wdg, 2, 0, 1, 3)
+
+        # save name validator
+        path_validator = QRegExpValidator(QRegExp("[a-zA-Z0-9_-]+"))
+        self.save_name.setValidator(path_validator)
 
         # connect
         self.toggled.connect(self.valueChanged)
         self.save_dir.textChanged.connect(self.valueChanged)
         self.save_name.textChanged.connect(self.valueChanged)
-        self.save_name.editingFinished.connect(self._update_save_name_text)
         self.omezarr_radio.toggled.connect(self._update_save_name_text)
         self.ometiff_radio.toggled.connect(self._update_save_name_text)
         self.tiffsequence_radio.toggled.connect(self._update_save_name_text)
 
+        self._update_save_name_text()
+
     def _update_save_name_text(self) -> None:
         """Update the save_name text with the correct extension."""
-        if not self.save_name.text():
-            return
         extension = self._get_extension()
-        current_name = Path(self.save_name.text().replace(extension, "")).stem
-        self.save_name.setText(f"{current_name}{extension}")
+        self.extension_lbl.setText(extension)
         self.valueChanged.emit()
 
     def _get_extension(self) -> str:
