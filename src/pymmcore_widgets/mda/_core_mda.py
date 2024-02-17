@@ -374,7 +374,8 @@ class _SaveGroupBox(QGroupBox):
     def setValue(self, value: SaveInfo | dict) -> None:
         """Set the current state of the save GroupBox."""
         save_dir = value.get("save_dir", "")
-        save_name = value.get("save_name", "")
+        # if the save_name contains an extension, remove it
+        save_name = value.get("save_name", "").split(".")[0]
         self.save_dir.setText(save_dir)
         self.save_name.setText(save_name)
         if extension := value.get("extension", ""):
