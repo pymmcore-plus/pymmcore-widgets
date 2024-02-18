@@ -231,8 +231,8 @@ class MDAWidget(MDASequenceWidget):
 
     def _update_save_name_text(self, writer_path: Path | str, extension: str) -> None:
         """Update the save_name text with the next available path."""
-        path = str(writer_path).replace(extension, "")
-        next_path = get_next_available_path(path, extension)
+        path_no_extension = str(writer_path).replace(extension, "")
+        next_path = get_next_available_path(path_no_extension, extension)
         self.save_info.save_name.setText(next_path.name)
 
     def _confirm_af_intentions(self) -> bool:

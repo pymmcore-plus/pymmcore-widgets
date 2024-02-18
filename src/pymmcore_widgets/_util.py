@@ -114,7 +114,26 @@ def fov_kwargs(core: CMMCorePlus) -> dict:
     return {}
 
 
-# TODO: create a common method for ensure_unique and get_next_available_path
+def _get_max_number_and_stem(path: Path, extension: str, ndigits: int) -> tuple:
+    """Get the maximum number and stem of a file or directory."""
+    stem = path.stem
+    cur_num = stem.rsplit("_")[-1]
+    if cur_num.isdigit() and len(cur_num) == ndigits:
+        stem = stem[: -ndigits - 1]
+        current_max = int(cur_num)
+    else:
+        current_max = 0
+
+    paths = path.parent.glob(f"*{extension}")
+    for fn in paths:
+        try:
+            if extension in str(fn):
+                fn = Path(str(fn).replace(extension, ""))
+            current_max = max(current_max, int(fn.stem.rsplit("_")[-1]))
+        except ValueError:
+            continue
+
+    return current_max, stem
 
 
 def ensure_unique(path: Path | str, extension: str = ".tif", ndigits: int = 3) -> Path:
@@ -125,41 +144,17 @@ def ensure_unique(path: Path | str, extension: str = ".tif", ndigits: int = 3) -
     if isinstance(path, str):
         path = Path(path)
 
-    # If the file or directory does not exist, return the original path
     if not path.with_suffix(extension).exists():
         return path.parent / f"{path.stem}{extension}"
 
-    p = path
-    stem = p.stem
-    # check if provided path already has an ndigit number in it
-    cur_num = stem.rsplit("_")[-1]
-    if cur_num.isdigit() and len(cur_num) == ndigits:
-        stem = stem[: -ndigits - 1]
-        current_max = int(cur_num)
-    else:
-        current_max = 0
+    current_max, stem = _get_max_number_and_stem(path, extension, ndigits)
 
-    # find the highest existing path (if dir)
-    paths = (
-        p.parent.glob(f"*{extension}")
-        if extension
-        else (f for f in p.parent.iterdir() if f.is_dir())
-    )
-    for fn in paths:
-        try:
-            if extension in str(fn):
-                fn = Path(str(fn).replace(extension, ""))
-            current_max = max(current_max, int(fn.stem.rsplit("_")[-1]))
-        except ValueError:
-            continue
-
-    # build new path name
     number = f"_{current_max+1:0{ndigits}d}"
     return path.parent / f"{stem}{number}{extension}"
 
 
 def get_next_available_path(path: Path | str, extension: str, ndigits: int = 3) -> Path:
-    """Get next available filepath.
+    """Get next available filepath starting from the provided path.
 
     The filename is appended with a counter of ndigits.
 
@@ -168,31 +163,11 @@ def get_next_available_path(path: Path | str, extension: str, ndigits: int = 3) 
     if isinstance(path, str):
         path = Path(path)
 
-    stem = path.stem
+    current_max, stem = _get_max_number_and_stem(path, extension, ndigits)
 
-    # check if provided path already has an ndigit number in it
-    cur_num = stem.rsplit("_")[-1]
-    if cur_num.isdigit() and len(cur_num) == ndigits:
-        stem = stem[: -ndigits - 1]
-        current_max = int(cur_num)
-    else:
-        current_max = 0
-
-    # find the highest existing path
-    paths = path.parent.glob(f"{stem}_*{extension}")
-    for fn in paths:
-        try:
-            if extension in str(fn):
-                fn = Path(str(fn).replace(extension, ""))
-            current_max = max(current_max, int(fn.stem.rsplit("_")[-1]))
-        except ValueError:
-            continue
-
-    # build new path name
     number = f"_{current_max+1:0{ndigits}d}"
     new_path = path.parent / f"{stem}{number}{extension}"
 
-    # continue to increment the number until an available path is found
     while new_path.exists():
         number = f"_{current_max+1:0{ndigits}d}"
         new_path = path.parent / f"{stem}{number}{extension}"
