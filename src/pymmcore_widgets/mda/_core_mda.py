@@ -37,6 +37,17 @@ from ._core_z import CoreConnectedZPlanWidget
 
 
 class SaveInfo(TypedDict):
+    """NamedTuple for the save information.
+
+    Attributes
+    ----------
+    save_dir : str
+    save_name : str
+    extension : Literal[".ome.zarr", ".ome.tif", ""]
+
+    NOTE: save_name should not contain an extension.
+    """
+
     save_dir: str
     save_name: str
     extension: Literal[".ome.zarr", ".ome.tif", ""]
