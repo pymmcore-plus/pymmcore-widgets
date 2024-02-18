@@ -47,7 +47,7 @@ class SaveAs(NamedTuple):
     extension: str
 
 
-DEFAULT = "Experiment"
+EXP = "Experiment"
 ZARR = SaveAs("ome-zarr", ".ome.zarr")
 TIFF = SaveAs("ome-tif", ".ome.tif")
 TIFF_SEQUENCE = SaveAs("tiff-sequence", "")
@@ -216,7 +216,7 @@ class MDAWidget(MDASequenceWidget):
         # get saving info from the metadata
         metadata = sequence.metadata.get("pymmcore_widgets", None)
         save_dir = metadata.get("save_dir") if metadata else None
-        save_name = metadata.get("save_name") if metadata else DEFAULT
+        save_name = metadata.get("save_name") if metadata else EXP
         extension = metadata.get("extension") if metadata else None
 
         # create the writers path and make sure they are unique
@@ -366,8 +366,8 @@ class _SaveGroupBox(QGroupBox):
             SaveInfo,
             {
                 "save_dir": self.save_dir.text() if self.isChecked() else "",
-                "save_name": self.save_name.text() or DEFAULT,
-                "extension": self._get_extension(),  # or self.extension_lbl.text(),
+                "save_name": self.save_name.text() or EXP if self.isChecked() else "",
+                "extension": self._get_extension() if self.isChecked() else "",
             },
         )
 

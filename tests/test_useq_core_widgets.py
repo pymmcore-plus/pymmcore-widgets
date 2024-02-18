@@ -571,8 +571,8 @@ def test_mda_save_groupbox(qtbot: QtBot):
     assert mda.save_info.extension_lbl.text() == ".ome.zarr"
     assert mda.save_info.value() == {
         "save_dir": "",
-        "save_name": "Experiment",
-        "extension": ".ome.zarr",
+        "save_name": "",
+        "extension": "",
     }
 
     seq = useq.MDASequence(
