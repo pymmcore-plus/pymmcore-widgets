@@ -568,6 +568,7 @@ def test_mda_save_groupbox(qtbot: QtBot):
     qtbot.addWidget(mda)
 
     assert not mda.save_info.isChecked()
+    assert mda.save_info.extension_lbl.text() == ".ome.zarr"
     assert mda.save_info.value() == {
         "save_dir": "",
         "save_name": "Experiment",
@@ -587,14 +588,17 @@ def test_mda_save_groupbox(qtbot: QtBot):
     mda.setValue(seq)
 
     assert mda.save_info.isChecked()
-    assert mda.save_info.save_name.text() == "test_name.ome.tif"
+    assert mda.save_info.save_name.text() == "test_name"
+    assert mda.save_info.extension_lbl.text() == ".ome.tif"
     assert mda.save_info.value() == seq.metadata["pymmcore_widgets"]
 
     mda.save_info.tiffsequence_radio.toggle()
     assert mda.save_info.save_name.text() == "test_name"
+    assert mda.save_info.extension_lbl.text() == ""
 
     mda.save_info.omezarr_radio.toggle()
-    assert mda.save_info.save_name.text() == "test_name.ome.zarr"
+    assert mda.save_info.save_name.text() == "test_name"
+    assert mda.save_info.extension_lbl.text() == ".ome.zarr"
 
     seq = useq.MDASequence(metadata={"pymmcore_widgets": {}})
     mda.setValue(seq)
@@ -617,6 +621,7 @@ def test_mda_save_groupbox_tif_sequence(qtbot: QtBot):
     mda.setValue(seq)
     assert mda.save_info.isChecked()
     assert mda.save_info.save_name.text() == "test_name"
+    assert mda.save_info.extension_lbl.text() == ""
     assert mda.save_info.tiffsequence_radio.isChecked()
 
 
@@ -639,7 +644,6 @@ def test_mda_save_groupbox_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
                     "extension": "ome-zarr",
                 },
             },
-            channels=[{"config": "DAPI", "exposure": 1}],
         )
         mda.setValue(seq)
 

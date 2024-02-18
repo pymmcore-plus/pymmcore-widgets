@@ -361,13 +361,12 @@ class _SaveGroupBox(QGroupBox):
 
     def value(self) -> SaveInfo:
         """Return current state of the dialog."""
-        extension = self._get_extension()
         return cast(
             SaveInfo,
             {
                 "save_dir": self.save_dir.text() if self.isChecked() else "",
-                "save_name": self.save_name.text().replace(extension, "") or DEFAULT,
-                "extension": extension,
+                "save_name": self.save_name.text() or DEFAULT,
+                "extension": self._get_extension(),  # or self.extension_lbl.text(),
             },
         )
 
