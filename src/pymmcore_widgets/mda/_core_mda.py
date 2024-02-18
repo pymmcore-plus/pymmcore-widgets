@@ -6,8 +6,8 @@ from typing import Literal, NamedTuple, TypedDict, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QRegExp, QSize, Qt, Signal
-from qtpy.QtGui import QRegExpValidator
+from qtpy.QtCore import QRegularExpression, QSize, Qt, Signal
+from qtpy.QtGui import QRegularExpressionValidator
 from qtpy.QtWidgets import (
     QBoxLayout,
     QButtonGroup,
@@ -333,7 +333,8 @@ class _SaveGroupBox(QGroupBox):
         grid.addWidget(save_format_wdg, 2, 0, 1, 3)
 
         # save name validator
-        path_validator = QRegExpValidator(QRegExp("[a-zA-Z0-9_-]+"))
+        pattern = QRegularExpression("[a-zA-Z0-9_-]+")
+        path_validator = QRegularExpressionValidator(pattern)
         self.save_name.setValidator(path_validator)
 
         # connect
