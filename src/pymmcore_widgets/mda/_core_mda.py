@@ -43,14 +43,14 @@ class SaveInfo(TypedDict):
     ----------
     save_dir : str
     save_name : str
-    extension : Literal[".ome.zarr", ".ome.tif", ""]
+    extension : Literal[".ome.zarr", ".ome.tiff", ""]
 
     NOTE: save_name should not contain an extension.
     """
 
     save_dir: str
     save_name: str
-    extension: Literal[".ome.zarr", ".ome.tif", ""]
+    extension: Literal[".ome.zarr", ".ome.tiff", ""]
 
 
 class SaveAs(NamedTuple):
@@ -60,7 +60,7 @@ class SaveAs(NamedTuple):
 
 EXP = "Experiment"
 ZARR = SaveAs("ome-zarr", ".ome.zarr")
-TIFF = SaveAs("ome-tif", ".ome.tif")
+TIFF = SaveAs("ome-tiff", ".ome.tiff")
 TIFF_SEQUENCE = SaveAs("tiff-sequence", "")
 
 
@@ -390,7 +390,7 @@ class _SaveGroupBox(QGroupBox):
         self.save_dir.setText(save_dir)
         self.save_name.setText(save_name)
         if extension := value.get("extension", ""):
-            _id = "-".join(extension.split(".")[-2:])  # e.g. ".ome.tif" -> "ome-tif"
+            _id = "-".join(extension.split(".")[-2:])  # e.g. ".ome.tiff" -> "ome-tiff"
             for btn in self._save_btn_group.buttons():
                 if btn.text() == _id:
                     btn.setChecked(True)
