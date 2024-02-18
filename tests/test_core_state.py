@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from qtpy.QtWidgets import QWidget
 
 ALL_WIDGETS: dict[type[QWidget], dict[str, Any]] = {
+    pmmw.PixelConfigurationWidget: {},
     pmmw.CameraRoiWidget: {},
     pmmw.ChannelGroupWidget: {},
     pmmw.ChannelTable: {},
@@ -27,7 +28,6 @@ ALL_WIDGETS: dict[type[QWidget], dict[str, Any]] = {
     pmmw.MDAWidget: {},
     pmmw.ObjectivesWidget: {},
     pmmw.ObjectivesPixelConfigurationWidget: {},
-    pmmw.PixelConfigurationWidget: {},
     pmmw.PresetsWidget: {"group": "Camera"},
     pmmw.PropertiesWidget: {},
     pmmw.PropertyBrowser: {},
