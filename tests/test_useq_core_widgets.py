@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
@@ -629,11 +630,8 @@ def test_mda_save_groupbox_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mda = MDAWidget(mmcore=global_mmcore)
     qtbot.addWidget(mda)
 
-    def _run_mda(*args, **kwargs):
-        return
-
-    with patch.object(global_mmcore, "run_mda", _run_mda):
-        path = Path(__file__).parent
+    with tempfile.TemporaryDirectory() as tempdir:
+        path = Path(tempdir)
         assert not (path / "test_name.ome.zarr").exists()
 
         seq = useq.MDASequence(
@@ -647,8 +645,20 @@ def test_mda_save_groupbox_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
         )
         mda.setValue(seq)
 
-        mda._on_run_clicked()
+        with qtbot.waitSignal(mda._mmc.mda.events.sequenceFinished):
+            mda._on_run_clicked()
+        assert (path / "test_name.ome.zarr").exists()
         assert mda.save_info.value()["save_name"] == "test_name_001"
 
-        mda._on_run_clicked()
+        with qtbot.waitSignal(mda._mmc.mda.events.sequenceFinished):
+            mda._on_run_clicked()
+
+        assert (path / "test_name_001.ome.zarr").exists()
         assert mda.save_info.value()["save_name"] == "test_name_002"
+
+        mda.save_info.save_name.setText("test_name")
+        with qtbot.waitSignal(mda._mmc.mda.events.sequenceFinished):
+            mda._on_run_clicked()
+
+        assert (path / "test_name_002.ome.zarr").exists()
+        assert mda.save_info.value()["save_name"] == "test_name_003"
