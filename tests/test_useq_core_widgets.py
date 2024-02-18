@@ -580,7 +580,7 @@ def test_mda_save_groupbox(qtbot: QtBot):
             "pymmcore_widgets": {
                 "save_dir": "test_dir",
                 "save_name": "test_name",
-                "extension": ".ome.tif",
+                "extension": ".ome.tiff",
             }
         }
     )
@@ -589,7 +589,7 @@ def test_mda_save_groupbox(qtbot: QtBot):
 
     assert mda.save_info.isChecked()
     assert mda.save_info.save_name.text() == "test_name"
-    assert mda.save_info.extension_lbl.text() == ".ome.tif"
+    assert mda.save_info.extension_lbl.text() == ".ome.tiff"
     assert mda.save_info.value() == seq.metadata["pymmcore_widgets"]
 
     mda.save_info.tiffsequence_radio.toggle()
