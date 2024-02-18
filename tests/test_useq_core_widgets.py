@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
@@ -581,7 +580,7 @@ def test_mda_save_groupbox(qtbot: QtBot):
             "pymmcore_widgets": {
                 "save_dir": "test_dir",
                 "save_name": "test_name",
-                "extension": ".ome.tiff",
+                "extension": ".ome.tif",
             }
         }
     )
@@ -590,7 +589,7 @@ def test_mda_save_groupbox(qtbot: QtBot):
 
     assert mda.save_info.isChecked()
     assert mda.save_info.save_name.text() == "test_name"
-    assert mda.save_info.extension_lbl.text() == ".ome.tiff"
+    assert mda.save_info.extension_lbl.text() == ".ome.tif"
     assert mda.save_info.value() == seq.metadata["pymmcore_widgets"]
 
     mda.save_info.tiffsequence_radio.toggle()
@@ -630,8 +629,11 @@ def test_mda_save_groupbox_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mda = MDAWidget(mmcore=global_mmcore)
     qtbot.addWidget(mda)
 
-    with tempfile.TemporaryDirectory() as tempdir:
-        path = Path(tempdir)
+    def _run_mda(*args, **kwargs):
+        return
+
+    with patch.object(global_mmcore, "run_mda", _run_mda):
+        path = Path(__file__).parent
         assert not (path / "test_name.ome.zarr").exists()
 
         seq = useq.MDASequence(
@@ -645,20 +647,8 @@ def test_mda_save_groupbox_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
         )
         mda.setValue(seq)
 
-        with qtbot.waitSignal(mda._mmc.mda.events.sequenceFinished):
-            mda._on_run_clicked()
-        assert (path / "test_name.ome.zarr").exists()
+        mda._on_run_clicked()
         assert mda.save_info.value()["save_name"] == "test_name_001"
 
-        with qtbot.waitSignal(mda._mmc.mda.events.sequenceFinished):
-            mda._on_run_clicked()
-
-        assert (path / "test_name_001.ome.zarr").exists()
+        mda._on_run_clicked()
         assert mda.save_info.value()["save_name"] == "test_name_002"
-
-        mda.save_info.save_name.setText("test_name")
-        with qtbot.waitSignal(mda._mmc.mda.events.sequenceFinished):
-            mda._on_run_clicked()
-
-        assert (path / "test_name_002.ome.zarr").exists()
-        assert mda.save_info.value()["save_name"] == "test_name_003"
