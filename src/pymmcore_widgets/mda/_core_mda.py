@@ -58,10 +58,11 @@ class SaveAs(NamedTuple):
     extension: str
 
 
-EXP = "Experiment"
 ZARR = SaveAs("ome-zarr", ".ome.zarr")
 TIFF = SaveAs("ome-tiff", ".ome.tiff")
 TIFF_SEQUENCE = SaveAs("tiff-sequence", "")
+EXP = "Experiment"
+SAVE_AS = "save_as"
 
 
 class CoreMDATabs(MDATabs):
@@ -190,15 +191,15 @@ class MDAWidget(MDASequenceWidget):
         if replace:
             val = val.replace(**replace)
 
-        meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
+        save_meta = val.metadata.setdefault(SAVE_AS, {})
         if self.save_info.isChecked():
-            meta.update(self.save_info.value())
+            save_meta.update(self.save_info.value())
         return val
 
     def setValue(self, value: MDASequence) -> None:
         """Get the current state of the widget as a [`useq.MDASequence`][]."""
         super().setValue(value)
-        self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
+        self.save_info.setValue(value.metadata.get(SAVE_AS, {}))
 
     # ------------------- private API ----------------------
 
@@ -225,7 +226,7 @@ class MDAWidget(MDASequenceWidget):
         sequence = self.value()
 
         # get saving info from the metadata
-        metadata = sequence.metadata.get("pymmcore_widgets", None)
+        metadata = sequence.metadata.get(SAVE_AS, None)
         save_dir = metadata.get("save_dir") if metadata else None
         save_name = metadata.get("save_name") if metadata else EXP
         extension = metadata.get("extension") if metadata else None
