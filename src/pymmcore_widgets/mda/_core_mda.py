@@ -26,7 +26,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from useq import MDASequence, Position
 
-from pymmcore_widgets._util import ensure_unique, get_next_available_path
+from pymmcore_widgets._util import _get_next_available_paths
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 from pymmcore_widgets.useq_widgets._mda_sequence import MDATabs
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
@@ -151,9 +151,7 @@ class MDAWidget(MDASequenceWidget):
 
         self.destroyed.connect(self._disconnect)
 
-    def _on_sys_config_loaded(self) -> None:
-        # TODO: connect objective change event to update suggested step
-        self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
+    # ------------------- public Methods ----------------------
 
     def value(self) -> MDASequence:
         """Set the current state of the widget from a [`useq.MDASequence`][]."""
@@ -203,7 +201,40 @@ class MDAWidget(MDASequenceWidget):
         super().setValue(value)
         self.save_info.setValue(value.metadata.get(SAVE_AS, {}))
 
-    # ------------------- private API ----------------------
+    def get_next_available_paths(
+        self, path: Path | str, extension: str, ndigits: int = 3
+    ) -> list[Path]:
+        """Get the next two available filepath or folderpath (if extension = "").
+
+        This method adds a counter of `ndigits` to the filename or foldername to ensure
+        that the path is unique.
+
+        It is used to ensure that the path passed to the `output` argument of the
+        `run_mda` method is unique and to also update the MDAWidget `save_name` text
+        with the second next available path.
+
+        Note: it is ok to subclass this method and return a single path in the list,
+        the only difference is that the `save_name` text in the MDAWidget will not be
+        updated.
+
+        Parameters
+        ----------
+        path : Path | str
+            The starting path without extension (e.g./User/Desktop/Folder/Filename).
+        extension : str
+            The extension to be used (e.g. ".ome.tiff").
+        ndigits : int (optional)
+            The number of digits to be used for the counter. By default, 3.
+        """
+        return _get_next_available_paths(
+            path=path, extension=extension, ndigits=ndigits
+        )
+
+    # ------------------- private Methods ----------------------
+
+    def _on_sys_config_loaded(self) -> None:
+        # TODO: connect objective change event to update suggested step
+        self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
 
     def _get_current_stage_position(self) -> Position:
         """Return the current stage position."""
@@ -241,8 +272,12 @@ class MDAWidget(MDASequenceWidget):
         writer_path = None
         if save_dir := metadata.save_dir:
             path = Path(save_dir) / f"{save_name}"
-            writer_path = ensure_unique(path, extension)
-            self._update_save_name_text(writer_path, extension)
+            available_paths = self.get_next_available_paths(path, extension)
+            if len(available_paths) == 1:
+                (writer_path,) = available_paths
+            elif len(available_paths) == 2:
+                writer_path, next_path = available_paths
+                self._update_save_name_text(next_path, extension)
 
         # run the MDA experiment asynchronously
         self._mmc.run_mda(sequence, output=writer_path or None)
@@ -250,8 +285,7 @@ class MDAWidget(MDASequenceWidget):
     def _update_save_name_text(self, writer_path: Path | str, extension: str) -> None:
         """Update the save_name text with the next available path."""
         path_no_extension = str(writer_path).replace(extension, "")
-        next_path = get_next_available_path(path_no_extension, extension)
-        self.save_info.save_name.setText(next_path.name)
+        self.save_info.save_name.setText(Path(path_no_extension).name)
 
     def _confirm_af_intentions(self) -> bool:
         msg = (

@@ -114,18 +114,46 @@ def fov_kwargs(core: CMMCorePlus) -> dict:
     return {}
 
 
-def _get_max_number_and_stem(path: Path, extension: str, ndigits: int) -> tuple:
-    """Get the maximum number and stem of a file or directory."""
+def _get_next_available_paths(
+    path: Path | str, extension: str, ndigits: int = 3, npaths: int = 2
+) -> list[Path]:
+    """Get the next available `npaths` (filepath or folderpath if extension = "").
+
+    This method adds a counter of ndigits to the filename or foldername to ensure
+    that the path is unique.
+
+    Parameters
+    ----------
+    path : Path | str
+        The starting path without extension (e.g./User/Desktop/Folder/Filename).
+    extension : str
+        The extension to be used (e.g. ".ome.tiff").
+    ndigits : int (optional)
+        The number of digits to be used for the counter. By default, 3.
+    npaths : int (optional)
+        The number of paths to be returned. By default, 2.
+    """
+    # if the extension does not start with a dot, add it
+    if not extension.startswith("."):
+        extension = f".{extension}"
+
+    paths: list[Path] = []
+
+    if isinstance(path, str):
+        path = Path(path)
+
     stem = path.stem
+
+    # remove digits from the stem if any
     cur_num = stem.rsplit("_")[-1]
     if cur_num.isdigit() and len(cur_num) == ndigits:
         stem = stem[: -ndigits - 1]
-        current_max = int(cur_num)
-    else:
-        current_max = 0
 
-    paths = path.parent.glob(f"*{extension}")
-    for fn in paths:
+    current_max = 1
+
+    # find the current maximum number
+    current_files = path.parent.glob(f"*{extension}")
+    for fn in current_files:
         try:
             if extension in str(fn):
                 fn = Path(str(fn).replace(extension, ""))
@@ -133,43 +161,32 @@ def _get_max_number_and_stem(path: Path, extension: str, ndigits: int) -> tuple:
         except ValueError:
             continue
 
-    return current_max, stem
+    # find the first available path
+    new_path = path.parent / f"{stem}{extension}"
+    if new_path.exists():
+        # If the path exists, find the next available filename
+        while True:
+            number = f"_{current_max:0{ndigits}d}"
+            new_path = path.parent / f"{stem}{number}{extension}"
 
+            if not new_path.exists():
+                break
 
-def ensure_unique(path: Path | str, extension: str = ".tif", ndigits: int = 3) -> Path:
-    """Get next suitable filepath (extension = ".tif") or folderpath (extension = "").
+            current_max += 1
 
-    Result is appended with a counter of ndigits.
-    """
-    if isinstance(path, str):
-        path = Path(path)
+    # add the first path to the list
+    paths.append(new_path)
 
-    if not path.with_suffix(extension).exists():
-        return path.parent / f"{path.stem}{extension}"
-
-    current_max, stem = _get_max_number_and_stem(path, extension, ndigits)
-
-    number = f"_{current_max+1:0{ndigits}d}"
-    return path.parent / f"{stem}{number}{extension}"
-
-
-def get_next_available_path(path: Path | str, extension: str, ndigits: int = 3) -> Path:
-    """Get next available filepath starting from the provided path.
-
-    The filename is appended with a counter of ndigits.
-
-    Returns the path without the extension.
-    """
-    if isinstance(path, str):
-        path = Path(path)
-
-    current_max, stem = _get_max_number_and_stem(path, extension, ndigits)
-
-    number = f"_{current_max+1:0{ndigits}d}"
-    new_path = path.parent / f"{stem}{number}{extension}"
-
-    while new_path.exists():
-        number = f"_{current_max+1:0{ndigits}d}"
+    # find the next available npaths and add them to the list
+    for i in range(1, npaths):
+        if current_max == 1:
+            # if current_max is still 1, it means that the first path did not exist and
+            # the ndigits were not added to the stem. So here we just use _001.
+            number = f"_{current_max:0{ndigits}d}"
+        else:
+            # otherwise, we increment the current_max by i
+            number = f"_{current_max+i:0{ndigits}d}"
         new_path = path.parent / f"{stem}{number}{extension}"
+        paths.append(new_path)
 
-    return new_path.parent / f"{stem}{number}"
+    return paths
