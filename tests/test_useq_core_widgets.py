@@ -577,7 +577,7 @@ def test_mda_save_groupbox(qtbot: QtBot):
 
     seq = useq.MDASequence(
         metadata={
-            "Save_as": {
+            "save_as": {
                 "save_dir": "test_dir",
                 "save_name": "test_name",
                 "extension": ".ome.tiff",
@@ -590,7 +590,7 @@ def test_mda_save_groupbox(qtbot: QtBot):
     assert mda.save_info.isChecked()
     assert mda.save_info.save_name.text() == "test_name"
     assert mda.save_info.extension_lbl.text() == ".ome.tiff"
-    assert mda.save_info.value() == seq.metadata["Save_as"]
+    assert mda.save_info.value() == seq.metadata["save_as"]
 
     mda.save_info.tiffsequence_radio.toggle()
     assert mda.save_info.save_name.text() == "test_name"
@@ -600,7 +600,7 @@ def test_mda_save_groupbox(qtbot: QtBot):
     assert mda.save_info.save_name.text() == "test_name"
     assert mda.save_info.extension_lbl.text() == ".ome.zarr"
 
-    seq = useq.MDASequence(metadata={"Save_as": {}})
+    seq = useq.MDASequence(metadata={"save_as": {}})
     mda.setValue(seq)
     assert not mda.save_info.isChecked()
 
@@ -611,7 +611,7 @@ def test_mda_save_groupbox_tif_sequence(qtbot: QtBot):
 
     seq = useq.MDASequence(
         metadata={
-            "Save_as": {
+            "save_as": {
                 "save_dir": "test_dir",
                 "save_name": "test_name",
                 "extension": "",
@@ -638,7 +638,7 @@ def test_mda_save_groupbox_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
         seq = useq.MDASequence(
             metadata={
-                "Save_as": {
+                "save_as": {
                     "save_dir": str(path),
                     "save_name": "test_name",
                     "extension": "ome-zarr",
