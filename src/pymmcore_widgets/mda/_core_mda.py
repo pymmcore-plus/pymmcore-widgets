@@ -220,7 +220,7 @@ class MDAWidget(MDASequenceWidget):
         if (
             self.af_axis.value()
             and not self._mmc.isContinuousFocusLocked()
-            and not (self.tab_wdg.isChecked(pos) and pos.af_per_position.isChecked())
+            and (not self.tab_wdg.isChecked(pos) or not pos.af_per_position.isChecked())
             and not self._confirm_af_intentions()
         ):
             return
@@ -234,19 +234,18 @@ class MDAWidget(MDASequenceWidget):
         metadata = (
             SaveAs(**metadata) if isinstance(metadata, dict) else cast(SaveAs, metadata)
         )
-        save_dir = metadata.save_dir
         save_name = metadata.save_name or EXP
         extension = metadata.extension
 
         # create the writers path and make sure they are unique
         writer_path = None
-        if save_dir:
+        if save_dir := metadata.save_dir:
             path = Path(save_dir) / f"{save_name}"
             writer_path = ensure_unique(path, extension)
             self._update_save_name_text(writer_path, extension)
 
         # run the MDA experiment asynchronously
-        self._mmc.run_mda(sequence, output=writer_path or None)  # type: ignore
+        self._mmc.run_mda(sequence, output=writer_path or None)
 
     def _update_save_name_text(self, writer_path: Path | str, extension: str) -> None:
         """Update the save_name text with the next available path."""
