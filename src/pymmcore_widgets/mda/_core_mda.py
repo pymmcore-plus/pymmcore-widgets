@@ -213,7 +213,7 @@ class MDAWidget(MDASequenceWidget):
         `run_mda` method is unique and to also update the MDAWidget `save_name` text
         with the second next available path.
 
-        Note: it is ok to subclass this method and return a single path in the list,
+        Note: it is ok to override this method and return a single path in the list,
         the only difference is that the `save_name` text in the MDAWidget will not be
         updated.
 
