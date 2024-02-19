@@ -179,9 +179,9 @@ def _get_next_available_paths(
 
     # find the next available npaths and add them to the list
     for i in range(1, npaths):
-        if current_max == 1:
-            # if current_max is still 1, it means that the first path did not exist and
-            # the ndigits were not added to the stem. So here we just use _001.
+        if current_max == 1 and f"_{1:0{ndigits}d}" not in str(new_path):
+            # if current_max is still 1 and '_ndigits1' is not in the already appended
+            # path, use '_ndigits1'.
             number = f"_{current_max:0{ndigits}d}"
         else:
             # otherwise, we increment the current_max by i

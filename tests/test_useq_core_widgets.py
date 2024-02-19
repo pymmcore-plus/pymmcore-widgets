@@ -695,14 +695,19 @@ def test_get_next_available_paths():
 
         extension = ".ome.tiff"
 
-        # add 2 files to tempdir
+        # ad 1 file to tempdir
         Path(tmpdir, f"test{extension}").touch()
-        Path(tmpdir, f"test_002{extension}").touch()
 
         path = Path(tmpdir) / "test"
 
         first, second = _get_next_available_paths(path, extension)
+        assert first == Path(tmpdir, f"test_001{extension}")
+        assert second == Path(tmpdir, f"test_002{extension}")
 
+        # add 2 files to tempdir
+        Path(tmpdir, f"test_002{extension}").touch()
+
+        first, second = _get_next_available_paths(path, extension)
         assert first == Path(tmpdir, f"test_003{extension}")
         assert second == Path(tmpdir, f"test_004{extension}")
 
