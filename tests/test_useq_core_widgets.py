@@ -654,7 +654,7 @@ def test_mda_save_groupbox_save_name(
         assert mda.save_info.value().save_name == "test_name_002"
 
 
-MDA = useq.MDASequence(
+MDA_META = useq.MDASequence(
     metadata={
         "save_as": SaveAs(
             save_dir="test_dir", save_name="test_name", extension=".ome.tiff"
@@ -664,7 +664,9 @@ MDA = useq.MDASequence(
 
 
 @pytest.mark.parametrize("ext", ["json", "yaml", "foo"])
-def p(qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str) -> None:
+def test_core_mda_wdg_load_save(
+    qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str
+) -> None:
     from pymmcore_widgets.useq_widgets._mda_sequence import QFileDialog
 
     wdg = MDAWidget()
@@ -683,7 +685,7 @@ def p(qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str) -
             wdg.save()
         return
 
-    dest.write_text(MDA.yaml() if ext == "yaml" else MDA.model_dump_json())
+    dest.write_text(MDA_META.yaml() if ext == "yaml" else MDA_META.model_dump_json())
 
     wdg.load()
-    assert wdg.value().metadata["save_as"] == MDA.metadata["save_as"]
+    assert wdg.value().metadata["save_as"] == MDA_META.metadata["save_as"]

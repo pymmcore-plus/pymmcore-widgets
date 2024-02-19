@@ -201,6 +201,8 @@ class MDAWidget(MDASequenceWidget):
     def setValue(self, value: MDASequence) -> None:
         """Get the current state of the widget as a [`useq.MDASequence`][]."""
         super().setValue(value)
+        print()
+        print("___________", value)
         self.save_info.setValue(value.metadata.get(SAVE_AS, {}))
 
     # ------------------- private API ----------------------
