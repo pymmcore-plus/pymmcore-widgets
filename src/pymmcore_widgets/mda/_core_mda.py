@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, NamedTuple, TypedDict, cast
+from typing import Literal, NamedTuple, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
@@ -36,8 +37,11 @@ from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
 
 
-class SaveInfo(TypedDict):
-    """NamedTuple for the save information.
+# using dataclass because it's easier to convert to and from a dict when saving or
+# when using the MDASequence replace method
+@dataclass
+class SaveAs:
+    """Dataclas for the save information.
 
     Attributes
     ----------
@@ -48,19 +52,19 @@ class SaveInfo(TypedDict):
     NOTE: save_name should not contain an extension.
     """
 
-    save_dir: str
-    save_name: str
-    extension: Literal[".ome.zarr", ".ome.tiff", ""]
+    save_dir: str = ""
+    save_name: str = ""
+    extension: Literal[".ome.zarr", ".ome.tiff", ""] = ""
 
 
-class SaveAs(NamedTuple):
+class SaveType(NamedTuple):
     id: str
     extension: str
 
 
-ZARR = SaveAs("ome-zarr", ".ome.zarr")
-TIFF = SaveAs("ome-tiff", ".ome.tiff")
-TIFF_SEQUENCE = SaveAs("tiff-sequence", "")
+ZARR = SaveType("ome-zarr", ".ome.zarr")
+TIFF = SaveType("ome-tiff", ".ome.tiff")
+TIFF_SEQUENCE = SaveType("tiff-sequence", "")
 EXP = "Experiment"
 SAVE_AS = "save_as"
 
@@ -191,9 +195,7 @@ class MDAWidget(MDASequenceWidget):
         if replace:
             val = val.replace(**replace)
 
-        save_meta = val.metadata.setdefault(SAVE_AS, {})
-        if self.save_info.isChecked():
-            save_meta.update(self.save_info.value())
+        val.metadata[SAVE_AS] = self.save_info.value()
         return val
 
     def setValue(self, value: MDASequence) -> None:
@@ -226,14 +228,19 @@ class MDAWidget(MDASequenceWidget):
         sequence = self.value()
 
         # get saving info from the metadata
-        metadata = sequence.metadata.get(SAVE_AS, None)
-        save_dir = metadata.get("save_dir") if metadata else None
-        save_name = metadata.get("save_name") if metadata else EXP
-        extension = metadata.get("extension") if metadata else None
+        metadata = sequence.metadata.get(SAVE_AS)
+        metadata = SaveAs() if metadata is None else metadata
+        # convert to SaveAs if it's a dict
+        metadata = (
+            SaveAs(**metadata) if isinstance(metadata, dict) else cast(SaveAs, metadata)
+        )
+        save_dir = metadata.save_dir
+        save_name = metadata.save_name or EXP
+        extension = metadata.extension
 
         # create the writers path and make sure they are unique
         writer_path = None
-        if save_dir and extension is not None:
+        if save_dir:
             path = Path(save_dir) / f"{save_name}"
             writer_path = ensure_unique(path, extension)
             self._update_save_name_text(writer_path, extension)
@@ -372,32 +379,38 @@ class _SaveGroupBox(QGroupBox):
                 return self.EXTENSION[btn.text()]
         raise ValueError("No save as button is checked.")  # pragma: no cover
 
-    def value(self) -> SaveInfo:
+    def value(self) -> SaveAs:
         """Return current state of the dialog."""
-        return cast(
-            SaveInfo,
-            {
-                "save_dir": self.save_dir.text() if self.isChecked() else "",
-                "save_name": self.save_name.text() or EXP if self.isChecked() else "",
-                "extension": self._get_extension() if self.isChecked() else "",
-            },
+        if not self.isChecked():
+            return SaveAs()
+
+        return SaveAs(
+            save_dir=self.save_dir.text(),
+            save_name=self.save_name.text() or EXP,
+            extension=cast(
+                Literal[".ome.zarr", ".ome.tiff", ""], self._get_extension()
+            ),
         )
 
-    def setValue(self, value: SaveInfo | dict) -> None:
+    def setValue(self, value: SaveAs | dict) -> None:
         """Set the current state of the save GroupBox."""
-        save_dir = value.get("save_dir", "")
-        # if the save_name contains an extension, remove it
-        save_name = value.get("save_name", "").split(".")[0]
+        if isinstance(value, dict):
+            value = SaveAs(**value) if value else SaveAs()
+        save_dir = value.save_dir
         self.save_dir.setText(save_dir)
-        self.save_name.setText(save_name)
-        if extension := value.get("extension", ""):
+        self.save_name.setText(value.save_name)
+        if extension := value.extension:
             _id = "-".join(extension.split(".")[-2:])  # e.g. ".ome.tiff" -> "ome-tiff"
             for btn in self._save_btn_group.buttons():
                 if btn.text() == _id:
                     btn.setChecked(True)
                     break
+                # if the extension is not a recognized one, set as tiff sequence
+                self.tiffsequence_radio.setChecked(True)
+
         else:
             self.tiffsequence_radio.setChecked(True)
+
         self.setChecked(bool(save_dir))
         self._update_save_name_text()
 

@@ -12,7 +12,7 @@ from qtpy.QtWidgets import QMessageBox
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
-from pymmcore_widgets.mda._core_mda import CoreMDATabs
+from pymmcore_widgets.mda._core_mda import CoreMDATabs, SaveAs
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
 from pymmcore_widgets.useq_widgets._mda_sequence import AutofocusAxis, KeepShutterOpen
@@ -563,34 +563,35 @@ def test_mda_no_pos_set(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert "p" in wdg.value().axis_order
 
 
-def test_mda_save_groupbox(qtbot: QtBot):
+save_meta = (
+    SaveAs(save_dir="test_dir", save_name="test_name", extension=".ome.tiff"),
+    {"save_dir": "test_dir", "save_name": "test_name", "extension": ".ome.tiff"},
+)
+
+
+@pytest.mark.parametrize("save_as", save_meta)
+def test_mda_save_groupbox(qtbot: QtBot, save_as: SaveAs | dict):
     mda = MDAWidget()
     qtbot.addWidget(mda)
 
     assert not mda.save_info.isChecked()
+    assert mda.save_info.omezarr_radio.isChecked()
     assert mda.save_info.extension_lbl.text() == ".ome.zarr"
-    assert mda.save_info.value() == {
-        "save_dir": "",
-        "save_name": "",
-        "extension": "",
-    }
+    assert mda.save_info.value() == SaveAs(save_dir="", save_name="", extension="")
 
-    seq = useq.MDASequence(
-        metadata={
-            "save_as": {
-                "save_dir": "test_dir",
-                "save_name": "test_name",
-                "extension": ".ome.tiff",
-            }
-        }
-    )
+    seq = useq.MDASequence(metadata={"save_as": save_as})
 
     mda.setValue(seq)
 
     assert mda.save_info.isChecked()
     assert mda.save_info.save_name.text() == "test_name"
+    assert mda.save_info.ometiff_radio.isChecked()
     assert mda.save_info.extension_lbl.text() == ".ome.tiff"
-    assert mda.save_info.value() == seq.metadata["save_as"]
+    assert (
+        mda.save_info.value() == SaveAs(**save_as)
+        if isinstance(save_as, dict)
+        else save_as
+    )
 
     mda.save_info.tiffsequence_radio.toggle()
     assert mda.save_info.save_name.text() == "test_name"
@@ -600,24 +601,27 @@ def test_mda_save_groupbox(qtbot: QtBot):
     assert mda.save_info.save_name.text() == "test_name"
     assert mda.save_info.extension_lbl.text() == ".ome.zarr"
 
-    seq = useq.MDASequence(metadata={"save_as": {}})
+    seq = useq.MDASequence()
     mda.setValue(seq)
     assert not mda.save_info.isChecked()
+    assert mda.save_info.value() == SaveAs()
 
 
-def test_mda_save_groupbox_tif_sequence(qtbot: QtBot):
+tiff_seq_meta = (
+    SaveAs(save_dir="test_dir", save_name="test_name", extension=""),
+    {"save_dir": "test_dir", "save_name": "test_name", "extension": ""},
+    SaveAs(save_dir="test_dir", save_name="test_name", extension=".ext"),
+    {"save_dir": "test_dir", "save_name": "test_name", "extension": ".ext"},
+)
+
+
+@pytest.mark.parametrize("save_as", tiff_seq_meta)
+def test_mda_save_groupbox_tiff_seqtiff_seq_uence(qtbot: QtBot, save_as: SaveAs | dict):
     mda = MDAWidget()
     qtbot.addWidget(mda)
 
-    seq = useq.MDASequence(
-        metadata={
-            "save_as": {
-                "save_dir": "test_dir",
-                "save_name": "test_name",
-                "extension": "",
-            }
-        }
-    )
+    seq = useq.MDASequence(metadata={"save_as": save_as})
+
     mda.setValue(seq)
     assert mda.save_info.isChecked()
     assert mda.save_info.save_name.text() == "test_name"
@@ -625,7 +629,10 @@ def test_mda_save_groupbox_tif_sequence(qtbot: QtBot):
     assert mda.save_info.tiffsequence_radio.isChecked()
 
 
-def test_mda_save_groupbox_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
+@pytest.mark.parametrize("save_as", save_meta)
+def test_mda_save_groupbox_save_name(
+    global_mmcore: CMMCorePlus, qtbot: QtBot, save_as: SaveAs | dict
+):
     mda = MDAWidget(mmcore=global_mmcore)
     qtbot.addWidget(mda)
 
@@ -634,21 +641,49 @@ def test_mda_save_groupbox_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     with patch.object(global_mmcore, "run_mda", _run_mda):
         path = Path(__file__).parent
-        assert not (path / "test_name.ome.zarr").exists()
+        assert not (path / "test_name.ome.tiff").exists()
 
-        seq = useq.MDASequence(
-            metadata={
-                "save_as": {
-                    "save_dir": str(path),
-                    "save_name": "test_name",
-                    "extension": "ome-zarr",
-                },
-            },
-        )
+        seq = useq.MDASequence(metadata={"save_as": save_as})
+
         mda.setValue(seq)
 
         mda._on_run_clicked()
-        assert mda.save_info.value()["save_name"] == "test_name_001"
+        assert mda.save_info.value().save_name == "test_name_001"
 
         mda._on_run_clicked()
-        assert mda.save_info.value()["save_name"] == "test_name_002"
+        assert mda.save_info.value().save_name == "test_name_002"
+
+
+MDA = useq.MDASequence(
+    metadata={
+        "save_as": SaveAs(
+            save_dir="test_dir", save_name="test_name", extension=".ome.tiff"
+        )
+    }
+)
+
+
+@pytest.mark.parametrize("ext", ["json", "yaml", "foo"])
+def p(qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str) -> None:
+    from pymmcore_widgets.useq_widgets._mda_sequence import QFileDialog
+
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    dest = tmp_path / f"sequence.{ext}"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a: (dest, None))
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *a: (dest, None))
+    dest.write_text("")
+
+    if ext == "foo":
+        with pytest.raises(ValueError):
+            wdg.load()
+        with pytest.raises(ValueError):
+            wdg.save()
+        return
+
+    dest.write_text(MDA.yaml() if ext == "yaml" else MDA.model_dump_json())
+
+    wdg.load()
+    assert wdg.value().metadata["save_as"] == MDA.metadata["save_as"]
