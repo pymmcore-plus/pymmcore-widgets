@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING, Any
 import cmap
 from qtpy import QtCore, QtGui, QtWidgets
 from superqt import QColormapComboBox, QRangeSlider
-from useq import Channel
 
 if TYPE_CHECKING:
     from qtpy.QtGui import QMouseEvent
+    from useq import Channel
 
 try:
     pass
@@ -42,32 +42,31 @@ class ChannelRow(QtWidgets.QWidget):
     selected = QtCore.Signal(int)
     new_channel = QtCore.Signal(str, int)
 
-    def __init__(self, parent: QtWidgets.QWidget|None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent=parent)
         self.restore_data()
 
         self.setLayout(QtWidgets.QHBoxLayout())
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
-        self.boxes = {}
+        self.boxes: dict[int, ChannelBox] = {}
         self.new_cmap.connect(self._handle_channel_cmap)
         self.visible.connect(self.channel_visibility)
         self.new_channel.connect(self._add_channel)
-        self.current_channel = None
+        self.current_channel: int | None = None
 
-    def add_channel(self, channel: Channel|None, index: int|None = None) -> None:
+    def add_channel(self, channel: Channel | None, index: int | None = None) -> None:
         """Add a channel to the row."""
         if index is None:
             index = len(self.boxes)
         if channel is None:
-            channel = "Default"
+            name = "Default"
         else:
-            channel = channel.config
-        self.new_channel.emit(channel, index)
+            name = channel.config
+        self.new_channel.emit(name, index)
 
     def _add_channel(self, name: str, index: int) -> None:
         channel_box = ChannelBox(name, cmaps=self.cmap_names, parent=self)
         self.boxes[index] = channel_box
-
 
         channel_box.show_channel.stateChanged.connect(self.emit_visible)
         channel_box.autoscale_chbx.stateChanged.connect(self.emit_autoscale)
@@ -87,7 +86,9 @@ class ChannelRow(QtWidgets.QWidget):
 
     def emit_autoscale(self, state: int) -> None:
         sender = self.sender()
-        self.autoscale.emit(bool(state), list(self.boxes.values()).index(sender.parent()))
+        self.autoscale.emit(
+            bool(state), list(self.boxes.values()).index(sender.parent())
+        )
 
     def emit_new_clims(self, value: tuple[int, int]) -> None:
         sender = self.sender()
@@ -148,7 +149,6 @@ class ChannelRow(QtWidgets.QWidget):
             "cmap_names", ["gray", "magenta", "cyan"]
         )
         self.channel_cmaps = self.qt_settings.value("channel_cmaps", {})
-
 
 
 class ChannelBox(QtWidgets.QWidget):
@@ -298,7 +298,7 @@ if __name__ == "__main__":
     import sys
 
     app = QtWidgets.QApplication(sys.argv)
-    w = ChannelBox(Channel(config="empty"), cmaps=CMAPS)
+    w = ChannelBox("empty", cmaps=CMAPS)
     w.show()
 
     sys.exit(app.exec_())

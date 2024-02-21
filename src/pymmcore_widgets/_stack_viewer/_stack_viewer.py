@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from fonticon_mdi6 import MDI6
 from qtpy import QtCore, QtWidgets
-from qtpy.QtCore import QTimer, Signal, Slot
+from qtpy.QtCore import QTimer, Signal
 from superqt import fonticon
-from useq import MDAEvent, MDASequence
+from useq import MDAEvent, MDASequence, _channel
 
 from ._channel_row import ChannelRow, try_cast_colormap
 from ._datastore import QOMEZarrDatastore
@@ -93,11 +93,9 @@ class StackViewer(QtWidgets.QWidget):
                     self.datastore.sequenceStarted
                 )
             else:
-                import warnings
 
-                warnings.warn(
-                    "No datastore or mmcore provided, connect manually.",
-                    stacklevel=2,
+                QtCore.qWarning(
+                    "No datastore or mmcore provided, connect manually."
                 )
 
         if self._mmc:
@@ -113,9 +111,9 @@ class StackViewer(QtWidgets.QWidget):
         self.current_channel = 0
         self.pixel_size = 1.0
 
-        self.clim_timer = QtCore.QTimer()
-        self.clim_timer.setInterval(int(1000 // AUTOCLIM_RATE))
-        self.clim_timer.timeout.connect(self.on_clim_timer)
+        # self.clim_timer = QtCore.QTimer()
+        # self.clim_timer.setInterval(int(1000 // AUTOCLIM_RATE))
+        # self.clim_timer.timeout.connect(self.on_clim_timer)
 
         self.destroyed.connect(self._disconnect)
 
@@ -224,7 +222,6 @@ class StackViewer(QtWidgets.QWidget):
         self._collapse_view()
         self.ready = True
 
-    @Slot(MDAEvent)
     def frameReady(self, event: MDAEvent) -> None:
         """Frame received from acquisition, display the image, update sliders etc."""
         if not self.ready:
@@ -240,7 +237,8 @@ class StackViewer(QtWidgets.QWidget):
             try:
                 clim_slider = self.channel_row.boxes[indices.get("c", 0)].slider
             except KeyError:
-                self.channel_row.add_channel(event.channel, indices.get("c", 0))
+                this_channel = cast(_channel.Channel, event.channel)
+                self.channel_row.add_channel(this_channel, indices.get("c", 0))
                 self._retry_display.emit(event)
                 return
 
@@ -508,4 +506,3 @@ class StackViewer(QtWidgets.QWidget):
         self.qt_settings.setValue("cmaps", self.cmap_names)
         self._canvas.close()
         super().closeEvent(e)
-        # self.channel_row._disconnect()

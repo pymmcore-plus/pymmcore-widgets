@@ -7,6 +7,8 @@ from pymmcore_plus.mda.handlers._ome_zarr_writer import POS_PREFIX, OMEZarrWrite
 from useq import MDAEvent
 
 if TYPE_CHECKING:
+    from typing import Any
+
     import numpy as np
     import useq
 
@@ -22,17 +24,18 @@ class QOMEZarrDatastore(OMEZarrWriter):
         super().sequenceStarted(sequence)
 
     def frameReady(
-        self, frame: np.ndarray, event: useq.MDAEvent, meta: dict | None = None
+        self,
+        frame: np.ndarray,
+        event: useq.MDAEvent,
+        meta: dict[Any, Any],
     ) -> None:
         super().frameReady(frame, event, meta)
         self.frame_ready.emit(event)
 
     def get_frame(self, event: MDAEvent) -> np.ndarray:
         key = f'{POS_PREFIX}{event.index.get("p", 0)}'
-        try:
-            ary = self.position_arrays[key]
-        except AttributeError:
-            ary = self._arrays[key]
+        ary = self._arrays[key]
+
         index = tuple(event.index.get(k) for k in self._used_axes)
         data: np.ndarray = ary[index]
         return data

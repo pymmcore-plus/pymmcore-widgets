@@ -32,7 +32,6 @@ def test_acquisition(qtbot):
     # canvas.deleteLater()
 
 
-
 def test_init_with_sequence(qtbot):
     mmcore = CMMCorePlus.instance()
 
@@ -51,9 +50,9 @@ def test_init_with_sequence(qtbot):
 def test_interaction(qtbot):
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore, sequence=sequence, transform=(90, False, False))
+    qtbot.addWidget(canvas)
     canvas.on_display_timer()
     canvas.show()
-    qtbot.addWidget(canvas)
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)
     # canvas.view_rect = ((0, 0), (512, 512))
@@ -101,8 +100,6 @@ def test_interaction(qtbot):
     # Should have been set as all channels are deselected now
     assert canvas.channel_row.boxes[0].show_channel.isChecked()
 
-    canvas.on_display_timer()
-
 
 def test_sequence_no_channels(qtbot):
     mmcore = CMMCorePlus.instance()
@@ -113,10 +110,14 @@ def test_sequence_no_channels(qtbot):
         mmcore.mda.run(sequence)
 
 
-def test_connection_warning():
-    with pytest.warns(UserWarning):
-        canvas = StackViewer()
-    canvas.close()
+# import gc
+# gc.set_debug(gc.DEBUG_UNCOLLECTABLE)
+def test_connection_warning(qtbot, qtlog):
+    # with pytest.warns(UserWarning):
+    canvas = StackViewer()
+    emitted = [(m.type, m.message.strip()) for m in qtlog.records]
+    qtbot.addWidget(canvas)
+    assert 'No datastore or mmcore provided, connect manually.' == emitted[0][1]
 
 
 def test_settings_on_close():
