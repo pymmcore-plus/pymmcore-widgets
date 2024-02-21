@@ -40,64 +40,76 @@ class ChannelRow(QtWidgets.QWidget):
     new_clims = QtCore.Signal(tuple, int)
     new_cmap = QtCore.Signal(cmap.Colormap, int)
     selected = QtCore.Signal(int)
+    new_channel = QtCore.Signal(str, int)
 
-    def __init__(
-        self,
-        num_channels: int = 5,
-    ) -> None:
-        super().__init__()
+    def __init__(self, parent: QtWidgets.QWidget|None = None) -> None:
+        super().__init__(parent=parent)
         self.restore_data()
 
         self.setLayout(QtWidgets.QHBoxLayout())
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
-        self.boxes = []
-        # TODO: Ideally we would know beforehand how many of these we need.
-        for i in range(num_channels):
-            channel_box = ChannelBox(Channel(config="empty"), cmaps=self.cmap_names)
-            channel_box.show_channel.stateChanged.connect(
-                lambda state, i=i: self.visible.emit(state, i)
-            )
-            channel_box.autoscale_chbx.stateChanged.connect(
-                lambda state, i=i: self.autoscale.emit(state, i)
-            )
-            channel_box.slider.sliderMoved.connect(
-                lambda values, i=i: self.new_clims.emit(values, i)
-            )
-            channel_box.color_choice.currentColormapChanged.connect(
-                lambda color, i=i: self.new_cmap.emit(color, i)
-            )
-            channel_box.color_choice.setCurrentIndex(i)
-            channel_box.clicked.connect(self._handle_channel_choice)
-            channel_box.mousePressEvent(None)
-            channel_box.hide()
-            self.current_channel = i
-            self.boxes.append(channel_box)
-            self.layout().addWidget(channel_box)
+        self.boxes = {}
         self.new_cmap.connect(self._handle_channel_cmap)
         self.visible.connect(self.channel_visibility)
+        self.new_channel.connect(self._add_channel)
+        self.current_channel = None
 
-    def box_visibility(self, i: int, name: str) -> None:
-        """Make a box visible and set its name."""
-        self.boxes[i].visible = True
-        self.boxes[i].show()
-        self.boxes[i].autoscale_chbx.setChecked(True)
-        self.boxes[i].show_channel.setText(name)
-        self.boxes[i].channel = name
-        self.boxes[i].color_choice.setCurrentColormap(
+    def add_channel(self, channel: Channel|None, index: int|None = None) -> None:
+        """Add a channel to the row."""
+        if index is None:
+            index = len(self.boxes)
+        if channel is None:
+            channel = "Default"
+        else:
+            channel = channel.config
+        self.new_channel.emit(channel, index)
+
+    def _add_channel(self, name: str, index: int) -> None:
+        channel_box = ChannelBox(name, cmaps=self.cmap_names, parent=self)
+        self.boxes[index] = channel_box
+
+
+        channel_box.show_channel.stateChanged.connect(self.emit_visible)
+        channel_box.autoscale_chbx.stateChanged.connect(self.emit_autoscale)
+        channel_box.slider.sliderMoved.connect(self.emit_new_clims)
+        channel_box.color_choice.currentColormapChanged.connect(self.emit_new_cmap)
+
+        channel_box.color_choice.setCurrentIndex(index)
+        channel_box.clicked.connect(self._handle_channel_choice)
+        self.layout().addWidget(channel_box)
+        channel_box.color_choice.setCurrentColormap(
             self.channel_cmaps.get(name, "gray")
         )
-        if len(self.boxes) > 1:
-            self.boxes[i].mousePressEvent(None)
-        else:
-            self.boxes[0].setStyleSheet("ChannelBox{border: 3px solid}")
-            self.selected.emit(0)
-        self.new_cmap.emit(try_cast_colormap(self.channel_cmaps.get(name, "gray")), i)
+
+    def emit_visible(self, state: int) -> None:
+        sender = self.sender()
+        self.visible.emit(bool(state), list(self.boxes.values()).index(sender.parent()))
+
+    def emit_autoscale(self, state: int) -> None:
+        sender = self.sender()
+        self.autoscale.emit(bool(state), list(self.boxes.values()).index(sender.parent()))
+
+    def emit_new_clims(self, value: tuple[int, int]) -> None:
+        sender = self.sender()
+        self.new_clims.emit(value, list(self.boxes.values()).index(sender.parent()))
+
+    def emit_new_cmap(self, cmap: cmap.Colormap) -> None:
+        sender = self.sender()
+        self.new_cmap.emit(cmap, list(self.boxes.values()).index(sender.parent()))
+
+    def _disconnect(self) -> None:
+        for box in self.boxes.values():
+            box.show_channel.stateChanged.disconnect(self.emit_visible)
+            box.autoscale_chbx.stateChanged.disconnect(self.emit_autoscale)
+            box.slider.sliderMoved.disconnect(self.emit_new_clims)
+            box.color_choice.currentColormapChanged.disconnect(self.emit_new_cmap)
+            box.clicked.disconnect(self._handle_channel_choice)
 
     def channel_visibility(self, visible: bool, channel: int) -> None:
         """If the current channel is made invisible, choose a different one."""
         if self.current_channel == channel and not visible:
             channel_to_set = abs(channel - 1)
-            for idx, channel in enumerate(self.boxes):
+            for idx, channel in enumerate(self.boxes.values()):
                 if channel.show_channel.isChecked():
                     channel_to_set = idx
                     break
@@ -109,7 +121,7 @@ class ChannelRow(QtWidgets.QWidget):
         """Channel was chosen, adjust GUI and send signal."""
         if len(self.boxes) == 1:
             return
-        for idx, channel_box in enumerate(self.boxes):
+        for idx, channel_box in enumerate(self.boxes.values()):
             if channel_box.channel != channel:
                 channel_box.setStyleSheet("ChannelBox{border: 1px solid}")
             else:
@@ -128,7 +140,6 @@ class ChannelRow(QtWidgets.QWidget):
         self.channel_cmaps[self.boxes[i].channel] = color
         self.qt_settings.setValue("channel_cmaps", self.channel_cmaps)
         self.qt_settings.setValue("cmap_names", self.cmap_names)
-        print(self.channel_cmaps)
 
     def restore_data(self) -> None:
         """Restore data from previous session."""
@@ -137,23 +148,26 @@ class ChannelRow(QtWidgets.QWidget):
             "cmap_names", ["gray", "magenta", "cyan"]
         )
         self.channel_cmaps = self.qt_settings.value("channel_cmaps", {})
-        print(self.channel_cmaps)
 
 
-class ChannelBox(QtWidgets.QFrame):
+
+class ChannelBox(QtWidgets.QWidget):
     """Box that represents a channel and gives some way of interaction."""
 
     clicked = QtCore.Signal(str)
 
     def __init__(
         self,
-        channel: Channel,
+        name: str | None = None,
         cmaps: list | None = None,
+        parent: QtWidgets.QWidget | None = None,
     ) -> None:
-        super().__init__()
-        self.channel = channel.config
+        super().__init__(parent=parent)
+        if name is None:
+            name = "Default"
+        self.channel = name
         self.setLayout(QtWidgets.QGridLayout())
-        self.show_channel = QtWidgets.QCheckBox(channel.config)
+        self.show_channel = QtWidgets.QCheckBox(name)
         self.show_channel.setChecked(True)
         self.show_channel.setStyleSheet("font-weight: bold")
         self.layout().addWidget(self.show_channel, 0, 0)
@@ -166,7 +180,7 @@ class ChannelBox(QtWidgets.QFrame):
 
         self.layout().addWidget(self.color_choice, 0, 1)
         self.autoscale_chbx = QtWidgets.QCheckBox("Auto")
-        self.autoscale_chbx.setChecked(False)
+        self.autoscale_chbx.setChecked(True)
         self.layout().addWidget(self.autoscale_chbx, 0, 2)
         # self.histogram = HistPlot()
         # self.layout().addWidget(self.histogram, 1, 0, 1, 3)

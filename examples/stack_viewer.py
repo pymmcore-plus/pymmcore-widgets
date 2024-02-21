@@ -24,7 +24,7 @@ sequence = MDASequence(
         {"config": "FITC", "exposure": 1},
         {"config": "Cy3", "exposure": 1},
     ),
-    time_plan={"interval": 0.2, "loops": 2},
+    time_plan={"interval": 0.2, "loops": 5},
     # grid_plan={"rows": 2, "columns": 2},
 )
 

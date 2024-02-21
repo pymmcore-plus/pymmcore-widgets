@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Mapping
 import numpy as np
 from fonticon_mdi6 import MDI6
 from qtpy import QtCore, QtWidgets
-from qtpy.QtCore import QTimer, Signal
+from qtpy.QtCore import QTimer, Signal, Slot
 from superqt import fonticon
 from useq import MDAEvent, MDASequence
 
@@ -44,6 +44,7 @@ class StackViewer(QtWidgets.QWidget):
 
     _slider_settings = Signal(dict)
     _new_channel = Signal(int, str)
+    _retry_display = Signal(MDAEvent)
 
     def __init__(
         self,
@@ -103,7 +104,8 @@ class StackViewer(QtWidgets.QWidget):
             # Otherwise connect via listeners_connected or manually
             self._mmc.mda.events.sequenceStarted.connect(self.sequenceStarted)
 
-        self._new_channel.connect(self.channel_row.box_visibility)
+        # self._new_channel.connect(self.channel_row.box_visibility)
+        self._retry_display.connect(self._redisplay)
 
         self.images: list[scene.visuals.Image] = []
         self.frame = 0
@@ -153,12 +155,36 @@ class StackViewer(QtWidgets.QWidget):
         self.view_rect = (rect.pos, rect.size)
         self.view.camera.aspect = 1
 
+    def _create_sliders(self, sequence: MDASequence | None = None) -> None:
+        self.channel_row: ChannelRow = ChannelRow(parent=self)
+        self.channel_row.visible.connect(self._handle_channel_visibility)
+        self.channel_row.autoscale.connect(self._handle_channel_autoscale)
+        self.channel_row.new_clims.connect(self._handle_channel_clim)
+        self.channel_row.new_cmap.connect(self._handle_channel_cmap)
+        self.channel_row.selected.connect(self._handle_channel_choice)
+        self.layout().addWidget(self.channel_row)
+
+        if sequence is not None:
+            dims = [x for x in sequence.sizes.keys() if sequence.sizes[x] > 0]
+        else:
+            dims = DIMENSIONS
+        if "c" in dims:
+            dims.remove("c")
+        self.sliders: list[LabeledVisibilitySlider] = []
+        for dim in dims:
+            slider = LabeledVisibilitySlider(dim, orientation=QtCore.Qt.Horizontal)
+            # TODO: this should trigger a timer instead of directly calling the function
+            slider.sliderMoved.connect(self.on_display_timer)
+            self._slider_settings.connect(slider._visibility)
+            self.layout().addWidget(slider)
+            slider.hide()
+            self.sliders.append(slider)
+
     def sequenceStarted(self, sequence: MDASequence) -> None:
         """Sequence started by the mmcore. Adjust our settings, make layers etc."""
         self.ready = False
         self.sequence = sequence
         self.pixel_size = self._mmc.getPixelSizeUm() if self._mmc else self.pixel_size
-        print("PIXEL_SIZE", self.pixel_size)
         # Sliders
         for dim in DIMENSIONS[:3]:
             if sequence.sizes.get(dim, 1) > 1:
@@ -191,12 +217,45 @@ class StackViewer(QtWidgets.QWidget):
                     image.set_gl_state(depth_test=False)
                 self.images[c].append(image)
             self.current_channel = c
-            try:
-                self._new_channel.emit(c, sequence.channels[c].config)
-            except IndexError:
-                self._new_channel.emit(c, "Default")
+            # try:
+            #     self._new_channel.emit(c, sequence.channels[c].config)
+            # except IndexError:
+            #     self._new_channel.emit(c, "Default")
         self._collapse_view()
         self.ready = True
+
+    @Slot(MDAEvent)
+    def frameReady(self, event: MDAEvent) -> None:
+        """Frame received from acquisition, display the image, update sliders etc."""
+        if not self.ready:
+            self._retry_display.emit(event)
+            return
+        indices = dict(event.index)
+        img = self.datastore.get_frame(event)
+        # Update display
+        display_indices = self._set_sliders(indices)
+        if display_indices == indices:
+            self.display_image(img, indices.get("c", 0), indices.get("g", 0))
+            # Handle Autoscaling
+            try:
+                clim_slider = self.channel_row.boxes[indices.get("c", 0)].slider
+            except KeyError:
+                self.channel_row.add_channel(event.channel, indices.get("c", 0))
+                self._retry_display.emit(event)
+                return
+
+            clim_slider.setRange(
+                min(clim_slider.minimum(), img.min()),
+                max(clim_slider.maximum(), img.max()),
+            )
+            if self.channel_row.boxes[indices.get("c", 0)].autoscale_chbx.isChecked():
+                clim_slider.setValue(
+                    [
+                        min(clim_slider.minimum(), img.min()),
+                        max(clim_slider.maximum(), img.max()),
+                    ]
+                )
+            self.on_clim_timer(indices.get("c", 0))
 
     def _handle_channel_clim(
         self, values: tuple[int, int], channel: int, set_autoscale: bool = True
@@ -244,33 +303,6 @@ class StackViewer(QtWidgets.QWidget):
     def _handle_channel_choice(self, channel: int) -> None:
         print("Setting current channel", channel)
         self.current_channel = channel
-
-    def _create_sliders(self, sequence: MDASequence | None = None) -> None:
-        n_channels = 5 if sequence is None else sequence.sizes.get("c", 1)
-        self.channel_row: ChannelRow = ChannelRow(n_channels)
-        self.channel_row.visible.connect(self._handle_channel_visibility)
-        self.channel_row.autoscale.connect(self._handle_channel_autoscale)
-        self.channel_row.new_clims.connect(self._handle_channel_clim)
-        self.channel_row.new_cmap.connect(self._handle_channel_cmap)
-        self.channel_row.selected.connect(self._handle_channel_choice)
-        self.layout().addWidget(self.channel_row)
-
-        if sequence is not None:
-            dims = [x for x in sequence.sizes.keys() if sequence.sizes[x] > 0]
-        else:
-            dims = DIMENSIONS
-        if "c" in dims:
-            dims.remove("c")
-        self.sliders: list[LabeledVisibilitySlider] = []
-        for dim in dims:
-            slider = LabeledVisibilitySlider(dim, orientation=QtCore.Qt.Horizontal)
-            # TODO: this should trigger a timer instead of directly calling the function
-            slider.sliderMoved.connect(self.on_display_timer)
-            self._slider_settings.connect(slider._visibility)
-            self.layout().addWidget(slider)
-            slider.hide()
-            self.sliders.append(slider)
-        # print("Number of sliders constructed: ", len(self.sliders))
 
     def on_mouse_move(self, event: SceneMouseEvent) -> None:
         """Mouse moved on the canvas, display the pixel value and position."""
@@ -332,35 +364,6 @@ class StackViewer(QtWidgets.QWidget):
                 self.display_image(frame, c, g)
         self._canvas.update()
 
-    def frameReady(self, event: MDAEvent) -> None:
-        """Frame received from acquisition, display the image, update sliders etc."""
-        if not self.ready:
-            timer = QTimer()
-            timer.setSingleShot(True)
-            timer.timeout.connect(lambda: self.frameReady(event))
-            timer.start(100)
-            return
-        indices = self.complement_indices(event.index)
-        img = self.datastore.get_frame(event)
-        # Update display
-        display_indices = self._set_sliders(indices)
-        if display_indices == indices:
-            self.display_image(img, indices.get("c", 0), indices.get("g", 0))
-            # Handle Autoscaling
-            clim_slider = self.channel_row.boxes[indices.get("c", 0)].slider
-            clim_slider.setRange(
-                min(clim_slider.minimum(), img.min()),
-                max(clim_slider.maximum(), img.max()),
-            )
-            if self.channel_row.boxes[indices.get("c", 0)].autoscale_chbx.isChecked():
-                clim_slider.setValue(
-                    [
-                        min(clim_slider.minimum(), img.min()),
-                        max(clim_slider.maximum(), img.max()),
-                    ]
-                )
-            self.on_clim_timer(indices.get("c", 0))
-
     def _set_sliders(self, indices: dict) -> dict:
         """New indices from outside the sliders, update."""
         display_indices = copy.deepcopy(indices)
@@ -370,7 +373,7 @@ class StackViewer(QtWidgets.QWidget):
                 continue
             # This blocking doesn't seem to work
             # blocked = slider.blockSignals(True)
-            slider.setValue(display_indices[slider.name])
+            slider.setValue(display_indices.get(slider.name, 0))
             # slider.setValue(indices[slider.name])
             # slider.blockSignals(blocked)
         return display_indices
@@ -466,14 +469,6 @@ class StackViewer(QtWidgets.QWidget):
         )
         print(self.view_rect)
 
-    def complement_indices(self, index: Mapping[str, int]) -> dict:
-        """MDAEvents not always have all the dimensions, complement."""
-        indices = dict(copy.deepcopy(dict(index)))
-        for i in DIMENSIONS:
-            if i not in indices:
-                indices[i] = 0
-        return indices
-
     def _disconnect(self) -> None:
         if self._mmc:
             self._mmc.mda.events.sequenceStarted.disconnect(self.sequenceStarted)
@@ -495,9 +490,22 @@ class StackViewer(QtWidgets.QWidget):
         )
         self.view.camera.rect = view_rect
 
+    def replot_timer_callback(self) -> None:
+        self.frameReady(self.last_event)
+
+    def _redisplay(self, event: MDAEvent) -> None:
+        self.last_event = event
+        self.replot_timer = QTimer()
+        self.replot_timer.setSingleShot(True)
+        self.replot_timer.timeout.connect(self.replot_timer_callback)
+        self.replot_timer.start(100)
+        return
+
     def closeEvent(self, e: QCloseEvent) -> None:
         """Write window size and position to config file."""
         self.qt_settings.setValue("size", self.size())
         self.qt_settings.setValue("pos", self.pos())
         self.qt_settings.setValue("cmaps", self.cmap_names)
+        self._canvas.close()
         super().closeEvent(e)
+        # self.channel_row._disconnect()

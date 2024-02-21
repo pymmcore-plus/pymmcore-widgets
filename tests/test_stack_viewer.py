@@ -11,7 +11,7 @@ from pymmcore_widgets.experimental import StackViewer
 
 sequence = MDASequence(
     channels=[{"config": "DAPI", "exposure": 10}, {"config": "FITC", "exposure": 10}],
-    time_plan={"interval": 0.5, "loops": 3},
+    time_plan={"interval": 0.2, "loops": 3},
     grid_plan={"rows": 2, "columns": 2, "fov_height": 512, "fov_width": 512},
     axis_order="tpcz",
 )
@@ -26,8 +26,11 @@ def test_acquisition(qtbot):
         mmcore.mda.run(sequence)
     assert canvas.images[0][0]._data.flatten()[0] != 0
     assert canvas.images[1][0]._data.shape == (512, 512)
-    assert len(canvas.channel_row.boxes) == 5
+    assert len(canvas.channel_row.boxes) == sequence.sizes.get("c", 1)
     assert len(canvas.sliders) > 1
+    # canvas.close()
+    # canvas.deleteLater()
+
 
 
 def test_init_with_sequence(qtbot):
@@ -41,7 +44,7 @@ def test_init_with_sequence(qtbot):
     assert canvas.images[0][0]._data.flatten()[0] != 0
     assert canvas.images[1][0]._data.shape == (512, 512)
     # Now only the necessary sliders/boxes should have been initialized
-    assert len(canvas.channel_row.boxes) == 2
+    assert len(canvas.channel_row.boxes) == sequence.sizes.get("c", 1)
     assert len(canvas.sliders) == 1
 
 
@@ -142,7 +145,6 @@ def test_canvas_size():
         grid_plan={"rows": 2, "columns": 2, "fov_height": 128, "fov_width": 128}
     )
     for event in events:
-        print(event)
         canvas._expand_canvas_view(event)
     assert canvas.view_rect[0][0] <= -128
     assert canvas.view_rect[0][1] <= -128
