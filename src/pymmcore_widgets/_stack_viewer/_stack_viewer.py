@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, Mapping, cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from fonticon_mdi6 import MDI6
@@ -94,9 +94,7 @@ class StackViewer(QtWidgets.QWidget):
                 )
             else:
 
-                QtCore.qWarning(
-                    "No datastore or mmcore provided, connect manually."
-                )
+                QtCore.qWarning("No datastore or mmcore provided, connect manually.")
 
         if self._mmc:
             # Otherwise connect via listeners_connected or manually
