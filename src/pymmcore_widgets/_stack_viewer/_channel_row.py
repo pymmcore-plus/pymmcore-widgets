@@ -42,7 +42,7 @@ class ChannelRow(QtWidgets.QWidget):
     selected = QtCore.Signal(int)
     new_channel = QtCore.Signal(str, int)
 
-    def __init__(self, parent: QtWidgets.QWidget|None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent=parent)
         self.restore_data()
 
@@ -54,7 +54,7 @@ class ChannelRow(QtWidgets.QWidget):
         self.new_channel.connect(self._add_channel)
         self.current_channel = None
 
-    def add_channel(self, channel: Channel|None, index: int|None = None) -> None:
+    def add_channel(self, channel: Channel | None, index: int | None = None) -> None:
         """Add a channel to the row."""
         if index is None:
             index = len(self.boxes)
@@ -67,7 +67,6 @@ class ChannelRow(QtWidgets.QWidget):
     def _add_channel(self, name: str, index: int) -> None:
         channel_box = ChannelBox(name, cmaps=self.cmap_names, parent=self)
         self.boxes[index] = channel_box
-
 
         channel_box.show_channel.stateChanged.connect(self.emit_visible)
         channel_box.autoscale_chbx.stateChanged.connect(self.emit_autoscale)
@@ -87,7 +86,9 @@ class ChannelRow(QtWidgets.QWidget):
 
     def emit_autoscale(self, state: int) -> None:
         sender = self.sender()
-        self.autoscale.emit(bool(state), list(self.boxes.values()).index(sender.parent()))
+        self.autoscale.emit(
+            bool(state), list(self.boxes.values()).index(sender.parent())
+        )
 
     def emit_new_clims(self, value: tuple[int, int]) -> None:
         sender = self.sender()
@@ -148,7 +149,6 @@ class ChannelRow(QtWidgets.QWidget):
             "cmap_names", ["gray", "magenta", "cyan"]
         )
         self.channel_cmaps = self.qt_settings.value("channel_cmaps", {})
-
 
 
 class ChannelBox(QtWidgets.QWidget):

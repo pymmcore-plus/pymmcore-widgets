@@ -32,7 +32,6 @@ def test_acquisition(qtbot):
     # canvas.deleteLater()
 
 
-
 def test_init_with_sequence(qtbot):
     mmcore = CMMCorePlus.instance()
 
