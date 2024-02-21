@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING, Mapping, cast
 
 import numpy as np
 from fonticon_mdi6 import MDI6
