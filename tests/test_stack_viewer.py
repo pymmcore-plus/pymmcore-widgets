@@ -1,4 +1,3 @@
-import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore
 from superqt.cmap._cmap_utils import try_cast_colormap
@@ -117,7 +116,7 @@ def test_connection_warning(qtbot, qtlog):
     canvas = StackViewer()
     emitted = [(m.type, m.message.strip()) for m in qtlog.records]
     qtbot.addWidget(canvas)
-    assert 'No datastore or mmcore provided, connect manually.' == emitted[0][1]
+    assert "No datastore or mmcore provided, connect manually." == emitted[0][1]
 
 
 def test_settings_on_close():
