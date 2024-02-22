@@ -1,3 +1,5 @@
+import faulthandler
+
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore
 from superqt.cmap._cmap_utils import try_cast_colormap
@@ -7,6 +9,8 @@ from vispy.scene.events import SceneMouseEvent
 
 from pymmcore_widgets._stack_viewer import CMAPS
 from pymmcore_widgets.experimental import StackViewer
+
+faulthandler.enable()
 
 sequence = MDASequence(
     channels=[{"config": "DAPI", "exposure": 10}, {"config": "FITC", "exposure": 10}],
@@ -83,8 +87,7 @@ def test_interaction(qapp, qtbot):
     qapp.processEvents()
     qtbot.wait(100)
     canvas._canvas.app.process_events()
-    qapp.processEvents()
-
+    canvas.on_mouse_move(event)
     # There should be a number there as this is on the image
     assert canvas.info_bar.text()[-1] != "]"
 
