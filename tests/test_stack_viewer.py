@@ -55,7 +55,7 @@ def test_interaction(qapp, qtbot):
     canvas.on_display_timer()
     canvas.show()
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
-        mmcore.mda.run(sequence)
+        mmcore.run_mda(sequence)
     qapp.processEvents()
     qtbot.wait(1000)
 
