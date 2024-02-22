@@ -52,7 +52,7 @@ def test_interaction(qapp, qtbot):
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore, sequence=sequence, transform=(90, False, False))
     qtbot.addWidget(canvas)
-    canvas.on_display_timer()
+    # canvas.on_display_timer()
     canvas.show()
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.run_mda(sequence)
@@ -61,10 +61,12 @@ def test_interaction(qapp, qtbot):
 
     # canvas.view_rect = ((0, 0), (512, 512))
     canvas.resize(700, 700)
-    canvas._collapse_view()
-    canvas._canvas.update()
     qapp.processEvents()
     qtbot.wait(1000)
+    canvas._collapse_view()
+    canvas.on_display_timer()
+    canvas._canvas.update()
+
 
     # outside canvas
     event = SceneMouseEvent(MouseEvent("mouse_move"), None)
