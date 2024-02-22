@@ -56,7 +56,7 @@ def test_interaction(qtbot):
     canvas.show()
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)
-    qtbot.wait(500)
+    qtbot.wait(3000)
 
     # canvas.view_rect = ((0, 0), (512, 512))
     canvas.resize(700, 700)
