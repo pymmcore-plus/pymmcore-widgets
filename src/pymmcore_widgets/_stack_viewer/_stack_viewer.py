@@ -42,9 +42,8 @@ class StackViewer(QtWidgets.QWidget):
     transform: (int, bool, bool) rotation mirror_x mirror_y.
     """
 
-    _slider_settings = Signal(dict)
-    _new_channel = Signal(int, str)
     _retry_display = Signal(MDAEvent)
+    _new_dim = Signal(str)
 
     def __init__(
         self,
@@ -93,7 +92,6 @@ class StackViewer(QtWidgets.QWidget):
                     self.datastore.sequenceStarted
                 )
             else:
-
                 QtCore.qWarning("No datastore or mmcore provided, connect manually.")
 
         if self._mmc:
@@ -101,9 +99,10 @@ class StackViewer(QtWidgets.QWidget):
             self._mmc.mda.events.sequenceStarted.connect(self.sequenceStarted)
 
         # self._new_channel.connect(self.channel_row.box_visibility)
+        self._new_dim.connect(self.add_slider)
         self._retry_display.connect(self._redisplay)
 
-        self.images: list[scene.visuals.Image] = []
+        self.images: dict[tuple, scene.visuals.Image] = {}
         self.frame = 0
         self.ready = False
         self.current_channel = 0
@@ -160,42 +159,25 @@ class StackViewer(QtWidgets.QWidget):
         self.channel_row.selected.connect(self._handle_channel_choice)
         self.layout().addWidget(self.channel_row)
 
-        if sequence is not None:
-            dims = [x for x in sequence.sizes.keys() if sequence.sizes[x] > 0]
-        else:
-            dims = DIMENSIONS
-        if "c" in dims:
-            dims.remove("c")
-        self.sliders: list[LabeledVisibilitySlider] = []
-        for dim in dims:
-            slider = LabeledVisibilitySlider(dim, orientation=QtCore.Qt.Horizontal)
-            # TODO: this should trigger a timer instead of directly calling the function
-            slider.sliderMoved.connect(self.on_display_timer)
-            self._slider_settings.connect(slider._visibility)
-            self.layout().addWidget(slider)
-            slider.hide()
-            self.sliders.append(slider)
+        self.sliders: dict[str, LabeledVisibilitySlider] = {}
+
+    def add_slider(self, dim: str) -> None:
+        slider = LabeledVisibilitySlider(dim, orientation=QtCore.Qt.Horizontal)
+        slider.sliderMoved.connect(self.on_display_timer)
+        slider.setRange(0, 1)
+        self.layout().insertWidget(-2, slider)
+        self.sliders[dim] = slider
 
     def sequenceStarted(self, sequence: MDASequence) -> None:
         """Sequence started by the mmcore. Adjust our settings, make layers etc."""
         self.ready = False
         self.sequence = sequence
         self.pixel_size = self._mmc.getPixelSizeUm() if self._mmc else self.pixel_size
-        # Sliders
-        for dim in DIMENSIONS[:3]:
-            if sequence.sizes.get(dim, 1) > 1:
-                self._slider_settings.emit(
-                    {"index": dim, "show": True, "max": sequence.sizes[dim] - 1}
-                )
-            else:
-                self._slider_settings.emit({"index": dim, "show": False, "max": 1})
-        # Channels
+
         nc = max(sequence.sizes.get("c", 1), 1)
         self.ng = max(sequence.sizes.get("g", 1), 1)
-        self.images = []
 
         for c in range(nc):
-            self.images.append([])
             for g in range(self.ng):
                 image = scene.visuals.Image(
                     np.zeros(self._canvas.size).astype(np.uint16),
@@ -211,12 +193,9 @@ class StackViewer(QtWidgets.QWidget):
                     image.set_gl_state("additive", depth_test=False)
                 else:
                     image.set_gl_state(depth_test=False)
-                self.images[c].append(image)
+                self.images[tuple({"c": c, "g": g}.items())] = image
             self.current_channel = c
-            # try:
-            #     self._new_channel.emit(c, sequence.channels[c].config)
-            # except IndexError:
-            #     self._new_channel.emit(c, "Default")
+
         self._collapse_view()
         self.ready = True
 
@@ -228,7 +207,12 @@ class StackViewer(QtWidgets.QWidget):
         indices = dict(event.index)
         img = self.datastore.get_frame(event)
         # Update display
-        display_indices = self._set_sliders(indices)
+        try:
+            display_indices = self._set_sliders(indices)
+        except KeyError as e:
+            self._new_dim.emit(e.args[0])
+            self._retry_display.emit(event)
+            return
         if display_indices == indices:
             self.display_image(img, indices.get("c", 0), indices.get("g", 0))
             # Handle Autoscaling
@@ -257,7 +241,7 @@ class StackViewer(QtWidgets.QWidget):
         self, values: tuple[int, int], channel: int, set_autoscale: bool = True
     ) -> None:
         for g in range(self.ng):
-            self.images[channel][g].clim = values
+            self.images[tuple({"c": channel, "g": g}.items())].clim = values
         if self.channel_row.boxes[channel].autoscale_chbx.isChecked() and set_autoscale:
             self.channel_row.boxes[channel].autoscale_chbx.setCheckState(
                 QtCore.Qt.Unchecked
@@ -266,7 +250,9 @@ class StackViewer(QtWidgets.QWidget):
 
     def _handle_channel_cmap(self, colormap: cmap.Colormap, channel: int) -> None:
         for g in range(self.ng):
-            self.images[channel][g].cmap = colormap.to_vispy()
+            self.images[
+                tuple({"c": channel, "g": g}.items())
+            ].cmap = colormap.to_vispy()
         if colormap.name not in self.cmap_names:
             self.cmap_names.append(self.cmap_names[channel])
         self.cmap_names[channel] = colormap.name
@@ -274,9 +260,9 @@ class StackViewer(QtWidgets.QWidget):
 
     def _handle_channel_visibility(self, state: bool, channel: int) -> None:
         for g in range(self.ng):
-            self.images[channel][g].visible = self.channel_row.boxes[
-                channel
-            ].show_channel.isChecked()
+            self.images[
+                tuple({"c": channel, "g": g}.items())
+            ].visible = self.channel_row.boxes[channel].show_channel.isChecked()
         if self.current_channel == channel:
             channel_to_set = channel - 1 if channel > 0 else channel + 1
             channel_to_set = 0 if len(self.channel_row.boxes) == 1 else channel_to_set
@@ -307,7 +293,8 @@ class StackViewer(QtWidgets.QWidget):
         images = []
         # Get the images the mouse is over
         while image := self._canvas.visual_at(event.pos):
-            images.append(image)
+            if image in self.images.values():
+                images.append(image)
             image.interactive = False
         for image in images:
             image.interactive = True
@@ -338,7 +325,7 @@ class StackViewer(QtWidgets.QWidget):
     def on_display_timer(self) -> None:
         """Update display, usually triggered by QTimer started by slider click."""
         old_index = self.display_index.copy()
-        for slider in self.sliders:
+        for slider in self.sliders.values():
             self.display_index[slider.name] = slider.value()
         if old_index == self.display_index:
             return
@@ -363,19 +350,23 @@ class StackViewer(QtWidgets.QWidget):
     def _set_sliders(self, indices: dict) -> dict:
         """New indices from outside the sliders, update."""
         display_indices = copy.deepcopy(indices)
-        for slider in self.sliders:
-            if slider.lock_btn.isChecked():
-                display_indices[slider.name] = slider.value()
+        for index in display_indices:
+            if index not in ["t", "z"] or display_indices.get(index, 0) == 0:
+                continue
+            if self.sliders[index].lock_btn.isChecked():
+                display_indices[index] = self.sliders[index].value()
                 continue
             # This blocking doesn't seem to work
             # blocked = slider.blockSignals(True)
-            slider.setValue(display_indices.get(slider.name, 0))
+            self.sliders[index].setValue(display_indices.get(index, 0))
+            if display_indices.get(index, 0) > self.sliders[index].maximum():
+                self.sliders[index].setMaximum(display_indices.get(index, 0))
             # slider.setValue(indices[slider.name])
             # slider.blockSignals(blocked)
         return display_indices
 
     def display_image(self, img: np.ndarray, channel: int = 0, grid: int = 0) -> None:
-        self.images[channel][grid].set_data(img)
+        self.images[tuple({"c": channel, "g": grid}.items())].set_data(img)
         # Should we do this? Might it slow down acquisition while in the same thread?
         self._canvas.update()
 
@@ -387,11 +378,14 @@ class StackViewer(QtWidgets.QWidget):
             for channel in channel_list:
                 if (
                     self.channel_row.boxes[channel].autoscale_chbx.isChecked()
-                    and self.images[channel][grid].visible
+                    and self.images[tuple({"c": channel, "g": grid}.items())].visible
                 ):
                     # TODO: percentile here, could be in gui
-                    clim = np.percentile(self.images[channel][grid]._data, [0, 100])
-                    self.images[channel][grid].clim = clim
+                    clim = np.percentile(
+                        self.images[tuple({"c": channel, "g": grid}.items())]._data,
+                        [0, 100],
+                    )
+                    self.images[tuple({"c": channel, "g": grid}.items())].clim = clim
         self._canvas.update()
 
     def _get_image_position(

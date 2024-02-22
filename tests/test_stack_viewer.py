@@ -23,10 +23,10 @@ def test_acquisition(qtbot):
 
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)
-    assert canvas.images[0][0]._data.flatten()[0] != 0
-    assert canvas.images[1][0]._data.shape == (512, 512)
+    assert canvas.images[tuple({"c": 0, "g": 0}.items())]._data.flatten()[0] != 0
+    assert canvas.images[tuple({"c": 1, "g": 0}.items())]._data.shape == (512, 512)
     assert len(canvas.channel_row.boxes) == sequence.sizes.get("c", 1)
-    assert len(canvas.sliders) > 1
+    assert len(canvas.sliders) > 0
     # canvas.close()
     # canvas.deleteLater()
 
@@ -39,8 +39,8 @@ def test_init_with_sequence(qtbot):
 
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)
-    assert canvas.images[0][0]._data.flatten()[0] != 0
-    assert canvas.images[1][0]._data.shape == (512, 512)
+    assert canvas.images[tuple({"c": 0, "g": 0}.items())]._data.flatten()[0] != 0
+    assert canvas.images[tuple({"c": 1, "g": 0}.items())]._data.shape == (512, 512)
     # Now only the necessary sliders/boxes should have been initialized
     assert len(canvas.channel_row.boxes) == sequence.sizes.get("c", 1)
     assert len(canvas.sliders) == 1
@@ -54,18 +54,15 @@ def test_interaction(qtbot):
     canvas.show()
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)
+    qtbot.wait(500)
+
     # canvas.view_rect = ((0, 0), (512, 512))
     canvas.resize(700, 700)
     canvas._collapse_view()
     canvas._canvas.update()
 
-    event = SceneMouseEvent(MouseEvent("mouse_move"), None)
-    event._pos = [100, 100]
-    canvas.on_mouse_move(event)
-    # There should be a number there as this is on the image
-    assert canvas.info_bar.text()[-1] != "]"
-
     # outside canvas
+    event = SceneMouseEvent(MouseEvent("mouse_move"), None)
     event._pos = [-10, 100]
     canvas.on_mouse_move(event)
     assert canvas.info_bar.text()[-1] == "]"
@@ -75,17 +72,22 @@ def test_interaction(qtbot):
     canvas.on_mouse_move(event)
     assert canvas.info_bar.text()[-1] == "]"
 
-    canvas.sliders[0].setValue(1)
-    canvas.sliders[0].lock_btn.setChecked(True)
+    event._pos = [100, 100]
+    canvas.on_mouse_move(event)
+    # There should be a number there as this is on the image
+    assert canvas.info_bar.text()[-1] != "]"
+
+    canvas.sliders["t"].setValue(1)
+    canvas.sliders["t"].lock_btn.setChecked(True)
     event = MDAEvent(index={"t": 0, "c": 0, "g": 0})
     canvas.frameReady(event)
-    assert canvas.sliders[0].value() == 1
+    assert canvas.sliders["t"].value() == 1
 
     canvas.on_clim_timer()
     color_selected = 2
     canvas.channel_row.boxes[0].color_choice.setCurrentIndex(color_selected)
     assert (
-        canvas.images[0][0].cmap.colors[-1].RGB
+        canvas.images[tuple({"c": 0, "g": 0}.items())].cmap.colors[-1].RGB
         == try_cast_colormap(CMAPS[color_selected]).to_vispy().colors[-1].RGB
     ).all
 
