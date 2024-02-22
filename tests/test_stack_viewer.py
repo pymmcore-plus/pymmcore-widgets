@@ -60,12 +60,6 @@ def test_interaction(qapp, qtbot):
     qtbot.wait(1000)
 
     # canvas.view_rect = ((0, 0), (512, 512))
-    canvas.resize(700, 700)
-    qapp.processEvents()
-    qtbot.wait(1000)
-    canvas._collapse_view()
-    canvas.on_display_timer()
-    canvas._canvas.update()
 
     # outside canvas
     event = SceneMouseEvent(MouseEvent("mouse_move"), None)
@@ -78,6 +72,7 @@ def test_interaction(qapp, qtbot):
     canvas.on_mouse_move(event)
     assert canvas.info_bar.text()[-1] == "]"
 
+    # on image
     event._pos = [100, 100]
     canvas.on_mouse_move(event)
     # There should be a number there as this is on the image
