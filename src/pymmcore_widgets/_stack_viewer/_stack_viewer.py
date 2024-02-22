@@ -250,9 +250,9 @@ class StackViewer(QtWidgets.QWidget):
 
     def _handle_channel_cmap(self, colormap: cmap.Colormap, channel: int) -> None:
         for g in range(self.ng):
-            self.images[
-                tuple({"c": channel, "g": g}.items())
-            ].cmap = colormap.to_vispy()
+            self.images[tuple({"c": channel, "g": g}.items())].cmap = (
+                colormap.to_vispy()
+            )
         if colormap.name not in self.cmap_names:
             self.cmap_names.append(self.cmap_names[channel])
         self.cmap_names[channel] = colormap.name
@@ -260,9 +260,9 @@ class StackViewer(QtWidgets.QWidget):
 
     def _handle_channel_visibility(self, state: bool, channel: int) -> None:
         for g in range(self.ng):
-            self.images[
-                tuple({"c": channel, "g": g}.items())
-            ].visible = self.channel_row.boxes[channel].show_channel.isChecked()
+            self.images[tuple({"c": channel, "g": g}.items())].visible = (
+                self.channel_row.boxes[channel].show_channel.isChecked()
+            )
         if self.current_channel == channel:
             channel_to_set = channel - 1 if channel > 0 else channel + 1
             channel_to_set = 0 if len(self.channel_row.boxes) == 1 else channel_to_set
