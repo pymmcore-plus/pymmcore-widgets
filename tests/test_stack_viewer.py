@@ -52,14 +52,18 @@ def test_interaction(qapp, qtbot):
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore, sequence=sequence, transform=(90, False, False))
     qtbot.addWidget(canvas)
-    # canvas.on_display_timer()
-    canvas.show()
+
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
-        mmcore.run_mda(sequence)
+        mmcore.mda.run(sequence)
     qapp.processEvents()
-    qtbot.wait(1000)
+    # qtbot.wait(1000)
 
     # canvas.view_rect = ((0, 0), (512, 512))
+    # canvas.resize(700, 700)
+    canvas._collapse_view()
+    for image in canvas.images.values():
+        image.draw()
+    canvas._canvas.update()
 
     # outside canvas
     event = SceneMouseEvent(MouseEvent("mouse_move"), None)
@@ -72,7 +76,6 @@ def test_interaction(qapp, qtbot):
     canvas.on_mouse_move(event)
     assert canvas.info_bar.text()[-1] == "]"
 
-    # on image
     event._pos = [100, 100]
     canvas.on_mouse_move(event)
     # There should be a number there as this is on the image
