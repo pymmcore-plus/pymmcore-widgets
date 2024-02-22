@@ -23,6 +23,7 @@ def test_acquisition(qtbot):
 
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)
+    qtbot.wait(500)
     assert canvas.images[tuple({"c": 0, "g": 0}.items())]._data.flatten()[0] != 0
     assert canvas.images[tuple({"c": 1, "g": 0}.items())]._data.shape == (512, 512)
     assert len(canvas.channel_row.boxes) == sequence.sizes.get("c", 1)
@@ -39,6 +40,7 @@ def test_init_with_sequence(qtbot):
 
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)
+    qtbot.wait(500)
     assert canvas.images[tuple({"c": 0, "g": 0}.items())]._data.flatten()[0] != 0
     assert canvas.images[tuple({"c": 1, "g": 0}.items())]._data.shape == (512, 512)
     # Now only the necessary sliders/boxes should have been initialized

@@ -44,6 +44,7 @@ class StackViewer(QtWidgets.QWidget):
 
     _retry_display = Signal(MDAEvent)
     _new_dim = Signal(str)
+    _new_img = Signal(MDAEvent)
 
     def __init__(
         self,
@@ -101,12 +102,14 @@ class StackViewer(QtWidgets.QWidget):
         # self._new_channel.connect(self.channel_row.box_visibility)
         self._new_dim.connect(self.add_slider)
         self._retry_display.connect(self._redisplay)
+        self._new_img.connect(self.add_image)
 
         self.images: dict[tuple, scene.visuals.Image] = {}
         self.frame = 0
         self.ready = False
         self.current_channel = 0
         self.pixel_size = 1.0
+        self.missed_events = []
 
         # self.clim_timer = QtCore.QTimer()
         # self.clim_timer.setInterval(int(1000 // AUTOCLIM_RATE))
@@ -170,33 +173,33 @@ class StackViewer(QtWidgets.QWidget):
         self.slider_layout.addWidget(slider)
         self.sliders[dim] = slider
 
+    def add_image(self, event: MDAEvent) -> None:
+        image = scene.visuals.Image(
+            np.zeros(self._canvas.size).astype(np.uint16),
+            parent=self.view.scene,
+            cmap=self.cmaps[event.index.get("c", 0)].to_vispy(),
+            clim=(0, 1),
+        )
+        trans = visuals.transforms.linear.MatrixTransform()
+        trans.rotate(self.transform[0], (0, 0, 1))
+        image.transform = self._get_image_position(trans, event)
+        image.interactive = True
+        if event.index.get("c", 0) > 0:
+            image.set_gl_state("additive", depth_test=False)
+        else:
+            image.set_gl_state(depth_test=False)
+        self.images[
+            tuple({"c": event.index.get("c", 0), "g": event.index.get("g", 0)}.items())
+        ] = image
+
     def sequenceStarted(self, sequence: MDASequence) -> None:
         """Sequence started by the mmcore. Adjust our settings, make layers etc."""
         self.ready = False
         self.sequence = sequence
         self.pixel_size = self._mmc.getPixelSizeUm() if self._mmc else self.pixel_size
 
-        nc = max(sequence.sizes.get("c", 1), 1)
         self.ng = max(sequence.sizes.get("g", 1), 1)
-
-        for c in range(nc):
-            for g in range(self.ng):
-                image = scene.visuals.Image(
-                    np.zeros(self._canvas.size).astype(np.uint16),
-                    parent=self.view.scene,
-                    cmap=self.cmaps[c].to_vispy(),
-                    clim=(0, 1),
-                )
-                trans = visuals.transforms.linear.MatrixTransform()
-                trans.rotate(self.transform[0], (0, 0, 1))
-                image.transform = self._get_image_position(trans, sequence, g)
-                image.interactive = True
-                if c > 0:
-                    image.set_gl_state("additive", depth_test=False)
-                else:
-                    image.set_gl_state(depth_test=False)
-                self.images[tuple({"c": c, "g": g}.items())] = image
-            self.current_channel = c
+        self.current_channel = 0
 
         self._collapse_view()
         self.ready = True
@@ -216,8 +219,7 @@ class StackViewer(QtWidgets.QWidget):
             self._retry_display.emit(event)
             return
         if display_indices == indices:
-            self.display_image(img, indices.get("c", 0), indices.get("g", 0))
-            # Handle Autoscaling
+            # Get controls
             try:
                 clim_slider = self.channel_row.boxes[indices.get("c", 0)].slider
             except KeyError:
@@ -225,7 +227,14 @@ class StackViewer(QtWidgets.QWidget):
                 self.channel_row.add_channel(this_channel, indices.get("c", 0))
                 self._retry_display.emit(event)
                 return
+            try:
+                self.display_image(img, indices.get("c", 0), indices.get("g", 0))
+            except KeyError:
+                self._new_img.emit(event)
+                self._retry_display.emit(event)
+                return
 
+            # Handle autoscaling
             clim_slider.setRange(
                 min(clim_slider.minimum(), img.min()),
                 max(clim_slider.maximum(), img.max()),
@@ -237,7 +246,12 @@ class StackViewer(QtWidgets.QWidget):
                         max(clim_slider.maximum(), img.max()),
                     ]
                 )
-            self.on_clim_timer(indices.get("c", 0))
+            try:
+                self.on_clim_timer(indices.get("c", 0))
+            except KeyError:
+                return
+        if sum([event.index.get("t", 0), event.index.get("z", 0)]) == 0:
+            self._collapse_view()
 
     def _handle_channel_clim(
         self, values: tuple[int, int], channel: int, set_autoscale: bool = True
@@ -252,9 +266,12 @@ class StackViewer(QtWidgets.QWidget):
 
     def _handle_channel_cmap(self, colormap: cmap.Colormap, channel: int) -> None:
         for g in range(self.ng):
-            self.images[tuple({"c": channel, "g": g}.items())].cmap = (
-                colormap.to_vispy()
-            )
+            try:
+                self.images[
+                    tuple({"c": channel, "g": g}.items())
+                ].cmap = colormap.to_vispy()
+            except KeyError:
+                return
         if colormap.name not in self.cmap_names:
             self.cmap_names.append(self.cmap_names[channel])
         self.cmap_names[channel] = colormap.name
@@ -262,9 +279,9 @@ class StackViewer(QtWidgets.QWidget):
 
     def _handle_channel_visibility(self, state: bool, channel: int) -> None:
         for g in range(self.ng):
-            self.images[tuple({"c": channel, "g": g}.items())].visible = (
-                self.channel_row.boxes[channel].show_channel.isChecked()
-            )
+            self.images[
+                tuple({"c": channel, "g": g}.items())
+            ].visible = self.channel_row.boxes[channel].show_channel.isChecked()
         if self.current_channel == channel:
             channel_to_set = channel - 1 if channel > 0 else channel + 1
             channel_to_set = 0 if len(self.channel_row.boxes) == 1 else channel_to_set
@@ -393,15 +410,25 @@ class StackViewer(QtWidgets.QWidget):
     def _get_image_position(
         self,
         trans: visuals.transforms.linear.MatrixTransform,
-        sequence: MDASequence,
-        g: int,
+        event: MDAEvent,
     ) -> visuals.transforms.linear.MatrixTransform:
         translate = [round(x) for x in ((1, 1) - trans.matrix[:2, :2].dot((1, 1))) / 2]
-        if sequence.grid_plan:
-            sub_seq = MDASequence(grid_plan=sequence.grid_plan)
-            sub_event = list(sub_seq.iter_events())[g]
-            x_pos = sub_event.x_pos or 0
-            y_pos = sub_event.y_pos or 0
+
+        x_pos = event.x_pos or 0
+        y_pos = event.y_pos or 0
+        if x_pos == 0 and y_pos == 0:
+            trans.translate(
+                (
+                    (1 - translate[1]) * self.img_size[0],
+                    translate[0] * self.img_size[1],
+                    0,
+                )
+            )
+            self.view_rect = (
+                (0 - self.img_size[0] / 2, 0 - self.img_size[1] / 2),
+                (self.img_size[0], self.img_size[1]),
+            )
+        else:
             trans.translate(
                 (
                     (translate[1] - 1) * self.img_size[0],
@@ -416,19 +443,7 @@ class StackViewer(QtWidgets.QWidget):
                     0,
                 )
             )
-            self._expand_canvas_view(sub_event)
-        else:
-            trans.translate(
-                (
-                    (1 - translate[1]) * self.img_size[0],
-                    translate[0] * self.img_size[1],
-                    0,
-                )
-            )
-            self.view_rect = (
-                (0 - self.img_size[0] / 2, 0 - self.img_size[1] / 2),
-                (self.img_size[0], self.img_size[1]),
-            )
+            self._expand_canvas_view(event)
         return trans
 
     def _expand_canvas_view(self, event: MDAEvent) -> None:
@@ -483,10 +498,13 @@ class StackViewer(QtWidgets.QWidget):
         self.view.camera.rect = view_rect
 
     def replot_timer_callback(self) -> None:
-        self.frameReady(self.last_event)
+        while self.missed_events:
+            event = self.missed_events.pop(0)
+            # self.missed_events.remove(event)
+            self.frameReady(event)
 
     def _redisplay(self, event: MDAEvent) -> None:
-        self.last_event = event
+        self.missed_events.append(event)
         self.replot_timer = QTimer()
         self.replot_timer.setSingleShot(True)
         self.replot_timer.timeout.connect(self.replot_timer_callback)
