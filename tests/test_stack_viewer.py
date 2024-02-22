@@ -67,7 +67,6 @@ def test_interaction(qapp, qtbot):
     canvas.on_display_timer()
     canvas._canvas.update()
 
-
     # outside canvas
     event = SceneMouseEvent(MouseEvent("mouse_move"), None)
     event._pos = [-10, 100]
