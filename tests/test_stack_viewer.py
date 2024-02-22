@@ -48,7 +48,7 @@ def test_init_with_sequence(qtbot):
     assert len(canvas.sliders) == 1
 
 
-def test_interaction(qtbot):
+def test_interaction(qapp, qtbot):
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore, sequence=sequence, transform=(90, False, False))
     qtbot.addWidget(canvas)
@@ -56,7 +56,7 @@ def test_interaction(qtbot):
     canvas.show()
     with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(sequence)
-    qtbot.wait(3000)
+    qapp.processEvents()
 
     # canvas.view_rect = ((0, 0), (512, 512))
     canvas.resize(700, 700)
