@@ -159,13 +159,15 @@ class StackViewer(QtWidgets.QWidget):
         self.channel_row.selected.connect(self._handle_channel_choice)
         self.layout().addWidget(self.channel_row)
 
+        self.slider_layout = QtWidgets.QVBoxLayout()
+        self.layout().addLayout(self.slider_layout)
         self.sliders: dict[str, LabeledVisibilitySlider] = {}
 
     def add_slider(self, dim: str) -> None:
         slider = LabeledVisibilitySlider(dim, orientation=QtCore.Qt.Horizontal)
         slider.sliderMoved.connect(self.on_display_timer)
         slider.setRange(0, 1)
-        self.layout().insertWidget(-2, slider)
+        self.slider_layout.addWidget(slider)
         self.sliders[dim] = slider
 
     def sequenceStarted(self, sequence: MDASequence) -> None:
