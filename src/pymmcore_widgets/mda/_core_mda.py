@@ -275,8 +275,8 @@ class MDAWidget(MDASequenceWidget):
             available_paths = self.get_next_available_paths(path, extension)
             if len(available_paths) == 1:
                 (writer_path,) = available_paths
-            elif len(available_paths) == 2:
-                writer_path, next_path = available_paths
+            else:
+                writer_path, next_path = available_paths[:2]
                 self._update_save_name_text(next_path, extension)
 
         # run the MDA experiment asynchronously
