@@ -114,10 +114,10 @@ def fov_kwargs(core: CMMCorePlus) -> dict:
     return {}
 
 
-def _get_next_available_paths(
-    path: Path | str, extension: str, ndigits: int = 3, npaths: int = 2
-) -> list[Path]:
-    """Get the next available `npaths` (filepath or folderpath if extension = "").
+def _get_next_available_path(
+    path: Path | str, extension: str, ndigits: int = 3
+) -> Path:
+    """Get the next available paths (filepath or folderpath if extension = "").
 
     This method adds a counter of ndigits to the filename or foldername to ensure
     that the path is unique.
@@ -130,17 +130,17 @@ def _get_next_available_paths(
         The extension to be used (e.g. ".ome.tiff").
     ndigits : int (optional)
         The number of digits to be used for the counter. By default, 3.
-    npaths : int (optional)
-        The number of paths to be returned. By default, 2.
     """
     # if the extension does not start with a dot, add it
     if not extension.startswith("."):
         extension = f".{extension}"
 
-    paths: list[Path] = []
-
     if isinstance(path, str):
         path = Path(path)
+
+    # remove extension from the path if any
+    if str(path).endswith(extension):
+        path = Path(str(path).replace(extension, ""))
 
     stem = path.stem
 
@@ -174,19 +174,4 @@ def _get_next_available_paths(
 
             current_max += 1
 
-    # add the first path to the list
-    paths.append(new_path)
-
-    # find the next available npaths and add them to the list
-    for i in range(1, npaths):
-        if current_max == 1 and f"_{1:0{ndigits}d}" not in str(new_path):
-            # if current_max is still 1 and '_ndigits1' is not in the already appended
-            # path, use '_ndigits1'.
-            number = f"_{current_max:0{ndigits}d}"
-        else:
-            # otherwise, we increment the current_max by i
-            number = f"_{current_max+i:0{ndigits}d}"
-        new_path = path.parent / f"{stem}{number}{extension}"
-        paths.append(new_path)
-
-    return paths
+    return new_path

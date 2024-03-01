@@ -1,32 +1,23 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, NamedTuple, cast
+from typing import cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QRegularExpression, QSize, Qt, Signal
-from qtpy.QtGui import QRegularExpressionValidator
+from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QBoxLayout,
-    QButtonGroup,
-    QFileDialog,
-    QGridLayout,
-    QGroupBox,
     QHBoxLayout,
-    QLabel,
-    QLineEdit,
     QMessageBox,
     QPushButton,
-    QRadioButton,
     QWidget,
 )
 from superqt.fonticon import icon
 from useq import MDASequence, Position
 
-from pymmcore_widgets._util import _get_next_available_paths
+from pymmcore_widgets._util import _get_next_available_path
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 from pymmcore_widgets.useq_widgets._mda_sequence import MDATabs
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
@@ -35,38 +26,9 @@ from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
+from ._save_widget import EXTENSIONS, _SaveGroupBox
 
-
-# using dataclass because it's easier to convert to and from a dict when saving or
-# when using the MDASequence replace method
-@dataclass
-class SaveAs:
-    """Dataclas for the save information.
-
-    Attributes
-    ----------
-    save_dir : str
-    save_name : str
-    extension : Literal[".ome.zarr", ".ome.tiff", ""]
-
-    NOTE: save_name should not contain an extension.
-    """
-
-    save_dir: str = ""
-    save_name: str = ""
-    extension: Literal[".ome.zarr", ".ome.tiff", ""] = ""
-
-
-class SaveType(NamedTuple):
-    id: str
-    extension: str
-
-
-ZARR = SaveType("ome-zarr", ".ome.zarr")
-TIFF = SaveType("ome-tiff", ".ome.tiff")
-TIFF_SEQUENCE = SaveType("tiff-sequence", "")
-EXP = "Experiment"
-SAVE_AS = "save_as"
+SAVE_PATH = "save_path"
 
 
 class CoreMDATabs(MDATabs):
@@ -193,42 +155,36 @@ class MDAWidget(MDASequenceWidget):
         if replace:
             val = val.replace(**replace)
 
-        val.metadata[SAVE_AS] = self.save_info.value()
+        val.metadata[SAVE_PATH] = self.save_info.value()
         return val
 
     def setValue(self, value: MDASequence) -> None:
         """Get the current state of the widget as a [`useq.MDASequence`][]."""
         super().setValue(value)
-        self.save_info.setValue(value.metadata.get(SAVE_AS, {}))
+        self.save_info.setValue(value.metadata.get(SAVE_PATH, {}))
 
-    def get_next_available_paths(
+    def get_next_available_path(
         self, path: Path | str, extension: str, ndigits: int = 3
-    ) -> list[Path]:
-        """Get the next two available filepath or folderpath (if extension = "").
+    ) -> Path:
+        """Get the next available filepath or folderpath (if extension = "").
 
         This method adds a counter of `ndigits` to the filename or foldername to ensure
         that the path is unique.
 
         It is used to ensure that the path passed to the `output` argument of the
         `run_mda` method is unique and to also update the MDAWidget `save_name` text
-        with the second next available path.
-
-        Note: it is ok to override this method and return a single path in the list,
-        the only difference is that the `save_name` text in the MDAWidget will not be
-        updated.
+        with the second next available path once the acquisition is finished.
 
         Parameters
         ----------
         path : Path | str
-            The starting path without extension (e.g./User/Desktop/Folder/Filename).
+            The starting path (e.g./User/Desktop/folder/file.ome.tiff).
         extension : str
             The extension to be used (e.g. ".ome.tiff").
         ndigits : int (optional)
             The number of digits to be used for the counter. By default, 3.
         """
-        return _get_next_available_paths(
-            path=path, extension=extension, ndigits=ndigits
-        )
+        return _get_next_available_path(path=path, extension=extension, ndigits=ndigits)
 
     # ------------------- private Methods ----------------------
 
@@ -245,6 +201,11 @@ class MDAWidget(MDASequenceWidget):
 
     def _on_run_clicked(self) -> None:
         """Run the MDA sequence experiment."""
+        # this is in case the user does not press enter after editing the save name.
+        # it has to be called here or it will not be fast enough to update the value
+        # before the run_mda method is called.
+        self.save_info.save_name.editingFinished.emit()
+
         # if autofocus has been requested, but the autofocus device is not engaged,
         # and position-specific offsets haven't been set, show a warning
         pos = self.stage_positions
@@ -258,34 +219,22 @@ class MDAWidget(MDASequenceWidget):
 
         sequence = self.value()
 
-        # get saving info from the metadata
-        metadata = sequence.metadata.get(SAVE_AS)
-        metadata = SaveAs() if metadata is None else metadata
-        # convert to SaveAs if it's a dict
-        metadata = (
-            SaveAs(**metadata) if isinstance(metadata, dict) else cast(SaveAs, metadata)
-        )
-        save_name = metadata.save_name or EXP
-        extension = metadata.extension
-
-        # create the writers path and make sure they are unique
-        writer_path = None
-        if save_dir := metadata.save_dir:
-            path = Path(save_dir) / f"{save_name}"
-            available_paths = self.get_next_available_paths(path, extension)
-            if len(available_paths) == 1:
-                (writer_path,) = available_paths
-            else:
-                writer_path, next_path = available_paths[:2]
-                self._update_save_name_text(next_path, extension)
+        # get saving path from the metadata and pass it to the run_mda method
+        save_path = self._get_saving_path_from_metadata(sequence)
 
         # run the MDA experiment asynchronously
-        self._mmc.run_mda(sequence, output=writer_path or None)
+        self._mmc.run_mda(sequence, output=save_path)
 
-    def _update_save_name_text(self, writer_path: Path | str, extension: str) -> None:
-        """Update the save_name text with the next available path."""
-        path_no_extension = str(writer_path).replace(extension, "")
-        self.save_info.save_name.setText(Path(path_no_extension).name)
+    def _get_saving_path_from_metadata(self, sequence: MDASequence) -> Path | None:
+        """Get the saving path from the metadata."""
+        save_path = sequence.metadata.get(SAVE_PATH)
+        if isinstance(save_path, str):
+            save_path = Path(save_path)
+            extension = next(ext for ext in EXTENSIONS if ext in save_path.name)
+            save_path = self.get_next_available_path(save_path, extension)
+        else:
+            return None
+        return save_path
 
     def _confirm_af_intentions(self) -> bool:
         msg = (
@@ -314,144 +263,17 @@ class MDAWidget(MDASequenceWidget):
     def _on_mda_started(self) -> None:
         self._enable_widgets(False)
 
-    def _on_mda_finished(self) -> None:
+    def _on_mda_finished(self, sequence: MDASequence) -> None:
         self._enable_widgets(True)
+        # update the save name in the gui with the next available path
+        next_path = self._get_saving_path_from_metadata(sequence)
+        if next_path is not None:
+            self.save_info.setValue(next_path)
 
     def _disconnect(self) -> None:
         with suppress(Exception):
             self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
             self._mmc.mda.events.sequenceFinished.disconnect(self._on_mda_finished)
-
-
-class _SaveGroupBox(QGroupBox):
-    """A Widget to gather information about MDA file saving."""
-
-    valueChanged = Signal()
-
-    def __init__(
-        self, title: str = "Save Acquisition", parent: QWidget | None = None
-    ) -> None:
-        super().__init__(title, parent)
-        self.setCheckable(True)
-        self.setChecked(False)
-
-        dir_label = QLabel("Directory:")
-        name_label = QLabel("Name:")
-
-        self.save_dir = QLineEdit()
-        self.save_dir.setPlaceholderText("Select Save Directory")
-        self.save_name = QLineEdit()
-        self.save_name.setPlaceholderText("Enter Experiment Name")
-        self.extension_lbl = QLabel()
-
-        browse_btn = QPushButton(text="...")
-        browse_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        browse_btn.clicked.connect(self._on_browse_clicked)
-
-        save_format_wdg = QWidget()
-        save_format_layout = QHBoxLayout(save_format_wdg)
-        save_format_layout.setContentsMargins(0, 0, 0, 0)
-        save_format_layout.setSpacing(10)
-        label = QLabel("Save as:")
-        label.setFixedSize(dir_label.sizeHint())
-        self.omezarr_radio = QRadioButton(ZARR.id)
-        self.omezarr_radio.setChecked(True)
-        self.ometiff_radio = QRadioButton(TIFF.id)
-        self.tiffsequence_radio = QRadioButton(TIFF_SEQUENCE.id)
-        save_format_layout.addWidget(label)
-        save_format_layout.addWidget(self.omezarr_radio)
-        save_format_layout.addWidget(self.ometiff_radio)
-        save_format_layout.addWidget(self.tiffsequence_radio)
-        save_format_layout.addStretch()
-
-        self._save_btn_group = QButtonGroup()
-        self._save_btn_group.addButton(self.omezarr_radio)
-        self._save_btn_group.addButton(self.ometiff_radio)
-        self._save_btn_group.addButton(self.tiffsequence_radio)
-        self.EXTENSION: dict[str, str] = {
-            ZARR.id: ZARR.extension,
-            TIFF.id: TIFF.extension,
-            TIFF_SEQUENCE.id: TIFF_SEQUENCE.extension,
-        }
-        self._save_btn_group.buttonToggled.connect(self._update_save_name_text)
-
-        grid = QGridLayout(self)
-        grid.addWidget(dir_label, 0, 0)
-        grid.addWidget(self.save_dir, 0, 1)
-        grid.addWidget(browse_btn, 0, 2)
-        grid.addWidget(name_label, 1, 0)
-        grid.addWidget(self.save_name, 1, 1)
-        grid.addWidget(self.extension_lbl, 1, 2)
-        grid.addWidget(save_format_wdg, 2, 0, 1, 3)
-
-        # save name validator
-        pattern = QRegularExpression("[a-zA-Z0-9_-]+")
-        path_validator = QRegularExpressionValidator(pattern)
-        self.save_name.setValidator(path_validator)
-
-        # connect
-        self.toggled.connect(self.valueChanged)
-        self.save_dir.textChanged.connect(self.valueChanged)
-        self.save_name.textChanged.connect(self.valueChanged)
-        self.omezarr_radio.toggled.connect(self._update_save_name_text)
-        self.ometiff_radio.toggled.connect(self._update_save_name_text)
-        self.tiffsequence_radio.toggled.connect(self._update_save_name_text)
-
-        self._update_save_name_text()
-
-    def _update_save_name_text(self) -> None:
-        """Update the save_name text with the correct extension."""
-        extension = self._get_extension()
-        self.extension_lbl.setText(extension)
-        self.valueChanged.emit()
-
-    def _get_extension(self) -> str:
-        """Return the selected save as name."""
-        for btn in self._save_btn_group.buttons():
-            if btn.isChecked():
-                return self.EXTENSION[btn.text()]
-        raise ValueError("No save as button is checked.")  # pragma: no cover
-
-    def value(self) -> SaveAs:
-        """Return current state of the dialog."""
-        if not self.isChecked():
-            return SaveAs()
-
-        return SaveAs(
-            save_dir=self.save_dir.text(),
-            save_name=self.save_name.text() or EXP,
-            extension=cast(
-                Literal[".ome.zarr", ".ome.tiff", ""], self._get_extension()
-            ),
-        )
-
-    def setValue(self, value: SaveAs | dict) -> None:
-        """Set the current state of the save GroupBox."""
-        if isinstance(value, dict):
-            value = SaveAs(**value) if value else SaveAs()
-        save_dir = value.save_dir
-        self.save_dir.setText(save_dir)
-        self.save_name.setText(value.save_name)
-        if extension := value.extension:
-            _id = "-".join(extension.split(".")[-2:])  # e.g. ".ome.tiff" -> "ome-tiff"
-            for btn in self._save_btn_group.buttons():
-                if btn.text() == _id:
-                    btn.setChecked(True)
-                    break
-                # if the extension is not a recognized one, set as tiff sequence
-                self.tiffsequence_radio.setChecked(True)
-
-        else:
-            self.tiffsequence_radio.setChecked(True)
-
-        self.setChecked(bool(save_dir))
-        self._update_save_name_text()
-
-    def _on_browse_clicked(self) -> None:
-        if save_dir := QFileDialog.getExistingDirectory(
-            self, "Select Save Directory", self.save_dir.text()
-        ):
-            self.save_dir.setText(save_dir)
 
 
 class _MDAControlButtons(QWidget):
