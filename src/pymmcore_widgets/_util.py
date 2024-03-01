@@ -148,8 +148,9 @@ def _get_next_available_path(
     cur_num = stem.rsplit("_")[-1]
     if cur_num.isdigit() and len(cur_num) == ndigits:
         stem = stem[: -ndigits - 1]
-
-    current_max = 1
+        current_max = int(cur_num)
+    else:
+        current_max = 1
 
     # find the current maximum number
     current_files = path.parent.glob(f"*{extension}")
