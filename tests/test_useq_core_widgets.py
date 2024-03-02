@@ -645,12 +645,18 @@ def test_mda_sequenceFinished_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot
         assert mda.save_info.value()["save_name"] == "name_001.ome.tiff"
 
 
-def test_get_next_available_paths():
+EXT = [".ome.tiff", ".ome.tif", ".ome.zarr", ""]
+
+
+@pytest.mark.parametrize("extension", EXT)
+def test_get_next_available_paths(extension: str) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
 
-        extension = ".ome.tiff"
+        path = Path(tmpdir) / f"test{extension}"
+        new_path = _get_next_available_path(path, extension)
+        assert new_path == Path(tmpdir, f"test{extension}")
 
-        path = Path(tmpdir) / "test_009.ome.tiff"
+        path = Path(tmpdir) / f"test_009{extension}"
         new_path = _get_next_available_path(path, extension)
         assert new_path == Path(tmpdir, f"test_009{extension}")
 
@@ -658,7 +664,6 @@ def test_get_next_available_paths():
         Path(tmpdir, f"test{extension}").touch()
 
         path = Path(tmpdir) / "test"
-
         new_path = _get_next_available_path(path, extension)
         assert new_path == Path(tmpdir, f"test_001{extension}")
 
@@ -667,14 +672,3 @@ def test_get_next_available_paths():
 
         new_path = _get_next_available_path(path, extension)
         assert new_path == Path(tmpdir, f"test_003{extension}")
-
-        path = Path(tmpdir) / "test_005"
-        paths = _get_next_available_path(path, extension)
-        assert paths == Path(tmpdir, f"test_005{extension}")
-
-        # add a folder to tempdir
-        Path(tmpdir, "test").touch()
-
-        path = Path(tmpdir) / "test"
-        new_path = _get_next_available_path(path, "")
-        assert new_path == Path(tmpdir, "test_001")
