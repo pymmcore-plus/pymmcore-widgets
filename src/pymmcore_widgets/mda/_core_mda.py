@@ -26,9 +26,7 @@ from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
-from ._save_widget import EXTENSIONS, _SaveGroupBox
-
-SAVE_PATH = "save_path"
+from ._save_widget import EXTENSIONS, WRITERS, _SaveWidget
 
 
 class CoreMDATabs(MDATabs):
@@ -88,7 +86,7 @@ class MDAWidget(MDASequenceWidget):
 
         super().__init__(parent=parent, tab_widget=CoreMDATabs(None, self._mmc))
 
-        self.save_info = _SaveGroupBox(parent=self)
+        self.save_info = _SaveWidget(parent=self)
         self.save_info.valueChanged.connect(self.valueChanged)
         self.control_btns = _MDAControlButtons(self._mmc, self)
 
@@ -155,13 +153,15 @@ class MDAWidget(MDASequenceWidget):
         if replace:
             val = val.replace(**replace)
 
-        val.metadata[SAVE_PATH] = self.save_info.value()
+        meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
+        if self.save_info.isChecked():
+            meta.update(self.save_info.value())
         return val
 
     def setValue(self, value: MDASequence) -> None:
         """Get the current state of the widget as a [`useq.MDASequence`][]."""
         super().setValue(value)
-        self.save_info.setValue(value.metadata.get(SAVE_PATH, {}))
+        self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
 
     def get_next_available_path(
         self, path: Path | str, extension: str, ndigits: int = 3
@@ -227,14 +227,16 @@ class MDAWidget(MDASequenceWidget):
 
     def _get_saving_path_from_metadata(self, sequence: MDASequence) -> Path | None:
         """Get the saving path from the metadata."""
-        save_path = sequence.metadata.get(SAVE_PATH)
-        if isinstance(save_path, str):
-            save_path = Path(save_path)
-            extension = next(ext for ext in EXTENSIONS if ext in save_path.name)
-            save_path = self.get_next_available_path(save_path, extension)
-        else:
-            return None
-        return save_path
+        if meta := sequence.metadata.get("pymmcore_widgets", {}):
+            save_dir = meta.get("save_dir", "")
+            save_name = cast(str, meta.get("save_name", ""))
+            if not save_dir or not save_name:
+                return None
+
+            extension = next((ext for ext in EXTENSIONS if save_name.endswith(ext)), "")
+            path = Path(save_dir) / save_name
+            return self.get_next_available_path(path, extension)
+        return None
 
     def _confirm_af_intentions(self) -> bool:
         msg = (
@@ -266,9 +268,18 @@ class MDAWidget(MDASequenceWidget):
     def _on_mda_finished(self, sequence: MDASequence) -> None:
         self._enable_widgets(True)
         # update the save name in the gui with the next available path
+        meta = sequence.metadata.get("pymmcore_widgets")
+        writer = meta.get("format") if meta else None
+        if meta is None or writer not in WRITERS:
+            return
         next_path = self._get_saving_path_from_metadata(sequence)
         if next_path is not None:
-            self.save_info.setValue(next_path)
+            value = {
+                "save_dir": str(next_path.parent),
+                "save_name": next_path.name,
+                "format": writer,
+            }
+            self.save_info.setValue(value)
 
     def _disconnect(self) -> None:
         with suppress(Exception):

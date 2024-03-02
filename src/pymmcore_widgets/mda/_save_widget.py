@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -17,7 +16,15 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 
 if TYPE_CHECKING:
+    from typing import TypedDict
+
     from qtpy.QtGui import QFocusEvent
+
+    class SaveInfo(TypedDict):
+        save_dir: str
+        save_name: str
+        format: str
+
 
 # dict with writer name and extension
 WRITERS: dict[str, list[str]] = {
@@ -25,6 +32,7 @@ WRITERS: dict[str, list[str]] = {
     "ome-tiff": [".ome.tiff", ".ome.tif"],
     "tiff-sequence": [""],
 }
+EXTENSION_TO_WRITER = {ext: w for w, exts in WRITERS.items() for ext in exts}
 EXTENSIONS = [ext for exts in WRITERS.values() for ext in exts if ext]
 FILE_NAME = "Filename:"
 SUBFOLDER = "Subfolder:"
@@ -44,7 +52,7 @@ class FocusLineEdit(QLineEdit):
         self.editingFinished.emit()
 
 
-class _SaveGroupBox(QGroupBox):
+class _SaveWidget(QGroupBox):
     """A Widget to gather information about MDA file saving."""
 
     valueChanged = Signal()
@@ -56,10 +64,6 @@ class _SaveGroupBox(QGroupBox):
         self.setCheckable(True)
         self.setChecked(False)
 
-        # this is to store the extension of the selected writer
-        self._extension: str = ""
-
-        _dir_label = QLabel("Directory:")
         self.name_label = QLabel(FILE_NAME)
 
         self.save_dir = QLineEdit()
@@ -79,7 +83,7 @@ class _SaveGroupBox(QGroupBox):
         browse_btn.clicked.connect(self._on_browse_clicked)
 
         grid = QGridLayout(self)
-        grid.addWidget(_dir_label, 0, 0)
+        grid.addWidget(QLabel("Directory:"), 0, 0)
         grid.addWidget(self.save_dir, 0, 1, 1, 2)
         grid.addWidget(browse_btn, 0, 3)
         grid.addWidget(self.name_label, 1, 0)
@@ -93,7 +97,36 @@ class _SaveGroupBox(QGroupBox):
         self.save_dir.textChanged.connect(self.valueChanged)
         self.save_name.textChanged.connect(self.valueChanged)
 
+    def value(self) -> SaveInfo:
+        """Return current state of the save widget."""
+        return {
+            "save_dir": self.save_dir.text(),
+            "save_name": self.save_name.text(),
+            "format": self._writer_combo.currentText(),
+        }
+
+    def setValue(self, value: SaveInfo | dict) -> None:
+        """Set the current state of the save widget."""
+        save_dir = value.get("save_dir", "")
+        save_name = value.get("save_name", "")
+        self.save_dir.setText(save_dir)
+        self.save_name.setText(save_name)
+
+        # raise ValueError if the writer is not valid
+        writer = cast(str, value.get("format", ""))
+        if writer not in WRITERS:
+            self.setChecked(False)
+            raise ValueError(
+                f"Invalid 'format' value: '{writer}'. "
+                f"Valid values are: {', '.join(WRITERS.keys())}"
+            )
+        # set the writer and update the combo
+        self._update_combo_text(writer)
+        # set the group box checked state
+        self.setChecked(bool(save_dir and save_name))
+
     def _on_browse_clicked(self) -> None:
+        """Open a dialog to select the save directory."""
         if save_dir := QFileDialog.getExistingDirectory(
             self, "Select Save Directory", self.save_dir.text()
         ):
@@ -102,7 +135,7 @@ class _SaveGroupBox(QGroupBox):
     def _on_editing_finished(self) -> None:
         """Update the save name when the user finishes editing the text."""
         extension = self._get_extension_from_name(self.save_name.text())
-        writer = self._get_writer_from_extension(extension)
+        writer = EXTENSION_TO_WRITER.get(extension)
 
         # if it's a valid writer, just update the combo
         if extension and writer in WRITERS:
@@ -114,18 +147,7 @@ class _SaveGroupBox(QGroupBox):
 
     def _get_extension_from_name(self, name: str) -> str:
         """Get the extension of the selected writer."""
-        for ext in EXTENSIONS:
-            if name.endswith(ext):
-                return ext
-        return ""
-
-    def _get_writer_from_extension(self, extension: str) -> str:
-        """Get the writer from the extension."""
-        for writer, ext in WRITERS.items():
-            for e in ext:
-                if extension == e:
-                    return writer
-        raise ValueError(f"Extension {extension} not found in {WRITERS}")
+        return next((ext for ext in EXTENSIONS if name.endswith(ext)), "")
 
     def _update_combo_text(self, writer: str) -> None:
         """Update the writer combo and trigger the text changed signal."""
@@ -152,31 +174,3 @@ class _SaveGroupBox(QGroupBox):
     def _remove_extension(self, name: str) -> str:
         """Remove the extension from the name if it's there."""
         return next((name.replace(ext, "") for ext in EXTENSIONS if ext in name), name)
-
-    def value(self) -> str | None:
-        """Return current state of the save widget."""
-        if (
-            not self.isChecked()
-            or not self.save_dir.text()
-            or not self.save_name.text()
-        ):
-            return None
-
-        # returning a str because the MDASequence yaml does not support Path yet
-        # maybe we can add support for Path in the future
-        return str(Path(self.save_dir.text()) / self.save_name.text())
-
-    def setValue(self, value: Path | str) -> None:
-        """Set the current state of the save widget."""
-        if isinstance(value, str):
-            value = Path(value)
-
-        # set the group box checked state
-        self.setChecked(bool(str(value.parent)))
-        # set the save directory and name
-        self.save_dir.setText(str(value.parent))
-        self.save_name.setText(self._remove_extension(value.name))
-        # set the writer and update the combo
-        extension = self._get_extension_from_name(value.name)
-        writer = self._get_writer_from_extension(extension)
-        self._update_combo_text(writer)
