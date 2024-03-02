@@ -39,15 +39,29 @@ def test_set_get_value(qtbot: QtBot, value, name):
         assert wdg.value() == value
 
 
-def test_set_value_invalid_format(qtbot: QtBot):
+INVALID_FORMAT = [
+    {"save_dir": "dir", "save_name": "name", "format": "png"},
+    {"save_dir": "dir", "save_name": "name", "format": ""},
+    {"save_dir": "dir", "save_name": "name"},
+]
+
+
+@pytest.mark.parametrize("value", INVALID_FORMAT)
+def test_set_value_invalid_format(qtbot: QtBot, value):
     wdg = _SaveWidget()
     qtbot.addWidget(wdg)
+    assert not wdg.isChecked()
 
-    value = {"save_dir": "dir", "save_name": "name.png", "format": "png"}
+    wdg._writer_combo.setCurrentText("ome-tiff")
 
-    with pytest.raises(ValueError, match="Invalid 'format' value: 'png'."):
-        wdg.setValue(value)
-        assert not wdg.isChecked()
+    wdg.setValue(value)
+
+    assert not wdg.isChecked()
+    assert wdg.value() == {
+        "save_dir": "dir",
+        "save_name": "name",
+        "format": "tiff-sequence",
+    }
 
 
 values = [

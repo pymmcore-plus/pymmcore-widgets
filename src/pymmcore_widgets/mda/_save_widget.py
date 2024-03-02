@@ -111,15 +111,12 @@ class _SaveWidget(QGroupBox):
         save_name = value.get("save_name", "")
         self.save_dir.setText(save_dir)
         self.save_name.setText(save_name)
-
-        # raise ValueError if the writer is not valid
+        # retrieve writer from the format key. if not present, default to tiff-sequence
         writer = cast(str, value.get("format", ""))
-        if writer not in WRITERS:
+        if not writer or writer not in WRITERS:
+            self._writer_combo.setCurrentText("tiff-sequence")
             self.setChecked(False)
-            raise ValueError(
-                f"Invalid 'format' value: '{writer}'. "
-                f"Valid values are: {', '.join(WRITERS.keys())}"
-            )
+            return
         # set the writer and update the combo
         self._update_combo_text(writer)
         # set the group box checked state

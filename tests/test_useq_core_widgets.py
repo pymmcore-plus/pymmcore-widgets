@@ -573,14 +573,14 @@ SAVE_META = {
         "format": "ome-tiff",
     }
 }
-MDA = useq.MDASequence(metadata=SAVE_META)
+MDA_META = useq.MDASequence(metadata=SAVE_META)
 
 
 def test_mda_set_value_with_save_info(qtbot: QtBot):
     mda = MDAWidget()
     qtbot.addWidget(mda)
 
-    mda.setValue(MDA)
+    mda.setValue(MDA_META)
     assert mda.save_info.isChecked()
     assert mda.save_info.save_dir.text() == SAVE_META[PMMC]["save_dir"]
     assert mda.save_info.save_name.text() == SAVE_META[PMMC]["save_name"]
@@ -609,7 +609,7 @@ def test_core_mda_wdg_load_save(
             wdg.save()
         return
 
-    dest.write_text(MDA.yaml() if ext == "yaml" else MDA.model_dump_json())
+    dest.write_text(MDA_META.yaml() if ext == "yaml" else MDA_META.model_dump_json())
 
     wdg.load()
 
@@ -635,13 +635,13 @@ def test_mda_sequenceFinished_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot
                 "format": "ome-tiff",
             }
         }
-        MDA = useq.MDASequence(metadata=SAVE_META)
+        MDA_META = useq.MDASequence(metadata=SAVE_META)
 
-        mda.setValue(MDA)
+        mda.setValue(MDA_META)
         assert mda.save_info.isChecked()
         assert mda.save_info.value()["save_name"] == "name.ome.tiff"
 
-        mda._on_mda_finished(MDA)
+        mda._on_mda_finished(MDA_META)
         assert mda.save_info.value()["save_name"] == "name_001.ome.tiff"
 
 
