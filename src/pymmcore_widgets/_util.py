@@ -148,6 +148,11 @@ def _get_next_available_path(
     cur_num = stem.rsplit("_")[-1]
     if cur_num.isdigit() and len(cur_num) == ndigits:
         stem = stem[: -ndigits - 1]
+        # if the stem provided has a number, check if path exists and if not, return it
+        new_path = path.parent / f"{stem}_{cur_num}{extension}"
+        if not new_path.exists():
+            return new_path
+
         current_max = int(cur_num)
     else:
         current_max = 1
@@ -164,6 +169,7 @@ def _get_next_available_path(
 
     # find the first available path
     new_path = path.parent / f"{stem}{extension}"
+
     if new_path.exists():
         # If the path exists, find the next available filename
         while True:

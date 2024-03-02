@@ -650,6 +650,10 @@ def test_get_next_available_paths():
 
         extension = ".ome.tiff"
 
+        path = Path(tmpdir) / "test_009.ome.tiff"
+        new_path = _get_next_available_path(path, extension)
+        assert new_path == Path(tmpdir, f"test_009{extension}")
+
         # add a file to tempdir
         Path(tmpdir, f"test{extension}").touch()
 
