@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# import tempfile
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
@@ -10,7 +10,7 @@ import useq
 from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import QMessageBox
 
-# from pymmcore_widgets._util import _get_next_available_path
+from pymmcore_widgets._util import _get_next_available_path
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
@@ -619,48 +619,58 @@ def test_core_mda_wdg_load_save(
     assert meta["format"] == SAVE_META[PMMC]["format"]
 
 
-# @pytest.mark.parametrize("save_as", save_meta)
-# def test_mda_save_groupbox_save_name(
-#     global_mmcore: CMMCorePlus, qtbot: QtBot, save_as: SaveAs | dict
-# ):
-#     mda = MDAWidget(mmcore=global_mmcore)
-#     qtbot.addWidget(mda)
+def test_mda_sequenceFinished_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
+    mda = MDAWidget(mmcore=global_mmcore)
+    qtbot.addWidget(mda)
 
-#     def _run_mda(*args, **kwargs):
-#         return
+    with tempfile.TemporaryDirectory() as tmpdir:
 
-#     with patch.object(global_mmcore, "run_mda", _run_mda):
-#         path = Path(__file__).parent
-#         assert not (path / "test_name.ome.tiff").exists()
+        # add a file to tempdir
+        Path(tmpdir, "name.ome.tiff").touch()
 
-#         seq = useq.MDASequence(metadata={"save_as": save_as})
+        SAVE_META = {
+            "pymmcore_widgets": {
+                "save_dir": str(Path(tmpdir)),
+                "save_name": "name.ome.tiff",
+                "format": "ome-tiff",
+            }
+        }
+        MDA = useq.MDASequence(metadata=SAVE_META)
 
-#         mda.setValue(seq)
+        mda.setValue(MDA)
+        assert mda.save_info.isChecked()
+        assert mda.save_info.value()["save_name"] == "name.ome.tiff"
 
-#         mda._on_run_clicked()
-#         assert mda.save_info.value().save_name == "test_name_001"
+        mda._on_mda_finished(MDA)
+        assert mda.save_info.value()["save_name"] == "name_001.ome.tiff"
 
 
-# def test_get_next_available_paths():
-#     with tempfile.TemporaryDirectory() as tmpdir:
+def test_get_next_available_paths():
+    with tempfile.TemporaryDirectory() as tmpdir:
 
-#         extension = ".ome.tiff"
+        extension = ".ome.tiff"
 
-#         # ad 1 file to tempdir
-#         Path(tmpdir, f"test{extension}").touch()
+        # add a file to tempdir
+        Path(tmpdir, f"test{extension}").touch()
 
-#         path = Path(tmpdir) / "test"
+        path = Path(tmpdir) / "test"
 
-#         first, second = _get_next_available_paths(path, extension)
-#         assert first == Path(tmpdir, f"test_001{extension}")
-#         assert second == Path(tmpdir, f"test_002{extension}")
+        new_path = _get_next_available_path(path, extension)
+        assert new_path == Path(tmpdir, f"test_001{extension}")
 
-#         # add 2 files to tempdir
-#         Path(tmpdir, f"test_002{extension}").touch()
+        # add another files to tempdir
+        Path(tmpdir, f"test_002{extension}").touch()
 
-#         first, second = _get_next_available_paths(path, extension)
-#         assert first == Path(tmpdir, f"test_003{extension}")
-#         assert second == Path(tmpdir, f"test_004{extension}")
+        new_path = _get_next_available_path(path, extension)
+        assert new_path == Path(tmpdir, f"test_003{extension}")
 
-#         paths = _get_next_available_paths(path, extension, npaths=3)
-#         assert Path(tmpdir, f"test_005{extension}") in paths
+        path = Path(tmpdir) / "test_005"
+        paths = _get_next_available_path(path, extension)
+        assert paths == Path(tmpdir, f"test_005{extension}")
+
+        # add a folder to tempdir
+        Path(tmpdir, "test").touch()
+
+        path = Path(tmpdir) / "test"
+        new_path = _get_next_available_path(path, "")
+        assert new_path == Path(tmpdir, "test_001")
