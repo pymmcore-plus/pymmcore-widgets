@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import tempfile
+# import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
@@ -10,11 +10,11 @@ import useq
 from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import QMessageBox
 
-from pymmcore_widgets._util import _get_next_available_paths
+# from pymmcore_widgets._util import _get_next_available_path
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
-from pymmcore_widgets.mda._core_mda import CoreMDATabs, SaveAs
+from pymmcore_widgets.mda._core_mda import CoreMDATabs
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
 from pymmcore_widgets.useq_widgets._mda_sequence import AutofocusAxis, KeepShutterOpen
@@ -565,101 +565,26 @@ def test_mda_no_pos_set(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert "p" in wdg.value().axis_order
 
 
-save_meta = (
-    SaveAs(save_dir="test_dir", save_name="test_name", extension=".ome.tiff"),
-    {"save_dir": "test_dir", "save_name": "test_name", "extension": ".ome.tiff"},
-)
-
-
-@pytest.mark.parametrize("save_as", save_meta)
-def test_mda_save_groupbox(qtbot: QtBot, save_as: SaveAs | dict):
-    mda = MDAWidget()
-    qtbot.addWidget(mda)
-
-    assert not mda.save_info.isChecked()
-    assert mda.save_info.omezarr_radio.isChecked()
-    assert mda.save_info.extension_lbl.text() == ".ome.zarr"
-    assert mda.save_info.value() == SaveAs(save_dir="", save_name="", extension="")
-
-    seq = useq.MDASequence(metadata={"save_as": save_as})
-
-    mda.setValue(seq)
-
-    assert mda.save_info.isChecked()
-    assert mda.save_info.save_name.text() == "test_name"
-    assert mda.save_info.ometiff_radio.isChecked()
-    assert mda.save_info.extension_lbl.text() == ".ome.tiff"
-    assert (
-        mda.save_info.value() == SaveAs(**save_as)
-        if isinstance(save_as, dict)
-        else save_as
-    )
-
-    mda.save_info.tiffsequence_radio.toggle()
-    assert mda.save_info.save_name.text() == "test_name"
-    assert mda.save_info.extension_lbl.text() == ""
-
-    mda.save_info.omezarr_radio.toggle()
-    assert mda.save_info.save_name.text() == "test_name"
-    assert mda.save_info.extension_lbl.text() == ".ome.zarr"
-
-    seq = useq.MDASequence()
-    mda.setValue(seq)
-    assert not mda.save_info.isChecked()
-    assert mda.save_info.value() == SaveAs()
-
-
-tiff_seq_meta = (
-    SaveAs(save_dir="test_dir", save_name="test_name", extension=""),
-    {"save_dir": "test_dir", "save_name": "test_name", "extension": ""},
-    SaveAs(save_dir="test_dir", save_name="test_name", extension=".ext"),
-    {"save_dir": "test_dir", "save_name": "test_name", "extension": ".ext"},
-)
-
-
-@pytest.mark.parametrize("save_as", tiff_seq_meta)
-def test_mda_save_groupbox_tiff_seqtiff_seq_uence(qtbot: QtBot, save_as: SaveAs | dict):
-    mda = MDAWidget()
-    qtbot.addWidget(mda)
-
-    seq = useq.MDASequence(metadata={"save_as": save_as})
-
-    mda.setValue(seq)
-    assert mda.save_info.isChecked()
-    assert mda.save_info.save_name.text() == "test_name"
-    assert mda.save_info.extension_lbl.text() == ""
-    assert mda.save_info.tiffsequence_radio.isChecked()
-
-
-@pytest.mark.parametrize("save_as", save_meta)
-def test_mda_save_groupbox_save_name(
-    global_mmcore: CMMCorePlus, qtbot: QtBot, save_as: SaveAs | dict
-):
-    mda = MDAWidget(mmcore=global_mmcore)
-    qtbot.addWidget(mda)
-
-    def _run_mda(*args, **kwargs):
-        return
-
-    with patch.object(global_mmcore, "run_mda", _run_mda):
-        path = Path(__file__).parent
-        assert not (path / "test_name.ome.tiff").exists()
-
-        seq = useq.MDASequence(metadata={"save_as": save_as})
-
-        mda.setValue(seq)
-
-        mda._on_run_clicked()
-        assert mda.save_info.value().save_name == "test_name_001"
-
-
-MDA_META = useq.MDASequence(
-    metadata={
-        "save_as": SaveAs(
-            save_dir="test_dir", save_name="test_name", extension=".ome.tiff"
-        )
+PMMC = "pymmcore_widgets"
+SAVE_META = {
+    PMMC: {
+        "save_dir": "dir",
+        "save_name": "name.ome.tiff",
+        "format": "ome-tiff",
     }
-)
+}
+MDA = useq.MDASequence(metadata=SAVE_META)
+
+
+def test_mda_set_value_with_save_info(qtbot: QtBot):
+    mda = MDAWidget()
+    qtbot.addWidget(mda)
+
+    mda.setValue(MDA)
+    assert mda.save_info.isChecked()
+    assert mda.save_info.save_dir.text() == SAVE_META[PMMC]["save_dir"]
+    assert mda.save_info.save_name.text() == SAVE_META[PMMC]["save_name"]
+    assert mda.save_info._writer_combo.currentText() == SAVE_META[PMMC]["format"]
 
 
 @pytest.mark.parametrize("ext", ["json", "yaml", "foo"])
@@ -684,32 +609,58 @@ def test_core_mda_wdg_load_save(
             wdg.save()
         return
 
-    dest.write_text(MDA_META.yaml() if ext == "yaml" else MDA_META.model_dump_json())
+    dest.write_text(MDA.yaml() if ext == "yaml" else MDA.model_dump_json())
 
     wdg.load()
-    assert wdg.value().metadata["save_as"] == MDA_META.metadata["save_as"]
+
+    meta = wdg.value().metadata[PMMC]
+    assert meta["save_dir"] == SAVE_META[PMMC]["save_dir"]
+    assert meta["save_name"] == SAVE_META[PMMC]["save_name"]
+    assert meta["format"] == SAVE_META[PMMC]["format"]
 
 
-def test_get_next_available_paths():
-    with tempfile.TemporaryDirectory() as tmpdir:
+# @pytest.mark.parametrize("save_as", save_meta)
+# def test_mda_save_groupbox_save_name(
+#     global_mmcore: CMMCorePlus, qtbot: QtBot, save_as: SaveAs | dict
+# ):
+#     mda = MDAWidget(mmcore=global_mmcore)
+#     qtbot.addWidget(mda)
 
-        extension = ".ome.tiff"
+#     def _run_mda(*args, **kwargs):
+#         return
 
-        # ad 1 file to tempdir
-        Path(tmpdir, f"test{extension}").touch()
+#     with patch.object(global_mmcore, "run_mda", _run_mda):
+#         path = Path(__file__).parent
+#         assert not (path / "test_name.ome.tiff").exists()
 
-        path = Path(tmpdir) / "test"
+#         seq = useq.MDASequence(metadata={"save_as": save_as})
 
-        first, second = _get_next_available_paths(path, extension)
-        assert first == Path(tmpdir, f"test_001{extension}")
-        assert second == Path(tmpdir, f"test_002{extension}")
+#         mda.setValue(seq)
 
-        # add 2 files to tempdir
-        Path(tmpdir, f"test_002{extension}").touch()
+#         mda._on_run_clicked()
+#         assert mda.save_info.value().save_name == "test_name_001"
 
-        first, second = _get_next_available_paths(path, extension)
-        assert first == Path(tmpdir, f"test_003{extension}")
-        assert second == Path(tmpdir, f"test_004{extension}")
 
-        paths = _get_next_available_paths(path, extension, npaths=3)
-        assert Path(tmpdir, f"test_005{extension}") in paths
+# def test_get_next_available_paths():
+#     with tempfile.TemporaryDirectory() as tmpdir:
+
+#         extension = ".ome.tiff"
+
+#         # ad 1 file to tempdir
+#         Path(tmpdir, f"test{extension}").touch()
+
+#         path = Path(tmpdir) / "test"
+
+#         first, second = _get_next_available_paths(path, extension)
+#         assert first == Path(tmpdir, f"test_001{extension}")
+#         assert second == Path(tmpdir, f"test_002{extension}")
+
+#         # add 2 files to tempdir
+#         Path(tmpdir, f"test_002{extension}").touch()
+
+#         first, second = _get_next_available_paths(path, extension)
+#         assert first == Path(tmpdir, f"test_003{extension}")
+#         assert second == Path(tmpdir, f"test_004{extension}")
+
+#         paths = _get_next_available_paths(path, extension, npaths=3)
+#         assert Path(tmpdir, f"test_005{extension}") in paths

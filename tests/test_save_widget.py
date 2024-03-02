@@ -30,7 +30,6 @@ def test_set_get_value(qtbot: QtBot, value, name):
     assert not wdg.isChecked()
     assert wdg.value() == {"save_dir": "", "save_name": "", "format": "ome-zarr"}
 
-    # value = {"save_dir": "dir", "save_name": "name.ome.tiff", "format": "ome-tiff"}
     wdg.setValue(value)
     assert wdg.isChecked()
     assert wdg._writer_combo.currentText() == value["format"]
