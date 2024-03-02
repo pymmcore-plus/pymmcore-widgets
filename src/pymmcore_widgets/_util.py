@@ -132,7 +132,7 @@ def _get_next_available_path(
         The number of digits to be used for the counter. By default, 3.
     """
     # if the extension does not start with a dot, add it
-    if not extension.startswith("."):
+    if extension and not extension.startswith("."):
         extension = f".{extension}"
 
     if isinstance(path, str):
