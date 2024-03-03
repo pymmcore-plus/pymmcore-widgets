@@ -124,7 +124,7 @@ class SaveGroupBox(QGroupBox):
 
     def currentPath(self) -> Path:
         """Return the current save destination as a Path object."""
-        return Path(self.save_dir.text()) / self.save_name.text()
+        return Path(self.save_dir.text(), str(self.save_name.text()))
 
     def setCurrentPath(self, path: str | Path) -> None:
         """Set the save destination from a string or Path object."""
