@@ -573,18 +573,6 @@ SAVE_META = {
         "format": "ome-tiff",
     }
 }
-MDA_META = useq.MDASequence(metadata=SAVE_META)
-
-
-def test_mda_set_value_with_save_info(qtbot: QtBot):
-    mda = MDAWidget()
-    qtbot.addWidget(mda)
-
-    mda.setValue(MDA_META)
-    assert mda.save_info.isChecked()
-    assert mda.save_info.save_dir.text() == SAVE_META[PMMC]["save_dir"]
-    assert mda.save_info.save_name.text() == SAVE_META[PMMC]["save_name"]
-    assert mda.save_info._writer_combo.currentText() == SAVE_META[PMMC]["format"]
 
 
 @pytest.mark.parametrize("ext", ["json", "yaml", "foo"])
@@ -609,7 +597,9 @@ def test_core_mda_wdg_load_save(
             wdg.save()
         return
 
-    dest.write_text(MDA_META.yaml() if ext == "yaml" else MDA_META.model_dump_json())
+    mda = MDA.replace(metadata=SAVE_META)
+
+    dest.write_text(mda.yaml() if ext == "yaml" else mda.model_dump_json())
 
     wdg.load()
 
@@ -617,6 +607,20 @@ def test_core_mda_wdg_load_save(
     assert meta["save_dir"] == SAVE_META[PMMC]["save_dir"]
     assert meta["save_name"] == SAVE_META[PMMC]["save_name"]
     assert meta["format"] == SAVE_META[PMMC]["format"]
+
+
+MDA_META = useq.MDASequence(metadata=SAVE_META)
+
+
+def test_mda_set_value_with_save_info(qtbot: QtBot):
+    mda = MDAWidget()
+    qtbot.addWidget(mda)
+
+    mda.setValue(MDA_META)
+    assert mda.save_info.isChecked()
+    assert mda.save_info.save_dir.text() == SAVE_META[PMMC]["save_dir"]
+    assert mda.save_info.save_name.text() == SAVE_META[PMMC]["save_name"]
+    assert mda.save_info._writer_combo.currentText() == SAVE_META[PMMC]["format"]
 
 
 def test_mda_sequenceFinished_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
