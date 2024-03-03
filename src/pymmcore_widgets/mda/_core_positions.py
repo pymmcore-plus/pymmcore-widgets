@@ -15,15 +15,6 @@ from pymmcore_widgets.useq_widgets._column_info import (
 )
 from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP
 
-if TYPE_CHECKING:
-    from typing import TypedDict
-
-    class SaveInfo(TypedDict):
-        save_dir: str
-        file_name: str
-        split_positions: bool
-        should_save: bool
-
 
 class CoreConnectedPositionTable(PositionTable):
     """[PositionTable](../PositionTable#) connected to a Micro-Manager core instance.

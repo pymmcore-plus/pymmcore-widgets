@@ -1,6 +1,8 @@
 from __future__ import annotations
+from turtle import st
 
 from typing import TYPE_CHECKING, cast
+from warnings import warn
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -24,6 +26,7 @@ if TYPE_CHECKING:
         save_dir: str
         save_name: str
         format: str
+        should_save: bool
 
 
 # dict with writer name and extension
@@ -103,24 +106,29 @@ class _SaveWidget(QGroupBox):
             "save_dir": self.save_dir.text(),
             "save_name": self.save_name.text(),
             "format": self._writer_combo.currentText(),
+            "should_save": self.isChecked(),
         }
 
     def setValue(self, value: SaveInfo | dict) -> None:
         """Set the current state of the save widget."""
-        save_dir = value.get("save_dir", "")
+        self.save_dir.setText(value.get("save_dir", ""))
         save_name = value.get("save_name", "")
-        self.save_dir.setText(save_dir)
         self.save_name.setText(save_name)
-        # retrieve writer from the format key. if not present, default to tiff-sequence
-        writer = cast(str, value.get("format", ""))
-        if not writer or writer not in WRITERS:
-            self._writer_combo.setCurrentText("tiff-sequence")
-            self.setChecked(False)
-            return
+        self.setChecked(value.get("should_save", False))
+
+        # retrieve writer from the format key.
+        fmt: str | None = value.get("format")
+        if fmt is None:
+            for ext, writer in EXTENSION_TO_WRITER.items():
+                if save_name.endswith(ext):
+                    fmt = writer
+                    break
+
+        if fmt not in WRITERS:
+            warn(f"Invalid format {fmt}. Defaulting to tiff-sequence.", stacklevel=2)
+            fmt = "tiff-sequence"
         # set the writer and update the combo
-        self._update_combo_text(writer)
-        # set the group box checked state
-        self.setChecked(bool(save_dir and save_name))
+        self._update_combo_text(fmt)
 
     def _on_browse_clicked(self) -> None:
         """Open a dialog to select the save directory."""

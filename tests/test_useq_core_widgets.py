@@ -571,6 +571,7 @@ SAVE_META = {
         "save_dir": "dir",
         "save_name": "name.ome.tiff",
         "format": "ome-tiff",
+        "should_save": True,
     }
 }
 MDA_META = useq.MDASequence(metadata=SAVE_META)
@@ -624,7 +625,6 @@ def test_mda_sequenceFinished_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot
     qtbot.addWidget(mda)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-
         # add a file to tempdir
         Path(tmpdir, "name.ome.tiff").touch()
 
@@ -633,6 +633,7 @@ def test_mda_sequenceFinished_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot
                 "save_dir": str(Path(tmpdir)),
                 "save_name": "name.ome.tiff",
                 "format": "ome-tiff",
+                "should_save": True,
             }
         }
         MDA_META = useq.MDASequence(metadata=SAVE_META)
@@ -651,7 +652,6 @@ EXT = [".ome.tiff", ".ome.tif", ".ome.zarr", ""]
 @pytest.mark.parametrize("extension", EXT)
 def test_get_next_available_paths(extension: str) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
-
         path = Path(tmpdir) / f"test{extension}"
         new_path = _get_next_available_path(path, extension)
         assert new_path == Path(tmpdir, f"test{extension}")
