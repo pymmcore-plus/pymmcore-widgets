@@ -26,7 +26,7 @@ from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
-from ._save_widget import EXTENSIONS, WRITERS, _SaveGroupBox
+from ._save_widget import WRITERS, _SaveGroupBox
 
 
 class CoreMDATabs(MDATabs):

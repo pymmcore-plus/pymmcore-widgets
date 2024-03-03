@@ -1,7 +1,6 @@
 from __future__ import annotations
-from turtle import st
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 from warnings import warn
 
 from qtpy.QtCore import Qt, Signal
