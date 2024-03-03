@@ -666,15 +666,24 @@ def test_get_next_available_paths(extension: str, tmp_path: Path) -> None:
 
 
 def test_get_next_available_paths_special_cases(tmp_path: Path) -> None:
-    assert get_next_available_path(tmp_path / "test.txt").name == "test.txt"
+    base = tmp_path / "test.txt"
+    assert get_next_available_path(base).name == base.name
 
     # only 3+ digit numbers are considered as counters
     (tmp_path / "test_04.txt").touch()
-    assert get_next_available_path(tmp_path / "test.txt").name == "test.txt"
+    assert get_next_available_path(base).name == base.name
 
     # if an existing thing with a higher number is there, the next number is used
     (tmp_path / "test_004.txt").touch()
-    assert get_next_available_path(tmp_path / "test.txt").name == "test_005.txt"
+    assert get_next_available_path(base).name == "test_005.txt"
 
     # only 3+ digit numbers are considered as counters
     assert get_next_available_path(tmp_path / "test_02.txt").name == "test_02_005.txt"
+
+    # we go to the next number of digits if need be
+    (tmp_path / "test_999.txt").touch()
+    assert get_next_available_path(base).name == "test_1000.txt"
+
+    # more than 3 digits are used as is
+    (tmp_path / "test_12345.txt").touch()
+    assert get_next_available_path(base).name == "test_12346.txt"

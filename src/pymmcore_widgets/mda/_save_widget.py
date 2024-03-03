@@ -50,7 +50,7 @@ class FocusLineEdit(QLineEdit):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
 
-    def focusOutEvent(self, event: QFocusEvent) -> None:
+    def focusOutEvent(self, event: QFocusEvent | None) -> None:
         super().focusOutEvent(event)
         self.editingFinished.emit()
 

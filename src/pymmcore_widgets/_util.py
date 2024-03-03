@@ -146,7 +146,7 @@ def get_next_available_path(requested_path: Path | str, ndigits: int = 3) -> Pat
         extension = ".ome" + extension
         stem = stem[:-4]
 
-    # look for any existing files in the folder that follow the pattern of
+    # look for ANY existing files in the folder that follow the pattern of
     # stem_###.extension
     current_max = 0
     for existing in directory.glob(f"*{extension}"):
