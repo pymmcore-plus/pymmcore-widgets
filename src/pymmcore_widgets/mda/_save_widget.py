@@ -55,7 +55,7 @@ class FocusLineEdit(QLineEdit):
         self.editingFinished.emit()
 
 
-class _SaveWidget(QGroupBox):
+class _SaveGroupBox(QGroupBox):
     """A Widget to gather information about MDA file saving."""
 
     valueChanged = Signal()

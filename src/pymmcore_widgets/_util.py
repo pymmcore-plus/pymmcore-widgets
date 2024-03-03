@@ -1,4 +1,5 @@
 from __future__ import annotations
+from math import e
 
 from pathlib import Path
 from typing import ContextManager, Sequence
@@ -114,9 +115,7 @@ def fov_kwargs(core: CMMCorePlus) -> dict:
     return {}
 
 
-def _get_next_available_path(
-    path: Path | str, extension: str, ndigits: int = 3
-) -> Path:
+def _get_next_available_path(path: Path, ndigits: int = 3) -> Path:
     """Get the next available paths (filepath or folderpath if extension = "").
 
     This method adds a counter of ndigits to the filename or foldername to ensure
@@ -124,16 +123,16 @@ def _get_next_available_path(
 
     Parameters
     ----------
-    path : Path | str
+    path : Path
         The starting path without extension (e.g./User/Desktop/Folder/Filename).
-    extension : str
-        The extension to be used (e.g. ".ome.tiff").
     ndigits : int (optional)
         The number of digits to be used for the counter. By default, 3.
     """
     # if the extension does not start with a dot, add it
-    if extension and not extension.startswith("."):
-        extension = f".{extension}"
+    if ".ome." in str(path):
+        extension = ".ome." + str(path).split(".ome.")[-1]
+    else:
+        extension = path.suffix
 
     if isinstance(path, str):
         path = Path(path)

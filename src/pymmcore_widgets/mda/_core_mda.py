@@ -26,7 +26,7 @@ from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
-from ._save_widget import EXTENSIONS, WRITERS, _SaveWidget
+from ._save_widget import EXTENSIONS, WRITERS, _SaveGroupBox
 
 
 class CoreMDATabs(MDATabs):
@@ -86,7 +86,7 @@ class MDAWidget(MDASequenceWidget):
 
         super().__init__(parent=parent, tab_widget=CoreMDATabs(None, self._mmc))
 
-        self.save_info = _SaveWidget(parent=self)
+        self.save_info = _SaveGroupBox(parent=self)
         self.save_info.valueChanged.connect(self.valueChanged)
         self.control_btns = _MDAControlButtons(self._mmc, self)
 
@@ -163,28 +163,21 @@ class MDAWidget(MDASequenceWidget):
         super().setValue(value)
         self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
 
-    def get_next_available_path(
-        self, path: Path | str, extension: str, ndigits: int = 3
-    ) -> Path:
-        """Get the next available filepath or folderpath (if extension = "").
+    def get_next_available_path(self, requested_path: Path) -> Path:
+        """Get the next available path.
 
-        This method adds a counter of `ndigits` to the filename or foldername to ensure
-        that the path is unique.
+        This method is used to ensure that the file being saved does not overwrite an
+        existing file.  It may be overridden to provide custom behavior.
 
-        It is used to ensure that the path passed to the `output` argument of the
-        `run_mda` method is unique and to also update the MDAWidget `save_name` text
-        with the second next available path once the acquisition is finished.
+        The default behavior adds/increments a 3-digit counter at the end of the path
+        (before the extension) if the path already exists.
 
         Parameters
         ----------
-        path : Path | str
-            The starting path (e.g./User/Desktop/folder/file.ome.tiff).
-        extension : str
-            The extension to be used (e.g. ".ome.tiff").
-        ndigits : int (optional)
-            The number of digits to be used for the counter. By default, 3.
+        requested_path : Path
+            The path we are requesting for use.
         """
-        return _get_next_available_path(path=path, extension=extension, ndigits=ndigits)
+        return _get_next_available_path(path=requested_path)
 
     # ------------------- private Methods ----------------------
 
@@ -233,9 +226,8 @@ class MDAWidget(MDASequenceWidget):
             if not save_dir or not save_name:
                 return None
 
-            extension = next((ext for ext in EXTENSIONS if save_name.endswith(ext)), "")
             path = Path(save_dir) / save_name
-            return self.get_next_available_path(path, extension)
+            return self.get_next_available_path(path)
         return None
 
     def _confirm_af_intentions(self) -> bool:
