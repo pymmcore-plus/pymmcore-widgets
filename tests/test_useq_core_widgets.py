@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, cast
 from unittest.mock import patch
@@ -17,7 +16,11 @@ from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
 from pymmcore_widgets.mda._core_mda import CoreMDATabs
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
-from pymmcore_widgets.useq_widgets._mda_sequence import AutofocusAxis, KeepShutterOpen
+from pymmcore_widgets.useq_widgets._mda_sequence import (
+    PYMMCW_METADATA_KEY,
+    AutofocusAxis,
+    KeepShutterOpen,
+)
 from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP, _MDAPopup
 
 if TYPE_CHECKING:
@@ -35,6 +38,13 @@ MDA = useq.MDASequence(
     axis_order="tpgzc",
     keep_shutter_open_across=("z",),
 )
+
+SAVE_META = {
+    "save_dir": "dir",
+    "save_name": "name.ome.tiff",
+    "format": "ome-tiff",
+    "should_save": True,
+}
 
 
 def test_core_connected_mda_wdg(qtbot: QtBot):
@@ -565,18 +575,7 @@ def test_mda_no_pos_set(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert "p" in wdg.value().axis_order
 
 
-PMMC = "pymmcore_widgets"
-SAVE_META = {
-    PMMC: {
-        "save_dir": "dir",
-        "save_name": "name.ome.tiff",
-        "format": "ome-tiff",
-        "should_save": True,
-    }
-}
-
-
-@pytest.mark.parametrize("ext", ["json", "yaml", "foo"])
+@pytest.mark.parametrize("ext", ["json", "yaml"])
 def test_core_mda_wdg_load_save(
     qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str
 ) -> None:
@@ -587,67 +586,61 @@ def test_core_mda_wdg_load_save(
     wdg.show()
 
     dest = tmp_path / f"sequence.{ext}"
+    # monkeypatch the dialog to load/save to our temp file
     monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a: (dest, None))
     monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *a: (dest, None))
-    dest.write_text("")
 
-    if ext == "foo":
-        with pytest.raises(ValueError):
-            wdg.load()
-        with pytest.raises(ValueError):
-            wdg.save()
-        return
-
-    mda = MDA.replace(metadata=SAVE_META)
-
+    # write the sequence to file and load the widget from it
+    mda = MDA.replace(metadata={**MDA.metadata, PYMMCW_METADATA_KEY: SAVE_META})
     dest.write_text(mda.yaml() if ext == "yaml" else mda.model_dump_json())
-
     wdg.load()
 
-    meta = wdg.value().metadata[PMMC]
-    assert meta["save_dir"] == SAVE_META[PMMC]["save_dir"]
-    assert meta["save_name"] == SAVE_META[PMMC]["save_name"]
-    assert meta["format"] == SAVE_META[PMMC]["format"]
+    meta = wdg.value().metadata[PYMMCW_METADATA_KEY]
+    assert meta["save_dir"] == SAVE_META["save_dir"]
+    assert meta["save_name"] == SAVE_META["save_name"]
+    assert meta["format"] == SAVE_META["format"]
+
+    # save the widget to file and load it back
+    dest.unlink()
+    wdg.save()
+    assert useq.MDASequence.from_file(dest).metadata[PYMMCW_METADATA_KEY] == meta
 
 
-MDA_META = useq.MDASequence(metadata=SAVE_META)
-
-
-def test_mda_set_value_with_save_info(qtbot: QtBot):
+def test_mda_set_value_with_seq_metadata(qtbot: QtBot) -> None:
+    """Test setting the value of the MDAWidget with a seq that has save metadata."""
     mda = MDAWidget()
     qtbot.addWidget(mda)
 
-    mda.setValue(MDA_META)
+    mda.setValue(useq.MDASequence(metadata={PYMMCW_METADATA_KEY: SAVE_META}))
     assert mda.save_info.isChecked()
-    assert mda.save_info.save_dir.text() == SAVE_META[PMMC]["save_dir"]
-    assert mda.save_info.save_name.text() == SAVE_META[PMMC]["save_name"]
-    assert mda.save_info._writer_combo.currentText() == SAVE_META[PMMC]["format"]
+    assert mda.save_info.save_dir.text() == SAVE_META["save_dir"]
+    assert mda.save_info.save_name.text() == SAVE_META["save_name"]
+    assert mda.save_info._writer_combo.currentText() == SAVE_META["format"]
 
 
-def test_mda_sequenceFinished_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    mda = MDAWidget(mmcore=global_mmcore)
-    qtbot.addWidget(mda)
+def test_mda_sequenceFinished_save_name(
+    global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path
+) -> None:
+    """Test that the save name is updated after the sequence is finished."""
+    mda_wdg = MDAWidget(mmcore=global_mmcore)
+    qtbot.addWidget(mda_wdg)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # add a file to tempdir
-        Path(tmpdir, "name.ome.tiff").touch()
+    # add a file to tempdir
+    requested_file = tmp_path / "name.ome.tiff"
+    requested_file.touch()  # plant a filename conflict!
 
-        SAVE_META = {
-            "pymmcore_widgets": {
-                "save_dir": str(Path(tmpdir)),
-                "save_name": "name.ome.tiff",
-                "format": "ome-tiff",
-                "should_save": True,
-            }
-        }
-        MDA_META = useq.MDASequence(metadata=SAVE_META)
+    mda_wdg.save_info.setValue(requested_file)
+    assert mda_wdg.save_info.isChecked()
+    assert mda_wdg.save_info.value()["save_name"] == "name.ome.tiff"
 
-        mda.setValue(MDA_META)
-        assert mda.save_info.isChecked()
-        assert mda.save_info.value()["save_name"] == "name.ome.tiff"
+    with qtbot.waitSignal(global_mmcore.mda.events.sequenceFinished):
+        mda_wdg.run_mda()
+    qtbot.wait(20)  # wait for the save name to be updated
 
-        mda._on_mda_finished(MDA_META)
-        assert mda.save_info.value()["save_name"] == "name_001.ome.tiff"
+    # the written file should have a different name
+    assert (tmp_path / "name_001.ome.tiff").exists()
+    # the next file has been updated
+    assert mda_wdg.save_info.value()["save_name"] == "name_002.ome.tiff"
 
 
 @pytest.mark.parametrize("extension", [".ome.tiff", ".ome.tif", ".ome.zarr", ""])

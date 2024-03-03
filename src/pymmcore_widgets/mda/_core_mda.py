@@ -6,7 +6,7 @@ from typing import cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import QSize, Qt, QTimer
 from qtpy.QtWidgets import (
     QBoxLayout,
     QHBoxLayout,
@@ -19,7 +19,7 @@ from useq import MDASequence, Position
 
 from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
-from pymmcore_widgets.useq_widgets._mda_sequence import MDATabs
+from pymmcore_widgets.useq_widgets._mda_sequence import PYMMCW_METADATA_KEY, MDATabs
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 
 from ._core_channels import CoreConnectedChannelTable
@@ -153,7 +153,7 @@ class MDAWidget(MDASequenceWidget):
         if replace:
             val = val.replace(**replace)
 
-        meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
+        meta: dict = val.metadata.setdefault(PYMMCW_METADATA_KEY, {})
         if self.save_info.isChecked():
             meta.update(self.save_info.value())
         return val
@@ -161,7 +161,7 @@ class MDAWidget(MDASequenceWidget):
     def setValue(self, value: MDASequence) -> None:
         """Get the current state of the widget as a [`useq.MDASequence`][]."""
         super().setValue(value)
-        self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
+        self.save_info.setValue(value.metadata.get(PYMMCW_METADATA_KEY, {}))
 
     def get_next_available_path(self, requested_path: Path) -> Path:
         """Get the next available path.
@@ -203,7 +203,9 @@ class MDAWidget(MDASequenceWidget):
 
         # technically, this is in the metadata as well, but isChecked is more direct
         if self.save_info.isChecked():
-            save_path = self._update_save_path_from_metadata(sequence)
+            save_path = self._update_save_path_from_metadata(
+                sequence, update_metadata=True
+            )
         else:
             save_path = None
 
@@ -223,7 +225,12 @@ class MDAWidget(MDASequenceWidget):
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
         return Position(x=x, y=y, z=z)
 
-    def _update_save_path_from_metadata(self, sequence: MDASequence) -> Path | None:
+    def _update_save_path_from_metadata(
+        self,
+        sequence: MDASequence,
+        update_widget: bool = True,
+        update_metadata: bool = False,
+    ) -> Path | None:
         """Get the next available save path from sequence metadata and update widget.
 
         Parameters
@@ -231,16 +238,23 @@ class MDAWidget(MDASequenceWidget):
         sequence : MDASequence
             The MDA sequence to get the save path from. (must be in the
             'pymmcore_widgets' key of the metadata)
+        update_widget : bool, optional
+            Whether to update the save widget with the new path, by default True.
+        update_metadata : bool, optional
+            Whether to update the Sequence metadata with the new path, by default False.
         """
         if (
-            (meta := sequence.metadata.get("pymmcore_widgets", {}))
+            (meta := sequence.metadata.get(PYMMCW_METADATA_KEY, {}))
             and (save_dir := meta.get("save_dir"))
             and (save_name := meta.get("save_name"))
         ):
             requested = (Path(save_dir) / str(save_name)).expanduser().resolve()
             next_path = self.get_next_available_path(requested)
             if next_path != requested:
-                self.save_info.setValue(next_path)
+                if update_widget:
+                    self.save_info.setValue(next_path)
+                    if update_metadata:
+                        meta.update(self.save_info.value())
             return next_path
         return None
 
@@ -273,8 +287,9 @@ class MDAWidget(MDASequenceWidget):
 
     def _on_mda_finished(self, sequence: MDASequence) -> None:
         self._enable_widgets(True)
-        # update the save name in the gui with the next available path
-        self._update_save_path_from_metadata(sequence)
+        # update the save name in the gui with the next available path after a
+        # brief delay give other mda_finished (writers) time to finalize
+        QTimer.singleShot(10, lambda: self._update_save_path_from_metadata(sequence))
 
     def _disconnect(self) -> None:
         with suppress(Exception):
