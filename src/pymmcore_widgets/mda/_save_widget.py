@@ -94,7 +94,7 @@ class SaveGroupBox(QGroupBox):
         self.save_dir.setPlaceholderText("Select Save Directory")
         self.save_name = _FocusOutLineEdit()
         self.save_name.setPlaceholderText("Enter Experiment Name")
-        self.save_name.editingFinished.connect(self._on_editing_finished)
+        self.save_name.editingFinished.connect(self._update_writer_from_name)
 
         self._writer_combo = QComboBox()
         self._writer_combo.addItems(list(WRITERS))
@@ -122,6 +122,17 @@ class SaveGroupBox(QGroupBox):
         self.save_dir.textChanged.connect(self.valueChanged)
         self.save_name.textChanged.connect(self.valueChanged)
 
+    def currentPath(self) -> Path:
+        """Return the current save destination as a Path object."""
+        return Path(self.save_dir.text()) / self.save_name.text()
+
+    def setCurrentPath(self, path: str | Path) -> None:
+        """Set the save destination from a string or Path object."""
+        path = Path(path)
+        self.save_dir.setText(str(path.parent))
+        self.save_name.setText(path.name)
+        self._update_writer_from_name(allow_name_change=False)
+
     def value(self) -> SaveInfo:
         """Return current state of the save widget."""
         return {
@@ -141,30 +152,50 @@ class SaveGroupBox(QGroupBox):
         - should_save: bool - Set the checked state of the checkbox.
         """
         if isinstance(value, (str, Path)):
-            path = Path(value)
-            value = {
-                "save_dir": str(path.parent),
-                "save_name": path.name,
-                "should_save": True,
-            }
+            self.setCurrentPath(value)
+            self.setChecked(True)
+            return
+
+        if (fmt := value.get("format")) and fmt not in WRITERS:  # pragma: no cover
+            raise ValueError(f"Invalid format {fmt!r}. Must be one of {list(WRITERS)}")
 
         self.save_dir.setText(value.get("save_dir", ""))
-        save_name = str(value.get("save_name", ""))
-        self.save_name.setText(save_name)
+        self.save_name.setText(str(value.get("save_name", "")))
         self.setChecked(value.get("should_save", False))
 
-        # retrieve writer from the format key.
-        fmt = value.get("format")
-        if fmt is None and (ext := _known_extension(save_name)):
-            fmt = EXT_TO_WRITER[ext]
+        if fmt:
+            self._writer_combo.setCurrentText(str(fmt))
+        else:
+            self._update_writer_from_name()
 
-        if fmt not in WRITERS:
-            if ext := Path(save_name).suffix:
-                warn(f"Invalid format {ext!r}. Defaulting to {TIFF_SEQ}.", stacklevel=2)
-            fmt = TIFF_SEQ
+    def _update_writer_from_name(self, allow_name_change: bool = True) -> None:
+        """Called when the user finishes editing the save_name widget.
 
-        # set the writer and update the combo
-        self._writer_combo.setCurrentText(fmt)
+        Updates the combo box to the writer with the same extension as the save name.
+
+        Parameters
+        ----------
+        allow_name_change : bool, optional
+            If True (default), allow the widget to update the save_name value
+            if the current name does not end with a known extension.  If False,
+            the name will not be changed
+        """
+        name = self.save_name.text()
+        if extension := _known_extension(name):
+            self._writer_combo.setCurrentText(EXT_TO_WRITER[extension])
+
+        elif not allow_name_change:
+            if ext := Path(name).suffix:
+                warn(
+                    f"Invalid format {ext!r}. Defaulting to {TIFF_SEQ} writer.",
+                    stacklevel=2,
+                )
+            self._writer_combo.setCurrentText(TIFF_SEQ)
+        elif name:
+            # otherwise, if the name is not empty, add the first extension from the
+            # current writer
+            ext = WRITERS[self._writer_combo.currentText()][0]
+            self.save_name.setText(name + ext)
 
     def _on_browse_clicked(self) -> None:  # pragma: no cover
         """Open a dialog to select the save directory."""
@@ -172,19 +203,6 @@ class SaveGroupBox(QGroupBox):
             self, "Select Save Directory", self.save_dir.text()
         ):
             self.save_dir.setText(save_dir)
-
-    def _on_editing_finished(self) -> None:
-        """Called when the user finishes editing the save_name widget.
-
-        Updates the combo box to the writer with the same extension as the save name.
-        """
-        if extension := _known_extension(self.save_name.text()):
-            self._writer_combo.setCurrentText(EXT_TO_WRITER[extension])
-
-        # if the extension is not valid, clear the extension and get it form the combo
-        elif name := self.save_name.text():
-            ext = WRITERS[self._writer_combo.currentText()][0]
-            self.save_name.setText(name + ext)
 
     def _on_writer_combo_changed(self, writer: str) -> None:
         """Called when the writer format combo box is changed.
