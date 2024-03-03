@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
