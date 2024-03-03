@@ -123,18 +123,18 @@ def fov_kwargs(core: CMMCorePlus) -> dict:
 NUM_SPLIT = re.compile(r"(.*?)(?:_(\d{3,}+))?$")
 
 
-def get_next_available_path(requested_path: Path | str, ndigits: int = 3) -> Path:
+def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> Path:
     """Get the next available paths (filepath or folderpath if extension = "").
 
-    This method adds a counter of ndigits to the filename or foldername to ensure
+    This method adds a counter of min_digits to the filename or foldername to ensure
     that the path is unique.
 
     Parameters
     ----------
     requested_path : Path | str
         A path to a file or folder that may or may not exist.
-    ndigits : int, optional
-        The number of digits to be used for the counter. By default, 3.
+    min_digits : int, optional
+        The min_digits number of digits to be used for the counter. By default, 3.
     """
     if isinstance(requested_path, str):  # pragma: no cover
         requested_path = Path(requested_path)
@@ -156,8 +156,8 @@ def get_next_available_path(requested_path: Path | str, ndigits: int = 3) -> Pat
         if (match := NUM_SPLIT.match(base)) and (num := match.group(2)):
             current_max = max(int(num), current_max)
             # if it has more digits than expected, update the ndigits
-            if len(num) > ndigits:
-                ndigits = len(num)
+            if len(num) > min_digits:
+                min_digits = len(num)
 
     # if the path does not exist and there are no existing files,
     # return the requested path
@@ -168,4 +168,4 @@ def get_next_available_path(requested_path: Path | str, ndigits: int = 3) -> Pat
     # remove any existing counter from the stem
     if match := NUM_SPLIT.match(stem):
         stem = match.group(1)
-    return directory / f"{stem}_{current_max + 1:0{ndigits}d}{extension}"
+    return directory / f"{stem}_{current_max + 1:0{min_digits}d}{extension}"

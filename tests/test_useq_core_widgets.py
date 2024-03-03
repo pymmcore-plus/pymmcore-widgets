@@ -685,5 +685,6 @@ def test_get_next_available_paths_special_cases(tmp_path: Path) -> None:
     assert get_next_available_path(base).name == "test_1000.txt"
 
     # more than 3 digits are used as is
-    (tmp_path / "test_12345.txt").touch()
-    assert get_next_available_path(base).name == "test_12346.txt"
+    high = tmp_path / "test_12345.txt"
+    high.touch()
+    assert get_next_available_path(high).name == "test_12346.txt"
