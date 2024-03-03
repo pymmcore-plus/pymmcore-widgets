@@ -10,7 +10,7 @@ import useq
 from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import QMessageBox
 
-from pymmcore_widgets._util import _get_next_available_path
+from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
@@ -650,12 +650,27 @@ def test_mda_sequenceFinished_save_name(global_mmcore: CMMCorePlus, qtbot: QtBot
 def test_get_next_available_paths(extension: str, tmp_path: Path) -> None:
     # non existing paths returns the same path
     path = tmp_path / f"test{extension}"
-    assert _get_next_available_path(path) == path
+    assert get_next_available_path(path) == path
 
     # existing files add a counter to the path
     path.touch()
-    assert _get_next_available_path(path) == tmp_path / f"test_001{extension}"
+    assert get_next_available_path(path) == tmp_path / f"test_001{extension}"
 
     # if a path with a counter exists, the next (maximum) counter is used
     (tmp_path / f"test_004{extension}").touch()
-    assert _get_next_available_path(path) == tmp_path / f"test_005{extension}"
+    assert get_next_available_path(path) == tmp_path / f"test_005{extension}"
+
+
+def test_get_next_available_paths_special_cases(tmp_path: Path) -> None:
+    assert get_next_available_path(tmp_path / "test.txt").name == "test.txt"
+
+    # only 3+ digit numbers are considered as counters
+    (tmp_path / "test_04.txt").touch()
+    assert get_next_available_path(tmp_path / "test.txt").name == "test.txt"
+
+    # if an existing thing with a higher number is there, the next number is used
+    (tmp_path / "test_004.txt").touch()
+    assert get_next_available_path(tmp_path / "test.txt").name == "test_005.txt"
+
+    # only 3+ digit numbers are considered as counters
+    assert get_next_available_path(tmp_path / "test_02.txt").name == "test_02_005.txt"

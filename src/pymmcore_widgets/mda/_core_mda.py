@@ -17,7 +17,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from useq import MDASequence, Position
 
-from pymmcore_widgets._util import _get_next_available_path
+from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 from pymmcore_widgets.useq_widgets._mda_sequence import MDATabs
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
@@ -177,7 +177,7 @@ class MDAWidget(MDASequenceWidget):
         requested_path : Path
             The path we are requesting for use.
         """
-        return _get_next_available_path(path=requested_path)
+        return get_next_available_path(requested_path=requested_path)
 
     # ------------------- private Methods ----------------------
 

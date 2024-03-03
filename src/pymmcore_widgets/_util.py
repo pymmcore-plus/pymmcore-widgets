@@ -1,6 +1,6 @@
 from __future__ import annotations
-from math import e
 
+import re
 from pathlib import Path
 from typing import ContextManager, Sequence
 
@@ -115,7 +115,15 @@ def fov_kwargs(core: CMMCorePlus) -> dict:
     return {}
 
 
-def _get_next_available_path(path: Path, ndigits: int = 3) -> Path:
+# examples:
+# "name_001" -> ("name", "001")
+# "name" -> ("name", "")
+# "name_001_002" -> ("name_001", "002")
+# "name_02" -> ('name_02', None)
+NUM_SPLIT = re.compile(r"(.*?)(?:_(\d{3,}+))?$")
+
+
+def get_next_available_path(requested_path: Path | str, ndigits: int = 3) -> Path:
     """Get the next available paths (filepath or folderpath if extension = "").
 
     This method adds a counter of ndigits to the filename or foldername to ensure
@@ -123,61 +131,41 @@ def _get_next_available_path(path: Path, ndigits: int = 3) -> Path:
 
     Parameters
     ----------
-    path : Path
-        The starting path without extension (e.g./User/Desktop/Folder/Filename).
-    ndigits : int (optional)
+    requested_path : Path | str
+        A path to a file or folder that may or may not exist.
+    ndigits : int, optional
         The number of digits to be used for the counter. By default, 3.
     """
-    # if the extension does not start with a dot, add it
-    if ".ome." in str(path):
-        extension = ".ome." + str(path).split(".ome.")[-1]
-    else:
-        extension = path.suffix
+    if isinstance(requested_path, str):  # pragma: no cover
+        requested_path = Path(requested_path)
 
-    if isinstance(path, str):
-        path = Path(path)
+    directory = requested_path.parent
+    extension = requested_path.suffix
+    # ome files like .ome.tiff or .ome.zarr are special,treated as a single extension
+    if (stem := requested_path.stem).endswith(".ome"):
+        extension = ".ome" + extension
+        stem = stem[:-4]
 
-    # remove extension from the path if any
-    if str(path).endswith(extension):
-        path = Path(str(path).replace(extension, ""))
+    # look for any existing files in the folder that follow the pattern of
+    # stem_###.extension
+    current_max = 0
+    for existing in directory.glob(f"*{extension}"):
+        # cannot use existing.stem because of the ome (2-part-extension) special case
+        base = existing.name.replace(extension, "")
+        # if the base name ends with a number, increase the current_max
+        if (match := NUM_SPLIT.match(base)) and (num := match.group(2)):
+            current_max = max(int(num), current_max)
+            # if it has more digits than expected, update the ndigits
+            if len(num) > ndigits:
+                ndigits = len(num)
 
-    stem = path.stem
+    # if the path does not exist and there are no existing files,
+    # return the requested path
+    if not requested_path.exists() and current_max == 0:
+        return requested_path
 
-    # remove digits from the stem if any
-    cur_num = stem.rsplit("_")[-1]
-    if cur_num.isdigit() and len(cur_num) == ndigits:
-        stem = stem[: -ndigits - 1]
-        # if the stem provided has a number, check if path exists and if not, return it
-        new_path = path.parent / f"{stem}_{cur_num}{extension}"
-        if not new_path.exists():
-            return new_path
-
-        current_max = int(cur_num)
-    else:
-        current_max = 1
-
-    # find the current maximum number
-    current_files = path.parent.glob(f"*{extension}")
-    for fn in current_files:
-        try:
-            if extension in str(fn):
-                fn = Path(str(fn).replace(extension, ""))
-            current_max = max(current_max, int(fn.stem.rsplit("_")[-1]))
-        except ValueError:
-            continue
-
-    # find the first available path
-    new_path = path.parent / f"{stem}{extension}"
-
-    if new_path.exists():
-        # If the path exists, find the next available filename
-        while True:
-            number = f"_{current_max:0{ndigits}d}"
-            new_path = path.parent / f"{stem}{number}{extension}"
-
-            if not new_path.exists():
-                break
-
-            current_max += 1
-
-    return new_path
+    # otherwise return the next path greater than the current_max
+    # remove any existing counter from the stem
+    if match := NUM_SPLIT.match(stem):
+        stem = match.group(1)
+    return directory / f"{stem}_{current_max + 1:0{ndigits}d}{extension}"
