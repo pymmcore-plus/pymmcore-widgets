@@ -6,7 +6,7 @@ from typing import cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Qt, QTimer
+from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QBoxLayout,
     QHBoxLayout,
