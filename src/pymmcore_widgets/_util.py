@@ -120,7 +120,7 @@ def fov_kwargs(core: CMMCorePlus) -> dict:
 # "name" -> ("name", "")
 # "name_001_002" -> ("name_001", "002")
 # "name_02" -> ('name_02', None)
-NUM_SPLIT = re.compile(r"(.*?)(?:_(\d{3,}+))?$")
+NUM_SPLIT = re.compile(r"(.*?)(?:_(\d{3,}))?$")
 
 
 def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> Path:
