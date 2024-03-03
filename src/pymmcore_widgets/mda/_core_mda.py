@@ -166,8 +166,12 @@ class MDAWidget(MDASequenceWidget):
     def get_next_available_path(self, requested_path: Path) -> Path:
         """Get the next available path.
 
-        This method is used to ensure that the file being saved does not overwrite an
-        existing file.  It may be overridden to provide custom behavior.
+        This method is called immediately before running an MDA to ensure that the file
+        being saved does not overwrite an existing file. It is also called at the end
+        of the experiment to update the save widget with the next available path.
+
+        It may be overridden to provide custom behavior, but it should always return a
+        Path object to a non-existing file or folder.
 
         The default behavior adds/increments a 3-digit counter at the end of the path
         (before the extension) if the path already exists.
@@ -199,7 +203,7 @@ class MDAWidget(MDASequenceWidget):
 
         # technically, this is in the metadata as well, but isChecked is more direct
         if self.save_info.isChecked():
-            save_path = self._get_save_path_from_metadata(sequence)
+            save_path = self._update_save_path_from_metadata(sequence)
         else:
             save_path = None
 
@@ -219,19 +223,14 @@ class MDAWidget(MDASequenceWidget):
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
         return Position(x=x, y=y, z=z)
 
-    def _get_save_path_from_metadata(
-        self, sequence: MDASequence, update_widget: bool = True
-    ) -> Path | None:
-        """Get the next available save path from the metadata.
+    def _update_save_path_from_metadata(self, sequence: MDASequence) -> Path | None:
+        """Get the next available save path from sequence metadata and update widget.
 
         Parameters
         ----------
         sequence : MDASequence
             The MDA sequence to get the save path from. (must be in the
             'pymmcore_widgets' key of the metadata)
-        update_widget : bool, optional
-            Whether to update the save_info widget with the next available path, by
-            default True.
         """
         if (
             (meta := sequence.metadata.get("pymmcore_widgets", {}))
@@ -240,7 +239,7 @@ class MDAWidget(MDASequenceWidget):
         ):
             requested = (Path(save_dir) / str(save_name)).expanduser().resolve()
             next_path = self.get_next_available_path(requested)
-            if update_widget and next_path != requested:
+            if next_path != requested:
                 self.save_info.setValue(next_path)
             return next_path
         return None
@@ -275,7 +274,7 @@ class MDAWidget(MDASequenceWidget):
     def _on_mda_finished(self, sequence: MDASequence) -> None:
         self._enable_widgets(True)
         # update the save name in the gui with the next available path
-        self._get_save_path_from_metadata(sequence)
+        self._update_save_path_from_metadata(sequence)
 
     def _disconnect(self) -> None:
         with suppress(Exception):
