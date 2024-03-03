@@ -26,7 +26,7 @@ from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
-from ._save_widget import WRITERS, _SaveGroupBox
+from ._save_widget import _SaveGroupBox
 
 
 class CoreMDATabs(MDATabs):
@@ -102,7 +102,7 @@ class MDAWidget(MDASequenceWidget):
 
         # ------------ connect signals ------------
 
-        self.control_btns.run_btn.clicked.connect(self._on_run_clicked)
+        self.control_btns.run_btn.clicked.connect(self.run_mda)
         self.control_btns.pause_btn.released.connect(self._mmc.mda.toggle_pause)
         self.control_btns.cancel_btn.released.connect(self._mmc.mda.cancel)
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
@@ -179,24 +179,9 @@ class MDAWidget(MDASequenceWidget):
         """
         return get_next_available_path(requested_path=requested_path)
 
-    # ------------------- private Methods ----------------------
-
-    def _on_sys_config_loaded(self) -> None:
-        # TODO: connect objective change event to update suggested step
-        self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
-
-    def _get_current_stage_position(self) -> Position:
-        """Return the current stage position."""
-        x = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
-        y = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
-        z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
-        return Position(x=x, y=y, z=z)
-
-    def _on_run_clicked(self) -> None:
+    def run_mda(self) -> None:
         """Run the MDA sequence experiment."""
-        # this is in case the user does not press enter after editing the save name.
-        # it has to be called here or it will not be fast enough to update the value
-        # before the run_mda method is called.
+        # in case the user does not press enter after editing the save name.
         self.save_info.save_name.editingFinished.emit()
 
         # if autofocus has been requested, but the autofocus device is not engaged,
@@ -212,22 +197,52 @@ class MDAWidget(MDASequenceWidget):
 
         sequence = self.value()
 
-        # get saving path from the metadata and pass it to the run_mda method
-        save_path = self._get_saving_path_from_metadata(sequence)
+        # technically, this is in the metadata as well, but isChecked is more direct
+        if self.save_info.isChecked():
+            save_path = self._get_save_path_from_metadata(sequence)
+        else:
+            save_path = None
 
         # run the MDA experiment asynchronously
         self._mmc.run_mda(sequence, output=save_path)
 
-    def _get_saving_path_from_metadata(self, sequence: MDASequence) -> Path | None:
-        """Get the saving path from the metadata."""
-        if meta := sequence.metadata.get("pymmcore_widgets", {}):
-            save_dir = meta.get("save_dir", "")
-            save_name = cast(str, meta.get("save_name", ""))
-            if not save_dir or not save_name:
-                return None
+    # ------------------- private Methods ----------------------
 
-            path = Path(save_dir) / save_name
-            return self.get_next_available_path(path)
+    def _on_sys_config_loaded(self) -> None:
+        # TODO: connect objective change event to update suggested step
+        self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
+
+    def _get_current_stage_position(self) -> Position:
+        """Return the current stage position."""
+        x = self._mmc.getXPosition() if self._mmc.getXYStageDevice() else None
+        y = self._mmc.getYPosition() if self._mmc.getXYStageDevice() else None
+        z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
+        return Position(x=x, y=y, z=z)
+
+    def _get_save_path_from_metadata(
+        self, sequence: MDASequence, update_widget: bool = True
+    ) -> Path | None:
+        """Get the next available save path from the metadata.
+
+        Parameters
+        ----------
+        sequence : MDASequence
+            The MDA sequence to get the save path from. (must be in the
+            'pymmcore_widgets' key of the metadata)
+        update_widget : bool, optional
+            Whether to update the save_info widget with the next available path, by
+            default True.
+        """
+        if (
+            (meta := sequence.metadata.get("pymmcore_widgets", {}))
+            and (save_dir := meta.get("save_dir"))
+            and (save_name := meta.get("save_name"))
+        ):
+            requested = (Path(save_dir) / str(save_name)).expanduser().resolve()
+            next_path = self.get_next_available_path(requested)
+            if update_widget and next_path != requested:
+                self.save_info.setValue(next_path)
+            return next_path
         return None
 
     def _confirm_af_intentions(self) -> bool:
@@ -260,18 +275,7 @@ class MDAWidget(MDASequenceWidget):
     def _on_mda_finished(self, sequence: MDASequence) -> None:
         self._enable_widgets(True)
         # update the save name in the gui with the next available path
-        meta = sequence.metadata.get("pymmcore_widgets")
-        writer = meta.get("format") if meta else None
-        if meta is None or writer not in WRITERS:
-            return
-        next_path = self._get_saving_path_from_metadata(sequence)
-        if next_path is not None:
-            value = {
-                "save_dir": str(next_path.parent),
-                "save_name": next_path.name,
-                "format": writer,
-            }
-            self.save_info.setValue(value)
+        self._get_save_path_from_metadata(sequence)
 
     def _disconnect(self) -> None:
         with suppress(Exception):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 from warnings import warn
 
@@ -108,8 +109,16 @@ class _SaveGroupBox(QGroupBox):
             "should_save": self.isChecked(),
         }
 
-    def setValue(self, value: SaveInfo | dict) -> None:
+    def setValue(self, value: SaveInfo | dict | str | Path) -> None:
         """Set the current state of the save widget."""
+        if isinstance(value, (str, Path)):
+            path = Path(value)
+            value = {
+                "save_dir": str(path.parent),
+                "save_name": path.name,
+                "should_save": True,
+            }
+
         self.save_dir.setText(value.get("save_dir", ""))
         save_name = value.get("save_name", "")
         self.save_name.setText(save_name)

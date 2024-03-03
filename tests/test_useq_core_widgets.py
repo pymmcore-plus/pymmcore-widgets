@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Callable, cast
 from unittest.mock import patch
 
 import pytest
@@ -656,12 +656,14 @@ def test_get_next_available_paths(extension: str, tmp_path: Path) -> None:
     path = tmp_path / f"test{extension}"
     assert get_next_available_path(path) == path
 
+    make: Callable = Path.mkdir if extension in {".ome.zarr", ""} else Path.touch
+
     # existing files add a counter to the path
-    path.touch()
+    make(path)
     assert get_next_available_path(path) == tmp_path / f"test_001{extension}"
 
     # if a path with a counter exists, the next (maximum) counter is used
-    (tmp_path / f"test_004{extension}").touch()
+    make(tmp_path / f"test_004{extension}")
     assert get_next_available_path(path) == tmp_path / f"test_005{extension}"
 
 
