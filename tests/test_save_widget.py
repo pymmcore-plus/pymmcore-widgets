@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from pytestqt.qtbot import QtBot
 
@@ -18,10 +20,11 @@ def test_set_get_value(qtbot: QtBot) -> None:
     qtbot.addWidget(wdg)
 
     # Can be set with a Path or a string, in which case `should_save` be set to True
-    wdg.setValue("/some_path/some_file")
+    path = Path("/some_path/some_file")
+    wdg.setValue(path)
     assert wdg.value() == {
-        "save_dir": "/some_path",
-        "save_name": "some_file",
+        "save_dir": str(path.parent),
+        "save_name": str(path.name),
         "should_save": True,
         "format": TIFF_SEQ,
     }
@@ -36,7 +39,7 @@ def test_set_get_value(qtbot: QtBot) -> None:
     ):
         wdg.setValue("/some_path/some_file.png")
     assert wdg.value() == {
-        "save_dir": "/some_path",
+        "save_dir": str(path.parent),
         "save_name": "some_file.png",  # note, we don't change the name
         "should_save": True,
         "format": TIFF_SEQ,
@@ -44,9 +47,9 @@ def test_set_get_value(qtbot: QtBot) -> None:
 
     # Can be set with a dict.
     # note that when setting with a dict, should_save must be set explicitly
-    wdg.setValue({"save_dir": "/some_path", "save_name": "some_file.ome.zarr"})
+    wdg.setValue({"save_dir": str(path.parent), "save_name": "some_file.ome.zarr"})
     assert wdg.value() == {
-        "save_dir": "/some_path",
+        "save_dir": str(path.parent),
         "save_name": "some_file.ome.zarr",
         "should_save": False,
         "format": OME_ZARR,
