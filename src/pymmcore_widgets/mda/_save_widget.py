@@ -15,7 +15,6 @@ from qtpy.QtWidgets import (
     QPushButton,
     QWidget,
 )
-from regex import P
 
 if TYPE_CHECKING:
     from typing import TypedDict
