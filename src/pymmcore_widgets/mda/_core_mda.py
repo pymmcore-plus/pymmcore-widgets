@@ -287,9 +287,13 @@ class MDAWidget(MDASequenceWidget):
 
     def _on_mda_finished(self, sequence: MDASequence) -> None:
         self._enable_widgets(True)
-        # update the save name in the gui with the next available path after a
-        # brief delay give other mda_finished (writers) time to finalize
-        QTimer.singleShot(10, lambda: self._update_save_path_from_metadata(sequence))
+        # update the save name in the gui with the next available path
+        # FIXME: this is actually a bit error prone in the case of super fast
+        # experiments and delayed writers that haven't yet written anything to disk
+        # (e.g. the next available path might be the same as the current one)
+        # however, the quick fix of using a QTimer.singleShot(0, ...) makes for
+        # difficulties in testing.
+        self._update_save_path_from_metadata(sequence)
 
     def _disconnect(self) -> None:
         with suppress(Exception):
