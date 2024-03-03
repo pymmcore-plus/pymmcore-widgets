@@ -1,105 +1,81 @@
 import pytest
 from pytestqt.qtbot import QtBot
 
-from pymmcore_widgets.mda._save_widget import FILE_NAME, SUBFOLDER, SaveGroupBox
-
-values = [
-    ({"save_dir": "dir", "save_name": "name.ome.tiff", "format": "ome-tiff"}, ""),
-    ({"save_dir": "dir", "save_name": "name", "format": "tiff-sequence"}, ""),
-    ({"save_dir": "dir", "save_name": "name.ome.zarr", "format": "ome-zarr"}, ""),
-    (
-        {"save_dir": "dir", "save_name": "name.ome.tiff", "format": "ome-zarr"},
-        "name.ome.zarr",
-    ),
-    (
-        {"save_dir": "dir", "save_name": "name.png", "format": "ome-tiff"},
-        "name.png.ome.tiff",
-    ),
-    (
-        {"save_dir": "dir", "save_name": "name.ome.tif", "format": "ome-tiff"},
-        "name.ome.tif",
-    ),
-]
+from pymmcore_widgets.mda._save_widget import (
+    DIRECTORY_WRITERS,
+    FILE_NAME,
+    OME_TIFF,
+    OME_ZARR,
+    SUBFOLDER,
+    TIFF_SEQ,
+    WRITERS,
+    SaveGroupBox,
+)
 
 
-@pytest.mark.skip
-@pytest.mark.parametrize("value, name", values)
-def test_set_get_value(qtbot: QtBot, value, name):
+def test_set_get_value(qtbot: QtBot) -> None:
     wdg = SaveGroupBox()
     qtbot.addWidget(wdg)
 
-    assert not wdg.isChecked()
-    assert wdg.value() == {"save_dir": "", "save_name": "", "format": "ome-zarr"}
-
-    wdg.setValue(value)
-    assert wdg.isChecked()
-    assert wdg._writer_combo.currentText() == value["format"]
-    if name:
-        assert wdg.value()["save_name"] == name
-    else:
-        assert wdg.value() == value
-
-
-INVALID_FORMAT = [
-    {"save_dir": "dir", "save_name": "name", "format": "png"},
-    {"save_dir": "dir", "save_name": "name", "format": ""},
-    {"save_dir": "dir", "save_name": "name"},
-]
-
-
-@pytest.mark.skip
-@pytest.mark.parametrize("value", INVALID_FORMAT)
-def test_set_value_invalid_format(qtbot: QtBot, value):
-    wdg = SaveGroupBox()
-    qtbot.addWidget(wdg)
-    assert not wdg.isChecked()
-
-    wdg._writer_combo.setCurrentText("ome-tiff")
-
-    wdg.setValue(value)
-
-    assert not wdg.isChecked()
+    # Can be set with a Path or a string, in which case `should_save` be set to True
+    wdg.setValue("/some_path/some_file")
     assert wdg.value() == {
-        "save_dir": "dir",
-        "save_name": "name",
-        "format": "tiff-sequence",
+        "save_dir": "/some_path",
+        "save_name": "some_file",
+        "should_save": True,
+        "format": TIFF_SEQ,
+    }
+
+    # When setting to a file with an extension, the format is set to the known writer
+    wdg.setValue("/some_path/some_file.ome.tif")
+    assert wdg.value()["format"] == OME_TIFF
+
+    # unrecognized extensions warn and default to TIFF_SEQ
+    with pytest.warns(
+        UserWarning, match=f"Invalid format '.png'. Defaulting to {TIFF_SEQ}."
+    ):
+        wdg.setValue("/some_path/some_file.png")
+    assert wdg.value() == {
+        "save_dir": "/some_path",
+        "save_name": "some_file.png",  # note, we don't change the name
+        "should_save": True,
+        "format": TIFF_SEQ,
+    }
+
+    # Can be set with a dict.
+    # note that when setting with a dict, should_save must be set explicitly
+    wdg.setValue({"save_dir": "/some_path", "save_name": "some_file.ome.zarr"})
+    assert wdg.value() == {
+        "save_dir": "/some_path",
+        "save_name": "some_file.ome.zarr",
+        "should_save": False,
+        "format": OME_ZARR,
     }
 
 
-values = [
-    ({"save_dir": "", "save_name": "", "format": "ome-zarr"}, False),
-    ({"save_dir": "dir", "save_name": "", "format": "ome-zarr"}, False),
-    ({"save_dir": "", "save_name": "name", "format": "ome-zarr"}, False),
-    ({"save_dir": "dir", "save_name": "name", "format": "ome-zarr"}, True),
-]
-
-
-@pytest.mark.skip
-@pytest.mark.parametrize("value, checked", values)
-def test_groupbox_checked(qtbot: QtBot, value, checked):
+def test_save_box_autowriter_selection(qtbot: QtBot) -> None:
+    """Test that setting the name to known extension changes the format"""
     wdg = SaveGroupBox()
     qtbot.addWidget(wdg)
 
-    assert not wdg.isChecked()
-    wdg.setValue(value)
-    assert wdg.isChecked() == checked
+    wdg.save_name.setText("name.ome.tiff")
+    wdg.save_name.editingFinished.emit()  # this only happens in the GUI
+    assert wdg._writer_combo.currentText() == OME_TIFF
+
+    # and it goes both ways
+    wdg._writer_combo.setCurrentText(OME_ZARR)
+    assert wdg.save_name.text() == "name.ome.zarr"
 
 
-writers = [
-    ("ome-zarr", ".ome.zarr", FILE_NAME),
-    ("ome-tiff", ".ome.tif", FILE_NAME),
-    ("tiff-sequence", "", SUBFOLDER),
-]
-
-
-@pytest.mark.parametrize("writer, ext, label", writers)
-def test_writer_combo_text_changed(qtbot: QtBot, writer, ext, label):
+@pytest.mark.parametrize("writer", WRITERS)
+def test_writer_combo_text_changed(qtbot: QtBot, writer: str) -> None:
     wdg = SaveGroupBox()
     qtbot.addWidget(wdg)
-
-    wdg.setValue({"save_dir": "dir", "save_name": "name", "format": "ome-tiff"})
-
     wdg._writer_combo.setCurrentText(writer)
+    wdg.save_name.setText("name")
+    wdg.save_name.editingFinished.emit()
+
     assert wdg._writer_combo.currentText() == writer
-    assert wdg.name_label.text() == label
-    assert wdg.save_name.text() == f"name{ext}"
+    expected_label = SUBFOLDER if writer in DIRECTORY_WRITERS else FILE_NAME
+    assert wdg.name_label.text() == expected_label
+    assert wdg.save_name.text() == f"name{WRITERS[writer][0]}"

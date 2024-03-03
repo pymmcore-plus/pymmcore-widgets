@@ -15,6 +15,7 @@ from qtpy.QtWidgets import (
     QPushButton,
     QWidget,
 )
+from regex import P
 
 if TYPE_CHECKING:
     from typing import TypedDict
@@ -42,6 +43,7 @@ WRITERS: dict[str, list[str]] = {
 EXT_TO_WRITER = {x: w for w, exts in WRITERS.items() for x in exts}
 ALL_EXTENSIONS = [x for exts in WRITERS.values() for x in exts if x]
 DIRECTORY_WRITERS = {TIFF_SEQ}  # technically could be zarr too
+
 FILE_NAME = "Filename:"
 SUBFOLDER = "Subfolder:"
 
@@ -70,7 +72,7 @@ class _FocusOutLineEdit(QLineEdit):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
 
-    def focusOutEvent(self, event: QFocusEvent | None) -> None:
+    def focusOutEvent(self, event: QFocusEvent | None) -> None:  # pragma: no cover
         super().focusOutEvent(event)
         self.editingFinished.emit()
 
@@ -153,20 +155,19 @@ class SaveGroupBox(QGroupBox):
         self.setChecked(value.get("should_save", False))
 
         # retrieve writer from the format key.
-        fmt: str | None = value.get("format")
-        if fmt is None:
-            for ext, writer in EXT_TO_WRITER.items():
-                if save_name.endswith(ext):
-                    fmt = writer
-                    break
+        fmt = value.get("format")
+        if fmt is None and (ext := _known_extension(save_name)):
+            fmt = EXT_TO_WRITER[ext]
+
         if fmt not in WRITERS:
-            warn(f"Invalid format {fmt}. Defaulting to {TIFF_SEQ}.", stacklevel=2)
+            if ext := Path(save_name).suffix:
+                warn(f"Invalid format {ext!r}. Defaulting to {TIFF_SEQ}.", stacklevel=2)
             fmt = TIFF_SEQ
 
         # set the writer and update the combo
         self._writer_combo.setCurrentText(fmt)
 
-    def _on_browse_clicked(self) -> None:
+    def _on_browse_clicked(self) -> None:  # pragma: no cover
         """Open a dialog to select the save directory."""
         if save_dir := QFileDialog.getExistingDirectory(
             self, "Select Save Directory", self.save_dir.text()
