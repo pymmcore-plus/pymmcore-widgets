@@ -15,7 +15,6 @@ from qtpy.QtWidgets import (
     QPushButton,
     QWidget,
 )
-from superqt.utils import signals_blocked
 
 if TYPE_CHECKING:
     from typing import TypedDict
@@ -29,19 +28,40 @@ if TYPE_CHECKING:
         should_save: bool
 
 
+OME_ZARR = "ome-zarr"
+OME_TIFF = "ome-tiff"
+TIFF_SEQ = "tiff-sequence"
+
 # dict with writer name and extension
 WRITERS: dict[str, list[str]] = {
-    "ome-zarr": [".ome.zarr"],
-    "ome-tiff": [".ome.tiff", ".ome.tif"],
-    "tiff-sequence": [""],
+    OME_ZARR: [".ome.zarr"],
+    OME_TIFF: [".ome.tif", ".ome.tiff"],
+    TIFF_SEQ: [""],
 }
-EXTENSION_TO_WRITER = {ext: w for w, exts in WRITERS.items() for ext in exts}
-EXTENSIONS = [ext for exts in WRITERS.values() for ext in exts if ext]
+
+EXT_TO_WRITER = {x: w for w, exts in WRITERS.items() for x in exts}
+ALL_EXTENSIONS = [x for exts in WRITERS.values() for x in exts if x]
+DIRECTORY_WRITERS = {TIFF_SEQ}  # technically could be zarr too
 FILE_NAME = "Filename:"
 SUBFOLDER = "Subfolder:"
 
 
-class FocusLineEdit(QLineEdit):
+def _known_extension(name: str) -> str | None:
+    """Return a known extension if the name ends with one.
+
+    Note that all non-None return values are guaranteed to be in EXTENSION_TO_WRITER.
+    """
+    return next((ext for ext in ALL_EXTENSIONS if name.endswith(ext)), None)
+
+
+def _strip_known_extension(name: str) -> str:
+    """Strip a known extension from the name if it ends with one."""
+    if ext := _known_extension(name):
+        name = name[: -len(ext)]
+    return name.rstrip(".").rstrip()  # remove trailing dots and spaces
+
+
+class _FocusOutLineEdit(QLineEdit):
     """A QLineEdit that emits an editingFinished signal when it loses focus.
 
     This is useful in case the user does not press enter after editing the save name.
@@ -55,7 +75,7 @@ class FocusLineEdit(QLineEdit):
         self.editingFinished.emit()
 
 
-class _SaveGroupBox(QGroupBox):
+class SaveGroupBox(QGroupBox):
     """A Widget to gather information about MDA file saving."""
 
     valueChanged = Signal()
@@ -71,15 +91,13 @@ class _SaveGroupBox(QGroupBox):
 
         self.save_dir = QLineEdit()
         self.save_dir.setPlaceholderText("Select Save Directory")
-        self.save_name = FocusLineEdit()
+        self.save_name = _FocusOutLineEdit()
         self.save_name.setPlaceholderText("Enter Experiment Name")
         self.save_name.editingFinished.connect(self._on_editing_finished)
 
         self._writer_combo = QComboBox()
-        self._writer_combo.addItems(WRITERS.keys())
-        self._writer_combo.currentTextChanged.connect(
-            self._on_writer_combo_text_changed
-        )
+        self._writer_combo.addItems(list(WRITERS))
+        self._writer_combo.currentTextChanged.connect(self._on_writer_combo_changed)
 
         browse_btn = QPushButton(text="...")
         browse_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -93,6 +111,9 @@ class _SaveGroupBox(QGroupBox):
         grid.addWidget(self.save_name, 1, 1)
         grid.addWidget(self._writer_combo, 1, 2, 1, 2)
 
+        # prevent jiggling when toggling the checkbox
+        width = self.fontMetrics().horizontalAdvance(SUBFOLDER)
+        grid.setColumnMinimumWidth(0, width)
         self.setFixedHeight(self.minimumSizeHint().height())
 
         # connect
@@ -109,8 +130,15 @@ class _SaveGroupBox(QGroupBox):
             "should_save": self.isChecked(),
         }
 
-    def setValue(self, value: SaveInfo | dict | str | Path) -> None:
-        """Set the current state of the save widget."""
+    def setValue(self, value: dict | str | Path) -> None:
+        """Set the current state of the save widget.
+
+        If value is a dict, keys should be:
+        - save_dir: str - Set the save directory.
+        - save_name: str - Set the save name.
+        - format: str - Set the combo box to the writer with this name.
+        - should_save: bool - Set the checked state of the checkbox.
+        """
         if isinstance(value, (str, Path)):
             path = Path(value)
             value = {
@@ -120,23 +148,23 @@ class _SaveGroupBox(QGroupBox):
             }
 
         self.save_dir.setText(value.get("save_dir", ""))
-        save_name = value.get("save_name", "")
+        save_name = str(value.get("save_name", ""))
         self.save_name.setText(save_name)
         self.setChecked(value.get("should_save", False))
 
         # retrieve writer from the format key.
         fmt: str | None = value.get("format")
         if fmt is None:
-            for ext, writer in EXTENSION_TO_WRITER.items():
+            for ext, writer in EXT_TO_WRITER.items():
                 if save_name.endswith(ext):
                     fmt = writer
                     break
-
         if fmt not in WRITERS:
-            warn(f"Invalid format {fmt}. Defaulting to tiff-sequence.", stacklevel=2)
-            fmt = "tiff-sequence"
+            warn(f"Invalid format {fmt}. Defaulting to {TIFF_SEQ}.", stacklevel=2)
+            fmt = TIFF_SEQ
+
         # set the writer and update the combo
-        self._update_combo_text(fmt)
+        self._writer_combo.setCurrentText(fmt)
 
     def _on_browse_clicked(self) -> None:
         """Open a dialog to select the save directory."""
@@ -146,44 +174,36 @@ class _SaveGroupBox(QGroupBox):
             self.save_dir.setText(save_dir)
 
     def _on_editing_finished(self) -> None:
-        """Update the save name when the user finishes editing the text."""
-        extension = self._get_extension_from_name(self.save_name.text())
-        writer = EXTENSION_TO_WRITER.get(extension)
+        """Called when the user finishes editing the save_name widget.
 
-        # if it's a valid writer, just update the combo
-        if extension and writer in WRITERS:
-            self._update_combo_text(writer)
+        Updates the combo box to the writer with the same extension as the save name.
+        """
+        if extension := _known_extension(self.save_name.text()):
+            self._writer_combo.setCurrentText(EXT_TO_WRITER[extension])
 
         # if the extension is not valid, clear the extension and get it form the combo
         elif name := self.save_name.text():
-            self.save_name.setText(name + WRITERS[self._writer_combo.currentText()][0])
+            ext = WRITERS[self._writer_combo.currentText()][0]
+            self.save_name.setText(name + ext)
 
-    def _get_extension_from_name(self, name: str) -> str:
-        """Get the extension of the selected writer."""
-        return next((ext for ext in EXTENSIONS if name.endswith(ext)), "")
+    def _on_writer_combo_changed(self, writer: str) -> None:
+        """Called when the writer format combo box is changed.
 
-    def _update_combo_text(self, writer: str) -> None:
-        """Update the writer combo and trigger the text changed signal."""
-        # blocking and then manually calling _on_writer_combo_text_changed because
-        # if the text of the combo does not change, the currentTextChanged signal is not
-        # emitted and we need it to add the extension to the name
-        with signals_blocked(self._writer_combo):
-            self._writer_combo.setCurrentText(writer)
-        self._on_writer_combo_text_changed(writer)
+        Updates save name to have the correct extension, and updates the label to
+        "Subfolder" or "Filename" depending on the writer type
+        """
+        # update the label
+        self.name_label.setText(SUBFOLDER if writer in DIRECTORY_WRITERS else FILE_NAME)
 
-    def _on_writer_combo_text_changed(self, writer: str) -> None:
-        """Update the save name extension when the writer is changed."""
-        self.name_label.setText(SUBFOLDER if writer == "tiff-sequence" else FILE_NAME)
-        extension = self._get_extension_from_name(self.save_name.text())
-        if name := self._remove_extension(self.save_name.text()):
-            # get index of the extension in the list or get the first one
-            # this is useful in the case of the ome-tiff writer that has two extensions
-            # .ome.tiff and .ome.tif
-            idx = next(
-                (i for i, ext in enumerate(WRITERS[writer]) if extension == ext), 0
-            )
-            self.save_name.setText(name + WRITERS[writer][idx])
+        # if the name currently end with a known extension from the selected
+        # writer, then we're done
+        this_writer_extensions = WRITERS[writer]
+        current_name = self.save_name.text()
+        for ext in this_writer_extensions:
+            if ext and current_name.endswith(ext):
+                return
 
-    def _remove_extension(self, name: str) -> str:
-        """Remove the extension from the name if it's there."""
-        return next((name.replace(ext, "") for ext in EXTENSIONS if ext in name), name)
+        # otherwise strip any known extension and add the first one from the new writer.
+        if name := _strip_known_extension(current_name):
+            name += this_writer_extensions[0]
+        self.save_name.setText(name)

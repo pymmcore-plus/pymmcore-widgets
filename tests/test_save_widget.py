@@ -1,7 +1,7 @@
 import pytest
 from pytestqt.qtbot import QtBot
 
-from pymmcore_widgets.mda._save_widget import FILE_NAME, SUBFOLDER, _SaveGroupBox
+from pymmcore_widgets.mda._save_widget import FILE_NAME, SUBFOLDER, SaveGroupBox
 
 values = [
     ({"save_dir": "dir", "save_name": "name.ome.tiff", "format": "ome-tiff"}, ""),
@@ -25,7 +25,7 @@ values = [
 @pytest.mark.skip
 @pytest.mark.parametrize("value, name", values)
 def test_set_get_value(qtbot: QtBot, value, name):
-    wdg = _SaveGroupBox()
+    wdg = SaveGroupBox()
     qtbot.addWidget(wdg)
 
     assert not wdg.isChecked()
@@ -50,7 +50,7 @@ INVALID_FORMAT = [
 @pytest.mark.skip
 @pytest.mark.parametrize("value", INVALID_FORMAT)
 def test_set_value_invalid_format(qtbot: QtBot, value):
-    wdg = _SaveGroupBox()
+    wdg = SaveGroupBox()
     qtbot.addWidget(wdg)
     assert not wdg.isChecked()
 
@@ -77,7 +77,7 @@ values = [
 @pytest.mark.skip
 @pytest.mark.parametrize("value, checked", values)
 def test_groupbox_checked(qtbot: QtBot, value, checked):
-    wdg = _SaveGroupBox()
+    wdg = SaveGroupBox()
     qtbot.addWidget(wdg)
 
     assert not wdg.isChecked()
@@ -87,14 +87,14 @@ def test_groupbox_checked(qtbot: QtBot, value, checked):
 
 writers = [
     ("ome-zarr", ".ome.zarr", FILE_NAME),
-    ("ome-tiff", ".ome.tiff", FILE_NAME),
+    ("ome-tiff", ".ome.tif", FILE_NAME),
     ("tiff-sequence", "", SUBFOLDER),
 ]
 
 
 @pytest.mark.parametrize("writer, ext, label", writers)
 def test_writer_combo_text_changed(qtbot: QtBot, writer, ext, label):
-    wdg = _SaveGroupBox()
+    wdg = SaveGroupBox()
     qtbot.addWidget(wdg)
 
     wdg.setValue({"save_dir": "dir", "save_name": "name", "format": "ome-tiff"})

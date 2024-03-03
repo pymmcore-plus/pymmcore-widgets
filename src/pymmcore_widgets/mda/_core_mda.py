@@ -26,7 +26,7 @@ from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
-from ._save_widget import _SaveGroupBox
+from ._save_widget import SaveGroupBox
 
 
 class CoreMDATabs(MDATabs):
@@ -86,7 +86,7 @@ class MDAWidget(MDASequenceWidget):
 
         super().__init__(parent=parent, tab_widget=CoreMDATabs(None, self._mmc))
 
-        self.save_info = _SaveGroupBox(parent=self)
+        self.save_info = SaveGroupBox(parent=self)
         self.save_info.valueChanged.connect(self.valueChanged)
         self.control_btns = _MDAControlButtons(self._mmc, self)
 
