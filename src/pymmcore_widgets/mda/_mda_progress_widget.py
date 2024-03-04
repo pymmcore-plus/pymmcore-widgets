@@ -23,15 +23,13 @@ from qtpy.QtWidgets import (
 if TYPE_CHECKING:
     from typing import TypeAlias
 
+    import useq
     from pymmcore_plus.mda import MDARunner
     from PySide6.QtCore import QTimerEvent
-
-    ColorLike: TypeAlias = Qt.GlobalColor | QColor | int | str
-
-    import useq
     from qtpy.QtGui import QPaintEvent
 
     ColorLike: TypeAlias = Qt.GlobalColor | QColor | int | str
+
 
 DEFAULT_BAR_HEIGHT = 16
 
