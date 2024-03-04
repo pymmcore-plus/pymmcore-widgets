@@ -32,6 +32,7 @@ is trying to accomplish for the user:
 
 ```python
 from pymmcore_plus import CMMCorePlus, Keyword
+
 core = CMMCorePlus()
 
 COM_DEVICE = "name of some loaded SerialManager"
@@ -49,7 +50,7 @@ core.loadDevice("MyDev", "ASIFW1000", "ASIFWController")
 
 # a property named "Port" is defined for this device, that's "special"
 # and it's what determines whether we show a COM table in the dialog
-assert PORT in core.getDevicePropertyNames('MyDev')
+assert PORT in core.getDevicePropertyNames("MyDev")
 
 # assign the "Port" property to the NAME of the loaded SerialManager device
 # (again, convention would have COM_DEVICE == COM_PORT but it's arbitrary.)
@@ -77,7 +78,7 @@ for adapter in core.getDeviceAdapterNames():
         continue
     for dev, type in zip(devs, types):
         if type == DeviceType.Serial:
-            print(adapter, dev)
+print(adapter, dev)
 """
 
 from __future__ import annotations
