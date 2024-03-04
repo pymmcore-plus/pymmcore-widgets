@@ -668,8 +668,12 @@ def test_get_next_available_paths_special_cases(tmp_path: Path) -> None:
     assert get_next_available_path(base).name == base.name
 
     # if an existing thing with a higher number is there, the next number is used
+    # (even if the requested path does not exist, but has a lower number)
     (tmp_path / "test_004.txt").touch()
-    assert get_next_available_path(base).name == "test_005.txt"
+    assert get_next_available_path(tmp_path / "test_003.txt").name == "test_005.txt"
+
+    # if we explicitly ask for a higher number, we should get it
+    assert get_next_available_path(tmp_path / "test_010.txt").name == "test_010.txt"
 
     # only 3+ digit numbers are considered as counters
     assert get_next_available_path(tmp_path / "test_02.txt").name == "test_02_005.txt"

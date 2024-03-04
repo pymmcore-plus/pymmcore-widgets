@@ -164,8 +164,13 @@ def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> 
     if not requested_path.exists() and current_max == 0:
         return requested_path
 
+    current_max += 1
     # otherwise return the next path greater than the current_max
     # remove any existing counter from the stem
     if match := NUM_SPLIT.match(stem):
-        stem = match.group(1)
-    return directory / f"{stem}_{current_max + 1:0{min_digits}d}{extension}"
+        stem, num = match.groups()
+        if num:
+            # if the requested path has a counter that is greater than any other files
+            # use it
+            current_max = max(int(num), current_max)
+    return directory / f"{stem}_{current_max:0{min_digits}d}{extension}"
