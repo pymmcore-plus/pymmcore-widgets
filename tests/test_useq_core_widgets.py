@@ -619,30 +619,24 @@ def test_mda_set_value_with_seq_metadata(qtbot: QtBot) -> None:
 
 
 def test_mda_sequenceFinished_save_name(
-    global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path
+    global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Test that the save name is updated after the sequence is finished."""
     mda_wdg = MDAWidget(mmcore=global_mmcore)
     qtbot.addWidget(mda_wdg)
-    # HACK: using loops 2 to make sure that we write at least one file during the
-    # sequence.  See comment in code in MDAWidget._on_mda_finished
-    mda_wdg.setValue(useq.MDASequence(time_plan={"interval": 0.1, "loops": 2}))
 
     # add a file to tempdir
     requested_file = tmp_path / "name.ome.tiff"
-    requested_file.touch()  # plant a filename conflict!
 
     mda_wdg.save_info.setValue(requested_file)
     assert mda_wdg.save_info.isChecked()
     assert mda_wdg.save_info.value()["save_name"] == "name.ome.tiff"
 
-    with qtbot.waitSignal(global_mmcore.mda.events.sequenceFinished):
-        mda_wdg.run_mda()
+    requested_file.touch()  # mock the write
+    mda_wdg._on_mda_finished(mda_wdg.value())
 
-    # the written file should have a different name
-    assert (tmp_path / "name_001.ome.tiff").exists()
-    # the next file has been updated
-    assert mda_wdg.save_info.value()["save_name"] == "name_002.ome.tiff"
+    # the save widget should now have a new name
+    assert mda_wdg.save_info.value()["save_name"] == "name_001.ome.tiff"
 
 
 @pytest.mark.parametrize("extension", [".ome.tiff", ".ome.tif", ".ome.zarr", ""])

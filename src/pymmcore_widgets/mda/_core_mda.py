@@ -293,6 +293,10 @@ class MDAWidget(MDASequenceWidget):
         # (e.g. the next available path might be the same as the current one)
         # however, the quick fix of using a QTimer.singleShot(0, ...) makes for
         # difficulties in testing.
+        # FIXME: Also, we really don't care about the last sequence at this point
+        # anyway.  We should just update the save widget with the next available path
+        # based on what's currently in the save widget, since that's what really
+        # matters (not whatever the last requested mda was)
         self._update_save_path_from_metadata(sequence)
 
     def _disconnect(self) -> None:
