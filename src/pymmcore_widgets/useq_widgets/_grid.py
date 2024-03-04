@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Literal, Sequence, cast
 
 import useq
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QPainter, QPaintEvent, QPen
 from qtpy.QtWidgets import (
     QAbstractButton,
@@ -15,6 +15,7 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QRadioButton,
+    QScrollArea,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -44,7 +45,7 @@ class Mode(Enum):
     BOUNDS = "bounds"
 
 
-class GridPlanWidget(QWidget):
+class GridPlanWidget(QScrollArea):
     """Widget to edit a [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)."""
 
     valueChanged = Signal(object)
@@ -161,7 +162,9 @@ class GridPlanWidget(QWidget):
 
         bottom_stuff.addLayout(bot_left)
 
-        layout = QVBoxLayout(self)
+        # wrap the whole thing in an inner widget so we can put it in this ScrollArea
+        inner_widget = QWidget(self)
+        layout = QVBoxLayout(inner_widget)
         layout.addLayout(row_col_layout)
         layout.addWidget(_SeparatorWidget())
         layout.addLayout(width_height_layout)  # hiding until useq supports it
@@ -170,6 +173,11 @@ class GridPlanWidget(QWidget):
         layout.addWidget(_SeparatorWidget())
         layout.addLayout(bottom_stuff)
         layout.addStretch()
+
+        self.setWidget(inner_widget)
+        self.setWidgetResizable(True)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self.mode_groups: dict[Mode, Sequence[QWidget]] = {
             Mode.NUMBER: (self.rows, self.columns),
@@ -342,6 +350,12 @@ class GridPlanWidget(QWidget):
         return self._fov_height
 
     # ------------------------- Private API -------------------------
+
+    def sizeHint(self) -> QSize:
+        """Return the size hint for the viewport."""
+        sz = super().sizeHint()
+        sz.setHeight(200)  # encourage vertical scrolling
+        return sz
 
     def _on_change(self) -> None:
         if (val := self.value()) is None:
