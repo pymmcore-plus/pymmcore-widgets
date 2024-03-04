@@ -619,7 +619,10 @@ def test_mda_set_value_with_seq_metadata(qtbot: QtBot) -> None:
 
 
 def test_mda_sequenceFinished_save_name(
-    global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    global_mmcore: CMMCorePlus,
+    qtbot: QtBot,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that the save name is updated after the sequence is finished."""
     mda_wdg = MDAWidget(mmcore=global_mmcore)
