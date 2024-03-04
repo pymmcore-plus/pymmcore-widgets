@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -14,15 +14,6 @@ from pymmcore_widgets.useq_widgets._column_info import (
     ButtonColumn,
 )
 from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP
-
-if TYPE_CHECKING:
-    from typing import TypedDict
-
-    class SaveInfo(TypedDict):
-        save_dir: str
-        file_name: str
-        split_positions: bool
-        should_save: bool
 
 
 class CoreConnectedPositionTable(PositionTable):

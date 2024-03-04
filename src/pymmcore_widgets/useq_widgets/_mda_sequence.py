@@ -44,6 +44,7 @@ def _check_order(x: str, first: str, second: str) -> bool:
     return first in x and second in x and x.index(first) > x.index(second)
 
 
+PYMMCW_METADATA_KEY = "pymmcore_widgets"
 NULL_SEQUENCE = useq.MDASequence()
 AXES = "tpgcz"
 ALLOWED_ORDERS = {"".join(p) for x in range(1, 6) for p in permutations(AXES, x)}
@@ -137,7 +138,7 @@ class MDATabs(CheckableTabWidget):
             ),
             channels=self.channels.value() if self.isAxisUsed("c") else (),
             grid_plan=self.grid_plan.value() if self.isAxisUsed("g") else None,
-            metadata={"pymmcore_widgets": {"version": pymmcore_widgets.__version__}},
+            metadata={PYMMCW_METADATA_KEY: {"version": pymmcore_widgets.__version__}},
         )
 
     def setValue(self, value: useq.MDASequence) -> None:
