@@ -43,7 +43,7 @@ class LiveButton(QPushButton):
     --------
     !!! example "Combining `LiveButton` with other widgets"
 
-        see [ImagePreview](../ImagePreview#example)
+        see [ImagePreview](ImagePreview.md#example)
     """
 
     def __init__(

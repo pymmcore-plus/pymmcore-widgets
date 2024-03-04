@@ -26,7 +26,7 @@ class ExposureWidget(QWidget):
     --------
     !!! example "Combining `ExposureWidget` with other widgets"
 
-        see [ImagePreview](../ImagePreview#example)
+        see [ImagePreview](ImagePreview.md#example)
 
     """
 

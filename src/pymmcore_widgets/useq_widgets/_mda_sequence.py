@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import cast
 
 import useq
-from qtpy.QtCore import Signal
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -44,6 +44,7 @@ def _check_order(x: str, first: str, second: str) -> bool:
     return first in x and second in x and x.index(first) > x.index(second)
 
 
+PYMMCW_METADATA_KEY = "pymmcore_widgets"
 NULL_SEQUENCE = useq.MDASequence()
 AXES = "tpgcz"
 ALLOWED_ORDERS = {"".join(p) for x in range(1, 6) for p in permutations(AXES, x)}
@@ -137,7 +138,7 @@ class MDATabs(CheckableTabWidget):
             ),
             channels=self.channels.value() if self.isAxisUsed("c") else (),
             grid_plan=self.grid_plan.value() if self.isAxisUsed("g") else None,
-            metadata={"pymmcore_widgets": {"version": pymmcore_widgets.__version__}},
+            metadata={PYMMCW_METADATA_KEY: {"version": pymmcore_widgets.__version__}},
         )
 
     def setValue(self, value: useq.MDASequence) -> None:
@@ -145,7 +146,9 @@ class MDATabs(CheckableTabWidget):
         if not isinstance(value, useq.MDASequence):  # pragma: no cover
             raise TypeError(f"Expected useq.MDASequence, got {type(value)}")
 
-        widget: ChannelTable | TimePlanWidget | ZPlanWidget | PositionTable | GridPlanWidget  # noqa
+        widget: (
+            ChannelTable | TimePlanWidget | ZPlanWidget | PositionTable | GridPlanWidget
+        )
         for f in ("channels", "time_plan", "z_plan", "stage_positions", "grid_plan"):
             widget = getattr(self, f)
             if field_val := getattr(value, f):
@@ -175,7 +178,7 @@ class AutofocusAxis(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        lbl = QLabel("Use Autofocus on Axis:")
+        lbl = QLabel("Use Hardware Autofocus on Axis:")
         self.use_af_p = QCheckBox("p")
         self.use_af_t = QCheckBox("t")
         self.use_af_g = QCheckBox("g")
@@ -252,7 +255,11 @@ class KeepShutterOpen(QWidget):
 
 
 class MDASequenceWidget(QWidget):
-    """A widget that provides a GUI to construct and edit a [`useq.MDASequence`][]."""
+    """A widget that provides a GUI to construct and edit a [`useq.MDASequence`][].
+
+    This widget requires no connection to a microscope or core instance.  It strictly
+    deals with loading and creating `useq-schema` [`useq.MDASequence`][] objects.
+    """
 
     valueChanged = Signal()
 
@@ -291,8 +298,10 @@ class MDASequenceWidget(QWidget):
         self._duration_label.setWordWrap(True)
 
         self._save_button = QPushButton("Save")
+        self._save_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._save_button.clicked.connect(self.save)
         self._load_button = QPushButton("Load")
+        self._load_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._load_button.clicked.connect(self.load)
 
         # -------------- Main Layout --------------

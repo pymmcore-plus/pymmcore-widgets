@@ -43,7 +43,7 @@ As shown in the example from the [Overview](./index.md#usage) section, for a bas
 3. load a configuration file.
 4. create and show the wanted widget(s).
 
-In this example, we substitute step 3 with the [ConfigurationWidget](./widgets/ConfigurationWidget/) widget which enables us to load any `Micro-Manager` configuration file. Additionally, we use the [GroupPresetTableWidget](./widgets/GroupPresetTableWidget/) widget, which provides an interactive interface for the `groups` and `presets` stored in the configuration file.
+In this example, we substitute step 3 with the [ConfigurationWidget](widgets/ConfigurationWidget.md) widget which enables us to load any `Micro-Manager` configuration file. Additionally, we use the [GroupPresetTableWidget](widgets/GroupPresetTableWidget.md) widget, which provides an interactive interface for the `groups` and `presets` stored in the configuration file.
 
 ```python title="basic_usage.py"
 --8<-- "examples/basic_usage.py"
@@ -51,7 +51,7 @@ In this example, we substitute step 3 with the [ConfigurationWidget](./widgets/C
 
 The code above will create a Qt Application with the `ConfigurationWidget` and `GroupPresetTableWidget`:
 
-![basic_usage](./images/basic_usage.mov)
+![type:video](./images/basic_usage.mp4){: style='width: 100%'}
 
 !!! Note "Choosing a `Micro-Manager` core"
     Most widgets, by default, utilize the [global singleton core](https://pymmcore-plus.github.io/pymmcore-plus/api/cmmcoreplus/#pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance) or instantiate a new one if none exists. Once instantiated, the global singleton core can be accessed using `CMMCorePlus.instance()`. This eliminates the need for manual core instance creation.
@@ -68,9 +68,17 @@ Creating a custom GUI with the widgets from this package requires a deeper under
 
 As shown in the video below, in this section, we only provide a simple example to illustrate the process of building a custom GUI using some of the `pymmcore-widgets`.
 
-![MyWidget](./images/MyWidget.mov)
+![type:video](./images/my_widget.mp4){: style='width: 100%'}
 
-Here we create a [Qt Application](https://doc.qt.io/qt-6/qapplication.html) with a general-purpose [QWidget](https://doc.qt.io/qt-6/qwidget.html) that incorporates a variety of `pymmcore-widgets`: [ConfigurationWidget](./widgets/ConfigurationWidget/), [ChannelGroupWidget](./widgets/ChannelGroupWidget/), [ChannelWidget](./widgets/ChannelWidget/), [DefaultCameraExposureWidget](./widgets/DefaultCameraExposureWidget/), [ImagePreview](./widgets/ImagePreview/), [SnapButton](./widgets/SnapButton/), and [LiveButton](./widgets/LiveButton/).
+Here we create a [Qt Application](https://doc.qt.io/qt-6/qapplication.html) with
+a general-purpose [QWidget](https://doc.qt.io/qt-6/qwidget.html) that
+incorporates a variety of `pymmcore-widgets`:
+[ConfigurationWidget](widgets/ConfigurationWidget.md),
+[ChannelGroupWidget](widgets/ChannelGroupWidget.md),
+[ChannelWidget](widgets/ChannelWidget.md),
+[DefaultCameraExposureWidget](widgets/DefaultCameraExposureWidget.md),
+[ImagePreview](widgets/ImagePreview.md), [SnapButton](widgets/SnapButton.md),
+and [LiveButton](widgets/LiveButton.md).
 
 This simple GUI can be used to load a `Micro-Manager` configuration file, snap an image or live stream images from the camera, with the flexibility to select a channel and adjust the exposure time.
 
