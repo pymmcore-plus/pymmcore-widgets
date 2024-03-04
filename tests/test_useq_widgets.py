@@ -11,6 +11,7 @@ from qtpy.QtCore import Qt, QTimer
 
 import pymmcore_widgets
 from pymmcore_widgets.useq_widgets import (
+    PYMMCW_METADATA_KEY,
     ChannelTable,
     DataTableWidget,
     GridPlanWidget,
@@ -160,7 +161,7 @@ def test_mda_wdg_load_save(
 
     wdg.save()
     mda_no_meta = MDA.replace(
-        metadata={"pymmcore_widgets": {"version": pymmcore_widgets.__version__}}
+        metadata={PYMMCW_METADATA_KEY: {"version": pymmcore_widgets.__version__}}
     )
     if ext == "json":
         assert dest.read_text() == mda_no_meta.model_dump_json(exclude_defaults=True)

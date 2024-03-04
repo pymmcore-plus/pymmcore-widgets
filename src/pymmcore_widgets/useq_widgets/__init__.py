@@ -11,7 +11,7 @@ from ._column_info import (
 )
 from ._data_table import DataTable, DataTableWidget
 from ._grid import GridPlanWidget
-from ._mda_sequence import MDASequenceWidget
+from ._mda_sequence import PYMMCW_METADATA_KEY, MDASequenceWidget
 from ._positions import PositionTable
 from ._time import TimePlanWidget
 from ._z import ZPlanWidget
@@ -31,4 +31,5 @@ __all__ = [
     "ZPlanWidget",
     "BoolColumn",
     "TimeDeltaColumn",
+    "PYMMCW_METADATA_KEY",
 ]
