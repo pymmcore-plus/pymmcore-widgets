@@ -4,11 +4,14 @@ It is fully connected to the CMMCorePlus object, and has a "run" button.
 """
 
 import useq
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
 from pymmcore_widgets import MDAWidget
 
 app = QApplication([])
+
+CMMCorePlus.instance().loadSystemConfiguration()
 
 wdg = MDAWidget()
 wdg.channels.setChannelGroups({"Channel": ["DAPI", "FITC"]})
