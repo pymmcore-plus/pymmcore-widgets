@@ -42,7 +42,7 @@ ROW_RANGE_AROUND = 2
 ROW_TOP_BOTTOM = 4
 ROW_ABOVE_BELOW = 6
 
-UM = "\u00B5m"  # MICRO SIGN
+UM = "\u00b5m"  # MICRO SIGN
 
 
 class ZPlanWidget(QWidget):
