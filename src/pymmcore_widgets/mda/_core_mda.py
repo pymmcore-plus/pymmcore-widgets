@@ -1,42 +1,32 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from typing import TYPE_CHECKING, cast
+from pathlib import Path
+from typing import cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Qt, Signal
+from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QBoxLayout,
-    QFileDialog,
-    QGridLayout,
-    QGroupBox,
     QHBoxLayout,
-    QLabel,
-    QLineEdit,
     QMessageBox,
     QPushButton,
-    QSizePolicy,
     QWidget,
 )
 from superqt.fonticon import icon
 from useq import MDASequence, Position
 
+from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
-from pymmcore_widgets.useq_widgets._mda_sequence import MDATabs
+from pymmcore_widgets.useq_widgets._mda_sequence import PYMMCW_METADATA_KEY, MDATabs
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 
 from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
-
-if TYPE_CHECKING:
-    from typing import TypedDict
-
-    class SaveInfo(TypedDict):
-        save_dir: str
-        save_name: str
+from ._save_widget import SaveGroupBox
 
 
 class CoreMDATabs(MDATabs):
@@ -96,7 +86,7 @@ class MDAWidget(MDASequenceWidget):
 
         super().__init__(parent=parent, tab_widget=CoreMDATabs(None, self._mmc))
 
-        self.save_info = _SaveGroupBox(parent=self)
+        self.save_info = SaveGroupBox(parent=self)
         self.save_info.valueChanged.connect(self.valueChanged)
         self.control_btns = _MDAControlButtons(self._mmc, self)
 
@@ -112,7 +102,7 @@ class MDAWidget(MDASequenceWidget):
 
         # ------------ connect signals ------------
 
-        self.control_btns.run_btn.clicked.connect(self._on_run_clicked)
+        self.control_btns.run_btn.clicked.connect(self.run_mda)
         self.control_btns.pause_btn.released.connect(self._mmc.mda.toggle_pause)
         self.control_btns.cancel_btn.released.connect(self._mmc.mda.cancel)
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
@@ -121,9 +111,7 @@ class MDAWidget(MDASequenceWidget):
 
         self.destroyed.connect(self._disconnect)
 
-    def _on_sys_config_loaded(self) -> None:
-        # TODO: connect objective change event to update suggested step
-        self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
+    # ------------------- public Methods ----------------------
 
     def value(self) -> MDASequence:
         """Set the current state of the widget from a [`useq.MDASequence`][]."""
@@ -165,7 +153,7 @@ class MDAWidget(MDASequenceWidget):
         if replace:
             val = val.replace(**replace)
 
-        meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
+        meta: dict = val.metadata.setdefault(PYMMCW_METADATA_KEY, {})
         if self.save_info.isChecked():
             meta.update(self.save_info.value())
         return val
@@ -173,9 +161,62 @@ class MDAWidget(MDASequenceWidget):
     def setValue(self, value: MDASequence) -> None:
         """Get the current state of the widget as a [`useq.MDASequence`][]."""
         super().setValue(value)
-        self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
+        self.save_info.setValue(value.metadata.get(PYMMCW_METADATA_KEY, {}))
 
-    # ------------------- private API ----------------------
+    def get_next_available_path(self, requested_path: Path) -> Path:
+        """Get the next available path.
+
+        This method is called immediately before running an MDA to ensure that the file
+        being saved does not overwrite an existing file. It is also called at the end
+        of the experiment to update the save widget with the next available path.
+
+        It may be overridden to provide custom behavior, but it should always return a
+        Path object to a non-existing file or folder.
+
+        The default behavior adds/increments a 3-digit counter at the end of the path
+        (before the extension) if the path already exists.
+
+        Parameters
+        ----------
+        requested_path : Path
+            The path we are requesting for use.
+        """
+        return get_next_available_path(requested_path=requested_path)
+
+    def run_mda(self) -> None:
+        """Run the MDA sequence experiment."""
+        # in case the user does not press enter after editing the save name.
+        self.save_info.save_name.editingFinished.emit()
+
+        # if autofocus has been requested, but the autofocus device is not engaged,
+        # and position-specific offsets haven't been set, show a warning
+        pos = self.stage_positions
+        if (
+            self.af_axis.value()
+            and not self._mmc.isContinuousFocusLocked()
+            and (not self.tab_wdg.isChecked(pos) or not pos.af_per_position.isChecked())
+            and not self._confirm_af_intentions()
+        ):
+            return
+
+        sequence = self.value()
+
+        # technically, this is in the metadata as well, but isChecked is more direct
+        if self.save_info.isChecked():
+            save_path = self._update_save_path_from_metadata(
+                sequence, update_metadata=True
+            )
+        else:
+            save_path = None
+
+        # run the MDA experiment asynchronously
+        self._mmc.run_mda(sequence, output=save_path)
+
+    # ------------------- private Methods ----------------------
+
+    def _on_sys_config_loaded(self) -> None:
+        # TODO: connect objective change event to update suggested step
+        self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
 
     def _get_current_stage_position(self) -> Position:
         """Return the current stage position."""
@@ -184,22 +225,38 @@ class MDAWidget(MDASequenceWidget):
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
         return Position(x=x, y=y, z=z)
 
-    def _on_run_clicked(self) -> None:
-        """Run the MDA sequence experiment."""
-        # if autofocus has been requested, but the autofocus device is not engaged,
-        # and position-specific offsets haven't been set, show a warning
-        pos = self.stage_positions
-        if (
-            self.af_axis.value()
-            and not self._mmc.isContinuousFocusLocked()
-            and not (self.tab_wdg.isChecked(pos) and pos.af_per_position.isChecked())
-            and not self._confirm_af_intentions()
-        ):
-            return
+    def _update_save_path_from_metadata(
+        self,
+        sequence: MDASequence,
+        update_widget: bool = True,
+        update_metadata: bool = False,
+    ) -> Path | None:
+        """Get the next available save path from sequence metadata and update widget.
 
-        # run the MDA experiment asynchronously
-        self._mmc.run_mda(self.value())
-        return
+        Parameters
+        ----------
+        sequence : MDASequence
+            The MDA sequence to get the save path from. (must be in the
+            'pymmcore_widgets' key of the metadata)
+        update_widget : bool, optional
+            Whether to update the save widget with the new path, by default True.
+        update_metadata : bool, optional
+            Whether to update the Sequence metadata with the new path, by default False.
+        """
+        if (
+            (meta := sequence.metadata.get(PYMMCW_METADATA_KEY, {}))
+            and (save_dir := meta.get("save_dir"))
+            and (save_name := meta.get("save_name"))
+        ):
+            requested = (Path(save_dir) / str(save_name)).expanduser().resolve()
+            next_path = self.get_next_available_path(requested)
+            if next_path != requested:
+                if update_widget:
+                    self.save_info.setValue(next_path)
+                    if update_metadata:
+                        meta.update(self.save_info.value())
+            return next_path
+        return None
 
     def _confirm_af_intentions(self) -> bool:
         msg = (
@@ -228,66 +285,24 @@ class MDAWidget(MDASequenceWidget):
     def _on_mda_started(self) -> None:
         self._enable_widgets(False)
 
-    def _on_mda_finished(self) -> None:
+    def _on_mda_finished(self, sequence: MDASequence) -> None:
         self._enable_widgets(True)
+        # update the save name in the gui with the next available path
+        # FIXME: this is actually a bit error prone in the case of super fast
+        # experiments and delayed writers that haven't yet written anything to disk
+        # (e.g. the next available path might be the same as the current one)
+        # however, the quick fix of using a QTimer.singleShot(0, ...) makes for
+        # difficulties in testing.
+        # FIXME: Also, we really don't care about the last sequence at this point
+        # anyway.  We should just update the save widget with the next available path
+        # based on what's currently in the save widget, since that's what really
+        # matters (not whatever the last requested mda was)
+        self._update_save_path_from_metadata(sequence)
 
     def _disconnect(self) -> None:
         with suppress(Exception):
             self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
             self._mmc.mda.events.sequenceFinished.disconnect(self._on_mda_finished)
-
-
-class _SaveGroupBox(QGroupBox):
-    """A Widget to gather information about MDA file saving."""
-
-    valueChanged = Signal()
-
-    def __init__(
-        self, title: str = "Save Acquisition", parent: QWidget | None = None
-    ) -> None:
-        super().__init__(title, parent)
-        self.setCheckable(True)
-        self.setChecked(False)
-
-        self.save_dir = QLineEdit()
-        self.save_dir.setPlaceholderText("Select Save Directory")
-        self.save_name = QLineEdit()
-        self.save_name.setPlaceholderText("Enter Experiment Name")
-
-        browse_btn = QPushButton(text="...")
-        browse_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        browse_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        browse_btn.clicked.connect(self._on_browse_clicked)
-
-        grid = QGridLayout(self)
-        grid.addWidget(QLabel("Directory:"), 0, 0)
-        grid.addWidget(self.save_dir, 0, 1)
-        grid.addWidget(browse_btn, 0, 2)
-        grid.addWidget(QLabel("Name:"), 1, 0)
-        grid.addWidget(self.save_name, 1, 1)
-
-        # connect
-        self.toggled.connect(self.valueChanged)
-        self.save_dir.textChanged.connect(self.valueChanged)
-        self.save_name.textChanged.connect(self.valueChanged)
-
-    def value(self) -> SaveInfo:
-        """Return current state of the dialog."""
-        return {
-            "save_dir": self.save_dir.text(),
-            "save_name": self.save_name.text() or "Experiment",
-        }
-
-    def setValue(self, value: SaveInfo | dict) -> None:
-        self.save_dir.setText(value.get("save_dir", ""))
-        self.save_name.setText(value.get("save_name", ""))
-        self.setChecked(value.get("should_save", False))
-
-    def _on_browse_clicked(self) -> None:
-        if save_dir := QFileDialog.getExistingDirectory(
-            self, "Select Save Directory", self.save_dir.text()
-        ):
-            self.save_dir.setText(save_dir)
 
 
 class _MDAControlButtons(QWidget):
