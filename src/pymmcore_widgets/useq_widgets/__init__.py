@@ -32,4 +32,5 @@ __all__ = [
     "BoolColumn",
     "TimeDeltaColumn",
     "PYMMCW_METADATA_KEY",
+    "MDAProgressBars",
 ]

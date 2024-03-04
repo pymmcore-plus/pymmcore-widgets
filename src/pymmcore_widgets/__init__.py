@@ -29,7 +29,7 @@ from ._shutter_widget import ShuttersWidget
 from ._snap_button_widget import SnapButton
 from ._stage_widget import StageWidget
 from .hcwizard import ConfigWizard
-from .mda import MDAWidget
+from .mda import MDAProgressWidget, MDAWidget
 from .useq_widgets import (
     ChannelTable,
     GridPlanWidget,
@@ -81,10 +81,11 @@ __all__ = [
     "ImagePreview",
     "InstallWidget",
     "LiveButton",
-    "MDAWidget",
+    "MDAProgressWidget",
     "MDASequenceWidget",
-    "ObjectivesWidget",
+    "MDAWidget",
     "ObjectivesPixelConfigurationWidget",
+    "ObjectivesWidget",
     "PixelConfigurationWidget",
     "PositionTable",
     "PresetsWidget",

@@ -259,6 +259,31 @@ class MDASequenceWidget(QWidget):
 
     This widget requires no connection to a microscope or core instance.  It strictly
     deals with loading and creating `useq-schema` [`useq.MDASequence`][] objects.
+
+    Attributes
+    ----------
+    tab_wdg : MDATabs
+        The main central widget that contains a Tab for each of the MDASequence, axis
+        (channels, positions, etc...).  Each of the individual tabs is exposed as an
+        attribute of this widget.
+
+    channels: ChannelTable
+        The channels tab widget.
+    time_plan : TimePlanWidget
+        The time tab widget.
+    stage_positions : PositionTable
+        The positions tab widget.
+    z_plan : ZPlanWidget
+        The Z stack tab widget.
+    grid_plan : GridPlanWidget
+        The grid tab widget.
+
+    axis_order : QComboBox
+        A combo box to select the order of the axes in the MDASequence.
+    keep_shutter_open : QWidget
+        A widget to select the axes to keep the shutter open across.
+    af_axis : QWidget
+        A widget to select the axes to use hardware autofocus on.
     """
 
     valueChanged = Signal()
@@ -274,6 +299,9 @@ class MDASequenceWidget(QWidget):
         # -------------- Main MDA Axis Widgets --------------
 
         self.tab_wdg = tab_widget or MDATabs(self)
+        self.tab_wdg.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
 
         self.axis_order = QComboBox()
         self.axis_order.setToolTip("Slowest to fastest axis order.")
@@ -328,7 +356,7 @@ class MDASequenceWidget(QWidget):
 
         layout = QVBoxLayout(self)
         layout.addLayout(top_row)
-        layout.addWidget(self.tab_wdg)
+        layout.addWidget(self.tab_wdg, 1)
         layout.addLayout(cbox_row)
         layout.addLayout(bot_row)
 
@@ -341,7 +369,7 @@ class MDASequenceWidget(QWidget):
         self.grid_plan.valueChanged.connect(self.valueChanged)
         self.tab_wdg.tabChecked.connect(self._on_tab_checked)
         self.axis_order.currentTextChanged.connect(self.valueChanged)
-        self.valueChanged.connect(self._update_time_estimate)
+        self.valueChanged.connect(self._on_value_change)
 
         self.keep_shutter_open.valueChanged.connect(self.valueChanged)
         self.af_axis.valueChanged.connect(self.valueChanged)
@@ -504,6 +532,9 @@ class MDASequenceWidget(QWidget):
             self.axis_order.setEnabled(self.axis_order.count() > 1)
 
         self.valueChanged.emit()
+
+    def _on_value_change(self) -> None:
+        self._update_time_estimate()
 
     def _update_time_estimate(self) -> None:
         """Update the time estimate label."""
