@@ -1,8 +1,8 @@
 # Changelog
 
-## [v0.7.0rc1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.0rc1) (2024-03-05)
+## [v0.7.0](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.0) (2024-03-06)
 
-[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.6.1...v0.7.0rc1)
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.6.1...v0.7.0)
 
 **Implemented enhancements:**
 
