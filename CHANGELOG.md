@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.7.0](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.0) (2024-03-06)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.6.1...v0.7.0)
+
+**Implemented enhancements:**
+
+- feat: add pymmcore-plus writer to MDAWidget [\#279](https://github.com/pymmcore-plus/pymmcore-widgets/pull/279) ([fdrgsp](https://github.com/fdrgsp))
+
+**Fixed bugs:**
+
+- fix: fix selection of axis orders in mdaWidget.setValue [\#286](https://github.com/pymmcore-plus/pymmcore-widgets/pull/286) ([tlambert03](https://github.com/tlambert03))
+- fix: make grid widget scrollable [\#285](https://github.com/pymmcore-plus/pymmcore-widgets/pull/285) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- ci\(pre-commit.ci\): autoupdate [\#284](https://github.com/pymmcore-plus/pymmcore-widgets/pull/284) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- docs: rename mda\_widget to mda\_demo [\#283](https://github.com/pymmcore-plus/pymmcore-widgets/pull/283) ([tlambert03](https://github.com/tlambert03))
+- chore: use ruff-format instead of black [\#282](https://github.com/pymmcore-plus/pymmcore-widgets/pull/282) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.6.1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.6.1) (2024-02-15)
 
 [Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.6.0...v0.6.1)

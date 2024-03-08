@@ -1,3 +1,8 @@
+"""MDASequenceWidget is a widget for creating a useq.MDASequence object.
+
+It has no awareness of the CMMCorePlus object, and does not have a "run" button.
+"""
+
 import useq
 from qtpy.QtWidgets import QApplication
 

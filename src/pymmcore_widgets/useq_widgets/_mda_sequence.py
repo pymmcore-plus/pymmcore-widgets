@@ -339,7 +339,7 @@ class MDASequenceWidget(QWidget):
         self.stage_positions.valueChanged.connect(self.valueChanged)
         self.z_plan.valueChanged.connect(self.valueChanged)
         self.grid_plan.valueChanged.connect(self.valueChanged)
-        self.tab_wdg.tabChecked.connect(self._on_tab_checked)
+        self.tab_wdg.tabChecked.connect(self._update_available_axis_orders)
         self.axis_order.currentTextChanged.connect(self.valueChanged)
         self.valueChanged.connect(self._update_time_estimate)
 
@@ -414,7 +414,6 @@ class MDASequenceWidget(QWidget):
             The [`useq.MDASequence`][] to set.
         """
         self.tab_wdg.setValue(value)
-        self.axis_order.setCurrentText("".join(value.axis_order))
 
         keep_shutter_open = value.keep_shutter_open_across
         self.keep_shutter_open.setValue(keep_shutter_open)
@@ -430,6 +429,8 @@ class MDASequenceWidget(QWidget):
                 if pos.sequence and pos.sequence.autofocus_plan:
                     axis.update(pos.sequence.autofocus_plan.axes)
         self.af_axis.setValue(tuple(axis))
+        axis_text = "".join(x for x in value.axis_order if x in self.tab_wdg.usedAxes())
+        self.axis_order.setCurrentText(axis_text)
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current [`useq.MDASequence`][] to a file."""
@@ -488,7 +489,7 @@ class MDASequenceWidget(QWidget):
         if checked and self.tab_wdg.isChecked(self.stage_positions):
             self.af_axis.use_af_p.setChecked(True)
 
-    def _on_tab_checked(self, idx: int, checked: bool) -> None:
+    def _update_available_axis_orders(self) -> None:
         """Handle tabChecked signal.
 
         Hide columns in the channels tab accordingly.
