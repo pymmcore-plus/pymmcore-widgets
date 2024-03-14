@@ -1,4 +1,5 @@
 import numpy as np
+import useq
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import (
     QApplication,
@@ -29,7 +30,7 @@ class MDA(QWidget):
     events to print out the current state of the acquisition.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, seq: useq.MDASequence | None = None) -> None:
         super().__init__()
         # get the CMMCore instance and load the default config
         self.mmc = CMMCorePlus.instance()
@@ -43,6 +44,9 @@ class MDA(QWidget):
 
         # instantiate the MDAWidget, and a couple labels for feedback
         self.mda = MDAWidget()
+        if seq:
+            self.mda.setValue(seq)
+
         self.mda.valueChanged.connect(self._update_sequence)
         self.current_sequence = QLabel('... enter info and click "Run"')
         self.current_event = QLabel("... current event info will appear here")
@@ -60,7 +64,8 @@ class MDA(QWidget):
 
     def _update_sequence(self) -> None:
         """Called when the MDA sequence starts."""
-        self.current_sequence.setText(self.mda.value().yaml(exclude_defaults=True))
+        mda_seq = self.mda.value()
+        self.current_sequence.setText(mda_seq.yaml(exclude_defaults=True))
 
     def _on_frame(self, image: np.ndarray, event: MDAEvent) -> None:
         """Called each time a frame is acquired."""
@@ -84,6 +89,16 @@ class MDA(QWidget):
 
 if __name__ == "__main__":
     app = QApplication([])
-    frame = MDA()
-    frame.show()
-    app.exec_()
+
+    seq = useq.MDASequence(
+        time_plan=useq.TIntervalLoops(interval=1, loops=4),
+        z_plan=useq.ZRangeAround(range=2, step=0.5),
+        channels=[
+            {"config": "DAPI", "exposure": 10},
+            {"config": "FITC", "exposure": 20},
+        ],
+    )
+    wdg = MDA(seq)
+    wdg.show()
+
+    app.exec()
