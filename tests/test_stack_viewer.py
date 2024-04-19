@@ -21,15 +21,13 @@ def test_acquisition(qtbot):
     canvas = StackViewer(mmcore=mmcore)
     qtbot.addWidget(canvas)
 
-    with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
-        mmcore.mda.run(sequence)
-    qtbot.wait(500)
-    assert canvas.images[tuple({"c": 0, "g": 0}.items())]._data.flatten()[0] != 0
-    assert canvas.images[tuple({"c": 1, "g": 0}.items())]._data.shape == (512, 512)
+    mmcore.mda.run(sequence)
+    # qtbot.wait(100)
+    print("DONE-------------------------------")
+    assert canvas.images[(("c", 0), ("g", 0))]._data.flatten()[0] != 0
+    assert canvas.images[(("c", 1), ("g", 0))]._data.shape == (512, 512)
     assert len(canvas.channel_row.boxes) == sequence.sizes.get("c", 1)
     assert len(canvas.sliders) > 0
-    # canvas.close()
-    # canvas.deleteLater()
 
 
 def test_init_with_sequence(qtbot):
@@ -38,77 +36,67 @@ def test_init_with_sequence(qtbot):
     canvas = StackViewer(sequence=sequence, mmcore=mmcore)
     qtbot.addWidget(canvas)
 
-    with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
-        mmcore.mda.run(sequence)
-    qtbot.wait(500)
-    assert canvas.images[tuple({"c": 0, "g": 0}.items())]._data.flatten()[0] != 0
-    assert canvas.images[tuple({"c": 1, "g": 0}.items())]._data.shape == (512, 512)
+    mmcore.mda.run(sequence)
+
+    assert canvas.images[(("c", 0), ("g", 0))]._data.flatten()[0] != 0
+    assert canvas.images[(("c", 1), ("g", 0))]._data.shape == (512, 512)
     # Now only the necessary sliders/boxes should have been initialized
     assert len(canvas.channel_row.boxes) == sequence.sizes.get("c", 1)
     assert len(canvas.sliders) == 1
 
 
-def test_interaction(qapp, qtbot):
+def test_interaction(qtbot):
     mmcore = CMMCorePlus.instance()
-    canvas = StackViewer(mmcore=mmcore, sequence=sequence, transform=(90, False, False))
-    qtbot.addWidget(canvas)
-    canvas.show()
-    with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
-        mmcore.mda.run(sequence)
-    qapp.processEvents()
-    # qtbot.wait(1000)
+    viewer = StackViewer(mmcore=mmcore, sequence=sequence, transform=(90, False, False))
+    qtbot.addWidget(viewer)
+    viewer.show()
+    mmcore.mda.run(sequence)  # this is blocking
 
     # canvas.view_rect = ((0, 0), (512, 512))
-    canvas.resize(700, 700)
-    canvas._collapse_view()
-    canvas._canvas.update()
+    viewer.resize(700, 700)
+    viewer._collapse_view()
+    viewer._canvas.update()
 
     # outside canvas
     event = SceneMouseEvent(MouseEvent("mouse_move"), None)
     event._pos = [-10, 100]
-    canvas.on_mouse_move(event)
-    assert canvas.info_bar.text()[-1] == "]"
+    viewer.on_mouse_move(event)
+    assert viewer.info_bar.text()[-1] == "]"
 
     # outside image
     event._pos = [1000, 100]
-    canvas.on_mouse_move(event)
-    assert canvas.info_bar.text()[-1] == "]"
+    viewer.on_mouse_move(event)
+    assert viewer.info_bar.text()[-1] == "]"
 
-    event._pos = [100, 100]
-    # canvas.on_mouse_move(event)
-    qtbot.wait(100)
-    qtbot.mouseMove(canvas, canvas.rect().center() - QtCore.QPoint(10, 10))
-    qtbot.wait(100)
-    qtbot.mouseMove(canvas, canvas.rect().center())
-    qapp.processEvents()
-    qtbot.wait(100)
-    canvas._canvas.app.process_events()
+    event._pos = [200, 200]
+    viewer.on_mouse_move(event)
+
     # There should be a number there as this is on the image
-    assert canvas.info_bar.text()[-1] != "]"
+    assert viewer.info_bar.text()[-1] != "]"
 
-    canvas.sliders["t"].setValue(1)
-    canvas.sliders["t"].lock_btn.setChecked(True)
+    viewer.sliders["t"].setValue(1)
+    viewer.sliders["t"].lock_btn.setChecked(True)
     event = MDAEvent(index={"t": 0, "c": 0, "g": 0})
-    canvas.frameReady(event)
-    assert canvas.sliders["t"].value() == 1
+    viewer.frameReady(event)
+    assert viewer.sliders["t"].value() == 1
 
-    canvas.on_clim_timer()
+    viewer.on_clim_timer()
     color_selected = 2
-    canvas.channel_row.boxes[0].color_choice.setCurrentIndex(color_selected)
+    viewer.channel_row.boxes[0].color_choice.setCurrentIndex(color_selected)
     assert (
-        canvas.images[tuple({"c": 0, "g": 0}.items())].cmap.colors[-1].RGB
+        viewer.images[(("c", 0), ("g", 0))].cmap.colors[-1].RGB
         == try_cast_colormap(CMAPS[color_selected]).to_vispy().colors[-1].RGB
     ).all
 
-    canvas.channel_row.boxes[0].autoscale_chbx.setChecked(False)
-    canvas.channel_row.boxes[0].slider.setValue((0, 255))
-    canvas.channel_row.boxes[0].show_channel.setChecked(False)
+    viewer.channel_row.boxes[0].autoscale_chbx.setChecked(False)
+    viewer.channel_row.boxes[0].slider.setValue((0, 255))
+    viewer.channel_row.boxes[0].show_channel.setChecked(False)
     # should be current channel
-    canvas.current_channel = 1
-    canvas.channel_row.boxes[1].show_channel.setChecked(False)
-    canvas._canvas.update()
+    viewer.current_channel = 1
+    viewer.channel_row.boxes[1].show_channel.setChecked(False)
+    viewer._canvas.update()
     # Should have been set as all channels are deselected now
-    assert canvas.channel_row.boxes[0].show_channel.isChecked()
+    assert viewer.channel_row.boxes[0].show_channel.isChecked()
 
 
 def test_sequence_no_channels(qtbot):
@@ -116,8 +104,7 @@ def test_sequence_no_channels(qtbot):
     canvas = StackViewer(mmcore=mmcore)
     qtbot.addWidget(canvas)
     sequence = MDASequence(time_plan={"interval": 0.5, "loops": 3})
-    with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
-        mmcore.mda.run(sequence)
+    mmcore.mda.run(sequence)
 
 
 # import gc
@@ -169,8 +156,7 @@ def test_disconnect(qtbot):
     qtbot.addWidget(canvas)
     canvas._disconnect()
     sequence = MDASequence(time_plan={"interval": 0.5, "loops": 3})
-    with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
-        mmcore.mda.run(sequence)
+    mmcore.mda.run(sequence)
     assert canvas.sequence is None
     assert not canvas.ready
 
@@ -182,5 +168,4 @@ def test_not_ready(qtbot):
     sequence = MDASequence(time_plan={"interval": 0.5, "loops": 3})
     # TODO: we should do something here that checks if the loop finishes
     canvas.frameReady(MDAEvent())
-    with qtbot.waitSignal(mmcore.mda.events.sequenceFinished):
-        mmcore.mda.run(sequence)
+    mmcore.mda.run(sequence)

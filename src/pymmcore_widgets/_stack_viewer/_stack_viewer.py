@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 from fonticon_mdi6 import MDI6
 from qtpy import QtCore, QtWidgets
-from qtpy.QtCore import QTimer, Signal
+from qtpy.QtCore import QTimer
 from superqt import fonticon
 from useq import MDAEvent, MDASequence, _channel
 
@@ -41,10 +41,6 @@ class StackViewer(QtWidgets.QWidget):
     ----------
     transform: (int, bool, bool) rotation mirror_x mirror_y.
     """
-
-    _retry_display = Signal(MDAEvent)
-    _new_dim = Signal(str)
-    _new_img = Signal(MDAEvent)
 
     def __init__(
         self,
@@ -100,9 +96,6 @@ class StackViewer(QtWidgets.QWidget):
             self._mmc.mda.events.sequenceStarted.connect(self.sequenceStarted)
 
         # self._new_channel.connect(self.channel_row.box_visibility)
-        self._new_dim.connect(self.add_slider)
-        self._retry_display.connect(self._redisplay)
-        self._new_img.connect(self.add_image)
 
         self.images: dict[tuple, scene.visuals.Image] = {}
         self.frame = 0
@@ -134,10 +127,16 @@ class StackViewer(QtWidgets.QWidget):
     def construct_canvas(self) -> None:
         if self.canvas_size:
             self.img_size = self.canvas_size
-        elif self._mmc:
-            self.img_size = (self._mmc.getImageHeight(), self._mmc.getImageWidth())
+        elif (
+            self._mmc
+            and (h := self._mmc.getImageHeight())
+            and (w := self._mmc.getImageWidth())
+        ):
+            self.img_size = (h, w)
         else:
             self.img_size = (512, 512)
+        if any(x < 1 for x in self.img_size):
+            raise ValueError("Image size must be greater than 0.")
         self._canvas = scene.SceneCanvas(
             size=self.img_size, parent=self, keys="interactive"
         )
@@ -188,9 +187,10 @@ class StackViewer(QtWidgets.QWidget):
             image.set_gl_state("additive", depth_test=False)
         else:
             image.set_gl_state(depth_test=False)
-        self.images[
-            tuple({"c": event.index.get("c", 0), "g": event.index.get("g", 0)}.items())
-        ] = image
+        c = event.index.get("c", 0)
+        g = event.index.get("g", 0)
+        print("adding--------------", (("c", c), ("g", g)), image._data.flatten()[0])
+        self.images[(("c", c), ("g", g))] = image
 
     def sequenceStarted(self, sequence: MDASequence) -> None:
         """Sequence started by the mmcore. Adjust our settings, make layers etc."""
@@ -207,7 +207,7 @@ class StackViewer(QtWidgets.QWidget):
     def frameReady(self, event: MDAEvent) -> None:
         """Frame received from acquisition, display the image, update sliders etc."""
         if not self.ready:
-            self._retry_display.emit(event)
+            self._redisplay(event)
             return
         indices = dict(event.index)
         img = self.datastore.get_frame(event)
@@ -215,9 +215,11 @@ class StackViewer(QtWidgets.QWidget):
         try:
             display_indices = self._set_sliders(indices)
         except KeyError as e:
-            self._new_dim.emit(e.args[0])
-            self._retry_display.emit(event)
+            print("KeyError", e.args[0])
+            self.add_slider(e.args[0])
+            self._redisplay(event)
             return
+        print("FFFFFrame ready", indices, display_indices)
         if display_indices == indices:
             # Get controls
             try:
@@ -225,13 +227,13 @@ class StackViewer(QtWidgets.QWidget):
             except KeyError:
                 this_channel = cast(_channel.Channel, event.channel)
                 self.channel_row.add_channel(this_channel, indices.get("c", 0))
-                self._retry_display.emit(event)
+                self._redisplay(event)
                 return
             try:
                 self.display_image(img, indices.get("c", 0), indices.get("g", 0))
             except KeyError:
-                self._new_img.emit(event)
-                self._retry_display.emit(event)
+                self.add_image(event)
+                self._redisplay(event)
                 return
 
             # Handle autoscaling
@@ -257,19 +259,17 @@ class StackViewer(QtWidgets.QWidget):
         self, values: tuple[int, int], channel: int, set_autoscale: bool = True
     ) -> None:
         for g in range(self.ng):
-            self.images[tuple({"c": channel, "g": g}.items())].clim = values
+            self.images[(("c", channel), ("g", g))].clim = values
         if self.channel_row.boxes[channel].autoscale_chbx.isChecked() and set_autoscale:
             self.channel_row.boxes[channel].autoscale_chbx.setCheckState(
-                QtCore.Qt.Unchecked
+                QtCore.Qt.CheckState.Unchecked
             )
         self._canvas.update()
 
     def _handle_channel_cmap(self, colormap: cmap.Colormap, channel: int) -> None:
         for g in range(self.ng):
             try:
-                self.images[tuple({"c": channel, "g": g}.items())].cmap = (
-                    colormap.to_vispy()
-                )
+                self.images[(("c", channel), ("g", g))].cmap = colormap.to_vispy()
             except KeyError:
                 return
         if colormap.name not in self.cmap_names:
@@ -279,9 +279,8 @@ class StackViewer(QtWidgets.QWidget):
 
     def _handle_channel_visibility(self, state: bool, channel: int) -> None:
         for g in range(self.ng):
-            self.images[tuple({"c": channel, "g": g}.items())].visible = (
-                self.channel_row.boxes[channel].show_channel.isChecked()
-            )
+            checked = self.channel_row.boxes[channel].show_channel.isChecked()
+            self.images[(("c", channel), ("g", g))].visible = checked
         if self.current_channel == channel:
             channel_to_set = channel - 1 if channel > 0 else channel + 1
             channel_to_set = 0 if len(self.channel_row.boxes) == 1 else channel_to_set
@@ -390,7 +389,7 @@ class StackViewer(QtWidgets.QWidget):
         return display_indices
 
     def display_image(self, img: np.ndarray, channel: int = 0, grid: int = 0) -> None:
-        self.images[tuple({"c": channel, "g": grid}.items())].set_data(img)
+        self.images[(("c", channel), ("g", grid))].set_data(img)
         # Should we do this? Might it slow down acquisition while in the same thread?
         self._canvas.update()
 
@@ -402,14 +401,10 @@ class StackViewer(QtWidgets.QWidget):
             for channel in channel_list:
                 if (
                     self.channel_row.boxes[channel].autoscale_chbx.isChecked()
-                    and self.images[tuple({"c": channel, "g": grid}.items())].visible
+                    and (img := self.images[(("c", channel), ("g", grid))]).visible
                 ):
                     # TODO: percentile here, could be in gui
-                    clim = np.percentile(
-                        self.images[tuple({"c": channel, "g": grid}.items())]._data,
-                        [0, 100],
-                    )
-                    self.images[tuple({"c": channel, "g": grid}.items())].clim = clim
+                    img.clim = np.percentile(img._data, [0, 100])
         self._canvas.update()
 
     def _get_image_position(
@@ -504,17 +499,11 @@ class StackViewer(QtWidgets.QWidget):
 
     def replot_timer_callback(self) -> None:
         while self.missed_events:
-            event = self.missed_events.pop(0)
-            # self.missed_events.remove(event)
-            self.frameReady(event)
+            self.frameReady(self.missed_events.pop(0))
 
     def _redisplay(self, event: MDAEvent) -> None:
         self.missed_events.append(event)
-        self.replot_timer = QTimer()
-        self.replot_timer.setSingleShot(True)
-        self.replot_timer.timeout.connect(self.replot_timer_callback)
-        self.replot_timer.start(100)
-        return
+        QTimer.singleShot(100, self.replot_timer_callback)
 
     def closeEvent(self, e: QCloseEvent) -> None:
         """Write window size and position to config file."""
