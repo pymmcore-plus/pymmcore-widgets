@@ -165,9 +165,11 @@ class GroupPresetTableWidget(QGroupBox):
         )
         save_btn_layout.addItem(spacer)
         self.save_btn = QPushButton(text="Save cfg")
+        self.save_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.save_btn.clicked.connect(self._save_cfg)
         save_btn_layout.addWidget(self.save_btn)
         self.load_btn = QPushButton(text="Load cfg")
+        self.load_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.load_btn.clicked.connect(self._load_cfg)
         save_btn_layout.addWidget(self.load_btn)
 

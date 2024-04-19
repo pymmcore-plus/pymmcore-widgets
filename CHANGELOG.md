@@ -1,5 +1,60 @@
 # Changelog
 
+## [v0.7.1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.1) (2024-03-13)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.7.0...v0.7.1)
+
+**Fixed bugs:**
+
+- fix: fix issue with channel group widget not working with only one group [\#288](https://github.com/pymmcore-plus/pymmcore-widgets/pull/288) ([fdrgsp](https://github.com/fdrgsp))
+
+**Merged pull requests:**
+
+- ci\(dependabot\): bump softprops/action-gh-release from 1 to 2 [\#287](https://github.com/pymmcore-plus/pymmcore-widgets/pull/287) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+## [v0.7.0](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.0) (2024-03-06)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.7.0rc1...v0.7.0)
+
+## [v0.7.0rc1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.0rc1) (2024-03-05)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.6.1...v0.7.0rc1)
+
+**Implemented enhancements:**
+
+- feat: add pymmcore-plus writer to MDAWidget [\#279](https://github.com/pymmcore-plus/pymmcore-widgets/pull/279) ([fdrgsp](https://github.com/fdrgsp))
+
+**Fixed bugs:**
+
+- fix: fix selection of axis orders in mdaWidget.setValue [\#286](https://github.com/pymmcore-plus/pymmcore-widgets/pull/286) ([tlambert03](https://github.com/tlambert03))
+- fix: make grid widget scrollable [\#285](https://github.com/pymmcore-plus/pymmcore-widgets/pull/285) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- docs: rename mda\_widget to mda\_demo [\#283](https://github.com/pymmcore-plus/pymmcore-widgets/pull/283) ([tlambert03](https://github.com/tlambert03))
+- chore: use ruff-format instead of black [\#282](https://github.com/pymmcore-plus/pymmcore-widgets/pull/282) ([tlambert03](https://github.com/tlambert03))
+
+## [v0.6.1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.6.1) (2024-02-15)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.6.0...v0.6.1)
+
+**Fixed bugs:**
+
+- fix: update few MDAWidget issues [\#274](https://github.com/pymmcore-plus/pymmcore-widgets/pull/274) ([fdrgsp](https://github.com/fdrgsp))
+- fix: choose to update ImagePreview when mda is running [\#273](https://github.com/pymmcore-plus/pymmcore-widgets/pull/273) ([fdrgsp](https://github.com/fdrgsp))
+- fix: better handle enabling and disabling MDAWidget [\#267](https://github.com/pymmcore-plus/pymmcore-widgets/pull/267) ([fdrgsp](https://github.com/fdrgsp))
+- fix: fix bugs in  ChannelTable [\#265](https://github.com/pymmcore-plus/pymmcore-widgets/pull/265) ([fdrgsp](https://github.com/fdrgsp))
+
+**Merged pull requests:**
+
+- docs: bunch of documentations fixes [\#278](https://github.com/pymmcore-plus/pymmcore-widgets/pull/278) ([tlambert03](https://github.com/tlambert03))
+- docs: fix docs not grabbing widget png correctly [\#277](https://github.com/pymmcore-plus/pymmcore-widgets/pull/277) ([fdrgsp](https://github.com/fdrgsp))
+- ci\(dependabot\): bump codecov/codecov-action from 3 to 4 [\#276](https://github.com/pymmcore-plus/pymmcore-widgets/pull/276) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump codecov/codecov-action from 3 to 4 [\#275](https://github.com/pymmcore-plus/pymmcore-widgets/pull/275) ([dependabot[bot]](https://github.com/apps/dependabot))
+- test: fix test logging warning [\#270](https://github.com/pymmcore-plus/pymmcore-widgets/pull/270) ([tlambert03](https://github.com/tlambert03))
+- docs: use .mp4 + mkdocs-video [\#269](https://github.com/pymmcore-plus/pymmcore-widgets/pull/269) ([fdrgsp](https://github.com/fdrgsp))
+- refactor: relax expectations of imageSnapped callback [\#266](https://github.com/pymmcore-plus/pymmcore-widgets/pull/266) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.6.0](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.6.0) (2024-01-24)
 
 [Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.5.7...v0.6.0)
