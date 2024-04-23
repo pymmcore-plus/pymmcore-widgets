@@ -482,15 +482,10 @@ class CameraRoiWidget(_CameraRoiGUI):
                 self.center_checkbox.isChecked(), [self.start_x, self.start_y]
             )
 
-            # self.start_x.setMaximum(self._cameras[self.camera].pixel_width)
-            # self.start_y.setMaximum(self._cameras[self.camera].pixel_height)
-
             self.roiChanged.emit(*self._get_roi_values(), value)
 
         else:
             self._hide_spinbox_button(True)
-
-            #     self._check_size_reset_snap()
 
             width = int(value.split(" x ")[0])
             height = int(value.split(" x ")[1])
@@ -510,7 +505,7 @@ class CameraRoiWidget(_CameraRoiGUI):
         self.start_y.setEnabled(not state)
         self._hide_spinbox_button(state, [self.start_x, self.start_y])
 
-        # replace the roi values with the new centered state
+        # if not checked, s=use the stored roi values
         if not state:
             start_x, start_y, width, height, _ = self._cameras[self.camera].roi
             self._cameras[self.camera] = self._cameras[self.camera].replace(
@@ -520,8 +515,6 @@ class CameraRoiWidget(_CameraRoiGUI):
 
         if self.camera_roi_combo.currentText() != CUSTOM_ROI:
             return
-
-        # self._check_size_reset_snap()
 
         _, _, wanted_width, wanted_height = self._get_roi_values()
         start_x = (self._cameras[self.camera].pixel_width - wanted_width) // 2
@@ -541,21 +534,29 @@ class CameraRoiWidget(_CameraRoiGUI):
 
         self.roiChanged.emit(start_x, start_y, width, height, CUSTOM_ROI)
 
-    def _on_roi_width_height_changed(self) -> None:
+    def _on_start_spinbox_changed(self) -> None:
+        """Handle the start_x and start_y spinbox value change."""
+        if not self.start_x.isEnabled() and not self.start_y.isEnabled():
+            return
         if self.camera_roi_combo.currentText() != CUSTOM_ROI:
             return
+        self._update_camera_info()
 
+    def _on_roi_width_height_changed(self) -> None:
+        """Handle the roi width and height spinbox value change."""
+        if self.camera_roi_combo.currentText() != CUSTOM_ROI:
+            return
         self._update_start_max_value()
+        self._update_camera_info()
 
+    def _update_camera_info(self) -> None:
+        """Update the camera info with the new ROI values."""
         start_x, start_y, width, height = self._get_roi_values()
-
         # store the new roi values
         self._cameras[self.camera] = self._cameras[self.camera].replace(
             roi=ROI(start_x, start_y, width, height, self.center_checkbox.isChecked())
         )
-
         self.roiChanged.emit(start_x, start_y, width, height, CUSTOM_ROI)
-
         self._update_lbl_info()
 
     def _update_start_max_value(self) -> None:
@@ -563,23 +564,3 @@ class CameraRoiWidget(_CameraRoiGUI):
         _, _, wanted_width, wanted_height = self._get_roi_values()
         self.start_x.setMaximum(self._cameras[self.camera].pixel_width - wanted_width)
         self.start_y.setMaximum(self._cameras[self.camera].pixel_height - wanted_height)
-
-    def _on_start_spinbox_changed(self) -> None:
-        if not self.start_x.isEnabled() and not self.start_y.isEnabled():
-            return
-
-        if self.camera_roi_combo.currentText() != CUSTOM_ROI:
-            return
-
-        # self._check_size_reset_snap()
-
-        start_x, start_y, width, height = self._get_roi_values()
-
-        # store the new roi values
-        self._cameras[self.camera] = self._cameras[self.camera].replace(
-            roi=ROI(start_x, start_y, width, height, self.center_checkbox.isChecked())
-        )
-
-        self.roiChanged.emit(start_x, start_y, width, height, CUSTOM_ROI)
-
-        self._update_lbl_info()
