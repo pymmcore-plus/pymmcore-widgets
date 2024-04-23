@@ -100,7 +100,6 @@ class StackViewer(QtWidgets.QWidget):
             # Otherwise connect via listeners_connected or manually
             self._mmc.mda.events.sequenceStarted.connect(self.sequenceStarted)
 
-
         self.images: dict[tuple, scene.visuals.Image] = {}
         self.frame = 0
         self.ready = False
@@ -165,7 +164,7 @@ class StackViewer(QtWidgets.QWidget):
         self.layout().addLayout(self.slider_layout)
         self.sliders: dict[str, LabeledVisibilitySlider] = {}
 
-    @superqt.ensure_main_thread
+    @superqt.ensure_main_thread  # type: ignore
     def add_slider(self, dim: str) -> None:
         slider = LabeledVisibilitySlider(
             dim, orientation=QtCore.Qt.Orientation.Horizontal
@@ -175,7 +174,7 @@ class StackViewer(QtWidgets.QWidget):
         self.slider_layout.addWidget(slider)
         self.sliders[dim] = slider
 
-    @superqt.ensure_main_thread
+    @superqt.ensure_main_thread  # type: ignore
     def add_image(self, event: MDAEvent) -> None:
         image = scene.visuals.Image(
             np.zeros(self._canvas.size).astype(np.uint16),
@@ -478,7 +477,7 @@ class StackViewer(QtWidgets.QWidget):
         while self.missed_events:
             self.frameReady(self.missed_events.pop(0))
 
-    @superqt.ensure_main_thread
+    @superqt.ensure_main_thread  # type: ignore
     def _redisplay(self, event: MDAEvent) -> None:
         self.missed_events.append(event)
         QTimer.singleShot(0, self._reemit_missed_events)
