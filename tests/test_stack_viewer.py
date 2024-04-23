@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from pymmcore_plus import CMMCorePlus
-from qtpy import PYSIDE6, QtCore
+from qtpy import QtCore
 from superqt.cmap._cmap_utils import try_cast_colormap
 from useq import MDAEvent, MDASequence
 from vispy.app.canvas import MouseEvent
