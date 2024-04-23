@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore
 from superqt.cmap._cmap_utils import try_cast_colormap
@@ -8,6 +12,11 @@ from vispy.scene.events import SceneMouseEvent
 from pymmcore_widgets._stack_viewer import CMAPS
 from pymmcore_widgets.experimental import StackViewer
 
+if TYPE_CHECKING:
+    from pytestqt.logging import _QtMessageCapture
+    from pytestqt.qtbot import QtBot
+
+
 sequence = MDASequence(
     channels=[{"config": "DAPI", "exposure": 10}, {"config": "FITC", "exposure": 10}],
     time_plan={"interval": 0.2, "loops": 3},
@@ -16,27 +25,27 @@ sequence = MDASequence(
 )
 
 
-def test_acquisition(qtbot):
+def test_acquisition(qtbot: QtBot) -> None:
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore)
     qtbot.addWidget(canvas)
 
     mmcore.mda.run(sequence)
-    # qtbot.wait(100)
-    print("DONE-------------------------------")
+    qtbot.wait(10)
     assert canvas.images[(("c", 0), ("g", 0))]._data.flatten()[0] != 0
     assert canvas.images[(("c", 1), ("g", 0))]._data.shape == (512, 512)
     assert len(canvas.channel_row.boxes) == sequence.sizes.get("c", 1)
     assert len(canvas.sliders) > 0
 
 
-def test_init_with_sequence(qtbot):
+def test_init_with_sequence(qtbot: QtBot) -> None:
     mmcore = CMMCorePlus.instance()
 
     canvas = StackViewer(sequence=sequence, mmcore=mmcore)
     qtbot.addWidget(canvas)
 
     mmcore.mda.run(sequence)
+    qtbot.wait(10)
 
     assert canvas.images[(("c", 0), ("g", 0))]._data.flatten()[0] != 0
     assert canvas.images[(("c", 1), ("g", 0))]._data.shape == (512, 512)
@@ -45,7 +54,7 @@ def test_init_with_sequence(qtbot):
     assert len(canvas.sliders) == 1
 
 
-def test_interaction(qtbot):
+def test_interaction(qtbot: QtBot) -> None:
     mmcore = CMMCorePlus.instance()
     viewer = StackViewer(mmcore=mmcore, sequence=sequence, transform=(90, False, False))
     qtbot.addWidget(viewer)
@@ -99,7 +108,7 @@ def test_interaction(qtbot):
     assert viewer.channel_row.boxes[0].show_channel.isChecked()
 
 
-def test_sequence_no_channels(qtbot):
+def test_sequence_no_channels(qtbot: QtBot) -> None:
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore)
     qtbot.addWidget(canvas)
@@ -109,15 +118,14 @@ def test_sequence_no_channels(qtbot):
 
 # import gc
 # gc.set_debug(gc.DEBUG_UNCOLLECTABLE)
-def test_connection_warning(qtbot, qtlog):
-    # with pytest.warns(UserWarning):
+def test_connection_warning(qtbot: QtBot, qtlog: _QtMessageCapture) -> None:
     canvas = StackViewer()
     emitted = [(m.type, m.message.strip()) for m in qtlog.records]
     qtbot.addWidget(canvas)
     assert "No datastore or mmcore provided, connect manually." == emitted[0][1]
 
 
-def test_settings_on_close():
+def test_settings_on_close() -> None:
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore)
     name = canvas.__class__.__name__
@@ -128,7 +136,7 @@ def test_settings_on_close():
     assert settings.value("pos") == QtCore.QPoint(100, 100)
 
 
-def test_canvas_size():
+def test_canvas_size() -> None:
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore)
     canvas.img_size = (128, 128)
@@ -150,7 +158,7 @@ def test_canvas_size():
     assert canvas.view_rect[1][1] >= 256
 
 
-def test_disconnect(qtbot):
+def test_disconnect(qtbot: QtBot) -> None:
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore)
     qtbot.addWidget(canvas)
@@ -161,7 +169,7 @@ def test_disconnect(qtbot):
     assert not canvas.ready
 
 
-def test_not_ready(qtbot):
+def test_not_ready(qtbot: QtBot) -> None:
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore)
     qtbot.addWidget(canvas)

@@ -63,7 +63,7 @@ if __name__ == "__main__":
     mmc.mda.events.sequenceStarted.connect(datastore.sequenceStarted)
     mmc.mda.events.frameReady.connect(datastore.frameReady)
 
-    widget = SaveButton(datastore, mmc)
+    widget = SaveButton(datastore)
     mmc.run_mda(seq)
     widget.show()
     app.exec_()

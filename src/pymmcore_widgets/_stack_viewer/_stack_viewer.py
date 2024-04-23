@@ -19,7 +19,8 @@ DIMENSIONS = ["t", "z", "c", "p", "g"]
 AUTOCLIM_RATE = 1  # Hz   0 = inf
 
 try:
-    from vispy import scene, visuals
+    from vispy import scene
+    from vispy.visuals.transforms import MatrixTransform
 except ImportError as e:
     raise ImportError(
         "vispy is required for StackViewer. "
@@ -71,7 +72,7 @@ class StackViewer(QtWidgets.QWidget):
 
         self.info_bar = QtWidgets.QLabel()
         self.info_bar.setSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
+            QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed
         )
         self.main_layout.addWidget(self.info_bar)
 
@@ -95,18 +96,12 @@ class StackViewer(QtWidgets.QWidget):
             # Otherwise connect via listeners_connected or manually
             self._mmc.mda.events.sequenceStarted.connect(self.sequenceStarted)
 
-        # self._new_channel.connect(self.channel_row.box_visibility)
-
         self.images: dict[tuple, scene.visuals.Image] = {}
         self.frame = 0
         self.ready = False
         self.current_channel = 0
         self.pixel_size = 1.0
         self.missed_events: list[MDAEvent] = []
-
-        # self.clim_timer = QtCore.QTimer()
-        # self.clim_timer.setInterval(int(1000 // AUTOCLIM_RATE))
-        # self.clim_timer.timeout.connect(self.on_clim_timer)
 
         self.destroyed.connect(self._disconnect)
 
@@ -166,7 +161,9 @@ class StackViewer(QtWidgets.QWidget):
         self.sliders: dict[str, LabeledVisibilitySlider] = {}
 
     def add_slider(self, dim: str) -> None:
-        slider = LabeledVisibilitySlider(dim, orientation=QtCore.Qt.Horizontal)
+        slider = LabeledVisibilitySlider(
+            dim, orientation=QtCore.Qt.Orientation.Horizontal
+        )
         slider.sliderMoved.connect(self.on_display_timer)
         slider.setRange(0, 1)
         self.slider_layout.addWidget(slider)
@@ -179,7 +176,7 @@ class StackViewer(QtWidgets.QWidget):
             cmap=self.cmaps[event.index.get("c", 0)].to_vispy(),
             clim=(0, 1),
         )
-        trans = visuals.transforms.linear.MatrixTransform()
+        trans = MatrixTransform()
         trans.rotate(self.transform[0], (0, 0, 1))
         image.transform = self._get_image_position(trans, event)
         image.interactive = True
@@ -189,7 +186,6 @@ class StackViewer(QtWidgets.QWidget):
             image.set_gl_state(depth_test=False)
         c = event.index.get("c", 0)
         g = event.index.get("g", 0)
-        print("adding--------------", (("c", c), ("g", g)), image._data.flatten()[0])
         self.images[(("c", c), ("g", g))] = image
 
     def sequenceStarted(self, sequence: MDASequence) -> None:
@@ -215,11 +211,9 @@ class StackViewer(QtWidgets.QWidget):
         try:
             display_indices = self._set_sliders(indices)
         except KeyError as e:
-            print("KeyError", e.args[0])
             self.add_slider(e.args[0])
             self._redisplay(event)
             return
-        print("FFFFFrame ready", indices, display_indices)
         if display_indices == indices:
             # Get controls
             try:
@@ -301,7 +295,6 @@ class StackViewer(QtWidgets.QWidget):
             self._handle_channel_clim(clim, channel, set_autoscale=False)
 
     def _handle_channel_choice(self, channel: int) -> None:
-        print("Setting current channel", channel)
         self.current_channel = channel
 
     def on_mouse_move(self, event: SceneMouseEvent) -> None:
@@ -318,8 +311,6 @@ class StackViewer(QtWidgets.QWidget):
             all_images.append(image)
         for image in all_images:
             image.interactive = True
-        print(images)
-        print(event.pos)
 
         self.view.interactive = True
         if images == []:
@@ -409,40 +400,20 @@ class StackViewer(QtWidgets.QWidget):
 
     def _get_image_position(
         self,
-        trans: visuals.transforms.linear.MatrixTransform,
+        trans: MatrixTransform,
         event: MDAEvent,
-    ) -> visuals.transforms.linear.MatrixTransform:
+    ) -> MatrixTransform:
         translate = [round(x) for x in ((1, 1) - trans.matrix[:2, :2].dot((1, 1))) / 2]
 
         x_pos = event.x_pos or 0
         y_pos = event.y_pos or 0
+        w, h = self.img_size
         if x_pos == 0 and y_pos == 0:
-            trans.translate(
-                (
-                    (1 - translate[1]) * self.img_size[0],
-                    translate[0] * self.img_size[1],
-                    0,
-                )
-            )
-            self.view_rect = (
-                (0 - self.img_size[0] / 2, 0 - self.img_size[1] / 2),
-                (self.img_size[0], self.img_size[1]),
-            )
+            trans.translate(((1 - translate[1]) * w, translate[0] * h, 0))
+            self.view_rect = ((0 - w / 2, 0 - h / 2), (w, h))
         else:
-            trans.translate(
-                (
-                    (translate[1] - 1) * self.img_size[0],
-                    translate[0] * self.img_size[1],
-                    0,
-                )
-            )
-            trans.translate(
-                (
-                    x_pos / self.pixel_size,
-                    y_pos / self.pixel_size,
-                    0,
-                )
-            )
+            trans.translate(((translate[1] - 1) * w, translate[0] * h, 0))
+            trans.translate((x_pos / self.pixel_size, y_pos / self.pixel_size, 0))
             self._expand_canvas_view(event)
         return trans
 
@@ -474,7 +445,6 @@ class StackViewer(QtWidgets.QWidget):
             (camera_rect[0], camera_rect[2]),
             (camera_rect[1] - camera_rect[0], camera_rect[3] - camera_rect[2]),
         )
-        print(self.view_rect)
 
     def _disconnect(self) -> None:
         if self._mmc:
@@ -497,13 +467,13 @@ class StackViewer(QtWidgets.QWidget):
         )
         self.view.camera.rect = view_rect
 
-    def replot_timer_callback(self) -> None:
+    def _reemit_missed_events(self) -> None:
         while self.missed_events:
             self.frameReady(self.missed_events.pop(0))
 
     def _redisplay(self, event: MDAEvent) -> None:
         self.missed_events.append(event)
-        QTimer.singleShot(100, self.replot_timer_callback)
+        QTimer.singleShot(100, self._reemit_missed_events)
 
     def closeEvent(self, e: QCloseEvent) -> None:
         """Write window size and position to config file."""

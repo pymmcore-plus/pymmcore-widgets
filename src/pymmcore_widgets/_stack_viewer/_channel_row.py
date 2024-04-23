@@ -47,7 +47,9 @@ class ChannelRow(QtWidgets.QWidget):
         self.restore_data()
 
         self.setLayout(QtWidgets.QHBoxLayout())
-        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed
+        )
         self.boxes: dict[int, ChannelBox] = {}
         self.new_cmap.connect(self._handle_channel_cmap)
         self.visible.connect(self.channel_visibility)
@@ -110,8 +112,8 @@ class ChannelRow(QtWidgets.QWidget):
         """If the current channel is made invisible, choose a different one."""
         if self.current_channel == channel and not visible:
             channel_to_set = abs(channel - 1)
-            for idx, channel in enumerate(self.boxes.values()):
-                if channel.show_channel.isChecked():
+            for idx, cbox in enumerate(self.boxes.values()):
+                if cbox.show_channel.isChecked():
                     channel_to_set = idx
                     break
             while channel_to_set > len(self.boxes) - 1:
@@ -166,11 +168,11 @@ class ChannelBox(QtWidgets.QWidget):
         if name is None:
             name = "Default"
         self.channel = name
-        self.setLayout(QtWidgets.QGridLayout())
+        grid_layout = QtWidgets.QGridLayout(self)
         self.show_channel = QtWidgets.QCheckBox(name)
         self.show_channel.setChecked(True)
         self.show_channel.setStyleSheet("font-weight: bold")
-        self.layout().addWidget(self.show_channel, 0, 0)
+        grid_layout.addWidget(self.show_channel, 0, 0)
         self.color_choice = QColormapComboBox(allow_user_colormaps=True)
 
         if cmaps is None:
@@ -178,14 +180,12 @@ class ChannelBox(QtWidgets.QWidget):
         for my_cmap in cmaps:
             self.color_choice.addColormap(my_cmap)
 
-        self.layout().addWidget(self.color_choice, 0, 1)
+        grid_layout.addWidget(self.color_choice, 0, 1)
         self.autoscale_chbx = QtWidgets.QCheckBox("Auto")
         self.autoscale_chbx.setChecked(True)
-        self.layout().addWidget(self.autoscale_chbx, 0, 2)
-        # self.histogram = HistPlot()
-        # self.layout().addWidget(self.histogram, 1, 0, 1, 3)
-        self.slider = QRangeSlider(QtCore.Qt.Horizontal)
-        self.layout().addWidget(self.slider, 2, 0, 1, 3)
+        grid_layout.addWidget(self.autoscale_chbx, 0, 2)
+        self.slider = QRangeSlider(QtCore.Qt.Orientation.Horizontal)
+        grid_layout.addWidget(self.slider, 2, 0, 1, 3)
         self.setStyleSheet("ChannelBox{border: 1px solid}")
 
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
@@ -243,7 +243,9 @@ class QColorComboBox(QtWidgets.QComboBox):
                 # add the new color and set the background color of that item
                 self.addItem("", userData=a_color)
                 self.setItemData(
-                    self.count() - 1, QtGui.QColor(a_color), QtCore.Qt.BackgroundRole
+                    self.count() - 1,
+                    QtGui.QColor(a_color),
+                    QtCore.Qt.ItemDataRole.BackgroundRole,
                 )
 
     def addColor(self, color: QtGui.QColor) -> None:
@@ -277,7 +279,9 @@ class QColorComboBox(QtWidgets.QComboBox):
         elif self.itemText(index) == self._userDefEntryText:
             # get the user defined color
             new_color = QtWidgets.QColorDialog.getColor(
-                self._currentColor if self._currentColor else QtCore.Qt.white
+                self._currentColor
+                if self._currentColor
+                else QtCore.Qt.GlobalColor.white
             )
             if new_color.isValid():
                 # add the color to the QComboBox and emit the signal
@@ -301,4 +305,4 @@ if __name__ == "__main__":
     w = ChannelBox("empty", cmaps=CMAPS)
     w.show()
 
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
