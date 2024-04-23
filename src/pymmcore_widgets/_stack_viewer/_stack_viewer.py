@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import copy
+import warnings
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
+import superqt
 from fonticon_mdi6 import MDI6
 from qtpy import QtCore, QtWidgets
-from qtpy.QtCore import QTimer, Signal
+from qtpy.QtCore import QTimer
 from superqt import fonticon
 from useq import MDAEvent, MDASequence, _channel
 
@@ -42,10 +44,6 @@ class StackViewer(QtWidgets.QWidget):
     ----------
     transform: (int, bool, bool) rotation mirror_x mirror_y.
     """
-
-    _retry_display = Signal(MDAEvent)
-    _new_dim = Signal(str)
-    _new_img = Signal(MDAEvent)
 
     def __init__(
         self,
@@ -94,15 +92,14 @@ class StackViewer(QtWidgets.QWidget):
                     self.datastore.sequenceStarted
                 )
             else:
-                QtCore.qWarning("No datastore or mmcore provided, connect manually.")
+                warnings.warn(
+                    "No datastore or mmcore provided, connect manually.", stacklevel=2
+                )
 
         if self._mmc:
             # Otherwise connect via listeners_connected or manually
             self._mmc.mda.events.sequenceStarted.connect(self.sequenceStarted)
 
-        self._new_dim.connect(self.add_slider)
-        self._retry_display.connect(self._redisplay)
-        self._new_img.connect(self.add_image)
 
         self.images: dict[tuple, scene.visuals.Image] = {}
         self.frame = 0
@@ -168,6 +165,7 @@ class StackViewer(QtWidgets.QWidget):
         self.layout().addLayout(self.slider_layout)
         self.sliders: dict[str, LabeledVisibilitySlider] = {}
 
+    @superqt.ensure_main_thread
     def add_slider(self, dim: str) -> None:
         slider = LabeledVisibilitySlider(
             dim, orientation=QtCore.Qt.Orientation.Horizontal
@@ -177,6 +175,7 @@ class StackViewer(QtWidgets.QWidget):
         self.slider_layout.addWidget(slider)
         self.sliders[dim] = slider
 
+    @superqt.ensure_main_thread
     def add_image(self, event: MDAEvent) -> None:
         image = scene.visuals.Image(
             np.zeros(self._canvas.size).astype(np.uint16),
@@ -211,7 +210,7 @@ class StackViewer(QtWidgets.QWidget):
     def frameReady(self, event: MDAEvent) -> None:
         """Frame received from acquisition, display the image, update sliders etc."""
         if not self.ready:
-            self._retry_display.emit(event)
+            self._redisplay(event)
             return
         indices = dict(event.index)
         img = self.datastore.get_frame(event)
@@ -219,8 +218,8 @@ class StackViewer(QtWidgets.QWidget):
         try:
             display_indices = self._set_sliders(indices)
         except KeyError as e:
-            self._new_dim.emit(e.args[0])
-            self._retry_display.emit(event)
+            self.add_slider(e.args[0])
+            self._redisplay(event)
             return
         if display_indices == indices:
             # Get controls
@@ -229,13 +228,13 @@ class StackViewer(QtWidgets.QWidget):
             except KeyError:
                 this_channel = cast(_channel.Channel, event.channel)
                 self.channel_row.add_channel(this_channel, indices.get("c", 0))
-                self._retry_display.emit(event)
+                self._redisplay(event)
                 return
             try:
                 self.display_image(img, indices.get("c", 0), indices.get("g", 0))
             except KeyError:
-                self._new_img.emit(event)
-                self._retry_display.emit(event)
+                self.add_image(event)
+                self._redisplay(event)
                 return
 
             # Handle autoscaling
@@ -479,9 +478,10 @@ class StackViewer(QtWidgets.QWidget):
         while self.missed_events:
             self.frameReady(self.missed_events.pop(0))
 
+    @superqt.ensure_main_thread
     def _redisplay(self, event: MDAEvent) -> None:
         self.missed_events.append(event)
-        QTimer.singleShot(100, self._reemit_missed_events)
+        QTimer.singleShot(0, self._reemit_missed_events)
 
     def closeEvent(self, e: QCloseEvent) -> None:
         """Write window size and position to config file."""

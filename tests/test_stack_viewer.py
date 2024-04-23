@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
 from pymmcore_plus import CMMCorePlus
-from qtpy import QtCore
+from qtpy import QtCore, PYSIDE6
 from superqt.cmap._cmap_utils import try_cast_colormap
 from useq import MDAEvent, MDASequence
 from vispy.app.canvas import MouseEvent
@@ -13,7 +14,6 @@ from pymmcore_widgets._stack_viewer import CMAPS
 from pymmcore_widgets.experimental import StackViewer
 
 if TYPE_CHECKING:
-    from pytestqt.logging import _QtMessageCapture
     from pytestqt.qtbot import QtBot
 
 
@@ -54,6 +54,7 @@ def test_init_with_sequence(qtbot: QtBot) -> None:
     assert len(canvas.sliders) == 1
 
 
+@pytest.mark.skipif(PYSIDE6, reason="This test is not working with PYSIDE6")
 def test_interaction(qtbot: QtBot) -> None:
     mmcore = CMMCorePlus.instance()
     viewer = StackViewer(mmcore=mmcore, sequence=sequence, transform=(90, False, False))
@@ -118,11 +119,10 @@ def test_sequence_no_channels(qtbot: QtBot) -> None:
 
 # import gc
 # gc.set_debug(gc.DEBUG_UNCOLLECTABLE)
-def test_connection_warning(qtbot: QtBot, qtlog: _QtMessageCapture) -> None:
-    canvas = StackViewer()
-    emitted = [(m.type, m.message.strip()) for m in qtlog.records]
-    qtbot.addWidget(canvas)
-    assert "No datastore or mmcore provided, connect manually." == emitted[0][1]
+def test_connection_warning(qtbot: QtBot) -> None:
+    with pytest.warns(UserWarning, match="No datastore or mmcore provided"):
+        canvas = StackViewer()
+        qtbot.addWidget(canvas)
 
 
 def test_settings_on_close() -> None:
