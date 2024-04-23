@@ -100,7 +100,6 @@ class StackViewer(QtWidgets.QWidget):
             # Otherwise connect via listeners_connected or manually
             self._mmc.mda.events.sequenceStarted.connect(self.sequenceStarted)
 
-
         self.images: dict[tuple, scene.visuals.Image] = {}
         self.frame = 0
         self.ready = False
