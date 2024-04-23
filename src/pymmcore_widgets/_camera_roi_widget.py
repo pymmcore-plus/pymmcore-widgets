@@ -397,7 +397,7 @@ class CameraRoiWidget(_CameraRoiGUI):
         if (x + width) > self._cameras[camera].pixel_width or (
             y + height
         ) > self._cameras[camera].pixel_height:
-            self._update_roi_values()
+            self._clearROI()
             self._update_lbl_info()
             QMessageBox.critical(
                 self,
@@ -463,11 +463,11 @@ class CameraRoiWidget(_CameraRoiGUI):
         with signals_blocked(self.camera_roi_combo):
             self.camera_roi_combo.setCurrentText(mode)
 
+        self._custom_roi_wdg.setEnabled(mode == CUSTOM_ROI)
+        self.crop_btn.setEnabled(mode == CUSTOM_ROI)
+
     def _on_crop_roi_mode_change(self, value: str) -> None:
         """Handle the crop mode change."""
-        self._custom_roi_wdg.setEnabled(value == CUSTOM_ROI)
-        self.crop_btn.setEnabled(value == CUSTOM_ROI)
-
         if value == FULL:
             self._clearROI()
 
@@ -481,6 +481,8 @@ class CameraRoiWidget(_CameraRoiGUI):
             self._hide_spinbox_button(
                 self.center_checkbox.isChecked(), [self.start_x, self.start_y]
             )
+            self._custom_roi_wdg.setEnabled(True)
+            self.crop_btn.setEnabled(True)
 
             self.roiChanged.emit(*self._get_roi_values(), value)
 
@@ -505,7 +507,7 @@ class CameraRoiWidget(_CameraRoiGUI):
         self.start_y.setEnabled(not state)
         self._hide_spinbox_button(state, [self.start_x, self.start_y])
 
-        # if not checked, s=use the stored roi values
+        # if not checked, use the stored roi values
         if not state:
             start_x, start_y, width, height, _ = self._cameras[self.camera].roi
             self._cameras[self.camera] = self._cameras[self.camera].replace(
