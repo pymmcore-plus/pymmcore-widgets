@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 from fonticon_mdi6 import MDI6
 from qtpy import QtCore, QtWidgets
-from qtpy.QtCore import QTimer
+from qtpy.QtCore import QTimer, Signal
 from superqt import fonticon
 from useq import MDAEvent, MDASequence, _channel
 
@@ -42,6 +42,10 @@ class StackViewer(QtWidgets.QWidget):
     ----------
     transform: (int, bool, bool) rotation mirror_x mirror_y.
     """
+
+    _retry_display = Signal(MDAEvent)
+    _new_dim = Signal(str)
+    _new_img = Signal(MDAEvent)
 
     def __init__(
         self,
@@ -95,6 +99,10 @@ class StackViewer(QtWidgets.QWidget):
         if self._mmc:
             # Otherwise connect via listeners_connected or manually
             self._mmc.mda.events.sequenceStarted.connect(self.sequenceStarted)
+
+        self._new_dim.connect(self.add_slider)
+        self._retry_display.connect(self._redisplay)
+        self._new_img.connect(self.add_image)
 
         self.images: dict[tuple, scene.visuals.Image] = {}
         self.frame = 0
@@ -203,7 +211,7 @@ class StackViewer(QtWidgets.QWidget):
     def frameReady(self, event: MDAEvent) -> None:
         """Frame received from acquisition, display the image, update sliders etc."""
         if not self.ready:
-            self._redisplay(event)
+            self._retry_display.emit(event)
             return
         indices = dict(event.index)
         img = self.datastore.get_frame(event)
@@ -211,8 +219,8 @@ class StackViewer(QtWidgets.QWidget):
         try:
             display_indices = self._set_sliders(indices)
         except KeyError as e:
-            self.add_slider(e.args[0])
-            self._redisplay(event)
+            self._new_dim.emit(e.args[0])
+            self._retry_display.emit(event)
             return
         if display_indices == indices:
             # Get controls
@@ -221,13 +229,13 @@ class StackViewer(QtWidgets.QWidget):
             except KeyError:
                 this_channel = cast(_channel.Channel, event.channel)
                 self.channel_row.add_channel(this_channel, indices.get("c", 0))
-                self._redisplay(event)
+                self._retry_display.emit(event)
                 return
             try:
                 self.display_image(img, indices.get("c", 0), indices.get("g", 0))
             except KeyError:
-                self.add_image(event)
-                self._redisplay(event)
+                self._new_img.emit(event)
+                self._retry_display.emit(event)
                 return
 
             # Handle autoscaling
