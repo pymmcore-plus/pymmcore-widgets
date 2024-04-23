@@ -106,7 +106,6 @@ class _CameraRoiGUI(QWidget):
         _bottom_layout.setContentsMargins(0, 0, 0, 0)
 
         self.snap_checkbox = QCheckBox(text="Auto Snap")
-        # self.snap_checkbox.setChecked(True)
 
         self.crop_btn = QPushButton("Crop")
         self.crop_btn.setMinimumWidth(100)
@@ -226,6 +225,7 @@ class CameraRoiWidget(_CameraRoiGUI):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.pixelSizeChanged.connect(self._update_lbl_info)
         self._mmc.events.roiSet.connect(self._on_roi_set)
+        self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
         self.camera_combo.currentTextChanged.connect(self._on_camera_changed)
         self.camera_roi_combo.currentTextChanged.connect(self._on_crop_roi_mode_change)
@@ -253,8 +253,22 @@ class CameraRoiWidget(_CameraRoiGUI):
         self._mmc.events.pixelSizeChanged.disconnect(self._update_lbl_info)
         self._mmc.events.roiSet.disconnect(self._on_roi_set)
 
+    def _get_loaded_cameras(self) -> list[str]:
+        """Get the list of loaded cameras.
+
+        It excludes the Micro-Manager Multi Camera Utilities adapter.
+        """
+        cameras: list[str] = []
+        for cam in list(self._mmc.getLoadedDevicesOfType(DeviceType.Camera)):
+            props = self._mmc.getDevicePropertyNames(cam)
+            if bool([x for x in props if "Physical Camera" in x]):
+                continue
+            cameras.append(cam)
+        return cameras
+
     def _on_sys_cfg_loaded(self) -> None:
-        cameras = list(self._mmc.getLoadedDevicesOfType(DeviceType.Camera))
+        cameras = self._get_loaded_cameras()
+        self.snap_checkbox.hide()
 
         if not cameras:
             self._enable(False)
@@ -278,6 +292,7 @@ class CameraRoiWidget(_CameraRoiGUI):
         if curr_camera := self._mmc.getCameraDevice():
             with signals_blocked(self.camera_combo):
                 self.camera_combo.setCurrentText(curr_camera)
+                self.snap_checkbox.show()
 
         # make sure the roi is set to full chip
         with signals_blocked(self.camera_roi_combo):
@@ -293,6 +308,13 @@ class CameraRoiWidget(_CameraRoiGUI):
 
         # update the info label
         self._update_lbl_info()
+
+    def _on_property_changed(self, device: str, prop: str, value: str) -> None:
+        """Handle the property changed event."""
+        if device != "Core" or prop != "Camera":
+            return
+        # show auto snap checkbox only if the selected camera is the core active camera
+        self.snap_checkbox.show() if value == self.camera else self.snap_checkbox.hide()
 
     def _store_camera_info(self, cameras: list[str]) -> None:
         """Store the camera information in the `_cameras` dict."""
@@ -328,6 +350,12 @@ class CameraRoiWidget(_CameraRoiGUI):
         self._update_roi_values()
         self.camera_roi_combo.setCurrentText(self._cameras[camera].crop_mode)
         self._update_lbl_info()
+
+        # show auto snap checkbox only if the selected camera is the core active camera
+        if self._mmc.getCameraDevice() == camera:
+            self.snap_checkbox.show()
+        else:
+            self.snap_checkbox.hide()
 
     def _update_roi_values(self, roi: ROI | None = None) -> None:
         """Set the ROI values for the specified camera."""
@@ -421,7 +449,7 @@ class CameraRoiWidget(_CameraRoiGUI):
 
         self._update_lbl_info()
 
-        if self.snap_checkbox.isChecked():
+        if self.snap_checkbox.isChecked() and self.snap_checkbox.isVisible():
             self._mmc.snap()
 
     def _update_crop_mode_combo(self) -> None:
@@ -471,7 +499,7 @@ class CameraRoiWidget(_CameraRoiGUI):
         if value == FULL:
             self._clearROI()
 
-            if self.snap_checkbox.isChecked():
+            if self.snap_checkbox.isChecked() and self.snap_checkbox.isVisible():
                 self._mmc.snap()
 
         elif value == CUSTOM_ROI:
