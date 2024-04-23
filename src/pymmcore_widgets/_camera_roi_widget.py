@@ -387,7 +387,7 @@ class CameraRoiWidget(_CameraRoiGUI):
     def _on_crop_button_clicked(self) -> None:
         """Handle the crop button click event."""
         start_x, start_y, width, height = self._get_roi_values()
-        self._mmc.setROI(start_x, start_y, width, height)
+        self._mmc.setROI(self.camera, start_x, start_y, width, height)
         self._update_lbl_info()
 
     def _on_roi_set(self, camera: str, x: int, y: int, width: int, height: int) -> None:
@@ -500,7 +500,7 @@ class CameraRoiWidget(_CameraRoiGUI):
             start_y = (camera.pixel_height - height) // 2
 
             self._update_roi_values(ROI(start_x, start_y, width, height, True))
-            self._mmc.setROI(start_x, start_y, width, height)
+            self._mmc.setROI(self.camera, start_x, start_y, width, height)
 
         self._update_lbl_info()
 
