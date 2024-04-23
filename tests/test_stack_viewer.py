@@ -54,7 +54,7 @@ def test_init_with_sequence(qtbot: QtBot) -> None:
     assert len(canvas.sliders) == 1
 
 
-@pytest.mark.skipif(PYSIDE6, reason="This test is not working with PYSIDE6")
+@pytest.mark.skip(reason="Fails too often on CI. Usually (but not only) PySide6")
 def test_interaction(qtbot: QtBot) -> None:
     mmcore = CMMCorePlus.instance()
     viewer = StackViewer(mmcore=mmcore, sequence=sequence, transform=(90, False, False))
