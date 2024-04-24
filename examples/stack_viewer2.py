@@ -15,14 +15,14 @@ mmcore.defineConfig("Channel", "FITC", "Camera", "Mode", "Noise")
 
 sequence = MDASequence(
     channels=(
-        {"config": "DAPI", "exposure": 4},
+        {"config": "DAPI", "exposure": 16},
         {"config": "FITC", "exposure": 10},
         # {"config": "Cy5", "exposure": 20},
     ),
     stage_positions=[(0, 0), (1, 1)],
     z_plan={"range": 2, "step": 0.4},
-    time_plan={"interval": 2, "loops": 5},
-    grid_plan={"rows": 2, "columns": 1},
+    time_plan={"interval": 0.8, "loops": 2},
+    # grid_plan={"rows": 2, "columns": 1},
 )
 
 

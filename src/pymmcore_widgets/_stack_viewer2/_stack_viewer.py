@@ -1,26 +1,38 @@
 from __future__ import annotations
 
 from contextlib import suppress
+import logging
 from itertools import cycle
-from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, cast
 from warnings import warn
 
 import cmap
+import numpy as np
 import superqt
 import useq
-from psygnal import Signal
+from psygnal import Signal as psygnalSignal
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.mda.handlers import OMEZarrWriter
-from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
-from superqt import QLabeledSlider
+from qtpy.QtCore import Qt, Signal
+from qtpy.QtWidgets import (
+    QCheckBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+from superqt import QLabeledRangeSlider, QLabeledSlider
+from superqt.cmap import QColormapComboBox
 from superqt.iconify import QIconifyIcon
 from vispy import scene
 
 if TYPE_CHECKING:
-    import numpy as np
+    import numpy.typing as npt
     from PySide6.QtCore import QTimerEvent
     from vispy.scene.events import SceneMouseEvent
+
+    ImageKey = tuple[tuple[str, int], ...]
 
 
 CHANNEL = "c"
@@ -29,18 +41,9 @@ COLORMAPS = cycle(
 )
 
 
-def try_cast_colormap(val: Any) -> cmap.Colormap | None:
-    """Try to cast `val` to a cmap.Colormap instance, return None if it fails."""
-    if isinstance(val, cmap.Colormap):
-        return val
-    with suppress(Exception):
-        return cmap.Colormap(val)
-    return None
-
-
 # FIXME: get rid of this thin subclass
 class DataStore(OMEZarrWriter):
-    frame_ready = Signal(useq.MDAEvent)
+    frame_ready = psygnalSignal(useq.MDAEvent)
 
     def frameReady(self, frame: np.ndarray, event: useq.MDAEvent, meta: dict) -> None:
         super().frameReady(frame, event, meta)
@@ -70,6 +73,43 @@ class LockButton(QPushButton):
         super().__init__(icn, text, parent)
         self.setCheckable(True)
         self.setMaximumWidth(20)
+
+
+class ChannelVisControl(QWidget):
+    visibilityChanged = Signal(bool)
+    climsChanged = Signal(tuple)
+    cmapChanged = Signal(cmap.Colormap)
+
+    def __init__(self, idx: int, name: str = "", parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.idx = idx
+        self._name = name
+
+        self._visible = QCheckBox(name)
+        self._visible.setChecked(True)
+        self._visible.toggled.connect(self.visibilityChanged)
+
+        self._cmap = QColormapComboBox(allow_user_colormaps=True)
+        self._cmap.currentColormapChanged.connect(self.cmapChanged)
+        for color in ["green", "magenta", "cyan"]:
+            self._cmap.addColormap(color)
+
+        self._clims = QLabeledRangeSlider(Qt.Orientation.Horizontal)
+        self._clims.setRange(0, 2**12)
+        self._clims.valueChanged.connect(self.climsChanged)
+
+        self._auto_clim = QCheckBox("Auto")
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._visible)
+        layout.addWidget(self._cmap)
+        layout.addWidget(self._clims)
+        layout.addWidget(self._auto_clim)
+
+    def set_clim_for_dtype(self, dtype: npt.DTypeLike) -> None:
+        # get maximum possible value for the dtype
+        self._clims.setRange(0, np.iinfo(dtype).max)
 
 
 class DimsSlider(QWidget):
@@ -234,24 +274,24 @@ class VispyViewerCanvas(QWidget):
         # tbd... determine what the key should be
         # could have an image per channel,
         # but may also have multiple images per channel... in the case of tiles, etc...
-        self._images: dict[Hashable, scene.visuals.Image] = {}
+        self._images: dict[ImageKey, scene.visuals.Image] = {}
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._canvas.native)
 
-        self.set_range()
-
     def _on_mouse_move(self, event: SceneMouseEvent) -> None:
         """Mouse moved on the canvas, display the pixel value and position."""
         images = []
         # Get the images the mouse is over
-        while image := self._canvas.visual_at(event.pos):
-            if image in self._images.values():
-                images.append(image)
-            image.interactive = False
-        for img in self._images.values():
-            img.interactive = True
+        seen = set()
+        while visual := self._canvas.visual_at(event.pos):
+            if isinstance(visual, scene.visuals.Image):
+                images.append(visual)
+            visual.interactive = False
+            seen.add(visual)
+        for visual in seen:
+            visual.interactive = True
         if not images:
             return
 
@@ -259,40 +299,44 @@ class VispyViewerCanvas(QWidget):
         px, py, *_ = (int(x) for x in tform.map(event.pos))
         text = f"[{py}, {px}]"
         for c, img in enumerate(images):
-            value = f"{img._data[py, px]}"
-            text += f" c{c}: {value}"
+            with suppress(IndexError):
+                text += f" c{c}: {img._data[py, px]}"
         self.infoText.emit(text)
 
-    def add_image(self, key: Hashable, data: np.ndarray | None = None) -> None:
+    def add_image(self, key: ImageKey, data: np.ndarray | None = None) -> None:
         """Add a new Image node to the scene."""
         if self._channel_mode == "composite":
             cmap = next(COLORMAPS).to_vispy()
         else:
             cmap = "grays"
+
+        print('add', data)
         self._images[key] = img = scene.visuals.Image(
             data, cmap=cmap, parent=self._view.scene
         )
         img.set_gl_state("additive", depth_test=False)
-        img.interactive = True
         self.set_range()
+        img.interactive = True
 
-    def remove_image(self, key: Hashable) -> None:
-        """Remove an Image node from the scene."""
-        try:
-            image = self._images.pop(key)
-        except KeyError:
-            warn(f"Image {key} not found in ViewerCanvas", stacklevel=2)
-            return
-        image.parent = None
+    def set_channel_visibility(self, ch_idx: int, visible: bool) -> None:
+        """Set the visibility of an existing Image node."""
+        self._map_func(lambda i: setattr(i, "visible", visible), (CHANNEL, ch_idx))
 
-    def set_image_data(self, key: Hashable, data: np.ndarray) -> None:
-        """Set the data for an existing Image node."""
-        self._images[key].set_data(data)
-        self._canvas.update()
+    def set_channel_clims(self, ch_idx: int, clims: tuple) -> None:
+        """Set the contrast limits for an existing Image node."""
+        self._map_func(lambda i: setattr(i, "clim", clims), (CHANNEL, ch_idx))
 
-    def set_image_cmap(self, key: Hashable, cmap: str) -> None:
+    def set_channel_cmap(self, ch_idx: int, cmap: cmap.Colormap) -> None:
         """Set the colormap for an existing Image node."""
-        self._images[key].cmap = cmap
+        self._map_func(lambda i: setattr(i, "cmap", cmap.to_vispy()), (CHANNEL, ch_idx))
+
+    def _map_func(
+        self, functor: Callable[[scene.visuals.Image], Any], axis_key: tuple
+    ) -> None:
+        """Apply a function to all images that match the given axis key."""
+        for axis_keys, img in self._images.items():
+            if axis_key in axis_keys:
+                functor(img)
         self._canvas.update()
 
     def set_range(
@@ -307,34 +351,47 @@ class VispyViewerCanvas(QWidget):
         """
         self._camera.set_range(x=x, y=y, margin=margin)
 
-    def _image_key(self, index: dict) -> Hashable:
-        dims_needing_images = set()
+    def _image_key(self, index: Mapping[str, int]) -> ImageKey:
+        # gather all axes that require a unique image
+        # and return as, e.g. [('c', 0), ('g', 1)]
+        keys: list[tuple[str, int]] = []
         if self._channel_mode == "composite":
-            dims_needing_images.add(CHANNEL)
-
-        return tuple((dim, index.get(dim)) for dim in dims_needing_images)
+            keys.append((CHANNEL, index.get(CHANNEL, 0)))
+        return tuple(keys)
 
     def set_current_index(self, index: Mapping[str, int]) -> None:
         """Set the current image index."""
-        cidx = ((CHANNEL, index.get("c")),)
-        if self._channel_mode == "composite" and cidx in self._images:
-            # if we're in composite mode, we need to update the image for each channel
-            for key, _ in self._images.items():
-                # FIXME
-                try:
-                    image_data = self._datastore.isel(index, c=key[0][1])
-                except IndexError:
-                    print("ERR", key, index)
-                    continue
-                self.set_image_data(key, image_data)
-
+        indices: list[Mapping[str, int]] = []
+        if self._channel_mode != "composite":
+            indices = [index]
         else:
+            # if we're in composite mode, we need to update the image for each channel
+            this_channel = index.get(CHANNEL)
+            this_channel_exists = False
+            for key in self._images:
+                for axis, axis_i in key:
+                    if axis == CHANNEL:
+                        indices.append({**index, axis: axis_i})
+                        if axis_i == this_channel:
+                            this_channel_exists = True
+            if not this_channel_exists:
+                indices.append(index)
+
+        for index in indices:
             # otherwise, we only have a single image to update
-            frame = self._datastore.isel(index)
+            try:
+                data = self._datastore.isel(index)
+            except Exception as e:
+                logging.error(f"Error getting frame for index {index}: {e}")
+                continue
+
             if (key := self._image_key(index)) not in self._images:
-                self.add_image(key, frame)
+                print('add', key)
+                self.add_image(key, data)
             else:
-                self.set_image_data(key, frame)
+                print('update', key)
+                self._images[key].set_data(data)
+        self._canvas.update()
 
 
 class StackViewer(QWidget):
@@ -362,6 +419,25 @@ class StackViewer(QWidget):
         layout.addWidget(self._canvas, 1)
         layout.addWidget(self._info_bar)
         layout.addWidget(self._dims_sliders)
+
+        for i, ch in enumerate(["DAPI", "FITC"]):
+            c = ChannelVisControl(i, ch)
+            layout.addWidget(c)
+            c.climsChanged.connect(self._on_clims_changed)
+            c.cmapChanged.connect(self._on_cmap_changed)
+            c.visibilityChanged.connect(self._on_channel_vis_changed)
+
+    def _on_channel_vis_changed(self, checked: bool) -> None:
+        sender = cast("ChannelVisControl", self.sender())
+        self._canvas.set_channel_visibility(sender.idx, checked)
+
+    def _on_clims_changed(self, clims: tuple) -> None:
+        sender = cast("ChannelVisControl", self.sender())
+        self._canvas.set_channel_clims(sender.idx, clims)
+
+    def _on_cmap_changed(self, cmap: cmap.Colormap) -> None:
+        sender = cast("ChannelVisControl", self.sender())
+        self._canvas.set_channel_cmap(sender.idx, cmap)
 
     def _on_dims_sliders(self, index: dict) -> None:
         self._canvas.set_current_index(index)
