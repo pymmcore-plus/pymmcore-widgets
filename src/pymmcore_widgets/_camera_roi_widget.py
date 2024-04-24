@@ -24,8 +24,6 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
-# from ._util import block_core
-
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 FULL = "Full Chip"
 CUSTOM_ROI = "Custom ROI"
