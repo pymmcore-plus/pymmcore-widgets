@@ -328,21 +328,21 @@ class CameraRoiWidget(_CameraRoiGUI):
                 roi=ROI(x, y, width, height, True),
             )
 
-    def _prepare_roi_combo_items(self) -> list:
+    def _prepare_roi_combo_items(self, camera: str) -> list[str]:
         """Prepare the ROI combo items that will be displayed in the combo box."""
-        camera_roi = self._cameras[self.camera].roi
+        camera_roi = self._cameras[camera]
         items = [FULL, CUSTOM_ROI]
         options = [8, 6, 4, 2]
         for val in options:
-            width = round(camera_roi.w / val)
-            height = round(camera_roi.h / val)
+            width = round(camera_roi.pixel_width / val)
+            height = round(camera_roi.pixel_height / val)
             items.append(f"{width} x {height}")
         return items
 
     def _reset_crop_mode_combo(self) -> None:
         """Reset the crop mode combo with the selected camera options."""
         self.camera_roi_combo.clear()
-        items = self._prepare_roi_combo_items()
+        items = self._prepare_roi_combo_items(self.camera)
         self.camera_roi_combo.addItems(items)
 
     def _on_camera_changed(self, camera: str) -> None:
@@ -382,17 +382,16 @@ class CameraRoiWidget(_CameraRoiGUI):
 
         px_size = self._mmc.getPixelSizeUm() or 0
 
-        if self._mmc.getROI(self.camera) == [start_x, start_y, width, height]:
-            self.lbl_info.setStyleSheet("")
-        else:
-            self.lbl_info.setStyleSheet("color: magenta;")
-            _, _, width, height = self._mmc.getROI(self.camera)
-
         width_um = width * px_size
         height_um = height * px_size
         text = f"Size: {width} px * {height} px [{width_um} µm * {height_um} µm]"
 
         self.lbl_info.setText(text)
+
+        if self._mmc.getROI(self.camera) == [start_x, start_y, width, height]:
+            self.lbl_info.setStyleSheet("")
+        else:
+            self.lbl_info.setStyleSheet("color: magenta;")
 
     def _get_roi_values(self) -> tuple[int, int, int, int]:
         """Get the current ROI values for the selected camera."""
@@ -409,8 +408,6 @@ class CameraRoiWidget(_CameraRoiGUI):
         max_height = self._cameras[self.camera].pixel_height
         self._hide_spinbox_button(True)
         self._mmc.setROI(self.camera, 0, 0, max_width, max_height)
-        # emit widget roiChanged signal
-        self.roiChanged.emit(0, 0, max_width, max_height, FULL)
 
     def _on_crop_button_clicked(self) -> None:
         """Handle the crop button click event."""
@@ -435,34 +432,69 @@ class CameraRoiWidget(_CameraRoiGUI):
             )
             return
 
-        # update the stored camera info
-        self._cameras[camera] = self._cameras[camera].replace(
-            crop_mode=self.camera_roi_combo.currentText(),
-            roi=ROI(x, y, width, height, self.center_checkbox.isChecked()),
+        # if the camera is not the camera selected in the combo box, update the stored
+        # camera info and return
+        if self.camera != camera:
+            self._update_unselected_camera_info(camera, x, y, width, height)
+            return
+
+        # if the roi is not centered, uncheck the center checkbox
+        centered = (
+            x == (self._cameras[camera].pixel_width - width) // 2
+            and y == (self._cameras[camera].pixel_height - height) // 2
         )
+        with signals_blocked(self.center_checkbox):
+            self.center_checkbox.setChecked(centered)
+
         # update the roi values in the spinboxes
-        self._update_roi_values()
+        self._update_roi_values(ROI(x, y, width, height, centered))
 
         # update the crop mode combo box text to match the set roi (this is mainly
         # needed when the roi is set from the core)
-        self._update_crop_mode_combo()
+        crop_mode = self._get_updated_crop_mode(camera, *self._get_roi_values())
+        with signals_blocked(self.camera_roi_combo):
+            self.camera_roi_combo.setCurrentText(crop_mode)
+
+        # update the stored camera info
+        self._cameras[camera] = self._cameras[camera].replace(
+            crop_mode=crop_mode, roi=ROI(x, y, width, height, centered)
+        )
+
+        self._custom_roi_wdg.setEnabled(crop_mode == CUSTOM_ROI)
+        self.crop_btn.setEnabled(crop_mode == CUSTOM_ROI)
 
         self._update_lbl_info()
 
         if self.snap_checkbox.isChecked() and self.snap_checkbox.isVisible():
             self._mmc.snap()
 
-    def _update_crop_mode_combo(self) -> None:
-        """Update the crop mode combo box text to match the set roi."""
-        start_x, start_y, width, height = self._get_roi_values()
-        cam = self._cameras[self.camera]
+        self.roiChanged.emit(x, y, width, height, crop_mode)
 
+    def _update_unselected_camera_info(
+        self, camera: str, start_x: int, start_y: int, width: int, height: int
+    ) -> None:
+        centered = (
+            start_x == (self._cameras[camera].pixel_width - width) // 2
+            and start_y == (self._cameras[camera].pixel_height - height) // 2
+        )
+        crop_mode = self._get_updated_crop_mode(camera, start_x, start_y, width, height)
+
+        self._cameras[camera] = self._cameras[camera].replace(
+            crop_mode=crop_mode,
+            roi=ROI(start_x, start_y, width, height, centered),
+        )
+
+    def _get_updated_crop_mode(
+        self, camera: str, start_x: int, start_y: int, width: int, height: int
+    ) -> str:
+        """Get the updated crop mode based on the roi values."""
+        cam = self._cameras[camera]
         # if the roi matches the full chip, set the mode to FULL
         if (
-            cam.roi.x == 0
-            and cam.roi.y == 0
-            and cam.roi.w == cam.pixel_width
-            and cam.roi.h == cam.pixel_height
+            start_x == 0
+            and start_y == 0
+            and width == cam.pixel_width
+            and height == cam.pixel_height
         ):
             mode = FULL
 
@@ -470,12 +502,10 @@ class CameraRoiWidget(_CameraRoiGUI):
             # if the roi matches any of the default roi options, set the mode to that
             # option otherwise set the mode to CUSTOM_ROI
             mode = CUSTOM_ROI
-            roi_combo_items = [
-                self.camera_roi_combo.itemText(i)
-                for i in range(self.camera_roi_combo.count())
-                if "x" in self.camera_roi_combo.itemText(i)
-            ]
+            roi_combo_items = self._prepare_roi_combo_items(camera)
             for item in roi_combo_items:
+                if item in [FULL, CUSTOM_ROI]:
+                    continue
                 w, h = item.split(" x ")
                 x = (cam.pixel_width - int(w)) // 2
                 y = (cam.pixel_height - int(h)) // 2
@@ -488,11 +518,7 @@ class CameraRoiWidget(_CameraRoiGUI):
                     mode = item
                     break
 
-        with signals_blocked(self.camera_roi_combo):
-            self.camera_roi_combo.setCurrentText(mode)
-
-        self._custom_roi_wdg.setEnabled(mode == CUSTOM_ROI)
-        self.crop_btn.setEnabled(mode == CUSTOM_ROI)
+        return mode
 
     def _on_crop_roi_mode_change(self, value: str) -> None:
         """Handle the crop mode change."""
@@ -570,22 +596,18 @@ class CameraRoiWidget(_CameraRoiGUI):
             return
         if self.camera_roi_combo.currentText() != CUSTOM_ROI:
             return
-        self._update_camera_info()
+        self._emit_roi_changed_signal()
 
     def _on_roi_width_height_changed(self) -> None:
         """Handle the roi width and height spinbox value change."""
         if self.camera_roi_combo.currentText() != CUSTOM_ROI:
             return
         self._update_start_max_value()
-        self._update_camera_info()
+        self._emit_roi_changed_signal()
 
-    def _update_camera_info(self) -> None:
+    def _emit_roi_changed_signal(self) -> None:
         """Update the camera info with the new ROI values."""
         start_x, start_y, width, height = self._get_roi_values()
-        # store the new roi values
-        self._cameras[self.camera] = self._cameras[self.camera].replace(
-            roi=ROI(start_x, start_y, width, height, self.center_checkbox.isChecked())
-        )
         self.roiChanged.emit(start_x, start_y, width, height, CUSTOM_ROI)
         self._update_lbl_info()
 
@@ -594,3 +616,9 @@ class CameraRoiWidget(_CameraRoiGUI):
         _, _, wanted_width, wanted_height = self._get_roi_values()
         self.start_x.setMaximum(self._cameras[self.camera].pixel_width - wanted_width)
         self.start_y.setMaximum(self._cameras[self.camera].pixel_height - wanted_height)
+
+        if self.center_checkbox.isChecked():
+            start_x = (self._cameras[self.camera].pixel_width - wanted_width) // 2
+            start_y = (self._cameras[self.camera].pixel_height - wanted_height) // 2
+            self.start_x.setValue(start_x)
+            self.start_y.setValue(start_y)
