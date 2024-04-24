@@ -20,7 +20,7 @@ qapp = QtWidgets.QApplication(sys.argv)
 
 sequence = MDASequence(
     channels=(
-        # {"config": "DAPI", "exposure": 10},
+        {"config": "DAPI", "exposure": 10},
         # {"config": "FITC", "exposure": 1},
         {"config": "Cy5", "exposure": 1},
     ),
