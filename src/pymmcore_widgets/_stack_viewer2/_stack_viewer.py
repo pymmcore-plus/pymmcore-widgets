@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
+import itertools
 import logging
 from itertools import cycle
 from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, cast
@@ -95,7 +96,7 @@ class ChannelVisControl(QWidget):
             self._cmap.addColormap(color)
 
         self._clims = QLabeledRangeSlider(Qt.Orientation.Horizontal)
-        self._clims.setRange(0, 2**12)
+        self._clims.setRange(0, 2**14)
         self._clims.valueChanged.connect(self.climsChanged)
 
         self._auto_clim = QCheckBox("Auto")
@@ -310,7 +311,6 @@ class VispyViewerCanvas(QWidget):
         else:
             cmap = "grays"
 
-        print('add', data)
         self._images[key] = img = scene.visuals.Image(
             data, cmap=cmap, parent=self._view.scene
         )
@@ -318,24 +318,30 @@ class VispyViewerCanvas(QWidget):
         self.set_range()
         img.interactive = True
 
-    def set_channel_visibility(self, ch_idx: int, visible: bool) -> None:
+    def set_channel_visibility(self, visible: bool, ch_idx: int | None = None) -> None:
         """Set the visibility of an existing Image node."""
-        self._map_func(lambda i: setattr(i, "visible", visible), (CHANNEL, ch_idx))
+        if ch_idx is None:
+            ch_idx = getattr(self.sender(), "idx", 0)
+        self._map_func(lambda i: setattr(i, "visible", visible), ch_idx)
 
-    def set_channel_clims(self, ch_idx: int, clims: tuple) -> None:
+    def set_channel_clims(self, clims: tuple, ch_idx: int | None = None) -> None:
         """Set the contrast limits for an existing Image node."""
-        self._map_func(lambda i: setattr(i, "clim", clims), (CHANNEL, ch_idx))
+        if ch_idx is None:
+            ch_idx = getattr(self.sender(), "idx", 0)
+        self._map_func(lambda i: setattr(i, "clim", clims), ch_idx)
 
-    def set_channel_cmap(self, ch_idx: int, cmap: cmap.Colormap) -> None:
+    def set_channel_cmap(self, cmap: cmap.Colormap, ch_idx: int | None = None) -> None:
         """Set the colormap for an existing Image node."""
-        self._map_func(lambda i: setattr(i, "cmap", cmap.to_vispy()), (CHANNEL, ch_idx))
+        if ch_idx is None:
+            ch_idx = getattr(self.sender(), "idx", 0)
+        self._map_func(lambda i: setattr(i, "cmap", cmap.to_vispy()), ch_idx)
 
     def _map_func(
-        self, functor: Callable[[scene.visuals.Image], Any], axis_key: tuple
+        self, functor: Callable[[scene.visuals.Image], Any], ch_idx: int
     ) -> None:
         """Apply a function to all images that match the given axis key."""
         for axis_keys, img in self._images.items():
-            if axis_key in axis_keys:
+            if (CHANNEL, ch_idx) in axis_keys:
                 functor(img)
         self._canvas.update()
 
@@ -375,7 +381,7 @@ class VispyViewerCanvas(QWidget):
                         if axis_i == this_channel:
                             this_channel_exists = True
             if not this_channel_exists:
-                indices.append(index)
+                indices.insert(0, index)
 
         for index in indices:
             # otherwise, we only have a single image to update
@@ -386,14 +392,15 @@ class VispyViewerCanvas(QWidget):
                 continue
 
             if (key := self._image_key(index)) not in self._images:
-                print('add', key)
                 self.add_image(key, data)
             else:
-                print('update', key)
-                self._images[key].set_data(data)
+                # FIXME
+                # this is a hack to avoid data that hasn't arrived yet
+                if data.max() != 0:
+                   self._images[key].set_data(data)
         self._canvas.update()
 
-
+c = itertools.count()
 class StackViewer(QWidget):
     """A viewer for MDA acquisitions started by MDASequence in pymmcore-plus events."""
 
@@ -412,7 +419,8 @@ class StackViewer(QWidget):
             self._dims_sliders.set_dimension_visible(CHANNEL, False)
 
         self._canvas.infoText.connect(lambda x: self._info_bar.setText(x))
-        self.datastore.frame_ready.connect(self.on_frame_ready)
+        self._core.mda.events.frameReady.connect(self.on_frame_ready)
+        # self.datastore.frame_ready.connect(self.on_frame_ready)
         self._dims_sliders.indexChanged.connect(self._on_dims_sliders)
 
         layout = QVBoxLayout(self)
@@ -423,25 +431,13 @@ class StackViewer(QWidget):
         for i, ch in enumerate(["DAPI", "FITC"]):
             c = ChannelVisControl(i, ch)
             layout.addWidget(c)
-            c.climsChanged.connect(self._on_clims_changed)
-            c.cmapChanged.connect(self._on_cmap_changed)
-            c.visibilityChanged.connect(self._on_channel_vis_changed)
-
-    def _on_channel_vis_changed(self, checked: bool) -> None:
-        sender = cast("ChannelVisControl", self.sender())
-        self._canvas.set_channel_visibility(sender.idx, checked)
-
-    def _on_clims_changed(self, clims: tuple) -> None:
-        sender = cast("ChannelVisControl", self.sender())
-        self._canvas.set_channel_clims(sender.idx, clims)
-
-    def _on_cmap_changed(self, cmap: cmap.Colormap) -> None:
-        sender = cast("ChannelVisControl", self.sender())
-        self._canvas.set_channel_cmap(sender.idx, cmap)
+            c.climsChanged.connect(self._canvas.set_channel_clims)
+            c.cmapChanged.connect(self._canvas.set_channel_cmap)
+            c.visibilityChanged.connect(self._canvas.set_channel_visibility)
 
     def _on_dims_sliders(self, index: dict) -> None:
         self._canvas.set_current_index(index)
 
     @superqt.ensure_main_thread
-    def on_frame_ready(self, event: useq.MDAEvent) -> None:
+    def on_frame_ready(self, frame: np.narray, event: useq.MDAEvent) -> None:
         self._dims_sliders.update_dimensions(event.index)
