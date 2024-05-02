@@ -51,6 +51,9 @@ class VispyImageHandle:
         self._cmap = cmap
         self._image.cmap = cmap.to_vispy()
 
+    def remove(self) -> None:
+        self._image.parent = None
+
 
 class VispyViewerCanvas(QWidget):
     """Vispy-based viewer for data.
@@ -69,6 +72,7 @@ class VispyViewerCanvas(QWidget):
         self._canvas = scene.SceneCanvas(parent=self)
         self._canvas.events.mouse_move.connect(self._on_mouse_move)
         self._camera = scene.PanZoomCamera(aspect=1, flip=(0, 1))
+        self._has_set_range = False
 
         central_wdg: scene.Widget = self._canvas.central_widget
         self._view: scene.ViewBox = central_wdg.add_view(camera=self._camera)
@@ -87,7 +91,9 @@ class VispyViewerCanvas(QWidget):
         img = scene.visuals.Image(data, parent=self._view.scene)
         img.set_gl_state("additive", depth_test=False)
         img.interactive = True
-        self.set_range()
+        if not self._has_set_range:
+            self.set_range()
+            self._has_set_range = True
         handle = VispyImageHandle(img)
         if cmap is not None:
             handle.cmap = cmap

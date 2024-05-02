@@ -202,6 +202,9 @@ class DimsSliders(QWidget):
                 self.add_or_update_dimension(dim, index)
         self.valueChanged.emit(self.value())
 
+    def maximum(self) -> dict[DimensionKey, int]:
+        return {k: v._int_slider.maximum() for k, v in self._sliders.items()}
+
     def add_dimension(self, name: DimensionKey, val: Index | None = None) -> None:
         self._sliders[name] = slider = DimsSlider(dimension_key=name, parent=self)
         slider.setRange(0, 1)

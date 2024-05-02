@@ -30,6 +30,7 @@ class PImageHandle(Protocol):
     def cmap(self) -> Any: ...
     @cmap.setter
     def cmap(self, cmap: Any) -> None: ...
+    def remove(self) -> None: ...
 
 
 class LutControl(QWidget):
@@ -60,6 +61,7 @@ class LutControl(QWidget):
 
         self._auto_clim = QCheckBox("Auto")
         self._auto_clim.toggled.connect(self.update_autoscale)
+        self._auto_clim.setChecked(True)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
