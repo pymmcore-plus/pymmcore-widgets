@@ -3,11 +3,11 @@ from __future__ import annotations
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Callable, cast
 
+import numpy as np
 from vispy import scene
 
 if TYPE_CHECKING:
     import cmap
-    import numpy as np
     from qtpy.QtWidgets import QWidget
     from vispy.scene.events import SceneMouseEvent
 
@@ -22,6 +22,8 @@ class VispyImageHandle:
 
     @data.setter
     def data(self, data: np.ndarray) -> None:
+        if data.dtype == np.float64:
+            data = data.astype(np.float32)
         self._image.set_data(data)
 
     @property
@@ -80,6 +82,8 @@ class VispyViewerCanvas:
         self, data: np.ndarray | None = None, cmap: cmap.Colormap | None = None
     ) -> VispyImageHandle:
         """Add a new Image node to the scene."""
+        if data is not None and data.dtype == np.float64:
+            data = data.astype(np.float32)
         img = scene.visuals.Image(data, parent=self._view.scene)
         img.set_gl_state("additive", depth_test=False)
         img.interactive = True
@@ -95,7 +99,7 @@ class VispyViewerCanvas:
         self,
         x: tuple[float, float] | None = None,
         y: tuple[float, float] | None = None,
-        margin: float | None = 0.05,
+        margin: float | None = 0.01,
     ) -> None:
         """Update the range of the PanZoomCamera.
 

@@ -5,6 +5,7 @@ from itertools import cycle
 from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, cast
 
 import cmap
+import numpy as np
 import superqt
 import useq
 from psygnal import Signal as psygnalSignal
@@ -13,17 +14,15 @@ from qtpy.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidge
 
 from ._dims_slider import DimsSliders
 from ._lut_control import LutControl
+
+# from ._pygfx_canvas import PyGFXViewerCanvas
 from ._vispy_canvas import VispyViewerCanvas
-from ._pygfx_canvas import PyGFXViewerCanvas
 
 if TYPE_CHECKING:
-    import numpy as np
-
     from ._protocols import PCanvas, PImageHandle
 
     ColorMode = Literal["composite", "grayscale"]
 
-CHANNEL = "c"
 GRAYS = cmap.Colormap("gray")
 COLORMAPS = [cmap.Colormap("green"), cmap.Colormap("magenta"), cmap.Colormap("cyan")]
 
@@ -56,16 +55,25 @@ class ColorModeButton(QPushButton):
 class StackViewer(QWidget):
     """A viewer for MDA acquisitions started by MDASequence in pymmcore-plus events."""
 
-    def __init__(self, datastore: Any, *, parent: QWidget | None = None):
+    def __init__(
+        self,
+        data: Any,
+        *,
+        parent: QWidget | None = None,
+        channel_axis: int | str = 0,
+    ):
         super().__init__(parent=parent)
 
         self._channels: defaultdict[Hashable, list[PImageHandle]] = defaultdict(list)
         self._channel_controls: dict[Hashable, LutControl] = {}
 
-        self.datastore = datastore
+        self._sizes = {}
+        self.set_data(data)
+        self._channel_axis = channel_axis
+
         self._info_bar = QLabel("Info")
-        # self._canvas: PCanvas = VispyViewerCanvas(self._info_bar.setText)
-        self._canvas: PCanvas = PyGFXViewerCanvas(self._info_bar.setText)
+        self._canvas: PCanvas = VispyViewerCanvas(self._info_bar.setText)
+        # self._canvas: PCanvas = PyGFXViewerCanvas(self._info_bar.setText)
         self._dims_sliders = DimsSliders()
         self._cmaps = cycle(COLORMAPS)
         self.set_channel_mode("grayscale")
@@ -86,6 +94,33 @@ class StackViewer(QWidget):
         layout.addWidget(self._info_bar)
         layout.addWidget(self._dims_sliders)
 
+    def set_data(self, data: Any, sizes: Mapping | None = None) -> None:
+        if sizes is not None:
+            self._sizes = dict(sizes)
+        else:
+            if (sz := getattr(data, "sizes", None)) and isinstance(sz, Mapping):
+                self._sizes = sz
+            elif (shp := getattr(data, "shape", None)) and isinstance(shp, tuple):
+                self._sizes = {k: v - 1 for k, v in enumerate(shp[:-2])}
+            else:
+                self._sizes = {}
+        self._datastore = data
+
+    @property
+    def sizes(self) -> Mapping[Hashable, int]:
+        return self._sizes
+
+    def update_slider_maxima(
+        self, sizes: Any | tuple[int, ...] | Mapping[Hashable, int] | None = None
+    ) -> None:
+        if sizes is None:
+            _sizes = self.sizes
+        elif isinstance(sizes, tuple):
+            _sizes = {k: v - 1 for k, v in enumerate(sizes[:-2])}
+        elif not isinstance(sizes, Mapping):
+            raise ValueError(f"Invalid shape {sizes}")
+        self._dims_sliders.setMaximum(_sizes)
+
     def _set_range_clicked(self) -> None:
         self._canvas.set_range()
 
@@ -98,8 +133,8 @@ class StackViewer(QWidget):
         self._cmaps = cycle(COLORMAPS)
         self._channel_mode = mode
         c_visible = mode != "composite"
-        self._dims_sliders.set_dimension_visible(CHANNEL, c_visible)
-        num_channels = self._dims_sliders.maximum().get(CHANNEL, -1) + 1
+        self._dims_sliders.set_dimension_visible(self._channel_axis, c_visible)
+        num_channels = self._dims_sliders.maximum().get(self._channel_axis, -1) + 1
         value = self._dims_sliders.value()
         if self._channels:
             for handles in self._channels.values():
@@ -114,7 +149,7 @@ class StackViewer(QWidget):
                 self._update_data_for_index(value)
             else:
                 for i in range(num_channels):
-                    self._update_data_for_index({**value, CHANNEL: i})
+                    self._update_data_for_index({**value, self._channel_axis: i})
         self._canvas.refresh()
 
     def _image_key(self, index: Mapping[str, int]) -> Hashable:
@@ -123,16 +158,16 @@ class StackViewer(QWidget):
         return 0
 
     def _isel(self, index: Mapping) -> np.ndarray:
-        return isel(self.datastore, index)
+        return isel(self._datastore, index)
 
     def _on_dims_sliders_changed(self, index: dict) -> None:
         """Set the current image index."""
-        c = index.get(CHANNEL, 0)
+        c = index.get(self._channel_axis, 0)
         indices = [index]
         if self._channel_mode == "composite":
             for i, handles in self._channels.items():
                 if handles and c != i:
-                    indices.append({**index, CHANNEL: i})
+                    indices.append({**index, self._channel_axis: i})
 
         for idx in indices:
             self._update_data_for_index(idx)
@@ -154,22 +189,31 @@ class StackViewer(QWidget):
                 self._channel_controls[key] = c = LutControl(channel_name, handles)
                 cast("QVBoxLayout", self.layout()).addWidget(c)
 
+    def setIndex(self, index: Mapping[str, int]) -> None:
+        self._dims_sliders.setValue(index)
+
 
 class MDAViewer(StackViewer):
     def __init__(self, *, parent: QWidget | None = None):
-        super().__init__(DataStore(), parent=parent)
-        self.datastore.frame_ready.connect(self.on_frame_ready)
+        super().__init__(DataStore(), parent=parent, channel_axis="c")
+        self._datastore.frame_ready.connect(self.on_frame_ready)
 
     @superqt.ensure_main_thread
     def on_frame_ready(self, frame: np.ndarray, event: useq.MDAEvent) -> None:
-        self._dims_sliders.setValue(event.index)
+        self.setIndex(event.index)
 
 
 def isel(store: Any, indexers: Mapping[str, int | slice]) -> np.ndarray:
     if isinstance(store, (OMEZarrWriter, OMETiffWriter)):
         return isel_mmcore_5dbase(store, indexers)
-
+    if isinstance(store, np.ndarray):
+        return isel_np_array(store, indexers)
     raise NotImplementedError(f"Unknown datastore type {type(store)}")
+
+
+def isel_np_array(data: np.ndarray, indexers: Mapping[str, int | slice]) -> np.ndarray:
+    idx = tuple(indexers.get(k, slice(None)) for k in range(data.ndim))
+    return data[idx]
 
 
 def isel_mmcore_5dbase(

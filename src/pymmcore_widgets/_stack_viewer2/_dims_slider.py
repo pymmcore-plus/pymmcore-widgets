@@ -53,7 +53,7 @@ class DimsSlider(QWidget):
     Adds a label for the maximum value (e.g. "3 / 10")
     """
 
-    valueChanged = Signal(str, object)  # where object is int | slice
+    valueChanged = Signal(object, object)  # where object is int | slice
 
     def __init__(
         self, dimension_key: DimensionKey, parent: QWidget | None = None
@@ -205,6 +205,12 @@ class DimsSliders(QWidget):
     def maximum(self) -> dict[DimensionKey, int]:
         return {k: v._int_slider.maximum() for k, v in self._sliders.items()}
 
+    def setMaximum(self, values: Mapping[DimensionKey, int]) -> None:
+        for name, max_val in values.items():
+            if name not in self._sliders:
+                self.add_dimension(name)
+            self._sliders[name].setMaximum(max_val)
+
     def add_dimension(self, name: DimensionKey, val: Index | None = None) -> None:
         self._sliders[name] = slider = DimsSlider(dimension_key=name, parent=self)
         slider.setRange(0, 1)
@@ -215,7 +221,7 @@ class DimsSliders(QWidget):
         slider.setVisible(name not in self._invisible_dims)
         self.layout().addWidget(slider)
 
-    def set_dimension_visible(self, name: str, visible: bool) -> None:
+    def set_dimension_visible(self, name: Hashable, visible: bool) -> None:
         if visible:
             self._invisible_dims.discard(name)
         else:

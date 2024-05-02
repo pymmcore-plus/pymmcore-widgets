@@ -30,8 +30,5 @@ qapp = QtWidgets.QApplication([])
 v = MDAViewer()
 v.show()
 
-mmcore.run_mda(sequence, output=v.datastore)
-# qapp.exec()
-
-from wgpu.gui.auto import WgpuCanvas, run
-run()
+mmcore.run_mda(sequence, output=v._datastore)
+qapp.exec()

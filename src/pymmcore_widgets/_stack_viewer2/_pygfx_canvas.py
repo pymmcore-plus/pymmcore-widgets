@@ -1,31 +1,31 @@
 from __future__ import annotations
 
-import sys
-from typing import TYPE_CHECKING, Any, Callable, TypeGuard, cast
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 import pygfx
+import pygfx.geometries
+import pygfx.materials
 from wgpu.gui.qt import QWgpuCanvas
 
 if TYPE_CHECKING:
     import cmap
     import numpy as np
     from qtpy.QtWidgets import QWidget
-    from wgpu.gui import qt
 
 
 class PyGFXImageHandle:
     def __init__(self, image: pygfx.Image) -> None:
         self._image = image
-        self._texture = cast("pygfx.Texture", image.geometry.grid)
-        self._material = cast("pygfx.ImageBasicMaterial", image.material)
+        self._geom = cast("pygfx.geometries.Geometry", image.geometry.grid)
+        self._material = cast("pygfx.materials.ImageBasicMaterial", image.material)
 
     @property
     def data(self) -> np.ndarray:
-        return self._texture._data  # type: ignore
+        return self._geom._data  # type: ignore
 
     @data.setter
     def data(self, data: np.ndarray) -> None:
-        self._texture._data = data
+        self._geom.grid = pygfx.Texture(data, dim=2)
 
     @property
     def visible(self) -> bool:
@@ -50,17 +50,11 @@ class PyGFXImageHandle:
     @cmap.setter
     def cmap(self, cmap: cmap.Colormap) -> None:
         self._cmap = cmap
-        self._image.cmap = cmap.to_pygfx()
+        self._material.map = cmap.to_pygfx()
 
     def remove(self) -> None:
-        # self._image.parent = None
-        ...
-
-
-def _is_qt_canvas_type(obj: type) -> TypeGuard[type[qt.WgpuCanvas]]:
-    if wgpu_qt := sys.modules.get("wgpu.gui.qt"):
-        return issubclass(obj, wgpu_qt.WgpuCanvas)
-    return False
+        if (par := self._image.parent) is not None:
+            par.remove(self._image)
 
 
 class PyGFXViewerCanvas:
@@ -73,48 +67,38 @@ class PyGFXViewerCanvas:
     def __init__(self, set_info: Callable[[str], None]) -> None:
         self._set_info = set_info
 
-        self._canvas = QWgpuCanvas()
+        self._canvas = QWgpuCanvas(size=(512, 512))
         self._renderer = pygfx.renderers.WgpuRenderer(self._canvas)
-        self._viewport: pygfx.Viewport = pygfx.Viewport(self._renderer)
         self._scene = pygfx.Scene()
-
         self._camera = cam = pygfx.OrthographicCamera(512, 512)
-        cam.local.position = (256, 256, 0)
-        cam.scale_y = -1
-        self._controller = pygfx.PanZoomController(cam)
 
-        # TODO: background_color
-        # the qt backend, this shows by default...
-        # if we need to prevent it, we could potentially monkeypatch during init.
-        # if hasattr(self._canvas, "hide"):
-        #     self._canvas.hide()
+        cam.local.position = (256, 256, 0)
+        cam.local.scale_y = -1
+        controller = pygfx.PanZoomController(cam, register_events=self._renderer)
+        # increase zoom wheel gain
+        controller.controls.update({"wheel": ("zoom_to_point", "push", -0.005)})
 
     def qwidget(self) -> QWidget:
         return self._canvas
 
     def refresh(self) -> None:
+        self._canvas.update()
         self._canvas.request_draw(self._animate)
 
-    def _animate(self, viewport: pygfx.Viewport | None = None) -> None:
-        vp = viewport or self._viewport
-
-        print("rendering")
-        vp.render(self._scene, self._camera)
-        if hasattr(vp.renderer, "flush"):
-            vp.renderer.flush()
-        if viewport is None:
-            self._canvas.request_draw()
+    def _animate(self) -> None:
+        print("animate")
+        self._renderer.render(self._scene, self._camera)
 
     def add_image(
         self, data: np.ndarray | None = None, cmap: cmap.Colormap | None = None
     ) -> PyGFXImageHandle:
         """Add a new Image node to the scene."""
-        img = pygfx.Image(
+        image = pygfx.Image(
             pygfx.Geometry(grid=pygfx.Texture(data, dim=2)),
-            pygfx.ImageBasicMaterial(clim=(0, 255)),
+            pygfx.ImageBasicMaterial(),
         )
-        self._scene.add(img)
-        handle = PyGFXImageHandle(img)
+        self._scene.add(image)
+        handle = PyGFXImageHandle(image)
         if cmap is not None:
             handle.cmap = cmap
         return handle
