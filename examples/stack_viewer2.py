@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from PySide6 import QtWidgets
 from pymmcore_plus import CMMCorePlus, configure_logging
 from qtpy import QtWidgets
 from useq import MDASequence
@@ -15,8 +15,8 @@ mmcore.defineConfig("Channel", "FITC", "Camera", "Mode", "Noise")
 
 sequence = MDASequence(
     channels=(
-        {"config": "DAPI", "exposure": 10},
-        {"config": "FITC", "exposure": 80},
+        {"config": "DAPI", "exposure": 5},
+        {"config": "FITC", "exposure": 20},
         # {"config": "Cy5", "exposure": 20},
     ),
     stage_positions=[(0, 0), (1, 1)],

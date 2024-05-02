@@ -3,36 +3,25 @@ from __future__ import annotations
 import itertools
 from collections import defaultdict
 from itertools import cycle
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Hashable,
-    Iterable,
-    Literal,
-    Mapping,
-    Protocol,
-)
+from typing import TYPE_CHECKING, Hashable, Literal, Mapping, Protocol
 
 import cmap
-import numpy as np
 import superqt
 import useq
 from psygnal import Signal as psygnalSignal
 from pymmcore_plus.mda.handlers import OMEZarrWriter
-from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
-from superqt import QLabeledRangeSlider
-from superqt.cmap import QColormapComboBox
-from superqt.utils import signals_blocked
+from qtpy.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from ._dims_slider import DimsSliders
+from ._lut_control import LutControl, PImageHandle
 from ._vispy_canvas import VispyViewerCanvas
 
 if TYPE_CHECKING:
-    ImageKey = Hashable
+    import numpy as np
 
 
 CHANNEL = "c"
+GRAYS = cmap.Colormap("gray")
 COLORMAPS = cycle(
     [cmap.Colormap("green"), cmap.Colormap("magenta"), cmap.Colormap("cyan")]
 )
@@ -47,97 +36,10 @@ class DataStore(OMEZarrWriter):
         self.frame_ready.emit(frame, event)
 
 
-class ChannelVisControl(QWidget):
-    def __init__(
-        self,
-        name: str = "",
-        handles: Iterable[PImageHandle] = (),
-        parent: QWidget | None = None,
-    ) -> None:
-        super().__init__(parent)
-        self._handles = handles
-        self._name = name
-
-        self._visible = QCheckBox(name)
-        self._visible.setChecked(True)
-        self._visible.toggled.connect(self._on_visible_changed)
-
-        self._cmap = QColormapComboBox(allow_user_colormaps=True)
-        self._cmap.currentColormapChanged.connect(self._on_cmap_changed)
-        for color in ["green", "magenta", "cyan"]:
-            self._cmap.addColormap(color)
-
-        self.clims = QLabeledRangeSlider(Qt.Orientation.Horizontal)
-        self.clims.setRange(0, 2**14)
-        self.clims.valueChanged.connect(self._on_clims_changed)
-
-        self._auto_clim = QCheckBox("Auto")
-        self._auto_clim.toggled.connect(self.update_autoscale)
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._visible)
-        layout.addWidget(self._cmap)
-        layout.addWidget(self.clims)
-        layout.addWidget(self._auto_clim)
-
-    def autoscaleChecked(self) -> bool:
-        return self._auto_clim.isChecked()
-
-    def _on_clims_changed(self, clims: tuple[float, float]) -> None:
-        self._auto_clim.setChecked(False)
-        for handle in self._handles:
-            handle.clim = clims
-
-    def _on_visible_changed(self, visible: bool) -> None:
-        for handle in self._handles:
-            handle.visible = visible
-
-    def _on_cmap_changed(self, cmap: cmap.Colormap) -> None:
-        for handle in self._handles:
-            handle.cmap = cmap
-
-    def update_autoscale(self) -> None:
-        if not self._auto_clim.isChecked():
-            return
-
-        # find the min and max values for the current channel
-        clims = [np.inf, -np.inf]
-        for handle in self._handles:
-            clims[0] = min(clims[0], np.nanmin(handle.data))
-            clims[1] = max(clims[1], np.nanmax(handle.data))
-
-        for handle in self._handles:
-            handle.clim = clims
-
-        # set the slider values to the new clims
-        with signals_blocked(self.clims):
-            self.clims.setValue(clims)
-
-
 c = itertools.count()
 
 
 class PDataStore(Protocol): ...
-
-
-class PImageHandle(Protocol):
-    @property
-    def data(self) -> np.ndarray: ...
-    @data.setter
-    def data(self, data: np.ndarray) -> None: ...
-    @property
-    def visible(self) -> bool: ...
-    @visible.setter
-    def visible(self, visible: bool) -> None: ...
-    @property
-    def clim(self) -> Any: ...
-    @clim.setter
-    def clim(self, clims: tuple[float, float]) -> None: ...
-    @property
-    def cmap(self) -> Any: ...
-    @cmap.setter
-    def cmap(self, cmap: Any) -> None: ...
 
 
 class StackViewer(QWidget):
@@ -162,10 +64,7 @@ class StackViewer(QWidget):
         layout.addWidget(self._info_bar)
         layout.addWidget(self._dims_sliders)
 
-        self._channel_controls: dict[Hashable, ChannelVisControl] = {}
-        for i, ch in enumerate(["DAPI", "FITC"]):
-            self._channel_controls[i] = c = ChannelVisControl(ch, self._channels[i])
-            layout.addWidget(c)
+        self._channel_controls: dict[Hashable, LutControl] = {}
 
     def set_channel_mode(self, mode: Literal["composite", "grayscale"]) -> None:
         if mode == getattr(self, "_channel_mode", None):
@@ -201,19 +100,18 @@ class StackViewer(QWidget):
     def _update_data_for_index(self, index: dict) -> None:
         key = self._image_key(index)
         data = self._isel(index)
-        if handles := self._channels.get(key):
+        if handles := self._channels[key]:
             for handle in handles:
                 handle.data = data
             if ctrl := self._channel_controls.get(key, None):
                 ctrl.update_autoscale()
         else:
-            cm = (
-                next(COLORMAPS)
-                if self._channel_mode == "composite"
-                else cmap.Colormap("gray")
-            )
-            new_img = self._canvas.add_image(data, cmap=cm)
-            self._channels[key].append(new_img)
+            cm = next(COLORMAPS) if self._channel_mode == "composite" else GRAYS
+            handles.append(self._canvas.add_image(data, cmap=cm))
+            if key not in self._channel_controls:
+                channel_name = f"Channel {key}"
+                self._channel_controls[key] = c = LutControl(channel_name, handles)
+                self.layout().addWidget(c)
 
 
 class MDAViewer(StackViewer):

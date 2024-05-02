@@ -3,12 +3,13 @@ from __future__ import annotations
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
-import cmap
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 from vispy import scene
+from superqt.utils import qthrottled
 
 if TYPE_CHECKING:
+    import cmap
     import numpy as np
     from vispy.scene.events import SceneMouseEvent
 
@@ -43,10 +44,11 @@ class VispyImageHandle:
 
     @property
     def cmap(self) -> cmap.Colormap:
-        return cmap.Colormap(self._image.cmap)
+        return self._cmap
 
     @cmap.setter
     def cmap(self, cmap: cmap.Colormap) -> None:
+        self._cmap = cmap
         self._image.cmap = cmap.to_vispy()
 
 
@@ -82,13 +84,14 @@ class VispyViewerCanvas(QWidget):
         self, data: np.ndarray | None = None, cmap: cmap.Colormap | None = None
     ) -> VispyImageHandle:
         """Add a new Image node to the scene."""
-        if cmap is not None:
-            cmap = cmap.to_vispy()
-        img = scene.visuals.Image(data, cmap=cmap, parent=self._view.scene)
+        img = scene.visuals.Image(data, parent=self._view.scene)
         img.set_gl_state("additive", depth_test=False)
         img.interactive = True
         self.set_range()
-        return VispyImageHandle(img)
+        handle = VispyImageHandle(img)
+        if cmap is not None:
+            handle.cmap = cmap
+        return handle
 
     def set_range(
         self,
@@ -102,6 +105,7 @@ class VispyViewerCanvas(QWidget):
         """
         self._camera.set_range(x=x, y=y, margin=margin)
 
+    @qthrottled(timeout=50)
     def _on_mouse_move(self, event: SceneMouseEvent) -> None:
         """Mouse moved on the canvas, display the pixel value and position."""
         images = []

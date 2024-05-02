@@ -60,7 +60,7 @@ class DimsSlider(QWidget):
     ) -> None:
         super().__init__(parent)
         self._slice_mode = False
-        self._animation_fps = 10
+        self._animation_fps = 30
         self._dim_key = dimension_key
 
         self._play_btn = PlayButton()
@@ -80,7 +80,7 @@ class DimsSlider(QWidget):
 
         self._slice_slider = QLabeledRangeSlider(Qt.Orientation.Horizontal, parent=self)
         self._slice_slider.setVisible(False)
-        # self._slice_slider.rangeChanged.connect(self._on_range_changed)
+        self._slice_slider.rangeChanged.connect(self._on_range_changed)
         self._slice_slider.valueChanged.connect(self._on_slice_value_changed)
 
         self.installEventFilter(self)
