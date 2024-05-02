@@ -1,8 +1,24 @@
 # Changelog
 
+## [v0.7.1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.1) (2024-03-13)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.7.0...v0.7.1)
+
+**Fixed bugs:**
+
+- fix: fix issue with channel group widget not working with only one group [\#288](https://github.com/pymmcore-plus/pymmcore-widgets/pull/288) ([fdrgsp](https://github.com/fdrgsp))
+
+**Merged pull requests:**
+
+- ci\(dependabot\): bump softprops/action-gh-release from 1 to 2 [\#287](https://github.com/pymmcore-plus/pymmcore-widgets/pull/287) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v0.7.0](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.0) (2024-03-06)
 
-[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.6.1...v0.7.0)
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.7.0rc1...v0.7.0)
+
+## [v0.7.0rc1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.0rc1) (2024-03-05)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.6.1...v0.7.0rc1)
 
 **Implemented enhancements:**
 
@@ -15,7 +31,6 @@
 
 **Merged pull requests:**
 
-- ci\(pre-commit.ci\): autoupdate [\#284](https://github.com/pymmcore-plus/pymmcore-widgets/pull/284) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
 - docs: rename mda\_widget to mda\_demo [\#283](https://github.com/pymmcore-plus/pymmcore-widgets/pull/283) ([tlambert03](https://github.com/tlambert03))
 - chore: use ruff-format instead of black [\#282](https://github.com/pymmcore-plus/pymmcore-widgets/pull/282) ([tlambert03](https://github.com/tlambert03))
 
