@@ -1,4 +1,3 @@
-from PySide6 import QtWidgets
 from qtpy.QtWidgets import QApplication
 from superqt import QLabeledRangeSlider
 

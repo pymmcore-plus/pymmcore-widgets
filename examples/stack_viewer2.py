@@ -1,6 +1,7 @@
 from __future__ import annotations
-from PySide6 import QtWidgets
+
 from pymmcore_plus import CMMCorePlus, configure_logging
+from PySide6 import QtWidgets
 from qtpy import QtWidgets
 from useq import MDASequence
 

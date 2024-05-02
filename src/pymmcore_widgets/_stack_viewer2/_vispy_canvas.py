@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Any
 
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QVBoxLayout, QWidget
-from vispy import scene
 from superqt.utils import qthrottled
+from vispy import scene
 
 if TYPE_CHECKING:
     import cmap
