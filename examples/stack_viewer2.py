@@ -31,4 +31,7 @@ v = MDAViewer()
 v.show()
 
 mmcore.run_mda(sequence, output=v.datastore)
-qapp.exec()
+# qapp.exec()
+
+from wgpu.gui.auto import WgpuCanvas, run
+run()

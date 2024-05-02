@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from warnings import warn
 
 from qtpy.QtCore import Qt, Signal
@@ -150,15 +150,15 @@ class DimsSlider(QWidget):
 
     def timerEvent(self, event: Any) -> None:
         if self._slice_mode:
-            val = self._slice_slider.value()
+            val = cast(tuple[int, int], self._slice_slider.value())
             next_val = [v + 1 for v in val]
             if next_val[1] > self._slice_slider.maximum():
                 next_val = [v - val[0] for v in val]
             self._slice_slider.setValue(next_val)
         else:
-            val = self._int_slider.value()
-            val = (val + 1) % (self._int_slider.maximum() + 1)
-            self._int_slider.setValue(val)
+            ival = self._int_slider.value()
+            ival = (ival + 1) % (self._int_slider.maximum() + 1)
+            self._int_slider.setValue(ival)
 
     def _on_range_changed(self, min: int, max: int) -> None:
         self._max_label.setText("/ " + str(max))

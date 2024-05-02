@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, Protocol
+from typing import TYPE_CHECKING, Iterable
 
 import numpy as np
 from qtpy.QtCore import Qt
@@ -12,25 +12,7 @@ from superqt.utils import signals_blocked
 if TYPE_CHECKING:
     import cmap
 
-
-class PImageHandle(Protocol):
-    @property
-    def data(self) -> np.ndarray: ...
-    @data.setter
-    def data(self, data: np.ndarray) -> None: ...
-    @property
-    def visible(self) -> bool: ...
-    @visible.setter
-    def visible(self, visible: bool) -> None: ...
-    @property
-    def clim(self) -> Any: ...
-    @clim.setter
-    def clim(self, clims: tuple[float, float]) -> None: ...
-    @property
-    def cmap(self) -> Any: ...
-    @cmap.setter
-    def cmap(self, cmap: Any) -> None: ...
-    def remove(self) -> None: ...
+    from ._protocols import PImageHandle
 
 
 class LutControl(QWidget):
@@ -96,9 +78,9 @@ class LutControl(QWidget):
             clims[0] = min(clims[0], np.nanmin(handle.data))
             clims[1] = max(clims[1], np.nanmax(handle.data))
 
-        clims_ = tuple(int(x) for x in clims)
-        for handle in self._handles:
-            handle.clim = clims_
+        if (clims_ := tuple(int(x) for x in clims)) != (0, 0):
+            for handle in self._handles:
+                handle.clim = clims_
 
         # set the slider values to the new clims
         with signals_blocked(self._clims):

@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable, cast
 
-from qtpy.QtCore import Signal
-from qtpy.QtWidgets import QVBoxLayout, QWidget
-from superqt.utils import qthrottled
 from vispy import scene
 
 if TYPE_CHECKING:
     import cmap
     import numpy as np
+    from qtpy.QtWidgets import QWidget
     from vispy.scene.events import SceneMouseEvent
 
 
@@ -55,21 +53,16 @@ class VispyImageHandle:
         self._image.parent = None
 
 
-class VispyViewerCanvas(QWidget):
+class VispyViewerCanvas:
     """Vispy-based viewer for data.
 
     All vispy-specific code is encapsulated in this class (and non-vispy canvases
     could be swapped in if needed as long as they implement the same interface).
     """
 
-    infoText = Signal(str)
-
-    def __init__(
-        self,
-        parent: QWidget | None = None,
-    ) -> None:
-        super().__init__(parent)
-        self._canvas = scene.SceneCanvas(parent=self)
+    def __init__(self, set_info: Callable[[str], None]) -> None:
+        self._set_info = set_info
+        self._canvas = scene.SceneCanvas()
         self._canvas.events.mouse_move.connect(self._on_mouse_move)
         self._camera = scene.PanZoomCamera(aspect=1, flip=(0, 1))
         self._has_set_range = False
@@ -77,9 +70,8 @@ class VispyViewerCanvas(QWidget):
         central_wdg: scene.Widget = self._canvas.central_widget
         self._view: scene.ViewBox = central_wdg.add_view(camera=self._camera)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._canvas.native)
+    def qwidget(self) -> QWidget:
+        return cast("QWidget", self._canvas.native)
 
     def refresh(self) -> None:
         self._canvas.update()
@@ -111,7 +103,6 @@ class VispyViewerCanvas(QWidget):
         """
         self._camera.set_range(x=x, y=y, margin=margin)
 
-    @qthrottled(timeout=50)
     def _on_mouse_move(self, event: SceneMouseEvent) -> None:
         """Mouse moved on the canvas, display the pixel value and position."""
         images = []
@@ -133,4 +124,4 @@ class VispyViewerCanvas(QWidget):
         for c, img in enumerate(images):
             with suppress(IndexError):
                 text += f" c{c}: {img._data[py, px]}"
-        self.infoText.emit(text)
+        self._set_info(text)
