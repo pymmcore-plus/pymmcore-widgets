@@ -60,7 +60,7 @@ class StackViewer(QWidget):
 
         self._sizes: Sizes = {}
         # the set of dimensions we are currently visualizing (e.g. XY)
-        self._visible_dims: set[DimensionKey] = set()
+        self._visualized_dims: set[DimensionKey] = set()
 
         self._channel_axis = channel_axis
 
@@ -97,7 +97,7 @@ class StackViewer(QWidget):
             if (sz := getattr(data, "sizes", None)) and isinstance(sz, Mapping):
                 self._sizes = sz
             elif (shp := getattr(data, "shape", None)) and isinstance(shp, tuple):
-                self._sizes = dict(enumerate(shp[:-2]))
+                self._sizes = dict(enumerate(shp))
             else:
                 self._sizes = {}
 
@@ -105,8 +105,10 @@ class StackViewer(QWidget):
         self.set_visible_dims(list(self._sizes)[-2:])
 
     def set_visible_dims(self, dims: Iterable[DimensionKey]) -> None:
-        self._visible_dims = set(dims)
-        for d in self._visible_dims:
+        self._visualized_dims = set(dims)
+        for d in self._dims_sliders._sliders:
+            self._dims_sliders.set_dimension_visible(d, d not in self._visualized_dims)
+        for d in self._visualized_dims:
             self._dims_sliders.set_dimension_visible(d, False)
 
     @property
@@ -119,7 +121,7 @@ class StackViewer(QWidget):
         if sizes is None:
             _sizes = self.sizes
         elif isinstance(sizes, tuple):
-            _sizes = dict(enumerate(sizes[:-2]))
+            _sizes = dict(enumerate(sizes))
         elif not isinstance(sizes, Mapping):
             raise ValueError(f"Invalid shape {sizes}")
 
@@ -167,14 +169,18 @@ class StackViewer(QWidget):
         return 0
 
     def _isel(self, index: Indices) -> np.ndarray:
-        idx = {k: v for k, v in index.items() if k not in self._visible_dims}
+        idx = {k: v for k, v in index.items() if k not in self._visualized_dims}
         try:
             return isel(self._datastore, idx)
         except Exception as e:
             raise type(e)(f"Failed to index data with {idx}: {e}") from e
 
+    def setIndex(self, index: Indices) -> None:
+        """Set the index of the displayed image."""
+        self._dims_sliders.setValue(index)
+
     def _on_dims_sliders_changed(self, index: Indices) -> None:
-        """Set the current image index."""
+        """Update the displayed image when the sliders are changed."""
         c = index.get(self._channel_axis, 0)
         indices: list[Indices] = [index]
         if self._channel_mode == "composite":
@@ -187,7 +193,7 @@ class StackViewer(QWidget):
             self._update_data_for_index(idx)
         self._canvas.refresh()
 
-    def _update_data_for_index(self, index: Mapping) -> None:
+    def _update_data_for_index(self, index: Indices) -> None:
         key = self._image_key(index)
         data = self._isel(index)
         if handles := self._channels[key]:
@@ -202,6 +208,3 @@ class StackViewer(QWidget):
                 channel_name = f"Channel {key}"
                 self._channel_controls[key] = c = LutControl(channel_name, handles)
                 cast("QVBoxLayout", self.layout()).addWidget(c)
-
-    def setIndex(self, index: Indices) -> None:
-        self._dims_sliders.setValue(index)

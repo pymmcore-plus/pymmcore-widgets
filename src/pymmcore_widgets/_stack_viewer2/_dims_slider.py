@@ -3,9 +3,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, cast
 from warnings import warn
 
-from qtpy.QtCore import Qt, Signal
-from qtpy.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
-from superqt import QLabeledRangeSlider, QLabeledSlider
+from qtpy.QtCore import QSize, Qt, Signal
+from qtpy.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
+)
+from superqt import QLabeledRangeSlider
 from superqt.iconify import QIconifyIcon
 from superqt.utils import signals_blocked
 
@@ -37,6 +44,7 @@ class PlayButton(QPushButton):
         super().__init__(icn, text, parent)
         self.setCheckable(True)
         self.setMaximumWidth(22)
+        self.setIconSize(QSize(10, 10))
 
 
 class LockButton(QPushButton):
@@ -49,6 +57,7 @@ class LockButton(QPushButton):
         super().__init__(icn, text, parent)
         self.setCheckable(True)
         self.setMaximumWidth(20)
+        self.setIconSize(QSize(10, 10))
 
 
 class DimsSlider(QWidget):
@@ -79,10 +88,12 @@ class DimsSlider(QWidget):
         self._lock_btn = LockButton()
 
         self._max_label = QLabel("/ 0")
-        self._int_slider = QLabeledSlider(Qt.Orientation.Horizontal, parent=self)
+
+        # self._int_slider = QLabeledSlider(Qt.Orientation.Horizontal, parent=self)
+        self._int_slider = QSlider(Qt.Orientation.Horizontal, parent=self)
         self._int_slider.rangeChanged.connect(self._on_range_changed)
         self._int_slider.valueChanged.connect(self._on_int_value_changed)
-        self._int_slider.layout().addWidget(self._max_label)
+        # self._int_slider.layout().addWidget(self._max_label)
 
         self._slice_slider = QLabeledRangeSlider(Qt.Orientation.Horizontal, parent=self)
         self._slice_slider.setVisible(False)
@@ -92,6 +103,7 @@ class DimsSlider(QWidget):
         self.installEventFilter(self)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
         layout.addWidget(self._play_btn)
         layout.addWidget(self._dim_label)
         layout.addWidget(self._int_slider)

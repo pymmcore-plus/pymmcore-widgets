@@ -53,7 +53,7 @@ sine_wave_5d = generate_5d_sine_wave(array_shape)
 
 if __name__ == "__main__":
     qapp = QtWidgets.QApplication([])
-    v = StackViewer(sine_wave_5d)
+    v = StackViewer(sine_wave_5d, channel_axis=2)
     v.show()
     v.update_slider_maxima()
     v.setIndex({0: 1, 1: 0, 2: 0})
