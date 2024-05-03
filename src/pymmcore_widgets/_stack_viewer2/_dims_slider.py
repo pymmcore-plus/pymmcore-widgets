@@ -14,9 +14,15 @@ if TYPE_CHECKING:
 
     from qtpy.QtGui import QMouseEvent
 
+    # any hashable represent a single dimension in a AND array
     DimensionKey: TypeAlias = Hashable
+    # any object that can be used to index a single dimension in an AND array
     Index: TypeAlias = int | slice
+    # a mapping from dimension keys to indices (eg. {"x": 0, "y": slice(5, 10)})
+    # this object is used frequently to query or set the currently displayed slice
     Indices: TypeAlias = Mapping[DimensionKey, Index]
+    # mapping of dimension keys to the maximum value for that dimension
+    Sizes: TypeAlias = Mapping[DimensionKey, int]
 
 
 class PlayButton(QPushButton):
@@ -178,14 +184,13 @@ class DimsSliders(QWidget):
     Maintains the global current index and emits a signal when it changes.
     """
 
-    valueChanged = Signal(dict)
+    valueChanged = Signal(dict)  # dict is of type Indices
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._sliders: dict[DimensionKey, DimsSlider] = {}
         self._current_index: dict[DimensionKey, Index] = {}
         self._invisible_dims: set[DimensionKey] = set()
-        self._updating = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -202,10 +207,10 @@ class DimsSliders(QWidget):
                 self.add_or_update_dimension(dim, index)
         self.valueChanged.emit(self.value())
 
-    def maximum(self) -> dict[DimensionKey, int]:
+    def maximum(self) -> Sizes:
         return {k: v._int_slider.maximum() for k, v in self._sliders.items()}
 
-    def setMaximum(self, values: Mapping[DimensionKey, int]) -> None:
+    def setMaximum(self, values: Sizes) -> None:
         for name, max_val in values.items():
             if name not in self._sliders:
                 self.add_dimension(name)
@@ -219,35 +224,34 @@ class DimsSliders(QWidget):
         slider.forceValue(val)
         slider.valueChanged.connect(self._on_dim_slider_value_changed)
         slider.setVisible(name not in self._invisible_dims)
-        self.layout().addWidget(slider)
+        cast("QVBoxLayout", self.layout()).addWidget(slider)
 
-    def set_dimension_visible(self, name: Hashable, visible: bool) -> None:
+    def set_dimension_visible(self, key: DimensionKey, visible: bool) -> None:
         if visible:
-            self._invisible_dims.discard(name)
+            self._invisible_dims.discard(key)
         else:
-            self._invisible_dims.add(name)
-        if name in self._sliders:
-            self._sliders[name].setVisible(visible)
+            self._invisible_dims.add(key)
+        if key in self._sliders:
+            self._sliders[key].setVisible(visible)
 
-    def remove_dimension(self, name: str) -> None:
+    def remove_dimension(self, key: DimensionKey) -> None:
         try:
-            slider = self._sliders.pop(name)
+            slider = self._sliders.pop(key)
         except KeyError:
-            warn(f"Dimension {name} not found in DimsSliders", stacklevel=2)
+            warn(f"Dimension {key} not found in DimsSliders", stacklevel=2)
             return
-        self.layout().removeWidget(slider)
+        cast("QVBoxLayout", self.layout()).removeWidget(slider)
         slider.deleteLater()
 
-    def _on_dim_slider_value_changed(self, dim_name: str, value: Index) -> None:
-        self._current_index[dim_name] = value
-        if not self._updating:
-            self.valueChanged.emit(self.value())
+    def _on_dim_slider_value_changed(self, key: DimensionKey, value: Index) -> None:
+        self._current_index[key] = value
+        self.valueChanged.emit(self.value())
 
-    def add_or_update_dimension(self, name: DimensionKey, value: Index) -> None:
-        if name in self._sliders:
-            self._sliders[name].forceValue(value)
+    def add_or_update_dimension(self, key: DimensionKey, value: Index) -> None:
+        if key in self._sliders:
+            self._sliders[key].forceValue(value)
         else:
-            self.add_dimension(name, value)
+            self.add_dimension(key, value)
 
 
 if __name__ == "__main__":

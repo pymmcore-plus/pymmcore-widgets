@@ -8,7 +8,7 @@ from pymmcore_widgets._stack_viewer2._stack_viewer import StackViewer
 
 def generate_5d_sine_wave(
     shape: tuple[int, int, int, int, int],
-    amplitude: float = 1.0,
+    amplitude: float = 240,
     base_frequency: float = 5,
 ) -> np.ndarray:
     # Unpack the dimensions
@@ -38,7 +38,8 @@ def generate_5d_sine_wave(
                 np.sin(angle) * x + np.cos(angle) * y
 
                 # Compute the sine wave
-                sine_wave = amplitude * np.sin(frequency * xr + phase)
+                sine_wave = (amplitude * 0.5) * np.sin(frequency * xr + phase)
+                sine_wave += amplitude * 0.5
 
                 # Assign to the output array
                 output[angle_idx, freq_idx, phase_idx] = sine_wave
@@ -50,10 +51,10 @@ def generate_5d_sine_wave(
 array_shape = (10, 5, 5, 512, 512)  # Specify the desired dimensions
 sine_wave_5d = generate_5d_sine_wave(array_shape)
 
-
-qapp = QtWidgets.QApplication([])
-v = StackViewer(sine_wave_5d)
-v.show()
-v.update_slider_maxima()
-v.setIndex({0: 1, 1: 0, 2: 0})
-qapp.exec()
+if __name__ == "__main__":
+    qapp = QtWidgets.QApplication([])
+    v = StackViewer(sine_wave_5d)
+    v.show()
+    v.update_slider_maxima()
+    v.setIndex({0: 1, 1: 0, 2: 0})
+    qapp.exec()

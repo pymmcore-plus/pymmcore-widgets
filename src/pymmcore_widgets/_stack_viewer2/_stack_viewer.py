@@ -2,38 +2,27 @@ from __future__ import annotations
 
 from collections import defaultdict
 from itertools import cycle
-from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, cast
+from typing import TYPE_CHECKING, Any, Hashable, Iterable, Literal, Mapping, cast
 
 import cmap
-import numpy as np
-import superqt
-import useq
-from psygnal import Signal as psygnalSignal
-from pymmcore_plus.mda.handlers import OMETiffWriter, OMEZarrWriter
 from qtpy.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
+from ._canvas._vispy import VispyViewerCanvas
 from ._dims_slider import DimsSliders
+from ._indexing import isel
 from ._lut_control import LutControl
 
-# from ._pygfx_canvas import PyGFXViewerCanvas
-from ._vispy_canvas import VispyViewerCanvas
-
 if TYPE_CHECKING:
+    import numpy as np
+
+    from ._dims_slider import DimensionKey, Indices, Sizes
     from ._protocols import PCanvas, PImageHandle
 
     ColorMode = Literal["composite", "grayscale"]
 
+
 GRAYS = cmap.Colormap("gray")
 COLORMAPS = [cmap.Colormap("green"), cmap.Colormap("magenta"), cmap.Colormap("cyan")]
-
-
-# FIXME: get rid of this thin subclass
-class DataStore(OMEZarrWriter):
-    frame_ready = psygnalSignal(object, useq.MDAEvent)
-
-    def frameReady(self, frame: np.ndarray, event: useq.MDAEvent, meta: dict) -> None:
-        super().frameReady(frame, event, meta)
-        self.frame_ready.emit(frame, event)
 
 
 class ColorModeButton(QPushButton):
@@ -60,19 +49,24 @@ class StackViewer(QWidget):
         data: Any,
         *,
         parent: QWidget | None = None,
-        channel_axis: int | str = 0,
+        channel_axis: DimensionKey = 0,
     ):
         super().__init__(parent=parent)
 
-        self._channels: defaultdict[Hashable, list[PImageHandle]] = defaultdict(list)
-        self._channel_controls: dict[Hashable, LutControl] = {}
+        self._channels: defaultdict[DimensionKey, list[PImageHandle]] = defaultdict(
+            list
+        )
+        self._channel_controls: dict[DimensionKey, LutControl] = {}
 
-        self._sizes = {}
-        self.set_data(data)
+        self._sizes: Sizes = {}
+        # the set of dimensions we are currently visualizing (e.g. XY)
+        self._visible_dims: set[DimensionKey] = set()
+
         self._channel_axis = channel_axis
 
         self._info_bar = QLabel("Info")
         self._canvas: PCanvas = VispyViewerCanvas(self._info_bar.setText)
+        # self._canvas: PCanvas = QtViewerCanvas(self._info_bar.setText)
         # self._canvas: PCanvas = PyGFXViewerCanvas(self._info_bar.setText)
         self._dims_sliders = DimsSliders()
         self._cmaps = cycle(COLORMAPS)
@@ -85,6 +79,8 @@ class StackViewer(QWidget):
         self._set_range_btn = QPushButton("reset zoom")
         self._set_range_btn.clicked.connect(self._set_range_clicked)
 
+        self.set_data(data)
+
         btns = QHBoxLayout()
         btns.addWidget(self._channel_mode_picker)
         btns.addWidget(self._set_range_btn)
@@ -94,32 +90,42 @@ class StackViewer(QWidget):
         layout.addWidget(self._info_bar)
         layout.addWidget(self._dims_sliders)
 
-    def set_data(self, data: Any, sizes: Mapping | None = None) -> None:
+    def set_data(self, data: Any, sizes: Sizes | None = None) -> None:
         if sizes is not None:
             self._sizes = dict(sizes)
         else:
             if (sz := getattr(data, "sizes", None)) and isinstance(sz, Mapping):
                 self._sizes = sz
             elif (shp := getattr(data, "shape", None)) and isinstance(shp, tuple):
-                self._sizes = {k: v - 1 for k, v in enumerate(shp[:-2])}
+                self._sizes = dict(enumerate(shp[:-2]))
             else:
                 self._sizes = {}
+
         self._datastore = data
+        self.set_visible_dims(list(self._sizes)[-2:])
+
+    def set_visible_dims(self, dims: Iterable[DimensionKey]) -> None:
+        self._visible_dims = set(dims)
+        for d in self._visible_dims:
+            self._dims_sliders.set_dimension_visible(d, False)
 
     @property
-    def sizes(self) -> Mapping[Hashable, int]:
+    def sizes(self) -> Sizes:
         return self._sizes
 
     def update_slider_maxima(
-        self, sizes: Any | tuple[int, ...] | Mapping[Hashable, int] | None = None
+        self, sizes: tuple[int, ...] | Sizes | None = None
     ) -> None:
         if sizes is None:
             _sizes = self.sizes
         elif isinstance(sizes, tuple):
-            _sizes = {k: v - 1 for k, v in enumerate(sizes[:-2])}
+            _sizes = dict(enumerate(sizes[:-2]))
         elif not isinstance(sizes, Mapping):
             raise ValueError(f"Invalid shape {sizes}")
-        self._dims_sliders.setMaximum(_sizes)
+
+        for dim in list(_sizes.values())[-2:]:
+            self._dims_sliders.set_dimension_visible(dim, False)
+        self._dims_sliders.setMaximum({k: v - 1 for k, v in _sizes.items()})
 
     def _set_range_clicked(self) -> None:
         self._canvas.set_range()
@@ -152,21 +158,29 @@ class StackViewer(QWidget):
                     self._update_data_for_index({**value, self._channel_axis: i})
         self._canvas.refresh()
 
-    def _image_key(self, index: Mapping[str, int]) -> Hashable:
+    def _image_key(self, index: Indices) -> Hashable:
         if self._channel_mode == "composite":
-            return index.get("c", 0)
+            val = index.get(self._channel_axis, 0)
+            if isinstance(val, slice):
+                return (val.start, val.stop)
+            return val
         return 0
 
-    def _isel(self, index: Mapping) -> np.ndarray:
-        return isel(self._datastore, index)
+    def _isel(self, index: Indices) -> np.ndarray:
+        idx = {k: v for k, v in index.items() if k not in self._visible_dims}
+        try:
+            return isel(self._datastore, idx)
+        except Exception as e:
+            raise type(e)(f"Failed to index data with {idx}: {e}") from e
 
-    def _on_dims_sliders_changed(self, index: dict) -> None:
+    def _on_dims_sliders_changed(self, index: Indices) -> None:
         """Set the current image index."""
         c = index.get(self._channel_axis, 0)
-        indices = [index]
+        indices: list[Indices] = [index]
         if self._channel_mode == "composite":
             for i, handles in self._channels.items():
                 if handles and c != i:
+                    # FIXME: type error is legit
                     indices.append({**index, self._channel_axis: i})
 
         for idx in indices:
@@ -189,48 +203,5 @@ class StackViewer(QWidget):
                 self._channel_controls[key] = c = LutControl(channel_name, handles)
                 cast("QVBoxLayout", self.layout()).addWidget(c)
 
-    def setIndex(self, index: Mapping[str, int]) -> None:
+    def setIndex(self, index: Indices) -> None:
         self._dims_sliders.setValue(index)
-
-
-class MDAViewer(StackViewer):
-    def __init__(self, *, parent: QWidget | None = None):
-        super().__init__(DataStore(), parent=parent, channel_axis="c")
-        self._datastore.frame_ready.connect(self.on_frame_ready)
-
-    @superqt.ensure_main_thread
-    def on_frame_ready(self, frame: np.ndarray, event: useq.MDAEvent) -> None:
-        self.setIndex(event.index)
-
-
-def isel(store: Any, indexers: Mapping[str, int | slice]) -> np.ndarray:
-    if isinstance(store, (OMEZarrWriter, OMETiffWriter)):
-        return isel_mmcore_5dbase(store, indexers)
-    if isinstance(store, np.ndarray):
-        return isel_np_array(store, indexers)
-    raise NotImplementedError(f"Unknown datastore type {type(store)}")
-
-
-def isel_np_array(data: np.ndarray, indexers: Mapping[str, int | slice]) -> np.ndarray:
-    idx = tuple(indexers.get(k, slice(None)) for k in range(data.ndim))
-    return data[idx]
-
-
-def isel_mmcore_5dbase(
-    writer: OMEZarrWriter | OMETiffWriter, indexers: Mapping[str, int | slice]
-) -> np.ndarray:
-    p_index = indexers.get("p", 0)
-    if isinstance(p_index, slice):
-        raise NotImplementedError("Cannot slice over position index")  # TODO
-
-    try:
-        sizes = [*list(writer.position_sizes[p_index]), "y", "x"]
-    except IndexError as e:
-        raise IndexError(
-            f"Position index {p_index} out of range for {len(writer.position_sizes)}"
-        ) from e
-
-    data = writer.position_arrays[writer.get_position_key(p_index)]
-    full = slice(None, None)
-    index = tuple(indexers.get(k, full) for k in sizes)
-    return data[index]  # type: ignore

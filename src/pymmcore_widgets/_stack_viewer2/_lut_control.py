@@ -38,7 +38,7 @@ class LutControl(QWidget):
             self._cmap.addColormap(color)
 
         self._clims = QLabeledRangeSlider(Qt.Orientation.Horizontal)
-        self._clims.setRange(0, 2**14)
+        self._clims.setRange(0, 2**8)
         self._clims.valueChanged.connect(self._on_clims_changed)
 
         self._auto_clim = QCheckBox("Auto")
@@ -78,10 +78,13 @@ class LutControl(QWidget):
             clims[0] = min(clims[0], np.nanmin(handle.data))
             clims[1] = max(clims[1], np.nanmax(handle.data))
 
-        if (clims_ := tuple(int(x) for x in clims)) != (0, 0):
+        mi, ma = tuple(int(x) for x in clims)
+        if mi != ma:
             for handle in self._handles:
-                handle.clim = clims_
+                handle.clim = (mi, ma)
 
-        # set the slider values to the new clims
-        with signals_blocked(self._clims):
-            self._clims.setValue(clims_)
+            # set the slider values to the new clims
+            with signals_blocked(self._clims):
+                self._clims.setMinimum(min(mi, self._clims.minimum()))
+                self._clims.setMaximum(max(ma, self._clims.maximum()))
+                self._clims.setValue((mi, ma))

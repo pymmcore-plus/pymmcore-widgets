@@ -79,7 +79,7 @@ class PyGFXViewerCanvas:
         controller.controls.update({"wheel": ("zoom_to_point", "push", -0.005)})
 
     def qwidget(self) -> QWidget:
-        return self._canvas
+        return cast("QWidget", self._canvas)
 
     def refresh(self) -> None:
         self._canvas.update()

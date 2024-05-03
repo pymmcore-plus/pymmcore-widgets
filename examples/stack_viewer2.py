@@ -4,7 +4,7 @@ from pymmcore_plus import CMMCorePlus, configure_logging
 from qtpy import QtWidgets
 from useq import MDASequence
 
-from pymmcore_widgets._stack_viewer2._stack_viewer import MDAViewer
+from pymmcore_widgets._stack_viewer2._mda_viewer import MDAViewer
 
 configure_logging(stderr_level="WARNING")
 
