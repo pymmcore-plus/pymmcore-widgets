@@ -7,6 +7,7 @@ import useq
 from psygnal import Signal as psygnalSignal
 from pymmcore_plus.mda.handlers import OMEZarrWriter
 
+from ._save_button import SaveButton
 from ._stack_viewer import StackViewer
 
 if TYPE_CHECKING:
@@ -28,6 +29,8 @@ class MDAViewer(StackViewer):
 
     def __init__(self, *, parent: QWidget | None = None):
         super().__init__(DataStore(), parent=parent, channel_axis="c")
+        self._save_btn = SaveButton(self.data)
+        self._btns.addWidget(self._save_btn)
         self._data.frame_ready.connect(self.on_frame_ready)
         self.dims_sliders.set_locks_visible(True)
 

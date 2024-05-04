@@ -99,7 +99,9 @@ class StackViewer(QWidget):
         self._channel_mode_btn = ChannelModeButton()
         self._channel_mode_btn.clicked.connect(self.set_channel_mode)
         # button to reset the zoom of the canvas
-        self._set_range_btn = QPushButton("reset zoom")
+        self._set_range_btn = QPushButton(
+            QIconifyIcon("fluent:full-screen-maximize-24-filled"), ""
+        )
         self._set_range_btn.clicked.connect(self._on_set_range_clicked)
 
         # place to display dataset summary
@@ -127,7 +129,7 @@ class StackViewer(QWidget):
 
         # LAYOUT -----------------------------------------------------
 
-        btns = QHBoxLayout()
+        self._btns = btns = QHBoxLayout()
         btns.setContentsMargins(0, 0, 0, 0)
         btns.setSpacing(0)
         btns.addStretch()
