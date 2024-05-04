@@ -1,26 +1,26 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from enum import Enum
 from itertools import cycle
 from typing import TYPE_CHECKING, Iterable, Mapping, Sequence, cast
 
 import cmap
 import numpy as np
 from qtpy.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
-from superqt import QCollapsible, QIconifyIcon
+from superqt import QCollapsible, QElidingLabel, QIconifyIcon
 
 from ._canvas._vispy import VispyViewerCanvas
 from ._dims_slider import DimsSliders
-from ._indexing import isel
+from ._indexing import is_xarray_dataarray, isel
 from ._lut_control import LutControl
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Hashable, Literal, TypeAlias
+    from typing import Any, Callable, Hashable, TypeAlias
 
     from ._dims_slider import DimKey, Indices, Sizes
     from ._protocols import PCanvas, PImageHandle
 
-    ColorMode = Literal["composite", "grayscale"]
     ImgKey: TypeAlias = Hashable
     # any mapping of dimensions to sizes
     SizesLike: TypeAlias = Sizes | Iterable[int | tuple[DimKey, int] | Sequence]
@@ -30,24 +30,38 @@ GRAYS = cmap.Colormap("gray")
 COLORMAPS = [cmap.Colormap("green"), cmap.Colormap("magenta"), cmap.Colormap("cyan")]
 
 
-class ColorModeButton(QPushButton):
+class ChannelMode(str, Enum):
+    COMPOSITE = "composite"
+    MONO = "mono"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class ChannelModeButton(QPushButton):
     def __init__(self, parent: QWidget | None = None):
-        modes = ["composite", "grayscale"]
-        self._modes = cycle(modes)
-        super().__init__(modes[-1], parent)
-        self.clicked.connect(self.next_mode)
-        self.next_mode()
+        super().__init__(parent)
+        self.setCheckable(True)
+        self.toggled.connect(self.next_mode)
 
     def next_mode(self) -> None:
-        self._mode = self.text()
-        self.setText(next(self._modes))
+        if self.isChecked():
+            self.setMode(ChannelMode.MONO)
+        else:
+            self.setMode(ChannelMode.COMPOSITE)
 
-    def mode(self) -> ColorMode:
-        return self._mode  # type: ignore
+    def mode(self) -> ChannelMode:
+        return ChannelMode.MONO if self.isChecked() else ChannelMode.COMPOSITE
+
+    def setMode(self, mode: ChannelMode) -> None:
+        # we show the name of the next mode, not the current one
+        other = ChannelMode.COMPOSITE if mode is ChannelMode.MONO else ChannelMode.MONO
+        self.setText(str(other))
+        self.setChecked(mode == ChannelMode.MONO)
 
 
 class StackViewer(QWidget):
-    """A viewer for ND arrays."""
+    """A viewer for AND arrays."""
 
     def __init__(
         self,
@@ -55,6 +69,7 @@ class StackViewer(QWidget):
         *,
         parent: QWidget | None = None,
         channel_axis: DimKey | None = None,
+        channel_mode: ChannelMode = ChannelMode.MONO,
     ):
         super().__init__(parent=parent)
 
@@ -72,6 +87,7 @@ class StackViewer(QWidget):
         self._visualized_dims: set[DimKey] = set()
         # the axis that represents the channels in the data
         self._channel_axis = channel_axis
+        self._channel_mode: ChannelMode = None  # type: ignore # set in set_channel_mode
         # colormaps that will be cycled through when displaying composite images
         # TODO: allow user to set this
         self._cmaps = cycle(COLORMAPS)
@@ -79,16 +95,18 @@ class StackViewer(QWidget):
         # WIDGETS ----------------------------------------------------
 
         # the button that controls the display mode of the channels
-        self._channel_mode_picker = ColorModeButton()
-        self._channel_mode_picker.clicked.connect(self.set_channel_mode)
+        self._channel_mode_btn = ChannelModeButton()
+        self._channel_mode_btn.clicked.connect(self.set_channel_mode)
         # button to reset the zoom of the canvas
         self._set_range_btn = QPushButton("reset zoom")
         self._set_range_btn.clicked.connect(self._on_set_range_clicked)
 
+        # place to display dataset summary
+        self._data_info = QElidingLabel("")
         # place to display arbitrary text
-        self._info_bar = QLabel("Info")
+        self._hover_info = QLabel("Info")
         # the canvas that displays the images
-        self._canvas: PCanvas = VispyViewerCanvas(self._info_bar.setText)
+        self._canvas: PCanvas = VispyViewerCanvas(self._hover_info.setText)
         # the sliders that control the index of the displayed image
         self._dims_sliders = DimsSliders()
         self._dims_sliders.valueChanged.connect(self._on_dims_sliders_changed)
@@ -99,8 +117,9 @@ class StackViewer(QWidget):
         lut_layout = cast("QVBoxLayout", self._lut_drop.layout())
         lut_layout.setContentsMargins(0, 1, 0, 1)
         lut_layout.setSpacing(0)
-        if hasattr(self._lut_drop, "_content") and (
-            layout := self._lut_drop._content.layout()
+        if (
+            hasattr(self._lut_drop, "_content")
+            and (layout := self._lut_drop._content.layout()) is not None
         ):
             layout.setContentsMargins(0, 0, 0, 0)
             layout.setSpacing(0)
@@ -111,13 +130,15 @@ class StackViewer(QWidget):
         btns.setContentsMargins(0, 0, 0, 0)
         btns.setSpacing(0)
         btns.addStretch()
-        btns.addWidget(self._channel_mode_picker)
+        btns.addWidget(self._channel_mode_btn)
         btns.addWidget(self._set_range_btn)
+
         layout = QVBoxLayout(self)
-        layout.setSpacing(3)
+        layout.setSpacing(2)
         layout.setContentsMargins(6, 6, 6, 6)
+        layout.addWidget(self._data_info)
         layout.addWidget(self._canvas.qwidget(), 1)
-        layout.addWidget(self._info_bar)
+        layout.addWidget(self._hover_info)
         layout.addWidget(self._dims_sliders)
         layout.addWidget(self._lut_drop)
         layout.addLayout(btns)
@@ -125,7 +146,7 @@ class StackViewer(QWidget):
         # SETUP ------------------------------------------------------
 
         self.set_data(data)
-        self.set_channel_mode("grayscale")
+        self.set_channel_mode(channel_mode)
 
     # ------------------- PUBLIC API ----------------------------
 
@@ -141,6 +162,19 @@ class StackViewer(QWidget):
         if self._channel_axis is None:
             self._channel_axis = self._guess_channel_axis(data)
         self.set_visualized_dims(list(self._sizes)[-2:])
+        self.update_slider_maxima()
+        self.setIndex({})
+
+        if all(isinstance(x, int) for x in self._sizes):
+            size_str = repr(tuple(self._sizes.values()))
+        else:
+            size_str = ", ".join(f"{k}:{v}" for k, v in self._sizes.items())
+            size_str = f"({size_str})"
+        dtype = getattr(data, "dtype", "")
+        nbytes = getattr(data, "nbytes", "") / 1e6
+        self._data_info.setText(
+            f"{type(data).__name__}, {size_str}, {dtype}, {nbytes}MB"
+        )
 
     def set_visualized_dims(self, dims: Iterable[DimKey]) -> None:
         """Set the dimensions that will be visualized.
@@ -177,7 +211,7 @@ class StackViewer(QWidget):
         for dim in list(sizes.values())[-2:]:
             self._dims_sliders.set_dimension_visible(dim, False)
 
-    def set_channel_mode(self, mode: ColorMode | None = None) -> None:
+    def set_channel_mode(self, mode: ChannelMode | None = None) -> None:
         """Set the mode for displaying the channels.
 
         In "composite" mode, the channels are displayed as a composite image, using
@@ -186,7 +220,9 @@ class StackViewer(QWidget):
         channel_mode_picker button is used)
         """
         if mode is None or isinstance(mode, bool):
-            mode = self._channel_mode_picker.mode()
+            mode = self._channel_mode_btn.mode()
+        else:
+            self._channel_mode_btn.setMode(mode)
         if mode == getattr(self, "_channel_mode", None):
             return
 
@@ -194,7 +230,7 @@ class StackViewer(QWidget):
         # reset the colormap cycle
         self._cmaps = cycle(COLORMAPS)
         # set the visibility of the channel slider
-        c_visible = mode != "composite"
+        c_visible = mode != ChannelMode.COMPOSITE
         self._dims_sliders.set_dimension_visible(self._channel_axis, c_visible)
 
         if not self._img_handles:
@@ -226,7 +262,10 @@ class StackViewer(QWidget):
         if isinstance(data, np.ndarray):
             # for numpy arrays, use the smallest dimension as the channel axis
             return data.shape.index(min(data.shape))
-
+        if is_xarray_dataarray(data):
+            for d in data.dims:
+                if str(d).lower() in ("channel", "ch", "c"):
+                    return d
         return 0
 
     def _clear_images(self) -> None:
@@ -247,7 +286,7 @@ class StackViewer(QWidget):
 
     def _image_key(self, index: Indices) -> ImgKey:
         """Return the key for image handle(s) corresponding to `index`."""
-        if self._channel_mode == "composite":
+        if self._channel_mode == ChannelMode.COMPOSITE:
             val = index.get(self._channel_axis, 0)
             if isinstance(val, slice):
                 return (val.start, val.stop)
@@ -266,7 +305,7 @@ class StackViewer(QWidget):
         """Update the displayed image when the sliders are changed."""
         c = index.get(self._channel_axis, 0)
         indices: list[Indices] = [index]
-        if self._channel_mode == "composite":
+        if self._channel_mode == ChannelMode.COMPOSITE:
             for i, handles in self._img_handles.items():
                 if handles and c != i:
                     # FIXME: type error is legit
@@ -291,7 +330,11 @@ class StackViewer(QWidget):
             if ctrl := self._lut_ctrls.get(imkey, None):
                 ctrl.update_autoscale()
         else:
-            cm = next(self._cmaps) if self._channel_mode == "composite" else GRAYS
+            cm = (
+                next(self._cmaps)
+                if self._channel_mode == ChannelMode.COMPOSITE
+                else GRAYS
+            )
             handles.append(self._canvas.add_image(data, cmap=cm))
             if imkey not in self._lut_ctrls:
                 channel_name = f"Ch {imkey}"  # TODO: get name from user

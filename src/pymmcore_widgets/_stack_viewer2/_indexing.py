@@ -5,9 +5,6 @@ import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
-from pymmcore_plus.mda.handlers import OMETiffWriter, OMEZarrWriter
-
-# from ._pygfx_canvas import PyGFXViewerCanvas
 
 if TYPE_CHECKING:
     from typing import Any, Protocol, TypeGuard
@@ -15,6 +12,7 @@ if TYPE_CHECKING:
     import dask.array as da
     import numpy.typing as npt
     import xarray as xr
+    from pymmcore_plus.mda.handlers._5d_writer_base import _5DWriterBase
 
     from ._dims_slider import Index, Indices
 
@@ -24,7 +22,19 @@ if TYPE_CHECKING:
         def shape(self) -> tuple[int, ...]: ...
 
 
-def is_xr_dataarray(obj: Any) -> TypeGuard[xr.DataArray]:
+def is_pymmcore_writer(obj: Any) -> TypeGuard[_5DWriterBase]:
+    try:
+        from pymmcore_plus.mda.handlers._5d_writer_base import _5DWriterBase
+    except ImportError:
+        from pymmcore_plus.mda.handlers import OMETiffWriter, OMEZarrWriter
+
+        _5DWriterBase = (OMETiffWriter, OMEZarrWriter)  # type: ignore
+    if isinstance(obj, _5DWriterBase):
+        return True
+    return False
+
+
+def is_xarray_dataarray(obj: Any) -> TypeGuard[xr.DataArray]:
     if (xr := sys.modules.get("xarray")) and isinstance(obj, xr.DataArray):
         return True
     return False
@@ -53,9 +63,9 @@ def isel(store: Any, indexers: Indices) -> np.ndarray:
     For any other duck-typed array, use numpy-style indexing, where indexers
     is a mapping of axis to slice objects or indices.
     """
-    if isinstance(store, (OMEZarrWriter, OMETiffWriter)):
+    if is_pymmcore_writer(store):
         return isel_mmcore_5dbase(store, indexers)
-    if is_xr_dataarray(store):
+    if is_xarray_dataarray(store):
         return store.isel(indexers).to_numpy()
     if is_duck_array(store):
         return isel_np_array(store, indexers)
@@ -67,9 +77,7 @@ def isel_np_array(data: SupportsIndexing, indexers: Indices) -> np.ndarray:
     return np.asarray(data[idx])
 
 
-def isel_mmcore_5dbase(
-    writer: OMEZarrWriter | OMETiffWriter, indexers: Indices
-) -> np.ndarray:
+def isel_mmcore_5dbase(writer: _5DWriterBase, indexers: Indices) -> np.ndarray:
     p_index = indexers.get("p", 0)
     if isinstance(p_index, slice):
         warnings.warn("Cannot slice over position index", stacklevel=2)  # TODO

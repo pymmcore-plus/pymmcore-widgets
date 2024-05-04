@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, cast
 from warnings import warn
 
-from PyQt6.QtGui import QResizeEvent
 from qtpy.QtCore import QPointF, QSize, Qt, Signal
+from qtpy.QtGui import QResizeEvent
 from qtpy.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -36,11 +36,11 @@ if TYPE_CHECKING:
     # mapping of dimension keys to the maximum value for that dimension
     Sizes: TypeAlias = Mapping[DimKey, int]
 
-BAR_COLOR = "#24007AAB"
+BAR_COLOR = "#2258575B"
 
 SS = """
 QSlider::groove:horizontal {
-    height: 14px;
+    height: 15px;
     background: qlineargradient(
         x1:0, y1:0, x2:0, y2:1,
         stop:0 rgba(128, 128, 128, 0.25),
@@ -50,12 +50,12 @@ QSlider::groove:horizontal {
 }
 
 QSlider::handle:horizontal {
+    width: 38px;
     background: qlineargradient(
         x1:0, y1:0, x2:0, y2:1,
         stop:0 rgba(148, 148, 148, 1),
         stop:1 rgba(148, 148, 148, 1)
     );
-    width: 32px;
     border-radius: 3px;
 }
 
@@ -307,6 +307,7 @@ class DimsSliders(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._locks_visible = True
         self._sliders: dict[DimKey, DimsSlider] = {}
         self._current_index: dict[DimKey, Index] = {}
         self._invisible_dims: set[DimKey] = set()
@@ -341,17 +342,17 @@ class DimsSliders(QWidget):
             self._sliders[name].setMaximum(max_val)
 
     def setLocksVisible(self, visible: bool | Mapping[DimKey, bool]) -> None:
-        self._lock_visible = visible
+        self._locks_visible = visible
         for dim, slider in self._sliders.items():
             viz = visible if isinstance(visible, bool) else visible.get(dim, False)
             slider._lock_btn.setVisible(viz)
 
     def add_dimension(self, name: DimKey, val: Index | None = None) -> None:
         self._sliders[name] = slider = DimsSlider(dimension_key=name, parent=self)
-        if isinstance(self._lock_visible, dict) and name in self._lock_visible:
-            slider._lock_btn.setVisible(self._lock_visible[name])
+        if isinstance(self._locks_visible, dict) and name in self._locks_visible:
+            slider._lock_btn.setVisible(self._locks_visible[name])
         else:
-            slider._lock_btn.setVisible(bool(self._lock_visible))
+            slider._lock_btn.setVisible(bool(self._locks_visible))
 
         slider.setRange(0, 1)
         val = val if val is not None else 0

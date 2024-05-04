@@ -20,8 +20,8 @@ if TYPE_CHECKING:
 class CmapCombo(QColormapComboBox):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent, allow_user_colormaps=True, add_colormap_text="Add...")
-        self.setMinimumSize(100, 22)
-        self.setStyleSheet("background-color: transparent;")
+        self.setMinimumSize(120, 21)
+        # self.setStyleSheet("background-color: transparent;")
 
     def showPopup(self) -> None:
         super().showPopup()

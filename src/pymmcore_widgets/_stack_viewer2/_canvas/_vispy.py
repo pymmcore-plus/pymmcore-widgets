@@ -112,6 +112,7 @@ class VispyViewerCanvas:
         """Mouse moved on the canvas, display the pixel value and position."""
         images = []
         # Get the images the mouse is over
+        # FIXME: must be a better way to do this
         seen = set()
         while visual := self._canvas.visual_at(event.pos):
             if isinstance(visual, scene.visuals.Image):
@@ -126,7 +127,10 @@ class VispyViewerCanvas:
         tform = images[0].get_transform("canvas", "visual")
         px, py, *_ = (int(x) for x in tform.map(event.pos))
         text = f"[{py}, {px}]"
-        for c, img in enumerate(images):
+        for c, img in enumerate(reversed(images)):
             with suppress(IndexError):
-                text += f" {c}: {round(img._data[py, px], 2)}"
+                value = img._data[py, px]
+                if isinstance(value, (np.floating, float)):
+                    value = f"{value:.2f}"
+                text += f" {c}: {value}"
         self._set_info(text)
