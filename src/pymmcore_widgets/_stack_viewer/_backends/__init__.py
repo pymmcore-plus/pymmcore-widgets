@@ -7,7 +7,7 @@ import sys
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pymmcore_widgets._stack_viewer2._protocols import PCanvas
+    from pymmcore_widgets._stack_viewer._protocols import PCanvas
 
 
 def get_canvas(backend: str | None = None) -> type[PCanvas]:

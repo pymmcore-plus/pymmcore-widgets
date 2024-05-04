@@ -1,5 +1,4 @@
-from ._channel_row import CMAPS
-from ._datastore import QOMEZarrDatastore
+from ._mda_viewer import MDAViewer
 from ._stack_viewer import StackViewer
 
-__all__ = ["StackViewer", "CMAPS", "QOMEZarrDatastore"]
+__all__ = ["StackViewer", "MDAViewer"]

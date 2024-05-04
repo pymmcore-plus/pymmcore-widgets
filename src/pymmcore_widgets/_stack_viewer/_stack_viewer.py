@@ -1,489 +1,399 @@
 from __future__ import annotations
 
-import copy
 import warnings
-from typing import TYPE_CHECKING, cast
+from collections import defaultdict
+from enum import Enum
+from itertools import cycle
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence, cast
 
+import cmap
 import numpy as np
-import superqt
-from fonticon_mdi6 import MDI6
-from qtpy import QtCore, QtWidgets
-from qtpy.QtCore import QTimer
-from superqt import fonticon
-from useq import MDAEvent, MDASequence, _channel
+from qtpy.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from superqt import QCollapsible, QElidingLabel, QIconifyIcon
 
-from ._channel_row import ChannelRow, try_cast_colormap
-from ._datastore import QOMEZarrDatastore
-from ._labeled_slider import LabeledVisibilitySlider
-from ._save_button import SaveButton
-
-DIMENSIONS = ["t", "z", "c", "p", "g"]
-AUTOCLIM_RATE = 1  # Hz   0 = inf
-
-try:
-    from vispy import scene
-    from vispy.visuals.transforms import MatrixTransform
-except ImportError as e:
-    raise ImportError(
-        "vispy is required for StackViewer. "
-        "Please run `pip install pymmcore-widgets[image]`"
-    ) from e
+from ._backends import get_canvas
+from ._dims_slider import DimsSliders
+from ._indexing import is_xarray_dataarray, isel
+from ._lut_control import LutControl
 
 if TYPE_CHECKING:
-    import cmap
-    from pymmcore_plus import CMMCorePlus
-    from qtpy.QtCore import QCloseEvent
-    from qtpy.QtWidgets import QWidget
-    from vispy.scene.events import SceneMouseEvent
+    from typing import Any, Callable, Hashable, TypeAlias
+
+    from ._dims_slider import DimKey, Indices, Sizes
+    from ._protocols import PCanvas, PImageHandle
+
+    ImgKey: TypeAlias = Hashable
+    # any mapping of dimensions to sizes
+    SizesLike: TypeAlias = Sizes | Iterable[int | tuple[DimKey, int] | Sequence]
 
 
-class StackViewer(QtWidgets.QWidget):
-    """A viewer for MDA acquisitions started by MDASequence in pymmcore-plus events.
+GRAYS = cmap.Colormap("gray")
+COLORMAPS = [cmap.Colormap("green"), cmap.Colormap("magenta"), cmap.Colormap("cyan")]
 
-    Parameters
-    ----------
-    transform: (int, bool, bool) rotation mirror_x mirror_y.
-    """
+
+class ChannelMode(str, Enum):
+    COMPOSITE = "composite"
+    MONO = "mono"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class ChannelModeButton(QPushButton):
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setCheckable(True)
+        self.toggled.connect(self.next_mode)
+
+    def next_mode(self) -> None:
+        if self.isChecked():
+            self.setMode(ChannelMode.MONO)
+        else:
+            self.setMode(ChannelMode.COMPOSITE)
+
+    def mode(self) -> ChannelMode:
+        return ChannelMode.MONO if self.isChecked() else ChannelMode.COMPOSITE
+
+    def setMode(self, mode: ChannelMode) -> None:
+        # we show the name of the next mode, not the current one
+        other = ChannelMode.COMPOSITE if mode is ChannelMode.MONO else ChannelMode.MONO
+        self.setText(str(other))
+        self.setChecked(mode == ChannelMode.MONO)
+
+
+class StackViewer(QWidget):
+    """A viewer for AND arrays."""
 
     def __init__(
         self,
-        datastore: QOMEZarrDatastore | None = None,
-        sequence: MDASequence | None = None,
-        mmcore: CMMCorePlus | None = None,
+        data: Any,
+        *,
         parent: QWidget | None = None,
-        size: tuple[int, int] | None = None,
-        transform: tuple[int, bool, bool] = (0, True, False),
-        save_button: bool = True,
+        channel_axis: DimKey | None = None,
+        channel_mode: ChannelMode = ChannelMode.MONO,
     ):
         super().__init__(parent=parent)
-        self._reload_position()
-        self.sequence = sequence
-        self.canvas_size = size
-        self.transform = transform
-        self._mmc = mmcore
-        self._clim = "auto"
-        self.cmaps = [
-            cm for x in self.cmap_names if (cm := try_cast_colormap(x)) is not None
-        ]
-        self.display_index = {dim: 0 for dim in DIMENSIONS}
 
-        self.main_layout = QtWidgets.QVBoxLayout()
-        self.setLayout(self.main_layout)
-        self.construct_canvas()
-        self.main_layout.addWidget(self._canvas.native)
+        # ATTRIBUTES ----------------------------------------------------
 
-        self.info_bar = QtWidgets.QLabel()
-        self.info_bar.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed
+        # dimensions of the data in the datastore
+        self._sizes: Sizes = {}
+        # mapping of key to a list of objects that control image nodes in the canvas
+        self._img_handles: defaultdict[ImgKey, list[PImageHandle]] = defaultdict(list)
+        # mapping of same keys to the LutControl objects control image display props
+        self._lut_ctrls: dict[ImgKey, LutControl] = {}
+        # the set of dimensions we are currently visualizing (e.g. XY)
+        # this is used to control which dimensions have sliders and the behavior
+        # of isel when selecting data from the datastore
+        self._visualized_dims: set[DimKey] = set()
+        # the axis that represents the channels in the data
+        self._channel_axis = channel_axis
+        self._channel_mode: ChannelMode = None  # type: ignore # set in set_channel_mode
+        # colormaps that will be cycled through when displaying composite images
+        # TODO: allow user to set this
+        self._cmaps = cycle(COLORMAPS)
+
+        # WIDGETS ----------------------------------------------------
+
+        # the button that controls the display mode of the channels
+        self._channel_mode_btn = ChannelModeButton()
+        self._channel_mode_btn.clicked.connect(self.set_channel_mode)
+        # button to reset the zoom of the canvas
+        self._set_range_btn = QPushButton(
+            QIconifyIcon("fluent:full-screen-maximize-24-filled"), ""
         )
-        self.main_layout.addWidget(self.info_bar)
+        self._set_range_btn.clicked.connect(self._on_set_range_clicked)
 
-        self._create_sliders(sequence)
+        # place to display dataset summary
+        self._data_info = QElidingLabel("")
+        # place to display arbitrary text
+        self._hover_info = QLabel("Info")
+        # the canvas that displays the images
+        self._canvas: PCanvas = get_canvas()(self._hover_info.setText)
+        # the sliders that control the index of the displayed image
+        self._dims_sliders = DimsSliders()
+        self._dims_sliders.valueChanged.connect(self._on_dims_sliders_changed)
 
-        self.datastore = datastore or QOMEZarrDatastore()
-        self.datastore.frame_ready.connect(self.frameReady)
-        if not datastore:
-            if self._mmc:
-                self._mmc.mda.events.frameReady.connect(self.datastore.frameReady)
-                self._mmc.mda.events.sequenceFinished.connect(
-                    self.datastore.sequenceFinished
-                )
-                self._mmc.mda.events.sequenceStarted.connect(
-                    self.datastore.sequenceStarted
-                )
-            else:
-                warnings.warn(
-                    "No datastore or mmcore provided, connect manually.", stacklevel=2
-                )
-
-        if self._mmc:
-            # Otherwise connect via listeners_connected or manually
-            self._mmc.mda.events.sequenceStarted.connect(self.sequenceStarted)
-
-        self.images: dict[tuple, scene.visuals.Image] = {}
-        self.frame = 0
-        self.ready = False
-        self.current_channel = 0
-        self.pixel_size = 1.0
-        self.missed_events: list[MDAEvent] = []
-
-        self.destroyed.connect(self._disconnect)
-
-        self.collapse_btn = QtWidgets.QPushButton()
-        self.collapse_btn.setIcon(fonticon.icon(MDI6.arrow_collapse_all))
-        self.collapse_btn.clicked.connect(self._collapse_view)
-
-        self.bottom_buttons = QtWidgets.QHBoxLayout()
-        self.bottom_buttons.addWidget(self.collapse_btn)
-        if save_button:
-            self.save_btn = SaveButton(self.datastore)
-            self.bottom_buttons.addWidget(self.save_btn)
-        self.main_layout.addLayout(self.bottom_buttons)
-
-        if sequence:
-            self.sequenceStarted(sequence)
-
-    def construct_canvas(self) -> None:
-        if self.canvas_size:
-            self.img_size = self.canvas_size
-        elif (
-            self._mmc
-            and (h := self._mmc.getImageHeight())
-            and (w := self._mmc.getImageWidth())
+        self._lut_drop = QCollapsible("LUTs")
+        self._lut_drop.setCollapsedIcon(QIconifyIcon("bi:chevron-down"))
+        self._lut_drop.setExpandedIcon(QIconifyIcon("bi:chevron-up"))
+        lut_layout = cast("QVBoxLayout", self._lut_drop.layout())
+        lut_layout.setContentsMargins(0, 1, 0, 1)
+        lut_layout.setSpacing(0)
+        if (
+            hasattr(self._lut_drop, "_content")
+            and (layout := self._lut_drop._content.layout()) is not None
         ):
-            self.img_size = (h, w)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
+
+        # LAYOUT -----------------------------------------------------
+
+        self._btns = btns = QHBoxLayout()
+        btns.setContentsMargins(0, 0, 0, 0)
+        btns.setSpacing(0)
+        btns.addStretch()
+        btns.addWidget(self._channel_mode_btn)
+        btns.addWidget(self._set_range_btn)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(2)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.addWidget(self._data_info)
+        layout.addWidget(self._canvas.qwidget(), 1)
+        layout.addWidget(self._hover_info)
+        layout.addWidget(self._dims_sliders)
+        layout.addWidget(self._lut_drop)
+        layout.addLayout(btns)
+
+        # SETUP ------------------------------------------------------
+
+        self.set_data(data)
+        self.set_channel_mode(channel_mode)
+
+    # ------------------- PUBLIC API ----------------------------
+
+    @property
+    def data(self) -> Any:
+        """Return the data backing the view."""
+        return self._data
+
+    def set_data(self, data: Any, sizes: SizesLike | None = None) -> None:
+        """Set the datastore, and, optionally, the sizes of the data."""
+        if sizes is None:
+            if (sz := getattr(data, "sizes", None)) and isinstance(sz, Mapping):
+                sizes = sz
+            elif (shp := getattr(data, "shape", None)) and isinstance(shp, tuple):
+                sizes = shp
+        self._sizes = _to_sizes(sizes)
+        self._data = data
+        if self._channel_axis is None:
+            self._channel_axis = self._guess_channel_axis(data)
+        self.set_visualized_dims(list(self._sizes)[-2:])
+        self.update_slider_maxima()
+        self.setIndex({})
+
+        info = f"{getattr(type(data), '__qualname__', '')}"
+
+        if self._sizes:
+            if all(isinstance(x, int) for x in self._sizes):
+                size_str = repr(tuple(self._sizes.values()))
+            else:
+                size_str = ", ".join(f"{k}:{v}" for k, v in self._sizes.items())
+                size_str = f"({size_str})"
+            info += f" {size_str}"
+        if dtype := getattr(data, "dtype", ""):
+            info += f", {dtype}"
+        if nbytes := getattr(data, "nbytes", 0) / 1e6:
+            info += f", {nbytes:.2f}MB"
+        self._data_info.setText(info)
+
+    def set_visualized_dims(self, dims: Iterable[DimKey]) -> None:
+        """Set the dimensions that will be visualized.
+
+        This dims will NOT have sliders associated with them.
+        """
+        self._visualized_dims = set(dims)
+        for d in self._dims_sliders._sliders:
+            self._dims_sliders.set_dimension_visible(d, d not in self._visualized_dims)
+        for d in self._visualized_dims:
+            self._dims_sliders.set_dimension_visible(d, False)
+
+    @property
+    def dims_sliders(self) -> DimsSliders:
+        """Return the DimsSliders widget."""
+        return self._dims_sliders
+
+    @property
+    def sizes(self) -> Sizes:
+        """Return sizes {dimkey: int} of the dimensions in the datastore."""
+        return self._sizes
+
+    def update_slider_maxima(self, sizes: SizesLike | None = None) -> None:
+        """Set the maximum values of the sliders.
+
+        If `sizes` is not provided, sizes will be inferred from the datastore.
+        """
+        if sizes is None:
+            sizes = self.sizes
+        sizes = _to_sizes(sizes)
+        self._dims_sliders.setMaximum({k: v - 1 for k, v in sizes.items()})
+
+        # FIXME: this needs to be moved and made user-controlled
+        for dim in list(sizes.values())[-2:]:
+            self._dims_sliders.set_dimension_visible(dim, False)
+
+    def set_channel_mode(self, mode: ChannelMode | None = None) -> None:
+        """Set the mode for displaying the channels.
+
+        In "composite" mode, the channels are displayed as a composite image, using
+        self._channel_axis as the channel axis. In "grayscale" mode, each channel is
+        displayed separately. (If mode is None, the current value of the
+        channel_mode_picker button is used)
+        """
+        if mode is None or isinstance(mode, bool):
+            mode = self._channel_mode_btn.mode()
         else:
-            self.img_size = (512, 512)
-        if any(x < 1 for x in self.img_size):
-            raise ValueError("Image size must be greater than 0.")
-        self._canvas = scene.SceneCanvas(
-            size=self.img_size, parent=self, keys="interactive"
-        )
-        self._canvas._send_hover_events = True
-        self._canvas.events.mouse_move.connect(self.on_mouse_move)
-        self.view = self._canvas.central_widget.add_view()
-        self.view.camera = scene.PanZoomCamera(aspect=1)
-        self.view.camera.flip = (self.transform[1], self.transform[2], False)
-        self.view.camera.set_range(
-            (0, self.img_size[0]), (0, self.img_size[1]), margin=0
-        )
-        rect = self.view.camera.rect
-        self.view_rect = (rect.pos, rect.size)
-        self.view.camera.aspect = 1
-
-    def _create_sliders(self, sequence: MDASequence | None = None) -> None:
-        self.channel_row: ChannelRow = ChannelRow(parent=self)
-        self.channel_row.visible.connect(self._handle_channel_visibility)
-        self.channel_row.autoscale.connect(self._handle_channel_autoscale)
-        self.channel_row.new_clims.connect(self._handle_channel_clim)
-        self.channel_row.new_cmap.connect(self._handle_channel_cmap)
-        self.channel_row.selected.connect(self._handle_channel_choice)
-        self.layout().addWidget(self.channel_row)
-
-        self.slider_layout = QtWidgets.QVBoxLayout()
-        self.layout().addLayout(self.slider_layout)
-        self.sliders: dict[str, LabeledVisibilitySlider] = {}
-
-    @superqt.ensure_main_thread  # type: ignore
-    def add_slider(self, dim: str) -> None:
-        slider = LabeledVisibilitySlider(
-            dim, orientation=QtCore.Qt.Orientation.Horizontal
-        )
-        slider.sliderMoved.connect(self.on_display_timer)
-        slider.setRange(0, 1)
-        self.slider_layout.addWidget(slider)
-        self.sliders[dim] = slider
-
-    @superqt.ensure_main_thread  # type: ignore
-    def add_image(self, event: MDAEvent) -> None:
-        image = scene.visuals.Image(
-            np.zeros(self._canvas.size).astype(np.uint16),
-            parent=self.view.scene,
-            cmap=self.cmaps[event.index.get("c", 0)].to_vispy(),
-            clim=(0, 1),
-        )
-        trans = MatrixTransform()
-        trans.rotate(self.transform[0], (0, 0, 1))
-        image.transform = self._get_image_position(trans, event)
-        image.interactive = True
-        if event.index.get("c", 0) > 0:
-            image.set_gl_state("additive", depth_test=False)
-        else:
-            image.set_gl_state(depth_test=False)
-        c = event.index.get("c", 0)
-        g = event.index.get("g", 0)
-        self.images[(("c", c), ("g", g))] = image
-
-    def sequenceStarted(self, sequence: MDASequence) -> None:
-        """Sequence started by the mmcore. Adjust our settings, make layers etc."""
-        self.ready = False
-        self.sequence = sequence
-        self.pixel_size = self._mmc.getPixelSizeUm() if self._mmc else self.pixel_size
-
-        self.ng = max(sequence.sizes.get("g", 1), 1)
-        self.current_channel = 0
-
-        self._collapse_view()
-        self.ready = True
-
-    def frameReady(self, event: MDAEvent) -> None:
-        """Frame received from acquisition, display the image, update sliders etc."""
-        if not self.ready:
-            self._redisplay(event)
+            self._channel_mode_btn.setMode(mode)
+        if mode == getattr(self, "_channel_mode", None):
             return
-        indices = dict(event.index)
-        img = self.datastore.get_frame(event)
-        # Update display
+
+        self._channel_mode = mode
+        # reset the colormap cycle
+        self._cmaps = cycle(COLORMAPS)
+        # set the visibility of the channel slider
+        c_visible = mode != ChannelMode.COMPOSITE
+        self._dims_sliders.set_dimension_visible(self._channel_axis, c_visible)
+
+        if not self._img_handles:
+            return
+
+        # determine what needs to be updated
+        n_channels = self._dims_sliders.maximum().get(self._channel_axis, -1) + 1
+        value = self._dims_sliders.value()  # get before clearing
+        self._clear_images()
+        indices = (
+            [value]
+            if c_visible
+            else [{**value, self._channel_axis: i} for i in range(n_channels)]
+        )
+
+        # update the displayed images
+        for idx in indices:
+            self._update_data_for_index(idx)
+        self._canvas.refresh()
+
+    def setIndex(self, index: Indices) -> None:
+        """Set the index of the displayed image."""
+        self._dims_sliders.setValue(index)
+
+    # ------------------- PRIVATE METHODS ----------------------------
+
+    def _guess_channel_axis(self, data: Any) -> DimKey:
+        """Guess the channel axis from the data."""
+        if isinstance(data, np.ndarray):
+            # for numpy arrays, use the smallest dimension as the channel axis
+            return data.shape.index(min(data.shape))
+        if is_xarray_dataarray(data):
+            for d in data.dims:
+                if str(d).lower() in ("channel", "ch", "c"):
+                    return cast("DimKey", d)
+        return 0
+
+    def _clear_images(self) -> None:
+        """Remove all images from the canvas."""
+        for handles in self._img_handles.values():
+            for handle in handles:
+                handle.remove()
+        self._img_handles.clear()
+
+        # clear the current LutControls as well
+        for c in self._lut_ctrls.values():
+            cast("QVBoxLayout", self.layout()).removeWidget(c)
+            c.deleteLater()
+        self._lut_ctrls.clear()
+
+    def _on_set_range_clicked(self) -> None:
+        self._canvas.set_range()
+
+    def _image_key(self, index: Indices) -> ImgKey:
+        """Return the key for image handle(s) corresponding to `index`."""
+        if self._channel_mode == ChannelMode.COMPOSITE:
+            val = index.get(self._channel_axis, 0)
+            if isinstance(val, slice):
+                return (val.start, val.stop)
+            return val
+        return 0
+
+    def _isel(self, index: Indices) -> np.ndarray:
+        """Select data from the datastore using the given index."""
+        idx = {k: v for k, v in index.items() if k not in self._visualized_dims}
         try:
-            display_indices = self._set_sliders(indices)
-        except KeyError as e:
-            self.add_slider(e.args[0])
-            self._redisplay(event)
-            return
-        if display_indices == indices:
-            # Get controls
-            try:
-                clim_slider = self.channel_row.boxes[indices.get("c", 0)].slider
-            except KeyError:
-                this_channel = cast(_channel.Channel, event.channel)
-                self.channel_row.add_channel(this_channel, indices.get("c", 0))
-                self._redisplay(event)
-                return
-            try:
-                self.display_image(img, indices.get("c", 0), indices.get("g", 0))
-            except KeyError:
-                self.add_image(event)
-                self._redisplay(event)
-                return
+            return isel(self._data, idx)
+        except Exception as e:
+            raise type(e)(f"Failed to index data with {idx}: {e}") from e
 
-            # Handle autoscaling
-            clim_slider.setRange(
-                min(clim_slider.minimum(), img.min()),
-                max(clim_slider.maximum(), img.max()),
-            )
-            if self.channel_row.boxes[indices.get("c", 0)].autoscale_chbx.isChecked():
-                clim_slider.setValue(
-                    [
-                        min(clim_slider.minimum(), img.min()),
-                        max(clim_slider.maximum(), img.max()),
-                    ]
-                )
-            try:
-                self.on_clim_timer(indices.get("c", 0))
-            except KeyError:
-                return
-        if sum([event.index.get("t", 0), event.index.get("z", 0)]) == 0:
-            self._collapse_view()
+    def _on_dims_sliders_changed(self, index: Indices) -> None:
+        """Update the displayed image when the sliders are changed."""
+        c = index.get(self._channel_axis, 0)
+        indices: list[Indices] = [index]
+        if self._channel_mode == ChannelMode.COMPOSITE:
+            for i, handles in self._img_handles.items():
+                if isinstance(i, (int, slice)):
+                    if handles and c != i:
+                        indices.append({**index, self._channel_axis: i})
+                else:  # pragma: no cover
+                    warnings.warn(f"Invalid key for composite image: {i}", stacklevel=2)
 
-    def _handle_channel_clim(
-        self, values: tuple[int, int], channel: int, set_autoscale: bool = True
-    ) -> None:
-        for g in range(self.ng):
-            self.images[(("c", channel), ("g", g))].clim = values
-        if self.channel_row.boxes[channel].autoscale_chbx.isChecked() and set_autoscale:
-            self.channel_row.boxes[channel].autoscale_chbx.setCheckState(
-                QtCore.Qt.CheckState.Unchecked
-            )
-        self._canvas.update()
+        for idx in indices:
+            self._update_data_for_index(idx)
+        self._canvas.refresh()
 
-    def _handle_channel_cmap(self, colormap: cmap.Colormap, channel: int) -> None:
-        for g in range(self.ng):
-            try:
-                self.images[(("c", channel), ("g", g))].cmap = colormap.to_vispy()
-            except KeyError:
-                return
-        if colormap.name not in self.cmap_names:
-            self.cmap_names.append(self.cmap_names[channel])
-        self.cmap_names[channel] = colormap.name
-        self._canvas.update()
+    def _update_data_for_index(self, index: Indices) -> None:
+        """Update the displayed image for the given index.
 
-    def _handle_channel_visibility(self, state: bool, channel: int) -> None:
-        for g in range(self.ng):
-            checked = self.channel_row.boxes[channel].show_channel.isChecked()
-            self.images[(("c", channel), ("g", g))].visible = checked
-        if self.current_channel == channel:
-            channel_to_set = channel - 1 if channel > 0 else channel + 1
-            channel_to_set = 0 if len(self.channel_row.boxes) == 1 else channel_to_set
-            self.channel_row._handle_channel_choice(
-                self.channel_row.boxes[channel_to_set].channel
-            )
-        self._canvas.update()
-
-    def _handle_channel_autoscale(self, state: bool, channel: int) -> None:
-        slider = self.channel_row.boxes[channel].slider
-        if state == 0:
-            self._handle_channel_clim(slider.value(), channel, set_autoscale=False)
+        This will pull the data from the datastore using the given index, and update
+        the image handle(s) with the new data.
+        """
+        imkey = self._image_key(index)
+        data = self._isel(index).squeeze()
+        data = self._reduce_dims_for_display(data)
+        if handles := self._img_handles[imkey]:
+            for handle in handles:
+                handle.data = data
+            if ctrl := self._lut_ctrls.get(imkey, None):
+                ctrl.update_autoscale()
         else:
-            clim = (
-                slider.minimum(),
-                slider.maximum(),
+            cm = (
+                next(self._cmaps)
+                if self._channel_mode == ChannelMode.COMPOSITE
+                else GRAYS
             )
-            self._handle_channel_clim(clim, channel, set_autoscale=False)
+            handles.append(self._canvas.add_image(data, cmap=cm))
+            if imkey not in self._lut_ctrls:
+                channel_name = f"Ch {imkey}"  # TODO: get name from user
+                self._lut_ctrls[imkey] = c = LutControl(channel_name, handles)
+                c.update_autoscale()
+                self._lut_drop.addWidget(c)
 
-    def _handle_channel_choice(self, channel: int) -> None:
-        self.current_channel = channel
+    def _reduce_dims_for_display(
+        self, data: np.ndarray, reductor: Callable[..., np.ndarray] = np.max
+    ) -> np.ndarray:
+        """Reduce the number of dimensions in the data for display.
 
-    def on_mouse_move(self, event: SceneMouseEvent) -> None:
-        """Mouse moved on the canvas, display the pixel value and position."""
-        # https://groups.google.com/g/vispy/c/sUNKoDL1Gc0/m/E5AG7lgPFQAJ
-        self.view.interactive = False
-        images = []
-        all_images = []
-        # Get the images the mouse is over
-        while image := self._canvas.visual_at(event.pos):
-            if image in self.images.values():
-                images.append(image)
-            image.interactive = False
-            all_images.append(image)
-        for image in all_images:
-            image.interactive = True
+        This function takes a data array and reduces the number of dimensions to
+        the max allowed for display. The default behavior is to reduce the smallest
+        dimensions, using np.max.  This can be improved in the future.
+        """
+        # TODO
+        # - allow for 3d data
+        # - allow dimensions to control how they are reduced
+        # - for better way to determine which dims need to be reduced
+        visualized_dims = 2
+        if extra_dims := data.ndim - visualized_dims:
+            shapes = sorted(enumerate(data.shape), key=lambda x: x[1])
+            smallest_dims = tuple(i for i, _ in shapes[:extra_dims])
+            return reductor(data, axis=smallest_dims)
 
-        self.view.interactive = True
-        if images == []:
-            transform = self.view.get_transform("canvas", "visual")
-            p = [int(x) for x in transform.map(event.pos)]
-            info = f"[{p[0]}, {p[1]}]"
-            self.info_bar.setText(info)
-            return
-        # Adjust channel index is channel(s) are not visible
-        real_channel = self.current_channel
-        for i in range(self.current_channel):
-            i_visible = self.channel_row.boxes[i].show_channel.isChecked()
-            real_channel = real_channel - 1 if not i_visible else real_channel
-        images.reverse()
-        transform = images[real_channel].get_transform("canvas", "visual")
-        p = [int(x) for x in transform.map(event.pos)]
-        try:
-            pos = f"[{p[0]}, {p[1]}]"
-            value = f"{images[real_channel]._data[p[1], p[0]]}"
-            info = f"{pos}: {value}"
-            self.info_bar.setText(info)
-        except IndexError:
-            info = f"[{p[0]}, {p[1]}]"
-            self.info_bar.setText(info)
+        if data.dtype == np.float64:
+            data = data.astype(np.float32)
+        return data
 
-    def on_display_timer(self) -> None:
-        """Update display, usually triggered by QTimer started by slider click."""
-        old_index = self.display_index.copy()
-        for slider in self.sliders.values():
-            self.display_index[slider.name] = slider.value()
-        if old_index == self.display_index:
-            return
-        if (sequence := self.sequence) is None:
-            return
-        for g in range(self.ng):
-            for c in range(sequence.sizes.get("c", 1)):
-                frame = self.datastore.get_frame(
-                    MDAEvent(
-                        index={
-                            "t": self.display_index["t"],
-                            "z": self.display_index["z"],
-                            "c": c,
-                            "g": g,
-                            "p": 0,
-                        }
-                    )
-                )
-                self.display_image(frame, c, g)
-        self._canvas.update()
 
-    def _set_sliders(self, indices: dict) -> dict:
-        """New indices from outside the sliders, update."""
-        display_indices = copy.deepcopy(indices)
-        for index in display_indices:
-            if index not in ["t", "z"] or display_indices.get(index, 0) == 0:
-                continue
-            if self.sliders[index].lock_btn.isChecked():
-                display_indices[index] = self.sliders[index].value()
-                continue
-            # This blocking doesn't seem to work
-            # blocked = slider.blockSignals(True)
-            self.sliders[index].setValue(display_indices.get(index, 0))
-            if display_indices.get(index, 0) > self.sliders[index].maximum():
-                self.sliders[index].setMaximum(display_indices.get(index, 0))
-            # slider.setValue(indices[slider.name])
-            # slider.blockSignals(blocked)
-        return display_indices
-
-    def display_image(self, img: np.ndarray, channel: int = 0, grid: int = 0) -> None:
-        self.images[(("c", channel), ("g", grid))].set_data(img)
-        # Should we do this? Might it slow down acquisition while in the same thread?
-        self._canvas.update()
-
-    def on_clim_timer(self, channel: int | None = None) -> None:
-        channel_list = (
-            list(range(len(self.channel_row.boxes))) if channel is None else [channel]
-        )
-        for grid in range(self.ng):
-            for channel in channel_list:
-                if (
-                    self.channel_row.boxes[channel].autoscale_chbx.isChecked()
-                    and (img := self.images[(("c", channel), ("g", grid))]).visible
-                ):
-                    # TODO: percentile here, could be in gui
-                    img.clim = np.percentile(img._data, [0, 100])
-        self._canvas.update()
-
-    def _get_image_position(
-        self,
-        trans: MatrixTransform,
-        event: MDAEvent,
-    ) -> MatrixTransform:
-        translate = [round(x) for x in ((1, 1) - trans.matrix[:2, :2].dot((1, 1))) / 2]
-
-        x_pos = event.x_pos or 0
-        y_pos = event.y_pos or 0
-        w, h = self.img_size
-        if x_pos == 0 and y_pos == 0:
-            trans.translate(((1 - translate[1]) * w, translate[0] * h, 0))
-            self.view_rect = ((0 - w / 2, 0 - h / 2), (w, h))
+def _to_sizes(sizes: SizesLike | None) -> Sizes:
+    """Coerce `sizes` to a {dimKey -> int} mapping."""
+    if sizes is None:
+        return {}
+    if isinstance(sizes, Mapping):
+        return {k: int(v) for k, v in sizes.items()}
+    if not isinstance(sizes, Iterable):
+        raise TypeError(f"SizeLike must be an iterable or mapping, not: {type(sizes)}")
+    _sizes: dict[Hashable, int] = {}
+    for i, val in enumerate(sizes):
+        if isinstance(val, int):
+            _sizes[i] = val
+        elif isinstance(val, Sequence) and len(val) == 2:
+            _sizes[val[0]] = int(val[1])
         else:
-            trans.translate(((translate[1] - 1) * w, translate[0] * h, 0))
-            trans.translate((x_pos / self.pixel_size, y_pos / self.pixel_size, 0))
-            self._expand_canvas_view(event)
-        return trans
-
-    def _expand_canvas_view(self, event: MDAEvent) -> None:
-        """Expand the canvas view to include the new image."""
-        x_pos = event.x_pos or 0
-        y_pos = event.y_pos or 0
-        img_position = (
-            x_pos / self.pixel_size - self.img_size[0] / 2,
-            x_pos / self.pixel_size + self.img_size[0] / 2,
-            y_pos / self.pixel_size - self.img_size[1] / 2,
-            y_pos / self.pixel_size + self.img_size[1] / 2,
-        )
-        camera_rect = [
-            self.view_rect[0][0],
-            self.view_rect[0][0] + self.view_rect[1][0],
-            self.view_rect[0][1],
-            self.view_rect[0][1] + self.view_rect[1][1],
-        ]
-        if camera_rect[0] > img_position[0]:
-            camera_rect[0] = img_position[0]
-        if camera_rect[1] < img_position[1]:
-            camera_rect[1] = img_position[1]
-        if camera_rect[2] > img_position[2]:
-            camera_rect[2] = img_position[2]
-        if camera_rect[3] < img_position[3]:
-            camera_rect[3] = img_position[3]
-        self.view_rect = (
-            (camera_rect[0], camera_rect[2]),
-            (camera_rect[1] - camera_rect[0], camera_rect[3] - camera_rect[2]),
-        )
-
-    def _disconnect(self) -> None:
-        if self._mmc:
-            self._mmc.mda.events.sequenceStarted.disconnect(self.sequenceStarted)
-        self.datastore.frame_ready.disconnect(self.frameReady)
-
-    def _reload_position(self) -> None:
-        self.qt_settings = QtCore.QSettings("pymmcore_plus", self.__class__.__name__)
-        self.resize(self.qt_settings.value("size", QtCore.QSize(270, 225)))
-        self.move(self.qt_settings.value("pos", QtCore.QPoint(50, 50)))
-        self.cmap_names = self.qt_settings.value("cmaps", ["gray", "cyan", "magenta"])
-
-    def _collapse_view(self) -> None:
-        w, h = self.img_size
-        view_rect = (
-            (self.view_rect[0][0] - w / 2, self.view_rect[0][1] + h / 2),
-            self.view_rect[1],
-        )
-        self.view.camera.rect = view_rect
-
-    def _reemit_missed_events(self) -> None:
-        while self.missed_events:
-            self.frameReady(self.missed_events.pop(0))
-
-    @superqt.ensure_main_thread  # type: ignore
-    def _redisplay(self, event: MDAEvent) -> None:
-        self.missed_events.append(event)
-        QTimer.singleShot(0, self._reemit_missed_events)
-
-    def closeEvent(self, e: QCloseEvent) -> None:
-        """Write window size and position to config file."""
-        self.qt_settings.setValue("size", self.size())
-        self.qt_settings.setValue("pos", self.pos())
-        self.qt_settings.setValue("cmaps", self.cmap_names)
-        self._canvas.close()
-        super().closeEvent(e)
+            raise ValueError(f"Invalid size: {val}. Must be an int or a 2-tuple.")
+    return _sizes
