@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from collections import defaultdict
 from enum import Enum
 from itertools import cycle
@@ -10,7 +11,7 @@ import numpy as np
 from qtpy.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 from superqt import QCollapsible, QElidingLabel, QIconifyIcon
 
-from ._canvas import get_canvas
+from ._backends import get_canvas
 from ._dims_slider import DimsSliders
 from ._indexing import is_xarray_dataarray, isel
 from ._lut_control import LutControl
@@ -274,7 +275,7 @@ class StackViewer(QWidget):
         if is_xarray_dataarray(data):
             for d in data.dims:
                 if str(d).lower() in ("channel", "ch", "c"):
-                    return d
+                    return cast("DimKey", d)
         return 0
 
     def _clear_images(self) -> None:
@@ -316,9 +317,11 @@ class StackViewer(QWidget):
         indices: list[Indices] = [index]
         if self._channel_mode == ChannelMode.COMPOSITE:
             for i, handles in self._img_handles.items():
-                if handles and c != i:
-                    # FIXME: type error is legit
-                    indices.append({**index, self._channel_axis: i})
+                if isinstance(i, (int, slice)):
+                    if handles and c != i:
+                        indices.append({**index, self._channel_axis: i})
+                else:  # pragma: no cover
+                    warnings.warn(f"Invalid key for composite image: {i}", stacklevel=2)
 
         for idx in indices:
             self._update_data_for_index(idx)

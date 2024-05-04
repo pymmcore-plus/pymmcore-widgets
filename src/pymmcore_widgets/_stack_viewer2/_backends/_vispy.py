@@ -96,7 +96,7 @@ class VispyViewerCanvas:
         self,
         x: tuple[float, float] | None = None,
         y: tuple[float, float] | None = None,
-        margin: float | None = 0.01,
+        margin: float = 0.01,
     ) -> None:
         """Update the range of the PanZoomCamera.
 

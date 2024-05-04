@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Iterable, cast
 
 import numpy as np
 from qtpy.QtCore import Qt
@@ -77,7 +77,7 @@ class LutControl(QWidget):
         layout.addWidget(self._auto_clim)
 
     def autoscaleChecked(self) -> bool:
-        return self._auto_clim.isChecked()
+        return cast("bool", self._auto_clim.isChecked())
 
     def _on_clims_changed(self, clims: tuple[float, float]) -> None:
         self._auto_clim.setChecked(False)

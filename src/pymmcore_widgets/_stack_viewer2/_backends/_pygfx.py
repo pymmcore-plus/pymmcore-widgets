@@ -69,11 +69,7 @@ class _QWgpuCanvas(QWgpuCanvas):
 
 
 class PyGFXViewerCanvas:
-    """Vispy-based viewer for data.
-
-    All vispy-specific code is encapsulated in this class (and non-vispy canvases
-    could be swapped in if needed as long as they implement the same interface).
-    """
+    """pygfx-based canvas wrapper."""
 
     def __init__(self, set_info: Callable[[str], None]) -> None:
         self._set_info = set_info

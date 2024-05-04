@@ -204,7 +204,7 @@ class DimsSlider(QWidget):
 
     def mouseDoubleClickEvent(self, a0: Any) -> None:
         self._set_slice_mode(not self._slice_mode)
-        return super().mouseDoubleClickEvent(a0)
+        super().mouseDoubleClickEvent(a0)
 
     def setMaximum(self, max_val: int) -> None:
         if max_val > self._int_slider.maximum():
@@ -218,7 +218,7 @@ class DimsSlider(QWidget):
 
     def value(self) -> Index:
         if not self._slice_mode:
-            return self._int_slider.value()
+            return self._int_slider.value()  # type: ignore
         start, *_, stop = cast("tuple[int, ...]", self._slice_slider.value())
         if start == stop:
             return start
@@ -397,7 +397,7 @@ class DimsSliders(QWidget):
                 for s in sliders:
                     getattr(s, lbl).setFixedWidth(lbl_width)
 
-        return super().resizeEvent(a0)
+        super().resizeEvent(a0)
 
 
 if __name__ == "__main__":

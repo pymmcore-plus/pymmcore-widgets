@@ -10,10 +10,8 @@ if TYPE_CHECKING:
     from pymmcore_widgets._stack_viewer2._protocols import PCanvas
 
 
-ENV_BACKEND = os.getenv("CANVAS_BACKEND", None)
-
-
-def get_canvas(backend: str | None = ENV_BACKEND) -> type[PCanvas]:
+def get_canvas(backend: str | None = None) -> type[PCanvas]:
+    backend = backend or os.getenv("CANVAS_BACKEND", None)
     if backend == "vispy" or (backend is None and "vispy" in sys.modules):
         from ._vispy import VispyViewerCanvas
 

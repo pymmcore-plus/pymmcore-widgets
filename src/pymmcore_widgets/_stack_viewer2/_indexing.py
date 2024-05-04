@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
@@ -66,7 +66,7 @@ def isel(store: Any, indexers: Indices) -> np.ndarray:
     if is_pymmcore_writer(store):
         return isel_mmcore_5dbase(store, indexers)
     if is_xarray_dataarray(store):
-        return store.isel(indexers).to_numpy()
+        return cast("np.ndarray", store.isel(indexers).to_numpy())
     if is_duck_array(store):
         return isel_np_array(store, indexers)
     raise NotImplementedError(f"Don't know how to index into type {type(store)}")
@@ -82,6 +82,7 @@ def isel_mmcore_5dbase(writer: _5DWriterBase, indexers: Indices) -> np.ndarray:
     if isinstance(p_index, slice):
         warnings.warn("Cannot slice over position index", stacklevel=2)  # TODO
         p_index = p_index.start
+    p_index = cast(int, p_index)
 
     try:
         sizes = [*list(writer.position_sizes[p_index]), "y", "x"]

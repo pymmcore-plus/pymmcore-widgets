@@ -31,6 +31,6 @@ class MDAViewer(StackViewer):
         self._data.frame_ready.connect(self.on_frame_ready)
         self.dims_sliders.set_locks_visible(True)
 
-    @superqt.ensure_main_thread
+    @superqt.ensure_main_thread  # type: ignore
     def on_frame_ready(self, frame: np.ndarray, event: useq.MDAEvent) -> None:
-        self.setIndex(event.index)
+        self.setIndex(event.index)  # type: ignore

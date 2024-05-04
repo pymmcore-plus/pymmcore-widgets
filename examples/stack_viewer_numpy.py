@@ -11,6 +11,7 @@ def generate_5d_sine_wave(
     amplitude: float = 240,
     base_frequency: float = 5,
 ) -> np.ndarray:
+    """5D dataset."""
     # Unpack the dimensions
     angle_dim, freq_dim, phase_dim, ny, nx = shape
 
