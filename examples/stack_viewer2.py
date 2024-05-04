@@ -28,8 +28,8 @@ sequence = MDASequence(
 
 qapp = QtWidgets.QApplication([])
 v = MDAViewer()
-v.dims_sliders.setLocksVisible(False)
+v.dims_sliders.set_locks_visible(False)
 v.show()
 
-mmcore.run_mda(sequence, output=v._datastore)
+mmcore.run_mda(sequence, output=v._data)
 qapp.exec()

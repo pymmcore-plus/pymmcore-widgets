@@ -307,7 +307,7 @@ class DimsSliders(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._locks_visible = True
+        self._locks_visible: bool | Mapping[DimKey, bool] = False
         self._sliders: dict[DimKey, DimsSlider] = {}
         self._current_index: dict[DimKey, Index] = {}
         self._invisible_dims: set[DimKey] = set()
@@ -341,7 +341,7 @@ class DimsSliders(QWidget):
                 self.add_dimension(name)
             self._sliders[name].setMaximum(max_val)
 
-    def setLocksVisible(self, visible: bool | Mapping[DimKey, bool]) -> None:
+    def set_locks_visible(self, visible: bool | Mapping[DimKey, bool]) -> None:
         self._locks_visible = visible
         for dim, slider in self._sliders.items():
             viz = visible if isinstance(visible, bool) else visible.get(dim, False)

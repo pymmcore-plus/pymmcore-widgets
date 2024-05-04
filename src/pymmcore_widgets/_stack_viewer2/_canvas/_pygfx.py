@@ -2,30 +2,33 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, cast
 
+import numpy as np
 import pygfx
-import pygfx.geometries
-import pygfx.materials
+from qtpy.QtCore import QSize
 from wgpu.gui.qt import QWgpuCanvas
 
 if TYPE_CHECKING:
     import cmap
-    import numpy as np
+    from pygfx.materials import ImageBasicMaterial
+    from pygfx.resources import Texture
     from qtpy.QtWidgets import QWidget
 
 
 class PyGFXImageHandle:
-    def __init__(self, image: pygfx.Image) -> None:
+    def __init__(self, image: pygfx.Image, render: Callable) -> None:
         self._image = image
-        self._geom = cast("pygfx.geometries.Geometry", image.geometry.grid)
-        self._material = cast("pygfx.materials.ImageBasicMaterial", image.material)
+        self._render = render
+        self._grid = cast("Texture", image.geometry.grid)
+        self._material = cast("ImageBasicMaterial", image.material)
 
     @property
     def data(self) -> np.ndarray:
-        return self._geom._data  # type: ignore
+        return self._grid.data  # type: ignore
 
     @data.setter
     def data(self, data: np.ndarray) -> None:
-        self._geom.grid = pygfx.Texture(data, dim=2)
+        self._grid.data[:] = data
+        self._grid.update_range((0, 0, 0), self._grid.size)
 
     @property
     def visible(self) -> bool:
@@ -34,6 +37,7 @@ class PyGFXImageHandle:
     @visible.setter
     def visible(self, visible: bool) -> None:
         self._image.visible = visible
+        self._render()
 
     @property
     def clim(self) -> Any:
@@ -42,6 +46,7 @@ class PyGFXImageHandle:
     @clim.setter
     def clim(self, clims: tuple[float, float]) -> None:
         self._material.clim = clims
+        self._render()
 
     @property
     def cmap(self) -> cmap.Colormap:
@@ -51,10 +56,16 @@ class PyGFXImageHandle:
     def cmap(self, cmap: cmap.Colormap) -> None:
         self._cmap = cmap
         self._material.map = cmap.to_pygfx()
+        self._render()
 
     def remove(self) -> None:
         if (par := self._image.parent) is not None:
             par.remove(self._image)
+
+
+class _QWgpuCanvas(QWgpuCanvas):
+    def sizeHint(self) -> QSize:
+        return QSize(512, 512)
 
 
 class PyGFXViewerCanvas:
@@ -67,16 +78,17 @@ class PyGFXViewerCanvas:
     def __init__(self, set_info: Callable[[str], None]) -> None:
         self._set_info = set_info
 
-        self._canvas = QWgpuCanvas(size=(512, 512))
+        self._canvas = _QWgpuCanvas(size=(512, 512))
         self._renderer = pygfx.renderers.WgpuRenderer(self._canvas)
+        self._renderer.blend_mode = "weighted"
         self._scene = pygfx.Scene()
         self._camera = cam = pygfx.OrthographicCamera(512, 512)
+        cam.local.scale_y = -1
 
         cam.local.position = (256, 256, 0)
-        cam.local.scale_y = -1
-        controller = pygfx.PanZoomController(cam, register_events=self._renderer)
+        self._controller = pygfx.PanZoomController(cam, register_events=self._renderer)
         # increase zoom wheel gain
-        controller.controls.update({"wheel": ("zoom_to_point", "push", -0.005)})
+        self._controller.controls.update({"wheel": ("zoom_to_point", "push", -0.005)})
 
     def qwidget(self) -> QWidget:
         return cast("QWidget", self._canvas)
@@ -86,7 +98,6 @@ class PyGFXViewerCanvas:
         self._canvas.request_draw(self._animate)
 
     def _animate(self) -> None:
-        print("animate")
         self._renderer.render(self._scene, self._camera)
 
     def add_image(
@@ -95,10 +106,13 @@ class PyGFXViewerCanvas:
         """Add a new Image node to the scene."""
         image = pygfx.Image(
             pygfx.Geometry(grid=pygfx.Texture(data, dim=2)),
-            pygfx.ImageBasicMaterial(),
+            # depth_test=False for additive-like blending
+            pygfx.ImageBasicMaterial(depth_test=False),
         )
         self._scene.add(image)
-        handle = PyGFXImageHandle(image)
+        # FIXME: I suspect there are more performant ways to refresh the canvas
+        # look into it.
+        handle = PyGFXImageHandle(image, self.refresh)
         if cmap is not None:
             handle.cmap = cmap
         return handle
@@ -107,13 +121,27 @@ class PyGFXViewerCanvas:
         self,
         x: tuple[float, float] | None = None,
         y: tuple[float, float] | None = None,
-        margin: float | None = 0.05,
+        margin: float = 0.05,
     ) -> None:
         """Update the range of the PanZoomCamera.
 
         When called with no arguments, the range is set to the full extent of the data.
         """
-        # self._camera.set_range(x=x, y=y, margin=margin)
+        if not self._scene.children:
+            return
+
+        cam = self._camera
+        cam.show_object(self._scene)
+
+        width, height, depth = np.ptp(self._scene.get_world_bounding_box(), axis=0)
+        if width < 0.01:
+            width = 1
+        if height < 0.01:
+            height = 1
+        cam.width = width
+        cam.height = height
+        cam.zoom = 1 - margin
+        self.refresh()
 
     # def _on_mouse_move(self, event: SceneMouseEvent) -> None:
     #     """Mouse moved on the canvas, display the pixel value and position."""

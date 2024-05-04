@@ -28,7 +28,8 @@ class MDAViewer(StackViewer):
 
     def __init__(self, *, parent: QWidget | None = None):
         super().__init__(DataStore(), parent=parent, channel_axis="c")
-        self._datastore.frame_ready.connect(self.on_frame_ready)
+        self._data.frame_ready.connect(self.on_frame_ready)
+        self.dims_sliders.set_locks_visible(True)
 
     @superqt.ensure_main_thread
     def on_frame_ready(self, frame: np.ndarray, event: useq.MDAEvent) -> None:

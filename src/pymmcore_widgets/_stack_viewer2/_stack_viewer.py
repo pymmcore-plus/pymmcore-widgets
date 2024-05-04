@@ -10,7 +10,7 @@ import numpy as np
 from qtpy.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 from superqt import QCollapsible, QElidingLabel, QIconifyIcon
 
-from ._canvas._vispy import VispyViewerCanvas
+from ._canvas import get_canvas
 from ._dims_slider import DimsSliders
 from ._indexing import is_xarray_dataarray, isel
 from ._lut_control import LutControl
@@ -106,7 +106,7 @@ class StackViewer(QWidget):
         # place to display arbitrary text
         self._hover_info = QLabel("Info")
         # the canvas that displays the images
-        self._canvas: PCanvas = VispyViewerCanvas(self._hover_info.setText)
+        self._canvas: PCanvas = get_canvas()(self._hover_info.setText)
         # the sliders that control the index of the displayed image
         self._dims_sliders = DimsSliders()
         self._dims_sliders.valueChanged.connect(self._on_dims_sliders_changed)
@@ -150,6 +150,11 @@ class StackViewer(QWidget):
 
     # ------------------- PUBLIC API ----------------------------
 
+    @property
+    def data(self) -> Any:
+        """Return the data backing the view."""
+        return self._data
+
     def set_data(self, data: Any, sizes: SizesLike | None = None) -> None:
         """Set the datastore, and, optionally, the sizes of the data."""
         if sizes is None:
@@ -158,23 +163,27 @@ class StackViewer(QWidget):
             elif (shp := getattr(data, "shape", None)) and isinstance(shp, tuple):
                 sizes = shp
         self._sizes = _to_sizes(sizes)
-        self._datastore = data
+        self._data = data
         if self._channel_axis is None:
             self._channel_axis = self._guess_channel_axis(data)
         self.set_visualized_dims(list(self._sizes)[-2:])
         self.update_slider_maxima()
         self.setIndex({})
 
-        if all(isinstance(x, int) for x in self._sizes):
-            size_str = repr(tuple(self._sizes.values()))
-        else:
-            size_str = ", ".join(f"{k}:{v}" for k, v in self._sizes.items())
-            size_str = f"({size_str})"
-        dtype = getattr(data, "dtype", "")
-        nbytes = getattr(data, "nbytes", "") / 1e6
-        self._data_info.setText(
-            f"{type(data).__name__}, {size_str}, {dtype}, {nbytes}MB"
-        )
+        info = f"{getattr(type(data), '__qualname__', '')}"
+
+        if self._sizes:
+            if all(isinstance(x, int) for x in self._sizes):
+                size_str = repr(tuple(self._sizes.values()))
+            else:
+                size_str = ", ".join(f"{k}:{v}" for k, v in self._sizes.items())
+                size_str = f"({size_str})"
+            info += f" {size_str}"
+        if dtype := getattr(data, "dtype", ""):
+            info += f", {dtype}"
+        if nbytes := getattr(data, "nbytes", 0) / 1e6:
+            info += f", {nbytes:.2f}MB"
+        self._data_info.setText(info)
 
     def set_visualized_dims(self, dims: Iterable[DimKey]) -> None:
         """Set the dimensions that will be visualized.
@@ -297,7 +306,7 @@ class StackViewer(QWidget):
         """Select data from the datastore using the given index."""
         idx = {k: v for k, v in index.items() if k not in self._visualized_dims}
         try:
-            return isel(self._datastore, idx)
+            return isel(self._data, idx)
         except Exception as e:
             raise type(e)(f"Failed to index data with {idx}: {e}") from e
 
@@ -360,6 +369,9 @@ class StackViewer(QWidget):
             shapes = sorted(enumerate(data.shape), key=lambda x: x[1])
             smallest_dims = tuple(i for i, _ in shapes[:extra_dims])
             return reductor(data, axis=smallest_dims)
+
+        if data.dtype == np.float64:
+            data = data.astype(np.float32)
         return data
 
 

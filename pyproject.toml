@@ -57,7 +57,15 @@ dependencies = [
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-test = ["pytest>=6.0", "pytest-cov", "pytest-qt", "PyYAML", "vispy", "cmap", "zarr"]
+test = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "pytest-qt",
+    "PyYAML",
+    "vispy",
+    "cmap",
+    "zarr",
+]
 pyqt5 = ["PyQt5"]
 pyside2 = ["PySide2"]
 pyqt6 = ["PyQt6"]
@@ -172,3 +180,6 @@ ignore = [
     "examples/**/*",
     "CHANGELOG.md",
 ]
+
+[tool.typos.default]
+extend-ignore-identifiers-re = ["(?i)nd2?.*", "(?i)ome"]
