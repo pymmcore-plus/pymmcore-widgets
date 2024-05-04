@@ -40,7 +40,8 @@ class VispyImageHandle:
 
     @clim.setter
     def clim(self, clims: tuple[float, float]) -> None:
-        self._image.clim = clims
+        with suppress(ZeroDivisionError):
+            self._image.clim = clims
 
     @property
     def cmap(self) -> cmap.Colormap:

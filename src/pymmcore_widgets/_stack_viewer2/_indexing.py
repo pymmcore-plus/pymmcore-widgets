@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any
+import warnings
+from typing import TYPE_CHECKING
 
 import numpy as np
 from pymmcore_plus.mda.handlers import OMETiffWriter, OMEZarrWriter
@@ -9,27 +10,61 @@ from pymmcore_plus.mda.handlers import OMETiffWriter, OMEZarrWriter
 # from ._pygfx_canvas import PyGFXViewerCanvas
 
 if TYPE_CHECKING:
-    import xarray as xr  # noqa
+    from typing import Any, Protocol, TypeGuard
 
-    from ._dims_slider import Indices
+    import dask.array as da
+    import numpy.typing as npt
+    import xarray as xr
+
+    from ._dims_slider import Index, Indices
+
+    class SupportsIndexing(Protocol):
+        def __getitem__(self, key: Index | tuple[Index, ...]) -> npt.ArrayLike: ...
+        @property
+        def shape(self) -> tuple[int, ...]: ...
+
+
+def is_xr_dataarray(obj: Any) -> TypeGuard[xr.DataArray]:
+    if (xr := sys.modules.get("xarray")) and isinstance(obj, xr.DataArray):
+        return True
+    return False
+
+
+def is_dask_array(obj: Any) -> TypeGuard[da.Array]:
+    if (da := sys.modules.get("dask.array")) and isinstance(obj, da.Array):
+        return True
+    return False
+
+
+def is_duck_array(obj: Any) -> TypeGuard[SupportsIndexing]:
+    if (
+        isinstance(obj, np.ndarray)
+        or hasattr(obj, "__array_function__")
+        or hasattr(obj, "__array_namespace__")
+    ):
+        return True
+    return False
 
 
 def isel(store: Any, indexers: Indices) -> np.ndarray:
-    """Select a slice from a data store."""
+    """Select a slice from a data store using (possibly) named indices.
+
+    For xarray.DataArray, use the built-in isel method.
+    For any other duck-typed array, use numpy-style indexing, where indexers
+    is a mapping of axis to slice objects or indices.
+    """
     if isinstance(store, (OMEZarrWriter, OMETiffWriter)):
         return isel_mmcore_5dbase(store, indexers)
-    if isinstance(store, np.ndarray):
-        return isel_np_array(store, indexers)
-    if not TYPE_CHECKING:
-        xr = sys.modules.get("xarray")
-    if xr and isinstance(store, xr.DataArray):
+    if is_xr_dataarray(store):
         return store.isel(indexers).to_numpy()
-    raise NotImplementedError(f"Unknown datastore type {type(store)}")
+    if is_duck_array(store):
+        return isel_np_array(store, indexers)
+    raise NotImplementedError(f"Don't know how to index into type {type(store)}")
 
 
-def isel_np_array(data: np.ndarray, indexers: Indices) -> np.ndarray:
-    idx = tuple(indexers.get(k, slice(None)) for k in range(data.ndim))
-    return data[idx]
+def isel_np_array(data: SupportsIndexing, indexers: Indices) -> np.ndarray:
+    idx = tuple(indexers.get(k, slice(None)) for k in range(len(data.shape)))
+    return np.asarray(data[idx])
 
 
 def isel_mmcore_5dbase(
@@ -37,7 +72,8 @@ def isel_mmcore_5dbase(
 ) -> np.ndarray:
     p_index = indexers.get("p", 0)
     if isinstance(p_index, slice):
-        raise NotImplementedError("Cannot slice over position index")  # TODO
+        warnings.warn("Cannot slice over position index", stacklevel=2)  # TODO
+        p_index = p_index.start
 
     try:
         sizes = [*list(writer.position_sizes[p_index]), "y", "x"]

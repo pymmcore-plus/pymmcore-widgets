@@ -20,14 +20,15 @@ sequence = MDASequence(
         # {"config": "Cy5", "exposure": 20},
     ),
     stage_positions=[(0, 0), (1, 1)],
-    z_plan={"range": 2, "step": 0.4},
-    time_plan={"interval": 0.8, "loops": 2},
+    z_plan={"range": 9, "step": 0.4},
+    time_plan={"interval": 0.2, "loops": 4},
     # grid_plan={"rows": 2, "columns": 1},
 )
 
 
 qapp = QtWidgets.QApplication([])
 v = MDAViewer()
+v.dims_sliders.setLocksVisible(False)
 v.show()
 
 mmcore.run_mda(sequence, output=v._datastore)

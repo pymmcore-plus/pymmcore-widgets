@@ -4,15 +4,30 @@ from typing import TYPE_CHECKING, Iterable
 
 import numpy as np
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QCheckBox, QHBoxLayout, QWidget
+from qtpy.QtWidgets import QCheckBox, QFrame, QHBoxLayout, QPushButton, QWidget
 from superqt import QLabeledRangeSlider
 from superqt.cmap import QColormapComboBox
 from superqt.utils import signals_blocked
+
+from ._dims_slider import BAR_COLOR, SS
 
 if TYPE_CHECKING:
     import cmap
 
     from ._protocols import PImageHandle
+
+
+class CmapCombo(QColormapComboBox):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent, allow_user_colormaps=True, add_colormap_text="Add...")
+        self.setMinimumSize(100, 22)
+        self.setStyleSheet("background-color: transparent;")
+
+    def showPopup(self) -> None:
+        super().showPopup()
+        popup = self.findChild(QFrame)
+        popup.setMinimumWidth(self.width() + 100)
+        popup.move(popup.x(), popup.y() - self.height() - popup.height())
 
 
 class LutControl(QWidget):
@@ -30,10 +45,7 @@ class LutControl(QWidget):
         self._visible.setChecked(True)
         self._visible.toggled.connect(self._on_visible_changed)
 
-        self._cmap = QColormapComboBox(
-            allow_user_colormaps=True, add_colormap_text="Add..."
-        )
-        self._cmap.setMinimumWidth(100)
+        self._cmap = CmapCombo()
         self._cmap.currentColormapChanged.connect(self._on_cmap_changed)
         for handle in handles:
             self._cmap.addColormap(handle.cmap)
@@ -41,12 +53,21 @@ class LutControl(QWidget):
             self._cmap.addColormap(color)
 
         self._clims = QLabeledRangeSlider(Qt.Orientation.Horizontal)
+        if hasattr(self._clims, "_slider"):
+            self._clims._slider.barColor = BAR_COLOR
+        self._clims.setStyleSheet(SS)
+        self._clims.setHandleLabelPosition(
+            QLabeledRangeSlider.LabelPosition.LabelsOnHandle
+        )
+        self._clims.setEdgeLabelMode(QLabeledRangeSlider.EdgeLabelMode.NoLabel)
         self._clims.setRange(0, 2**8)
         self._clims.valueChanged.connect(self._on_clims_changed)
 
-        self._auto_clim = QCheckBox("Auto")
-        self._auto_clim.toggled.connect(self.update_autoscale)
+        self._auto_clim = QPushButton("Auto")
+        self._auto_clim.setMaximumWidth(42)
+        self._auto_clim.setCheckable(True)
         self._auto_clim.setChecked(True)
+        self._auto_clim.toggled.connect(self.update_autoscale)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, cast
 from warnings import warn
 
+from PyQt6.QtGui import QResizeEvent
 from qtpy.QtCore import QPointF, QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QDialog,
@@ -26,38 +27,47 @@ if TYPE_CHECKING:
     from qtpy.QtGui import QKeyEvent
 
     # any hashable represent a single dimension in a AND array
-    DimensionKey: TypeAlias = Hashable
+    DimKey: TypeAlias = Hashable
     # any object that can be used to index a single dimension in an AND array
     Index: TypeAlias = int | slice
     # a mapping from dimension keys to indices (eg. {"x": 0, "y": slice(5, 10)})
     # this object is used frequently to query or set the currently displayed slice
-    Indices: TypeAlias = Mapping[DimensionKey, Index]
+    Indices: TypeAlias = Mapping[DimKey, Index]
     # mapping of dimension keys to the maximum value for that dimension
-    Sizes: TypeAlias = Mapping[DimensionKey, int]
+    Sizes: TypeAlias = Mapping[DimKey, int]
 
+BAR_COLOR = "#24007AAB"
 
 SS = """
 QSlider::groove:horizontal {
-    height: 6px;
+    height: 14px;
     background: qlineargradient(
         x1:0, y1:0, x2:0, y2:1,
         stop:0 rgba(128, 128, 128, 0.25),
         stop:1 rgba(128, 128, 128, 0.1)
     );
     border-radius: 3px;
-    margin: 2px 0;
 }
 
 QSlider::handle:horizontal {
     background: qlineargradient(
         x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(180, 180, 180, 1),
-        stop:1 rgba(180, 180, 180, 1)
+        stop:0 rgba(148, 148, 148, 1),
+        stop:1 rgba(148, 148, 148, 1)
     );
-    width: 28px;
-    margin: -3px 0;
+    width: 32px;
     border-radius: 3px;
-}"""
+}
+
+QLabel {
+    font-size: 12px;
+}
+
+SliderLabel {
+    font-size: 12px;
+    color: white;
+}
+"""
 
 
 class _DissmissableDialog(QDialog):
@@ -136,9 +146,7 @@ class DimsSlider(QWidget):
 
     valueChanged = Signal(object, object)  # where object is int | slice
 
-    def __init__(
-        self, dimension_key: DimensionKey, parent: QWidget | None = None
-    ) -> None:
+    def __init__(self, dimension_key: DimKey, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setStyleSheet(SS)
         self._slice_mode = False
@@ -162,16 +170,20 @@ class DimsSlider(QWidget):
         self._pos_label.setStyleSheet(
             "border: none; padding: 0; margin: 0; background: transparent"
         )
+        self._out_of_label = QLabel()
 
         self._int_slider = QSlider(Qt.Orientation.Horizontal, parent=self)
         self._int_slider.rangeChanged.connect(self._on_range_changed)
         self._int_slider.valueChanged.connect(self._on_int_value_changed)
         # self._int_slider.layout().addWidget(self._max_label)
 
-        self._slice_slider = QLabeledRangeSlider(Qt.Orientation.Horizontal, parent=self)
-        self._slice_slider.setVisible(False)
-        # self._slice_slider.rangeChanged.connect(self._on_range_changed)
-        # self._slice_slider.valueChanged.connect(self._on_slice_value_changed)
+        self._slice_slider = slc = QLabeledRangeSlider(Qt.Orientation.Horizontal)
+        slc._slider.barColor = BAR_COLOR
+        slc.setHandleLabelPosition(QLabeledRangeSlider.LabelPosition.LabelsOnHandle)
+        slc.setEdgeLabelMode(QLabeledRangeSlider.EdgeLabelMode.NoLabel)
+        slc.setVisible(False)
+        slc.rangeChanged.connect(self._on_range_changed)
+        slc.valueChanged.connect(self._on_slice_value_changed)
 
         self.installEventFilter(self)
         layout = QHBoxLayout(self)
@@ -180,26 +192,19 @@ class DimsSlider(QWidget):
         layout.addWidget(self._play_btn)
         layout.addWidget(self._dim_label)
         layout.addWidget(self._int_slider)
+        layout.addWidget(self._slice_slider)
         layout.addWidget(self._pos_label)
+        layout.addWidget(self._out_of_label)
         layout.addWidget(self._lock_btn)
         self.setMinimumHeight(22)
 
     def resizeEvent(self, a0: QResizeEvent | None) -> None:
-        # align all labels
         if isinstance(par := self.parent(), DimsSliders):
-            lbl_width = max(
-                x._dim_label.sizeHint().width() for x in par.findChildren(DimsSlider)
-            )
-            self._dim_label.setFixedWidth(min(lbl_width + 2, 40))
-            pos_lbl_width = max(
-                x._pos_label.sizeHint().width() for x in par.findChildren(DimsSlider)
-            )
-            self._pos_label.setFixedWidth(min(pos_lbl_width + 2, 40))
-        return super().resizeEvent(a0)
+            par.resizeEvent(None)
 
-    # def mouseDoubleClickEvent(self, a0: QMouseEvent | None) -> None:
-    #     self._set_slice_mode(not self._slice_mode)
-    #     return super().mouseDoubleClickEvent(a0)
+    def mouseDoubleClickEvent(self, a0: Any) -> None:
+        self._set_slice_mode(not self._slice_mode)
+        return super().mouseDoubleClickEvent(a0)
 
     def setMaximum(self, max_val: int) -> None:
         if max_val > self._int_slider.maximum():
@@ -212,11 +217,12 @@ class DimsSlider(QWidget):
         self._slice_slider.setRange(min_val, max_val)
 
     def value(self) -> Index:
-        return (
-            self._int_slider.value()
-            if not self._slice_mode
-            else slice(*self._slice_slider.value())
-        )
+        if not self._slice_mode:
+            return self._int_slider.value()
+        start, *_, stop = cast("tuple[int, ...]", self._slice_slider.value())
+        if start == stop:
+            return start
+        return slice(start, stop)
 
     def setValue(self, val: Index) -> None:
         # variant of setValue that always updates the maximum
@@ -236,6 +242,8 @@ class DimsSlider(QWidget):
         self.setValue(val)
 
     def _set_slice_mode(self, mode: bool = True) -> None:
+        if mode == self._slice_mode:
+            return
         self._slice_mode = mode
         if mode:
             self._slice_slider.setVisible(True)
@@ -243,6 +251,7 @@ class DimsSlider(QWidget):
         else:
             self._int_slider.setVisible(True)
             self._slice_slider.setVisible(False)
+        self.valueChanged.emit(self._dim_key, self.value())
 
     def set_fps(self, fps: int) -> None:
         self._animation_fps = fps
@@ -274,8 +283,9 @@ class DimsSlider(QWidget):
             self._int_slider.setValue(self._pos_label.value())
 
     def _on_range_changed(self, min: int, max: int) -> None:
-        self._pos_label.setSuffix(" / " + str(max))
+        self._out_of_label.setText(f"| {max}")
         self._pos_label.setRange(min, max)
+        self.resizeEvent(None)
 
     def _on_int_value_changed(self, value: int) -> None:
         self._pos_label.setValue(value)
@@ -297,15 +307,18 @@ class DimsSliders(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._sliders: dict[DimensionKey, DimsSlider] = {}
-        self._current_index: dict[DimensionKey, Index] = {}
-        self._invisible_dims: set[DimensionKey] = set()
+        self._sliders: dict[DimKey, DimsSlider] = {}
+        self._current_index: dict[DimKey, Index] = {}
+        self._invisible_dims: set[DimKey] = set()
 
-        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Maximum)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+
+    def sizeHint(self) -> QSize:
+        return super().sizeHint().boundedTo(QSize(9999, 0))
 
     def value(self) -> Indices:
         return self._current_index.copy()
@@ -327,8 +340,19 @@ class DimsSliders(QWidget):
                 self.add_dimension(name)
             self._sliders[name].setMaximum(max_val)
 
-    def add_dimension(self, name: DimensionKey, val: Index | None = None) -> None:
+    def setLocksVisible(self, visible: bool | Mapping[DimKey, bool]) -> None:
+        self._lock_visible = visible
+        for dim, slider in self._sliders.items():
+            viz = visible if isinstance(visible, bool) else visible.get(dim, False)
+            slider._lock_btn.setVisible(viz)
+
+    def add_dimension(self, name: DimKey, val: Index | None = None) -> None:
         self._sliders[name] = slider = DimsSlider(dimension_key=name, parent=self)
+        if isinstance(self._lock_visible, dict) and name in self._lock_visible:
+            slider._lock_btn.setVisible(self._lock_visible[name])
+        else:
+            slider._lock_btn.setVisible(bool(self._lock_visible))
+
         slider.setRange(0, 1)
         val = val if val is not None else 0
         self._current_index[name] = val
@@ -337,7 +361,7 @@ class DimsSliders(QWidget):
         slider.setVisible(name not in self._invisible_dims)
         cast("QVBoxLayout", self.layout()).addWidget(slider)
 
-    def set_dimension_visible(self, key: DimensionKey, visible: bool) -> None:
+    def set_dimension_visible(self, key: DimKey, visible: bool) -> None:
         if visible:
             self._invisible_dims.discard(key)
         else:
@@ -345,7 +369,7 @@ class DimsSliders(QWidget):
         if key in self._sliders:
             self._sliders[key].setVisible(visible)
 
-    def remove_dimension(self, key: DimensionKey) -> None:
+    def remove_dimension(self, key: DimKey) -> None:
         try:
             slider = self._sliders.pop(key)
         except KeyError:
@@ -354,15 +378,25 @@ class DimsSliders(QWidget):
         cast("QVBoxLayout", self.layout()).removeWidget(slider)
         slider.deleteLater()
 
-    def _on_dim_slider_value_changed(self, key: DimensionKey, value: Index) -> None:
+    def _on_dim_slider_value_changed(self, key: DimKey, value: Index) -> None:
         self._current_index[key] = value
         self.valueChanged.emit(self.value())
 
-    def add_or_update_dimension(self, key: DimensionKey, value: Index) -> None:
+    def add_or_update_dimension(self, key: DimKey, value: Index) -> None:
         if key in self._sliders:
             self._sliders[key].forceValue(value)
         else:
             self.add_dimension(key, value)
+
+    def resizeEvent(self, a0: QResizeEvent | None) -> None:
+        # align all labels
+        if sliders := list(self._sliders.values()):
+            for lbl in ("_dim_label", "_pos_label", "_out_of_label"):
+                lbl_width = max(getattr(s, lbl).sizeHint().width() for s in sliders)
+                for s in sliders:
+                    getattr(s, lbl).setFixedWidth(lbl_width)
+
+        return super().resizeEvent(a0)
 
 
 if __name__ == "__main__":
@@ -372,7 +406,7 @@ if __name__ == "__main__":
     w = DimsSliders()
     w.add_dimension("x", 5)
     w.add_dimension("ysadfdasas", 20)
-    w.add_dimension("z", 10)
+    w.add_dimension("z", slice(10, 20))
     w.add_dimension("w", 10)
     w.valueChanged.connect(print)
     w.show()
