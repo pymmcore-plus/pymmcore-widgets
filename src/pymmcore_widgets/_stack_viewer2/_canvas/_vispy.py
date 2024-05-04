@@ -127,5 +127,5 @@ class VispyViewerCanvas:
         text = f"[{py}, {px}]"
         for c, img in enumerate(images):
             with suppress(IndexError):
-                text += f" {c}: {img._data[py, px]:0.2f}"
+                text += f" {c}: {round(img._data[py, px], 2)}"
         self._set_info(text)

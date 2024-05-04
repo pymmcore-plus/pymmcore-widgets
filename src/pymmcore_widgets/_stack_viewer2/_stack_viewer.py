@@ -82,9 +82,11 @@ class StackViewer(QWidget):
         self.set_data(data)
 
         btns = QHBoxLayout()
+        btns.addStretch()
         btns.addWidget(self._channel_mode_picker)
         btns.addWidget(self._set_range_btn)
         layout = QVBoxLayout(self)
+        layout.setSpacing(4)
         layout.addLayout(btns)
         layout.addWidget(self._canvas.qwidget(), 1)
         layout.addWidget(self._info_bar)

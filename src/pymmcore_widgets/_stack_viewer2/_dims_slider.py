@@ -3,23 +3,27 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, cast
 from warnings import warn
 
-from qtpy.QtCore import QSize, Qt, Signal
+from qtpy.QtCore import QPointF, QSize, Qt, Signal
 from qtpy.QtWidgets import (
+    QDialog,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QSizePolicy,
     QSlider,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
-from superqt import QLabeledRangeSlider
+from superqt import QElidingLabel, QLabeledRangeSlider
 from superqt.iconify import QIconifyIcon
 from superqt.utils import signals_blocked
 
 if TYPE_CHECKING:
     from typing import Hashable, Mapping, TypeAlias
 
-    from qtpy.QtGui import QMouseEvent
+    from PyQt6.QtGui import QResizeEvent
+    from qtpy.QtGui import QKeyEvent
 
     # any hashable represent a single dimension in a AND array
     DimensionKey: TypeAlias = Hashable
@@ -32,32 +36,94 @@ if TYPE_CHECKING:
     Sizes: TypeAlias = Mapping[DimensionKey, int]
 
 
+SS = """
+QSlider::groove:horizontal {
+    height: 6px;
+    background: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(128, 128, 128, 0.25),
+        stop:1 rgba(128, 128, 128, 0.1)
+    );
+    border-radius: 3px;
+    margin: 2px 0;
+}
+
+QSlider::handle:horizontal {
+    background: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(180, 180, 180, 1),
+        stop:1 rgba(180, 180, 180, 1)
+    );
+    width: 28px;
+    margin: -3px 0;
+    border-radius: 3px;
+}"""
+
+
+class _DissmissableDialog(QDialog):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowFlags(
+            self.windowFlags() | Qt.WindowType.FramelessWindowHint | Qt.WindowType.Popup
+        )
+
+    def keyPressEvent(self, e: QKeyEvent | None) -> None:
+        if e and e.key() in (Qt.Key.Key_Enter, Qt.Key.Key_Return, Qt.Key.Key_Escape):
+            self.accept()
+            print("accept")
+
+
 class PlayButton(QPushButton):
     """Just a styled QPushButton that toggles between play and pause icons."""
 
-    PLAY_ICON = "fa6-solid:play"
-    PAUSE_ICON = "fa6-solid:pause"
+    fpsChanged = Signal(int)
+
+    PLAY_ICON = "bi:play-fill"
+    PAUSE_ICON = "bi:pause-fill"
 
     def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
         icn = QIconifyIcon(self.PLAY_ICON)
         icn.addKey(self.PAUSE_ICON, state=QIconifyIcon.State.On)
         super().__init__(icn, text, parent)
         self.setCheckable(True)
-        self.setMaximumWidth(22)
-        self.setIconSize(QSize(10, 10))
+        self.setFixedSize(14, 18)
+        self.setIconSize(QSize(16, 16))
+        self.setStyleSheet("border: none; padding: 0; margin: 0;")
+
+    # def mousePressEvent(self, e: QMouseEvent | None) -> None:
+    #     if e and e.button() == Qt.MouseButton.RightButton:
+    #         self._show_fps_dialog(e.globalPosition())
+    #     else:
+    #         super().mousePressEvent(e)
+
+    def _show_fps_dialog(self, pos: QPointF) -> None:
+        dialog = _DissmissableDialog()
+
+        sb = QSpinBox()
+        sb.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+        sb.valueChanged.connect(self.fpsChanged)
+
+        layout = QHBoxLayout(dialog)
+        layout.setContentsMargins(4, 0, 4, 0)
+        layout.addWidget(QLabel("FPS"))
+        layout.addWidget(sb)
+
+        dialog.setGeometry(int(pos.x()) - 20, int(pos.y()) - 50, 40, 40)
+        dialog.exec()
 
 
 class LockButton(QPushButton):
-    LOCK_ICON = "fa6-solid:lock-open"
-    UNLOCK_ICON = "fa6-solid:lock"
+    LOCK_ICON = "uis:unlock"
+    UNLOCK_ICON = "uis:lock"
 
     def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
         icn = QIconifyIcon(self.LOCK_ICON)
         icn.addKey(self.UNLOCK_ICON, state=QIconifyIcon.State.On)
         super().__init__(icn, text, parent)
         self.setCheckable(True)
-        self.setMaximumWidth(20)
-        self.setIconSize(QSize(10, 10))
+        self.setFixedSize(20, 20)
+        self.setIconSize(QSize(14, 14))
+        self.setStyleSheet("border: none; padding: 0; margin: 0;")
 
 
 class DimsSlider(QWidget):
@@ -74,22 +140,29 @@ class DimsSlider(QWidget):
         self, dimension_key: DimensionKey, parent: QWidget | None = None
     ) -> None:
         super().__init__(parent)
+        self.setStyleSheet(SS)
         self._slice_mode = False
         self._animation_fps = 30
         self._dim_key = dimension_key
 
         self._play_btn = PlayButton()
+        self._play_btn.fpsChanged.connect(self.set_fps)
         self._play_btn.toggled.connect(self._toggle_animation)
 
-        self._dim_label = QLabel(str(dimension_key))
+        self._dim_label = QElidingLabel(str(dimension_key).upper())
 
         # note, this lock button only prevents the slider from updating programmatically
         # using self.setValue, it doesn't prevent the user from changing the value.
         self._lock_btn = LockButton()
 
-        self._max_label = QLabel("/ 0")
+        self._pos_label = QSpinBox()
+        self._pos_label.valueChanged.connect(self._on_pos_label_edited)
+        self._pos_label.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+        self._pos_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self._pos_label.setStyleSheet(
+            "border: none; padding: 0; margin: 0; background: transparent"
+        )
 
-        # self._int_slider = QLabeledSlider(Qt.Orientation.Horizontal, parent=self)
         self._int_slider = QSlider(Qt.Orientation.Horizontal, parent=self)
         self._int_slider.rangeChanged.connect(self._on_range_changed)
         self._int_slider.valueChanged.connect(self._on_int_value_changed)
@@ -97,22 +170,36 @@ class DimsSlider(QWidget):
 
         self._slice_slider = QLabeledRangeSlider(Qt.Orientation.Horizontal, parent=self)
         self._slice_slider.setVisible(False)
-        self._slice_slider.rangeChanged.connect(self._on_range_changed)
-        self._slice_slider.valueChanged.connect(self._on_slice_value_changed)
+        # self._slice_slider.rangeChanged.connect(self._on_range_changed)
+        # self._slice_slider.valueChanged.connect(self._on_slice_value_changed)
 
         self.installEventFilter(self)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
+        layout.setSpacing(2)
         layout.addWidget(self._play_btn)
         layout.addWidget(self._dim_label)
         layout.addWidget(self._int_slider)
-        layout.addWidget(self._slice_slider)
+        layout.addWidget(self._pos_label)
         layout.addWidget(self._lock_btn)
+        self.setMinimumHeight(22)
 
-    def mouseDoubleClickEvent(self, a0: QMouseEvent | None) -> None:
-        self._set_slice_mode(not self._slice_mode)
-        return super().mouseDoubleClickEvent(a0)
+    def resizeEvent(self, a0: QResizeEvent | None) -> None:
+        # align all labels
+        if isinstance(par := self.parent(), DimsSliders):
+            lbl_width = max(
+                x._dim_label.sizeHint().width() for x in par.findChildren(DimsSlider)
+            )
+            self._dim_label.setFixedWidth(min(lbl_width + 2, 40))
+            pos_lbl_width = max(
+                x._pos_label.sizeHint().width() for x in par.findChildren(DimsSlider)
+            )
+            self._pos_label.setFixedWidth(min(pos_lbl_width + 2, 40))
+        return super().resizeEvent(a0)
+
+    # def mouseDoubleClickEvent(self, a0: QMouseEvent | None) -> None:
+    #     self._set_slice_mode(not self._slice_mode)
+    #     return super().mouseDoubleClickEvent(a0)
 
     def setMaximum(self, max_val: int) -> None:
         if max_val > self._int_slider.maximum():
@@ -178,10 +265,20 @@ class DimsSlider(QWidget):
             ival = (ival + 1) % (self._int_slider.maximum() + 1)
             self._int_slider.setValue(ival)
 
+    def _on_pos_label_edited(self) -> None:
+        if self._slice_mode:
+            self._slice_slider.setValue(
+                (self._pos_label.value(), self._pos_label.value() + 1)
+            )
+        else:
+            self._int_slider.setValue(self._pos_label.value())
+
     def _on_range_changed(self, min: int, max: int) -> None:
-        self._max_label.setText("/ " + str(max))
+        self._pos_label.setSuffix(" / " + str(max))
+        self._pos_label.setRange(min, max)
 
     def _on_int_value_changed(self, value: int) -> None:
+        self._pos_label.setValue(value)
         if not self._slice_mode:
             self.valueChanged.emit(self._dim_key, value)
 
@@ -203,6 +300,8 @@ class DimsSliders(QWidget):
         self._sliders: dict[DimensionKey, DimsSlider] = {}
         self._current_index: dict[DimensionKey, Index] = {}
         self._invisible_dims: set[DimensionKey] = set()
+
+        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Maximum)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -271,9 +370,10 @@ if __name__ == "__main__":
 
     app = QApplication([])
     w = DimsSliders()
-    w.add_dimension("x")
-    w.add_dimension("y", slice(5, 9))
+    w.add_dimension("x", 5)
+    w.add_dimension("ysadfdasas", 20)
     w.add_dimension("z", 10)
+    w.add_dimension("w", 10)
     w.valueChanged.connect(print)
     w.show()
     app.exec()

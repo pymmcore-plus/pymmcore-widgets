@@ -30,7 +30,10 @@ class LutControl(QWidget):
         self._visible.setChecked(True)
         self._visible.toggled.connect(self._on_visible_changed)
 
-        self._cmap = QColormapComboBox(allow_user_colormaps=True)
+        self._cmap = QColormapComboBox(
+            allow_user_colormaps=True, add_colormap_text="Add..."
+        )
+        self._cmap.setMinimumWidth(100)
         self._cmap.currentColormapChanged.connect(self._on_cmap_changed)
         for handle in handles:
             self._cmap.addColormap(handle.cmap)
