@@ -173,7 +173,8 @@ class StackViewer(QWidget):
         self.update_slider_maxima()
         self.setIndex({})
 
-        info = f"{getattr(type(data), '__qualname__', '')}"
+        package = getattr(data, "__module__", "").split(".")[0]
+        info = f"{package}.{getattr(type(data), '__qualname__', '')}"
 
         if self._sizes:
             if all(isinstance(x, int) for x in self._sizes):

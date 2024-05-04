@@ -6,7 +6,7 @@ from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets
 from useq import MDASequence
 
-from pymmcore_widgets.experimental import StackViewer
+from pymmcore_widgets._stack_viewer_v1 import StackViewer
 
 size = 1028
 
