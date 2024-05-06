@@ -3,10 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, cast
 from warnings import warn
 
-from qtpy.QtCore import QPointF, QSize, Qt, Signal
-from qtpy.QtGui import QResizeEvent
+from qtpy.QtCore import QPoint, QPointF, QSize, Qt, Signal
+from qtpy.QtGui import QCursor, QResizeEvent
 from qtpy.QtWidgets import (
     QDialog,
+    QDoubleSpinBox,
+    QFormLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -24,7 +27,6 @@ if TYPE_CHECKING:
     from typing import Hashable, Mapping, TypeAlias
 
     from PyQt6.QtGui import QResizeEvent
-    from qtpy.QtGui import QKeyEvent
 
     # any hashable represent a single dimension in a AND array
     DimKey: TypeAlias = Hashable
@@ -69,56 +71,63 @@ SliderLabel {
 """
 
 
-class _DissmissableDialog(QDialog):
+class QtPopup(QDialog):
+    """A generic popup window."""
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowFlags(
-            self.windowFlags() | Qt.WindowType.FramelessWindowHint | Qt.WindowType.Popup
-        )
+        self.setModal(False)  # if False, then clicking anywhere else closes it
+        self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
 
-    def keyPressEvent(self, e: QKeyEvent | None) -> None:
-        if e and e.key() in (Qt.Key.Key_Enter, Qt.Key.Key_Return, Qt.Key.Key_Escape):
-            self.accept()
-            print("accept")
+        self.frame = QFrame()
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.frame)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+    def show_above_mouse(self, *args: Any) -> None:
+        """Show popup dialog above the mouse cursor position."""
+        pos = QCursor().pos()  # mouse position
+        szhint = self.sizeHint()
+        pos -= QPoint(szhint.width() // 2, szhint.height() + 14)
+        self.move(pos)
+        self.resize(self.sizeHint())
+        self.show()
 
 
 class PlayButton(QPushButton):
     """Just a styled QPushButton that toggles between play and pause icons."""
 
-    fpsChanged = Signal(int)
+    fpsChanged = Signal(float)
 
     PLAY_ICON = "bi:play-fill"
     PAUSE_ICON = "bi:pause-fill"
 
-    def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
+    def __init__(self, fps: float = 30, parent: QWidget | None = None) -> None:
         icn = QIconifyIcon(self.PLAY_ICON)
         icn.addKey(self.PAUSE_ICON, state=QIconifyIcon.State.On)
-        super().__init__(icn, text, parent)
+        super().__init__(icn, "", parent)
+        self.spin = QDoubleSpinBox()
+        self.spin.setRange(0.5, 100)
+        self.spin.setValue(fps)
+        self.spin.valueChanged.connect(self.fpsChanged)
         self.setCheckable(True)
         self.setFixedSize(14, 18)
         self.setIconSize(QSize(16, 16))
         self.setStyleSheet("border: none; padding: 0; margin: 0;")
 
-    # def mousePressEvent(self, e: QMouseEvent | None) -> None:
-    #     if e and e.button() == Qt.MouseButton.RightButton:
-    #         self._show_fps_dialog(e.globalPosition())
-    #     else:
-    #         super().mousePressEvent(e)
+    def mousePressEvent(self, e: Any) -> None:
+        if e and e.button() == Qt.MouseButton.RightButton:
+            self._show_fps_dialog(e.globalPosition())
+        else:
+            super().mousePressEvent(e)
 
     def _show_fps_dialog(self, pos: QPointF) -> None:
-        dialog = _DissmissableDialog()
-
-        sb = QSpinBox()
-        sb.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
-        sb.valueChanged.connect(self.fpsChanged)
-
-        layout = QHBoxLayout(dialog)
-        layout.setContentsMargins(4, 0, 4, 0)
-        layout.addWidget(QLabel("FPS"))
-        layout.addWidget(sb)
-
-        dialog.setGeometry(int(pos.x()) - 20, int(pos.y()) - 50, 40, 40)
-        dialog.exec()
+        if not hasattr(self, "popup"):
+            self.popup = QtPopup(self)
+            form = QFormLayout(self.popup.frame)
+            form.setContentsMargins(6, 6, 6, 6)
+            form.addRow("FPS", self.spin)
+        self.popup.show_above_mouse()
 
 
 class LockButton(QPushButton):
@@ -149,10 +158,10 @@ class DimsSlider(QWidget):
         super().__init__(parent)
         self.setStyleSheet(SS)
         self._slice_mode = False
-        self._animation_fps = 30
         self._dim_key = dimension_key
 
-        self._play_btn = PlayButton()
+        self._timer_id: int | None = None  # timer for play button
+        self._play_btn = PlayButton(fps=30)
         self._play_btn.fpsChanged.connect(self.set_fps)
         self._play_btn.toggled.connect(self._toggle_animation)
 
@@ -251,14 +260,18 @@ class DimsSlider(QWidget):
             self._slice_slider.setVisible(False)
         self.valueChanged.emit(self._dim_key, self.value())
 
-    def set_fps(self, fps: int) -> None:
-        self._animation_fps = fps
+    def set_fps(self, fps: float) -> None:
+        self._play_btn.spin.setValue(fps)
+        self._toggle_animation(self._play_btn.isChecked())
 
     def _toggle_animation(self, checked: bool) -> None:
         if checked:
-            self._timer_id = self.startTimer(1000 // self._animation_fps)
-        else:
+            if self._timer_id is not None:
+                self.killTimer(self._timer_id)
+            self._timer_id = self.startTimer(int(1000 / self._play_btn.spin.value()))
+        elif self._timer_id is not None:
             self.killTimer(self._timer_id)
+            self._timer_id = None
 
     def timerEvent(self, event: Any) -> None:
         if self._slice_mode:
