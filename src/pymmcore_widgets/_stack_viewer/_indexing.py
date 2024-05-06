@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 
 if TYPE_CHECKING:
+    from concurrent.futures import Future
     from typing import Any, Protocol, TypeGuard
 
     import dask.array as da
@@ -70,6 +71,17 @@ def isel(store: Any, indexers: Indices) -> np.ndarray:
     if is_duck_array(store):
         return isel_np_array(store, indexers)
     raise NotImplementedError(f"Don't know how to index into type {type(store)}")
+
+
+def isel_async(store: Any, indexers: Indices) -> Future[np.ndarray]:
+    """Asynchronous version of isel."""
+    from concurrent.futures import Future
+    from threading import Thread
+
+    fut: Future[np.ndarray] = Future()
+    thread = Thread(target=lambda: fut.set_result(isel(store, indexers)))
+    thread.start()
+    return fut
 
 
 def isel_np_array(data: SupportsIndexing, indexers: Indices) -> np.ndarray:

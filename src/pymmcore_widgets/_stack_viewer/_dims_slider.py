@@ -103,8 +103,8 @@ class PlayButton(QPushButton):
     PAUSE_ICON = "bi:pause-fill"
 
     def __init__(self, fps: float = 30, parent: QWidget | None = None) -> None:
-        icn = QIconifyIcon(self.PLAY_ICON)
-        icn.addKey(self.PAUSE_ICON, state=QIconifyIcon.State.On)
+        icn = QIconifyIcon(self.PLAY_ICON, color="#888888")
+        icn.addKey(self.PAUSE_ICON, state=QIconifyIcon.State.On, color="#4580DD")
         super().__init__(icn, "", parent)
         self.spin = QDoubleSpinBox()
         self.spin.setRange(0.5, 100)
@@ -135,8 +135,8 @@ class LockButton(QPushButton):
     UNLOCK_ICON = "uis:lock"
 
     def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
-        icn = QIconifyIcon(self.LOCK_ICON)
-        icn.addKey(self.UNLOCK_ICON, state=QIconifyIcon.State.On)
+        icn = QIconifyIcon(self.LOCK_ICON, color="#888888")
+        icn.addKey(self.UNLOCK_ICON, state=QIconifyIcon.State.On, color="red")
         super().__init__(icn, text, parent)
         self.setCheckable(True)
         self.setFixedSize(20, 20)

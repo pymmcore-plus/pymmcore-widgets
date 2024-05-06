@@ -4,6 +4,7 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Callable, cast
 
 import numpy as np
+from superqt.utils import qthrottled
 from vispy import scene
 
 if TYPE_CHECKING:
@@ -50,6 +51,14 @@ class VispyImageHandle:
         self._cmap = cmap
         self._image.cmap = cmap.to_vispy()
 
+    @property
+    def transform(self) -> np.ndarray:
+        raise NotImplementedError
+
+    @transform.setter
+    def transform(self, transform: np.ndarray) -> None:
+        raise NotImplementedError
+
     def remove(self) -> None:
         self._image.parent = None
 
@@ -64,7 +73,7 @@ class VispyViewerCanvas:
     def __init__(self, set_info: Callable[[str], None]) -> None:
         self._set_info = set_info
         self._canvas = scene.SceneCanvas()
-        self._canvas.events.mouse_move.connect(self._on_mouse_move)
+        self._canvas.events.mouse_move.connect(qthrottled(self._on_mouse_move, 60))
         self._camera = scene.PanZoomCamera(aspect=1, flip=(0, 1))
         self._has_set_range = False
 
@@ -110,11 +119,14 @@ class VispyViewerCanvas:
         # Get the images the mouse is over
         # FIXME: must be a better way to do this
         seen = set()
-        while visual := self._canvas.visual_at(event.pos):
-            if isinstance(visual, scene.visuals.Image):
-                images.append(visual)
-            visual.interactive = False
-            seen.add(visual)
+        try:
+            while visual := self._canvas.visual_at(event.pos):
+                if isinstance(visual, scene.visuals.Image):
+                    images.append(visual)
+                visual.interactive = False
+                seen.add(visual)
+        except Exception:
+            return
         for visual in seen:
             visual.interactive = True
         if not images:

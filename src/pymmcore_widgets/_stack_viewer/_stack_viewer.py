@@ -13,10 +13,11 @@ from superqt import QCollapsible, QElidingLabel, QIconifyIcon
 
 from ._backends import get_canvas
 from ._dims_slider import DimsSliders
-from ._indexing import is_xarray_dataarray, isel
+from ._indexing import is_xarray_dataarray, isel_async
 from ._lut_control import LutControl
 
 if TYPE_CHECKING:
+    from concurrent.futures import Future
     from typing import Any, Callable, Hashable, TypeAlias
 
     from ._dims_slider import DimKey, Indices, Sizes
@@ -26,9 +27,10 @@ if TYPE_CHECKING:
     # any mapping of dimensions to sizes
     SizesLike: TypeAlias = Sizes | Iterable[int | tuple[DimKey, int] | Sequence]
 
-
+MID_GRAY = "#888888"
 GRAYS = cmap.Colormap("gray")
 COLORMAPS = [cmap.Colormap("green"), cmap.Colormap("magenta"), cmap.Colormap("cyan")]
+MAX_CHANNELS = 16
 
 
 class ChannelMode(str, Enum):
@@ -107,7 +109,7 @@ class StackViewer(QWidget):
         # place to display dataset summary
         self._data_info = QElidingLabel("")
         # place to display arbitrary text
-        self._hover_info = QLabel("Info")
+        self._hover_info = QLabel("")
         # the canvas that displays the images
         self._canvas: PCanvas = get_canvas()(self._hover_info.setText)
         # the sliders that control the index of the displayed image
@@ -115,8 +117,8 @@ class StackViewer(QWidget):
         self._dims_sliders.valueChanged.connect(self._on_dims_sliders_changed)
 
         self._lut_drop = QCollapsible("LUTs")
-        self._lut_drop.setCollapsedIcon(QIconifyIcon("bi:chevron-down"))
-        self._lut_drop.setExpandedIcon(QIconifyIcon("bi:chevron-up"))
+        self._lut_drop.setCollapsedIcon(QIconifyIcon("bi:chevron-down", color=MID_GRAY))
+        self._lut_drop.setExpandedIcon(QIconifyIcon("bi:chevron-up", color=MID_GRAY))
         lut_layout = cast("QVBoxLayout", self._lut_drop.layout())
         lut_layout.setContentsMargins(0, 1, 0, 1)
         lut_layout.setSpacing(0)
@@ -148,8 +150,8 @@ class StackViewer(QWidget):
 
         # SETUP ------------------------------------------------------
 
-        self.set_data(data)
         self.set_channel_mode(channel_mode)
+        self.set_data(data)
 
     # ------------------- PUBLIC API ----------------------------
 
@@ -158,7 +160,19 @@ class StackViewer(QWidget):
         """Return the data backing the view."""
         return self._data
 
-    def set_data(self, data: Any, sizes: SizesLike | None = None) -> None:
+    @property
+    def dims_sliders(self) -> DimsSliders:
+        """Return the DimsSliders widget."""
+        return self._dims_sliders
+
+    @property
+    def sizes(self) -> Sizes:
+        """Return sizes {dimkey: int} of the dimensions in the datastore."""
+        return self._sizes
+
+    def set_data(
+        self, data: Any, sizes: SizesLike | None = None, channel_axis: int | None = None
+    ) -> None:
         """Set the datastore, and, optionally, the sizes of the data."""
         if sizes is None:
             if (sz := getattr(data, "sizes", None)) and isinstance(sz, Mapping):
@@ -167,7 +181,9 @@ class StackViewer(QWidget):
                 sizes = shp
         self._sizes = _to_sizes(sizes)
         self._data = data
-        if self._channel_axis is None:
+        if channel_axis is not None:
+            self._channel_axis = channel_axis
+        elif self._channel_axis is None:
             self._channel_axis = self._guess_channel_axis(data)
         self.set_visualized_dims(list(self._sizes)[-2:])
         self.update_slider_maxima()
@@ -200,16 +216,6 @@ class StackViewer(QWidget):
         for d in self._visualized_dims:
             self._dims_sliders.set_dimension_visible(d, False)
 
-    @property
-    def dims_sliders(self) -> DimsSliders:
-        """Return the DimsSliders widget."""
-        return self._dims_sliders
-
-    @property
-    def sizes(self) -> Sizes:
-        """Return sizes {dimkey: int} of the dimensions in the datastore."""
-        return self._sizes
-
     def update_slider_maxima(self, sizes: SizesLike | None = None) -> None:
         """Set the maximum values of the sliders.
 
@@ -235,6 +241,7 @@ class StackViewer(QWidget):
         if mode is None or isinstance(mode, bool):
             mode = self._channel_mode_btn.mode()
         else:
+            mode = ChannelMode(mode)
             self._channel_mode_btn.setMode(mode)
         if mode == getattr(self, "_channel_mode", None):
             return
@@ -244,15 +251,19 @@ class StackViewer(QWidget):
         self._cmaps = cycle(COLORMAPS)
         # set the visibility of the channel slider
         c_visible = mode != ChannelMode.COMPOSITE
-        self._dims_sliders.set_dimension_visible(self._channel_axis, c_visible)
+        if self._channel_axis is not None:
+            self._dims_sliders.set_dimension_visible(self._channel_axis, c_visible)
 
         if not self._img_handles:
+            return
+
+        self._clear_images()
+        if self._channel_axis is None:
             return
 
         # determine what needs to be updated
         n_channels = self._dims_sliders.maximum().get(self._channel_axis, -1) + 1
         value = self._dims_sliders.value()  # get before clearing
-        self._clear_images()
         indices = (
             [value]
             if c_visible
@@ -272,14 +283,15 @@ class StackViewer(QWidget):
 
     def _guess_channel_axis(self, data: Any) -> DimKey:
         """Guess the channel axis from the data."""
-        if isinstance(data, np.ndarray):
-            # for numpy arrays, use the smallest dimension as the channel axis
-            return data.shape.index(min(data.shape))
         if is_xarray_dataarray(data):
             for d in data.dims:
                 if str(d).lower() in ("channel", "ch", "c"):
                     return cast("DimKey", d)
-        return 0
+        if isinstance(shp := getattr(data, "shape", None), Sequence):
+            # for numpy arrays, use the smallest dimension as the channel axis
+            if min(shp) <= MAX_CHANNELS:
+                return shp.index(min(shp))
+        return None
 
     def _clear_images(self) -> None:
         """Remove all images from the canvas."""
@@ -306,11 +318,11 @@ class StackViewer(QWidget):
             return val
         return 0
 
-    def _isel(self, index: Indices) -> np.ndarray:
+    def _isel(self, index: Indices) -> Future[np.ndarray]:
         """Select data from the datastore using the given index."""
         idx = {k: v for k, v in index.items() if k not in self._visualized_dims}
         try:
-            return isel(self._data, idx)
+            return isel_async(self._data, idx)
         except Exception as e:
             raise type(e)(f"Failed to index data with {idx}: {e}") from e
 
@@ -337,7 +349,7 @@ class StackViewer(QWidget):
         the image handle(s) with the new data.
         """
         imkey = self._image_key(index)
-        data = self._isel(index).squeeze()
+        data = self._isel(index).result().squeeze()
         data = self._reduce_dims_for_display(data)
         if handles := self._img_handles[imkey]:
             for handle in handles:
