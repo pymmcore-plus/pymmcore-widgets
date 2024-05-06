@@ -6,8 +6,8 @@ from pytestqt.qtbot import QtBot
 from pymmcore_widgets.mda._save_widget import (
     DIRECTORY_WRITERS,
     FILE_NAME,
-    OME_TIFF,
-    OME_ZARR,
+    SOME_TIFF,
+    SOME_ZARR,
     SUBFOLDER,
     TIFF_SEQ,
     WRITERS,
@@ -30,8 +30,8 @@ def test_set_get_value(qtbot: QtBot) -> None:
     }
 
     # When setting to a file with an extension, the format is set to the known writer
-    wdg.setValue("/some_path/some_file.ome.tif")
-    assert wdg.value()["format"] == OME_TIFF
+    wdg.setValue("/some_path/some_file.some.tif")
+    assert wdg.value()["format"] == SOME_TIFF
 
     # unrecognized extensions warn and default to TIFF_SEQ
     with pytest.warns(
@@ -47,12 +47,12 @@ def test_set_get_value(qtbot: QtBot) -> None:
 
     # Can be set with a dict.
     # note that when setting with a dict, should_save must be set explicitly
-    wdg.setValue({"save_dir": str(path.parent), "save_name": "some_file.ome.zarr"})
+    wdg.setValue({"save_dir": str(path.parent), "save_name": "some_file.some.zarr"})
     assert wdg.value() == {
         "save_dir": str(path.parent),
-        "save_name": "some_file.ome.zarr",
+        "save_name": "some_file.some.zarr",
         "should_save": False,
-        "format": OME_ZARR,
+        "format": SOME_ZARR,
     }
 
 
@@ -61,13 +61,13 @@ def test_save_box_autowriter_selection(qtbot: QtBot) -> None:
     wdg = SaveGroupBox()
     qtbot.addWidget(wdg)
 
-    wdg.save_name.setText("name.ome.tiff")
+    wdg.save_name.setText("name.some.tiff")
     wdg.save_name.editingFinished.emit()  # this only happens in the GUI
-    assert wdg._writer_combo.currentText() == OME_TIFF
+    assert wdg._writer_combo.currentText() == SOME_TIFF
 
     # and it goes both ways
-    wdg._writer_combo.setCurrentText(OME_ZARR)
-    assert wdg.save_name.text() == "name.ome.zarr"
+    wdg._writer_combo.setCurrentText(SOME_ZARR)
+    assert wdg.save_name.text() == "name.some.zarr"
 
 
 @pytest.mark.parametrize("writer", WRITERS)

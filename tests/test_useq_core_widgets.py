@@ -41,8 +41,8 @@ MDA = useq.MDASequence(
 
 SAVE_META = {
     "save_dir": "dir",
-    "save_name": "name.ome.tiff",
-    "format": "ome-tiff",
+    "save_name": "name.some.tiff",
+    "format": "some-tiff",
     "should_save": True,
 }
 
@@ -629,26 +629,26 @@ def test_mda_sequenceFinished_save_name(
     qtbot.addWidget(mda_wdg)
 
     # add a file to tempdir
-    requested_file = tmp_path / "name.ome.tiff"
+    requested_file = tmp_path / "name.some.tiff"
 
     mda_wdg.save_info.setValue(requested_file)
     assert mda_wdg.save_info.isChecked()
-    assert mda_wdg.save_info.value()["save_name"] == "name.ome.tiff"
+    assert mda_wdg.save_info.value()["save_name"] == "name.some.tiff"
 
     requested_file.touch()  # mock the write
     mda_wdg._on_mda_finished(mda_wdg.value())
 
     # the save widget should now have a new name
-    assert mda_wdg.save_info.value()["save_name"] == "name_001.ome.tiff"
+    assert mda_wdg.save_info.value()["save_name"] == "name_001.some.tiff"
 
 
-@pytest.mark.parametrize("extension", [".ome.tiff", ".ome.tif", ".ome.zarr", ""])
+@pytest.mark.parametrize("extension", [".some.tiff", ".some.tif", ".some.zarr", ""])
 def test_get_next_available_paths(extension: str, tmp_path: Path) -> None:
     # non existing paths returns the same path
     path = tmp_path / f"test{extension}"
     assert get_next_available_path(path) == path
 
-    make: Callable = Path.mkdir if extension in {".ome.zarr", ""} else Path.touch
+    make: Callable = Path.mkdir if extension in {".some.zarr", ""} else Path.touch
 
     # existing files add a counter to the path
     make(path)
