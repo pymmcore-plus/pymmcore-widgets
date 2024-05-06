@@ -36,7 +36,6 @@ if TYPE_CHECKING:
     # mapping of dimension keys to the maximum value for that dimension
     Sizes: TypeAlias = Mapping[DimKey, int]
 
-BAR_COLOR = "#2258575B"
 
 SS = """
 QSlider::groove:horizontal {
@@ -51,17 +50,17 @@ QSlider::groove:horizontal {
 
 QSlider::handle:horizontal {
     width: 38px;
-    background: qlineargradient(
-        x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(148, 148, 148, 1),
-        stop:1 rgba(148, 148, 148, 1)
-    );
+    background: #999999;
     border-radius: 3px;
 }
 
-QLabel {
-    font-size: 12px;
-}
+QLabel { font-size: 12px; }
+
+QRangeSlider { qproperty-barColor: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(100, 80, 120, 0.2),
+        stop:1 rgba(100, 80, 120, 0.4)
+    )}
 
 SliderLabel {
     font-size: 12px;
@@ -178,7 +177,6 @@ class DimsSlider(QWidget):
         # self._int_slider.layout().addWidget(self._max_label)
 
         self._slice_slider = slc = QLabeledRangeSlider(Qt.Orientation.Horizontal)
-        slc._slider.barColor = BAR_COLOR
         slc.setHandleLabelPosition(QLabeledRangeSlider.LabelPosition.LabelsOnHandle)
         slc.setEdgeLabelMode(QLabeledRangeSlider.EdgeLabelMode.NoLabel)
         slc.setVisible(False)

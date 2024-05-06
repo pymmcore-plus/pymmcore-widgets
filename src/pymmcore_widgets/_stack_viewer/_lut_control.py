@@ -9,7 +9,7 @@ from superqt import QLabeledRangeSlider
 from superqt.cmap import QColormapComboBox
 from superqt.utils import signals_blocked
 
-from ._dims_slider import BAR_COLOR, SS
+from ._dims_slider import SS
 
 if TYPE_CHECKING:
     import cmap
@@ -53,8 +53,6 @@ class LutControl(QWidget):
             self._cmap.addColormap(color)
 
         self._clims = QLabeledRangeSlider(Qt.Orientation.Horizontal)
-        if hasattr(self._clims, "_slider"):
-            self._clims._slider.barColor = BAR_COLOR
         self._clims.setStyleSheet(SS)
         self._clims.setHandleLabelPosition(
             QLabeledRangeSlider.LabelPosition.LabelsOnHandle
