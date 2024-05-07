@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from psygnal import Signal
-from pymmcore_plus.mda.handlers._some_zarr_writer import POS_PREFIX, SOMEZarrWriter
+from pymmcore_plus.mda.handlers._ome_zarr_writer import POS_PREFIX, OMEZarrWriter
 from useq import MDAEvent
 
 if TYPE_CHECKING:
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     import useq
 
 
-class QOMEZarrDatastore(SOMEZarrWriter):
+class QOMEZarrDatastore(OMEZarrWriter):
     frame_ready = Signal(MDAEvent)
 
     def __init__(self) -> None:

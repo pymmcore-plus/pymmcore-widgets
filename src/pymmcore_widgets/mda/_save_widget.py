@@ -28,14 +28,14 @@ if TYPE_CHECKING:
         should_save: bool
 
 
-SOME_ZARR = "some-zarr"
-SOME_TIFF = "some-tiff"
+OME_ZARR = "ome-zarr"
+OME_TIFF = "ome-tiff"
 TIFF_SEQ = "tiff-sequence"
 
 # dict with writer name and extension
 WRITERS: dict[str, list[str]] = {
-    SOME_ZARR: [".some.zarr"],
-    SOME_TIFF: [".some.tif", ".some.tiff"],
+    OME_ZARR: [".ome.zarr"],
+    OME_TIFF: [".ome.tif", ".ome.tiff"],
     TIFF_SEQ: [""],
 }
 

@@ -141,16 +141,16 @@ def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> 
 
     directory = requested_path.parent
     extension = requested_path.suffix
-    # some files like .some.tiff or .some.zarr are special,treated as a single extension
-    if (stem := requested_path.stem).endswith(".some"):
-        extension = ".some" + extension
+    # ome files like .ome.tiff or .ome.zarr are special,treated as a single extension
+    if (stem := requested_path.stem).endswith(".ome"):
+        extension = ".ome" + extension
         stem = stem[:-4]
 
     # look for ANY existing files in the folder that follow the pattern of
     # stem_###.extension
     current_max = 0
     for existing in directory.glob(f"*{extension}"):
-        # cannot use existing.stem because of the some (2-part-extension) special case
+        # cannot use existing.stem because of the ome (2-part-extension) special case
         base = existing.name.replace(extension, "")
         # if the base name ends with a number, increase the current_max
         if (match := NUM_SPLIT.match(base)) and (num := match.group(2)):

@@ -172,3 +172,6 @@ ignore = [
     "examples/**/*",
     "CHANGELOG.md",
 ]
+
+[tool.typos.default]
+extend-ignore-identifiers-re = ["(?i)ome"]
