@@ -64,7 +64,7 @@ class ChannelModeButton(QPushButton):
 
 
 class StackViewer(QWidget):
-    """A viewer for AND arrays."""
+    """A viewer for ND arrays."""
 
     def __init__(
         self,
