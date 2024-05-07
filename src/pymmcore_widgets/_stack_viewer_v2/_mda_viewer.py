@@ -10,23 +10,33 @@ from ._save_button import SaveButton
 from ._stack_viewer import StackViewer
 
 if TYPE_CHECKING:
+    from pymmcore_plus.mda.handlers._5d_writer_base import _5DWriterBase
     from qtpy.QtWidgets import QWidget
 
 
 class MDAViewer(StackViewer):
     """StackViewer specialized for pymmcore-plus MDA acquisitions."""
 
-    def __init__(self, datastore: Any = None, *, parent: QWidget | None = None):
-        if datastore is None:
-            from pymmcore_plus.mda.handlers import OMEZarrWriter
+    _data: _5DWriterBase
 
+    def __init__(
+        self, datastore: _5DWriterBase | None = None, *, parent: QWidget | None = None
+    ):
+        from pymmcore_plus.mda.handlers import OMETiffWriter, OMEZarrWriter
+
+        if datastore is None:
             datastore = OMEZarrWriter()
+        elif not isinstance(datastore, (OMEZarrWriter, OMETiffWriter)):
+            raise TypeError(
+                "MDAViewer currently only supports _5DWriterBase datastores."
+            )
 
         # patch the frameReady method to call the superframeReady method
         # AFTER handling the event
         self._superframeReady = getattr(datastore, "frameReady", None)
         if callable(self._superframeReady):
-            datastore.frameReady = self._patched_frame_ready
+            datastore.frameReady = self._patched_frame_ready  # type: ignore
+
         else:  # pragma: no cover
             warnings.warn(
                 "MDAViewer: datastore does not have a frameReady method to patch, "
@@ -38,6 +48,10 @@ class MDAViewer(StackViewer):
         self._save_btn = SaveButton(self.data)
         self._btns.addWidget(self._save_btn)
         self.dims_sliders.set_locks_visible(True)
+
+    @property
+    def data(self) -> _5DWriterBase:
+        return self._data
 
     def _patched_frame_ready(self, *args: Any) -> None:
         self._superframeReady(*args)  # type: ignore
