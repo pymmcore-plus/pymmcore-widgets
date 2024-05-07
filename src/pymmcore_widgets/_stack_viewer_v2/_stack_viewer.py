@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Iterable, Mapping, Sequence, cast
 import cmap
 import numpy as np
 from qtpy.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
-from superqt import QCollapsible, QElidingLabel, QIconifyIcon
+from superqt import QCollapsible, QElidingLabel, QIconifyIcon, ensure_main_thread
 
 from ._backends import get_canvas
 from ._dims_slider import DimsSliders
@@ -94,6 +94,8 @@ class StackViewer(QWidget):
         # colormaps that will be cycled through when displaying composite images
         # TODO: allow user to set this
         self._cmaps = cycle(COLORMAPS)
+
+        self._data_future: Future[tuple[Indices, np.ndarray]] | None = None
 
         # WIDGETS ----------------------------------------------------
 
@@ -318,7 +320,7 @@ class StackViewer(QWidget):
             return val
         return 0
 
-    def _isel(self, index: Indices) -> Future[np.ndarray]:
+    def _isel(self, index: Indices) -> Future[tuple[Indices, np.ndarray]]:
         """Select data from the datastore using the given index."""
         idx = {k: v for k, v in index.items() if k not in self._visualized_dims}
         try:
@@ -342,14 +344,16 @@ class StackViewer(QWidget):
             self._update_data_for_index(idx)
         self._canvas.refresh()
 
-    def _update_data_for_index(self, index: Indices) -> None:
-        """Update the displayed image for the given index.
+    @ensure_main_thread
+    def _on_data_future_done(self, future: Future[tuple[Indices, np.ndarray]]) -> None:
+        """Update the displayed image for the given index."""
+        if future.cancelled():
+            print(">>> was cancelled, do nothing")
+            return
 
-        This will pull the data from the datastore using the given index, and update
-        the image handle(s) with the new data.
-        """
+        print(">>> yay, plotting")
+        index, data = future.result()
         imkey = self._image_key(index)
-        data = self._isel(index).result().squeeze()
         data = self._reduce_dims_for_display(data)
         if handles := self._img_handles[imkey]:
             for handle in handles:
@@ -369,6 +373,20 @@ class StackViewer(QWidget):
                 c.update_autoscale()
                 self._lut_drop.addWidget(c)
 
+    def _update_data_for_index(self, index: Indices) -> None:
+        """Update the displayed image for the given index.
+
+        This will pull the data from the datastore using the given index, and update
+        the image handle(s) with the new data.
+        """
+        # if we're still processing a previous request, cancel it
+        if self._data_future is not None:
+            print("CANCEL")
+            self._data_future.cancel()
+
+        self._data_future = df = self._isel(index)
+        df.add_done_callback(self._on_data_future_done)
+
     def _reduce_dims_for_display(
         self, data: np.ndarray, reductor: Callable[..., np.ndarray] = np.max
     ) -> np.ndarray:
@@ -382,6 +400,7 @@ class StackViewer(QWidget):
         # - allow for 3d data
         # - allow dimensions to control how they are reduced
         # - for better way to determine which dims need to be reduced
+        data = data.squeeze()
         visualized_dims = 2
         if extra_dims := data.ndim - visualized_dims:
             shapes = sorted(enumerate(data.shape), key=lambda x: x[1])

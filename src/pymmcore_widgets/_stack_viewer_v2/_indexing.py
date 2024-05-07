@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import sys
 import warnings
+from concurrent.futures import Future, InvalidStateError
+from contextlib import suppress
+from threading import Thread
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
 if TYPE_CHECKING:
-    from concurrent.futures import Future
     from typing import Any, Protocol, TypeGuard
 
     import dask.array as da
@@ -73,13 +75,16 @@ def isel(store: Any, indexers: Indices) -> np.ndarray:
     raise NotImplementedError(f"Don't know how to index into type {type(store)}")
 
 
-def isel_async(store: Any, indexers: Indices) -> Future[np.ndarray]:
+def isel_async(store: Any, indexers: Indices) -> Future[tuple[Indices, np.ndarray]]:
     """Asynchronous version of isel."""
-    from concurrent.futures import Future
-    from threading import Thread
+    fut: Future[tuple[Indices, np.ndarray]] = Future()
 
-    fut: Future[np.ndarray] = Future()
-    thread = Thread(target=lambda: fut.set_result(isel(store, indexers)))
+    def _thread_target() -> None:
+        data = isel(store, indexers)
+        with suppress(InvalidStateError):
+            fut.set_result((indexers, data))
+
+    thread = Thread(target=_thread_target)
     thread.start()
     return fut
 

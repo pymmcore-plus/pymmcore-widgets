@@ -14,7 +14,7 @@ mmcore.defineConfig("Channel", "DAPI", "Camera", "Mode", "Artificial Waves")
 mmcore.defineConfig("Channel", "FITC", "Camera", "Mode", "Noise")
 
 sequence = MDASequence(
-    channels=({"config": "DAPI", "exposure": 5}, {"config": "FITC", "exposure": 20}),
+    channels=({"config": "DAPI", "exposure": 1}, {"config": "FITC", "exposure": 1}),
     stage_positions=[(0, 0), (1, 1)],
     z_plan={"range": 9, "step": 0.4},
     time_plan={"interval": 0.2, "loops": 4},
