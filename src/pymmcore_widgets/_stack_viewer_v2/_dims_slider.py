@@ -102,7 +102,7 @@ class PlayButton(QPushButton):
     PLAY_ICON = "bi:play-fill"
     PAUSE_ICON = "bi:pause-fill"
 
-    def __init__(self, fps: float = 30, parent: QWidget | None = None) -> None:
+    def __init__(self, fps: float = 20, parent: QWidget | None = None) -> None:
         icn = QIconifyIcon(self.PLAY_ICON, color="#888888")
         icn.addKey(self.PAUSE_ICON, state=QIconifyIcon.State.On, color="#4580DD")
         super().__init__(icn, "", parent)
@@ -161,10 +161,11 @@ class DimsSlider(QWidget):
         self._dim_key = dimension_key
 
         self._timer_id: int | None = None  # timer for play button
-        self._play_btn = PlayButton(fps=30)
+        self._play_btn = PlayButton()
         self._play_btn.fpsChanged.connect(self.set_fps)
         self._play_btn.toggled.connect(self._toggle_animation)
 
+        self._dim_key = dimension_key
         self._dim_label = QElidingLabel(str(dimension_key).upper())
 
         # note, this lock button only prevents the slider from updating programmatically
@@ -180,10 +181,9 @@ class DimsSlider(QWidget):
         )
         self._out_of_label = QLabel()
 
-        self._int_slider = QSlider(Qt.Orientation.Horizontal, parent=self)
+        self._int_slider = QSlider(Qt.Orientation.Horizontal)
         self._int_slider.rangeChanged.connect(self._on_range_changed)
         self._int_slider.valueChanged.connect(self._on_int_value_changed)
-        # self._int_slider.layout().addWidget(self._max_label)
 
         self._slice_slider = slc = QLabeledRangeSlider(Qt.Orientation.Horizontal)
         slc.setHandleLabelPosition(QLabeledRangeSlider.LabelPosition.LabelsOnHandle)
@@ -251,13 +251,10 @@ class DimsSlider(QWidget):
     def _set_slice_mode(self, mode: bool = True) -> None:
         if mode == self._slice_mode:
             return
-        self._slice_mode = mode
-        if mode:
-            self._slice_slider.setVisible(True)
-            self._int_slider.setVisible(False)
-        else:
-            self._int_slider.setVisible(True)
-            self._slice_slider.setVisible(False)
+        self._slice_mode = bool(mode)
+        self._slice_slider.setVisible(self._slice_mode)
+        self._int_slider.setVisible(not self._slice_mode)
+        # self._pos_label.setVisible(not self._slice_mode)
         self.valueChanged.emit(self._dim_key, self.value())
 
     def set_fps(self, fps: float) -> None:
@@ -288,7 +285,7 @@ class DimsSlider(QWidget):
     def _on_pos_label_edited(self) -> None:
         if self._slice_mode:
             self._slice_slider.setValue(
-                (self._pos_label.value(), self._pos_label.value() + 1)
+                (self._slice_slider.value()[0], self._pos_label.value())
             )
         else:
             self._int_slider.setValue(self._pos_label.value())
@@ -297,6 +294,17 @@ class DimsSlider(QWidget):
         self._out_of_label.setText(f"| {max}")
         self._pos_label.setRange(min, max)
         self.resizeEvent(None)
+        self.setVisible(min != max)
+
+    def setVisible(self, visible: bool) -> None:
+        if self._has_no_range():
+            visible = False
+        super().setVisible(visible)
+
+    def _has_no_range(self) -> bool:
+        if self._slice_mode:
+            return bool(self._slice_slider.minimum() == self._slice_slider.maximum())
+        return bool(self._int_slider.minimum() == self._int_slider.maximum())
 
     def _on_int_value_changed(self, value: int) -> None:
         self._pos_label.setValue(value)
@@ -304,6 +312,7 @@ class DimsSlider(QWidget):
             self.valueChanged.emit(self._dim_key, value)
 
     def _on_slice_value_changed(self, value: tuple[int, int]) -> None:
+        self._pos_label.setValue(int(value[1]))
         if self._slice_mode:
             self.valueChanged.emit(self._dim_key, slice(*value))
 
@@ -365,12 +374,14 @@ class DimsSliders(QWidget):
         else:
             slider._lock_btn.setVisible(bool(self._locks_visible))
 
-        slider.setRange(0, 1)
+        val_int = val.start if isinstance(val, slice) else val
+        slider.setVisible(name not in self._invisible_dims)
+        slider.setRange(0, val_int if isinstance(val_int, int) else 0)
+
         val = val if val is not None else 0
         self._current_index[name] = val
         slider.forceValue(val)
         slider.valueChanged.connect(self._on_dim_slider_value_changed)
-        slider.setVisible(name not in self._invisible_dims)
         cast("QVBoxLayout", self.layout()).addWidget(slider)
 
     def set_dimension_visible(self, key: DimKey, visible: bool) -> None:
