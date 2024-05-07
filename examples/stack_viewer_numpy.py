@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from qtpy import QtWidgets
 
-from pymmcore_widgets._stack_viewer._stack_viewer import StackViewer
+from pymmcore_widgets._stack_viewer_v2._stack_viewer import StackViewer
 
 
 def generate_5d_sine_wave(
