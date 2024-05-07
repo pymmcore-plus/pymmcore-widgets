@@ -76,7 +76,8 @@ class PyGFXViewerCanvas:
 
         self._canvas = _QWgpuCanvas(size=(512, 512))
         self._renderer = pygfx.renderers.WgpuRenderer(self._canvas)
-        self._renderer.blend_mode = "weighted"
+        # requires https://github.com/pygfx/pygfx/pull/752
+        self._renderer.blend_mode = "additive"
         self._scene = pygfx.Scene()
         self._camera = cam = pygfx.OrthographicCamera(512, 512)
         cam.local.scale_y = -1
