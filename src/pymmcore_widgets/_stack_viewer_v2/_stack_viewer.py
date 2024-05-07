@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from collections import defaultdict
 from enum import Enum
 from itertools import cycle
@@ -31,6 +30,7 @@ MID_GRAY = "#888888"
 GRAYS = cmap.Colormap("gray")
 COLORMAPS = [cmap.Colormap("green"), cmap.Colormap("magenta"), cmap.Colormap("cyan")]
 MAX_CHANNELS = 16
+ALL_CHANNELS = slice(None)
 
 
 class ChannelMode(str, Enum):
@@ -263,19 +263,20 @@ class StackViewer(QWidget):
         if self._channel_axis is None:
             return
 
-        # determine what needs to be updated
-        n_channels = self._dims_sliders.maximum().get(self._channel_axis, -1) + 1
-        value = self._dims_sliders.value()  # get before clearing
-        indices = (
-            [value]
-            if c_visible
-            else [{**value, self._channel_axis: i} for i in range(n_channels)]
-        )
+        self.setIndex({})
+        # # determine what needs to be updated
+        # n_channels = self._dims_sliders.maximum().get(self._channel_axis, -1) + 1
+        # value = self._dims_sliders.value()  # get before clearing
+        # indices = (
+        #     [value]
+        #     if c_visible
+        #     else [{**value, self._channel_axis: i} for i in range(n_channels)]
+        # )
 
-        # update the displayed images
-        for idx in indices:
-            self._update_data_for_index(idx)
-        self._canvas.refresh()
+        # # update the displayed images
+        # for idx in indices:
+        #     self._update_data_for_index(idx)
+        # self._canvas.refresh()
 
     def setIndex(self, index: Indices) -> None:
         """Set the index of the displayed image."""
@@ -330,48 +331,44 @@ class StackViewer(QWidget):
 
     def _on_dims_sliders_changed(self, index: Indices) -> None:
         """Update the displayed image when the sliders are changed."""
-        c = index.get(self._channel_axis, 0)
-        indices: list[Indices] = [index]
-        if self._channel_mode == ChannelMode.COMPOSITE:
-            for i, handles in self._img_handles.items():
-                if isinstance(i, (int, slice)):
-                    if handles and c != i:
-                        indices.append({**index, self._channel_axis: i})
-                else:  # pragma: no cover
-                    warnings.warn(f"Invalid key for composite image: {i}", stacklevel=2)
+        if (
+            self._channel_mode == ChannelMode.COMPOSITE
+            and self._channel_axis is not None
+        ):
+            index = {**index, self._channel_axis: ALL_CHANNELS}
+        self._update_data_for_index(index)
 
-        for idx in indices:
-            self._update_data_for_index(idx)
-        self._canvas.refresh()
-
-    @ensure_main_thread
+    @ensure_main_thread  # type: ignore
     def _on_data_future_done(self, future: Future[tuple[Indices, np.ndarray]]) -> None:
         """Update the displayed image for the given index."""
         if future.cancelled():
-            print(">>> was cancelled, do nothing")
             return
 
-        print(">>> yay, plotting")
         index, data = future.result()
-        imkey = self._image_key(index)
-        data = self._reduce_dims_for_display(data)
-        if handles := self._img_handles[imkey]:
-            for handle in handles:
-                handle.data = data
-            if ctrl := self._lut_ctrls.get(imkey, None):
-                ctrl.update_autoscale()
-        else:
-            cm = (
-                next(self._cmaps)
-                if self._channel_mode == ChannelMode.COMPOSITE
-                else GRAYS
-            )
-            handles.append(self._canvas.add_image(data, cmap=cm))
-            if imkey not in self._lut_ctrls:
-                channel_name = f"Ch {imkey}"  # TODO: get name from user
-                self._lut_ctrls[imkey] = c = LutControl(channel_name, handles)
-                c.update_autoscale()
-                self._lut_drop.addWidget(c)
+        # assume that if we have channels remaining, that they are the first axis
+        # FIXME: this is a bad assumption
+        data = iter(data) if index.get(self._channel_axis) is ALL_CHANNELS else [data]
+        for i, datum in enumerate(data):
+            imkey = self._image_key({**index, self._channel_axis: i})
+            datum = self._reduce_dims_for_display(datum)
+            if handles := self._img_handles[imkey]:
+                for handle in handles:
+                    handle.data = datum
+                if ctrl := self._lut_ctrls.get(imkey, None):
+                    ctrl.update_autoscale()
+            else:
+                cm = (
+                    next(self._cmaps)
+                    if self._channel_mode == ChannelMode.COMPOSITE
+                    else GRAYS
+                )
+                handles.append(self._canvas.add_image(datum, cmap=cm))
+                if imkey not in self._lut_ctrls:
+                    channel_name = f"Ch {imkey}"  # TODO: get name from user
+                    self._lut_ctrls[imkey] = c = LutControl(channel_name, handles)
+                    c.update_autoscale()
+                    self._lut_drop.addWidget(c)
+        self._canvas.refresh()
 
     def _update_data_for_index(self, index: Indices) -> None:
         """Update the displayed image for the given index.
@@ -381,7 +378,6 @@ class StackViewer(QWidget):
         """
         # if we're still processing a previous request, cancel it
         if self._data_future is not None:
-            print("CANCEL")
             self._data_future.cancel()
 
         self._data_future = df = self._isel(index)
