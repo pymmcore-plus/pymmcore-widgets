@@ -11,7 +11,7 @@ configure_logging(stderr_level="WARNING")
 mmcore = CMMCorePlus.instance()
 mmcore.loadSystemConfiguration()
 mmcore.defineConfig("Channel", "DAPI", "Camera", "Mode", "Artificial Waves")
-mmcore.defineConfig("Channel", "FITC", "Camera", "Mode", "Noise")
+mmcore.defineConfig("Channel", "FITC", "Camera", "Mode", "Color Test Pattern")
 
 sequence = MDASequence(
     channels=({"config": "DAPI", "exposure": 1}, {"config": "FITC", "exposure": 1}),

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any, cast
 from warnings import warn
 
@@ -167,6 +168,7 @@ class DimsSlider(QWidget):
 
         self._dim_key = dimension_key
         self._dim_label = QElidingLabel(str(dimension_key).upper())
+        self._dim_label.setToolTip("Double-click to toggle slice mode")
 
         # note, this lock button only prevents the slider from updating programmatically
         # using self.setValue, it doesn't prevent the user from changing the value.
@@ -219,6 +221,12 @@ class DimsSlider(QWidget):
         if max_val > self._slice_slider.maximum():
             self._slice_slider.setMaximum(max_val)
 
+    def setMinimum(self, min_val: int) -> None:
+        if min_val < self._int_slider.minimum():
+            self._int_slider.setMinimum(min_val)
+        if min_val < self._slice_slider.minimum():
+            self._slice_slider.setMinimum(min_val)
+
     def setRange(self, min_val: int, max_val: int) -> None:
         self._int_slider.setRange(min_val, max_val)
         self._slice_slider.setRange(min_val, max_val)
@@ -237,8 +245,11 @@ class DimsSlider(QWidget):
         if self._lock_btn.isChecked():
             return
         if isinstance(val, slice):
-            self._slice_slider.setValue((val.start, val.stop))
-            # self._int_slider.setValue(int((val.stop + val.start) / 2))
+            start = int(val.start) if val.start is not None else 0
+            stop = (
+                int(val.stop) if val.stop is not None else self._slice_slider.maximum()
+            )
+            self._slice_slider.setValue((start, stop))
         else:
             self._int_slider.setValue(val)
             # self._slice_slider.setValue((val, val + 1))
@@ -265,21 +276,29 @@ class DimsSlider(QWidget):
         if checked:
             if self._timer_id is not None:
                 self.killTimer(self._timer_id)
-            self._timer_id = self.startTimer(int(1000 / self._play_btn.spin.value()))
+            interval = int(1000 / self._play_btn.spin.value())
+            self._timer_id = self.startTimer(interval)
         elif self._timer_id is not None:
             self.killTimer(self._timer_id)
             self._timer_id = None
 
     def timerEvent(self, event: Any) -> None:
+        """Handle timer event for play button, move to the next frame."""
+        # TODO
+        # for now just increment the value by 1, but we should be able to
+        # take FPS into account better and skip additional frames if the timerEvent
+        # is delayed for some reason.
+        inc = 1
         if self._slice_mode:
             val = cast(tuple[int, int], self._slice_slider.value())
-            next_val = [v + 1 for v in val]
+            next_val = [v + inc for v in val]
             if next_val[1] > self._slice_slider.maximum():
+                # wrap around, without going below the min handle
                 next_val = [v - val[0] for v in val]
             self._slice_slider.setValue(next_val)
         else:
             ival = self._int_slider.value()
-            ival = (ival + 1) % (self._int_slider.maximum() + 1)
+            ival = (ival + inc) % (self._int_slider.maximum() + 1)
             self._int_slider.setValue(ival)
 
     def _on_pos_label_edited(self) -> None:
@@ -313,6 +332,8 @@ class DimsSlider(QWidget):
 
     def _on_slice_value_changed(self, value: tuple[int, int]) -> None:
         self._pos_label.setValue(int(value[1]))
+        with signals_blocked(self._int_slider):
+            self._int_slider.setValue(int(value[0]))
         if self._slice_mode:
             self.valueChanged.emit(self._dim_key, slice(*value))
 
@@ -338,13 +359,20 @@ class DimsSliders(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-    def sizeHint(self) -> QSize:
-        return super().sizeHint().boundedTo(QSize(9999, 0))
-
     def value(self) -> Indices:
+        """Return mapping of {dim_key -> current index} for each dimension."""
         return self._current_index.copy()
 
     def setValue(self, values: Indices) -> None:
+        """Set the current index for each dimension.
+
+        Parameters
+        ----------
+        values : Mapping[Hashable, int | slice]
+            Mapping of {dim_key -> index} for each dimension.  If value is a slice,
+            the slider will be in slice mode. If the dimension is not present in the
+            DimsSliders, it will be added.
+        """
         if self._current_index == values:
             return
         with signals_blocked(self):
@@ -352,22 +380,58 @@ class DimsSliders(QWidget):
                 self.add_or_update_dimension(dim, index)
         self.valueChanged.emit(self.value())
 
-    def maximum(self) -> Sizes:
+    def minima(self) -> Sizes:
+        """Return mapping of {dim_key -> minimum value} for each dimension."""
+        return {k: v._int_slider.minimum() for k, v in self._sliders.items()}
+
+    def setMinima(self, values: Sizes) -> None:
+        """Set the minimum value for each dimension.
+
+        Parameters
+        ----------
+        values : Mapping[Hashable, int]
+            Mapping of {dim_key -> minimum value} for each dimension.
+        """
+        for name, min_val in values.items():
+            if name not in self._sliders:
+                self.add_dimension(name)
+            self._sliders[name].setMinimum(min_val)
+
+    def maxima(self) -> Sizes:
+        """Return mapping of {dim_key -> maximum value} for each dimension."""
         return {k: v._int_slider.maximum() for k, v in self._sliders.items()}
 
-    def setMaximum(self, values: Sizes) -> None:
+    def setMaxima(self, values: Sizes) -> None:
+        """Set the maximum value for each dimension.
+
+        Parameters
+        ----------
+        values : Mapping[Hashable, int]
+            Mapping of {dim_key -> maximum value} for each dimension.
+        """
         for name, max_val in values.items():
             if name not in self._sliders:
                 self.add_dimension(name)
             self._sliders[name].setMaximum(max_val)
 
     def set_locks_visible(self, visible: bool | Mapping[DimKey, bool]) -> None:
+        """Set the visibility of the lock buttons for all dimensions."""
         self._locks_visible = visible
         for dim, slider in self._sliders.items():
             viz = visible if isinstance(visible, bool) else visible.get(dim, False)
             slider._lock_btn.setVisible(viz)
 
     def add_dimension(self, name: DimKey, val: Index | None = None) -> None:
+        """Add a new dimension to the DimsSliders widget.
+
+        Parameters
+        ----------
+        name : Hashable
+            The name of the dimension.
+        val : int | slice, optional
+            The initial value for the dimension. If a slice, the slider will be in
+            slice mode.
+        """
         self._sliders[name] = slider = DimsSlider(dimension_key=name, parent=self)
         if isinstance(self._locks_visible, dict) and name in self._locks_visible:
             slider._lock_btn.setVisible(self._locks_visible[name])
@@ -385,6 +449,11 @@ class DimsSliders(QWidget):
         cast("QVBoxLayout", self.layout()).addWidget(slider)
 
     def set_dimension_visible(self, key: DimKey, visible: bool) -> None:
+        """Set the visibility of a dimension in the DimsSliders widget.
+
+        Once a dimension is hidden, it will not be shown again until it is explicitly
+        made visible again with this method.
+        """
         if visible:
             self._invisible_dims.discard(key)
         else:
@@ -393,6 +462,7 @@ class DimsSliders(QWidget):
             self._sliders[key].setVisible(visible)
 
     def remove_dimension(self, key: DimKey) -> None:
+        """Remove a dimension from the DimsSliders widget."""
         try:
             slider = self._sliders.pop(key)
         except KeyError:
@@ -406,6 +476,7 @@ class DimsSliders(QWidget):
         self.valueChanged.emit(self.value())
 
     def add_or_update_dimension(self, key: DimKey, value: Index) -> None:
+        """Add a dimension if it doesn't exist, otherwise update the value."""
         if key in self._sliders:
             self._sliders[key].forceValue(value)
         else:
@@ -421,16 +492,5 @@ class DimsSliders(QWidget):
 
         super().resizeEvent(a0)
 
-
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
-
-    app = QApplication([])
-    w = DimsSliders()
-    w.add_dimension("x", 5)
-    w.add_dimension("ysadfdasas", 20)
-    w.add_dimension("z", slice(10, 20))
-    w.add_dimension("w", 10)
-    w.valueChanged.connect(print)
-    w.show()
-    app.exec()
+    def sizeHint(self) -> QSize:
+        return super().sizeHint().boundedTo(QSize(9999, 0))

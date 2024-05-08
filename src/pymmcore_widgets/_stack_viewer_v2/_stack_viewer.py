@@ -116,7 +116,7 @@ class StackViewer(QWidget):
         self._canvas: PCanvas = get_canvas()(self._hover_info.setText)
         # the sliders that control the index of the displayed image
         self._dims_sliders = DimsSliders()
-        self._dims_sliders.valueChanged.connect(self._on_dims_sliders_changed)
+        self._dims_sliders.valueChanged.connect(self._update_data_for_index)
 
         self._lut_drop = QCollapsible("LUTs")
         self._lut_drop.setCollapsedIcon(QIconifyIcon("bi:chevron-down", color=MID_GRAY))
@@ -188,7 +188,7 @@ class StackViewer(QWidget):
         elif self._channel_axis is None:
             self._channel_axis = self._guess_channel_axis(data)
         self.set_visualized_dims(list(self._sizes)[-2:])
-        self.update_slider_maxima()
+        self.update_slider_ranges()
         self.setIndex({})
 
         package = getattr(data, "__module__", "").split(".")[0]
@@ -218,18 +218,23 @@ class StackViewer(QWidget):
         for d in self._visualized_dims:
             self._dims_sliders.set_dimension_visible(d, False)
 
-    def update_slider_maxima(self, sizes: SizesLike | None = None) -> None:
+    def update_slider_ranges(
+        self, mins: SizesLike | None = None, maxes: SizesLike | None = None
+    ) -> None:
         """Set the maximum values of the sliders.
 
         If `sizes` is not provided, sizes will be inferred from the datastore.
+        This is mostly here as a public way to reset the
         """
-        if sizes is None:
-            sizes = self.sizes
-        sizes = _to_sizes(sizes)
-        self._dims_sliders.setMaximum({k: v - 1 for k, v in sizes.items()})
+        if maxes is None:
+            maxes = self.sizes
+        maxes = _to_sizes(maxes)
+        self._dims_sliders.setMaxima({k: v - 1 for k, v in maxes.items()})
+        if mins is not None:
+            self._dims_sliders.setMinima(_to_sizes(mins))
 
         # FIXME: this needs to be moved and made user-controlled
-        for dim in list(sizes.values())[-2:]:
+        for dim in list(maxes.values())[-2:]:
             self._dims_sliders.set_dimension_visible(dim, False)
 
     def set_channel_mode(self, mode: ChannelMode | None = None) -> None:
@@ -249,34 +254,16 @@ class StackViewer(QWidget):
             return
 
         self._channel_mode = mode
-        # reset the colormap cycle
-        self._cmaps = cycle(COLORMAPS)
-        # set the visibility of the channel slider
-        c_visible = mode != ChannelMode.COMPOSITE
+        self._cmaps = cycle(COLORMAPS)  # reset the colormap cycle
         if self._channel_axis is not None:
-            self._dims_sliders.set_dimension_visible(self._channel_axis, c_visible)
+            # set the visibility of the channel slider
+            self._dims_sliders.set_dimension_visible(
+                self._channel_axis, mode != ChannelMode.COMPOSITE
+            )
 
-        if not self._img_handles:
-            return
-
-        self._clear_images()
-        if self._channel_axis is None:
-            return
-
-        self.setIndex({})
-        # # determine what needs to be updated
-        # n_channels = self._dims_sliders.maximum().get(self._channel_axis, -1) + 1
-        # value = self._dims_sliders.value()  # get before clearing
-        # indices = (
-        #     [value]
-        #     if c_visible
-        #     else [{**value, self._channel_axis: i} for i in range(n_channels)]
-        # )
-
-        # # update the displayed images
-        # for idx in indices:
-        #     self._update_data_for_index(idx)
-        # self._canvas.refresh()
+        if self._img_handles:
+            self._clear_images()
+            self._update_data_for_index(self._dims_sliders.value())
 
     def setIndex(self, index: Indices) -> None:
         """Set the index of the displayed image."""
@@ -284,7 +271,7 @@ class StackViewer(QWidget):
 
     # ------------------- PRIVATE METHODS ----------------------------
 
-    def _guess_channel_axis(self, data: Any) -> DimKey:
+    def _guess_channel_axis(self, data: Any) -> DimKey | None:
         """Guess the channel axis from the data."""
         if is_xarray_dataarray(data):
             for d in data.dims:
@@ -295,6 +282,119 @@ class StackViewer(QWidget):
             if min(shp) <= MAX_CHANNELS:
                 return shp.index(min(shp))
         return None
+
+    def _on_set_range_clicked(self) -> None:
+        # using method to swallow the parameter passed by _set_range_btn.clicked
+        self._canvas.set_range()
+
+    def _image_key(self, index: Indices) -> ImgKey:
+        """Return the key for image handle(s) corresponding to `index`."""
+        if self._channel_mode == ChannelMode.COMPOSITE:
+            val = index.get(self._channel_axis, 0)
+            if isinstance(val, slice):
+                return (val.start, val.stop)
+            return val
+        return 0
+
+    def _update_data_for_index(self, index: Indices) -> None:
+        """Retrieve data for `index` from datastore and update canvas image(s).
+
+        This will pull the data from the datastore using the given index, and update
+        the image handle(s) with the new data.  This method is *asynchronous*.  It
+        makes a request for the new data slice and queues _on_data_future_done to be
+        called when the data is ready.
+        """
+        # if we're still processing a previous request, cancel it
+        if self._data_future is not None:
+            self._data_future.cancel()
+
+        if self._channel_axis and self._channel_mode == ChannelMode.COMPOSITE:
+            index = {**index, self._channel_axis: ALL_CHANNELS}
+
+        self._data_future = self._isel(index)
+        self._data_future.add_done_callback(self._on_data_slice_ready)
+
+    def _isel(self, index: Indices) -> Future[tuple[Indices, np.ndarray]]:
+        """Select data from the datastore using the given index."""
+        idx = {k: v for k, v in index.items() if k not in self._visualized_dims}
+        try:
+            return isel_async(self._data, idx)
+        except Exception as e:
+            raise type(e)(f"Failed to index data with {idx}: {e}") from e
+
+    @ensure_main_thread  # type: ignore
+    def _on_data_slice_ready(self, future: Future[tuple[Indices, np.ndarray]]) -> None:
+        """Update the displayed image for the given index.
+
+        Connected to the future returned by _isel.
+        """
+        self._data_future = None
+        if future.cancelled():
+            return
+
+        index, data = future.result()
+        # assume that if we have channels remaining, that they are the first axis
+        # FIXME: this is a bad assumption
+        data = iter(data) if index.get(self._channel_axis) is ALL_CHANNELS else [data]
+        for i, datum in enumerate(data):
+            self._update_canvas_data(datum, {**index, self._channel_axis: i})
+        self._canvas.refresh()
+
+    def _update_canvas_data(self, data: np.ndarray, index: Indices) -> None:
+        """Actually update the image handle(s) with the (sliced) data.
+
+        By this point, data should be sliced from the underlying datastore.  Any
+        dimensions remaining that are more than the number of visualized dimensions
+        (currently just 2D) will be reduced using max intensity projection (currently).
+        """
+        imkey = self._image_key(index)
+        datum = self._reduce_data_for_display(data)
+        if handles := self._img_handles[imkey]:
+            for handle in handles:
+                handle.data = datum
+            if ctrl := self._lut_ctrls.get(imkey, None):
+                ctrl.update_autoscale()
+        else:
+            cm = (
+                next(self._cmaps)
+                if self._channel_mode == ChannelMode.COMPOSITE
+                else GRAYS
+            )
+            handles.append(self._canvas.add_image(datum, cmap=cm))
+            if imkey not in self._lut_ctrls:
+                channel_name = f"Ch {imkey}"  # TODO: get name from user
+                self._lut_ctrls[imkey] = c = LutControl(channel_name, handles)
+                self._lut_drop.addWidget(c)
+
+    def _reduce_data_for_display(
+        self, data: np.ndarray, reductor: Callable[..., np.ndarray] = np.max
+    ) -> np.ndarray:
+        """Reduce the number of dimensions in the data for display.
+
+        This function takes a data array and reduces the number of dimensions to
+        the max allowed for display. The default behavior is to reduce the smallest
+        dimensions, using np.max.  This can be improved in the future.
+
+        This also coerces 64-bit data to 32-bit data.
+        """
+        # TODO
+        # - allow for 3d data
+        # - allow dimensions to control how they are reduced (as opposed to just max)
+        # - for better way to determine which dims need to be reduced (currently just
+        #   the smallest dims)
+        data = data.squeeze()
+        visualized_dims = 2
+        if extra_dims := data.ndim - visualized_dims:
+            shapes = sorted(enumerate(data.shape), key=lambda x: x[1])
+            smallest_dims = tuple(i for i, _ in shapes[:extra_dims])
+            return reductor(data, axis=smallest_dims)
+
+        if data.dtype.itemsize > 4:  # More than 32 bits
+            if np.issubdtype(data.dtype, np.integer):
+                data = data.astype(np.int32)
+            else:
+                data = data.astype(np.float32)
+        return data
 
     def _clear_images(self) -> None:
         """Remove all images from the canvas."""
@@ -308,104 +408,6 @@ class StackViewer(QWidget):
             cast("QVBoxLayout", self.layout()).removeWidget(c)
             c.deleteLater()
         self._lut_ctrls.clear()
-
-    def _on_set_range_clicked(self) -> None:
-        self._canvas.set_range()
-
-    def _image_key(self, index: Indices) -> ImgKey:
-        """Return the key for image handle(s) corresponding to `index`."""
-        if self._channel_mode == ChannelMode.COMPOSITE:
-            val = index.get(self._channel_axis, 0)
-            if isinstance(val, slice):
-                return (val.start, val.stop)
-            return val
-        return 0
-
-    def _isel(self, index: Indices) -> Future[tuple[Indices, np.ndarray]]:
-        """Select data from the datastore using the given index."""
-        idx = {k: v for k, v in index.items() if k not in self._visualized_dims}
-        try:
-            return isel_async(self._data, idx)
-        except Exception as e:
-            raise type(e)(f"Failed to index data with {idx}: {e}") from e
-
-    def _on_dims_sliders_changed(self, index: Indices) -> None:
-        """Update the displayed image when the sliders are changed."""
-        if (
-            self._channel_mode == ChannelMode.COMPOSITE
-            and self._channel_axis is not None
-        ):
-            index = {**index, self._channel_axis: ALL_CHANNELS}
-        self._update_data_for_index(index)
-
-    @ensure_main_thread  # type: ignore
-    def _on_data_future_done(self, future: Future[tuple[Indices, np.ndarray]]) -> None:
-        """Update the displayed image for the given index."""
-        if future.cancelled():
-            return
-
-        index, data = future.result()
-        # assume that if we have channels remaining, that they are the first axis
-        # FIXME: this is a bad assumption
-        data = iter(data) if index.get(self._channel_axis) is ALL_CHANNELS else [data]
-        for i, datum in enumerate(data):
-            imkey = self._image_key({**index, self._channel_axis: i})
-            datum = self._reduce_dims_for_display(datum)
-            if handles := self._img_handles[imkey]:
-                for handle in handles:
-                    handle.data = datum
-                if ctrl := self._lut_ctrls.get(imkey, None):
-                    ctrl.update_autoscale()
-            else:
-                cm = (
-                    next(self._cmaps)
-                    if self._channel_mode == ChannelMode.COMPOSITE
-                    else GRAYS
-                )
-                handles.append(self._canvas.add_image(datum, cmap=cm))
-                if imkey not in self._lut_ctrls:
-                    channel_name = f"Ch {imkey}"  # TODO: get name from user
-                    self._lut_ctrls[imkey] = c = LutControl(channel_name, handles)
-                    c.update_autoscale()
-                    self._lut_drop.addWidget(c)
-        self._canvas.refresh()
-
-    def _update_data_for_index(self, index: Indices) -> None:
-        """Update the displayed image for the given index.
-
-        This will pull the data from the datastore using the given index, and update
-        the image handle(s) with the new data.
-        """
-        # if we're still processing a previous request, cancel it
-        if self._data_future is not None:
-            self._data_future.cancel()
-
-        self._data_future = df = self._isel(index)
-        df.add_done_callback(self._on_data_future_done)
-
-    def _reduce_dims_for_display(
-        self, data: np.ndarray, reductor: Callable[..., np.ndarray] = np.max
-    ) -> np.ndarray:
-        """Reduce the number of dimensions in the data for display.
-
-        This function takes a data array and reduces the number of dimensions to
-        the max allowed for display. The default behavior is to reduce the smallest
-        dimensions, using np.max.  This can be improved in the future.
-        """
-        # TODO
-        # - allow for 3d data
-        # - allow dimensions to control how they are reduced
-        # - for better way to determine which dims need to be reduced
-        data = data.squeeze()
-        visualized_dims = 2
-        if extra_dims := data.ndim - visualized_dims:
-            shapes = sorted(enumerate(data.shape), key=lambda x: x[1])
-            smallest_dims = tuple(i for i, _ in shapes[:extra_dims])
-            return reductor(data, axis=smallest_dims)
-
-        if data.dtype == np.float64:
-            data = data.astype(np.float32)
-        return data
 
 
 def _to_sizes(sizes: SizesLike | None) -> Sizes:

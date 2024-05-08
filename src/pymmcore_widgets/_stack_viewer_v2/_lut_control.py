@@ -74,6 +74,8 @@ class LutControl(QWidget):
         layout.addWidget(self._clims)
         layout.addWidget(self._auto_clim)
 
+        self.update_autoscale()
+
     def autoscaleChecked(self) -> bool:
         return cast("bool", self._auto_clim.isChecked())
 
