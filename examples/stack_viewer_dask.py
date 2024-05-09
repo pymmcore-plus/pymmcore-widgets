@@ -4,7 +4,7 @@ import numpy as np
 from dask.array.core import map_blocks
 from qtpy import QtWidgets
 
-from pymmcore_widgets._stack_viewer._stack_viewer import StackViewer
+from pymmcore_widgets._stack_viewer_v2 import StackViewer
 
 
 def _dask_block(block_id: tuple[int, int, int, int, int]) -> np.ndarray | None:

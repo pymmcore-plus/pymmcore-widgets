@@ -9,6 +9,7 @@ import cmap
 import numpy as np
 from qtpy.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 from superqt import QCollapsible, QElidingLabel, QIconifyIcon, ensure_main_thread
+from superqt.utils import qthrottled
 
 from ._backends import get_canvas
 from ._dims_slider import DimsSliders
@@ -95,8 +96,6 @@ class StackViewer(QWidget):
         # TODO: allow user to set this
         self._cmaps = cycle(COLORMAPS)
 
-        self._data_future: Future[tuple[Indices, np.ndarray]] | None = None
-
         # WIDGETS ----------------------------------------------------
 
         # the button that controls the display mode of the channels
@@ -116,7 +115,9 @@ class StackViewer(QWidget):
         self._canvas: PCanvas = get_canvas()(self._hover_info.setText)
         # the sliders that control the index of the displayed image
         self._dims_sliders = DimsSliders()
-        self._dims_sliders.valueChanged.connect(self._update_data_for_index)
+        self._dims_sliders.valueChanged.connect(
+            qthrottled(self._update_data_for_index, 20, leading=True)
+        )
 
         self._lut_drop = QCollapsible("LUTs")
         self._lut_drop.setCollapsedIcon(QIconifyIcon("bi:chevron-down", color=MID_GRAY))
@@ -234,7 +235,7 @@ class StackViewer(QWidget):
             self._dims_sliders.setMinima(_to_sizes(mins))
 
         # FIXME: this needs to be moved and made user-controlled
-        for dim in list(maxes.values())[-2:]:
+        for dim in list(maxes.keys())[-2:]:
             self._dims_sliders.set_dimension_visible(dim, False)
 
     def set_channel_mode(self, mode: ChannelMode | None = None) -> None:
@@ -304,15 +305,10 @@ class StackViewer(QWidget):
         makes a request for the new data slice and queues _on_data_future_done to be
         called when the data is ready.
         """
-        # if we're still processing a previous request, cancel it
-        if self._data_future is not None:
-            self._data_future.cancel()
-
         if self._channel_axis and self._channel_mode == ChannelMode.COMPOSITE:
             index = {**index, self._channel_axis: ALL_CHANNELS}
 
-        self._data_future = self._isel(index)
-        self._data_future.add_done_callback(self._on_data_slice_ready)
+        self._isel(index).add_done_callback(self._on_data_slice_ready)
 
     def _isel(self, index: Indices) -> Future[tuple[Indices, np.ndarray]]:
         """Select data from the datastore using the given index."""
@@ -328,11 +324,9 @@ class StackViewer(QWidget):
 
         Connected to the future returned by _isel.
         """
-        self._data_future = None
-        if future.cancelled():
-            return
 
         index, data = future.result()
+        print(index)
         # assume that if we have channels remaining, that they are the first axis
         # FIXME: this is a bad assumption
         data = iter(data) if index.get(self._channel_axis) is ALL_CHANNELS else [data]
