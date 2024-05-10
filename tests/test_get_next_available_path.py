@@ -33,7 +33,7 @@ tiff_files = [
 @pytest.mark.parametrize("starting_files, tiff_file, expected", tiff_files)
 def test_ome_writers_multi_pos(
     tmp_path: Path,
-    starting_files: list[str],
+    starting_files: list,
     tiff_file: str,
     expected: str,
 ):
