@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
 import pytest
@@ -9,7 +9,6 @@ import useq
 from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import QMessageBox
 
-from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
@@ -640,49 +639,3 @@ def test_mda_sequenceFinished_save_name(
 
     # the save widget should now have a new name
     assert mda_wdg.save_info.value()["save_name"] == "name_001.ome.tiff"
-
-
-@pytest.mark.parametrize("extension", [".ome.tiff", ".ome.tif", ".ome.zarr", ""])
-def test_get_next_available_paths(extension: str, tmp_path: Path) -> None:
-    # non existing paths returns the same path
-    path = tmp_path / f"test{extension}"
-    assert get_next_available_path(path) == path
-
-    make: Callable = Path.mkdir if extension in {".ome.zarr", ""} else Path.touch
-
-    # existing files add a counter to the path
-    make(path)
-    assert get_next_available_path(path) == tmp_path / f"test_001{extension}"
-
-    # if a path with a counter exists, the next (maximum) counter is used
-    make(tmp_path / f"test_004{extension}")
-    assert get_next_available_path(path) == tmp_path / f"test_005{extension}"
-
-
-def test_get_next_available_paths_special_cases(tmp_path: Path) -> None:
-    base = tmp_path / "test.txt"
-    assert get_next_available_path(base).name == base.name
-
-    # only 3+ digit numbers are considered as counters
-    (tmp_path / "test_04.txt").touch()
-    assert get_next_available_path(base).name == base.name
-
-    # if an existing thing with a higher number is there, the next number is used
-    # (even if the requested path does not exist, but has a lower number)
-    (tmp_path / "test_004.txt").touch()
-    assert get_next_available_path(tmp_path / "test_003.txt").name == "test_005.txt"
-
-    # if we explicitly ask for a higher number, we should get it
-    assert get_next_available_path(tmp_path / "test_010.txt").name == "test_010.txt"
-
-    # only 3+ digit numbers are considered as counters
-    assert get_next_available_path(tmp_path / "test_02.txt").name == "test_02_005.txt"
-
-    # we go to the next number of digits if need be
-    (tmp_path / "test_999.txt").touch()
-    assert get_next_available_path(base).name == "test_1000.txt"
-
-    # more than 3 digits are used as is
-    high = tmp_path / "test_12345.txt"
-    high.touch()
-    assert get_next_available_path(high).name == "test_12346.txt"
