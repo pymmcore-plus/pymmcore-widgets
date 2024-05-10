@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 import superqt
 import useq
+from pymmcore_plus.mda.handlers._tensorstore_writer import TensorStoreWriter
 
 from ._save_button import SaveButton
 from ._stack_viewer import StackViewer
@@ -25,7 +26,7 @@ class MDAViewer(StackViewer):
         from pymmcore_plus.mda.handlers import OMETiffWriter, OMEZarrWriter
 
         if datastore is None:
-            datastore = OMEZarrWriter()
+            datastore = TensorStoreWriter()
         elif not isinstance(datastore, (OMEZarrWriter, OMETiffWriter)):
             raise TypeError(
                 "MDAViewer currently only supports _5DWriterBase datastores."

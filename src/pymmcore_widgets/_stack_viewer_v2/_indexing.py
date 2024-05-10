@@ -8,6 +8,7 @@ from threading import Thread
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
+from pymmcore_plus.mda.handlers._tensorstore_writer import TensorStoreWriter
 
 if TYPE_CHECKING:
     from typing import Any, Protocol, TypeGuard
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
         def shape(self) -> tuple[int, ...]: ...
 
 
-def is_pymmcore_writer(obj: Any) -> TypeGuard[_5DWriterBase]:
+def is_pymmcore_5dbase(obj: Any) -> TypeGuard[_5DWriterBase]:
     try:
         from pymmcore_plus.mda.handlers._5d_writer_base import _5DWriterBase
     except ImportError:
@@ -66,13 +67,20 @@ def isel(store: Any, indexers: Indices) -> np.ndarray:
     For any other duck-typed array, use numpy-style indexing, where indexers
     is a mapping of axis to slice objects or indices.
     """
-    if is_pymmcore_writer(store):
+    if is_pymmcore_5dbase(store):
         return isel_mmcore_5dbase(store, indexers)
+    if isinstance(store, TensorStoreWriter):
+        return isel_mmcore_tensorstore(store, indexers)
     if is_xarray_dataarray(store):
         return cast("np.ndarray", store.isel(indexers).to_numpy())
     if is_duck_array(store):
         return isel_np_array(store, indexers)
     raise NotImplementedError(f"Don't know how to index into type {type(store)}")
+
+
+def isel_mmcore_tensorstore(writer: TensorStoreWriter, indexers: Indices) -> np.ndarray:
+    index = writer._indices[frozenset(indexers.items())]
+    return writer._store[index].read().result()
 
 
 def isel_async(store: Any, indexers: Indices) -> Future[tuple[Indices, np.ndarray]]:
