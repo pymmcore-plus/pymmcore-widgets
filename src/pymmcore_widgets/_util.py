@@ -143,17 +143,43 @@ def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> 
     extension = requested_path.suffix
     # ome files like .ome.tiff or .ome.zarr are special,treated as a single extension
     if (stem := requested_path.stem).endswith(".ome"):
-        extension = ".ome" + extension
+        extension = f".ome{extension}"
         stem = stem[:-4]
+
+    # if ".ome.tif", remove the position index (e.g. _p0, _p1, etc.) from the stem
+    # if any. this can happen when the user is saving a file and ".ome.tif" from a
+    # multi-position acquisition (e.g. "file_001_p0.ome.tif", "file_001_p1.ome.tif",
+    # etc.). we need to remove the _p* to get the pure stem and then (below) check for
+    # existing files to then get the correct counter to add to the stem.
+    if ".ome.tif" in extension:
+        stem = re.sub(r"_p\d+", "", stem)
+
+    # if the stem has a number at the end, remove it and store it in stem_no_num. this
+    # is used below when we loop through the existing files to skip files that have a
+    # different stem. (for example, if the stem is "file_001" and the existing file is
+    # "test_002", we should skip it and not update the current_max since "file" is
+    # different than "test")
+    stem_no_num = stem
+    if (m := NUM_SPLIT.match(stem)) and (num := m.group(2)):
+        stem_no_num = stem.replace(f"_{num}", "")
 
     # look for ANY existing files in the folder that follow the pattern of
     # stem_###.extension
     current_max = 0
+
     for existing in directory.glob(f"*{extension}"):
-        # cannot use existing.stem because of the ome (2-part-extension) special case
-        base = existing.name.replace(extension, "")
+        # remove the extension and _p* if any (if ".ome.tif")
+        if ".ome.tif" in extension:
+            base = re.sub(r"_p\d+", "", existing.name.replace(extension, ""))
+        else:
+            base = existing.name.replace(extension, "")
+
         # if the base name ends with a number, increase the current_max
         if (match := NUM_SPLIT.match(base)) and (num := match.group(2)):
+            # if the stem without the counter is different than the base without the
+            # counter, skip this file (se comment above)
+            if stem_no_num != base.replace(f"_{num}", ""):
+                continue
             current_max = max(int(num), current_max)
             # if it has more digits than expected, update the ndigits
             if len(num) > min_digits:
@@ -173,4 +199,5 @@ def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> 
             # if the requested path has a counter that is greater than any other files
             # use it
             current_max = max(int(num), current_max)
+
     return directory / f"{stem}_{current_max:0{min_digits}d}{extension}"
