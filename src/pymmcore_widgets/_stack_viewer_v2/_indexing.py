@@ -8,7 +8,7 @@ from threading import Thread
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
-from pymmcore_plus.mda.handlers._tensorstore_writer import TensorStoreWriter
+from pymmcore_plus.mda.handlers._tensorstore_writer import TensorStoreHandler
 
 if TYPE_CHECKING:
     from typing import Any, Protocol, TypeGuard
@@ -60,6 +60,8 @@ def is_duck_array(obj: Any) -> TypeGuard[SupportsIndexing]:
     return False
 
 
+# TODO: Change this factory function on a wrapper class so we
+# don't have to check the type of the object every time we call
 def isel(store: Any, indexers: Indices) -> np.ndarray:
     """Select a slice from a data store using (possibly) named indices.
 
@@ -69,7 +71,7 @@ def isel(store: Any, indexers: Indices) -> np.ndarray:
     """
     if is_pymmcore_5dbase(store):
         return isel_mmcore_5dbase(store, indexers)
-    if isinstance(store, TensorStoreWriter):
+    if isinstance(store, TensorStoreHandler):
         return isel_mmcore_tensorstore(store, indexers)
     if is_xarray_dataarray(store):
         return cast("np.ndarray", store.isel(indexers).to_numpy())
@@ -78,7 +80,9 @@ def isel(store: Any, indexers: Indices) -> np.ndarray:
     raise NotImplementedError(f"Don't know how to index into type {type(store)}")
 
 
-def isel_mmcore_tensorstore(writer: TensorStoreWriter, indexers: Indices) -> np.ndarray:
+def isel_mmcore_tensorstore(
+    writer: TensorStoreHandler, indexers: Indices
+) -> np.ndarray:
     index = writer._indices[frozenset(indexers.items())]
     return writer._store[index].read().result()
 
