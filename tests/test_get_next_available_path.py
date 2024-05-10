@@ -15,7 +15,7 @@ starting_zarr_files = ["out.ome.zarr", "out_002.ome.zarr"]
 starting_tiff_sequence = ["out", "out_002"]
 
 # starting files in temp dir, requested file, expected next file
-tiff_files = [
+files = [
     (starting_tiff_files_0, "out.ome.tiff", "out_007.ome.tiff"),
     (starting_tiff_files_0, "out_001.ome.tiff", "out_007.ome.tiff"),
     (starting_tiff_files_2, "out_005.ome.tiff", "out_008.ome.tiff"),
@@ -30,7 +30,7 @@ tiff_files = [
 ]
 
 
-@pytest.mark.parametrize("starting_files, tiff_file, expected", tiff_files)
+@pytest.mark.parametrize("starting_files, tiff_file, expected", files)
 def test_ome_writers_multi_pos(
     tmp_path: Path,
     starting_files: list,
