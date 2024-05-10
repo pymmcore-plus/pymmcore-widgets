@@ -325,7 +325,6 @@ class StackViewer(QWidget):
         Connected to the future returned by _isel.
         """
         index, data = future.result()
-        print(index)
         # assume that if we have channels remaining, that they are the first axis
         # FIXME: this is a bad assumption
         data = iter(data) if index.get(self._channel_axis) is ALL_CHANNELS else [data]
