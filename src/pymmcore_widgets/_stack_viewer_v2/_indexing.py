@@ -8,7 +8,7 @@ from threading import Thread
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
-from pymmcore_plus.mda.handlers._tensorstore_writer import TensorStoreHandler
+from pymmcore_plus.mda.handlers import TensorStoreHandler
 
 if TYPE_CHECKING:
     from typing import Any, Protocol, TypeGuard
