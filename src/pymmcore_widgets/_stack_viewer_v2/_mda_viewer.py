@@ -22,10 +22,13 @@ class MDAViewer(StackViewer):
     _data: _5DWriterBase
 
     def __init__(
-        self, datastore: _5DWriterBase | None = None, *, parent: QWidget | None = None
+        self,
+        datastore: _5DWriterBase | TensorStoreHandler | None = None,
+        *,
+        parent: QWidget | None = None,
     ):
         if datastore is None:
-            datastore = TensorStoreHandler("datastore")
+            datastore = TensorStoreHandler()
         elif not isinstance(datastore, (OMEZarrWriter, OMETiffWriter)):
             raise TypeError(
                 "MDAViewer currently only supports _5DWriterBase datastores."

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
     import dask.array as da
     import numpy.typing as npt
+    import tensorstore as ts
     import xarray as xr
     from pymmcore_plus.mda.handlers._5d_writer_base import _5DWriterBase
 
@@ -50,6 +51,12 @@ def is_dask_array(obj: Any) -> TypeGuard[da.Array]:
     return False
 
 
+def is_tensorstore(obj: Any) -> TypeGuard[ts.TensorStore]:
+    if (ts := sys.modules.get("tensorstore")) and isinstance(obj, ts.TensorStore):
+        return True
+    return False
+
+
 def is_duck_array(obj: Any) -> TypeGuard[SupportsIndexing]:
     if (
         isinstance(obj, np.ndarray)
@@ -75,16 +82,23 @@ def isel(store: Any, indexers: Indices) -> np.ndarray:
         return isel_mmcore_tensorstore(store, indexers)
     if is_xarray_dataarray(store):
         return cast("np.ndarray", store.isel(indexers).to_numpy())
+    if is_tensorstore(store):
+        return isel_tensorstore(store, indexers)
     if is_duck_array(store):
         return isel_np_array(store, indexers)
     raise NotImplementedError(f"Don't know how to index into type {type(store)}")
 
 
+def isel_tensorstore(store: ts.TensorStore, indexers: Indices) -> np.ndarray:
+    import tensorstore
+
+    return store[tensorstore.d[*indexers][*indexers.values()]].read().result()
+
+
 def isel_mmcore_tensorstore(
     writer: TensorStoreHandler, indexers: Indices
 ) -> np.ndarray:
-    index = writer._indices[frozenset(indexers.items())]
-    return writer._store[index].read().result()
+    return writer.isel(indexers)
 
 
 def isel_async(store: Any, indexers: Indices) -> Future[tuple[Indices, np.ndarray]]:
