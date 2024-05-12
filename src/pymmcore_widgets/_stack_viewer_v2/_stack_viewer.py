@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
 from enum import Enum
 from itertools import cycle
-from typing import TYPE_CHECKING, Container, Iterable, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence, cast
 
 import cmap
 import numpy as np

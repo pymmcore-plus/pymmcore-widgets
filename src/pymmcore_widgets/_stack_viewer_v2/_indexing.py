@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import sys
 import warnings
-from concurrent.futures import Future, InvalidStateError, ThreadPoolExecutor
-from contextlib import suppress
-from threading import Thread
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import TYPE_CHECKING, cast
 
 import numpy as np

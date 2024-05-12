@@ -224,7 +224,7 @@ class DimsSlider(QWidget):
         self._int_slider.setMaximum(max_val)
         self._slice_slider.setMaximum(max_val)
 
-    def setMinumum(self, min_val: int) -> None:
+    def setMinimum(self, min_val: int) -> None:
         self._int_slider.setMinimum(min_val)
         self._slice_slider.setMinimum(min_val)
 
@@ -417,7 +417,7 @@ class DimsSliders(QWidget):
         for name, min_val in values.items():
             if name not in self._sliders:
                 self.add_dimension(name)
-            self._sliders[name].setMinumum(min_val)
+            self._sliders[name].setMinimum(min_val)
 
     def maxima(self) -> Sizes:
         """Return mapping of {dim_key -> maximum value} for each dimension."""
