@@ -214,17 +214,17 @@ class DimsSlider(QWidget):
         self._set_slice_mode(not self._slice_mode)
         super().mouseDoubleClickEvent(a0)
 
-    def setMaximum(self, max_val: int) -> None:
+    def containMaximum(self, max_val: int) -> None:
         if max_val > self._int_slider.maximum():
             self._int_slider.setMaximum(max_val)
-        if max_val > self._slice_slider.maximum():
-            self._slice_slider.setMaximum(max_val)
+            if max_val > self._slice_slider.maximum():
+                self._slice_slider.setMaximum(max_val)
 
-    def setMinimum(self, min_val: int) -> None:
+    def containMinimum(self, min_val: int) -> None:
         if min_val < self._int_slider.minimum():
             self._int_slider.setMinimum(min_val)
-        if min_val < self._slice_slider.minimum():
-            self._slice_slider.setMinimum(min_val)
+            if min_val < self._slice_slider.minimum():
+                self._slice_slider.setMinimum(min_val)
 
     def setRange(self, min_val: int, max_val: int) -> None:
         self._int_slider.setRange(min_val, max_val)
@@ -255,7 +255,14 @@ class DimsSlider(QWidget):
 
     def forceValue(self, val: Index) -> None:
         """Set value and increase range if necessary."""
-        self.setMaximum(val.stop if isinstance(val, slice) else val)
+        if isinstance(val, slice):
+            if isinstance(val.start, int):
+                self.containMinimum(val.start)
+            if isinstance(val.stop, int):
+                self.containMaximum(val.stop)
+        else:
+            self.containMinimum(val)
+            self.containMaximum(val)
         self.setValue(val)
 
     def _set_slice_mode(self, mode: bool = True) -> None:
@@ -358,6 +365,14 @@ class DimsSliders(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
+    def __contains__(self, key: DimKey) -> bool:
+        """Return True if the dimension key is present in the DimsSliders."""
+        return key in self._sliders
+
+    def slider(self, key: DimKey) -> DimsSlider:
+        """Return the DimsSlider widget for the given dimension key."""
+        return self._sliders[key]
+
     def value(self) -> Indices:
         """Return mapping of {dim_key -> current index} for each dimension."""
         return self._current_index.copy()
@@ -394,7 +409,7 @@ class DimsSliders(QWidget):
         for name, min_val in values.items():
             if name not in self._sliders:
                 self.add_dimension(name)
-            self._sliders[name].setMinimum(min_val)
+            self._sliders[name].containMinimum(min_val)
 
     def maxima(self) -> Sizes:
         """Return mapping of {dim_key -> maximum value} for each dimension."""
@@ -411,7 +426,7 @@ class DimsSliders(QWidget):
         for name, max_val in values.items():
             if name not in self._sliders:
                 self.add_dimension(name)
-            self._sliders[name].setMaximum(max_val)
+            self._sliders[name].containMaximum(max_val)
 
     def set_locks_visible(self, visible: bool | Mapping[DimKey, bool]) -> None:
         """Set the visibility of the lock buttons for all dimensions."""
@@ -439,7 +454,10 @@ class DimsSliders(QWidget):
 
         val_int = val.start if isinstance(val, slice) else val
         slider.setVisible(name not in self._invisible_dims)
-        slider.setRange(0, val_int if isinstance(val_int, int) else 0)
+        if isinstance(val_int, int):
+            slider.setRange(val_int, val_int)
+        elif isinstance(val_int, slice):
+            slider.setRange(val_int.start or 0, val_int.stop or 1)
 
         val = val if val is not None else 0
         self._current_index[name] = val

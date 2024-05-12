@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from enum import Enum
 from itertools import cycle
+from re import A
 from typing import TYPE_CHECKING, Iterable, Mapping, Sequence, cast
 
 import cmap
@@ -65,7 +66,57 @@ class ChannelModeButton(QPushButton):
 
 
 class StackViewer(QWidget):
-    """A viewer for ND arrays."""
+    """A viewer for ND arrays.
+
+    This widget displays a single slice from an ND array (or a composite of slices in
+    different colormaps).  The widget provides sliders to select the slice to display,
+    and buttons to control the display mode of the channels.
+
+    An important concept in this widget is the "index".  The index is a mapping of
+    dimensions to integers or slices that define the slice of the data to display.  For
+    example, a numpy slice of `[0, 1, 5:10]` would be represented as
+    `{0: 0, 1: 1, 2: slice(5, 10)}`, but dimensions can also be named, e.g.
+    `{'t': 0, 'c': 1, 'z': slice(5, 10)}`. The index is used to select the data from
+    the datastore, and to determine the position of the sliders.
+
+    The flow of data is as follows:
+
+    - The user sets the data using the `set_data` method. This will set the number
+      and range of the sliders to the shape of the data, and display the first slice.
+    - The user can then use the sliders to select the slice to display. The current
+      slice is defined as a `Mapping` of `{dim -> int|slice}` and can be retrieved
+      with the `_dims_sliders.value()` method.  To programmatically set the current
+      position, use the `setIndex` method. This will set the values of the sliders,
+      which in turn will trigger the display of the new slice via the
+      `_update_data_for_index` method.
+    - `_update_data_for_index` is an asynchronous method that retrieves the data for
+      the given index from the datastore (using `_isel`) and queues the
+      `_on_data_slice_ready` method to be called when the data is ready. The logic
+      for extracting data from the datastore is defined in `_indexing.py`, which handles
+      idiosyncrasies of different datastores (e.g. xarray, tensorstore, etc).
+    - `_on_data_slice_ready` is called when the data is ready, and updates the image.
+      Note that if the slice is multidimensional, the data will be reduced to 2D using
+      max intensity projection (and double-clicking on any given dimension slider will
+      turn it into a range slider allowing a projection to be made over that dimension).
+    - The image is displayed on the canvas, which is an object that implements the
+      `PCanvas` protocol (mostly, it has an `add_image` method that returns a handle
+      to the added image that can be used to update the data and display). This
+      small abstraction allows for various backends to be used (e.g. vispy, pygfx, etc).
+
+    Parameters
+    ----------
+    data : Any
+        The data to display.  This can be an ND array, an xarray DataArray, or any
+        object that supports numpy-style indexing.
+    parent : QWidget, optional
+        The parent widget of this widget.
+    channel_axis : Hashable, optional
+        The axis that represents the channels in the data.  If not provided, this will
+        be guessed from the data.
+    channel_mode : ChannelMode, optional
+        The initial mode for displaying the channels. If not provided, this will be
+        set to ChannelMode.MONO.
+    """
 
     def __init__(
         self,
@@ -163,6 +214,11 @@ class StackViewer(QWidget):
         """Return the data backing the view."""
         return self._data
 
+    @data.setter
+    def data(self, data: Any) -> None:
+        """Set the data backing the view."""
+        raise AttributeError("Cannot set data directly. Use `set_data` method.")
+
     @property
     def dims_sliders(self) -> DimsSliders:
         """Return the DimsSliders widget."""
@@ -174,39 +230,41 @@ class StackViewer(QWidget):
         return self._sizes
 
     def set_data(
-        self, data: Any, sizes: SizesLike | None = None, channel_axis: int | None = None
+        self,
+        data: Any,
+        sizes: SizesLike | None = None,
+        channel_axis: int | None = None,
+        visualized_dims: Iterable[DimKey] | None = None,
     ) -> None:
         """Set the datastore, and, optionally, the sizes of the data."""
+        # store the data
+        self._data = data
+
+        # determine sizes of the data
         if sizes is None:
             if (sz := getattr(data, "sizes", None)) and isinstance(sz, Mapping):
                 sizes = sz
             elif (shp := getattr(data, "shape", None)) and isinstance(shp, tuple):
                 sizes = shp
         self._sizes = _to_sizes(sizes)
-        self._data = data
+
+        # set channel axis
         if channel_axis is not None:
             self._channel_axis = channel_axis
         elif self._channel_axis is None:
             self._channel_axis = self._guess_channel_axis(data)
-        self.set_visualized_dims(list(self._sizes)[-2:])
+
+        # update the dimensions we are visualizing
+        if visualized_dims is None:
+            visualized_dims = list(self._sizes)[-2:]
+        self.set_visualized_dims(visualized_dims)
+
+        # update the range of all the sliders to match the sizes we set above
         self.update_slider_ranges()
-        self.setIndex({})
-
-        package = getattr(data, "__module__", "").split(".")[0]
-        info = f"{package}.{getattr(type(data), '__qualname__', '')}"
-
-        if self._sizes:
-            if all(isinstance(x, int) for x in self._sizes):
-                size_str = repr(tuple(self._sizes.values()))
-            else:
-                size_str = ", ".join(f"{k}:{v}" for k, v in self._sizes.items())
-                size_str = f"({size_str})"
-            info += f" {size_str}"
-        if dtype := getattr(data, "dtype", ""):
-            info += f", {dtype}"
-        if nbytes := getattr(data, "nbytes", 0) / 1e6:
-            info += f", {nbytes:.2f}MB"
-        self._data_info.setText(info)
+        # redraw
+        self._update_data_for_index(self._dims_sliders.value())
+        # update the data info label
+        self._update_data_info()
 
     def set_visualized_dims(self, dims: Iterable[DimKey]) -> None:
         """Set the dimensions that will be visualized.
@@ -228,7 +286,7 @@ class StackViewer(QWidget):
         This is mostly here as a public way to reset the
         """
         if maxes is None:
-            maxes = self.sizes
+            maxes = self._sizes
         maxes = _to_sizes(maxes)
         self._dims_sliders.setMaxima({k: v - 1 for k, v in maxes.items()})
         if mins is not None:
@@ -271,6 +329,25 @@ class StackViewer(QWidget):
         self._dims_sliders.setValue(index)
 
     # ------------------- PRIVATE METHODS ----------------------------
+
+    def _update_data_info(self) -> None:
+        """Update the data info label with information about the data."""
+        data = self._data
+        package = getattr(data, "__module__", "").split(".")[0]
+        info = f"{package}.{getattr(type(data), '__qualname__', '')}"
+
+        if self._sizes:
+            if all(isinstance(x, int) for x in self._sizes):
+                size_str = repr(tuple(self._sizes.values()))
+            else:
+                size_str = ", ".join(f"{k}:{v}" for k, v in self._sizes.items())
+                size_str = f"({size_str})"
+            info += f" {size_str}"
+        if dtype := getattr(data, "dtype", ""):
+            info += f", {dtype}"
+        if nbytes := getattr(data, "nbytes", 0) / 1e6:
+            info += f", {nbytes:.2f}MB"
+        self._data_info.setText(info)
 
     def _guess_channel_axis(self, data: Any) -> DimKey | None:
         """Guess the channel axis from the data."""
@@ -328,6 +405,9 @@ class StackViewer(QWidget):
         # assume that if we have channels remaining, that they are the first axis
         # FIXME: this is a bad assumption
         data = iter(data) if index.get(self._channel_axis) is ALL_CHANNELS else [data]
+        # FIXME:
+        # `self._channel_axis: i` is a bug; we assume channel indices start at 0
+        # but the actual values used for indices are up to the user.
         for i, datum in enumerate(data):
             self._update_canvas_data(datum, {**index, self._channel_axis: i})
         self._canvas.refresh()
@@ -354,9 +434,13 @@ class StackViewer(QWidget):
             )
             handles.append(self._canvas.add_image(datum, cmap=cm))
             if imkey not in self._lut_ctrls:
-                channel_name = f"Ch {imkey}"  # TODO: get name from user
+                channel_name = self._get_channel_name(index)
                 self._lut_ctrls[imkey] = c = LutControl(channel_name, handles)
                 self._lut_drop.addWidget(c)
+
+    def _get_channel_name(self, index: Indices) -> str:
+        c = index.get(self._channel_axis, 0)
+        return f"Ch {c}"  # TODO: get name from user
 
     def _reduce_data_for_display(
         self, data: np.ndarray, reductor: Callable[..., np.ndarray] = np.max

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Mapping
 
 import superqt
 import useq
@@ -50,6 +50,7 @@ class MDAViewer(StackViewer):
         self._save_btn = SaveButton(self.data)
         self._btns.addWidget(self._save_btn)
         self.dims_sliders.set_locks_visible(True)
+        self._channel_names: dict[int, str] = {}
 
     @property
     def data(self) -> _5DWriterBase:
@@ -62,4 +63,13 @@ class MDAViewer(StackViewer):
 
     @superqt.ensure_main_thread  # type: ignore
     def _on_frame_ready(self, event: useq.MDAEvent) -> None:
+        c = event.index.get(self._channel_axis)  # type: ignore
+        if c not in self._channel_names and c is not None and event.channel:
+            self._channel_names[c] = event.channel.config
         self.setIndex(event.index)  # type: ignore
+
+    def _get_channel_name(self, index: Mapping) -> str:
+        if self._channel_axis in index:
+            if name := self._channel_names.get(index[self._channel_axis]):
+                return name
+        return super()._get_channel_name(index)
