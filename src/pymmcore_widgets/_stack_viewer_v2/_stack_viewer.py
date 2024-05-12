@@ -261,7 +261,7 @@ class StackViewer(QWidget):
         # update the range of all the sliders to match the sizes we set above
         self.update_slider_ranges()
         # redraw
-        self._update_data_for_index(self._dims_sliders.value())
+        self.setIndex({})
         # update the data info label
         self._update_data_info()
 
