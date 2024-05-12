@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections import defaultdict
 from enum import Enum
 from itertools import cycle
-from re import A
 from typing import TYPE_CHECKING, Iterable, Mapping, Sequence, cast
 
 import cmap
