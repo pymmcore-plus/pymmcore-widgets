@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 import warnings
-from concurrent.futures import Future, InvalidStateError
+from concurrent.futures import Future, InvalidStateError, ThreadPoolExecutor
 from contextlib import suppress
 from threading import Thread
 from typing import TYPE_CHECKING, cast
@@ -62,6 +62,7 @@ def is_duck_array(obj: Any) -> TypeGuard[SupportsIndexing]:
         isinstance(obj, np.ndarray)
         or hasattr(obj, "__array_function__")
         or hasattr(obj, "__array_namespace__")
+        or (hasattr(obj, "__getitem__") and hasattr(obj, "__array__"))
     ):
         return True
     return False
@@ -101,18 +102,13 @@ def isel_mmcore_tensorstore(
     return writer.isel(indexers)
 
 
+# Create a global executor
+_ISEL_THREAD_EXECUTOR = ThreadPoolExecutor(max_workers=1)
+
+
 def isel_async(store: Any, indexers: Indices) -> Future[tuple[Indices, np.ndarray]]:
     """Asynchronous version of isel."""
-    fut: Future[tuple[Indices, np.ndarray]] = Future()
-
-    def _thread_target() -> None:
-        data = isel(store, indexers)
-        with suppress(InvalidStateError):
-            fut.set_result((indexers, data))
-
-    thread = Thread(target=_thread_target)
-    thread.start()
-    return fut
+    return _ISEL_THREAD_EXECUTOR.submit(lambda: (indexers, isel(store, indexers)))
 
 
 def isel_np_array(data: SupportsIndexing, indexers: Indices) -> np.ndarray:

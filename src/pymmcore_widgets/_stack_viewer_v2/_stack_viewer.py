@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import dataclass
 from enum import Enum
 from itertools import cycle
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Container, Iterable, Mapping, Sequence, cast
 
 import cmap
 import numpy as np
 from qtpy.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 from superqt import QCollapsible, QElidingLabel, QIconifyIcon, ensure_main_thread
-from superqt.utils import qthrottled
+from superqt.utils import qthrottled, signals_blocked
 
 from ._backends import get_canvas
 from ._dims_slider import DimsSliders
@@ -62,6 +63,31 @@ class ChannelModeButton(QPushButton):
         other = ChannelMode.COMPOSITE if mode is ChannelMode.MONO else ChannelMode.MONO
         self.setText(str(other))
         self.setChecked(mode == ChannelMode.MONO)
+
+
+# @dataclass
+# class LutModel:
+#     name: str = ""
+#     autoscale: bool = True
+#     min: float = 0.0
+#     max: float = 1.0
+#     colormap: cmap.Colormap = GRAYS
+#     visible: bool = True
+
+
+# @dataclass
+# class ViewerModel:
+#     data: Any = None
+#     # dimensions of the data that will *not* be sliced.
+#     visualized_dims: Container[DimKey] = (-2, -1)
+#     # the axis that represents the channels in the data
+#     channel_axis: DimKey | None = None
+#     # the mode for displaying the channels
+#     # if MONO, only the current selection of channel_axis is displayed
+#     # if COMPOSITE, the full channel_axis is sliced, and luts determine display
+#     channel_mode: ChannelMode = ChannelMode.MONO
+#     # map of index in the channel_axis to LutModel
+#     luts: Mapping[int, LutModel] = {}
 
 
 class StackViewer(QWidget):
@@ -145,7 +171,8 @@ class StackViewer(QWidget):
         # colormaps that will be cycled through when displaying composite images
         # TODO: allow user to set this
         self._cmaps = cycle(COLORMAPS)
-
+        # the last future that was created by _update_data_for_index
+        self._last_future: Future | None = None
         # WIDGETS ----------------------------------------------------
 
         # the button that controls the display mode of the channels
@@ -259,7 +286,8 @@ class StackViewer(QWidget):
         self.set_visualized_dims(visualized_dims)
 
         # update the range of all the sliders to match the sizes we set above
-        self.update_slider_ranges()
+        with signals_blocked(self._dims_sliders):
+            self.update_slider_ranges()
         # redraw
         self.setIndex({})
         # update the data info label
@@ -384,7 +412,11 @@ class StackViewer(QWidget):
         if self._channel_axis and self._channel_mode == ChannelMode.COMPOSITE:
             index = {**index, self._channel_axis: ALL_CHANNELS}
 
-        self._isel(index).add_done_callback(self._on_data_slice_ready)
+        if self._last_future:
+            self._last_future.cancel()
+
+        self._last_future = f = self._isel(index)
+        f.add_done_callback(self._on_data_slice_ready)
 
     def _isel(self, index: Indices) -> Future[tuple[Indices, np.ndarray]]:
         """Select data from the datastore using the given index."""
@@ -400,6 +432,9 @@ class StackViewer(QWidget):
 
         Connected to the future returned by _isel.
         """
+        if future.cancelled():
+            return
+
         index, data = future.result()
         # assume that if we have channels remaining, that they are the first axis
         # FIXME: this is a bad assumption

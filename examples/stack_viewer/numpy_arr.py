@@ -49,11 +49,11 @@ def generate_5d_sine_wave(
 
 
 # Example usage
-array_shape = (10, 5, 5, 512, 512)  # Specify the desired dimensions
+array_shape = (10, 3, 5, 512, 512)  # Specify the desired dimensions
 sine_wave_5d = generate_5d_sine_wave(array_shape)
 
 if __name__ == "__main__":
     qapp = QtWidgets.QApplication([])
-    v = StackViewer(sine_wave_5d, channel_axis=2)
+    v = StackViewer(sine_wave_5d, channel_axis=1)
     v.show()
     qapp.exec()

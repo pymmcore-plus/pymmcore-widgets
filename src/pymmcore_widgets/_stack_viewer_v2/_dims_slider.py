@@ -220,6 +220,14 @@ class DimsSlider(QWidget):
             if max_val > self._slice_slider.maximum():
                 self._slice_slider.setMaximum(max_val)
 
+    def setMaximum(self, max_val: int) -> None:
+        self._int_slider.setMaximum(max_val)
+        self._slice_slider.setMaximum(max_val)
+
+    def setMinumum(self, min_val: int) -> None:
+        self._int_slider.setMinimum(min_val)
+        self._slice_slider.setMinimum(min_val)
+
     def containMinimum(self, min_val: int) -> None:
         if min_val < self._int_slider.minimum():
             self._int_slider.setMinimum(min_val)
@@ -409,7 +417,7 @@ class DimsSliders(QWidget):
         for name, min_val in values.items():
             if name not in self._sliders:
                 self.add_dimension(name)
-            self._sliders[name].containMinimum(min_val)
+            self._sliders[name].setMinumum(min_val)
 
     def maxima(self) -> Sizes:
         """Return mapping of {dim_key -> maximum value} for each dimension."""
@@ -426,7 +434,7 @@ class DimsSliders(QWidget):
         for name, max_val in values.items():
             if name not in self._sliders:
                 self.add_dimension(name)
-            self._sliders[name].containMaximum(max_val)
+            self._sliders[name].setMaximum(max_val)
 
     def set_locks_visible(self, visible: bool | Mapping[DimKey, bool]) -> None:
         """Set the visibility of the lock buttons for all dimensions."""
