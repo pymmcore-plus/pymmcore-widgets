@@ -29,7 +29,11 @@ if TYPE_CHECKING:
 
 MID_GRAY = "#888888"
 GRAYS = cmap.Colormap("gray")
-COLORMAPS = [cmap.Colormap("green"), cmap.Colormap("magenta"), cmap.Colormap("cyan")]
+DEFAULT_COLORMAPS = [
+    cmap.Colormap("green"),
+    cmap.Colormap("magenta"),
+    cmap.Colormap("cyan"),
+]
 MAX_CHANNELS = 16
 ALL_CHANNELS = slice(None)
 
@@ -146,9 +150,10 @@ class StackViewer(QWidget):
         self,
         data: Any,
         *,
+        colormaps: Iterable[cmap._colormap.ColorStopsLike] | None = None,
         parent: QWidget | None = None,
         channel_axis: DimKey | None = None,
-        channel_mode: ChannelMode = ChannelMode.MONO,
+        channel_mode: ChannelMode | str = ChannelMode.MONO,
     ):
         super().__init__(parent=parent)
 
@@ -169,7 +174,11 @@ class StackViewer(QWidget):
         self._channel_mode: ChannelMode = None  # type: ignore # set in set_channel_mode
         # colormaps that will be cycled through when displaying composite images
         # TODO: allow user to set this
-        self._cmaps = cycle(COLORMAPS)
+        if colormaps is not None:
+            self._cmaps = [cmap.Colormap(c) for c in colormaps]
+        else:
+            self._cmaps = DEFAULT_COLORMAPS
+        self._cmap_cycle = cycle(self._cmaps)
         # the last future that was created by _update_data_for_index
         self._last_future: Future | None = None
         # WIDGETS ----------------------------------------------------
@@ -322,7 +331,7 @@ class StackViewer(QWidget):
         for dim in list(maxes.keys())[-2:]:
             self._dims_sliders.set_dimension_visible(dim, False)
 
-    def set_channel_mode(self, mode: ChannelMode | None = None) -> None:
+    def set_channel_mode(self, mode: ChannelMode | str | None = None) -> None:
         """Set the mode for displaying the channels.
 
         In "composite" mode, the channels are displayed as a composite image, using
@@ -339,7 +348,7 @@ class StackViewer(QWidget):
             return
 
         self._channel_mode = mode
-        self._cmaps = cycle(COLORMAPS)  # reset the colormap cycle
+        self._cmap_cycle = cycle(self._cmaps)  # reset the colormap cycle
         if self._channel_axis is not None:
             # set the visibility of the channel slider
             self._dims_sliders.set_dimension_visible(
@@ -461,7 +470,7 @@ class StackViewer(QWidget):
                 ctrl.update_autoscale()
         else:
             cm = (
-                next(self._cmaps)
+                next(self._cmap_cycle)
                 if self._channel_mode == ChannelMode.COMPOSITE
                 else GRAYS
             )
