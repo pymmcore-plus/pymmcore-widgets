@@ -143,8 +143,11 @@ def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> 
     extension = requested_path.suffix
     # ome files like .ome.tiff or .ome.zarr are special,treated as a single extension
     if (stem := requested_path.stem).endswith(".ome"):
-        extension = ".ome" + extension
+        extension = f".ome{extension}"
         stem = stem[:-4]
+    elif (stem := requested_path.stem).endswith(".tensorstore"):
+        extension = f".tensorstore{extension}"
+        stem = stem[:-12]
 
     # look for ANY existing files in the folder that follow the pattern of
     # stem_###.extension
