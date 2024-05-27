@@ -11,6 +11,7 @@ from pymmcore_widgets.mda._save_widget import (
     SUBFOLDER,
     TIFF_SEQ,
     WRITERS,
+    ZARR_TESNSORSTORE,
     SaveGroupBox,
 )
 
@@ -53,6 +54,24 @@ def test_set_get_value(qtbot: QtBot) -> None:
         "save_name": "some_file.ome.zarr",
         "should_save": False,
         "format": OME_ZARR,
+    }
+
+    # setting zarr tensorstore format (dict)
+    wdg.setValue({"save_dir": str(path.parent), "save_name": "ts.tensorstore.zarr"})
+    assert wdg.value() == {
+        "save_dir": str(path.parent),
+        "save_name": "ts.tensorstore.zarr",
+        "should_save": False,
+        "format": ZARR_TESNSORSTORE,
+    }
+
+    # setting zarr tensorstore format (path / string)
+    wdg.setValue("/some_path/ts.tensorstore.zarr")
+    assert wdg.value() == {
+        "save_dir": "/some_path",
+        "save_name": "ts.tensorstore.zarr",
+        "should_save": True,
+        "format": ZARR_TESNSORSTORE,
     }
 
 
