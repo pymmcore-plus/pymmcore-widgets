@@ -356,6 +356,7 @@ class StackViewer(QWidget):
             )
 
         if self._img_handles:
+            print("Changing channel mode will clear the current images")
             self._clear_images()
             self._update_data_for_index(self._dims_sliders.value())
 
@@ -417,7 +418,10 @@ class StackViewer(QWidget):
         makes a request for the new data slice and queues _on_data_future_done to be
         called when the data is ready.
         """
-        if self._channel_axis and self._channel_mode == ChannelMode.COMPOSITE:
+        if (
+            self._channel_axis is not None
+            and self._channel_mode == ChannelMode.COMPOSITE
+        ):
             index = {**index, self._channel_axis: ALL_CHANNELS}
 
         if self._last_future:
@@ -474,6 +478,12 @@ class StackViewer(QWidget):
                 if self._channel_mode == ChannelMode.COMPOSITE
                 else GRAYS
             )
+            # FIXME: this is a hack ...
+            # however, there's a bug in the vispy backend such that if the first
+            # image is all zeros, it persists even if the data is updated
+            # it's better just to not add it at all...
+            if np.max(datum) == 0:
+                return
             handles.append(self._canvas.add_image(datum, cmap=cm))
             if imkey not in self._lut_ctrls:
                 channel_name = self._get_channel_name(index)
