@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from contextlib import suppress
 from enum import Enum
 from itertools import cycle
 from typing import TYPE_CHECKING, Iterable, Mapping, Sequence, cast
@@ -19,6 +20,8 @@ from ._lut_control import LutControl
 if TYPE_CHECKING:
     from concurrent.futures import Future
     from typing import Any, Callable, Hashable, TypeAlias
+
+    from qtpy.QtGui import QCloseEvent
 
     from ._dims_slider import DimKey, Indices, Sizes
     from ._protocols import PCanvas, PImageHandle
@@ -184,27 +187,27 @@ class StackViewer(QWidget):
         # WIDGETS ----------------------------------------------------
 
         # the button that controls the display mode of the channels
-        self._channel_mode_btn = ChannelModeButton()
+        self._channel_mode_btn = ChannelModeButton(self)
         self._channel_mode_btn.clicked.connect(self.set_channel_mode)
         # button to reset the zoom of the canvas
         self._set_range_btn = QPushButton(
-            QIconifyIcon("fluent:full-screen-maximize-24-filled"), ""
+            QIconifyIcon("fluent:full-screen-maximize-24-filled"), "", self
         )
         self._set_range_btn.clicked.connect(self._on_set_range_clicked)
 
         # place to display dataset summary
-        self._data_info = QElidingLabel("")
+        self._data_info = QElidingLabel("", parent=self)
         # place to display arbitrary text
-        self._hover_info = QLabel("")
+        self._hover_info = QLabel("", self)
         # the canvas that displays the images
         self._canvas: PCanvas = get_canvas()(self._hover_info.setText)
         # the sliders that control the index of the displayed image
-        self._dims_sliders = DimsSliders()
+        self._dims_sliders = DimsSliders(self)
         self._dims_sliders.valueChanged.connect(
             qthrottled(self._update_data_for_index, 20, leading=True)
         )
 
-        self._lut_drop = QCollapsible("LUTs")
+        self._lut_drop = QCollapsible("LUTs", self)
         self._lut_drop.setCollapsedIcon(QIconifyIcon("bi:chevron-down", color=MID_GRAY))
         self._lut_drop.setExpandedIcon(QIconifyIcon("bi:chevron-up", color=MID_GRAY))
         lut_layout = cast("QVBoxLayout", self._lut_drop.layout())
@@ -430,6 +433,14 @@ class StackViewer(QWidget):
         self._last_future = f = self._isel(index)
         f.add_done_callback(self._on_data_slice_ready)
 
+    def closeEvent(self, a0: QCloseEvent | None) -> None:
+        if self._last_future:
+            self._last_future.cancel()
+            with suppress(AttributeError):
+                # just in case there is a hard reference to self._on_data_slice_ready
+                self._last_future._done_callbacks.clear()  # type: ignore
+        super().closeEvent(a0)
+
     def _isel(self, index: Indices) -> Future[tuple[Indices, np.ndarray]]:
         """Select data from the datastore using the given index."""
         idx = {k: v for k, v in index.items() if k not in self._visualized_dims}
@@ -487,7 +498,7 @@ class StackViewer(QWidget):
             handles.append(self._canvas.add_image(datum, cmap=cm))
             if imkey not in self._lut_ctrls:
                 channel_name = self._get_channel_name(index)
-                self._lut_ctrls[imkey] = c = LutControl(channel_name, handles)
+                self._lut_ctrls[imkey] = c = LutControl(channel_name, handles, self)
                 self._lut_drop.addWidget(c)
 
     def _get_channel_name(self, index: Indices) -> str:

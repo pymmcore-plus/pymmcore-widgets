@@ -79,7 +79,7 @@ class QtPopup(QDialog):
         self.setModal(False)  # if False, then clicking anywhere else closes it
         self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
 
-        self.frame = QFrame()
+        self.frame = QFrame(self)
         layout = QVBoxLayout(self)
         layout.addWidget(self.frame)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -106,7 +106,7 @@ class PlayButton(QPushButton):
         icn = QIconifyIcon(self.PLAY_ICON, color="#888888")
         icn.addKey(self.PAUSE_ICON, state=QIconifyIcon.State.On, color="#4580DD")
         super().__init__(icn, "", parent)
-        self.spin = QDoubleSpinBox()
+        self.spin = QDoubleSpinBox(parent)
         self.spin.setRange(0.5, 100)
         self.spin.setValue(fps)
         self.spin.valueChanged.connect(self.fpsChanged)
@@ -161,7 +161,7 @@ class DimsSlider(QWidget):
         self._dim_key = dimension_key
 
         self._timer_id: int | None = None  # timer for play button
-        self._play_btn = PlayButton()
+        self._play_btn = PlayButton(parent=self)
         self._play_btn.fpsChanged.connect(self.set_fps)
         self._play_btn.toggled.connect(self._toggle_animation)
 
@@ -171,16 +171,16 @@ class DimsSlider(QWidget):
 
         # note, this lock button only prevents the slider from updating programmatically
         # using self.setValue, it doesn't prevent the user from changing the value.
-        self._lock_btn = LockButton()
+        self._lock_btn = LockButton(parent=self)
 
-        self._pos_label = QSpinBox()
+        self._pos_label = QSpinBox(self)
         self._pos_label.valueChanged.connect(self._on_pos_label_edited)
         self._pos_label.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
         self._pos_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         self._pos_label.setStyleSheet(
             "border: none; padding: 0; margin: 0; background: transparent"
         )
-        self._out_of_label = QLabel()
+        self._out_of_label = QLabel(self)
 
         self._int_slider = QSlider(Qt.Orientation.Horizontal)
         self._int_slider.rangeChanged.connect(self._on_range_changed)

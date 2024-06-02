@@ -135,6 +135,7 @@ docstring-code-format = true
 
 # https://docs.pytest.org/en/6.2.x/customize.html
 [tool.pytest.ini_options]
+markers = ["allow_leaks"]
 minversion = "6.0"
 testpaths = ["tests"]
 filterwarnings = [
