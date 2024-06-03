@@ -163,8 +163,6 @@ class FOVSelectorPage(QWizardPage):
 
 
 class HCSWizard(QWizard):
-    valueChanged = Signal(object)
-
     """A wizard to setup an High Content experiment.
 
     This widget can be used to select a plate, calibrate it, and then select the FOVs
@@ -179,6 +177,8 @@ class HCSWizard(QWizard):
     plate_database_path : Path | str | None
         The path to the plate database. By default, None.
     """
+
+    valueChanged = Signal(object)
 
     def __init__(
         self,
