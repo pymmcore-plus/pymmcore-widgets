@@ -4,10 +4,10 @@ import sys
 import warnings
 from abc import abstractmethod
 from concurrent.futures import Future, ThreadPoolExecutor
+from contextlib import suppress
 from typing import TYPE_CHECKING, Generic, Hashable, Mapping, Sequence, TypeVar, cast
 
 import numpy as np
-from zarr import suppress
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -126,8 +126,11 @@ class DataWrapper(Generic[ArrayT]):
 class MMTensorStoreWrapper(DataWrapper["TensorStoreHandler"]):
     def sizes(self) -> Mapping[Hashable, int]:
         with suppress(Exception):
-            return self._data.current_sequence.sizes()
+            return self._data.current_sequence.sizes
         return {}
+
+    def guess_channel_axis(self) -> Hashable | None:
+        return "c"
 
     @classmethod
     def supports(cls, obj: Any) -> TypeGuard[TensorStoreHandler]:
@@ -138,27 +141,20 @@ class MMTensorStoreWrapper(DataWrapper["TensorStoreHandler"]):
     def isel(self, indexers: Indices) -> np.ndarray:
         return self._data.isel(indexers)  # type: ignore
 
+    def save_as_zarr(self, save_loc: str | Path) -> None:
+        if (store := self._data.store) is None:
+            return
+        import tensorstore as ts
+
+        new_spec = store.spec().to_json()
+        new_spec["kvstore"] = {"driver": "file", "path": str(save_loc)}
+        new_ts = ts.open(new_spec, create=True).result()
+        new_ts[:] = store.read().result()
+
 
 class MM5DWriter(DataWrapper["_5DWriterBase"]):
-    def isel(self, indexers: Indices) -> np.ndarray:
-        p_index = indexers.get("p", 0)
-        if isinstance(p_index, slice):
-            warnings.warn("Cannot slice over position index", stacklevel=2)  # TODO
-            p_index = p_index.start
-        p_index = cast(int, p_index)
-
-        try:
-            sizes = [*list(self._data.position_sizes[p_index]), "y", "x"]
-        except IndexError as e:
-            raise IndexError(
-                f"Position index {p_index} out of range for "
-                f"{len(self._data.position_sizes)}"
-            ) from e
-
-        data = self._data.position_arrays[self._data.get_position_key(p_index)]
-        full = slice(None, None)
-        index = tuple(indexers.get(k, full) for k in sizes)
-        return data[index]  # type: ignore
+    def guess_channel_axis(self) -> Hashable | None:
+        return "c"
 
     @classmethod
     def supports(cls, obj: Any) -> TypeGuard[_5DWriterBase]:
@@ -179,6 +175,26 @@ class MM5DWriter(DataWrapper["_5DWriterBase"]):
         if isinstance(self._data, OMEZarrWriter):
             zarr.copy_store(self._data.group.store, zarr.DirectoryStore(save_loc))
         raise NotImplementedError(f"Cannot save {type(self._data)} data to Zarr.")
+
+    def isel(self, indexers: Indices) -> np.ndarray:
+        p_index = indexers.get("p", 0)
+        if isinstance(p_index, slice):
+            warnings.warn("Cannot slice over position index", stacklevel=2)  # TODO
+            p_index = p_index.start
+        p_index = cast(int, p_index)
+
+        try:
+            sizes = [*list(self._data.position_sizes[p_index]), "y", "x"]
+        except IndexError as e:
+            raise IndexError(
+                f"Position index {p_index} out of range for "
+                f"{len(self._data.position_sizes)}"
+            ) from e
+
+        data = self._data.position_arrays[self._data.get_position_key(p_index)]
+        full = slice(None, None)
+        index = tuple(indexers.get(k, full) for k in sizes)
+        return data[index]  # type: ignore
 
 
 class XarrayWrapper(DataWrapper["xr.DataArray"]):
@@ -214,6 +230,9 @@ class DaskWrapper(DataWrapper["da.Array"]):
         if (da := sys.modules.get("dask.array")) and isinstance(obj, da.Array):
             return True
         return False
+
+    def save_as_zarr(self, save_loc: str | Path) -> None:
+        self._data.to_zarr(url=str(save_loc))
 
 
 class TensorstoreWrapper(DataWrapper["ts.TensorStore"]):
