@@ -4,7 +4,7 @@ import sys
 import warnings
 from abc import abstractmethod
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import TYPE_CHECKING, Generic, Hashable, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, Hashable, Mapping, Sequence, TypeVar, cast
 
 import numpy as np
 
@@ -85,6 +85,43 @@ class DataWrapper(Generic[ArrayT]):
 
     def save_as_zarr(self, save_loc: str | Path) -> None:
         raise NotImplementedError("save_as_zarr not implemented for this data type.")
+
+    def sizes(self) -> Mapping[Hashable, int]:
+        if (sz := getattr(self._data, "sizes", None)) and isinstance(sz, Mapping):
+            return {k: int(v) for k, v in sz.items()}
+        elif (shape := getattr(self._data, "shape", None)) and isinstance(shape, tuple):
+            _sizes: dict[Hashable, int] = {}
+            for i, val in enumerate(shape):
+                if isinstance(val, int):
+                    _sizes[i] = val
+                elif isinstance(val, Sequence) and len(val) == 2:
+                    _sizes[val[0]] = int(val[1])
+                else:
+                    raise ValueError(
+                        f"Invalid size: {val}. Must be an int or a 2-tuple."
+                    )
+            return _sizes
+        raise NotImplementedError(f"Cannot determine sizes for {type(self._data)}")
+
+    def summary_info(self) -> str:
+        """Return info label with information about the data."""
+        package = getattr(self._data, "__module__", "").split(".")[0]
+        info = f"{package}.{getattr(type(self._data), '__qualname__', '')}"
+
+        if sizes := self.sizes():
+            # if all of the dimension keys are just integers, omit them from size_str
+            if all(isinstance(x, int) for x in sizes):
+                size_str = repr(tuple(sizes.values()))
+            # otherwise, include the keys in the size_str
+            else:
+                size_str = ", ".join(f"{k}:{v}" for k, v in sizes.items())
+                size_str = f"({size_str})"
+            info += f" {size_str}"
+        if dtype := getattr(self._data, "dtype", ""):
+            info += f", {dtype}"
+        if nbytes := getattr(self._data, "nbytes", 0) / 1e6:
+            info += f", {nbytes:.2f}MB"
+        return info
 
 
 class MMTensorStoreWrapper(DataWrapper["TensorStoreHandler"]):

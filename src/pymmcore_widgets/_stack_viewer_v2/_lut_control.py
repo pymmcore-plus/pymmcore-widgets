@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, cast
+from typing import TYPE_CHECKING, Any, Iterable, cast
 
 import numpy as np
 from qtpy.QtCore import Qt
@@ -36,6 +36,7 @@ class LutControl(QWidget):
         name: str = "",
         handles: Iterable[PImageHandle] = (),
         parent: QWidget | None = None,
+        cmaplist: Iterable[Any] = (),
     ) -> None:
         super().__init__(parent)
         self._handles = handles
@@ -49,7 +50,7 @@ class LutControl(QWidget):
         self._cmap.currentColormapChanged.connect(self._on_cmap_changed)
         for handle in handles:
             self._cmap.addColormap(handle.cmap)
-        for color in ["green", "magenta", "cyan"]:
+        for color in cmaplist:
             self._cmap.addColormap(color)
 
         self._clims = QLabeledRangeSlider(Qt.Orientation.Horizontal)

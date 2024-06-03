@@ -35,6 +35,11 @@ DEFAULT_COLORMAPS = [
     cmap.Colormap("green"),
     cmap.Colormap("magenta"),
     cmap.Colormap("cyan"),
+    cmap.Colormap("yellow"),
+    cmap.Colormap("red"),
+    cmap.Colormap("blue"),
+    cmap.Colormap("cubehelix"),
+    cmap.Colormap("gray"),
 ]
 ALL_CHANNELS = slice(None)
 
@@ -194,11 +199,11 @@ class StackViewer(QWidget):
         self._set_range_btn.clicked.connect(self._on_set_range_clicked)
 
         # place to display dataset summary
-        self._data_info = QElidingLabel("", parent=self)
+        self._data_info_label = QElidingLabel("", parent=self)
         # place to display arbitrary text
-        self._hover_info = QLabel("", self)
+        self._hover_info_label = QLabel("", self)
         # the canvas that displays the images
-        self._canvas: PCanvas = get_canvas()(self._hover_info.setText)
+        self._canvas: PCanvas = get_canvas()(self._hover_info_label.setText)
         # the sliders that control the index of the displayed image
         self._dims_sliders = DimsSliders(self)
         self._dims_sliders.valueChanged.connect(
@@ -230,9 +235,9 @@ class StackViewer(QWidget):
         layout = QVBoxLayout(self)
         layout.setSpacing(2)
         layout.setContentsMargins(6, 6, 6, 6)
-        layout.addWidget(self._data_info)
+        layout.addWidget(self._data_info_label)
         layout.addWidget(self._canvas.qwidget(), 1)
-        layout.addWidget(self._hover_info)
+        layout.addWidget(self._hover_info_label)
         layout.addWidget(self._dims_sliders)
         layout.addWidget(self._lut_drop)
         layout.addLayout(btns)
@@ -276,12 +281,7 @@ class StackViewer(QWidget):
         self._data_wrapper = DataWrapper.create(data)
 
         # determine sizes of the data
-        if sizes is None:
-            if (sz := getattr(data, "sizes", None)) and isinstance(sz, Mapping):
-                sizes = sz
-            elif (shp := getattr(data, "shape", None)) and isinstance(shp, tuple):
-                sizes = shp
-        self._sizes = _to_sizes(sizes)
+        self._sizes = self._data_wrapper.sizes() if sizes is None else _to_sizes(sizes)
 
         # set channel axis
         if channel_axis is not None:
@@ -300,7 +300,7 @@ class StackViewer(QWidget):
         # redraw
         self.setIndex({})
         # update the data info label
-        self._update_data_info()
+        self._data_info_label.setText(self._data_wrapper.summary_info())
 
     def set_visualized_dims(self, dims: Iterable[DimKey]) -> None:
         """Set the dimensions that will be visualized.
@@ -365,26 +365,6 @@ class StackViewer(QWidget):
         self._dims_sliders.setValue(index)
 
     # ------------------- PRIVATE METHODS ----------------------------
-
-    def _update_data_info(self) -> None:
-        """Update the data info label with information about the data."""
-        data = self._data_wrapper._data
-
-        package = getattr(data, "__module__", "").split(".")[0]
-        info = f"{package}.{getattr(type(data), '__qualname__', '')}"
-
-        if self._sizes:
-            if all(isinstance(x, int) for x in self._sizes):
-                size_str = repr(tuple(self._sizes.values()))
-            else:
-                size_str = ", ".join(f"{k}:{v}" for k, v in self._sizes.items())
-                size_str = f"({size_str})"
-            info += f" {size_str}"
-        if dtype := getattr(data, "dtype", ""):
-            info += f", {dtype}"
-        if nbytes := getattr(data, "nbytes", 0) / 1e6:
-            info += f", {nbytes:.2f}MB"
-        self._data_info.setText(info)
 
     def _on_set_range_clicked(self) -> None:
         # using method to swallow the parameter passed by _set_range_btn.clicked
@@ -486,7 +466,12 @@ class StackViewer(QWidget):
             handles.append(self._canvas.add_image(datum, cmap=cm))
             if imkey not in self._lut_ctrls:
                 channel_name = self._get_channel_name(index)
-                self._lut_ctrls[imkey] = c = LutControl(channel_name, handles, self)
+                self._lut_ctrls[imkey] = c = LutControl(
+                    channel_name,
+                    handles,
+                    self,
+                    cmaplist=self._cmaps + DEFAULT_COLORMAPS,
+                )
                 self._lut_drop.addWidget(c)
 
     def _get_channel_name(self, index: Indices) -> str:
