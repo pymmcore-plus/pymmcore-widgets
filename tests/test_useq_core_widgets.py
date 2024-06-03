@@ -724,3 +724,6 @@ def test_hcs_mda_meta(qtbot: QtBot):
     reload = useq.MDASequence(**mda_json)
 
     assert reload.model_dump_json() == mda.model_dump_json()
+
+    wdg.setValue(reload)
+    assert wdg.value().metadata[PYMMCW_METADATA_KEY]["hcs"] == hcs
