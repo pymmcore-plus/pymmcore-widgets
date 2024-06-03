@@ -153,7 +153,7 @@ class XarrayWrapper(DataWrapper["xr.DataArray"]):
     def guess_channel_axis(self) -> Hashable | None:
         for d in self._data.dims:
             if str(d).lower() in ("channel", "ch", "c"):
-                return d
+                return cast("Hashable", d)
         return None
 
     def save_as_zarr(self, save_loc: str | Path) -> None:
