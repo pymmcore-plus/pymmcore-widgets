@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, cast
 from unittest.mock import patch
@@ -10,6 +11,11 @@ from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import QMessageBox
 
 from pymmcore_widgets._util import get_next_available_path
+from pymmcore_widgets.hcs._calibration_widget import CalibrationData
+from pymmcore_widgets.hcs._fov_widget import Center
+from pymmcore_widgets.hcs._graphics_items import Well
+from pymmcore_widgets.hcs._main_wizard_widget import HCSData
+from pymmcore_widgets.hcs._plate_model import load_database
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
@@ -686,3 +692,35 @@ def test_get_next_available_paths_special_cases(tmp_path: Path) -> None:
     high = tmp_path / "test_12345.txt"
     high.touch()
     assert get_next_available_path(high).name == "test_12346.txt"
+
+
+def test_hcs_mda_meta(qtbot: QtBot):
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    database_path = Path(__file__).parent / "plate_database_for_tests.json"
+    database = load_database(database_path)
+
+    hcs = HCSData(
+        plate=database["standard 96 wp"],
+        wells=[Well(name="A1", row=0, column=0)],
+        mode=Center(x=0, y=0, fov_width=100, fov_height=100),
+        calibration=CalibrationData(
+            plate=database["standard 96 wp"],
+            calibration_positions_a1=[(-10.0, 0.0), (0.0, 10.0), (10.0, 0.0)],
+            calibration_positions_an=[(90.0, 0.0), (100.0, 10.0), (110.0, 0.0)],
+            rotation_matrix=[[1.0, 0.0], [0.0, 1.0]],
+        ),
+    )
+    mda = useq.MDASequence(
+        channels=[{"config": "DAPI", "exposure": 1}],
+        metadata={PYMMCW_METADATA_KEY: {"hcs": hcs}},
+    )
+
+    # make sure we can dump and reload the metadata
+    mda_str = mda.model_dump_json()
+    mda_json = json.loads(mda_str)
+    reload = useq.MDASequence(**mda_json)
+
+    assert reload.model_dump_json() == mda.model_dump_json()
