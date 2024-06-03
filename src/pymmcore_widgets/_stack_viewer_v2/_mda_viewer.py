@@ -28,17 +28,12 @@ class MDAViewer(StackViewer):
     ):
         if datastore is None:
             datastore = TensorStoreHandler()
-        elif not isinstance(datastore, (OMEZarrWriter, OMETiffWriter)):
-            raise TypeError(
-                "MDAViewer currently only supports _5DWriterBase datastores."
-            )
 
         # patch the frameReady method to call the superframeReady method
         # AFTER handling the event
         self._superframeReady = getattr(datastore, "frameReady", None)
         if callable(self._superframeReady):
             datastore.frameReady = self._patched_frame_ready  # type: ignore
-
         else:  # pragma: no cover
             warnings.warn(
                 "MDAViewer: datastore does not have a frameReady method to patch, "

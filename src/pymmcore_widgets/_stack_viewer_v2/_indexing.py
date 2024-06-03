@@ -7,6 +7,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from typing import TYPE_CHECKING, Generic, Hashable, Mapping, Sequence, TypeVar, cast
 
 import numpy as np
+from zarr import suppress
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -87,9 +88,7 @@ class DataWrapper(Generic[ArrayT]):
         raise NotImplementedError("save_as_zarr not implemented for this data type.")
 
     def sizes(self) -> Mapping[Hashable, int]:
-        if (sz := getattr(self._data, "sizes", None)) and isinstance(sz, Mapping):
-            return {k: int(v) for k, v in sz.items()}
-        elif (shape := getattr(self._data, "shape", None)) and isinstance(shape, tuple):
+        if (shape := getattr(self._data, "shape", None)) and isinstance(shape, tuple):
             _sizes: dict[Hashable, int] = {}
             for i, val in enumerate(shape):
                 if isinstance(val, int):
@@ -125,6 +124,11 @@ class DataWrapper(Generic[ArrayT]):
 
 
 class MMTensorStoreWrapper(DataWrapper["TensorStoreHandler"]):
+    def sizes(self) -> Mapping[Hashable, int]:
+        with suppress(Exception):
+            return self._data.current_sequence.sizes()
+        return {}
+
     @classmethod
     def supports(cls, obj: Any) -> TypeGuard[TensorStoreHandler]:
         from pymmcore_plus.mda.handlers import TensorStoreHandler
@@ -180,6 +184,9 @@ class MM5DWriter(DataWrapper["_5DWriterBase"]):
 class XarrayWrapper(DataWrapper["xr.DataArray"]):
     def isel(self, indexers: Indices) -> np.ndarray:
         return np.asarray(self._data.isel(indexers))
+
+    def sizes(self) -> Mapping[Hashable, int]:
+        return {k: int(v) for k, v in self._data.sizes.items()}
 
     @classmethod
     def supports(cls, obj: Any) -> TypeGuard[xr.DataArray]:
