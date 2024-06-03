@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from contextlib import suppress
 from enum import Enum
 from itertools import cycle
 from typing import TYPE_CHECKING, Iterable, Mapping, Sequence, cast
@@ -421,11 +420,9 @@ class StackViewer(QWidget):
         f.add_done_callback(self._on_data_slice_ready)
 
     def closeEvent(self, a0: QCloseEvent | None) -> None:
-        if self._last_future:
+        if self._last_future is not None:
             self._last_future.cancel()
-            with suppress(AttributeError):
-                # just in case there is a hard reference to self._on_data_slice_ready
-                self._last_future._done_callbacks.clear()  # type: ignore
+            self._last_future = None
         super().closeEvent(a0)
 
     def _isel(self, index: Indices) -> Future[tuple[Indices, np.ndarray]]:

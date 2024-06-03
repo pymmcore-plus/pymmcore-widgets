@@ -400,7 +400,9 @@ class DimsSliders(QWidget):
         with signals_blocked(self):
             for dim, index in values.items():
                 self.add_or_update_dimension(dim, index)
-        self.valueChanged.emit(self.value())
+        # FIXME: i don't know why this this is ever empty ... only happens on pyside6
+        if val := self.value():
+            self.valueChanged.emit(val)
 
     def minima(self) -> Sizes:
         """Return mapping of {dim_key -> minimum value} for each dimension."""

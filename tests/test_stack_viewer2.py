@@ -36,4 +36,17 @@ def test_stack_viewer2(qtbot: QtBot) -> None:
 
     # wait until there are no running jobs, because the callbacks
     # in the futures hold a strong reference to the viewer
-    qtbot.waitUntil(lambda: v._last_future is None, timeout=10000)
+    qtbot.waitUntil(lambda: v._last_future is None, timeout=1000)
+
+
+def test_dims_sliders(qtbot: QtBot) -> None:
+    from superqt import QLabeledRangeSlider
+
+    from pymmcore_widgets._stack_viewer_v2._dims_slider import DimsSlider
+
+    # temporary debugging
+    ds = DimsSlider(dimension_key="t")
+    qtbot.addWidget(ds)
+
+    rs = QLabeledRangeSlider()
+    qtbot.addWidget(rs)
