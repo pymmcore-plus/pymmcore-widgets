@@ -14,7 +14,7 @@ from superqt.utils import qthrottled, signals_blocked
 
 from ._backends import get_canvas
 from ._dims_slider import DimsSliders
-from ._indexing import is_xarray_dataarray, isel_async
+from ._indexing import DataWrapper
 from ._lut_control import LutControl
 
 if TYPE_CHECKING:
@@ -37,7 +37,6 @@ DEFAULT_COLORMAPS = [
     cmap.Colormap("magenta"),
     cmap.Colormap("cyan"),
 ]
-MAX_CHANNELS = 16
 ALL_CHANNELS = slice(None)
 
 
@@ -249,7 +248,7 @@ class StackViewer(QWidget):
     @property
     def data(self) -> Any:
         """Return the data backing the view."""
-        return self._data
+        return self._data_wrapper._data
 
     @data.setter
     def data(self, data: Any) -> None:
@@ -275,7 +274,7 @@ class StackViewer(QWidget):
     ) -> None:
         """Set the datastore, and, optionally, the sizes of the data."""
         # store the data
-        self._data = data
+        self._data_wrapper = DataWrapper.create(data)
 
         # determine sizes of the data
         if sizes is None:
@@ -289,7 +288,7 @@ class StackViewer(QWidget):
         if channel_axis is not None:
             self._channel_axis = channel_axis
         elif self._channel_axis is None:
-            self._channel_axis = self._guess_channel_axis(data)
+            self._channel_axis = self._data_wrapper.guess_channel_axis()
 
         # update the dimensions we are visualizing
         if visualized_dims is None:
@@ -359,7 +358,6 @@ class StackViewer(QWidget):
             )
 
         if self._img_handles:
-            print("Changing channel mode will clear the current images")
             self._clear_images()
             self._update_data_for_index(self._dims_sliders.value())
 
@@ -371,7 +369,8 @@ class StackViewer(QWidget):
 
     def _update_data_info(self) -> None:
         """Update the data info label with information about the data."""
-        data = self._data
+        data = self._data_wrapper._data
+
         package = getattr(data, "__module__", "").split(".")[0]
         info = f"{package}.{getattr(type(data), '__qualname__', '')}"
 
@@ -387,18 +386,6 @@ class StackViewer(QWidget):
         if nbytes := getattr(data, "nbytes", 0) / 1e6:
             info += f", {nbytes:.2f}MB"
         self._data_info.setText(info)
-
-    def _guess_channel_axis(self, data: Any) -> DimKey | None:
-        """Guess the channel axis from the data."""
-        if is_xarray_dataarray(data):
-            for d in data.dims:
-                if str(d).lower() in ("channel", "ch", "c"):
-                    return cast("DimKey", d)
-        if isinstance(shp := getattr(data, "shape", None), Sequence):
-            # for numpy arrays, use the smallest dimension as the channel axis
-            if min(shp) <= MAX_CHANNELS:
-                return shp.index(min(shp))
-        return None
 
     def _on_set_range_clicked(self) -> None:
         # using method to swallow the parameter passed by _set_range_btn.clicked
@@ -445,7 +432,7 @@ class StackViewer(QWidget):
         """Select data from the datastore using the given index."""
         idx = {k: v for k, v in index.items() if k not in self._visualized_dims}
         try:
-            return isel_async(self._data, idx)
+            return self._data_wrapper.isel_async(idx)
         except Exception as e:
             raise type(e)(f"Failed to index data with {idx}: {e}") from e
 

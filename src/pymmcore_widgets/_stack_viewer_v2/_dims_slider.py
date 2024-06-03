@@ -106,7 +106,7 @@ class PlayButton(QPushButton):
         icn = QIconifyIcon(self.PLAY_ICON, color="#888888")
         icn.addKey(self.PAUSE_ICON, state=QIconifyIcon.State.On, color="#4580DD")
         super().__init__(icn, "", parent)
-        self.spin = QDoubleSpinBox(parent)
+        self.spin = QDoubleSpinBox(self)
         self.spin.setRange(0.5, 100)
         self.spin.setValue(fps)
         self.spin.valueChanged.connect(self.fpsChanged)
@@ -115,6 +115,11 @@ class PlayButton(QPushButton):
         self.setIconSize(QSize(16, 16))
         self.setStyleSheet("border: none; padding: 0; margin: 0;")
 
+        self._popup = QtPopup(self)
+        form = QFormLayout(self._popup.frame)
+        form.setContentsMargins(6, 6, 6, 6)
+        form.addRow("FPS", self.spin)
+
     def mousePressEvent(self, e: Any) -> None:
         if e and e.button() == Qt.MouseButton.RightButton:
             self._show_fps_dialog(e.globalPosition())
@@ -122,12 +127,7 @@ class PlayButton(QPushButton):
             super().mousePressEvent(e)
 
     def _show_fps_dialog(self, pos: QPointF) -> None:
-        if not hasattr(self, "popup"):
-            self.popup = QtPopup(self)
-            form = QFormLayout(self.popup.frame)
-            form.setContentsMargins(6, 6, 6, 6)
-            form.addRow("FPS", self.spin)
-        self.popup.show_above_mouse()
+        self._popup.show_above_mouse()
 
 
 class LockButton(QPushButton):
