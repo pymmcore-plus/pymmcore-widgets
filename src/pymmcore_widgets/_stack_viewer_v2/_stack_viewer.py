@@ -442,6 +442,10 @@ class StackViewer(QWidget):
 
         Connected to the future returned by _isel.
         """
+        # NOTE: removing the reference to the last future here is important
+        # because the future has a reference to this widget in its _done_callbacks
+        # which will prevent the widget from being garbage collected if the future
+        self._last_future = None
         if future.cancelled():
             return
 

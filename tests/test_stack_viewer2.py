@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 import dask.array as da
 import numpy as np
-import pytest
 
 from pymmcore_widgets._stack_viewer_v2 import StackViewer
 
@@ -28,9 +27,13 @@ def make_lazy_array(shape: tuple[int, ...]) -> da.Array:
 
 # this test is still leaking widgets and it's hard to track down... I think
 # it might have to do with the cmapComboBox
-@pytest.mark.allow_leaks
+# @pytest.mark.allow_leaks
 def test_stack_viewer2(qtbot: QtBot) -> None:
     dask_arr = make_lazy_array((1000, 64, 3, 256, 256))
     v = StackViewer(dask_arr)
     qtbot.addWidget(v)
     v.show()
+
+    # wait until there are no running jobs, because the callbacks
+    # in the futures hold a strong reference to the viewer
+    qtbot.waitUntil(lambda: v._last_future is None, timeout=10000)
