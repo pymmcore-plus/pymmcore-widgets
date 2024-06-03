@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import json
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 from unittest.mock import patch
 
-import numpy as np
 import pytest
 from qtpy.QtWidgets import (
     QFileDialog,
@@ -136,11 +136,11 @@ def test_plate_selector_widget_set_get_value(qtbot: QtBot, database_path: Path):
 
     plate = wdg._plate_db["standard 96 wp"]
     wells = [
-        Well("A1", 0, 0),
-        Well("A2", 0, 1),
-        Well("B3", 1, 2),
-        Well("B4", 1, 3),
-        Well("C5", 2, 4),
+        Well(name="A1", row=0, column=0),
+        Well(name="A2", row=0, column=1),
+        Well(name="B3", row=1, column=2),
+        Well(name="B4", row=1, column=3),
+        Well(name="C5", row=2, column=4),
     ]
     info = PlateInfo(plate=plate, wells=wells)
 
@@ -360,7 +360,7 @@ def test_calibration_widget(
     assert wdg._calibration_label.value() == "Plate Calibrated!"
 
     assert wdg.value() == CalibrationData(
-        database["coverslip 22mm"],
+        plate=database["coverslip 22mm"],
         well_A1_center=(-55.0, 35.0),
         rotation_matrix=None,
         calibration_positions_a1=[(-210, 170), (100, -100)],
@@ -690,8 +690,35 @@ def test_fov_selector_widget(qtbot: QtBot, database: dict[str, Plate]):
     )
 
 
+@pytest.fixture
+def data(database) -> HCSData:
+    return HCSData(
+        plate=database["standard 96 wp"],
+        wells=[
+            Well(name="A1", row=0, column=0),
+            Well(name="B2", row=1, column=1),
+            Well(name="C3", row=2, column=2),
+        ],
+        mode=RandomPoints(
+            num_points=3,
+            max_width=600,
+            max_height=600,
+            shape="ellipse",
+            fov_width=10,
+            fov_height=10,
+            allow_overlap=False,
+        ),
+        calibration=CalibrationData(
+            plate=database["standard 96 wp"],
+            calibration_positions_a1=[(-10.0, 0.0), (0.0, 10.0), (10.0, 0.0)],
+            calibration_positions_an=[(90.0, 0.0), (100.0, 10.0), (110.0, 0.0)],
+            rotation_matrix=[[1.0, 0.0], [0.0, 1.0]],
+        ),
+    )
+
+
 def test_hcs_wizard(
-    global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, Plate]
+    data: HCSData, global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, Plate]
 ):
     wdg = HCSWizard()
     qtbot.addWidget(wdg)
@@ -699,17 +726,7 @@ def test_hcs_wizard(
 
     width = mmc.getImageWidth() * mmc.getPixelSizeUm()
     height = mmc.getImageHeight() * mmc.getPixelSizeUm()
-
-    data = HCSData(
-        plate=database["standard 96 wp"],
-        wells=[Well("A1", 0, 0), Well("B2", 1, 1), Well("C3", 2, 2)],
-        mode=Center(x=0, y=0, fov_width=width, fov_height=height),
-        calibration=CalibrationData(
-            plate=database["standard 96 wp"],
-            calibration_positions_a1=[(-10.0, 0.0), (0.0, 10.0), (10.0, 0.0)],
-            calibration_positions_an=[(90.0, 0.0), (100.0, 10.0), (110.0, 0.0)],
-        ),
-    )
+    data = data.replace(mode=Center(x=0, y=0, fov_width=width, fov_height=height))
 
     wdg.setValue(data)
 
@@ -722,7 +739,7 @@ def test_hcs_wizard(
 
     assert value.calibration
     assert value.calibration.well_A1_center == (-0.0, -0.0)
-    assert np.array_equal(value.calibration.rotation_matrix, [[1.0, 0.0], [-0.0, 1.0]])
+    assert value.calibration.rotation_matrix == [[1.0, 0.0], [-0.0, 1.0]]
     assert (
         value.calibration.calibration_positions_a1
         == data.calibration.calibration_positions_a1
@@ -731,36 +748,13 @@ def test_hcs_wizard(
         value.calibration.calibration_positions_an
         == data.calibration.calibration_positions_an
     )
-    assert value.positions
 
 
 def test_hcs_wizard_fov_load(
-    global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, Plate]
+    data: HCSData, global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, Plate]
 ):
     wdg = HCSWizard()
     qtbot.addWidget(wdg)
-    mmc = global_mmcore
-
-    width = mmc.getImageWidth() * mmc.getPixelSizeUm()
-    height = mmc.getImageHeight() * mmc.getPixelSizeUm()
-
-    data = HCSData(
-        plate=database["standard 96 wp"],
-        wells=[Well("A1", 0, 0), Well("B2", 1, 1), Well("C3", 2, 2)],
-        mode=RandomPoints(
-            num_points=3,
-            max_width=600,
-            max_height=600,
-            shape="ellipse",
-            fov_width=width,
-            fov_height=height,
-        ),
-        calibration=CalibrationData(
-            plate=database["standard 96 wp"],
-            calibration_positions_a1=[(-10.0, 0.0), (0.0, 10.0), (10.0, 0.0)],
-            calibration_positions_an=[(90.0, 0.0), (100.0, 10.0), (110.0, 0.0)],
-        ),
-    )
 
     wdg.setValue(data)
 
@@ -769,3 +763,42 @@ def test_hcs_wizard_fov_load(
 
     fov_view_value = wdg.fov_page._fov_widget.view.value()
     assert fov_view_value.mode.num_points == 3
+
+
+def test_serialization(data: HCSData):
+    _str = data.model_dump_json()
+    new_data = HCSData(**json.loads(_str))
+    assert new_data.plate == data.plate
+    assert new_data.wells == data.wells
+    assert new_data.mode == data.mode
+    assert new_data.positions == data.positions
+    assert new_data.calibration.rotation_matrix == data.calibration.rotation_matrix
+
+
+def test_save_load_hcs(data: HCSData, qtbot: QtBot, tmp_path: Path):
+    wdg = HCSWizard()
+    qtbot.addWidget(wdg)
+
+    wdg.setValue(data)
+
+    file = tmp_path / "test.json"
+    assert not file.exists()
+
+    def _path(*args, **kwargs):
+        return file, None
+
+    # create empty database
+    with patch.object(QFileDialog, "getSaveFileName", _path):
+        wdg._save()
+
+        assert file.exists()
+
+        with patch.object(QFileDialog, "getOpenFileName", _path):
+            wdg._load()
+
+            value = wdg.value()
+            assert value.plate == data.plate
+            assert value.wells == data.wells
+            assert value.mode == data.mode
+            assert value.positions == data.positions
+            assert value.calibration.rotation_matrix == data.calibration.rotation_matrix
