@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 import sys
 import warnings
 from abc import abstractmethod
@@ -10,6 +9,7 @@ from typing import TYPE_CHECKING, Generic, Hashable, Sequence, TypeVar, cast
 import numpy as np
 
 if TYPE_CHECKING:
+    from pathlib import Path
     from typing import Any, Protocol, TypeGuard
 
     import dask.array as da
@@ -29,17 +29,18 @@ if TYPE_CHECKING:
 
 ArrayT = TypeVar("ArrayT")
 MAX_CHANNELS = 16
+# Create a global executor
+_EXECUTOR = ThreadPoolExecutor(max_workers=1)
 
 
 class DataWrapper(Generic[ArrayT]):
-    # Create a global executor
-    _EXECUTOR = ThreadPoolExecutor(max_workers=1)
-
     def __init__(self, data: ArrayT) -> None:
         self._data = data
 
     @classmethod
     def create(cls, data: ArrayT) -> DataWrapper[ArrayT]:
+        if isinstance(data, DataWrapper):
+            return data
         if MMTensorStoreWrapper.supports(data):
             return MMTensorStoreWrapper(data)
         if MM5DWriter.supports(data):
@@ -66,7 +67,7 @@ class DataWrapper(Generic[ArrayT]):
 
     def isel_async(self, indexers: Indices) -> Future[tuple[Indices, np.ndarray]]:
         """Asynchronous version of isel."""
-        return self._EXECUTOR.submit(lambda: (indexers, self.isel(indexers)))
+        return _EXECUTOR.submit(lambda: (indexers, self.isel(indexers)))
 
     @classmethod
     @abstractmethod
