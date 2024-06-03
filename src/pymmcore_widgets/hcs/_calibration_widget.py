@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import math
 import string
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, NamedTuple, cast
+from typing import Any, Iterable, List, NamedTuple, Optional, Tuple, Union, cast
 
 import numpy as np
 from fonticon_mdi6 import MDI6
@@ -26,12 +25,12 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
+from pymmcore_widgets.hcs._pydantic_model import FrozenModel
 from pymmcore_widgets.useq_widgets._column_info import FloatColumn
 from pymmcore_widgets.useq_widgets._data_table import DataTableWidget
 
-from ._base_dataclass import BaseDataclass
 from ._graphics_items import GREEN, RED, Well
-from ._plate_model import Plate
+from ._plate_model import Plate  # noqa: TCH001
 from ._util import apply_rotation_matrix, get_well_center
 
 AlignCenter = Qt.AlignmentFlag.AlignCenter
@@ -92,8 +91,7 @@ class FourPoints(NamedTuple):
     points: int = SIDES_MODE_POINTS
 
 
-@dataclass(frozen=True)
-class CalibrationData(BaseDataclass):
+class CalibrationData(FrozenModel):
     """Calibration data for the plate.
 
     Attributes
@@ -102,8 +100,13 @@ class CalibrationData(BaseDataclass):
         The plate to calibrate. By default, None.
     well_A1_center : tuple[float, float]
         The x and y stage coordinates of the center of well A1. By default, None.
-    rotation_matrix : np.ndarray | None
-        The rotation matrix that should be used to correct any plate rortation.
+    rotation_matrix : list | None
+        The rotation matrix that should be used to correct any plate rortation, for
+        for example:
+            [
+                [0.9954954725939522, 0.09480909262799544],
+                [-0.09480909262799544, 0.9954954725939522]
+            ]
         By default, None.
     calibration_position_a1 : list[tuple[float, float]]
         The x and y stage positions used to calibrate the well A1. By default, None.
@@ -111,24 +114,11 @@ class CalibrationData(BaseDataclass):
         The x and y stage positions used to calibrate the well An. By default, None.
     """
 
-    plate: Plate | None = None
-    well_A1_center: tuple[float, float] | None = None
-    rotation_matrix: np.ndarray | None = None
-    calibration_positions_a1: list[tuple[float, float]] | None = None
-    calibration_positions_an: list[tuple[float, float]] | None = None
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> CalibrationData:
-        """Create a CalibrationData object from a dictionary."""
-        matrix = data.get("rotation_matrix")
-        rotation_matrix = np.array(matrix) if isinstance(matrix, list) else matrix
-        return cls(
-            plate=Plate(**data.get("plate", {})),
-            well_A1_center=data["well_A1_center"],
-            rotation_matrix=rotation_matrix,
-            calibration_positions_a1=data["calibration_positions_a1"],
-            calibration_positions_an=data["calibration_positions_an"],
-        )
+    plate: Optional[Plate] = None  # noqa: UP007
+    well_A1_center: Optional[Tuple[float, float]] = None  # noqa: UP006, UP007
+    rotation_matrix: Optional[List[List[float]]] = None  # noqa: UP006, UP007
+    calibration_positions_a1: Optional[List[Tuple[float, float]]] = None  # noqa: UP006, UP007
+    calibration_positions_an: Optional[List[Tuple[float, float]]] = None  # noqa: UP006, UP007
 
 
 def find_circle_center(
@@ -185,7 +175,7 @@ def find_rectangle_center(*args: tuple[float, ...]) -> tuple[float, float]:
 
 def get_plate_rotation_matrix(
     xy_well_1: tuple[float, float], xy_well_2: tuple[float, float]
-) -> np.ndarray:
+) -> list[list[float]]:
     """Get the rotation matrix to align the plate along the x axis."""
     x1, y1 = xy_well_1
     x2, y2 = xy_well_2
@@ -195,12 +185,10 @@ def get_plate_rotation_matrix(
     # this is to test only, should be removed_____________________________
     # print(f"plate_angle: {np.rad2deg(plate_angle_rad)}")
     # ____________________________________________________________________
-    return np.array(
-        [
-            [np.cos(plate_angle_rad), -np.sin(plate_angle_rad)],
-            [np.sin(plate_angle_rad), np.cos(plate_angle_rad)],
-        ]
-    )
+    return [
+        [np.cos(plate_angle_rad), -np.sin(plate_angle_rad)],
+        [np.sin(plate_angle_rad), np.cos(plate_angle_rad)],
+    ]
 
 
 def get_random_circle_edge_point(
@@ -240,6 +228,8 @@ def get_random_rectangle_edge_point(
 
 
 class _CalibrationModeWidget(QGroupBox):
+    """Widget to select the calibration mode."""
+
     valueChanged = Signal(object)
 
     def __init__(self, parent: QWidget | None = None):
@@ -256,11 +246,11 @@ class _CalibrationModeWidget(QGroupBox):
         lbl = QLabel(text="Calibration Mode:")
         lbl.setSizePolicy(*FixedSizePolicy)
 
-        self.setLayout(QHBoxLayout())
-        self.layout().setContentsMargins(10, 10, 10, 10)
-        self.layout().setSpacing(10)
-        self.layout().addWidget(lbl)
-        self.layout().addWidget(self._mode_combo)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+        layout.addWidget(lbl)
+        layout.addWidget(self._mode_combo)
 
     def _on_value_changed(self) -> None:
         """Emit the selected mode with valueChanged signal."""
@@ -281,7 +271,7 @@ class _CalibrationModeWidget(QGroupBox):
     def value(self) -> ThreePoints | FourPoints | TwoPoints:
         """Return the selected calibration mode."""
         mode = self._mode_combo.itemData(self._mode_combo.currentIndex(), ROLE)
-        return cast(TwoPoints | ThreePoints | FourPoints, mode)
+        return cast(Union[TwoPoints, ThreePoints, FourPoints], mode)
 
 
 class _CalibrationTable(DataTableWidget):
@@ -380,6 +370,11 @@ class _CalibrationTable(DataTableWidget):
 
 
 class _TestCalibrationWidget(QGroupBox):
+    """Widget to test the calibration of a well.
+
+    You can select a well and move the XY stage to a random edge point of the well.
+    """
+
     def __init__(
         self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
     ) -> None:
@@ -416,19 +411,19 @@ class _TestCalibrationWidget(QGroupBox):
         self._stop_button.setToolTip("Stop XY stage movement.")
         # groupbox
         test_calibration = QWidget()
-        test_calibration.setLayout(QHBoxLayout())
-        test_calibration.layout().setSpacing(10)
-        test_calibration.layout().setContentsMargins(10, 10, 10, 10)
-        test_calibration.layout().addWidget(lbl)
-        test_calibration.layout().addWidget(self._letter_combo)
-        test_calibration.layout().addWidget(self._number_combo)
-        test_calibration.layout().addWidget(self._test_button)
-        test_calibration.layout().addWidget(self._stop_button)
+        test_calibration_layout = QHBoxLayout(test_calibration)
+        test_calibration_layout.setSpacing(10)
+        test_calibration_layout.setContentsMargins(10, 10, 10, 10)
+        test_calibration_layout.addWidget(lbl)
+        test_calibration_layout.addWidget(self._letter_combo)
+        test_calibration_layout.addWidget(self._number_combo)
+        test_calibration_layout.addWidget(self._test_button)
+        test_calibration_layout.addWidget(self._stop_button)
 
         # main
-        self.setLayout(QHBoxLayout())
-        self.layout().setContentsMargins(10, 10, 10, 10)
-        self.layout().addWidget(test_calibration)
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.addWidget(test_calibration)
 
         # connect
         self._stop_button.clicked.connect(self._stop_xy_stage)
@@ -438,9 +433,9 @@ class _TestCalibrationWidget(QGroupBox):
     def value(self) -> tuple[Plate | None, Well]:
         """Return the selected test well as `WellInfo` object."""
         return self._plate, Well(
-            self._letter_combo.currentText() + self._number_combo.currentText(),
-            self._letter_combo.currentIndex(),
-            self._number_combo.currentIndex(),
+            name=self._letter_combo.currentText() + self._number_combo.currentText(),
+            row=self._letter_combo.currentIndex(),
+            column=self._number_combo.currentIndex(),
         )
 
     def setValue(self, plate: Plate | None, well: Well | None) -> None:
@@ -470,6 +465,8 @@ class _TestCalibrationWidget(QGroupBox):
 
 
 class _CalibrationLabel(QGroupBox):
+    """Label to show the calibration status."""
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setTitle("Calibration Status")
@@ -485,12 +482,12 @@ class _CalibrationLabel(QGroupBox):
         self._text_lbl.setStyleSheet("font-size: 14px; font-weight: bold;")
 
         # main
-        self.setLayout(QHBoxLayout())
-        self.layout().setAlignment(AlignCenter)
-        self.layout().setSpacing(5)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().addWidget(self._icon_lbl)
-        self.layout().addWidget(self._text_lbl)
+        layout = QHBoxLayout(self)
+        layout.setAlignment(AlignCenter)
+        layout.setSpacing(5)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._icon_lbl)
+        layout.addWidget(self._text_lbl)
 
     # _________________________PUBLIC METHODS_________________________ #
 
@@ -533,12 +530,12 @@ class PlateCalibrationWidget(QWidget):
         # calibration tables
         self._table_a1 = _CalibrationTable()
         self._table_an = _CalibrationTable()
-        _table_group = QGroupBox()
-        _table_group.setLayout(QHBoxLayout())
-        _table_group.layout().setContentsMargins(0, 0, 0, 0)
-        _table_group.layout().setSpacing(10)
-        _table_group.layout().addWidget(self._table_a1)
-        _table_group.layout().addWidget(self._table_an)
+        table_group = QGroupBox()
+        table_group_layout = QHBoxLayout(table_group)
+        table_group_layout.setContentsMargins(0, 0, 0, 0)
+        table_group_layout.setSpacing(10)
+        table_group_layout.addWidget(self._table_a1)
+        table_group_layout.addWidget(self._table_an)
         # calibration buttons
         self._calibrate_button = QPushButton(text="Calibrate Plate")
         self._calibrate_button.setIcon(icon(MDI6.target_variant, color="darkgrey"))
@@ -546,39 +543,39 @@ class PlateCalibrationWidget(QWidget):
         spacer = QSpacerItem(
             0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
-        _calibrate_btn_wdg = QWidget()
-        _calibrate_btn_wdg.setLayout(QHBoxLayout())
-        _calibrate_btn_wdg.layout().setSpacing(10)
-        _calibrate_btn_wdg.layout().setContentsMargins(0, 0, 0, 0)
-        _calibrate_btn_wdg.layout().addItem(spacer)
-        _calibrate_btn_wdg.layout().addWidget(self._calibrate_button)
+        calibrate_btn_wdg = QWidget()
+        calibrate_btn_wdg_layout = QHBoxLayout(calibrate_btn_wdg)
+        calibrate_btn_wdg_layout.setSpacing(10)
+        calibrate_btn_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        calibrate_btn_wdg_layout.addItem(spacer)
+        calibrate_btn_wdg_layout.addWidget(self._calibrate_button)
         # calibration tabls and calibration button group
-        _table_and_btn_wdg = QGroupBox()
-        _table_and_btn_wdg.setLayout(QVBoxLayout())
-        _table_and_btn_wdg.layout().setSpacing(10)
-        _table_and_btn_wdg.layout().setContentsMargins(10, 10, 10, 10)
-        _table_and_btn_wdg.layout().addWidget(_table_group)
-        _table_and_btn_wdg.layout().addWidget(_calibrate_btn_wdg)
+        table_and_btn_wdg = QGroupBox()
+        table_and_btn_wdg_layout = QVBoxLayout(table_and_btn_wdg)
+        table_and_btn_wdg_layout.setSpacing(10)
+        table_and_btn_wdg_layout.setContentsMargins(10, 10, 10, 10)
+        table_and_btn_wdg_layout.addWidget(table_group)
+        table_and_btn_wdg_layout.addWidget(calibrate_btn_wdg)
 
         # test calibration
         self._test_calibration = _TestCalibrationWidget()
         # calibration label
         self._calibration_label = _CalibrationLabel()
         # test calibration and calibration label group
-        _bottom_group = QWidget()
-        _bottom_group.setLayout(QHBoxLayout())
-        _bottom_group.layout().setSpacing(10)
-        _bottom_group.layout().setContentsMargins(10, 10, 10, 10)
-        _bottom_group.layout().addWidget(self._test_calibration)
-        _bottom_group.layout().addWidget(self._calibration_label)
+        bottom_group = QWidget()
+        bottom_group_layout = QHBoxLayout(bottom_group)
+        bottom_group_layout.setSpacing(10)
+        bottom_group_layout.setContentsMargins(10, 10, 10, 10)
+        bottom_group_layout.addWidget(self._test_calibration)
+        bottom_group_layout.addWidget(self._calibration_label)
 
         # main
-        self.setLayout(QVBoxLayout())
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(10)
-        self.layout().addWidget(self._calibration_mode)
-        self.layout().addWidget(_table_and_btn_wdg)
-        self.layout().addWidget(_bottom_group)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(10)
+        main_layout.addWidget(self._calibration_mode)
+        main_layout.addWidget(table_and_btn_wdg)
+        main_layout.addWidget(bottom_group)
 
         # connect
         self._calibrate_button.clicked.connect(self._on_calibrate_button_clicked)
@@ -675,20 +672,24 @@ class PlateCalibrationWidget(QWidget):
             self._reset_calibration()
             return
 
-        a1_center = cast(tuple[float, float], a1_center)
+        a1_center = cast(Tuple[float, float], a1_center)
 
         # get plate rotation matrix
         if None in an_center:
             rotation_matrix = None
         else:
-            an_center = cast(tuple[float, float], an_center)
+            an_center = cast(Tuple[float, float], an_center)
             rotation_matrix = get_plate_rotation_matrix(a1_center, an_center)
 
         # set calibration_info property
         pos_a1 = self._table_a1.value()
         pos_an = self._table_an.value() if self._plate.columns > 1 else None
         self._calibration_data = CalibrationData(
-            self._plate, a1_center, rotation_matrix, pos_a1, pos_an
+            plate=self._plate,
+            well_A1_center=a1_center,
+            rotation_matrix=rotation_matrix,
+            calibration_positions_a1=pos_a1,
+            calibration_positions_an=pos_an,
         )
 
         # update calibration label

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Union, cast
 
 import numpy as np
 from qtpy.QtCore import QRectF, Qt, Signal
@@ -39,8 +38,8 @@ from useq._grid import GridPosition, OrderMode, Shape
 
 from pymmcore_widgets.useq_widgets._grid import _SeparatorWidget
 
-from ._base_dataclass import BaseDataclass
 from ._graphics_items import FOV, GREEN, _FOVGraphicsItem, _WellAreaGraphicsItem
+from ._pydantic_model import FrozenModel
 from ._util import _ResizingGraphicsView, nearest_neighbor
 
 if TYPE_CHECKING:
@@ -94,11 +93,11 @@ def _create_label(label_text: str) -> QLabel:
 def _make_wdg_with_label(label: QLabel, wdg: QWidget) -> QWidget:
     """Create a QWidget with a QHBoxLayout with the given label and widget."""
     widget = QWidget()
-    widget.setLayout(QHBoxLayout())
-    widget.layout().setContentsMargins(0, 0, 0, 0)
-    widget.layout().setSpacing(5)
-    widget.layout().addWidget(label)
-    widget.layout().addWidget(wdg)
+    layout = QHBoxLayout(widget)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(5)
+    layout.addWidget(label)
+    layout.addWidget(wdg)
     return widget
 
 
@@ -117,18 +116,18 @@ class _CenterFOVWidget(QWidget):
         lbl.setStyleSheet("font-weight: bold;")
         lbl.setAlignment(AlignCenter)
 
-        # # add widgets layout
+        # add widgets layout
         self.wdg = QGroupBox()
-        self.wdg.setLayout(QVBoxLayout())
-        self.wdg.layout().setSpacing(0)
-        self.wdg.layout().setContentsMargins(10, 10, 10, 10)
-        self.wdg.layout().addWidget(lbl)
+        layout = QVBoxLayout(self.wdg)
+        layout.setSpacing(0)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.addWidget(lbl)
 
         # main
-        self.setLayout(QVBoxLayout())
-        self.layout().setSpacing(0)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().addWidget(self.wdg)
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addWidget(self.wdg)
 
     @property
     def fov_size(self) -> tuple[float | None, float | None]:
@@ -171,7 +170,7 @@ class _RandomFOVWidget(QWidget):
         self._area_x.setMaximum(1000000)
         self._area_x.setSingleStep(100)
         area_label_x = _create_label("Area x (µm):")
-        _area_x = _make_wdg_with_label(area_label_x, self._area_x)
+        area_x = _make_wdg_with_label(area_label_x, self._area_x)
 
         # well area doublespinbox along y
         self._area_y = QDoubleSpinBox()
@@ -180,7 +179,7 @@ class _RandomFOVWidget(QWidget):
         self._area_y.setMaximum(1000000)
         self._area_y.setSingleStep(100)
         area_label_y = _create_label("Area y (µm):")
-        _area_y = _make_wdg_with_label(area_label_y, self._area_y)
+        area_y = _make_wdg_with_label(area_label_y, self._area_y)
 
         # number of FOVs spinbox
         self._number_of_points = QSpinBox()
@@ -188,7 +187,7 @@ class _RandomFOVWidget(QWidget):
         self._number_of_points.setMinimum(1)
         self._number_of_points.setMaximum(1000)
         number_of_points_label = _create_label("Points:")
-        _n_of_points = _make_wdg_with_label(
+        n_of_points = _make_wdg_with_label(
             number_of_points_label, self._number_of_points
         )
 
@@ -200,25 +199,25 @@ class _RandomFOVWidget(QWidget):
         title.setAlignment(AlignCenter)
 
         self._wdg = QGroupBox()
-        self._wdg.setLayout(QVBoxLayout())
-        self._wdg.layout().setSpacing(5)
-        self._wdg.layout().setContentsMargins(10, 10, 10, 10)
-        self._wdg.layout().addWidget(title)
-        self._wdg.layout().addItem(QSpacerItem(0, 10, *FIXED_POLICY))
-        self._wdg.layout().addWidget(_area_x)
-        self._wdg.layout().addWidget(_area_y)
-        self._wdg.layout().addWidget(_n_of_points)
-        self._wdg.layout().addWidget(self._random_button)
+        layout = QVBoxLayout(self._wdg)
+        layout.setSpacing(5)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.addWidget(title)
+        layout.addItem(QSpacerItem(0, 10, *FIXED_POLICY))
+        layout.addWidget(area_x)
+        layout.addWidget(area_y)
+        layout.addWidget(n_of_points)
+        layout.addWidget(self._random_button)
 
         # set labels sizes
         for lbl in (area_label_x, area_label_y, number_of_points_label):
             lbl.setMinimumWidth(area_label_x.sizeHint().width())
 
         # main
-        self.setLayout(QVBoxLayout())
-        self.layout().setSpacing(10)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().addWidget(self._wdg)
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addWidget(self._wdg)
 
         # connect
         self._area_x.valueChanged.connect(self._on_value_changed)
@@ -314,14 +313,14 @@ class _GridFovWidget(QWidget):
         self._rows.setAlignment(AlignCenter)
         self._rows.setMinimum(1)
         rows_lbl = _create_label("Rows:")
-        _rows = _make_wdg_with_label(rows_lbl, self._rows)
+        rows = _make_wdg_with_label(rows_lbl, self._rows)
         self._rows.valueChanged.connect(self._on_value_changed)
 
         self._cols = QSpinBox()
         self._cols.setAlignment(AlignCenter)
         self._cols.setMinimum(1)
         cols_lbl = _create_label("Columns:")
-        _cols = _make_wdg_with_label(cols_lbl, self._cols)
+        cols = _make_wdg_with_label(cols_lbl, self._cols)
         self._cols.valueChanged.connect(self._on_value_changed)
 
         self._overlap_x = QDoubleSpinBox()
@@ -331,7 +330,7 @@ class _GridFovWidget(QWidget):
         self._overlap_x.setSingleStep(1.0)
         self._overlap_x.setValue(0)
         overlap_x_lbl = _create_label("Overlap x (%):")
-        _overlap_x = _make_wdg_with_label(overlap_x_lbl, self._overlap_x)
+        overlap_x = _make_wdg_with_label(overlap_x_lbl, self._overlap_x)
         self._overlap_x.valueChanged.connect(self._on_value_changed)
 
         self._overlap_y = QDoubleSpinBox()
@@ -341,31 +340,31 @@ class _GridFovWidget(QWidget):
         self._overlap_y.setSingleStep(1.0)
         self._overlap_y.setValue(0)
         spacing_y_lbl = _create_label("Overlap y (%):")
-        _overlap_y = _make_wdg_with_label(spacing_y_lbl, self._overlap_y)
+        overlap_y = _make_wdg_with_label(spacing_y_lbl, self._overlap_y)
         self._overlap_y.valueChanged.connect(self._on_value_changed)
 
         self._order_combo = QComboBox()
         self._order_combo.addItems([mode.value for mode in OrderMode])
         self._order_combo.setCurrentText(OrderMode.row_wise_snake.value)
         order_combo_lbl = _create_label("Grid Order:")
-        _order_combo = _make_wdg_with_label(order_combo_lbl, self._order_combo)
+        order_combo = _make_wdg_with_label(order_combo_lbl, self._order_combo)
         self._order_combo.currentTextChanged.connect(self._on_value_changed)
 
         # add widgets to wdg layout
         self._wdg = QGroupBox()
-        self._wdg.setLayout(QVBoxLayout())
-        self._wdg.layout().setSpacing(5)
-        self._wdg.layout().setContentsMargins(10, 10, 10, 10)
+        layout = QVBoxLayout(self._wdg)
+        layout.setSpacing(5)
+        layout.setContentsMargins(10, 10, 10, 10)
         title = QLabel(text="Fields of Views in a Grid.")
         title.setStyleSheet("font-weight: bold;")
         title.setAlignment(AlignCenter)
-        self._wdg.layout().addWidget(title)
-        self._wdg.layout().addItem(QSpacerItem(0, 10, *FIXED_POLICY))
-        self._wdg.layout().addWidget(_rows)
-        self._wdg.layout().addWidget(_cols)
-        self._wdg.layout().addWidget(_overlap_x)
-        self._wdg.layout().addWidget(_overlap_y)
-        self._wdg.layout().addWidget(_order_combo)
+        layout.addWidget(title)
+        layout.addItem(QSpacerItem(0, 10, *FIXED_POLICY))
+        layout.addWidget(rows)
+        layout.addWidget(cols)
+        layout.addWidget(overlap_x)
+        layout.addWidget(overlap_y)
+        layout.addWidget(order_combo)
 
         # set labels sizes
         for lbl in (
@@ -378,10 +377,10 @@ class _GridFovWidget(QWidget):
             lbl.setMinimumWidth(overlap_x_lbl.sizeHint().width())
 
         # main
-        self.setLayout(QVBoxLayout())
-        self.layout().setSpacing(10)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().addWidget(self._wdg)
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addWidget(self._wdg)
 
     @property
     def fov_size(self) -> tuple[float | None, float | None]:
@@ -427,8 +426,7 @@ class _GridFovWidget(QWidget):
         self._fov_size = (None, None)
 
 
-@dataclass(frozen=True)
-class WellViewData(BaseDataclass):
+class WellViewData(FrozenModel):
     """A NamedTuple to store the well view data.
 
     Attributes
@@ -447,11 +445,11 @@ class WellViewData(BaseDataclass):
         The mode to use to draw the FOVs. By default, None.
     """
 
-    well_size: tuple[float | None, float | None] = (None, None)
+    well_size: Tuple[Optional[float], Optional[float]] = (None, None)  # noqa: UP006, UP007
     circular: bool = False
     padding: int = 0
     show_fovs_order: bool = True
-    mode: Center | AnyGridPlan | None = None
+    mode: Union[Center, AnyGridPlan, None] = None  # noqa: UP007
 
 
 DEFAULT_WELL_DATA = WellViewData()
@@ -611,14 +609,14 @@ class WellView(_ResizingGraphicsView):
         if self._well_width is None or self._well_height is None:
             return None
 
-        _well_aspect = self._well_width / self._well_height
+        well_aspect = self._well_width / self._well_height
         well_size_px = self._size_x - self._padding
         size_x = size_y = well_size_px
         # keep the ratio between well_size_x and well_size_y
-        if _well_aspect > 1:
-            size_y = int(well_size_px * 1 / _well_aspect)
-        elif _well_aspect < 1:
-            size_x = int(well_size_px * _well_aspect)
+        if well_aspect > 1:
+            size_y = int(well_size_px * 1 / well_aspect)
+        elif well_aspect < 1:
+            size_x = int(well_size_px * well_aspect)
         # set the position of the well plate in the scene using the center of the view
         # QRectF as reference
         x = self.sceneRect().center().x() - (size_x / 2)
@@ -649,7 +647,7 @@ class WellView(_ResizingGraphicsView):
             self._update_center_fov(value)
         elif isinstance(value, RandomPoints):
             self._update_random_fovs(value)
-        elif isinstance(value, GridRowsColumns | GridWidthHeight | GridFromEdges):
+        elif isinstance(value, (GridRowsColumns, GridWidthHeight, GridFromEdges)):
             self._update_grid_fovs(value)
         else:
             raise ValueError(f"Invalid value: {value}")
@@ -803,12 +801,12 @@ class FOVSelectorWidget(QWidget):
         self.center_radio_btn.setChecked(True)
         self.center_radio_btn.setSizePolicy(*FIXED_POLICY)
         self.center_radio_btn.setObjectName(CENTER)
-        _center_wdg = QWidget()
-        _center_wdg.setLayout(QHBoxLayout())
-        _center_wdg.layout().setContentsMargins(0, 0, 0, 0)
-        _center_wdg.layout().setSpacing(5)
-        _center_wdg.layout().addWidget(self.center_radio_btn)
-        _center_wdg.layout().addWidget(self.center_wdg)
+        center_wdg = QWidget()
+        center_wdg_layout = QHBoxLayout(center_wdg)
+        center_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        center_wdg_layout.setSpacing(5)
+        center_wdg_layout.addWidget(self.center_radio_btn)
+        center_wdg_layout.addWidget(self.center_wdg)
 
         # random widget
         self.random_wdg = _RandomFOVWidget()
@@ -816,12 +814,12 @@ class FOVSelectorWidget(QWidget):
         self.random_radio_btn = QRadioButton()
         self.random_radio_btn.setSizePolicy(*FIXED_POLICY)
         self.random_radio_btn.setObjectName(RANDOM)
-        _random_wdg = QWidget()
-        _random_wdg.setLayout(QHBoxLayout())
-        _random_wdg.layout().setContentsMargins(0, 0, 0, 0)
-        _random_wdg.layout().setSpacing(5)
-        _random_wdg.layout().addWidget(self.random_radio_btn)
-        _random_wdg.layout().addWidget(self.random_wdg)
+        random_wdg = QWidget()
+        random_wdg_layout = QHBoxLayout(random_wdg)
+        random_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        random_wdg_layout.setSpacing(5)
+        random_wdg_layout.addWidget(self.random_radio_btn)
+        random_wdg_layout.addWidget(self.random_wdg)
 
         # grid widget
         self.grid_wdg = _GridFovWidget()
@@ -829,12 +827,12 @@ class FOVSelectorWidget(QWidget):
         self.grid_radio_btn = QRadioButton()
         self.grid_radio_btn.setSizePolicy(*FIXED_POLICY)
         self.grid_radio_btn.setObjectName(GRID)
-        _grid_wdg = QWidget()
-        _grid_wdg.setLayout(QHBoxLayout())
-        _grid_wdg.layout().setContentsMargins(0, 0, 0, 0)
-        _grid_wdg.layout().setSpacing(5)
-        _grid_wdg.layout().addWidget(self.grid_radio_btn)
-        _grid_wdg.layout().addWidget(self.grid_wdg)
+        grid_wdg = QWidget()
+        grid_wdg_layout = QHBoxLayout(grid_wdg)
+        grid_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        grid_wdg_layout.setSpacing(5)
+        grid_wdg_layout.addWidget(self.grid_radio_btn)
+        grid_wdg_layout.addWidget(self.grid_wdg)
 
         # radio buttons group for fov mode selection
         self._mode_btn_group = QButtonGroup()
@@ -849,17 +847,17 @@ class FOVSelectorWidget(QWidget):
         self._mode_btn_group.buttonToggled.connect(self._on_radiobutton_toggled)
 
         # main
-        self.setLayout(QGridLayout())
-        self.layout().setSpacing(10)
-        self.layout().setContentsMargins(10, 10, 10, 10)
-        self.layout().addWidget(_SeparatorWidget(), 0, 0)
-        self.layout().addWidget(_center_wdg, 1, 0)
-        self.layout().addWidget(_SeparatorWidget(), 2, 0)
-        self.layout().addWidget(_random_wdg, 3, 0)
-        self.layout().addWidget(_SeparatorWidget(), 4, 0)
-        self.layout().addWidget(_grid_wdg, 5, 0)
-        self.layout().addWidget(_SeparatorWidget(), 6, 0)
-        self.layout().addWidget(self.view, 0, 1, 7, 1)
+        main_layout = QGridLayout(self)
+        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.addWidget(_SeparatorWidget(), 0, 0)
+        main_layout.addWidget(center_wdg, 1, 0)
+        main_layout.addWidget(_SeparatorWidget(), 2, 0)
+        main_layout.addWidget(random_wdg, 3, 0)
+        main_layout.addWidget(_SeparatorWidget(), 4, 0)
+        main_layout.addWidget(grid_wdg, 5, 0)
+        main_layout.addWidget(_SeparatorWidget(), 6, 0)
+        main_layout.addWidget(self.view, 0, 1, 7, 1)
 
         # connect
         self.random_wdg.valueChanged.connect(self._on_value_changed)

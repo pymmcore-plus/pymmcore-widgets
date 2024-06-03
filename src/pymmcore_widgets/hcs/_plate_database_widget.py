@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
+from typing import List, cast
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QBrush, QColor, QPen
@@ -42,11 +42,11 @@ OPACITY = 0.7
 def _make_widget_with_label(label: QLabel, widget: QWidget) -> QWidget:
     label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
     wdg = QWidget()
-    wdg.setLayout(QHBoxLayout())
-    wdg.layout().setContentsMargins(0, 0, 0, 0)
-    wdg.layout().setSpacing(5)
-    wdg.layout().addWidget(label)
-    wdg.layout().addWidget(widget)
+    layout = QHBoxLayout(wdg)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(5)
+    layout.addWidget(label)
+    layout.addWidget(widget)
     return wdg
 
 
@@ -167,26 +167,25 @@ class PlateDatabaseWidget(QDialog):
 
         # top_groupbox
         top_groupbox = QGroupBox()
-        top_groupbox.setLayout(QGridLayout())
-        top_groupbox.layout().setContentsMargins(10, 10, 10, 10)
-        top_groupbox.layout().setVerticalSpacing(10)
-        top_groupbox.layout().setHorizontalSpacing(20)
-
-        top_groupbox.layout().addWidget(plate_name, 0, 0)
-        top_groupbox.layout().addWidget(circular, 0, 1)
-        top_groupbox.layout().addWidget(cols, 1, 0)
-        top_groupbox.layout().addWidget(rows, 1, 1)
-        top_groupbox.layout().addWidget(well_size_x, 2, 0)
-        top_groupbox.layout().addWidget(well_size_y, 2, 1)
-        top_groupbox.layout().addWidget(well_spacing_x, 3, 0)
-        top_groupbox.layout().addWidget(well_spacing_y, 3, 1)
+        top_groupbox_layout = QGridLayout(top_groupbox)
+        top_groupbox_layout.setContentsMargins(10, 10, 10, 10)
+        top_groupbox_layout.setVerticalSpacing(10)
+        top_groupbox_layout.setHorizontalSpacing(20)
+        top_groupbox_layout.addWidget(plate_name, 0, 0)
+        top_groupbox_layout.addWidget(circular, 0, 1)
+        top_groupbox_layout.addWidget(cols, 1, 0)
+        top_groupbox_layout.addWidget(rows, 1, 1)
+        top_groupbox_layout.addWidget(well_size_x, 2, 0)
+        top_groupbox_layout.addWidget(well_size_y, 2, 1)
+        top_groupbox_layout.addWidget(well_spacing_x, 3, 0)
+        top_groupbox_layout.addWidget(well_spacing_y, 3, 1)
 
         # table
         table_groupbox = QGroupBox()
-        table_groupbox.setLayout(QVBoxLayout())
-        table_groupbox.layout().setContentsMargins(10, 10, 10, 10)
+        table_groupbox_layout = QVBoxLayout(table_groupbox)
+        table_groupbox_layout.setContentsMargins(10, 10, 10, 10)
         self.plate_table = _Table()
-        table_groupbox.layout().addWidget(self.plate_table)
+        table_groupbox_layout.addWidget(self.plate_table)
         self.plate_table.cellClicked.connect(self._update_values)
 
         # plate preview
@@ -195,21 +194,21 @@ class PlateDatabaseWidget(QDialog):
         self.view.setStyleSheet("background:grey; border-radius: 5px;")
         self.view.setMinimumWidth(self.plate_table.sizeHint().width())
         preview_wdg = QWidget()
-        preview_wdg.setLayout(QVBoxLayout())
-        preview_wdg.layout().setContentsMargins(0, 0, 0, 0)
-        preview_wdg.layout().addWidget(self.view)
+        preview_wdg_layout = QVBoxLayout(preview_wdg)
+        preview_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        preview_wdg_layout.addWidget(self.view)
         bottom_groupbox = QGroupBox()
-        bottom_groupbox.setLayout(QHBoxLayout())
-        bottom_groupbox.layout().setContentsMargins(10, 10, 10, 10)
-        bottom_groupbox.layout().setSpacing(10)
-        bottom_groupbox.layout().addWidget(table_groupbox)
-        bottom_groupbox.layout().addWidget(preview_wdg)
+        bottom_groupbox_layout = QHBoxLayout(bottom_groupbox)
+        bottom_groupbox_layout.setContentsMargins(10, 10, 10, 10)
+        bottom_groupbox_layout.setSpacing(10)
+        bottom_groupbox_layout.addWidget(table_groupbox)
+        bottom_groupbox_layout.addWidget(preview_wdg)
 
         # buttons
         btn_wdg = QGroupBox()
-        btn_wdg.setLayout(QHBoxLayout())
-        btn_wdg.layout().setContentsMargins(5, 5, 5, 5)
-        btn_wdg.layout().setSpacing(5)
+        btn_wdg_layout = QHBoxLayout(btn_wdg)
+        btn_wdg_layout.setContentsMargins(5, 5, 5, 5)
+        btn_wdg_layout.setSpacing(5)
         self._ok_btn = QPushButton(text="Add/Update")
         self._ok_btn.setAutoDefault(False)
         self._ok_btn.clicked.connect(self._add_to_database)
@@ -222,18 +221,18 @@ class PlateDatabaseWidget(QDialog):
         self._load_plate_db_button = QPushButton(text="Load Plate Database")
         self._load_plate_db_button.setAutoDefault(False)
         self._load_plate_db_button.clicked.connect(self._load_plate_database)
-        btn_wdg.layout().addWidget(self._ok_btn)
-        btn_wdg.layout().addWidget(self._delete_btn)
-        btn_wdg.layout().addWidget(self._new_db_button)
-        btn_wdg.layout().addWidget(self._load_plate_db_button)
+        btn_wdg_layout.addWidget(self._ok_btn)
+        btn_wdg_layout.addWidget(self._delete_btn)
+        btn_wdg_layout.addWidget(self._new_db_button)
+        btn_wdg_layout.addWidget(self._load_plate_db_button)
 
         # main
-        self.setLayout(QVBoxLayout())
-        self.layout().setContentsMargins(10, 10, 10, 10)
-        self.layout().setSpacing(10)
-        self.layout().addWidget(top_groupbox)
-        self.layout().addWidget(bottom_groupbox)
-        self.layout().addWidget(btn_wdg)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
+        main_layout.addWidget(top_groupbox)
+        main_layout.addWidget(bottom_groupbox)
+        main_layout.addWidget(btn_wdg)
 
         self.setMinimumHeight(self.sizeHint().height())
 
@@ -348,15 +347,15 @@ class PlateDatabaseWidget(QDialog):
             List of plate ids or list of Plates to remove from the plate database.
         """
         if all(isinstance(plate, str) for plate in plates):
-            plates = cast(list[str], plates)
+            plates = cast(List[str], plates)
             plates = [self._plate_db[plate] for plate in plates]
 
-        plates = cast(list[Plate], plates)
+        plates = cast(List[Plate], plates)
         self._remove_from_json(plates)
 
         for plate in plates:
             self._plate_db.pop(plate.id, None)
-            match = self.plate_table.findItems(plate.id, Qt.MatchExactly)
+            match = self.plate_table.findItems(plate.id, Qt.MatchFlag.MatchExactly)
             self.plate_table.removeRow(match[0].row())
         self.valueChanged.emit(None, self._plate_db, self._plate_db_path)
         if self.plate_table.rowCount():

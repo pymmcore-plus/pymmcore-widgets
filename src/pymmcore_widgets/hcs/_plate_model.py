@@ -1,13 +1,14 @@
-from dataclasses import dataclass
-from pathlib import Path
+from __future__ import annotations
 
-from ._base_dataclass import BaseDataclass
+from dataclasses import asdict, dataclass, fields
+from pathlib import Path
+from typing import Any
 
 DEFAULT_PLATE_DB_PATH = Path(__file__).parent / "default_well_plate_database.json"
 
 
 @dataclass(frozen=True)
-class Plate(BaseDataclass):
+class Plate:
     """General class describing a plate.
 
     It can be used to define multi-well plates or different types of general areas with
@@ -41,6 +42,16 @@ class Plate(BaseDataclass):
     well_spacing_y: float = 0.0
     well_size_x: float = 0.0
     well_size_y: float = 0.0
+
+    def replace(self, **kwargs: Any) -> Any:
+        """Return a new plate with the given attributes replaced."""
+        attrs = {f.name: getattr(self, f.name) for f in fields(self)}
+        attrs.update(kwargs)
+        return self.__class__(**attrs)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a dictionary representation of the BaseDataclass."""
+        return asdict(self)
 
 
 def save_database(database: dict[str, Plate], database_path: Path | str) -> None:
