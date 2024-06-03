@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 import sys
 import warnings
 from abc import abstractmethod
@@ -10,6 +9,7 @@ from typing import TYPE_CHECKING, Generic, Hashable, Sequence, TypeVar, cast
 import numpy as np
 
 if TYPE_CHECKING:
+    from pathlib import Path
     from typing import Any, Protocol, TypeGuard
 
     import dask.array as da
