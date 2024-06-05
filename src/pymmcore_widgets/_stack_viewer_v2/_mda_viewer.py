@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Mapping
 
 import superqt
 import useq
-from pymmcore_plus.mda.handlers import OMETiffWriter, OMEZarrWriter, TensorStoreHandler
+from pymmcore_plus.mda.handlers import TensorStoreHandler
 
 from ._save_button import SaveButton
 from ._stack_viewer import StackViewer
