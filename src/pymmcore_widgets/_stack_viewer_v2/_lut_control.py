@@ -88,13 +88,19 @@ class LutControl(QWidget):
     def _on_visible_changed(self, visible: bool) -> None:
         for handle in self._handles:
             handle.visible = visible
+        if visible:
+            self.update_autoscale()
 
     def _on_cmap_changed(self, cmap: cmap.Colormap) -> None:
         for handle in self._handles:
             handle.cmap = cmap
 
     def update_autoscale(self) -> None:
-        if not self._auto_clim.isChecked():
+        if (
+            not self._auto_clim.isChecked()
+            or not self._visible.isChecked()
+            or not self._handles
+        ):
             return
 
         # find the min and max values for the current channel
