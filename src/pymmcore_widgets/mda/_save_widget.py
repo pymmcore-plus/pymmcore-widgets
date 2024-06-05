@@ -43,7 +43,7 @@ WRITERS: dict[str, list[str]] = {
 
 EXT_TO_WRITER = {x: w for w, exts in WRITERS.items() for x in exts}
 ALL_EXTENSIONS = [x for exts in WRITERS.values() for x in exts if x]
-DIRECTORY_WRITERS = {TIFF_SEQ, ZARR_TESNSORSTORE}  # technically could be zarr too
+DIRECTORY_WRITERS = {TIFF_SEQ}  # technically could be zarr too
 
 FILE_NAME = "Filename:"
 SUBFOLDER = "Subfolder:"
