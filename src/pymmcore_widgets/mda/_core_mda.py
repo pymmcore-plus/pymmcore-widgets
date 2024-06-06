@@ -6,6 +6,12 @@ from typing import cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
+from pymmcore_plus.mda.handlers import (
+    ImageSequenceWriter,
+    OMETiffWriter,
+    OMEZarrWriter,
+    TensorStoreHandler,
+)
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QBoxLayout,
@@ -29,7 +35,16 @@ from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
-from ._save_widget import SaveGroupBox
+from ._save_widget import (
+    OME_TIFF,
+    OME_ZARR,
+    TIFF_SEQ,
+    WRITERS,
+    ZARR_TESNSORSTORE,
+    SaveGroupBox,
+)
+
+OME_TIFFS = tuple(WRITERS[OME_TIFF])
 
 HCS = "hcs"
 
@@ -236,16 +251,21 @@ class MDAWidget(MDASequenceWidget):
 
         sequence = self.value()
 
+        writer = None
         # technically, this is in the metadata as well, but isChecked is more direct
         if self.save_info.isChecked():
             save_path = self._update_save_path_from_metadata(
                 sequence, update_metadata=True
             )
-        else:
-            save_path = None
+            if isinstance(save_path, Path):
+                # get save format from metadata
+                save_meta = sequence.metadata.get(PYMMCW_METADATA_KEY, {})
+                save_format = save_meta.get("format", "")
+                # set the writer to use for saving the MDA sequence.
+                writer = self._create_writer(save_path, save_format)
 
         # run the MDA experiment asynchronously
-        self._mmc.run_mda(sequence, output=save_path)
+        self._mmc.run_mda(sequence, output=writer)
 
     # ------------------- private Methods ----------------------
 
@@ -309,6 +329,23 @@ class MDAWidget(MDASequenceWidget):
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
         return Position(x=x, y=y, z=z)
 
+    def _confirm_af_intentions(self) -> bool:
+        msg = (
+            "You've selected to use autofocus for this experiment, "
+            f"but the '{self._mmc.getAutoFocusDevice()!r}' autofocus device "
+            "is not currently engaged. "
+            "\n\nRun anyway?"
+        )
+
+        response = QMessageBox.warning(
+            self,
+            "Confirm AutoFocus",
+            msg,
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        return bool(response == QMessageBox.StandardButton.Ok)
+
     def _update_save_path_from_metadata(
         self,
         sequence: MDASequence,
@@ -342,22 +379,23 @@ class MDAWidget(MDASequenceWidget):
             return next_path
         return None
 
-    def _confirm_af_intentions(self) -> bool:
-        msg = (
-            "You've selected to use autofocus for this experiment, "
-            f"but the '{self._mmc.getAutoFocusDevice()!r}' autofocus device "
-            "is not currently engaged. "
-            "\n\nRun anyway?"
-        )
+    def _create_writer(
+        self, path: Path, save_format: str
+    ) -> OMEZarrWriter | OMETiffWriter | TensorStoreHandler | ImageSequenceWriter:
+        """Return a writer based on the save format."""
+        if save_format == OME_TIFF:
+            return OMETiffWriter(path)
+        elif save_format == OME_ZARR:
+            return OMEZarrWriter(path)
+        elif save_format == ZARR_TESNSORSTORE:
+            return TensorStoreHandler(driver="zarr", path=path, delete_existing=True)
+        elif save_format == TIFF_SEQ:
+            return ImageSequenceWriter(path)
+        else:
+            raise ValueError(f"Unknown save format: {save_format}")
 
-        response = QMessageBox.warning(
-            self,
-            "Confirm AutoFocus",
-            msg,
-            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
-            QMessageBox.StandardButton.Cancel,
-        )
-        return bool(response == QMessageBox.StandardButton.Ok)
+    def _on_mda_started(self) -> None:
+        self._enable_widgets(False)
 
     def _enable_widgets(self, enable: bool) -> None:
         for child in self.children():
@@ -365,9 +403,6 @@ class MDAWidget(MDASequenceWidget):
                 child._enable_tabs(enable)
             elif child is not self.control_btns and hasattr(child, "setEnabled"):
                 child.setEnabled(enable)
-
-    def _on_mda_started(self) -> None:
-        self._enable_widgets(False)
 
     def _on_mda_finished(self, sequence: MDASequence) -> None:
         self._enable_widgets(True)

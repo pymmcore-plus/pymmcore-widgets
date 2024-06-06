@@ -7,6 +7,12 @@ from unittest.mock import patch
 
 import pytest
 import useq
+from pymmcore_plus.mda.handlers import (
+    ImageSequenceWriter,
+    OMETiffWriter,
+    OMEZarrWriter,
+    TensorStoreHandler,
+)
 from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import QMessageBox
 
@@ -22,6 +28,12 @@ from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
 from pymmcore_widgets.mda._core_mda import CoreMDATabs
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
+from pymmcore_widgets.mda._save_widget import (
+    OME_TIFF,
+    OME_ZARR,
+    TIFF_SEQ,
+    ZARR_TESNSORSTORE,
+)
 from pymmcore_widgets.useq_widgets._mda_sequence import (
     PYMMCW_METADATA_KEY,
     AutofocusAxis,
@@ -727,3 +739,21 @@ def test_hcs_mda_meta(qtbot: QtBot):
 
     wdg.setValue(reload)
     assert wdg.value().metadata[PYMMCW_METADATA_KEY]["hcs"] == hcs
+
+
+data = [
+    ("./test.ome.tiff", OME_TIFF, OMETiffWriter),
+    ("./test.ome.zarr", OME_ZARR, OMEZarrWriter),
+    ("./test.tensorstore.zarr", ZARR_TESNSORSTORE, TensorStoreHandler),
+    ("./test", TIFF_SEQ, ImageSequenceWriter),
+]
+
+
+@pytest.mark.parametrize("data", data)
+def test_mda_writer(qtbot: QtBot, tmp_path: Path, data: tuple) -> None:
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+    path, save_format, cls = data
+    writer = wdg._create_writer(Path(path), save_format)
+    assert isinstance(writer, cls)

@@ -48,7 +48,7 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
     'fonticon-materialdesignicons6',
-    'pymmcore-plus[cli] >=0.9.5',
+    'pymmcore-plus@git+https://github.com/fdrgsp/pymmcore-plus.git',  # -> when released pymmcore-plus >=0.9.6
     'qtpy >=2.0',
     'superqt[quantity] >=0.5.3',
     'useq-schema >=0.4.7',
@@ -58,7 +58,7 @@ dependencies = [
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-test = ["pytest>=6.0", "pytest-cov", "pytest-qt", "PyYAML", "vispy", "cmap", "zarr"]
+test = ["pytest>=6.0", "pytest-cov", "pytest-qt", "PyYAML", "vispy", "cmap", "zarr", "tifffile"]
 pyqt5 = ["PyQt5"]
 pyside2 = ["PySide2"]
 pyqt6 = ["PyQt6"]
@@ -125,6 +125,9 @@ ignore = [
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 # https://docs.pytest.org/en/6.2.x/customize.html
 [tool.pytest.ini_options]
