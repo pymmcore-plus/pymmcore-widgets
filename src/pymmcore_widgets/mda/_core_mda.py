@@ -32,7 +32,14 @@ from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
-from ._save_widget import OME_TIFF, OME_ZARR, WRITERS, ZARR_TESNSORSTORE, SaveGroupBox
+from ._save_widget import (
+    OME_TIFF,
+    OME_ZARR,
+    TIFF_SEQ,
+    WRITERS,
+    ZARR_TESNSORSTORE,
+    SaveGroupBox,
+)
 
 OME_TIFFS = tuple(WRITERS[OME_TIFF])
 
@@ -298,8 +305,10 @@ class MDAWidget(MDASequenceWidget):
             return OMEZarrWriter(path)
         elif ZARR_TESNSORSTORE in save_format:
             return TensorStoreHandler(driver="zarr", path=path, delete_existing=True)
-        else:
+        elif TIFF_SEQ in save_format:
             return ImageSequenceWriter(path)
+        else:
+            raise ValueError(f"Unknown save format: {save_format}")
 
     def _on_mda_started(self) -> None:
         self._enable_widgets(False)
