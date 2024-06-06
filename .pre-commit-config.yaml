@@ -27,5 +27,5 @@ repos:
       - id: mypy
         files: "^src/"
         additional_dependencies:
-          - pymmcore-plus >=0.9.5
+          - pymmcore-plus@git+https://github.com/fdrgsp/pymmcore-plus.git # -> when released pymmcore-plus >=0.9.6
           - useq-schema >=0.4.7
