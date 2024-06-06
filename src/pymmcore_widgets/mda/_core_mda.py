@@ -299,13 +299,13 @@ class MDAWidget(MDASequenceWidget):
         self, path: Path, save_format: str
     ) -> OMEZarrWriter | OMETiffWriter | TensorStoreHandler | ImageSequenceWriter:
         """Return a writer based on the save format."""
-        if OME_TIFF in save_format:
+        if save_format == OME_TIFF:
             return OMETiffWriter(path)
-        elif OME_ZARR in save_format:
+        elif save_format == OME_ZARR:
             return OMEZarrWriter(path)
-        elif ZARR_TESNSORSTORE in save_format:
+        elif save_format == ZARR_TESNSORSTORE:
             return TensorStoreHandler(driver="zarr", path=path, delete_existing=True)
-        elif TIFF_SEQ in save_format:
+        elif save_format == TIFF_SEQ:
             return ImageSequenceWriter(path)
         else:
             raise ValueError(f"Unknown save format: {save_format}")
