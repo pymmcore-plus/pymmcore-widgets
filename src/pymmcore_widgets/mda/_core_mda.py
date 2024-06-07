@@ -254,23 +254,6 @@ class MDAWidget(MDASequenceWidget):
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
         return Position(x=x, y=y, z=z)
 
-    def _confirm_af_intentions(self) -> bool:
-        msg = (
-            "You've selected to use autofocus for this experiment, "
-            f"but the '{self._mmc.getAutoFocusDevice()!r}' autofocus device "
-            "is not currently engaged. "
-            "\n\nRun anyway?"
-        )
-
-        response = QMessageBox.warning(
-            self,
-            "Confirm AutoFocus",
-            msg,
-            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
-            QMessageBox.StandardButton.Cancel,
-        )
-        return bool(response == QMessageBox.StandardButton.Ok)
-
     def _update_save_path_from_metadata(
         self,
         sequence: MDASequence,
@@ -304,8 +287,22 @@ class MDAWidget(MDASequenceWidget):
             return next_path
         return None
 
-    def _on_mda_started(self) -> None:
-        self._enable_widgets(False)
+    def _confirm_af_intentions(self) -> bool:
+        msg = (
+            "You've selected to use autofocus for this experiment, "
+            f"but the '{self._mmc.getAutoFocusDevice()!r}' autofocus device "
+            "is not currently engaged. "
+            "\n\nRun anyway?"
+        )
+
+        response = QMessageBox.warning(
+            self,
+            "Confirm AutoFocus",
+            msg,
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        return bool(response == QMessageBox.StandardButton.Ok)
 
     def _enable_widgets(self, enable: bool) -> None:
         for child in self.children():
@@ -313,6 +310,9 @@ class MDAWidget(MDASequenceWidget):
                 child._enable_tabs(enable)
             elif child is not self.control_btns and hasattr(child, "setEnabled"):
                 child.setEnabled(enable)
+
+    def _on_mda_started(self) -> None:
+        self._enable_widgets(False)
 
     def _on_mda_finished(self, sequence: MDASequence) -> None:
         self._enable_widgets(True)
