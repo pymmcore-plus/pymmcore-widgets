@@ -266,7 +266,6 @@ class StackViewer(QWidget):
         """Set the number of dimensions to display."""
         self._ndims = ndim
         self._canvas.set_ndim(ndim)
-        print("Setting ndim to", ndim)
         if self._img_handles:
             self._clear_images()
             self._update_data_for_index(self._dims_sliders.value())
@@ -468,7 +467,6 @@ class StackViewer(QWidget):
         """
         imkey = self._image_key(index)
         datum = self._reduce_data_for_display(data)
-        print("showing", imkey, datum.shape, datum.dtype)
         if handles := self._img_handles[imkey]:
             for handle in handles:
                 handle.data = datum
