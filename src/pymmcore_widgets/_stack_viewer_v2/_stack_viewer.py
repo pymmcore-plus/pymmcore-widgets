@@ -256,7 +256,8 @@ class StackViewer(QWidget):
         # SETUP ------------------------------------------------------
 
         self.set_channel_mode(channel_mode)
-        self.set_data(data)
+        if data is not None:
+            self.set_data(data)
 
     # ------------------- PUBLIC API ----------------------------
     def _change_ndims(self) -> None:
@@ -266,6 +267,9 @@ class StackViewer(QWidget):
         """Set the number of dimensions to display."""
         self._ndims = ndim
         self._canvas.set_ndim(ndim)
+        non_channels = [x for x in self._sizes if x != self._channel_axis]
+        visualized_dims = non_channels[-self._ndims :]
+        self.set_visualized_dims(visualized_dims)
         if self._img_handles:
             self._clear_images()
             self._update_data_for_index(self._dims_sliders.value())
@@ -416,7 +420,6 @@ class StackViewer(QWidget):
 
         if self._last_future:
             self._last_future.cancel()
-
         self._last_future = f = self._isel(index)
         f.add_done_callback(self._on_data_slice_ready)
 
@@ -478,12 +481,6 @@ class StackViewer(QWidget):
                 if self._channel_mode == ChannelMode.COMPOSITE
                 else GRAYS
             )
-            # FIXME: this is a hack ...
-            # however, there's a bug in the vispy backend such that if the first
-            # image is all zeros, it persists even if the data is updated
-            # it's better just to not add it at all...
-            if np.max(datum) == 0:
-                return
             if datum.ndim == 2:
                 handles.append(self._canvas.add_image(datum, cmap=cm))
             elif datum.ndim == 3:
@@ -514,7 +511,6 @@ class StackViewer(QWidget):
         This also coerces 64-bit data to 32-bit data.
         """
         # TODO
-        # - allow for 3d data
         # - allow dimensions to control how they are reduced (as opposed to just max)
         # - for better way to determine which dims need to be reduced (currently just
         #   the smallest dims)
@@ -523,7 +519,7 @@ class StackViewer(QWidget):
         if extra_dims := data.ndim - visualized_dims:
             shapes = sorted(enumerate(data.shape), key=lambda x: x[1])
             smallest_dims = tuple(i for i, _ in shapes[:extra_dims])
-            return reductor(data, axis=smallest_dims)
+            data = reductor(data, axis=smallest_dims)
 
         if data.dtype.itemsize > 4:  # More than 32 bits
             if np.issubdtype(data.dtype, np.integer):

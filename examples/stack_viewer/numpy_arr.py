@@ -48,12 +48,16 @@ def generate_5d_sine_wave(
     return output
 
 
-# Example usage
-array_shape = (10, 3, 5, 512, 512)  # Specify the desired dimensions
-sine_wave_5d = generate_5d_sine_wave(array_shape)
+try:
+    from skimage import data
+
+    img = data.cells3d()
+except Exception:
+    img = generate_5d_sine_wave((10, 3, 8, 512, 512))
+
 
 if __name__ == "__main__":
     qapp = QtWidgets.QApplication([])
-    v = StackViewer(sine_wave_5d, channel_axis=1)
+    v = StackViewer(img)
     v.show()
     qapp.exec()

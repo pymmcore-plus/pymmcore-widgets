@@ -14,6 +14,7 @@ ts_array = ts.open(
     dtype=ts.uint8,
 ).result()
 ts_array[:] = np.random.randint(0, 255, size=shape, dtype=np.uint8)
+ts_array = ts_array[ts.d[:].label["t", "c", "z", "y", "x"]]
 
 if __name__ == "__main__":
     qapp = QtWidgets.QApplication([])

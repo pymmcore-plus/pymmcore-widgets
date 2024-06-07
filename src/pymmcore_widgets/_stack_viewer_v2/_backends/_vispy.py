@@ -4,13 +4,20 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Callable, Literal, cast
 
 import numpy as np
+import vispy
+import vispy.scene
+import vispy.visuals
 from superqt.utils import qthrottled
 from vispy import scene
+from vispy.util.quaternion import Quaternion
 
 if TYPE_CHECKING:
     import cmap
     from qtpy.QtWidgets import QWidget
     from vispy.scene.events import SceneMouseEvent
+
+turn = np.sin(np.pi / 4)
+DEFAULT_QUATERNION = Quaternion(turn, turn, 0, 0)
 
 
 class VispyImageHandle:
@@ -77,18 +84,37 @@ class VispyViewerCanvas:
         self._set_info = set_info
         self._canvas = scene.SceneCanvas()
         self._canvas.events.mouse_move.connect(qthrottled(self._on_mouse_move, 60))
-        self._has_set_range = False
+        self._current_shape: tuple[int, ...] = ()
+        self._last_state: dict[Literal[2, 3], Any] = {}
 
         central_wdg: scene.Widget = self._canvas.central_widget
         self._view: scene.ViewBox = central_wdg.add_view()
-        # self.set_ndim(2)
+        self._ndim: Literal[2, 3] | None = None
+
+    @property
+    def _camera(self) -> vispy.scene.cameras.BaseCamera:
+        return self._view.camera
 
     def set_ndim(self, ndim: Literal[2, 3]) -> None:
+        """Set the number of dimensions of the displayed data."""
+        if ndim == self._ndim:
+            return
+        elif self._ndim is not None:
+            # remember the current state before switching to the new camera
+            self._last_state[self._ndim] = self._camera.get_state()
+
+        self._ndim = ndim
         if ndim == 3:
-            self._camera = scene.ArcballCamera()
+            cam = scene.ArcballCamera()
+            # this sets the initial view similar to what the panzoom view would have.
+            cam._quaternion = DEFAULT_QUATERNION
         else:
-            self._camera = scene.PanZoomCamera(aspect=1, flip=(0, 1))
-        self._view.camera = self._camera
+            cam = scene.PanZoomCamera(aspect=1, flip=(0, 1))
+
+        # restore the previous state if it exists
+        if state := self._last_state.get(ndim):
+            cam.set_state(state)
+        self._view.camera = cam
 
     def qwidget(self) -> QWidget:
         return cast("QWidget", self._canvas.native)
@@ -103,9 +129,10 @@ class VispyViewerCanvas:
         img = scene.visuals.Image(data, parent=self._view.scene)
         img.set_gl_state("additive", depth_test=False)
         img.interactive = True
-        if not self._has_set_range:
-            self.set_range()
-            self._has_set_range = True
+        if data is not None:
+            self._current_shape, prev_shape = data.shape, self._current_shape
+            if not prev_shape:
+                self.set_range()
         handle = VispyImageHandle(img)
         if cmap is not None:
             handle.cmap = cmap
@@ -114,12 +141,15 @@ class VispyViewerCanvas:
     def add_volume(
         self, data: np.ndarray | None = None, cmap: cmap.Colormap | None = None
     ) -> VispyImageHandle:
-        vol = scene.visuals.Volume(data, parent=self._view.scene)
-        vol.set_gl_state("additive", depth_test=True)
+        vol = scene.visuals.Volume(
+            data, parent=self._view.scene, interpolation="nearest"
+        )
+        # vol.set_gl_state("additive", depth_test=True)
         vol.interactive = True
-        if not self._has_set_range:
-            self.set_range()
-            self._has_set_range = True
+        if data is not None:
+            self._current_shape, prev_shape = data.shape, self._current_shape
+            if not prev_shape:
+                self.set_range()
         handle = VispyImageHandle(vol)
         if cmap is not None:
             handle.cmap = cmap
@@ -129,19 +159,29 @@ class VispyViewerCanvas:
         self,
         x: tuple[float, float] | None = None,
         y: tuple[float, float] | None = None,
-        margin: float = 0.01,
+        z: tuple[float, float] | None = None,
+        margin: float = 0.0,
     ) -> None:
         """Update the range of the PanZoomCamera.
 
         When called with no arguments, the range is set to the full extent of the data.
         """
-        self._camera.set_range(x=x, y=y, margin=margin)
+        if len(self._current_shape) >= 2:
+            if x is None:
+                x = (0, self._current_shape[-1])
+            if y is None:
+                y = (0, self._current_shape[-2])
+        if z is None and len(self._current_shape) == 3:
+            z = (0, self._current_shape[-3])
+        if isinstance(self._camera, scene.ArcballCamera):
+            self._camera._quaternion = DEFAULT_QUATERNION
+        self._view.camera.set_range(x=x, y=y, z=z, margin=margin)
 
     def _on_mouse_move(self, event: SceneMouseEvent) -> None:
         """Mouse moved on the canvas, display the pixel value and position."""
         images = []
         # Get the images the mouse is over
-        # FIXME: must be a better way to do this
+        # FIXME: this is narsty ... there must be a better way to do this
         seen = set()
         try:
             while visual := self._canvas.visual_at(event.pos):

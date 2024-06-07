@@ -445,32 +445,32 @@ class DimsSliders(QWidget):
             viz = visible if isinstance(visible, bool) else visible.get(dim, False)
             slider._lock_btn.setVisible(viz)
 
-    def add_dimension(self, name: DimKey, val: Index | None = None) -> None:
+    def add_dimension(self, key: DimKey, val: Index | None = None) -> None:
         """Add a new dimension to the DimsSliders widget.
 
         Parameters
         ----------
-        name : Hashable
+        key : Hashable
             The name of the dimension.
         val : int | slice, optional
             The initial value for the dimension. If a slice, the slider will be in
             slice mode.
         """
-        self._sliders[name] = slider = DimsSlider(dimension_key=name, parent=self)
-        if isinstance(self._locks_visible, dict) and name in self._locks_visible:
-            slider._lock_btn.setVisible(self._locks_visible[name])
+        self._sliders[key] = slider = DimsSlider(dimension_key=key, parent=self)
+        if isinstance(self._locks_visible, dict) and key in self._locks_visible:
+            slider._lock_btn.setVisible(self._locks_visible[key])
         else:
             slider._lock_btn.setVisible(bool(self._locks_visible))
 
         val_int = val.start if isinstance(val, slice) else val
-        slider.setVisible(name not in self._invisible_dims)
+        slider.setVisible(key not in self._invisible_dims)
         if isinstance(val_int, int):
             slider.setRange(val_int, val_int)
         elif isinstance(val_int, slice):
             slider.setRange(val_int.start or 0, val_int.stop or 1)
 
         val = val if val is not None else 0
-        self._current_index[name] = val
+        self._current_index[key] = val
         slider.forceValue(val)
         slider.valueChanged.connect(self._on_dim_slider_value_changed)
         cast("QVBoxLayout", self.layout()).addWidget(slider)
@@ -483,8 +483,13 @@ class DimsSliders(QWidget):
         """
         if visible:
             self._invisible_dims.discard(key)
+            if key in self._sliders:
+                self._current_index[key] = self._sliders[key].value()
+            else:
+                self.add_dimension(key)
         else:
             self._invisible_dims.add(key)
+            self._current_index.pop(key, None)
         if key in self._sliders:
             self._sliders[key].setVisible(visible)
 

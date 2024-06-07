@@ -242,6 +242,9 @@ class TensorstoreWrapper(DataWrapper["ts.TensorStore"]):
 
         self._ts = ts
 
+    def sizes(self) -> Mapping[Hashable, int]:
+        return {dim.label: dim.size for dim in self._data.domain}
+
     def isel(self, indexers: Indices) -> np.ndarray:
         result = self._data[self._ts.d[*indexers][*indexers.values()]].read().result()
         return np.asarray(result)
