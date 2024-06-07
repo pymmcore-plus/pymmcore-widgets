@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 from pathlib import Path
-from typing import cast
+from typing import Callable, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
@@ -36,12 +36,18 @@ from ._save_widget import (
     OME_TIFF,
     OME_ZARR,
     TIFF_SEQ,
-    WRITERS,
     ZARR_TESNSORSTORE,
     SaveGroupBox,
 )
 
-OME_TIFFS = tuple(WRITERS[OME_TIFF])
+MAKE_WRITERS: dict[str, Callable] = {
+    OME_TIFF: OMETiffWriter,
+    OME_ZARR: OMEZarrWriter,
+    ZARR_TESNSORSTORE: lambda path: TensorStoreHandler(
+        path=path, driver="zarr", delete_existing=True
+    ),
+    TIFF_SEQ: ImageSequenceWriter,
+}
 
 
 class CoreMDATabs(MDATabs):
@@ -227,7 +233,10 @@ class MDAWidget(MDASequenceWidget):
                 save_meta = sequence.metadata.get(PYMMCW_METADATA_KEY, {})
                 save_format = save_meta.get("format", "")
                 # set the writer to use for saving the MDA sequence.
-                writer = self._create_writer(save_path, save_format)
+                try:
+                    writer = MAKE_WRITERS[save_format](save_path)
+                except KeyError as err:
+                    raise ValueError(f"Unknown save format: {save_format}!") from err
 
         # run the MDA experiment asynchronously
         self._mmc.run_mda(sequence, output=writer)
@@ -294,21 +303,6 @@ class MDAWidget(MDASequenceWidget):
                         meta.update(self.save_info.value())
             return next_path
         return None
-
-    def _create_writer(
-        self, path: Path, save_format: str
-    ) -> OMEZarrWriter | OMETiffWriter | TensorStoreHandler | ImageSequenceWriter:
-        """Return a writer based on the save format."""
-        if save_format == OME_TIFF:
-            return OMETiffWriter(path)
-        elif save_format == OME_ZARR:
-            return OMEZarrWriter(path)
-        elif save_format == ZARR_TESNSORSTORE:
-            return TensorStoreHandler(driver="zarr", path=path, delete_existing=True)
-        elif save_format == TIFF_SEQ:
-            return ImageSequenceWriter(path)
-        else:
-            raise ValueError(f"Unknown save format: {save_format}")
 
     def _on_mda_started(self) -> None:
         self._enable_widgets(False)
