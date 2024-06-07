@@ -19,7 +19,7 @@ from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
-from pymmcore_widgets.mda._core_mda import CoreMDATabs
+from pymmcore_widgets.mda._core_mda import MAKE_WRITERS, CoreMDATabs
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
 from pymmcore_widgets.mda._save_widget import (
@@ -714,5 +714,5 @@ def test_mda_writer(qtbot: QtBot, tmp_path: Path, data: tuple) -> None:
     qtbot.addWidget(wdg)
     wdg.show()
     path, save_format, cls = data
-    writer = wdg._create_writer(Path(path), save_format)
+    writer = MAKE_WRITERS[save_format](path)
     assert isinstance(writer, cls)
