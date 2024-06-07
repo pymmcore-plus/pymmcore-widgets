@@ -58,6 +58,9 @@ class ChannelModeButton(QPushButton):
         self.setCheckable(True)
         self.toggled.connect(self.next_mode)
 
+        # set minimum width to the width of the larger string 'composite'
+        self.setMinimumWidth(92)  # FIXME: magic number
+
     def next_mode(self) -> None:
         if self.isChecked():
             self.setMode(ChannelMode.MONO)
@@ -72,6 +75,15 @@ class ChannelModeButton(QPushButton):
         other = ChannelMode.COMPOSITE if mode is ChannelMode.MONO else ChannelMode.MONO
         self.setText(str(other))
         self.setChecked(mode == ChannelMode.MONO)
+
+
+class DimToggleButton(QPushButton):
+    def __init__(self, parent: QWidget | None = None):
+        icn = QIconifyIcon("f7:view-2d", color="#333333")
+        icn.addKey("f7:view-3d", state=QIconifyIcon.State.On, color="white")
+        super().__init__(icn, "", parent)
+        self.setCheckable(True)
+        self.setChecked(True)
 
 
 # @dataclass
@@ -203,8 +215,8 @@ class StackViewer(QWidget):
         self._set_range_btn.clicked.connect(self._on_set_range_clicked)
 
         # button to change number of displayed dimensions
-        self._ndims_btn = QPushButton("Dims", self)
-        self._ndims_btn.clicked.connect(self._change_ndims)
+        self._ndims_btn = DimToggleButton(self)
+        self._ndims_btn.clicked.connect(self.toggle_3d)
 
         # place to display dataset summary
         self._data_info_label = QElidingLabel("", parent=self)
@@ -240,8 +252,8 @@ class StackViewer(QWidget):
         btns.setSpacing(0)
         btns.addStretch()
         btns.addWidget(self._channel_mode_btn)
-        btns.addWidget(self._set_range_btn)
         btns.addWidget(self._ndims_btn)
+        btns.addWidget(self._set_range_btn)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(2)
@@ -260,20 +272,6 @@ class StackViewer(QWidget):
             self.set_data(data)
 
     # ------------------- PUBLIC API ----------------------------
-    def _change_ndims(self) -> None:
-        self.set_ndim(3 if self._ndims == 2 else 2)
-
-    def set_ndim(self, ndim: Literal[2, 3]) -> None:
-        """Set the number of dimensions to display."""
-        self._ndims = ndim
-        self._canvas.set_ndim(ndim)
-        non_channels = [x for x in self._sizes if x != self._channel_axis]
-        visualized_dims = non_channels[-self._ndims :]
-        self.set_visualized_dims(visualized_dims)
-        if self._img_handles:
-            self._clear_images()
-            self._update_data_for_index(self._dims_sliders.value())
-
     @property
     def data(self) -> Any:
         """Return the data backing the view."""
@@ -357,6 +355,27 @@ class StackViewer(QWidget):
         for dim in list(maxes.keys())[-self._ndims :]:
             self._dims_sliders.set_dimension_visible(dim, False)
 
+    def toggle_3d(self) -> None:
+        self.set_ndim(3 if self._ndims == 2 else 2)
+
+    def set_ndim(self, ndim: Literal[2, 3]) -> None:
+        """Set the number of dimensions to display."""
+        self._ndims = ndim
+        self._canvas.set_ndim(ndim)
+
+        # set the visibility of the last non-channel dimension
+        sizes = list(self._sizes)
+        if self._channel_axis is not None:
+            sizes = [x for x in sizes if x != self._channel_axis]
+        if len(sizes) >= 3:
+            dim3 = sizes[-3]
+            self._dims_sliders.set_dimension_visible(dim3, True if ndim == 2 else False)
+
+        # clear image handles and redraw
+        if self._img_handles:
+            self._clear_images()
+            self._update_data_for_index(self._dims_sliders.value())
+
     def set_channel_mode(self, mode: ChannelMode | str | None = None) -> None:
         """Set the mode for displaying the channels.
 
@@ -416,11 +435,22 @@ class StackViewer(QWidget):
             self._channel_axis is not None
             and self._channel_mode == ChannelMode.COMPOSITE
         ):
-            index = {**index, self._channel_axis: ALL_CHANNELS}
+            indices: list[Indices] = [
+                {**index, self._channel_axis: i}
+                for i in range(self._sizes[self._channel_axis])
+            ]
+        else:
+            indices = [index]
 
         if self._last_future:
             self._last_future.cancel()
-        self._last_future = f = self._isel(index)
+
+        # don't request any dimensions that are not visualized
+        indices = [
+            {k: v for k, v in idx.items() if k not in self._visualized_dims}
+            for idx in indices
+        ]
+        self._last_future = f = self._isel(indices)
         f.add_done_callback(self._on_data_slice_ready)
 
     def closeEvent(self, a0: QCloseEvent | None) -> None:
@@ -429,16 +459,19 @@ class StackViewer(QWidget):
             self._last_future = None
         super().closeEvent(a0)
 
-    def _isel(self, index: Indices) -> Future[tuple[Indices, np.ndarray]]:
+    def _isel(
+        self, indices: list[Indices]
+    ) -> Future[Iterable[tuple[Indices, np.ndarray]]]:
         """Select data from the datastore using the given index."""
-        idx = {k: v for k, v in index.items() if k not in self._visualized_dims}
         try:
-            return self._data_wrapper.isel_async(idx)
+            return self._data_wrapper.isel_async(indices)
         except Exception as e:
-            raise type(e)(f"Failed to index data with {idx}: {e}") from e
+            raise type(e)(f"Failed to index data with {indices}: {e}") from e
 
     @ensure_main_thread  # type: ignore
-    def _on_data_slice_ready(self, future: Future[tuple[Indices, np.ndarray]]) -> None:
+    def _on_data_slice_ready(
+        self, future: Future[Iterable[tuple[Indices, np.ndarray]]]
+    ) -> None:
         """Update the displayed image for the given index.
 
         Connected to the future returned by _isel.
@@ -450,15 +483,12 @@ class StackViewer(QWidget):
         if future.cancelled():
             return
 
-        index, data = future.result()
-        # assume that if we have channels remaining, that they are the first axis
-        # FIXME: this is a bad assumption
-        data = iter(data) if index.get(self._channel_axis) is ALL_CHANNELS else [data]
+        data = future.result()
         # FIXME:
         # `self._channel_axis: i` is a bug; we assume channel indices start at 0
         # but the actual values used for indices are up to the user.
-        for i, datum in enumerate(data):
-            self._update_canvas_data(datum, {**index, self._channel_axis: i})
+        for idx, datum in data:
+            self._update_canvas_data(datum, idx)
         self._canvas.refresh()
 
     def _update_canvas_data(self, data: np.ndarray, index: Indices) -> None:

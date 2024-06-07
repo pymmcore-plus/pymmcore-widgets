@@ -5,7 +5,16 @@ import warnings
 from abc import abstractmethod
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import suppress
-from typing import TYPE_CHECKING, Generic, Hashable, Mapping, Sequence, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Generic,
+    Hashable,
+    Iterable,
+    Mapping,
+    Sequence,
+    TypeVar,
+    cast,
+)
 
 import numpy as np
 
@@ -66,9 +75,11 @@ class DataWrapper(Generic[ArrayT]):
         """
         raise NotImplementedError
 
-    def isel_async(self, indexers: Indices) -> Future[tuple[Indices, np.ndarray]]:
+    def isel_async(
+        self, indexers: list[Indices]
+    ) -> Future[Iterable[tuple[Indices, np.ndarray]]]:
         """Asynchronous version of isel."""
-        return _EXECUTOR.submit(lambda: (indexers, self.isel(indexers)))
+        return _EXECUTOR.submit(lambda: [(idx, self.isel(idx)) for idx in indexers])
 
     @classmethod
     @abstractmethod

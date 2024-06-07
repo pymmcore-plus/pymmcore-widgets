@@ -97,6 +97,16 @@ class PyGFXViewerCanvas:
     def _animate(self) -> None:
         self._renderer.render(self._scene, self._camera)
 
+    def set_ndim(self, ndim: int) -> None:
+        """Set the number of dimensions of the displayed data."""
+        if ndim != 2:
+            raise NotImplementedError("Volume rendering is not supported by pygfx yet.")
+
+    def add_volume(
+        self, data: np.ndarray | None = None, cmap: cmap.Colormap | None = None
+    ) -> PyGFXImageHandle:
+        raise NotImplementedError("Volume rendering is not supported by pygfx yet.")
+
     def add_image(
         self, data: np.ndarray | None = None, cmap: cmap.Colormap | None = None
     ) -> PyGFXImageHandle:
@@ -118,6 +128,7 @@ class PyGFXViewerCanvas:
         self,
         x: tuple[float, float] | None = None,
         y: tuple[float, float] | None = None,
+        z: tuple[float, float] | None = None,
         margin: float = 0.05,
     ) -> None:
         """Update the range of the PanZoomCamera.

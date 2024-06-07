@@ -27,9 +27,9 @@ class VispyImageHandle:
     @property
     def data(self) -> np.ndarray:
         try:
-            return self._visual._data  # type: ignore
+            return self._visual._data  # type: ignore [no-any-return]
         except AttributeError:
-            return self._visual._last_data
+            return self._visual._last_data  # type: ignore [no-any-return]
 
     @data.setter
     def data(self, data: np.ndarray) -> None:
@@ -105,7 +105,7 @@ class VispyViewerCanvas:
 
         self._ndim = ndim
         if ndim == 3:
-            cam = scene.ArcballCamera()
+            cam = scene.ArcballCamera(fov=0)
             # this sets the initial view similar to what the panzoom view would have.
             cam._quaternion = DEFAULT_QUATERNION
         else:
@@ -144,11 +144,11 @@ class VispyViewerCanvas:
         vol = scene.visuals.Volume(
             data, parent=self._view.scene, interpolation="nearest"
         )
-        # vol.set_gl_state("additive", depth_test=True)
+        vol.set_gl_state("additive", depth_test=False)
         vol.interactive = True
         if data is not None:
             self._current_shape, prev_shape = data.shape, self._current_shape
-            if not prev_shape:
+            if len(prev_shape) != 3:
                 self.set_range()
         handle = VispyImageHandle(vol)
         if cmap is not None:
@@ -160,7 +160,7 @@ class VispyViewerCanvas:
         x: tuple[float, float] | None = None,
         y: tuple[float, float] | None = None,
         z: tuple[float, float] | None = None,
-        margin: float = 0.0,
+        margin: float = 0.01,
     ) -> None:
         """Update the range of the PanZoomCamera.
 
@@ -173,9 +173,13 @@ class VispyViewerCanvas:
                 y = (0, self._current_shape[-2])
         if z is None and len(self._current_shape) == 3:
             z = (0, self._current_shape[-3])
-        if isinstance(self._camera, scene.ArcballCamera):
+        is_3d = isinstance(self._camera, scene.ArcballCamera)
+        if is_3d:
             self._camera._quaternion = DEFAULT_QUATERNION
         self._view.camera.set_range(x=x, y=y, z=z, margin=margin)
+        if is_3d:
+            max_size = max(self._current_shape)
+            self._camera.scale_factor = max_size + 6
 
     def _on_mouse_move(self, event: SceneMouseEvent) -> None:
         """Mouse moved on the canvas, display the pixel value and position."""

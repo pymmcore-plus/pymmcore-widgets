@@ -33,8 +33,9 @@ class PCanvas(Protocol):
     def set_ndim(self, ndim: Literal[2, 3]) -> None: ...
     def set_range(
         self,
-        x: tuple[float, float] | None = ...,
-        y: tuple[float, float] | None = ...,
+        x: tuple[float, float] | None = None,
+        y: tuple[float, float] | None = None,
+        z: tuple[float, float] | None = None,
         margin: float = ...,
     ) -> None: ...
     def refresh(self) -> None: ...
