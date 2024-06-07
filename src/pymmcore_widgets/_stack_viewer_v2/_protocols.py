@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Literal, Protocol
 
 if TYPE_CHECKING:
     import cmap
@@ -30,6 +30,7 @@ class PImageHandle(Protocol):
 
 class PCanvas(Protocol):
     def __init__(self, set_info: Callable[[str], None]) -> None: ...
+    def set_ndim(self, ndim: Literal[2, 3]) -> None: ...
     def set_range(
         self,
         x: tuple[float, float] | None = ...,

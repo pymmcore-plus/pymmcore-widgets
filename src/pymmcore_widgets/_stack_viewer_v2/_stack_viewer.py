@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from enum import Enum
 from itertools import cycle
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Iterable, Literal, Mapping, Sequence, cast
 
 import cmap
 import numpy as np
@@ -187,6 +187,10 @@ class StackViewer(QWidget):
         self._cmap_cycle = cycle(self._cmaps)
         # the last future that was created by _update_data_for_index
         self._last_future: Future | None = None
+
+        # number of dimensions to display
+        self._ndims: Literal[2, 3] = 2
+
         # WIDGETS ----------------------------------------------------
 
         # the button that controls the display mode of the channels
@@ -198,12 +202,18 @@ class StackViewer(QWidget):
         )
         self._set_range_btn.clicked.connect(self._on_set_range_clicked)
 
+        # button to change number of displayed dimensions
+        self._ndims_btn = QPushButton("Dims", self)
+        self._ndims_btn.clicked.connect(self._change_ndims)
+
         # place to display dataset summary
         self._data_info_label = QElidingLabel("", parent=self)
         # place to display arbitrary text
         self._hover_info_label = QLabel("", self)
         # the canvas that displays the images
         self._canvas: PCanvas = get_canvas()(self._hover_info_label.setText)
+        self._canvas.set_ndim(self._ndims)
+
         # the sliders that control the index of the displayed image
         self._dims_sliders = DimsSliders(self)
         self._dims_sliders.valueChanged.connect(
@@ -231,6 +241,7 @@ class StackViewer(QWidget):
         btns.addStretch()
         btns.addWidget(self._channel_mode_btn)
         btns.addWidget(self._set_range_btn)
+        btns.addWidget(self._ndims_btn)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(2)
@@ -248,6 +259,17 @@ class StackViewer(QWidget):
         self.set_data(data)
 
     # ------------------- PUBLIC API ----------------------------
+    def _change_ndims(self) -> None:
+        self.set_ndim(3 if self._ndims == 2 else 2)
+
+    def set_ndim(self, ndim: Literal[2, 3]) -> None:
+        """Set the number of dimensions to display."""
+        self._ndims = ndim
+        self._canvas.set_ndim(ndim)
+        print("Setting ndim to", ndim)
+        if self._img_handles:
+            self._clear_images()
+            self._update_data_for_index(self._dims_sliders.value())
 
     @property
     def data(self) -> Any:
@@ -291,7 +313,7 @@ class StackViewer(QWidget):
 
         # update the dimensions we are visualizing
         if visualized_dims is None:
-            visualized_dims = list(self._sizes)[-2:]
+            visualized_dims = list(self._sizes)[-self._ndims :]
         self.set_visualized_dims(visualized_dims)
 
         # update the range of all the sliders to match the sizes we set above
@@ -329,7 +351,7 @@ class StackViewer(QWidget):
             self._dims_sliders.setMinima(_to_sizes(mins))
 
         # FIXME: this needs to be moved and made user-controlled
-        for dim in list(maxes.keys())[-2:]:
+        for dim in list(maxes.keys())[-self._ndims :]:
             self._dims_sliders.set_dimension_visible(dim, False)
 
     def set_channel_mode(self, mode: ChannelMode | str | None = None) -> None:
@@ -446,6 +468,7 @@ class StackViewer(QWidget):
         """
         imkey = self._image_key(index)
         datum = self._reduce_data_for_display(data)
+        print("showing", imkey, datum.shape, datum.dtype)
         if handles := self._img_handles[imkey]:
             for handle in handles:
                 handle.data = datum
@@ -463,7 +486,10 @@ class StackViewer(QWidget):
             # it's better just to not add it at all...
             if np.max(datum) == 0:
                 return
-            handles.append(self._canvas.add_image(datum, cmap=cm))
+            if datum.ndim == 2:
+                handles.append(self._canvas.add_image(datum, cmap=cm))
+            elif datum.ndim == 3:
+                handles.append(self._canvas.add_volume(datum, cmap=cm))
             if imkey not in self._lut_ctrls:
                 channel_name = self._get_channel_name(index)
                 self._lut_ctrls[imkey] = c = LutControl(
@@ -495,7 +521,7 @@ class StackViewer(QWidget):
         # - for better way to determine which dims need to be reduced (currently just
         #   the smallest dims)
         data = data.squeeze()
-        visualized_dims = 2
+        visualized_dims = self._ndims
         if extra_dims := data.ndim - visualized_dims:
             shapes = sorted(enumerate(data.shape), key=lambda x: x[1])
             smallest_dims = tuple(i for i, _ in shapes[:extra_dims])

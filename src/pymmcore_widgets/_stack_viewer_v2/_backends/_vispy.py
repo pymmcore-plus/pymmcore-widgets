@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, Callable, Literal, cast
 
 import numpy as np
 from superqt.utils import qthrottled
@@ -14,33 +14,36 @@ if TYPE_CHECKING:
 
 
 class VispyImageHandle:
-    def __init__(self, image: scene.visuals.Image) -> None:
-        self._image = image
+    def __init__(self, visual: scene.visuals.Image | scene.visuals.Volume) -> None:
+        self._visual = visual
 
     @property
     def data(self) -> np.ndarray:
-        return self._image._data  # type: ignore
+        try:
+            return self._visual._data  # type: ignore
+        except AttributeError:
+            return self._visual._last_data
 
     @data.setter
     def data(self, data: np.ndarray) -> None:
-        self._image.set_data(data)
+        self._visual.set_data(data)
 
     @property
     def visible(self) -> bool:
-        return bool(self._image.visible)
+        return bool(self._visual.visible)
 
     @visible.setter
     def visible(self, visible: bool) -> None:
-        self._image.visible = visible
+        self._visual.visible = visible
 
     @property
     def clim(self) -> Any:
-        return self._image.clim
+        return self._visual.clim
 
     @clim.setter
     def clim(self, clims: tuple[float, float]) -> None:
         with suppress(ZeroDivisionError):
-            self._image.clim = clims
+            self._visual.clim = clims
 
     @property
     def cmap(self) -> cmap.Colormap:
@@ -49,7 +52,7 @@ class VispyImageHandle:
     @cmap.setter
     def cmap(self, cmap: cmap.Colormap) -> None:
         self._cmap = cmap
-        self._image.cmap = cmap.to_vispy()
+        self._visual.cmap = cmap.to_vispy()
 
     @property
     def transform(self) -> np.ndarray:
@@ -60,7 +63,7 @@ class VispyImageHandle:
         raise NotImplementedError
 
     def remove(self) -> None:
-        self._image.parent = None
+        self._visual.parent = None
 
 
 class VispyViewerCanvas:
@@ -74,11 +77,18 @@ class VispyViewerCanvas:
         self._set_info = set_info
         self._canvas = scene.SceneCanvas()
         self._canvas.events.mouse_move.connect(qthrottled(self._on_mouse_move, 60))
-        self._camera = scene.PanZoomCamera(aspect=1, flip=(0, 1))
         self._has_set_range = False
 
         central_wdg: scene.Widget = self._canvas.central_widget
-        self._view: scene.ViewBox = central_wdg.add_view(camera=self._camera)
+        self._view: scene.ViewBox = central_wdg.add_view()
+        # self.set_ndim(2)
+
+    def set_ndim(self, ndim: Literal[2, 3]) -> None:
+        if ndim == 3:
+            self._camera = scene.ArcballCamera()
+        else:
+            self._camera = scene.PanZoomCamera(aspect=1, flip=(0, 1))
+        self._view.camera = self._camera
 
     def qwidget(self) -> QWidget:
         return cast("QWidget", self._canvas.native)
@@ -97,6 +107,20 @@ class VispyViewerCanvas:
             self.set_range()
             self._has_set_range = True
         handle = VispyImageHandle(img)
+        if cmap is not None:
+            handle.cmap = cmap
+        return handle
+
+    def add_volume(
+        self, data: np.ndarray | None = None, cmap: cmap.Colormap | None = None
+    ) -> VispyImageHandle:
+        vol = scene.visuals.Volume(data, parent=self._view.scene)
+        vol.set_gl_state("additive", depth_test=True)
+        vol.interactive = True
+        if not self._has_set_range:
+            self.set_range()
+            self._has_set_range = True
+        handle = VispyImageHandle(vol)
         if cmap is not None:
             handle.cmap = cmap
         return handle
