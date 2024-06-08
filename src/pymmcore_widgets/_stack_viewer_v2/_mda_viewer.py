@@ -1,21 +1,22 @@
 from __future__ import annotations
 
 import warnings
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
 import superqt
 import useq
+from ndv import DataWrapper, NDViewer
 from pymmcore_plus.mda.handlers import TensorStoreHandler
-
-from ._save_button import SaveButton
-from ._stack_viewer import StackViewer
+from qtpy.QtWidgets import QFileDialog, QPushButton, QWidget
+from superqt.iconify import QIconifyIcon
 
 if TYPE_CHECKING:
     from pymmcore_plus.mda.handlers._5d_writer_base import _5DWriterBase
     from qtpy.QtWidgets import QWidget
 
 
-class MDAViewer(StackViewer):
+class MDAViewer(NDViewer):
     """StackViewer specialized for pymmcore-plus MDA acquisitions."""
 
     _data: _5DWriterBase
@@ -64,3 +65,27 @@ class MDAViewer(StackViewer):
             if name := self._channel_names.get(index[self._channel_axis]):
                 return name
         return super()._get_channel_name(index)
+
+
+class SaveButton(QPushButton):
+    def __init__(
+        self,
+        data_wrapper: DataWrapper,
+        parent: QWidget | None = None,
+    ):
+        super().__init__(parent=parent)
+        self.setIcon(QIconifyIcon("mdi:content-save"))
+        self.clicked.connect(self._on_click)
+
+        self._data_wrapper = data_wrapper
+        self._last_loc = str(Path.home())
+
+    def _on_click(self) -> None:
+        self._last_loc, _ = QFileDialog.getSaveFileName(
+            self, "Choose destination", str(self._last_loc), ""
+        )
+        suffix = Path(self._last_loc).suffix
+        if suffix in (".zarr", ".ome.zarr", ""):
+            self._data_wrapper.save_as_zarr(self._last_loc)
+        else:
+            raise ValueError(f"Unsupported file format: {self._last_loc}")
