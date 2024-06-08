@@ -11,6 +11,7 @@ from pymmcore_plus.mda.handlers import TensorStoreHandler
 from qtpy.QtWidgets import QFileDialog, QPushButton, QWidget
 from superqt.iconify import QIconifyIcon
 
+# this import is necessary so that ndv can find our custom DataWrapper
 from . import _data_wrapper  # noqa: F401
 
 if TYPE_CHECKING:
