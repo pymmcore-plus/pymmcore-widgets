@@ -52,6 +52,7 @@ dependencies = [
     'qtpy >=2.0',
     'superqt[quantity] >=0.6.5',
     'useq-schema >=0.4.7',
+    'ndv',
 ]
 
 # extras

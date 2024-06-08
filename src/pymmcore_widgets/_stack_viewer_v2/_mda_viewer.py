@@ -58,16 +58,17 @@ class MDAViewer(NDViewer):
 
     @superqt.ensure_main_thread  # type: ignore
     def _on_frame_ready(self, event: useq.MDAEvent) -> None:
-        c = event.index.get(self._channel_axis)  # type: ignore
+        c = event.index.get(self._channel_axis)
         if c not in self._channel_names and c is not None and event.channel:
             self._channel_names[c] = event.channel.config
-        self.setIndex(event.index)  # type: ignore
+        self.setIndex(event.index)
 
     def _get_channel_name(self, index: Mapping) -> str:
         if self._channel_axis in index:
             if name := self._channel_names.get(index[self._channel_axis]):
                 return name
-        return super()._get_channel_name(index)
+        c = index.get(self._channel_axis, 0)
+        return f"Ch {c}"
 
 
 class SaveButton(QPushButton):
