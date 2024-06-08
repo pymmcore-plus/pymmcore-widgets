@@ -11,6 +11,8 @@ from pymmcore_plus.mda.handlers import TensorStoreHandler
 from qtpy.QtWidgets import QFileDialog, QPushButton, QWidget
 from superqt.iconify import QIconifyIcon
 
+from . import _data_wrapper  # noqa: F401
+
 if TYPE_CHECKING:
     from pymmcore_plus.mda.handlers._5d_writer_base import _5DWriterBase
     from qtpy.QtWidgets import QWidget
