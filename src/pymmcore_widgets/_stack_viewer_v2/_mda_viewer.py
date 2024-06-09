@@ -61,7 +61,7 @@ class MDAViewer(NDViewer):
         c = event.index.get(self._channel_axis)
         if c not in self._channel_names and c is not None and event.channel:
             self._channel_names[c] = event.channel.config
-        self.setIndex(event.index)
+        self.set_current_index(event.index)
 
     def _get_channel_name(self, index: Mapping) -> str:
         if self._channel_axis in index:

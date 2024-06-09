@@ -1,6 +1,6 @@
 import gc
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterator
 from unittest.mock import patch
 
 import pytest
@@ -16,7 +16,7 @@ TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")
 
 # to create a new CMMCorePlus() for every test
 @pytest.fixture(autouse=True)
-def global_mmcore():
+def global_mmcore() -> Iterator[CMMCorePlus]:
     mmc = CMMCorePlus()
     mmc.loadSystemConfiguration(TEST_CONFIG)
     with patch.object(_mmcore_plus, "_instance", mmc):
@@ -32,6 +32,11 @@ def _run_after_each_test(request: "FixtureRequest", qapp: "QApplication") -> Non
     `functools.partial(self._method)` or `lambda: self._method` being used in that
     widget's code.
     """
+    # check for the "allow_leaks" marker
+    if "allow_leaks" in request.node.keywords:
+        yield
+        return
+
     nbefore = len(qapp.topLevelWidgets())
     failures_before = request.session.testsfailed
     yield
