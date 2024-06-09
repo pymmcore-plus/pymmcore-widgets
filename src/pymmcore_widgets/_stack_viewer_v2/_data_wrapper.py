@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class MMTensorStoreWrapper(DataWrapper["TensorStoreHandler"]):
     def sizes(self) -> Mapping[Hashable, int]:
         with suppress(Exception):
-            return self._data.current_sequence.sizes  # type: ignore [return-value]
+            return self.data.current_sequence.sizes  # type: ignore
         return {}
 
     def guess_channel_axis(self) -> Hashable | None:
@@ -31,10 +31,10 @@ class MMTensorStoreWrapper(DataWrapper["TensorStoreHandler"]):
         return isinstance(obj, TensorStoreHandler)
 
     def isel(self, indexers: Indices) -> np.ndarray:
-        return self._data.isel({str(k): v for k, v in indexers.items()})
+        return self.data.isel({str(k): v for k, v in indexers.items()})  # type: ignore [no-any-return]
 
     def save_as_zarr(self, save_loc: str | Path) -> None:
-        if (store := self._data.store) is None:
+        if (store := self.data.store) is None:
             return
         import tensorstore as ts
 
@@ -55,7 +55,7 @@ class MM5DWriter(DataWrapper["_5DWriterBase"]):
         except ImportError:
             from pymmcore_plus.mda.handlers import OMETiffWriter, OMEZarrWriter
 
-            _5DWriterBase = (OMETiffWriter, OMEZarrWriter)
+            _5DWriterBase = (OMETiffWriter, OMEZarrWriter)  # type: ignore
         if isinstance(obj, _5DWriterBase):
             return True
         return False
