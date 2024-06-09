@@ -464,11 +464,9 @@ class StackViewer(QtWidgets.QWidget):
         self.cmap_names = self.qt_settings.value("cmaps", ["gray", "cyan", "magenta"])
 
     def _collapse_view(self) -> None:
+        w, h = self.img_size
         view_rect = (
-            (
-                self.view_rect[0][0] - self.img_size[0] / 2,
-                self.view_rect[0][1] + self.img_size[1] / 2,
-            ),
+            (self.view_rect[0][0] - w / 2, self.view_rect[0][1] + h / 2),
             self.view_rect[1],
         )
         self.view.camera.rect = view_rect
