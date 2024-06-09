@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.mda.handlers import TensorStoreHandler
-import pytest
 from useq import MDASequence
 
 from pymmcore_widgets._stack_viewer_v2._mda_viewer import MDAViewer
@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 
 @pytest.mark.allow_leaks
 def test_mda_viewer(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
-
     core = global_mmcore
     core.defineConfig("Channel", "DAPI", "Camera", "Mode", "Artificial Waves")
     core.defineConfig("Channel", "DAPI", "Camera", "StripeWidth", "1")
