@@ -48,7 +48,7 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
     'fonticon-materialdesignicons6',
-    'pymmcore-plus@git+https://github.com/fdrgsp/pymmcore-plus.git',  # -> when released pymmcore-plus >=0.9.6
+    'pymmcore-plus >=0.10.0',
     'qtpy >=2.0',
     'superqt[quantity] >=0.5.3',
     'useq-schema >=0.4.7',
