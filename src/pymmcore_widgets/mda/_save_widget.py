@@ -28,7 +28,7 @@ if TYPE_CHECKING:
         should_save: bool
 
 
-ZARR_TENSORSTORE  = "tensorstore-zarr"
+ZARR_TENSORSTORE = "tensorstore-zarr"
 OME_ZARR = "ome-zarr"
 OME_TIFF = "ome-tiff"
 TIFF_SEQ = "tiff-sequence"
