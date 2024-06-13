@@ -2,10 +2,16 @@ from __future__ import annotations
 
 from contextlib import suppress
 from pathlib import Path
-from typing import cast
+from typing import Callable, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
+from pymmcore_plus.mda.handlers import (
+    ImageSequenceWriter,
+    OMETiffWriter,
+    OMEZarrWriter,
+    TensorStoreHandler,
+)
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QBoxLayout,
@@ -26,7 +32,22 @@ from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
-from ._save_widget import SaveGroupBox
+from ._save_widget import (
+    OME_TIFF,
+    OME_ZARR,
+    TIFF_SEQ,
+    ZARR_TENSORSTORE,
+    SaveGroupBox,
+)
+
+MAKE_WRITERS: dict[str, Callable] = {
+    OME_TIFF: OMETiffWriter,
+    OME_ZARR: OMEZarrWriter,
+    ZARR_TENSORSTORE: lambda path: TensorStoreHandler(
+        path=path, driver="zarr", delete_existing=True
+    ),
+    TIFF_SEQ: ImageSequenceWriter,
+}
 
 
 class CoreMDATabs(MDATabs):
@@ -201,16 +222,24 @@ class MDAWidget(MDASequenceWidget):
 
         sequence = self.value()
 
+        writer = None
         # technically, this is in the metadata as well, but isChecked is more direct
         if self.save_info.isChecked():
             save_path = self._update_save_path_from_metadata(
                 sequence, update_metadata=True
             )
-        else:
-            save_path = None
+            if save_path is not None:
+                # get save format from metadata
+                save_meta = sequence.metadata.get(PYMMCW_METADATA_KEY, {})
+                save_format = save_meta.get("format", "")
+                # set the writer to use for saving the MDA sequence.
+                try:
+                    writer = MAKE_WRITERS[save_format](save_path)
+                except KeyError as err:
+                    raise ValueError(f"Unknown save format: {save_format}!") from err
 
         # run the MDA experiment asynchronously
-        self._mmc.run_mda(sequence, output=save_path)
+        self._mmc.run_mda(sequence, output=writer)
 
     # ------------------- private Methods ----------------------
 
