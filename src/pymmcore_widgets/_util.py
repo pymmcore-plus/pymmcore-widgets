@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import ContextManager, Sequence
+from typing import Any, ContextManager, Sequence
 
 import useq
+from psygnal import SignalInstance
 from pymmcore_plus import CMMCorePlus
-from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
+from qtpy.QtCore import QObject
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
@@ -87,12 +88,13 @@ def guess_objective_or_prompt(
     return None
 
 
-def block_core(mmcore_events: CMMCoreSignaler | PCoreSignaler) -> ContextManager:
+def block_core(obj: Any) -> ContextManager:
     """Block core signals."""
-    if isinstance(mmcore_events, CMMCoreSignaler):
-        return mmcore_events.blocked()  # type: ignore
-    elif isinstance(mmcore_events, PCoreSignaler):
-        return signals_blocked(mmcore_events)  # type: ignore
+    if isinstance(obj, QObject):
+        return signals_blocked(obj)  # type: ignore [no-any-return]
+    if isinstance(obj, SignalInstance):
+        return obj.blocked()
+    raise TypeError(f"Cannot block signals for {obj}")
 
 
 def cast_grid_plan(
