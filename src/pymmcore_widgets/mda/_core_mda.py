@@ -228,7 +228,7 @@ class MDAWidget(MDASequenceWidget):
             save_path = self._update_save_path_from_metadata(
                 sequence, update_metadata=True
             )
-            if isinstance(save_path, Path):
+            if save_path is not None:
                 # get save format from metadata
                 save_meta = sequence.metadata.get(PYMMCW_METADATA_KEY, {})
                 save_format = save_meta.get("format", "")
