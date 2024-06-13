@@ -26,6 +26,7 @@ from pymmcore_widgets.mda._save_widget import (
     OME_TIFF,
     OME_ZARR,
     TIFF_SEQ,
+    ZARR_TENSORSTORE,
 )
 from pymmcore_widgets.useq_widgets._mda_sequence import (
     PYMMCW_METADATA_KEY,
