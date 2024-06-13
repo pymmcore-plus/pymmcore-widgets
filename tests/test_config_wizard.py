@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 import pytest
 from pymmcore_plus.model import Microscope
-from qtpy import API_NAME
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QCloseEvent, QFocusEvent
 
@@ -88,9 +87,8 @@ def test_config_wizard_devices(
     dev_page.available.table.selectRow(r)
     assert dev_page.available.table.selectedItems()
 
-    exec_ = "exec_" if API_NAME == "PySide2" else "exec"
-    with patch.object(devices_page.DeviceSetupDialog, exec_, lambda *_: 1):
-        with patch.object(devices_page.PeripheralSetupDlg, exec_, lambda *_: 1):
+    with patch.object(devices_page.DeviceSetupDialog, "exec", lambda *_: 1):
+        with patch.object(devices_page.PeripheralSetupDlg, "exec", lambda *_: 1):
             dev_page.available._add_selected_device()
 
     dev_page.current.table.selectAll()

@@ -47,7 +47,7 @@ def test_objective_widget_changes_objective(global_mmcore: CMMCorePlus, qtbot: Q
     assert global_mmcore.getPosition("Z") == start_z
 
 
-@patch.object(ComboMessageBox, "exec_")
+@patch.object(ComboMessageBox, "exec")
 def test_guess_objectve(dialog_mock, global_mmcore: CMMCorePlus, qtbot: QtBot):
     dialog_mock.return_value = QDialog.DialogCode.Accepted
     with patch.object(global_mmcore, "guessObjectiveDevices") as mock:
