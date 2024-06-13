@@ -125,9 +125,6 @@ ignore = [
 [tool.ruff.format]
 docstring-code-format = true
 
-[tool.hatch.metadata]
-allow-direct-references = true
-
 # https://docs.pytest.org/en/6.2.x/customize.html
 [tool.pytest.ini_options]
 minversion = "6.0"
