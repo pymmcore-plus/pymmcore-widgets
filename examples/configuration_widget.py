@@ -11,4 +11,4 @@ mmc.loadSystemConfiguration()
 cfg_wdg = ConfigurationWidget()
 cfg_wdg.show()
 
-app.exec_()
+app.exec()

@@ -75,4 +75,4 @@ if __name__ == "__main__":
     table = PropertyBrowser()
     table.show()
 
-    app.exec_()
+    app.exec()

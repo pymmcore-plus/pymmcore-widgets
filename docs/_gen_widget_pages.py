@@ -45,7 +45,7 @@ def _example_screenshot(cls_name: str, dest: str) -> None:
 
     src = path.read_text().strip()
     src = src.replace("QApplication([])", "QApplication.instance() or QApplication([])")
-    src = src.replace("app.exec_()", "")
+    src = src.replace("app.exec()", "")
     src = src.replace("app.exec()", "")
     gl = {**globals().copy(), "__name__": "__main__"}
     exec(src, gl, gl)

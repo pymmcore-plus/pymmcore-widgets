@@ -56,7 +56,7 @@ pb_widget = PropertyBrowser()
 # show the created widget
 pb_widget.show()
 
-app.exec_()
+app.exec()
 ```
 
 The code above will create a Qt Application that looks like this:

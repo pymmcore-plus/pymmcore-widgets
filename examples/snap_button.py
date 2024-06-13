@@ -17,4 +17,4 @@ mmc.loadSystemConfiguration()
 snap_btn = SnapButton()
 snap_btn.show()
 
-app.exec_()
+app.exec()

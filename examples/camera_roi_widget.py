@@ -11,4 +11,4 @@ mmc.loadSystemConfiguration()
 cam_roi_wdg = CameraRoiWidget()
 cam_roi_wdg.show()
 
-app.exec_()
+app.exec()

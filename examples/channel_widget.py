@@ -17,4 +17,4 @@ mmc.loadSystemConfiguration()
 ch_wdg = ChannelWidget()
 ch_wdg.show()
 
-app.exec_()
+app.exec()

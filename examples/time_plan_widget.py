@@ -19,4 +19,4 @@ t_wdg = TimePlanWidget()
 t_wdg.setValue(useq.TIntervalLoops(interval=3, loops=5))
 t_wdg.show()
 
-app.exec_()
+app.exec()

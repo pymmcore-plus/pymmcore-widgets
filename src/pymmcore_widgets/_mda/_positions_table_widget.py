@@ -75,7 +75,7 @@ class _DoubleSpinBox(QDoubleSpinBox):
         action = QAction("Apply to all", self)
         action.triggered.connect(self._apply_to_all)
         context_menu.addAction(action)
-        context_menu.exec_(self.mapToGlobal(event.pos()))
+        context_menu.exec(self.mapToGlobal(event.pos()))
 
     def _apply_to_all(self) -> None:
         for r in range(self._table.rowCount()):

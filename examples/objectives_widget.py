@@ -11,4 +11,4 @@ mmc.loadSystemConfiguration()
 obj_wdg = ObjectivesWidget()
 obj_wdg.show()
 
-app.exec_()
+app.exec()

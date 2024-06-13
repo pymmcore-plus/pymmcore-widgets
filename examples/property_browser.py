@@ -11,4 +11,4 @@ mmc.loadSystemConfiguration()
 pb_wdg = PropertyBrowser()
 pb_wdg.show()
 
-app.exec_()
+app.exec()

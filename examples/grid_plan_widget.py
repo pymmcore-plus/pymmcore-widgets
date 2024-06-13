@@ -17,4 +17,4 @@ mmc.loadSystemConfiguration()
 grid_wdg = GridPlanWidget()
 grid_wdg.show()
 
-app.exec_()
+app.exec()

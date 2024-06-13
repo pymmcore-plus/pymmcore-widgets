@@ -31,4 +31,4 @@ for idx, shutter_dev in enumerate(shutter_dev_list):
 
 wdg.show()
 
-app.exec_()
+app.exec()

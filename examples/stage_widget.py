@@ -34,4 +34,4 @@ for stage_dev in stage_dev_list:
 
 wdg.show()
 
-app.exec_()
+app.exec()
