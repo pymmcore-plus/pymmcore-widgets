@@ -61,7 +61,7 @@ def test_set_get_value(qtbot: QtBot) -> None:
         "save_dir": str(path.parent),
         "save_name": "ts.tensorstore.zarr",
         "should_save": False,
-        "format": ZARR_TESNSORSTORE,
+        "format": ZARR_TENSORSTORE,
     }
 
     # setting zarr tensorstore format (path / string)
@@ -70,7 +70,7 @@ def test_set_get_value(qtbot: QtBot) -> None:
         "save_dir": str(path.parent),
         "save_name": "ts.tensorstore.zarr",
         "should_save": True,
-        "format": ZARR_TESNSORSTORE,
+        "format": ZARR_TENSORSTORE,
     }
 
 
