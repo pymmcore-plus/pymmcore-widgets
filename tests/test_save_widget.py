@@ -11,7 +11,7 @@ from pymmcore_widgets.mda._save_widget import (
     SUBFOLDER,
     TIFF_SEQ,
     WRITERS,
-    ZARR_TESNSORSTORE,
+    ZARR_TENSORSTORE,
     SaveGroupBox,
 )
 
