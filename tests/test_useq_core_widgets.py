@@ -702,7 +702,7 @@ def test_get_next_available_paths_special_cases(tmp_path: Path) -> None:
 data = [
     ("./test.ome.tiff", OME_TIFF, OMETiffWriter),
     ("./test.ome.zarr", OME_ZARR, OMEZarrWriter),
-    ("./test.tensorstore.zarr", ZARR_TESNSORSTORE, TensorStoreHandler),
+    ("./test.tensorstore.zarr", ZARR_TENSORSTORE, TensorStoreHandler),
     ("./test", TIFF_SEQ, ImageSequenceWriter),
 ]
 
