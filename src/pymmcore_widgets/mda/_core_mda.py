@@ -36,14 +36,14 @@ from ._save_widget import (
     OME_TIFF,
     OME_ZARR,
     TIFF_SEQ,
-    ZARR_TESNSORSTORE,
+    ZARR_TENSORSTORE,
     SaveGroupBox,
 )
 
 MAKE_WRITERS: dict[str, Callable] = {
     OME_TIFF: OMETiffWriter,
     OME_ZARR: OMEZarrWriter,
-    ZARR_TESNSORSTORE: lambda path: TensorStoreHandler(
+    ZARR_TENSORSTORE: lambda path: TensorStoreHandler(
         path=path, driver="zarr", delete_existing=True
     ),
     TIFF_SEQ: ImageSequenceWriter,
