@@ -83,7 +83,7 @@ def guess_objective_or_prompt(
         return candidates[0]
     elif candidates:
         dialog = ComboMessageBox(candidates, "Select Objective Device:", parent=parent)
-        if dialog.exec() == dialog.DialogCode.Accepted:
+        if dialog.exec_() == dialog.DialogCode.Accepted:
             return dialog.currentText()
     return None
 
