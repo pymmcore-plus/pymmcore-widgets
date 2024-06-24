@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import cast
 
 import useq
-from qtpy.QtCore import Signal
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -44,6 +44,7 @@ def _check_order(x: str, first: str, second: str) -> bool:
     return first in x and second in x and x.index(first) > x.index(second)
 
 
+PYMMCW_METADATA_KEY = "pymmcore_widgets"
 NULL_SEQUENCE = useq.MDASequence()
 AXES = "tpgcz"
 ALLOWED_ORDERS = {"".join(p) for x in range(1, 6) for p in permutations(AXES, x)}
@@ -137,7 +138,7 @@ class MDATabs(CheckableTabWidget):
             ),
             channels=self.channels.value() if self.isAxisUsed("c") else (),
             grid_plan=self.grid_plan.value() if self.isAxisUsed("g") else None,
-            metadata={"pymmcore_widgets": {"version": pymmcore_widgets.__version__}},
+            metadata={PYMMCW_METADATA_KEY: {"version": pymmcore_widgets.__version__}},
         )
 
     def setValue(self, value: useq.MDASequence) -> None:
@@ -177,7 +178,7 @@ class AutofocusAxis(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        lbl = QLabel("Use Autofocus on Axis:")
+        lbl = QLabel("Use Hardware Autofocus on Axis:")
         self.use_af_p = QCheckBox("p")
         self.use_af_t = QCheckBox("t")
         self.use_af_g = QCheckBox("g")
@@ -254,7 +255,11 @@ class KeepShutterOpen(QWidget):
 
 
 class MDASequenceWidget(QWidget):
-    """A widget that provides a GUI to construct and edit a [`useq.MDASequence`][]."""
+    """A widget that provides a GUI to construct and edit a [`useq.MDASequence`][].
+
+    This widget requires no connection to a microscope or core instance.  It strictly
+    deals with loading and creating `useq-schema` [`useq.MDASequence`][] objects.
+    """
 
     valueChanged = Signal()
 
@@ -293,8 +298,10 @@ class MDASequenceWidget(QWidget):
         self._duration_label.setWordWrap(True)
 
         self._save_button = QPushButton("Save")
+        self._save_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._save_button.clicked.connect(self.save)
         self._load_button = QPushButton("Load")
+        self._load_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._load_button.clicked.connect(self.load)
 
         # -------------- Main Layout --------------
@@ -332,7 +339,7 @@ class MDASequenceWidget(QWidget):
         self.stage_positions.valueChanged.connect(self.valueChanged)
         self.z_plan.valueChanged.connect(self.valueChanged)
         self.grid_plan.valueChanged.connect(self.valueChanged)
-        self.tab_wdg.tabChecked.connect(self._on_tab_checked)
+        self.tab_wdg.tabChecked.connect(self._update_available_axis_orders)
         self.axis_order.currentTextChanged.connect(self.valueChanged)
         self.valueChanged.connect(self._update_time_estimate)
 
@@ -407,7 +414,6 @@ class MDASequenceWidget(QWidget):
             The [`useq.MDASequence`][] to set.
         """
         self.tab_wdg.setValue(value)
-        self.axis_order.setCurrentText("".join(value.axis_order))
 
         keep_shutter_open = value.keep_shutter_open_across
         self.keep_shutter_open.setValue(keep_shutter_open)
@@ -423,6 +429,8 @@ class MDASequenceWidget(QWidget):
                 if pos.sequence and pos.sequence.autofocus_plan:
                     axis.update(pos.sequence.autofocus_plan.axes)
         self.af_axis.setValue(tuple(axis))
+        axis_text = "".join(x for x in value.axis_order if x in self.tab_wdg.usedAxes())
+        self.axis_order.setCurrentText(axis_text)
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current [`useq.MDASequence`][] to a file."""
@@ -481,7 +489,7 @@ class MDASequenceWidget(QWidget):
         if checked and self.tab_wdg.isChecked(self.stage_positions):
             self.af_axis.use_af_p.setChecked(True)
 
-    def _on_tab_checked(self, idx: int, checked: bool) -> None:
+    def _update_available_axis_orders(self) -> None:
         """Handle tabChecked signal.
 
         Hide columns in the channels tab accordingly.

@@ -30,7 +30,12 @@ LOC_ROLE = Qt.ItemDataRole.UserRole + 1
 
 
 class InstallWidget(QWidget):
-    """Widget to manage installation of MicroManager."""
+    """Widget to manage installation of MicroManager.
+
+    This widget will let you download and install a specific version of MicroManager
+    from <https://micro-manager.org/downloads>. It will also manage the currently
+    installed versions.
+    """
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from typing import ContextManager, Sequence
+import re
+from pathlib import Path
+from typing import Any, ContextManager, Sequence
 
 import useq
+from psygnal import SignalInstance
 from pymmcore_plus import CMMCorePlus
-from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
+from qtpy.QtCore import QObject
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
@@ -85,12 +88,13 @@ def guess_objective_or_prompt(
     return None
 
 
-def block_core(mmcore_events: CMMCoreSignaler | PCoreSignaler) -> ContextManager:
+def block_core(obj: Any) -> ContextManager:
     """Block core signals."""
-    if isinstance(mmcore_events, CMMCoreSignaler):
-        return mmcore_events.blocked()  # type: ignore
-    elif isinstance(mmcore_events, PCoreSignaler):
-        return signals_blocked(mmcore_events)  # type: ignore
+    if isinstance(obj, QObject):
+        return signals_blocked(obj)  # type: ignore [no-any-return]
+    if isinstance(obj, SignalInstance):
+        return obj.blocked()
+    raise TypeError(f"Cannot block signals for {obj}")
 
 
 def cast_grid_plan(
@@ -111,3 +115,64 @@ def fov_kwargs(core: CMMCorePlus) -> dict:
         *_, width, height = core.getROI()
         return {"fov_width": (width * px) or None, "fov_height": (height * px) or None}
     return {}
+
+
+# examples:
+# "name_001" -> ("name", "001")
+# "name" -> ("name", "")
+# "name_001_002" -> ("name_001", "002")
+# "name_02" -> ('name_02', None)
+NUM_SPLIT = re.compile(r"(.*?)(?:_(\d{3,}))?$")
+
+
+def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> Path:
+    """Get the next available paths (filepath or folderpath if extension = "").
+
+    This method adds a counter of min_digits to the filename or foldername to ensure
+    that the path is unique.
+
+    Parameters
+    ----------
+    requested_path : Path | str
+        A path to a file or folder that may or may not exist.
+    min_digits : int, optional
+        The min_digits number of digits to be used for the counter. By default, 3.
+    """
+    if isinstance(requested_path, str):  # pragma: no cover
+        requested_path = Path(requested_path)
+
+    directory = requested_path.parent
+    extension = requested_path.suffix
+    # ome files like .ome.tiff or .ome.zarr are special,treated as a single extension
+    if (stem := requested_path.stem).endswith(".ome"):
+        extension = ".ome" + extension
+        stem = stem[:-4]
+
+    # look for ANY existing files in the folder that follow the pattern of
+    # stem_###.extension
+    current_max = 0
+    for existing in directory.glob(f"*{extension}"):
+        # cannot use existing.stem because of the ome (2-part-extension) special case
+        base = existing.name.replace(extension, "")
+        # if the base name ends with a number, increase the current_max
+        if (match := NUM_SPLIT.match(base)) and (num := match.group(2)):
+            current_max = max(int(num), current_max)
+            # if it has more digits than expected, update the ndigits
+            if len(num) > min_digits:
+                min_digits = len(num)
+
+    # if the path does not exist and there are no existing files,
+    # return the requested path
+    if not requested_path.exists() and current_max == 0:
+        return requested_path
+
+    current_max += 1
+    # otherwise return the next path greater than the current_max
+    # remove any existing counter from the stem
+    if match := NUM_SPLIT.match(stem):
+        stem, num = match.groups()
+        if num:
+            # if the requested path has a counter that is greater than any other files
+            # use it
+            current_max = max(int(num), current_max)
+    return directory / f"{stem}_{current_max:0{min_digits}d}{extension}"

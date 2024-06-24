@@ -1,7 +1,11 @@
+import faulthandler
+
 import pytest
 from pymmcore_plus import CMMCorePlus, PropertyType
 
 from pymmcore_widgets import PropertyWidget
+
+faulthandler.enable()
 
 # not sure how else to parametrize the test without instantiating here at import ...
 # NOTE: in the default 'MMConfig_demo.cgf', the device called 'LED'
