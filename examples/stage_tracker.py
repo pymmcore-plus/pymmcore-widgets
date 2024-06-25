@@ -1,28 +1,23 @@
+"""Example usage of the SnapButton class."""
+
 import useq
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
 from pymmcore_widgets import StageWidget
-from pymmcore_widgets._stage_recorder import StageRecorder
+from pymmcore_widgets._stage_tracker import StageTracker
 
 app = QApplication([])
 
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-mmc.setProperty("Camera", "Mode", "Noise")
-
-rec = StageRecorder()
-rec.poll_xy_stage = True
-rec.show()
-
-s = StageWidget(mmc.getXYStageDevice())
-s.setStep(300)
-s.show()
-
+track = StageTracker()
+track.poll_xy_stage = True
+track.show()
 
 seq = useq.MDASequence(
-    channels=["FITC"],
+    channels=[{"config": "FITC", "exposure": 200}],
     grid_plan=useq.GridRowsColumns(
         rows=4,
         columns=4,
@@ -33,5 +28,9 @@ seq = useq.MDASequence(
 )
 
 mmc.run_mda(seq)
+
+s = StageWidget(mmc.getXYStageDevice())
+s.setStep(300)
+s.show()
 
 app.exec()
