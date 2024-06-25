@@ -20,7 +20,8 @@
     "TimePlanWidget",
     "ZPlanWidget",
     "GridPlanWidget",
-    "MDASequenceWidget"
+    "MDASequenceWidget",
+    "HCSWizard"
   ],
   "camera_widgets": [
     "CameraRoiWidget",
