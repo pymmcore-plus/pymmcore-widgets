@@ -45,12 +45,11 @@ class ObjectivesWidget(QWidget):
         self._combo = self._create_objective_combo(objective_device)
 
         lbl = QLabel("Objectives:")
-        lbl.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
 
-        self.setLayout(QHBoxLayout())
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().addWidget(lbl)
-        self.layout().addWidget(self._combo)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(lbl, 0)
+        layout.addWidget(self._combo, 1)
 
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self.destroyed.connect(self._disconnect)
@@ -69,16 +68,13 @@ class ObjectivesWidget(QWidget):
                 self._objective_device = guess_objective_or_prompt(parent=self)
             self._combo.setParent(QWidget())
             self._combo = self._create_objective_combo(self._objective_device)
-            self.layout().addWidget(self._combo)
+            self.layout().addWidget(self._combo, 1)
 
     def _create_objective_combo(
         self, device_label: str | None
     ) -> _ObjectiveStateWidget | QComboBox:
         if device_label:
             combo = _ObjectiveStateWidget(device_label, parent=self, mmcore=self._mmc)
-            combo.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-            self.setMinimumWidth(0)
-            combo.adjustSize()
             combo._combo.currentIndexChanged.connect(self._on_obj_changed)
         else:
             combo = QComboBox(parent=self)

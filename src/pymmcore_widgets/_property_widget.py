@@ -355,6 +355,7 @@ class PropertyWidget(QWidget):
                 self._value_widget.setValue(new_val)
 
     def _on_value_widget_change(self, value: Any) -> None:
+        self.valueChanged.emit(value)
         if not self._updates_core:
             return
         try:

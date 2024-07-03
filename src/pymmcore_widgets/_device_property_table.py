@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from logging import getLogger
+from re import Pattern
 from typing import Iterable, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QAbstractScrollArea, QTableWidget, QTableWidgetItem, QWidget
 from superqt.fonticon import icon
@@ -54,6 +55,7 @@ class DevicePropertyTable(QTableWidget):
         will not update the core. By default, True.
     """
 
+    valueChanged = Signal()
     PROP_ROLE = QTableWidgetItem.ItemType.UserType + 1
 
     def __init__(
@@ -67,6 +69,7 @@ class DevicePropertyTable(QTableWidget):
         rows = 0
         cols = 2
         super().__init__(rows, cols, parent)
+
         self._rows_checkable: bool = False
         self._prop_widgets_enabled: bool = enable_property_widgets
         self._connect_core = connect_core
@@ -74,6 +77,7 @@ class DevicePropertyTable(QTableWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
 
+        self.itemChanged.connect(self.valueChanged)
         # If we enable these, then the edit group dialog will lose all of it's checks
         # whenever modify group button is clicked.  However, We don't want this widget
         # to have to be aware of a current group (or do we?)
@@ -154,6 +158,7 @@ class DevicePropertyTable(QTableWidget):
                     mmcore=self._mmc,
                     connect_core=self._connect_core,
                 )
+                wdg.valueChanged.connect(self.valueChanged)
             except Exception as e:
                 logger.error(
                     f"Error creating widget for {prop.device}-{prop.name}: {e}"
@@ -182,27 +187,39 @@ class DevicePropertyTable(QTableWidget):
 
     def filterDevices(
         self,
-        query: str = "",
+        query: str | Pattern = "",
         exclude_devices: Iterable[DeviceType] = (),
+        include_devices: Iterable[DeviceType] = (),
         include_read_only: bool = True,
         include_pre_init: bool = True,
         init_props_only: bool = False,
     ) -> None:
         """Update the table to only show devices that match the given query/filter."""
         exclude_devices = set(exclude_devices)
+        include_devices = set(include_devices)
         for row in range(self.rowCount()):
             item = self.item(row, 0)
             prop = cast(DeviceProperty, item.data(self.PROP_ROLE))
+            if include_devices and prop.deviceType() not in include_devices:
+                self.hideRow(row)
+                continue
             if (
                 (prop.isReadOnly() and not include_read_only)
                 or (prop.isPreInit() and not include_pre_init)
                 or (init_props_only and not prop.isPreInit())
                 or (prop.deviceType() in exclude_devices)
-                or (query and query.lower() not in item.text().lower())
             ):
                 self.hideRow(row)
-            else:
-                self.showRow(row)
+                continue
+            if query:
+                if isinstance(query, str) and query.lower() not in item.text().lower():
+                    self.hideRow(row)
+                    continue
+                elif isinstance(query, Pattern) and not query.search(item.text()):
+                    self.hideRow(row)
+                    continue
+
+            self.showRow(row)
 
     def getCheckedProperties(self) -> list[tuple[str, str, str]]:
         """Return a list of checked properties.
@@ -218,6 +235,9 @@ class DevicePropertyTable(QTableWidget):
             if self.item(row, 0).checkState() == Qt.CheckState.Checked:
                 dev_prop_val_list.append(self.getRowData(row))
         return dev_prop_val_list
+
+    def value(self) -> list[tuple[str, str, str]]:
+        return self.getCheckedProperties()
 
     def getRowData(self, row: int) -> tuple[str, str, str]:
         item = self.item(row, 0)
