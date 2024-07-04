@@ -1,9 +1,8 @@
+from contextlib import suppress
 from pathlib import Path
 
-try:
-    from rich import print as rich_print
-except ImportError:
-    rich_print = print
+with suppress(ImportError):
+    pass
 
 from qtpy.QtWidgets import QApplication
 
@@ -24,7 +23,7 @@ fs = FOVSelectorWidget(
     plate=plate, mode=Center(x=0, y=0, fov_width=512, fov_height=512)
 )
 
-fs.valueChanged.connect(lambda x: rich_print(x))
+fs.valueChanged.connect(print)
 
 fs.show()
 

@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 from useq import WellPlate
@@ -7,10 +9,8 @@ from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
     PlateCalibrationWidget,
 )
 
-try:
-    from rich import print as rich_print
-except ImportError:
-    rich_print = print
+with suppress(ImportError):
+    from rich import print
 
 
 plate = WellPlate(
@@ -32,6 +32,6 @@ cb.setValue(
 )
 cb.show()
 
-cb.valueChanged.connect(lambda x: rich_print(x))
+cb.valueChanged.connect(print)
 
 app.exec()

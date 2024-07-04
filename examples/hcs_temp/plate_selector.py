@@ -1,9 +1,8 @@
+from contextlib import suppress
 from pathlib import Path
 
-try:
-    from rich import print as rich_print
-except ImportError:
-    rich_print = print
+with suppress(ImportError):
+    from rich import print
 
 from qtpy.QtWidgets import QApplication
 
@@ -17,7 +16,7 @@ app = QApplication([])
 
 ps = PlateSelectorWidget(plate_database_path="")
 
-ps.valueChanged.connect(lambda x: rich_print(x))
+ps.valueChanged.connect(print)
 
 ps.show()
 
