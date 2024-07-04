@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from logging import getLogger
 from re import Pattern
-from typing import Callable, Iterable, cast
+from typing import Callable, Iterable, Sequence, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType
@@ -242,21 +242,21 @@ class DevicePropertyTable(QTableWidget):
         # [(device, property, value_to_set), ...]
         dev_prop_val_list: list[tuple[str, str, str]] = []
         for row in range(self.rowCount()):
-            if self.item(row, 0) is None:
-                continue
-            if self.item(row, 0).checkState() == Qt.CheckState.Checked:
+            if (
+                item := self.item(row, 0)
+            ) and item.checkState() == Qt.CheckState.Checked:
                 dev_prop_val_list.append(self.getRowData(row))
         return dev_prop_val_list
 
     def value(self) -> list[tuple[str, str, str]]:
         return self.getCheckedProperties()
 
-    def setValue(self, value: list[tuple[str, str, str]]) -> None:
+    def setValue(self, value: Sequence[tuple[str, str, str]]) -> None:
         self.setCheckedProperties(value, with_value=True)
 
     def setCheckedProperties(
         self,
-        value: list[tuple[str, str, str] | tuple[str, str]],
+        value: Sequence[tuple[str, str, str]],
         with_value: bool = True,
     ) -> None:
         for row in range(self.rowCount()):
