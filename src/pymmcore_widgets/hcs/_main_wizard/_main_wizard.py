@@ -102,7 +102,7 @@ class HCSWizard(QWizard):
             self._emit_value_changed
         )
 
-        self._on_sys_config_loaded()
+        self._init_widget()
 
     # _________________________PUBLIC METHODS_________________________ #
 
@@ -196,6 +196,14 @@ class HCSWizard(QWizard):
     def _emit_value_changed(self) -> None:
         """Emit the valueChanged signal."""
         self.valueChanged.emit(self.value())
+
+    def _init_widget(self) -> None:
+        """Initialize the wizard widget."""
+        self._plate = self.plate_page.value().plate
+        self.calibration_page.setValue(CalibrationData(plate=self._plate))
+        fov_w, fov_h = self._get_fov_size()
+        mode = Center(x=0, y=0, fov_width=fov_w, fov_height=fov_h)
+        self.fov_page.setValue(self._plate, mode)
 
     def _on_plate_changed(self, value: PlateInfo) -> None:
         self._plate = value.plate
