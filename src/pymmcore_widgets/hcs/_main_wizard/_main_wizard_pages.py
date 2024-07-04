@@ -31,6 +31,8 @@ EXPANDING = (QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
 
 class PlatePage(QWizardPage):
+    """The wizard page to select a plate and the wells to image."""
+
     def __init__(
         self,
         parent: QWidget | None = None,
@@ -65,6 +67,8 @@ class PlatePage(QWizardPage):
 
 
 class PlateCalibrationPage(QWizardPage):
+    """The wizard page to calibrate the plate."""
+
     def __init__(
         self, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
     ) -> None:
@@ -94,6 +98,8 @@ class PlateCalibrationPage(QWizardPage):
 
 
 class FOVSelectorPage(QWizardPage):
+    """The wizard page to select the FOVs per well."""
+
     def __init__(
         self,
         parent: QWidget | None = None,

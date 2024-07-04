@@ -96,6 +96,12 @@ class HCSWizard(QWizard):
         self._mmc.events.pixelSizeChanged.connect(self._on_px_size_changed)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
 
+        self.plate_page._plate_widget.valueChanged.connect(self._emit_value_changed)
+        self.fov_page._fov_widget.valueChanged.connect(self._emit_value_changed)
+        self.calibration_page._calibration.valueChanged.connect(
+            self._emit_value_changed
+        )
+
         self._on_sys_config_loaded()
 
     # _________________________PUBLIC METHODS_________________________ #
@@ -185,11 +191,11 @@ class HCSWizard(QWizard):
         """Return the current plate database."""
         return self.plate_page._plate_widget.database()
 
-    def accept(self) -> None:
-        """Override QWizard default accept method."""
-        self.valueChanged.emit(self.value())
-
     # _________________________PRIVATE METHODS_________________________ #
+
+    def _emit_value_changed(self) -> None:
+        """Emit the valueChanged signal."""
+        self.valueChanged.emit(self.value())
 
     def _on_plate_changed(self, value: PlateInfo) -> None:
         self._plate = value.plate
