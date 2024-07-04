@@ -239,6 +239,25 @@ class DevicePropertyTable(QTableWidget):
     def value(self) -> list[tuple[str, str, str]]:
         return self.getCheckedProperties()
 
+    def setValue(self, value: list[tuple[str, str, str]]) -> None:
+        self.setCheckedProperties(value, with_value=True)
+
+    def setCheckedProperties(
+        self,
+        value: list[tuple[str, str, str] | tuple[str, str]],
+        with_value: bool = True,
+    ) -> None:
+        for row in range(self.rowCount()):
+            if self.item(row, 0) is None:
+                continue
+            self.item(row, 0).setCheckState(Qt.CheckState.Unchecked)
+            for device, prop, *val in value:
+                if self.item(row, 0).text() == f"{device}-{prop}":
+                    self.item(row, 0).setCheckState(Qt.CheckState.Checked)
+                    wdg = cast("PropertyWidget", self.cellWidget(row, 1))
+                    if val and with_value:
+                        wdg.setValue(val[0])
+
     def getRowData(self, row: int) -> tuple[str, str, str]:
         item = self.item(row, 0)
         prop: DeviceProperty = item.data(self.PROP_ROLE)

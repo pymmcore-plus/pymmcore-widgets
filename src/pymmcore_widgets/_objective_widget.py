@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QComboBox, QHBoxLayout, QLabel, QSizePolicy, QWidget
+from qtpy.QtWidgets import QComboBox, QHBoxLayout, QLabel, QWidget
 
 from ._device_widget import StateDeviceWidget
 from ._util import guess_objective_or_prompt
