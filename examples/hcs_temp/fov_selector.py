@@ -9,7 +9,7 @@ from qtpy.QtWidgets import QApplication
 
 from pymmcore_widgets.hcs._fov_widget._fov_sub_widgets import Center
 from pymmcore_widgets.hcs._fov_widget._fov_widget import FOVSelectorWidget
-from pymmcore_widgets.hcs._plate_model import load_database
+from pymmcore_widgets.hcs._util import load_database
 
 database_path = (
     Path(__file__).parent.parent.parent / "tests" / "plate_database_for_tests.json"

@@ -173,7 +173,7 @@ class FOVSelectorWidget(QWidget):
             return
 
         # update view data
-        well_size_x, well_size_y = self._plate.well_size  # type: ignore  # need my useq PR
+        well_size_x, well_size_y = self._plate.well_size
         view_data = _WellViewData(
             # plate well size in mm, convert to µm
             well_size=(well_size_x * 1000, well_size_y * 1000),
@@ -284,7 +284,7 @@ class FOVSelectorWidget(QWidget):
             return
 
         # well_size is in mm, convert to µm
-        well_size_x, well_size_y = self._plate.well_size  # type: ignore  # need my useq PR
+        well_size_x, well_size_y = self._plate.well_size
         if mode.max_width > well_size_x * 1000 or mode.max_height > well_size_y * 1000:
             mode = mode.replace(
                 max_width=well_size_x * 1000,
@@ -298,7 +298,7 @@ class FOVSelectorWidget(QWidget):
 
     def _plate_to_random(self, plate: WellPlate | None) -> RandomPoints:
         """Convert a WellPlate object to a RandomPoints object."""
-        well_size_x, well_size_y = plate.well_size if plate is not None else (0.0, 0.0)  # type: ignore  # need my useq PR
+        well_size_x, well_size_y = plate.well_size if plate is not None else (0.0, 0.0)
         return RandomPoints(
             num_points=self.random_wdg._number_of_points.value(),
             max_width=well_size_x * 1000 if plate else 0.0,  # convert to µm

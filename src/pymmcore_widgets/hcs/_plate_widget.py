@@ -15,8 +15,12 @@ from qtpy.QtWidgets import (
 )
 
 from ._plate_graphics_scene import _PlateGraphicsScene
-from ._plate_model import DEFAULT_PLATE_DB_PATH, load_database
-from ._util import _ResizingGraphicsView, draw_plate
+from ._util import (
+    DEFAULT_PLATE_DB_PATH,
+    _ResizingGraphicsView,
+    draw_plate,
+    load_database,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path

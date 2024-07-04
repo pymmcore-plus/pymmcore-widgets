@@ -43,11 +43,11 @@ from pymmcore_widgets.hcs._graphics_items import (
     _FOVGraphicsItem,
     _WellAreaGraphicsItem,
 )
-from pymmcore_widgets.hcs._plate_model import load_database
 from pymmcore_widgets.hcs._plate_widget import (
     PlateInfo,
     PlateSelectorWidget,
 )
+from pymmcore_widgets.hcs._util import load_database
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus

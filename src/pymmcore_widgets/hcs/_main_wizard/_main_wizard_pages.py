@@ -16,8 +16,8 @@ from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
     PlateCalibrationWidget,
 )
 from pymmcore_widgets.hcs._fov_widget._fov_widget import FOVSelectorWidget
-from pymmcore_widgets.hcs._plate_model import DEFAULT_PLATE_DB_PATH
 from pymmcore_widgets.hcs._plate_widget import PlateInfo, PlateSelectorWidget
+from pymmcore_widgets.hcs._util import DEFAULT_PLATE_DB_PATH
 
 if TYPE_CHECKING:
     from pathlib import Path

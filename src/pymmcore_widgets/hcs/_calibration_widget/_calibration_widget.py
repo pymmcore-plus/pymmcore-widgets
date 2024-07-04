@@ -373,7 +373,7 @@ class PlateCalibrationWidget(QWidget):
 
         self._mmc.waitForDevice(self._mmc.getXYStageDevice())
 
-        well_size_x, well_size_y = self._plate.well_size  # type: ignore  # need my useq PR
+        well_size_x, well_size_y = self._plate.well_size
         if self._plate.circular_wells:
             x, y = get_random_circle_edge_point(cx, cy, well_size_x * 1000 / 2)
         else:

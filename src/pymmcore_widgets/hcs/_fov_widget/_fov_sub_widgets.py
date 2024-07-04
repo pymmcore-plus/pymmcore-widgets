@@ -701,8 +701,8 @@ class _WellView(_ResizingGraphicsView):
         with warnings.catch_warnings(record=True) as w:
             # note: inverting the y axis because in scene, y up is negative and y down
             # is positive.
-            pos = [  # type: ignore  # need my useq PR
-                GridPosition(x, y * (-1), r, c, rel, name)  # type: ignore  # need my useq PR
+            pos = [  # type: ignore  # need release of useq
+                GridPosition(x, y * (-1), r, c, rel, name)  # type: ignore  # need release of useq
                 for x, y, r, c, rel, name in points
             ]
             if len(pos) != points.num_points:

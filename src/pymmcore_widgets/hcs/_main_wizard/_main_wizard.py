@@ -15,10 +15,10 @@ from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
 )
 from pymmcore_widgets.hcs._fov_widget._fov_sub_widgets import Center
 from pymmcore_widgets.hcs._graphics_items import Well
-from pymmcore_widgets.hcs._plate_model import (
+from pymmcore_widgets.hcs._plate_widget import PlateInfo
+from pymmcore_widgets.hcs._util import (
     DEFAULT_PLATE_DB_PATH,
 )
-from pymmcore_widgets.hcs._plate_widget import PlateInfo
 
 from ._main_wizard_pages import FOVSelectorPage, PlateCalibrationPage, PlatePage
 
@@ -213,7 +213,7 @@ class HCSWizard(QWizard):
             if mode is None:
                 mode = Center(x=0, y=0, fov_width=fov_w, fov_height=fov_h)
             elif isinstance(mode, RandomPoints):
-                max_width, max_height = self._plate.well_size  # type: ignore # need my useq PR
+                max_width, max_height = self._plate.well_size
                 # update the max_width and max_height with the new plate well size
                 mode = mode.replace(
                     fov_height=fov_h,

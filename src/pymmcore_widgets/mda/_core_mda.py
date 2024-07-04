@@ -127,8 +127,7 @@ class MDAWidget(MDASequenceWidget):
         ):
             z = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
             replace["stage_positions"] = tuple(
-                pos.replace(z=z)
-                for pos in val.stage_positions  # type: ignore  # need to release useq
+                pos.replace(z=z) for pos in val.stage_positions
             )
 
         # if there is an autofocus_plan but the autofocus_motor_offset is None, set it
