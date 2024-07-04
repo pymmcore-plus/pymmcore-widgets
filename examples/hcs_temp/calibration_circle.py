@@ -1,19 +1,19 @@
-from pathlib import Path
-
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
+from useq import WellPlate
 
-from pymmcore_widgets.hcs._calibration_widget import (
+from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
     CalibrationData,
     PlateCalibrationWidget,
 )
-from pymmcore_widgets.hcs._plate_model import load_database
 
-database_path = (
-    Path(__file__).parent.parent.parent / "tests" / "plate_database_for_tests.json"
-)
-database = load_database(database_path)
+try:
+    from rich import print as rich_print
+except ImportError:
+    rich_print = print
 
+
+plate = WellPlate(rows=8, columns=12, well_spacing=(9, 9), well_size=(6.4, 6.4))
 
 app = QApplication([])
 
@@ -24,12 +24,15 @@ cb = PlateCalibrationWidget(mmcore=mmc)
 
 cb.setValue(
     CalibrationData(
-        plate=database["standard 96 wp"],
+        plate=plate,
         calibration_positions_a1=[(-10, 0), (0, 10), (10, 0)],
         calibration_positions_an=[(90, 0), (100, 10), (110, 0)],
     )
 )
+cb._calibration_mode._mode_combo.setCurrentIndex(1)
+
+cb.valueChanged.connect(lambda x: rich_print(x))
 
 cb.show()
 
-app.exec_()
+app.exec()

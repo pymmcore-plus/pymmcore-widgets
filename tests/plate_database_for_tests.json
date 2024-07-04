@@ -1,1 +1,73 @@
-[{"id": "coverslip 22mm", "circular": false, "rows": 1, "columns": 1, "well_spacing_x": 0.0, "well_spacing_y": 0.0, "well_size_x": 22.0, "well_size_y": 22.0}, {"id": "standard 12 wp", "circular": true, "rows": 3, "columns": 4, "well_spacing_x": 26.01, "well_spacing_y": 26.01, "well_size_x": 22.11, "well_size_y": 22.11}, {"id": "standard 24 wp", "circular": true, "rows": 4, "columns": 6, "well_spacing_x": 19.3, "well_spacing_y": 19.3, "well_size_x": 15.54, "well_size_y": 15.54}, {"id": "standard 384 wp", "circular": false, "rows": 16, "columns": 24, "well_spacing_x": 4.5, "well_spacing_y": 4.5, "well_size_x": 4.0, "well_size_y": 4.0}, {"id": "standard 48 wp", "circular": true, "rows": 6, "columns": 8, "well_spacing_x": 13.0, "well_spacing_y": 13.0, "well_size_x": 11.37, "well_size_y": 11.37}, {"id": "standard 6 wp", "circular": true, "rows": 2, "columns": 3, "well_spacing_x": 39.12, "well_spacing_y": 39.12, "well_size_x": 34.8, "well_size_y": 34.8}, {"id": "standard 96 wp", "circular": true, "rows": 8, "columns": 12, "well_spacing_x": 9.0, "well_spacing_y": 9.0, "well_size_x": 6.4, "well_size_y": 6.4}, {"id": "coverslip 10mm", "circular": false, "rows": 1, "columns": 1, "well_spacing_x": 0.0, "well_spacing_y": 0.0, "well_size_x": 10.0, "well_size_y": 10.0}]
+{
+    "coverslip-10mm": {
+        "rows": 1,
+        "columns": 1,
+        "well_spacing": 0.0,
+        "well_size": 10.0,
+        "circular_wells": false
+    },
+    "coverslip-18mm-round": {
+        "rows": 1,
+        "columns": 1,
+        "well_spacing": 0.0,
+        "well_size": 18.0
+    },
+    "coverslip-18mm": {
+        "rows": 1,
+        "columns": 1,
+        "well_spacing": 0.0,
+        "well_size": 18.0,
+        "circular_wells": false
+    },
+    "coverslip-22mm": {
+        "rows": 1,
+        "columns": 1,
+        "well_spacing": 0.0,
+        "well_size": 22.0,
+        "circular_wells": false
+    },
+    "6-well": {
+        "rows": 2,
+        "columns": 3,
+        "well_spacing": 39.12,
+        "well_size": 34.8
+    },
+    "12-well": {
+        "rows": 3,
+        "columns": 4,
+        "well_spacing": 26,
+        "well_size": 22
+    },
+    "24-well": {
+        "rows": 4,
+        "columns": 6,
+        "well_spacing": 19,
+        "well_size": 15.6
+    },
+    "48-well": {
+        "rows": 6,
+        "columns": 8,
+        "well_spacing": 13,
+        "well_size": 11.1
+    },
+    "96-well": {
+        "rows": 8,
+        "columns": 12,
+        "well_spacing": 9,
+        "well_size": 6.4
+    },
+    "384-well": {
+        "rows": 16,
+        "columns": 24,
+        "well_spacing": 4.5,
+        "well_size": 3.4,
+        "circular_wells": false
+    },
+    "1536-well": {
+        "rows": 32,
+        "columns": 48,
+        "well_spacing": 2.25,
+        "well_size": 1.7,
+        "circular_wells": false
+    }
+}

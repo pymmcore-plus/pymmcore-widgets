@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 from unittest.mock import patch
@@ -13,45 +11,40 @@ from qtpy.QtWidgets import (
     QGraphicsLineItem,
     QGraphicsRectItem,
 )
-from useq import (  # type: ignore
-    AnyGridPlan,
-    GridFromEdges,
-    GridRowsColumns,
-    RandomPoints,
-)
+from useq import GridRowsColumns, RandomPoints, WellPlate, WellPlatePlan
 from useq._grid import Shape
 
 from pymmcore_widgets import HCSWizard
-from pymmcore_widgets.hcs._calibration_widget import (
+from pymmcore_widgets.hcs._calibration_widget._calibration_sub_widgets import (
     ROLE,
-    CalibrationData,
     FourPoints,
-    PlateCalibrationWidget,
+    OnePoint,
     ThreePoints,
     TwoPoints,
     _CalibrationModeWidget,
     _CalibrationTable,
     _TestCalibrationWidget,
 )
-from pymmcore_widgets.hcs._fov_widget import (
+from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
+    CalibrationData,
+    PlateCalibrationWidget,
+)
+from pymmcore_widgets.hcs._fov_widget._fov_sub_widgets import (
     Center,
-    FOVSelectorWidget,
-    WellView,
-    WellViewData,
     _CenterFOVWidget,
     _GridFovWidget,
     _RandomFOVWidget,
+    _WellView,
+    _WellViewData,
 )
+from pymmcore_widgets.hcs._fov_widget._fov_widget import FOVSelectorWidget
 from pymmcore_widgets.hcs._graphics_items import (
     Well,
     _FOVGraphicsItem,
     _WellAreaGraphicsItem,
-    _WellGraphicsItem,
 )
-from pymmcore_widgets.hcs._main_wizard_widget import HCSData
-from pymmcore_widgets.hcs._plate_model import Plate, load_database
+from pymmcore_widgets.hcs._plate_model import load_database
 from pymmcore_widgets.hcs._plate_widget import (
-    PlateDatabaseWidget,
     PlateInfo,
     PlateSelectorWidget,
 )
@@ -71,70 +64,26 @@ def database(database_path):
     return load_database(database_path)
 
 
-CUSTOM_PLATE = Plate(
-    id="custom plate",
-    circular=True,
+CUSTOM_PLATE = WellPlate(
     rows=2,
     columns=4,
-    well_spacing_x=15,
-    well_spacing_y=15,
-    well_size_x=10,
-    well_size_y=10,
+    well_spacing=(15, 15),
+    well_size=(10, 10),
+    circular_wells=True,
+    name="custom plate",
 )
-
-
-def test_plate_selector_widget_load_database(qtbot: QtBot, database_path: Path):
-    wdg = PlateSelectorWidget()
-    qtbot.addWidget(wdg)
-
-    assert "coverslip 10mm" not in wdg._plate_db
-    assert "coverslip 10mm" not in wdg._plate_db_wdg._plate_db
-
-    wdg.load_database(database_path)
-
-    assert "coverslip 10mm" in wdg._plate_db
-    assert "coverslip 10mm" in wdg._plate_db_wdg._plate_db
-
-
-def test_plate_selector_widget_load_database_db_wdg(qtbot: QtBot, database_path: Path):
-    wdg = PlateSelectorWidget()
-    qtbot.addWidget(wdg)
-
-    assert "coverslip 10mm" not in wdg._plate_db
-    assert "coverslip 10mm" not in wdg._plate_db_wdg._plate_db
-
-    wdg._plate_db_wdg.load_database(database_path)
-
-    assert "coverslip 10mm" in wdg._plate_db
-    assert "coverslip 10mm" in wdg._plate_db_wdg._plate_db
-
-
-def test_plate_selector_widget_load_database_dialog(qtbot: QtBot, database_path: Path):
-    wdg = PlateSelectorWidget()
-    qtbot.addWidget(wdg)
-
-    assert "coverslip 10mm" not in wdg._plate_db
-    assert "coverslip 10mm" not in wdg._plate_db_wdg._plate_db
-
-    def _path(*args, **kwargs):
-        return database_path, None
-
-    with patch.object(QFileDialog, "getOpenFileName", _path):
-        wdg.load_database()
-    assert "coverslip 10mm" in wdg._plate_db
-    assert "coverslip 10mm" in wdg._plate_db_wdg._plate_db
 
 
 def test_plate_selector_widget_set_get_value(qtbot: QtBot, database_path: Path):
     wdg = PlateSelectorWidget(plate_database_path=database_path)
     qtbot.addWidget(wdg)
 
-    info = PlateInfo(plate=CUSTOM_PLATE, wells=None)
+    info = PlateInfo(plate=CUSTOM_PLATE, wells=[])
 
     with pytest.raises(ValueError, match="'custom plate' not in the database."):
         wdg.setValue(info)
 
-    plate = wdg._plate_db["standard 96 wp"]
+    plate = wdg._plate_db["96-well"]
     wells = [
         Well(name="A1", row=0, column=0),
         Well(name="A2", row=0, column=1),
@@ -149,119 +98,19 @@ def test_plate_selector_widget_set_get_value(qtbot: QtBot, database_path: Path):
     assert sorted(wdg.scene.value(), key=lambda x: x.name) == wells
 
     wdg._clear_button.click()
-    assert wdg.scene.value() is None
+    assert wdg.scene.value() == []
 
 
 def test_plate_selector_widget_combo(qtbot: QtBot, database_path: Path):
     wdg = PlateSelectorWidget(plate_database_path=database_path)
     qtbot.addWidget(wdg)
 
-    wdg.plate_combo.setCurrentText("standard 96 wp")
-    assert wdg.value().plate.id == "standard 96 wp"
+    wdg.plate_combo.setCurrentText("96-well")
+    assert wdg.value().plate.name == "96-well"
 
 
 def test_plate_selector_widget_get_database(qtbot: QtBot, database_path: Path):
     wdg = PlateSelectorWidget(plate_database_path=database_path)
-    qtbot.addWidget(wdg)
-
-    assert wdg.database() == wdg._plate_db == wdg._plate_db_wdg._plate_db
-
-
-def test_plate_database_widget_load_database(qtbot: QtBot, database_path: Path):
-    wdg = PlateDatabaseWidget()
-    qtbot.addWidget(wdg)
-
-    assert "coverslip 10mm" not in wdg._plate_db
-
-    wdg.load_database(database_path)
-
-    assert "coverslip 10mm" in wdg._plate_db
-
-
-def test_plate_database_widget_set_get_value(qtbot: QtBot, database_path: Path):
-    wdg = PlateDatabaseWidget(plate_database_path=database_path)
-    qtbot.addWidget(wdg)
-
-    current_plate_id = wdg.plate_table.item(0, 0).text()
-    assert wdg.value().id == current_plate_id
-
-    wdg.setValue(CUSTOM_PLATE)
-    assert wdg.value() == CUSTOM_PLATE
-
-    scene_items = list(wdg.scene.items())
-    assert len(scene_items) == 8
-    assert all(isinstance(item, _WellGraphicsItem) for item in scene_items)
-
-
-def test_plate_database_widget_update_database(qtbot: QtBot, database_path: Path):
-    wdg = PlateDatabaseWidget(plate_database_path=database_path)
-    qtbot.addWidget(wdg)
-
-    assert "custom plate" not in wdg._plate_db
-    wdg.setValue(CUSTOM_PLATE)
-
-    wdg._add_to_database()
-    assert "custom plate" in wdg._plate_db
-    plates = [
-        wdg.plate_table.item(i, 0).text() for i in range(wdg.plate_table.rowCount())
-    ]
-    assert "custom plate" in plates
-
-    wdg.plate_table.selectRow(0)
-    last_row = wdg.plate_table.rowCount() - 1
-    wdg.plate_table.selectRow(last_row)
-
-    assert wdg.plate_table.item(last_row, 0).text() == "custom plate"
-
-    wdg._remove_from_database()
-    assert "custom plate" not in wdg._plate_db
-    plates = [
-        wdg.plate_table.item(i, 0).text() for i in range(wdg.plate_table.rowCount())
-    ]
-    assert "custom plate" not in plates
-
-
-def test_plate_database_widget_database(qtbot: QtBot, database_path: Path):
-    wdg = PlateDatabaseWidget(plate_database_path=database_path)
-    qtbot.addWidget(wdg)
-
-    assert wdg.database()
-    assert "custom plate" not in wdg.database()
-
-    with tempfile.TemporaryDirectory() as tmp:
-
-        def _path(*args, **kwargs):
-            return Path(tmp) / "test_db.json", None
-
-        # create empty database
-        with patch.object(QFileDialog, "getSaveFileName", _path):
-            wdg._create_new_database()
-        assert wdg._plate_db_path == _path()[0]
-        assert not wdg.database()
-
-        # add plate to database
-        wdg.add_to_database([CUSTOM_PLATE])
-        assert wdg.database()
-        assert "custom plate" in wdg.database()
-
-        # remove plate from database
-        wdg.remove_from_database(["custom plate"])
-        assert not wdg.database()
-        assert "custom plate" not in wdg.database()
-
-
-def test_plate_database_widget_empty_name(qtbot: QtBot, database_path: Path):
-    wdg = PlateDatabaseWidget(plate_database_path=database_path)
-    qtbot.addWidget(wdg)
-
-    wdg._id.setText("")
-
-    with pytest.raises(ValueError, match="'Plate Name' field cannot be empty!"):
-        wdg._add_to_database()
-
-
-def test_plate_database_widget_get_database(qtbot: QtBot, database_path: Path):
-    wdg = PlateDatabaseWidget(plate_database_path=database_path)
     qtbot.addWidget(wdg)
 
     assert wdg.database() == wdg._plate_db
@@ -281,7 +130,7 @@ def test_calibration_mode_widget(qtbot: QtBot):
 
 
 def test_calibration_table_widget(
-    global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, Plate]
+    global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, WellPlate]
 ):
     mmc = global_mmcore
 
@@ -312,7 +161,7 @@ def test_calibration_table_widget(
 
 
 def test_calibration_move_to_edge_widget(
-    global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, Plate]
+    global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, WellPlate]
 ):
     mmc = global_mmcore
 
@@ -323,14 +172,14 @@ def test_calibration_move_to_edge_widget(
     assert wdg._number_combo.count() == 0
 
     well = Well(name="C3", row=2, column=2)
-    wdg.setValue(database["standard 96 wp"], well)
+    wdg.setValue(database["96-well"], well)
     assert wdg._letter_combo.count() == 8
     assert wdg._number_combo.count() == 12
-    assert wdg.value() == (database["standard 96 wp"], well)
+    assert wdg.value() == (database["96-well"], well)
 
 
 def test_calibration_widget(
-    global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, Plate]
+    global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, WellPlate]
 ):
     wdg = PlateCalibrationWidget(mmcore=global_mmcore)
     qtbot.addWidget(wdg)
@@ -338,7 +187,10 @@ def test_calibration_widget(
     assert wdg.value() is None
     assert wdg._calibration_label.value() == "Plate Not Calibrated!"
 
-    wdg.setValue(CalibrationData(plate=database["coverslip 22mm"]))
+    plate = database["coverslip-22mm"]
+    cal = CalibrationData(plate=plate)
+
+    wdg.setValue(cal)
 
     assert wdg._calibration_mode._mode_combo.count() == 2
     assert wdg._calibration_mode._mode_combo.itemData(0, ROLE) == TwoPoints()
@@ -347,8 +199,9 @@ def test_calibration_widget(
 
     assert not wdg._table_a1.isHidden()
     assert wdg._table_an.isHidden()
+    assert not wdg.isCalibrated()
     assert wdg._calibration_label.value() == "Plate Not Calibrated!"
-    assert wdg.value() == CalibrationData(plate=database["coverslip 22mm"])
+    assert wdg.value() == cal
 
     wdg._table_a1.setValue([(-210, 170), (100, -100)])
     pos = wdg._table_a1.value()
@@ -357,19 +210,26 @@ def test_calibration_widget(
 
     wdg._on_calibrate_button_clicked()
 
+    assert wdg.isCalibrated()
     assert wdg._calibration_label.value() == "Plate Calibrated!"
-
     assert wdg.value() == CalibrationData(
-        plate=database["coverslip 22mm"],
-        well_A1_center=(-55.0, 35.0),
-        rotation_matrix=None,
+        calibrated=True,
+        plate=plate,
+        a1_center_xy=(-55.0, 35.0),
+        rotation=0.0,
         calibration_positions_a1=[(-210, 170), (100, -100)],
+        calibration_positions_an=[],
     )
 
-    wdg.setValue(CalibrationData(plate=database["standard 96 wp"]))
+    plate = database["96-well"]
+    cal = CalibrationData(plate=plate)
+    wdg.setValue(cal)
 
-    assert wdg._calibration_mode._mode_combo.count() == 1
-    assert wdg._calibration_mode._mode_combo.itemData(0, ROLE) == ThreePoints()
+    assert not wdg.isCalibrated()
+
+    assert wdg._calibration_mode._mode_combo.count() == 2
+    assert wdg._calibration_mode._mode_combo.itemData(0, ROLE) == OnePoint()
+    assert wdg._calibration_mode._mode_combo.itemData(1, ROLE) == ThreePoints()
 
     assert not wdg._table_a1.isHidden()
     assert not wdg._table_an.isHidden()
@@ -406,7 +266,7 @@ def test_center_widget(qtbot: QtBot):
     assert value.fov_height == 3
 
 
-def test_random_widget(qtbot: QtBot, database: dict[str, Plate]):
+def test_random_widget(qtbot: QtBot, database: dict[str, WellPlate]):
     wdg = _RandomFOVWidget()
     qtbot.addWidget(wdg)
 
@@ -499,7 +359,7 @@ class SceneItems(NamedTuple):
     well_rect: int  # QGraphicsRectItem
 
 
-def get_items_number(wdg: WellView) -> SceneItems:
+def get_items_number(wdg: _WellView) -> SceneItems:
     """Return the number of items in the scene as a SceneItems namedtuple."""
     items = wdg.scene().items()
     fovs = len([t for t in items if isinstance(t, _FOVGraphicsItem)])
@@ -530,25 +390,19 @@ modes = [
         GridRowsColumns(rows=2, columns=3, fov_width=500, fov_height=500),
         SceneItems(fovs=6, lines=5, well_area=0, well_circle=0, well_rect=1),
     ),
-    (
-        GridFromEdges(
-            top=-20, left=-20, bottom=20, right=20, fov_width=600, fov_height=600
-        ),
-        SceneItems(fovs=9, lines=8, well_area=0, well_circle=0, well_rect=1),
-    ),
 ]
 
 
 @pytest.mark.parametrize(["mode", "items"], modes)
 def test_well_view_widget_value(
-    qtbot: QtBot, mode: Center | AnyGridPlan, items: SceneItems
+    qtbot: QtBot, mode: Center | GridRowsColumns | RandomPoints, items: SceneItems
 ):
-    wdg = WellView()
+    wdg = _WellView()
     qtbot.addWidget(wdg)
-    assert wdg.value() == WellViewData()
+    assert wdg.value() == _WellViewData()
 
     circular = mode.shape == Shape.ELLIPSE if isinstance(mode, RandomPoints) else False
-    view_data = WellViewData(
+    view_data = _WellViewData(
         well_size=(6400, 6400),
         circular=circular,
         padding=20,
@@ -564,17 +418,15 @@ def test_well_view_widget_value(
 
 
 def test_well_view_widget_update(qtbot: QtBot):
-    view_data = WellViewData(
+    view_data = _WellViewData(
         well_size=(6400, 6400),
         mode=Center(x=0, y=0, fov_width=512, fov_height=512),
     )
-    wdg = WellView(data=view_data)
+    wdg = _WellView(data=view_data)
     qtbot.addWidget(wdg)
 
     # set mode
-    grid = GridFromEdges(
-        top=-20, left=-20, bottom=20, right=20, fov_width=512, fov_height=512
-    )
+    grid = GridRowsColumns(rows=3, columns=3, fov_width=512, fov_height=512)
     wdg.setMode(grid)
 
     # set fov size
@@ -620,25 +472,27 @@ def test_fov_selector_widget_none(qtbot: QtBot):
     )
 
 
-def test_fov_selector_widget(qtbot: QtBot, database: dict[str, Plate]):
+def test_fov_selector_widget(qtbot: QtBot, database: dict[str, WellPlate]):
+    plate = database["96-well"]
     wdg = FOVSelectorWidget(
-        plate=database["standard 96 wp"],
+        plate=plate,
         mode=Center(x=0, y=0, fov_width=500, fov_height=500),
     )
     qtbot.addWidget(wdg)
 
     # center
     assert wdg.value() == (
-        database["standard 96 wp"],
+        plate,
         Center(x=0, y=0, fov_width=500, fov_height=500),
     )
 
     # grid
     grid = GridRowsColumns(overlap=10, rows=2, columns=3, fov_width=512, fov_height=512)
-    wdg.setValue(database["coverslip 22mm"], grid)
+    coverslip = database["coverslip-22mm"]
+    wdg.setValue(coverslip, grid)
 
-    plate, mode = wdg.value()
-    assert plate == database["coverslip 22mm"]
+    current_plate, mode = wdg.value()
+    assert current_plate == coverslip
     assert mode.fov_width == mode.fov_height == 512
     assert mode.rows == 2
     assert mode.columns == 3
@@ -655,9 +509,9 @@ def test_fov_selector_widget(qtbot: QtBot, database: dict[str, Plate]):
         random_seed=0,
     )
 
-    wdg.setValue(database["coverslip 22mm"], rnd)
+    wdg.setValue(coverslip, rnd)
 
-    plate, mode = wdg.value()
+    current_plate, mode = wdg.value()
     assert mode.max_width == mode.max_height == 10
     assert mode.num_points == 2
     assert mode.fov_width == 600
@@ -670,19 +524,19 @@ def test_fov_selector_widget(qtbot: QtBot, database: dict[str, Plate]):
         rnd = RandomPoints(
             num_points=2, max_width=30000, max_height=30000, shape="ellipse"
         )
-        wdg.setValue(database["standard 96 wp"], rnd)
+        wdg.setValue(plate, rnd)
 
     # none
-    wdg.setValue(database["coverslip 22mm"], None)
-    plate, _ = wdg.value()
-    assert plate == database["coverslip 22mm"]
+    wdg.setValue(coverslip, None)
+    current_plate, _ = wdg.value()
+    assert current_plate == coverslip
     assert get_items_number(wdg.view) == SceneItems(
         fovs=0, lines=0, well_area=0, well_circle=0, well_rect=1
     )
 
     wdg.setValue(None, Center(x=0, y=0, fov_width=500, fov_height=500))
-    plate, mode = wdg.value()
-    assert plate is None
+    current_plate, mode = wdg.value()
+    assert current_plate is None
     assert mode == Center(x=0, y=0, fov_width=500, fov_height=500)
     assert mode.fov_width == mode.fov_height == 500
     assert get_items_number(wdg.view) == SceneItems(
@@ -691,91 +545,43 @@ def test_fov_selector_widget(qtbot: QtBot, database: dict[str, Plate]):
 
 
 @pytest.fixture
-def data(database) -> HCSData:
-    return HCSData(
-        plate=database["standard 96 wp"],
-        wells=[
-            Well(name="A1", row=0, column=0),
-            Well(name="B2", row=1, column=1),
-            Well(name="C3", row=2, column=2),
-        ],
-        mode=RandomPoints(
+def data(database) -> WellPlatePlan:
+    plate = database["96-well"]
+    return WellPlatePlan(
+        plate=plate,
+        a1_center_xy=(100.0, 200.0),
+        rotation=10.0,
+        selected_wells=([0, 1, 2], [0, 1, 2]),
+        well_points_plan=RandomPoints(
             num_points=3,
-            max_width=600,
-            max_height=600,
+            max_width=6400,
+            max_height=6400,
             shape="ellipse",
-            fov_width=10,
-            fov_height=10,
+            fov_width=512,
+            fov_height=512,
             allow_overlap=False,
-        ),
-        calibration=CalibrationData(
-            plate=database["standard 96 wp"],
-            calibration_positions_a1=[(-10.0, 0.0), (0.0, 10.0), (10.0, 0.0)],
-            calibration_positions_an=[(90.0, 0.0), (100.0, 10.0), (110.0, 0.0)],
-            rotation_matrix=[[1.0, 0.0], [0.0, 1.0]],
+            random_seed=10,
         ),
     )
 
 
-def test_hcs_wizard(
-    data: HCSData, global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, Plate]
-):
-    wdg = HCSWizard()
-    qtbot.addWidget(wdg)
-    mmc = global_mmcore
-
-    width = mmc.getImageWidth() * mmc.getPixelSizeUm()
-    height = mmc.getImageHeight() * mmc.getPixelSizeUm()
-    data = data.replace(mode=Center(x=0, y=0, fov_width=width, fov_height=height))
-
-    wdg.setValue(data)
-
-    wdg.calibration_page._calibration._on_calibrate_button_clicked()
-
-    value = wdg.value()
-    assert value.plate == data.plate
-    assert value.wells == data.wells
-    assert value.mode == data.mode
-
-    assert value.calibration
-    assert value.calibration.well_A1_center == (-0.0, -0.0)
-    assert value.calibration.rotation_matrix == [[1.0, 0.0], [-0.0, 1.0]]
-    assert (
-        value.calibration.calibration_positions_a1
-        == data.calibration.calibration_positions_a1
-    )
-    assert (
-        value.calibration.calibration_positions_an
-        == data.calibration.calibration_positions_an
-    )
-
-
-def test_hcs_wizard_fov_load(
-    data: HCSData, global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, Plate]
+def test_hcs_wizard_set_get_value(
+    data: WellPlatePlan,
+    global_mmcore: CMMCorePlus,
+    qtbot: QtBot,
 ):
     wdg = HCSWizard()
     qtbot.addWidget(wdg)
 
     wdg.setValue(data)
 
-    rnd_value = wdg.fov_page._fov_widget.random_wdg.value()
-    assert rnd_value.num_points == 3
-
-    fov_view_value = wdg.fov_page._fov_widget.view.value()
-    assert fov_view_value.mode.num_points == 3
+    assert wdg.value() == data
+    assert wdg.calibration_page.isCalibrated()
 
 
-def test_serialization(data: HCSData):
-    _str = data.model_dump_json()
-    new_data = HCSData(**json.loads(_str))
-    assert new_data.plate == data.plate
-    assert new_data.wells == data.wells
-    assert new_data.mode == data.mode
-    assert new_data.positions == data.positions
-    assert new_data.calibration.rotation_matrix == data.calibration.rotation_matrix
-
-
-def test_save_load_hcs(data: HCSData, qtbot: QtBot, tmp_path: Path):
+def test_save_load_hcs(
+    data: WellPlatePlan, qtbot: QtBot, tmp_path: Path, database: dict[str, WellPlate]
+):
     wdg = HCSWizard()
     qtbot.addWidget(wdg)
 
@@ -793,12 +599,12 @@ def test_save_load_hcs(data: HCSData, qtbot: QtBot, tmp_path: Path):
 
         assert file.exists()
 
+        # change plate
+        plate = database["6-well"]
+        wdg.plate_page.setValue(PlateInfo(plate, []))
+        assert wdg.value() != data
+
+        # load the saved data
         with patch.object(QFileDialog, "getOpenFileName", _path):
             wdg._load()
-
-            value = wdg.value()
-            assert value.plate == data.plate
-            assert value.wells == data.wells
-            assert value.mode == data.mode
-            assert value.positions == data.positions
-            assert value.calibration.rotation_matrix == data.calibration.rotation_matrix
+            assert wdg.value() == data

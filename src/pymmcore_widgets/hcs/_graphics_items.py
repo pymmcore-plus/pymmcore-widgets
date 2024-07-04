@@ -1,18 +1,15 @@
 from __future__ import annotations
 
-import string
 from typing import Any, NamedTuple
 
 from qtpy.QtCore import QRectF, Qt
 from qtpy.QtGui import QBrush, QColor, QFont, QPainter, QPen, QTextOption
 from qtpy.QtWidgets import QGraphicsItem
-
-from ._pydantic_model import FrozenModel
+from useq._base_model import FrozenModel
 
 GREEN = "#00FF00"  # "#00C600"
 RED = "#C33"  # "#FF00FF"
 
-ALPHABET = string.ascii_uppercase
 POINT_SIZE = 3
 DEFAULT_PEN = QPen(Qt.GlobalColor.white)
 DEFAULT_PEN.setWidth(3)
@@ -127,7 +124,7 @@ class _WellGraphicsItem(QGraphicsItem):
         font = QFont("Helvetica", int(self._text_size))
         font.setWeight(QFont.Weight.Bold)
         painter.setFont(font)
-        well_name = f"{ALPHABET[self._row]}{self._col + 1}"
+        well_name = f"{self._index_to_row_name(self._row)}{self._col + 1}"
         painter.drawText(
             self._well_shape, well_name, QTextOption(Qt.AlignmentFlag.AlignCenter)
         )
@@ -136,8 +133,16 @@ class _WellGraphicsItem(QGraphicsItem):
         """Return the well name, row and column in a tuple."""
         row = self._row
         col = self._col
-        well = f"{ALPHABET[self._row]}{self._col + 1}"
+        well = f"{self._index_to_row_name(self._row)}{self._col + 1}"
         return Well(name=well, row=row, column=col)
+
+    def _index_to_row_name(self, index: int) -> str:
+        """Convert a zero-based column index to row name (A, B, ..., Z, AA, AB, ...)."""
+        name = ""
+        while index >= 0:
+            name = chr(index % 26 + 65) + name
+            index = index // 26 - 1
+        return name
 
 
 class _WellAreaGraphicsItem(QGraphicsItem):

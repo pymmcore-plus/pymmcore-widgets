@@ -16,10 +16,10 @@ from ._graphics_items import _WellGraphicsItem
 
 if TYPE_CHECKING:
     from qtpy.QtGui import QBrush, QPen, QResizeEvent
+    from useq import WellPlate
     from useq._grid import GridPosition
 
     from ._graphics_items import Well
-    from ._plate_model import Plate
 
 
 class _ResizingGraphicsView(QGraphicsView):
@@ -35,7 +35,7 @@ class _ResizingGraphicsView(QGraphicsView):
 def draw_plate(
     view: QGraphicsView,
     scene: QGraphicsScene,
-    plate: Plate,
+    plate: WellPlate,
     brush: QBrush | None,
     pen: QPen | None,
     opacity: float = 1.0,
@@ -44,32 +44,35 @@ def draw_plate(
     """Draw all wells of the plate."""
     # setting a custom well size in scene px. Using 10 times the well size in mm
     # gives a good resolution in the viewer.
-    well_scene_size = plate.well_size_x * 10
+    well_size_x, well_size_y = plate.well_size  # type: ignore  # need my useq PR
+    well_spacing_x, well_spacing_y = plate.well_spacing
 
     scene.clear()
 
-    if not plate.well_size_x or not plate.well_size_y:
+    if not well_size_x or not well_size_y:
         return
 
+    well_scene_size = well_size_x * 10
+
     # calculate the width and height of the well in scene px
-    if plate.well_size_x == plate.well_size_y:
+    if well_size_x == well_size_y:
         well_width = well_height = well_scene_size
-    elif plate.well_size_x > plate.well_size_y:
+    elif well_size_x > well_size_y:
         well_width = well_scene_size
         # keep the ratio between well_size_x and well_size_y
-        well_height = int(well_scene_size * plate.well_size_y / plate.well_size_x)
+        well_height = int(well_scene_size * well_size_y / well_size_x)
     else:
         # keep the ratio between well_size_x and well_size_y
-        well_width = int(well_scene_size * plate.well_size_x / plate.well_size_y)
+        well_width = int(well_scene_size * well_size_x / well_size_y)
         well_height = well_scene_size
 
     # calculate the spacing between wells
-    dx = plate.well_spacing_x - plate.well_size_x if plate.well_spacing_x else 0
-    dy = plate.well_spacing_y - plate.well_size_y if plate.well_spacing_y else 0
+    dx = well_spacing_x - well_size_x if well_spacing_x else 0
+    dy = well_spacing_y - well_size_y if well_spacing_y else 0
 
     # convert the spacing between wells in pixels
-    dx_px = dx * well_width / plate.well_size_x if plate.well_spacing_x else 0
-    dy_px = dy * well_height / plate.well_size_y if plate.well_spacing_y else 0
+    dx_px = dx * well_width / well_size_x if well_spacing_x else 0
+    dy_px = dy * well_height / well_size_y if well_spacing_y else 0
 
     # the text size is the well_height of the well divided by 3
     text_size = well_height / 3 if text else None
@@ -79,7 +82,7 @@ def draw_plate(
         _x = (well_width * col) + (dx_px * col)
         _y = (well_height * row) + (dy_px * row)
         rect = QRectF(_x, _y, well_width, well_height)
-        w = _WellGraphicsItem(rect, row, col, plate.circular, text_size)
+        w = _WellGraphicsItem(rect, row, col, plate.circular_wells, text_size)
         w.brush = brush
         w.pen = pen
         w.setOpacity(opacity)
@@ -100,12 +103,13 @@ def draw_plate(
 
 
 def get_well_center(
-    plate: Plate, well: Well, a1_center_x: float, a1_center_y: float
+    plate: WellPlate, well: Well, a1_center_x: float, a1_center_y: float
 ) -> tuple[float, float]:
     """Calculate the x, y stage coordinates of a well."""
     a1_x, a1_y = (a1_center_x, a1_center_y)
-    spacing_x = plate.well_spacing_x * 1000  # µm
-    spacing_y = plate.well_spacing_y * 1000  # µm
+    well_spacing_x, well_spacing_y = plate.well_spacing
+    spacing_x = well_spacing_x * 1000  # µm
+    spacing_y = well_spacing_y * 1000  # µm
 
     if well.name == "A1":
         x, y = (a1_x, a1_y)
@@ -116,17 +120,15 @@ def get_well_center(
 
 
 def apply_rotation_matrix(
-    rotation_matrix: np.ndarray | list[list[float]],
-    center_x: float,
-    center_y: float,
-    x: float,
-    y: float,
+    rotation_matrix: np.ndarray,
+    a1_center_x: float,
+    a1_center_y: float,
+    new_x: float,
+    new_y: float,
 ) -> tuple[float, float]:
     """Apply rotation matrix to x, y coordinates."""
-    center = np.array([[center_x], [center_y]])
-    coords = [[x], [y]]
-    if isinstance(rotation_matrix, list):
-        rotation_matrix = np.array(rotation_matrix)
+    center = np.array([[a1_center_x], [a1_center_y]])
+    coords = [[new_x], [new_y]]
     transformed = np.linalg.inv(rotation_matrix).dot(coords - center) + center
     x_rotated, y_rotated = transformed
     return x_rotated[0], y_rotated[0]

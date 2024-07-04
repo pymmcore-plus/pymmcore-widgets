@@ -19,14 +19,11 @@ from qtpy.QtWidgets import (
     QMessageBox,
     QPushButton,
     QWidget,
-    QWizard,
 )
 from superqt.fonticon import icon
-from useq import AxesBasedAF, MDASequence, Position
+from useq import MDASequence, Position
 
-from pymmcore_widgets import HCSWizard
 from pymmcore_widgets._util import get_next_available_path
-from pymmcore_widgets.hcs._main_wizard_widget import HCSData
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 from pymmcore_widgets.useq_widgets._mda_sequence import PYMMCW_METADATA_KEY, MDATabs
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
@@ -110,21 +107,6 @@ class MDAWidget(MDASequenceWidget):
         self.save_info.valueChanged.connect(self.valueChanged)
         self.control_btns = _MDAControlButtons(self._mmc, self)
 
-        # add HCS wizard
-        self.hcs = HCSWizard(parent=self)
-        self._hcs_value: HCSData | None = None
-        # rename the finish button to "Add Positions"
-        self.hcs.fov_page.setButtonText(
-            QWizard.WizardButton.FinishButton, "Add Positions"
-        )
-        self.hcs_button = QPushButton("HCS")
-        self.hcs_button.setIcon(icon(MDI6.vector_polyline))
-        self.hcs_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.hcs_button.setToolTip("Open the HCS wizard.")
-
-        pos_table_layout = self.stage_positions.layout().itemAt(2)
-        pos_table_layout.insertWidget(2, self.hcs_button)
-
         # -------- initialize -----------
 
         self._on_sys_config_loaded()
@@ -144,13 +126,6 @@ class MDAWidget(MDASequenceWidget):
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
 
-        # HCS wizard connections
-        self.hcs_button.clicked.connect(self._show_hcs)
-        self.stage_positions.valueChanged.connect(self._set_hcs_value)
-        # connect the HCS wizard valueChanged signal to the MDAWidget so that it can
-        # populate the Positions table with the new positions from the HCS wizard
-        self.hcs.valueChanged.connect(self._add_to_positios_table)
-
         self.destroyed.connect(self._disconnect)
 
     # ------------------- public Methods ----------------------
@@ -169,7 +144,8 @@ class MDAWidget(MDASequenceWidget):
         ):
             z = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
             replace["stage_positions"] = tuple(
-                pos.replace(z=z) for pos in val.stage_positions
+                pos.replace(z=z)
+                for pos in val.stage_positions  # type: ignore  # need to release useq
             )
 
         # if there is an autofocus_plan but the autofocus_motor_offset is None, set it
@@ -196,11 +172,6 @@ class MDAWidget(MDASequenceWidget):
             val = val.replace(**replace)
 
         meta: dict = val.metadata.setdefault(PYMMCW_METADATA_KEY, {})
-        meta[HCS] = (
-            self._hcs_value.replace(positions=None)
-            if self._hcs_value is not None
-            else {}
-        )
         if self.save_info.isChecked():
             meta.update(self.save_info.value())
         return val
@@ -211,11 +182,6 @@ class MDAWidget(MDASequenceWidget):
         meta = cast(dict, value.metadata.get(PYMMCW_METADATA_KEY, {}))
         # save info
         self.save_info.setValue(meta)
-        # if the HCS wizard has been used, set the positions from the HCS wizard
-        self._hcs_value = None
-        if hcs := meta.get(HCS):
-            self._hcs_value = HCSData(**hcs)
-            self.hcs.setValue(self._hcs_value)
 
     def get_next_available_path(self, requested_path: Path) -> Path:
         """Get the next available path.
@@ -276,55 +242,6 @@ class MDAWidget(MDASequenceWidget):
     def _on_sys_config_loaded(self) -> None:
         # TODO: connect objective change event to update suggested step
         self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
-        self._hcs_value = None
-
-    def _show_hcs(self) -> None:
-        # if hcs is open, raise it, otherwise show it
-        if self.hcs.isVisible():
-            self.hcs.raise_()
-        else:
-            self.hcs.show()
-
-    def _set_hcs_value(self) -> None:
-        """Set the `_hcs_value` attribute.
-
-        If the user changes the number of positions in the table after adding them with
-        the HCS wizard, the `_using_hcs` attribute should be set to None.
-        """
-        self._hcs_value = None
-        hcs_pos = self.hcs.get_positions() or []
-        if self.stage_positions._table.rowCount() == len(hcs_pos):
-            self._hcs_value = self.hcs.value()
-
-    def _add_to_positios_table(self, value: HCSData) -> None:
-        """Add a list of positions to the Positions table."""
-        positions = value.positions
-
-        if not positions:
-            return
-
-        # get the current sequence from the MDAWidget
-        sequence = self.value()
-
-        # replace the stage_positions with the new positions form the HCS wizard
-        sequence = sequence.replace(stage_positions=positions)
-
-        # if autofocus is enabled and locked, add the autofocus plan
-        if (
-            self._mmc.getAutoFocusDevice()
-            and self.af_axis.value()
-            and self._mmc.isContinuousFocusLocked()
-        ):
-            sequence = sequence.replace(
-                autofocus_plan=AxesBasedAF(
-                    axes=self.af_axis.value(),
-                    autofocus_motor_offset=self._mmc.getAutoFocusOffset(),
-                )
-            )
-
-        # update the MDAWidget
-        self.setValue(sequence)
-        self._hcs_value = value
 
     def _get_current_stage_position(self) -> Position:
         """Return the current stage position."""

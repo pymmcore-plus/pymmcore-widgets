@@ -22,7 +22,7 @@ SELECTED_COLOR = QBrush(QColor(GREEN))
 UNSELECTED_COLOR = QBrush(Qt.GlobalColor.lightGray)
 
 
-class _HCSGraphicsScene(QGraphicsScene):
+class _PlateGraphicsScene(QGraphicsScene):
     """Custom QGraphicsScene to control the plate/well selection.
 
     To get the list of selected well info, use the `value` method
@@ -118,7 +118,7 @@ class _HCSGraphicsScene(QGraphicsScene):
                 self._set_selected(item, True)
         self.valueChanged.emit()
 
-    def value(self) -> list[Well] | None:
+    def value(self) -> list[Well]:
         """Return the list of tuple (name, row, column) of the selected wells.
 
         ...in a snake-row-wise order.
@@ -126,7 +126,7 @@ class _HCSGraphicsScene(QGraphicsScene):
         wells = [item.value() for item in reversed(self.items()) if item.isSelected()]
 
         # this has to be fixed. Maybe at thgis point the order does not matter
-        return self._snake_row_wise_ordered(wells) if wells else None
+        return self._snake_row_wise_ordered(wells) if wells else []
 
     def _snake_row_wise_ordered(self, wells: list[Well]) -> list[Well]:
         """Return a snake-row-wise ordered list of the selected wells."""

@@ -1,59 +1,46 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Union, cast
+from typing import Any, Union
 
 import numpy as np
 from qtpy.QtCore import QRectF, Qt, Signal
 from qtpy.QtGui import QColor, QPen
 from qtpy.QtWidgets import (
-    QButtonGroup,
     QComboBox,
     QDoubleSpinBox,
     QGraphicsEllipseItem,
     QGraphicsLineItem,
     QGraphicsRectItem,
     QGraphicsScene,
-    QGridLayout,
     QGroupBox,
-    QHBoxLayout,
     QLabel,
     QPushButton,
-    QRadioButton,
     QSizePolicy,
     QSpacerItem,
     QSpinBox,
     QVBoxLayout,
     QWidget,
 )
-from superqt.utils import signals_blocked
-from useq import (
-    AnyGridPlan,
-    GridFromEdges,
-    GridRowsColumns,
-    GridWidthHeight,
-    RandomPoints,
-)
+from useq import GridRowsColumns, Position, RandomPoints
+from useq._base_model import FrozenModel
 from useq._grid import GridPosition, OrderMode, Shape
 
-from pymmcore_widgets.useq_widgets._grid import _SeparatorWidget
+from pymmcore_widgets.hcs._graphics_items import (
+    FOV,
+    GREEN,
+    _FOVGraphicsItem,
+    _WellAreaGraphicsItem,
+)
+from pymmcore_widgets.hcs._util import _ResizingGraphicsView, nearest_neighbor
 
-from ._graphics_items import FOV, GREEN, _FOVGraphicsItem, _WellAreaGraphicsItem
-from ._pydantic_model import FrozenModel
-from ._util import _ResizingGraphicsView, nearest_neighbor
-
-if TYPE_CHECKING:
-    from ._plate_model import Plate
+from ._util import create_label, make_wdg_with_label
 
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 FIXED_POLICY = (QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-CENTER = "Center"
-RANDOM = "Random"
-GRID = "Grid"
 DEFAULT_VIEW_SIZE = (300, 300)  # px
 DEFAULT_WELL_SIZE = (10, 10)  # mm
 DEFAULT_FOV_SIZE = (DEFAULT_WELL_SIZE[0] / 10, DEFAULT_WELL_SIZE[1] / 10)  # mm
-OFFSET = 20
 PEN_WIDTH = 4
 RECT = Shape.RECTANGLE
 ELLIPSE = Shape.ELLIPSE
@@ -61,44 +48,40 @@ PEN_AREA = QPen(QColor(GREEN))
 PEN_AREA.setWidth(PEN_WIDTH)
 
 
-class Center(GridRowsColumns):
+# class Center(GridRowsColumns):
+#     """A subclass of GridRowsColumns to store the center coordinates and FOV size.
+
+#     Attributes
+#     ----------
+#     x : float
+#         The x coordinate of the center.
+#     y : float
+#         The y coordinate of the center.
+#     fov_width : float | None
+#         The width of the FOV in µm.
+#     fov_height : float | None
+#         The height of the FOV in µm.
+#     """
+
+#     x: float
+#     y: float
+#     rows: int = 1
+#     columns: int = 1
+
+
+class Center(Position):
     """A subclass of GridRowsColumns to store the center coordinates and FOV size.
 
     Attributes
     ----------
-    x : float
-        The x coordinate of the center.
-    y : float
-        The y coordinate of the center.
     fov_width : float | None
         The width of the FOV in µm.
     fov_height : float | None
         The height of the FOV in µm.
     """
 
-    x: float
-    y: float
-    rows: int = 1
-    columns: int = 1
-
-
-def _create_label(label_text: str) -> QLabel:
-    """Create a QLabel with fixed QSizePolicy."""
-    lbl = QLabel()
-    lbl.setSizePolicy(*FIXED_POLICY)
-    lbl.setText(label_text)
-    return lbl
-
-
-def _make_wdg_with_label(label: QLabel, wdg: QWidget) -> QWidget:
-    """Create a QWidget with a QHBoxLayout with the given label and widget."""
-    widget = QWidget()
-    layout = QHBoxLayout(widget)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(5)
-    layout.addWidget(label)
-    layout.addWidget(wdg)
-    return widget
+    fov_width: float | None = None
+    fov_height: float | None = None
 
 
 class _CenterFOVWidget(QWidget):
@@ -146,7 +129,8 @@ class _CenterFOVWidget(QWidget):
 
     def setValue(self, value: Center) -> None:
         """Set the values of the widgets."""
-        self._x, self._y = value.x, value.y
+        self._x = value.x or 0.0
+        self._y = value.y or 0.0
         self.fov_size = (value.fov_width, value.fov_height)
 
 
@@ -159,7 +143,9 @@ class _RandomFOVWidget(QWidget):
         super().__init__(parent)
 
         # setting a random seed for point generation reproducibility
-        self._random_seed: int | None = np.random.randint(0, 2**32 - 1, dtype=np.uint32)
+        self._random_seed: int | None = int(
+            np.random.randint(0, 2**32 - 1, dtype=np.uint32)
+        )
         self._is_circular: bool = False
         self._fov_size: tuple[float | None, float | None] = (None, None)
 
@@ -169,8 +155,8 @@ class _RandomFOVWidget(QWidget):
         self._area_x.setMinimum(0.0)
         self._area_x.setMaximum(1000000)
         self._area_x.setSingleStep(100)
-        area_label_x = _create_label("Area x (µm):")
-        area_x = _make_wdg_with_label(area_label_x, self._area_x)
+        area_label_x = create_label("Area x (µm):")
+        area_x = make_wdg_with_label(area_label_x, self._area_x)
 
         # well area doublespinbox along y
         self._area_y = QDoubleSpinBox()
@@ -178,16 +164,16 @@ class _RandomFOVWidget(QWidget):
         self._area_y.setMinimum(0.0)
         self._area_y.setMaximum(1000000)
         self._area_y.setSingleStep(100)
-        area_label_y = _create_label("Area y (µm):")
-        area_y = _make_wdg_with_label(area_label_y, self._area_y)
+        area_label_y = create_label("Area y (µm):")
+        area_y = make_wdg_with_label(area_label_y, self._area_y)
 
         # number of FOVs spinbox
         self._number_of_points = QSpinBox()
         self._number_of_points.setAlignment(AlignCenter)
         self._number_of_points.setMinimum(1)
         self._number_of_points.setMaximum(1000)
-        number_of_points_label = _create_label("Points:")
-        n_of_points = _make_wdg_with_label(
+        number_of_points_label = create_label("Points:")
+        n_of_points = make_wdg_with_label(
             number_of_points_label, self._number_of_points
         )
 
@@ -262,7 +248,7 @@ class _RandomFOVWidget(QWidget):
     def _on_random_clicked(self) -> None:
         """Emit the valueChanged signal."""
         # reset the random seed
-        self.random_seed = np.random.randint(0, 2**32 - 1, dtype=np.uint32)
+        self.random_seed = int(np.random.randint(0, 2**32 - 1, dtype=np.uint32))
         self.valueChanged.emit(self.value())
 
     def value(self) -> RandomPoints:
@@ -282,7 +268,11 @@ class _RandomFOVWidget(QWidget):
     def setValue(self, value: RandomPoints) -> None:
         """Set the values of the widgets."""
         self.is_circular = value.shape == ELLIPSE
-        self.random_seed = value.random_seed
+        self.random_seed = (
+            value.random_seed
+            if value.random_seed is not None
+            else int(np.random.randint(0, 2**32 - 1, dtype=np.uint32))
+        )
         self._number_of_points.setValue(value.num_points)
         self._area_x.setMaximum(value.max_width)
         self._area_x.setValue(value.max_width)
@@ -312,15 +302,15 @@ class _GridFovWidget(QWidget):
         self._rows = QSpinBox()
         self._rows.setAlignment(AlignCenter)
         self._rows.setMinimum(1)
-        rows_lbl = _create_label("Rows:")
-        rows = _make_wdg_with_label(rows_lbl, self._rows)
+        rows_lbl = create_label("Rows:")
+        rows = make_wdg_with_label(rows_lbl, self._rows)
         self._rows.valueChanged.connect(self._on_value_changed)
 
         self._cols = QSpinBox()
         self._cols.setAlignment(AlignCenter)
         self._cols.setMinimum(1)
-        cols_lbl = _create_label("Columns:")
-        cols = _make_wdg_with_label(cols_lbl, self._cols)
+        cols_lbl = create_label("Columns:")
+        cols = make_wdg_with_label(cols_lbl, self._cols)
         self._cols.valueChanged.connect(self._on_value_changed)
 
         self._overlap_x = QDoubleSpinBox()
@@ -329,8 +319,8 @@ class _GridFovWidget(QWidget):
         self._overlap_x.setMaximum(100)
         self._overlap_x.setSingleStep(1.0)
         self._overlap_x.setValue(0)
-        overlap_x_lbl = _create_label("Overlap x (%):")
-        overlap_x = _make_wdg_with_label(overlap_x_lbl, self._overlap_x)
+        overlap_x_lbl = create_label("Overlap x (%):")
+        overlap_x = make_wdg_with_label(overlap_x_lbl, self._overlap_x)
         self._overlap_x.valueChanged.connect(self._on_value_changed)
 
         self._overlap_y = QDoubleSpinBox()
@@ -339,15 +329,15 @@ class _GridFovWidget(QWidget):
         self._overlap_y.setMaximum(100)
         self._overlap_y.setSingleStep(1.0)
         self._overlap_y.setValue(0)
-        spacing_y_lbl = _create_label("Overlap y (%):")
-        overlap_y = _make_wdg_with_label(spacing_y_lbl, self._overlap_y)
+        spacing_y_lbl = create_label("Overlap y (%):")
+        overlap_y = make_wdg_with_label(spacing_y_lbl, self._overlap_y)
         self._overlap_y.valueChanged.connect(self._on_value_changed)
 
         self._order_combo = QComboBox()
         self._order_combo.addItems([mode.value for mode in OrderMode])
         self._order_combo.setCurrentText(OrderMode.row_wise_snake.value)
-        order_combo_lbl = _create_label("Grid Order:")
-        order_combo = _make_wdg_with_label(order_combo_lbl, self._order_combo)
+        order_combo_lbl = create_label("Grid Order:")
+        order_combo = make_wdg_with_label(order_combo_lbl, self._order_combo)
         self._order_combo.currentTextChanged.connect(self._on_value_changed)
 
         # add widgets to wdg layout
@@ -426,7 +416,7 @@ class _GridFovWidget(QWidget):
         self._fov_size = (None, None)
 
 
-class WellViewData(FrozenModel):
+class _WellViewData(FrozenModel):
     """A NamedTuple to store the well view data.
 
     Attributes
@@ -441,21 +431,24 @@ class WellViewData(FrozenModel):
         If True, the FOVs will be connected by black lines to represent the order of
         acquisition. In addition, the first FOV will be drawn with a black color, the
         others with a white color. By default, True.
-    mode : Center | AnyGridPlan | None
+    mode : Center | GridRowsColumns | RandomPoints | None
         The mode to use to draw the FOVs. By default, None.
     """
 
-    well_size: Tuple[Optional[float], Optional[float]] = (None, None)  # noqa: UP006, UP007
+    well_size: tuple[float | None, float | None] = (
+        None,
+        None,
+    )
     circular: bool = False
     padding: int = 0
     show_fovs_order: bool = True
-    mode: Union[Center, AnyGridPlan, None] = None  # noqa: UP007
+    mode: Union[Center, GridRowsColumns, RandomPoints, None] = None  # noqa: UP007
 
 
-DEFAULT_WELL_DATA = WellViewData()
+DEFAULT_WELL_DATA = _WellViewData()
 
 
-class WellView(_ResizingGraphicsView):
+class _WellView(_ResizingGraphicsView):
     """Graphics view to draw a well and the FOVs.
 
     Parameters
@@ -481,7 +474,7 @@ class WellView(_ResizingGraphicsView):
         self,
         parent: QWidget | None = None,
         view_size: tuple[int, int] = DEFAULT_VIEW_SIZE,
-        data: WellViewData = DEFAULT_WELL_DATA,
+        data: _WellViewData = DEFAULT_WELL_DATA,
     ) -> None:
         self._scene = QGraphicsScene()
         super().__init__(self._scene, parent)
@@ -500,7 +493,7 @@ class WellView(_ResizingGraphicsView):
 
     # _________________________PUBLIC METHODS_________________________ #
 
-    def setMode(self, mode: Center | AnyGridPlan | None) -> None:
+    def setMode(self, mode: Center | GridRowsColumns | RandomPoints | None) -> None:
         """Set the mode to use to draw the FOVs."""
         self._mode = mode
         self._fov_width = mode.fov_width if mode else None
@@ -519,7 +512,7 @@ class WellView(_ResizingGraphicsView):
         )
         self._update_scene(self._mode)
 
-    def mode(self) -> Center | AnyGridPlan | None:
+    def mode(self) -> Center | GridRowsColumns | RandomPoints | None:
         """Return the mode to use to draw the FOVs."""
         return self._mode
 
@@ -561,23 +554,23 @@ class WellView(_ResizingGraphicsView):
     def clear(self, *item_types: Any) -> None:
         """Remove all items of `item_types` from the scene."""
         if not item_types:
-            self.scene().clear()
+            self._scene.clear()
             self._mode = None
-        for item in self.scene().items():
+        for item in self._scene.items():
             if not item_types or isinstance(item, item_types):
-                self.scene().removeItem(item)
-        self.scene().update()
+                self._scene.removeItem(item)
+        self._scene.update()
 
     def refresh(self) -> None:
         """Refresh the scene."""
-        self.scene().clear()
+        self._scene.clear()
         self._draw_well_area()
         if self._mode is not None:
             self._update_scene(self._mode)
 
-    def value(self) -> WellViewData:
+    def value(self) -> _WellViewData:
         """Return the value of the scene."""
-        return WellViewData(
+        return _WellViewData(
             well_size=(self._well_width, self._well_height),
             circular=self._is_circular,
             padding=self._padding,
@@ -585,7 +578,7 @@ class WellView(_ResizingGraphicsView):
             mode=self._mode,
         )
 
-    def setValue(self, value: WellViewData) -> None:
+    def setValue(self, value: _WellViewData) -> None:
         """Set the value of the scene."""
         self.clear()
 
@@ -632,12 +625,18 @@ class WellView(_ResizingGraphicsView):
             self.clear()
             return
 
-        if self._is_circular:
-            self.scene().addEllipse(self._get_reference_well_area(), pen=PEN_AREA)
-        else:
-            self.scene().addRect(self._get_reference_well_area(), pen=PEN_AREA)
+        ref = self._get_reference_well_area()
+        if ref is None:
+            return
 
-    def _update_scene(self, value: Center | AnyGridPlan | None) -> None:
+        if self._is_circular:
+            self._scene.addEllipse(ref, pen=PEN_AREA)
+        else:
+            self._scene.addRect(ref, pen=PEN_AREA)
+
+    def _update_scene(
+        self, value: Center | GridRowsColumns | RandomPoints | None
+    ) -> None:
         """Update the scene with the given mode."""
         if value is None:
             self.clear(_WellAreaGraphicsItem, _FOVGraphicsItem)
@@ -647,14 +646,14 @@ class WellView(_ResizingGraphicsView):
             self._update_center_fov(value)
         elif isinstance(value, RandomPoints):
             self._update_random_fovs(value)
-        elif isinstance(value, (GridRowsColumns, GridWidthHeight, GridFromEdges)):
+        elif isinstance(value, (GridRowsColumns)):
             self._update_grid_fovs(value)
         else:
             raise ValueError(f"Invalid value: {value}")
 
     def _update_center_fov(self, value: Center) -> None:
         """Update the scene with the center point."""
-        points = [FOV(value.x, value.y, self.sceneRect())]
+        points = [FOV(value.x or 0.0, value.y or 0.0, self.sceneRect())]
         self._draw_fovs(points)
 
     def _update_random_fovs(self, value: RandomPoints) -> None:
@@ -667,7 +666,7 @@ class WellView(_ResizingGraphicsView):
         # get the well area in scene pixel
         ref_area = self._get_reference_well_area()
 
-        if ref_area is None:
+        if ref_area is None or self._well_width is None or self._well_height is None:
             return
 
         well_area_x_px = ref_area.width() * value.max_width / self._well_width
@@ -682,7 +681,7 @@ class WellView(_ResizingGraphicsView):
 
         # draw well and well area
         self._draw_well_area()
-        self.scene().addItem(area)
+        self._scene.addItem(area)
 
         val = value.replace(
             max_width=area.boundingRect().width(),
@@ -702,7 +701,10 @@ class WellView(_ResizingGraphicsView):
         with warnings.catch_warnings(record=True) as w:
             # note: inverting the y axis because in scene, y up is negative and y down
             # is positive.
-            pos = [GridPosition(x, y * (-1), r, c, rel) for x, y, r, c, rel in points]
+            pos = [  # type: ignore  # need my useq PR
+                GridPosition(x, y * (-1), r, c, rel, name)  # type: ignore  # need my useq PR
+                for x, y, r, c, rel, name in points
+            ]
             if len(pos) != points.num_points:
                 self.pointsWarning.emit(len(pos))
 
@@ -712,18 +714,19 @@ class WellView(_ResizingGraphicsView):
         top_x, top_y = area.topLeft().x(), area.topLeft().y()
         return [FOV(p.x, p.y, area) for p in nearest_neighbor(pos, top_x, top_y)]
 
-    def _update_grid_fovs(
-        self, value: GridRowsColumns | GridWidthHeight | GridFromEdges
-    ) -> None:
+    def _update_grid_fovs(self, value: GridRowsColumns) -> None:
         """Update the scene with the grid points."""
         val = value.replace(fov_width=self._fov_width_px, fov_height=self._fov_width_px)
 
         # x and y center coords of the scene in px
         x, y = (
-            self.scene().sceneRect().center().x(),
-            self.scene().sceneRect().center().y(),
+            self._scene.sceneRect().center().x(),
+            self._scene.sceneRect().center().y(),
         )
         rect = self._get_reference_well_area()
+
+        if rect is None:
+            return
         # create a list of FOV points by shifting the grid by the center coords.
         # note: inverting the y axis because in scene, y up is negative and y down is
         # positive.
@@ -770,270 +773,8 @@ class WellView(_ResizingGraphicsView):
                 ),
             )
 
-            self.scene().addItem(fovs)
+            self._scene.addItem(fovs)
             # draw the lines connecting the fovs
             if x is not None and y is not None and self._show_fovs_order:
-                self.scene().addLine(x, y, fov.x, fov.y, pen=line_pen)
+                self._scene.addLine(x, y, fov.x, fov.y, pen=line_pen)
             x, y = (fov.x, fov.y)
-
-
-class FOVSelectorWidget(QWidget):
-    """Widget to select the FOVVs per well of the plate."""
-
-    valueChanged = Signal(object)
-
-    def __init__(
-        self,
-        plate: Plate | None = None,
-        mode: Center | RandomPoints | GridRowsColumns | None = None,
-        parent: QWidget | None = None,
-    ) -> None:
-        super().__init__(parent=parent)
-
-        self._plate: Plate | None = plate
-
-        # graphics scene to draw the well and the fovs
-        self.view = WellView()
-
-        # centerwidget
-        self.center_wdg = _CenterFOVWidget()
-        self.center_radio_btn = QRadioButton()
-        self.center_radio_btn.setChecked(True)
-        self.center_radio_btn.setSizePolicy(*FIXED_POLICY)
-        self.center_radio_btn.setObjectName(CENTER)
-        center_wdg = QWidget()
-        center_wdg_layout = QHBoxLayout(center_wdg)
-        center_wdg_layout.setContentsMargins(0, 0, 0, 0)
-        center_wdg_layout.setSpacing(5)
-        center_wdg_layout.addWidget(self.center_radio_btn)
-        center_wdg_layout.addWidget(self.center_wdg)
-
-        # random widget
-        self.random_wdg = _RandomFOVWidget()
-        self.random_wdg.setEnabled(False)
-        self.random_radio_btn = QRadioButton()
-        self.random_radio_btn.setSizePolicy(*FIXED_POLICY)
-        self.random_radio_btn.setObjectName(RANDOM)
-        random_wdg = QWidget()
-        random_wdg_layout = QHBoxLayout(random_wdg)
-        random_wdg_layout.setContentsMargins(0, 0, 0, 0)
-        random_wdg_layout.setSpacing(5)
-        random_wdg_layout.addWidget(self.random_radio_btn)
-        random_wdg_layout.addWidget(self.random_wdg)
-
-        # grid widget
-        self.grid_wdg = _GridFovWidget()
-        self.grid_wdg.setEnabled(False)
-        self.grid_radio_btn = QRadioButton()
-        self.grid_radio_btn.setSizePolicy(*FIXED_POLICY)
-        self.grid_radio_btn.setObjectName(GRID)
-        grid_wdg = QWidget()
-        grid_wdg_layout = QHBoxLayout(grid_wdg)
-        grid_wdg_layout.setContentsMargins(0, 0, 0, 0)
-        grid_wdg_layout.setSpacing(5)
-        grid_wdg_layout.addWidget(self.grid_radio_btn)
-        grid_wdg_layout.addWidget(self.grid_wdg)
-
-        # radio buttons group for fov mode selection
-        self._mode_btn_group = QButtonGroup()
-        self._mode_btn_group.addButton(self.center_radio_btn)
-        self._mode_btn_group.addButton(self.random_radio_btn)
-        self._mode_btn_group.addButton(self.grid_radio_btn)
-        self.MODE: dict[str, _CenterFOVWidget | _RandomFOVWidget | _GridFovWidget] = {
-            CENTER: self.center_wdg,
-            RANDOM: self.random_wdg,
-            GRID: self.grid_wdg,
-        }
-        self._mode_btn_group.buttonToggled.connect(self._on_radiobutton_toggled)
-
-        # main
-        main_layout = QGridLayout(self)
-        main_layout.setSpacing(10)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.addWidget(_SeparatorWidget(), 0, 0)
-        main_layout.addWidget(center_wdg, 1, 0)
-        main_layout.addWidget(_SeparatorWidget(), 2, 0)
-        main_layout.addWidget(random_wdg, 3, 0)
-        main_layout.addWidget(_SeparatorWidget(), 4, 0)
-        main_layout.addWidget(grid_wdg, 5, 0)
-        main_layout.addWidget(_SeparatorWidget(), 6, 0)
-        main_layout.addWidget(self.view, 0, 1, 7, 1)
-
-        # connect
-        self.random_wdg.valueChanged.connect(self._on_value_changed)
-        self.grid_wdg.valueChanged.connect(self._on_value_changed)
-        self.view.pointsWarning.connect(self._on_points_warning)
-
-        self.setValue(self._plate, mode)
-
-    # _________________________PUBLIC METHODS_________________________ #
-
-    def value(
-        self,
-    ) -> tuple[Plate | None, Center | RandomPoints | GridRowsColumns | None]:
-        return self._plate, self._get_mode_widget().value()
-
-    def setValue(
-        self, plate: Plate | None, mode: Center | RandomPoints | GridRowsColumns | None
-    ) -> None:
-        """Set the value of the widget.
-
-        Parameters
-        ----------
-        plate : Plate | None
-            The well plate object.
-        mode : Center | RandomPoints | GridRowsColumns
-            The mode to use to select the FOVs.
-        """
-        self.view.clear()
-
-        self._plate = plate
-
-        if self._plate is None:
-            # reset view scene and mode widgets
-            self.view.setValue(WellViewData())
-            with signals_blocked(self.random_wdg):
-                self.random_wdg.reset()
-            with signals_blocked(self.grid_wdg):
-                self.grid_wdg.reset()
-
-            # set the radio buttons
-            self._update_mode_widgets(mode)
-            return
-
-        # update view data
-        view_data = WellViewData(
-            # plate well size in mm, convert to µm
-            well_size=(self._plate.well_size_x * 1000, self._plate.well_size_y * 1000),
-            circular=self._plate.circular,
-            padding=OFFSET,
-            mode=mode,
-        )
-        self.view.setValue(view_data)
-
-        # update the fov size in each mode widget
-        self._update_mode_wdgs_fov_size(
-            (mode.fov_width, mode.fov_height) if mode else (None, None)
-        )
-
-        self._update_mode_widgets(mode)
-
-    # _________________________PRIVATE METHODS_________________________ #
-
-    def _get_mode_widget(self) -> _CenterFOVWidget | _RandomFOVWidget | _GridFovWidget:
-        """Return the current mode."""
-        for btn in self._mode_btn_group.buttons():
-            if btn.isChecked():
-                mode_name = cast(str, btn.objectName())
-                return self.MODE[mode_name]
-        raise ValueError("No mode selected.")
-
-    def _update_mode_widgets(
-        self, mode: Center | RandomPoints | GridRowsColumns | None
-    ) -> None:
-        """Update the mode widgets."""
-        if isinstance(mode, RandomPoints):
-            self._set_random_value(mode)
-        else:
-            # update the randon widget values depending on the plate
-            with signals_blocked(self.random_wdg):
-                self.random_wdg.setValue(self._plate_to_random(self._plate))
-            # update center or grid widgets
-            if isinstance(mode, Center):
-                self._set_center_value(mode)
-            elif isinstance(mode, GridRowsColumns):
-                self._set_grid_value(mode)
-
-    def _update_mode_wdgs_fov_size(
-        self, fov_size: tuple[float | None, float | None]
-    ) -> None:
-        """Update the fov size in each mode widget."""
-        self.center_wdg.fov_size = fov_size
-        self.random_wdg.fov_size = fov_size
-        self.grid_wdg.fov_size = fov_size
-
-    def _on_points_warning(self, num_points: int) -> None:
-        self.random_wdg._number_of_points.setValue(num_points)
-
-    def _on_radiobutton_toggled(self, radio_btn: QRadioButton) -> None:
-        """Update the scene when the tab is changed."""
-        self.view.clear(_WellAreaGraphicsItem, _FOVGraphicsItem, QGraphicsLineItem)
-        self._enable_radio_buttons_wdgs()
-        self._update_scene()
-
-        if radio_btn.isChecked():
-            self.valueChanged.emit(self.value())
-
-    def _enable_radio_buttons_wdgs(self) -> None:
-        """Enable any radio button that is checked."""
-        for btn in self._mode_btn_group.buttons():
-            self.MODE[btn.objectName()].setEnabled(btn.isChecked())
-
-    def _on_value_changed(self, value: RandomPoints | GridRowsColumns) -> None:
-        self.view.clear(_WellAreaGraphicsItem, _FOVGraphicsItem, QGraphicsLineItem)
-        view_data = self.view.value().replace(mode=value)
-        self.view.setValue(view_data)
-        self.valueChanged.emit(self.value())
-
-    def _update_scene(self) -> None:
-        """Update the scene depending on the selected tab."""
-        mode = self._get_mode_widget().value()
-        view_data = self.view.value().replace(mode=mode)
-        self.view.setValue(view_data)
-
-    def _set_center_value(self, mode: Center) -> None:
-        """Set the center widget values."""
-        self.center_radio_btn.setChecked(True)
-        self.center_wdg.setValue(mode)
-
-    def _set_random_value(self, mode: RandomPoints) -> None:
-        """Set the random widget values."""
-        with signals_blocked(self._mode_btn_group):
-            self.random_radio_btn.setChecked(True)
-            self._enable_radio_buttons_wdgs()
-
-        self._check_for_warnings(mode)
-        # here blocking random widget signals to not generate a new random seed
-        with signals_blocked(self.random_wdg):
-            self.random_wdg.setValue(mode)
-
-    def _set_grid_value(self, mode: GridRowsColumns) -> None:
-        """Set the grid widget values."""
-        self.grid_radio_btn.setChecked(True)
-        self.grid_wdg.setValue(mode)
-
-    def _check_for_warnings(self, mode: RandomPoints) -> None:
-        """RandomPoints width and height warning.
-
-        If max width and height are grater than the plate well size, set them to the
-        plate well size.
-        """
-        if self._plate is None:
-            return
-
-        # well_size is in mm, convert to µm
-        if (
-            mode.max_width > self._plate.well_size_x * 1000
-            or mode.max_height > self._plate.well_size_y * 1000
-        ):
-            mode = mode.replace(
-                max_width=self._plate.well_size_x * 1000,
-                max_height=self._plate.well_size_y * 1000,
-            )
-            warnings.warn(
-                "RandomPoints `max_width` and/or `max_height` are larger than "
-                "the well size. They will be set to the well size.",
-                stacklevel=2,
-            )
-
-    def _plate_to_random(self, plate: Plate | None) -> RandomPoints:
-        """Convert a Plate object to a RandomPoints object."""
-        return RandomPoints(
-            num_points=self.random_wdg._number_of_points.value(),
-            max_width=plate.well_size_x * 1000 if plate else 0.0,  # convert to µm
-            max_height=plate.well_size_y * 1000 if plate else 0.0,  # convert to µm
-            shape=ELLIPSE if (plate and plate.circular) else RECT,
-            random_seed=self.random_wdg.random_seed,
-            fov_width=self.random_wdg.fov_size[0],
-            fov_height=self.random_wdg.fov_size[1],
-        )

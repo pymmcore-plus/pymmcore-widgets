@@ -1,24 +1,24 @@
-from pathlib import Path
+# from pathlib import Path
 
-try:
-    from rich import print as rich_print
-except ImportError:
-    rich_print = print
+# try:
+#     from rich import print as rich_print
+# except ImportError:
+#     rich_print = print
 
-from qtpy.QtWidgets import QApplication
+# from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets.hcs._plate_database_widget import PlateDatabaseWidget
+# from pymmcore_widgets.hcs._plate_database_widget import PlateDatabaseWidget
 
-database_path = (
-    Path(__file__).parent.parent.parent / "tests" / "plate_database_for_tests.json"
-)
+# database_path = (
+#     Path(__file__).parent.parent.parent / "tests" / "plate_database_for_tests.json"
+# )
 
-app = QApplication([])
+# app = QApplication([])
 
-db = PlateDatabaseWidget(plate_database_path=database_path)
+# db = PlateDatabaseWidget(plate_database_path=database_path)
 
-db.valueChanged.connect(lambda: rich_print(db.value()))
+# db.valueChanged.connect(lambda: rich_print(db.value()))
 
-db.show()
+# db.show()
 
-app.exec_()
+# app.exec_()

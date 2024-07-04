@@ -28,7 +28,7 @@ from ._property_widget import PropertyWidget
 from ._shutter_widget import ShuttersWidget
 from ._snap_button_widget import SnapButton
 from ._stage_widget import StageWidget
-from .hcs._main_wizard_widget import HCSWizard
+from .hcs._main_wizard._main_wizard import HCSWizard
 from .hcwizard import ConfigWizard
 from .mda import MDAWidget
 from .useq_widgets import (

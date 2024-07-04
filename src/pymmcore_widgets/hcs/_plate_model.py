@@ -1,76 +1,50 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, fields
+import json
+import warnings
 from pathlib import Path
-from typing import Any
+
+from useq import WellPlate
 
 DEFAULT_PLATE_DB_PATH = Path(__file__).parent / "default_well_plate_database.json"
 
 
-@dataclass(frozen=True)
-class Plate:
-    """General class describing a plate.
+def load_database(path: str | Path = DEFAULT_PLATE_DB_PATH) -> dict[str, WellPlate]:
+    """Load the database of well plates contained in database_path.
 
-    It can be used to define multi-well plates or different types of general areas with
-    rectangular, square or circular shapes (e.g. glass coverslips).
+    If an error occurs, it will load the default database.
 
-    Attributes
-    ----------
-    id : str
-        The id of the plate.
-    circular : bool
-        Whether the plate is circular or not. By Default, False.
-    rows : int
-        The number of rows of the plate.
-    columns : int
-        The number of columns of the plate.
-    well_spacing_x : float
-        The spacing between wells in the x direction in mm.
-    well_spacing_y : float
-        The spacing between wells in the y direction in mm.
-    well_size_x : float
-        The size of the wells in the x direction in mm.
-    well_size_y : float
-        The size of the wells in the y direction in mm.
+    Database must be a JSON file with this structure:
+
+    "6-well": {
+        "rows": 2,
+        "columns": 3,
+        "well_spacing": 39.12,
+        "well_size": 34.8
+        "circular_wells": true"  # optional, by default True
+    },
+    ...
     """
-
-    id: str = ""
-    circular: bool = False
-    rows: int = 0
-    columns: int = 0
-    well_spacing_x: float = 0.0
-    well_spacing_y: float = 0.0
-    well_size_x: float = 0.0
-    well_size_y: float = 0.0
-
-    def replace(self, **kwargs: Any) -> Any:
-        """Return a new plate with the given attributes replaced."""
-        attrs = {f.name: getattr(self, f.name) for f in fields(self)}
-        attrs.update(kwargs)
-        return self.__class__(**attrs)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Return a dictionary representation of the BaseDataclass."""
-        return asdict(self)
+    if Path(path) == DEFAULT_PLATE_DB_PATH:
+        with open(path) as f:
+            return {k: WellPlate(**v, name=k) for k, v in json.load(f).items()}
+    try:
+        with open(path) as f:
+            return {k: WellPlate(**v, name=k) for k, v in json.load(f).items()}
+    except Exception as e:
+        warnings.warn(
+            f"Error loading well plate database: {e}."
+            f"Loading default database from {DEFAULT_PLATE_DB_PATH}.",
+            stacklevel=2,
+        )
+        with open(DEFAULT_PLATE_DB_PATH) as f:
+            return {k: WellPlate(**v, name=k) for k, v in json.load(f).items()}
 
 
-def save_database(database: dict[str, Plate], database_path: Path | str) -> None:
+def save_database(database: dict[str, WellPlate], database_path: Path | str) -> None:
     """Save the database of well plates to database_path.
 
     The database will be saved as a JSON file.
     """
-    import json
-
     with open(Path(database_path), "w") as f:
-        json.dump([k.to_dict() for k in database.values()], f, indent=4)
-
-
-def load_database(database_path: Path | str) -> dict[str, Plate]:
-    """Load the database of well plates contained in database_path.
-
-    The database must be a JSON file.
-    """
-    import json
-
-    with open(Path(database_path)) as f:
-        return {k["id"]: Plate(**k) for k in json.load(f)}
+        json.dump({k: v.model_dump_json() for k, v in database.items()}, f, indent=4)

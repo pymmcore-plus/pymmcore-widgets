@@ -425,7 +425,7 @@ class MDASequenceWidget(QWidget):
             axis.update(value.autofocus_plan.axes)
         # update from autofocus plans in each position sub-sequence
         if value.stage_positions:
-            for pos in value.stage_positions:
+            for pos in value.stage_positions:  # type: ignore  # need to release useq
                 if pos.sequence and pos.sequence.autofocus_plan:
                     axis.update(pos.sequence.autofocus_plan.axes)
         self.af_axis.setValue(tuple(axis))
@@ -533,17 +533,17 @@ class MDASequenceWidget(QWidget):
         # gather all the autofocus offsets in the subsequences
         af_offsets = {
             pos.sequence.autofocus_plan.autofocus_motor_offset
-            for pos in seq.stage_positions
+            for pos in seq.stage_positions  # type: ignore  # need to release useq
             if pos.sequence is not None and pos.sequence.autofocus_plan
         }
 
         # if they aren't all the same, there's nothing we can do to simplify it.
         if len(af_offsets) != 1:
-            return {"stage_positions": self._update_af_axes(seq.stage_positions)}
+            return {"stage_positions": self._update_af_axes(seq.stage_positions)}  # type: ignore  # need to release useq
 
         # otherwise, make a global AF plan and remove it from each position
         stage_positions = []
-        for pos in seq.stage_positions:
+        for pos in seq.stage_positions:  # type: ignore  # need to release useq
             if pos.sequence and pos.sequence.autofocus_plan:
                 # remove autofocus plan from the position
                 pos = pos.replace(sequence=pos.sequence.replace(autofocus_plan=None))

@@ -15,10 +15,10 @@ database_path = (
 
 app = QApplication([])
 
-ps = PlateSelectorWidget(plate_database_path=database_path)
+ps = PlateSelectorWidget(plate_database_path="")
 
 ps.valueChanged.connect(lambda: rich_print(ps.value()))
 
 ps.show()
 
-app.exec_()
+app.exec()
