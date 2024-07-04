@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from logging import getLogger
 from re import Pattern
-from typing import Iterable, cast
+from typing import Callable, Iterable, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType
@@ -158,6 +158,8 @@ class DevicePropertyTable(QTableWidget):
                     mmcore=self._mmc,
                     connect_core=self._connect_core,
                 )
+                # TODO: this is an over-emission.  if this is a checkable table,
+                # and the property is not checked, we should not emit.
                 wdg.valueChanged.connect(self.valueChanged)
             except Exception as e:
                 logger.error(
@@ -193,6 +195,7 @@ class DevicePropertyTable(QTableWidget):
         include_read_only: bool = True,
         include_pre_init: bool = True,
         init_props_only: bool = False,
+        predicate: Callable[[DeviceProperty], bool | None] | None = None,
     ) -> None:
         """Update the table to only show devices that match the given query/filter."""
         exclude_devices = set(exclude_devices)
@@ -203,6 +206,15 @@ class DevicePropertyTable(QTableWidget):
             if include_devices and prop.deviceType() not in include_devices:
                 self.hideRow(row)
                 continue
+            if predicate:
+                result = predicate(prop)
+                if result is False:
+                    self.hideRow(row)
+                    continue
+                if result is True:
+                    self.showRow(row)
+                    continue
+                # for None: fall through to other filters
             if (
                 (prop.isReadOnly() and not include_read_only)
                 or (prop.isPreInit() and not include_pre_init)

@@ -7,7 +7,7 @@ core = CMMCorePlus().instance()
 core.loadSystemConfiguration()
 app = QApplication([])
 ocd = OpticalConfigDialog()
-ocd.load_group_from_core("Channel")
+ocd.load_group("Channel")
 ocd.show()
 
 app.exec()
