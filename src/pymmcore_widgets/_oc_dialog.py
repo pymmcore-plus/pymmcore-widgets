@@ -77,7 +77,7 @@ class OpticalConfigDialog(QWidget):
         group_splitter.setStretchFactor(2, 0)
 
         left_top = QWidget()
-        # left_top.hide()
+        left_top.hide()
         left_top_layout = QHBoxLayout(left_top)
         left_top_layout.setContentsMargins(0, 0, 0, 0)
         left_top_layout.addWidget(QLabel("Group:"), 0)
