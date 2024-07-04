@@ -17,7 +17,7 @@ app = QApplication([])
 
 ps = PlateSelectorWidget(plate_database_path="")
 
-ps.valueChanged.connect(lambda: rich_print(ps.value()))
+ps.valueChanged.connect(lambda x: rich_print(x))
 
 ps.show()
 
