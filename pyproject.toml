@@ -51,8 +51,11 @@ dependencies = [
     'pymmcore-plus[cli] >=0.10.2',
     'qtpy >=2.0',
     'superqt[quantity] >=0.5.3',
-    'useq-schema >=0.4.7',
+    'useq-schema @ git+https://github.com/pymmcore-plus/useq-schema.git',  # temporary until new useq release
 ]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
