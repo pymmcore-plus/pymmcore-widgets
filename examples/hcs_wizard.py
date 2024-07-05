@@ -34,5 +34,13 @@ w.setValue(wpp)
 
 w.valueChanged.connect(print)
 
+
+# override the accept method to show the plot
+def _accept():
+    print(w.value().plot())
+
+
+w.accept = _accept
+
 w.show()
 app.exec()
