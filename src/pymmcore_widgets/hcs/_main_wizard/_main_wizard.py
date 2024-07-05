@@ -173,6 +173,8 @@ class HCSWizard(QWizard):
 
         self.fov_page.setValue(value.plate, mode)
 
+        self.valueChanged.emit(value)
+
     def isCalibrated(self) -> bool:
         """Return True if the calibration is done."""
         return self.calibration_page.isCalibrated()
