@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Union
+from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 from qtpy.QtCore import QRectF, Qt, Signal
@@ -48,27 +48,6 @@ PEN_AREA = QPen(QColor(GREEN))
 PEN_AREA.setWidth(PEN_WIDTH)
 
 
-# class Center(GridRowsColumns):
-#     """A subclass of GridRowsColumns to store the center coordinates and FOV size.
-
-#     Attributes
-#     ----------
-#     x : float
-#         The x coordinate of the center.
-#     y : float
-#         The y coordinate of the center.
-#     fov_width : float | None
-#         The width of the FOV in µm.
-#     fov_height : float | None
-#         The height of the FOV in µm.
-#     """
-
-#     x: float
-#     y: float
-#     rows: int = 1
-#     columns: int = 1
-
-
 class Center(Position):
     """A subclass of GridRowsColumns to store the center coordinates and FOV size.
 
@@ -80,8 +59,8 @@ class Center(Position):
         The height of the FOV in µm.
     """
 
-    fov_width: float | None = None
-    fov_height: float | None = None
+    fov_width: Optional[float] = None
+    fov_height: Optional[float] = None
 
 
 class _CenterFOVWidget(QWidget):
@@ -435,7 +414,7 @@ class _WellViewData(FrozenModel):
         The mode to use to draw the FOVs. By default, None.
     """
 
-    well_size: tuple[float | None, float | None] = (
+    well_size: Tuple[Optional[float] , Optional[float]] = (
         None,
         None,
     )
