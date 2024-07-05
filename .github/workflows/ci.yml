@@ -30,14 +30,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, windows-latest]
+        platform: [macos-13, windows-latest]
         python-version: ["3.8", "3.11"]
         backend: [pyside2, pyqt5]
         include:
-          - platform: macos-latest
+          - platform: macos-13
             python-version: "3.10"
             backend: pyside6
-          - platform: macos-latest
+          - platform: macos-13
             python-version: "3.11"
             backend: pyqt6
           - platform: windows-latest
@@ -83,7 +83,9 @@ jobs:
         run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes
 
       - name: Coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   test-napari-micromanager:
     name: test napari-micromanager
@@ -152,6 +154,6 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
 
-      - uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true

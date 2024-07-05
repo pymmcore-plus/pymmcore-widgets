@@ -27,7 +27,7 @@ class ChannelGroupWidget(QComboBox):
     ) -> None:
         super().__init__(parent)
 
-        self.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
@@ -39,7 +39,7 @@ class ChannelGroupWidget(QComboBox):
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
         self._mmc.events.configDefined.connect(self._update_channel_group_combo)
 
-        self.currentTextChanged.connect(self._mmc.setChannelGroup)
+        self.textActivated.connect(self._mmc.setChannelGroup)
 
         self.destroyed.connect(self._disconnect)
 

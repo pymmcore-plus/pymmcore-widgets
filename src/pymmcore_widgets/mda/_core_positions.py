@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -14,15 +14,6 @@ from pymmcore_widgets.useq_widgets._column_info import (
     ButtonColumn,
 )
 from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP
-
-if TYPE_CHECKING:
-    from typing import TypedDict
-
-    class SaveInfo(TypedDict):
-        save_dir: str
-        file_name: str
-        split_positions: bool
-        should_save: bool
 
 
 class CoreConnectedPositionTable(PositionTable):
@@ -203,8 +194,8 @@ class CoreConnectedPositionTable(PositionTable):
             data = self.table().rowData(row, exclude_hidden_cols=True)
 
             # check if autofocus is locked before moving
-            af_locked = self._mmc.isContinuousFocusLocked()
-            af_offset = self._mmc.getAutoFocusOffset() if af_locked else None
+            af_engaged = self._mmc.isContinuousFocusLocked()
+            af_offset = self._mmc.getAutoFocusOffset() if af_engaged else None
 
             if self._mmc.getXYStageDevice():
                 x = data.get(self.X.key, self._mmc.getXPosition())
@@ -231,8 +222,10 @@ class CoreConnectedPositionTable(PositionTable):
                     table_af_offset if table_af_offset is not None else af_offset
                 )
                 try:
+                    self._mmc.enableContinuousFocus(False)
                     self._perform_autofocus()
-                    self._mmc.enableContinuousFocus(af_locked)
+                    self._mmc.enableContinuousFocus(af_engaged)
+                    self._mmc.waitForSystem()
                 except RuntimeError as e:
                     logger.warning("Hardware autofocus failed. %s", e)
 

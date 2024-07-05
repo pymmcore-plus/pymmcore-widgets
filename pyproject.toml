@@ -48,7 +48,7 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
     'fonticon-materialdesignicons6',
-    'pymmcore-plus[cli] >=0.8.5',
+    'pymmcore-plus[cli] >=0.10.2',
     'qtpy >=2.0',
     'superqt[quantity] >=0.5.3',
     'useq-schema >=0.4.7',
@@ -57,7 +57,7 @@ dependencies = [
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-test = ["pytest>=6.0", "pytest-cov", "pytest-qt", "PyYAML", "vispy"]
+test = ["pytest>=6.0", "pytest-cov", "pytest-qt", "PyYAML", "vispy", "cmap", "zarr"]
 pyqt5 = ["PyQt5"]
 pyside2 = ["PySide2"]
 pyqt6 = ["PyQt6"]
@@ -65,7 +65,6 @@ pyside6 = ["PySide6<6.5"]
 image = ["vispy"]
 
 dev = [
-    "black",
     "cruft",
     "ruff",
     "ipython",
@@ -83,6 +82,7 @@ docs = [
     "mkdocstrings-python",
     "mkdocs-literate-nav",
     "mkdocs-gen-files",
+    "mkdocs-section-index",
     "mkdocs-video",
 ]
 
@@ -96,11 +96,14 @@ Documentation = "https://pymmcore-plus.github.io/pymmcore-widgets"
 line-length = 88
 target-version = "py38"
 src = ["src", "tests"]
+[tool.ruff.lint]
+pydocstyle = { convention = "numpy" }
 select = [
     "E",    # style errors
     "F",    # flakes
     "W",    # warnings
     "D",    # pydocstyle
+    "D417", # Missing argument descriptions in Docstrings
     "I",    # isort
     "UP",   # pyupgrade
     "C4",   # flake8-comprehensions
@@ -113,17 +116,14 @@ select = [
 ]
 ignore = [
     "D100", # Missing docstring in public module
-    "D107", # Missing docstring in __init__
-    "D203", # 1 blank line required before class docstring
-    "D212", # Multi-line docstring summary should start at the first line
-    "D213", # Multi-line docstring summary should start at the second line
     "D401", # First line should be in imperative mood
-    "D413", # Missing blank line after last section
-    "D416", # Section name should end with a colon
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/*.py" = ["D", "SLF"]
+
+[tool.ruff.format]
+docstring-code-format = true
 
 # https://docs.pytest.org/en/6.2.x/customize.html
 [tool.pytest.ini_options]
@@ -172,3 +172,6 @@ ignore = [
     "examples/**/*",
     "CHANGELOG.md",
 ]
+
+[tool.typos.default]
+extend-ignore-identifiers-re = ["(?i)ome"]

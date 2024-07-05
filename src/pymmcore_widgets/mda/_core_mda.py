@@ -1,19 +1,15 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from typing import TYPE_CHECKING, cast
+from pathlib import Path
+from typing import cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Signal
+from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QBoxLayout,
-    QFileDialog,
-    QGridLayout,
-    QGroupBox,
     QHBoxLayout,
-    QLabel,
-    QLineEdit,
     QMessageBox,
     QPushButton,
     QWidget,
@@ -21,21 +17,16 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from useq import MDASequence, Position
 
+from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
-from pymmcore_widgets.useq_widgets._mda_sequence import MDATabs
+from pymmcore_widgets.useq_widgets._mda_sequence import PYMMCW_METADATA_KEY, MDATabs
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 
 from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
-
-if TYPE_CHECKING:
-    from typing import TypedDict
-
-    class SaveInfo(TypedDict):
-        save_dir: str
-        save_name: str
+from ._save_widget import SaveGroupBox
 
 
 class CoreMDATabs(MDATabs):
@@ -52,11 +43,29 @@ class CoreMDATabs(MDATabs):
         self.grid_plan = CoreConnectedGridPlanWidget(self._mmc)
         self.channels = CoreConnectedChannelTable(1, self._mmc)
 
+    def _enable_tabs(self, enable: bool) -> None:
+        """Enable or disable the tab checkboxes and their contents.
+
+        However, we can still mover through the tabs and see their contents.
+        """
+        # disable tab checkboxes
+        for cbox in self._cboxes:
+            cbox.setEnabled(enable)
+        # disable tabs contents
+        self.time_plan.setEnabled(enable)
+        self.stage_positions.setEnabled(enable)
+        self.z_plan.setEnabled(enable)
+        self.grid_plan.setEnabled(enable)
+        self.channels.setEnabled(enable)
+
 
 class MDAWidget(MDASequenceWidget):
-    """[MDASequenceWidget](../MDASequenceWidget#) connected to a [`pymmcore_plus.CMMCorePlus`][] instance.
+    """Main MDA Widget connected to a [`pymmcore_plus.CMMCorePlus`][] instance.
 
-    It provides a GUI to construct and run a [`useq.MDASequence`][].
+    It provides a GUI to construct and run a [`useq.MDASequence`][].  Unlike
+    [`useq_widgets.MDASequenceWidget`][pymmcore_widgets.MDASequenceWidget], this
+    widget is connected to a [`pymmcore_plus.CMMCorePlus`][] instance, enabling
+    awareness and control of the current state of the microscope.
 
     Parameters
     ----------
@@ -67,7 +76,7 @@ class MDAWidget(MDASequenceWidget):
         By default, None. If not specified, the widget will use the active
         (or create a new)
         [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
-    """  # noqa: E501
+    """
 
     def __init__(
         self, *, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
@@ -77,7 +86,7 @@ class MDAWidget(MDASequenceWidget):
 
         super().__init__(parent=parent, tab_widget=CoreMDATabs(None, self._mmc))
 
-        self.save_info = _SaveGroupBox(parent=self)
+        self.save_info = SaveGroupBox(parent=self)
         self.save_info.valueChanged.connect(self.valueChanged)
         self.control_btns = _MDAControlButtons(self._mmc, self)
 
@@ -93,7 +102,7 @@ class MDAWidget(MDASequenceWidget):
 
         # ------------ connect signals ------------
 
-        self.control_btns.run_btn.clicked.connect(self._on_run_clicked)
+        self.control_btns.run_btn.clicked.connect(self.run_mda)
         self.control_btns.pause_btn.released.connect(self._mmc.mda.toggle_pause)
         self.control_btns.cancel_btn.released.connect(self._mmc.mda.cancel)
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
@@ -102,23 +111,24 @@ class MDAWidget(MDASequenceWidget):
 
         self.destroyed.connect(self._disconnect)
 
-    def _on_sys_config_loaded(self) -> None:
-        # TODO: connect objective change event to update suggested step
-        self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
+    # ------------------- public Methods ----------------------
 
     def value(self) -> MDASequence:
         """Set the current state of the widget from a [`useq.MDASequence`][]."""
         val = super().value()
         replace: dict = {}
 
-        # if the z plan is relative, and there are no stage positions, add the current
-        # stage position as the relative starting one.
-        # Note: this is not the final solution, it shiud be better to move this in
-        # pymmcore-plus runner but only after we introduce a concept of a "relative
-        # position" in useq.MDAEvent. At the moment, since the pymmcore-plus runner is
-        # not aware of the core, we cannot move it there.
-        if val.z_plan and val.z_plan.is_relative and not val.stage_positions:
-            replace["stage_positions"] = (self._get_current_stage_position(),)
+        # if the z plan is relative and there are stage positions but the 'include z' is
+        # unchecked, use the current z stage position as the relative starting one.
+        if (
+            val.z_plan
+            and val.z_plan.is_relative
+            and (val.stage_positions and not self.stage_positions.include_z.isChecked())
+        ):
+            z = self._mmc.getZPosition() if self._mmc.getFocusDevice() else None
+            replace["stage_positions"] = tuple(
+                pos.replace(z=z) for pos in val.stage_positions
+            )
 
         # if there is an autofocus_plan but the autofocus_motor_offset is None, set it
         # to the current value
@@ -126,10 +136,24 @@ class MDAWidget(MDASequenceWidget):
             p2 = afplan.replace(autofocus_motor_offset=self._mmc.getAutoFocusOffset())
             replace["autofocus_plan"] = p2
 
+        # if there are no stage positions, use the current stage position
+        if not val.stage_positions:
+            replace["stage_positions"] = (self._get_current_stage_position(),)
+            # if "p" is not in the axis order, we need to add it or the position will
+            # not be in the event
+            if "p" not in val.axis_order:
+                axis_order = list(val.axis_order)
+                # add the "p" axis at the beginning or after the "t" as the default
+                if "t" in axis_order:
+                    axis_order.insert(axis_order.index("t") + 1, "p")
+                else:
+                    axis_order.insert(0, "p")
+                replace["axis_order"] = tuple(axis_order)
+
         if replace:
             val = val.replace(**replace)
 
-        meta: dict = val.metadata.setdefault("pymmcore_widgets", {})
+        meta: dict = val.metadata.setdefault(PYMMCW_METADATA_KEY, {})
         if self.save_info.isChecked():
             meta.update(self.save_info.value())
         return val
@@ -137,9 +161,62 @@ class MDAWidget(MDASequenceWidget):
     def setValue(self, value: MDASequence) -> None:
         """Get the current state of the widget as a [`useq.MDASequence`][]."""
         super().setValue(value)
-        self.save_info.setValue(value.metadata.get("pymmcore_widgets", {}))
+        self.save_info.setValue(value.metadata.get(PYMMCW_METADATA_KEY, {}))
 
-    # ------------------- private API ----------------------
+    def get_next_available_path(self, requested_path: Path) -> Path:
+        """Get the next available path.
+
+        This method is called immediately before running an MDA to ensure that the file
+        being saved does not overwrite an existing file. It is also called at the end
+        of the experiment to update the save widget with the next available path.
+
+        It may be overridden to provide custom behavior, but it should always return a
+        Path object to a non-existing file or folder.
+
+        The default behavior adds/increments a 3-digit counter at the end of the path
+        (before the extension) if the path already exists.
+
+        Parameters
+        ----------
+        requested_path : Path
+            The path we are requesting for use.
+        """
+        return get_next_available_path(requested_path=requested_path)
+
+    def run_mda(self) -> None:
+        """Run the MDA sequence experiment."""
+        # in case the user does not press enter after editing the save name.
+        self.save_info.save_name.editingFinished.emit()
+
+        # if autofocus has been requested, but the autofocus device is not engaged,
+        # and position-specific offsets haven't been set, show a warning
+        pos = self.stage_positions
+        if (
+            self.af_axis.value()
+            and not self._mmc.isContinuousFocusLocked()
+            and (not self.tab_wdg.isChecked(pos) or not pos.af_per_position.isChecked())
+            and not self._confirm_af_intentions()
+        ):
+            return
+
+        sequence = self.value()
+
+        # technically, this is in the metadata as well, but isChecked is more direct
+        if self.save_info.isChecked():
+            save_path = self._update_save_path_from_metadata(
+                sequence, update_metadata=True
+            )
+        else:
+            save_path = None
+
+        # run the MDA experiment asynchronously
+        self._mmc.run_mda(sequence, output=save_path)
+
+    # ------------------- private Methods ----------------------
+
+    def _on_sys_config_loaded(self) -> None:
+        # TODO: connect objective change event to update suggested step
+        self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
 
     def _get_current_stage_position(self) -> Position:
         """Return the current stage position."""
@@ -148,22 +225,38 @@ class MDAWidget(MDASequenceWidget):
         z = self._mmc.getPosition() if self._mmc.getFocusDevice() else None
         return Position(x=x, y=y, z=z)
 
-    def _on_run_clicked(self) -> None:
-        """Run the MDA sequence experiment."""
-        # if autofocus has been requested, but the autofocus device is not engaged,
-        # and position-specific offsets haven't been set, show a warning
-        pos = self.stage_positions
-        if (
-            self.af_axis.value()
-            and not self._mmc.isContinuousFocusLocked()
-            and not (self.tab_wdg.isChecked(pos) and pos.af_per_position.isChecked())
-            and not self._confirm_af_intentions()
-        ):
-            return
+    def _update_save_path_from_metadata(
+        self,
+        sequence: MDASequence,
+        update_widget: bool = True,
+        update_metadata: bool = False,
+    ) -> Path | None:
+        """Get the next available save path from sequence metadata and update widget.
 
-        # run the MDA experiment asynchronously
-        self._mmc.run_mda(self.value())
-        return
+        Parameters
+        ----------
+        sequence : MDASequence
+            The MDA sequence to get the save path from. (must be in the
+            'pymmcore_widgets' key of the metadata)
+        update_widget : bool, optional
+            Whether to update the save widget with the new path, by default True.
+        update_metadata : bool, optional
+            Whether to update the Sequence metadata with the new path, by default False.
+        """
+        if (
+            (meta := sequence.metadata.get(PYMMCW_METADATA_KEY, {}))
+            and (save_dir := meta.get("save_dir"))
+            and (save_name := meta.get("save_name"))
+        ):
+            requested = (Path(save_dir) / str(save_name)).expanduser().resolve()
+            next_path = self.get_next_available_path(requested)
+            if next_path != requested:
+                if update_widget:
+                    self.save_info.setValue(next_path)
+                    if update_metadata:
+                        meta.update(self.save_info.value())
+            return next_path
+        return None
 
     def _confirm_af_intentions(self) -> bool:
         msg = (
@@ -184,70 +277,32 @@ class MDAWidget(MDASequenceWidget):
 
     def _enable_widgets(self, enable: bool) -> None:
         for child in self.children():
-            if child is not self.control_btns and hasattr(child, "setEnabled"):
+            if isinstance(child, CoreMDATabs):
+                child._enable_tabs(enable)
+            elif child is not self.control_btns and hasattr(child, "setEnabled"):
                 child.setEnabled(enable)
 
     def _on_mda_started(self) -> None:
         self._enable_widgets(False)
 
-    def _on_mda_finished(self) -> None:
+    def _on_mda_finished(self, sequence: MDASequence) -> None:
         self._enable_widgets(True)
+        # update the save name in the gui with the next available path
+        # FIXME: this is actually a bit error prone in the case of super fast
+        # experiments and delayed writers that haven't yet written anything to disk
+        # (e.g. the next available path might be the same as the current one)
+        # however, the quick fix of using a QTimer.singleShot(0, ...) makes for
+        # difficulties in testing.
+        # FIXME: Also, we really don't care about the last sequence at this point
+        # anyway.  We should just update the save widget with the next available path
+        # based on what's currently in the save widget, since that's what really
+        # matters (not whatever the last requested mda was)
+        self._update_save_path_from_metadata(sequence)
 
     def _disconnect(self) -> None:
         with suppress(Exception):
             self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
             self._mmc.mda.events.sequenceFinished.disconnect(self._on_mda_finished)
-
-
-class _SaveGroupBox(QGroupBox):
-    """A Widget to gather information about MDA file saving."""
-
-    valueChanged = Signal()
-
-    def __init__(
-        self, title: str = "Save Acquisition", parent: QWidget | None = None
-    ) -> None:
-        super().__init__(title, parent)
-        self.setCheckable(True)
-        self.setChecked(False)
-
-        self.save_dir = QLineEdit()
-        self.save_dir.setPlaceholderText("Select Save Directory")
-        self.save_name = QLineEdit()
-        self.save_name.setPlaceholderText("Enter Experiment Name")
-
-        browse_btn = QPushButton(text="...")
-        browse_btn.clicked.connect(self._on_browse_clicked)
-
-        grid = QGridLayout(self)
-        grid.addWidget(QLabel("Directory:"), 0, 0)
-        grid.addWidget(self.save_dir, 0, 1)
-        grid.addWidget(browse_btn, 0, 2)
-        grid.addWidget(QLabel("Name:"), 1, 0)
-        grid.addWidget(self.save_name, 1, 1)
-
-        # connect
-        self.toggled.connect(self.valueChanged)
-        self.save_dir.textChanged.connect(self.valueChanged)
-        self.save_name.textChanged.connect(self.valueChanged)
-
-    def value(self) -> SaveInfo:
-        """Return current state of the dialog."""
-        return {
-            "save_dir": self.save_dir.text(),
-            "save_name": self.save_name.text() or "Experiment",
-        }
-
-    def setValue(self, value: SaveInfo | dict) -> None:
-        self.save_dir.setText(value.get("save_dir", ""))
-        self.save_name.setText(value.get("save_name", ""))
-        self.setChecked(value.get("should_save", False))
-
-    def _on_browse_clicked(self) -> None:
-        if save_dir := QFileDialog.getExistingDirectory(
-            self, "Select Save Directory", self.save_dir.text()
-        ):
-            self.save_dir.setText(save_dir)
 
 
 class _MDAControlButtons(QWidget):
@@ -263,16 +318,19 @@ class _MDAControlButtons(QWidget):
 
         icon_size = QSize(24, 24)
         self.run_btn = QPushButton("Run")
+        self.run_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.run_btn.setIcon(icon(MDI6.play_circle_outline, color="lime"))
         self.run_btn.setIconSize(icon_size)
 
         self.pause_btn = QPushButton("Pause")
+        self.pause_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.pause_btn.setIcon(icon(MDI6.pause_circle_outline, color="green"))
         self.pause_btn.setIconSize(icon_size)
         self.pause_btn.hide()
 
         self.cancel_btn = QPushButton("Cancel")
-        self.cancel_btn.setIcon(icon(MDI6.stop_circle_outline, color="magenta"))
+        self.cancel_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.cancel_btn.setIcon(icon(MDI6.stop_circle_outline, color="#C33"))
         self.cancel_btn.setIconSize(icon_size)
         self.cancel_btn.hide()
 

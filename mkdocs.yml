@@ -45,6 +45,7 @@ nav:
       - Widgets: widgets/
       - Troubleshooting: troubleshooting.md
       - Contributing: contributing.md
+  - napari-micromanager: /napari-micromanager/
 
 markdown_extensions:
   - tables
@@ -72,6 +73,7 @@ plugins:
   - search
   - autorefs
   - literate-nav # autegenerate nav from _gen_widgets
+  - section-index
   - gen-files:
       scripts:
         - docs/_gen_widget_pages.py
