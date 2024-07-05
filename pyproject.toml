@@ -50,14 +50,23 @@ dependencies = [
     'fonticon-materialdesignicons6',
     'pymmcore-plus[cli] >=0.10.2',
     'qtpy >=2.0',
-    'superqt[quantity] >=0.5.3',
+    'superqt[quantity] >=0.6.5',
     'useq-schema >=0.4.7',
+    'ndv >=0.0.3',
 ]
 
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-test = ["pytest>=6.0", "pytest-cov", "pytest-qt", "PyYAML", "vispy", "cmap", "zarr"]
+test = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "pytest-qt",
+    "PyYAML",
+    "vispy",
+    "cmap",
+    "zarr",
+]
 pyqt5 = ["PyQt5"]
 pyside2 = ["PySide2"]
 pyqt6 = ["PyQt6"]
@@ -129,6 +138,7 @@ docstring-code-format = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
+markers = ["allow_leaks: mark test to allow widget leaks"]
 filterwarnings = [
     "error",
     "ignore:distutils Version classes are deprecated",
@@ -174,4 +184,4 @@ ignore = [
 ]
 
 [tool.typos.default]
-extend-ignore-identifiers-re = ["(?i)ome"]
+extend-ignore-identifiers-re = ["(?i)nd2?.*", "(?i)ome"]

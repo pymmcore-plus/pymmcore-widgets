@@ -6,7 +6,7 @@ from pymmcore_plus import CMMCorePlus
 from qtpy import QtWidgets
 from useq import MDASequence
 
-from pymmcore_widgets.experimental import StackViewer
+from pymmcore_widgets._stack_viewer_v1 import StackViewer
 
 size = 1028
 
@@ -20,7 +20,7 @@ qapp = QtWidgets.QApplication(sys.argv)
 
 sequence = MDASequence(
     channels=(
-        # {"config": "DAPI", "exposure": 10},
+        {"config": "DAPI", "exposure": 10},
         # {"config": "FITC", "exposure": 1},
         {"config": "Cy5", "exposure": 1},
     ),
