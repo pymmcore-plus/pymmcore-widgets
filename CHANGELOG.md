@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.7.2](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.2) (2024-06-13)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.7.1...v0.7.2)
+
+**Merged pull requests:**
+
+- fix: fix attribute error in signal blocker [\#302](https://github.com/pymmcore-plus/pymmcore-widgets/pull/302) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#297](https://github.com/pymmcore-plus/pymmcore-widgets/pull/297) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- fix: pre test macos-13 [\#296](https://github.com/pymmcore-plus/pymmcore-widgets/pull/296) ([fdrgsp](https://github.com/fdrgsp))
+- ci\(pre-commit.ci\): autoupdate [\#294](https://github.com/pymmcore-plus/pymmcore-widgets/pull/294) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- ci\(pre-commit.ci\): autoupdate [\#291](https://github.com/pymmcore-plus/pymmcore-widgets/pull/291) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- feat: Stack viewer [\#187](https://github.com/pymmcore-plus/pymmcore-widgets/pull/187) ([wl-stepp](https://github.com/wl-stepp))
+
 ## [v0.7.1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.1) (2024-03-13)
 
 [Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.7.0...v0.7.1)
