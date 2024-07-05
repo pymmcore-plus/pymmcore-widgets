@@ -17,11 +17,8 @@ from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
 )
 from pymmcore_widgets.hcs._fov_widget._fov_widget import FOVSelectorWidget
 from pymmcore_widgets.hcs._plate_widget import PlateInfo, PlateSelectorWidget
-from pymmcore_widgets.hcs._util import DEFAULT_PLATE_DB_PATH
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from pymmcore_plus import CMMCorePlus
     from useq import GridRowsColumns, RandomPoints, WellPlate
 
@@ -36,15 +33,12 @@ class PlatePage(QWizardPage):
     def __init__(
         self,
         parent: QWidget | None = None,
-        plate_database_path: Path | str = DEFAULT_PLATE_DB_PATH,
     ) -> None:
         super().__init__(parent)
 
         self.setTitle("Plate and Well Selection")
 
-        self._plate_widget = PlateSelectorWidget(
-            plate_database_path=plate_database_path
-        )
+        self._plate_widget = PlateSelectorWidget()
 
         self.setLayout(QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 from unittest.mock import patch
 
@@ -47,21 +46,13 @@ from pymmcore_widgets.hcs._plate_widget import (
     PlateInfo,
     PlateSelectorWidget,
 )
-from pymmcore_widgets.hcs._util import load_database
+from pymmcore_widgets.hcs._util import PLATES
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
-
-
-@pytest.fixture()
-def database_path():
-    return Path(__file__).parent / "plate_database_for_tests.json"
-
-
-@pytest.fixture()
-def database(database_path):
-    return load_database(database_path)
 
 
 CUSTOM_PLATE = WellPlate(
@@ -74,12 +65,15 @@ CUSTOM_PLATE = WellPlate(
 )
 
 
-def test_plate_selector_widget_set_get_value(qtbot: QtBot, database_path: Path):
-    wdg = PlateSelectorWidget(plate_database_path=database_path)
+def test_plate_selector_widget_set_get_value(qtbot: QtBot):
+    wdg = PlateSelectorWidget()
     qtbot.addWidget(wdg)
 
-    info = PlateInfo(plate=CUSTOM_PLATE, wells=[])
+    info = PlateInfo(plate=CUSTOM_PLATE.replace(name=""), wells=[])
+    with pytest.raises(ValueError, match="Plate name is required."):
+        wdg.setValue(info)
 
+    info = PlateInfo(plate=CUSTOM_PLATE, wells=[])
     with pytest.raises(ValueError, match="'custom plate' not in the database."):
         wdg.setValue(info)
 
@@ -101,19 +95,12 @@ def test_plate_selector_widget_set_get_value(qtbot: QtBot, database_path: Path):
     assert wdg.scene.value() == []
 
 
-def test_plate_selector_widget_combo(qtbot: QtBot, database_path: Path):
-    wdg = PlateSelectorWidget(plate_database_path=database_path)
+def test_plate_selector_widget_combo(qtbot: QtBot):
+    wdg = PlateSelectorWidget()
     qtbot.addWidget(wdg)
 
     wdg.plate_combo.setCurrentText("96-well")
     assert wdg.value().plate.name == "96-well"
-
-
-def test_plate_selector_widget_get_database(qtbot: QtBot, database_path: Path):
-    wdg = PlateSelectorWidget(plate_database_path=database_path)
-    qtbot.addWidget(wdg)
-
-    assert wdg.database() == wdg._plate_db
 
 
 def test_calibration_mode_widget(qtbot: QtBot):
@@ -129,9 +116,7 @@ def test_calibration_mode_widget(qtbot: QtBot):
         assert wdg._mode_combo.itemData(i, ROLE) == modes[i]
 
 
-def test_calibration_table_widget(
-    global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, WellPlate]
-):
+def test_calibration_table_widget(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mmc = global_mmcore
 
     wdg = _CalibrationTable(mmcore=mmc)
@@ -160,9 +145,7 @@ def test_calibration_table_widget(
     assert wdg.value() == [(-10, 10), (10, -10)]
 
 
-def test_calibration_move_to_edge_widget(
-    global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, WellPlate]
-):
+def test_calibration_move_to_edge_widget(global_mmcore: CMMCorePlus, qtbot: QtBot):
     mmc = global_mmcore
 
     wdg = _TestCalibrationWidget(mmcore=mmc)
@@ -172,22 +155,21 @@ def test_calibration_move_to_edge_widget(
     assert wdg._number_combo.count() == 0
 
     well = Well(name="C3", row=2, column=2)
-    wdg.setValue(database["96-well"], well)
+    plate = PLATES["96-well"]
+    wdg.setValue(plate, well)
     assert wdg._letter_combo.count() == 8
     assert wdg._number_combo.count() == 12
-    assert wdg.value() == (database["96-well"], well)
+    assert wdg.value() == (plate, well)
 
 
-def test_calibration_widget(
-    global_mmcore: CMMCorePlus, qtbot: QtBot, database: dict[str, WellPlate]
-):
+def test_calibration_widget(global_mmcore: CMMCorePlus, qtbot: QtBot):
     wdg = PlateCalibrationWidget(mmcore=global_mmcore)
     qtbot.addWidget(wdg)
 
     assert wdg.value() is None
     assert wdg._calibration_label.value() == "Plate Not Calibrated!"
 
-    plate = database["coverslip-22mm"]
+    plate = PLATES["coverslip-22mm"]
     cal = CalibrationData(plate=plate)
 
     wdg.setValue(cal)
@@ -221,7 +203,7 @@ def test_calibration_widget(
         calibration_positions_an=[],
     )
 
-    plate = database["96-well"]
+    plate = PLATES["96-well"]
     cal = CalibrationData(plate=plate)
     wdg.setValue(cal)
 
@@ -266,7 +248,7 @@ def test_center_widget(qtbot: QtBot):
     assert value.fov_height == 3
 
 
-def test_random_widget(qtbot: QtBot, database: dict[str, WellPlate]):
+def test_random_widget(qtbot: QtBot):
     wdg = _RandomFOVWidget()
     qtbot.addWidget(wdg)
 
@@ -472,8 +454,8 @@ def test_fov_selector_widget_none(qtbot: QtBot):
     )
 
 
-def test_fov_selector_widget(qtbot: QtBot, database: dict[str, WellPlate]):
-    plate = database["96-well"]
+def test_fov_selector_widget(qtbot: QtBot):
+    plate = PLATES["96-well"]
     wdg = FOVSelectorWidget(
         plate=plate,
         mode=Center(x=0, y=0, fov_width=500, fov_height=500),
@@ -488,7 +470,7 @@ def test_fov_selector_widget(qtbot: QtBot, database: dict[str, WellPlate]):
 
     # grid
     grid = GridRowsColumns(overlap=10, rows=2, columns=3, fov_width=512, fov_height=512)
-    coverslip = database["coverslip-22mm"]
+    coverslip = PLATES["coverslip-22mm"]
     wdg.setValue(coverslip, grid)
 
     current_plate, mode = wdg.value()
@@ -545,8 +527,8 @@ def test_fov_selector_widget(qtbot: QtBot, database: dict[str, WellPlate]):
 
 
 @pytest.fixture
-def data(database) -> WellPlatePlan:
-    plate = database["96-well"]
+def data() -> WellPlatePlan:
+    plate = PLATES["96-well"]
     return WellPlatePlan(
         plate=plate,
         a1_center_xy=(100.0, 200.0),
@@ -579,9 +561,7 @@ def test_hcs_wizard_set_get_value(
     assert wdg.calibration_page.isCalibrated()
 
 
-def test_save_load_hcs(
-    data: WellPlatePlan, qtbot: QtBot, tmp_path: Path, database: dict[str, WellPlate]
-):
+def test_save_load_hcs(data: WellPlatePlan, qtbot: QtBot, tmp_path: Path):
     wdg = HCSWizard()
     qtbot.addWidget(wdg)
 
@@ -593,14 +573,13 @@ def test_save_load_hcs(
     def _path(*args, **kwargs):
         return file, None
 
-    # create empty database
     with patch.object(QFileDialog, "getSaveFileName", _path):
         wdg._save()
 
         assert file.exists()
 
         # change plate
-        plate = database["6-well"]
+        plate = PLATES["6-well"]
         wdg.plate_page.setValue(PlateInfo(plate, []))
         assert wdg.value() != data
 

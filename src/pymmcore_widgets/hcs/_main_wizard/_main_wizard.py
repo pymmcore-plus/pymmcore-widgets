@@ -16,9 +16,6 @@ from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
 from pymmcore_widgets.hcs._fov_widget._fov_sub_widgets import Center
 from pymmcore_widgets.hcs._graphics_items import Well
 from pymmcore_widgets.hcs._plate_widget import PlateInfo
-from pymmcore_widgets.hcs._util import (
-    DEFAULT_PLATE_DB_PATH,
-)
 
 from ._main_wizard_pages import FOVSelectorPage, PlateCalibrationPage, PlatePage
 
@@ -38,8 +35,6 @@ class HCSWizard(QWizard):
         The parent widget. By default, None.
     mmcore : CMMCorePlus | None
         The CMMCorePlus instance. By default, None.
-    plate_database_path : Path | str | None
-        The path to the plate database. By default, None.
     """
 
     valueChanged = Signal(object)
@@ -47,7 +42,6 @@ class HCSWizard(QWizard):
     def __init__(
         self,
         parent: QWidget | None = None,
-        plate_database_path: Path | str = DEFAULT_PLATE_DB_PATH,
         *,
         mmcore: CMMCorePlus | None = None,
     ) -> None:
@@ -78,7 +72,7 @@ class HCSWizard(QWizard):
         self._plate: WellPlate | None = None
 
         # setup plate page
-        self.plate_page = PlatePage(self, plate_database_path)
+        self.plate_page = PlatePage(self)
         self.plate_page._plate_widget.valueChanged.connect(self._on_plate_changed)
 
         # setup calibration page
@@ -183,13 +177,9 @@ class HCSWizard(QWizard):
         """Return True if the calibration is done."""
         return self.calibration_page.isCalibrated()
 
-    def database_path(self) -> str:
-        """Return the path to the current plate database."""
-        return self.plate_page._plate_widget.database_path()
-
-    def database(self) -> dict[str, WellPlate]:
-        """Return the current plate database."""
-        return self.plate_page._plate_widget.database()
+    def accept(self) -> None:
+        """Emit the valueChanged signal when the wizard is accepted."""
+        self.valueChanged.emit(self.value())
 
     # _________________________PRIVATE METHODS_________________________ #
 

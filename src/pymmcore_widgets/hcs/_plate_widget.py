@@ -16,15 +16,12 @@ from qtpy.QtWidgets import (
 
 from ._plate_graphics_scene import _PlateGraphicsScene
 from ._util import (
-    DEFAULT_PLATE_DB_PATH,
+    PLATES,
     _ResizingGraphicsView,
     draw_plate,
-    load_database,
 )
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from useq import WellPlate
 
     from ._graphics_items import Well
@@ -57,8 +54,6 @@ class PlateSelectorWidget(QWidget):
     ----------
     parent : QWidget, optional
         The parent widget, by default None
-    plate_database_path : Path | str, optional
-        The path to the well plate database, by default DEFAULT_PLATE_DB_PATH
     """
 
     valueChanged = Signal(object)
@@ -66,19 +61,15 @@ class PlateSelectorWidget(QWidget):
     def __init__(
         self,
         parent: QWidget | None = None,
-        plate_database_path: Path | str = DEFAULT_PLATE_DB_PATH,
     ) -> None:
         super().__init__(parent)
-
-        self._plate_db_path = plate_database_path
-        self._plate_db = load_database(self._plate_db_path)
 
         # well plate combobox
         combo_label = QLabel()
         combo_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         combo_label.setText("WellPlate:")
         self.plate_combo = QComboBox()
-        self.plate_combo.addItems(list(self._plate_db))
+        self.plate_combo.addItems(list(PLATES))
         self.plate_combo.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -132,7 +123,7 @@ class PlateSelectorWidget(QWidget):
     def value(self) -> PlateInfo:
         """Return current plate and selected wells as a list of (name, row, column)."""
         curr_plate_name = self.plate_combo.currentText()
-        curr_plate = self._plate_db[curr_plate_name]
+        curr_plate = PLATES[curr_plate_name]
         return PlateInfo(curr_plate, self.scene.value())
 
     def setValue(self, value: PlateInfo) -> None:
@@ -147,7 +138,10 @@ class PlateSelectorWidget(QWidget):
         if not value.plate:
             return
 
-        if value.plate.name not in self._plate_db:
+        if not value.plate.name:
+            raise ValueError("Plate name is required.")
+
+        if value.plate.name not in PLATES:
             raise ValueError(f"'{value.plate.name}' not in the database.")
 
         self.plate_combo.setCurrentText(value.plate.name)
@@ -156,14 +150,6 @@ class PlateSelectorWidget(QWidget):
             return
 
         self.scene.setValue(value.wells)
-
-    def database_path(self) -> str:
-        """Return the path to the current plate database."""
-        return str(self._plate_db_path)
-
-    def database(self) -> dict[str, WellPlate]:
-        """Return the current plate database."""
-        return self._plate_db
 
     # _________________________PRIVATE METHODS________________________ #
 
@@ -176,7 +162,5 @@ class PlateSelectorWidget(QWidget):
         if not plate_name:
             return
 
-        draw_plate(
-            self.view, self.scene, self._plate_db[plate_name], brush=BRUSH, pen=PEN
-        )
+        draw_plate(self.view, self.scene, PLATES[plate_name], brush=BRUSH, pen=PEN)
         self.valueChanged.emit(self.value())

@@ -1,21 +1,14 @@
-from pathlib import Path
+from contextlib import suppress
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
-try:
-    from rich import print as rich_print
-except ImportError:
-    rich_print = print
+with suppress(ImportError):
+    from rich import print
 
-from useq import GridRowsColumns, WellPlatePlan
+from useq import GridRowsColumns, WellPlate, WellPlatePlan
 
 from pymmcore_widgets.hcs import HCSWizard
-from pymmcore_widgets.hcs._util import load_database
-
-database_path = Path(__file__).parent.parent / "tests" / "plate_database_for_tests.json"
-database = load_database(database_path)
-
 
 app = QApplication([])
 mmc = CMMCorePlus.instance()
@@ -25,7 +18,9 @@ w = HCSWizard()
 fov_width = mmc.getImageWidth() * mmc.getPixelSizeUm()
 fov_height = mmc.getImageHeight() * mmc.getPixelSizeUm()
 
-plate = database["96-well"]
+plate = WellPlate(
+    rows=8, columns=12, well_spacing=(9, 9), well_size=(6.4, 6.4), name="96-well"
+)
 wpp = WellPlatePlan(
     plate=plate,
     a1_center_xy=(0, 0),
@@ -37,7 +32,7 @@ wpp = WellPlatePlan(
 )
 w.setValue(wpp)
 
-w.valueChanged.connect(lambda: rich_print(w.value()))
+w.valueChanged.connect(print)
 
 w.show()
 app.exec()
