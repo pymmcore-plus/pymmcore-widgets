@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Union
+from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 from qtpy.QtCore import QRectF, Qt, Signal
@@ -59,8 +59,8 @@ class Center(Position):
         The height of the FOV in µm.
     """
 
-    fov_width: float | None = None
-    fov_height: float | None = None
+    fov_width: Optional[float] = None
+    fov_height: Optional[float] = None
 
 
 class _CenterFOVWidget(QWidget):
@@ -414,7 +414,7 @@ class _WellViewData(FrozenModel):
         The mode to use to draw the FOVs. By default, None.
     """
 
-    well_size: tuple[float | None, float | None] = (
+    well_size: Tuple[Optional[float] , Optional[float]] = (
         None,
         None,
     )
