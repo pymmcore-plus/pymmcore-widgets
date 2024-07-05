@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from typing import (
-    List,
-    Optional,
     Tuple,
     cast,
 )
@@ -75,12 +73,12 @@ class CalibrationData(FrozenModel):
 
     calibrated: bool = False
     plate: WellPlate
-    a1_center_xy: Optional[Tuple[float, float]] = None
+    a1_center_xy: tuple[float, float] | None = None
     rotation: float = 0.0
-    calibration_positions_a1: Optional[List[Tuple[float, float]]] = Field(
+    calibration_positions_a1: list[tuple[float, float]] | None = Field(
         default_factory=list
     )
-    calibration_positions_an: Optional[List[Tuple[float, float]]] = Field(
+    calibration_positions_an: list[tuple[float, float]] | None = Field(
         default_factory=list
     )
 
