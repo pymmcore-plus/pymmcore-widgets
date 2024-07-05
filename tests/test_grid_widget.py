@@ -66,7 +66,7 @@ def test_grid_set_and_get_state(qtbot: QtBot, global_mmcore: CMMCorePlus):
         rows=3, columns=3, relative_to="top_left", overlap=15.0, mode="row_wise_snake"
     )
 
-    grid_wdg.set_state(grid_rel.dict())
+    grid_wdg.set_state(grid_rel.model_dump())
     assert grid_wdg.value().replace(fov_width=None, fov_height=None) == grid_rel
     assert grid_wdg.tab.currentIndex() == 0
 

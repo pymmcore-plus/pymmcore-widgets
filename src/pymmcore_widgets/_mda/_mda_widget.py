@@ -285,21 +285,21 @@ class MDAWidget(QWidget):
         # set channel table
         if state.channels:
             self.ch_cbox.setChecked(True)
-            self.channel_widget.set_state([c.dict() for c in state.channels])
+            self.channel_widget.set_state([c.model_dump() for c in state.channels])
         else:
             self.ch_cbox.setChecked(False)
 
         # set z stack
         if state.z_plan:
             self.z_cbox.setChecked(True)
-            self.stack_widget.set_state(state.z_plan.dict())
+            self.stack_widget.set_state(state.z_plan.model_dump())
         else:
             self.z_cbox.setChecked(False)
 
         # set time
         if state.time_plan:
             self.t_cbox.setChecked(True)
-            self.time_widget.set_state(state.time_plan.dict())
+            self.time_widget.set_state(state.time_plan.model_dump())
         else:
             self.t_cbox.setChecked(False)
 
@@ -390,7 +390,7 @@ class MDAWidget(QWidget):
             return
 
         with open(str(dir_file), "w") as file:
-            file.write(self.get_state().json())
+            file.write(self.get_state().model_dump_json())
 
     def _load_sequence(self) -> None:
         """Load a MDAsequence json file into the widget."""

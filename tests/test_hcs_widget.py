@@ -77,7 +77,7 @@ def test_plate_selector_widget_set_get_value(qtbot: QtBot):
     with pytest.raises(ValueError, match="'custom plate' not in the database."):
         wdg.setValue(info)
 
-    plate = wdg._plate_db["96-well"]
+    plate = PLATES["96-well"]
     wells = [
         Well(name="A1", row=0, column=0),
         Well(name="A2", row=0, column=1),

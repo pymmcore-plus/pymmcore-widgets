@@ -251,7 +251,7 @@ class PositionTable(DataTableWidget):
             if v.sequence is not None and v.sequence.autofocus_plan is not None:
                 # set sub-sequence to None if empty or we simply exclude the af plan
                 sub_seq: useq.MDASequence | None = useq.MDASequence(
-                    **v.sequence.dict(exclude={"autofocus_plan"})
+                    **v.sequence.model_dump(exclude={"autofocus_plan"})
                 )
                 if sub_seq == NULL_SEQUENCE:
                     sub_seq = None
