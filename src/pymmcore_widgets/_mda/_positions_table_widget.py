@@ -696,7 +696,7 @@ class PositionTable(QWidget):
                 self.clear()
             for position in positions:
                 if isinstance(position, Position):
-                    position = cast("PositionDict", position.dict())
+                    position = cast("PositionDict", position.model_dump())
 
                 if not isinstance(position, dict):
                     continue
@@ -710,9 +710,9 @@ class PositionTable(QWidget):
                 if pos_seq := position.get("sequence"):
                     if isinstance(pos_seq, MDASequence):
                         if pos_seq.grid_plan:
-                            grid_plan = pos_seq.grid_plan.dict()
+                            grid_plan = pos_seq.grid_plan.model_dump()
                         if isinstance(pos_seq.autofocus_plan, AxesBasedAF):
-                            autofocus = pos_seq.autofocus_plan.dict()
+                            autofocus = pos_seq.autofocus_plan.model_dump()
                     else:
                         grid_plan = pos_seq.get("grid_plan", None)
                         autofocus = pos_seq.get("autofocus_plan")

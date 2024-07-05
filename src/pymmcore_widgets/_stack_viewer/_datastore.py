@@ -19,9 +19,9 @@ class QOMEZarrDatastore(OMEZarrWriter):
     def __init__(self) -> None:
         super().__init__(store=None)
 
-    def sequenceStarted(self, sequence: useq.MDASequence) -> None:
+    def sequenceStarted(self, sequence: useq.MDASequence, meta: dict) -> None:
         self._used_axes = tuple(sequence.used_axes)
-        super().sequenceStarted(sequence)
+        super().sequenceStarted(sequence, meta)
 
     def frameReady(
         self,

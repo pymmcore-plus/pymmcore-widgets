@@ -339,7 +339,7 @@ class ChannelTable(QWidget):
             self.clear()
             curgroup = self.channel_group_combo.currentText()
             for channel in channels:
-                channel = useq.Channel.validate(channel)
+                channel = useq.Channel.model_validate(channel)
                 avail_configs = self._mmc.getAvailableConfigs(channel.group or curgroup)
                 if channel.config not in avail_configs:
                     warnings.warn(

@@ -160,7 +160,7 @@ class _RowsColsWdg(QWidget):
     def setValue(self, grid: dict | useq.GridRowsColumns) -> None:
         """Set widget state from object that can be cast to useq.GridRowsColumns."""
         try:
-            _grid = useq.GridRowsColumns.validate(grid)
+            _grid = useq.GridRowsColumns.model_validate(grid)
         except ValueError as e:  # pragma: no cover
             warnings.warn(f"Invalid GridRowsColumns value: {e}", stacklevel=2)
             return
@@ -221,7 +221,7 @@ class _FromEdgesWdg(QWidget):
     def setValue(self, grid: dict | useq.GridFromEdges) -> None:
         """Set the _FromEdgesWdg grid dictionary."""
         try:
-            _grid = useq.GridFromEdges.validate(grid)
+            _grid = useq.GridFromEdges.model_validate(grid)
         except ValueError as e:  # pragma: no cover
             warnings.warn(f"Invalid GridFromEdges value: {e}", stacklevel=2)
             return
@@ -277,7 +277,7 @@ class _FromCornersWdg(QWidget):
     def setValue(self, grid: dict | useq.GridFromEdges) -> None:
         """Set value from object that can be cast to GridFromEdges."""
         try:
-            _grid = useq.GridFromEdges.validate(grid)
+            _grid = useq.GridFromEdges.model_validate(grid)
         except ValueError as e:  # pragma: no cover
             warnings.warn(f"Invalid GridFromEdges value: {e}", stacklevel=2)
             return
