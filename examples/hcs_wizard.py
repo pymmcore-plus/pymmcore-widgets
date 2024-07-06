@@ -38,9 +38,12 @@ w.valueChanged.connect(print)
 # override the accept method to show the plot
 def _accept():
     value = w.value()
-    if value is None:
-        return
-    print(value.plot())
+    print(value)
+    # execute only if matplotlib is available
+    with suppress(ImportError):
+        if value is None:
+            return
+        print(value.plot())
 
 
 w.accept = _accept
