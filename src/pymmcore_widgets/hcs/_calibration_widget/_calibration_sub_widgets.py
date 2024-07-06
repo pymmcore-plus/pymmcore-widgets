@@ -1,19 +1,17 @@
 from __future__ import annotations
 
 import string
-from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Iterable,
     NamedTuple,
-    Union,
     cast,
 )
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt, Signal
-from qtpy.QtGui import QIcon, QPixmap
 from qtpy.QtWidgets import (
     QComboBox,
     QGroupBox,
@@ -31,6 +29,9 @@ from pymmcore_widgets.hcs._graphics_items import RED, Well
 from pymmcore_widgets.useq_widgets._column_info import FloatColumn
 from pymmcore_widgets.useq_widgets._data_table import DataTableWidget
 
+if TYPE_CHECKING:
+    from qtpy.QtGui import QIcon, QPixmap
+
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 FixedSizePolicy = (QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
@@ -38,27 +39,7 @@ ALPHABET = string.ascii_uppercase
 ROLE = Qt.ItemDataRole.UserRole + 1
 
 MAX = 9999999
-
-ICON_PATH = Path(__file__).parent / "icons"
 ICON_SIZE = 22
-
-CIRCLE_ICON = QIcon(str(ICON_PATH / "circle-center.svg"))
-CIRCLE_TEXT = "1 points : add 1 points at the center of the well"
-CIRCLE_CENTER_POINTS = 1
-
-CIRCLE_EDGES_ICON = QIcon(str(ICON_PATH / "circle-edges.svg"))
-CIRCLE_EDGES_TEXT = "3 points : add 3 points on the circonference of the well"
-CIRCLE_EDGES_POINTS = 3
-
-SIDES_ICON = QIcon(str(ICON_PATH / "square-edges.svg"))
-SIDES_ITEM = "4 points: add 4 points, 1 per side of the rectangular/square well"
-SIDES_POINTS = 4
-
-VERTICES_ICON = QIcon(str(ICON_PATH / "square-vertices.svg"))
-VERTICES_TEXT = (
-    "2 points: add 2 points at 2 opposite vertices of the rectangular/square well"
-)
-VERTICES_POINTS = 2
 
 LABEL_STYLE = """
     background: #00FF00;
@@ -69,36 +50,12 @@ LABEL_STYLE = """
 """
 
 
-class OnePoint(NamedTuple):
-    """One center point to calibrate a circular well."""
+class Mode(NamedTuple):
+    """Calibration mode."""
 
-    icon: QIcon = CIRCLE_ICON
-    text: str = CIRCLE_TEXT
-    points: int = CIRCLE_CENTER_POINTS
-
-
-class TwoPoints(NamedTuple):
-    """Two vertices points to calibrate a rectangular/square well."""
-
-    icon: QIcon = VERTICES_ICON
-    text: str = VERTICES_TEXT
-    points: int = VERTICES_POINTS
-
-
-class ThreePoints(NamedTuple):
-    """Three edge points to calibrate a circular well."""
-
-    icon: QIcon = CIRCLE_EDGES_ICON
-    text: str = CIRCLE_EDGES_TEXT
-    points: int = CIRCLE_EDGES_POINTS
-
-
-class FourPoints(NamedTuple):
-    """Four edge points to calibrate a rectangular/square well."""
-
-    icon: QIcon = SIDES_ICON
-    text: str = SIDES_ITEM
-    points: int = SIDES_POINTS
+    icon: QIcon
+    text: str
+    points: int
 
 
 class _CalibrationModeWidget(QGroupBox):
@@ -131,9 +88,7 @@ class _CalibrationModeWidget(QGroupBox):
         mode = self._mode_combo.itemData(self._mode_combo.currentIndex(), ROLE)
         self.valueChanged.emit(mode)
 
-    def setValue(
-        self, modes: list[OnePoint | TwoPoints | ThreePoints | FourPoints] | None
-    ) -> None:
+    def setValue(self, modes: list[Mode] | None) -> None:
         """Set the available modes."""
         self._mode_combo.clear()
         if modes is None:
@@ -142,10 +97,10 @@ class _CalibrationModeWidget(QGroupBox):
             self._mode_combo.addItem(mode.icon, mode.text)
             self._mode_combo.setItemData(idx, mode, ROLE)
 
-    def value(self) -> OnePoint | TwoPoints | ThreePoints | FourPoints:
+    def value(self) -> Mode:
         """Return the selected calibration mode."""
         mode = self._mode_combo.itemData(self._mode_combo.currentIndex(), ROLE)
-        return cast(Union[OnePoint, TwoPoints, ThreePoints, FourPoints], mode)
+        return cast(Mode, mode)
 
 
 class _CalibrationTable(DataTableWidget):

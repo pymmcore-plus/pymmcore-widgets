@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import (
     List,
     Optional,
@@ -12,6 +13,7 @@ from fonticon_mdi6 import MDI6
 from pydantic import Field
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Signal
+from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
@@ -33,12 +35,7 @@ from pymmcore_widgets.hcs._util import (
 )
 
 from ._calibration_sub_widgets import (
-    CIRCLE_CENTER_POINTS,
-    CIRCLE_EDGES_POINTS,
-    FourPoints,
-    OnePoint,
-    ThreePoints,
-    TwoPoints,
+    Mode,
     _CalibrationLabel,
     _CalibrationModeWidget,
     _CalibrationTable,
@@ -51,6 +48,12 @@ from ._util import (
     get_random_circle_edge_point,
     get_random_rectangle_edge_point,
 )
+
+ICON_PATH = Path(__file__).parent / "icons"
+CIRCLE_CENTER_POINTS = 1
+CIRCLE_EDGES_POINTS = 3
+QUADRILATERAL_CENTER_POINTS = 2
+QUADRILATERAL_EDGES_POINTS = 4
 
 
 class CalibrationData(FrozenModel):
@@ -184,17 +187,12 @@ class PlateCalibrationWidget(QWidget):
         self._plate = value.plate if value is not None else None
 
         # set calibration mode
-        calibration_mode: (
-            list[OnePoint | TwoPoints | ThreePoints | FourPoints] | None
-        ) = (
-            None
-            if self._plate is None
-            else (
-                [OnePoint(), ThreePoints()]
-                if self._plate.circular_wells
-                else [TwoPoints(), FourPoints()]
-            )
+        calibration_mode = (
+            self._get_calibration_modes(self._plate.circular_wells)
+            if self._plate is not None
+            else None
         )
+
         self._calibration_mode.setValue(calibration_mode)
 
         # update calibration tables
@@ -256,6 +254,34 @@ class PlateCalibrationWidget(QWidget):
             pixmap=icon(lbl_icon, color=lbl_icon_color).pixmap(lbl_icon_size),
             text=text,
         )
+
+    def _get_calibration_modes(self, circular_wells: bool) -> list[Mode]:
+        """Return the calibration modes depending on the well shape."""
+        if circular_wells:
+            OnePoint = Mode(
+                QIcon(str(ICON_PATH / "circle-center.svg")),
+                "1 points : add 1 points at the center of the well",
+                CIRCLE_CENTER_POINTS,
+            )
+            ThreePoints = Mode(
+                QIcon(str(ICON_PATH / "circle-edges.svg")),
+                "3 points : add 3 points at the edges of the well",
+                CIRCLE_EDGES_POINTS,
+            )
+            return [OnePoint, ThreePoints]
+
+        else:
+            TwoPoints = Mode(
+                QIcon(str(ICON_PATH / "rectangle-center.svg")),
+                "2 points : add 2 points at the center of the well",
+                QUADRILATERAL_CENTER_POINTS,
+            )
+            FourPoints = Mode(
+                QIcon(str(ICON_PATH / "rectangle-edges.svg")),
+                "4 points : add 4 points at the edges of the well",
+                QUADRILATERAL_EDGES_POINTS,
+            )
+            return [TwoPoints, FourPoints]
 
     def _on_calibrate_button_clicked(self) -> None:
         """Calibrate the plate."""
