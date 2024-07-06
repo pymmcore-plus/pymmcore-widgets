@@ -9,7 +9,6 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -65,39 +64,20 @@ class _PlateSelectorWidget(QWidget):
         super().__init__(parent)
 
         # well plate combobox
-        combo_label = QLabel()
-        combo_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        combo_label.setText("WellPlate:")
+        combo_label = QLabel("WellPlate:")
         self.plate_combo = QComboBox()
         self.plate_combo.addItems(list(PLATES))
-        self.plate_combo.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        wp_combo_wdg = QWidget()
-        wp_combo_wdg_layout = QHBoxLayout(wp_combo_wdg)
-        wp_combo_wdg_layout.setContentsMargins(0, 0, 0, 0)
-        wp_combo_wdg_layout.setSpacing(5)
-        wp_combo_wdg_layout.addWidget(combo_label)
-        wp_combo_wdg_layout.addWidget(self.plate_combo)
 
         # clear selection button
         self._clear_button = QPushButton(text="Clear Selection")
         self._clear_button.setAutoDefault(False)
-        self._clear_button.setSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-        )
-        btns_wdg = QWidget()
-        btns_wdg_layout = QHBoxLayout(btns_wdg)
-        btns_wdg_layout.setContentsMargins(0, 0, 0, 0)
-        btns_wdg_layout.setSpacing(5)
-        btns_wdg_layout.addWidget(self._clear_button)
 
-        top_wdg = QWidget()
-        top_wdg_layout = QHBoxLayout(top_wdg)
-        top_wdg_layout.setContentsMargins(0, 0, 0, 0)
-        top_wdg_layout.setSpacing(5)
-        top_wdg_layout.addWidget(wp_combo_wdg)
-        top_wdg_layout.addWidget(btns_wdg)
+        top_layout = QHBoxLayout()
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(5)
+        top_layout.addWidget(combo_label, 0)
+        top_layout.addWidget(self.plate_combo, 1)
+        top_layout.addWidget(self._clear_button, 0)
 
         self.scene = _PlateGraphicsScene(parent=self)
         self.view = _ResizingGraphicsView(self.scene, self)
@@ -108,7 +88,7 @@ class _PlateSelectorWidget(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(15)
         main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.addWidget(top_wdg)
+        main_layout.addLayout(top_layout)
         main_layout.addWidget(self.view)
 
         # connect
