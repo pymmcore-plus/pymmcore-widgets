@@ -53,9 +53,9 @@ LABEL_STYLE = """
 class Mode(NamedTuple):
     """Calibration mode."""
 
-    icon: QIcon
     text: str
     points: int
+    icon: QIcon | None = None
 
 
 class _CalibrationModeWidget(QGroupBox):
@@ -75,13 +75,12 @@ class _CalibrationModeWidget(QGroupBox):
         self._mode_combo.currentIndexChanged.connect(self._on_value_changed)
 
         lbl = QLabel(text="Calibration Mode:")
-        lbl.setSizePolicy(*FixedSizePolicy)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(10)
-        layout.addWidget(lbl)
-        layout.addWidget(self._mode_combo)
+        layout.addWidget(lbl, 0)
+        layout.addWidget(self._mode_combo, 1)
 
     def _on_value_changed(self) -> None:
         """Emit the selected mode with valueChanged signal."""
@@ -216,43 +215,29 @@ class _TestCalibrationWidget(QGroupBox):
 
         # test calibration groupbox
         lbl = QLabel("Move to edge:")
-        lbl.setSizePolicy(*FixedSizePolicy)
-        # combo to select plate
+        # combo to select well letter
         self._letter_combo = QComboBox()
-        self._letter_combo.setEditable(True)
-        self._letter_combo.lineEdit().setReadOnly(True)
-        self._letter_combo.lineEdit().setAlignment(AlignCenter)
-        self._letter_combo.setSizeAdjustPolicy(
-            QComboBox.SizeAdjustPolicy.AdjustToContents
-        )
         # combo to select well number
         self._number_combo = QComboBox()
-        self._number_combo.setEditable(True)
-        self._number_combo.lineEdit().setReadOnly(True)
-        self._number_combo.lineEdit().setAlignment(AlignCenter)
-        self._number_combo.setSizeAdjustPolicy(
-            QComboBox.SizeAdjustPolicy.AdjustToContents
-        )
         # test button
         self._test_button = QPushButton("Go")
         self._test_button.setEnabled(False)
         self._stop_button = QPushButton("Stop")
         self._stop_button.setToolTip("Stop XY stage movement.")
         # groupbox
-        test_calibration = QWidget()
-        test_calibration_layout = QHBoxLayout(test_calibration)
+        test_calibration_layout = QHBoxLayout()
         test_calibration_layout.setSpacing(10)
         test_calibration_layout.setContentsMargins(10, 10, 10, 10)
-        test_calibration_layout.addWidget(lbl)
-        test_calibration_layout.addWidget(self._letter_combo)
-        test_calibration_layout.addWidget(self._number_combo)
-        test_calibration_layout.addWidget(self._test_button)
-        test_calibration_layout.addWidget(self._stop_button)
+        test_calibration_layout.addWidget(lbl, 0)
+        test_calibration_layout.addWidget(self._letter_combo, 1)
+        test_calibration_layout.addWidget(self._number_combo, 1)
+        test_calibration_layout.addWidget(self._test_button, 0)
+        test_calibration_layout.addWidget(self._stop_button, 0)
 
         # main
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.addWidget(test_calibration)
+        main_layout.addLayout(test_calibration_layout)
 
         # connect
         self._stop_button.clicked.connect(self._stop_xy_stage)

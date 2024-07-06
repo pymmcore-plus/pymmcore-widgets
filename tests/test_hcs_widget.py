@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, NamedTuple
 from unittest.mock import patch
 
 import pytest
-from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QFileDialog,
     QGraphicsEllipseItem,
@@ -106,11 +105,10 @@ def test_calibration_mode_widget(qtbot: QtBot):
     wdg = _CalibrationModeWidget()
     qtbot.addWidget(wdg)
 
-    _icon = QIcon(str(ICON_PATH / "circle-center.svg"))
     modes = [
-        Mode(icon=_icon, text="test", points=1),
-        Mode(icon=_icon, text="test2", points=2),
-        Mode(icon=_icon, text="test3", points=3),
+        Mode(text="test", points=1),
+        Mode(text="test2", points=2),
+        Mode(text="test3", points=3),
     ]
 
     wdg.setValue(modes)

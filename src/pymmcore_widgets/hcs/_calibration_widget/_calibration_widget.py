@@ -48,8 +48,8 @@ from ._util import (
 )
 
 ICON_PATH = Path(__file__).parent / "icons"
-CIRCLE_CENTER_POINTS = 1
-CIRCLE_EDGES_POINTS = 3
+CIRCLE_CENTER_POINTS: int = 1
+CIRCLE_EDGES_POINTS: int = 3
 
 
 class _CalibrationData(NamedTuple):
@@ -100,8 +100,35 @@ class _PlateCalibrationWidget(QWidget):
         mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent)
-
         self._mmc = mmcore or CMMCorePlus.instance()
+
+        self.MODES: dict[bool, list[Mode]] = {
+            True: [
+                Mode(
+                    "1 points : add 1 points at the center of the well",
+                    CIRCLE_CENTER_POINTS,
+                    QIcon(str(ICON_PATH / "circle-center.svg")),
+                ),
+                Mode(
+                    "3 points : add 3 points at the edges of the well",
+                    CIRCLE_EDGES_POINTS,
+                    QIcon(str(ICON_PATH / "circle-edges.svg")),
+                ),
+            ],
+            False: [
+                Mode(
+                    "2 points : add 2 points at the center of the well",
+                    2,
+                    QIcon(str(ICON_PATH / "square-vertices.svg")),
+                ),
+                Mode(
+                    "4 points : add 4 points at the edges of the well",
+                    4,
+                    QIcon(str(ICON_PATH / "square-edges.svg")),
+                ),
+            ],
+        }
+
         self._plate: WellPlate | None = None
 
         self._calibration_data: _CalibrationData | None = None
@@ -180,9 +207,7 @@ class _PlateCalibrationWidget(QWidget):
 
         # set calibration mode
         calibration_mode = (
-            self._get_calibration_modes(self._plate.circular_wells)
-            if self._plate is not None
-            else None
+            self.MODES[self._plate.circular_wells] if self._plate is not None else None
         )
 
         self._calibration_mode.setValue(calibration_mode)
@@ -246,33 +271,6 @@ class _PlateCalibrationWidget(QWidget):
             pixmap=icon(lbl_icon, color=lbl_icon_color).pixmap(lbl_icon_size),
             text=text,
         )
-
-    def _get_calibration_modes(self, circular_wells: bool) -> list[Mode]:
-        """Return the calibration modes depending on the well shape."""
-        if circular_wells:
-            OnePoint = Mode(
-                QIcon(str(ICON_PATH / "circle-center.svg")),
-                "1 points : add 1 points at the center of the well",
-                CIRCLE_CENTER_POINTS,
-            )
-            ThreePoints = Mode(
-                QIcon(str(ICON_PATH / "circle-edges.svg")),
-                "3 points : add 3 points at the edges of the well",
-                CIRCLE_EDGES_POINTS,
-            )
-            return [OnePoint, ThreePoints]
-        else:
-            TwoPoints = Mode(
-                QIcon(str(ICON_PATH / "square-vertices.svg")),
-                "2 points : add 2 points at the center of the well",
-                2,
-            )
-            FourPoints = Mode(
-                QIcon(str(ICON_PATH / "square-edges.svg")),
-                "4 points : add 4 points at the edges of the well",
-                4,
-            )
-            return [TwoPoints, FourPoints]
 
     def _on_calibrate_button_clicked(self) -> None:
         """Calibrate the plate."""
