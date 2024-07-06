@@ -46,7 +46,7 @@ RECT = Shape.RECTANGLE
 ELLIPSE = Shape.ELLIPSE
 
 
-class FOVSelectorWidget(QWidget):
+class _FOVSelectorWidget(QWidget):
     """Widget to select the FOVVs per well of the plate."""
 
     valueChanged = Signal(object)

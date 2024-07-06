@@ -11,7 +11,7 @@ from superqt.utils import signals_blocked
 from useq import Position, RandomPoints, WellPlatePlan
 
 from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
-    CalibrationData,
+    _CalibrationData,
 )
 from pymmcore_widgets.hcs._fov_widget._fov_sub_widgets import Center
 from pymmcore_widgets.hcs._graphics_items import Well
@@ -154,7 +154,7 @@ class HCSWizard(QWizard):
             self.plate_page.setValue(PlateInfo(value.plate, paired_wells))
 
         # update calibration page
-        calibration = CalibrationData(
+        calibration = _CalibrationData(
             calibrated=True,
             plate=value.plate,
             a1_center_xy=value.a1_center_xy,
@@ -192,7 +192,7 @@ class HCSWizard(QWizard):
     def _init_widget(self) -> None:
         """Initialize the wizard widget."""
         self._plate = self.plate_page.value().plate
-        self.calibration_page.setValue(CalibrationData(plate=self._plate))
+        self.calibration_page.setValue(_CalibrationData(plate=self._plate))
         fov_w, fov_h = self._get_fov_size()
         mode = Center(x=0, y=0, fov_width=fov_w, fov_height=fov_h)
         self.fov_page.setValue(self._plate, mode)
@@ -203,7 +203,7 @@ class HCSWizard(QWizard):
         cal = self.calibration_page.value()
         # update only if the plate has changed
         if cal is not None and cal.plate != self._plate:
-            self.calibration_page.setValue(CalibrationData(plate=self._plate))
+            self.calibration_page.setValue(_CalibrationData(plate=self._plate))
 
         # update fov page
         plate, mode = self.fov_page.value()

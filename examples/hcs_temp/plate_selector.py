@@ -5,11 +5,11 @@ with suppress(ImportError):
 
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets.hcs._plate_widget import PlateSelectorWidget
+from pymmcore_widgets.hcs._plate_widget import _PlateSelectorWidget
 
 app = QApplication([])
 
-ps = PlateSelectorWidget()
+ps = _PlateSelectorWidget()
 
 ps.valueChanged.connect(print)
 

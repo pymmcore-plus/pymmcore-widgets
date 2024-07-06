@@ -54,7 +54,7 @@ CIRCLE_CENTER_POINTS = 1
 CIRCLE_EDGES_POINTS = 3
 
 
-class CalibrationData(FrozenModel):
+class _CalibrationData(FrozenModel):
     """Calibration data for the plate.
 
     Attributes
@@ -86,7 +86,7 @@ class CalibrationData(FrozenModel):
     )
 
 
-class PlateCalibrationWidget(QWidget):
+class _PlateCalibrationWidget(QWidget):
     """Widget to calibrate the sample plate.
 
     Attributes
@@ -110,7 +110,7 @@ class PlateCalibrationWidget(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
         self._plate: WellPlate | None = None
 
-        self._calibration_data: CalibrationData | None = None
+        self._calibration_data: _CalibrationData | None = None
 
         # calibration mode
         self._calibration_mode = _CalibrationModeWidget()
@@ -171,11 +171,11 @@ class PlateCalibrationWidget(QWidget):
 
     # _________________________PUBLIC METHODS_________________________ #
 
-    def value(self) -> CalibrationData | None:
+    def value(self) -> _CalibrationData | None:
         """Return the calibration data."""
         return self._calibration_data
 
-    def setValue(self, value: CalibrationData | None) -> None:
+    def setValue(self, value: _CalibrationData | None) -> None:
         """Set the calibration data."""
         # reset calibration state
         self._reset_calibration()
@@ -308,7 +308,7 @@ class PlateCalibrationWidget(QWidget):
         # set calibration_info property
         pos_a1 = self._table_a1.value()
         pos_an = self._table_an.value() if self._plate.columns > 1 else []
-        self._calibration_data = CalibrationData(
+        self._calibration_data = _CalibrationData(
             calibrated=True,
             plate=self._plate,
             a1_center_xy=a1_center,

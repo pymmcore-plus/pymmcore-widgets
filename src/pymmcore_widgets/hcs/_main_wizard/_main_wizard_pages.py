@@ -12,11 +12,11 @@ from qtpy.QtWidgets import (
 )
 
 from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
-    CalibrationData,
-    PlateCalibrationWidget,
+    _CalibrationData,
+    _PlateCalibrationWidget,
 )
-from pymmcore_widgets.hcs._fov_widget._fov_widget import FOVSelectorWidget
-from pymmcore_widgets.hcs._plate_widget import PlateInfo, PlateSelectorWidget
+from pymmcore_widgets.hcs._fov_widget._fov_widget import _FOVSelectorWidget
+from pymmcore_widgets.hcs._plate_widget import PlateInfo, _PlateSelectorWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -38,7 +38,7 @@ class PlatePage(QWizardPage):
 
         self.setTitle("Plate and Well Selection")
 
-        self._plate_widget = PlateSelectorWidget()
+        self._plate_widget = _PlateSelectorWidget()
 
         self.setLayout(QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
@@ -69,7 +69,7 @@ class PlateCalibrationPage(QWizardPage):
         super().__init__(parent)
         self.setTitle("Plate Calibration")
 
-        self._calibration = PlateCalibrationWidget(mmcore=mmcore)
+        self._calibration = _PlateCalibrationWidget(mmcore=mmcore)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -78,11 +78,11 @@ class PlateCalibrationPage(QWizardPage):
 
         self.setButtonText(QWizard.WizardButton.NextButton, "FOVs >")
 
-    def value(self) -> CalibrationData | None:
+    def value(self) -> _CalibrationData | None:
         """Return the calibration info."""
         return self._calibration.value()
 
-    def setValue(self, value: CalibrationData | None) -> None:
+    def setValue(self, value: _CalibrationData | None) -> None:
         """Set the calibration info."""
         self._calibration.setValue(value)
 
@@ -103,7 +103,7 @@ class FOVSelectorPage(QWizardPage):
         super().__init__(parent)
         self.setTitle("Field of View Selection")
 
-        self._fov_widget = FOVSelectorWidget(plate, mode, parent)
+        self._fov_widget = _FOVSelectorWidget(plate, mode, parent)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

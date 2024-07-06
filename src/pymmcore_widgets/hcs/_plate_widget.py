@@ -47,7 +47,7 @@ class PlateInfo(NamedTuple):
     wells: list[Well]
 
 
-class PlateSelectorWidget(QWidget):
+class _PlateSelectorWidget(QWidget):
     """Widget for selecting the well plate and its wells.
 
     Parameters
