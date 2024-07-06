@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Iterable
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType, Keyword
