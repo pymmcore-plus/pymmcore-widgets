@@ -64,9 +64,12 @@ def get_plate_rotation_angle(
     x1, y1 = xy_well_1
     x2, y2 = xy_well_2
 
-    m = (y2 - y1) / (x2 - x1)  # slope from y = mx + q
-    plate_angle_rad = np.arctan(m)
-    return float(np.rad2deg(plate_angle_rad))
+    try:
+        m = (y2 - y1) / (x2 - x1)  # slope from y = mx + q
+        plate_angle_rad = np.arctan(m)
+        return float(np.rad2deg(plate_angle_rad))
+    except ZeroDivisionError:
+        return 0.0
 
 
 def get_random_circle_edge_point(
