@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from ._graphics_items import Well
 
 import useq
-from useq._plate import _KNOWN_PLATES
 
 useq.register_well_plates(
     {
@@ -45,9 +44,21 @@ useq.register_well_plates(
     }
 )
 
+
+def custom_sort_key(item: str) -> tuple[int, int | str]:
+    """Sort well plate keys by number first, then by string."""
+    parts = item.split("-")
+    return (0, int(parts[0])) if parts[0].isdigit() else (1, item)  # type: ignore
+
+
+sorted_wells = sorted(useq.known_well_plate_keys(), key=custom_sort_key)
+
 PLATES: dict[str, WellPlate] = {}
-for key, plate in _KNOWN_PLATES.items():
+for key in sorted_wells:
+    plate = useq.WellPlate.from_str(key)
     if isinstance(plate, WellPlate):
+        if not plate.name:
+            plate = plate.replace(name=key)
         PLATES[key] = plate
     elif isinstance(plate, dict):
         PLATES[key] = WellPlate(**plate).replace(name=key)
