@@ -23,8 +23,8 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import GridRowsColumns, Position, RandomPoints
-from useq._grid import GridPosition, OrderMode, Shape
+from useq import GridRowsColumns, Position, RandomPoints, RelativePosition
+from useq._grid import OrderMode, Shape
 
 from pymmcore_widgets.hcs._graphics_items import (
     FOV,
@@ -677,6 +677,7 @@ class _WellView(_ResizingGraphicsView):
             fov_height=self._fov_height_px,
         )
         # get the random points list
+
         points = self._get_random_points(val, area.boundingRect())
         # draw the random points
         self._draw_fovs(points)
@@ -688,9 +689,9 @@ class _WellView(_ResizingGraphicsView):
         with warnings.catch_warnings(record=True) as w:
             # note: inverting the y axis because in scene, y up is negative and y down
             # is positive.
-            pos = [  # type: ignore  # need release of useq
-                GridPosition(x, y * (-1), r, c, rel, name)  # type: ignore  # need release of useq
-                for x, y, r, c, rel, name in points
+            pos = [
+                RelativePosition(x=point.x, y=point.y * (-1), name=point.name)  # type: ignore
+                for point in points
             ]
             if len(pos) != points.num_points:
                 self.pointsWarning.emit(len(pos))
