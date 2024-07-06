@@ -16,17 +16,17 @@ from useq._grid import Shape
 from pymmcore_widgets import HCSWizard
 from pymmcore_widgets.hcs._calibration_widget._calibration_sub_widgets import (
     ROLE,
-    FourPoints,
-    OnePoint,
-    ThreePoints,
-    TwoPoints,
     _CalibrationModeWidget,
     _CalibrationTable,
     _TestCalibrationWidget,
 )
 from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
     CalibrationData,
+    FourPoints,
+    OnePoint,
     PlateCalibrationWidget,
+    ThreePoints,
+    TwoPoints,
 )
 from pymmcore_widgets.hcs._fov_widget._fov_sub_widgets import (
     Center,
@@ -107,7 +107,7 @@ def test_calibration_mode_widget(qtbot: QtBot):
     wdg = _CalibrationModeWidget()
     qtbot.addWidget(wdg)
 
-    modes = [TwoPoints(), ThreePoints(), FourPoints()]
+    modes = [TwoPoints, ThreePoints, FourPoints]
     wdg.setValue(modes)
 
     assert wdg._mode_combo.count() == 3
@@ -175,9 +175,9 @@ def test_calibration_widget(global_mmcore: CMMCorePlus, qtbot: QtBot):
     wdg.setValue(cal)
 
     assert wdg._calibration_mode._mode_combo.count() == 2
-    assert wdg._calibration_mode._mode_combo.itemData(0, ROLE) == TwoPoints()
-    assert wdg._calibration_mode._mode_combo.itemData(1, ROLE) == FourPoints()
-    assert isinstance(wdg._calibration_mode.value(), TwoPoints)
+    assert wdg._calibration_mode._mode_combo.itemData(0, ROLE) == TwoPoints
+    assert wdg._calibration_mode._mode_combo.itemData(1, ROLE) == FourPoints
+    assert isinstance(wdg._calibration_mode.value(), TwoPoints.__class__)
 
     assert not wdg._table_a1.isHidden()
     assert wdg._table_an.isHidden()
@@ -210,8 +210,8 @@ def test_calibration_widget(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert not wdg.isCalibrated()
 
     assert wdg._calibration_mode._mode_combo.count() == 2
-    assert wdg._calibration_mode._mode_combo.itemData(0, ROLE) == OnePoint()
-    assert wdg._calibration_mode._mode_combo.itemData(1, ROLE) == ThreePoints()
+    assert wdg._calibration_mode._mode_combo.itemData(0, ROLE) == OnePoint
+    assert wdg._calibration_mode._mode_combo.itemData(1, ROLE) == ThreePoints
 
     assert not wdg._table_a1.isHidden()
     assert not wdg._table_an.isHidden()

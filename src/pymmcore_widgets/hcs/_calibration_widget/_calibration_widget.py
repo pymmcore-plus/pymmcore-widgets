@@ -50,10 +50,32 @@ from ._util import (
 )
 
 ICON_PATH = Path(__file__).parent / "icons"
+
 CIRCLE_CENTER_POINTS = 1
 CIRCLE_EDGES_POINTS = 3
 QUADRILATERAL_CENTER_POINTS = 2
 QUADRILATERAL_EDGES_POINTS = 4
+
+OnePoint = Mode(
+    QIcon(str(ICON_PATH / "circle-center.svg")),
+    "1 points : add 1 points at the center of the well",
+    CIRCLE_CENTER_POINTS,
+)
+ThreePoints = Mode(
+    QIcon(str(ICON_PATH / "circle-edges.svg")),
+    "3 points : add 3 points at the edges of the well",
+    CIRCLE_EDGES_POINTS,
+)
+TwoPoints = Mode(
+    QIcon(str(ICON_PATH / "rectangle-center.svg")),
+    "2 points : add 2 points at the center of the well",
+    QUADRILATERAL_CENTER_POINTS,
+)
+FourPoints = Mode(
+    QIcon(str(ICON_PATH / "rectangle-edges.svg")),
+    "4 points : add 4 points at the edges of the well",
+    QUADRILATERAL_EDGES_POINTS,
+)
 
 
 class CalibrationData(FrozenModel):
@@ -257,31 +279,7 @@ class PlateCalibrationWidget(QWidget):
 
     def _get_calibration_modes(self, circular_wells: bool) -> list[Mode]:
         """Return the calibration modes depending on the well shape."""
-        if circular_wells:
-            OnePoint = Mode(
-                QIcon(str(ICON_PATH / "circle-center.svg")),
-                "1 points : add 1 points at the center of the well",
-                CIRCLE_CENTER_POINTS,
-            )
-            ThreePoints = Mode(
-                QIcon(str(ICON_PATH / "circle-edges.svg")),
-                "3 points : add 3 points at the edges of the well",
-                CIRCLE_EDGES_POINTS,
-            )
-            return [OnePoint, ThreePoints]
-
-        else:
-            TwoPoints = Mode(
-                QIcon(str(ICON_PATH / "rectangle-center.svg")),
-                "2 points : add 2 points at the center of the well",
-                QUADRILATERAL_CENTER_POINTS,
-            )
-            FourPoints = Mode(
-                QIcon(str(ICON_PATH / "rectangle-edges.svg")),
-                "4 points : add 4 points at the edges of the well",
-                QUADRILATERAL_EDGES_POINTS,
-            )
-            return [TwoPoints, FourPoints]
+        return [OnePoint, ThreePoints] if circular_wells else [TwoPoints, FourPoints]
 
     def _on_calibrate_button_clicked(self) -> None:
         """Calibrate the plate."""
