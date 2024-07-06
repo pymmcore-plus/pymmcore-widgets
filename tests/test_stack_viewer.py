@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 import pytest
+import qtpy
 from pymmcore_plus import CMMCorePlus
 from qtpy import QtCore
 from superqt.cmap._cmap_utils import try_cast_colormap
@@ -173,7 +175,9 @@ def test_disconnect(qtbot: QtBot) -> None:
     assert not canvas.ready
 
 
-@pytest.mark.skip(reason="Temporary skip, pydantic.warnings.PydanticDeprecatedSince20")
+@pytest.mark.skipif(
+    bool(os.getenv("CI") and qtpy.API_NAME == "PySide6"), reason="Fails too often on CI"
+)
 def test_not_ready(qtbot: QtBot) -> None:
     mmcore = CMMCorePlus.instance()
     canvas = StackViewer(mmcore=mmcore)
