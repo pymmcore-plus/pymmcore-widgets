@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 from unittest.mock import patch
 
@@ -22,7 +23,6 @@ from pymmcore_widgets.hcs._calibration_widget._calibration_sub_widgets import (
     _TestCalibrationWidget,
 )
 from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
-    ICON_PATH,
     Mode,
     _CalibrationData,
     _PlateCalibrationWidget,
@@ -48,12 +48,12 @@ from pymmcore_widgets.hcs._plate_widget import (
 from pymmcore_widgets.hcs._util import PLATES
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
-
+ICON_PATH = (
+    Path(__file__).parent.parent / "src/pymmcore_widgets/hcs/_calibration_widget/icons/"
+)
 CUSTOM_PLATE = WellPlate(
     rows=2,
     columns=4,

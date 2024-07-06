@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Optional, Tuple, Union
+from dataclasses import dataclass
+from typing import Any, Optional
 
 import numpy as np
 from qtpy.QtCore import QRectF, Qt, Signal
@@ -23,7 +24,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from useq import GridRowsColumns, Position, RandomPoints
-from useq._base_model import FrozenModel
 from useq._grid import GridPosition, OrderMode, Shape
 
 from pymmcore_widgets.hcs._graphics_items import (
@@ -395,7 +395,8 @@ class _GridFovWidget(QWidget):
         self._fov_size = (None, None)
 
 
-class _WellViewData(FrozenModel):
+@dataclass
+class _WellViewData:
     """A NamedTuple to store the well view data.
 
     Attributes
@@ -414,14 +415,21 @@ class _WellViewData(FrozenModel):
         The mode to use to draw the FOVs. By default, None.
     """
 
-    well_size: Tuple[Optional[float], Optional[float]] = (  # noqa: UP006 UP007
-        None,
-        None,
-    )
+    well_size: tuple[float | None, float | None] = (None, None)
     circular: bool = False
     padding: int = 0
     show_fovs_order: bool = True
-    mode: Union[Center, GridRowsColumns, RandomPoints, None] = None  # noqa: UP007
+    mode: Center | GridRowsColumns | RandomPoints | None = None
+
+    def replace(self, **kwargs: Any) -> _WellViewData:
+        """Replace the attributes of the dataclass."""
+        return _WellViewData(
+            well_size=kwargs.get("well_size", self.well_size),
+            circular=kwargs.get("circular", self.circular),
+            padding=kwargs.get("padding", self.padding),
+            show_fovs_order=kwargs.get("show_fovs_order", self.show_fovs_order),
+            mode=kwargs.get("mode", self.mode),
+        )
 
 
 DEFAULT_WELL_DATA = _WellViewData()

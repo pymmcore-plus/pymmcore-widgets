@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import (
-    List,
-    Optional,
+    ClassVar,
+    NamedTuple,
     Tuple,
     cast,
 )
 
 import numpy as np
 from fonticon_mdi6 import MDI6
-from pydantic import Field
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Signal
 from qtpy.QtGui import QIcon
@@ -26,7 +25,6 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 from useq import WellPlate  # noqa: TCH002
-from useq._base_model import FrozenModel
 
 from pymmcore_widgets.hcs._graphics_items import GREEN, RED
 from pymmcore_widgets.hcs._util import (
@@ -54,7 +52,7 @@ CIRCLE_CENTER_POINTS = 1
 CIRCLE_EDGES_POINTS = 3
 
 
-class _CalibrationData(FrozenModel):
+class _CalibrationData(NamedTuple):
     """Calibration data for the plate.
 
     Attributes
@@ -74,16 +72,12 @@ class _CalibrationData(FrozenModel):
         list.
     """
 
-    calibrated: bool = False
     plate: WellPlate
-    a1_center_xy: Optional[Tuple[float, float]] = None  # noqa: UP006 UP007
+    calibrated: bool = False
+    a1_center_xy: tuple[float, float] | None = None
     rotation: float = 0.0
-    calibration_positions_a1: Optional[List[Tuple[float, float]]] = Field(  # noqa: UP006 UP007
-        default_factory=list
-    )
-    calibration_positions_an: Optional[List[Tuple[float, float]]] = Field(  # noqa: UP006 UP007
-        default_factory=list
-    )
+    calibration_positions_a1: ClassVar[list[tuple[float, float]]] = []
+    calibration_positions_an: ClassVar[list[tuple[float, float]]] = []
 
 
 class _PlateCalibrationWidget(QWidget):
@@ -269,12 +263,12 @@ class _PlateCalibrationWidget(QWidget):
             return [OnePoint, ThreePoints]
         else:
             TwoPoints = Mode(
-                QIcon(str(ICON_PATH / "rectangle-center.svg")),
+                QIcon(str(ICON_PATH / "square-vertices.svg")),
                 "2 points : add 2 points at the center of the well",
                 2,
             )
             FourPoints = Mode(
-                QIcon(str(ICON_PATH / "rectangle-edges.svg")),
+                QIcon(str(ICON_PATH / "square-edges.svg")),
                 "4 points : add 4 points at the edges of the well",
                 4,
             )
@@ -309,8 +303,8 @@ class _PlateCalibrationWidget(QWidget):
         pos_a1 = self._table_a1.value()
         pos_an = self._table_an.value() if self._plate.columns > 1 else []
         self._calibration_data = _CalibrationData(
-            calibrated=True,
             plate=self._plate,
+            calibrated=True,
             a1_center_xy=a1_center,
             rotation=rotation,
             calibration_positions_a1=pos_a1,
