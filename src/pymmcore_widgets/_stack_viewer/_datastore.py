@@ -7,10 +7,9 @@ from pymmcore_plus.mda.handlers._ome_zarr_writer import POS_PREFIX, OMEZarrWrite
 from useq import MDAEvent
 
 if TYPE_CHECKING:
-    from typing import Any
-
     import numpy as np
     import useq
+    from pymmcore_plus.metadata import FrameMetaV1, SummaryMetaV1
 
 
 class QOMEZarrDatastore(OMEZarrWriter):
@@ -19,15 +18,12 @@ class QOMEZarrDatastore(OMEZarrWriter):
     def __init__(self) -> None:
         super().__init__(store=None)
 
-    def sequenceStarted(self, sequence: useq.MDASequence) -> None:
-        self._used_axes = tuple(sequence.used_axes)
-        super().sequenceStarted(sequence)
+    def sequenceStarted(self, seq: useq.MDASequence, meta: SummaryMetaV1) -> None:  # type: ignore[override]
+        self._used_axes = tuple(seq.used_axes)
+        super().sequenceStarted(seq, meta)
 
     def frameReady(
-        self,
-        frame: np.ndarray,
-        event: useq.MDAEvent,
-        meta: dict[Any, Any],
+        self, frame: np.ndarray, event: useq.MDAEvent, meta: FrameMetaV1
     ) -> None:
         super().frameReady(frame, event, meta)
         self.frame_ready.emit(event)

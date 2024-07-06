@@ -368,8 +368,9 @@ class _AvailableDevicesWidget(QWidget):
         current = self.dev_type.currentData()
         with signals_blocked(self.dev_type):
             self.dev_type.clear()
-            avail = {x.device_type for x in self._model.available_devices}
-            for x in (DeviceType.Any, *sorted(avail)):
+            _avail = {x.device_type for x in self._model.available_devices}
+            avail = sorted(x for x in _avail if x != DeviceType.Any)
+            for x in (DeviceType.Any, *avail):
                 self.dev_type.addItem(icon(ICONS.get(x, "")), str(x), x)
             if current in avail:
                 self.dev_type.setCurrentText(str(current))

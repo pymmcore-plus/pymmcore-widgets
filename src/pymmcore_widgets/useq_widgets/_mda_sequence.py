@@ -20,8 +20,8 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 
 import pymmcore_widgets
-from pymmcore_widgets._mda._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
+from pymmcore_widgets.useq_widgets._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
 from pymmcore_widgets.useq_widgets._positions import PositionTable
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
@@ -451,7 +451,9 @@ class MDASequenceWidget(QWidget):
             yaml = self.value().yaml(exclude_unset=True, exclude_defaults=True)
             data = cast("str", yaml)
         elif dest.suffix == ".json":
-            data = self.value().json(exclude_unset=True, exclude_defaults=True)
+            data = self.value().model_dump_json(
+                exclude_unset=True, exclude_defaults=True
+            )
         else:  # pragma: no cover
             raise ValueError(f"Invalid file extension: {dest.suffix!r}")
 
