@@ -8,7 +8,7 @@ from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import QFileDialog, QVBoxLayout, QWidget, QWizard
 from superqt.utils import signals_blocked
-from useq import Position, RandomPoints, WellPlatePlan
+from useq import RandomPoints, RelativePosition, WellPlatePlan
 
 from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
     _CalibrationData,
@@ -133,7 +133,9 @@ class HCSWizard(QWizard):
             a1_center_xy=calibration.a1_center_xy,
             rotation=calibration.rotation,
             well_points_plan=(
-                Position(x=mode.x, y=mode.y) if isinstance(mode, Center) else mode
+                RelativePosition(x=mode.x, y=mode.y)
+                if isinstance(mode, Center)
+                else mode
             ),
             selected_wells=(all_rows, all_columns),
         )
@@ -165,7 +167,7 @@ class HCSWizard(QWizard):
         # update fov page
         mode = value.well_points_plan
 
-        if isinstance(mode, Position):
+        if isinstance(mode, RelativePosition):
             fov_width, fov_height = self._get_fov_size()
             mode = Center(
                 x=mode.x, y=mode.y, fov_width=fov_width, fov_height=fov_height
@@ -200,20 +202,27 @@ class HCSWizard(QWizard):
     def _on_plate_changed(self, value: PlateInfo) -> None:
         self._plate = value.plate
         # update calibration page
+        self._update_calibration_page(value.plate)
+        # update fov page
+        self._update_fov_page(value.plate)
+
+    def _update_calibration_page(self, plate: WellPlate) -> None:
+        """Update the calibration page with a new plate."""
         cal = self.calibration_page.value()
         # update only if the plate has changed
-        if cal is not None and cal.plate != self._plate:
-            self.calibration_page.setValue(_CalibrationData(plate=self._plate))
+        if cal is not None and cal.plate != plate:
+            self.calibration_page.setValue(_CalibrationData(plate=plate))
 
-        # update fov page
-        plate, mode = self.fov_page.value()
+    def _update_fov_page(self, plate: WellPlate) -> None:
+        """Update the fov page with a new plate."""
+        fov_plate, mode = self.fov_page.value()
         # update only if the plate has changed
-        if plate != self._plate:
+        if fov_plate != plate:
             fov_w, fov_h = self._get_fov_size()
             if mode is None:
                 mode = Center(x=0, y=0, fov_width=fov_w, fov_height=fov_h)
             elif isinstance(mode, RandomPoints):
-                max_width, max_height = self._plate.well_size
+                max_width, max_height = plate.well_size
                 # update the max_width and max_height with the new plate well size
                 mode = mode.replace(
                     fov_height=fov_h,
@@ -224,34 +233,6 @@ class HCSWizard(QWizard):
             else:
                 mode = mode.replace(fov_height=fov_h, fov_width=fov_w)
             self.fov_page.setValue(self._plate, mode)
-
-    def _save(self) -> None:
-        """Save the current wizard values as a json file."""
-        (path, _) = QFileDialog.getSaveFileName(
-            self, "Save the Wizard Configuration", "", "json(*.json)"
-        )
-
-        if not path:
-            return
-
-        value = self.value()
-
-        if value is None:
-            return
-
-        Path(path).write_text(value.model_dump_json())
-
-    def _load(self) -> None:
-        """Load a .json wizard configuration."""
-        (path, _) = QFileDialog.getOpenFileName(
-            self, "Load a Wizard Configuration", "", "json(*.json)"
-        )
-
-        if not path:
-            return
-
-        with open(path) as file:
-            self.setValue(WellPlatePlan(**json.load(file)))
 
     def _on_sys_config_loaded(self) -> None:
         """Update the scene when the system configuration is loaded."""
@@ -287,3 +268,31 @@ class HCSWizard(QWizard):
         image_height = _cam_y * self._mmc.getPixelSizeUm()
 
         return image_width, image_height
+
+    def _save(self) -> None:
+        """Save the current wizard values as a json file."""
+        (path, _) = QFileDialog.getSaveFileName(
+            self, "Save the Wizard Configuration", "", "json(*.json)"
+        )
+
+        if not path:
+            return
+
+        value = self.value()
+
+        if value is None:
+            return
+
+        Path(path).write_text(value.model_dump_json())
+
+    def _load(self) -> None:
+        """Load a .json wizard configuration."""
+        (path, _) = QFileDialog.getOpenFileName(
+            self, "Load a Wizard Configuration", "", "json(*.json)"
+        )
+
+        if not path:
+            return
+
+        with open(path) as file:
+            self.setValue(WellPlatePlan(**json.load(file)))
