@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, NamedTuple
 from unittest.mock import patch
 
 import pytest
+from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QFileDialog,
     QGraphicsEllipseItem,
@@ -21,12 +22,10 @@ from pymmcore_widgets.hcs._calibration_widget._calibration_sub_widgets import (
     _TestCalibrationWidget,
 )
 from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
+    ICON_PATH,
     CalibrationData,
-    FourPoints,
-    OnePoint,
+    Mode,
     PlateCalibrationWidget,
-    ThreePoints,
-    TwoPoints,
 )
 from pymmcore_widgets.hcs._fov_widget._fov_sub_widgets import (
     Center,
@@ -107,7 +106,13 @@ def test_calibration_mode_widget(qtbot: QtBot):
     wdg = _CalibrationModeWidget()
     qtbot.addWidget(wdg)
 
-    modes = [TwoPoints, ThreePoints, FourPoints]
+    _icon = QIcon(str(ICON_PATH / "circle-center.svg"))
+    modes = [
+        Mode(icon=_icon, text="test", points=1),
+        Mode(icon=_icon, text="test2", points=2),
+        Mode(icon=_icon, text="test3", points=3),
+    ]
+
     wdg.setValue(modes)
 
     assert wdg._mode_combo.count() == 3
@@ -175,9 +180,12 @@ def test_calibration_widget(global_mmcore: CMMCorePlus, qtbot: QtBot):
     wdg.setValue(cal)
 
     assert wdg._calibration_mode._mode_combo.count() == 2
-    assert wdg._calibration_mode._mode_combo.itemData(0, ROLE) == TwoPoints
-    assert wdg._calibration_mode._mode_combo.itemData(1, ROLE) == FourPoints
-    assert isinstance(wdg._calibration_mode.value(), TwoPoints.__class__)
+    mode1 = wdg._calibration_mode._mode_combo.itemData(0, ROLE)
+    mode2 = wdg._calibration_mode._mode_combo.itemData(1, ROLE)
+    assert isinstance(mode1, Mode)
+    assert isinstance(mode2, Mode)
+    assert mode1.points == 2  # TwoPoints
+    assert mode2.points == 4  # FourPoints
 
     assert not wdg._table_a1.isHidden()
     assert wdg._table_an.isHidden()
@@ -210,8 +218,12 @@ def test_calibration_widget(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert not wdg.isCalibrated()
 
     assert wdg._calibration_mode._mode_combo.count() == 2
-    assert wdg._calibration_mode._mode_combo.itemData(0, ROLE) == OnePoint
-    assert wdg._calibration_mode._mode_combo.itemData(1, ROLE) == ThreePoints
+    mode1 = wdg._calibration_mode._mode_combo.itemData(0, ROLE)
+    mode2 = wdg._calibration_mode._mode_combo.itemData(1, ROLE)
+    assert isinstance(mode1, Mode)
+    assert isinstance(mode2, Mode)
+    assert mode1.points == 1  # OnePoint
+    assert mode2.points == 3  # ThreePoints
 
     assert not wdg._table_a1.isHidden()
     assert not wdg._table_an.isHidden()

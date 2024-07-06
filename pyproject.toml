@@ -52,6 +52,7 @@ dependencies = [
     'qtpy >=2.0',
     'superqt[quantity] >=0.5.3',
     'useq-schema @ git+https://github.com/pymmcore-plus/useq-schema.git',  # temporary until new useq release
+    'matplotlib',
 ]
 
 [tool.hatch.metadata]
