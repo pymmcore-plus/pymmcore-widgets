@@ -300,7 +300,7 @@ class StageWidget(QWidget):
             self._dtype is DeviceType.XYStage
             and self._device in self._mmc.getLoadedDevicesOfType(DeviceType.XYStage)
         ):
-            pos = self._mmc.getXYPosition(self._device)  # type: ignore # pymmcore wrong
+            pos = self._mmc.getXYPosition(self._device)
             p = ", ".join(str(round(x, 2)) for x in pos)
             self._readout.setText(f"{self._device}:  {p}")
         elif (
