@@ -24,10 +24,10 @@ plate = WellPlate(
 wpp = WellPlatePlan(
     plate=plate,
     a1_center_xy=(0, 0),
-    rotation=5,
-    selected_wells=([1, 2, 4], [3, 4, 7]),
+    rotation=3,
+    selected_wells=(slice(1, 7), slice(1, 11)),
     well_points_plan=GridRowsColumns(
-        rows=3, columns=3, fov_width=fov_width, fov_height=fov_height
+        rows=3, columns=3, fov_width=fov_width, fov_height=fov_height, overlap=-100
     ),
 )
 w.setValue(wpp)
@@ -37,7 +37,10 @@ w.valueChanged.connect(print)
 
 # override the accept method to show the plot
 def _accept():
-    print(w.value().plot())
+    value = w.value()
+    if value is None:
+        return
+    print(value.plot())
 
 
 w.accept = _accept

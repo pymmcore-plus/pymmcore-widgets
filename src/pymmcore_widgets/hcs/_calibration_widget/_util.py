@@ -65,7 +65,7 @@ def get_plate_rotation_angle(
     x2, y2 = xy_well_2
 
     m = (y2 - y1) / (x2 - x1)  # slope from y = mx + q
-    plate_angle_rad = -np.arctan(m)
+    plate_angle_rad = np.arctan(m)
     return float(np.rad2deg(plate_angle_rad))
 
 
