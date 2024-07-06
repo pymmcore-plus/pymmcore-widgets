@@ -48,7 +48,7 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
     'fonticon-materialdesignicons6',
-    'pymmcore-plus[cli] >=0.10.2',
+    'pymmcore-plus[cli] >=0.11.0',
     'qtpy >=2.0',
     'superqt[quantity] >=0.5.3',
     'useq-schema @ git+https://github.com/pymmcore-plus/useq-schema.git',  # temporary until new useq release
