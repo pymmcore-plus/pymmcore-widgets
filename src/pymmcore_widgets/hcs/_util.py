@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 
 import useq
 
+# add few coverslips to the known well plates
 useq.register_well_plates(
     {
         "coverslip-18mm": {
@@ -51,8 +52,10 @@ def custom_sort_key(item: str) -> tuple[int, int | str]:
     return (0, int(parts[0])) if parts[0].isdigit() else (1, item)  # type: ignore
 
 
+# sort the well plates by number first, then by string
 sorted_wells = sorted(useq.known_well_plate_keys(), key=custom_sort_key)
 
+# create a plate database with all known well plates
 PLATES: dict[str, WellPlate] = {}
 for key in sorted_wells:
     plate = useq.WellPlate.from_str(key)
