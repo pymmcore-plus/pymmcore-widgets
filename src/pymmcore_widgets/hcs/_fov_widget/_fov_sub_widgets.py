@@ -4,27 +4,21 @@ import warnings
 from dataclasses import dataclass
 from typing import Any, Optional
 
-import numpy as np
 from qtpy.QtCore import QRectF, Qt, Signal
 from qtpy.QtGui import QColor, QPen
 from qtpy.QtWidgets import (
-    QComboBox,
-    QDoubleSpinBox,
     QGraphicsEllipseItem,
     QGraphicsLineItem,
     QGraphicsRectItem,
     QGraphicsScene,
     QGroupBox,
     QLabel,
-    QPushButton,
     QSizePolicy,
-    QSpacerItem,
-    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
 from useq import GridRowsColumns, Position, RandomPoints, RelativePosition
-from useq._grid import OrderMode, Shape
+from useq._grid import Shape
 
 from pymmcore_widgets.hcs._graphics_items import (
     FOV,
@@ -33,8 +27,6 @@ from pymmcore_widgets.hcs._graphics_items import (
     _WellAreaGraphicsItem,
 )
 from pymmcore_widgets.hcs._util import _ResizingGraphicsView, nearest_neighbor
-
-from ._util import create_label, make_wdg_with_label
 
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 FIXED_POLICY = (QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -63,7 +55,7 @@ class Center(Position):
     fov_height: Optional[float] = None  # noqa: UP007
 
 
-class _CenterFOVWidget(QWidget):
+class _CenterFOVWidget(QGroupBox):
     """Widget to select the center of a specifiied area."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -78,18 +70,11 @@ class _CenterFOVWidget(QWidget):
         lbl.setStyleSheet("font-weight: bold;")
         lbl.setAlignment(AlignCenter)
 
-        # add widgets layout
-        self.wdg = QGroupBox()
-        layout = QVBoxLayout(self.wdg)
-        layout.setSpacing(0)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.addWidget(lbl)
-
         # main
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(self.wdg)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.addWidget(lbl)
 
     @property
     def fov_size(self) -> tuple[float | None, float | None]:
@@ -111,288 +96,6 @@ class _CenterFOVWidget(QWidget):
         self._x = value.x or 0.0
         self._y = value.y or 0.0
         self.fov_size = (value.fov_width, value.fov_height)
-
-
-class _RandomFOVWidget(QWidget):
-    """Widget to generate random points within a specified area."""
-
-    valueChanged = Signal(object)
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-
-        # setting a random seed for point generation reproducibility
-        self._random_seed: int | None = int(
-            np.random.randint(0, 2**32 - 1, dtype=np.uint32)
-        )
-        self._is_circular: bool = False
-        self._fov_size: tuple[float | None, float | None] = (None, None)
-
-        # well area doublespinbox along x
-        self._area_x = QDoubleSpinBox()
-        self._area_x.setAlignment(AlignCenter)
-        self._area_x.setMinimum(0.0)
-        self._area_x.setMaximum(1000000)
-        self._area_x.setSingleStep(100)
-        area_label_x = create_label("Area x (µm):")
-        area_x = make_wdg_with_label(area_label_x, self._area_x)
-
-        # well area doublespinbox along y
-        self._area_y = QDoubleSpinBox()
-        self._area_y.setAlignment(AlignCenter)
-        self._area_y.setMinimum(0.0)
-        self._area_y.setMaximum(1000000)
-        self._area_y.setSingleStep(100)
-        area_label_y = create_label("Area y (µm):")
-        area_y = make_wdg_with_label(area_label_y, self._area_y)
-
-        # number of FOVs spinbox
-        self._number_of_points = QSpinBox()
-        self._number_of_points.setAlignment(AlignCenter)
-        self._number_of_points.setMinimum(1)
-        self._number_of_points.setMaximum(1000)
-        number_of_points_label = create_label("Points:")
-        n_of_points = make_wdg_with_label(
-            number_of_points_label, self._number_of_points
-        )
-
-        self._random_button = QPushButton(text="Generate Random Points")
-
-        # add widgets to wdg layout
-        title = QLabel(text="Random Fields of Views.")
-        title.setStyleSheet("font-weight: bold;")
-        title.setAlignment(AlignCenter)
-
-        self._wdg = QGroupBox()
-        layout = QVBoxLayout(self._wdg)
-        layout.setSpacing(5)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.addWidget(title)
-        layout.addItem(QSpacerItem(0, 10, *FIXED_POLICY))
-        layout.addWidget(area_x)
-        layout.addWidget(area_y)
-        layout.addWidget(n_of_points)
-        layout.addWidget(self._random_button)
-
-        # set labels sizes
-        for lbl in (area_label_x, area_label_y, number_of_points_label):
-            lbl.setMinimumWidth(area_label_x.sizeHint().width())
-
-        # main
-        main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(10)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(self._wdg)
-
-        # connect
-        self._area_x.valueChanged.connect(self._on_value_changed)
-        self._area_y.valueChanged.connect(self._on_value_changed)
-        self._number_of_points.valueChanged.connect(self._on_value_changed)
-        self._random_button.clicked.connect(self._on_random_clicked)
-
-    @property
-    def is_circular(self) -> bool:
-        """Return True if the well is circular."""
-        return self._is_circular
-
-    @is_circular.setter
-    def is_circular(self, circular: bool) -> None:
-        """Set True if the well is circular."""
-        self._is_circular = circular
-
-    @property
-    def fov_size(self) -> tuple[float | None, float | None]:
-        """Return the FOV size."""
-        return self._fov_size
-
-    @fov_size.setter
-    def fov_size(self, size: tuple[float | None, float | None]) -> None:
-        """Set the FOV size."""
-        self._fov_size = size
-
-    @property
-    def random_seed(self) -> int | None:
-        """Return the random seed."""
-        return self._random_seed
-
-    @random_seed.setter
-    def random_seed(self, seed: int) -> None:
-        """Set the random seed."""
-        self._random_seed = seed
-
-    def _on_value_changed(self) -> None:
-        """Emit the valueChanged signal."""
-        self.valueChanged.emit(self.value())
-
-    def _on_random_clicked(self) -> None:
-        """Emit the valueChanged signal."""
-        # reset the random seed
-        self.random_seed = int(np.random.randint(0, 2**32 - 1, dtype=np.uint32))
-        self.valueChanged.emit(self.value())
-
-    def value(self) -> RandomPoints:
-        """Return the values of the widgets."""
-        fov_x, fov_y = self._fov_size
-        return RandomPoints(
-            num_points=self._number_of_points.value(),
-            shape=ELLIPSE if self._is_circular else RECT,
-            random_seed=self.random_seed,
-            max_width=self._area_x.value(),
-            max_height=self._area_y.value(),
-            allow_overlap=False,
-            fov_width=fov_x,
-            fov_height=fov_y,
-        )
-
-    def setValue(self, value: RandomPoints) -> None:
-        """Set the values of the widgets."""
-        self.is_circular = value.shape == ELLIPSE
-        self.random_seed = (
-            value.random_seed
-            if value.random_seed is not None
-            else int(np.random.randint(0, 2**32 - 1, dtype=np.uint32))
-        )
-        self._number_of_points.setValue(value.num_points)
-        self._area_x.setMaximum(value.max_width)
-        self._area_x.setValue(value.max_width)
-        self._area_y.setMaximum(value.max_height)
-        self._area_y.setValue(value.max_height)
-        self._fov_size = (value.fov_width, value.fov_height)
-
-    def reset(self) -> None:
-        """Reset the values of the widgets."""
-        self._number_of_points.setValue(1)
-        self._area_x.setValue(0)
-        self._area_y.setValue(0)
-        self._fov_size = (None, None)
-        self.is_circular = False
-
-
-class _GridFovWidget(QWidget):
-    """Widget to generate a grid of FOVs within a specified area."""
-
-    valueChanged = Signal(object)
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-
-        self._fov_size: tuple[float | None, float | None] = (None, None)
-
-        self._rows = QSpinBox()
-        self._rows.setAlignment(AlignCenter)
-        self._rows.setMinimum(1)
-        rows_lbl = create_label("Rows:")
-        rows = make_wdg_with_label(rows_lbl, self._rows)
-        self._rows.valueChanged.connect(self._on_value_changed)
-
-        self._cols = QSpinBox()
-        self._cols.setAlignment(AlignCenter)
-        self._cols.setMinimum(1)
-        cols_lbl = create_label("Columns:")
-        cols = make_wdg_with_label(cols_lbl, self._cols)
-        self._cols.valueChanged.connect(self._on_value_changed)
-
-        self._overlap_x = QDoubleSpinBox()
-        self._overlap_x.setAlignment(AlignCenter)
-        self._overlap_x.setMinimum(-10000)
-        self._overlap_x.setMaximum(100)
-        self._overlap_x.setSingleStep(1.0)
-        self._overlap_x.setValue(0)
-        overlap_x_lbl = create_label("Overlap x (%):")
-        overlap_x = make_wdg_with_label(overlap_x_lbl, self._overlap_x)
-        self._overlap_x.valueChanged.connect(self._on_value_changed)
-
-        self._overlap_y = QDoubleSpinBox()
-        self._overlap_y.setAlignment(AlignCenter)
-        self._overlap_y.setMinimum(-10000)
-        self._overlap_y.setMaximum(100)
-        self._overlap_y.setSingleStep(1.0)
-        self._overlap_y.setValue(0)
-        spacing_y_lbl = create_label("Overlap y (%):")
-        overlap_y = make_wdg_with_label(spacing_y_lbl, self._overlap_y)
-        self._overlap_y.valueChanged.connect(self._on_value_changed)
-
-        self._order_combo = QComboBox()
-        self._order_combo.addItems([mode.value for mode in OrderMode])
-        self._order_combo.setCurrentText(OrderMode.row_wise_snake.value)
-        order_combo_lbl = create_label("Grid Order:")
-        order_combo = make_wdg_with_label(order_combo_lbl, self._order_combo)
-        self._order_combo.currentTextChanged.connect(self._on_value_changed)
-
-        # add widgets to wdg layout
-        self._wdg = QGroupBox()
-        layout = QVBoxLayout(self._wdg)
-        layout.setSpacing(5)
-        layout.setContentsMargins(10, 10, 10, 10)
-        title = QLabel(text="Fields of Views in a Grid.")
-        title.setStyleSheet("font-weight: bold;")
-        title.setAlignment(AlignCenter)
-        layout.addWidget(title)
-        layout.addItem(QSpacerItem(0, 10, *FIXED_POLICY))
-        layout.addWidget(rows)
-        layout.addWidget(cols)
-        layout.addWidget(overlap_x)
-        layout.addWidget(overlap_y)
-        layout.addWidget(order_combo)
-
-        # set labels sizes
-        for lbl in (
-            rows_lbl,
-            cols_lbl,
-            overlap_x_lbl,
-            spacing_y_lbl,
-            order_combo_lbl,
-        ):
-            lbl.setMinimumWidth(overlap_x_lbl.sizeHint().width())
-
-        # main
-        main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(10)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(self._wdg)
-
-    @property
-    def fov_size(self) -> tuple[float | None, float | None]:
-        """Return the FOV size."""
-        return self._fov_size
-
-    @fov_size.setter
-    def fov_size(self, size: tuple[float | None, float | None]) -> None:
-        """Set the FOV size."""
-        self._fov_size = size
-
-    def _on_value_changed(self) -> None:
-        """Emit the valueChanged signal."""
-        self.valueChanged.emit(self.value())
-
-    def value(self) -> GridRowsColumns:
-        """Return the values of the widgets."""
-        fov_x, fov_y = self._fov_size
-        return GridRowsColumns(
-            rows=self._rows.value(),
-            columns=self._cols.value(),
-            overlap=(self._overlap_x.value(), self._overlap_y.value()),
-            mode=self._order_combo.currentText(),
-            fov_width=fov_x,
-            fov_height=fov_y,
-        )
-
-    def setValue(self, value: GridRowsColumns) -> None:
-        """Set the values of the widgets."""
-        self._rows.setValue(value.rows)
-        self._cols.setValue(value.columns)
-        self._overlap_x.setValue(value.overlap[0])
-        self._overlap_y.setValue(value.overlap[1])
-        self._order_combo.setCurrentText(value.mode.value)
-        self.fov_size = (value.fov_width, value.fov_height)
-
-    def reset(self) -> None:
-        """Reset the values of the widgets."""
-        self._rows.setValue(1)
-        self._cols.setValue(1)
-        self._overlap_x.setValue(0)
-        self._overlap_y.setValue(0)
-        self._fov_size = (None, None)
 
 
 @dataclass

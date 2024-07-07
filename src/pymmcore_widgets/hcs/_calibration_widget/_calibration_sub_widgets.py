@@ -307,7 +307,7 @@ class _CalibrationLabel(QGroupBox):
         layout = QHBoxLayout(self)
         layout.setAlignment(AlignCenter)
         layout.setSpacing(5)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(10, 10, 10, 10)
         layout.addWidget(self._icon_lbl)
         layout.addWidget(self._text_lbl)
 

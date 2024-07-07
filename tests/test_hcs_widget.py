@@ -29,8 +29,6 @@ from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
 from pymmcore_widgets.hcs._fov_widget._fov_sub_widgets import (
     Center,
     _CenterFOVWidget,
-    _GridFovWidget,
-    _RandomFOVWidget,
     _WellView,
     _WellViewData,
 )
@@ -45,6 +43,8 @@ from pymmcore_widgets.hcs._plate_widget import (
     _PlateSelectorWidget,
 )
 from pymmcore_widgets.hcs._util import PLATES
+from pymmcore_widgets.useq_widgets._grid_row_column_widget import GridRowColumnWidget
+from pymmcore_widgets.useq_widgets._random_points_widget import RandomPointWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -259,7 +259,7 @@ def test_center_widget(qtbot: QtBot):
 
 
 def test_random_widget(qtbot: QtBot):
-    wdg = _RandomFOVWidget()
+    wdg = RandomPointWidget()
     qtbot.addWidget(wdg)
 
     assert not wdg.is_circular
@@ -304,7 +304,7 @@ def test_random_widget(qtbot: QtBot):
 
 
 def test_grid_widget(qtbot: QtBot):
-    wdg = _GridFovWidget()
+    wdg = GridRowColumnWidget()
     qtbot.addWidget(wdg)
 
     value = wdg.value()
@@ -459,7 +459,7 @@ def test_fov_selector_widget_none(qtbot: QtBot):
     qtbot.addWidget(wdg)
 
     assert wdg.value() == (None, Center(x=0.0, y=0.0))
-    assert get_items_number(wdg.view) == SceneItems(
+    assert get_items_number(wdg.well_view) == SceneItems(
         fovs=0, lines=0, well_area=0, well_circle=0, well_rect=0
     )
 
@@ -522,7 +522,7 @@ def test_fov_selector_widget(qtbot: QtBot):
     wdg.setValue(coverslip, None)
     current_plate, _ = wdg.value()
     assert current_plate == coverslip
-    assert get_items_number(wdg.view) == SceneItems(
+    assert get_items_number(wdg.well_view) == SceneItems(
         fovs=0, lines=0, well_area=0, well_circle=0, well_rect=1
     )
 
@@ -531,7 +531,7 @@ def test_fov_selector_widget(qtbot: QtBot):
     assert current_plate is None
     assert mode == Center(x=0, y=0, fov_width=500, fov_height=500)
     assert mode.fov_width == mode.fov_height == 500
-    assert get_items_number(wdg.view) == SceneItems(
+    assert get_items_number(wdg.well_view) == SceneItems(
         fovs=0, lines=0, well_area=0, well_circle=0, well_rect=0
     )
 

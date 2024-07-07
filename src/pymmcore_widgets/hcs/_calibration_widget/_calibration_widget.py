@@ -18,8 +18,6 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QMessageBox,
     QPushButton,
-    QSizePolicy,
-    QSpacerItem,
     QVBoxLayout,
     QWidget,
 )
@@ -149,42 +147,34 @@ class _PlateCalibrationWidget(QWidget):
         self._calibrate_button = QPushButton(text="Calibrate WellPlate")
         self._calibrate_button.setIcon(icon(MDI6.target_variant, color="darkgrey"))
         self._calibrate_button.setIconSize(QSize(30, 30))
-        spacer = QSpacerItem(
-            0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        calibrate_btn_wdg = QWidget()
-        calibrate_btn_wdg_layout = QHBoxLayout(calibrate_btn_wdg)
+        calibrate_btn_wdg_layout = QHBoxLayout()
         calibrate_btn_wdg_layout.setSpacing(10)
         calibrate_btn_wdg_layout.setContentsMargins(0, 0, 0, 0)
-        calibrate_btn_wdg_layout.addItem(spacer)
+        calibrate_btn_wdg_layout.addStretch()
         calibrate_btn_wdg_layout.addWidget(self._calibrate_button)
-        # calibration tabls and calibration button group
+        # calibration tables and calibration button group
         table_and_btn_wdg = QGroupBox()
         table_and_btn_wdg_layout = QVBoxLayout(table_and_btn_wdg)
         table_and_btn_wdg_layout.setSpacing(10)
         table_and_btn_wdg_layout.setContentsMargins(10, 10, 10, 10)
         table_and_btn_wdg_layout.addWidget(table_group)
-        table_and_btn_wdg_layout.addWidget(calibrate_btn_wdg)
-
-        # test calibration
-        self._test_calibration = _TestCalibrationWidget()
-        # calibration label
-        self._calibration_label = _CalibrationLabel()
+        table_and_btn_wdg_layout.addLayout(calibrate_btn_wdg_layout)
         # test calibration and calibration label group
-        bottom_group = QWidget()
-        bottom_group_layout = QHBoxLayout(bottom_group)
+        self._test_calibration = _TestCalibrationWidget()
+        self._calibration_label = _CalibrationLabel()
+        bottom_group_layout = QHBoxLayout()
         bottom_group_layout.setSpacing(10)
-        bottom_group_layout.setContentsMargins(10, 10, 10, 10)
+        bottom_group_layout.setContentsMargins(0, 0, 0, 0)
         bottom_group_layout.addWidget(self._test_calibration)
         bottom_group_layout.addWidget(self._calibration_label)
 
         # main
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
         main_layout.addWidget(self._calibration_mode)
         main_layout.addWidget(table_and_btn_wdg)
-        main_layout.addWidget(bottom_group)
+        main_layout.addLayout(bottom_group_layout)
 
         # connect
         self._calibrate_button.clicked.connect(self._on_calibrate_button_clicked)
