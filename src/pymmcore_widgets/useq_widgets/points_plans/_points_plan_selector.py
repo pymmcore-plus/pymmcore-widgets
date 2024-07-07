@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 import useq
 from qtpy.QtCore import Qt, Signal
@@ -21,6 +21,8 @@ from ._grid_row_column_widget import GridRowColumnWidget
 from ._random_points_widget import RandomPointWidget
 
 if TYPE_CHECKING:
+    from typing_extensions import TypeAlias
+
     # excluding useq.GridWidthHeight even though it's also a relative multi point plan
     RelativePointPlan: TypeAlias = (
         useq.GridRowsColumns | useq.RandomPoints | useq.RelativePosition
@@ -69,7 +71,7 @@ class RelativePointPlanSelector(QWidget):
         # this gets changed when the radio buttons are toggled
         self._active_plan_widget: (
             RelativePositionWidget | RandomPointWidget | GridRowColumnWidget
-        ) = self.relative_pos_wdg
+        ) = self.single_pos_wdg
 
         # radio buttons  selection
 
@@ -95,11 +97,11 @@ class RelativePointPlanSelector(QWidget):
         main_layout.setSpacing(10)
         main_layout.setContentsMargins(10, 10, 10, 10)
         for btn, wdg in (
-            (self.single_radio_btn, self.relative_pos_wdg),
+            (self.single_radio_btn, self.single_pos_wdg),
             (self.random_radio_btn, self.random_points_wdg),
             (self.grid_radio_btn, self.grid_wdg),
         ):
-            wdg.setEnabled(btn.isChecked())
+            wdg.setEnabled(btn.isChecked())  # type: ignore [attr-defined]
             grpbx = QGroupBox()
             grpbx.setLayout(QVBoxLayout())
             grpbx.layout().addWidget(wdg)
@@ -136,8 +138,8 @@ class RelativePointPlanSelector(QWidget):
                 self.grid_wdg.setValue(plan)
             self.grid_radio_btn.setChecked(True)
         elif isinstance(plan, useq.RelativePosition):
-            with signals_blocked(self.relative_pos_wdg):
-                self.relative_pos_wdg.setValue(plan)
+            with signals_blocked(self.single_pos_wdg):
+                self.single_pos_wdg.setValue(plan)
             self.single_radio_btn.setChecked(True)
         else:  # pragma: no cover
             raise ValueError(f"Invalid plan type: {type(plan)}")
@@ -146,7 +148,7 @@ class RelativePointPlanSelector(QWidget):
 
     def _on_radiobutton_toggled(self, btn: QRadioButton, checked: bool) -> None:
         btn2wdg: dict[QRadioButton, QWidget] = {
-            self.single_radio_btn: self.relative_pos_wdg,
+            self.single_radio_btn: self.single_pos_wdg,
             self.random_radio_btn: self.random_points_wdg,
             self.grid_radio_btn: self.grid_wdg,
         }
