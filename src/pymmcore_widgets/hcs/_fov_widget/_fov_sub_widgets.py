@@ -26,7 +26,9 @@ from pymmcore_widgets.hcs._graphics_items import (
     _FOVGraphicsItem,
     _WellAreaGraphicsItem,
 )
-from pymmcore_widgets.hcs._util import _ResizingGraphicsView, nearest_neighbor
+from pymmcore_widgets.hcs._util import _ResizingGraphicsView
+
+from ._util import nearest_neighbor
 
 AlignCenter = Qt.AlignmentFlag.AlignCenter
 FIXED_POLICY = (QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)

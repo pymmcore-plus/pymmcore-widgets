@@ -25,10 +25,6 @@ from superqt.fonticon import icon
 from useq import WellPlate  # noqa: TCH002
 
 from pymmcore_widgets.hcs._graphics_items import GREEN, RED
-from pymmcore_widgets.hcs._util import (
-    apply_rotation_matrix,
-    get_well_center,
-)
 
 from ._calibration_sub_widgets import (
     Mode,
@@ -38,11 +34,13 @@ from ._calibration_sub_widgets import (
     _TestCalibrationWidget,
 )
 from ._util import (
+    apply_rotation_matrix,
     find_circle_center,
     find_rectangle_center,
     get_plate_rotation_angle,
     get_random_circle_edge_point,
     get_random_rectangle_edge_point,
+    get_well_center,
 )
 
 ICON_PATH = Path(__file__).parent / "icons"

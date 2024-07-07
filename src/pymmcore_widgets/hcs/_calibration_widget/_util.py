@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from useq import WellPlate
+
+    from pymmcore_widgets.hcs._graphics_items import Well
 
 
 def find_circle_center(
@@ -106,3 +112,35 @@ def get_random_rectangle_edge_point(
         (np.random.uniform(x_left, x_right), y_bottom),  # bottom
     ]
     return edge_points[np.random.randint(0, 4)]
+
+
+def get_well_center(
+    plate: WellPlate, well: Well, a1_center_x: float, a1_center_y: float
+) -> tuple[float, float]:
+    """Calculate the x, y stage coordinates of a well."""
+    a1_x, a1_y = (a1_center_x, a1_center_y)
+    well_spacing_x, well_spacing_y = plate.well_spacing
+    spacing_x = well_spacing_x * 1000  # µm
+    spacing_y = well_spacing_y * 1000  # µm
+
+    if well.name == "A1":
+        x, y = (a1_x, a1_y)
+    else:
+        x = a1_x + (spacing_x * well.column)
+        y = a1_y - (spacing_y * well.row)
+    return x, y
+
+
+def apply_rotation_matrix(
+    rotation_matrix: np.ndarray,
+    a1_center_x: float,
+    a1_center_y: float,
+    new_x: float,
+    new_y: float,
+) -> tuple[float, float]:
+    """Apply rotation matrix to x, y coordinates."""
+    center = np.array([[a1_center_x], [a1_center_y]])
+    coords = [[new_x], [new_y]]
+    transformed = np.linalg.inv(rotation_matrix).dot(coords - center) + center
+    x_rotated, y_rotated = transformed
+    return x_rotated[0], y_rotated[0]
