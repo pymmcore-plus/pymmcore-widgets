@@ -5,7 +5,6 @@ from typing import Literal, Sequence, cast
 
 import useq
 from qtpy.QtCore import QSize, Qt, Signal
-from qtpy.QtGui import QPainter, QPaintEvent, QPen
 from qtpy.QtWidgets import (
     QAbstractButton,
     QButtonGroup,
@@ -22,6 +21,8 @@ from qtpy.QtWidgets import (
 )
 from superqt import QEnumComboBox
 from superqt.utils import signals_blocked
+
+from pymmcore_widgets._util import SeparatorWidget
 
 
 class RelativeTo(Enum):
@@ -166,11 +167,11 @@ class GridPlanWidget(QScrollArea):
         inner_widget = QWidget(self)
         layout = QVBoxLayout(inner_widget)
         layout.addLayout(row_col_layout)
-        layout.addWidget(_SeparatorWidget())
+        layout.addWidget(SeparatorWidget())
         layout.addLayout(width_height_layout)  # hiding until useq supports it
-        layout.addWidget(_SeparatorWidget())
+        layout.addWidget(SeparatorWidget())
         layout.addLayout(self.bounds_layout)
-        layout.addWidget(_SeparatorWidget())
+        layout.addWidget(SeparatorWidget())
         layout.addLayout(bottom_stuff)
         layout.addStretch()
 
@@ -361,14 +362,3 @@ class GridPlanWidget(QScrollArea):
         if (val := self.value()) is None:
             return  # pragma: no cover
         self.valueChanged.emit(val)
-
-
-class _SeparatorWidget(QWidget):
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setFixedHeight(1)
-
-    def paintEvent(self, a0: QPaintEvent | None) -> None:
-        painter = QPainter(self)
-        painter.setPen(QPen(Qt.GlobalColor.gray, 1, Qt.PenStyle.SolidLine))
-        painter.drawLine(self.rect().topLeft(), self.rect().topRight())
