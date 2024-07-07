@@ -8,7 +8,6 @@ from qtpy.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
-    QGroupBox,
     QLabel,
     QPushButton,
     QSpinBox,
@@ -18,7 +17,7 @@ from qtpy.QtWidgets import (
 from useq import RandomPoints, Shape
 
 
-class RandomPointWidget(QGroupBox):
+class RandomPointWidget(QWidget):
     """Widget to generate random points within a specified area."""
 
     valueChanged = Signal(object)
@@ -57,7 +56,7 @@ class RandomPointWidget(QGroupBox):
         self.shape.setCurrentText(Shape.ELLIPSE.value)
 
         # form layout
-        form = QFormLayout()
+        self.form = form = QFormLayout()
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         form.setSpacing(5)
         form.setContentsMargins(0, 0, 0, 0)

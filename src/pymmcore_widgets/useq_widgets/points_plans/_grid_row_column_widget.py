@@ -28,7 +28,7 @@ class GridRowColumnWidget(QWidget):
         self._relative_to: str = "center"
 
         # title
-        title = QLabel(text="Fields of View in a Grid.")
+        title = QLabel(text="Fields of View in a Grid")
         title.setStyleSheet("font-weight: bold;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
