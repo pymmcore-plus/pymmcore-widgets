@@ -97,10 +97,7 @@ class WellView(ResizingGraphicsView):
     pointsWarning: Signal = Signal(int)
 
     def __init__(
-        self,
-        parent: QWidget | None = None,
-        view_size: tuple[int, int] = DEFAULT_VIEW_SIZE,
-        data: WellViewData = None,
+        self, parent: QWidget | None = None, data: WellViewData = None
     ) -> None:
         if data is None:
             data = WellViewData()
@@ -110,7 +107,7 @@ class WellView(ResizingGraphicsView):
 
         self.setStyleSheet("background:grey; border-radius: 5px;")
 
-        self._size_x, self._size_y = view_size
+        self._size_x, self._size_y = DEFAULT_VIEW_SIZE
         self.setMinimumSize(self._size_x, self._size_y)
 
         # set the scene rect so that the center is (0, 0)
