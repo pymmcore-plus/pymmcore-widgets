@@ -125,7 +125,8 @@ class RelativePointPlanSelector(QWidget):
             with signals_blocked(self.relative_pos_wdg):
                 self.relative_pos_wdg.setValue(plan)
             self.center_radio_btn.setChecked(True)
-        raise ValueError(f"Invalid plan type: {type(plan)}")
+        else:  # pragma: no cover
+            raise ValueError(f"Invalid plan type: {type(plan)}")
 
     # _________________________PRIVATE METHODS_________________________ #
 
