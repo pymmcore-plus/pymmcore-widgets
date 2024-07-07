@@ -19,6 +19,7 @@ from useq import (
     RandomPoints,
 )
 
+from pymmcore_widgets._util import SeparatorWidget
 from pymmcore_widgets.hcs._fov_widget._fov_sub_widgets import (
     Center,
     _CenterFOVWidget,
@@ -29,9 +30,10 @@ from pymmcore_widgets.hcs._graphics_items import (
     _FOVGraphicsItem,
     _WellAreaGraphicsItem,
 )
-from pymmcore_widgets.useq_widgets._grid import _SeparatorWidget
-from pymmcore_widgets.useq_widgets._grid_row_column_widget import GridRowColumnWidget
-from pymmcore_widgets.useq_widgets._random_points_widget import RandomPointWidget
+from pymmcore_widgets.useq_widgets.points_plans import (
+    GridRowColumnWidget,
+    RandomPointWidget,
+)
 
 if TYPE_CHECKING:
     from useq import WellPlate
@@ -114,13 +116,13 @@ class _FOVSelectorWidget(QWidget):
         main_layout = QGridLayout(self)
         main_layout.setSpacing(10)
         main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.addWidget(_SeparatorWidget(), 0, 0)
+        main_layout.addWidget(SeparatorWidget(), 0, 0)
         main_layout.addLayout(center_wdg_layout, 1, 0)
-        main_layout.addWidget(_SeparatorWidget(), 2, 0)
+        main_layout.addWidget(SeparatorWidget(), 2, 0)
         main_layout.addLayout(random_wdg_layout, 3, 0)
-        main_layout.addWidget(_SeparatorWidget(), 4, 0)
+        main_layout.addWidget(SeparatorWidget(), 4, 0)
         main_layout.addLayout(grid_wdg_layout, 5, 0)
-        main_layout.addWidget(_SeparatorWidget(), 6, 0)
+        main_layout.addWidget(SeparatorWidget(), 6, 0)
         main_layout.addWidget(self.well_view, 0, 1, 7, 1)
 
         # connect

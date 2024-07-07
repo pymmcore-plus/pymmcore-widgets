@@ -7,7 +7,8 @@ from typing import Any, ContextManager, Sequence
 import useq
 from psygnal import SignalInstance
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QObject
+from qtpy.QtCore import QObject, Qt
+from qtpy.QtGui import QPainter, QPaintEvent, QPen
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
@@ -176,3 +177,14 @@ def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> 
             # use it
             current_max = max(int(num), current_max)
     return directory / f"{stem}_{current_max:0{min_digits}d}{extension}"
+
+
+class SeparatorWidget(QWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setFixedHeight(1)
+
+    def paintEvent(self, a0: QPaintEvent | None) -> None:
+        painter = QPainter(self)
+        painter.setPen(QPen(Qt.GlobalColor.gray, 1, Qt.PenStyle.SolidLine))
+        painter.drawLine(self.rect().topLeft(), self.rect().topRight())
