@@ -34,9 +34,6 @@ class _PlateGraphicsScene(QGraphicsScene):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        self.well_pos = 0
-        self.new_well_pos = 0
-
         self._selected_wells: list[QGraphicsItem] = []
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
