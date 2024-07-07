@@ -14,6 +14,7 @@ from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
     _CalibrationData,
 )
 from pymmcore_widgets.hcs._fov_widget._fov_sub_widgets import Center
+from pymmcore_widgets.hcs._fov_widget._fov_widget import ELLIPSE, RECT
 from pymmcore_widgets.hcs._graphics_items import Well
 from pymmcore_widgets.hcs._plate_widget import PlateInfo
 
@@ -229,6 +230,7 @@ class HCSWizard(QWizard):
                     fov_width=fov_w,
                     max_height=max_height * 1000,  # convert to um
                     max_width=max_width * 1000,  # convert to um
+                    shape=ELLIPSE if plate.circular_wells else RECT,
                 )
             else:
                 mode = mode.replace(fov_height=fov_h, fov_width=fov_w)

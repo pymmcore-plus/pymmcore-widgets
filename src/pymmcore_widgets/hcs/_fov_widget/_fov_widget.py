@@ -8,6 +8,7 @@ from qtpy.QtWidgets import (
     QButtonGroup,
     QGraphicsLineItem,
     QGridLayout,
+    QGroupBox,
     QHBoxLayout,
     QRadioButton,
     QSizePolicy,
@@ -17,6 +18,7 @@ from superqt.utils import signals_blocked
 from useq import (
     GridRowsColumns,
     RandomPoints,
+    Shape,
 )
 
 from pymmcore_widgets._util import SeparatorWidget
@@ -43,8 +45,8 @@ CENTER = "Center"
 RANDOM = "Random"
 GRID = "Grid"
 OFFSET = 20
-RECT = "rectangle"  # Shape.RECTANGLE in useq
-ELLIPSE = "ellipse"  # Shape.ELLIPSE in useq
+RECT = Shape.RECTANGLE
+ELLIPSE = Shape.ELLIPSE
 
 
 class _FOVSelectorWidget(QWidget):
@@ -77,23 +79,26 @@ class _FOVSelectorWidget(QWidget):
         center_wdg_layout.addWidget(self.center_radio_btn)
         center_wdg_layout.addWidget(self.center_wdg)
         # random widget
+        random_wdg_group = QGroupBox()
         self.random_wdg = RandomPointWidget()
+        self.random_wdg.shape.setEnabled(False)
         self.random_wdg.setEnabled(False)
         self.random_radio_btn = QRadioButton()
         self.random_radio_btn.setSizePolicy(*FIXED_POLICY)
         self.random_radio_btn.setObjectName(RANDOM)
-        random_wdg_layout = QHBoxLayout()
+        random_wdg_layout = QHBoxLayout(random_wdg_group)
         random_wdg_layout.setContentsMargins(0, 0, 0, 0)
         random_wdg_layout.setSpacing(5)
         random_wdg_layout.addWidget(self.random_radio_btn)
         random_wdg_layout.addWidget(self.random_wdg)
         # grid widget
+        grid_wdg_group = QGroupBox()
         self.grid_wdg = GridRowColumnWidget()
         self.grid_wdg.setEnabled(False)
         self.grid_radio_btn = QRadioButton()
         self.grid_radio_btn.setSizePolicy(*FIXED_POLICY)
         self.grid_radio_btn.setObjectName(GRID)
-        grid_wdg_layout = QHBoxLayout()
+        grid_wdg_layout = QHBoxLayout(grid_wdg_group)
         grid_wdg_layout.setContentsMargins(0, 0, 0, 0)
         grid_wdg_layout.setSpacing(5)
         grid_wdg_layout.addWidget(self.grid_radio_btn)
@@ -119,9 +124,9 @@ class _FOVSelectorWidget(QWidget):
         main_layout.addWidget(SeparatorWidget(), 0, 0)
         main_layout.addLayout(center_wdg_layout, 1, 0)
         main_layout.addWidget(SeparatorWidget(), 2, 0)
-        main_layout.addLayout(random_wdg_layout, 3, 0)
+        main_layout.addWidget(random_wdg_group, 3, 0)
         main_layout.addWidget(SeparatorWidget(), 4, 0)
-        main_layout.addLayout(grid_wdg_layout, 5, 0)
+        main_layout.addWidget(grid_wdg_group, 5, 0)
         main_layout.addWidget(SeparatorWidget(), 6, 0)
         main_layout.addWidget(self.well_view, 0, 1, 7, 1)
 
@@ -224,7 +229,7 @@ class _FOVSelectorWidget(QWidget):
         self.grid_wdg.fov_size = fov_size
 
     def _on_points_warning(self, num_points: int) -> None:
-        self.random_wdg._number_of_points.setValue(num_points)
+        self.random_wdg.num_points.setValue(num_points)
 
     def _on_radiobutton_toggled(self, radio_btn: QRadioButton) -> None:
         """Update the scene when the tab is changed."""
@@ -299,7 +304,7 @@ class _FOVSelectorWidget(QWidget):
         """Convert a WellPlate object to a RandomPoints object."""
         well_size_x, well_size_y = plate.well_size if plate is not None else (0.0, 0.0)
         return RandomPoints(
-            num_points=self.random_wdg._number_of_points.value(),
+            num_points=self.random_wdg.num_points.value(),
             max_width=well_size_x * 1000 if plate else 0.0,  # convert to µm
             max_height=well_size_y * 1000 if plate else 0.0,  # convert to µm
             shape=ELLIPSE if (plate and plate.circular_wells) else RECT,

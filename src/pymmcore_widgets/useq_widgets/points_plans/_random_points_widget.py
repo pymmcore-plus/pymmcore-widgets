@@ -8,7 +8,6 @@ from qtpy.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
-    QGroupBox,
     QLabel,
     QPushButton,
     QSpinBox,
@@ -18,7 +17,7 @@ from qtpy.QtWidgets import (
 from useq import RandomPoints, Shape
 
 
-class RandomPointWidget(QGroupBox):
+class RandomPointWidget(QWidget):
     """Widget to generate random points within a specified area."""
 
     valueChanged = Signal(object)
