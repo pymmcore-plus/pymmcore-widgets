@@ -45,7 +45,7 @@ def custom_sort_key(item: str) -> tuple[int, int | str]:
 
 
 # sort the well plates by number first, then by string
-sorted_wells = sorted(useq.known_well_plate_keys(), key=custom_sort_key)
+sorted_wells = sorted(useq.registered_well_plate_keys(), key=custom_sort_key)
 
 # create a plate database with all known well plates
 PLATES: dict[str, WellPlate] = {}

@@ -17,8 +17,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import GridRowsColumns, Position, RandomPoints, RelativePosition
-from useq._grid import Shape
+from useq import GridRowsColumns, Position, RandomPoints, RelativePosition, Shape
 
 from pymmcore_widgets.hcs._graphics_items import (
     FOV,
