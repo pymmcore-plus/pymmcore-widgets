@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, TypeAlias
+
 import useq
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -18,8 +20,11 @@ from pymmcore_widgets._util import SeparatorWidget
 from ._grid_row_column_widget import GridRowColumnWidget
 from ._random_points_widget import RandomPointWidget
 
-# excluding useq.GridWidthHeight even though it's also a valid relative multi point plan
-RelativePointPlan = useq.GridRowsColumns | useq.RandomPoints | useq.RelativePosition
+if TYPE_CHECKING:
+    # excluding useq.GridWidthHeight even though it's also a relative multi point plan
+    RelativePointPlan: TypeAlias = (
+        useq.GridRowsColumns | useq.RandomPoints | useq.RelativePosition
+    )
 
 
 class RelativePositionWidget(QWidget):
