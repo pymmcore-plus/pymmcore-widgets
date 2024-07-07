@@ -78,6 +78,11 @@ def test_point_plan_selector(qtbot: QtBot) -> None:
 
     wdg.setValue(RANDOM_POINTS)
     assert wdg.value() == RANDOM_POINTS
+    assert wdg.random_radio_btn.isChecked()
 
     wdg.setValue(GRID_ROWS_COLS)
     assert wdg.value() == GRID_ROWS_COLS
+    assert wdg.grid_radio_btn.isChecked()
+
+    wdg.random_radio_btn.setChecked(True)
+    assert wdg.value() == RANDOM_POINTS
