@@ -56,7 +56,7 @@ class RandomPointWidget(QWidget):
         self.shape.setCurrentText(Shape.ELLIPSE.value)
 
         # form layout
-        form = QFormLayout()
+        self.form = form = QFormLayout()
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         form.setSpacing(5)
         form.setContentsMargins(0, 0, 0, 0)
