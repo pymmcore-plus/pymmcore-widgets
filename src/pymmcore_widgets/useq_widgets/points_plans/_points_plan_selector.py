@@ -62,7 +62,7 @@ class RelativePointPlanSelector(QWidget):
         # WIDGET ----------------------
 
         # plan widgets
-        self.relative_pos_wdg = RelativePositionWidget()
+        self.single_pos_wdg = RelativePositionWidget()
         self.random_points_wdg = RandomPointWidget()
         self.grid_wdg = GridRowColumnWidget()
 
@@ -73,13 +73,13 @@ class RelativePointPlanSelector(QWidget):
 
         # radio buttons  selection
 
-        self.center_radio_btn = QRadioButton()
-        self.center_radio_btn.setChecked(True)
+        self.single_radio_btn = QRadioButton()
+        self.single_radio_btn.setChecked(True)
         self.random_radio_btn = QRadioButton()
         self.grid_radio_btn = QRadioButton()
 
         self._mode_btn_group = QButtonGroup()
-        self._mode_btn_group.addButton(self.center_radio_btn)
+        self._mode_btn_group.addButton(self.single_radio_btn)
         self._mode_btn_group.addButton(self.random_radio_btn)
         self._mode_btn_group.addButton(self.grid_radio_btn)
 
@@ -95,7 +95,7 @@ class RelativePointPlanSelector(QWidget):
         main_layout.setSpacing(10)
         main_layout.setContentsMargins(10, 10, 10, 10)
         for btn, wdg in (
-            (self.center_radio_btn, self.relative_pos_wdg),
+            (self.single_radio_btn, self.relative_pos_wdg),
             (self.random_radio_btn, self.random_points_wdg),
             (self.grid_radio_btn, self.grid_wdg),
         ):
@@ -138,7 +138,7 @@ class RelativePointPlanSelector(QWidget):
         elif isinstance(plan, useq.RelativePosition):
             with signals_blocked(self.relative_pos_wdg):
                 self.relative_pos_wdg.setValue(plan)
-            self.center_radio_btn.setChecked(True)
+            self.single_radio_btn.setChecked(True)
         else:  # pragma: no cover
             raise ValueError(f"Invalid plan type: {type(plan)}")
 
@@ -146,7 +146,7 @@ class RelativePointPlanSelector(QWidget):
 
     def _on_radiobutton_toggled(self, btn: QRadioButton, checked: bool) -> None:
         btn2wdg: dict[QRadioButton, QWidget] = {
-            self.center_radio_btn: self.relative_pos_wdg,
+            self.single_radio_btn: self.relative_pos_wdg,
             self.random_radio_btn: self.random_points_wdg,
             self.grid_radio_btn: self.grid_wdg,
         }
