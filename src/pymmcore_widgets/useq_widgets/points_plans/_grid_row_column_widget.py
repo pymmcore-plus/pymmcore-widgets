@@ -64,7 +64,7 @@ class GridRowColumnWidget(QWidget):
 
         # main
         main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(10)
+        main_layout.setSpacing(5)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.addWidget(title)
         main_layout.addLayout(form)
@@ -110,14 +110,3 @@ class GridRowColumnWidget(QWidget):
         self._overlap_y.setValue(0)
         self._order_combo.setCurrentText(OrderMode.row_wise_snake.value)
         self.fov_size = (None, None)
-
-
-if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
-
-    app = QApplication([])
-
-    widget = GridRowColumnWidget()
-    widget.show()
-
-    app.exec_()
