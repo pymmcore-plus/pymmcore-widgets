@@ -1,25 +1,21 @@
 from __future__ import annotations
 
+from typing import Mapping
+
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
-    QGroupBox,
     QLabel,
-    QSizePolicy,
     QSpinBox,
     QVBoxLayout,
     QWidget,
 )
-from useq import GridRowsColumns
-from useq._grid import OrderMode
-
-AlignCenter = Qt.AlignmentFlag.AlignCenter
-EXPANDING_W = (QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+from useq import GridRowsColumns, OrderMode
 
 
-class GridRowColumnWidget(QGroupBox):
+class GridRowColumnWidget(QWidget):
     """Widget to generate a grid of FOVs within a specified area."""
 
     valueChanged = Signal(object)
@@ -30,59 +26,48 @@ class GridRowColumnWidget(QGroupBox):
         self.fov_size: tuple[float | None, float | None] = (None, None)
 
         # title
-        title = QLabel(text="Fields of Views in a Grid.")
+        title = QLabel(text="Fields of View in a Grid.")
         title.setStyleSheet("font-weight: bold;")
-        title.setAlignment(AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         # rows
         self._rows = QSpinBox()
-        self._rows.setSizePolicy(*EXPANDING_W)
-        self._rows.setAlignment(AlignCenter)
+        self._rows.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._rows.setMinimum(1)
         # columns
         self._cols = QSpinBox()
-        self._cols.setSizePolicy(*EXPANDING_W)
-        self._cols.setAlignment(AlignCenter)
+        self._cols.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._cols.setMinimum(1)
         # overlap along x
         self._overlap_x = QDoubleSpinBox()
-        self._overlap_x.setSizePolicy(*EXPANDING_W)
-        self._overlap_x.setAlignment(AlignCenter)
-        self._overlap_x.setMinimum(-10000)
-        self._overlap_x.setMaximum(100)
-        self._overlap_x.setSingleStep(1.0)
-        self._overlap_x.setValue(0)
+        self._overlap_x.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._overlap_x.setRange(-10000, 100)
         # overlap along y
         self._overlap_y = QDoubleSpinBox()
-        self._overlap_y.setSizePolicy(*EXPANDING_W)
-        self._overlap_y.setAlignment(AlignCenter)
-        self._overlap_y.setMinimum(-10000)
-        self._overlap_y.setMaximum(100)
-        self._overlap_y.setSingleStep(1.0)
-        self._overlap_y.setValue(0)
+        self._overlap_y.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._overlap_x.setRange(-10000, 100)
         # order combo
         self._order_combo = QComboBox()
-        self._order_combo.setSizePolicy(*EXPANDING_W)
         self._order_combo.addItems([mode.value for mode in OrderMode])
         self._order_combo.setCurrentText(OrderMode.row_wise_snake.value)
+
         # form layout
-        form_layout = QFormLayout()
-        form_layout.setFieldGrowthPolicy(
-            QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
-        )
-        form_layout.setSpacing(5)
-        form_layout.setContentsMargins(0, 0, 0, 0)
-        form_layout.addRow("Rows:", self._rows)
-        form_layout.addRow("Columns:", self._cols)
-        form_layout.addRow("Overlap x (%):", self._overlap_x)
-        form_layout.addRow("Overlap y (%):", self._overlap_y)
-        form_layout.addRow("Grid Order:", self._order_combo)
+        form = QFormLayout()
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        form.setSpacing(5)
+        form.setContentsMargins(0, 0, 0, 0)
+        form.addRow("Rows:", self._rows)
+        form.addRow("Columns:", self._cols)
+        form.addRow("Overlap x (%):", self._overlap_x)
+        form.addRow("Overlap y (%):", self._overlap_y)
+        form.addRow("Grid Order:", self._order_combo)
 
         # main
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(10)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.addWidget(title)
-        main_layout.addLayout(form_layout)
+        main_layout.addLayout(form)
 
         # connect
         self._rows.valueChanged.connect(self._on_value_changed)
@@ -107,8 +92,9 @@ class GridRowColumnWidget(QGroupBox):
             fov_height=fov_y,
         )
 
-    def setValue(self, value: GridRowsColumns) -> None:
+    def setValue(self, value: GridRowsColumns | Mapping) -> None:
         """Set the values of the widgets."""
+        value = GridRowsColumns.model_validate(value)
         self._rows.setValue(value.rows)
         self._cols.setValue(value.columns)
         self._overlap_x.setValue(value.overlap[0])
@@ -117,9 +103,21 @@ class GridRowColumnWidget(QGroupBox):
         self.fov_size = (value.fov_width, value.fov_height)
 
     def reset(self) -> None:
-        """Reset the values of the widgets."""
+        """Reset value to 1x1, row-wise-snake, with 0 overlap."""
         self._rows.setValue(1)
         self._cols.setValue(1)
         self._overlap_x.setValue(0)
         self._overlap_y.setValue(0)
+        self._order_combo.setCurrentText(OrderMode.row_wise_snake.value)
         self.fov_size = (None, None)
+
+
+if __name__ == "__main__":
+    from qtpy.QtWidgets import QApplication
+
+    app = QApplication([])
+
+    widget = GridRowColumnWidget()
+    widget.show()
+
+    app.exec_()
