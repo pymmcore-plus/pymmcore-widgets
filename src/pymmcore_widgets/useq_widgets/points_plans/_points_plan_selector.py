@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import useq
-from qtpy.QtCore import Signal
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QButtonGroup,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QRadioButton,
@@ -26,7 +27,10 @@ class RelativePositionWidget(QWidget):
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QLabel("Single FOV"))
+        title = QLabel("Single FOV")
+        title.setStyleSheet("font-weight: bold;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
 
     def value(self) -> useq.RelativePosition:
         return useq.RelativePosition()
@@ -56,6 +60,7 @@ class RelativePointPlanSelector(QWidget):
         self.relative_pos_wdg = RelativePositionWidget()
         self.random_points_wdg = RandomPointWidget()
         self.grid_wdg = GridRowColumnWidget()
+
         # this gets changed when the radio buttons are toggled
         self._active_plan_widget: (
             RelativePositionWidget | RandomPointWidget | GridRowColumnWidget
@@ -90,11 +95,15 @@ class RelativePointPlanSelector(QWidget):
             (self.grid_radio_btn, self.grid_wdg),
         ):
             wdg.setEnabled(btn.isChecked())  # type: ignore [attr-defined]
+            grpbx = QGroupBox()
+            grpbx.setLayout(QVBoxLayout())
+            grpbx.layout().addWidget(wdg)
+
             layout = QHBoxLayout()
             layout.setContentsMargins(0, 0, 0, 0)
             layout.setSpacing(5)
             layout.addWidget(btn, 0)
-            layout.addWidget(wdg, 1)
+            layout.addWidget(grpbx, 1)
             main_layout.addLayout(layout)
 
         for i in range(0, 7, 2):
