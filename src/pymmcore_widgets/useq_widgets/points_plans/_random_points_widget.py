@@ -31,9 +31,7 @@ class RandomPointWidget(QGroupBox):
         super().__init__(parent)
 
         # setting a random seed for point generation reproducibility
-        self._random_seed: int | None = int(
-            np.random.randint(0, 2**32 - 1, dtype=np.uint32)
-        )
+        self._random_seed: int = int(np.random.randint(0, 2**32 - 1, dtype=np.uint32))
         self._is_circular: bool = False
         self._fov_size: tuple[float | None, float | None] = (None, None)
 
@@ -109,7 +107,7 @@ class RandomPointWidget(QGroupBox):
         self._fov_size = size
 
     @property
-    def random_seed(self) -> int | None:
+    def random_seed(self) -> int:
         """Return the random seed."""
         return self._random_seed
 
