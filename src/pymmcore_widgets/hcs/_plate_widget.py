@@ -160,6 +160,8 @@ class _PlateSelectorWidget(QWidget):
         self.valueChanged.emit(self.value())
 
 
+# not making a _PlateSelectorWidget or _PlateGraphicsScene because I will use it for
+# the database widget as well
 def draw_plate(
     view: QGraphicsView,
     scene: QGraphicsScene,
