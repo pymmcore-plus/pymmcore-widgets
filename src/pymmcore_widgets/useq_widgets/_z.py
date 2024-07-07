@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Final, Literal, cast
 import useq
 from fonticon_mdi6 import MDI6
 from qtpy.QtCore import Qt, Signal
-from qtpy.QtGui import QPainter, QPaintEvent, QPen
 from qtpy.QtWidgets import (
     QButtonGroup,
     QDoubleSpinBox,
@@ -22,6 +21,8 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
+
+from pymmcore_widgets._util import SeparatorWidget
 
 if TYPE_CHECKING:
     from PyQt6.QtGui import QAction, QActionGroup
@@ -261,7 +262,7 @@ class ZPlanWidget(QWidget):
 
         layout = QVBoxLayout(self)
         layout.addLayout(btn_layout)
-        layout.addWidget(_SeparatorWidget())
+        layout.addWidget(SeparatorWidget())
         layout.addLayout(self._grid_layout)
         layout.addStretch()
         layout.addLayout(below_grid)
@@ -449,14 +450,3 @@ class ZPlanWidget(QWidget):
         for col in range(grid.columnCount()):
             if (item := grid.itemAtPosition(idx, col)) and (wdg := item.widget()):
                 wdg.setVisible(visible)
-
-
-class _SeparatorWidget(QWidget):
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setFixedHeight(1)
-
-    def paintEvent(self, a0: QPaintEvent | None) -> None:
-        painter = QPainter(self)
-        painter.setPen(QPen(Qt.GlobalColor.gray, 1, Qt.PenStyle.SolidLine))
-        painter.drawLine(self.rect().topLeft(), self.rect().topRight())
