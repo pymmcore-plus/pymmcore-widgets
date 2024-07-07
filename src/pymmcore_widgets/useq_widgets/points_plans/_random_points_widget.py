@@ -26,6 +26,7 @@ class RandomPointWidget(QGroupBox):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
+        self.allow_overlap: bool = False
         # setting a random seed for point generation reproducibility
         self.random_seed: int = self._new_seed()
         self._fov_size: tuple[float | None, float | None] = (None, None)
@@ -108,7 +109,7 @@ class RandomPointWidget(QGroupBox):
             random_seed=self.random_seed,
             max_width=self.max_width.value(),
             max_height=self.max_height.value(),
-            allow_overlap=False,
+            allow_overlap=self.allow_overlap,
             fov_width=fov_x,
             fov_height=fov_y,
         )
@@ -124,6 +125,7 @@ class RandomPointWidget(QGroupBox):
         self.max_height.setValue(value.max_height)
         self.shape.setCurrentText(value.shape.value)
         self._fov_size = (value.fov_width, value.fov_height)
+        self.allow_overlap = value.allow_overlap
 
     def reset(self) -> None:
         """Reset value to 1 point and 0 area."""

@@ -23,7 +23,9 @@ class GridRowColumnWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        self.fov_size: tuple[float | None, float | None] = (None, None)
+        self.fov_width: float | None = None
+        self.fov_height: float | None = None
+        self._relative_to: str = "center"
 
         # title
         title = QLabel(text="Fields of View in a Grid.")
@@ -31,36 +33,36 @@ class GridRowColumnWidget(QWidget):
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # rows
-        self._rows = QSpinBox()
-        self._rows.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._rows.setMinimum(1)
+        self.rows = QSpinBox()
+        self.rows.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.rows.setMinimum(1)
         # columns
-        self._cols = QSpinBox()
-        self._cols.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._cols.setMinimum(1)
+        self.columns = QSpinBox()
+        self.columns.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.columns.setMinimum(1)
         # overlap along x
-        self._overlap_x = QDoubleSpinBox()
-        self._overlap_x.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._overlap_x.setRange(-10000, 100)
+        self.overlap_x = QDoubleSpinBox()
+        self.overlap_x.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.overlap_x.setRange(-10000, 100)
         # overlap along y
-        self._overlap_y = QDoubleSpinBox()
-        self._overlap_y.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._overlap_x.setRange(-10000, 100)
+        self.overlap_y = QDoubleSpinBox()
+        self.overlap_y.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.overlap_x.setRange(-10000, 100)
         # order combo
-        self._order_combo = QComboBox()
-        self._order_combo.addItems([mode.value for mode in OrderMode])
-        self._order_combo.setCurrentText(OrderMode.row_wise_snake.value)
+        self.mode = QComboBox()
+        self.mode.addItems([mode.value for mode in OrderMode])
+        self.mode.setCurrentText(OrderMode.row_wise_snake.value)
 
         # form layout
         form = QFormLayout()
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         form.setSpacing(5)
         form.setContentsMargins(0, 0, 0, 0)
-        form.addRow("Rows:", self._rows)
-        form.addRow("Columns:", self._cols)
-        form.addRow("Overlap x (%):", self._overlap_x)
-        form.addRow("Overlap y (%):", self._overlap_y)
-        form.addRow("Grid Order:", self._order_combo)
+        form.addRow("Rows:", self.rows)
+        form.addRow("Columns:", self.columns)
+        form.addRow("Overlap x (%):", self.overlap_x)
+        form.addRow("Overlap y (%):", self.overlap_y)
+        form.addRow("Grid Order:", self.mode)
 
         # main
         main_layout = QVBoxLayout(self)
@@ -70,43 +72,60 @@ class GridRowColumnWidget(QWidget):
         main_layout.addLayout(form)
 
         # connect
-        self._rows.valueChanged.connect(self._on_value_changed)
-        self._cols.valueChanged.connect(self._on_value_changed)
-        self._overlap_x.valueChanged.connect(self._on_value_changed)
-        self._overlap_y.valueChanged.connect(self._on_value_changed)
-        self._order_combo.currentTextChanged.connect(self._on_value_changed)
+        self.rows.valueChanged.connect(self._on_value_changed)
+        self.columns.valueChanged.connect(self._on_value_changed)
+        self.overlap_x.valueChanged.connect(self._on_value_changed)
+        self.overlap_y.valueChanged.connect(self._on_value_changed)
+        self.mode.currentTextChanged.connect(self._on_value_changed)
 
     def _on_value_changed(self) -> None:
         """Emit the valueChanged signal."""
         self.valueChanged.emit(self.value())
 
+    @property
+    def overlap(self) -> tuple[float, float]:
+        """Return the overlap along x and y."""
+        return self.overlap_x.value(), self.overlap_y.value()
+
+    @property
+    def fov_size(self) -> tuple[float | None, float | None]:
+        """Return the FOV size in (width, height)."""
+        return self.fov_width, self.fov_height
+
+    @fov_size.setter
+    def fov_size(self, size: tuple[float | None, float | None]) -> None:
+        """Set the FOV size."""
+        self.fov_width, self.fov_height = size
+
     def value(self) -> GridRowsColumns:
         """Return the values of the widgets."""
-        fov_x, fov_y = self.fov_size
         return GridRowsColumns(
-            rows=self._rows.value(),
-            columns=self._cols.value(),
-            overlap=(self._overlap_x.value(), self._overlap_y.value()),
-            mode=self._order_combo.currentText(),
-            fov_width=fov_x,
-            fov_height=fov_y,
+            rows=self.rows.value(),
+            columns=self.columns.value(),
+            overlap=self.overlap,
+            mode=self.mode.currentText(),
+            fov_width=self.fov_width,
+            fov_height=self.fov_height,
+            relative_to=self._relative_to,
         )
 
     def setValue(self, value: GridRowsColumns | Mapping) -> None:
         """Set the values of the widgets."""
         value = GridRowsColumns.model_validate(value)
-        self._rows.setValue(value.rows)
-        self._cols.setValue(value.columns)
-        self._overlap_x.setValue(value.overlap[0])
-        self._overlap_y.setValue(value.overlap[1])
-        self._order_combo.setCurrentText(value.mode.value)
-        self.fov_size = (value.fov_width, value.fov_height)
+        self.rows.setValue(value.rows)
+        self.columns.setValue(value.columns)
+        self.overlap_x.setValue(value.overlap[0])
+        self.overlap_y.setValue(value.overlap[1])
+        self.mode.setCurrentText(value.mode.value)
+        self.fov_width = value.fov_width
+        self.fov_height = value.fov_height
+        self._relative_to = value.relative_to
 
     def reset(self) -> None:
         """Reset value to 1x1, row-wise-snake, with 0 overlap."""
-        self._rows.setValue(1)
-        self._cols.setValue(1)
-        self._overlap_x.setValue(0)
-        self._overlap_y.setValue(0)
-        self._order_combo.setCurrentText(OrderMode.row_wise_snake.value)
+        self.rows.setValue(1)
+        self.columns.setValue(1)
+        self.overlap_x.setValue(0)
+        self.overlap_y.setValue(0)
+        self.mode.setCurrentText(OrderMode.row_wise_snake.value)
         self.fov_size = (None, None)
