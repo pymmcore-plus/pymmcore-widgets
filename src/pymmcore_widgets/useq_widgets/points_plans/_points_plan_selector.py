@@ -89,7 +89,7 @@ class RelativePointPlanSelector(QWidget):
             (self.random_radio_btn, self.random_points_wdg),
             (self.grid_radio_btn, self.grid_wdg),
         ):
-            wdg.setEnabled(btn.isChecked())
+            wdg.setEnabled(btn.isChecked())  # type: ignore [attr-defined]
             layout = QHBoxLayout()
             layout.setContentsMargins(0, 0, 0, 0)
             layout.setSpacing(5)
