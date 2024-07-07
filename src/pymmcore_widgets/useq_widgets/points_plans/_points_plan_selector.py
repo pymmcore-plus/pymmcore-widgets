@@ -99,7 +99,7 @@ class RelativePointPlanSelector(QWidget):
             (self.random_radio_btn, self.random_points_wdg),
             (self.grid_radio_btn, self.grid_wdg),
         ):
-            wdg.setEnabled(btn.isChecked())  # type: ignore [attr-defined]
+            wdg.setEnabled(btn.isChecked())
             grpbx = QGroupBox()
             grpbx.setLayout(QVBoxLayout())
             grpbx.layout().addWidget(wdg)
