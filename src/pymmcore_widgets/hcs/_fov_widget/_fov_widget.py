@@ -18,7 +18,6 @@ from useq import (
     GridRowsColumns,
     RandomPoints,
 )
-from useq._grid import Shape
 
 from pymmcore_widgets.hcs._fov_widget._fov_sub_widgets import (
     Center,
@@ -42,8 +41,8 @@ CENTER = "Center"
 RANDOM = "Random"
 GRID = "Grid"
 OFFSET = 20
-RECT = Shape.RECTANGLE
-ELLIPSE = Shape.ELLIPSE
+RECT = "rectangle"  # Shape.RECTANGLE in useq
+ELLIPSE = "ellipse"  # Shape.ELLIPSE in useq
 
 
 class _FOVSelectorWidget(QWidget):
