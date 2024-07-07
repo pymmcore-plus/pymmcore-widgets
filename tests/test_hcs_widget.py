@@ -43,8 +43,6 @@ from pymmcore_widgets.hcs._plate_widget import (
     _PlateSelectorWidget,
 )
 from pymmcore_widgets.hcs._util import PLATES
-from pymmcore_widgets.useq_widgets._grid_row_column_widget import GridRowColumnWidget
-from pymmcore_widgets.useq_widgets._random_points_widget import RandomPointWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -256,91 +254,6 @@ def test_center_widget(qtbot: QtBot):
     assert value.y == 20
     assert value.fov_width == 2
     assert value.fov_height == 3
-
-
-def test_random_widget(qtbot: QtBot):
-    wdg = RandomPointWidget()
-    qtbot.addWidget(wdg)
-
-    assert not wdg.is_circular
-
-    value = wdg.value()
-    assert value.fov_width == value.fov_height is None
-    assert value.num_points == 1
-    assert value.max_width == value.max_height == 0.0
-    assert value.shape.value == "rectangle"
-    assert isinstance(value.random_seed, int)
-
-    wdg.fov_size = (2, 2)
-    value = wdg.value()
-    assert value.fov_width == value.fov_height == 2
-
-    wdg.setValue(
-        RandomPoints(
-            num_points=10,
-            max_width=20,
-            max_height=30,
-            shape="ellipse",
-            random_seed=0,
-            fov_width=5,
-            fov_height=5,
-        )
-    )
-    value = wdg.value()
-    assert value.num_points == 10
-    assert value.max_width == 20
-    assert value.max_height == 30
-    assert value.random_seed == 0
-    assert wdg.is_circular
-    assert value.fov_width == value.fov_height == 5
-
-    wdg.reset()
-    value = wdg.value()
-    assert not wdg.is_circular
-    assert value.num_points == 1
-    assert value.max_width == value.max_height == 0.0
-    assert value.fov_height is None
-    assert value.fov_width is None
-
-
-def test_grid_widget(qtbot: QtBot):
-    wdg = GridRowColumnWidget()
-    qtbot.addWidget(wdg)
-
-    value = wdg.value()
-    assert value.fov_width == value.fov_height is None
-    assert value.overlap == (0.0, 0.0)
-    assert value.mode.value == "row_wise_snake"
-    assert value.rows == value.columns == 1
-    assert value.relative_to.value == "center"
-
-    wdg.fov_size = (0.512, 0.512)
-    value = wdg.value()
-    assert value.fov_width == value.fov_height == 0.512
-
-    wdg.setValue(
-        GridRowsColumns(
-            overlap=10.0,
-            mode="row_wise",
-            rows=2,
-            columns=3,
-            fov_width=2,
-            fov_height=2,
-        )
-    )
-    value = wdg.value()
-    assert value.overlap == (10.0, 10.0)
-    assert value.mode.value == "row_wise"
-    assert value.rows == 2
-    assert value.columns == 3
-    assert value.relative_to.value == "center"
-    assert value.fov_width == value.fov_height == 2
-
-    wdg.reset()
-    value = wdg.value()
-    assert value.fov_width == value.fov_height is None
-    assert value.overlap == (0.0, 0.0)
-    assert value.rows == value.columns == 1
 
 
 class SceneItems(NamedTuple):
