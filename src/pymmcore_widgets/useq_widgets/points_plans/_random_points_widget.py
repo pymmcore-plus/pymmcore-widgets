@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import random
-from re import S
 from typing import Mapping
 
-import numpy as np
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QComboBox,
