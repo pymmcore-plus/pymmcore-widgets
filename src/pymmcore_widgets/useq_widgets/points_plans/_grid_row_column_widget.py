@@ -119,7 +119,7 @@ class GridRowColumnWidget(QWidget):
         self.mode.setCurrentText(value.mode.value)
         self.fov_width = value.fov_width
         self.fov_height = value.fov_height
-        self._relative_to = value.relative_to
+        self._relative_to = value.relative_to.value
 
     def reset(self) -> None:
         """Reset value to 1x1, row-wise-snake, with 0 overlap."""
