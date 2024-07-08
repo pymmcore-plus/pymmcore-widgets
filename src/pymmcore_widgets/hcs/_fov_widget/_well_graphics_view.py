@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 import useq
-from PyQt6.QtCore import QSize
-from qtpy.QtCore import QRectF, Qt
+from qtpy.QtCore import QRectF, QSize, Qt
 from qtpy.QtGui import QColor, QPen
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsScene, QWidget
 from useq import Shape
