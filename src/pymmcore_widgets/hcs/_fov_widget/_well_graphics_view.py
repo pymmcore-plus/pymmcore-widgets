@@ -4,7 +4,7 @@ from typing import Iterable
 
 import useq
 from qtpy.QtCore import QRectF, QSize, Qt
-from qtpy.QtGui import QColor, QPen
+from qtpy.QtGui import QColor, QPainter, QPen
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsScene, QWidget
 from useq import Shape
 
@@ -16,15 +16,19 @@ class WellView(ResizingGraphicsView):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         self._scene = QGraphicsScene()
+
         super().__init__(self._scene, parent)
         self.setStyleSheet("background:grey; border-radius: 5px;")
+        self.setRenderHints(
+            QPainter.RenderHint.Antialiasing | QPainter.RenderHint.SmoothPixmapTransform
+        )
 
         # the scene coordinates are all real-world coordinates, in µm
         # with the origin at the center of the view (0, 0)
-        self._well_width_um: float = 9000
-        self._well_height_um: float = 9000
-        self._fov_width_um: float = 200
-        self._fov_height_um: float = 200
+        self._well_width_um: float = 6000
+        self._well_height_um: float = 6000
+        self._fov_width_um: float = 400
+        self._fov_height_um: float = 340
         self._is_circular: bool = False
 
         # the item that draws the outline of the entire well area
@@ -90,16 +94,19 @@ class WellView(ResizingGraphicsView):
         while self._fov_items:
             self._scene.removeItem(self._fov_items.pop())
 
+        half_fov_width = self._fov_width_um / 2
+        half_fov_height = self._fov_height_um / 2
+
         # constrain random points to our own well size, regardless of the plan settings
+        # TODO: emit a warning here?
         if isinstance(points, useq.RandomPoints):
             points = points.replace(
-                max_width=self._well_width_um, max_height=self._well_height_um
+                max_width=self._well_width_um - half_fov_width * 1.4,
+                max_height=self._well_height_um - half_fov_height * 1.4,
             )
 
         pen = QPen(Qt.GlobalColor.white)
         pen.setWidth(self._scaled_pen_size())
-        half_fov_width = self._fov_width_um / 2
-        half_fov_height = self._fov_height_um / 2
 
         for pos in points:
             item = self._scene.addRect(
@@ -116,4 +123,4 @@ class WellView(ResizingGraphicsView):
         # pick a pen size appropriate for the scene scale
         # we might also want to scale this based on the sceneRect...
         # and it's possible this needs to be rescaled on resize
-        return int(self._well_width_um / 200)
+        return int(self._well_width_um / 150)
