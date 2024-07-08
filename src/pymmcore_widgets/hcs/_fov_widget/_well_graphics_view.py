@@ -25,8 +25,8 @@ class WellView(ResizingGraphicsView):
 
         # the scene coordinates are all real-world coordinates, in µm
         # with the origin at the center of the view (0, 0)
-        self._well_width_um: float = 6000
-        self._well_height_um: float = 6000
+        self._well_width_um: float | None = 6000
+        self._well_height_um: float | None = 6000
         self._fov_width_um: float = 400
         self._fov_height_um: float = 340
         self._is_circular: bool = False
@@ -60,15 +60,15 @@ class WellView(ResizingGraphicsView):
         # DRAW FOVS
         self._draw_fovs(plan)
 
-    def setWellSize(self, size: tuple[float | None, float | None]) -> None:
+    def setWellSize(self, width_mm: float | None, height_mm: float | None) -> None:
         """Set the well size width and height in mm."""
-        if width := size[0] is not None:
-            self._well_width_um = width * 1000
-        if height := size[1] is not None:
-            self._well_height_um = height * 1000
+        self._well_width_um = (width_mm * 1000) if width_mm else None
+        self._well_height_um = (height_mm * 1000) if height_mm else None
 
     def _well_rect(self) -> QRectF:
         """Return the QRectF of the well area."""
+        if not self._well_width_um or not self._well_height_um:
+            return QRectF()
         return QRectF(
             -self._well_width_um / 2,
             -self._well_height_um / 2,
@@ -100,10 +100,12 @@ class WellView(ResizingGraphicsView):
         # constrain random points to our own well size, regardless of the plan settings
         # TODO: emit a warning here?
         if isinstance(points, useq.RandomPoints):
-            points = points.replace(
-                max_width=self._well_width_um - half_fov_width * 1.4,
-                max_height=self._well_height_um - half_fov_height * 1.4,
-            )
+            kwargs = {}
+            if self._well_width_um:
+                kwargs["max_width"] = self._well_width_um - half_fov_width * 1.4
+            if self._well_height_um:
+                kwargs["max_height"] = self._well_height_um - half_fov_height * 1.4
+            points = points.replace(**kwargs)
 
         pen = QPen(Qt.GlobalColor.white)
         pen.setWidth(self._scaled_pen_size())
@@ -123,4 +125,6 @@ class WellView(ResizingGraphicsView):
         # pick a pen size appropriate for the scene scale
         # we might also want to scale this based on the sceneRect...
         # and it's possible this needs to be rescaled on resize
-        return int(self._well_width_um / 150)
+        if self._well_width_um:
+            return int(self._well_width_um / 150)
+        return int(self.sceneRect().width() / 150)
