@@ -9,6 +9,7 @@ from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QBoxLayout,
+    QFrame,
     QHBoxLayout,
     QMessageBox,
     QPushButton,
@@ -26,6 +27,7 @@ from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
+from ._mda_progress_widget import MDAProgressBars
 from ._save_widget import SaveGroupBox
 
 
@@ -76,6 +78,18 @@ class MDAWidget(MDASequenceWidget):
         By default, None. If not specified, the widget will use the active
         (or create a new)
         [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+
+    Attributes
+    ----------
+    progress_bars : MDAProgressBars
+        The progress bars widget that shows the progress of the MDA sequence, it
+        also provides a visual representation of the size of each dimension.
+        Can be hidden with `self.progress_bars.hide()`.
+    save_info : SaveGroupBox
+        The save widget that allows the user to specify the save directory and
+        file name. Can be hidden with `self.save_info.hide()`.
+    control_btns : _MDAControlButtons
+        The run, pause, and cancel buttons at the bottom of the MDA Widget.
     """
 
     def __init__(
@@ -85,6 +99,9 @@ class MDAWidget(MDASequenceWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         super().__init__(parent=parent, tab_widget=CoreMDATabs(None, self._mmc))
+
+        self.progress_bars = MDAProgressBars()
+        self.progress_bars.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Raised)
 
         self.save_info = SaveGroupBox(parent=self)
         self.save_info.valueChanged.connect(self.valueChanged)
@@ -97,11 +114,11 @@ class MDAWidget(MDASequenceWidget):
         # ------------ layout ------------
 
         layout = cast("QBoxLayout", self.layout())
-        layout.insertWidget(0, self.save_info)
+        layout.insertWidget(0, self.progress_bars)
+        layout.insertWidget(1, self.save_info)
         layout.addWidget(self.control_btns)
 
         # ------------ connect signals ------------
-
         self.control_btns.run_btn.clicked.connect(self.run_mda)
         self.control_btns.pause_btn.released.connect(self._mmc.mda.toggle_pause)
         self.control_btns.cancel_btn.released.connect(self._mmc.mda.cancel)
@@ -213,6 +230,10 @@ class MDAWidget(MDASequenceWidget):
         self._mmc.run_mda(sequence, output=save_path)
 
     # ------------------- private Methods ----------------------
+
+    def _on_value_change(self) -> None:
+        super()._on_value_change()
+        self.progress_bars.prepare_sequence(self.value())
 
     def _on_sys_config_loaded(self) -> None:
         # TODO: connect objective change event to update suggested step
