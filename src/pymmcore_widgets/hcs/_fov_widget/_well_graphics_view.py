@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Iterable
+import warnings
 
 import useq
-from qtpy.QtCore import QRectF, QSize, Qt
+from qtpy.QtCore import QRectF, QSize, Qt, Signal
 from qtpy.QtGui import QColor, QPainter, QPen
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsScene, QWidget
 from useq import Shape
@@ -13,6 +13,8 @@ from pymmcore_widgets.hcs._util import ResizingGraphicsView
 
 class WellView(ResizingGraphicsView):
     """Graphics view to draw a well and the FOVs."""
+
+    maxPointsDetected = Signal(int)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         self._scene = QGraphicsScene()
@@ -88,7 +90,7 @@ class WellView(ResizingGraphicsView):
         else:
             self._outline_item = self._scene.addRect(self._well_rect(), pen=pen)
 
-    def _draw_fovs(self, points: Iterable[useq.RelativePosition]) -> None:
+    def _draw_fovs(self, plan: useq.RelativeMultiPointPlan) -> None:
         """Draw the fovs in the scene as rectangles."""
         # delete existing FOVs
         while self._fov_items:
@@ -99,18 +101,37 @@ class WellView(ResizingGraphicsView):
 
         # constrain random points to our own well size, regardless of the plan settings
         # TODO: emit a warning here?
-        if isinstance(points, useq.RandomPoints):
+        if isinstance(plan, useq.RandomPoints):
             kwargs = {}
             if self._well_width_um:
                 kwargs["max_width"] = self._well_width_um - half_fov_width * 1.4
             if self._well_height_um:
                 kwargs["max_height"] = self._well_height_um - half_fov_height * 1.4
-            points = points.replace(**kwargs)
+            plan = plan.replace(**kwargs)
 
         pen = QPen(Qt.GlobalColor.white)
         pen.setWidth(self._scaled_pen_size())
+        line_pen = QPen(QColor(0, 0, 0, 100))
+        line_pen.setWidth(int(self._scaled_pen_size() // 1.5))
 
-        for pos in points:
+        # iterate over the plan greedily, catching any warnings
+        # and then alert the model if we didn't get all the points
+        # XXX: I'm not sure about this pattern... feels like the model should be
+        # able to handle this itself, but this is perhaps the only place we actually
+        # iterate over the plan
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            points = list(plan)
+        if len(points) < plan.num_points:
+            self.maxPointsDetected.emit(len(points))
+
+        # draw the FOVs, and a connecting line
+        last_p: useq.RelativePosition | None = None
+        for i, pos in enumerate(points):
+            if i == 0:
+                pen.setColor(QColor(Qt.GlobalColor.black))
+            else:
+                pen.setColor(QColor(Qt.GlobalColor.white))
             item = self._scene.addRect(
                 pos.x - half_fov_width,
                 pos.y - half_fov_height,
@@ -119,7 +140,14 @@ class WellView(ResizingGraphicsView):
                 pen,
             )
             if item:
+                item.setZValue(100 if i == 0 else 0)
                 self._fov_items.append(item)
+            # draw a line from the last point to this one
+            if i > 0 and last_p:
+                self._fov_items.append(
+                    self._scene.addLine(last_p.x, last_p.y, pos.x, pos.y, line_pen)
+                )
+            last_p = pos
 
     def _scaled_pen_size(self) -> int:
         # pick a pen size appropriate for the scene scale

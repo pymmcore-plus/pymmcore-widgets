@@ -36,6 +36,7 @@ class FOVSelectorWidget(QWidget):
 
         # connect
         self.selector.valueChanged.connect(self._on_selector_value_changed)
+        self.well_view.maxPointsDetected.connect(self._on_view_max_points_detected)
 
         if plan is not None:
             self.setValue(plan)
@@ -49,3 +50,6 @@ class FOVSelectorWidget(QWidget):
     def _on_selector_value_changed(self, value: useq.RelativeMultiPointPlan) -> None:
         self.well_view.setPointsPlan(value)
         self.valueChanged.emit(value)
+
+    def _on_view_max_points_detected(self, value: int) -> None:
+        self.selector.random_points_wdg.num_points.setValue(value)

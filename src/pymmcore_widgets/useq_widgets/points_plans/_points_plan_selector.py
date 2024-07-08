@@ -129,20 +129,22 @@ class RelativePointPlanSelector(QWidget):
         plan : useq.RelativePosition | useq.RandomPoints | useq.GridRowsColumns
             The point plan to set.
         """
-        if isinstance(plan, useq.RandomPoints):
-            with signals_blocked(self.random_points_wdg):
+        if plan == self.value():
+            return
+
+        with signals_blocked(self):
+            if isinstance(plan, useq.RandomPoints):
                 self.random_points_wdg.setValue(plan)
-            self.random_radio_btn.setChecked(True)
-        elif isinstance(plan, useq.GridRowsColumns):
-            with signals_blocked(self.grid_wdg):
+                self.random_radio_btn.setChecked(True)
+            elif isinstance(plan, useq.GridRowsColumns):
                 self.grid_wdg.setValue(plan)
-            self.grid_radio_btn.setChecked(True)
-        elif isinstance(plan, useq.RelativePosition):
-            with signals_blocked(self.single_pos_wdg):
+                self.grid_radio_btn.setChecked(True)
+            elif isinstance(plan, useq.RelativePosition):
                 self.single_pos_wdg.setValue(plan)
-            self.single_radio_btn.setChecked(True)
-        else:  # pragma: no cover
-            raise ValueError(f"Invalid plan type: {type(plan)}")
+                self.single_radio_btn.setChecked(True)
+            else:  # pragma: no cover
+                raise ValueError(f"Invalid plan type: {type(plan)}")
+        self._on_value_changed()
 
     # _________________________PRIVATE METHODS_________________________ #
 
@@ -156,7 +158,7 @@ class RelativePointPlanSelector(QWidget):
         wdg.setEnabled(checked)
         if checked:
             self._active_plan_widget = wdg
-            self.valueChanged.emit(self.value())
+            self._on_value_changed()
 
     def _on_value_changed(self) -> None:
         self.valueChanged.emit(self.value())
