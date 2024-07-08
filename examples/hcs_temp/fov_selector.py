@@ -1,8 +1,3 @@
-from contextlib import suppress
-
-with suppress(ImportError):
-    pass
-
 from qtpy.QtWidgets import QApplication
 from useq import RandomPoints
 
