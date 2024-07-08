@@ -79,7 +79,7 @@ class OpticalConfigDialog(QWidget):
         group_splitter.setStretchFactor(2, 0)
 
         left_top = QWidget()
-        left_top.hide()
+        # left_top.hide()
         left_top_layout = QHBoxLayout(left_top)
         left_top_layout.setContentsMargins(0, 0, 0, 0)
         left_top_layout.addWidget(QLabel("Group:"), 0)
@@ -169,6 +169,8 @@ class OpticalConfigDialog(QWidget):
             | Qt.ItemFlag.ItemIsEnabled
         )
         self._name_list.addItem(item)
+        # select it
+        self._name_list.setCurrentItem(item)
 
     def load_preset(self, name: str) -> None:
         settings = self._model.presets[name].settings
@@ -219,12 +221,20 @@ class OpticalConfigDialog(QWidget):
 
 def light_path_predicate(prop: DeviceProperty) -> bool | None:
     devtype = prop.deviceType()
-    if devtype in (DeviceType.Camera, DeviceType.Core):
+    if devtype in (
+        DeviceType.Camera,
+        DeviceType.Core,
+        DeviceType.AutoFocus,
+        DeviceType.Stage,
+        DeviceType.XYStage,
+    ):
         return False
     if devtype == DeviceType.State:
         if "State" in prop.name or "ClosedPosition" in prop.name:
             return False
-    if any(x in prop.name for x in prop.core.guessObjectiveDevices()):
+    if devtype == DeviceType.Shutter and prop.name == Keyword.State.value:
+        return False
+    if any(x in prop.device for x in prop.core.guessObjectiveDevices()):
         return False
     return None
 

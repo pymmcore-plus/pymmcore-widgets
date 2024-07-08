@@ -77,7 +77,7 @@ class DevicePropertyTable(QTableWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._rebuild_table)
 
-        self.itemChanged.connect(self.valueChanged)
+        self.itemChanged.connect(self._on_item_changed)
         # If we enable these, then the edit group dialog will lose all of it's checks
         # whenever modify group button is clicked.  However, We don't want this widget
         # to have to be aware of a current group (or do we?)
@@ -103,6 +103,20 @@ class DevicePropertyTable(QTableWidget):
 
         self.resize(500, 500)
         self._rebuild_table()
+
+    def _on_item_changed(self, item: QTableWidgetItem) -> None:
+        if self._rows_checkable:
+            color = self.palette().color(self.foregroundRole())
+            font = item.font()
+            if item.checkState() == Qt.CheckState.Checked:
+                color.setAlpha(255)
+                font.setBold(True)
+            else:
+                color.setAlpha(175)
+                font.setBold(False)
+            item.setForeground(color)
+            item.setFont(font)
+        self.valueChanged.emit()
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._rebuild_table)
