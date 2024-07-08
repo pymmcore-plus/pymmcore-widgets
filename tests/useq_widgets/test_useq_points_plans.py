@@ -17,6 +17,7 @@ RANDOM_POINTS = RandomPoints(
     fov_height=10,
     fov_width=10,
     random_seed=123,
+    order="random",
     allow_overlap=True,
 )
 
@@ -35,10 +36,11 @@ def test_random_points_widget(qtbot: QtBot) -> None:
     wdg = pp.RandomPointWidget()
     qtbot.addWidget(wdg)
     assert wdg.num_points.value() == 1
-    assert wdg.max_width.value() == 0
-    assert wdg.max_height.value() == 0
+    assert wdg.max_width.value() == 1000
+    assert wdg.max_height.value() == 1000
     assert wdg.shape.currentText() == "ellipse"
     assert not wdg.allow_overlap.isChecked()
+    assert wdg.order.currentText() == "two_opt"
     assert wdg.random_seed is not None
 
     with qtbot.waitSignal(wdg.valueChanged):
@@ -50,6 +52,7 @@ def test_random_points_widget(qtbot: QtBot) -> None:
     assert wdg.max_height.value() == RANDOM_POINTS.max_height
     assert wdg.shape.currentText() == RANDOM_POINTS.shape.value
     assert wdg.random_seed == RANDOM_POINTS.random_seed
+    assert wdg.order.currentText() == RANDOM_POINTS.order.value
     assert wdg.allow_overlap.isChecked() == RANDOM_POINTS.allow_overlap
 
 
