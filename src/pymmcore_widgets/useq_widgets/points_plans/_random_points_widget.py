@@ -5,6 +5,7 @@ from typing import Mapping
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
@@ -25,7 +26,6 @@ class RandomPointWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        self.allow_overlap: bool = False
         # setting a random seed for point generation reproducibility
         self.random_seed: int = self._new_seed()
         self._fov_size: tuple[float | None, float | None] = (None, None)
@@ -48,6 +48,8 @@ class RandomPointWidget(QWidget):
         self.num_points = QSpinBox()
         self.num_points.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.num_points.setRange(1, 1000)
+        # allow overlap checkbox
+        self.allow_overlap = QCheckBox()
         # random button
         self._random_button = QPushButton(text="Randomize")
 
@@ -64,6 +66,7 @@ class RandomPointWidget(QWidget):
         form.addRow("Height (µm):", self.max_height)
         form.addRow("Num Points:", self.num_points)
         form.addRow("Shape:", self.shape)
+        form.addRow("Allow Overlap:", self.allow_overlap)
 
         # main
         main_layout = QVBoxLayout(self)
@@ -78,6 +81,7 @@ class RandomPointWidget(QWidget):
         self.max_height.valueChanged.connect(self._on_value_changed)
         self.num_points.valueChanged.connect(self._on_value_changed)
         self.shape.currentTextChanged.connect(self._on_value_changed)
+        self.allow_overlap.stateChanged.connect(self._on_value_changed)
         self._random_button.clicked.connect(self._on_random_clicked)
 
     @property
@@ -108,7 +112,7 @@ class RandomPointWidget(QWidget):
             random_seed=self.random_seed,
             max_width=self.max_width.value(),
             max_height=self.max_height.value(),
-            allow_overlap=self.allow_overlap,
+            allow_overlap=self.allow_overlap.isChecked(),
             fov_width=fov_x,
             fov_height=fov_y,
         )
@@ -124,7 +128,7 @@ class RandomPointWidget(QWidget):
         self.max_height.setValue(value.max_height)
         self.shape.setCurrentText(value.shape.value)
         self._fov_size = (value.fov_width, value.fov_height)
-        self.allow_overlap = value.allow_overlap
+        self.allow_overlap.setChecked(value.allow_overlap)
 
     def reset(self) -> None:
         """Reset value to 1 point and 0 area."""

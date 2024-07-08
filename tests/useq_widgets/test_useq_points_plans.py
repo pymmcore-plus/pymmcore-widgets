@@ -17,6 +17,7 @@ RANDOM_POINTS = RandomPoints(
     fov_height=10,
     fov_width=10,
     random_seed=123,
+    allow_overlap=True,
 )
 
 GRID_ROWS_COLS = GridRowsColumns(
@@ -37,6 +38,7 @@ def test_random_points_widget(qtbot: QtBot) -> None:
     assert wdg.max_width.value() == 0
     assert wdg.max_height.value() == 0
     assert wdg.shape.currentText() == "ellipse"
+    assert not wdg.allow_overlap.isChecked()
     assert wdg.random_seed is not None
 
     with qtbot.waitSignal(wdg.valueChanged):
@@ -48,6 +50,7 @@ def test_random_points_widget(qtbot: QtBot) -> None:
     assert wdg.max_height.value() == RANDOM_POINTS.max_height
     assert wdg.shape.currentText() == RANDOM_POINTS.shape.value
     assert wdg.random_seed == RANDOM_POINTS.random_seed
+    assert wdg.allow_overlap.isChecked() == RANDOM_POINTS.allow_overlap
 
 
 def test_grid_plan_widget(qtbot: QtBot) -> None:
