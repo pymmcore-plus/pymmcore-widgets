@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-from itertools import product
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Mapping
 
 import useq
-from qtpy.QtCore import QRectF, Qt, Signal
-from qtpy.QtGui import QBrush, QPen
+from qtpy.QtCore import QRectF, QSize, Qt, Signal
+from qtpy.QtGui import QPainter, QPen
 from qtpy.QtWidgets import (
     QComboBox,
-    QGraphicsEllipseItem,
-    QGraphicsRectItem,
+    QGraphicsItem,
     QGraphicsScene,
-    QGraphicsView,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -21,9 +18,9 @@ from qtpy.QtWidgets import (
 
 from ._util import ResizingGraphicsView
 
-BRUSH = QBrush(Qt.GlobalColor.lightGray)
-PEN = QPen(Qt.GlobalColor.black)
-PEN.setWidth(1)
+if TYPE_CHECKING:
+    Index = int | list[int] | slice
+    IndexExpression = tuple[Index, ...] | Index
 
 
 def _sort_plate(item: str) -> tuple[int, int | str]:
@@ -35,16 +32,55 @@ def _sort_plate(item: str) -> tuple[int, int | str]:
 
 
 class WellPlateView(ResizingGraphicsView):
+    """QGraphicsView for displaying a well plate."""
+
     def __init__(self, parent: QWidget | None = None) -> None:
         self._scene = QGraphicsScene()
         super().__init__(self._scene, parent)
         self.setStyleSheet("background:grey; border-radius: 5px;")
+        self.setRenderHints(
+            QPainter.RenderHint.Antialiasing | QPainter.RenderHint.SmoothPixmapTransform
+        )
 
-        # self.view.setMinimumHeight(PLATE_GRAPHICS_VIEW_HEIGHT)
-        # self.view.setMinimumWidth(int(PLATE_GRAPHICS_VIEW_HEIGHT * 1.5))
+        self._well_items: list[QGraphicsItem] = []
+
+    def sizeHint(self) -> QSize:
+        aspect = 1.5
+        width = 600
+        height = int(width // aspect)
+        return QSize(width, height)
+
+    def drawPlate(self, plate: useq.WellPlate | useq.WellPlatePlan) -> None:
+        if isinstance(plate, useq.WellPlatePlan):
+            plan = plate
+        else:
+            plan = useq.WellPlatePlan(a1_center_xy=(0, 0), plate=plate)
+
+        width, height = plan.plate.well_size
+        well_rect = QRectF(0, 0, width * 1000, height * 1000)
+
+        # Since most plates have the same extent, a constant pen width seems to work
+        pen = QPen(Qt.GlobalColor.black)
+        pen.setWidth(200)
+
+        self.clearWells()
+        for pos in plan.all_well_positions:
+            rt = well_rect.translated(pos.x, pos.y)
+            if plan.plate.circular_wells:
+                item = self._scene.addEllipse(rt, pen)
+            else:
+                item = self._scene.addRect(rt, pen)
+            self._well_items.append(item)
+
+        # fit scene in view
+        self._scene.setSceneRect(self._scene.itemsBoundingRect())
+
+    def clearWells(self) -> None:
+        while self._well_items:
+            self._scene.removeItem(self._well_items.pop())
 
 
-class _PlateSelectorWidget(QWidget):
+class PlateSelectorWidget(QWidget):
     """Widget for selecting the well plate and its wells.
 
     Parameters
@@ -55,10 +91,7 @@ class _PlateSelectorWidget(QWidget):
 
     valueChanged = Signal(object)
 
-    def __init__(
-        self,
-        parent: QWidget | None = None,
-    ) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         # well plate combobox
@@ -89,14 +122,11 @@ class _PlateSelectorWidget(QWidget):
         # connect
         # self.scene.valueChanged.connect(self._on_value_changed)
         # self._clear_button.clicked.connect(self.scene._clear_selection)
-        self.plate_name.currentTextChanged.connect(self._draw_plate)
-
-        self._draw_plate(self.plate_name.currentText())
+        self.plate_name.currentTextChanged.connect(self._on_plate_name_changed)
+        self.view.drawPlate(self.value())
 
     # _________________________PUBLIC METHODS_________________________ #
 
-    # XXX: not sure whether this should return a WellPlatePlan or just WellPlate
-    # using the full plan to include selected wells...
     def value(self) -> useq.WellPlatePlan:
         """Return current plate and selected wells as a list of (name, row, column)."""
         return useq.WellPlatePlan(
@@ -128,8 +158,10 @@ class _PlateSelectorWidget(QWidget):
             plate = plate.name or "Custom Plate"
         self.plate_name.setCurrentText(plate)
 
-    def currentSelection(self) -> Any:
+    def currentSelection(self) -> IndexExpression:
         return slice(0, 0)
+
+    def setCurrentSelection(self, selection: IndexExpression) -> None: ...
 
     # _________________________PRIVATE METHODS________________________ #
 
@@ -138,86 +170,6 @@ class _PlateSelectorWidget(QWidget):
         # not using lambda or tests will fail
         self.valueChanged.emit(self.value())
 
-    def _draw_plate(self, plate_name: str) -> None:
-        if not plate_name:
-            return
-
-        draw_plate(
-            self.view, self.view.scene(), self.currentPlate(), brush=BRUSH, pen=PEN
-        )
+    def _on_plate_name_changed(self, plate_name: str) -> None:
+        self.view.drawPlate(useq.WellPlate.from_str(plate_name))
         self.valueChanged.emit(self.value())
-
-
-# not making a _PlateSelectorWidget or _PlateGraphicsScene because I will use it for
-# the database widget as well
-def draw_plate(
-    view: QGraphicsView,
-    scene: QGraphicsScene,
-    plate: useq.WellPlate,
-    brush: QBrush | None,
-    pen: QPen | None,
-    opacity: float = 1.0,
-    text: bool = True,
-) -> None:
-    """Draw all wells of the plate in a QGraphicsScene."""
-    # setting a custom well size in scene px. Using 10 times the well size in mm
-    # gives a good resolution in the viewer.
-    well_size_x, well_size_y = plate.well_size
-    well_spacing_x, well_spacing_y = plate.well_spacing
-
-    scene.clear()
-
-    if not well_size_x or not well_size_y:
-        return
-
-    well_scene_size = well_size_x * 10
-
-    # calculate the width and height of the well in scene px
-    if well_size_x == well_size_y:
-        well_width = well_height = well_scene_size
-    elif well_size_x > well_size_y:
-        well_width = well_scene_size
-        # keep the ratio between well_size_x and well_size_y
-        well_height = int(well_scene_size * well_size_y / well_size_x)
-    else:
-        # keep the ratio between well_size_x and well_size_y
-        well_width = int(well_scene_size * well_size_x / well_size_y)
-        well_height = well_scene_size
-
-    # calculate the spacing between wells
-    dx = well_spacing_x - well_size_x if well_spacing_x else 0
-    dy = well_spacing_y - well_size_y if well_spacing_y else 0
-
-    # convert the spacing between wells in pixels
-    dx_px = dx * well_width / well_size_x if well_spacing_x else 0
-    dy_px = dy * well_height / well_size_y if well_spacing_y else 0
-
-    # the text size is the well_height of the well divided by 3
-    # text_size = well_height / 3 if text else None
-
-    # draw the wells and place them in their correct row/column position
-    for row, col in product(range(plate.rows), range(plate.columns)):
-        _x = (well_width * col) + (dx_px * col)
-        _y = (well_height * row) + (dy_px * row)
-        rect = QRectF(_x, _y, well_width, well_height)
-        if plate.circular_wells:
-            w = QGraphicsEllipseItem(rect)
-        else:
-            w = QGraphicsRectItem(rect)
-        w.brush = brush
-        w.pen = pen
-        w.setOpacity(opacity)
-        scene.addItem(w)
-
-    # set the scene size
-    plate_width = (well_width * plate.columns) + (dx_px * (plate.columns - 1))
-    plate_height = (well_height * plate.rows) + (dy_px * (plate.rows - 1))
-
-    # add some offset to the scene rect to leave some space around the plate
-    offset = 20
-    scene.setSceneRect(
-        -offset, -offset, plate_width + (offset * 2), plate_height + (offset * 2)
-    )
-
-    # fit scene in view
-    view.fitInView(scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
