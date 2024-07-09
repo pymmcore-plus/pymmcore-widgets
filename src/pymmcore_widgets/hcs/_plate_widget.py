@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from itertools import product
-from typing import TYPE_CHECKING
+from typing import Any, Mapping
 
+import useq
 from qtpy.QtCore import QRectF, Qt, Signal
 from qtpy.QtGui import QBrush, QPen
 from qtpy.QtWidgets import (
     QComboBox,
+    QGraphicsEllipseItem,
+    QGraphicsRectItem,
     QGraphicsScene,
     QGraphicsView,
     QHBoxLayout,
@@ -15,14 +18,30 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-import useq
 
-if TYPE_CHECKING:
-    from useq import WellPlate
+from ._util import ResizingGraphicsView
 
 BRUSH = QBrush(Qt.GlobalColor.lightGray)
 PEN = QPen(Qt.GlobalColor.black)
 PEN.setWidth(1)
+
+
+def _sort_plate(item: str) -> tuple[int, int | str]:
+    """Sort well plate keys by number first, then by string."""
+    parts = item.split("-")
+    if parts[0].isdigit():
+        return (0, int(parts[0]))
+    return (1, item)
+
+
+class WellPlateView(ResizingGraphicsView):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        self._scene = QGraphicsScene()
+        super().__init__(self._scene, parent)
+        self.setStyleSheet("background:grey; border-radius: 5px;")
+
+        # self.view.setMinimumHeight(PLATE_GRAPHICS_VIEW_HEIGHT)
+        # self.view.setMinimumWidth(int(PLATE_GRAPHICS_VIEW_HEIGHT * 1.5))
 
 
 class _PlateSelectorWidget(QWidget):
@@ -43,26 +62,23 @@ class _PlateSelectorWidget(QWidget):
         super().__init__(parent)
 
         # well plate combobox
-        combo_label = QLabel("WellPlate:")
-        self.plate_combo = QComboBox()
-        self.plate_combo.addItems(list(PLATES))
+        self.plate_name = QComboBox()
+        plate_names = sorted(useq.registered_well_plate_keys(), key=_sort_plate)
+        self.plate_name.addItems(plate_names)
 
         # clear selection button
         self._clear_button = QPushButton(text="Clear Selection")
         self._clear_button.setAutoDefault(False)
 
+        self.view = WellPlateView(self)
+
+        # LAYOUT ---------------------------------------
+
         top_layout = QHBoxLayout()
         top_layout.setContentsMargins(0, 0, 0, 0)
-        top_layout.setSpacing(5)
-        top_layout.addWidget(combo_label, 0)
-        top_layout.addWidget(self.plate_combo, 1)
+        top_layout.addWidget(QLabel("WellPlate:"), 0)
+        top_layout.addWidget(self.plate_name, 1)
         top_layout.addWidget(self._clear_button, 0)
-
-        self.scene = _PlateGraphicsScene(parent=self)
-        self.view = _ResizingGraphicsView(self.scene, self)
-        self.view.setStyleSheet("background:grey; border-radius: 5px;")
-        self.view.setMinimumHeight(PLATE_GRAPHICS_VIEW_HEIGHT)
-        self.view.setMinimumWidth(int(PLATE_GRAPHICS_VIEW_HEIGHT * 1.5))
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(15)
@@ -71,21 +87,25 @@ class _PlateSelectorWidget(QWidget):
         main_layout.addWidget(self.view)
 
         # connect
-        self.scene.valueChanged.connect(self._on_value_changed)
-        self._clear_button.clicked.connect(self.scene._clear_selection)
-        self.plate_combo.currentTextChanged.connect(self._draw_plate)
+        # self.scene.valueChanged.connect(self._on_value_changed)
+        # self._clear_button.clicked.connect(self.scene._clear_selection)
+        self.plate_name.currentTextChanged.connect(self._draw_plate)
 
-        self._draw_plate(self.plate_combo.currentText())
+        self._draw_plate(self.plate_name.currentText())
 
     # _________________________PUBLIC METHODS_________________________ #
 
-    def value(self) -> PlateInfo:
+    # XXX: not sure whether this should return a WellPlatePlan or just WellPlate
+    # using the full plan to include selected wells...
+    def value(self) -> useq.WellPlatePlan:
         """Return current plate and selected wells as a list of (name, row, column)."""
-        curr_plate_name = self.plate_combo.currentText()
-        curr_plate = PLATES[curr_plate_name]
-        return PlateInfo(curr_plate, self.scene.value())
+        return useq.WellPlatePlan(
+            plate=self.plate_name.currentText(),
+            a1_center_xy=(0, 0),
+            selected_wells=self.currentSelection(),
+        )
 
-    def setValue(self, value: PlateInfo) -> None:
+    def setValue(self, value: useq.WellPlatePlan | Mapping) -> None:
         """Set the current plate and the selected wells.
 
         Parameters
@@ -94,21 +114,22 @@ class _PlateSelectorWidget(QWidget):
             The plate information to set containing the plate and the selected wells
             as a list of (name, row, column).
         """
-        if not value.plate:
-            return
+        value = useq.WellPlatePlan.model_validate(value)
+        self.plate_name.setCurrentText(value.plate.name)
 
-        if not value.plate.name:
-            raise ValueError("Plate name is required.")
+        if value.plate.name not in useq.registered_well_plate_keys():
+            ...  # consider how to deal with this
 
-        if value.plate.name not in PLATES:
-            raise ValueError(f"'{value.plate.name}' not in the database.")
+    def currentPlate(self) -> useq.WellPlate:
+        return useq.WellPlate.from_str(self.plate_name.currentText())
 
-        self.plate_combo.setCurrentText(value.plate.name)
+    def setCurrentPlate(self, plate: useq.WellPlate | str) -> None:
+        if isinstance(plate, useq.WellPlate):
+            plate = plate.name or "Custom Plate"
+        self.plate_name.setCurrentText(plate)
 
-        if not value.wells:
-            return
-
-        self.scene.setValue(value.wells)
+    def currentSelection(self) -> Any:
+        return slice(0, 0)
 
     # _________________________PRIVATE METHODS________________________ #
 
@@ -121,7 +142,9 @@ class _PlateSelectorWidget(QWidget):
         if not plate_name:
             return
 
-        draw_plate(self.view, self.scene, PLATES[plate_name], brush=BRUSH, pen=PEN)
+        draw_plate(
+            self.view, self.view.scene(), self.currentPlate(), brush=BRUSH, pen=PEN
+        )
         self.valueChanged.emit(self.value())
 
 
@@ -130,7 +153,7 @@ class _PlateSelectorWidget(QWidget):
 def draw_plate(
     view: QGraphicsView,
     scene: QGraphicsScene,
-    plate: WellPlate,
+    plate: useq.WellPlate,
     brush: QBrush | None,
     pen: QPen | None,
     opacity: float = 1.0,
@@ -170,14 +193,17 @@ def draw_plate(
     dy_px = dy * well_height / well_size_y if well_spacing_y else 0
 
     # the text size is the well_height of the well divided by 3
-    text_size = well_height / 3 if text else None
+    # text_size = well_height / 3 if text else None
 
     # draw the wells and place them in their correct row/column position
     for row, col in product(range(plate.rows), range(plate.columns)):
         _x = (well_width * col) + (dx_px * col)
         _y = (well_height * row) + (dy_px * row)
         rect = QRectF(_x, _y, well_width, well_height)
-        w = _WellGraphicsItem(rect, row, col, plate.circular_wells, text_size)
+        if plate.circular_wells:
+            w = QGraphicsEllipseItem(rect)
+        else:
+            w = QGraphicsRectItem(rect)
         w.brush = brush
         w.pen = pen
         w.setOpacity(opacity)
