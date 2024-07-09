@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Mapping
 
 import useq
 from qtpy.QtCore import QRectF, QSize, Qt, Signal
-from qtpy.QtGui import QPainter, QPen
+from qtpy.QtGui import QFont, QPainter, QPen
 from qtpy.QtWidgets import (
     QComboBox,
     QGraphicsItem,
@@ -56,8 +56,9 @@ class WellPlateView(ResizingGraphicsView):
         else:
             plan = useq.WellPlatePlan(a1_center_xy=(0, 0), plate=plate)
 
-        width, height = plan.plate.well_size
-        well_rect = QRectF(0, 0, width * 1000, height * 1000)
+        well_width = plan.plate.well_size[0] * 1000
+        well_height = plan.plate.well_size[1] * 1000
+        well_rect = QRectF(0, 0, well_width, well_height)
 
         # Since most plates have the same extent, a constant pen width seems to work
         pen = QPen(Qt.GlobalColor.black)
@@ -65,12 +66,25 @@ class WellPlateView(ResizingGraphicsView):
 
         self.clearWells()
         for pos in plan.all_well_positions:
-            rt = well_rect.translated(pos.x, pos.y)
+            # XXX: why -y? i thought that was handled in useq?
+            center = well_rect.translated(pos.x, -pos.y)
+            top_left = center.translated(-well_width / 2, -well_height / 2)
             if plan.plate.circular_wells:
-                item = self._scene.addEllipse(rt, pen)
+                item = self._scene.addEllipse(top_left, pen)
             else:
-                item = self._scene.addRect(rt, pen)
+                item = self._scene.addRect(top_left, pen)
             self._well_items.append(item)
+
+            # add text
+            if text_item := self._scene.addText(pos.name):
+                font = text_item.font() or QFont()
+                font.setPixelSize(int(min(6000, well_rect.width() / 2.5)))
+                text_item.setFont(font)
+                br = text_item.boundingRect()
+                text_item.setPos(
+                    center.x() - br.width() // 2, center.y() - br.height() // 2
+                )
+                self._well_items.append(text_item)
 
         # fit scene in view
         self._scene.setSceneRect(self._scene.itemsBoundingRect())
