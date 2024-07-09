@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
+import useq
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QHBoxLayout, QWidget
 
 from pymmcore_widgets.useq_widgets.points_plans import RelativePointPlanSelector
 
 from ._well_graphics_view import WellView
-
-if TYPE_CHECKING:
-    import useq
 
 
 class FOVSelectorWidget(QWidget):
@@ -37,6 +33,7 @@ class FOVSelectorWidget(QWidget):
         # connect
         self.selector.valueChanged.connect(self._on_selector_value_changed)
         self.well_view.maxPointsDetected.connect(self._on_view_max_points_detected)
+        self.well_view.positionClicked.connect(self._on_view_position_clicked)
 
         if plan is not None:
             self.setValue(plan)
@@ -53,3 +50,10 @@ class FOVSelectorWidget(QWidget):
 
     def _on_view_max_points_detected(self, value: int) -> None:
         self.selector.random_points_wdg.num_points.setValue(value)
+
+    def _on_view_position_clicked(
+        self, index: int, position: useq.RelativePosition
+    ) -> None:
+        if self.selector.active_plan_type is useq.RandomPoints:
+            print(position, type(position))
+            self.selector.random_points_wdg.start_at = position.replace(name=None)

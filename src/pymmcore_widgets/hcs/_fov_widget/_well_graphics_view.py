@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from typing import TYPE_CHECKING
 
 import useq
 from qtpy.QtCore import QRectF, QSize, Qt, Signal
@@ -10,11 +11,18 @@ from useq import Shape
 
 from pymmcore_widgets.hcs._util import ResizingGraphicsView
 
+if TYPE_CHECKING:
+    from PyQt6.QtGui import QMouseEvent
+
+DATA_POSITION = 1
+DATA_POSITION_INDEX = 2
+
 
 class WellView(ResizingGraphicsView):
     """Graphics view to draw a well and the FOVs."""
 
     maxPointsDetected = Signal(int)
+    positionClicked = Signal(int, object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         self._scene = QGraphicsScene()
@@ -61,6 +69,14 @@ class WellView(ResizingGraphicsView):
 
         # DRAW FOVS
         self._draw_fovs(plan)
+
+    def mousePressEvent(self, event: QMouseEvent | None) -> None:
+        scene_pos = self.mapToScene(event.pos())
+        items = self.scene().items(scene_pos)
+        for item in items:
+            if idx := item.data(DATA_POSITION_INDEX):
+                self.positionClicked.emit(idx, item.data(DATA_POSITION))
+                break
 
     def setWellSize(self, width_mm: float | None, height_mm: float | None) -> None:
         """Set the well size width and height in mm."""
@@ -122,7 +138,7 @@ class WellView(ResizingGraphicsView):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             points = list(plan)
-        if len(points) < plan.num_points:
+        if len(points) < getattr(plan, "num_points", 0):
             self.maxPointsDetected.emit(len(points))
 
         # draw the FOVs, and a connecting line
@@ -139,6 +155,8 @@ class WellView(ResizingGraphicsView):
                 self._fov_height_um,
                 pen,
             )
+            item.setData(DATA_POSITION, pos)
+            item.setData(DATA_POSITION_INDEX, i)
             if item:
                 item.setZValue(100 if i == 0 else 0)
                 self._fov_items.append(item)

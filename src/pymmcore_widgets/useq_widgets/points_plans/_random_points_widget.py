@@ -26,6 +26,10 @@ class RandomPointWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
+        # NON-GUI attributes
+
+        self._start_at: int = 0
+
         # setting a random seed for point generation reproducibility
         self.random_seed: int = self._new_seed()
         self._fov_size: tuple[float | None, float | None] = (None, None)
@@ -106,12 +110,28 @@ class RandomPointWidget(QWidget):
         """Set the FOV size."""
         self._fov_size = size
 
+    # not in the gui for now...
+
+    @property
+    def start_at(self) -> int:
+        """Return the start_at value."""
+        return self._start_at
+
+    @start_at.setter
+    def start_at(self, value: int) -> None:
+        """Set the start_at value."""
+        self._start_at = value
+        self._on_value_changed()
+
     def _on_value_changed(self) -> None:
         """Emit the valueChanged signal."""
+        from rich import print
+        print(self.value())
         self.valueChanged.emit(self.value())
 
     def _on_random_clicked(self) -> None:
         # reset the random seed
+        self._start_at = 0
         self.random_seed = self._new_seed()
         self.valueChanged.emit(self.value())
 
@@ -125,10 +145,10 @@ class RandomPointWidget(QWidget):
             max_width=self.max_width.value(),
             max_height=self.max_height.value(),
             allow_overlap=self.allow_overlap.isChecked(),
-            order=self.order.currentText(),
             fov_width=fov_x,
             fov_height=fov_y,
             order=self.order.currentText(),
+            start_at=self.start_at,
         )
 
     def setValue(self, value: RandomPoints | Mapping) -> None:
@@ -143,6 +163,7 @@ class RandomPointWidget(QWidget):
         self.shape.setCurrentText(value.shape.value)
         self._fov_size = (value.fov_width, value.fov_height)
         self.allow_overlap.setChecked(value.allow_overlap)
+        self.start_at = value.start_at
         if value.order is not None:  # type: ignore  # until useq is released
             self.order.setCurrentText(value.order.value)  # type: ignore  # until useq is released
 

@@ -72,6 +72,7 @@ class RelativePointPlanSelector(QWidget):
         self._active_plan_widget: (
             RelativePositionWidget | RandomPointWidget | GridRowColumnWidget
         ) = self.single_pos_wdg
+        self._active_plan_type: type[RelativePointPlan] = useq.RelativePosition
 
         # radio buttons  selection
 
@@ -95,7 +96,7 @@ class RelativePointPlanSelector(QWidget):
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(10)
-        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setContentsMargins(10, 0, 10, 0)
         for btn, wdg in (
             (self.single_radio_btn, self.single_pos_wdg),
             (self.random_radio_btn, self.random_points_wdg),
@@ -103,6 +104,8 @@ class RelativePointPlanSelector(QWidget):
         ):
             wdg.setEnabled(btn.isChecked())  # type: ignore [attr-defined]
             grpbx = QGroupBox()
+            # make a click on the groupbox act as a click on the button
+            grpbx.mousePressEvent = lambda _, b=btn: b.setChecked(True)
             grpbx.setLayout(QVBoxLayout())
             grpbx.layout().addWidget(wdg)
 
@@ -113,10 +116,14 @@ class RelativePointPlanSelector(QWidget):
             layout.addWidget(grpbx, 1)
             main_layout.addLayout(layout)
 
-        for i in range(0, 7, 2):
-            main_layout.insertWidget(i, SeparatorWidget())
+        # for i in range(1, 5, 2):
+        # main_layout.insertWidget(i, SeparatorWidget())
 
     # _________________________PUBLIC METHODS_________________________ #
+
+    @property
+    def active_plan_type(self) -> type[RelativePointPlan]:
+        return self._active_plan_type
 
     def value(self) -> useq.RelativeMultiPointPlan:
         return self._active_plan_widget.value()
@@ -158,6 +165,11 @@ class RelativePointPlanSelector(QWidget):
         wdg.setEnabled(checked)
         if checked:
             self._active_plan_widget = wdg
+            self._active_plan_type = {
+                self.single_radio_btn: useq.RelativePosition,
+                self.random_radio_btn: useq.RandomPoints,
+                self.grid_radio_btn: useq.GridRowsColumns,
+            }[btn]
             self._on_value_changed()
 
     def _on_value_changed(self) -> None:
