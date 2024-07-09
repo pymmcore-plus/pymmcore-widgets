@@ -55,5 +55,4 @@ class FOVSelectorWidget(QWidget):
         self, index: int, position: useq.RelativePosition
     ) -> None:
         if self.selector.active_plan_type is useq.RandomPoints:
-            print(position, type(position))
             self.selector.random_points_wdg.start_at = position.replace(name=None)

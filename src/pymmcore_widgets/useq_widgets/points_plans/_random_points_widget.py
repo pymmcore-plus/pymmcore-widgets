@@ -125,9 +125,6 @@ class RandomPointWidget(QWidget):
 
     def _on_value_changed(self) -> None:
         """Emit the valueChanged signal."""
-        from rich import print
-
-        print(self.value())
         self.valueChanged.emit(self.value())
 
     def _on_random_clicked(self) -> None:

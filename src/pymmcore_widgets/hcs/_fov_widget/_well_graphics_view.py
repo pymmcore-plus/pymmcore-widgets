@@ -100,13 +100,15 @@ class WellView(ResizingGraphicsView):
         """Draw the outline of the well area."""
         if self._outline_item:
             self._scene.removeItem(self._outline_item)
+        if (rect := self._well_rect()).isNull():
+            return
 
         pen = QPen(QColor(Qt.GlobalColor.green))
         pen.setWidth(self._scaled_pen_size())
         if self._is_circular:
-            self._outline_item = self._scene.addEllipse(self._well_rect(), pen=pen)
+            self._outline_item = self._scene.addEllipse(rect, pen=pen)
         else:
-            self._outline_item = self._scene.addRect(self._well_rect(), pen=pen)
+            self._outline_item = self._scene.addRect(rect, pen=pen)
         self._resize_to_fit()
 
     def _resize_to_fit(self) -> None:
@@ -123,13 +125,12 @@ class WellView(ResizingGraphicsView):
         half_fov_height = self._fov_height_um / 2
 
         # constrain random points to our own well size, regardless of the plan settings
-        # TODO: emit a warning here?
         if isinstance(plan, useq.RandomPoints):
             kwargs = {}
-            if self._well_width_um:
-                kwargs["max_width"] = self._well_width_um - half_fov_width * 1.4
-            if self._well_height_um:
-                kwargs["max_height"] = self._well_height_um - half_fov_height * 1.4
+            ww = self._well_width_um or (self._fov_width_um * 25)
+            kwargs["max_width"] = ww - half_fov_width * 1.4
+            wh = self._well_height_um or (self._fov_height_um * 25)
+            kwargs["max_height"] = wh - half_fov_height * 1.4
             plan = plan.replace(**kwargs)
 
         pen = QPen(Qt.GlobalColor.white)
@@ -183,4 +184,4 @@ class WellView(ResizingGraphicsView):
         # and it's possible this needs to be rescaled on resize
         if self._well_width_um:
             return int(self._well_width_um / 150)
-        return int(self.sceneRect().width() / 150)
+        return max(61, int(self.sceneRect().width() / 150))
