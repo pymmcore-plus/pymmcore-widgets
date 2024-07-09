@@ -6,6 +6,7 @@ import useq
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QButtonGroup,
+    QDoubleSpinBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -84,11 +85,24 @@ class RelativePointPlanSelector(QWidget):
         self._mode_btn_group.addButton(self.random_radio_btn)
         self._mode_btn_group.addButton(self.grid_radio_btn)
 
+        self.fov_w = QDoubleSpinBox()
+        self.fov_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.fov_w.setRange(1, 10000)
+        self.fov_w.setValue(200)
+        self.fov_w.setSingleStep(10)
+        self.fov_h = QDoubleSpinBox()
+        self.fov_h.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.fov_h.setRange(1, 10000)
+        self.fov_h.setValue(200)
+        self.fov_h.setSingleStep(10)
+
         # CONNECTIONS ----------------------
 
         self._mode_btn_group.buttonToggled.connect(self._on_radiobutton_toggled)
         self.random_points_wdg.valueChanged.connect(self._on_value_changed)
         self.grid_wdg.valueChanged.connect(self._on_value_changed)
+        self.fov_h.valueChanged.connect(self._on_value_changed)
+        self.fov_w.valueChanged.connect(self._on_value_changed)
 
         # LAYOUT ----------------------
 
@@ -114,6 +128,18 @@ class RelativePointPlanSelector(QWidget):
             layout.addWidget(grpbx, 1)
             main_layout.addLayout(layout)
 
+        # FOV widgets go at the bottom, and are combined into a single widget
+        # for ease of showing/hiding the whole thing at once
+        self.fov_widgets = QWidget()
+        fov_layout = QHBoxLayout(self.fov_widgets)
+        fov_layout.setContentsMargins(0, 0, 0, 0)
+        fov_layout.setSpacing(2)
+        fov_layout.addSpacing(24)
+        fov_layout.addWidget(QLabel("FOV (w, h; µm):"))
+        fov_layout.addWidget(self.fov_w)
+        fov_layout.addWidget(self.fov_h)
+        main_layout.addWidget(self.fov_widgets)
+
         # for i in range(1, 5, 2):
         # main_layout.insertWidget(i, SeparatorWidget())
 
@@ -124,7 +150,9 @@ class RelativePointPlanSelector(QWidget):
         return self._active_plan_type
 
     def value(self) -> useq.RelativeMultiPointPlan:
-        return self._active_plan_widget.value()
+        return self._active_plan_widget.value().model_copy(
+            update={"fov_width": self.fov_w.value(), "fov_height": self.fov_h.value()}
+        )
 
     def setValue(self, plan: useq.RelativeMultiPointPlan) -> None:
         """Set the value of the widget.
@@ -149,6 +177,8 @@ class RelativePointPlanSelector(QWidget):
                 self.single_radio_btn.setChecked(True)
             else:  # pragma: no cover
                 raise ValueError(f"Invalid plan type: {type(plan)}")
+            self.fov_h.setValue(plan.fov_height or 100)
+            self.fov_w.setValue(plan.fov_width or 100)
         self._on_value_changed()
 
     # _________________________PRIVATE METHODS_________________________ #

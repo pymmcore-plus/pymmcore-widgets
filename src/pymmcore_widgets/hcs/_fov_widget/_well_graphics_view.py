@@ -107,6 +107,11 @@ class WellView(ResizingGraphicsView):
             self._outline_item = self._scene.addEllipse(self._well_rect(), pen=pen)
         else:
             self._outline_item = self._scene.addRect(self._well_rect(), pen=pen)
+        self._resize_to_fit()
+
+    def _resize_to_fit(self) -> None:
+        self.setSceneRect(self._scene.itemsBoundingRect())
+        self.resizeEvent(None)
 
     def _draw_fovs(self, plan: useq.RelativeMultiPointPlan) -> None:
         """Draw the fovs in the scene as rectangles."""
@@ -146,6 +151,7 @@ class WellView(ResizingGraphicsView):
         # draw the FOVs, and a connecting line
         last_p: useq.RelativePosition | None = None
         for i, pos in enumerate(points):
+            pos.y *= -1  # invert y for screen coordinates
             if i == 0:
                 pen.setColor(QColor(Qt.GlobalColor.black))
             else:
@@ -157,9 +163,9 @@ class WellView(ResizingGraphicsView):
                 self._fov_height_um,
                 pen,
             )
-            item.setData(DATA_POSITION, pos)
-            item.setData(DATA_POSITION_INDEX, i)
             if item:
+                item.setData(DATA_POSITION, pos)
+                item.setData(DATA_POSITION_INDEX, i)
                 item.setZValue(100 if i == 0 else 0)
                 self._fov_items.append(item)
             # draw a line from the last point to this one
@@ -168,6 +174,8 @@ class WellView(ResizingGraphicsView):
                     self._scene.addLine(last_p.x, last_p.y, pos.x, pos.y, line_pen)
                 )
             last_p = pos
+
+        self._resize_to_fit()
 
     def _scaled_pen_size(self) -> int:
         # pick a pen size appropriate for the scene scale

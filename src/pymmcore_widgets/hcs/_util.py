@@ -24,3 +24,4 @@ class ResizingGraphicsView(QGraphicsView):
         ymargin = rect.height() * self.padding
         margins = QMarginsF(xmargin, ymargin, xmargin, ymargin)
         self.fitInView(rect.marginsAdded(margins), Qt.AspectRatioMode.KeepAspectRatio)
+        super().resizeEvent(event)
