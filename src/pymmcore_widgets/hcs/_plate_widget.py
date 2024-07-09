@@ -3,15 +3,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Mapping
 
 import useq
-from qtpy.QtCore import QRectF, QSize, Qt, Signal
-from qtpy.QtGui import QFont, QMouseEvent, QPainter, QPen
+from qtpy.QtCore import QPoint, QRect, QRectF, QSize, Qt, Signal
+from qtpy.QtGui import QFont, QPainter, QPen
 from qtpy.QtWidgets import (
+    QAbstractGraphicsShapeItem,
     QComboBox,
     QGraphicsItem,
     QGraphicsScene,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QRubberBand,
     QVBoxLayout,
     QWidget,
 )
@@ -41,8 +43,22 @@ class WellPlateView(ResizingGraphicsView):
         self.setRenderHints(
             QPainter.RenderHint.Antialiasing | QPainter.RenderHint.SmoothPixmapTransform
         )
+        self.setDragMode(self.DragMode.RubberBandDrag)
+        self.rubberBandChanged.connect(self._on_rubber_band_changed)
 
         self._well_items: list[QGraphicsItem] = []
+        self._rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, self)
+        self._press_point: QPoint = QPoint()
+
+    def _on_rubber_band_changed(self, rect: QRect) -> None:
+        selected_items = set(self._scene.items(self.mapToScene(rect).boundingRect()))
+        for item in self._scene.items():
+            if isinstance(item, QAbstractGraphicsShapeItem):
+                selected = item in selected_items
+                color = Qt.GlobalColor.green if selected else Qt.GlobalColor.transparent
+                item.setBrush(color)
+                # fix me with SelectableItem subclass
+        print(rect, self._scene.selectedItems())
 
     def sizeHint(self) -> QSize:
         aspect = 1.5
@@ -73,6 +89,7 @@ class WellPlateView(ResizingGraphicsView):
                 item = self._scene.addEllipse(top_left, pen)
             else:
                 item = self._scene.addRect(top_left, pen)
+            item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
             self._well_items.append(item)
 
             # add text
@@ -93,56 +110,71 @@ class WellPlateView(ResizingGraphicsView):
         while self._well_items:
             self._scene.removeItem(self._well_items.pop())
 
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-        # origin point of the SCREEN
-        self.origin_point = event.screenPos()
-        # rubber band to show the selection
-        self.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle)
-        # origin point of the SCENE
-        self.scene_origin_point = event.scenePos()
+    # def mousePressEvent(self, event: QMouseEvent) -> None:
+    #     if event.button() == Qt.MouseButton.LeftButton:
+    #         self._press_point = pos = event.pos()
+    #         self._rubber_band.setGeometry(QRect(pos, QSize()))
+    #         self._rubber_band.show()
+    #     super().mousePressEvent(event)
+    #     # # origin point of the SCREEN
+    #     # self.origin_point = event.screenPos()
+    #     # # rubber band to show the selection
+    #     # self.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle)
+    #     # # origin point of the SCENE
+    #     # self.scene_origin_point = event.scenePos()
 
-        # get the selected items
-        self._selected_wells = [item for item in self.items() if item.isSelected()]
+    #     # # get the selected items
+    #     # self._selected_wells = [item for item in self.items() if item.isSelected()]
 
-        # set the color of the selected wells to SELECTED_COLOR if they are within the
-        # selection
-        for item in self._selected_wells:
-            item.brush = SELECTED_COLOR
+    #     # # set the color of the selected wells to SELECTED_COLOR if they are within the
+    #     # # selection
+    #     # for item in self._selected_wells:
+    #     #     item.brush = SELECTED_COLOR
 
-        # if there is an item where the mouse is pressed and it is selected, deselect,
-        # otherwise select it.
-        if well := self.itemAt(self.scene_origin_point, QTransform()):
-            if well.isSelected():
-                well.brush = UNSELECTED_COLOR
-                well.setSelected(False)
-            else:
-                well.brush = SELECTED_COLOR
-                well.setSelected(True)
-        self.valueChanged.emit()
+    #     # # if there is an item where the mouse is pressed and it is selected, deselect,
+    #     # # otherwise select it.
+    #     # if well := self.itemAt(self.scene_origin_point, QTransform()):
+    #     #     if well.isSelected():
+    #     #         well.brush = UNSELECTED_COLOR
+    #     #         well.setSelected(False)
+    #     #     else:
+    #     #         well.brush = SELECTED_COLOR
+    #     #         well.setSelected(True)
+    #     # self.valueChanged.emit()
 
-    def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        super().mouseMoveEvent(event)
-        # update the rubber band geometry using the SCREEN origin point and the current
-        self.rubber_band.setGeometry(QRect(self.origin_point, event.screenPos()))
-        self.rubber_band.show()
-        # get the items within the selection (within the rubber band)
-        selection = self.items(QRectF(self.scene_origin_point, event.scenePos()))
-        # loop through all the items in the scene and select them if they are within
-        # the selection or deselect them if they are not (or if the shift key is pressed
-        # while moving the movuse).
-        for item in self.items():
-            if item in selection:
-                # if pressing shift, remove from selection
-                if event.modifiers() and Qt.KeyboardModifier.ShiftModifier:
-                    self._set_selected(item, False)
-                else:
-                    self._set_selected(item, True)
-            elif item not in self._selected_wells:
-                self._set_selected(item, False)
+    # def mouseMoveEvent(self, event: QMouseEvent) -> None:
+    #     if not self._press_point.isNull():
+    #         rect = QRect(self._press_point, event.pos()).normalized()
+    #         self._rubber_band.setGeometry(rect)
+    #         selected_items = self._scene.items(self.mapToScene(rect).boundingRect())
+    #         print(selected_items)
+    #         for item in selected_items:
+    #             item.setSelected(True)
+    #     super().mouseMoveEvent(event)
 
-    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        self.rubber_band.hide()
-        self.valueChanged.emit()
+    #     # # update the rubber band geometry using the SCREEN origin point and the current
+    #     # self._rubber_band.setGeometry(QRect(self.origin_point, event.screenPos()))
+    #     # self._rubber_band.show()
+    #     # # get the items within the selection (within the rubber band)
+    #     # selection = self.items(QRectF(self.scene_origin_point, event.scenePos()))
+    #     # # loop through all the items in the scene and select them if they are within
+    #     # # the selection or deselect them if they are not (or if the shift key is pressed
+    #     # # while moving the movuse).
+    #     # for item in self.items():
+    #     #     if item in selection:
+    #     #         # if pressing shift, remove from selection
+    #     #         if event.modifiers() and Qt.KeyboardModifier.ShiftModifier:
+    #     #             self._set_selected(item, False)
+    #     #         else:
+    #     #             self._set_selected(item, True)
+    #     #     elif item not in self._selected_wells:
+    #     #         self._set_selected(item, False)
+
+    # def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+    #     if event.button() == Qt.MouseButton.LeftButton:
+    #         self._rubber_band.hide()
+
+    # self.valueChanged.emit()
 
 
 class PlateSelectorWidget(QWidget):
