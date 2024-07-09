@@ -126,6 +126,7 @@ class RandomPointWidget(QWidget):
     def _on_value_changed(self) -> None:
         """Emit the valueChanged signal."""
         from rich import print
+
         print(self.value())
         self.valueChanged.emit(self.value())
 
@@ -163,7 +164,7 @@ class RandomPointWidget(QWidget):
         self.shape.setCurrentText(value.shape.value)
         self._fov_size = (value.fov_width, value.fov_height)
         self.allow_overlap.setChecked(value.allow_overlap)
-        self.start_at = value.start_at
+        self.start_at = value.start_at  # type: ignore  # until useq is released
         if value.order is not None:  # type: ignore  # until useq is released
             self.order.setCurrentText(value.order.value)  # type: ignore  # until useq is released
 

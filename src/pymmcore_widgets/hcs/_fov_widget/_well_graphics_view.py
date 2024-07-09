@@ -71,6 +71,8 @@ class WellView(ResizingGraphicsView):
         self._draw_fovs(plan)
 
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
+        if event is None:
+            return
         scene_pos = self.mapToScene(event.pos())
         items = self.scene().items(scene_pos)
         for item in items:

@@ -15,8 +15,6 @@ from qtpy.QtWidgets import (
 )
 from superqt.utils import signals_blocked
 
-from pymmcore_widgets._util import SeparatorWidget
-
 from ._grid_row_column_widget import GridRowColumnWidget
 from ._random_points_widget import RandomPointWidget
 
