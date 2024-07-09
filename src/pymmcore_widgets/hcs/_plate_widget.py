@@ -3,61 +3,26 @@ from __future__ import annotations
 from itertools import product
 from typing import TYPE_CHECKING
 
-from qtpy.QtCore import QRectF, Qt
-from qtpy.QtWidgets import (
-    QGraphicsScene,
-    QGraphicsView,
-    QWidget,
-)
-from useq import WellPlate
-
-from ._graphics_items import _WellGraphicsItem
-
-if TYPE_CHECKING:
-    from qtpy.QtGui import QBrush, QPen
-
-    from ._graphics_items import Well
-
-
-from typing import TYPE_CHECKING, NamedTuple
-
-from qtpy.QtCore import Signal
+from qtpy.QtCore import QRectF, Qt, Signal
 from qtpy.QtGui import QBrush, QPen
 from qtpy.QtWidgets import (
     QComboBox,
+    QGraphicsScene,
+    QGraphicsView,
     QHBoxLayout,
     QLabel,
     QPushButton,
     QVBoxLayout,
+    QWidget,
 )
-
-from ._plate_graphics_scene import _PlateGraphicsScene
-from ._util import PLATES, _ResizingGraphicsView
+import useq
 
 if TYPE_CHECKING:
     from useq import WellPlate
 
-    from ._graphics_items import Well
-
-PLATE_GRAPHICS_VIEW_HEIGHT = 440
 BRUSH = QBrush(Qt.GlobalColor.lightGray)
 PEN = QPen(Qt.GlobalColor.black)
 PEN.setWidth(1)
-
-
-class PlateInfo(NamedTuple):
-    """Information about a well plate.
-
-    Attributes
-    ----------
-    plate : WellPlate
-        The well plate object.
-    wells : list[WellInfo]
-        The list of selected wells in the well plate.
-    """
-
-    plate: WellPlate
-    wells: list[Well]
 
 
 class _PlateSelectorWidget(QWidget):
