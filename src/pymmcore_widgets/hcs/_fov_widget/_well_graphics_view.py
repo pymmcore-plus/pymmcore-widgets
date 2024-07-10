@@ -147,7 +147,6 @@ class WellView(ResizingGraphicsView):
         # size instead.
         if isinstance(plan, useq.RandomPoints):
             updates = {}
-            # arbitrary default values if well size is not set
             if fovw := self._fov_width_um:
                 ww = self._well_width_um or (fovw * 25)
                 default_max_width = ww - fovw * 0.5 * 1.4
