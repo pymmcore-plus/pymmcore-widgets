@@ -185,7 +185,6 @@ class WellView(ResizingGraphicsView):
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
         if event is not None:
             scene_pos = self.mapToScene(event.pos())
-            print(scene_pos)
             items = self.scene().items(scene_pos)
             for item in items:
                 if pos := item.data(DATA_POSITION):

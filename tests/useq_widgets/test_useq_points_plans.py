@@ -166,6 +166,7 @@ def test_clicking_point_changes_first_position(qtbot: QtBot) -> None:
     event = QMouseEvent(
         QMouseEvent.Type.MouseButtonPress,
         wdg._well_view.mapFromScene(0, 0).toPointF(),
+        wdg._well_view.mapFromScene(0, 0).toPointF(),
         Qt.MouseButton.LeftButton,
         Qt.MouseButton.LeftButton,
         Qt.KeyboardModifier.NoModifier,
