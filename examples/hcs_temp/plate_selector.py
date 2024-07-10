@@ -5,17 +5,18 @@ with suppress(ImportError):
 import useq
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets.hcs._plate_widget import PlateSelectorWidget
+from pymmcore_widgets.useq_widgets import WellPlateWidget
 
 app = QApplication([])
 
-plate = useq.WellPlate(rows=0, columns=8, well_spacing=6, well_size=4, name="test")
 plan = useq.WellPlatePlan(
-    plate=plate,
+    plate=useq.WellPlate(rows=8, columns=8, well_spacing=6, well_size=4, name="test"),
     a1_center_xy=(0, 0),
+    rotation=5,
     selected_wells=slice(0, 8, 2),
 )
-ps = PlateSelectorWidget(plan)
+
+ps = WellPlateWidget(plan)
 ps.valueChanged.connect(print)
 ps.show()
 

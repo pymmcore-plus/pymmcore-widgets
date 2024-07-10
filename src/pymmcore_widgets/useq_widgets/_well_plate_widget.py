@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from ._util import ResizingGraphicsView
+from pymmcore_widgets._util import ResizingGraphicsView
 
 if TYPE_CHECKING:
     from PyQt6.QtGui import QMouseEvent
@@ -215,11 +215,17 @@ class WellPlateView(ResizingGraphicsView):
             self._scene.removeItem(self._well_labels.pop())
 
 
-class PlateSelectorWidget(QWidget):
-    """Widget for selecting the well plate and its wells.
+class WellPlateWidget(QWidget):
+    """Widget for selecting a well plate and a subset of wells.
+
+    Also displays single coverslips/slides.
 
     Parameters
     ----------
+    plan: useq.WellPlatePlan | useq.WellPlate | None, optional
+        The initial well plate plan. Accepts both a useq.WellPlate (which lacks a
+        selection definition), or a full WellPlatePlan.
+        By default None.
     parent : QWidget, optional
         The parent widget, by default None
     """
