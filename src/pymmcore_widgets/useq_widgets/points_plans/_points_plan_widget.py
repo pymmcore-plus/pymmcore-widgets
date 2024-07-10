@@ -21,37 +21,37 @@ class PointsPlanWidget(QWidget):
     ) -> None:
         super().__init__(parent=parent)
 
-        self.selector = RelativePointPlanSelector()
+        self._selector = RelativePointPlanSelector()
         # graphics scene to draw the well and the fovs
-        self.well_view = WellView()
+        self._well_view = WellView()
 
         # main
         layout = QHBoxLayout(self)
-        layout.addWidget(self.selector, 1)
-        layout.addWidget(self.well_view, 2)
+        layout.addWidget(self._selector, 1)
+        layout.addWidget(self._well_view, 2)
 
         # connect
-        self.selector.valueChanged.connect(self._on_selector_value_changed)
-        self.well_view.maxPointsDetected.connect(self._on_view_max_points_detected)
-        self.well_view.positionClicked.connect(self._on_view_position_clicked)
+        self._selector.valueChanged.connect(self._on_selector_value_changed)
+        self._well_view.maxPointsDetected.connect(self._on_view_max_points_detected)
+        self._well_view.positionClicked.connect(self._on_view_position_clicked)
 
         if plan is not None:
             self.setValue(plan)
 
     def value(self) -> useq.RelativeMultiPointPlan:
-        return self.selector.value()
+        return self._selector.value()
 
     def setValue(self, plan: useq.RelativeMultiPointPlan) -> None:
-        self.selector.setValue(plan)
+        self._selector.setValue(plan)
 
     def _on_selector_value_changed(self, value: useq.RelativeMultiPointPlan) -> None:
-        self.well_view.setPointsPlan(value)
+        self._well_view.setPointsPlan(value)
         self.valueChanged.emit(value)
 
     def _on_view_max_points_detected(self, value: int) -> None:
-        self.selector.random_points_wdg.num_points.setValue(value)
+        self._selector.random_points_wdg.num_points.setValue(value)
 
     def _on_view_position_clicked(self, position: useq.RelativePosition) -> None:
-        if self.selector.active_plan_type is useq.RandomPoints:
+        if self._selector.active_plan_type is useq.RandomPoints:
             pos_no_name = position.model_copy(update={"name": ""})
-            self.selector.random_points_wdg.start_at = pos_no_name
+            self._selector.random_points_wdg.start_at = pos_no_name
