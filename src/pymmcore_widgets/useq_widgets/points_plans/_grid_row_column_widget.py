@@ -47,7 +47,7 @@ class GridRowColumnWidget(QWidget):
         # overlap along y
         self.overlap_y = QDoubleSpinBox()
         self.overlap_y.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.overlap_x.setRange(-10000, 100)
+        self.overlap_y.setRange(-10000, 100)
         # order combo
         self.mode = QComboBox()
         self.mode.addItems([mode.value for mode in OrderMode])
