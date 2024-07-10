@@ -18,9 +18,17 @@ DATA_POSITION = 1
 
 
 class WellView(ResizingGraphicsView):
-    """Graphics view to draw a well and the FOVs."""
+    """Graphics view to draw a well and the FOVs.
 
+    This GraphicsView shows one or more points in a useq mult-point plan (such as a
+    RandomPoints or GridRowsColumns plan) in a well area. The well area is drawn as a
+    rectangle or ellipse, and the points are drawn as rectangles or spots (if the fov
+    size is unknowns)
+    """
+
+    # emitted when iterating over the plan doesn't yield the expected number
     maxPointsDetected = Signal(int)
+    # emitted when a position is clicked, the value is a useq.RelativePosition
     positionClicked = Signal(object)
     wellSizeSet = Signal(object, object)
 
@@ -193,8 +201,8 @@ class WellView(ResizingGraphicsView):
 
             # invert y for screen coordinates
             px, py = pos.x, -pos.y
-            # add the item to the scene
 
+            # add the item to the scene
             # (not sure when addRect would return None, but it's possible...)
             if item := add_item(fov_rect.translated(px, py), pen):
                 item.setData(DATA_POSITION, pos)
@@ -243,7 +251,6 @@ class WellView(ResizingGraphicsView):
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
         if event is not None:
             scene_pos = self.mapToScene(event.pos())
-            print(scene_pos)
             items = self.scene().items(scene_pos)
             for item in items:
                 if pos := item.data(DATA_POSITION):

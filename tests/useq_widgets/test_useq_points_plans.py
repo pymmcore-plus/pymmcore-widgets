@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+import qtpy
 import useq
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QMouseEvent
@@ -145,6 +146,7 @@ def test_points_plan_variants(plan: useq.RelativeMultiPointPlan, qtbot: QtBot) -
     assert wdg.value() == plan
 
 
+@pytest.mark.skipif(qtpy.QT5, reason="QMouseEvent API changed")
 def test_clicking_point_changes_first_position(qtbot: QtBot) -> None:
     plan = RandomPoints(
         num_points=20,
@@ -163,6 +165,7 @@ def test_clicking_point_changes_first_position(qtbot: QtBot) -> None:
     # clicking on a point should change the start_at position
     event = QMouseEvent(
         QMouseEvent.Type.MouseButtonPress,
+        wdg._well_view.mapFromScene(0, 0).toPointF(),
         wdg._well_view.mapFromScene(0, 0).toPointF(),
         Qt.MouseButton.LeftButton,
         Qt.MouseButton.LeftButton,
