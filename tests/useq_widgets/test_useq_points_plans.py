@@ -91,4 +91,11 @@ def test_point_plan_selector(qtbot: QtBot) -> None:
     assert wdg.grid_radio_btn.isChecked()
 
     wdg.random_radio_btn.setChecked(True)
-    assert wdg.value() == RANDOM_POINTS
+    # fov_width and fov_height are global to the RelativePointPlanSelector
+    # so setting the value to GRID_ROWS_COLS will update the fov_width and fov_height
+    assert wdg.value() == RANDOM_POINTS.model_copy(
+        update={
+            "fov_width": GRID_ROWS_COLS.fov_width,
+            "fov_height": GRID_ROWS_COLS.fov_height,
+        }
+    )
