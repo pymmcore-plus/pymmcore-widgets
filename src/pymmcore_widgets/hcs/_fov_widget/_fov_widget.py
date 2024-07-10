@@ -36,13 +36,13 @@ class FOVSelectorWidget(QWidget):
         self.well_view.positionClicked.connect(self._on_view_position_clicked)
         self.well_view.wellSizeSet.connect(self._on_view_well_size_set)
 
-        if plan is not None:
-            self.setValue(plan)
-
         # init the view with the current well size
         self._on_view_well_size_set(
             self.well_view._well_width_um, self.well_view._well_height_um
         )
+
+        if plan is not None:
+            self.setValue(plan)
 
     def value(self) -> useq.RelativeMultiPointPlan:
         return self.selector.value()
