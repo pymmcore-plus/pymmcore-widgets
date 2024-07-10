@@ -20,6 +20,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.utils import signals_blocked
 
 from pymmcore_widgets._device_property_table import DevicePropertyTable
 from pymmcore_widgets._objective_widget import ObjectivesWidget
@@ -31,6 +32,7 @@ class OpticalConfigDialog(QWidget):
     ) -> None:
         super().__init__(parent)
         self._core = mmcore or CMMCorePlus.instance()
+        self._model = ConfigGroup("")
 
         self.groups = QComboBox(self)
         self.groups.addItems(self._core.getAvailableConfigGroups())
@@ -154,9 +156,10 @@ class OpticalConfigDialog(QWidget):
     def load_group(self, group: str) -> None:
         self.groups.setCurrentText(group)
 
-        self._name_list.clear()
-        for n in self._core.getAvailableConfigs(group):
-            self._add_editable_item(n)
+        with signals_blocked(self._name_list):
+            self._name_list.clear()
+            for n in self._core.getAvailableConfigs(group):
+                self._add_editable_item(n)
 
         self._model = ConfigGroup.create_from_core(self._core, group)
         self._name_list.setCurrentRow(0)
