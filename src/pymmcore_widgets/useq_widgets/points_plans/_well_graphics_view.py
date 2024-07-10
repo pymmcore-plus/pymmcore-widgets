@@ -9,10 +9,10 @@ from qtpy.QtGui import QColor, QPainter, QPen
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsScene, QWidget
 from useq import Shape
 
-from pymmcore_widgets.hcs._util import ResizingGraphicsView
+from pymmcore_widgets._util import ResizingGraphicsView
 
 if TYPE_CHECKING:
-    from PyQt6.QtGui import QMouseEvent
+    from qtpy.QtGui import QMouseEvent
 
 DATA_POSITION = 1
 
@@ -53,6 +53,12 @@ class WellView(ResizingGraphicsView):
     def sizeHint(self) -> QSize:
         return QSize(500, 500)
 
+    def setWellSize(self, width_mm: float | None, height_mm: float | None) -> None:
+        """Set the well size width and height in mm."""
+        self._well_width_um = (width_mm * 1000) if width_mm else None
+        self._well_height_um = (height_mm * 1000) if height_mm else None
+        self.wellSizeSet.emit(width_mm, height_mm)
+
     def setPointsPlan(self, plan: useq.RelativeMultiPointPlan) -> None:
         """Set the plan to use to draw the FOVs."""
         self._fov_width_um = plan.fov_width
@@ -87,22 +93,6 @@ class WellView(ResizingGraphicsView):
             if self._is_circular
             else QRectF(-(w - w / 2), -(h - h / 2), w, h)
         )
-
-    def mousePressEvent(self, event: QMouseEvent | None) -> None:
-        if event is None:
-            return
-        scene_pos = self.mapToScene(event.pos())
-        items = self.scene().items(scene_pos)
-        for item in items:
-            if pos := item.data(DATA_POSITION):
-                self.positionClicked.emit(pos)
-                break
-
-    def setWellSize(self, width_mm: float | None, height_mm: float | None) -> None:
-        """Set the well size width and height in mm."""
-        self._well_width_um = (width_mm * 1000) if width_mm else None
-        self._well_height_um = (height_mm * 1000) if height_mm else None
-        self.wellSizeSet.emit(width_mm, height_mm)
 
     def _draw_outlines(
         self, bounding_rect: QRectF | None = None
@@ -249,3 +239,13 @@ class WellView(ResizingGraphicsView):
     def _resize_to_fit(self) -> None:
         self.setSceneRect(self._scene.itemsBoundingRect())
         self.resizeEvent(None)
+
+    def mousePressEvent(self, event: QMouseEvent | None) -> None:
+        if event is not None:
+            scene_pos = self.mapToScene(event.pos())
+            print(scene_pos)
+            items = self.scene().items(scene_pos)
+            for item in items:
+                if pos := item.data(DATA_POSITION):
+                    self.positionClicked.emit(pos)
+                    break
