@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING, Iterable, Mapping
 
 import useq
 from PyQt6.QtGui import QMouseEvent
@@ -28,6 +28,8 @@ if TYPE_CHECKING:
 
 
 DATA_POSITION = 1
+DATA_INDEX = 2
+
 # in the WellPlateView, any item that merely posses a brush color of SELECTED_COLOR
 # IS a selected object.
 SELECTED_COLOR = Qt.GlobalColor.green
@@ -44,6 +46,8 @@ def _sort_plate(item: str) -> tuple[int, int | str]:
 
 class WellPlateView(ResizingGraphicsView):
     """QGraphicsView for displaying a well plate."""
+
+    selectionChanged = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         self._scene = QGraphicsScene()
@@ -91,6 +95,7 @@ class WellPlateView(ResizingGraphicsView):
                         else UNSELECTED_COLOR
                     )
                     item.setBrush(color)
+        self.selectionChanged.emit()
 
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
         if event and event.button() == Qt.MouseButton.LeftButton:
@@ -117,6 +122,7 @@ class WellPlateView(ResizingGraphicsView):
                     was_selected = self._pressed_item.brush().color() == SELECTED_COLOR
                     color = UNSELECTED_COLOR if was_selected else SELECTED_COLOR
                     self._pressed_item.setBrush(color)
+                    self.selectionChanged.emit()
                     break
 
         self._pressed_item = None
@@ -130,10 +136,21 @@ class WellPlateView(ResizingGraphicsView):
             item for item in self._well_items if item.brush().color() == SELECTED_COLOR
         ]
 
+    def selectedIndices(self) -> tuple[tuple[int, int], ...]:
+        """Return the indices of the selected wells."""
+        return tuple(item.data(DATA_INDEX) for item in self._selected_items())
+
+    def setSelectedIndices(self, indices: Iterable[tuple[int, int]]) -> None:
+        _indices = {tuple(idx) for idx in indices}
+        for item in self._well_items:
+            is_selected = item.data(DATA_INDEX) in _indices
+            item.setBrush(SELECTED_COLOR if is_selected else UNSELECTED_COLOR)
+
     def clearSelection(self) -> None:
         """Clear the current selection."""
         for item in self._selected_items():
             item.setBrush(UNSELECTED_COLOR)
+        self.selectionChanged.emit()
 
     def sizeHint(self) -> QSize:
         """Provide a reasonable size hint with aspect ratio of a well plate."""
@@ -164,12 +181,14 @@ class WellPlateView(ResizingGraphicsView):
         pen = QPen(Qt.GlobalColor.black)
         pen.setWidth(200)
 
+        indices = plan.all_well_indices.reshape(-1, 2)
         self.clearWells()
-        for pos in plan.all_well_positions:
+        for idx, pos in zip(indices, plan.all_well_positions):
             # invert y-axis for screen coordinates
             screen_x, screen_y = pos.x, -pos.y
             if item := add_item(well_rect.translated(screen_x, screen_y), pen):
                 item.setData(DATA_POSITION, pos)
+                item.setData(DATA_INDEX, tuple(idx))
                 self._well_items.append(item)
 
             # NOTE, we are *not* using the Qt selection model here due to
@@ -207,7 +226,11 @@ class PlateSelectorWidget(QWidget):
 
     valueChanged = Signal(object)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        plan: useq.WellPlatePlan | useq.WellPlate | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
 
         # well plate combobox
@@ -220,6 +243,7 @@ class PlateSelectorWidget(QWidget):
         self._clear_button.setAutoDefault(False)
 
         self.view = WellPlateView(self)
+        self.view.selectionChanged.connect(self._on_value_changed)
 
         # LAYOUT ---------------------------------------
 
@@ -241,6 +265,9 @@ class PlateSelectorWidget(QWidget):
         self.plate_name.currentTextChanged.connect(self._on_plate_name_changed)
         self.view.drawPlate(self.value())
 
+        if plan:
+            self.setValue(plan)
+
     # _________________________PUBLIC METHODS_________________________ #
 
     def value(self) -> useq.WellPlatePlan:
@@ -248,10 +275,10 @@ class PlateSelectorWidget(QWidget):
         return useq.WellPlatePlan(
             plate=self.plate_name.currentText(),
             a1_center_xy=(0, 0),
-            selected_wells=self.currentSelection(),
+            selected_wells=tuple(zip(*self.currentSelection())),
         )
 
-    def setValue(self, value: useq.WellPlatePlan | Mapping) -> None:
+    def setValue(self, value: useq.WellPlatePlan | useq.WellPlate | Mapping) -> None:
         """Set the current plate and the selected wells.
 
         Parameters
@@ -260,11 +287,20 @@ class PlateSelectorWidget(QWidget):
             The plate information to set containing the plate and the selected wells
             as a list of (name, row, column).
         """
+        if isinstance(value, useq.WellPlate):
+            value = useq.WellPlatePlan(plate=value, a1_center_xy=(0, 0))
         value = useq.WellPlatePlan.model_validate(value)
-        self.plate_name.setCurrentText(value.plate.name)
 
         if value.plate.name not in useq.registered_well_plate_keys():
-            ...  # consider how to deal with this
+            if not value.plate.name:
+                raise ValueError("Plate name must be provided.")
+            useq.register_well_plates({value.plate.name: value.plate})
+            self.plate_name.addItem(value.plate.name)
+
+        self.plate_name.setCurrentText(value.plate.name)
+
+        if value.selected_wells:
+            self.view.setSelectedIndices(value.selected_well_indices)
 
     def currentPlate(self) -> useq.WellPlate:
         return useq.WellPlate.from_str(self.plate_name.currentText())
@@ -274,8 +310,8 @@ class PlateSelectorWidget(QWidget):
             plate = plate.name or "Custom Plate"
         self.plate_name.setCurrentText(plate)
 
-    def currentSelection(self) -> IndexExpression:
-        return slice(0, 0)
+    def currentSelection(self) -> tuple[tuple[int, int], ...]:
+        return self.view.selectedIndices()
 
     def setCurrentSelection(self, selection: IndexExpression) -> None: ...
 
