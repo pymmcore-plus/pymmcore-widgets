@@ -28,6 +28,8 @@ if TYPE_CHECKING:
 
 
 DATA_POSITION = 1
+# in the WellPlateView, any item that merely posses a brush color of SELECTED_COLOR
+# IS a selected object.
 SELECTED_COLOR = Qt.GlobalColor.green
 UNSELECTED_COLOR = Qt.GlobalColor.transparent
 
@@ -54,14 +56,17 @@ class WellPlateView(ResizingGraphicsView):
         self.setDragMode(self.DragMode.RubberBandDrag)
         self.rubberBandChanged.connect(self._on_rubber_band_changed)
 
+        # all the graphics items that outline wells
         self._well_items: list[QAbstractGraphicsShapeItem] = []
+        # all the graphics items that label wells
         self._well_labels: list[QGraphicsItem] = []
+
         # item at the point where the mouse was pressed
         self._pressed_item: QAbstractGraphicsShapeItem | None = None
-        # whether option/alt or cmd/control key is pressed (respectively)
-        # at the time of the mouse press
+        # the set of selected items at the time of the mouse press
+        self._selection_on_press: set[QAbstractGraphicsShapeItem] = set()
+        # whether option/alt is pressed at the time of the mouse press
         self._is_removing = False
-        self._is_adding = False
 
     def _on_rubber_band_changed(self, rect: QRect) -> None:
         """When the rubber band changes, select the items within the rectangle."""
@@ -70,12 +75,7 @@ class WellPlateView(ResizingGraphicsView):
             return
 
         # all scene items within the rubber band
-        bounded_items = self._scene.items(
-            self.mapToScene(rect).boundingRect(),
-            # this mode means that circular wells will be selected even if the rubber
-            # band is only on the "corners" of the well (not sure if this is the best)
-            Qt.ItemSelectionMode.IntersectsItemBoundingRect,
-        )
+        bounded_items = self._scene.items(self.mapToScene(rect).boundingRect())
 
         for item in self._scene.items():
             if isinstance(item, QAbstractGraphicsShapeItem):
@@ -83,57 +83,67 @@ class WellPlateView(ResizingGraphicsView):
                     item.setBrush(
                         UNSELECTED_COLOR if self._is_removing else SELECTED_COLOR
                     )
-                # elif not (self._is_adding or self._is_removing):
-                #     item.setBrush(UNSELECTED_COLOR)
+                else:
+                    # if the item is not in the rubber band, keep its previous state
+                    color = (
+                        SELECTED_COLOR
+                        if item in self._selection_on_press
+                        else UNSELECTED_COLOR
+                    )
+                    item.setBrush(color)
 
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
         if event and event.button() == Qt.MouseButton.LeftButton:
+            # store the state of selected items at the time of the mouse press
+            self._selection_on_press = set(self._selected_items())
+
             # when the cmd/control key is pressed, add to the selection
-            if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-                self._is_adding = True
-            elif event.modifiers() & Qt.KeyboardModifier.AltModifier:
+            if event.modifiers() & Qt.KeyboardModifier.AltModifier:
                 self._is_removing = True
 
+            # store the item at the point where the mouse was pressed
             for item in self.items(event.pos()):
                 if isinstance(item, QAbstractGraphicsShapeItem):
                     self._pressed_item = item
                     break
-        return super().mousePressEvent(event)
+        super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent | None) -> None:
         if event and event.button() == Qt.MouseButton.LeftButton:
+            # if we are on the same item that we pressed,
+            # toggle selection of that item
             for item in self.items(event.pos()):
                 if item == self._pressed_item:
                     was_selected = self._pressed_item.brush().color() == SELECTED_COLOR
                     color = UNSELECTED_COLOR if was_selected else SELECTED_COLOR
                     self._pressed_item.setBrush(color)
                     break
-            # clear selection if no item was clicked
-            # FIXME: this is good, but needs to play better with the mouse release
-            # event of the rubber band selection
-            # else:
-            #     for item in self._selected_items():
-            #         item.setBrush(UNSELECTED_COLOR)
-        self._is_adding = False
+
+        self._pressed_item = None
         self._is_removing = False
-        return super().mouseReleaseEvent(event)
+        self._selection_on_press.clear()
+        super().mouseReleaseEvent(event)
 
     def _selected_items(self) -> list[QAbstractGraphicsShapeItem]:
+        # perhaps oddly (?) our selection model is based on brush color state.
         return [
             item for item in self._well_items if item.brush().color() == SELECTED_COLOR
         ]
 
     def clearSelection(self) -> None:
+        """Clear the current selection."""
         for item in self._selected_items():
             item.setBrush(UNSELECTED_COLOR)
 
     def sizeHint(self) -> QSize:
+        """Provide a reasonable size hint with aspect ratio of a well plate."""
         aspect = 1.5
         width = 600
         height = int(width // aspect)
         return QSize(width, height)
 
     def drawPlate(self, plate: useq.WellPlate | useq.WellPlatePlan) -> None:
+        """Draw the well plate on the view."""
         if isinstance(plate, useq.WellPlatePlan):
             plan = plate
         else:
@@ -227,7 +237,7 @@ class PlateSelectorWidget(QWidget):
 
         # connect
         # self.scene.valueChanged.connect(self._on_value_changed)
-        # self._clear_button.clicked.connect(self.scene._clear_selection)
+        self._clear_button.clicked.connect(self.view.clearSelection)
         self.plate_name.currentTextChanged.connect(self._on_plate_name_changed)
         self.view.drawPlate(self.value())
 
