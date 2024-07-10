@@ -9,7 +9,7 @@ from pymmcore_widgets.useq_widgets.points_plans import RelativePointPlanSelector
 from ._well_graphics_view import WellView
 
 
-class FOVSelectorWidget(QWidget):
+class PointsPlanWidget(QWidget):
     """Widget to select the FOVVs per well of the plate."""
 
     valueChanged = Signal(object)

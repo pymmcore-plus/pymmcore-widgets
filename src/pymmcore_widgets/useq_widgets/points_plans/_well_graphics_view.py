@@ -9,7 +9,7 @@ from qtpy.QtGui import QColor, QPainter, QPen
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsScene, QWidget
 from useq import Shape
 
-from pymmcore_widgets.hcs._util import ResizingGraphicsView
+from pymmcore_widgets._util import ResizingGraphicsView
 
 if TYPE_CHECKING:
     from PyQt6.QtGui import QMouseEvent
