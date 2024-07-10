@@ -15,14 +15,13 @@ if TYPE_CHECKING:
     from PyQt6.QtGui import QMouseEvent
 
 DATA_POSITION = 1
-DATA_POSITION_INDEX = 2
 
 
 class WellView(ResizingGraphicsView):
     """Graphics view to draw a well and the FOVs."""
 
     maxPointsDetected = Signal(int)
-    positionClicked = Signal(int, object)
+    positionClicked = Signal(object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         self._scene = QGraphicsScene()
@@ -76,8 +75,8 @@ class WellView(ResizingGraphicsView):
         scene_pos = self.mapToScene(event.pos())
         items = self.scene().items(scene_pos)
         for item in items:
-            if idx := item.data(DATA_POSITION_INDEX):
-                self.positionClicked.emit(idx, item.data(DATA_POSITION))
+            if pos := item.data(DATA_POSITION):
+                self.positionClicked.emit(pos)
                 break
 
     def setWellSize(self, width_mm: float | None, height_mm: float | None) -> None:
@@ -87,14 +86,9 @@ class WellView(ResizingGraphicsView):
 
     def _well_rect(self) -> QRectF:
         """Return the QRectF of the well area."""
-        if not self._well_width_um or not self._well_height_um:
+        if not (ww := self._well_width_um) or not (wh := self._well_height_um):
             return QRectF()
-        return QRectF(
-            -self._well_width_um / 2,
-            -self._well_height_um / 2,
-            self._well_width_um,
-            self._well_height_um,
-        )
+        return QRectF(-ww / 2, -wh / 2, ww, wh)
 
     def _draw_outline(self) -> None:
         """Draw the outline of the well area."""
@@ -125,6 +119,7 @@ class WellView(ResizingGraphicsView):
         half_fov_height = self._fov_height_um / 2
 
         # constrain random points to our own well size, regardless of the plan settings
+        # XXX: this may not always be what we want...
         if isinstance(plan, useq.RandomPoints):
             kwargs = {}
             ww = self._well_width_um or (self._fov_width_um * 25)
@@ -140,9 +135,10 @@ class WellView(ResizingGraphicsView):
 
         # iterate over the plan greedily, catching any warnings
         # and then alert the model if we didn't get all the points
-        # XXX: I'm not sure about this pattern... feels like the model should be
-        # able to handle this itself, but this is perhaps the only place we actually
-        # iterate over the plan
+        # TODO: I think this logic should somehow be on the RandomPointsWidget itself
+        # however, because we add additional information above about max_width, etc
+        # the RandomPointsWidget doesn't have all the information it needs ...
+        # so we need to refactor this a bit
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             points = list(plan)
@@ -152,27 +148,30 @@ class WellView(ResizingGraphicsView):
         # draw the FOVs, and a connecting line
         last_p: useq.RelativePosition | None = None
         for i, pos in enumerate(points):
-            pos.y *= -1  # invert y for screen coordinates
+            screen_x = pos.x
+            screen_y = -pos.y  # invert y for screen coordinates
             if i == 0:
                 pen.setColor(QColor(Qt.GlobalColor.black))
             else:
                 pen.setColor(QColor(Qt.GlobalColor.white))
             item = self._scene.addRect(
-                pos.x - half_fov_width,
-                pos.y - half_fov_height,
+                screen_x - half_fov_width,
+                screen_y - half_fov_height,
                 self._fov_width_um,
                 self._fov_height_um,
                 pen,
             )
             if item:
                 item.setData(DATA_POSITION, pos)
-                item.setData(DATA_POSITION_INDEX, i)
                 item.setZValue(100 if i == 0 else 0)
                 self._fov_items.append(item)
+
             # draw a line from the last point to this one
             if i > 0 and last_p:
                 self._fov_items.append(
-                    self._scene.addLine(last_p.x, last_p.y, pos.x, pos.y, line_pen)
+                    self._scene.addLine(
+                        last_p.x, -last_p.y, screen_x, screen_y, line_pen
+                    )
                 )
             last_p = pos
 

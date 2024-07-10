@@ -51,8 +51,7 @@ class FOVSelectorWidget(QWidget):
     def _on_view_max_points_detected(self, value: int) -> None:
         self.selector.random_points_wdg.num_points.setValue(value)
 
-    def _on_view_position_clicked(
-        self, index: int, position: useq.RelativePosition
-    ) -> None:
+    def _on_view_position_clicked(self, position: useq.RelativePosition) -> None:
         if self.selector.active_plan_type is useq.RandomPoints:
-            self.selector.random_points_wdg.start_at = position.replace(name=None)
+            pos_no_name = position.model_copy(update={"name": ""})
+            self.selector.random_points_wdg.start_at = pos_no_name
