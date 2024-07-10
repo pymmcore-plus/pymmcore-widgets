@@ -123,8 +123,9 @@ class RelativePointPlanSelector(QWidget):
             grpbx = QGroupBox()
             # make a click on the groupbox act as a click on the button
             grpbx.mousePressEvent = lambda _, b=btn: b.setChecked(True)
-            grpbx.setLayout(QVBoxLayout())
-            grpbx.layout().addWidget(wdg)
+            grpbx_layout = QVBoxLayout(grpbx)
+            grpbx_layout.setContentsMargins(4, 6, 4, 6)
+            grpbx_layout.addWidget(wdg)
 
             layout = QHBoxLayout()
             layout.setContentsMargins(0, 0, 0, 0)
