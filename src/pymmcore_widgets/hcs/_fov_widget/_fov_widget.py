@@ -27,8 +27,8 @@ class FOVSelectorWidget(QWidget):
 
         # main
         layout = QHBoxLayout(self)
-        layout.addWidget(self.selector)
-        layout.addWidget(self.well_view)
+        layout.addWidget(self.selector, 1)
+        layout.addWidget(self.well_view, 2)
 
         # connect
         self.selector.valueChanged.connect(self._on_selector_value_changed)
@@ -39,6 +39,7 @@ class FOVSelectorWidget(QWidget):
         if plan is not None:
             self.setValue(plan)
 
+        # init the view with the current well size
         self._on_view_well_size_set(
             self.well_view._well_width_um, self.well_view._well_height_um
         )
@@ -48,6 +49,9 @@ class FOVSelectorWidget(QWidget):
 
     def setValue(self, plan: useq.RelativeMultiPointPlan) -> None:
         self.selector.setValue(plan)
+
+    def setWellSize(self, width: float | None, height: float | None) -> None:
+        self.well_view.setWellSize(width, height)
 
     def _on_selector_value_changed(self, value: useq.RelativeMultiPointPlan) -> None:
         self.well_view.setPointsPlan(value)
@@ -62,5 +66,13 @@ class FOVSelectorWidget(QWidget):
             self.selector.random_points_wdg.start_at = pos_no_name
 
     def _on_view_well_size_set(self, width: float | None, height: float | None) -> None:
-        self.selector.random_points_wdg.max_width.setMaximum(width or 1000000)
-        self.selector.random_points_wdg.max_height.setMaximum(height or 1000000)
+        """Set the max width and height of the random points widget and update the view.
+
+        Note: width and height are in mm.
+        """
+        w = width * 1000 if width is not None else None
+        h = height * 1000 if height is not None else None
+        self.selector.random_points_wdg.max_width.setMaximum(w or 1000000)
+        self.selector.random_points_wdg.max_height.setMaximum(h or 1000000)
+        # update the view
+        self._on_selector_value_changed(self.value())
