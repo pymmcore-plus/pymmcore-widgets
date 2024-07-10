@@ -217,6 +217,11 @@ def test_set_well_area(qtbot: QtBot) -> None:
     assert wdg.value().max_width == 3000
     assert wdg.value().max_height == 3000
 
+    with qtbot.waitSignal(wdg._well_view.wellSizeSet):
+        wdg.setWellSize(None, None)
+    assert wdg._well_view._outline_item is None
+    assert wdg._well_view._bounding_area is None
+
 
 def test_restricted_area(qtbot: QtBot) -> None:
     wdg = pp.PointsPlanWidget()
