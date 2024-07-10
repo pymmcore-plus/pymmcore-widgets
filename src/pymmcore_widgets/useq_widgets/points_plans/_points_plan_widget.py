@@ -10,7 +10,24 @@ from ._well_graphics_view import WellView
 
 
 class PointsPlanWidget(QWidget):
-    """Widget to select the FOVVs per well of the plate."""
+    """Widget to select the FOVVs per well of the plate.
+
+    This widget allows the user to select the number of FOVs per well, (or to generally
+    show a multi-point plan, such as a grid or random points plan, even if not within
+    the context of a well plate.)
+
+    The value() method returns the selected plan, one of:
+        - [useq.GridRowsColumns][]
+        - [useq.RandomPoints][]
+        - [useq.RelativePosition][]
+
+    Parameters
+    ----------
+    plan : useq.RelativeMultiPointPlan | None
+        The useq MultiPoint plan to display and edit.
+    parent : QWidget | None
+        The parent widget.
+    """
 
     valueChanged = Signal(object)
 
