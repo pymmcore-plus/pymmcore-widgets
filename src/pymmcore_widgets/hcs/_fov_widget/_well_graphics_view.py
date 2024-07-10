@@ -22,6 +22,7 @@ class WellView(ResizingGraphicsView):
 
     maxPointsDetected = Signal(int)
     positionClicked = Signal(object)
+    wellSizeSet = Signal(object, object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         self._scene = QGraphicsScene()
@@ -42,6 +43,8 @@ class WellView(ResizingGraphicsView):
 
         # the item that draws the outline of the entire well area
         self._outline_item: QGraphicsItem | None = None
+        # the item that defines the bounding area to constrain the FOVs
+        self._bounding_area: QGraphicsItem | None = None
         # all of the rectangles representing the FOVs
         self._fov_items: list[QGraphicsItem] = []
 
@@ -63,11 +66,33 @@ class WellView(ResizingGraphicsView):
         if isinstance(plan, useq.RandomPoints):
             self._is_circular = plan.shape == Shape.ELLIPSE
 
+            # WELL BOUNDING AREA
+            boundig_area = self._get_bounding_area(plan)
+            self._bounding_area = self._draw_outlines(boundig_area)
+
+        elif self._bounding_area:
+            self._scene.removeItem(self._bounding_area)
+
         # WELL OUTLINE
-        self._draw_outline()
+        self._outline_item = self._draw_outlines()
 
         # DRAW FOVS
         self._draw_fovs(plan)
+
+    def _get_bounding_area(self, plan: useq.RelativeMultiPointPlan) -> QRectF:
+        """Return the bounding area to constrain the FOVs."""
+        if self._well_height_um is None or self._well_width_um is None:
+            return QRectF()
+        w, h = plan.max_width, plan.max_height
+        # constrain the bounding area to the well size if max_width or max_height is
+        # larger than the well size
+        w = min(w, self._well_width_um)
+        h = min(h, self._well_height_um)
+        return (
+            QRectF(-w / 2, -h / 2, w, h)
+            if self._is_circular
+            else QRectF(-(w - w / 2), -(h - h / 2), w, h)
+        )
 
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
         if event is None:
@@ -83,6 +108,7 @@ class WellView(ResizingGraphicsView):
         """Set the well size width and height in mm."""
         self._well_width_um = (width_mm * 1000) if width_mm else None
         self._well_height_um = (height_mm * 1000) if height_mm else None
+        self.wellSizeSet.emit(width_mm, height_mm)
 
     def _well_rect(self) -> QRectF:
         """Return the QRectF of the well area."""
@@ -90,20 +116,40 @@ class WellView(ResizingGraphicsView):
             return QRectF()
         return QRectF(-ww / 2, -wh / 2, ww, wh)
 
-    def _draw_outline(self) -> None:
-        """Draw the outline of the well area."""
-        if self._outline_item:
-            self._scene.removeItem(self._outline_item)
-        if (rect := self._well_rect()).isNull():
-            return
+    def _bounding_rect(self) -> QRectF:
+        """Return the QRectF of the bounding area."""
+        return self._bounding_area.boundingRect() if self._bounding_area else QRectF()
 
+    def _draw_outlines(
+        self, bounding_rect: QRectF | None = None
+    ) -> QGraphicsItem | None:
+        """Draw the outline of the well or the bounding area to constrain the FOVs."""
         pen = QPen(QColor(Qt.GlobalColor.green))
         pen.setWidth(self._scaled_pen_size())
-        if self._is_circular:
-            self._outline_item = self._scene.addEllipse(rect, pen=pen)
+
+        # clear the scene from the correct item
+        if bounding_rect is None:
+            # remove the well outline if it exists
+            if self._outline_item:
+                self._scene.removeItem(self._outline_item)
         else:
-            self._outline_item = self._scene.addRect(rect, pen=pen)
-        self._resize_to_fit()
+            # set the pen style to dotted if we are drawing the bounding area
+            pen.setStyle(Qt.PenStyle.DotLine)
+            # remove the bounding area if it exists
+            if self._bounding_area:
+                self._scene.removeItem(self._bounding_area)
+
+        # set the correct rect to draw
+        rect = bounding_rect if bounding_rect is not None else self._well_rect()
+
+        if rect.isNull():
+            return None
+
+        return (
+            self._scene.addEllipse(rect, pen=pen)
+            if self._is_circular
+            else self._scene.addRect(rect, pen=pen)
+        )
 
     def _resize_to_fit(self) -> None:
         self.setSceneRect(self._scene.itemsBoundingRect())
@@ -118,14 +164,26 @@ class WellView(ResizingGraphicsView):
         half_fov_width = self._fov_width_um / 2
         half_fov_height = self._fov_height_um / 2
 
-        # constrain random points to our own well size, regardless of the plan settings
-        # XXX: this may not always be what we want...
+        # constrain random points to our own well size.
+        # if the well_width_um or well_height_um is not set, we use an arbitrary value.
+        # if it is set and the plan's max_width or max_height is larger, we use the well
+        # size instead.
         if isinstance(plan, useq.RandomPoints):
-            kwargs = {}
-            ww = self._well_width_um or (self._fov_width_um * 25)
-            kwargs["max_width"] = ww - half_fov_width * 1.4
-            wh = self._well_height_um or (self._fov_height_um * 25)
-            kwargs["max_height"] = wh - half_fov_height * 1.4
+            # arbitrary default values if well size is not set
+            default_max_width = (self._fov_width_um * 25) - half_fov_width * 1.4
+            default_max_height = (self._fov_height_um * 25) - half_fov_height * 1.4
+            kwargs = {
+                "max_width": (
+                    min(plan.max_width, self._well_width_um)
+                    if self._well_width_um is not None
+                    else default_max_width
+                ),
+                "max_height": (
+                    min(plan.max_height, self._well_height_um)
+                    if self._well_height_um is not None
+                    else default_max_height
+                ),
+            }
             plan = plan.replace(**kwargs)
 
         pen = QPen(Qt.GlobalColor.white)
@@ -154,14 +212,13 @@ class WellView(ResizingGraphicsView):
                 pen.setColor(QColor(Qt.GlobalColor.black))
             else:
                 pen.setColor(QColor(Qt.GlobalColor.white))
-            item = self._scene.addRect(
+            if item := self._scene.addRect(
                 screen_x - half_fov_width,
                 screen_y - half_fov_height,
                 self._fov_width_um,
                 self._fov_height_um,
                 pen,
-            )
-            if item:
+            ):
                 item.setData(DATA_POSITION, pos)
                 item.setZValue(100 if i == 0 else 0)
                 self._fov_items.append(item)

@@ -34,9 +34,14 @@ class FOVSelectorWidget(QWidget):
         self.selector.valueChanged.connect(self._on_selector_value_changed)
         self.well_view.maxPointsDetected.connect(self._on_view_max_points_detected)
         self.well_view.positionClicked.connect(self._on_view_position_clicked)
+        self.well_view.wellSizeSet.connect(self._on_view_well_size_set)
 
         if plan is not None:
             self.setValue(plan)
+
+        self._on_view_well_size_set(
+            self.well_view._well_width_um, self.well_view._well_height_um
+        )
 
     def value(self) -> useq.RelativeMultiPointPlan:
         return self.selector.value()
@@ -55,3 +60,7 @@ class FOVSelectorWidget(QWidget):
         if self.selector.active_plan_type is useq.RandomPoints:
             pos_no_name = position.model_copy(update={"name": ""})
             self.selector.random_points_wdg.start_at = pos_no_name
+
+    def _on_view_well_size_set(self, width: float | None, height: float | None) -> None:
+        self.selector.random_points_wdg.max_width.setMaximum(width or 1000000)
+        self.selector.random_points_wdg.max_height.setMaximum(height or 1000000)
