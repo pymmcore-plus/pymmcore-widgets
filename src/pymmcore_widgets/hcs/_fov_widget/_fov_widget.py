@@ -27,8 +27,8 @@ class FOVSelectorWidget(QWidget):
 
         # main
         layout = QHBoxLayout(self)
-        layout.addWidget(self.selector)
-        layout.addWidget(self.well_view)
+        layout.addWidget(self.selector, 1)
+        layout.addWidget(self.well_view, 2)
 
         # connect
         self.selector.valueChanged.connect(self._on_selector_value_changed)

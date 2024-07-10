@@ -45,6 +45,16 @@ class RelativePositionWidget(QWidget):
         pass
 
 
+class _FovWidget(QDoubleSpinBox):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setSpecialValueText("--")
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setRange(0, 100000)
+        self.setValue(200)
+        self.setSingleStep(10)
+
+
 class RelativePointPlanSelector(QWidget):
     """Widget to select a relative multi-position point plan.
 
@@ -85,16 +95,8 @@ class RelativePointPlanSelector(QWidget):
         self._mode_btn_group.addButton(self.random_radio_btn)
         self._mode_btn_group.addButton(self.grid_radio_btn)
 
-        self.fov_w = QDoubleSpinBox()
-        self.fov_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.fov_w.setRange(1, 10000)
-        self.fov_w.setValue(200)
-        self.fov_w.setSingleStep(10)
-        self.fov_h = QDoubleSpinBox()
-        self.fov_h.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.fov_h.setRange(1, 10000)
-        self.fov_h.setValue(200)
-        self.fov_h.setSingleStep(10)
+        self.fov_w = _FovWidget()
+        self.fov_h = _FovWidget()
 
         # CONNECTIONS ----------------------
 
@@ -150,8 +152,12 @@ class RelativePointPlanSelector(QWidget):
         return self._active_plan_type
 
     def value(self) -> useq.RelativeMultiPointPlan:
+        # the fov_w/h values are global to all plans
         return self._active_plan_widget.value().model_copy(
-            update={"fov_width": self.fov_w.value(), "fov_height": self.fov_h.value()}
+            update={
+                "fov_width": self.fov_w.value() or None,
+                "fov_height": self.fov_h.value() or None,
+            }
         )
 
     def setValue(self, plan: useq.RelativeMultiPointPlan) -> None:
@@ -177,8 +183,8 @@ class RelativePointPlanSelector(QWidget):
                 self.single_radio_btn.setChecked(True)
             else:  # pragma: no cover
                 raise ValueError(f"Invalid plan type: {type(plan)}")
-            self.fov_h.setValue(plan.fov_height or 100)
-            self.fov_w.setValue(plan.fov_width or 100)
+            self.fov_h.setValue(plan.fov_height or 0)
+            self.fov_w.setValue(plan.fov_width or 0)
         self._on_value_changed()
 
     # _________________________PRIVATE METHODS_________________________ #
