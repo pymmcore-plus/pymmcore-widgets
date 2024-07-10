@@ -99,7 +99,7 @@ class WellView(ResizingGraphicsView):
         return (
             QRectF(-w / 2, -h / 2, w, h)
             if self._is_circular
-            else QRectF(-(w - w / 2), -(h - h / 2), w, h)
+            else QRectF(-(w - (w / 2)), -(h - (h / 2)), w, h)
         )
 
     def _draw_outlines(

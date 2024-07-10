@@ -153,8 +153,8 @@ def test_clicking_point_changes_first_position(qtbot: QtBot) -> None:
         random_seed=0,
         fov_width=500,
         fov_height=500,
-        max_width=1000,
-        max_height=1000,
+        max_width=5000,
+        max_height=5000,
     )
     wdg = pp.PointsPlanWidget(plan)
     wdg.show()
@@ -177,8 +177,8 @@ def test_clicking_point_changes_first_position(qtbot: QtBot) -> None:
     assert isinstance(new_val.start_at, useq.RelativePosition)
     rounded = round(new_val.start_at)
     # feel free to relax this if it ever fails tests
-    assert rounded.x == 122
-    assert rounded.y == -50
+    assert rounded.x == 108
+    assert rounded.y == -44
 
 
 def test_max_points_detected(qtbot: QtBot) -> None:
@@ -199,3 +199,42 @@ def test_max_points_detected(qtbot: QtBot) -> None:
         wdg._selector.random_points_wdg.num_points.setValue(100)
 
     assert wdg.value().num_points < 60
+
+
+def test_set_well_area(qtbot: QtBot) -> None:
+    wdg = pp.PointsPlanWidget()
+
+    with qtbot.waitSignal(wdg._well_view.wellSizeSet):
+        wdg.setWellSize(3, 3)
+    assert wdg._selector.random_points_wdg.max_width.maximum() == 3000
+    assert wdg._selector.random_points_wdg.max_height.maximum() == 3000
+
+    plan = RandomPoints(
+        num_points=20, fov_width=500, fov_height=500, max_width=4000, max_height=4000
+    )
+    wdg.setValue(plan)
+    # max_width and max_height should be capped at 3000
+    assert wdg.value().max_width == 3000
+    assert wdg.value().max_height == 3000
+
+
+def test_restricted_area(qtbot: QtBot) -> None:
+    wdg = pp.PointsPlanWidget()
+    wdg.show()
+
+    wdg.setWellSize(3, 3)
+    plan = RandomPoints(
+        num_points=20, fov_width=200, fov_height=300, max_width=1500, max_height=1000
+    )
+    wdg.setValue(plan)
+
+    well_rect = wdg._well_view._outline_item.sceneBoundingRect()
+    bounding_rect = wdg._well_view._bounding_area.sceneBoundingRect()
+
+    # both rects should have the same center
+    assert well_rect.center() == bounding_rect.center()
+    offset = 20  # ofset automatically added when using addEllipse
+    # bounding rect should be 1/2 the size of the well rect in width
+    assert well_rect.width() - offset == (bounding_rect.width() - offset) * 2
+    # bounding rect should be 1/3 the size of the well rect in height
+    assert well_rect.height() - offset == (bounding_rect.height() - offset) * 3
