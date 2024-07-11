@@ -199,7 +199,7 @@ class ResizingGraphicsView(QGraphicsView):
         super().__init__(scene, parent)
         self.padding = 0.05  # fraction of the bounding rect
 
-    def resizeEvent(self, event: QResizeEvent) -> None:
+    def resizeEvent(self, event: QResizeEvent | None) -> None:
         if not (scene := self.scene()):
             return
         rect = scene.itemsBoundingRect()
