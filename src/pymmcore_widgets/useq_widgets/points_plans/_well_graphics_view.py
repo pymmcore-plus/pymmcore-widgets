@@ -30,9 +30,8 @@ class WellView(ResizingGraphicsView):
     maxPointsDetected = Signal(int)
     # emitted when a position is clicked, the value is a useq.RelativePosition
     positionClicked = Signal(object)
-    wellSizeSet = Signal(object, object)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None):
         self._scene = QGraphicsScene()
 
         super().__init__(self._scene, parent)
@@ -43,10 +42,10 @@ class WellView(ResizingGraphicsView):
 
         # the scene coordinates are all real-world coordinates, in µm
         # with the origin at the center of the view (0, 0)
-        self._well_width_um: float | None = 6000
-        self._well_height_um: float | None = 6000
-        self._fov_width_um: float | None = 400
-        self._fov_height_um: float | None = 340
+        self._well_width_um: float | None = None
+        self._well_height_um: float | None = None
+        self._fov_width_um: float | None = None
+        self._fov_height_um: float | None = None
         self._is_circular: bool = False
 
         # the item that draws the outline of the entire well area
@@ -65,7 +64,6 @@ class WellView(ResizingGraphicsView):
         """Set the well size width and height in mm."""
         self._well_width_um = (width_mm * 1000) if width_mm else None
         self._well_height_um = (height_mm * 1000) if height_mm else None
-        self.wellSizeSet.emit(width_mm, height_mm)
 
     def setPointsPlan(self, plan: useq.RelativeMultiPointPlan) -> None:
         """Set the plan to use to draw the FOVs."""
@@ -74,7 +72,7 @@ class WellView(ResizingGraphicsView):
         if hasattr(plan, "shape") and isinstance(plan.shape, Shape):
             self._is_circular = plan.shape == Shape.ELLIPSE
 
-        # WELL BOUNDING AREA
+        # FOV CONSTRAIN AREA
         if isinstance(plan, useq.RandomPoints):
             self._draw_fov_constrain_area(plan.max_width, plan.max_height)
         elif self._fov_constrain_area_item:
@@ -105,6 +103,9 @@ class WellView(ResizingGraphicsView):
         """Draw the bounding area to constrain the FOVs."""
         if self._fov_constrain_area_item:
             self._scene.removeItem(self._fov_constrain_area_item)
+
+        if self._well_width_um is None or self._well_height_um is None:
+            return
 
         # bounding area to constrain the FOVs
         rect = (
