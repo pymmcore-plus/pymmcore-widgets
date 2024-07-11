@@ -17,6 +17,7 @@ INIT_PLAN = useq.RandomPoints(
     shape="ellipse",
     allow_overlap=False,
 )
+INIT_WELL_SIZE = 6
 
 
 class PointsPlanWidget(QWidget):
@@ -53,14 +54,17 @@ class PointsPlanWidget(QWidget):
     ) -> None:
         super().__init__(parent=parent)
 
-        self._well_width_µm: float | None
-        self._well_height_µm: float | None
+        # well size
+        wdt: float | None
+        hgt: float | None
         if isinstance(well_size, tuple):
-            self._well_width_µm, self._well_height_µm = (ws * 1000 for ws in well_size)
+            wdt, hgt = well_size
         elif isinstance(well_size, (int, float)):
-            self._well_width_µm = self._well_height_µm = well_size * 1000
+            wdt = hgt = well_size
         else:
-            self._well_width_µm = self._well_height_µm = None
+            wdt = hgt = None
+        self._well_width_µm: float | None = wdt * 1000 if wdt is not None else None
+        self._well_height_µm: float | None = hgt * 1000 if hgt is not None else None
 
         self._selector = RelativePointPlanSelector()
         # graphics scene to draw the well and the fovs
@@ -80,7 +84,7 @@ class PointsPlanWidget(QWidget):
         self.setValue(plan or INIT_PLAN)
 
         # init the view with the current well size
-        self.setWellSize(self._well_width_µm or 6, self._well_height_µm or 6)
+        self.setWellSize(wdt or INIT_WELL_SIZE, hgt or INIT_WELL_SIZE)
 
     def value(self) -> useq.RelativeMultiPointPlan:
         """Return the selected plan."""
@@ -118,6 +122,10 @@ class PointsPlanWidget(QWidget):
         # update the visual items in view if the current plan is a random points plan
         if self._selector.active_plan_type is useq.RandomPoints:
             self._on_selector_value_changed(self.value())
+
+        print(width)
+        print(w)
+        print(self._selector.random_points_wdg.max_width.maximum())
 
     def _on_selector_value_changed(self, value: useq.RelativeMultiPointPlan) -> None:
         self._well_view.setPointsPlan(value)
