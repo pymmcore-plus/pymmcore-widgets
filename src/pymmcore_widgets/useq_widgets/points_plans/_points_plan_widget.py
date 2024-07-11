@@ -56,10 +56,32 @@ class PointsPlanWidget(QWidget):
             self.setValue(plan)
 
     def value(self) -> useq.RelativeMultiPointPlan:
+        """Return the selected plan."""
         return self._selector.value()
 
     def setValue(self, plan: useq.RelativeMultiPointPlan) -> None:
+        """Set the current plan."""
         self._selector.setValue(plan)
+
+    def setWellSize(
+        self, width: float | None = None, height: float | None = None
+    ) -> None:
+        """Set the well size width and/or height in mm."""
+        self._well_view.setWellSize(width, height)
+
+    def setWellShape(self, shape: useq.Shape | str) -> None:
+        """Set the shape of the well.
+
+        Can be a `useq.Shape` enum or the strings "circle", "ellipse",
+        "square", or "rectangle".
+        """
+        if isinstance(shape, str):
+            if shape.lower() == "circle":
+                shape = useq.Shape.ELLIPSE
+            elif shape.lower() == "square":
+                shape = useq.Shape.RECTANGLE
+        shape = useq.Shape(shape)
+        self._well_view.setWellCircular(shape == useq.Shape.ELLIPSE)
 
     def _on_selector_value_changed(self, value: useq.RelativeMultiPointPlan) -> None:
         self._well_view.setPointsPlan(value)

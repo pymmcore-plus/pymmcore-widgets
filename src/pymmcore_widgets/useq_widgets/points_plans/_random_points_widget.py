@@ -42,13 +42,13 @@ class RandomPointWidget(QWidget):
         self.max_width = QDoubleSpinBox()
         self.max_width.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.max_width.setRange(1, 1000000)
-        self.max_width.setValue(1000)
+        self.max_width.setValue(6000)
         self.max_width.setStepType(QDoubleSpinBox.StepType.AdaptiveDecimalStepType)
         # well area doublespinbox along y
         self.max_height = QDoubleSpinBox()
         self.max_height.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.max_height.setRange(1, 1000000)
-        self.max_height.setValue(1000)
+        self.max_height.setValue(6000)
         self.max_height.setStepType(QDoubleSpinBox.StepType.AdaptiveDecimalStepType)
         # number of FOVs spinbox
         self.num_points = QSpinBox()
