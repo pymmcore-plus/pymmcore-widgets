@@ -12,9 +12,7 @@ with suppress(ImportError):
 app = QApplication([])
 
 plan = useq.WellPlatePlan(
-    plate=useq.WellPlate(rows=8, columns=8, well_spacing=6, well_size=4, name="test"),
-    a1_center_xy=(0, 0),
-    selected_wells=slice(0, 8, 2),
+    plate="24-well", a1_center_xy=(0, 0), selected_wells=slice(0, 8, 2)
 )
 
 ps = WellPlateWidget(plan)

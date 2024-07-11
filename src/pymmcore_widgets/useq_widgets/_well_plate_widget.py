@@ -24,7 +24,7 @@ from pymmcore_widgets._util import ResizingGraphicsView
 if TYPE_CHECKING:
     from qtpy.QtGui import QMouseEvent
 
-    Index = int | list[int] | slice
+    Index = int | list[int] | tuple[int] | slice
     IndexExpression = tuple[Index, ...] | Index
 
 
@@ -321,19 +321,17 @@ class WellPlateView(ResizingGraphicsView):
             self._scene.removeItem(self._well_labels.pop())
         self.clearSelection()
 
-    def drawPlate(self, plate: useq.WellPlate | useq.WellPlatePlan) -> None:
+    def drawPlate(self, plan: useq.WellPlate | useq.WellPlatePlan) -> None:
         """Draw the well plate on the view.
 
         Parameters
         ----------
-        plate : useq.WellPlate | useq.WellPlatePlan
-            The well plate to draw. If a WellPlate is provided, the plate is drawn
+        plan : useq.WellPlate | useq.WellPlatePlan
+            The WellPlatePlan to draw. If a WellPlate is provided, the plate is drawn
             with no selected wells.
         """
-        if isinstance(plate, useq.WellPlatePlan):
-            plan = plate
-        else:
-            plan = useq.WellPlatePlan(a1_center_xy=(0, 0), plate=plate)
+        if isinstance(plan, useq.WellPlate):  # pragma: no cover
+            plan = useq.WellPlatePlan(a1_center_xy=(0, 0), plate=plan)
 
         well_width = plan.plate.well_size[0] * 1000
         well_height = plan.plate.well_size[1] * 1000
@@ -358,7 +356,7 @@ class WellPlateView(ResizingGraphicsView):
             rect = well_rect.translated(screen_x, screen_y)
             if item := add_item(rect, pen):
                 item.setData(DATA_POSITION, pos)
-                item.setData(DATA_INDEX, tuple(idx))
+                item.setData(DATA_INDEX, tuple(idx.tolist()))
                 if plan.rotation:
                     item.setTransformOriginPoint(rect.center())
                     item.setRotation(-plan.rotation)
