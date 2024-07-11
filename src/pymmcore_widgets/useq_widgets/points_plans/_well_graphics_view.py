@@ -42,10 +42,10 @@ class WellView(ResizingGraphicsView):
 
         # the scene coordinates are all real-world coordinates, in µm
         # with the origin at the center of the view (0, 0)
-        self._well_width_um: float | None = None
-        self._well_height_um: float | None = None
-        self._fov_width_um: float | None = None
-        self._fov_height_um: float | None = None
+        self._well_width_um: float | None = 6000
+        self._well_height_um: float | None = 6000
+        self._fov_width_um: float | None = 400
+        self._fov_height_um: float | None = 340
         self._is_circular: bool = False
 
         # the item that draws the outline of the entire well area

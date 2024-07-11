@@ -8,6 +8,16 @@ from pymmcore_widgets.useq_widgets.points_plans import RelativePointPlanSelector
 
 from ._well_graphics_view import WellView
 
+INIT_PLAN = useq.RandomPoints(
+    num_points=10,
+    max_width=4000,
+    max_height=4000,
+    fov_width=400,
+    fov_height=340,
+    shape="ellipse",
+    allow_overlap=False,
+)
+
 
 class PointsPlanWidget(QWidget):
     """Widget to select the FOVVs per well of the plate.
@@ -46,8 +56,7 @@ class PointsPlanWidget(QWidget):
         self._well_width_µm: float | None
         self._well_height_µm: float | None
         if isinstance(well_size, tuple):
-            self._well_width_µm = well_size[0] * 1000
-            self._well_height_µm = well_size[1] * 1000
+            self._well_width_µm, self._well_height_µm = (ws * 1000 for ws in well_size)
         elif isinstance(well_size, (int, float)):
             self._well_width_µm = self._well_height_µm = well_size * 1000
         else:
@@ -67,11 +76,11 @@ class PointsPlanWidget(QWidget):
         self._well_view.maxPointsDetected.connect(self._on_view_max_points_detected)
         self._well_view.positionClicked.connect(self._on_view_position_clicked)
 
-        if plan is not None:
-            self.setValue(plan)
+        # if plan is not None:
+        self.setValue(plan or INIT_PLAN)
 
         # init the view with the current well size
-        self.setWellSize(self._well_width_µm, self._well_height_µm)
+        self.setWellSize(self._well_width_µm or 6, self._well_height_µm or 6)
 
     def value(self) -> useq.RelativeMultiPointPlan:
         """Return the selected plan."""
