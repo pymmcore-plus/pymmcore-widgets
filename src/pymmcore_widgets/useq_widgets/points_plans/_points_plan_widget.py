@@ -50,25 +50,25 @@ class PointsPlanWidget(QWidget):
         self,
         plan: useq.RelativeMultiPointPlan | None = None,
         well_size: tuple[float, float] | float | None = None,
+        is_well_circular: bool = True,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent=parent)
 
-        # well size
         wdt: float | None
         hgt: float | None
         if isinstance(well_size, tuple):
             wdt, hgt = well_size
-        elif isinstance(well_size, (int, float)):
+        elif isinstance(well_size, (int, float)) or well_size is None:
             wdt = hgt = well_size
-        else:
-            wdt = hgt = None
         self._well_width_µm: float | None = wdt * 1000 if wdt is not None else None
         self._well_height_µm: float | None = hgt * 1000 if hgt is not None else None
 
+        self._is_well_circular = is_well_circular
+
         self._selector = RelativePointPlanSelector()
         # graphics scene to draw the well and the fovs
-        self._well_view = WellView()
+        self._well_view = WellView(self._is_well_circular)
 
         # main
         layout = QHBoxLayout(self)
@@ -123,9 +123,14 @@ class PointsPlanWidget(QWidget):
         if self._selector.active_plan_type is useq.RandomPoints:
             self._on_selector_value_changed(self.value())
 
-        print(width)
-        print(w)
-        print(self._selector.random_points_wdg.max_width.maximum())
+    def circularWell(self) -> bool:
+        """Return True if the well is circular, False otherwise."""
+        return self._is_well_circular
+
+    def setCircularWell(self, circular: bool) -> None:
+        """Set the shape of the well."""
+        self._well_view.setCircularWell(circular)
+        self._on_selector_value_changed(self.value())
 
     def _on_selector_value_changed(self, value: useq.RelativeMultiPointPlan) -> None:
         self._well_view.setPointsPlan(value)

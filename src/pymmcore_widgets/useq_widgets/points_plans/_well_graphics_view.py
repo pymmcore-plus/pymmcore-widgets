@@ -31,7 +31,7 @@ class WellView(ResizingGraphicsView):
     # emitted when a position is clicked, the value is a useq.RelativePosition
     positionClicked = Signal(object)
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, is_well_circular: bool, parent: QWidget | None = None):
         self._scene = QGraphicsScene()
 
         super().__init__(self._scene, parent)
@@ -46,7 +46,7 @@ class WellView(ResizingGraphicsView):
         self._well_height_um: float | None = 6000
         self._fov_width_um: float | None = 400
         self._fov_height_um: float | None = 340
-        self._is_circular: bool = False
+        self._is_well_circular: bool = True
 
         # the item that draws the outline of the entire well area
         self._well_outline_item: QGraphicsItem | None = None
@@ -65,16 +65,18 @@ class WellView(ResizingGraphicsView):
         self._well_width_um = (width_mm * 1000) if width_mm else None
         self._well_height_um = (height_mm * 1000) if height_mm else None
 
+    def setCircularWell(self, circular: bool) -> None:
+        """Set the shape of the well."""
+        self._is_well_circular = circular
+
     def setPointsPlan(self, plan: useq.RelativeMultiPointPlan) -> None:
         """Set the plan to use to draw the FOVs."""
         self._fov_width_um = plan.fov_width
         self._fov_height_um = plan.fov_height
-        if hasattr(plan, "shape") and isinstance(plan.shape, Shape):
-            self._is_circular = plan.shape == Shape.ELLIPSE
 
         # FOV POINTS BOUNDING AREA
         if isinstance(plan, useq.RandomPoints):
-            self._draw_points_bounding_area(plan.max_width, plan.max_height)
+            self._draw_points_bounding_area(plan.max_width, plan.max_height, plan.shape)
         elif self._points_bounding_area_item:
             self._scene.removeItem(self._points_bounding_area_item)
 
@@ -94,13 +96,15 @@ class WellView(ResizingGraphicsView):
 
         pen = QPen(QColor(Qt.GlobalColor.green))
         pen.setWidth(self._scaled_pen_size())
-        if self._is_circular:
+        if self._is_well_circular:
             self._well_outline_item = self._scene.addEllipse(rect, pen=pen)
         else:
             self._well_outline_item = self._scene.addRect(rect, pen=pen)
         self._resize_to_fit()
 
-    def _draw_points_bounding_area(self, width: float, height: float) -> None:
+    def _draw_points_bounding_area(
+        self, width: float, height: float, shape: Shape
+    ) -> None:
         """Draw the bounding area to constrain the FOVs."""
         if self._points_bounding_area_item:
             self._scene.removeItem(self._points_bounding_area_item)
@@ -112,7 +116,9 @@ class WellView(ResizingGraphicsView):
         pen.setWidth(self._scaled_pen_size())
         pen.setStyle(Qt.PenStyle.DotLine)
 
-        if self._is_circular:
+        circular = shape == Shape.ELLIPSE
+
+        if circular:
             self._points_bounding_area_item = self._scene.addEllipse(rect, pen=pen)
         else:
             self._points_bounding_area_item = self._scene.addRect(rect, pen=pen)
@@ -215,7 +221,7 @@ class WellView(ResizingGraphicsView):
             return QRectF()
         return (
             QRectF(-width / 2, -height / 2, width, height)
-            if self._is_circular
+            if self._is_well_circular
             else QRectF(-(width - (width / 2)), -(height - (height / 2)), width, height)
         )
 
