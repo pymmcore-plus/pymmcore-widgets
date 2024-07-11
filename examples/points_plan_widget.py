@@ -8,13 +8,14 @@ app = QApplication([])
 points = RandomPoints(
     num_points=60,
     allow_overlap=False,
-    fov_width=400,
-    fov_height=300,
+    fov_width=300,
+    fov_height=200,
     max_width=4000,
     max_height=4000,
 )
 
-fs = PointsPlanWidget(points)
+fs = PointsPlanWidget()
+# fs.setWellSize(6, 6)
 fs.show()
 
 app.exec()

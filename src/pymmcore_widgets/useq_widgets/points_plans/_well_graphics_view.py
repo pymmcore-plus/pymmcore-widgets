@@ -42,8 +42,8 @@ class WellView(ResizingGraphicsView):
 
         # the scene coordinates are all real-world coordinates, in µm
         # with the origin at the center of the view (0, 0)
-        self._well_width_um: float | None = 6000
-        self._well_height_um: float | None = 6000
+        self._well_width_um: float | None = None
+        self._well_height_um: float | None = None
         self._well_is_circular: bool = True
         # the item that draws the outline of the entire well area
         self._well_outline_item: QGraphicsItem | None = None
@@ -54,8 +54,8 @@ class WellView(ResizingGraphicsView):
         self._bounding_area_is_circular: bool = False
         self._bounding_area_item: QGraphicsItem | None = None
 
-        self._fov_width_um: float | None = 400
-        self._fov_height_um: float | None = 340
+        self._fov_width_um: float | None = None
+        self._fov_height_um: float | None = None
 
         # all of the rectangles representing the FOVs
         self._fov_items: list[QGraphicsItem] = []
@@ -106,11 +106,15 @@ class WellView(ResizingGraphicsView):
         """Draw the outline of the well area."""
         if self._well_outline_item:
             self._scene.removeItem(self._well_outline_item)
+            self._well_outline_item = None
+
         if (rect := self._well_rect()).isNull():
             return
 
         pen = QPen(QColor(Qt.GlobalColor.green))
         pen.setWidth(self._scaled_pen_size())
+        pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+
         if self._well_is_circular:
             self._well_outline_item = self._scene.addEllipse(rect, pen=pen)
         else:
@@ -120,12 +124,14 @@ class WellView(ResizingGraphicsView):
         """Draw the points bounding area."""
         if self._bounding_area_item:
             self._scene.removeItem(self._bounding_area_item)
+            self._bounding_area_item = None
 
         if (rect := self._points_bounding_area_rect()).isNull():
             return
 
         pen = QPen(QColor(Qt.GlobalColor.magenta))
         pen.setWidth(self._scaled_pen_size())
+        pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
         pen.setStyle(Qt.PenStyle.DotLine)
 
         if self._bounding_area_is_circular:
@@ -140,9 +146,11 @@ class WellView(ResizingGraphicsView):
             self._scene.removeItem(self._fov_items.pop())
 
         pen = QPen(Qt.GlobalColor.white)
-        pen.setWidth(self._scaled_pen_size())
+        pen.setWidth(int(self._scaled_pen_size() / 1.6))
+        pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
         line_pen = QPen(QColor(0, 0, 0, 100))
-        line_pen.setWidth(int(self._scaled_pen_size() // 1.5))
+        line_pen.setWidth(int(self._scaled_pen_size() / 1.75))
+        line_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
 
         # iterate over the plan greedily, catching any warnings
         # and then alert the model if we didn't get all the points
