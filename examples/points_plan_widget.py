@@ -14,8 +14,8 @@ points = RandomPoints(
     max_height=4000,
 )
 
-fs = PointsPlanWidget()
-# fs.setWellSize(6, 6)
+fs = PointsPlanWidget(points)
+fs.setWellSize(6, 6)
 fs.show()
 
 app.exec()
