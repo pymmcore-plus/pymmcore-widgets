@@ -56,8 +56,7 @@ class WellPlateWidget(QWidget):
     ----------
     plan: useq.WellPlatePlan | useq.WellPlate | None, optional
         The initial well plate plan. Accepts both a useq.WellPlate (which lacks a
-        selection definition), or a full WellPlatePlan.
-        By default None.
+        selection definition), or a full WellPlatePlan. By default None.
     parent : QWidget, optional
         The parent widget, by default None
     """
