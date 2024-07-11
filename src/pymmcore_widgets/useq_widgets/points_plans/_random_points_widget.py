@@ -5,6 +5,7 @@ from typing import Mapping
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
@@ -14,7 +15,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import RandomPoints, Shape
+from useq import RandomPoints, Shape, TraversalOrder
 
 
 class RandomPointWidget(QWidget):
@@ -25,7 +26,10 @@ class RandomPointWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        self.allow_overlap: bool = False
+        # NON-GUI attributes
+
+        self._start_at: int = 0
+
         # setting a random seed for point generation reproducibility
         self.random_seed: int = self._new_seed()
         self._fov_size: tuple[float | None, float | None] = (None, None)
@@ -37,23 +41,35 @@ class RandomPointWidget(QWidget):
         # well area doublespinbox along x
         self.max_width = QDoubleSpinBox()
         self.max_width.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.max_width.setRange(0, 1000000)
-        self.max_width.setSingleStep(100)
+        self.max_width.setRange(1, 1000000)
+        self.max_width.setValue(6000)
+        self.max_width.setStepType(QDoubleSpinBox.StepType.AdaptiveDecimalStepType)
         # well area doublespinbox along y
         self.max_height = QDoubleSpinBox()
         self.max_height.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.max_height.setRange(0, 1000000)
-        self.max_height.setSingleStep(100)
+        self.max_height.setRange(1, 1000000)
+        self.max_height.setValue(6000)
+        self.max_height.setStepType(QDoubleSpinBox.StepType.AdaptiveDecimalStepType)
         # number of FOVs spinbox
         self.num_points = QSpinBox()
         self.num_points.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.num_points.setRange(1, 1000)
+        # order combobox
+        self.order = QComboBox()
+        self.order.addItems([mode.value for mode in TraversalOrder])
+        self.order.setCurrentText(TraversalOrder.TWO_OPT.value)
+        # allow overlap checkbox
+        self.allow_overlap = QCheckBox()
         # random button
         self._random_button = QPushButton(text="Randomize")
 
         self.shape = QComboBox()
         self.shape.addItems([mode.value for mode in Shape])
         self.shape.setCurrentText(Shape.ELLIPSE.value)
+
+        self.order = QComboBox()
+        self.order.addItems([mode.value for mode in TraversalOrder])
+        self.order.setCurrentText(TraversalOrder.TWO_OPT.value)
 
         # form layout
         self.form = form = QFormLayout()
@@ -63,7 +79,9 @@ class RandomPointWidget(QWidget):
         form.addRow("Width (µm):", self.max_width)
         form.addRow("Height (µm):", self.max_height)
         form.addRow("Num Points:", self.num_points)
+        form.addRow("Order:", self.order)
         form.addRow("Shape:", self.shape)
+        form.addRow("Allow Overlap:", self.allow_overlap)
 
         # main
         main_layout = QVBoxLayout(self)
@@ -77,7 +95,9 @@ class RandomPointWidget(QWidget):
         self.max_width.valueChanged.connect(self._on_value_changed)
         self.max_height.valueChanged.connect(self._on_value_changed)
         self.num_points.valueChanged.connect(self._on_value_changed)
+        self.order.currentTextChanged.connect(self._on_value_changed)
         self.shape.currentTextChanged.connect(self._on_value_changed)
+        self.allow_overlap.stateChanged.connect(self._on_value_changed)
         self._random_button.clicked.connect(self._on_random_clicked)
 
     @property
@@ -90,12 +110,26 @@ class RandomPointWidget(QWidget):
         """Set the FOV size."""
         self._fov_size = size
 
+    # not in the gui for now...
+
+    @property
+    def start_at(self) -> int:
+        """Return the start_at value."""
+        return self._start_at
+
+    @start_at.setter
+    def start_at(self, value: int) -> None:
+        """Set the start_at value."""
+        self._start_at = value
+        self._on_value_changed()
+
     def _on_value_changed(self) -> None:
         """Emit the valueChanged signal."""
         self.valueChanged.emit(self.value())
 
     def _on_random_clicked(self) -> None:
         # reset the random seed
+        self._start_at = 0
         self.random_seed = self._new_seed()
         self.valueChanged.emit(self.value())
 
@@ -108,9 +142,11 @@ class RandomPointWidget(QWidget):
             random_seed=self.random_seed,
             max_width=self.max_width.value(),
             max_height=self.max_height.value(),
-            allow_overlap=self.allow_overlap,
+            allow_overlap=self.allow_overlap.isChecked(),
             fov_width=fov_x,
             fov_height=fov_y,
+            order=self.order.currentText(),
+            start_at=self.start_at,
         )
 
     def setValue(self, value: RandomPoints | Mapping) -> None:
@@ -124,7 +160,10 @@ class RandomPointWidget(QWidget):
         self.max_height.setValue(value.max_height)
         self.shape.setCurrentText(value.shape.value)
         self._fov_size = (value.fov_width, value.fov_height)
-        self.allow_overlap = value.allow_overlap
+        self.allow_overlap.setChecked(value.allow_overlap)
+        self.start_at = value.start_at  # type: ignore  # until useq is released
+        if value.order is not None:  # type: ignore  # until useq is released
+            self.order.setCurrentText(value.order.value)  # type: ignore  # until useq is released
 
     def reset(self) -> None:
         """Reset value to 1 point and 0 area."""
