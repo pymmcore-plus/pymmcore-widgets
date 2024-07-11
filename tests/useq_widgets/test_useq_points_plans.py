@@ -221,6 +221,9 @@ def test_points_plan_set_well_info(qtbot: QtBot) -> None:
     wdg.setWellShape("square")
     assert isinstance(wdg._well_view._well_outline_item, QGraphicsRectItem)
 
+    wdg.setWellShape("circle")
+    assert isinstance(wdg._well_view._well_outline_item, QGraphicsEllipseItem)
+
     plan = RandomPoints(
         num_points=3, fov_width=500, fov_height=0, max_width=1000, max_height=1500
     )
