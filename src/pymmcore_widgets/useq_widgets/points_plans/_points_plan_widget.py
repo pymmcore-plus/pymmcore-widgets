@@ -63,12 +63,6 @@ class PointsPlanWidget(QWidget):
         """Set the current plan."""
         self._selector.setValue(plan)
 
-    def wellSize(self) -> tuple[float | None, float | None]:
-        """Return the well size in mm."""
-        w = self._well_width_µm / 1000 if self._well_width_µm is not None else None
-        h = self._well_height_µm / 1000 if self._well_height_µm is not None else None
-        return w, h
-
     def setWellSize(
         self, width: float | None = None, height: float | None = None
     ) -> None:
@@ -84,7 +78,7 @@ class PointsPlanWidget(QWidget):
         if isinstance(shape, str):
             if shape.lower() == "circle":
                 shape = useq.Shape.ELLIPSE
-            if shape.lower() == "square":
+            elif shape.lower() == "square":
                 shape = useq.Shape.RECTANGLE
         shape = useq.Shape(shape)
         self._well_view.setWellCircular(shape == useq.Shape.ELLIPSE)

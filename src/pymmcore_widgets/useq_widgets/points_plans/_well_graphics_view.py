@@ -65,13 +65,6 @@ class WellView(ResizingGraphicsView):
     def sizeHint(self) -> QSize:
         return QSize(500, 500)
 
-    def wellSize(self) -> tuple[float | None, float | None]:
-        """Return the well size in mm."""
-        return (
-            self._well_width_um / 1000 if self._well_width_um else None,
-            self._well_height_um / 1000 if self._well_height_um else None,
-        )
-
     def setWellSize(self, width_mm: float | None, height_mm: float | None) -> None:
         """Set the well size width and height in mm."""
         self._well_width_um = (width_mm * 1000) if width_mm else None
