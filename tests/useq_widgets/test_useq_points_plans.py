@@ -1,18 +1,21 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import pytest
 import qtpy
 import useq
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QMouseEvent
+from qtpy.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsRectItem
 from useq import GridRowsColumns, OrderMode, RandomPoints, RelativePosition, Shape
 
 from pymmcore_widgets.useq_widgets import points_plans as pp
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
+
+    from pymmcore_widgets.useq_widgets.points_plans._well_graphics_view import WellView
 
 RANDOM_POINTS = RandomPoints(
     num_points=5,
@@ -43,8 +46,8 @@ def test_random_points_widget(qtbot: QtBot) -> None:
     wdg = pp.RandomPointWidget()
     qtbot.addWidget(wdg)
     assert wdg.num_points.value() == 1
-    assert wdg.max_width.value() == 1000
-    assert wdg.max_height.value() == 1000
+    assert wdg.max_width.value() == 6000
+    assert wdg.max_height.value() == 6000
     assert wdg.shape.currentText() == "ellipse"
     assert not wdg.allow_overlap.isChecked()
     assert wdg.order.currentText() == "two_opt"
@@ -153,8 +156,8 @@ def test_clicking_point_changes_first_position(qtbot: QtBot) -> None:
         random_seed=0,
         fov_width=500,
         fov_height=500,
-        max_width=1000,
-        max_height=1000,
+        max_width=5000,
+        max_height=5000,
     )
     wdg = pp.PointsPlanWidget(plan)
     wdg.show()
@@ -177,8 +180,8 @@ def test_clicking_point_changes_first_position(qtbot: QtBot) -> None:
     assert isinstance(new_val.start_at, useq.RelativePosition)
     rounded = round(new_val.start_at)
     # feel free to relax this if it ever fails tests
-    assert rounded.x == 122
-    assert rounded.y == -50
+    assert rounded.x == 108
+    assert rounded.y == -44
 
 
 def test_max_points_detected(qtbot: QtBot) -> None:
@@ -199,3 +202,106 @@ def test_max_points_detected(qtbot: QtBot) -> None:
         wdg._selector.random_points_wdg.num_points.setValue(100)
 
     assert wdg.value().num_points < 60
+
+
+def test_points_plan_set_well_info(qtbot: QtBot) -> None:
+    wdg = pp.PointsPlanWidget()
+    wdg.show()
+
+    assert wdg._well_view._well_outline_item is None
+    assert wdg._well_view._bounding_area_item is None
+    assert wdg._well_view._well_is_circular
+
+    wdg.setWellSize(3, 3)
+
+    assert wdg._well_view._well_outline_item
+    assert wdg._well_view._well_outline_item.isVisible()
+    assert isinstance(wdg._well_view._well_outline_item, QGraphicsEllipseItem)
+
+    wdg.setWellShape("square")
+    assert isinstance(wdg._well_view._well_outline_item, QGraphicsRectItem)
+
+    wdg.setWellShape("circle")
+    assert isinstance(wdg._well_view._well_outline_item, QGraphicsEllipseItem)
+
+    plan = RandomPoints(
+        num_points=3, fov_width=500, fov_height=0, max_width=1000, max_height=1500
+    )
+    wdg.setValue(plan)
+
+    assert wdg._well_view._bounding_area_item
+    assert wdg._well_view._bounding_area_item.isVisible()
+    assert isinstance(wdg._well_view._bounding_area_item, QGraphicsEllipseItem)
+
+    well = wdg._well_view._well_outline_item.sceneBoundingRect()
+    bound = wdg._well_view._bounding_area_item.sceneBoundingRect()
+    assert well.center() == bound.center()
+    offset = 20  # ofset automatically added when drawing
+    # bounding rect should be 1/3 the size of the well rect in width
+    assert well.width() - offset == (bound.width() - offset) * 3
+    # bounding rect should be 1/2 the size of the well rect in height
+    assert well.height() - offset == (bound.height() - offset) * 2
+
+    wdg.setWellSize(None, None)
+    assert wdg._well_view._well_outline_item is None
+
+
+class SceneItems(NamedTuple):
+    rect: int  # QGraphicsRectItem (fovs/well area/bounding area)
+    lines: int  # QGraphicsLineItem (fovs lines)
+    circles: int  # QGraphicsEllipseItem (well area/bounding area)
+
+
+def get_items_number(view: WellView) -> SceneItems:
+    """Return the number of items in the scene as a SceneItems namedtuple."""
+    items = view.scene().items()
+    lines = len([ln for ln in items if isinstance(ln, QGraphicsLineItem)])
+    circles = len([c for c in items if isinstance(c, QGraphicsEllipseItem)])
+    rect = len([r for r in items if isinstance(r, QGraphicsRectItem)])
+    return SceneItems(rect, lines, circles)
+
+
+# fmt: off
+rp = RandomPoints(num_points=3, max_width=1000, max_height=1000,fov_width=410, fov_height=300, random_seed=0)  # noqa E501
+plans = [
+    # plan, well_shape, expected number of QGraphicsItems
+    (useq.RelativePosition(), "square", SceneItems(rect=0, lines=0, circles=2)),
+    (useq.RelativePosition(fov_width=100, fov_height=50), "circle", SceneItems(rect=1, lines=0, circles=1)),  # noqa E501
+    (rp, "ellipse", SceneItems(rect=3, lines=2, circles=2)),
+    (rp.replace(shape="rectangle"),"rectangle", SceneItems(rect=4, lines=2, circles=1)),
+    (GridRowsColumns(rows=2, columns=3, fov_width=400, fov_height=500), "circle", SceneItems(rect=6, lines=5, circles=1))  # noqa E501
+]
+# fmt: on
+
+
+# make sure that the correct QGraphicsItems are drawn in the scene
+@pytest.mark.parametrize(["plan", "shape", "expedted_items"], plans)
+def test_points_plan_plans(
+    qtbot: QtBot,
+    plan: useq.RelativeMultiPointPlan,
+    shape: str,
+    expedted_items: SceneItems,
+):
+    wdg = pp.PointsPlanWidget(plan=plan)
+    wdg.setWellSize(3, 3)  # fix well size
+    wdg.setWellShape("circle")  # fix well shape
+    wdg.show()
+    assert get_items_number(wdg._well_view) == expedted_items
+
+
+@pytest.mark.parametrize(["plan", "shape", "expedted_items"], plans)
+def test_points_plan_set_get_value(
+    qtbot: QtBot,
+    plan: useq.RelativeMultiPointPlan,
+    shape: str,
+    expedted_items: SceneItems,
+):
+    wdg = pp.PointsPlanWidget()
+    wdg.setWellSize(3, 3)  # fix well size
+    wdg.setWellShape("circle")  # fix well shape
+    wdg.show()
+
+    wdg.setValue(plan)
+
+    assert get_items_number(wdg._well_view) == expedted_items
+    assert wdg.value() == plan
