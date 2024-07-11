@@ -50,9 +50,9 @@ class WellView(ResizingGraphicsView):
         self._is_circular: bool = False
 
         # the item that draws the outline of the entire well area
-        self._outline_item: QGraphicsItem | None = None
+        self._well_outline_item: QGraphicsItem | None = None
         # the item that defines the bounding area to constrain the FOVs
-        self._bounding_area: QGraphicsItem | None = None
+        self._fov_constrain_area_item: QGraphicsItem | None = None
         # all of the rectangles representing the FOVs
         self._fov_items: list[QGraphicsItem] = []
 
@@ -76,62 +76,51 @@ class WellView(ResizingGraphicsView):
 
         # WELL BOUNDING AREA
         if isinstance(plan, useq.RandomPoints):
-            boundig_area = self._get_bounding_area(plan)
-            self._bounding_area = self._draw_outlines(boundig_area)
-        elif self._bounding_area:
-            self._scene.removeItem(self._bounding_area)
+            self._draw_fov_constrain_area(plan.max_width, plan.max_height)
+        elif self._fov_constrain_area_item:
+            self._scene.removeItem(self._fov_constrain_area_item)
 
         # WELL OUTLINE
-        self._outline_item = self._draw_outlines()
+        self._draw_well_outline()
 
         # DRAW FOVS
         self._draw_fovs(plan)
 
-    def _get_bounding_area(self, plan: useq.RandomPoints) -> QRectF:
-        """Return the bounding area to constrain the FOVs."""
-        if self._well_height_um is None or self._well_width_um is None:
-            return QRectF()
-        w, h = plan.max_width, plan.max_height
-        # constrain the bounding area to the well size if max_width or max_height is
-        # larger than the well size
-        w = min(w, self._well_width_um)
-        h = min(h, self._well_height_um)
-        return (
-            QRectF(-w / 2, -h / 2, w, h)
-            if self._is_circular
-            else QRectF(-(w - (w / 2)), -(h - (h / 2)), w, h)
-        )
+    def _draw_well_outline(self) -> None:
+        """Draw the outline of the well area."""
+        if self._well_outline_item:
+            self._scene.removeItem(self._well_outline_item)
+        if (rect := self._well_rect()).isNull():
+            return
 
-    def _draw_outlines(
-        self, bounding_rect: QRectF | None = None
-    ) -> QGraphicsItem | None:
-        """Draw the outline of the well or the bounding area to constrain the FOVs."""
         pen = QPen(QColor(Qt.GlobalColor.green))
         pen.setWidth(self._scaled_pen_size())
-
-        # clear the scene from the correct item
-        if bounding_rect is None:
-            # remove the well outline if it exists
-            if self._outline_item:
-                self._scene.removeItem(self._outline_item)
+        if self._is_circular:
+            self._well_outline_item = self._scene.addEllipse(rect, pen=pen)
         else:
-            # set the pen style to dotted if we are drawing the bounding area
-            pen.setStyle(Qt.PenStyle.DotLine)
-            # remove the bounding area if it exists
-            if self._bounding_area:
-                self._scene.removeItem(self._bounding_area)
+            self._well_outline_item = self._scene.addRect(rect, pen=pen)
+        self._resize_to_fit()
 
-        # set the correct rect to draw
-        rect = bounding_rect if bounding_rect is not None else self._well_rect()
+    def _draw_fov_constrain_area(self, width: float, height: float) -> None:
+        """Draw the bounding area to constrain the FOVs."""
+        if self._fov_constrain_area_item:
+            self._scene.removeItem(self._fov_constrain_area_item)
 
-        if rect.isNull():
-            return None
-
-        return (
-            self._scene.addEllipse(rect, pen=pen)
+        # bounding area to constrain the FOVs
+        rect = (
+            QRectF(-width / 2, -height / 2, width, height)
             if self._is_circular
-            else self._scene.addRect(rect, pen=pen)
+            else QRectF(-(width - (width / 2)), -(height - (height / 2)), width, height)
         )
+
+        pen = QPen(QColor(Qt.GlobalColor.green))
+        pen.setWidth(self._scaled_pen_size())
+        pen.setStyle(Qt.PenStyle.DotLine)
+
+        if self._is_circular:
+            self._fov_constrain_area_item = self._scene.addEllipse(rect, pen=pen)
+        else:
+            self._fov_constrain_area_item = self._scene.addRect(rect, pen=pen)
 
     def _draw_fovs(self, plan: useq.RelativeMultiPointPlan) -> None:
         """Draw the fovs in the scene as rectangles."""
@@ -223,10 +212,6 @@ class WellView(ResizingGraphicsView):
         if not (ww := self._well_width_um) or not (wh := self._well_height_um):
             return QRectF()
         return QRectF(-ww / 2, -wh / 2, ww, wh)
-
-    def _bounding_rect(self) -> QRectF:
-        """Return the QRectF of the bounding area."""
-        return self._bounding_area.boundingRect() if self._bounding_area else QRectF()
 
     def _fov_rect(self) -> QRectF:
         """Return the QRectF of the FOV area."""
