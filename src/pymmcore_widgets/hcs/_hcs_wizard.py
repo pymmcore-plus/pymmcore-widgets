@@ -69,7 +69,7 @@ class HCSWizard(QWizard):
         self._on_plate_changed(self.plate_page.widget.value())
 
     def _on_plate_changed(self, plate_plan: useq.WellPlatePlan) -> None:
-        """Syncronize the points plan with the well size/shape."""
+        """Synchronize the points plan with the well size/shape."""
         pp_widget = self.points_plan_page.widget
 
         # set the well size on the points plan widget to the current plate well size
