@@ -13,10 +13,6 @@ from useq import RandomPoints, RelativePosition, WellPlatePlan
 from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
     _CalibrationData,
 )
-from pymmcore_widgets.hcs._fov_widget._fov_sub_widgets import Center
-from pymmcore_widgets.hcs._fov_widget._fov_widget import ELLIPSE, RECT
-from pymmcore_widgets.hcs._graphics_items import Well
-from pymmcore_widgets.hcs._plate_widget import PlateInfo
 
 from ._main_wizard_pages import FOVSelectorPage, PlateCalibrationPage, PlatePage
 
@@ -197,8 +193,8 @@ class HCSWizard(QWizard):
         self._plate = self.plate_page.value().plate
         self.calibration_page.setValue(_CalibrationData(plate=self._plate))
         fov_w, fov_h = self._get_fov_size()
-        mode = Center(x=0, y=0, fov_width=fov_w, fov_height=fov_h)
-        self.fov_page.setValue(self._plate, mode)
+        # mode = Center(x=0, y=0, fov_width=fov_w, fov_height=fov_h)
+        # self.fov_page.setValue(self._plate, mode)
 
     def _on_plate_changed(self, value: PlateInfo) -> None:
         self._plate = value.plate

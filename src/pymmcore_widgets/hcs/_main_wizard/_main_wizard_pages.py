@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from qtpy.QtWidgets import (
     QSizePolicy,
@@ -15,14 +15,15 @@ from pymmcore_widgets.hcs._calibration_widget._calibration_widget import (
     _CalibrationData,
     _PlateCalibrationWidget,
 )
-from pymmcore_widgets.hcs._fov_widget._fov_widget import _FOVSelectorWidget
-from pymmcore_widgets.hcs._plate_widget import PlateInfo, _PlateSelectorWidget
+from pymmcore_widgets.useq_widgets import WellPlateWidget
+from pymmcore_widgets.useq_widgets.points_plans._points_plan_widget import (
+    PointsPlanWidget,
+)
 
 if TYPE_CHECKING:
+    import useq
     from pymmcore_plus import CMMCorePlus
-    from useq import GridRowsColumns, RandomPoints, WellPlate
 
-    from pymmcore_widgets.hcs._fov_widget._fov_sub_widgets import Center
 
 EXPANDING = (QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
@@ -38,7 +39,7 @@ class PlatePage(QWizardPage):
 
         self.setTitle("Plate and Well Selection")
 
-        self._plate_widget = _PlateSelectorWidget()
+        self._plate_widget = WellPlateWidget()
 
         self.setLayout(QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
@@ -46,13 +47,11 @@ class PlatePage(QWizardPage):
 
         self.setButtonText(QWizard.WizardButton.NextButton, "Calibration >")
 
-        self.combo = self._plate_widget.plate_combo
-
-    def value(self) -> PlateInfo:
+    def value(self) -> useq.WellPlatePlan:
         """Return the selected well plate and the selected wells."""
         return self._plate_widget.value()
 
-    def setValue(self, value: PlateInfo) -> None:
+    def setValue(self, value: useq.WellPlatePlan | Any) -> None:
         """Set the current plate and the selected wells.
 
         `value` is a list of (well_name, row, column).
@@ -97,13 +96,12 @@ class FOVSelectorPage(QWizardPage):
     def __init__(
         self,
         parent: QWidget | None = None,
-        plate: WellPlate | None = None,
-        mode: Center | RandomPoints | GridRowsColumns | None = None,
+        plan: useq.RelativeMultiPointPlan | None = None,
     ) -> None:
         super().__init__(parent)
         self.setTitle("Field of View Selection")
 
-        self._fov_widget = _FOVSelectorWidget(plate, mode, parent)
+        self._fov_widget = PointsPlanWidget(plan, parent=self)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -112,16 +110,10 @@ class FOVSelectorPage(QWizardPage):
 
         self.setButtonText(QWizard.WizardButton.FinishButton, "Value")
 
-    def value(
-        self,
-    ) -> tuple[WellPlate | None, Center | RandomPoints | GridRowsColumns | None]:
+    def value(self) -> useq.RelativeMultiPointPlan:
         """Return the list of FOVs."""
         return self._fov_widget.value()
 
-    def setValue(
-        self,
-        plate: WellPlate | None,
-        mode: Center | RandomPoints | GridRowsColumns | None,
-    ) -> None:
+    def setValue(self, plan: useq.RelativeMultiPointPlan) -> None:
         """Set the list of FOVs."""
-        self._fov_widget.setValue(plate, mode)
+        self._fov_widget.setValue(plan)

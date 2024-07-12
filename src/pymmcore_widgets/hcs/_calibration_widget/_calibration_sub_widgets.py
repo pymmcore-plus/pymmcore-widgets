@@ -25,7 +25,6 @@ from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 from useq import WellPlate  # noqa: TCH002
 
-from pymmcore_widgets.hcs._graphics_items import RED, Well
 from pymmcore_widgets.useq_widgets._column_info import FloatColumn
 from pymmcore_widgets.useq_widgets._data_table import DataTableWidget
 
@@ -244,13 +243,13 @@ class _TestCalibrationWidget(QGroupBox):
 
     # _________________________PUBLIC METHODS_________________________ #
 
-    def value(self) -> tuple[WellPlate | None, Well]:
+    def value(self) -> tuple:
         """Return the selected test well as `WellInfo` object."""
-        return self._plate, Well(
-            name=self._letter_combo.currentText() + self._number_combo.currentText(),
-            row=self._letter_combo.currentIndex(),
-            column=self._number_combo.currentIndex(),
-        )
+        # return self._plate, Well(
+        #     name=self._letter_combo.currentText() + self._number_combo.currentText(),
+        #     row=self._letter_combo.currentIndex(),
+        #     column=self._number_combo.currentIndex(),
+        # )
 
     def setValue(self, plate: WellPlate | None, well: Well | None) -> None:
         """Set the selected test well."""
@@ -297,7 +296,9 @@ class _CalibrationLabel(QGroupBox):
         self._icon_lbl = QLabel()
         self._icon_lbl.setSizePolicy(*FixedSizePolicy)
         self._icon_lbl.setPixmap(
-            icon(MDI6.close_octagon_outline, color=RED).pixmap(QSize(30, 30))
+            icon(MDI6.close_octagon_outline, color=Qt.GlobalColor.red).pixmap(
+                QSize(30, 30)
+            )
         )
         # text
         self._text_lbl = QLabel(text="Plate Not Calibrated!")

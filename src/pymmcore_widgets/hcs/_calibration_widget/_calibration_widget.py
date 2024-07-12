@@ -11,7 +11,7 @@ from typing import (
 import numpy as np
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QSize, Signal
+from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QGroupBox,
@@ -23,8 +23,6 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 from useq import WellPlate  # noqa: TCH002
-
-from pymmcore_widgets.hcs._graphics_items import GREEN, RED
 
 from ._calibration_sub_widgets import (
     Mode,
@@ -253,7 +251,7 @@ class _PlateCalibrationWidget(QWidget):
         """Set the calibration label."""
         lbl_icon = MDI6.check_bold if state else MDI6.close_octagon_outline
         lbl_icon_size = QSize(20, 20) if state else QSize(30, 30)
-        lbl_icon_color = GREEN if state else RED
+        lbl_icon_color = Qt.GlobalColor.green if state else Qt.GlobalColor.red
         text = "Plate Calibrated!" if state else "Plate Not Calibrated!"
         self._calibration_label.setValue(
             pixmap=icon(lbl_icon, color=lbl_icon_color).pixmap(lbl_icon_size),
