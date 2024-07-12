@@ -27,10 +27,7 @@ class HCSWizard(QWizard):
     """
 
     def __init__(
-        self,
-        parent: QWidget | None = None,
-        *,
-        mmcore: CMMCorePlus | None = None,
+        self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
     ) -> None:
         super().__init__(parent)
         self._mmc = mmcore or CMMCorePlus.instance()
@@ -52,21 +49,65 @@ class HCSWizard(QWizard):
 
         # add custom button to save
         self.setOption(QWizard.WizardOption.HaveCustomButton1, True)
-        save_btn = self.button(QWizard.WizardButton.CustomButton1)
-        save_btn.setText("Save")
-        save_btn.clicked.connect(self._save)
-        self.setButton(QWizard.WizardButton.CustomButton1, save_btn)
+        if save_btn := self.button(QWizard.WizardButton.CustomButton1):
+            save_btn.setText("Save")
+            save_btn.clicked.connect(self.save)
+            self.setButton(QWizard.WizardButton.CustomButton1, save_btn)
         # add custom button to load
         self.setOption(QWizard.WizardOption.HaveCustomButton2, True)
-        load_btn = self.button(QWizard.WizardButton.CustomButton2)
-        load_btn.setText("Load")
-        load_btn.clicked.connect(self._load)
-        self.setButton(QWizard.WizardButton.CustomButton2, load_btn)
+        if load_btn := self.button(QWizard.WizardButton.CustomButton2):
+            load_btn.setText("Load")
+            load_btn.clicked.connect(self.load)
+            self.setButton(QWizard.WizardButton.CustomButton2, load_btn)
 
         # CONNECTIONS ---------------------------
 
         self.plate_page.widget.valueChanged.connect(self._on_plate_changed)
         self._on_plate_changed(self.plate_page.widget.value())
+
+    def value(self) -> useq.WellPlatePlan:
+        plate_plan = self.plate_page.widget.value()
+        return useq.WellPlatePlan(
+            plate=plate_plan.plate,
+            selected_wells=plate_plan.selected_wells,
+            rotation=0,
+            a1_center_xy=(0, 0),
+            well_points_plan=self.points_plan_page.widget.value(),
+        )
+
+    def setValue(self, value: useq.WellPlatePlan) -> None:
+        self.plate_page.widget.setValue(value)
+        # self.calibration_page.setValue(value.calibration)
+        self.points_plan_page.widget.setValue(value.well_points_plan)
+
+    def save(self, path: str | None = None) -> None:
+        """Save the current well plate plan to disk."""
+        if not isinstance(path, str):
+            path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save Well Plate Plan",
+                "",
+                "JSON or YAML (*.json *.yaml *.yml)",
+            )
+        if path:
+            value = self.value()
+            if str(path).endswith((".yaml", ".yml")):
+                txt = value.yaml(exclude_unset=True)
+            else:
+                txt = value.model_dump_json(exclude_unset=True, indent=2)
+            Path(path).write_text(txt)
+
+    def load(self, path: str | None = None) -> None:
+        """Load a well plate plan from disk."""
+        if not isinstance(path, str):
+            path, _ = QFileDialog.getOpenFileName(
+                self,
+                "Load Well Plate Plan",
+                "",
+                "JSON or YAML (*.json *.yaml *.yml)",
+            )
+        if path:
+            self.setValue(WellPlatePlan.from_file(path))
 
     def _on_plate_changed(self, plate_plan: useq.WellPlatePlan) -> None:
         """Syncronize the points plan with the well size/shape."""
@@ -93,43 +134,6 @@ class HCSWizard(QWizard):
         random_wdg.max_width.setValue(well_width * 1000 - fovw / 1.4)
         random_wdg.max_height.setMaximum(well_height * 1000)
         random_wdg.max_height.setValue(well_height * 1000 - fovh / 1.4)
-
-    def value(self) -> useq.WellPlatePlan:
-        plate_plan = self.plate_page.widget.value()
-        return useq.WellPlatePlan(
-            plate=plate_plan.plate,
-            selected_wells=plate_plan.selected_wells,
-            rotation=self.field("rotation"),
-            a1_center_xy=self.field("a1_center_xy"),
-            well_points_plan=self.points_plan_page.widget.value(),
-        )
-
-    def setValue(self, value: useq.WellPlatePlan) -> None:
-        self.plate_page.widget.setValue(value)
-        # self.calibration_page.setValue(value.calibration)
-        self.points_plan_page.widget.setValue(value.well_points_plan)
-
-    def _save(self) -> None:
-        """Save the current well plate plan to disk."""
-        path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save Well Plate Plan",
-            "",
-            "json(*.json)",
-        )
-        if path:
-            Path(path).write_text(self.value().model_dump_json())
-
-    def _load(self) -> None:
-        """Load a well plate plan from disk."""
-        path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Load Well Plate Plan",
-            "",
-            "json(*.json)",
-        )
-        if path:
-            self.setValue(WellPlatePlan.from_file(path))
 
 
 # ---------------------------------- PAGES ---------------------------------------
@@ -175,13 +179,11 @@ class _PointsPlanPage(QWizardPage):
         self._on_px_size_changed()
 
     def _on_px_size_changed(self) -> None:
-        """Update the scene when the pixel size is changed."""
         val = self.widget.value()
         val.fov_width, val.fov_height = self._get_fov_size()
         self.widget.setValue(val)
 
     def _get_fov_size(self) -> tuple[float, float]:
-        """Return the image size in µm depending on the camera device."""
         if self._mmc.getCameraDevice() and (px := self._mmc.getPixelSizeUm()):
             return self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
         return (None, None)
