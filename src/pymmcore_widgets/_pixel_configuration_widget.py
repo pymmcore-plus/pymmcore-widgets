@@ -29,7 +29,7 @@ from superqt.utils import signals_blocked
 
 from pymmcore_widgets._device_property_table import DevicePropertyTable
 from pymmcore_widgets._device_type_filter import DeviceTypeFilters
-from pymmcore_widgets._property_widget import PropertyWidget
+from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 from pymmcore_widgets.useq_widgets import DataTable, DataTableWidget
 from pymmcore_widgets.useq_widgets._column_info import FloatColumn, TextColumn
 

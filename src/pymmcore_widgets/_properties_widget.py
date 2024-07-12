@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Iterable, cast
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QGridLayout, QLabel, QWidget
 
-from ._property_widget import PropertyWidget
+from .device_properties._property_widget import PropertyWidget
 
 if TYPE_CHECKING:
     import re

@@ -21,8 +21,8 @@ from qtpy.QtWidgets import (
 
 from pymmcore_widgets._core import load_system_config
 from pymmcore_widgets._presets_widget import PresetsWidget
-from pymmcore_widgets._property_widget import PropertyWidget
 from pymmcore_widgets._util import block_core
+from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 
 from ._add_group_widget import AddGroupWidget
 from ._add_preset_widget import AddPresetWidget

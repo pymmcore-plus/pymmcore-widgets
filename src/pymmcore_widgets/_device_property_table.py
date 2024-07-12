@@ -10,7 +10,7 @@ from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QAbstractScrollArea, QTableWidget, QTableWidgetItem, QWidget
 from superqt.fonticon import icon
 
-from pymmcore_widgets._property_widget import PropertyWidget
+from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 
 ICONS: dict[DeviceType, str] = {
     DeviceType.Any: MDI6.devices,

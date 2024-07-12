@@ -1,14 +1,16 @@
+"""PropertyWidget.
+
+This module provides a widget to display and control a specified mmcore device property,
+using the appropriate widget for the property type and allowed choices.
+"""
+
 from __future__ import annotations
 
 import contextlib
-from typing import Any, Callable, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar, cast
 
 import pymmcore
-from pymmcore_plus import (
-    CMMCorePlus,
-    DeviceType,
-    PropertyType,
-)
+from pymmcore_plus import CMMCorePlus, DeviceType, PropertyType
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -25,30 +27,201 @@ from superqt import QLabeledDoubleSlider, QLabeledSlider, utils
 STATE = pymmcore.g_Keyword_State
 LABEL = pymmcore.g_Keyword_Label
 
+__all__ = ["PropertyWidget"]
 
-# fmt: off
-class PSignalInstance(Protocol):
-    """The protocol expected of a signal instance."""
+if TYPE_CHECKING:
 
-    def connect(self, callback: Callable) -> Callable: ...
-    def disconnect(self, callback: Callable) -> None: ...
-    def emit(self, *args: Any) -> None: ...
+    class PSignalInstance(Protocol):
+        """The protocol expected of a signal instance."""
 
+        def connect(self, callback: Callable) -> Callable: ...
+        def disconnect(self, callback: Callable) -> None: ...
+        def emit(self, *args: Any) -> None: ...
 
-class PPropValueWidget(Protocol):
-    """The protocol expected of a ValueWidget."""
+    class PPropValueWidget(Protocol):
+        """The protocol expected of a ValueWidget."""
 
-    valueChanged: PSignalInstance
-    destroyed: PSignalInstance
-    def value(self) -> str | float: ...
-    def setValue(self, val: str | float) -> None: ...
-    def setEnabled(self, enabled: bool) -> None: ...
-    def setParent(self, parent: QWidget | None) -> None: ...
-    def deleteLater(self) -> None: ...
-# fmt: on
+        valueChanged: PSignalInstance
+        destroyed: PSignalInstance
+
+        def value(self) -> str | float: ...
+        def setValue(self, val: str | float) -> None: ...
+        def setEnabled(self, enabled: bool) -> None: ...
+        def setParent(self, parent: QWidget | None) -> None: ...
+        def deleteLater(self) -> None: ...
 
 
 # -----------------------------------------------------------------------
+# Main public facing QWidget.
+# -----------------------------------------------------------------------
+
+
+class PropertyWidget(QWidget):
+    """A widget to display and control a specified mmcore device property.
+
+    Parameters
+    ----------
+    device_label : str
+        Device label
+    prop_name : str
+        Property name
+    parent : QWidget | None
+        Optional parent widget. By default, None.
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    connect_core : bool
+        Whether to connect the widget to the core. If False, the widget will not
+        update the core when the value changes. By default, True.
+
+    Raises
+    ------
+    ValueError
+        If the `device_label` is not loaded, or does not have a property `prop_name`.
+    """
+
+    _value_widget: PPropValueWidget
+    valueChanged = Signal(object)
+
+    def __init__(
+        self,
+        device_label: str,
+        prop_name: str,
+        *,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
+        connect_core: bool = True,
+    ) -> None:
+        super().__init__(parent=parent)
+
+        self._mmc = mmcore or CMMCorePlus.instance()
+
+        if device_label not in self._mmc.getLoadedDevices():
+            raise ValueError(f"Device not loaded: {device_label!r}")
+
+        if not self._mmc.hasProperty(device_label, prop_name):
+            names = self._mmc.getDevicePropertyNames(device_label)
+            raise ValueError(
+                f"Device {device_label!r} has no property {prop_name!r}. "
+                f"Available property names include: {names}"
+            )
+
+        self._updates_core: bool = connect_core  # whether to update the core on change
+        self._device_label = device_label
+        self._prop_name = prop_name
+
+        self.setLayout(QHBoxLayout())
+        self.layout().setContentsMargins(0, 0, 0, 0)
+
+        # Create the widget based on property type and allowed choices
+        self._value_widget = _creat_prop_widget(self._mmc, device_label, prop_name)
+        # set current value from core
+        self._try_update_from_core()
+
+        self._mmc.events.propertyChanged.connect(self._on_core_change)
+        self._value_widget.valueChanged.connect(self._on_value_widget_change)
+
+        self.layout().addWidget(cast(QWidget, self._value_widget))
+        self.destroyed.connect(self._disconnect)
+
+    def _try_update_from_core(self) -> None:
+        # set current value from core, ignoring errors
+        with contextlib.suppress(RuntimeError, ValueError):
+            self._value_widget.setValue(self._mmc.getProperty(*self._dp))
+
+        # disable for any device init state besides 0 (Uninitialized)
+        if hasattr(self._mmc, "getDeviceInitializationState") and (
+            self._mmc.isPropertyPreInit(self._device_label, self._prop_name)
+            and self._mmc.getDeviceInitializationState(self._device_label)
+        ):
+            self.setDisabled(True)
+
+    # connect events and queue for disconnection on widget destroyed
+    def _on_core_change(self, dev_label: str, prop_name: str, new_val: Any) -> None:
+        if dev_label == self._device_label and prop_name == self._prop_name:
+            with utils.signals_blocked(self._value_widget):
+                self._value_widget.setValue(new_val)
+
+    def _on_value_widget_change(self, value: Any) -> None:
+        if not self._updates_core:
+            return
+        try:
+            self._mmc.setProperty(self._device_label, self._prop_name, value)
+        except (RuntimeError, ValueError):
+            # if there's an error when updating mmcore, reset widget value to mmcore
+            self._try_update_from_core()
+
+    def _disconnect(self) -> None:
+        with contextlib.suppress(RuntimeError):
+            self._mmc.events.propertyChanged.disconnect(self._on_core_change)
+
+    def value(self) -> Any:
+        """Get value.
+
+        Return the current value of the *widget* (which should match mmcore).
+        """
+        return self._value_widget.value()
+
+    def connectCore(self, mmcore: CMMCorePlus | None = None) -> None:
+        """Connect to core.
+
+        Connect the widget to the core. This is the default state.
+        """
+        self._updates_core = True
+        if mmcore is not None and mmcore is not self._mmc:
+            self._mmc = mmcore
+
+    def disconnectCore(self) -> None:
+        """Disconnect from core.
+
+        Disconnect the widget from the core. This will prevent the widget
+        from updating the core when the value changes.
+        """
+        self._updates_core = False
+
+    def setValue(self, value: Any) -> None:
+        """Set the current value of the *widget* (which should match mmcore)."""
+        self._value_widget.setValue(value)
+
+    def allowedValues(self) -> tuple[str, ...]:
+        """Return tuple of allowable values if property is categorical."""
+        # this will have already been grabbed from mmcore on creation, and will
+        # have also taken into account the restrictions in the State/Label property
+        # of state devices.  So check for the _allowed attribute on the widget.
+        return tuple(getattr(self._value_widget, "_allowed", ()))
+
+    def refresh(self) -> None:
+        """Update the value of the widget from mmcore.
+
+        (If all goes well this shouldn't be necessary, but if a propertyChanged
+        event is missed, this can be used).
+        """
+        with utils.signals_blocked(self._value_widget):
+            self._try_update_from_core()
+
+    def propertyType(self) -> PropertyType:
+        """Return property type."""
+        return self._mmc.getPropertyType(*self._dp)
+
+    def deviceType(self) -> DeviceType:
+        """Return property type."""
+        return self._mmc.getDeviceType(self._device_label)
+
+    def isReadOnly(self) -> bool:
+        """Return True if property is read only."""
+        return self._mmc.isPropertyReadOnly(*self._dp)
+
+    @property
+    def _dp(self) -> tuple[str, str]:
+        """Commonly requested pair for mmcore calls."""
+        return self._device_label, self._prop_name
+
+
+# -----------------------------------------------------------------------
+# Supporting code and widgets
+#
 # These widgets all implement PPropValueWidget for various PropertyTypes.
 # -----------------------------------------------------------------------
 
@@ -258,172 +431,4 @@ def _creat_prop_widget(mmcore: CMMCorePlus, dev: str, prop: str) -> PPropValueWi
             wdg.setMaximum(wdg.type_cast(mmcore.getPropertyUpperLimit(dev, prop)))
     else:
         wdg = StringWidget()
-    return cast(PPropValueWidget, wdg)
-
-
-# -----------------------------------------------------------------------
-# Main public facing QWidget.
-# -----------------------------------------------------------------------
-
-
-class PropertyWidget(QWidget):
-    """A widget to display and control a specified mmcore device property.
-
-    Parameters
-    ----------
-    device_label : str
-        Device label
-    prop_name : str
-        Property name
-    parent : QWidget | None
-        Optional parent widget. By default, None.
-    mmcore : CMMCorePlus | None
-        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
-        By default, None. If not specified, the widget will use the active
-        (or create a new)
-        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
-    connect_core : bool
-        Whether to connect the widget to the core. If False, the widget will not
-        update the core when the value changes. By default, True.
-
-    Raises
-    ------
-    ValueError
-        If the `device_label` is not loaded, or does not have a property `prop_name`.
-    """
-
-    _value_widget: PPropValueWidget
-    valueChanged = Signal(object)
-
-    def __init__(
-        self,
-        device_label: str,
-        prop_name: str,
-        *,
-        parent: QWidget | None = None,
-        mmcore: CMMCorePlus | None = None,
-        connect_core: bool = True,
-    ) -> None:
-        super().__init__(parent=parent)
-
-        self._mmc = mmcore or CMMCorePlus.instance()
-
-        if device_label not in self._mmc.getLoadedDevices():
-            raise ValueError(f"Device not loaded: {device_label!r}")
-
-        if not self._mmc.hasProperty(device_label, prop_name):
-            names = self._mmc.getDevicePropertyNames(device_label)
-            raise ValueError(
-                f"Device {device_label!r} has no property {prop_name!r}. "
-                f"Available property names include: {names}"
-            )
-
-        self._updates_core: bool = connect_core  # whether to update the core on change
-        self._device_label = device_label
-        self._prop_name = prop_name
-
-        self.setLayout(QHBoxLayout())
-        self.layout().setContentsMargins(0, 0, 0, 0)
-
-        # Create the widget based on property type and allowed choices
-        self._value_widget = _creat_prop_widget(self._mmc, device_label, prop_name)
-        # set current value from core
-        self._try_update_from_core()
-
-        self._mmc.events.propertyChanged.connect(self._on_core_change)
-        self._value_widget.valueChanged.connect(self._on_value_widget_change)
-
-        self.layout().addWidget(cast(QWidget, self._value_widget))
-        self.destroyed.connect(self._disconnect)
-
-    def _try_update_from_core(self) -> None:
-        # set current value from core, ignoring errors
-        with contextlib.suppress(RuntimeError, ValueError):
-            self._value_widget.setValue(self._mmc.getProperty(*self._dp))
-
-        # disable for any device init state besides 0 (Uninitialized)
-        if hasattr(self._mmc, "getDeviceInitializationState") and (
-            self._mmc.isPropertyPreInit(self._device_label, self._prop_name)
-            and self._mmc.getDeviceInitializationState(self._device_label)
-        ):
-            self.setDisabled(True)
-
-    # connect events and queue for disconnection on widget destroyed
-    def _on_core_change(self, dev_label: str, prop_name: str, new_val: Any) -> None:
-        if dev_label == self._device_label and prop_name == self._prop_name:
-            with utils.signals_blocked(self._value_widget):
-                self._value_widget.setValue(new_val)
-
-    def _on_value_widget_change(self, value: Any) -> None:
-        if not self._updates_core:
-            return
-        try:
-            self._mmc.setProperty(self._device_label, self._prop_name, value)
-        except (RuntimeError, ValueError):
-            # if there's an error when updating mmcore, reset widget value to mmcore
-            self._try_update_from_core()
-
-    def _disconnect(self) -> None:
-        with contextlib.suppress(RuntimeError):
-            self._mmc.events.propertyChanged.disconnect(self._on_core_change)
-
-    def value(self) -> Any:
-        """Get value.
-
-        Return the current value of the *widget* (which should match mmcore).
-        """
-        return self._value_widget.value()
-
-    def connectCore(self, mmcore: CMMCorePlus | None = None) -> None:
-        """Connect to core.
-
-        Connect the widget to the core. This is the default state.
-        """
-        self._updates_core = True
-        if mmcore is not None and mmcore is not self._mmc:
-            self._mmc = mmcore
-
-    def disconnectCore(self) -> None:
-        """Disconnect from core.
-
-        Disconnect the widget from the core. This will prevent the widget
-        from updating the core when the value changes.
-        """
-        self._updates_core = False
-
-    def setValue(self, value: Any) -> None:
-        """Set the current value of the *widget* (which should match mmcore)."""
-        self._value_widget.setValue(value)
-
-    def allowedValues(self) -> tuple[str, ...]:
-        """Return tuple of allowable values if property is categorical."""
-        # this will have already been grabbed from mmcore on creation, and will
-        # have also taken into account the restrictions in the State/Label property
-        # of state devices.  So check for the _allowed attribute on the widget.
-        return tuple(getattr(self._value_widget, "_allowed", ()))
-
-    def refresh(self) -> None:
-        """Update the value of the widget from mmcore.
-
-        (If all goes well this shouldn't be necessary, but if a propertyChanged
-        event is missed, this can be used).
-        """
-        with utils.signals_blocked(self._value_widget):
-            self._try_update_from_core()
-
-    def propertyType(self) -> PropertyType:
-        """Return property type."""
-        return self._mmc.getPropertyType(*self._dp)
-
-    def deviceType(self) -> DeviceType:
-        """Return property type."""
-        return self._mmc.getDeviceType(self._device_label)
-
-    def isReadOnly(self) -> bool:
-        """Return True if property is read only."""
-        return self._mmc.isPropertyReadOnly(*self._dp)
-
-    @property
-    def _dp(self) -> tuple[str, str]:
-        """Commonly requested pair for mmcore calls."""
-        return self._device_label, self._prop_name
+    return wdg  # type: ignore [no-any-return]

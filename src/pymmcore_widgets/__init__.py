@@ -24,10 +24,10 @@ from ._pixel_configuration_widget import PixelConfigurationWidget
 from ._presets_widget import PresetsWidget
 from ._properties_widget import PropertiesWidget
 from ._property_browser import PropertyBrowser
-from ._property_widget import PropertyWidget
 from ._shutter_widget import ShuttersWidget
 from ._snap_button_widget import SnapButton
 from ._stage_widget import StageWidget
+from .device_properties._property_widget import PropertyWidget
 from .hcwizard import ConfigWizard
 from .mda import MDAWidget
 from .useq_widgets import (
