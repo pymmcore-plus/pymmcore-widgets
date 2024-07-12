@@ -74,7 +74,7 @@ class _CalibrationData(NamedTuple):
     calibration_positions_an: ClassVar[list[tuple[float, float]]] = []
 
 
-class _PlateCalibrationWidget(QWidget):
+class PlateCalibrationWidget(QWidget):
     """Widget to calibrate the sample plate.
 
     Attributes
