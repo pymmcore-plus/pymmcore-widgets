@@ -14,7 +14,7 @@ mmc = CMMCorePlus.instance()
 mmc.loadSystemConfiguration()
 w = HCSWizard()
 w.show()
-w.valueChanged.connect(print)
+w.valueChanged.connect()
 w.accepted.connect(print)
 
 app.exec()

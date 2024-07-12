@@ -11,7 +11,7 @@ from typing import (
 import numpy as np
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QSize, Qt, Signal
+from qtpy.QtCore import Property, QSize, Qt, QVariant, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QGroupBox,
@@ -86,6 +86,9 @@ class _PlateCalibrationWidget(QWidget):
     """
 
     valueChanged = Signal(object)
+
+    rotation = Property(int, lambda x: 0)
+    a1_center_xy = Property(QVariant, lambda x: QVariant((0, 0)))
 
     def __init__(
         self,
