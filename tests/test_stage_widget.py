@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pymmcore_widgets._stage_widget import StageWidget
+from pymmcore_widgets.control._stage_widget import StageWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus

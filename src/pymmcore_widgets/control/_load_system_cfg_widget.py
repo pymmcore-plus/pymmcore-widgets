@@ -1,15 +1,9 @@
 from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import (
-    QFileDialog,
-    QHBoxLayout,
-    QLineEdit,
-    QPushButton,
-    QWidget,
-)
+from qtpy.QtWidgets import QFileDialog, QHBoxLayout, QLineEdit, QPushButton, QWidget
 
-from ._core import load_system_config
+from pymmcore_widgets._util import load_system_config
 
 
 class ConfigurationWidget(QWidget):
@@ -62,21 +56,3 @@ class ConfigurationWidget(QWidget):
     def _load_cfg(self) -> None:
         """Load the config path currently in the line_edit."""
         load_system_config(self.cfg_LineEdit.text(), self._mmc)
-
-    def setTitle(self, title: str) -> None:
-        _show_deprecation("setTitle")
-
-    def title(self) -> str:
-        _show_deprecation("title")
-        return ""
-
-
-def _show_deprecation(name: str) -> None:
-    import warnings
-
-    warnings.warn(
-        "ConfigurationWidget is no longer a QGroupBox. "
-        f"Please place it in a groupbox if you need {name}",
-        DeprecationWarning,
-        stacklevel=3,
-    )

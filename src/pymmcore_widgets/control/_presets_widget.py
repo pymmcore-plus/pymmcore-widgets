@@ -8,11 +8,11 @@ from qtpy.QtGui import QBrush
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QWidget
 from superqt.utils import signals_blocked
 
-from ._util import block_core
+from pymmcore_widgets._util import block_core
 
 
 class PresetsWidget(QWidget):
-    """A Widget to create a QCombobox containing the presets of the specified group.
+    """Combobox widget to select the current preset for a given config group.
 
     Parameters
     ----------

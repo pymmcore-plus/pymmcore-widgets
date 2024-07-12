@@ -15,11 +15,12 @@ mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
 wdg = QWidget()
-wdg.setLayout(QFormLayout())
+layout = QFormLayout(wdg)
+layout.setSpacing(4)
 
 for group in mmc.getAvailableConfigGroups():
     gp_wdg = PresetsWidget(group)
-    wdg.layout().addRow(f"{group}:", gp_wdg)
+    layout.addRow(f"{group}:", gp_wdg)
 
 wdg.show()
 

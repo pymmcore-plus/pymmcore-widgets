@@ -6,8 +6,8 @@ from unittest.mock import Mock, call, patch
 import pytest
 from qtpy.QtWidgets import QDialog
 
-from pymmcore_widgets._objective_widget import ObjectivesWidget
 from pymmcore_widgets._util import ComboMessageBox
+from pymmcore_widgets.control._objective_widget import ObjectivesWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
