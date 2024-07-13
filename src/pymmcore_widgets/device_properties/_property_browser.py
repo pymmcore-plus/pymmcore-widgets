@@ -3,8 +3,9 @@ from __future__ import annotations
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QDialog, QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
 
+from pymmcore_widgets.device_properties._device_type_filter import DeviceTypeFilters
+
 from ._device_property_table import DevicePropertyTable
-from ._device_type_filter import DeviceTypeFilters
 
 
 class PropertyBrowser(QDialog):

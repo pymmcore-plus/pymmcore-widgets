@@ -1,7 +1,7 @@
 from pymmcore_plus import CMMCorePlus
 from useq import MDAEvent, MDASequence
 
-from pymmcore_widgets._stack_viewer._datastore import QOMEZarrDatastore
+from pymmcore_widgets.views._stack_viewer._datastore import QOMEZarrDatastore
 
 sequence = MDASequence(
     channels=[{"config": "DAPI", "exposure": 10}],

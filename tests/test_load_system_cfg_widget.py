@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pymmcore_widgets._load_system_cfg_widget import ConfigurationWidget
+from pymmcore_widgets.control._load_system_cfg_widget import ConfigurationWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus

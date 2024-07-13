@@ -26,7 +26,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon, setTextIcon
 from superqt.utils import exceptions_as_dialog, signals_blocked
 
-from pymmcore_widgets._device_property_table import ICONS
+from pymmcore_widgets._icons import ICONS
 
 from ._base_page import ConfigWizardPage
 from ._dev_setup_dialog import DeviceSetupDialog

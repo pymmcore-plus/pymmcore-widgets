@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pymmcore_widgets._presets_widget import PresetsWidget
+from pymmcore_widgets.control._presets_widget import PresetsWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus

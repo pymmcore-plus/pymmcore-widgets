@@ -27,7 +27,7 @@ from qtpy.QtWidgets import (
 )
 from superqt.utils import signals_blocked
 
-from ._util import block_core, guess_objective_or_prompt
+from pymmcore_widgets._util import block_core, guess_objective_or_prompt
 
 OBJECTIVE_LABEL = 0
 RESOLUTION_ID = 1

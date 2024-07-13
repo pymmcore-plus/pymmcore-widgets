@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from qtpy.QtCore import QSize
 
-from pymmcore_widgets._snap_button_widget import SnapButton
+from pymmcore_widgets.control._snap_button_widget import SnapButton
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus

@@ -12,8 +12,8 @@ from useq import MDAEvent, MDASequence
 from vispy.app.canvas import MouseEvent
 from vispy.scene.events import SceneMouseEvent
 
-from pymmcore_widgets._stack_viewer import CMAPS
 from pymmcore_widgets.experimental import StackViewer
+from pymmcore_widgets.views._stack_viewer import CMAPS
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot

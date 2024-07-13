@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from qtpy.QtCore import QSize
 
-from pymmcore_widgets._live_button_widget import LiveButton
+from pymmcore_widgets.control._live_button_widget import LiveButton
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus

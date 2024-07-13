@@ -11,11 +11,11 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QFileDialog
 
 from pymmcore_widgets import PresetsWidget
-from pymmcore_widgets._group_preset_widget._add_group_widget import AddGroupWidget
-from pymmcore_widgets._group_preset_widget._add_preset_widget import AddPresetWidget
-from pymmcore_widgets._group_preset_widget._edit_group_widget import EditGroupWidget
-from pymmcore_widgets._group_preset_widget._edit_preset_widget import EditPresetWidget
-from pymmcore_widgets._group_preset_widget._group_preset_table_widget import (
+from pymmcore_widgets.config_presets._group_preset_widget import (
+    AddGroupWidget,
+    AddPresetWidget,
+    EditGroupWidget,
+    EditPresetWidget,
     GroupPresetTableWidget,
 )
 

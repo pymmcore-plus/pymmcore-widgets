@@ -19,8 +19,8 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from pymmcore_widgets._property_widget import PropertyWidget
 from pymmcore_widgets._util import block_core
+from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 
 
 class AddPresetWidget(QDialog):
