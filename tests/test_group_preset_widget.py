@@ -165,10 +165,15 @@ def test_edit_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     item.setCheckState(Qt.CheckState.Checked)
     assert table.item(t_row, 0).text() == "Camera-CCDTemperature"
 
-    edit_gp.modify_group_btn.click()
-    assert edit_gp.info_lbl.text() == "'Camera' Group Modified."
+    edit_gp.group_lineedit.setText("Camera_New")
 
-    dp = [k[:2] for k in mmc.getConfigData("Camera", "LowRes")]
+    edit_gp.modify_group_btn.click()
+    assert edit_gp.info_lbl.text() == "'Camera_New' Group Modified."
+
+    assert "Camera" not in mmc.getAvailableConfigGroups()
+    assert "Camera_New" in mmc.getAvailableConfigGroups()
+
+    dp = [k[:2] for k in mmc.getConfigData("Camera_New", "LowRes")]
     assert ("Camera", "CCDTemperature") in dp
 
 
