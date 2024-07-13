@@ -35,7 +35,6 @@ class EditGroupWidget(QDialog):
         self._create_gui()
 
         self.group_lineedit.setText(self._group)
-        self.group_lineedit.setEnabled(False)
 
         self.destroyed.connect(self._disconnect)
 
@@ -144,6 +143,13 @@ class EditGroupWidget(QDialog):
         )
 
     def _add_group(self) -> None:
+        # rename group if it has been changed
+        renamed: bool = False
+        if self._group != self.group_lineedit.text():
+            self._mmc.renameConfigGroup(self._group, self.group_lineedit.text())
+            self._group = self.group_lineedit.text()
+            renamed = True
+
         # [(device, property, value), ...], need to remove the value
         new_dev_prop = [x[:2] for x in self._prop_table.getCheckedProperties()]
 
@@ -152,7 +158,7 @@ class EditGroupWidget(QDialog):
             (k[0], k[1]) for k in self._mmc.getConfigData(self._group, presets[0])
         ]
 
-        if preset_dev_prop == new_dev_prop:
+        if preset_dev_prop == new_dev_prop and not renamed:
             return
 
         # get any new dev prop to add to each preset
