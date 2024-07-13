@@ -47,6 +47,11 @@ def test_plate_widget_selection(qtbot: QtBot) -> None:
     wdg = WellPlateWidget()
     qtbot.addWidget(wdg)
     wdg.show()
+
+    # Ensure that if no plate is provided when instantiating the widget, the currently
+    # selected plate in the combobox is used.
+    assert wdg._view.scene().items()
+
     wdg.plate_name.setCurrentText("96-well")
     wdg.setCurrentSelection((slice(0, 4, 2), (1, 2)))
     selection = wdg.currentSelection()
