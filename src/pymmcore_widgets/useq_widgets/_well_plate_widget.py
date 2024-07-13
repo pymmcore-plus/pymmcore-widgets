@@ -112,7 +112,7 @@ class WellPlateWidget(QWidget):
         self.plate_name.currentTextChanged.connect(self._on_plate_name_changed)
         self._show_rotation.toggled.connect(self._on_show_rotation_toggled)
 
-        self.setValue(plan if plan is not None else self.value())
+        self.setValue(plan or self.value())
 
     # _________________________PUBLIC METHODS_________________________ #
 
