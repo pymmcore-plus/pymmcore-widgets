@@ -115,7 +115,7 @@ class WellPlateWidget(QWidget):
         if plan:
             self.setValue(plan)
         else:
-            self._on_plate_name_changed(self.plate_name.currentText())
+            self.setValue(self.value())
 
     # _________________________PUBLIC METHODS_________________________ #
 
