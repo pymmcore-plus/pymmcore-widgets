@@ -251,7 +251,7 @@ class GroupPresetTableWidget(QGroupBox):
                     wdg = wdg._value_widget  # type: ignore
 
         # resize to contents the table
-        self.table_wdg.resizeColumnsToContents()
+        self.table_wdg.resizeColumnToContents(0)
 
     def _get_cfg_data(self, group: str, preset: str) -> tuple[str, str, str, int]:
         # Return last device-property-value for the preset and the
