@@ -49,9 +49,12 @@ class CoreConnectedChannelTable(ChannelTable):
 
     def _update_channel_groups(self) -> None:
         """Update the channel groups when the system configuration is loaded."""
-        gps = self._mmc.getAvailableConfigGroups()
-        GROUPS = {group: self._mmc.getAvailableConfigs(group) for group in gps}
-        self.setChannelGroups(GROUPS)
+        self.setChannelGroups(
+            {
+                group: self._mmc.getAvailableConfigs(group)
+                for group in self._mmc.getAvailableConfigGroups()
+            }
+        )
 
         ch_group = self._mmc.getChannelGroup()
         if ch_group and ch_group in self.channelGroups():

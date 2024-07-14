@@ -219,7 +219,9 @@ class PositionTable(DataTableWidget):
                     # get the current sub-sequence as dict or create a new one
                     sub_seq = r.get("sequence")
                     sub_seq = (
-                        sub_seq.dict() if isinstance(sub_seq, useq.MDASequence) else {}
+                        sub_seq.model_dump()
+                        if isinstance(sub_seq, useq.MDASequence)
+                        else {}
                     )
                     # add the autofocus plan to the sub-sequence
                     sub_seq["autofocus_plan"] = useq.AxesBasedAF(
@@ -251,7 +253,7 @@ class PositionTable(DataTableWidget):
             if v.sequence is not None and v.sequence.autofocus_plan is not None:
                 # set sub-sequence to None if empty or we simply exclude the af plan
                 sub_seq: useq.MDASequence | None = useq.MDASequence(
-                    **v.sequence.dict(exclude={"autofocus_plan"})
+                    **v.sequence.model_dump(exclude={"autofocus_plan"})
                 )
                 if sub_seq == NULL_SEQUENCE:
                     sub_seq = None

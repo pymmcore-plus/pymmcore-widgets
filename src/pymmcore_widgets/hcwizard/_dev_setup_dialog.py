@@ -195,7 +195,7 @@ class DeviceSetupDialog(QDialog):
         for prop_name in core.getDevicePropertyNames(device_label):
             if core.isPropertyPreInit(device_label, prop_name):
                 pre_init_props.append(prop_name)
-            if prop_name == Keyword.Port:
+            if prop_name == Keyword.Port:  # type: ignore [comparison-overlap]
                 current_port = core.getProperty(device_label, prop_name)
 
         self._library_name = library_name
