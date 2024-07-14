@@ -22,6 +22,7 @@ class ClickableHeaderView(QHeaderView):
         self, orientation: Qt.Orientation, parent: QWidget | None = None
     ) -> None:
         super().__init__(orientation, parent)
+        self._is_editable: bool = True
 
         # stores the mouse position on hover
         self._mouse_pos = QPoint(-1, -1)
@@ -29,8 +30,8 @@ class ClickableHeaderView(QHeaderView):
         self._press_pos = QPoint(-1, -1)
         # stores the section currently being edited
         self._sectionedit: int = 0
-        # whether the last column is reserved for adding new columns
-        self._last_column_adds = True
+        # whether the last column/row is reserved for adding a new column/row
+        self._last_section_adds = True
 
         self._show_x: bool = True
         self._x_on_right: bool = True
@@ -44,15 +45,28 @@ class ClickableHeaderView(QHeaderView):
         # Connects to double click
         self.sectionDoubleClicked.connect(self._on_header_double_clicked)
 
+    def _is_last_section(self, logicalIndex: int) -> bool:
+        if model := self.model():
+            if self.orientation() == Qt.Orientation.Horizontal:
+                return logicalIndex == model.columnCount() - 1
+            return logicalIndex == model.rowCount() - 1
+        return False
+
     def _on_header_double_clicked(self, logicalIndex: int) -> None:
         # This block sets up the geometry for the line edit
-        model = self.model()
-        if self._last_column_adds and model and logicalIndex == model.columnCount() - 1:
+        if not self._is_editable:
+            return
+
+        if self._last_section_adds and self._is_last_section(logicalIndex):
             return
 
         rect = self.geometry()
-        rect.setWidth(self.sectionSize(logicalIndex))
-        rect.moveLeft(self.sectionViewportPosition(logicalIndex))
+        if self.orientation() == Qt.Orientation.Horizontal:
+            rect.setWidth(self.sectionSize(logicalIndex))
+            rect.moveLeft(self.sectionViewportPosition(logicalIndex))
+        else:
+            rect.setHeight(self.sectionSize(logicalIndex))
+            rect.moveTop(self.sectionViewportPosition(logicalIndex))
 
         if self._show_x and self._is_mouse_on(self._edge_rect(rect)):
             # double click on the right edge of the header does nothing
@@ -63,13 +77,13 @@ class ClickableHeaderView(QHeaderView):
         self._line_edit.setHidden(False)
         self._line_edit.setFocus()
         if m := self.model():
-            if txt := m.headerData(logicalIndex, Qt.Orientation.Horizontal):
+            if txt := m.headerData(logicalIndex, self.orientation()):
                 self._line_edit.setText(txt)
         self._sectionedit = logicalIndex
 
     def _on_header_edited(self) -> None:
         if (new_text := self._line_edit.text()) and (model := self.model()):
-            model.setHeaderData(self._sectionedit, Qt.Orientation.Horizontal, new_text)
+            model.setHeaderData(self._sectionedit, self.orientation(), new_text)
         self._line_edit.setHidden(True)
 
     def mouseMoveEvent(self, event: QMouseEvent | None) -> None:
@@ -83,19 +97,32 @@ class ClickableHeaderView(QHeaderView):
             self._press_pos = event.pos()
         return super().mousePressEvent(event)
 
+    def _add_section(self) -> None:
+        if model := self.model():
+            if self.orientation() == Qt.Orientation.Horizontal:
+                model.insertColumn(model.columnCount())
+            else:
+                model.insertRow(model.rowCount())
+            self.resizeEvent(None)
+
+    def _remove_section(self, logicalIndex: int) -> None:
+        if model := self.model():
+            if self.orientation() == Qt.Orientation.Horizontal:
+                model.removeColumn(logicalIndex)
+            else:
+                model.removeRow(logicalIndex)
+            self.resizeEvent(None)
+
     def mouseReleaseEvent(self, e: QMouseEvent | None) -> None:
         if e and e.pos() == self._press_pos and (model := self.model()):
             # click event
 
-            ncols = model.columnCount()
             # check if the click was in the last column
             # and if the last column is reserved for adding new columns
             # then add a new column
             logicalIndex = self.logicalIndexAt(e.pos())
-            if self._last_column_adds and logicalIndex == ncols - 1:
-                # add a new column
-                model.insertColumn(ncols)
-                self.resizeEvent(None)
+            if self._is_last_section(logicalIndex):
+                self._add_section()
                 return
 
             # if the click was on the right edge of the header
@@ -105,8 +132,7 @@ class ClickableHeaderView(QHeaderView):
                 rect.setWidth(self.sectionSize(logicalIndex))
                 rect.moveLeft(self.sectionViewportPosition(logicalIndex))
                 if self._is_mouse_on(self._edge_rect(rect)):
-                    model.removeColumn(logicalIndex)
-                    self.resizeEvent(None)
+                    self._remove_section(logicalIndex)
                     return
 
         return super().mouseReleaseEvent(e)
@@ -129,7 +155,7 @@ class ClickableHeaderView(QHeaderView):
 
         # Draw a plus sign on the last column, instead of the usual header text
         if (
-            self._last_column_adds
+            self._last_section_adds
             and (model := self.model())
             and logicalIndex == model.columnCount() - 1
         ):
@@ -175,6 +201,10 @@ class ConfigPresetTable(QTableWidget):
         super().__init__(parent)
         self._core = core or CMMCorePlus.instance()
         self.setHorizontalHeader(ClickableHeaderView(Qt.Orientation.Horizontal, self))
+        vh = ClickableHeaderView(Qt.Orientation.Vertical, self)
+        vh._show_x = False
+        vh._is_editable = False
+        self.setVerticalHeader(vh)
         self.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
         hh = self.horizontalHeader()
         hh.setSectionResizeMode(hh.ResizeMode.Stretch)
@@ -187,6 +217,12 @@ class ConfigPresetTable(QTableWidget):
         self.setColumnWidth(ncols - 1, 40)
         self.horizontalHeader().setSectionResizeMode(
             ncols - 1, QHeaderView.ResizeMode.Fixed
+        )
+
+    def _on_rows_changed(self) -> None:
+        nrows = self.rowCount()
+        self.verticalHeader().setSectionResizeMode(
+            nrows - 1, QHeaderView.ResizeMode.Fixed
         )
 
     def sizeHint(self) -> QSize:
@@ -206,8 +242,7 @@ class ConfigPresetTable(QTableWidget):
         all_props = set.union(*[set(props.keys()) for props in preset2props.values()])
         ncols = len(preset2props) + 1
         self.setColumnCount(ncols)
-
-        self.setRowCount(len(all_props))
+        self.setRowCount(len(all_props) + 1)
 
         # store which device/property is in which row
         ROWS: dict[tuple[str, str], int] = {}
