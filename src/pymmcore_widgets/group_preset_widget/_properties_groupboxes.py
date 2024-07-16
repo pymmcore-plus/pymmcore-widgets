@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 from typing import TYPE_CHECKING, Iterable, Sequence
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType, Keyword
@@ -44,32 +43,26 @@ class _PropertiesGroupBox(QGroupBox):
 
     def value(self) -> Iterable[tuple[str, str, str]]:
         """Yield all the properties that are checked."""
-        for d, p, v in self.props.value():
-            with contextlib.suppress(IndexError):
-                item = self.props.findItems(f"{d}-{p}", Qt.MatchFlag.MatchExactly)[0]
-                row = item.row()
-                if not self.props.isRowHidden(row):
-                    yield d, p, v
+        yield from self.props.value()
 
     def setValue(self, values: Sequence[tuple[str, str, str] | Setting]) -> None:
         """Set the properties and check the group box if any property is set."""
+        self.props.setValue(values)
+
         # Check if the group box should be checked or not depending on the values.
-        # the properties are set only if the row is not hidden.
-        _to_add = []
-        for d, p, v in values:
-            with contextlib.suppress(IndexError):
-                item = self.props.findItems(f"{d}-{p}", Qt.MatchFlag.MatchExactly)[0]
-                row = item.row()
-                if self.props.isRowHidden(row):
-                    continue
-                _to_add.append((d, p, v))
+        # the properties are set only if at least one row is visible.
+        for d, p, _ in values:
+            item = self.props.findItems(f"{d}-{p}", Qt.MatchFlag.MatchExactly)[0]
+            row = item.row()
+            if not self.props.isRowHidden(row):
+                self.setChecked(True)
+                return
 
-        self.props.setValue(_to_add)
-        self.setChecked(bool(_to_add))
+        self.setChecked(False)
 
-    def update_filter(self, checked: bool = False) -> None:
+    def update_filter(self, query: str = "", checked: bool = False) -> None:
         """Show only the selected properties."""
-        self.props.filterDevices(selected_only=checked)
+        self.props.filterDevices(query=query, selected_only=checked)
 
 
 def light_path_predicate(prop: DeviceProperty) -> bool | None:
@@ -123,27 +116,17 @@ class _LightPathGroupBox(_PropertiesGroupBox):
 
     def setValue(self, values: Sequence[tuple[str, str, str] | Setting]) -> None:
         """Set the properties and check the group box if any property is set."""
-        enable: bool = False
-        _to_add = []
+        super().setValue(values)
         for d, p, v in values:
             if d == Keyword.CoreDevice.value and p == Keyword.CoreShutter.value:
                 self.active_shutter.setCurrentText(v)
-                enable = True
-                continue
+                self.setChecked(True)
+                break
 
-            with contextlib.suppress(IndexError):
-                item = self.props.findItems(f"{d}-{p}", Qt.MatchFlag.MatchExactly)[0]
-                row = item.row()
-                if self.props.isRowHidden(row):
-                    continue
-                _to_add.append((d, p, v))
-
-        self.props.setValue(_to_add)
-        self.setChecked(bool(enable or _to_add))
-
-    def update_filter(self, checked: bool = False) -> None:
+    def update_filter(self, query: str = "", checked: bool = False) -> None:
         """Show only the selected properties."""
         self.props.filterDevices(
+            query=query,
             exclude_devices=[
                 DeviceType.Camera,
                 DeviceType.Core,
@@ -196,27 +179,17 @@ class _CameraGroupBox(_PropertiesGroupBox):
 
     def setValue(self, values: Sequence[tuple[str, str, str] | Setting]) -> None:
         """Set the properties and check the group box if any property is set."""
-        enable: bool = False
-        _to_add = []
+        super().setValue(values)
         for d, p, v in values:
             if d == Keyword.CoreDevice.value and p == Keyword.CoreCamera.value:
                 self.active_camera.setCurrentText(v)
-                enable = True
-                continue
+                self.setChecked(True)
+                break
 
-            with contextlib.suppress(IndexError):
-                item = self.props.findItems(f"{d}-{p}", Qt.MatchFlag.MatchExactly)[0]
-                row = item.row()
-                if self.props.isRowHidden(row):
-                    continue
-                _to_add.append((d, p, v))
-
-        self.props.setValue(_to_add)
-        self.setChecked(bool(enable or _to_add))
-
-    def update_filter(self, checked: bool = False) -> None:
+    def update_filter(self, query: str = "", checked: bool = False) -> None:
         """Show only the selected properties."""
         self.props.filterDevices(
+            query=query,
             include_devices=[DeviceType.Camera],
             include_read_only=False,
             include_pre_init=False,
@@ -275,31 +248,22 @@ class _StageGroupBox(_PropertiesGroupBox):
 
     def setValue(self, values: Sequence[tuple[str, str, str] | Setting]) -> None:
         """Set the properties and check the group box if any property is set."""
-        enable: bool = False
-        _to_add = []
+        super().setValue(values)
         for d, p, v in values:
-            if d == Keyword.CoreDevice.value and p == Keyword.CoreXYStage.value:
-                self.active_xy_stage.setCurrentText(v)
-                enable = True
-                continue
-            if d == Keyword.CoreDevice.value and p == Keyword.CoreFocus.value:
-                self.active_z_stage.setCurrentText(v)
-                enable = True
-                continue
-
-            with contextlib.suppress(IndexError):
-                item = self.props.findItems(f"{d}-{p}", Qt.MatchFlag.MatchExactly)[0]
-                row = item.row()
-                if self.props.isRowHidden(row):
+            if d == Keyword.CoreDevice.value:
+                if p == Keyword.CoreXYStage.value:
+                    self.active_xy_stage.setCurrentText(v)
+                    self.setChecked(True)
                     continue
-                _to_add.append((d, p, v))
+                if p == Keyword.CoreFocus.value:
+                    self.active_z_stage.setCurrentText(v)
+                    self.setChecked(True)
+                    continue
 
-        self.props.setValue(_to_add)
-        self.setChecked(bool(enable or _to_add))
-
-    def update_filter(self, checked: bool = False) -> None:
+    def update_filter(self, query: str = "", checked: bool = False) -> None:
         """Show only the selected properties."""
         self.props.filterDevices(
+            query=query,
             include_devices=[DeviceType.Stage, DeviceType.XYStage],
             include_read_only=False,
             include_pre_init=False,
@@ -330,9 +294,10 @@ class _ObjectiveGroupBox(_PropertiesGroupBox):
                 return False
         return None
 
-    def update_filter(self, checked: bool = False) -> None:
+    def update_filter(self, query: str = "", checked: bool = False) -> None:
         """Show only the selected properties."""
         self.props.filterDevices(
+            query=query,
             include_devices=[DeviceType.StateDevice],
             include_read_only=False,
             include_pre_init=False,
@@ -368,9 +333,10 @@ class _OtherGroupBox(_PropertiesGroupBox):
         layout.setSpacing(0)
         layout.addWidget(self.props)
 
-    def update_filter(self, checked: bool = False) -> None:
+    def update_filter(self, query: str = "", checked: bool = False) -> None:
         """Show only the selected properties."""
         self.props.filterDevices(
+            query=query,
             exclude_devices=[
                 DeviceType.Camera,
                 DeviceType.Stage,
