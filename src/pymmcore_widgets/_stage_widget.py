@@ -199,7 +199,7 @@ class StageWidget(QWidget):
         device: str,
         levels: int = 2,
         *,
-        position_labels_below: bool | None = None,
+        position_labels_below: bool = True,
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
     ):
@@ -259,12 +259,7 @@ class StageWidget(QWidget):
         # position label
         # this can appear either below or to the right of the move buttons
 
-        if position_labels_below is None:
-            self._pos_labels_below = is_2axis
-        else:
-            self._pos_labels_below = position_labels_below
-
-        if self._pos_labels_below:
+        if position_labels_below:
             label_form = QHBoxLayout()
             label_form.setContentsMargins(0, 0, 0, 0)
             if is_2axis:
