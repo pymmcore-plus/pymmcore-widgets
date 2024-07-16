@@ -118,11 +118,9 @@ class GroupPresetDialog(QWidget):
         group_splitter.addWidget(self._stage_group)
         group_splitter.addWidget(self._obj_group)
         group_splitter.addWidget(self._other_group)
-        group_splitter.setStretchFactor(0, 10)
-        group_splitter.setStretchFactor(1, 10)
-        group_splitter.setStretchFactor(2, 10)
-        group_splitter.setStretchFactor(3, 10)
-        group_splitter.setStretchFactor(4, 10)
+
+        # Set initial sizes for the splitter
+        group_splitter.setSizes([1, 1, 1, 1, 1])
 
         props_group = QGroupBox()
         props_group_layout = QVBoxLayout(props_group)
