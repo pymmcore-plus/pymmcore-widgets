@@ -15,23 +15,17 @@ mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
 wdg = QWidget()
-wdg.setLayout(QHBoxLayout())
+wdg_layout = QHBoxLayout(wdg)
 
-stage_dev_list = list(mmc.getLoadedDevicesOfType(DeviceType.XYStage))
-stage_dev_list.extend(iter(mmc.getLoadedDevicesOfType(DeviceType.Stage)))
+stages = list(mmc.getLoadedDevicesOfType(DeviceType.XYStage))
+stages.extend(mmc.getLoadedDevicesOfType(DeviceType.Stage))
+for stage in stages:
+    lbl = "Z" if mmc.getDeviceType(stage) == DeviceType.Stage else "XY"
+    bx = QGroupBox(f"{lbl} Control")
+    bx_layout = QHBoxLayout(bx)
+    bx_layout.addWidget(StageWidget(device=stage, position_labels_below=True))
+    wdg_layout.addWidget(bx)
 
-for stage_dev in stage_dev_list:
-    if mmc.getDeviceType(stage_dev) is DeviceType.XYStage:
-        bx = QGroupBox("XY Control")
-        bx.setLayout(QHBoxLayout())
-        bx.layout().addWidget(StageWidget(device=stage_dev))
-        wdg.layout().addWidget(bx)
-    if mmc.getDeviceType(stage_dev) is DeviceType.Stage:
-        bx = QGroupBox("Z Control")
-        bx.setLayout(QHBoxLayout())
-        bx.layout().addWidget(StageWidget(device=stage_dev))
-        wdg.layout().addWidget(bx)
 
 wdg.show()
-
-app.exec_()
+app.exec()
