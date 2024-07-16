@@ -209,6 +209,7 @@ class DevicePropertyTable(QTableWidget):
         include_read_only: bool = True,
         include_pre_init: bool = True,
         init_props_only: bool = False,
+        selected_only: bool = False,
         predicate: Callable[[DeviceProperty], bool | None] | None = None,
     ) -> None:
         """Update the table to only show devices that match the given query/filter."""
@@ -234,6 +235,7 @@ class DevicePropertyTable(QTableWidget):
                 or (prop.isPreInit() and not include_pre_init)
                 or (init_props_only and not prop.isPreInit())
                 or (prop.deviceType() in exclude_devices)
+                or (selected_only and item.checkState() != Qt.CheckState.Checked)
             ):
                 self.hideRow(row)
                 continue
