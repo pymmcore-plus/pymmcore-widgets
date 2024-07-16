@@ -149,8 +149,8 @@ class StageMovementButtons(QWidget):
                 cols += [0, 6]
 
         for c in cols:
-            if item := btn_layout.itemAtPosition(3, c):
-                item.widget().setVisible(visible)
+            if (item := btn_layout.itemAtPosition(3, c)) and (wdg := item.widget()):
+                wdg.setVisible(visible)
 
     def _update_tooltips(self) -> None:
         """Update tooltips for the move buttons."""
@@ -177,6 +177,9 @@ class StageWidget(QWidget):
         Stage device.
     levels: int | None:
         Number of "arrow" buttons per widget per direction, by default, 2.
+    position_labels_below: bool | None
+        If True, the position labels will appear below the move buttons.
+        If False, the position labels will appear to the right of the move buttons.
     parent : QWidget | None
         Optional parent widget.
     mmcore : CMMCorePlus | None
