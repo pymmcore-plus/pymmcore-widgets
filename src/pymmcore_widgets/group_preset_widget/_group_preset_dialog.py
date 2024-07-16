@@ -20,7 +20,7 @@ from qtpy.QtWidgets import (
 )
 from superqt.utils import signals_blocked
 
-from ._properties_groupboxes import (
+from ._properties_tables import (
     _CameraGroupBox,
     _LightPathGroupBox,
     _ObjectiveGroupBox,
