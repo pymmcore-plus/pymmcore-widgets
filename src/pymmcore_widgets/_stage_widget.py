@@ -71,6 +71,20 @@ class MoveStageButton(QPushButton):
         )
 
 
+class HaltButton(QPushButton):
+    def __init__(self, core: CMMCorePlus, parent: QWidget | None = None):
+        super().__init__("STOP!", parent=parent)
+        self._core = core
+        self.setStyleSheet("color: red; font-weight: bold;")
+        self.clicked.connect(self._on_clicked)
+
+    def _on_clicked(self) -> None:
+        for stage in self._core.getLoadedDevicesOfType(DeviceType.Stage):
+            self._core.stop(stage)
+        for stage in self._core.getLoadedDevicesOfType(DeviceType.XYStage):
+            self._core.stop(stage)
+
+
 class StageMovementButtons(QWidget):
     """Grid of buttons to move a stage in 2D.
 
@@ -225,9 +239,13 @@ class StageWidget(QWidget):
         self._poslabel_x = QDoubleSpinBox()
         self._poslabel_x.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
         self._poslabel_x.setRange(-99999999, 99999999)
+        self._poslabel_x.setMaximumWidth(80)
+        self._poslabel_x.setDecimals(1)
         self._poslabel_yz = QDoubleSpinBox()
         self._poslabel_yz.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
         self._poslabel_yz.setRange(-99999999, 99999999)
+        self._poslabel_yz.setMaximumWidth(80)
+        self._poslabel_yz.setDecimals(1)
 
         self._poll_cb = QCheckBox("Poll")
         self.snap_checkbox = QCheckBox(text="Snap on Click")
@@ -259,30 +277,32 @@ class StageWidget(QWidget):
         # position label
         # this can appear either below or to the right of the move buttons
 
+        halt = HaltButton(self._mmc)
         if position_labels_below:
-            label_form = QHBoxLayout()
-            label_form.setContentsMargins(0, 0, 0, 0)
+            pos_labels = QHBoxLayout()
+            pos_labels.setContentsMargins(0, 0, 0, 0)
             if is_2axis:
-                label_form.addWidget(QLabel("X:"), 0)
-                label_form.addWidget(self._poslabel_x, 1)
-                label_form.addWidget(QLabel(f"{Y}:"), 0)
+                pos_labels.addWidget(QLabel("X:"), 0)
+                pos_labels.addWidget(self._poslabel_x, 1)
+                pos_labels.addWidget(QLabel(f"{Y}:"), 0)
             else:
-                label_form.addWidget(QLabel(f"{Y}:"), 0)
-            label_form.addWidget(self._poslabel_yz, 1)
-            main_layout.insertLayout(2, label_form)
+                pos_labels.addWidget(QLabel(f"{Y}:"), 0)
+            pos_labels.addWidget(self._poslabel_yz, 1)
+            pos_labels.addWidget(halt, 0)
+            main_layout.insertLayout(2, pos_labels)
         else:
-            label_form = QFormLayout()
-            label_form.setContentsMargins(0, 0, 0, 0)
-            label_form.setFieldGrowthPolicy(
+            pos_labels = QFormLayout()
+            pos_labels.setContentsMargins(0, 0, 0, 0)
+            pos_labels.setFieldGrowthPolicy(
                 QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
             )
-            label_form.setFormAlignment(Qt.AlignmentFlag.AlignCenter)
+            pos_labels.setFormAlignment(Qt.AlignmentFlag.AlignCenter)
             if is_2axis:
-                label_form.addRow("X:", self._poslabel_x)
-            label_form.addRow(f"{Y}:", self._poslabel_yz)
+                pos_labels.addRow("X:", self._poslabel_x)
+            pos_labels.addRow(f"{Y}:", self._poslabel_yz)
             move_btns_layout = cast("QGridLayout", self._move_btns.layout())
             move_btns_layout.addLayout(
-                label_form, 4, 4, 2, 2, Qt.AlignmentFlag.AlignBottom
+                pos_labels, 4, 4, 2, 2, Qt.AlignmentFlag.AlignBottom
             )
 
         if not is_2axis:
@@ -291,6 +311,8 @@ class StageWidget(QWidget):
 
         # SIGNALS -----------------------------------------------
 
+        self._poslabel_x.editingFinished.connect(self._on_pos_changed)
+        self._poslabel_yz.editingFinished.connect(self._on_pos_changed)
         self._set_as_default_btn.toggled.connect(self._on_radiobutton_toggled)
         self._move_btns.moveRequested.connect(self._on_move_requested)
         self._poll_cb.toggled.connect(self._toggle_poll_timer)
@@ -395,7 +417,7 @@ class StageWidget(QWidget):
                 self.killTimer(self._poll_timer_id)
                 self._poll_timer_id = None
 
-    def timerEvent(self, event: QTimerEvent) -> None:
+    def timerEvent(self, event: QTimerEvent | None) -> None:
         if event.timerId() == self._poll_timer_id:
             self._update_position_label()
         super().timerEvent(event)
@@ -409,6 +431,14 @@ class StageWidget(QWidget):
             self._poslabel_yz.setValue(self._mmc.getYPosition(self._device))
         elif self._dtype is DeviceType.Stage:
             self._poslabel_yz.setValue(self._mmc.getPosition(self._device))
+
+    def _on_pos_changed(self) -> None:
+        if self._dtype is DeviceType.XYStage:
+            self._mmc.setXYPosition(
+                self._device, self._poslabel_x.value(), self._poslabel_yz.value()
+            )
+        elif self._dtype is DeviceType.Stage:
+            self._mmc.setPosition(self._device, self._poslabel_yz.value())
 
     def _on_move_requested(self, xmag: float, ymag: float) -> None:
         if self._invert_x.isChecked():
