@@ -8,6 +8,7 @@ from qtpy.QtWidgets import (
     QFileDialog,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QListWidget,
     QListWidgetItem,
     QMessageBox,
@@ -35,7 +36,9 @@ class ListWidget(QGroupBox):
 
     def __init__(self, parent: QWidget | None = None, title: str = "") -> None:
         super().__init__(parent)
-        self.setTitle(title)
+
+        label = QLabel(title)
+        label.setStyleSheet("font-weight: bold;")
 
         self.list = QListWidget()
         self.list.setEditTriggers(
@@ -57,11 +60,20 @@ class ListWidget(QGroupBox):
         button_column.addWidget(self.activate)
         button_column.addStretch()
 
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(5)
-        layout.addWidget(self.list)
-        layout.addLayout(button_column)
+        title_layout = QHBoxLayout()
+        title_layout.setContentsMargins(0, 0, 0, 0)
+        title_layout.addWidget(label, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        list_layout = QHBoxLayout()
+        list_layout.setContentsMargins(0, 0, 0, 0)
+        list_layout.setSpacing(5)
+        list_layout.addWidget(self.list)
+        list_layout.addLayout(button_column)
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.addLayout(title_layout)
+        main_layout.addLayout(list_layout)
 
     def _on_selection_changed(self) -> None:
         item = self.list.currentItem()
