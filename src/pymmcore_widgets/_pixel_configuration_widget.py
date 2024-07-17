@@ -84,9 +84,9 @@ class PixelConfigurationWidget(QWidget):
         self._px_table = _PixelTable()
         affine_lbl = QLabel("Affine Transformations:")
         self._affine_table = AffineTable()
-        left_layout.addWidget(self._px_table)
-        left_layout.addWidget(affine_lbl)
-        left_layout.addWidget(self._affine_table)
+        left_layout.addWidget(self._px_table, 1)
+        left_layout.addWidget(affine_lbl, 0)
+        left_layout.addWidget(self._affine_table, 0)
 
         self._props_selector = _PropertySelector(mmcore=self._mmc)
 
@@ -483,7 +483,8 @@ class AffineTable(QTableWidget):
         self._add_table_spinboxes()
         self.setValue(DEFAULT_AFFINE)
 
-        self.setMaximumHeight(self.minimumSizeHint().height())
+    def sizeHint(self) -> Any:
+        return self.minimumSizeHint()
 
     def _add_table_spinboxes(self) -> None:
         """Add a spinbox in each cell of the table."""
