@@ -473,9 +473,7 @@ class AffineTable(QTableWidget):
 
         self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.horizontalHeader().setVisible(False)
-        self.verticalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.ResizeToContents
-        )
+        self.verticalHeader().setDefaultSectionSize(20)
         self.verticalHeader().setVisible(False)
 
         self.setColumnCount(3)
