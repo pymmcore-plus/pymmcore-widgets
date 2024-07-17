@@ -473,7 +473,9 @@ class AffineTable(QTableWidget):
 
         self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.horizontalHeader().setVisible(False)
-        self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.verticalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
         self.verticalHeader().setVisible(False)
 
         self.setColumnCount(3)
@@ -484,7 +486,10 @@ class AffineTable(QTableWidget):
         self.setValue(DEFAULT_AFFINE)
 
     def sizeHint(self) -> Any:
-        return self.minimumSizeHint()
+        sz = self.minimumSizeHint()
+        rc = self.rowCount()
+        sz.setHeight(self.rowHeight(0) * rc + (rc - 1))
+        return sz
 
     def _add_table_spinboxes(self) -> None:
         """Add a spinbox in each cell of the table."""
