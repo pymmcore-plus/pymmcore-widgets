@@ -82,7 +82,7 @@ class PixelConfigurationWidget(QWidget):
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(5)
         self._px_table = _PixelTable()
-        affine_lbl = QLabel("Affine Transformations:")
+        affine_lbl = QLabel("Affine Transformation:")
         self._affine_table = AffineTable()
         left_layout.addWidget(self._px_table, 1)
         left_layout.addWidget(affine_lbl, 0)
