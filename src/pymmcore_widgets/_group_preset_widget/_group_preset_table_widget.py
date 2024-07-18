@@ -5,6 +5,7 @@ from typing import Any
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
+    QAbstractScrollArea,
     QFileDialog,
     QGroupBox,
     QHBoxLayout,
@@ -38,12 +39,13 @@ class _MainTable(QTableWidget):
     def __init__(self) -> None:
         super().__init__()
         hdr = self.horizontalHeader()
-        hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
+        hdr.setStretchLastSection(True)
         hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
         vh = self.verticalHeader()
         vh.setVisible(False)
         vh.setSectionResizeMode(vh.ResizeMode.Fixed)
         vh.setDefaultSectionSize(24)
+        self.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.setColumnCount(2)
@@ -247,6 +249,9 @@ class GroupPresetTableWidget(QGroupBox):
                     wdg = wdg._combo
                 elif isinstance(wdg, PropertyWidget):
                     wdg = wdg._value_widget  # type: ignore
+
+        # resize to contents the table
+        self.table_wdg.resizeColumnToContents(0)
 
     def _get_cfg_data(self, group: str, preset: str) -> tuple[str, str, str, int]:
         # Return last device-property-value for the preset and the
