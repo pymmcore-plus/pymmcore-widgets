@@ -200,6 +200,12 @@ class GridPlanWidget(QScrollArea):
         self.order.currentIndexChanged.connect(self._on_change)
         self.relative_to.currentIndexChanged.connect(self._on_change)
 
+        # FIXME: On Windows 11, buttons within an inner widget of a ScrollArea
+        # are filled in with the accent color, making it very difficult to see
+        # which radio button is checked. This HACK solves the issue. It's
+        # likely future Qt versions will fix this.
+        inner_widget.setStyleSheet("QRadioButton {color: none}")
+
     # ------------------------- Public API -------------------------
 
     def mode(self) -> Mode:
