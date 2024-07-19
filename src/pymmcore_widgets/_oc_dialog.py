@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Iterable
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType, Keyword
@@ -152,6 +153,13 @@ class UniqueNameList(QWidget):
     def currentName(self) -> str | None:
         if (current := self._name_list.currentItem()) is not None:
             return current.text()
+        return None
+
+    def setCurrentName(self, name: str) -> None:
+        for i in range(self._name_list.count()):
+            if item := self._name_list.item(i):
+                if item.text() == name:
+                    self._name_list.setCurrentItem(item)
 
 
 class OpticalConfigDialog(QWidget):
@@ -160,18 +168,25 @@ class OpticalConfigDialog(QWidget):
     ) -> None:
         super().__init__(parent)
         self._core = mmcore or CMMCorePlus.instance()
-        self._model = ConfigGroup("")
+        self._config_groups: dict[str, ConfigGroup] = {}
+        self._config_group = ConfigGroup("")
 
-        self.groups = QComboBox(self)
-        self.groups.addItems(self._core.getAvailableConfigGroups())
-        self.groups.currentTextChanged.connect(self.load_group)
+        self.groups = UniqueNameList(self)
+        self.groups.nameAdded.connect(self._on_group_added)
+        self.groups.nameRemoved.connect(self._on_group_removed)
+        self.groups.nameChanged.connect(self._on_group_renamed)
+        self.groups.nameDuplicated.connect(self._on_group_duplicated)
+        self.groups.btn_activate.hide()
+        self.groups.currentNameChanged.connect(self._on_current_group_changed)
+        for name in self._core.getAvailableConfigGroups():
+            self.groups.addName(name)
 
         self.presets = UniqueNameList(self)
         self.presets.nameAdded.connect(self._on_preset_added)
         self.presets.nameRemoved.connect(self._on_preset_removed)
         self.presets.nameChanged.connect(self._on_preset_renamed)
         self.presets.nameDuplicated.connect(self._on_preset_duplicated)
-        self.presets.activateClicked.connect(self._activate_oc)
+        self.presets.activateClicked.connect(self._activate_preset)
         self.presets.currentNameChanged.connect(self._on_current_preset_changed)
 
         # Groups -----------------------------------------------------
@@ -183,15 +198,8 @@ class OpticalConfigDialog(QWidget):
         self._cam_group.valueChanged.connect(self._update_model_preset)
         self._obj_group.valueChanged.connect(self._update_model_preset)
 
-        left_top = QWidget()
-        # left_top.hide()
-        left_top_layout = QHBoxLayout(left_top)
-        left_top_layout.setContentsMargins(0, 0, 0, 0)
-        left_top_layout.addWidget(QLabel("Group:"), 0)
-        left_top_layout.addWidget(self.groups, 1)
-
         left_layout = QVBoxLayout()
-        left_layout.addWidget(left_top)
+        left_layout.addWidget(self.groups)
         left_layout.addWidget(self.presets)
 
         right_splitter = QSplitter(Qt.Orientation.Vertical, self)
@@ -209,42 +217,68 @@ class OpticalConfigDialog(QWidget):
 
         self.resize(1080, 920)
 
+    @property
+    def config_group(self) -> ConfigGroup:
+        return self._config_group
+
+    def _on_group_added(self, name: str) -> None:
+        self._config_groups[name] = ConfigGroup(name=name)
+
+    def _on_group_removed(self, name: str) -> None:
+        self._config_groups.pop(name, None)
+
+    def _on_group_renamed(self, old_name: str, new_name: str) -> None:
+        self._config_groups[new_name] = self._config_groups.pop(old_name)
+
+    def _on_group_duplicated(self, existing: str, copy_name: str) -> None:
+        presets = deepcopy(self._config_groups[existing].presets)
+        self._config_groups[copy_name] = ConfigGroup(name=copy_name, presets=presets)
+
     def _on_preset_added(self, name: str) -> None:
-        print("added", name)
-        self._model.presets[name] = ConfigPreset(name=name)
+        self._config_group.presets[name] = ConfigPreset(name=name)
 
     def _on_preset_removed(self, name: str) -> None:
-        self._model.presets.pop(name)
+        self._config_group.presets.pop(name, None)
 
     def _on_preset_renamed(self, old_name: str, new_name: str) -> None:
-        self._model.presets[new_name] = self._model.presets.pop(old_name)
+        self._config_group.presets[new_name] = self._config_group.presets.pop(old_name)
 
     def _on_preset_duplicated(self, existing: str, copy_name: str) -> None:
-        settings = self._model.presets[existing].settings
-        self._model.presets[copy_name] = ConfigPreset(name=copy_name, settings=settings)
+        settings = self._config_group.presets[existing].settings
+        self._config_group.presets[copy_name] = ConfigPreset(
+            name=copy_name, settings=settings
+        )
+
+    def _on_current_group_changed(self) -> None:
+        if group := self.groups.currentName():
+            self.load_group(group)
 
     def _on_current_preset_changed(self) -> None:
         if preset := self.presets.currentName():
             self.load_preset(preset)
 
-    def _activate_oc(self, name: str) -> None:
-        for dev, prop, value in self._model.presets[name].settings:
+    def _activate_preset(self, name: str) -> None:
+        for dev, prop, value in self._config_group.presets[name].settings:
             self._core.setProperty(dev, prop, value)
 
     def load_group(self, group: str) -> None:
-        self.groups.setCurrentText(group)
+        self.groups.setCurrentName(group)
+        print("load group", group)
+        if group not in self._config_groups:
+            print("creating from core")
+            self._config_groups[group] = ConfigGroup.create_from_core(self._core, group)
+        self._config_group = self._config_groups[group]
 
         with signals_blocked(self.presets):
             self.presets.clear()
-            for n in self._core.getAvailableConfigs(group):
-                self.presets.addName(n)
+            for p in self._config_group.presets:
+                self.presets.addName(p)
 
-        self._model = ConfigGroup.create_from_core(self._core, group)
         self.presets.listWidget().setCurrentRow(0)
 
     def load_preset(self, name: str) -> None:
         try:
-            settings = self._model.presets[name].settings
+            settings = self._config_group.presets[name].settings
         except KeyError:
             print("nope", name)
             return
@@ -259,7 +293,7 @@ class OpticalConfigDialog(QWidget):
 
     def _update_model_preset(self) -> None:
         if preset := self.presets.currentName():
-            self._model.presets[preset].settings = self._current_settings()
+            self._config_group.presets[preset].settings = self._current_settings()
 
     def _current_settings(self) -> list[Setting]:
         tmp = {}
