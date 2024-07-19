@@ -1,21 +1,18 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Literal, Sequence, cast
+from typing import Literal
 
 import useq
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
-    QAbstractButton,
-    QButtonGroup,
     QDoubleSpinBox,
     QFormLayout,
     QGridLayout,
-    QHBoxLayout,
     QLabel,
-    QRadioButton,
     QScrollArea,
     QSpinBox,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -41,9 +38,12 @@ class OrderMode(Enum):
 
 
 class Mode(Enum):
-    NUMBER = "number"
-    AREA = "area"
-    BOUNDS = "bounds"
+    NUMBER = "Fields of View"
+    AREA = "Width & Height"
+    BOUNDS = "Absolute Bounds"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class GridPlanWidget(QScrollArea):
@@ -101,37 +101,62 @@ class GridPlanWidget(QScrollArea):
         self.bottom.setDecimals(3)
         self.bottom.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
 
-        self.overlap = QDoubleSpinBox()
-        self.overlap.setRange(-1000, 1000)
-        self.overlap.setValue(0)
-        self.overlap.setSuffix(" %")
+        self.overlap = 0.0
+        self.overlaps: list[QDoubleSpinBox] = []
+        self.order = OrderMode.row_wise
+        self.orders: list[QEnumComboBox] = []
+        self.relative_to = RelativeTo.center
+        self.relative_tos: list[QEnumComboBox] = []
 
-        self.order = QEnumComboBox(self, OrderMode)
-        self.relative_to = QEnumComboBox(self, RelativeTo)
-        self.order.currentEnum()
+        def _add_overlap_widget(layout: QFormLayout) -> None:
+            overlap = QDoubleSpinBox()
+            overlap.setRange(-1000, 1000)
+            overlap.setValue(0)
+            overlap.setSuffix(" %")
 
-        self._mode_number_radio = QRadioButton()
-        self._mode_area_radio = QRadioButton()
-        self._mode_bounds_radio = QRadioButton()
-        self._mode_btn_group = QButtonGroup()
-        self._mode_btn_group.addButton(self._mode_number_radio)
-        self._mode_btn_group.addButton(self._mode_area_radio)
-        self._mode_btn_group.addButton(self._mode_bounds_radio)
-        self._mode_btn_group.buttonToggled.connect(self.setMode)
+            def on_change(val: float) -> None:
+                self.overlap = val
+                for o in self.overlaps:
+                    o.setValue(val)
 
-        row_col_layout = QHBoxLayout()
-        row_col_layout.addWidget(self._mode_number_radio)
-        row_col_layout.addWidget(QLabel("Rows:"))
-        row_col_layout.addWidget(self.rows, 1)
-        row_col_layout.addWidget(QLabel("Cols:"))
-        row_col_layout.addWidget(self.columns, 1)
+            self.overlaps.append(overlap)
+            overlap.valueChanged.connect(on_change)
+            layout.addRow("Overlap:", overlap)
 
-        width_height_layout = QHBoxLayout()
-        width_height_layout.addWidget(self._mode_area_radio)
-        width_height_layout.addWidget(QLabel("Width:"))
-        width_height_layout.addWidget(self.area_width, 1)
-        width_height_layout.addWidget(QLabel("Height:"))
-        width_height_layout.addWidget(self.area_height, 1)
+        def _add_order_widget(layout: QFormLayout) -> None:
+            combo = QEnumComboBox(self, OrderMode)
+            combo.currentEnum()
+
+            def on_change(enum: OrderMode) -> None:
+                self.order = enum
+                for o in self.orders:
+                    o.setCurrentEnum(enum)
+
+            combo.currentEnumChanged.connect(on_change)
+            self.orders.append(combo)
+            layout.addRow("Order:", combo)
+
+        def _add_relative_to_widget(layout: QFormLayout) -> None:
+            combo = QEnumComboBox(self, RelativeTo)
+            combo.currentEnum()
+
+            def on_change(enum: RelativeTo) -> None:
+                self.relative_to = enum
+                for o in self.relative_tos:
+                    o.setCurrentEnum(enum)
+
+            self.relative_tos.append(combo)
+            combo.currentEnumChanged.connect(on_change)
+            combo.setToolTip("The current stage position within the larger grid")
+            layout.addRow("Current Position:", combo)
+
+        width_height_layout = QFormLayout()
+        width_height_layout.addRow("Width:", self.area_width)
+        width_height_layout.addRow("Height:", self.area_height)
+        width_height_layout.addWidget(SeparatorWidget())
+        _add_overlap_widget(width_height_layout)
+        _add_order_widget(width_height_layout)
+        _add_relative_to_widget(width_height_layout)
 
         self.lrtb_wdg = QWidget()
         lrtb_grid = QGridLayout(self.lrtb_wdg)
@@ -147,44 +172,48 @@ class GridPlanWidget(QScrollArea):
         lrtb_grid.setColumnStretch(1, 1)
         lrtb_grid.setColumnStretch(3, 1)
 
-        self.bounds_layout = QHBoxLayout()
-        self.bounds_layout.addWidget(self._mode_bounds_radio)
-        self.bounds_layout.addWidget(self.lrtb_wdg, 1)
+        self.bounds_layout = QFormLayout()
+        self.bounds_layout.addWidget(self.lrtb_wdg)
+        self.bounds_layout.addWidget(SeparatorWidget())
+        _add_overlap_widget(self.bounds_layout)
+        _add_order_widget(self.bounds_layout)
 
-        bottom_stuff = QHBoxLayout()
-
-        bot_left = QFormLayout()
-        bot_left.setFieldGrowthPolicy(
-            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
-        )
-        bot_left.addRow("Overlap:", self.overlap)
-        bot_left.addRow("Order:", self.order)
-        bot_left.addRow("Relative to:", self.relative_to)
-
-        bottom_stuff.addLayout(bot_left)
+        row_col_layout = QFormLayout()
+        row_col_layout.addRow("Grid Rows:", self.rows)
+        row_col_layout.addRow("Grid Cols:", self.columns)
+        row_col_layout.addWidget(SeparatorWidget())
+        _add_overlap_widget(row_col_layout)
+        _add_order_widget(row_col_layout)
+        _add_relative_to_widget(row_col_layout)
 
         # wrap the whole thing in an inner widget so we can put it in this ScrollArea
         inner_widget = QWidget(self)
         layout = QVBoxLayout(inner_widget)
-        layout.addLayout(row_col_layout)
+        top_layout = QFormLayout()
+        combo = QEnumComboBox(parent=self, enum_class=Mode)
+        top_layout.addRow(QLabel("Create Grid Using:"), combo)
+        layout.addLayout(top_layout)
         layout.addWidget(SeparatorWidget())
-        layout.addLayout(width_height_layout)  # hiding until useq supports it
-        layout.addWidget(SeparatorWidget())
-        layout.addLayout(self.bounds_layout)
-        layout.addWidget(SeparatorWidget())
-        layout.addLayout(bottom_stuff)
+        self.stack = QStackedWidget(self)
+        layout.addWidget(self.stack)
         layout.addStretch()
+
+        wdg_num = QWidget(self.stack)
+        wdg_num.setLayout(row_col_layout)
+        self.stack.addWidget(wdg_num)
+        wdg_area = QWidget(self.stack)
+        wdg_area.setLayout(width_height_layout)
+        self.stack.addWidget(wdg_area)
+        wdg_bounds = QWidget(self.stack)
+        wdg_bounds.setLayout(self.bounds_layout)
+        self.stack.addWidget(wdg_bounds)
+
+        combo.currentEnumChanged.connect(self.setMode)
 
         self.setWidget(inner_widget)
         self.setWidgetResizable(True)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-
-        self.mode_groups: dict[Mode, Sequence[QWidget]] = {
-            Mode.NUMBER: (self.rows, self.columns),
-            Mode.AREA: (self.area_width, self.area_height),
-            Mode.BOUNDS: (self.left, self.top, self.right, self.bottom),
-        }
 
         self.setMode(Mode.NUMBER)
 
@@ -196,15 +225,12 @@ class GridPlanWidget(QScrollArea):
         self.columns.valueChanged.connect(self._on_change)
         self.area_width.valueChanged.connect(self._on_change)
         self.area_height.valueChanged.connect(self._on_change)
-        self.overlap.valueChanged.connect(self._on_change)
-        self.order.currentIndexChanged.connect(self._on_change)
-        self.relative_to.currentIndexChanged.connect(self._on_change)
-
-        # FIXME: On Windows 11, buttons within an inner widget of a ScrollArea
-        # are filled in with the accent color, making it very difficult to see
-        # which radio button is checked. This HACK solves the issue. It's
-        # likely future Qt versions will fix this.
-        inner_widget.setStyleSheet("QRadioButton {color: none}")
+        for o in self.overlaps:
+            o.valueChanged.connect(self._on_change)
+        for o in self.orders:
+            o.currentIndexChanged.connect(self._on_change)
+        for r in self.relative_tos:
+            r.currentIndexChanged.connect(self._on_change)
 
     # ------------------------- Public API -------------------------
 
@@ -212,40 +238,22 @@ class GridPlanWidget(QScrollArea):
         """Return the current mode, one of "number", "area", or "bounds"."""
         return self._mode
 
-    def setMode(
-        self, mode: Mode | Literal["number", "area", "bounds"] | None = None
-    ) -> None:
+    def setMode(self, mode: Mode | Literal["number", "area", "bounds"]) -> None:
         """Set the current mode, one of "number", "area", or "bounds".
 
         Parameters
         ----------
-        mode : Mode | Literal["number", "area", "bounds"] | None, optional
+        mode : Mode | Literal["number", "area", "bounds"]
             The mode to set.
-            (If None, the mode is determined by the sender().data(), for internal usage)
         """
-        btn = None
-        btn_map: dict[QAbstractButton, Mode] = {
-            self._mode_number_radio: Mode.NUMBER,
-            self._mode_area_radio: Mode.AREA,
-            self._mode_bounds_radio: Mode.BOUNDS,
-        }
-        if isinstance(mode, QRadioButton):
-            btn = cast("QRadioButton", mode)
-        elif mode is None:  # use sender if mode is None
-            sender = cast("QButtonGroup", self.sender())
-            btn = sender.checkedButton()
-        if btn is not None:
-            _mode: Mode = btn_map[btn]
-        else:
-            _mode = Mode(mode)
-            {v: k for k, v in btn_map.items()}[_mode].setChecked(True)
+        if isinstance(mode, str):
+            mode = Mode(mode)
 
-        previous, self._mode = getattr(self, "_mode", None), _mode
+        previous, self._mode = getattr(self, "_mode", None), mode
         if previous != self._mode:
-            for group, members in self.mode_groups.items():
-                for member in members:
-                    member.setEnabled(_mode == group)
-            self.relative_to.setEnabled(_mode != Mode.BOUNDS)
+            for i, m in enumerate(Mode):
+                if mode == m:
+                    self.stack.setCurrentIndex(i)
             self._on_change()
 
     def value(self) -> useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight:
@@ -257,11 +265,9 @@ class GridPlanWidget(QScrollArea):
             The current [GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
             value of the widget.
         """
-        over = self.overlap.value()
-        _order = cast("OrderMode", self.order.currentEnum())
         common = {
-            "overlap": (over, over),
-            "mode": _order.value,
+            "overlap": (self.overlap, self.overlap),
+            "mode": self.order.value,
             "fov_width": self._fov_width,
             "fov_height": self._fov_height,
         }
@@ -270,7 +276,7 @@ class GridPlanWidget(QScrollArea):
             return useq.GridRowsColumns(
                 rows=self.rows.value(),
                 columns=self.columns.value(),
-                relative_to=cast("RelativeTo", self.relative_to.currentEnum()).value,
+                relative_to=self.relative_to.value,
                 **common,
             )
         elif self._mode == Mode.BOUNDS:
@@ -286,7 +292,7 @@ class GridPlanWidget(QScrollArea):
             return useq.GridWidthHeight(
                 width=self.area_width.value() * 1000,
                 height=self.area_height.value() * 1000,
-                relative_to=cast("RelativeTo", self.relative_to.currentEnum()).value,
+                relative_to=self.relative_to.value,
                 **common,
             )
         raise NotImplementedError
@@ -304,7 +310,8 @@ class GridPlanWidget(QScrollArea):
             if isinstance(value, useq.GridRowsColumns):
                 self.rows.setValue(value.rows)
                 self.columns.setValue(value.columns)
-                self.relative_to.setCurrentText(value.relative_to.value)
+                for r in self.relative_tos:
+                    r.setCurrentText(value.relative_to.value)
             elif isinstance(value, useq.GridFromEdges):
                 self.top.setValue(value.top)
                 self.left.setValue(value.left)
@@ -315,7 +322,8 @@ class GridPlanWidget(QScrollArea):
                 # uses mm, so we convert width and height to mm here
                 self.area_width.setValue(value.width / 1000)
                 self.area_height.setValue(value.height / 1000)
-                self.relative_to.setCurrentText(value.relative_to.value)
+                for r in self.relative_tos:
+                    r.setCurrentText(value.relative_to.value)
             else:  # pragma: no cover
                 raise TypeError(f"Expected useq grid plan, got {type(value)}")
 
@@ -325,9 +333,11 @@ class GridPlanWidget(QScrollArea):
                 self._fov_width = value.fov_width
 
             if value.overlap:
-                self.overlap.setValue(value.overlap[0])
+                for o in self.overlaps:
+                    o.setValue(value.overlap[0])
 
-            self.order.setCurrentEnum(OrderMode(value.mode.value))
+            for o in self.orders:
+                o.setCurrentEnum(OrderMode(value.mode.value))
 
             mode = {
                 useq.GridRowsColumns: Mode.NUMBER,
