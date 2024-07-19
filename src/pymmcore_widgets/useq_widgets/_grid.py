@@ -6,10 +6,14 @@ from typing import Literal
 import useq
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
+    QAbstractButton,
+    QButtonGroup,
     QDoubleSpinBox,
     QFormLayout,
     QGridLayout,
+    QHBoxLayout,
     QLabel,
+    QRadioButton,
     QScrollArea,
     QSpinBox,
     QStackedWidget,
@@ -150,6 +154,32 @@ class GridPlanWidget(QScrollArea):
             combo.setToolTip("The current stage position within the larger grid")
             layout.addRow("Current Position:", combo)
 
+        self._mode_number_radio = QRadioButton()
+        self._mode_number_radio.setText("Fields of View")
+        self._mode_area_radio = QRadioButton()
+        self._mode_area_radio.setText("Width && Height")
+        self._mode_bounds_radio = QRadioButton()
+        self._mode_bounds_radio.setText("Absolute Bounds")
+        self._mode_btn_group = QButtonGroup()
+        self._mode_btn_group.addButton(self._mode_number_radio)
+        self._mode_btn_group.addButton(self._mode_area_radio)
+        self._mode_btn_group.addButton(self._mode_bounds_radio)
+        self._mode_btn_group.buttonToggled.connect(self.setMode)
+
+        top_layout = QHBoxLayout()
+        top_layout.addWidget(QLabel("Create Grid Using:"))
+        top_layout.addWidget(self._mode_number_radio)
+        top_layout.addWidget(self._mode_area_radio)
+        top_layout.addWidget(self._mode_bounds_radio)
+
+        row_col_layout = QFormLayout()
+        row_col_layout.addRow("Grid Rows:", self.rows)
+        row_col_layout.addRow("Grid Cols:", self.columns)
+        row_col_layout.addWidget(SeparatorWidget())
+        _add_overlap_widget(row_col_layout)
+        _add_order_widget(row_col_layout)
+        _add_relative_to_widget(row_col_layout)
+
         width_height_layout = QFormLayout()
         width_height_layout.addRow("Width:", self.area_width)
         width_height_layout.addRow("Height:", self.area_height)
@@ -178,20 +208,9 @@ class GridPlanWidget(QScrollArea):
         _add_overlap_widget(self.bounds_layout)
         _add_order_widget(self.bounds_layout)
 
-        row_col_layout = QFormLayout()
-        row_col_layout.addRow("Grid Rows:", self.rows)
-        row_col_layout.addRow("Grid Cols:", self.columns)
-        row_col_layout.addWidget(SeparatorWidget())
-        _add_overlap_widget(row_col_layout)
-        _add_order_widget(row_col_layout)
-        _add_relative_to_widget(row_col_layout)
-
         # wrap the whole thing in an inner widget so we can put it in this ScrollArea
         inner_widget = QWidget(self)
         layout = QVBoxLayout(inner_widget)
-        top_layout = QFormLayout()
-        combo = QEnumComboBox(parent=self, enum_class=Mode)
-        top_layout.addRow(QLabel("Create Grid Using:"), combo)
         layout.addLayout(top_layout)
         layout.addWidget(SeparatorWidget())
         self.stack = QStackedWidget(self)
@@ -208,14 +227,12 @@ class GridPlanWidget(QScrollArea):
         wdg_bounds.setLayout(self.bounds_layout)
         self.stack.addWidget(wdg_bounds)
 
-        combo.currentEnumChanged.connect(self.setMode)
-
         self.setWidget(inner_widget)
         self.setWidgetResizable(True)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        self.setMode(Mode.NUMBER)
+        self._mode_number_radio.setChecked(True)
 
         self.top.valueChanged.connect(self._on_change)
         self.bottom.valueChanged.connect(self._on_change)
@@ -232,6 +249,12 @@ class GridPlanWidget(QScrollArea):
         for r in self.relative_tos:
             r.currentIndexChanged.connect(self._on_change)
 
+        # FIXME: On Windows 11, buttons within an inner widget of a ScrollArea
+        # are filled in with the accent color, making it very difficult to see
+        # which radio button is checked. This HACK solves the issue. It's
+        # likely future Qt versions will fix this.
+        inner_widget.setStyleSheet("QRadioButton {color: none}")
+
     # ------------------------- Public API -------------------------
 
     def mode(self) -> Mode:
@@ -246,8 +269,15 @@ class GridPlanWidget(QScrollArea):
         mode : Mode | Literal["number", "area", "bounds"]
             The mode to set.
         """
+        btn_map: dict[QAbstractButton, Mode] = {
+            self._mode_number_radio: Mode.NUMBER,
+            self._mode_area_radio: Mode.AREA,
+            self._mode_bounds_radio: Mode.BOUNDS,
+        }
         if isinstance(mode, str):
             mode = Mode(mode)
+        elif isinstance(mode, QRadioButton):
+            mode = btn_map[mode]
 
         previous, self._mode = getattr(self, "_mode", None), mode
         if previous != self._mode:
