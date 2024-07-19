@@ -20,6 +20,7 @@ from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
 from ._objective_widget import ObjectivesWidget
 from ._objectives_pixel_configuration_widget import ObjectivesPixelConfigurationWidget
+from ._oc_dialog import OpticalConfigDialog
 from ._pixel_configuration_widget import PixelConfigurationWidget
 from ._presets_widget import PresetsWidget
 from ._properties_widget import PropertiesWidget
@@ -90,6 +91,7 @@ __all__ = [
     "PresetsWidget",
     "PropertiesWidget",
     "PropertyBrowser",
+    "OpticalConfigDialog",
     "PropertyWidget",
     "ShuttersWidget",
     "SnapButton",
