@@ -183,8 +183,8 @@ class MDAWidget(MDASequenceWidget):
         """
         return get_next_available_path(requested_path=requested_path)
 
-    def run_mda(self) -> None:
-        """Run the MDA sequence experiment."""
+    def prepare_mda(self) -> str:
+        """Prepare the MDA sequence experiment."""
         # in case the user does not press enter after editing the save name.
         self.save_info.save_name.editingFinished.emit()
 
@@ -199,18 +199,23 @@ class MDAWidget(MDASequenceWidget):
         ):
             return
 
-        sequence = self.value()
-
         # technically, this is in the metadata as well, but isChecked is more direct
         if self.save_info.isChecked():
-            save_path = self._update_save_path_from_metadata(
-                sequence, update_metadata=True
+            return self._update_save_path_from_metadata(
+                self.value(), update_metadata=True
             )
         else:
-            save_path = None
+            return None
 
+    def execute_mda(self, output: Path | str | object | None) -> None:
+        """Execute the MDA experiment corresponding to the current value"""
+        sequence = self.value()
         # run the MDA experiment asynchronously
-        self._mmc.run_mda(sequence, output=save_path)
+        self._mmc.run_mda(sequence, output=output)
+
+    def run_mda(self) -> None:
+        save_path = self.prepare_mda()
+        self.execute_mda(save_path)
 
     # ------------------- private Methods ----------------------
 
