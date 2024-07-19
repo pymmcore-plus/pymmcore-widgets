@@ -183,7 +183,7 @@ class MDAWidget(MDASequenceWidget):
         """
         return get_next_available_path(requested_path=requested_path)
 
-    def prepare_mda(self) -> bool|str|None:
+    def prepare_mda(self) -> bool | str | None:
         """Prepare the MDA sequence experiment."""
         # in case the user does not press enter after editing the save name.
         self.save_info.save_name.editingFinished.emit()
@@ -208,7 +208,7 @@ class MDAWidget(MDASequenceWidget):
             return None
 
     def execute_mda(self, output: Path | str | object | None) -> None:
-        """Execute the MDA experiment corresponding to the current value"""
+        """Execute the MDA experiment corresponding to the current value."""
         sequence = self.value()
         # run the MDA experiment asynchronously
         self._mmc.run_mda(sequence, output=output)
