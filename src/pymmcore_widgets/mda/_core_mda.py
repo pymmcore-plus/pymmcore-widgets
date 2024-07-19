@@ -183,14 +183,14 @@ class MDAWidget(MDASequenceWidget):
         """
         return get_next_available_path(requested_path=requested_path)
 
-    def prepare_mda(self) -> bool | str | None:
+    def prepare_mda(self) -> bool | str | Path | None:
         """Prepare the MDA sequence experiment.
 
         Returns
         -------
         bool
             False if MDA to be cancelled due to autofocus issue.
-        str
+        str | Path
             Preparation successful, save path to be used for saving and saving active
         None
             Preparation successful, saving deactivated
