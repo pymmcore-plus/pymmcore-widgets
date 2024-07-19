@@ -189,7 +189,7 @@ class MDAWidget(MDASequenceWidget):
         Returns
         -------
         bool
-            False if to be cancelled due to autofocus issue.
+            False if MDA to be cancelled due to autofocus issue.
         str
             Preparation successful, save path to be used for saving and saving active
         None
