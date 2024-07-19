@@ -183,7 +183,7 @@ class MDAWidget(MDASequenceWidget):
         """
         return get_next_available_path(requested_path=requested_path)
 
-    def prepare_mda(self) -> str:
+    def prepare_mda(self) -> bool|str|None:
         """Prepare the MDA sequence experiment."""
         # in case the user does not press enter after editing the save name.
         self.save_info.save_name.editingFinished.emit()
@@ -197,7 +197,7 @@ class MDAWidget(MDASequenceWidget):
             and (not self.tab_wdg.isChecked(pos) or not pos.af_per_position.isChecked())
             and not self._confirm_af_intentions()
         ):
-            return
+            return False
 
         # technically, this is in the metadata as well, but isChecked is more direct
         if self.save_info.isChecked():
@@ -215,6 +215,8 @@ class MDAWidget(MDASequenceWidget):
 
     def run_mda(self) -> None:
         save_path = self.prepare_mda()
+        if save_path is False:
+            return
         self.execute_mda(save_path)
 
     # ------------------- private Methods ----------------------
