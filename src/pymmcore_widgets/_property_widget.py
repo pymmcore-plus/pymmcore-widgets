@@ -355,13 +355,13 @@ class PropertyWidget(QWidget):
                 self._value_widget.setValue(new_val)
 
     def _on_value_widget_change(self, value: Any) -> None:
-        if not self._updates_core:
-            return
-        try:
-            self._mmc.setProperty(self._device_label, self._prop_name, value)
-        except (RuntimeError, ValueError):
-            # if there's an error when updating mmcore, reset widget value to mmcore
-            self._try_update_from_core()
+        if self._updates_core:
+            try:
+                self._mmc.setProperty(self._device_label, self._prop_name, value)
+            except (RuntimeError, ValueError):
+                # if there's an error when updating mmcore, reset widget value to mmcore
+                self._try_update_from_core()
+        self.valueChanged.emit(value)
 
     def _disconnect(self) -> None:
         with contextlib.suppress(RuntimeError):
