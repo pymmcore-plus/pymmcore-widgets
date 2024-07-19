@@ -41,9 +41,9 @@ class CoreConnectedGridPlanWidget(GridPlanWidget):
         self.bottom = self._core_xy_bounds.bottom_edit
 
         # replace the lrtb_wdg from the parent widget with the core_xy_bounds widget
-        self.bounds_layout.removeWidget(self.lrtb_wdg)
-        self.bounds_layout.insertRow(0, self._core_xy_bounds)
-        self.lrtb_wdg.hide()
+        self._bounds_wdg.bounds_layout.removeWidget(self._bounds_wdg.lrtb_wdg)
+        self._bounds_wdg.bounds_layout.insertRow(0, self._core_xy_bounds)
+        self._bounds_wdg.lrtb_wdg.hide()
 
         # connect
         self.top.valueChanged.connect(self._on_change)
