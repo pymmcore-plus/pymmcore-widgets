@@ -231,8 +231,10 @@ class OpticalConfigDialog(QWidget):
         self._config_groups[new_name] = self._config_groups.pop(old_name)
 
     def _on_group_duplicated(self, existing: str, copy_name: str) -> None:
-        presets = deepcopy(self._config_groups[existing].presets)
-        self._config_groups[copy_name] = ConfigGroup(name=copy_name, presets=presets)
+        self._config_groups[copy_name] = ConfigGroup(
+            name=copy_name,
+            presets=deepcopy(self._config_groups[existing].presets),
+        )
 
     def _on_preset_added(self, name: str) -> None:
         self._config_group.presets[name] = ConfigPreset(name=name)
@@ -244,9 +246,9 @@ class OpticalConfigDialog(QWidget):
         self._config_group.presets[new_name] = self._config_group.presets.pop(old_name)
 
     def _on_preset_duplicated(self, existing: str, copy_name: str) -> None:
-        settings = self._config_group.presets[existing].settings
         self._config_group.presets[copy_name] = ConfigPreset(
-            name=copy_name, settings=settings
+            name=copy_name,
+            settings=deepcopy(self._config_group.presets[existing].settings),
         )
 
     def _on_current_group_changed(self) -> None:
