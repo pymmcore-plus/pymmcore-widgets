@@ -26,6 +26,134 @@ from pymmcore_widgets._device_property_table import DevicePropertyTable
 from pymmcore_widgets._objective_widget import ObjectivesWidget
 
 
+class UniqueNameList(QWidget):
+    activateClicked = Signal(str)
+    nameAdded = Signal(str)
+    nameRemoved = Signal(str)
+    nameDuplicated = Signal(str, str)  # old, new
+    nameChanged = Signal(str, str)  # old, new
+    currentNameChanged = Signal()
+
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        base_name: str = "Item",
+    ) -> None:
+        super().__init__(parent)
+        self._base_name = base_name
+        self._confirm_removal = True
+        self._name_list = QListWidget(self)
+        self._name_list.setEditTriggers(
+            QListWidget.EditTrigger.DoubleClicked
+            | QListWidget.EditTrigger.SelectedClicked
+        )
+        self._name_list.itemSelectionChanged.connect(self.currentNameChanged)
+
+        # Second column: buttons ------------------------------------
+        self.btn_new = QPushButton("New...")
+        self.btn_new.clicked.connect(self._add_oc)
+        self.btn_remove = QPushButton("Remove...")
+        self.btn_remove.clicked.connect(self._remove_oc_dialog)
+        self.btn_duplicate = QPushButton("Duplicate...")
+        self.btn_duplicate.clicked.connect(self._dupe_oc)
+        self.btn_activate = QPushButton("Set Active")
+        self.btn_activate.clicked.connect(self._activate_oc)
+
+        button_column = QVBoxLayout()
+        button_column.addWidget(self.btn_new)
+        button_column.addWidget(self.btn_remove)
+        button_column.addWidget(self.btn_duplicate)
+        button_column.addWidget(self.btn_activate)
+        button_column.addStretch()
+
+        layout = QHBoxLayout(self)
+        layout.addWidget(self._name_list)
+        layout.addLayout(button_column)
+
+    def listWidget(self) -> QListWidget:
+        return self._name_list
+
+    def clear(self) -> None:
+        self._name_list.clear()
+
+    def _on_current_name_changed(self, text: str) -> None:
+        self._active_item_name = text
+        self._previous_names = self._current_names()
+
+    def _on_item_changed(self, item: QListWidgetItem) -> None:
+        new_text = item.text()
+        previous_text = self._active_item_name
+        if new_text in self._previous_names and new_text != previous_text:
+            QMessageBox.warning(self, "Duplicate Item", f"{new_text!r} already exists.")
+            item.setText(previous_text)
+            return
+
+        self._active_item_name = new_text
+        self.nameChanged(previous_text, new_text)
+
+    def _current_names(self) -> set[str]:
+        return {self._name_list.item(i).text() for i in range(self._name_list.count())}
+
+    def _add_oc(self) -> None:
+        existing = self._current_names()
+        i = 1
+        new_name = self._base_name
+        while new_name in existing:
+            new_name = f"{self._base_name} {i}"
+            i += 1
+        self.addName(new_name)
+        self.nameAdded.emit(new_name)
+        self._name_list.setCurrentRow(self._name_list.count() - 1)
+
+    def _remove_oc_dialog(self) -> None:
+        if (current := self._name_list.currentItem()) is None:
+            return
+        if self._confirm_removal:
+            if (
+                QMessageBox.question(
+                    self,
+                    "Remove Preset",
+                    f"Are you sure you want to remove {current.text()!r}?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                )
+                == QMessageBox.StandardButton.No
+            ):
+                return
+        if item := self._name_list.takeItem(self._name_list.currentRow()):
+            self.nameRemoved.emit(item.text())
+
+    def _dupe_oc(self) -> None:
+        if (current := self._name_list.currentItem()) is None:
+            return
+        existing = self._current_names()
+        name = current.text()
+        new_name = f"{name} (Copy)"
+        i = 1
+        while new_name in existing:
+            new_name = f"{name} (Copy {i})"
+            i += 1
+        self.addName(new_name)
+        self.nameDuplicated.emit(name, new_name)
+        self._name_list.setCurrentRow(self._name_list.count() - 1)
+
+    def _activate_oc(self) -> None:
+        if (current := self._name_list.currentItem()) is not None:
+            self.activateClicked.emit(current.text())
+
+    def addName(self, name: str) -> None:
+        item = QListWidgetItem(name)
+        item.setFlags(
+            Qt.ItemFlag.ItemIsEditable
+            | Qt.ItemFlag.ItemIsSelectable
+            | Qt.ItemFlag.ItemIsEnabled
+        )
+        self._name_list.addItem(item)
+
+    def currentName(self) -> str | None:
+        if (current := self._name_list.currentItem()) is not None:
+            return current.text()
+
+
 class OpticalConfigDialog(QWidget):
     def __init__(
         self, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
@@ -38,47 +166,22 @@ class OpticalConfigDialog(QWidget):
         self.groups.addItems(self._core.getAvailableConfigGroups())
         self.groups.currentTextChanged.connect(self.load_group)
 
-        self._name_list = QListWidget(self)
-        self._name_list.setEditTriggers(
-            QListWidget.EditTrigger.DoubleClicked
-            | QListWidget.EditTrigger.SelectedClicked
-        )
-        self._name_list.itemSelectionChanged.connect(self._on_selection_changed)
-        self._name_list.currentTextChanged.connect(self._on_current_name_changed)
-        self._name_list.itemChanged.connect(self._on_item_changed)
-        self._active_item_name = ""
-
-        # Second column: buttons ------------------------------------
-        new = QPushButton("New...")
-        new.clicked.connect(self._add_oc)
-        remove = QPushButton("Remove...")
-        remove.clicked.connect(self._remove_oc_dialog)
-        dupe = QPushButton("Duplicate...")
-        dupe.clicked.connect(self._dupe_oc)
-        activate = QPushButton("Set Active")
-        activate.clicked.connect(self._activate_oc)
-        export = QPushButton("Export...")
-        # export.clicked.connect(self._export)
-        import_ = QPushButton("Import...")
-        # import_.clicked.connect(self._import)
+        self.presets = UniqueNameList(self)
+        self.presets.nameAdded.connect(self._on_preset_added)
+        self.presets.nameRemoved.connect(self._on_preset_removed)
+        self.presets.nameChanged.connect(self._on_preset_renamed)
+        self.presets.nameDuplicated.connect(self._on_preset_duplicated)
+        self.presets.activateClicked.connect(self._activate_oc)
+        self.presets.currentNameChanged.connect(self._on_current_preset_changed)
 
         # Groups -----------------------------------------------------
 
         self._scope_group = _LightPathGroupBox(self, mmcore=self._core)
         self._cam_group = _CameraGroupBox(self, mmcore=self._core)
         self._obj_group = _ObjectiveGroupBox(self, mmcore=self._core)
-        self._scope_group.valueChanged.connect(self._on_value_changed)
-        self._cam_group.valueChanged.connect(self._on_value_changed)
-        self._obj_group.valueChanged.connect(self._on_value_changed)
-
-        group_splitter = QSplitter(Qt.Orientation.Vertical, self)
-        group_splitter.setContentsMargins(0, 0, 0, 0)
-        group_splitter.addWidget(self._scope_group)
-        group_splitter.addWidget(self._cam_group)
-        group_splitter.addWidget(self._obj_group)
-        group_splitter.setStretchFactor(0, 3)
-        group_splitter.setStretchFactor(1, 1)
-        group_splitter.setStretchFactor(2, 0)
+        self._scope_group.valueChanged.connect(self._update_model_preset)
+        self._cam_group.valueChanged.connect(self._update_model_preset)
+        self._obj_group.valueChanged.connect(self._update_model_preset)
 
         left_top = QWidget()
         # left_top.hide()
@@ -87,96 +190,64 @@ class OpticalConfigDialog(QWidget):
         left_top_layout.addWidget(QLabel("Group:"), 0)
         left_top_layout.addWidget(self.groups, 1)
 
-        button_column = QVBoxLayout()
-        button_column.addWidget(new)
-        button_column.addWidget(remove)
-        button_column.addWidget(dupe)
-        button_column.addWidget(activate)
-        button_column.addWidget(export)
-        button_column.addWidget(import_)
-        button_column.addStretch()
-
-        left_bot = QHBoxLayout()
-        left_bot.addWidget(self._name_list)
-        left_bot.addLayout(button_column)
-
         left_layout = QVBoxLayout()
         left_layout.addWidget(left_top)
-        left_layout.addLayout(left_bot)
+        left_layout.addWidget(self.presets)
+
+        right_splitter = QSplitter(Qt.Orientation.Vertical, self)
+        right_splitter.setContentsMargins(0, 0, 0, 0)
+        right_splitter.addWidget(self._scope_group)
+        right_splitter.addWidget(self._cam_group)
+        right_splitter.addWidget(self._obj_group)
+        right_splitter.setStretchFactor(0, 3)
+        right_splitter.setStretchFactor(1, 1)
+        right_splitter.setStretchFactor(2, 0)
 
         layout = QHBoxLayout(self)
         layout.addLayout(left_layout)
-        layout.addWidget(group_splitter, 1)
+        layout.addWidget(right_splitter, 1)
 
         self.resize(1080, 920)
 
-    def _add_oc(self) -> None:
-        i = 1
-        new_name = "Config"
-        while new_name in self._model.presets:
-            new_name = f"Config {i}"
-            i += 1
-        self._model.presets[new_name] = ConfigPreset(name=new_name)
-        self._add_editable_item(new_name)
+    def _on_preset_added(self, name: str) -> None:
+        print("added", name)
+        self._model.presets[name] = ConfigPreset(name=name)
 
-    def _remove_oc_dialog(self) -> None:
-        if (current := self._name_list.currentItem()) is None:
-            return
-        if (
-            QMessageBox.question(
-                self,
-                "Remove Preset",
-                f"Are you sure you want to remove {current.text()!r}?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-            == QMessageBox.StandardButton.Yes
-        ):
-            self._model.presets.pop(current.text())
-            self._name_list.takeItem(self._name_list.currentRow())
+    def _on_preset_removed(self, name: str) -> None:
+        self._model.presets.pop(name)
 
-    def _dupe_oc(self) -> None:
-        if (current := self._name_list.currentItem()) is None:
-            return
-        selected = current.text()
-        new_name = f"{selected} (Copy)"
-        i = 1
-        while new_name in self._model.presets:
-            new_name = f"{selected} (Copy {i})"
-            i += 1
-        settings = self._model.presets[selected].settings
-        self._model.presets[new_name] = ConfigPreset(name=new_name, settings=settings)
-        self._add_editable_item(new_name)
+    def _on_preset_renamed(self, old_name: str, new_name: str) -> None:
+        self._model.presets[new_name] = self._model.presets.pop(old_name)
 
-    def _activate_oc(self) -> None:
-        if (current := self._name_list.currentItem()) is None:
-            return
-        for dev, prop, value in self._model.presets[current.text()].settings:
+    def _on_preset_duplicated(self, existing: str, copy_name: str) -> None:
+        settings = self._model.presets[existing].settings
+        self._model.presets[copy_name] = ConfigPreset(name=copy_name, settings=settings)
+
+    def _on_current_preset_changed(self) -> None:
+        if preset := self.presets.currentName():
+            self.load_preset(preset)
+
+    def _activate_oc(self, name: str) -> None:
+        for dev, prop, value in self._model.presets[name].settings:
             self._core.setProperty(dev, prop, value)
 
     def load_group(self, group: str) -> None:
         self.groups.setCurrentText(group)
 
-        with signals_blocked(self._name_list):
-            self._name_list.clear()
+        with signals_blocked(self.presets):
+            self.presets.clear()
             for n in self._core.getAvailableConfigs(group):
-                self._add_editable_item(n)
+                self.presets.addName(n)
 
         self._model = ConfigGroup.create_from_core(self._core, group)
-        self._name_list.setCurrentRow(0)
-
-    def _add_editable_item(self, name: str) -> None:
-        item = QListWidgetItem(name)
-        item.setFlags(
-            Qt.ItemFlag.ItemIsEditable
-            | Qt.ItemFlag.ItemIsSelectable
-            | Qt.ItemFlag.ItemIsEnabled
-        )
-        self._name_list.addItem(item)
-        # select it
-        self._name_list.setCurrentItem(item)
+        self.presets.listWidget().setCurrentRow(0)
 
     def load_preset(self, name: str) -> None:
-        settings = self._model.presets[name].settings
+        try:
+            settings = self._model.presets[name].settings
+        except KeyError:
+            print("nope", name)
+            return
         self._scope_group.props.setValue(settings)
         self._cam_group.props.setValue(settings)
         for s in settings:
@@ -186,28 +257,9 @@ class OpticalConfigDialog(QWidget):
                 elif s.property_name == Keyword.CoreCamera:
                     self._cam_group.active_camera.setCurrentText(s.property_value)
 
-    def _on_selection_changed(self) -> None:
-        if item := self._name_list.currentItem():
-            self.load_preset(item.text())
-
-    def _on_current_name_changed(self, text: str) -> None:
-        self._active_item_name = text
-
-    def _on_item_changed(self, item: QListWidgetItem) -> None:
-        new_text = item.text()
-        previous_text = self._active_item_name
-        if new_text in self._model.presets and new_text != previous_text:
-            QMessageBox.warning(self, "Duplicate Item", f"{new_text!r} already exists.")
-            item.setText(previous_text)
-        else:
-            self._model.presets[new_text] = self._model.presets.pop(previous_text)
-            self._active_item_name = new_text
-
-    def _on_value_changed(self) -> None:
-        if (current := self._name_list.currentItem()) is None:
-            return
-        current_name = current.text()
-        self._model.presets[current_name].settings = self._current_settings()
+    def _update_model_preset(self) -> None:
+        if preset := self.presets.currentName():
+            self._model.presets[preset].settings = self._current_settings()
 
     def _current_settings(self) -> list[Setting]:
         tmp = {}
