@@ -32,7 +32,7 @@ def _assert_equal(a, b):
 
 
 @pytest.mark.parametrize("dev, prop", dev_props)
-def test_property_widget(dev, prop, qtbot):
+def test_property_widget(dev, prop, qtbot) -> None:
     wdg = PropertyWidget(dev, prop, mmcore=CORE)
     qtbot.addWidget(wdg)
     if CORE.isPropertyReadOnly(dev, prop) or prop in (
@@ -83,7 +83,16 @@ def test_property_widget(dev, prop, qtbot):
     _assert_equal(wdg.value(), start_val)
 
 
-def test_reset(global_mmcore, qtbot):
+def test_prop_widget_signals(global_mmcore: CMMCorePlus, qtbot):
+    wdg = PropertyWidget("Camera", "Binning", connect_core=False)
+    qtbot.addWidget(wdg)
+    assert wdg.value() == "1"
+    with qtbot.waitSignal(wdg.valueChanged, timeout=1000):
+        wdg._value_widget.setValue(2)
+    assert wdg.value() == "2"
+
+
+def test_reset(global_mmcore: CMMCorePlus, qtbot) -> None:
     wdg = PropertyWidget("Camera", "Binning", mmcore=global_mmcore)
     qtbot.addWidget(wdg)
     global_mmcore.loadSystemConfiguration()
