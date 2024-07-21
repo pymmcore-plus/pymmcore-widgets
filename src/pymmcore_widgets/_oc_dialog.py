@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Iterable
+from typing import Callable, Generic, Iterable, TypeVar
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType, Keyword
 from pymmcore_plus.model import ConfigGroup, ConfigPreset, Setting
@@ -21,14 +21,12 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.utils import signals_blocked
 
 from pymmcore_widgets._device_property_table import DevicePropertyTable
 from pymmcore_widgets._objective_widget import ObjectivesWidget
 
 
 class UniqueNameList(QWidget):
-    activateClicked = Signal(str)
     nameAdded = Signal(str)
     nameRemoved = Signal(str)
     nameDuplicated = Signal(str, str)  # old, new
@@ -51,25 +49,22 @@ class UniqueNameList(QWidget):
         self._name_list.itemSelectionChanged.connect(self.currentNameChanged)
 
         # Second column: buttons ------------------------------------
-        self.btn_new = QPushButton("New...")
+        self.btn_new = QPushButton("New")
         self.btn_new.clicked.connect(self._add_oc)
         self.btn_remove = QPushButton("Remove...")
         self.btn_remove.clicked.connect(self._remove_oc_dialog)
-        self.btn_duplicate = QPushButton("Duplicate...")
+        self.btn_duplicate = QPushButton("Duplicate")
         self.btn_duplicate.clicked.connect(self._dupe_oc)
-        self.btn_activate = QPushButton("Set Active")
-        self.btn_activate.clicked.connect(self._activate_oc)
 
-        button_column = QVBoxLayout()
-        button_column.addWidget(self.btn_new)
-        button_column.addWidget(self.btn_remove)
-        button_column.addWidget(self.btn_duplicate)
-        button_column.addWidget(self.btn_activate)
-        button_column.addStretch()
+        self.btn_layout = QVBoxLayout()
+        self.btn_layout.addWidget(self.btn_new)
+        self.btn_layout.addWidget(self.btn_remove)
+        self.btn_layout.addWidget(self.btn_duplicate)
+        self.btn_layout.addStretch()
 
         layout = QHBoxLayout(self)
         layout.addWidget(self._name_list)
-        layout.addLayout(button_column)
+        layout.addLayout(self.btn_layout)
 
     def listWidget(self) -> QListWidget:
         return self._name_list
@@ -137,10 +132,6 @@ class UniqueNameList(QWidget):
         self.nameDuplicated.emit(name, new_name)
         self._name_list.setCurrentRow(self._name_list.count() - 1)
 
-    def _activate_oc(self) -> None:
-        if (current := self._name_list.currentItem()) is not None:
-            self.activateClicked.emit(current.text())
-
     def addName(self, name: str) -> None:
         item = QListWidgetItem(name)
         item.setFlags(
@@ -150,44 +141,100 @@ class UniqueNameList(QWidget):
         )
         self._name_list.addItem(item)
 
+    def addNames(self, names: Iterable[str]) -> None:
+        for name in names:
+            self.addName(name)
+
     def currentName(self) -> str | None:
         if (current := self._name_list.currentItem()) is not None:
             return current.text()
         return None
 
     def setCurrentName(self, name: str) -> None:
+        if name == self.currentName():
+            return
         for i in range(self._name_list.count()):
             if item := self._name_list.item(i):
                 if item.text() == name:
                     self._name_list.setCurrentItem(item)
 
 
+T = TypeVar("T")
+
+
+class _Thing(UniqueNameList, Generic[T]):
+    def __init__(self, parent: QWidget | None = None, base_name: str = "Item") -> None:
+        super().__init__(parent, base_name)
+        self._root: dict[str, T] = {}
+        self._key_factory: Callable[[], T] = ConfigPreset
+        self.nameAdded.connect(self._on_key_added)
+        self.nameRemoved.connect(self._on_key_removed)
+        self.nameChanged.connect(self._on_key_renamed)
+        self.nameDuplicated.connect(self._on_key_duplicated)
+
+    def setRoot(self, root: dict[str, T]) -> None:
+        self._root = root
+        self.clear()
+        self.addNames(root)
+
+    def root(self) -> dict[str, T]:
+        return self._root
+
+    def currentKey(self) -> str | None:  # remove me
+        return self.currentName()
+
+    def currentValue(self) -> T | None:
+        if key := self.currentKey():
+            return self._root.get(key)
+        return None
+
+    def _on_key_added(self, key: str) -> None:
+        self._root[key] = self._key_factory(name=key)
+
+    def _on_key_removed(self, key: str) -> None:
+        self._root.pop(key, None)
+
+    def _on_key_renamed(self, old_key: str, new_key: str) -> None:
+        self._root[new_key] = self._root.pop(old_key)
+
+    def _on_key_duplicated(self, existing_key: str, new_key: str) -> None:
+        clone = deepcopy(self._root[existing_key])
+        clone.name = new_key  # this is too magic
+        self._root[new_key] = clone
+
+
+class PresetList(_Thing[ConfigPreset]):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent, "Config")
+        self._key_factory: Callable = ConfigPreset
+
+
+class GroupList(_Thing[ConfigGroup]):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent, "Group")
+        self._key_factory: Callable = ConfigGroup
+
+
 class OpticalConfigDialog(QWidget):
     def __init__(
-        self, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
+        self,
+        data: dict[str, ConfigGroup] | None = None,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent)
         self._core = mmcore or CMMCorePlus.instance()
-        self._config_groups: dict[str, ConfigGroup] = {}
-        self._config_group = ConfigGroup("")
 
-        self.groups = UniqueNameList(self)
-        self.groups.nameAdded.connect(self._on_group_added)
-        self.groups.nameRemoved.connect(self._on_group_removed)
-        self.groups.nameChanged.connect(self._on_group_renamed)
-        self.groups.nameDuplicated.connect(self._on_group_duplicated)
-        self.groups.btn_activate.hide()
+        self.groups = GroupList(self)
+        self.groups.setRoot(data or {})
         self.groups.currentNameChanged.connect(self._on_current_group_changed)
-        for name in self._core.getAvailableConfigGroups():
-            self.groups.addName(name)
 
-        self.presets = UniqueNameList(self)
-        self.presets.nameAdded.connect(self._on_preset_added)
-        self.presets.nameRemoved.connect(self._on_preset_removed)
-        self.presets.nameChanged.connect(self._on_preset_renamed)
-        self.presets.nameDuplicated.connect(self._on_preset_duplicated)
-        self.presets.activateClicked.connect(self._activate_preset)
+        self.presets = PresetList(self)
         self.presets.currentNameChanged.connect(self._on_current_preset_changed)
+
+        self.btn_activate = QPushButton("Set Active")
+        self.btn_activate.clicked.connect(self._activate_preset)
+        self.presets.btn_layout.insertWidget(3, self.btn_activate)
 
         # Groups -----------------------------------------------------
 
@@ -217,73 +264,20 @@ class OpticalConfigDialog(QWidget):
 
         self.resize(1080, 920)
 
-    @property
-    def config_group(self) -> ConfigGroup:
-        return self._config_group
-
-    def _on_group_added(self, name: str) -> None:
-        self._config_groups[name] = ConfigGroup(name=name)
-
-    def _on_group_removed(self, name: str) -> None:
-        self._config_groups.pop(name, None)
-
-    def _on_group_renamed(self, old_name: str, new_name: str) -> None:
-        self._config_groups[new_name] = self._config_groups.pop(old_name)
-
-    def _on_group_duplicated(self, existing: str, copy_name: str) -> None:
-        self._config_groups[copy_name] = ConfigGroup(
-            name=copy_name,
-            presets=deepcopy(self._config_groups[existing].presets),
-        )
-
-    def _on_preset_added(self, name: str) -> None:
-        self._config_group.presets[name] = ConfigPreset(name=name)
-
-    def _on_preset_removed(self, name: str) -> None:
-        self._config_group.presets.pop(name, None)
-
-    def _on_preset_renamed(self, old_name: str, new_name: str) -> None:
-        self._config_group.presets[new_name] = self._config_group.presets.pop(old_name)
-
-    def _on_preset_duplicated(self, existing: str, copy_name: str) -> None:
-        self._config_group.presets[copy_name] = ConfigPreset(
-            name=copy_name,
-            settings=deepcopy(self._config_group.presets[existing].settings),
-        )
-
     def _on_current_group_changed(self) -> None:
-        if group := self.groups.currentName():
-            self.load_group(group)
-
-    def _on_current_preset_changed(self) -> None:
-        if preset := self.presets.currentName():
-            self.load_preset(preset)
-
-    def _activate_preset(self, name: str) -> None:
-        for dev, prop, value in self._config_group.presets[name].settings:
-            self._core.setProperty(dev, prop, value)
-
-    def load_group(self, group: str) -> None:
-        self.groups.setCurrentName(group)
-        print("load group", group)
-        if group not in self._config_groups:
-            print("creating from core")
-            self._config_groups[group] = ConfigGroup.create_from_core(self._core, group)
-        self._config_group = self._config_groups[group]
-
-        with signals_blocked(self.presets):
-            self.presets.clear()
-            for p in self._config_group.presets:
-                self.presets.addName(p)
-
+        if config_group := self.groups.currentValue():
+            self.presets.setRoot(config_group.presets)
         self.presets.listWidget().setCurrentRow(0)
 
-    def load_preset(self, name: str) -> None:
-        try:
-            settings = self._config_group.presets[name].settings
-        except KeyError:
-            print("nope", name)
+    def setCurrentGroup(self, group: str) -> None:
+        self.groups.setCurrentName(group)
+
+    def _on_current_preset_changed(self) -> None:
+        if not (config_preset := self.presets.currentValue()):
             return
+        settings = config_preset.settings
+
+        # update all the property browser tables
         self._scope_group.props.setValue(settings)
         self._cam_group.props.setValue(settings)
         for s in settings:
@@ -293,9 +287,14 @@ class OpticalConfigDialog(QWidget):
                 elif s.property_name == Keyword.CoreCamera:
                     self._cam_group.active_camera.setCurrentText(s.property_value)
 
+    def _activate_preset(self) -> None:
+        if (current := self.presets.currentName()) is not None:
+            for dev, prop, value in self._config_group.presets[current].settings:
+                self._core.setProperty(dev, prop, value)
+
     def _update_model_preset(self) -> None:
-        if preset := self.presets.currentName():
-            self._config_group.presets[preset].settings = self._current_settings()
+        if preset := self.presets.currentValue():
+            preset.settings = self._current_settings()
 
     def _current_settings(self) -> list[Setting]:
         tmp = {}
