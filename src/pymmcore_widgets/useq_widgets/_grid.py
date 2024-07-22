@@ -42,9 +42,9 @@ class OrderMode(Enum):
 
 
 class Mode(Enum):
-    NUMBER = "Fields of View"
-    AREA = "Width & Height"
-    BOUNDS = "Absolute Bounds"
+    NUMBER = "number"
+    AREA = "area"
+    BOUNDS = "bounds"
 
     def __str__(self) -> str:
         return self.value
