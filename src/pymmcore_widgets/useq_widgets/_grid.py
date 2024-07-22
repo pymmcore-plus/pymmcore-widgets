@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import useq
-from qtpy.QtCore import QSize, Qt, Signal
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractButton,
     QButtonGroup,
@@ -24,6 +24,13 @@ from superqt import QEnumComboBox
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets._util import SeparatorWidget
+
+if TYPE_CHECKING:
+    from typing import Literal, TypeAlias
+
+    GridPlan: TypeAlias = (
+        useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
+    )
 
 
 class RelativeTo(Enum):
@@ -49,6 +56,26 @@ class Mode(Enum):
     def __str__(self) -> str:
         return self.value
 
+    def to_useq_cls(self) -> type[GridPlan]:
+        return _MODE_TO_USEQ[self]
+
+    @classmethod
+    def for_grid_plan(cls, plan: GridPlan) -> Mode:
+        if isinstance(plan, useq.GridRowsColumns):
+            return cls.NUMBER
+        elif isinstance(plan, useq.GridFromEdges):
+            return cls.BOUNDS
+        elif isinstance(plan, useq.GridWidthHeight):
+            return cls.AREA
+        raise TypeError(f"Unknown grid plan type: {type(plan)}")  # pragma: no cover
+
+
+_MODE_TO_USEQ: dict[Mode, type[GridPlan]] = {
+    Mode.NUMBER: useq.GridRowsColumns,
+    Mode.BOUNDS: useq.GridFromEdges,
+    Mode.AREA: useq.GridWidthHeight,
+}
+
 
 class GridPlanWidget(QScrollArea):
     """Widget to edit a [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)."""
@@ -61,42 +88,60 @@ class GridPlanWidget(QScrollArea):
         self._fov_width: float | None = None
         self._fov_height: float | None = None
 
-        self._mode_number_radio = QRadioButton()
-        self._mode_number_radio.setText("Fields of View")
-        self._mode_area_radio = QRadioButton()
-        self._mode_area_radio.setText("Width && Height")
-        self._mode_bounds_radio = QRadioButton()
-        self._mode_bounds_radio.setText("Absolute Bounds")
+        # WIDGETS -----------------------------------------------
+
+        # Radio buttons to select the mode
+        self._mode_number_radio = QRadioButton("Fields of View")
+        self._mode_area_radio = QRadioButton("Width && Height")
+        self._mode_bounds_radio = QRadioButton("Absolute Bounds")
+        # group the radio buttons together
         self._mode_btn_group = QButtonGroup()
         self._mode_btn_group.addButton(self._mode_number_radio)
         self._mode_btn_group.addButton(self._mode_area_radio)
         self._mode_btn_group.addButton(self._mode_bounds_radio)
         self._mode_btn_group.buttonToggled.connect(self.setMode)
 
-        top_layout = QHBoxLayout()
-        top_layout.addWidget(QLabel("Create Grid Using:"))
-        top_layout.addWidget(self._mode_number_radio)
-        top_layout.addWidget(self._mode_area_radio)
-        top_layout.addWidget(self._mode_bounds_radio)
-
-        self.stack = _ResizableStackedWidget(self)
-        self._row_col_wdg = _RowsColsWidget()
-        self.stack.addWidget(self._row_col_wdg)
-        self._width_height_wdg = _WidthHeightWidget()
-        self.stack.addWidget(self._width_height_wdg)
-        self._bounds_wdg = _BoundsWidget()
-        self.stack.addWidget(self._bounds_wdg)
+        self.row_col_wdg = _RowsColsWidget()
+        self.width_height_wdg = _WidthHeightWidget()
+        self.bounds_wdg = _BoundsWidget()
+        # ease of lookup
+        self._mode_to_widget: dict[
+            Mode, _RowsColsWidget | _WidthHeightWidget | _BoundsWidget
+        ] = {
+            Mode.NUMBER: self.row_col_wdg,
+            Mode.AREA: self.width_height_wdg,
+            Mode.BOUNDS: self.bounds_wdg,
+        }
 
         self._bottom_stuff = _BottomStuff()
+        # aliases
+        self.overlap = self._bottom_stuff.overlap
+        self.order = self._bottom_stuff.order
+        self.relative_to = self._bottom_stuff.relative_to
+
+        # LAYOUT -----------------------------------------------
+
+        # radio buttons on the top row
+        btns_row = QHBoxLayout()
+        btns_row.addWidget(QLabel("Create Grid Using:"))
+        btns_row.addWidget(self._mode_number_radio)
+        btns_row.addWidget(self._mode_area_radio)
+        btns_row.addWidget(self._mode_bounds_radio)
+
+        # stack the different mode widgets on top of each other
+        self._stack = _ResizableStackedWidget(self)
+        self._stack.addWidget(self.row_col_wdg)
+        self._stack.addWidget(self.width_height_wdg)
+        self._stack.addWidget(self.bounds_wdg)
 
         # wrap the whole thing in an inner widget so we can put it in this ScrollArea
         inner_widget = QWidget(self)
-        layout = QVBoxLayout(inner_widget)
-        layout.addLayout(top_layout)
-        layout.addWidget(SeparatorWidget())
-        layout.addWidget(self.stack)
-        layout.addWidget(self._bottom_stuff)
-        layout.addStretch()
+        main_layout = QVBoxLayout(inner_widget)
+        main_layout.addLayout(btns_row)
+        main_layout.addWidget(SeparatorWidget())
+        main_layout.addWidget(self._stack)
+        main_layout.addWidget(self._bottom_stuff)
+        main_layout.addStretch(1)
 
         self.setWidget(inner_widget)
         self.setWidgetResizable(True)
@@ -110,6 +155,13 @@ class GridPlanWidget(QScrollArea):
         # which radio button is checked. This HACK solves the issue. It's
         # likely future Qt versions will fix this.
         inner_widget.setStyleSheet("QRadioButton {color: none}")
+
+        # CONNECTIONS ------------------------------------------
+
+        self.row_col_wdg.valueChanged.connect(self._on_change)
+        self.width_height_wdg.valueChanged.connect(self._on_change)
+        self.bounds_wdg.valueChanged.connect(self._on_change)
+        self._bottom_stuff.valueChanged.connect(self._on_change)
 
     # ------------------------- Public API -------------------------
 
@@ -125,26 +177,24 @@ class GridPlanWidget(QScrollArea):
         mode : Mode | Literal["number", "area", "bounds"]
             The mode to set.
         """
-        btn_map: dict[QAbstractButton, Mode] = {
-            self._mode_number_radio: Mode.NUMBER,
-            self._mode_area_radio: Mode.AREA,
-            self._mode_bounds_radio: Mode.BOUNDS,
-        }
-        if isinstance(mode, str):
-            mode = Mode(mode)
-        elif isinstance(mode, QRadioButton):
+        if isinstance(mode, QRadioButton):
+            btn_map: dict[QAbstractButton, Mode] = {
+                self._mode_number_radio: Mode.NUMBER,
+                self._mode_area_radio: Mode.AREA,
+                self._mode_bounds_radio: Mode.BOUNDS,
+            }
             mode = btn_map[mode]
+        elif isinstance(mode, str):
+            mode = Mode(mode)
 
         previous, self._mode = getattr(self, "_mode", None), mode
         if previous != self._mode:
-            for i, m in enumerate(Mode):
-                if mode == m:
-                    self.stack.setCurrentIndex(i)
+            current_wdg = self._mode_to_widget[self._mode]
+            self._stack.setCurrentWidget(current_wdg)
+            self._bottom_stuff.setMode(mode)
             self._on_change()
 
-        self._bottom_stuff.setMode(mode)
-
-    def value(self) -> useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight:
+    def value(self) -> GridPlan:
         """Return the current value of the widget as a [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans).
 
         Returns
@@ -153,41 +203,17 @@ class GridPlanWidget(QScrollArea):
             The current [GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
             value of the widget.
         """
-        over = self._bottom_stuff.overlap.value()
-        order = self._bottom_stuff.order.currentEnum()
-        common = {
-            "overlap": (over, over),
-            "mode": order.value,
+        kwargs = {
+            **self._stack.currentWidget().value(),
+            **self._bottom_stuff.value(),
             "fov_width": self._fov_width,
             "fov_height": self._fov_height,
         }
+        if self._mode not in {Mode.NUMBER, Mode.AREA}:
+            kwargs.pop("relative_to", None)
+        return self._mode.to_useq_cls()(**kwargs)
 
-        if self._mode == Mode.NUMBER:
-            return useq.GridRowsColumns(
-                rows=self._row_col_wdg.rows.value(),
-                columns=self._row_col_wdg.columns.value(),
-                relative_to=self._bottom_stuff.relative_to.currentEnum().value,
-                **common,
-            )
-        elif self._mode == Mode.BOUNDS:
-            return useq.GridFromEdges(
-                top=self._bounds_wdg.top.value(),
-                left=self._bounds_wdg.left.value(),
-                bottom=self._bounds_wdg.bottom.value(),
-                right=self._bounds_wdg.right.value(),
-                **common,
-            )
-        elif self._mode == Mode.AREA:
-            # converting width and height to microns because GridWidthHeight expects µm
-            return useq.GridWidthHeight(
-                width=self._width_height_wdg.area_width.value() * 1000,
-                height=self._width_height_wdg.area_height.value() * 1000,
-                relative_to=self._bottom_stuff.relative_to.currentEnum().value,
-                **common,
-            )
-        raise NotImplementedError
-
-    def setValue(self, value: useq.GridFromEdges | useq.GridRowsColumns) -> None:
+    def setValue(self, value: GridPlan) -> None:
         """Set the current value of the widget from a [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans).
 
         Parameters
@@ -196,41 +222,19 @@ class GridPlanWidget(QScrollArea):
             The [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
             to set.
         """
-        with signals_blocked(self):
-            if isinstance(value, useq.GridRowsColumns):
-                self._row_col_wdg.rows.setValue(value.rows)
-                self._row_col_wdg.columns.setValue(value.columns)
-                self._bottom_stuff.relative_to.setCurrentText(value.relative_to.value)
-            elif isinstance(value, useq.GridFromEdges):
-                self._bounds_wdg.top.setValue(value.top)
-                self._bounds_wdg.left.setValue(value.left)
-                self._bounds_wdg.bottom.setValue(value.bottom)
-                self._bounds_wdg.right.setValue(value.right)
-            elif isinstance(value, useq.GridWidthHeight):
-                # GridWidthHeight width and height are expressed in µm but this widget
-                # uses mm, so we convert width and height to mm here
-                self._width_height_wdg.area_width.setValue(value.width / 1000)
-                self._width_height_wdg.area_height.setValue(value.height / 1000)
-                self._bottom_stuff.relative_to.setCurrentText(value.relative_to.value)
-            else:  # pragma: no cover
-                raise TypeError(f"Expected useq grid plan, got {type(value)}")
+        mode = Mode.for_grid_plan(value)
 
+        with signals_blocked(self):
+            mode_wdg = self._mode_to_widget[mode]
+            mode_wdg.setValue(value)  # type: ignore [arg-type]
+            self._stack.setCurrentWidget(mode_wdg)
             if value.fov_height:
                 self._fov_height = value.fov_height
             if value.fov_width:
                 self._fov_width = value.fov_width
-
-            if value.overlap:
-                self._bottom_stuff.overlap.setValue(value.overlap[0])
-
-            self._bottom_stuff.order.setCurrentEnum(OrderMode(value.mode.value))
-
-            mode = {
-                useq.GridRowsColumns: Mode.NUMBER,
-                useq.GridFromEdges: Mode.BOUNDS,
-                useq.GridWidthHeight: Mode.AREA,
-            }[type(value)]
-            self.setMode(mode)
+            with signals_blocked(self._bottom_stuff):
+                self._bottom_stuff.setValue(value)
+                self.setMode(mode)
 
         self._on_change()
 
@@ -254,12 +258,6 @@ class GridPlanWidget(QScrollArea):
 
     # ------------------------- Private API -------------------------
 
-    def sizeHint(self) -> QSize:
-        """Return the size hint for the viewport."""
-        sz = super().sizeHint()
-        sz.setHeight(200)  # encourage vertical scrolling
-        return sz
-
     def _on_change(self) -> None:
         if (val := self.value()) is None:
             return  # pragma: no cover
@@ -282,12 +280,20 @@ class _RowsColsWidget(QWidget):
         self.columns.setSuffix(" fields")
 
         layout = QFormLayout(self)
+        layout.setContentsMargins(12, 12, 12, 4)
         layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         layout.addRow("Grid Rows:", self.rows)
         layout.addRow("Grid Cols:", self.columns)
 
         self.rows.valueChanged.connect(self.valueChanged)
         self.columns.valueChanged.connect(self.valueChanged)
+
+    def value(self) -> dict[str, int]:
+        return {"rows": self.rows.value(), "columns": self.columns.value()}
+
+    def setValue(self, plan: useq.GridRowsColumns) -> None:
+        self.rows.setValue(plan.rows)
+        self.columns.setValue(plan.columns)
 
 
 class _WidthHeightWidget(QWidget):
@@ -311,12 +317,26 @@ class _WidthHeightWidget(QWidget):
         self.area_height.setSingleStep(0.1)
 
         layout = QFormLayout(self)
+        layout.setContentsMargins(12, 12, 12, 4)
         layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         layout.addRow("Width:", self.area_width)
         layout.addRow("Height:", self.area_height)
 
         self.area_width.valueChanged.connect(self.valueChanged)
         self.area_height.valueChanged.connect(self.valueChanged)
+
+    def value(self) -> dict[str, float]:
+        # converting width and height to microns because GridWidthHeight expects µm
+        return {
+            "width": self.area_width.value() * 1000,
+            "height": self.area_height.value() * 1000,
+        }
+
+    def setValue(self, plan: useq.GridWidthHeight) -> None:
+        # GridWidthHeight width and height are expressed in µm but this widget
+        # uses mm, so we convert width and height to mm here
+        self.area_width.setValue(plan.width / 1000)
+        self.area_height.setValue(plan.height / 1000)
 
 
 class _BoundsWidget(QWidget):
@@ -327,40 +347,43 @@ class _BoundsWidget(QWidget):
 
         self.left = QDoubleSpinBox()
         self.left.setRange(-10000, 10000)
-        self.left.setValue(0)
         self.left.setDecimals(3)
-        self.left.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
         self.top = QDoubleSpinBox()
         self.top.setRange(-10000, 10000)
-        self.top.setValue(0)
         self.top.setDecimals(3)
-        self.top.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
         self.right = QDoubleSpinBox()
         self.right.setRange(-10000, 10000)
-        self.right.setValue(0)
         self.right.setDecimals(3)
-        self.right.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
         self.bottom = QDoubleSpinBox()
         self.bottom.setRange(-10000, 10000)
-        self.bottom.setValue(0)
         self.bottom.setDecimals(3)
-        self.bottom.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
 
-        self.lrtb_wdg = QWidget()
-        lrtb_layout = QFormLayout(self.lrtb_wdg)
-        lrtb_layout.setContentsMargins(12, 0, 12, 12)
-        lrtb_layout.addRow("Left:", self.left)
-        lrtb_layout.addRow("Top:", self.top)
-        lrtb_layout.addRow("Right:", self.right)
-        lrtb_layout.addRow("Bottom:", self.bottom)
-
-        self.bounds_layout = QFormLayout(self)
-        self.bounds_layout.addWidget(self.lrtb_wdg)
+        form = QFormLayout(self)
+        form.setContentsMargins(12, 12, 12, 4)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        form.addRow("Left:", self.left)
+        form.addRow("Top:", self.top)
+        form.addRow("Right:", self.right)
+        form.addRow("Bottom:", self.bottom)
 
         self.top.valueChanged.connect(self.valueChanged)
         self.bottom.valueChanged.connect(self.valueChanged)
         self.left.valueChanged.connect(self.valueChanged)
         self.right.valueChanged.connect(self.valueChanged)
+
+    def value(self) -> dict[str, float]:
+        return {
+            "left": self.left.value(),
+            "top": self.top.value(),
+            "right": self.right.value(),
+            "bottom": self.bottom.value(),
+        }
+
+    def setValue(self, plan: useq.GridFromEdges) -> None:
+        self.left.setValue(plan.left)
+        self.top.setValue(plan.top)
+        self.right.setValue(plan.right)
+        self.bottom.setValue(plan.bottom)
 
 
 class _ResizableStackedWidget(QStackedWidget):
@@ -371,22 +394,14 @@ class _ResizableStackedWidget(QStackedWidget):
     def addWidget(self, wdg: QWidget | None) -> int:
         if wdg is not None:
             wdg.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
-        return super().addWidget(wdg)  # type: ignore
+        return super().addWidget(wdg)  # type: ignore [no-any-return]
 
     def onCurrentChanged(self, idx: int) -> None:
         for i in range(self.count()):
-            wdg = self.widget(i)
-            if wdg is None:
-                continue
-            if i == idx:
-                wdg.setSizePolicy(
-                    QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-                )
-            else:
-                wdg.setSizePolicy(
-                    QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored
-                )
-            wdg.adjustSize()
+            plc = QSizePolicy.Policy.Minimum if i == idx else QSizePolicy.Policy.Ignored
+            if wdg := self.widget(i):
+                wdg.setSizePolicy(plc, plc)
+                wdg.adjustSize()
         self.adjustSize()
 
 
@@ -396,38 +411,41 @@ class _BottomStuff(QWidget):
     def __init__(self) -> None:
         super().__init__()
 
-        self.overlap_lbl = QLabel("Overlap:")
         self.overlap = QDoubleSpinBox()
         self.overlap.setRange(-1000, 1000)
         self.overlap.setValue(0)
         self.overlap.setSuffix(" %")
-        self.order_lbl = QLabel("Acquisition order:")
         self.order = QEnumComboBox(self, OrderMode)
-        self.relative_to_lbl = QLabel("Current position:")
         self.relative_to = QEnumComboBox(self, RelativeTo)
 
-        self.form_layout = QFormLayout(self)
-        self.form_layout.setContentsMargins(12, 0, 12, 12)
-        self.form_layout.setFieldGrowthPolicy(
+        self._form_layout = QFormLayout(self)
+        self._form_layout.setContentsMargins(12, 0, 12, 12)
+        self._form_layout.setFieldGrowthPolicy(
             QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
         )
 
-        self.form_layout.addRow("", SeparatorWidget())
-        # NB relative_to added in self.setMode
-        self.form_layout.addRow(self.overlap_lbl, self.overlap)
-        self.form_layout.addRow(self.order_lbl, self.order)
+        self._form_layout.addRow("", SeparatorWidget())
+        self._form_layout.addRow("Overlap:", self.overlap)
+        self._form_layout.addRow("Acquisition order:", self.order)
+        self._form_layout.addRow("Current position:", self.relative_to)
 
         self.overlap.valueChanged.connect(self.valueChanged)
         self.order.currentIndexChanged.connect(self.valueChanged)
         self.relative_to.currentIndexChanged.connect(self.valueChanged)
 
     def setMode(self, mode: Mode) -> None:
-        if mode == Mode.BOUNDS:
-            self.relative_to.hide()
-            self.relative_to_lbl.hide()
-            self.form_layout.removeWidget(self.relative_to_lbl)
-            self.form_layout.removeWidget(self.relative_to)
-        else:
-            self.relative_to.show()
-            self.relative_to_lbl.show()
-            self.form_layout.addRow(self.relative_to_lbl, self.relative_to)
+        self._form_layout.setRowVisible(3, mode != Mode.BOUNDS)
+
+    def value(self) -> dict:
+        return {
+            "overlap": (self.overlap.value(), self.overlap.value()),
+            "mode": self.order.currentEnum().value,
+            "relative_to": self.relative_to.currentEnum().value,
+        }
+
+    def setValue(self, plan: GridPlan) -> None:
+        if plan.overlap:
+            self.overlap.setValue(plan.overlap[0])
+        if hasattr(plan, "relative_to"):
+            self.relative_to.setCurrentText(plan.relative_to.value)
+        self.order.setCurrentEnum(OrderMode(plan.mode.value))
