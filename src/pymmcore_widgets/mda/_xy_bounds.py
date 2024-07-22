@@ -142,9 +142,9 @@ class XYBoundsControl(QWidget):
             QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
         )
         values_layout.addRow("Top:", self.top_edit)
-        values_layout.addRow("Left:", self.bottom_edit)
-        values_layout.addRow("Right:", self.left_edit)
-        values_layout.addRow("Bottom:", self.right_edit)
+        values_layout.addRow("Left:", self.left_edit)
+        values_layout.addRow("Right:", self.right_edit)
+        values_layout.addRow("Bottom:", self.bottom_edit)
 
         top_layout = QHBoxLayout()
         top_layout.setContentsMargins(0, 0, 0, 0)

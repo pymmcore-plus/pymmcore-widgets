@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib.util import find_spec
 from itertools import permutations
 from pathlib import Path
 from typing import cast
@@ -20,8 +21,8 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 
 import pymmcore_widgets
-from pymmcore_widgets._mda._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
+from pymmcore_widgets.useq_widgets._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
 from pymmcore_widgets.useq_widgets._positions import PositionTable
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
@@ -297,10 +298,10 @@ class MDASequenceWidget(QWidget):
         )
         self._duration_label.setWordWrap(True)
 
-        self._save_button = QPushButton("Save")
+        self._save_button = QPushButton("Save Settings")
         self._save_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._save_button.clicked.connect(self.save)
-        self._load_button = QPushButton("Load")
+        self._load_button = QPushButton("Load Settings")
         self._load_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._load_button.clicked.connect(self.load)
 
@@ -439,7 +440,7 @@ class MDASequenceWidget(QWidget):
                 self,
                 "Save MDASequence and filename.",
                 "",
-                "All (*.yaml *yml *json);;YAML (*.yaml *.yml);;JSON (*.json)",
+                self._settings_extensions(),
             )
             if not file:  # pragma: no cover
                 return
@@ -451,7 +452,9 @@ class MDASequenceWidget(QWidget):
             yaml = self.value().yaml(exclude_unset=True, exclude_defaults=True)
             data = cast("str", yaml)
         elif dest.suffix == ".json":
-            data = self.value().json(exclude_unset=True, exclude_defaults=True)
+            data = self.value().model_dump_json(
+                exclude_unset=True, exclude_defaults=True
+            )
         else:  # pragma: no cover
             raise ValueError(f"Invalid file extension: {dest.suffix!r}")
 
@@ -465,7 +468,7 @@ class MDASequenceWidget(QWidget):
                 self,
                 "Select an MDAsequence file.",
                 "",
-                "All (*.yaml *yml *json);;YAML (*.yaml *.yml);;JSON (*.json)",
+                self._settings_extensions(),
             )
             if not file:  # pragma: no cover
                 return
@@ -482,6 +485,14 @@ class MDASequenceWidget(QWidget):
         self.setValue(mda_seq)
 
     # -------------- Private API --------------
+
+    def _settings_extensions(self) -> str:
+        """Returns the available extensions for MDA settings save/load."""
+        if find_spec("yaml") is not None:
+            # YAML available
+            return "All (*.yaml *yml *.json);;YAML (*.yaml *.yml);;JSON (*.json)"
+        # Only JSON
+        return "All (*.json);;JSON (*.json)"
 
     def _on_af_toggled(self, checked: bool) -> None:
         # if the 'af_per_position' checkbox in the PositionTable is checked, set checked

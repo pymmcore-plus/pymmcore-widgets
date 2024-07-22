@@ -82,11 +82,11 @@ class PixelConfigurationWidget(QWidget):
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(5)
         self._px_table = _PixelTable()
-        affine_lbl = QLabel("Affine Transformations:")
+        affine_lbl = QLabel("Affine Transformation:")
         self._affine_table = AffineTable()
-        left_layout.addWidget(self._px_table)
-        left_layout.addWidget(affine_lbl)
-        left_layout.addWidget(self._affine_table)
+        left_layout.addWidget(self._px_table, 1)
+        left_layout.addWidget(affine_lbl, 0)
+        left_layout.addWidget(self._affine_table, 0)
 
         self._props_selector = _PropertySelector(mmcore=self._mmc)
 
@@ -473,7 +473,7 @@ class AffineTable(QTableWidget):
 
         self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.horizontalHeader().setVisible(False)
-        self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.verticalHeader().setDefaultSectionSize(20)
         self.verticalHeader().setVisible(False)
 
         self.setColumnCount(3)
@@ -483,7 +483,11 @@ class AffineTable(QTableWidget):
         self._add_table_spinboxes()
         self.setValue(DEFAULT_AFFINE)
 
-        self.setMaximumHeight(self.minimumSizeHint().height())
+    def sizeHint(self) -> Any:
+        sz = self.minimumSizeHint()
+        rc = self.rowCount()
+        sz.setHeight(self.rowHeight(0) * rc + (rc - 1))
+        return sz
 
     def _add_table_spinboxes(self) -> None:
         """Add a spinbox in each cell of the table."""

@@ -27,6 +27,24 @@ if TYPE_CHECKING:
 TEST_CONFIG = Path(__file__).parent / "test_config.cfg"
 
 
+def test_config_wizard_new_empty(
+    global_mmcore: CMMCorePlus, qtbot, tmp_path: Path
+) -> None:
+    global_mmcore.loadSystemConfiguration()
+    wiz = ConfigWizard("", core=global_mmcore)
+    qtbot.addWidget(wiz)
+    wiz.show()
+    wiz.next()
+    wiz.next()
+    wiz.next()
+    wiz.next()
+    wiz.next()
+    out = tmp_path / "out.cfg"
+    wiz.setField(DEST_CONFIG, str(out))
+    wiz.accept()
+    assert "Property,Core,Camera" not in out.read_text()
+
+
 def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
     out = tmp_path / "out.cfg"
     wiz = ConfigWizard(str(TEST_CONFIG), global_mmcore)

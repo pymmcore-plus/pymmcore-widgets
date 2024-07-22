@@ -7,11 +7,14 @@ from typing import Any, ContextManager, Sequence
 import useq
 from psygnal import SignalInstance
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QObject
+from qtpy.QtCore import QMarginsF, QObject, Qt
+from qtpy.QtGui import QPainter, QPaintEvent, QPen, QResizeEvent
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QGraphicsScene,
+    QGraphicsView,
     QLabel,
     QVBoxLayout,
     QWidget,
@@ -176,3 +179,32 @@ def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> 
             # use it
             current_max = max(int(num), current_max)
     return directory / f"{stem}_{current_max:0{min_digits}d}{extension}"
+
+
+class SeparatorWidget(QWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setFixedHeight(1)
+
+    def paintEvent(self, a0: QPaintEvent | None) -> None:
+        painter = QPainter(self)
+        painter.setPen(QPen(Qt.GlobalColor.gray, 1, Qt.PenStyle.SolidLine))
+        painter.drawLine(self.rect().topLeft(), self.rect().topRight())
+
+
+class ResizingGraphicsView(QGraphicsView):
+    """A QGraphicsView that resizes the scene to fit the view."""
+
+    def __init__(self, scene: QGraphicsScene, parent: QWidget | None = None) -> None:
+        super().__init__(scene, parent)
+        self.padding = 0.05  # fraction of the bounding rect
+
+    def resizeEvent(self, event: QResizeEvent | None) -> None:
+        if not (scene := self.scene()):
+            return
+        rect = scene.itemsBoundingRect()
+        xmargin = rect.width() * self.padding
+        ymargin = rect.height() * self.padding
+        margins = QMarginsF(xmargin, ymargin, xmargin, ymargin)
+        self.fitInView(rect.marginsAdded(margins), Qt.AspectRatioMode.KeepAspectRatio)
+        super().resizeEvent(event)
