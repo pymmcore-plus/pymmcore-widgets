@@ -10,7 +10,6 @@ from qtpy.QtWidgets import (
     QButtonGroup,
     QDoubleSpinBox,
     QFormLayout,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
     QRadioButton,
@@ -88,7 +87,7 @@ class GridPlanWidget(QScrollArea):
         self._bounds_wdg = _BoundsWidget()
         self.stack.addWidget(self._bounds_wdg)
 
-        self.bottom_stuff = _BottomStuff()
+        self._bottom_stuff = _BottomStuff()
 
         # wrap the whole thing in an inner widget so we can put it in this ScrollArea
         inner_widget = QWidget(self)
@@ -96,7 +95,7 @@ class GridPlanWidget(QScrollArea):
         layout.addLayout(top_layout)
         layout.addWidget(SeparatorWidget())
         layout.addWidget(self.stack)
-        layout.addWidget(self.bottom_stuff)
+        layout.addWidget(self._bottom_stuff)
         layout.addStretch()
 
         self.setWidget(inner_widget)
@@ -143,7 +142,7 @@ class GridPlanWidget(QScrollArea):
                     self.stack.setCurrentIndex(i)
             self._on_change()
 
-        self.bottom_stuff.setMode(mode)
+        self._bottom_stuff.setMode(mode)
 
     def value(self) -> useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight:
         """Return the current value of the widget as a [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans).
@@ -154,8 +153,8 @@ class GridPlanWidget(QScrollArea):
             The current [GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
             value of the widget.
         """
-        over = self.bottom_stuff.overlap.value()
-        order = self.bottom_stuff.order.currentEnum()
+        over = self._bottom_stuff.overlap.value()
+        order = self._bottom_stuff.order.currentEnum()
         common = {
             "overlap": (over, over),
             "mode": order.value,
@@ -167,7 +166,7 @@ class GridPlanWidget(QScrollArea):
             return useq.GridRowsColumns(
                 rows=self._row_col_wdg.rows.value(),
                 columns=self._row_col_wdg.columns.value(),
-                relative_to=self.bottom_stuff.relative_to.currentEnum().value,
+                relative_to=self._bottom_stuff.relative_to.currentEnum().value,
                 **common,
             )
         elif self._mode == Mode.BOUNDS:
@@ -183,7 +182,7 @@ class GridPlanWidget(QScrollArea):
             return useq.GridWidthHeight(
                 width=self._width_height_wdg.area_width.value() * 1000,
                 height=self._width_height_wdg.area_height.value() * 1000,
-                relative_to=self.bottom_stuff.relative_to.currentEnum().value,
+                relative_to=self._bottom_stuff.relative_to.currentEnum().value,
                 **common,
             )
         raise NotImplementedError
@@ -199,22 +198,20 @@ class GridPlanWidget(QScrollArea):
         """
         with signals_blocked(self):
             if isinstance(value, useq.GridRowsColumns):
-                self.rows.setValue(value.rows)
-                self.columns.setValue(value.columns)
-                for r in self.relative_tos:
-                    r.setCurrentText(value.relative_to.value)
+                self._row_col_wdg.rows.setValue(value.rows)
+                self._row_col_wdg.columns.setValue(value.columns)
+                self._bottom_stuff.relative_to.setCurrentText(value.relative_to.value)
             elif isinstance(value, useq.GridFromEdges):
-                self.top.setValue(value.top)
-                self.left.setValue(value.left)
-                self.bottom.setValue(value.bottom)
-                self.right.setValue(value.right)
+                self._bounds_wdg.top.setValue(value.top)
+                self._bounds_wdg.left.setValue(value.left)
+                self._bounds_wdg.bottom.setValue(value.bottom)
+                self._bounds_wdg.right.setValue(value.right)
             elif isinstance(value, useq.GridWidthHeight):
                 # GridWidthHeight width and height are expressed in µm but this widget
                 # uses mm, so we convert width and height to mm here
-                self.area_width.setValue(value.width / 1000)
-                self.area_height.setValue(value.height / 1000)
-                for r in self.relative_tos:
-                    r.setCurrentText(value.relative_to.value)
+                self._width_height_wdg.area_width.setValue(value.width / 1000)
+                self._width_height_wdg.area_height.setValue(value.height / 1000)
+                self._bottom_stuff.relative_to.setCurrentText(value.relative_to.value)
             else:  # pragma: no cover
                 raise TypeError(f"Expected useq grid plan, got {type(value)}")
 
@@ -224,11 +221,9 @@ class GridPlanWidget(QScrollArea):
                 self._fov_width = value.fov_width
 
             if value.overlap:
-                for o in self.overlaps:
-                    o.setValue(value.overlap[0])
+                self._bottom_stuff.overlap.setValue(value.overlap[0])
 
-            for o in self.orders:
-                o.setCurrentEnum(OrderMode(value.mode.value))
+            self._bottom_stuff.order.setCurrentEnum(OrderMode(value.mode.value))
 
             mode = {
                 useq.GridRowsColumns: Mode.NUMBER,
@@ -352,18 +347,12 @@ class _BoundsWidget(QWidget):
         self.bottom.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
 
         self.lrtb_wdg = QWidget()
-        lrtb_grid = QGridLayout(self.lrtb_wdg)
-        lrtb_grid.setContentsMargins(0, 0, 0, 0)
-        lrtb_grid.addWidget(QLabel("Left:"), 0, 0, Qt.AlignmentFlag.AlignRight)
-        lrtb_grid.addWidget(self.left, 0, 1)
-        lrtb_grid.addWidget(QLabel("Top:"), 0, 2, Qt.AlignmentFlag.AlignRight)
-        lrtb_grid.addWidget(self.top, 0, 3)
-        lrtb_grid.addWidget(QLabel("Right:"), 1, 0, Qt.AlignmentFlag.AlignRight)
-        lrtb_grid.addWidget(self.right, 1, 1)
-        lrtb_grid.addWidget(QLabel("Bottom:"), 1, 2, Qt.AlignmentFlag.AlignRight)
-        lrtb_grid.addWidget(self.bottom, 1, 3)
-        lrtb_grid.setColumnStretch(1, 1)
-        lrtb_grid.setColumnStretch(3, 1)
+        lrtb_layout = QFormLayout(self.lrtb_wdg)
+        lrtb_layout.setContentsMargins(12, 0, 12, 12)
+        lrtb_layout.addRow("Left:", self.left)
+        lrtb_layout.addRow("Top:", self.top)
+        lrtb_layout.addRow("Right:", self.right)
+        lrtb_layout.addRow("Bottom:", self.bottom)
 
         self.bounds_layout = QFormLayout(self)
         self.bounds_layout.addWidget(self.lrtb_wdg)
@@ -379,9 +368,10 @@ class _ResizableStackedWidget(QStackedWidget):
         super().__init__(parent=parent)
         self.currentChanged.connect(self.onCurrentChanged)
 
-    def addWidget(self, wdg: QWidget) -> None:
-        wdg.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-        super().addWidget(wdg)
+    def addWidget(self, wdg: QWidget | None) -> int:
+        if wdg is not None:
+            wdg.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+        return super().addWidget(wdg)  # type: ignore
 
     def onCurrentChanged(self, idx: int) -> None:
         for i in range(self.count()):
@@ -389,9 +379,13 @@ class _ResizableStackedWidget(QStackedWidget):
             if wdg is None:
                 continue
             if i == idx:
-                wdg.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+                wdg.setSizePolicy(
+                    QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+                )
             else:
-                wdg.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+                wdg.setSizePolicy(
+                    QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored
+                )
             wdg.adjustSize()
         self.adjustSize()
 
@@ -413,7 +407,12 @@ class _BottomStuff(QWidget):
         self.relative_to = QEnumComboBox(self, RelativeTo)
 
         self.form_layout = QFormLayout(self)
+        self.form_layout.setContentsMargins(12, 0, 12, 12)
+        self.form_layout.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+        )
 
+        self.form_layout.addRow("", SeparatorWidget())
         # NB relative_to added in self.setMode
         self.form_layout.addRow(self.overlap_lbl, self.overlap)
         self.form_layout.addRow(self.order_lbl, self.order)
