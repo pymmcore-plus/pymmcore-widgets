@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import NamedTuple, cast
+from typing import Iterator, NamedTuple, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QModelIndex, QSize, Qt, Signal
+from qtpy.QtCore import QItemSelection, QSize, Qt, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QComboBox,
-    QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -22,7 +21,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
-from ._util import find_circle_center, find_rectangle_center, show_critical_message
+from ._util import find_circle_center, find_rectangle_center
 
 COMBO_ROLE = Qt.ItemDataRole.UserRole + 1
 ICON_PATH = Path(__file__).parent / "icons"
@@ -31,12 +30,11 @@ ONE_SQUARE = QIcon(str(ICON_PATH / "square-center.svg"))
 TWO = QIcon(str(ICON_PATH / "square-vertices.svg"))
 THREE = QIcon(str(ICON_PATH / "circle-edges.svg"))
 FOUR = QIcon(str(ICON_PATH / "square-edges.svg"))
-NON_CALIBRATED_ICON = MDI6.close_octagon_outline
-CALIBRATED_ICON = MDI6.check_bold
+NON_CALIBRATED_ICON = MDI6.circle
+CALIBRATED_ICON = MDI6.check_circle
 ICON_SIZE = QSize(30, 30)
-RED = Qt.GlobalColor.red
+YELLOW = Qt.GlobalColor.yellow
 GREEN = Qt.GlobalColor.green
-EMPTY = "-"
 
 
 class Mode(NamedTuple):
@@ -47,118 +45,127 @@ class Mode(NamedTuple):
     icon: QIcon | None = None
 
 
-class _CalibrationModeWidget(QWidget):
+# mapping of Circular well -> [Modes]
+MODES: dict[bool, list[Mode]] = {
+    True: [
+        Mode("1 Center point", 1, ONE_CIRCLE),
+        Mode("3 Edge points", 3, THREE),
+    ],
+    False: [
+        Mode("1 Center point", 1, ONE_SQUARE),
+        Mode("2 Corners", 2, TWO),
+        Mode("4 Edge points", 4, FOUR),
+    ],
+}
+
+
+class _CalibrationModeWidget(QComboBox):
     """Widget to select the calibration mode."""
 
-    valueChanged = Signal(object)
+    modeChanged = Signal(object)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
+        self._is_circular = False
+        self.currentIndexChanged.connect(self._on_value_changed)
 
-        self._mode_combo = QComboBox()
-        self._mode_combo.currentIndexChanged.connect(self._on_value_changed)
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(5)
-        layout.addWidget(QLabel("Mode:"), 0)
-        layout.addWidget(self._mode_combo, 1)
-
-    def _on_value_changed(self) -> None:
+    def _on_value_changed(self, index: int) -> None:
         """Emit the selected mode with valueChanged signal."""
-        mode = self._mode_combo.itemData(self._mode_combo.currentIndex(), COMBO_ROLE)
-        self.valueChanged.emit(mode)
+        self.modeChanged.emit(self.currentMode())
 
-    def setValue(self, modes: list[Mode] | None) -> None:
-        """Set the available modes."""
-        self._mode_combo.clear()
-        if modes is None:
-            return
-        for idx, mode in enumerate(modes):
-            self._mode_combo.addItem(mode.icon, mode.text)
-            self._mode_combo.setItemData(idx, mode, COMBO_ROLE)
+    def isCircularMode(self) -> bool:
+        """Return True if the well is circular."""
+        return self._is_circular
 
-    def value(self) -> Mode:
+    def setCircularMode(self, circular: bool) -> None:
+        self._is_circular = bool(circular)
+        with signals_blocked(self):
+            self.clear()
+            for idx, mode in enumerate(MODES[self._is_circular]):
+                self.addItem(mode.icon, mode.text)
+                self.setItemData(idx, mode, COMBO_ROLE)
+        self.modeChanged.emit(self.currentMode())
+
+    def currentMode(self) -> Mode:
         """Return the selected calibration mode."""
-        mode = self._mode_combo.itemData(self._mode_combo.currentIndex(), COMBO_ROLE)
-        return cast(Mode, mode)
+        return cast(Mode, self.itemData(self.currentIndex(), COMBO_ROLE))
 
 
 class _CalibrationTable(QTableWidget):
-    valueChanged = Signal(object)
-
-    def __init__(
-        self, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
-    ) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        self._mmc = mmcore or CMMCorePlus.instance()
-
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.setEditTriggers(QTableWidget.EditTrigger.DoubleClicked)
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
 
         hdr = self.horizontalHeader()
         hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
-        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
 
         self.setColumnCount(2)
-        self.setHorizontalHeaderLabels(["X", "Y"])
+        self.setHorizontalHeaderLabels(["X [mm]", "Y [mm]"])
 
-        self.doubleClicked.connect(self._on_double_clicked)
+        self.selectionModel().selectionChanged.connect(self._on_selection_changed)
 
-    def value(self) -> list[tuple[float, float]]:
+    def _on_selection_changed(
+        self, selected: QItemSelection, deselected: QItemSelection
+    ) -> None:
+        # ensure something is always selected
+        if selected.count() == 0 and deselected.count() > 0:
+            sel_model = self.selectionModel()
+            for item in deselected.indexes():
+                sel_model.select(item, sel_model.SelectionFlag.Select)
+
+    def positions(self) -> Iterator[tuple[int, float, float]]:
         """Return the list of calibration points."""
-        return [
-            (float(self.item(row, 0).text()), float(self.item(row, 1).text()))
-            for row in range(self.rowCount())
-            if self.item(row, 0).text() != EMPTY and self.item(row, 1).text() != EMPTY
-        ]
-
-    def add(self) -> None:
-        """Add a new x, y stage position to the table."""
-        x, y = self._mmc.getXPosition(), self._mmc.getYPosition()
-
-        # if there are empty rows, fill the first one
         for row in range(self.rowCount()):
-            rx, ry = self.item(row, 0).text(), self.item(row, 1).text()
-            if rx == EMPTY and ry == EMPTY:
-                self._add_item(row, x, y)
-                self.valueChanged.emit((row, x, y))
+            if (
+                (x_item := self.item(row, 0))
+                and (y_item := self.item(row, 1))
+                and (x_text := x_item.text())
+                and (y_text := y_item.text())
+            ):
+                yield (row, float(x_text), float(y_text))
+
+    def set_selected(self, x: float, y: float) -> None:
+        """Set the selected position in the table."""
+        if not (indices := self.selectedIndexes()):
+            return
+
+        selected_row = indices[0].row()
+        for row, *p in self.positions():
+            if p == [x, y] and row != selected_row:
+                QMessageBox.critical(
+                    self,
+                    "Duplicate position",
+                    f"Position ({x}, {y}) is already in the list.",
+                )
                 return
 
-        # otherwise, add a new row
-        self.insertRow(self.rowCount())
-        self._add_item(self.rowCount() - 1, x, y)
-        self.valueChanged.emit((self.rowCount() - 1, x, y))
+        self._set_row(selected_row, x, y)
+        if selected_row < self.rowCount() - 1:
+            self.setCurrentCell(selected_row + 1, 0)
 
-    def remove_selected(self) -> None:
+    def _set_row(self, row: int, x: str | float, y: str | float) -> None:
+        """Emit only one itemChanged signal when setting the item."""
+        with signals_blocked(self):
+            self.setItem(row, 0, QTableWidgetItem(f"{x:.2f}"))
+        self.setItem(row, 1, QTableWidgetItem(f"{y:.2f}"))
+
+    def clear_selected(self) -> None:
         """Remove the selected position from the table."""
-        if selected := list({i.row() for i in self.selectedIndexes()}):
-            for row in reversed(selected):
-                self.removeRow(row)
-        self.valueChanged.emit(None)
+        if items := self.selectedItems():
+            with signals_blocked(self):
+                for item in items:
+                    item.setText("")
+            self.itemChanged.emit(item)
 
-    def clear(self) -> None:
-        """Clear the table."""
-        self.setRowCount(0)
-        self.clearContents()
-        self.valueChanged.emit(None)
-
-    def _add_item(self, row: int, x: str | float, y: str | float) -> None:
-        """Add x and y values to the table and emit valueChanged only once."""
-        x_item, y_item = QTableWidgetItem(str(x)), QTableWidgetItem(str(y))
-        x_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        y_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setItem(row, 0, x_item)
-        self.setItem(row, 1, y_item)
-
-    def _on_double_clicked(self, index: QModelIndex) -> None:
-        """Move the stage to the selected position."""
-        row = index.row()
-        x, y = self.item(row, 0).text(), self.item(row, 1).text()
-        if x == EMPTY or y == EMPTY:
-            return
-        self._mmc.setXYPosition(float(x), float(y))
+    def resetRowCount(self, num: int) -> None:
+        with signals_blocked(self):
+            self.clear()
+            self.setRowCount(num)
+            # select the first row
+            self.setCurrentCell(0, 0)
 
 
 class WellCalibrationWidget(QWidget):
@@ -170,201 +177,127 @@ class WellCalibrationWidget(QWidget):
         super().__init__(parent)
 
         self._mmc = mmcore or CMMCorePlus.instance()
-
-        self.MODES: dict[bool, list[Mode]] = {
-            True: [
-                Mode("1 points in the center", 1, ONE_CIRCLE),
-                Mode("3 points on the edges", 3, THREE),
-            ],
-            False: [
-                Mode("1 points in the center", 1, ONE_SQUARE),
-                Mode("2 points on opposite vertices", 2, TWO),
-                Mode("4 points on 4 opposite edges", 4, FOUR),
-            ],
-        }
-
         self._well_center: tuple[float, float] | None = None
 
         # WIDGETS -------------------------------------------------------------
 
-        # Well label and calibration icon
+        # Well label
         self._well_label = QLabel("Well A1")
-        self._well_label.setStyleSheet("font: bold 20px;")
-        self._calibration_icon = QLabel()
-        self._calibration_icon.setPixmap(
-            icon(NON_CALIBRATED_ICON, color=RED).pixmap(ICON_SIZE)
-        )
+        font = self._well_label.font()
+        font.setBold(True)
+        font.setPixelSize(16)
+        self._well_label.setFont(font)
 
-        top_layout = QHBoxLayout()
-        top_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        top_layout.setContentsMargins(0, 0, 0, 0)
-        top_layout.setSpacing(5)
-        top_layout.addStretch()
-        top_layout.addWidget(self._well_label)
-        top_layout.addWidget(self._calibration_icon)
-        top_layout.addStretch()
+        # Icon for calibration status
+        self._calibration_icon = QLabel()
+        icn = icon(NON_CALIBRATED_ICON, color=YELLOW)
+        self._calibration_icon.setPixmap(icn.pixmap(ICON_SIZE))
 
         # calibration mode
         self._calibration_mode_wdg = _CalibrationModeWidget(self)
 
         # calibration table and buttons
-        self._table = _CalibrationTable(self, self._mmc)
+        self._table = _CalibrationTable(self)
+
         # add and remove buttons
-        self._add_button = QPushButton("Add Position")
-        self._add_button.setIcon(icon(MDI6.plus_thick, color=GREEN))
-        self._add_button.setIconSize(ICON_SIZE)
-        self._remove_button = QPushButton("Remove Selected")
-        self._remove_button.setIcon(icon(MDI6.close_box_outline, color=RED))
-        self._remove_all_button = QPushButton("Remove All")
-        self._remove_all_button.setIcon(
-            icon(MDI6.close_box_multiple_outline, color=RED)
-        )
-        button_layout = QHBoxLayout()
-        button_layout.setContentsMargins(0, 0, 0, 0)
-        button_layout.setSpacing(5)
-        button_layout.addWidget(self._remove_button)
-        button_layout.addWidget(self._remove_all_button)
-        # layout
-        table_layout = QVBoxLayout()
-        table_layout.setContentsMargins(0, 0, 0, 0)
-        table_layout.setSpacing(5)
-        table_layout.addWidget(self._table)
-        table_layout.addWidget(self._add_button)
-        table_layout.addLayout(button_layout)
+        self._set_button = QPushButton("Set")
+        self._clear_button = QPushButton("Clear")
+        self._clear_all_button = QPushButton("Clear All")
 
         # LAYOUT --------------------------------------------------------------
 
-        groupbox = QGroupBox()
-        layout = QGridLayout(groupbox)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
-        layout.addLayout(top_layout, 0, 0)
-        layout.addWidget(self._calibration_mode_wdg, 1, 0)
-        layout.addLayout(table_layout, 2, 0)
+        labels = QHBoxLayout()
+        labels.setContentsMargins(0, 0, 0, 0)
+        labels.addWidget(self._calibration_icon)
+        labels.addWidget(self._well_label, 1)
+
+        mode_row = QHBoxLayout()
+        mode_row.addWidget(QLabel("Method:"))
+        mode_row.addWidget(self._calibration_mode_wdg, 1)
+
+        remove_btns = QHBoxLayout()
+        remove_btns.setContentsMargins(0, 0, 0, 0)
+        remove_btns.addWidget(self._clear_button)
+        remove_btns.addWidget(self._clear_all_button)
 
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(groupbox)
+        main_layout.setSpacing(5)
+        main_layout.addLayout(labels)
+        main_layout.addLayout(mode_row)
+        main_layout.addWidget(self._table)
+        main_layout.addWidget(self._set_button)
+        main_layout.addLayout(remove_btns)
 
         # CONNECTIONS ---------------------------------------------------------
-        self._calibration_mode_wdg.valueChanged.connect(self._on_mode_changed)
-        self._add_button.clicked.connect(self._table.add)
-        self._remove_button.clicked.connect(self._table.remove_selected)
-        self._remove_all_button.clicked.connect(self._table.clear)
-        self._table.valueChanged.connect(self._validate_table)
 
-    def setWellCenter(self, center: tuple[float, float]) -> None:
-        """Set the center of the well."""
-        self._well_center = center
-        self._set_calibrated(center)
+        self._calibration_mode_wdg.modeChanged.connect(self._on_mode_changed)
+        self._set_button.clicked.connect(self._on_set_clicked)
+        self._clear_button.clicked.connect(self._table.clear_selected)
+        self._clear_all_button.clicked.connect(self._table.clearContents)
+        self._table.itemChanged.connect(self._validate_table)
 
     def wellCenter(self) -> tuple[float, float] | None:
-        """Return the center of the well."""
+        """Return the center of the well, or None if not calibrated."""
         return self._well_center
 
     def setCircularWell(self, circular: bool) -> None:
         """Update the calibration widget for circular or rectangular wells."""
-        with signals_blocked(self._calibration_mode_wdg):
-            self._calibration_mode_wdg.setValue(self.MODES[circular])
-        self._calibration_mode_wdg.valueChanged.emit(self._calibration_mode_wdg.value())
+        self._calibration_mode_wdg.setCircularMode(circular)
 
     def circularWell(self) -> bool:
         """Return True if the well is circular."""
-        return self._calibration_mode_wdg.value() in self.MODES[True]
+        return self._calibration_mode_wdg.isCircularMode()
+
+    def _on_set_clicked(self) -> None:
+        self._table.set_selected(*self._mmc.getXYPosition())
 
     def _on_mode_changed(self, mode: Mode) -> None:
         """Update the rows in the calibration table."""
-        with signals_blocked(self._table):
-            self._table.clear()
-        for _ in range(mode.points):
-            self._add_empty_row()
+        self._table.resetRowCount(mode.points)
+        self._set_well_center(None)
 
-    def _add_empty_row(self) -> None:
-        """Add an empty row to the table with x and y set to EMPTY."""
-        self._table.insertRow(self._table.rowCount())
-        self._table._add_item(self._table.rowCount() - 1, EMPTY, EMPTY)
-
-    def _set_calibrated(self, center: tuple[float, float]) -> None:
+    def _set_well_center(self, center: tuple[float, float] | None) -> None:
         """Set the calibration icon and emit the calibrationChanged signal."""
-        self._calibration_icon.setPixmap(
-            icon(CALIBRATED_ICON, color=GREEN).pixmap(ICON_SIZE)
-        )
-        self._well_center = center
-        self.calibrationChanged.emit(True)
-
-    def _set_uncalibrated(self) -> None:
-        """Set the uncalibrated icon and emit the calibrationChanged signal."""
-        self._calibration_icon.setPixmap(
-            icon(NON_CALIBRATED_ICON, color=RED).pixmap(ICON_SIZE)
-        )
-        self._well_center = None
-        self.calibrationChanged.emit(False)
-
-    def _validate_table(self, value: tuple[int, float, float] | None) -> None:
-        """Validate the calibration points added to the table."""
-        # get the count of (x, y) in the table
-        current_values = self._table.value()
-        mode = self._calibration_mode_wdg.value()
-
-        # add empty rows if the number of points is less than the required number
-        # this is triggered when the user removes a row(s) and the table is empty
-        if value is None and self._table.rowCount() < mode.points:
-            for _ in range(mode.points - self._table.rowCount()):
-                self._add_empty_row()
-            self._set_uncalibrated()
+        if self._well_center == center:
             return
 
-        # if the new item is already in the list, show an error message and remove it.
-        if value is not None:
-            row, x, y = value
-            # if the number of points is greater than the required number of points,
-            # remove the last row
-            if len(current_values) > mode.points:
-                self._table.removeRow(row)
-                show_critical_message(
-                    self,
-                    "Invalid number of points",
-                    f"Invalid number of points. Expected {mode.points}.",
-                )
-                return
+        self._well_center = center
+        if center is None:
+            icn = icon(NON_CALIBRATED_ICON, color=YELLOW)
+        else:
+            icn = icon(CALIBRATED_ICON, color=GREEN)
+        self._calibration_icon.setPixmap(icn.pixmap(ICON_SIZE))
+        self.calibrationChanged.emit(center is not None)
 
-            # check if the new value appears more than once
-            count = sum(v == (x, y) for v in current_values)
-            # if the count is greater than 1, remove the row
-            if count > 1:
-                self._table.removeRow(row)
-                self._add_empty_row()
-                self._set_uncalibrated()
-                show_critical_message(
-                    self,
-                    "Duplicate position",
-                    f"Position ({x}, {y}) is already in the list and will be removed.",
-                )
-                return
+    def _validate_table(self, changed_item: QTableWidgetItem) -> None:
+        """Validate the calibration points added to the table."""
+        # get the count of (x, y) in the table
+        points = [p[1:] for p in self._table.positions()]
+        needed_points = self._calibration_mode_wdg.currentMode().points
 
         # if the number of points is not yet satisfied, just do nothing
-        if len(current_values) < mode.points:
-            self._set_uncalibrated()
+        if len(points) < needed_points:
+            self._set_well_center(None)
             return
 
         # if the number of points is 1, well is already calibrated
-        if mode.points == 1:
-            self._set_calibrated(current_values[0])
+        if needed_points == 1:
+            self._set_well_center(points[0])
             return
 
         # if the number of points is correct, try to calculate the calibration
         try:
-            x, y = (
-                find_circle_center(*current_values)
-                if self.circularWell()
-                else find_rectangle_center(*current_values)
-            )
-            self._set_calibrated((x, y))
+            # TODO: allow additional sanity checks for min/max radius, width/height
+            if self.circularWell():
+                x, y, radius = find_circle_center(points)
+            else:
+                x, y, width, height = find_rectangle_center(points)
         except Exception as e:
-            self._set_uncalibrated()
-            show_critical_message(
+            self._set_well_center(None)
+            QMessageBox.critical(
                 self,
                 "Calibration error",
-                f"Could not calculate the center of the well.\nError: {e}",
+                f"Could not calculate the center of the well.\n\n{e}",
             )
-            return
+        else:
+            self._set_well_center((x, y))

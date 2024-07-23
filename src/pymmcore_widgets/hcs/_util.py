@@ -1,60 +1,77 @@
 from __future__ import annotations
 
-from qtpy.QtWidgets import QMessageBox, QWidget
+from typing import Iterable
+
+import numpy as np
 
 
 def find_circle_center(
-    point1: tuple[float, float],
-    point2: tuple[float, float],
-    point3: tuple[float, float],
-) -> tuple[float, float]:
+    coords: Iterable[tuple[float, float]],
+) -> tuple[float, float, float]:
+    """Calculate the center of a circle passing through three or more points.
+
+    This function uses the least squares method to find the center of a circle
+    that passes through the given coordinates. The input coordinates should be
+    an iterable of 2D points (x, y).
+
+    Returns
+    -------
+    tuple : (x, y, radius)
+        The center of the circle and the radius of the circle.
     """
-    Calculate the center of a circle passing through three given points.
+    points = np.array(coords)
+    if points.ndim != 2 or points.shape[1] != 2:
+        raise ValueError("Invalid input coordinates")
+    if len(points) < 3:
+        raise ValueError("At least 3 points are required")
 
-    The function uses the formula for the circumcenter of a triangle to find
-    the center of the circle that passes through the given points.
+    # Prepare the matrices for least squares
+    A = np.hstack((points, np.ones((points.shape[0], 1))))
+    B = np.sum(points**2, axis=1).reshape(-1, 1)
+
+    # Solve the least squares problem
+    params, _residuals, rank, s = np.linalg.lstsq(A, B, rcond=None)
+
+    if rank < 3:
+        raise ValueError("The points are collinear or nearly collinear")
+
+    # Extract the circle parameters
+    x = params[0][0] / 2
+    y = params[1][0] / 2
+
+    # radius, if needed
+    r_squared = params[2][0] + x**2 + y**2
+    radius = np.sqrt(r_squared)
+
+    return (x, y, radius)
+
+
+def find_rectangle_center(
+    coords: Iterable[tuple[float, float]],
+) -> tuple[float, float, float, float]:
+    """Find the center of a rectangle/square well from 2 or more points.
+
+    Returns
+    -------
+    tuple : (x, y, width, height)
+        The center of the rectangle, width, and height.
     """
-    x1, y1 = point1
-    x2, y2 = point2
-    x3, y3 = point3
+    points = np.array(coords)
 
-    # Calculate determinant D
-    D = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2))
+    if points.ndim != 2 or points.shape[1] != 2:
+        raise ValueError("Invalid input coordinates")
+    if len(points) < 2:
+        raise ValueError("At least 2 points are required")
 
-    # Calculate x and y coordinates of the circle's center
-    x = (
-        ((x1**2 + y1**2) * (y2 - y3))
-        + ((x2**2 + y2**2) * (y3 - y1))
-        + ((x3**2 + y3**2) * (y1 - y2))
-    ) / D
-    y = (
-        ((x1**2 + y1**2) * (x3 - x2))
-        + ((x2**2 + y2**2) * (x1 - x3))
-        + ((x3**2 + y3**2) * (x2 - x1))
-    ) / D
+    # Find the min and max x and y values
+    x_min, y_min = points.min(axis=0)
+    x_max, y_max = points.max(axis=0)
 
-    return x, y
+    # Calculate the center of the rectangle
+    x = (x_min + x_max) / 2
+    y = (y_min + y_max) / 2
 
-
-def find_rectangle_center(*args: tuple[float, ...]) -> tuple[float, float]:
-    """
-    Find the center of a rectangle/square well.
-
-    ...given two opposite verices coordinates or 4 points on the edges.
-    """
-    x_list, y_list = list(zip(*args))
-
-    if len(args) == 4:
-        # get corner x and y coordinates
-        x_list = (max(x_list), min(x_list))
-        y_list = (max(y_list), min(y_list))
-
-    # get center coordinates
-    x = sum(x_list) / 2
-    y = sum(y_list) / 2
-    return x, y
-
-
-def show_critical_message(parent: QWidget, title: str, message: str) -> None:
-    """Show a critical message dialog."""
-    QMessageBox.critical(parent, title, message, QMessageBox.StandardButton.Ok)
+    # Calculate the width and height of the rectangle
+    width = x_max - x_min
+    height = y_max - y_min
+    return (x, y, width, height)
