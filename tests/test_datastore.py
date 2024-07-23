@@ -1,3 +1,4 @@
+import pytest
 from pymmcore_plus import CMMCorePlus
 from useq import MDAEvent, MDASequence
 
@@ -9,6 +10,7 @@ sequence = MDASequence(
 )
 
 
+@pytest.mark.skip(reason="Temporary skip, pydantic.warnings.PydanticDeprecatedSince20")
 def test_reception(qtbot):
     mmcore = CMMCorePlus.instance()
 
