@@ -9,9 +9,7 @@ from qtpy.QtCore import Qt, QTimerEvent, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
     QDoubleSpinBox,
-    QFormLayout,
     QGridLayout,
-    QHBoxLayout,
     QLabel,
     QPushButton,
     QRadioButton,
@@ -59,7 +57,7 @@ class MoveStageButton(QPushButton):
                 border: none;
                 background: transparent;
                 color: rgb(0, 180, 0);
-                font-size: 40px;
+                font-size: 36px;
             }
             MoveStageButton:hover:!pressed {
                 color: rgb(0, 255, 0);
@@ -112,7 +110,9 @@ class StageMovementButtons(QWidget):
 
         # step size spinbox in the middle of the move buttons
         self.step_size = QDoubleSpinBox()
-        self.step_size.setToolTip("Step size in µm")
+        self.step_size.setSuffix(" µm")
+        self.step_size.setDecimals(1)
+        self.step_size.setToolTip("Set step size in µm")
         self.step_size.setValue(10)
         self.step_size.setMaximum(99999)
         self.step_size.setAttribute(Qt.WidgetAttribute.WA_MacShowFocusRect, 0)
@@ -191,7 +191,7 @@ class StageWidget(QWidget):
         Stage device.
     levels: int | None:
         Number of "arrow" buttons per widget per direction, by default, 2.
-    position_labels_below: bool | None
+    position_label_below: bool | None
         If True, the position labels will appear below the move buttons.
         If False, the position labels will appear to the right of the move buttons.
     parent : QWidget | None
@@ -203,17 +203,14 @@ class StageWidget(QWidget):
         [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
     """
 
-    # fmt: off
-
     BTN_SIZE = 30
-    # fmt: on
 
     def __init__(
         self,
         device: str,
         levels: int = 2,
         *,
-        position_labels_below: bool = True,
+        position_label_below: bool = True,
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
     ):
@@ -228,29 +225,21 @@ class StageWidget(QWidget):
         if self._dtype not in {DeviceType.Stage, DeviceType.XYStage}:
             raise ValueError("This widget only supports Stage and XYStage devices.")
 
-        is_2axis = self._dtype is DeviceType.XYStage
-        Y = "Y" if is_2axis else self._device
+        self._is_2axis = self._dtype is DeviceType.XYStage
+        self._Ylabel = "Y" if self._is_2axis else self._device
 
         # WIDGETS ------------------------------------------------
 
-        self._move_btns = StageMovementButtons(self._levels, is_2axis)
+        self._move_btns = StageMovementButtons(self._levels, self._is_2axis)
         self._step = self._move_btns.step_size
 
-        self._poslabel_x = QDoubleSpinBox()
-        self._poslabel_x.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
-        self._poslabel_x.setRange(-99999999, 99999999)
-        self._poslabel_x.setMaximumWidth(80)
-        self._poslabel_x.setDecimals(1)
-        self._poslabel_yz = QDoubleSpinBox()
-        self._poslabel_yz.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
-        self._poslabel_yz.setRange(-99999999, 99999999)
-        self._poslabel_yz.setMaximumWidth(80)
-        self._poslabel_yz.setDecimals(1)
+        self._pos_label = QLabel()
+        self._pos_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._poll_cb = QCheckBox("Poll")
         self.snap_checkbox = QCheckBox(text="Snap on Click")
         self._invert_x = QCheckBox(text="Invert X")
-        self._invert_y = QCheckBox(text=f"Invert {Y}")
+        self._invert_y = QCheckBox(text=f"Invert {self._Ylabel}")
         self._set_as_default_btn = QRadioButton(text="Set as Default")
         # no need to show the "set as default" button if there is only one device
         if len(self._mmc.getLoadedDevicesOfType(self._dtype)) < 2:
@@ -274,59 +263,35 @@ class StageWidget(QWidget):
         main_layout.addWidget(self._move_btns, Qt.AlignmentFlag.AlignCenter)
         main_layout.addLayout(chxbox_grid)
 
-        # position label
-        # this can appear either below or to the right of the move buttons
-
-        halt = HaltButton(self._mmc)
-        if position_labels_below:
-            pos_labels = QHBoxLayout()
-            pos_labels.setContentsMargins(0, 0, 0, 0)
-            if is_2axis:
-                pos_labels.addWidget(QLabel("X:"), 0)
-                pos_labels.addWidget(self._poslabel_x, 1)
-                pos_labels.addWidget(QLabel(f"{Y}:"), 0)
-            else:
-                pos_labels.addWidget(QLabel(f"{Y}:"), 0)
-            pos_labels.addWidget(self._poslabel_yz, 1)
-            pos_labels.addWidget(halt, 0)
-            main_layout.insertLayout(2, pos_labels)
+        # pos label can appear either below or to the right of the move buttons
+        if position_label_below:
+            main_layout.insertWidget(2, self._pos_label)
         else:
-            pos_labels = QFormLayout()
-            pos_labels.setContentsMargins(0, 0, 0, 0)
-            pos_labels.setFieldGrowthPolicy(
-                QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
-            )
-            pos_labels.setFormAlignment(Qt.AlignmentFlag.AlignCenter)
-            if is_2axis:
-                pos_labels.addRow("X:", self._poslabel_x)
-            pos_labels.addRow(f"{Y}:", self._poslabel_yz)
             move_btns_layout = cast("QGridLayout", self._move_btns.layout())
             move_btns_layout.addLayout(
-                pos_labels, 4, 4, 2, 2, Qt.AlignmentFlag.AlignBottom
+                self._pos_label, 4, 4, 2, 2, Qt.AlignmentFlag.AlignBottom
             )
 
-        if not is_2axis:
-            self._poslabel_x.hide()
+        if not self._is_2axis:
             self._invert_x.hide()
 
         # SIGNALS -----------------------------------------------
 
-        self._poslabel_x.editingFinished.connect(self._on_pos_changed)
-        self._poslabel_yz.editingFinished.connect(self._on_pos_changed)
         self._set_as_default_btn.toggled.connect(self._on_radiobutton_toggled)
         self._move_btns.moveRequested.connect(self._on_move_requested)
         self._poll_cb.toggled.connect(self._toggle_poll_timer)
         self._mmc.events.propertyChanged.connect(self._on_prop_changed)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_system_cfg)
-        if self._dtype is DeviceType.XYStage:
-            self._mmc.events.XYStagePositionChanged.connect(self._update_position_label)
-        elif self._dtype is DeviceType.Stage:
-            self._mmc.events.stagePositionChanged.connect(self._update_position_label)
+        if self._is_2axis:
+            pos_event = self._mmc.events.XYStagePositionChanged
+        else:
+            pos_event = self._mmc.events.stagePositionChanged
+        pos_event.connect(self._update_position_from_core)
         self.destroyed.connect(self._disconnect)
 
         # INITIALIZATION ----------------------------------------
 
-        self._update_position_label()
+        self._update_position_from_core()
         self._set_as_default()
 
     def step(self) -> float:
@@ -345,27 +310,12 @@ class StageWidget(QWidget):
         self._poll_cb.setEnabled(enabled)
 
     def _on_system_cfg(self) -> None:
-        if self._dtype is DeviceType.XYStage:
-            if self._device not in self._mmc.getLoadedDevicesOfType(DeviceType.XYStage):
-                self._enable_and_update(False)
-            else:
-                self._enable_and_update(True)
-
-        if self._dtype is DeviceType.Stage:
-            if self._device not in self._mmc.getLoadedDevicesOfType(DeviceType.Stage):
-                self._enable_and_update(False)
-            else:
-                self._enable_and_update(True)
-
-        self._set_as_default()
-
-    def _enable_and_update(self, enable: bool) -> None:
-        if enable:
+        if self._device in self._mmc.getLoadedDevicesOfType(self._dtype):
             self._enable_wdg(True)
-            self._update_position_label()
+            self._update_position_from_core()
         else:
-            # self._poslabel_x.setText(f"{self._device} not loaded.")
             self._enable_wdg(False)
+        self._set_as_default()
 
     def _set_as_default(self) -> None:
         if self._dtype is DeviceType.XYStage:
@@ -376,37 +326,24 @@ class StageWidget(QWidget):
                 self._set_as_default_btn.setChecked(True)
 
     def _on_radiobutton_toggled(self, state: bool) -> None:
-        if self._dtype is DeviceType.XYStage:
-            if state:
-                self._mmc.setProperty(CORE, XY_STAGE, self._device)
-            elif (
-                not state
-                and len(self._mmc.getLoadedDevicesOfType(DeviceType.XYStage)) == 1
-            ):
-                with signals_blocked(self._set_as_default_btn):
-                    self._set_as_default_btn.setChecked(True)
-            else:
-                self._mmc.setProperty(CORE, XY_STAGE, "")
-
-        elif self._dtype is DeviceType.Stage:
-            if state:
-                self._mmc.setProperty(CORE, FOCUS, self._device)
-            elif (
-                not state
-                and len(self._mmc.getLoadedDevicesOfType(DeviceType.Stage)) == 1
-            ):
-                with signals_blocked(self._set_as_default_btn):
-                    self._set_as_default_btn.setChecked(True)
-            else:
-                self._mmc.setProperty(CORE, FOCUS, "")
+        prop = XY_STAGE if self._is_2axis else FOCUS
+        if state:
+            self._mmc.setProperty(CORE, prop, self._device)
+        elif len(self._mmc.getLoadedDevicesOfType(self._dtype)) == 1:
+            with signals_blocked(self._set_as_default_btn):
+                self._set_as_default_btn.setChecked(True)
+        else:
+            self._mmc.setProperty(CORE, prop, "")
 
     def _on_prop_changed(self, dev: str, prop: str, val: str) -> None:
-        if dev == CORE and (
-            (self._dtype is DeviceType.XYStage and prop == XY_STAGE)
-            or (self._dtype is DeviceType.Stage and prop == FOCUS)
+        if (
+            (dev != CORE)
+            or (self._is_2axis and prop != XY_STAGE)
+            or (not self._is_2axis and prop != FOCUS)
         ):
-            with signals_blocked(self._set_as_default_btn):
-                self._set_as_default_btn.setChecked(val == self._device)
+            return
+        with signals_blocked(self._set_as_default_btn):
+            self._set_as_default_btn.setChecked(val == self._device)
 
     def _toggle_poll_timer(self, on: bool) -> None:
         if on:
@@ -418,27 +355,19 @@ class StageWidget(QWidget):
                 self._poll_timer_id = None
 
     def timerEvent(self, event: QTimerEvent | None) -> None:
-        if event.timerId() == self._poll_timer_id:
-            self._update_position_label()
+        if event and event.timerId() == self._poll_timer_id:
+            self._update_position_from_core()
         super().timerEvent(event)
 
-    def _update_position_label(self) -> None:
+    def _update_position_from_core(self) -> None:
         if self._device not in self._mmc.getLoadedDevicesOfType(self._dtype):
             return
-
-        if self._dtype is DeviceType.XYStage:
-            self._poslabel_x.setValue(self._mmc.getXPosition(self._device))
-            self._poslabel_yz.setValue(self._mmc.getYPosition(self._device))
-        elif self._dtype is DeviceType.Stage:
-            self._poslabel_yz.setValue(self._mmc.getPosition(self._device))
-
-    def _on_pos_changed(self) -> None:
-        if self._dtype is DeviceType.XYStage:
-            self._mmc.setXYPosition(
-                self._device, self._poslabel_x.value(), self._poslabel_yz.value()
-            )
-        elif self._dtype is DeviceType.Stage:
-            self._mmc.setPosition(self._device, self._poslabel_yz.value())
+        if self._is_2axis:
+            lbl = f"X{self._Ylabel}: "
+            lbl += ", ".join(f"{x:.02f}" for x in self._mmc.getXYPosition(self._device))
+        else:
+            lbl = f"{self._Ylabel}: {self._mmc.getPosition(self._device):.02f}"
+        self._pos_label.setText(lbl)
 
     def _on_move_requested(self, xmag: float, ymag: float) -> None:
         if self._invert_x.isChecked():
@@ -449,7 +378,7 @@ class StageWidget(QWidget):
 
     def _move_stage(self, x: float, y: float) -> None:
         try:
-            if self._dtype is DeviceType.XYStage:
+            if self._is_2axis:
                 self._mmc.setRelativeXYPosition(self._device, x, y)
             else:
                 self._mmc.setRelativePosition(self._device, y)
@@ -462,8 +391,8 @@ class StageWidget(QWidget):
     def _disconnect(self) -> None:
         self._mmc.events.propertyChanged.disconnect(self._on_prop_changed)
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_system_cfg)
-        if self._dtype is DeviceType.XYStage:
+        if self._is_2axis:
             event = self._mmc.events.XYStagePositionChanged
-        elif self._dtype is DeviceType.Stage:
+        else:
             event = self._mmc.events.stagePositionChanged
-        event.disconnect(self._update_position_label)
+        event.disconnect(self._update_position_from_core)

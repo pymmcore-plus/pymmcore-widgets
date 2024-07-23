@@ -23,7 +23,8 @@ for stage in stages:
     lbl = "Z" if mmc.getDeviceType(stage) == DeviceType.Stage else "XY"
     bx = QGroupBox(f"{lbl} Control")
     bx_layout = QHBoxLayout(bx)
-    bx_layout.addWidget(StageWidget(device=stage, position_labels_below=True))
+    bx_layout.setContentsMargins(0, 0, 0, 0)
+    bx_layout.addWidget(StageWidget(device=stage, position_label_below=True))
     wdg_layout.addWidget(bx)
 
 
