@@ -314,18 +314,12 @@ class WellCalibrationWidget(QWidget):
             self._set_uncalibrated()
             return
 
-        # if the new item is already in the list, show an error message and remove it.
         if value is not None:
             row, x, y = value
             # if the number of points is greater than the required number of points,
             # remove the last row
             if len(current_values) > mode.points:
                 self._table.removeRow(row)
-                show_critical_message(
-                    self,
-                    "Invalid number of points",
-                    f"Invalid number of points. Expected {mode.points}.",
-                )
                 return
 
             # check if the new value appears more than once
