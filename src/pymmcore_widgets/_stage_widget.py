@@ -364,9 +364,9 @@ class StageWidget(QWidget):
             return
         if self._is_2axis:
             x, y = self._mmc.getXYPosition(self._device)
-            lbl = f"X: {x:.02f}  {self._Ylabel}: {y:.02f}"
+            lbl = f"X: {x:.01f}  {self._Ylabel}: {y:.01f}"
         else:
-            lbl = f"{self._Ylabel}: {self._mmc.getPosition(self._device):.02f}"
+            lbl = f"{self._Ylabel}: {self._mmc.getPosition(self._device):.01f}"
         self._pos_label.setText(lbl)
 
     def _on_move_requested(self, xmag: float, ymag: float) -> None:
