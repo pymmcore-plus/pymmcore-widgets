@@ -96,6 +96,7 @@ class _CalibrationTable(QTableWidget):
         super().__init__(0, 2, parent)
 
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
 
         hdr = self.horizontalHeader()
