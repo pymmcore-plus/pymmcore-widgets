@@ -83,7 +83,7 @@ def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
 
     stage_z.setStep(15.0)
     assert stage_z.step() == 15.0
-    assert stage_xy._pos_label.text() == "X: -0.00  Y: 15.00"
+    assert stage_z._pos_label.text() == "Z: 0.00"
 
     z_pos = global_mmcore.getPosition()
     assert z_pos == 0.0
@@ -95,12 +95,12 @@ def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
         < global_mmcore.getPosition()
         < (z_pos + (stage_z.step() * 2)) + 1
     )
-    assert stage_xy._pos_label.text() == "X: -0.00  Y: 15.00"
+    assert stage_z._pos_label.text() == "Z: 30.00"
 
     global_mmcore.waitForDevice("Z")
     global_mmcore.setPosition(0.0)
     z_pos = global_mmcore.getPosition()
-    assert stage_xy._pos_label.text() == "X: -0.00  Y: 15.00"
+    assert stage_z._pos_label.text() == "Z: 0.00"
 
     stage_z.snap_checkbox.setChecked(True)
     with qtbot.waitSignal(global_mmcore.events.imageSnapped):
