@@ -329,7 +329,7 @@ class MDASequenceWidget(QWidget):
 
         layout = QVBoxLayout(self)
         layout.addLayout(top_row)
-        layout.addWidget(self.tab_wdg)
+        layout.addWidget(self.tab_wdg, 1)
         layout.addLayout(cbox_row)
         layout.addLayout(bot_row)
 
