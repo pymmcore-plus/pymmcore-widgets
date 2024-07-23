@@ -93,18 +93,16 @@ class _CalibrationModeWidget(QComboBox):
 
 class _CalibrationTable(QTableWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
+        super().__init__(0, 2, parent)
 
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
 
         hdr = self.horizontalHeader()
-        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
+        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
 
-        self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["X [mm]", "Y [mm]"])
-
         self.selectionModel().selectionChanged.connect(self._on_selection_changed)
 
     def _on_selection_changed(
@@ -117,7 +115,7 @@ class _CalibrationTable(QTableWidget):
                 sel_model.select(item, sel_model.SelectionFlag.Select)
 
     def positions(self) -> Iterator[tuple[int, float, float]]:
-        """Return the list of calibration points."""
+        """Return the list of non-null (row, x, y) points."""
         for row in range(self.rowCount()):
             if (
                 (x_item := self.item(row, 0))
@@ -128,12 +126,13 @@ class _CalibrationTable(QTableWidget):
                 yield (row, float(x_text), float(y_text))
 
     def set_selected(self, x: float, y: float) -> None:
-        """Set the selected position in the table."""
+        """Assign (x, y) to the currently selected row in the table."""
         if not (indices := self.selectedIndexes()):
             return
 
         selected_row = indices[0].row()
         for row, *p in self.positions():
+            print(row, p, selected_row, (x, y))
             if p == [x, y] and row != selected_row:
                 QMessageBox.critical(
                     self,
@@ -148,9 +147,14 @@ class _CalibrationTable(QTableWidget):
 
     def _set_row(self, row: int, x: str | float, y: str | float) -> None:
         """Emit only one itemChanged signal when setting the item."""
+        itemx = QTableWidgetItem(f"{x:.2f}")
+        itemx.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        itemy = QTableWidgetItem(f"{y:.2f}")
+        itemy.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
         with signals_blocked(self):
-            self.setItem(row, 0, QTableWidgetItem(f"{x:.2f}"))
-        self.setItem(row, 1, QTableWidgetItem(f"{y:.2f}"))
+            self.setItem(row, 0, itemx)
+        self.setItem(row, 1, itemy)
 
     def clear_selected(self) -> None:
         """Remove the selected position from the table."""
@@ -160,9 +164,13 @@ class _CalibrationTable(QTableWidget):
                     item.setText("")
             self.itemChanged.emit(item)
 
+    def clearContents(self) -> None:
+        super().clearContents()
+        self.setCurrentCell(0, 0)
+
     def resetRowCount(self, num: int) -> None:
         with signals_blocked(self):
-            self.clear()
+            self.clearContents()
             self.setRowCount(num)
             # select the first row
             self.setCurrentCell(0, 0)
@@ -234,7 +242,7 @@ class WellCalibrationWidget(QWidget):
         self._set_button.clicked.connect(self._on_set_clicked)
         self._clear_button.clicked.connect(self._table.clear_selected)
         self._clear_all_button.clicked.connect(self._table.clearContents)
-        self._table.itemChanged.connect(self._validate_table)
+        self._table.itemChanged.connect(self._validate_calibration)
 
     def wellCenter(self) -> tuple[float, float] | None:
         """Return the center of the well, or None if not calibrated."""
@@ -249,7 +257,8 @@ class WellCalibrationWidget(QWidget):
         return self._calibration_mode_wdg.isCircularMode()
 
     def _on_set_clicked(self) -> None:
-        self._table.set_selected(*self._mmc.getXYPosition())
+        x, y = self._mmc.getXYPosition()
+        self._table.set_selected(round(x, 2), round(y, 2))
 
     def _on_mode_changed(self, mode: Mode) -> None:
         """Update the rows in the calibration table."""
@@ -269,13 +278,13 @@ class WellCalibrationWidget(QWidget):
         self._calibration_icon.setPixmap(icn.pixmap(ICON_SIZE))
         self.calibrationChanged.emit(center is not None)
 
-    def _validate_table(self, changed_item: QTableWidgetItem) -> None:
+    def _validate_calibration(self) -> None:
         """Validate the calibration points added to the table."""
-        # get the count of (x, y) in the table
+        # get the current (x, y) positions in the table
         points = [p[1:] for p in self._table.positions()]
         needed_points = self._calibration_mode_wdg.currentMode().points
 
-        # if the number of points is not yet satisfied, just do nothing
+        # if the number of points is not yet satisfied, do nothing
         if len(points) < needed_points:
             self._set_well_center(None)
             return
