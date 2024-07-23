@@ -363,8 +363,8 @@ class StageWidget(QWidget):
         if self._device not in self._mmc.getLoadedDevicesOfType(self._dtype):
             return
         if self._is_2axis:
-            lbl = f"X{self._Ylabel}: "
-            lbl += ", ".join(f"{x:.02f}" for x in self._mmc.getXYPosition(self._device))
+            x, y = self._mmc.getXYPosition(self._device)
+            lbl = f"X: {x:.02f}  {self._Ylabel}: {y:.02f}"
         else:
             lbl = f"{self._Ylabel}: {self._mmc.getPosition(self._device):.02f}"
         self._pos_label.setText(lbl)
