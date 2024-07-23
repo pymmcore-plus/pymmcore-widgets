@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 24 24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="square-outline_s.svg"
+   inkscape:version="1.3 (0e150ed, 2023-07-21)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <path
+     d="M3,3H21V21H3V3M5,5V19H19V5H5Z"
+     id="path1" />
+  <circle
+     style="fill:#00C600"
+     id="path2"
+     cx="11.991536"
+     cy="3.9643822"
+     r="3" />
+  <circle
+     style="fill:#00C600"
+     id="path2-22"
+     cx="4.0426135"
+     cy="12.026794"
+     r="3" />
+  <circle
+     style="fill:#00C600"
+     id="path2-22-8"
+     cx="20.053589"
+     cy="12.031355"
+     r="3" />
+  <circle
+     style="fill:#00C600"
+     id="path2-2"
+     cx="12.012263"
+     cy="19.952675"
+     r="3" />
+</svg>

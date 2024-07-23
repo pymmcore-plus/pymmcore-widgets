@@ -39,6 +39,11 @@ class PointsPlanWidget(QWidget):
         super().__init__(parent=parent)
 
         self._selector = RelativePointPlanSelector()
+        # aliases
+        self.single_pos_wdg = self._selector.single_pos_wdg
+        self.random_points_wdg = self._selector.random_points_wdg
+        self.grid_wdg = self._selector.grid_wdg
+
         # graphics scene to draw the well and the fovs
         self._well_view = WellView()
 
@@ -88,9 +93,9 @@ class PointsPlanWidget(QWidget):
         self.valueChanged.emit(value)
 
     def _on_view_max_points_detected(self, value: int) -> None:
-        self._selector.random_points_wdg.num_points.setValue(value)
+        self.random_points_wdg.num_points.setValue(value)
 
     def _on_view_position_clicked(self, position: useq.RelativePosition) -> None:
         if self._selector.active_plan_type is useq.RandomPoints:
             pos_no_name = position.model_copy(update={"name": ""})
-            self._selector.random_points_wdg.start_at = pos_no_name
+            self.random_points_wdg.start_at = pos_no_name

@@ -54,6 +54,7 @@ class RandomPointWidget(QWidget):
         self.num_points = QSpinBox()
         self.num_points.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.num_points.setRange(1, 1000)
+        self.num_points.setValue(10)
         # order combobox
         self.order = QComboBox()
         self.order.addItems([mode.value for mode in TraversalOrder])

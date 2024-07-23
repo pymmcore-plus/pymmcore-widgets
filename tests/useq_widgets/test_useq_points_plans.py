@@ -199,7 +199,7 @@ def test_max_points_detected(qtbot: QtBot) -> None:
     qtbot.addWidget(wdg)
 
     with qtbot.waitSignal(wdg._well_view.maxPointsDetected):
-        wdg._selector.random_points_wdg.num_points.setValue(100)
+        wdg.random_points_wdg.num_points.setValue(100)
 
     assert wdg.value().num_points < 60
 
