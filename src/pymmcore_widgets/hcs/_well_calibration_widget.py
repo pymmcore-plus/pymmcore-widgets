@@ -132,7 +132,6 @@ class _CalibrationTable(QTableWidget):
 
         selected_row = indices[0].row()
         for row, *p in self.positions():
-            print(row, p, selected_row, (x, y))
             if p == [x, y] and row != selected_row:
                 QMessageBox.critical(
                     self,
