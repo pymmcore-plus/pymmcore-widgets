@@ -434,7 +434,9 @@ class _BottomStuff(QWidget):
         self.relative_to.currentIndexChanged.connect(self.valueChanged)
 
     def setMode(self, mode: Mode) -> None:
-        self._form_layout.setRowVisible(3, mode != Mode.BOUNDS)
+        vis = mode != Mode.BOUNDS
+        for role in (QFormLayout.ItemRole.LabelRole, QFormLayout.ItemRole.FieldRole):
+            self._form_layout.itemAt(3, role).widget().setVisible(vis)
 
     def value(self) -> dict:
         return {
