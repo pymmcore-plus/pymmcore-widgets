@@ -40,7 +40,7 @@ def _sort_plate(item: str) -> tuple[int, int | str]:
 DATA_POSITION = 1
 DATA_INDEX = 2
 DATA_SELECTED = 3
-DATA_LAST_COLOR = 4
+DATA_COLOR = 4
 
 
 class WellPlateWidget(QWidget):
@@ -407,10 +407,8 @@ class WellPlateView(ResizingGraphicsView):
 
     def _select_items(self, items: Iterable[QAbstractGraphicsShapeItem]) -> None:
         for item in items:
-            if (color := item.brush().color()) != Qt.GlobalColor.black:
-                item.setData(DATA_LAST_COLOR, color)
-            print("coloring", item.data(DATA_INDEX), self._selected_color)
-            item.setBrush(self._selected_color)
+            color = item.data(DATA_COLOR) or self._selected_color
+            item.setBrush(color)
             item.setData(DATA_SELECTED, True)
         self._selected_items.update(items)
         self.selectionChanged.emit()
@@ -418,7 +416,7 @@ class WellPlateView(ResizingGraphicsView):
     def _deselect_items(self, items: Iterable[QAbstractGraphicsShapeItem]) -> None:
         for item in items:
             if item.data(DATA_SELECTED):
-                color = item.data(DATA_LAST_COLOR) or self._unselected_color
+                color = item.data(DATA_COLOR) or self._unselected_color
                 item.setBrush(color)
                 item.setData(DATA_SELECTED, False)
         self._selected_items.difference_update(items)
@@ -432,8 +430,13 @@ class WellPlateView(ResizingGraphicsView):
         return QSize(width, height)
 
     def setWellColor(self, row: int, col: int, color: Qt.GlobalColor | None) -> None:
-        """Set the color of the well at the given row and column."""
+        """Set the color of the well at the given row and column.
+
+        This overrides any selection color.  If `color` is None, the well color is
+        determined by the selection state.
+        """
         if item := self._well_items.get((row, col)):
+            item.setData(DATA_COLOR, color)
             if color is None:
                 color = (
                     self._selected_color
@@ -441,4 +444,3 @@ class WellPlateView(ResizingGraphicsView):
                     else self._unselected_color
                 )
             item.setBrush(color)
-            item.setData(DATA_LAST_COLOR, color)
