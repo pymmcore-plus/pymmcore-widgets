@@ -108,7 +108,7 @@ def test_well_calibration_widget_positions(
     assert list(wdg._table.positions()) == [(0, 0, 0)]
 
     # make sure you cannot add the same position twice
-    with patch("PyQt6.QtWidgets.QMessageBox.critical") as mock_critical:
+    with patch("qtpy.QtWidgets.QMessageBox.critical") as mock_critical:
         wdg._on_set_clicked()
         mock_critical.assert_called_once()
 
