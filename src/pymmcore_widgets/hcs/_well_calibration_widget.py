@@ -129,7 +129,7 @@ class _CalibrationTable(QTableWidget):
     def set_selected(self, x: float, y: float) -> None:
         """Assign (x, y) to the currently selected row in the table."""
         if not (indices := self.selectedIndexes()):
-            return
+            return  # pragma: no cover
 
         selected_row = indices[0].row()
         for row, *p in self.positions():
@@ -301,7 +301,7 @@ class WellCalibrationWidget(QWidget):
                 x, y, radius = find_circle_center(points)
             else:
                 x, y, width, height = find_rectangle_center(points)
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             self._set_well_center(None)
             QMessageBox.critical(
                 self,

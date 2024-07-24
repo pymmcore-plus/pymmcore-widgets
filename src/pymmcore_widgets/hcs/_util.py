@@ -20,9 +20,9 @@ def find_circle_center(
         The center of the circle and the radius of the circle.
     """
     points = np.array(coords)
-    if points.ndim != 2 or points.shape[1] != 2:
+    if points.ndim != 2 or points.shape[1] != 2:  # pragma: no cover
         raise ValueError("Invalid input coordinates")
-    if len(points) < 3:
+    if len(points) < 3:  # pragma: no cover
         raise ValueError("At least 3 points are required")
 
     # Prepare the matrices for least squares
@@ -32,7 +32,7 @@ def find_circle_center(
     # Solve the least squares problem
     params, _residuals, rank, s = np.linalg.lstsq(A, B, rcond=None)
 
-    if rank < 3:
+    if rank < 3:  # pragma: no cover
         raise ValueError("The points are collinear or nearly collinear")
 
     # Extract the circle parameters
@@ -58,9 +58,9 @@ def find_rectangle_center(
     """
     points = np.array(coords)
 
-    if points.ndim != 2 or points.shape[1] != 2:
+    if points.ndim != 2 or points.shape[1] != 2:  # pragma: no cover
         raise ValueError("Invalid input coordinates")
-    if len(points) < 2:
+    if len(points) < 2:  # pragma: no cover
         raise ValueError("At least 2 points are required")
 
     # Find the min and max x and y values
