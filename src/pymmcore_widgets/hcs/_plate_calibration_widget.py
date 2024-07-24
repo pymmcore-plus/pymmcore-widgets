@@ -100,11 +100,16 @@ class PlateCalibrationWidget(QWidget):
             return self._calibration_widgets[idx]
 
         self._calibration_widgets[idx] = wdg = WellCalibrationWidget(self, self._mmc)
-        self._calibration_widget_stack.addWidget(wdg)
         wdg.layout().setContentsMargins(0, 0, 0, 0)
-        wdg.calibrationChanged.connect(self._on_well_calibration_changed)
+
+        # set calibration widget well name, and circular well state
+        well_name = self._current_plate.all_well_names[idx]
+        wdg.well_label.setText(well_name)
         if self._current_plate:
             wdg.setCircularWell(self._current_plate.circular_wells)
+
+        wdg.calibrationChanged.connect(self._on_well_calibration_changed)
+        self._calibration_widget_stack.addWidget(wdg)
         return wdg
 
     def _current_calibration_widget(self) -> WellCalibrationWidget | None:
@@ -117,16 +122,8 @@ class PlateCalibrationWidget(QWidget):
             well_calib_wdg = self._get_or_create_well_calibration_widget(idx)
             self._calibration_widget_stack.setCurrentWidget(well_calib_wdg)
 
-            # set calibration widget well name and calibration state
-            well_name = self._current_plate.all_well_names[idx]
-            well_calib_wdg.well_label.setText(well_name)
-            if is_calibrated := (idx in self._calibrated_wells):
-                well_calib_wdg.setWellCenter(self._calibrated_wells[idx])
-        else:
-            is_calibrated = False
-
         # enable/disable test button
-        self._test_btn.setEnabled(is_calibrated)
+        self._test_btn.setEnabled(idx in self._calibrated_wells)
 
     def _on_well_calibration_changed(self, calibrated: bool) -> None:
         """The current well calibration state has been changed."""
