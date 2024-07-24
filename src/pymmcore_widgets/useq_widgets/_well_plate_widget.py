@@ -7,6 +7,7 @@ from qtpy.QtCore import QRect, QRectF, QSize, Qt, Signal
 from qtpy.QtGui import QFont, QMouseEvent, QPainter, QPen
 from qtpy.QtWidgets import (
     QAbstractGraphicsShapeItem,
+    QAbstractItemView,
     QCheckBox,
     QComboBox,
     QGraphicsItem,
@@ -38,11 +39,8 @@ def _sort_plate(item: str) -> tuple[int, int | str]:
 
 DATA_POSITION = 1
 DATA_INDEX = 2
-
-# in the WellPlateView, any item that merely posses a brush color of SELECTED_COLOR
-# IS a selected object.
-SELECTED_COLOR = Qt.GlobalColor.green
-UNSELECTED_COLOR = Qt.GlobalColor.transparent
+DATA_SELECTED = 3
+DATA_LAST_COLOR = 4
 
 
 class WellPlateWidget(QWidget):
@@ -195,10 +193,15 @@ class WellPlateView(ResizingGraphicsView):
     """QGraphicsView for displaying a well plate."""
 
     selectionChanged = Signal()
+    SelectionMode = QAbstractItemView.SelectionMode
 
     def __init__(self, parent: QWidget | None = None) -> None:
         self._scene = QGraphicsScene()
         super().__init__(self._scene, parent)
+        self._selection_mode = QAbstractItemView.SelectionMode.MultiSelection
+        self._selected_color = Qt.GlobalColor.green
+        self._unselected_color = Qt.GlobalColor.transparent
+
         self.setStyleSheet("background:grey; border-radius: 5px;")
         self.setRenderHints(
             QPainter.RenderHint.Antialiasing | QPainter.RenderHint.SmoothPixmapTransform
@@ -208,7 +211,7 @@ class WellPlateView(ResizingGraphicsView):
         self.rubberBandChanged.connect(self._on_rubber_band_changed)
 
         # all the graphics items that outline wells
-        self._well_items: list[QAbstractGraphicsShapeItem] = []
+        self._well_items: dict[tuple[int, int], QAbstractGraphicsShapeItem] = {}
         # all the graphics items that label wells
         self._well_labels: list[QGraphicsItem] = []
 
@@ -222,6 +225,20 @@ class WellPlateView(ResizingGraphicsView):
         # whether option/alt is pressed at the time of the mouse press
         self._is_removing = False
 
+    def setSelectedColor(self, color: Qt.GlobalColor) -> None:
+        """Set the color of the selected wells."""
+        self._selected_color = color
+
+    def selectedColor(self) -> Qt.GlobalColor:
+        """Return the color of the selected wells."""
+        return self._selected_color
+
+    def setSelectionMode(self, mode: QAbstractItemView.SelectionMode) -> None:
+        self._selection_mode = mode
+
+    def selectionMode(self) -> QAbstractItemView.SelectionMode:
+        return self._selection_mode
+
     def _on_rubber_band_changed(self, rect: QRect) -> None:
         """When the rubber band changes, select the items within the rectangle."""
         if rect.isNull():  # pragma: no cover
@@ -234,7 +251,7 @@ class WellPlateView(ResizingGraphicsView):
         # loop through all wells and recolor them based on their selection state
         select = set()
         deselect = set()
-        for item in self._well_items:
+        for item in self._well_items.values():
             if item in bounded_items:
                 if self._is_removing:
                     deselect.add(item)
@@ -271,10 +288,14 @@ class WellPlateView(ResizingGraphicsView):
             # toggle selection of that item
             for item in self.items(event.pos()):
                 if item == self._pressed_item:
-                    if self._pressed_item.brush().color() == SELECTED_COLOR:
+                    if self._pressed_item.data(DATA_SELECTED) is True:
                         self._deselect_items((self._pressed_item,))
                     else:
-                        self._select_items((self._pressed_item,))
+                        if self._selection_mode == self.SelectionMode.SingleSelection:
+                            # deselect all other items
+                            self._deselect_items(self._selected_items)
+                        if self._selection_mode != self.SelectionMode.NoSelection:
+                            self._select_items((self._pressed_item,))
                     break
 
         self._pressed_item = None
@@ -298,7 +319,7 @@ class WellPlateView(ResizingGraphicsView):
         _indices = {tuple(idx) for idx in indices}
         select = set()
         deselect = set()
-        for item in self._well_items:
+        for item in self._well_items.values():
             if item.data(DATA_INDEX) in _indices:
                 select.add(item)
             else:
@@ -314,7 +335,7 @@ class WellPlateView(ResizingGraphicsView):
     def clear(self) -> None:
         """Clear all the wells from the view."""
         while self._well_items:
-            self._scene.removeItem(self._well_items.pop())
+            self._scene.removeItem(self._well_items.popitem()[1])
         while self._well_labels:
             self._scene.removeItem(self._well_labels.pop())
         self.clearSelection()
@@ -354,11 +375,12 @@ class WellPlateView(ResizingGraphicsView):
             rect = well_rect.translated(screen_x, screen_y)
             if item := add_item(rect, pen):
                 item.setData(DATA_POSITION, pos)
-                item.setData(DATA_INDEX, tuple(idx.tolist()))
+                index = tuple(idx.tolist())
+                item.setData(DATA_INDEX, index)
                 if plan.rotation:
                     item.setTransformOriginPoint(rect.center())
                     item.setRotation(-plan.rotation)
-                self._well_items.append(item)
+                self._well_items[index] = item
 
             # NOTE, we are *not* using the Qt selection model here due to
             # customizations that we want to make.  So we don't use...
@@ -385,13 +407,20 @@ class WellPlateView(ResizingGraphicsView):
 
     def _select_items(self, items: Iterable[QAbstractGraphicsShapeItem]) -> None:
         for item in items:
-            item.setBrush(SELECTED_COLOR)
+            if (color := item.brush().color()) != Qt.GlobalColor.black:
+                item.setData(DATA_LAST_COLOR, color)
+            print("coloring", item.data(DATA_INDEX), self._selected_color)
+            item.setBrush(self._selected_color)
+            item.setData(DATA_SELECTED, True)
         self._selected_items.update(items)
         self.selectionChanged.emit()
 
     def _deselect_items(self, items: Iterable[QAbstractGraphicsShapeItem]) -> None:
         for item in items:
-            item.setBrush(UNSELECTED_COLOR)
+            if item.data(DATA_SELECTED):
+                color = item.data(DATA_LAST_COLOR) or self._unselected_color
+                item.setBrush(color)
+                item.setData(DATA_SELECTED, False)
         self._selected_items.difference_update(items)
         self.selectionChanged.emit()
 
@@ -401,3 +430,15 @@ class WellPlateView(ResizingGraphicsView):
         width = 600
         height = int(width // aspect)
         return QSize(width, height)
+
+    def setWellColor(self, row: int, col: int, color: Qt.GlobalColor | None) -> None:
+        """Set the color of the well at the given row and column."""
+        if item := self._well_items.get((row, col)):
+            if color is None:
+                color = (
+                    self._selected_color
+                    if item.data(DATA_SELECTED)
+                    else self._unselected_color
+                )
+            item.setBrush(color)
+            item.setData(DATA_LAST_COLOR, color)

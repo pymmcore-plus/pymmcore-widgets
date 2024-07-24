@@ -190,11 +190,11 @@ class WellCalibrationWidget(QWidget):
         # WIDGETS -------------------------------------------------------------
 
         # Well label
-        self._well_label = QLabel("Well A1")
-        font = self._well_label.font()
+        self.well_label = QLabel("Well A1")
+        font = self.well_label.font()
         font.setBold(True)
         font.setPixelSize(16)
-        self._well_label.setFont(font)
+        self.well_label.setFont(font)
 
         # Icon for calibration status
         self._calibration_icon = QLabel()
@@ -217,7 +217,7 @@ class WellCalibrationWidget(QWidget):
         labels = QHBoxLayout()
         labels.setContentsMargins(0, 0, 0, 0)
         labels.addWidget(self._calibration_icon)
-        labels.addWidget(self._well_label, 1)
+        labels.addWidget(self.well_label, 1)
 
         mode_row = QHBoxLayout()
         mode_row.addWidget(QLabel("Method:"))
@@ -248,6 +248,19 @@ class WellCalibrationWidget(QWidget):
         """Return the center of the well, or None if not calibrated."""
         return self._well_center
 
+    def setWellCenter(self, center: tuple[float, float] | None) -> None:
+        """Set the calibration icon and emit the calibrationChanged signal."""
+        if self._well_center == center:
+            return
+
+        self._well_center = center
+        if center is None:
+            icn = icon(NON_CALIBRATED_ICON, color=YELLOW)
+        else:
+            icn = icon(CALIBRATED_ICON, color=GREEN)
+        self._calibration_icon.setPixmap(icn.pixmap(ICON_SIZE))
+        self.calibrationChanged.emit(center is not None)
+
     def setCircularWell(self, circular: bool) -> None:
         """Update the calibration widget for circular or rectangular wells."""
         self._calibration_mode_wdg.setCircularMode(circular)
@@ -263,20 +276,7 @@ class WellCalibrationWidget(QWidget):
     def _on_mode_changed(self, mode: Mode) -> None:
         """Update the rows in the calibration table."""
         self._table.resetRowCount(mode.points)
-        self._set_well_center(None)
-
-    def _set_well_center(self, center: tuple[float, float] | None) -> None:
-        """Set the calibration icon and emit the calibrationChanged signal."""
-        if self._well_center == center:
-            return
-
-        self._well_center = center
-        if center is None:
-            icn = icon(NON_CALIBRATED_ICON, color=YELLOW)
-        else:
-            icn = icon(CALIBRATED_ICON, color=GREEN)
-        self._calibration_icon.setPixmap(icn.pixmap(ICON_SIZE))
-        self.calibrationChanged.emit(center is not None)
+        self.setWellCenter(None)
 
     def _validate_calibration(self) -> None:
         """Validate the calibration points added to the table."""
@@ -286,12 +286,12 @@ class WellCalibrationWidget(QWidget):
 
         # if the number of points is not yet satisfied, do nothing
         if len(points) < needed_points:
-            self._set_well_center(None)
+            self.setWellCenter(None)
             return
 
         # if the number of points is 1, well is already calibrated
         if needed_points == 1:
-            self._set_well_center(points[0])
+            self.setWellCenter(points[0])
             return
 
         # if the number of points is correct, try to calculate the calibration
@@ -302,11 +302,11 @@ class WellCalibrationWidget(QWidget):
             else:
                 x, y, width, height = find_rectangle_center(points)
         except Exception as e:  # pragma: no cover
-            self._set_well_center(None)
+            self.setWellCenter(None)
             QMessageBox.critical(
                 self,
                 "Calibration error",
                 f"Could not calculate the center of the well.\n\n{e}",
             )
         else:
-            self._set_well_center((x, y))
+            self.setWellCenter((x, y))
