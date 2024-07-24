@@ -96,6 +96,7 @@ class _CalibrationTable(QTableWidget):
         super().__init__(0, 2, parent)
 
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
 
         hdr = self.horizontalHeader()
@@ -163,9 +164,8 @@ class _CalibrationTable(QTableWidget):
                     item.setText("")
             self.itemChanged.emit(item)
 
-    def clearContents(self) -> None:
-        super().clearContents()
-        self.setCurrentCell(0, 0)
+    def clear_all(self) -> None:
+        self.resetRowCount(self.rowCount())
 
     def resetRowCount(self, num: int) -> None:
         with signals_blocked(self):
@@ -173,6 +173,7 @@ class _CalibrationTable(QTableWidget):
             self.setRowCount(num)
             # select the first row
             self.setCurrentCell(0, 0)
+        self.itemChanged.emit(self.item(0, 0))
 
 
 class WellCalibrationWidget(QWidget):
@@ -240,7 +241,7 @@ class WellCalibrationWidget(QWidget):
         self._calibration_mode_wdg.modeChanged.connect(self._on_mode_changed)
         self._set_button.clicked.connect(self._on_set_clicked)
         self._clear_button.clicked.connect(self._table.clear_selected)
-        self._clear_all_button.clicked.connect(self._table.clearContents)
+        self._clear_all_button.clicked.connect(self._table.clear_all)
         self._table.itemChanged.connect(self._validate_calibration)
 
     def wellCenter(self) -> tuple[float, float] | None:
