@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-import useq
+from typing import TYPE_CHECKING
+
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QRectF, Qt
-from qtpy.QtGui import QFont, QMouseEvent, QPen
-from qtpy.QtWidgets import QVBoxLayout, QWidget
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QAbstractGraphicsShapeItem, QVBoxLayout, QWidget
 
 from pymmcore_widgets.useq_widgets._well_plate_widget import (
-    DATA_INDEX,
-    DATA_POSITION,
     WellPlateView,
 )
+
+if TYPE_CHECKING:
+    import useq
+    from qtpy.QtGui import QMouseEvent
 
 
 class _WellPlateView(WellPlateView):
@@ -20,70 +22,19 @@ class _WellPlateView(WellPlateView):
         self.setDragMode(self.DragMode.NoDrag)
 
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
-        return
+        if event and event.button() == Qt.MouseButton.LeftButton:
+            for item in self.items(event.pos()):
+                if isinstance(item, QAbstractGraphicsShapeItem):
+                    x, y = event.pos().x() * 1000, event.pos().y() * 1000
+                    print(x, y, item.boundingRect().center())
+        super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent | None) -> None:
         return
 
     def drawPlate(self, plan: useq.WellPlate | useq.WellPlatePlan) -> None:
-        """Draw the well plate on the view.
-
-        Parameters
-        ----------
-        plan : useq.WellPlate | useq.WellPlatePlan
-            The WellPlatePlan to draw. If a WellPlate is provided, the plate is drawn
-            with no selected wells.
-        """
-        if isinstance(plan, useq.WellPlate):  # pragma: no cover
-            plan = useq.WellPlatePlan(a1_center_xy=(0, 0), plate=plan)
-
-        well_width = plan.plate.well_size[0] * 1000
-        well_height = plan.plate.well_size[1] * 1000
-        well_rect = QRectF(-well_width / 2, -well_height / 2, well_width, well_height)
-        add_item = (
-            self._scene.addEllipse if plan.plate.circular_wells else self._scene.addRect
-        )
-
-        # font for well labels
-        font = QFont()
-        font.setPixelSize(int(min(6000, well_rect.width() / 2.5)))
-
-        # Since most plates have the same extent, a constant pen width seems to work
-        pen = QPen(Qt.GlobalColor.black)
-        pen.setWidth(200)
-
-        self.clear()
-        indices = plan.all_well_indices.reshape(-1, 2)
-        for idx, pos in zip(indices, plan.all_well_positions):
-            # invert y-axis for screen coordinates
-            screen_x, screen_y = pos.x, -pos.y
-            rect = well_rect.translated(screen_x, screen_y)
-            if item := add_item(rect, pen):
-                item.setData(DATA_POSITION, pos)
-                item.setData(DATA_INDEX, tuple(idx.tolist()))
-                if plan.rotation:
-                    item.setTransformOriginPoint(rect.center())
-                    item.setRotation(-plan.rotation)
-                self._well_items.append(item)
-
-            # NOTE, we are *not* using the Qt selection model here due to
-            # customizations that we want to make.  So we don't use...
-            # item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-
-            # add text
-            # if text_item := self._scene.addText(pos.name):
-            #     text_item.setFont(font)
-            #     br = text_item.boundingRect()
-            #     text_item.setPos(
-            #         screen_x - br.width() // 2,
-            #         screen_y - br.height() // 2,
-            #     )
-            #     self._well_labels.append(text_item)
-
-        if plan.selected_wells:
-            self.setSelectedIndices(plan.selected_well_indices)
-
-        self._resize_to_fit()
+        """Draw the well plate on the view."""
+        super().drawPlate(plan)
 
 
 class PlateTestWidget(QWidget):
@@ -103,3 +54,16 @@ class PlateTestWidget(QWidget):
     def set_plate(self, plate: useq.WellPlate | useq.WellPlatePlan) -> None:
         """Set the plate to be displayed."""
         self._plate_view.drawPlate(plate)
+
+
+if __name__ == "__main__":
+    import useq
+    from qtpy.QtWidgets import QApplication
+
+    app = QApplication([])
+    mmc = CMMCorePlus.instance()
+    plate = useq.WellPlate.from_str("96-well")
+    wdg = PlateTestWidget(mmcore=mmc)
+    wdg.set_plate(plate)
+    wdg.show()
+    app.exec()
