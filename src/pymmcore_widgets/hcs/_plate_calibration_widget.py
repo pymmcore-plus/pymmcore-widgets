@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import Mapping
+
+import numpy as np
 import useq
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
@@ -138,8 +141,42 @@ class PlateCalibrationWidget(QWidget):
 
         fully_calibrated = len(self._calibrated_wells) >= self._min_wells_required
         self.calibrationChanged.emit(fully_calibrated)
+        if fully_calibrated:
+            params = find_affine_transform(self._calibrated_wells)
+            a, b, ty, c, d, tx = params
+            # not quite right yet...
+            _a1_center_xy = (tx, ty)
+            _unit_y = np.hypot(a, c)
+            _unit_x = np.hypot(b, d)
+            _rotation = np.rad2deg(np.arctan2(c, a))
 
     def _selected_well_index(self) -> tuple[int, int] | None:
         if selected := self._plate_view.selectedIndices():
             return selected[0]
         return None
+
+
+def find_affine_transform(
+    index_coordinates: Mapping[tuple[int, int], tuple[float, float]],
+) -> tuple[float, float, float, float, float, float]:
+    """Return best-fit transformation that maps grid indices to world coordinates.
+
+    Parameters
+    ----------
+    index_coordinates : Mapping[tuple[int, int], tuple[float, float]]
+        A mapping of grid indices to world coordinates.
+
+    Returns
+    -------
+    np.ndarray: The affine transformation matrix of shape (3, 3).
+    """
+    A: list[list[int]] = []
+    B: list[float] = []
+    for (row, col), (y, x) in index_coordinates.items():
+        A.append([row, col, 1, 0, 0, 0])
+        A.append([0, 0, 0, row, col, 1])
+        B.extend((x, y))
+
+    # Solve the least squares problem to find the affine transformation parameters
+    params, _, _, _ = np.linalg.lstsq(np.array(A), np.array(B), rcond=None)
+    return tuple(params)  # type: ignore [no-any-return]
