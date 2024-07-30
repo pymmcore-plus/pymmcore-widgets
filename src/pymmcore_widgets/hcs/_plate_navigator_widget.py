@@ -126,6 +126,8 @@ class _MoveToItem(QGraphicsItem):
 
         self._item = QGraphicsEllipseItem(rect, self)
 
+        self._current_position: tuple[float, float] | None = None
+
         self.setAcceptHoverEvents(True)
         self._item.setBrush(UNSELECTED_MOVE_TO_COLOR)
         self._item.setPen(QPen(Qt.GlobalColor.black, 200))
@@ -136,20 +138,24 @@ class _MoveToItem(QGraphicsItem):
             pos = self.data(DATA_POSITION)
             self._mmc.waitForSystem()
             self._mmc.setXYPosition(pos.x, pos.y)
+            self._current_position = (pos.x, pos.y)
 
     def hoverEnterEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
         """Update color and position when hovering over the well."""
         self._item.setBrush(SELECTED_MOVE_TO_COLOR)
+        self._update_current_position()
         super().hoverEnterEvent(event)
 
     def hoverMoveEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
         """Update color and position when hovering over the well."""
         self._item.setBrush(SELECTED_MOVE_TO_COLOR)
+        self._update_current_position()
         super().hoverMoveEvent(event)
 
     def hoverLeaveEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
         """Reset color andwhen leaving the well."""
         self._item.setBrush(UNSELECTED_MOVE_TO_COLOR)
+        self._current_position = None
         super().hoverLeaveEvent(event)
 
     def boundingRect(self) -> QRectF:
@@ -159,6 +165,10 @@ class _MoveToItem(QGraphicsItem):
         self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget
     ) -> None:
         self._item.paint(painter, option, widget)
+
+    def _update_current_position(self) -> None:
+        pos = self.data(DATA_POSITION)
+        self._current_position = (pos.x, pos.y)
 
 
 class _WellPlateView(WellPlateView):
@@ -185,7 +195,7 @@ class _WellPlateView(WellPlateView):
             return
 
         parent_item = item.parentItem()
-        if isinstance(parent_item, _HoverableWellItem):
+        if isinstance(parent_item, (_HoverableWellItem, _MoveToItem)):
             self.positionChanged.emit(parent_item._current_position)
         else:
             self.positionChanged.emit(None)
@@ -440,9 +450,7 @@ class PlateNavigator(QWidget):
 
         if checked:
             self._plate_view.drawPlateMoveTo(plan)
-            self._xy_label.hide()
             self._info_label.setText(PRESET_MOVEMENT)
         else:
             self._plate_view.drawPlate(plan)
-            self._xy_label.show()
             self._info_label.setText(FREE_MOVEMENT)
