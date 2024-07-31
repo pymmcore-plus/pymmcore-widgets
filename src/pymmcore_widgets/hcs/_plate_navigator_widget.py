@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 SELECTED_COLOR = QColor(SELECTED_COLOR)
 SELECTED_COLOR.setAlpha(127)  # Set opacity to 50%
-SELECTED_MOVE_TO_COLOR = QColor(Qt.GlobalColor.red)
+SELECTED_MOVE_TO_COLOR = QColor(Qt.GlobalColor.green)
 UNSELECTED_MOVE_TO_COLOR = QColor(Qt.GlobalColor.black)
 FREE_MOVEMENT = "Double-Click anywhere inside a well to move the stage."
 PRESET_MOVEMENT = "Double-Click on any point to move the stage to that position."
