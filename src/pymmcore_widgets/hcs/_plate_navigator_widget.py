@@ -130,7 +130,6 @@ class _MoveToItem(QGraphicsItem):
 
         self.setAcceptHoverEvents(True)
         self._item.setBrush(UNSELECTED_MOVE_TO_COLOR)
-        self._item.setPen(QPen(Qt.GlobalColor.black, 200))
 
     def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent | None) -> None:
         """Move the stage to the clicked position in the well."""
@@ -335,7 +334,7 @@ class _WellPlateView(WellPlateView):
         well_width: float,
         well_height: float,
     ) -> list[QGraphicsItem]:
-        width = well_width / 7
+        width = well_width / 5
 
         # central point
         cx, cy = rect.center().x(), rect.center().y()
