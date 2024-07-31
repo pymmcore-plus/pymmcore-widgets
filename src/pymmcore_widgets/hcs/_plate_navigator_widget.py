@@ -25,7 +25,6 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 
 from pymmcore_widgets.useq_widgets._well_plate_widget import (
-    DATA_INDEX,
     DATA_POSITION,
     SELECTED_COLOR,
     UNSELECTED_COLOR,
@@ -33,7 +32,6 @@ from pymmcore_widgets.useq_widgets._well_plate_widget import (
 )
 
 if TYPE_CHECKING:
-    import numpy as np
     from PyQt6.QtWidgets import QGraphicsSceneMouseEvent
     from qtpy.QtGui import QMouseEvent
 
@@ -41,11 +39,13 @@ SELECTED_COLOR = QColor(SELECTED_COLOR)
 SELECTED_COLOR.setAlpha(127)  # Set opacity to 50%
 SELECTED_MOVE_TO_COLOR = QColor(Qt.GlobalColor.green)
 UNSELECTED_MOVE_TO_COLOR = QColor(Qt.GlobalColor.black)
-FREE_MOVEMENT = "Double-Click anywhere inside a well to move the stage."
+FREE_MOVEMENT = (
+    "Double-Click anywhere inside a well to move the stage to that position."
+)
 PRESET_MOVEMENT = "Double-Click on any point to move the stage to that position."
 
 
-class _HoverableWellItem(QGraphicsItem):
+class _HoverWellItem(QGraphicsItem):
     def __init__(
         self,
         mmcore: CMMCorePlus,
@@ -194,7 +194,7 @@ class _WellPlateView(WellPlateView):
             return
 
         parent_item = item.parentItem()
-        if isinstance(parent_item, (_HoverableWellItem, _MoveToItem)):
+        if isinstance(parent_item, (_HoverWellItem, _MoveToItem)):
             self.positionChanged.emit(parent_item._current_position)
         else:
             self.positionChanged.emit(None)
@@ -233,18 +233,16 @@ class _WellPlateView(WellPlateView):
         font.setPixelSize(int(min(6000, well_rect.width() / 2.5)))
 
         self.clear()
-        indices = plan.all_well_indices.reshape(-1, 2)
-        for idx, pos in zip(indices, plan.all_well_positions):
+        for pos in plan.all_well_positions:
             # invert y-axis for screen coordinates
             screen_x, screen_y = pos.x, -pos.y
             rect = well_rect.translated(screen_x, screen_y)
 
-            item = self._add_item(rect, plan.plate.circular_wells, pos, idx)
+            item = self._add_hover_well_item(rect, plan.plate.circular_wells, pos)
 
             if plan.rotation:
                 item.setTransformOriginPoint(rect.center())
                 item.setRotation(-plan.rotation)
-            # self._well_items.append(item)
 
             # add text
             if text_item := self._scene.addText(pos.name):
@@ -253,20 +251,18 @@ class _WellPlateView(WellPlateView):
                 text_item.setPos(
                     screen_x - br.width() // 2, screen_y - br.height() // 2
                 )
-                # self._well_labels.append(text_item)
 
         if plan.selected_wells:
             self.setSelectedIndices(plan.selected_well_indices)
 
         self._resize_to_fit()
 
-    def _add_item(
-        self, rect: QRectF, circular_wells: bool, pos: useq.Position, idx: np.ndarray
+    def _add_hover_well_item(
+        self, rect: QRectF, circular_wells: bool, pos: useq.Position
     ) -> QGraphicsItem:
-        item = _HoverableWellItem(self._mmc, rect, circular_wells)
+        item = _HoverWellItem(self._mmc, rect, circular_wells)
         item.setZValue(1)
         item.setData(DATA_POSITION, pos)
-        item.setData(DATA_INDEX, tuple(idx.tolist()))
         self._scene.addItem(item)
         return item
 
@@ -290,21 +286,14 @@ class _WellPlateView(WellPlateView):
         well_height = plan.plate.well_size[1] * 1000
         well_rect = QRectF(-well_width / 2, -well_height / 2, well_width, well_height)
 
-        # font for well labels
-        font = QFont()
-        font.setPixelSize(int(min(6000, well_rect.width() / 2.5)))
-
         self.clear()
-        indices = plan.all_well_indices.reshape(-1, 2)
-        for idx, pos in zip(indices, plan.all_well_positions):
+        for pos in plan.all_well_positions:
             # invert y-axis for screen coordinates
             screen_x, screen_y = pos.x, -pos.y
             rect = well_rect.translated(screen_x, screen_y)
 
             item = self._add_well_outline(rect, plan.plate.circular_wells)
-            move_to_items = self._add_move_to_items(
-                rect, pos, idx, well_width, well_height
-            )
+            move_to_items = self._add_move_to_items(rect, pos, well_width, well_height)
 
             if plan.rotation:
                 item.setTransformOriginPoint(rect.center())
@@ -312,7 +301,6 @@ class _WellPlateView(WellPlateView):
                 for move_to_item in move_to_items:
                     move_to_item.setTransformOriginPoint(rect.center())
                     move_to_item.setRotation(-plan.rotation)
-            # self._well_items.append(item)
 
         if plan.selected_wells:
             self.setSelectedIndices(plan.selected_well_indices)
@@ -330,7 +318,6 @@ class _WellPlateView(WellPlateView):
         self,
         rect: QRectF,
         pos: useq.Position,
-        idx: np.ndarray,
         well_width: float,
         well_height: float,
     ) -> list[QGraphicsItem]:
@@ -339,42 +326,30 @@ class _WellPlateView(WellPlateView):
         # central point
         cx, cy = rect.center().x(), rect.center().y()
         rect = QRectF(cx - width / 2, cy - width / 2, width, width)
+        c_item = self._add_move_to_item(rect, pos)
+        items = [c_item]
+
+        # points on the edges
+        positions = [
+            (cx - well_width / 2, cy),  # left
+            (cx + well_width / 2, cy),  # right
+            (cx, cy - well_height / 2),  # top
+            (cx, cy + well_height / 2),  # bottom
+        ]
+
+        for x, y in positions:
+            edge_rect = QRectF(x - width / 2, y - width / 2, width, width)
+            edge_item = self._add_move_to_item(edge_rect, useq.Position(x=x, y=y))
+            items.append(edge_item)
+
+        return items
+
+    def _add_move_to_item(self, rect: QRectF, pos: useq.Position) -> QGraphicsItem:
         item = _MoveToItem(rect, self._mmc)
         item.setZValue(1)
         item.setData(DATA_POSITION, pos)
-        item.setData(DATA_INDEX, tuple(idx.tolist()))
         self._scene.addItem(item)
-
-        # points on the edges
-        left_cx = cx - well_width / 2
-        left_rect = QRectF(left_cx - width / 2, cy - width / 2, width, width)
-        left_item = _MoveToItem(left_rect, self._mmc)
-        left_item.setZValue(1)
-        left_item.setData(DATA_POSITION, useq.Position(x=left_cx, y=cy))
-        self._scene.addItem(left_item)
-
-        right_cx = cx + well_width / 2
-        right_rect = QRectF(right_cx - width / 2, cy - width / 2, width, width)
-        right_item = _MoveToItem(right_rect, self._mmc)
-        right_item.setZValue(1)
-        right_item.setData(DATA_POSITION, useq.Position(x=right_cx, y=cy))
-        self._scene.addItem(right_item)
-
-        top_cy = cy - well_height / 2
-        top_rect = QRectF(cx - width / 2, top_cy - width / 2, width, width)
-        top_item = _MoveToItem(top_rect, self._mmc)
-        top_item.setZValue(1)
-        top_item.setData(DATA_POSITION, useq.Position(x=cx, y=top_cy))
-        self._scene.addItem(top_item)
-
-        bottom_cy = cy + well_height / 2
-        bottom_rect = QRectF(cx - width / 2, bottom_cy - width / 2, width, width)
-        bottom_item = _MoveToItem(bottom_rect, self._mmc)
-        bottom_item.setZValue(1)
-        bottom_item.setData(DATA_POSITION, useq.Position(x=cx, y=bottom_cy))
-        self._scene.addItem(bottom_item)
-
-        return [item, left_item, right_item, top_item, bottom_item]
+        return item
 
 
 class PlateNavigator(QWidget):
@@ -385,9 +360,7 @@ class PlateNavigator(QWidget):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self._info_label = QLabel(
-            "Double-Click anywhere inside a well to move the stage."
-        )
+        self._info_label = QLabel(FREE_MOVEMENT)
         self._info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         font = self._info_label.font()
         font.setBold(True)
