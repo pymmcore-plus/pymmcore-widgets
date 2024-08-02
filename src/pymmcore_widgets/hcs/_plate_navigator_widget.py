@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 import useq
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -266,8 +267,10 @@ class _WellPlateView(WellPlateView):
         self._scene.addItem(item)
         return item
 
-    def drawPlateMoveTo(self, plan: useq.WellPlate | useq.WellPlatePlan) -> None:
-        """Draw the well plate on the view.
+    def drawPlatePresetPositions(
+        self, plan: useq.WellPlate | useq.WellPlatePlan
+    ) -> None:
+        """Draw the well plate on the view with preset positions.
 
         Parameters
         ----------
@@ -293,14 +296,11 @@ class _WellPlateView(WellPlateView):
             rect = well_rect.translated(screen_x, screen_y)
 
             item = self._add_well_outline(rect, plan.plate.circular_wells)
-            move_to_items = self._add_move_to_items(rect, pos, well_width, well_height)
+            self._add_move_to_items(rect, pos, well_width, well_height, plan.rotation)
 
             if plan.rotation:
                 item.setTransformOriginPoint(rect.center())
                 item.setRotation(-plan.rotation)
-                for move_to_item in move_to_items:
-                    move_to_item.setTransformOriginPoint(rect.center())
-                    move_to_item.setRotation(-plan.rotation)
 
         if plan.selected_wells:
             self.setSelectedIndices(plan.selected_well_indices)
@@ -320,14 +320,14 @@ class _WellPlateView(WellPlateView):
         pos: useq.Position,
         well_width: float,
         well_height: float,
-    ) -> list[QGraphicsItem]:
+        rotation: float | None = None,
+    ) -> None:
         width = well_width / 5
 
         # central point
         cx, cy = rect.center().x(), rect.center().y()
         rect = QRectF(cx - width / 2, cy - width / 2, width, width)
-        c_item = self._add_move_to_item(rect, pos)
-        items = [c_item]
+        self._add_move_to_item(rect, pos)
 
         # points on the edges
         positions = [
@@ -339,17 +339,38 @@ class _WellPlateView(WellPlateView):
 
         for x, y in positions:
             edge_rect = QRectF(x - width / 2, y - width / 2, width, width)
-            edge_item = self._add_move_to_item(edge_rect, useq.Position(x=x, y=y))
-            items.append(edge_item)
+            self._add_move_to_item(edge_rect, useq.Position(x=x, y=y), rotation)
 
-        return items
-
-    def _add_move_to_item(self, rect: QRectF, pos: useq.Position) -> QGraphicsItem:
+    def _add_move_to_item(
+        self, rect: QRectF, pos: useq.Position, rotation: float | None = None
+    ) -> None:
         item = _MoveToItem(rect, self._mmc)
         item.setZValue(1)
-        item.setData(DATA_POSITION, pos)
+        center_x, center_y = rect.center().x(), rect.center().y()
+
+        # adjust position if rotation
+        if rotation is not None:
+            radians = np.deg2rad(rotation)
+            cos_radians = np.cos(radians)
+            sin_radians = np.sin(radians)
+
+            rotated_x = (
+                center_x
+                + (pos.x - center_x) * cos_radians
+                - (pos.y - center_y) * sin_radians
+            )
+            rotated_y = (
+                center_y
+                + (pos.x - center_x) * sin_radians
+                + (pos.y - center_y) * cos_radians
+            )
+
+            rotated_pos = useq.Position(x=rotated_x, y=rotated_y)
+            item.setData(DATA_POSITION, rotated_pos)
+        else:
+            item.setData(DATA_POSITION, pos)
+
         self._scene.addItem(item)
-        return item
 
 
 class PlateNavigator(QWidget):
@@ -421,7 +442,7 @@ class PlateNavigator(QWidget):
             return
 
         if checked:
-            self._plate_view.drawPlateMoveTo(plan)
+            self._plate_view.drawPlatePresetPositions(plan)
             self._info_label.setText(PRESET_MOVEMENT)
         else:
             self._plate_view.drawPlate(plan)
