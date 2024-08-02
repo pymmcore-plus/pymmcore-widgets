@@ -359,7 +359,7 @@ class _WellPlateView(WellPlateView):
                 + (pos.x - center_x) * cos_radians
                 - (pos.y - center_y) * sin_radians
             )
-            rotated_y = (
+            rotated_y = -(
                 center_y
                 + (pos.x - center_x) * sin_radians
                 + (pos.y - center_y) * cos_radians
