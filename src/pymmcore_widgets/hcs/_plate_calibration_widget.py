@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from math import inf
 from typing import Mapping
 
 import numpy as np
