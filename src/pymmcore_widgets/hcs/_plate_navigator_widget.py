@@ -342,7 +342,6 @@ class _WellPlateView(WellPlateView):
 
         for x, y in positions:
             edge_rect = QRectF(x - width / 2, y - width / 2, width, width)
-            print(edge_rect, edge_rect.center())
             self._add_preset_position_item(
                 edge_rect, useq.Position(x=x, y=y), plan.rotation
             )
