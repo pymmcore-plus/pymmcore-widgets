@@ -372,7 +372,7 @@ class _WellPlateView(WellPlateView):
         self._scene.addItem(item)
 
 
-class PlateNavigator(QWidget):
+class PlateNavigatorWidget(QWidget):
     def __init__(
         self, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
     ) -> None:

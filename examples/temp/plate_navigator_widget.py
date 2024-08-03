@@ -3,7 +3,7 @@ from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
 from pymmcore_widgets import StageWidget
-from pymmcore_widgets.hcs._plate_navigator_widget import PlateNavigator
+from pymmcore_widgets.hcs._plate_navigator_widget import PlateNavigatorWidget
 
 app = QApplication([])
 mmc = CMMCorePlus.instance()
@@ -13,7 +13,7 @@ plate = useq.WellPlatePlan(
     a1_center_xy=(1000, 1000),
     rotation=3,
 )
-wdg = PlateNavigator(mmcore=mmc)
+wdg = PlateNavigatorWidget(mmcore=mmc)
 wdg.set_plan(plate)
 wdg.show()
 stg = StageWidget("XY", mmcore=mmc)
