@@ -4,11 +4,10 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import useq
-from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import QGraphicsSceneMouseEvent
-from qtpy.QtCore import QRectF, QSize, Qt, Signal
+from qtpy.QtCore import QRectF, Qt, Signal
 from qtpy.QtGui import QColor, QFont, QPainter, QPen
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -18,17 +17,13 @@ from qtpy.QtWidgets import (
     QGraphicsSceneHoverEvent,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QStyleOptionGraphicsItem,
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import icon
 
 from pymmcore_widgets.useq_widgets._well_plate_widget import (
     DATA_POSITION,
-    SELECTED_COLOR,
-    UNSELECTED_COLOR,
     WellPlateView,
 )
 
@@ -36,9 +31,9 @@ if TYPE_CHECKING:
     from PyQt6.QtWidgets import QGraphicsSceneMouseEvent
     from qtpy.QtGui import QMouseEvent
 
-SELECTED_COLOR = QColor(SELECTED_COLOR)
+UNSELECTED_COLOR = Qt.GlobalColor.transparent
+SELECTED_COLOR = QColor(Qt.GlobalColor.green)
 SELECTED_COLOR.setAlpha(127)  # Set opacity to 50%
-SELECTED_MOVE_TO_COLOR = QColor(Qt.GlobalColor.green)
 UNSELECTED_MOVE_TO_COLOR = QColor(Qt.GlobalColor.black)
 FREE_MOVEMENT = (
     "Double-Click anywhere inside a well to move the stage to that position."
@@ -115,7 +110,7 @@ class _HoverWellItem(QGraphicsItem):
         self._item.paint(painter, option, widget)
 
 
-class _MoveToItem(QGraphicsItem):
+class _PresetPositionItem(QGraphicsItem):
     def __init__(
         self,
         rect: QRectF,
@@ -142,13 +137,13 @@ class _MoveToItem(QGraphicsItem):
 
     def hoverEnterEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
         """Update color and position when hovering over the well."""
-        self._item.setBrush(SELECTED_MOVE_TO_COLOR)
+        self._item.setBrush(SELECTED_COLOR)
         self._update_current_position()
         super().hoverEnterEvent(event)
 
     def hoverMoveEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
         """Update color and position when hovering over the well."""
-        self._item.setBrush(SELECTED_MOVE_TO_COLOR)
+        self._item.setBrush(SELECTED_COLOR)
         self._update_current_position()
         super().hoverMoveEvent(event)
 
@@ -195,17 +190,17 @@ class _WellPlateView(WellPlateView):
             return
 
         parent_item = item.parentItem()
-        if isinstance(parent_item, (_HoverWellItem, _MoveToItem)):
+        if isinstance(parent_item, (_HoverWellItem, _PresetPositionItem)):
             self.positionChanged.emit(parent_item._current_position)
         else:
             self.positionChanged.emit(None)
         super().mouseMoveEvent(event)
 
-    # overwriting the super method to not use the well selection logic
+    # overriding the super method to not use the well selection logic
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
         return
 
-    # overwriting the super method to not use the well selection logic
+    # overriding the super method to not use the well selection logic
     def mouseReleaseEvent(self, event: QMouseEvent | None) -> None:
         return
 
@@ -218,7 +213,9 @@ class _WellPlateView(WellPlateView):
             The WellPlatePlan to draw. If a WellPlate is provided, the plate is drawn
             with no selected wells.
         """
-        # NOTE: rewriting the whole method to use the _HoverableWellItem in _add_item
+        # NOTE: rewriting the whole method to use the _HoverWellItem
+
+        self._scene.clear()
 
         if isinstance(plan, useq.WellPlate):  # pragma: no cover
             plan = useq.WellPlatePlan(a1_center_xy=(0, 0), plate=plan)
@@ -233,7 +230,6 @@ class _WellPlateView(WellPlateView):
         font = QFont()
         font.setPixelSize(int(min(6000, well_rect.width() / 2.5)))
 
-        self.clear()
         for pos in plan.all_well_positions:
             # invert y-axis for screen coordinates
             screen_x, screen_y = pos.x, -pos.y
@@ -278,7 +274,9 @@ class _WellPlateView(WellPlateView):
             The WellPlatePlan to draw. If a WellPlate is provided, the plate is drawn
             with no selected wells.
         """
-        # NOTE: rewriting the whole method to use the _MoveToItem in _add_move_to_items
+        # NOTE: rewriting the whole method to use the _PresetPositionItem
+
+        self._scene.clear()
 
         if isinstance(plan, useq.WellPlate):  # pragma: no cover
             plan = useq.WellPlatePlan(a1_center_xy=(0, 0), plate=plan)
@@ -289,14 +287,13 @@ class _WellPlateView(WellPlateView):
         well_height = plan.plate.well_size[1] * 1000
         well_rect = QRectF(-well_width / 2, -well_height / 2, well_width, well_height)
 
-        self.clear()
         for pos in plan.all_well_positions:
             # invert y-axis for screen coordinates
             screen_x, screen_y = pos.x, -pos.y
             rect = well_rect.translated(screen_x, screen_y)
 
             item = self._add_well_outline(rect, plan.plate.circular_wells)
-            self._add_move_to_items(rect, pos, well_width, well_height, plan.rotation)
+            self._add_preset_positions_items(rect, pos, plan)
 
             if plan.rotation:
                 item.setTransformOriginPoint(rect.center())
@@ -314,20 +311,26 @@ class _WellPlateView(WellPlateView):
         self._scene.addItem(item)
         return item
 
-    def _add_move_to_items(
+    def _add_preset_positions_items(
         self,
         rect: QRectF,
         pos: useq.Position,
-        well_width: float,
-        well_height: float,
-        rotation: float | None = None,
+        plan: useq.WellPlatePlan,
     ) -> None:
-        width = well_width / 5
+        plate = plan.plate
+        well_width = plate.well_size[0] * 1000
+        well_height = plate.well_size[1] * 1000
+
+        # calculate radius for the _PresetPositionItem based on well spacing and size
+        half_sx = plate.well_spacing[0] * 1000 / 2
+        half_sy = plate.well_spacing[1] * 1000 / 2
+        width, height = half_sx - well_width / 2, half_sy - well_height / 2
+        width = min(width, height)
 
         # central point
         cx, cy = rect.center().x(), rect.center().y()
         rect = QRectF(cx - width / 2, cy - width / 2, width, width)
-        self._add_move_to_item(rect, pos)
+        self._add_preset_position_item(rect, pos)
 
         # points on the edges
         positions = [
@@ -339,32 +342,29 @@ class _WellPlateView(WellPlateView):
 
         for x, y in positions:
             edge_rect = QRectF(x - width / 2, y - width / 2, width, width)
-            self._add_move_to_item(edge_rect, useq.Position(x=x, y=y), rotation)
+            print(edge_rect, edge_rect.center())
+            self._add_preset_position_item(
+                edge_rect, useq.Position(x=x, y=y), plan.rotation
+            )
 
-    def _add_move_to_item(
+    def _add_preset_position_item(
         self, rect: QRectF, pos: useq.Position, rotation: float | None = None
     ) -> None:
-        item = _MoveToItem(rect, self._mmc)
+        item = _PresetPositionItem(rect, self._mmc)
         item.setZValue(1)
         center_x, center_y = rect.center().x(), rect.center().y()
 
         # adjust position if rotation
         if rotation is not None:
-            radians = np.deg2rad(rotation)
-            cos_radians = np.cos(radians)
-            sin_radians = np.sin(radians)
-
+            rad = np.deg2rad(rotation)
+            cos_rad = np.cos(rad)
+            sin_rad = np.sin(rad)
             rotated_x = (
-                center_x
-                + (pos.x - center_x) * cos_radians
-                - (pos.y - center_y) * sin_radians
+                center_x + (pos.x - center_x) * cos_rad - (pos.y - center_y) * sin_rad
             )
             rotated_y = -(
-                center_y
-                + (pos.x - center_x) * sin_radians
-                + (pos.y - center_y) * cos_radians
+                center_y + (pos.x - center_x) * sin_rad + (pos.y - center_y) * cos_rad
             )
-
             rotated_pos = useq.Position(x=rotated_x, y=rotated_y)
             item.setData(DATA_POSITION, rotated_pos)
         else:
@@ -397,15 +397,10 @@ class PlateNavigator(QWidget):
         top_layout.addStretch(1)
         top_layout.addWidget(self._preset_movements)
 
-        self._stop_button = QPushButton("Stop Stage")
-        self._stop_button.setIcon(icon(MDI6.stop, color=Qt.GlobalColor.red))
-        self._stop_button.setIconSize(QSize(30, 30))
-
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(10, 10, 10, 10)
         bottom_layout.addWidget(self._xy_label)
         bottom_layout.addStretch(1)
-        bottom_layout.addWidget(self._stop_button)
 
         self._plate_view = _WellPlateView(self)
 
@@ -417,16 +412,12 @@ class PlateNavigator(QWidget):
         main_layout.addLayout(bottom_layout)
 
         # connections
-        self._stop_button.clicked.connect(self._stop_stage)
         self._plate_view.positionChanged.connect(self._on_position_changed)
         self._preset_movements.toggled.connect(self._on_preset_movements_toggled)
 
     def set_plan(self, plan: useq.WellPlate | useq.WellPlatePlan) -> None:
         """Set the plate to be displayed."""
         self._plate_view.drawPlate(plan)
-
-    def _stop_stage(self) -> None:
-        self._mmc.stop(self._mmc.getXYStageDevice())
 
     def _on_position_changed(self, position: tuple[float, float] | None) -> None:
         if position is None:
