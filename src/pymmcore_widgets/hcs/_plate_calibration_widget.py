@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from math import inf
 from typing import Mapping
 
 import numpy as np
@@ -9,8 +10,10 @@ from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QHBoxLayout,
+    QLabel,
     QPushButton,
     QStackedWidget,
+    QStyle,
     QVBoxLayout,
     QWidget,
 )
@@ -58,6 +61,9 @@ class PlateCalibrationWidget(QWidget):
         self._calibration_widgets: dict[tuple[int, int], WellCalibrationWidget] = {}
         self._calibration_widget_stack = QStackedWidget()
 
+        self._info = QLabel("Please calibrate at least three wells.")
+        self._info_icon = QLabel()
+
         # LAYOUT -------------------------------------------------------------
 
         right_layout = QVBoxLayout()
@@ -67,9 +73,19 @@ class PlateCalibrationWidget(QWidget):
         right_layout.addWidget(self._test_btn)
         right_layout.addStretch()
 
-        layout = QHBoxLayout(self)
-        layout.addWidget(self._plate_view, 1)
-        layout.addLayout(right_layout)
+        top = QHBoxLayout()
+        top.addWidget(self._plate_view, 1)
+        top.addLayout(right_layout)
+
+        info_layout = QHBoxLayout()
+        mb_i = self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxInformation)
+        self._info_icon.setPixmap(mb_i.pixmap(48))
+        info_layout.addWidget(self._info_icon, 0)
+        info_layout.addWidget(self._info, 1)
+
+        main = QVBoxLayout(self)
+        main.addLayout(top)
+        main.addLayout(info_layout)
 
         # CONNECTIONS ---------------------------------------------------------
 
@@ -98,7 +114,7 @@ class PlateCalibrationWidget(QWidget):
         """Return the plate plan with calibration information."""
         a1_center_xy = (0.0, 0.0)
         rotation: float = 0.0
-        if (osr := self._origin_scale_rotation()) is not None:
+        if (osr := self._origin_spacing_rotation()) is not None:
             a1_center_xy, (unit_x, unit_y), rotation = osr
         return useq.WellPlatePlan(
             plate=self._current_plate,
@@ -108,9 +124,27 @@ class PlateCalibrationWidget(QWidget):
 
     # -----------------------------------------------
 
-    def _origin_scale_rotation(
+    def _origin_spacing_rotation(
         self,
     ) -> tuple[tuple[float, float], tuple[float, float], float] | None:
+        """Return the origin, scale, and rotation of the plate.
+
+        If the plate is not fully calibrated, returns None.
+
+        The units are a little confusing here, but are chosen to match the units in
+        the useq.WellPlatePlan class. The origin is in µm, the well spacing is in mm.
+
+        Returns
+        -------
+        origin : tuple[float, float]
+            The stage coordinates in µm of the center of well A1 (top-left corner).
+        well_spacing : tuple[float, float]
+            The center-to-center distance in mm (pitch) between wells in the x and y
+            directions.
+        rotation : float
+                a1_center_xy : tuple[float, float]
+            The rotation angle in degrees (anti-clockwise) of the plate.
+        """
         if not len(self._calibrated_wells) >= self._min_wells_required:
             # not enough wells calibrated
             return None
@@ -122,9 +156,10 @@ class PlateCalibrationWidget(QWidget):
             return None
 
         a, b, ty, c, d, tx = params
-        unit_y = np.hypot(a, c)
-        unit_x = np.hypot(b, d)
-        rotation = np.rad2deg(np.arctan2(c, a))
+        unit_y = np.hypot(a, c) / 1000  # convert to mm
+        unit_x = np.hypot(b, d) / 1000  # convert to mm
+        rotation = round(np.rad2deg(np.arctan2(c, a)), 2)
+
         return (tx, ty), (unit_x, unit_y), rotation
 
     def _get_or_create_well_calibration_widget(
@@ -178,7 +213,17 @@ class PlateCalibrationWidget(QWidget):
                 self._calibrated_wells.pop(idx, None)
                 self._plate_view.setWellColor(*idx, None)
 
-        fully_calibrated = self._origin_scale_rotation() is not None
+        osr = self._origin_spacing_rotation()
+        if fully_calibrated := (osr is not None):
+            txt = "Plate is fully calibrated."
+            origin, spacing, rotation = osr
+            txt += f"\nA1 Center [µm]: ({origin[0]:.2f}, {origin[1]:.2f}),  "
+            txt += f"Well Spacing [mm]: ({spacing[0]:.2f}, {spacing[1]:.2f}),  "
+            txt += f"Rotation: {rotation}°"
+            self._info.setText(txt)
+            style = self.style()
+            mb_i = style.standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
+            self._info_icon.setPixmap(mb_i.pixmap(48))
         self.calibrationChanged.emit(fully_calibrated)
 
     def _selected_well_index(self) -> tuple[int, int] | None:
