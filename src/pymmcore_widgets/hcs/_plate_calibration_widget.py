@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from math import inf
 from typing import Mapping
 
 import numpy as np
@@ -17,9 +16,14 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.fonticon import icon
 
 from pymmcore_widgets._util import SeparatorWidget
-from pymmcore_widgets.hcs._well_calibration_widget import WellCalibrationWidget
+from pymmcore_widgets.hcs._well_calibration_widget import (
+    CALIBRATED_ICON,
+    GREEN,
+    WellCalibrationWidget,
+)
 from pymmcore_widgets.useq_widgets._well_plate_widget import WellPlateView
 
 
@@ -41,7 +45,7 @@ class PlateCalibrationWidget(QWidget):
         self._current_plate: useq.WellPlate | None = None
         # minimum number of wells required to be calibrated
         # before the plate is considered calibrated
-        self._min_wells_required: int = 2
+        self._min_wells_required: int = 3
 
         # mapping of well index (r, c) to well center (x, y)
         self._calibrated_wells: dict[tuple[int, int], tuple[float, float]] = {}
@@ -63,6 +67,7 @@ class PlateCalibrationWidget(QWidget):
 
         self._info = QLabel("Please calibrate at least three wells.")
         self._info_icon = QLabel()
+        self._update_info(None)
 
         # LAYOUT -------------------------------------------------------------
 
@@ -78,8 +83,6 @@ class PlateCalibrationWidget(QWidget):
         top.addLayout(right_layout)
 
         info_layout = QHBoxLayout()
-        mb_i = self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxInformation)
-        self._info_icon.setPixmap(mb_i.pixmap(48))
         info_layout.addWidget(self._info_icon, 0)
         info_layout.addWidget(self._info, 1)
 
@@ -214,17 +217,40 @@ class PlateCalibrationWidget(QWidget):
                 self._plate_view.setWellColor(*idx, None)
 
         osr = self._origin_spacing_rotation()
-        if fully_calibrated := (osr is not None):
-            txt = "Plate is fully calibrated."
-            origin, spacing, rotation = osr
-            txt += f"\nA1 Center [µm]: ({origin[0]:.2f}, {origin[1]:.2f}),  "
-            txt += f"Well Spacing [mm]: ({spacing[0]:.2f}, {spacing[1]:.2f}),  "
-            txt += f"Rotation: {rotation}°"
-            self._info.setText(txt)
-            style = self.style()
-            mb_i = style.standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
-            self._info_icon.setPixmap(mb_i.pixmap(48))
+        fully_calibrated = osr is not None
+        self._update_info(osr)
         self.calibrationChanged.emit(fully_calibrated)
+
+    def _update_info(
+        self, osr: tuple[tuple[float, float], tuple[float, float], float] | None
+    ) -> None:
+        style = self.style()
+        if osr is not None:
+            origin, spacing, rotation = osr
+            spacing_diff = abs(spacing[0] - self._current_plate.well_spacing[0])
+            # if spacing is more than 5% different from the plate spacing...
+            txt = "<strong>Plate calibrated.</strong>"
+            if spacing_diff > 0.05 * self._current_plate.well_spacing[0]:
+                txt += (
+                    "<font color='red'>   Expected well spacing of "
+                    f"{self._current_plate.well_spacing[0]:.2f} mm, "
+                    f"calibrated at {spacing[0]:.2f}</font>"
+                )
+                ico = style.standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning)
+            else:
+                ico = icon(CALIBRATED_ICON, color=GREEN)
+            txt += "<br>"
+            txt += f"\nA1 Center [mm]: ({origin[0]/1000:.2f}, {origin[1]/1000:.2f}),   "
+            txt += f"Well Spacing [mm]: ({spacing[0]:.2f}, {spacing[1]:.2f}),   "
+            txt += f"Rotation: {rotation}°"
+        elif len(self._calibrated_wells) < self._min_wells_required:
+            txt = f"Please calibrate at least {self._min_wells_required} wells."
+            ico = style.standardIcon(QStyle.StandardPixmap.SP_MessageBoxInformation)
+        else:
+            txt = "Could not calibrate. Ensure points are not collinear."
+            ico = style.standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning)
+        self._info_icon.setPixmap(ico.pixmap(42))
+        self._info.setText(txt)
 
     def _selected_well_index(self) -> tuple[int, int] | None:
         if selected := self._plate_view.selectedIndices():
