@@ -5,16 +5,15 @@ from typing import TYPE_CHECKING
 import numpy as np
 import useq
 from pymmcore_plus import CMMCorePlus
-from PyQt6.QtGui import QMouseEvent
-from PyQt6.QtWidgets import QGraphicsSceneMouseEvent
 from qtpy.QtCore import QRectF, Qt, Signal
-from qtpy.QtGui import QColor, QFont, QPainter, QPen
+from qtpy.QtGui import QColor, QFont, QMouseEvent, QPainter, QPen
 from qtpy.QtWidgets import (
     QCheckBox,
     QGraphicsEllipseItem,
     QGraphicsItem,
     QGraphicsRectItem,
     QGraphicsSceneHoverEvent,
+    QGraphicsSceneMouseEvent,
     QHBoxLayout,
     QLabel,
     QStyleOptionGraphicsItem,
