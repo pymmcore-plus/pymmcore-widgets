@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import Mapping
 
 import numpy as np
@@ -93,12 +94,45 @@ class PlateCalibrationWidget(QWidget):
         # Select A1 well
         self._plate_view.setSelectedIndices([(0, 0)])
 
+    def platePlan(self) -> useq.WellPlatePlan:
+        """Return the plate plan with calibration information."""
+        a1_center_xy = (0.0, 0.0)
+        rotation: float = 0.0
+        if (osr := self._origin_scale_rotation()) is not None:
+            a1_center_xy, (unit_x, unit_y), rotation = osr
+        return useq.WellPlatePlan(
+            plate=self._current_plate,
+            a1_center_xy=a1_center_xy,
+            rotation=rotation,
+        )
+
     # -----------------------------------------------
+
+    def _origin_scale_rotation(
+        self,
+    ) -> tuple[tuple[float, float], tuple[float, float], float] | None:
+        if not len(self._calibrated_wells) >= self._min_wells_required:
+            # not enough wells calibrated
+            return None
+
+        try:
+            params = well_coords_affine(self._calibrated_wells)
+        except ValueError:
+            # collinear points
+            return None
+
+        a, b, ty, c, d, tx = params
+        unit_y = np.hypot(a, c)
+        unit_x = np.hypot(b, d)
+        rotation = np.rad2deg(np.arctan2(c, a))
+        return (tx, ty), (unit_x, unit_y), rotation
 
     def _get_or_create_well_calibration_widget(
         self, idx: tuple[int, int]
     ) -> WellCalibrationWidget:
         """Create or return the calibration widget for the given well index."""
+        if not self._current_plate:
+            raise ValueError("No plate set.")
         if idx in self._calibration_widgets:
             return self._calibration_widgets[idx]
 
@@ -116,12 +150,15 @@ class PlateCalibrationWidget(QWidget):
         return wdg
 
     def _current_calibration_widget(self) -> WellCalibrationWidget | None:
-        return self._calibration_widget_stack.currentWidget()
+        return self._calibration_widget_stack.currentWidget()  # type: ignore
 
     def _on_plate_selection_changed(self) -> None:
         """A well has been selected in the plate view."""
-        if idx := self._selected_well_index():
-            # create/activate a well calibration widget for the selected well
+        if not (idx := self._selected_well_index()):
+            return
+
+        # create/activate a well calibration widget for the selected well
+        with suppress(ValueError):
             well_calib_wdg = self._get_or_create_well_calibration_widget(idx)
             self._calibration_widget_stack.setCurrentWidget(well_calib_wdg)
 
@@ -132,23 +169,17 @@ class PlateCalibrationWidget(QWidget):
         """The current well calibration state has been changed."""
         self._test_btn.setEnabled(calibrated)
         if idx := self._selected_well_index():
+            # update the color of the well in the plate view accordingly
             if calibrated and (well_calib_wdg := self._current_calibration_widget()):
-                self._calibrated_wells[idx] = well_calib_wdg.wellCenter()
-                self._plate_view.setWellColor(*idx, Qt.GlobalColor.green)
+                if center := well_calib_wdg.wellCenter():
+                    self._calibrated_wells[idx] = center
+                    self._plate_view.setWellColor(*idx, Qt.GlobalColor.green)
             else:
                 self._calibrated_wells.pop(idx, None)
                 self._plate_view.setWellColor(*idx, None)
 
-        fully_calibrated = len(self._calibrated_wells) >= self._min_wells_required
+        fully_calibrated = self._origin_scale_rotation() is not None
         self.calibrationChanged.emit(fully_calibrated)
-        if fully_calibrated:
-            params = find_affine_transform(self._calibrated_wells)
-            a, b, ty, c, d, tx = params
-            # not quite right yet...
-            _a1_center_xy = (tx, ty)
-            _unit_y = np.hypot(a, c)
-            _unit_x = np.hypot(b, d)
-            _rotation = np.rad2deg(np.arctan2(c, a))
 
     def _selected_well_index(self) -> tuple[int, int] | None:
         if selected := self._plate_view.selectedIndices():
@@ -156,10 +187,10 @@ class PlateCalibrationWidget(QWidget):
         return None
 
 
-def find_affine_transform(
+def well_coords_affine(
     index_coordinates: Mapping[tuple[int, int], tuple[float, float]],
 ) -> tuple[float, float, float, float, float, float]:
-    """Return best-fit transformation that maps grid indices to world coordinates.
+    """Return best-fit transformation that maps well plate indices to world coordinates.
 
     Parameters
     ----------
@@ -172,11 +203,18 @@ def find_affine_transform(
     """
     A: list[list[int]] = []
     B: list[float] = []
-    for (row, col), (y, x) in index_coordinates.items():
-        A.append([row, col, 1, 0, 0, 0])
-        A.append([0, 0, 0, row, col, 1])
-        B.extend((x, y))
+    for (row, col), (x, y) in index_coordinates.items():
+        # well plate indices go up in row as we go down in y
+        # so we have to negate the row to get the correct transformation
+        A.append([-row, col, 1, 0, 0, 0])
+        A.append([0, 0, 0, -row, col, 1])
+        # row corresponds to y, col corresponds to x
+        B.extend((y, x))
 
     # Solve the least squares problem to find the affine transformation parameters
-    params, _, _, _ = np.linalg.lstsq(np.array(A), np.array(B), rcond=None)
-    return tuple(params)  # type: ignore [no-any-return]
+    params, _, rank, _ = np.linalg.lstsq(np.array(A), np.array(B), rcond=None)
+
+    if rank != 6:
+        raise ValueError("Underdetermined system of equations. Are points collinear?")
+
+    return tuple(params)
