@@ -11,7 +11,7 @@ mmc.loadSystemConfiguration()
 plate = useq.WellPlatePlan(
     plate=useq.WellPlate.from_str("96-well"),
     a1_center_xy=(1000, 1000),
-    rotation=0,
+    rotation=3,
 )
 wdg = PlateNavigator(mmcore=mmc)
 wdg.set_plan(plate)
