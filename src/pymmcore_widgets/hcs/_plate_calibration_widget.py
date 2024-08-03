@@ -163,13 +163,13 @@ class PlateCalibrationWidget(QWidget):
         unit_x = np.hypot(b, d) / 1000  # convert to mm
         rotation = round(np.rad2deg(np.arctan2(c, a)), 2)
 
-        return (tx, ty), (unit_x, unit_y), rotation
+        return (round(tx, 4), round(ty, 4)), (unit_x, unit_y), rotation
 
     def _get_or_create_well_calibration_widget(
         self, idx: tuple[int, int]
     ) -> WellCalibrationWidget:
         """Create or return the calibration widget for the given well index."""
-        if not self._current_plate:
+        if not self._current_plate:  # pragma: no cover
             raise ValueError("No plate set.")
         if idx in self._calibration_widgets:
             return self._calibration_widgets[idx]
