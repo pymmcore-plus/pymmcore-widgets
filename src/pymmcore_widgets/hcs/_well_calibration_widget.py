@@ -103,7 +103,7 @@ class _CalibrationTable(QTableWidget):
         hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
         hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
 
-        self.setHorizontalHeaderLabels(["X [mm]", "Y [mm]"])
+        self.setHorizontalHeaderLabels(["X [µm]", "Y [µm]"])
         self.selectionModel().selectionChanged.connect(self._on_selection_changed)
 
     def _on_selection_changed(
