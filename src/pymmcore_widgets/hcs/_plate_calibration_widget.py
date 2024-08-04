@@ -18,7 +18,6 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 
-from pymmcore_widgets._util import SeparatorWidget
 from pymmcore_widgets.hcs._well_calibration_widget import (
     CALIBRATED_ICON,
     GREEN,

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Iterable, Mapping
 
 import useq
 from qtpy.QtCore import QRect, QRectF, QSize, Qt, Signal
-from qtpy.QtGui import QFont, QMouseEvent, QPainter, QPen, QColor
+from qtpy.QtGui import QColor, QFont, QMouseEvent, QPainter, QPen
 from qtpy.QtWidgets import (
     QAbstractGraphicsShapeItem,
     QAbstractItemView,
