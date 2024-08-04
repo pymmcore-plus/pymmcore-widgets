@@ -57,8 +57,9 @@ class PlateCalibrationWidget(QWidget):
         self._plate_view.setSelectionMode(WellPlateView.SelectionMode.SingleSelection)
         self._plate_view.setSelectedColor(Qt.GlobalColor.yellow)
 
-        self._test_btn = QPushButton("Test Well")
+        self._test_btn = QPushButton("Test Well", self)
         self._test_btn.setEnabled(False)
+        self._test_btn.hide()
 
         # mapping of well index (r, c) to calibration widget
         # these are created on demand in _get_or_create_well_calibration_widget
@@ -74,8 +75,8 @@ class PlateCalibrationWidget(QWidget):
         right_layout = QVBoxLayout()
         right_layout.setContentsMargins(6, 0, 0, 0)
         right_layout.addWidget(self._calibration_widget_stack)
-        right_layout.addWidget(SeparatorWidget())
-        right_layout.addWidget(self._test_btn)
+        # right_layout.addWidget(SeparatorWidget())
+        # right_layout.addWidget(self._test_btn)
         right_layout.addStretch()
 
         top = QHBoxLayout()

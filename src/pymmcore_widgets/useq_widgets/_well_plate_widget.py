@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Iterable, Mapping
 
 import useq
 from qtpy.QtCore import QRect, QRectF, QSize, Qt, Signal
-from qtpy.QtGui import QColor, QFont, QMouseEvent, QPainter, QPen
+from qtpy.QtGui import QFont, QMouseEvent, QPainter, QPen, QColor
 from qtpy.QtWidgets import (
     QAbstractGraphicsShapeItem,
     QAbstractItemView,
@@ -416,10 +416,7 @@ class WellPlateView(ResizingGraphicsView):
     def _deselect_items(self, items: Iterable[QAbstractGraphicsShapeItem]) -> None:
         for item in items:
             if item.data(DATA_SELECTED):
-                if color := item.data(DATA_COLOR):
-                    color = QColor(color)
-                else:
-                    color = self._unselected_color
+                color = item.data(DATA_COLOR) or self._unselected_color
                 item.setBrush(color)
                 item.setData(DATA_SELECTED, False)
         self._selected_items.difference_update(items)
@@ -439,6 +436,8 @@ class WellPlateView(ResizingGraphicsView):
         determined by the selection state.
         """
         if item := self._well_items.get((row, col)):
+            if color is not None:
+                color = QColor(color)
             item.setData(DATA_COLOR, color)
             if color is None:
                 color = (
