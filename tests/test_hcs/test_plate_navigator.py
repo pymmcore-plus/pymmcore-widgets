@@ -4,7 +4,11 @@ from typing import TYPE_CHECKING
 
 import useq
 
-from pymmcore_widgets.hcs._plate_navigator_widget import PlateNavigatorWidget
+from pymmcore_widgets.hcs._plate_navigator_widget import (
+    DATA_POSITION,
+    PlateNavigatorWidget,
+    _PresetPositionItem,
+)
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -34,3 +38,30 @@ def test_plate_navigator_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     # assert correct number of items
     # 96 * 11 (QGraphicsEllipseItem * 6, _PresetPositionItem * 5)
     assert len(scene.items()) == 1056
+
+    # get all the items of type _PresetPositionItem
+    preset_items = [
+        item
+        for item in reversed(scene.items())
+        if isinstance(item, _PresetPositionItem)
+    ]
+    # make sure the stored positions for a1 are correct
+    a1 = preset_items[:5]
+    pos = [item.data(DATA_POSITION) for item in a1]
+    assert [(p.x, p.y) for p in pos] == [
+        (0.0, 0.0),
+        (-3200.0, 0.0),
+        (3200.0, 0.0),
+        (0.0, -3200.0),
+        (0.0, 3200.0),
+    ]
+    # make sure the stored positions for h12 are correct
+    h12 = preset_items[-5:]
+    pos = [item.data(DATA_POSITION) for item in h12]
+    assert [(p.x, p.y) for p in pos] == [
+        (99000.0, -63000.0),
+        (95800.0, 63000.0),
+        (102200.0, 63000.0),
+        (99000.0, 59800.0),
+        (99000.0, 66200.0),
+    ]
