@@ -72,6 +72,18 @@ def test_hover_item(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert global_mmcore.getXPosition() == 0
     assert global_mmcore.getYPosition() == 0
 
+    # simulate mouse double-click somewhere else in A1 well
+    scene_pos = a1_hover_well.mapToScene(QPointF(1554, -971))
+    view_pos = wdg._plate_view.mapFromScene(scene_pos)
+    qtbot.mouseDClick(
+        wdg._plate_view.viewport(), Qt.MouseButton.LeftButton, pos=view_pos
+    )
+    global_mmcore.waitForSystem()
+    assert round(global_mmcore.getXPosition()) == 1554
+    assert round(global_mmcore.getYPosition()) == 971
+    assert round(a1_hover_well._current_position[0]) == 1554
+    assert round(a1_hover_well._current_position[1]) == 971
+
 
 def test_preset_position_item(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = PlateNavigatorWidget(mmcore=global_mmcore)

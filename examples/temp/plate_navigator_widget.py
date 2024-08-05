@@ -10,8 +10,8 @@ mmc = CMMCorePlus.instance()
 mmc.loadSystemConfiguration()
 plate = useq.WellPlatePlan(
     plate=useq.WellPlate.from_str("96-well"),
-    a1_center_xy=(0, 0),
-    # rotation=3,
+    a1_center_xy=(1000, 1500),
+    rotation=3,
 )
 wdg = PlateNavigatorWidget(mmcore=mmc)
 wdg.set_plan(plate)
