@@ -17,9 +17,10 @@ if TYPE_CHECKING:
 
 
 wp96 = useq.WellPlate.from_str("96-well")
+wp384 = useq.WellPlate.from_str("384-well")
 
 
-def test_plate_navigator_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
+def test_plate_navigator_widget_circular(qtbot: QtBot, global_mmcore: CMMCorePlus):
     wdg = PlateNavigatorWidget(mmcore=global_mmcore)
     qtbot.addWidget(wdg)
     wdg.show()
@@ -39,6 +40,28 @@ def test_plate_navigator_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     # assert correct number of items
     # 96 * 11 (QGraphicsEllipseItem * 6, _PresetPositionItem * 5)
     assert len(scene.items()) == 1056
+
+
+def test_plate_navigator_widget_rectangular(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    wdg = PlateNavigatorWidget(mmcore=global_mmcore)
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    scene = wdg._plate_view._scene
+    assert not scene.items()
+
+    wdg.set_plan(wp384)
+    assert scene.items()
+    # assert correct number of items
+    # 384 * 3 (_HoverWellItem, QGraphicsRectItem, QGraphicsTextItem)
+    assert len(scene.items()) == 1152
+
+    # toggle preset movements checkbox
+    wdg._on_preset_movements_toggled(True)
+    assert scene.items()
+    # assert correct number of items
+    # 384 * 11 (QGraphicsRectItem * 6, _PresetPositionItem * 5)
+    assert len(scene.items()) == 4224
 
 
 def test_hover_item(qtbot: QtBot, global_mmcore: CMMCorePlus):
