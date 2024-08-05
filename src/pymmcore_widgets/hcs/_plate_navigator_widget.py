@@ -64,7 +64,6 @@ class _HoverWellItem(QGraphicsItem):
 
     def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent | None) -> None:
         """Move the stage to the clicked position in the well."""
-        print("mouseDoubleClickEvent")
         if event and event.button() == Qt.MouseButton.LeftButton:
             x, y = self._get_current_xy_coords(event)
             self._current_position = (x, y)
