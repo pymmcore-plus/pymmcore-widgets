@@ -236,7 +236,7 @@ def test_points_plan_set_well_info(qtbot: QtBot) -> None:
     well = wdg._well_view._well_outline_item.sceneBoundingRect()
     bound = wdg._well_view._bounding_area_item.sceneBoundingRect()
     assert well.center() == bound.center()
-    offset = 20  # ofset automatically added when drawing
+    offset = 20  # offset automatically added when drawing
     # bounding rect should be 1/3 the size of the well rect in width
     assert well.width() - offset == (bound.width() - offset) * 3
     # bounding rect should be 1/2 the size of the well rect in height
