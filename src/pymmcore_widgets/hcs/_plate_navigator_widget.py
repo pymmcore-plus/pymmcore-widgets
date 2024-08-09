@@ -418,7 +418,7 @@ class PlateNavigatorWidget(QWidget):
 
     def clear(self) -> None:
         """Clear the plate view."""
-        self._plate_view.clear()
+        self._plate_view._scene.clear()
 
     def _on_position_changed(self, position: tuple[float, float] | None) -> None:
         if position is None:
