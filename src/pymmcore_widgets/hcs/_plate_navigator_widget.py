@@ -34,10 +34,6 @@ UNSELECTED_COLOR = Qt.GlobalColor.transparent
 SELECTED_COLOR = QColor(Qt.GlobalColor.green)
 SELECTED_COLOR.setAlpha(127)  # Set opacity to 50%
 UNSELECTED_MOVE_TO_COLOR = QColor(Qt.GlobalColor.black)
-FREE_MOVEMENT = (
-    "Double-Click anywhere inside a well to move the stage to that position."
-)
-PRESET_MOVEMENT = "Double-Click on any point to move the stage to that position."
 
 
 class _HoverWellItem(QGraphicsItem):
@@ -378,35 +374,23 @@ class PlateNavigatorWidget(QWidget):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self._info_label = QLabel(FREE_MOVEMENT)
-        self._info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        font = self._info_label.font()
-        font.setBold(True)
-        self._info_label.setFont(font)
-
         self._xy_label = QLabel()
 
         self._preset_movements = QCheckBox("Preset Movements")
 
-        top_layout = QHBoxLayout()
-        top_layout.setContentsMargins(10, 10, 10, 10)
-        top_layout.addWidget(self._info_label)
-        top_layout.addStretch(1)
-        top_layout.addWidget(self._preset_movements)
-
-        bottom_layout = QHBoxLayout()
-        bottom_layout.setContentsMargins(10, 10, 10, 10)
-        bottom_layout.addWidget(self._xy_label)
-        bottom_layout.addStretch(1)
-
         self._plate_view = _WellPlateView(self)
+
+        xy_label_layout = QHBoxLayout()
+        xy_label_layout.setContentsMargins(10, 10, 10, 10)
+        xy_label_layout.addWidget(self._xy_label)
+        xy_label_layout.addStretch(1)
+        xy_label_layout.addWidget(self._preset_movements)
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(5)
-        main_layout.addLayout(top_layout)
         main_layout.addWidget(self._plate_view)
-        main_layout.addLayout(bottom_layout)
+        main_layout.addLayout(xy_label_layout)
 
         # connections
         self._plate_view.positionChanged.connect(self._on_position_changed)
@@ -438,9 +422,8 @@ class PlateNavigatorWidget(QWidget):
         if plan is None:
             return
 
-        if checked:
+        (
             self._plate_view.drawPlatePresetPositions(plan)
-            self._info_label.setText(PRESET_MOVEMENT)
-        else:
-            self._plate_view.drawPlate(plan)
-            self._info_label.setText(FREE_MOVEMENT)
+            if checked
+            else self._plate_view.drawPlate(plan)
+        )
