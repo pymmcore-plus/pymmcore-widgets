@@ -28,7 +28,7 @@ def test_plate_navigator_widget_circular(qtbot: QtBot, global_mmcore: CMMCorePlu
     scene = wdg._plate_view._scene
     assert not scene.items()
 
-    wdg.set_plan(wp96)
+    wdg.setPlate(wp96)
     assert scene.items()
     # assert correct number of items
     # 96 * 3 (_HoverWellItem, QGraphicsEllipseItem, QGraphicsTextItem)
@@ -50,7 +50,7 @@ def test_plate_navigator_widget_rectangular(qtbot: QtBot, global_mmcore: CMMCore
     scene = wdg._plate_view._scene
     assert not scene.items()
 
-    wdg.set_plan(wp384)
+    wdg.setPlate(wp384)
     assert scene.items()
     # assert correct number of items
     # 384 * 3 (_HoverWellItem, QGraphicsRectItem, QGraphicsTextItem)
@@ -69,7 +69,7 @@ def test_hover_item(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(wdg)
     wdg.show()
 
-    wdg.set_plan(wp96)
+    wdg.setPlate(wp96)
     scene = wdg._plate_view._scene
 
     # get the _HoverWellItem for A1
@@ -101,7 +101,7 @@ def test_preset_position_item(qtbot: QtBot, global_mmcore: CMMCorePlus):
     qtbot.addWidget(wdg)
     wdg.show()
 
-    wdg.set_plan(wp96)
+    wdg.setPlate(wp96)
     # toggle preset movements checkbox
     wdg._on_preset_movements_toggled(True)
 

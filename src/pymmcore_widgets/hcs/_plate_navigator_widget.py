@@ -412,9 +412,13 @@ class PlateNavigatorWidget(QWidget):
         self._plate_view.positionChanged.connect(self._on_position_changed)
         self._preset_movements.toggled.connect(self._on_preset_movements_toggled)
 
-    def set_plan(self, plan: useq.WellPlate | useq.WellPlatePlan) -> None:
+    def setPlate(self, plan: useq.WellPlate | useq.WellPlatePlan) -> None:
         """Set the plate to be displayed."""
         self._plate_view.drawPlate(plan)
+
+    def clear(self) -> None:
+        """Clear the plate view."""
+        self._plate_view.clear()
 
     def _on_position_changed(self, position: tuple[float, float] | None) -> None:
         if position is None:
@@ -423,7 +427,7 @@ class PlateNavigatorWidget(QWidget):
         self._xy_label.setText(f"X: {position[0]:.2f}, Y: {position[1]:.2f}")
 
     def _on_preset_movements_toggled(self, checked: bool) -> None:
-        self._plate_view._scene.clear()
+        self.clear()
 
         plan = self._plate_view._plan
         if plan is None:

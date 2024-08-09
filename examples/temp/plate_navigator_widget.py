@@ -14,7 +14,7 @@ plate = useq.WellPlatePlan(
     rotation=3,
 )
 wdg = PlateNavigatorWidget(mmcore=mmc)
-wdg.set_plan(plate)
+wdg.setPlate(plate)
 wdg.show()
 stg = StageWidget("XY", mmcore=mmc)
 stg._poll_cb.setChecked(True)
