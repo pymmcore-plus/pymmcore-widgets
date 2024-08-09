@@ -412,8 +412,13 @@ class PlateNavigatorWidget(QWidget):
         self._plate_view.positionChanged.connect(self._on_position_changed)
         self._preset_movements.toggled.connect(self._on_preset_movements_toggled)
 
-    def setPlate(self, plan: useq.WellPlate | useq.WellPlatePlan) -> None:
+    def setPlate(self, plan: useq.WellPlate | useq.WellPlatePlan | None) -> None:
         """Set the plate to be displayed."""
+        if plan is None:
+            self.clear()
+            self._plate_view._plan = None
+            return
+
         self._plate_view.drawPlate(plan)
 
     def clear(self) -> None:
