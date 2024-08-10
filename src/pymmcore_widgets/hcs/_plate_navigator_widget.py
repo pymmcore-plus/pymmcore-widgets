@@ -47,7 +47,7 @@ class _HoverWellItem(QGraphicsItem):
         super().__init__(parent)
         self._mmc = mmcore
 
-        self._current_position: tuple[float, float] | None = None
+        self._current_position: tuple[float, float, str] | None = None
 
         if circular_well:
             self._item = QGraphicsEllipseItem(rect, self)
@@ -61,8 +61,8 @@ class _HoverWellItem(QGraphicsItem):
     def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent | None) -> None:
         """Move the stage to the clicked position in the well."""
         if event and event.button() == Qt.MouseButton.LeftButton:
-            x, y = self._get_current_xy_coords(event)
-            self._current_position = (x, y)
+            x, y, name = self._get_current_xy_position(event)
+            self._current_position = (x, y, name)
             self._mmc.waitForSystem()
             self._mmc.setXYPosition(x, y)
 
@@ -71,7 +71,7 @@ class _HoverWellItem(QGraphicsItem):
         self._item.setBrush(SELECTED_COLOR)
         if not event:
             return
-        self._current_position = self._get_current_xy_coords(event)
+        self._current_position = self._get_current_xy_position(event)
         super().hoverEnterEvent(event)
 
     def hoverMoveEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
@@ -79,7 +79,7 @@ class _HoverWellItem(QGraphicsItem):
         self._item.setBrush(SELECTED_COLOR)
         if not event:
             return
-        self._current_position = self._get_current_xy_coords(event)
+        self._current_position = self._get_current_xy_position(event)
         super().hoverMoveEvent(event)
 
     def hoverLeaveEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
@@ -88,13 +88,14 @@ class _HoverWellItem(QGraphicsItem):
         self._item.setBrush(UNSELECTED_COLOR)
         super().hoverLeaveEvent(event)
 
-    def _get_current_xy_coords(
+    def _get_current_xy_position(
         self, event: QGraphicsSceneHoverEvent | QGraphicsSceneMouseEvent
-    ) -> tuple[float, float]:
+    ) -> tuple[float, float, str]:
         scene_pos = self.mapToScene(event.pos())
         pos = self._item.mapFromScene(scene_pos)
         x, y = pos.x(), -pos.y()
-        return x, y
+        pos = self.data(DATA_POSITION)
+        return x, y, pos.name
 
     def boundingRect(self) -> QRectF:
         return self._item.boundingRect()
@@ -117,7 +118,7 @@ class _PresetPositionItem(QGraphicsItem):
 
         self._item = QGraphicsEllipseItem(rect, self)
 
-        self._current_position: tuple[float, float] | None = None
+        self._current_position: tuple[float, float, str] | None = None
 
         self.setAcceptHoverEvents(True)
         self._item.setBrush(UNSELECTED_MOVE_TO_COLOR)
@@ -128,7 +129,7 @@ class _PresetPositionItem(QGraphicsItem):
             pos = self.data(DATA_POSITION)
             self._mmc.waitForSystem()
             self._mmc.setXYPosition(pos.x, pos.y)
-            self._current_position = (pos.x, pos.y)
+            self._current_position = (pos.x, pos.y, pos.name)
 
     def hoverEnterEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
         """Update color and position when hovering over the well."""
@@ -158,7 +159,7 @@ class _PresetPositionItem(QGraphicsItem):
 
     def _update_current_position(self) -> None:
         pos = self.data(DATA_POSITION)
-        self._current_position = (pos.x, pos.y)
+        self._current_position = (pos.x, pos.y, pos.name)
 
 
 class _WellPlateView(WellPlateView):
@@ -338,7 +339,7 @@ class _WellPlateView(WellPlateView):
         for x, y in positions:
             edge_rect = QRectF(x - width / 2, y - width / 2, width, width)
             self._add_preset_position_item(
-                edge_rect, useq.Position(x=x, y=y), plan.rotation
+                edge_rect, useq.Position(x=x, y=y, name=pos.name), plan.rotation
             )
 
     def _add_preset_position_item(
@@ -358,7 +359,7 @@ class _WellPlateView(WellPlateView):
             rotated_y = -(
                 center_y + (pos.x - center_x) * sin_rad + (pos.y - center_y) * cos_rad
             )
-            rotated_pos = useq.Position(x=rotated_x, y=rotated_y)
+            rotated_pos = useq.Position(x=rotated_x, y=rotated_y, name=pos.name)
             item.setData(DATA_POSITION, rotated_pos)
         else:
             item.setData(DATA_POSITION, pos)
@@ -409,11 +410,12 @@ class PlateNavigatorWidget(QWidget):
         """Clear the plate view."""
         self._plate_view._scene.clear()
 
-    def _on_position_changed(self, position: tuple[float, float] | None) -> None:
+    def _on_position_changed(self, position: tuple[float, float, str] | None) -> None:
         if position is None:
             self._xy_label.setText("")
             return
-        self._xy_label.setText(f"X: {position[0]:.2f}, Y: {position[1]:.2f}")
+        x, y, name = position
+        self._xy_label.setText(f"{name}:  x={x:.2f}  y={y:.2f}")
 
     def _on_preset_movements_toggled(self, checked: bool) -> None:
         self.clear()
