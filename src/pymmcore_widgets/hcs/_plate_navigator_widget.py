@@ -389,7 +389,6 @@ class PlateNavigatorWidget(QWidget):
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(5)
         main_layout.addWidget(self._plate_view)
         main_layout.addLayout(xy_label_layout)
 
