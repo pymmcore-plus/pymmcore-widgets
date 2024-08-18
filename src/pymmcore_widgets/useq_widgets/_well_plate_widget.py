@@ -4,15 +4,18 @@ from typing import TYPE_CHECKING, Iterable, Mapping
 
 import numpy as np
 import useq
-from qtpy.QtCore import QRect, QRectF, QSize, Qt, Signal
+from qtpy.QtCore import QObject, QRect, QRectF, QSize, Qt, Signal
 from qtpy.QtGui import QColor, QFont, QMouseEvent, QPainter, QPen
 from qtpy.QtWidgets import (
     QAbstractGraphicsShapeItem,
     QAbstractItemView,
     QCheckBox,
     QComboBox,
+    QGraphicsEllipseItem,
     QGraphicsItem,
     QGraphicsScene,
+    QGraphicsSceneHoverEvent,
+    QGraphicsSceneMouseEvent,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -190,10 +193,51 @@ class WellPlateWidget(QWidget):
         self._view.drawPlate(val)
 
 
+class HoverEllipse(QGraphicsEllipseItem, QObject):
+    class SignalEmitter(QObject):
+        doubleClicked = Signal(useq.Position)
+
+    def __init__(
+        self,
+        rect: QRectF,
+        parent: QGraphicsItem | None = None,
+    ):
+        super().__init__(rect, parent)
+        self.signals = self.SignalEmitter()
+        self.setAcceptHoverEvents(True)
+        self._selected_color = Qt.GlobalColor.green
+        self._unselected_color = Qt.GlobalColor.black
+        self.setRect(rect)
+        self.setBrush(self._unselected_color)
+
+    def hoverEnterEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
+        """Update color and position when hovering over the well."""
+        self.setBrush(self._selected_color)
+        super().hoverEnterEvent(event)
+
+    def hoverMoveEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
+        """Update color and position when hovering over the well."""
+        self.setBrush(self._selected_color)
+        super().hoverMoveEvent(event)
+
+    def hoverLeaveEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
+        """Reset color and position when leaving the well."""
+        self.setBrush(self._unselected_color)
+        super().hoverLeaveEvent(event)
+
+    def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent | None) -> None:
+        """Emit the doubleClicked signal when the well is double clicked."""
+        pos = self.data(DATA_POSITION)
+        if isinstance(pos, useq.Position):
+            self.signals.doubleClicked.emit(pos)
+        super().mouseDoubleClickEvent(event)
+
+
 class WellPlateView(ResizingGraphicsView):
     """QGraphicsView for displaying a well plate."""
 
     selectionChanged = Signal()
+    doubleClicked = Signal(useq.Position)
     SelectionMode = QAbstractItemView.SelectionMode
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -203,7 +247,7 @@ class WellPlateView(ResizingGraphicsView):
         self._selected_color = Qt.GlobalColor.green
         self._unselected_color = Qt.GlobalColor.transparent
         self._draw_labels: bool = True
-        self._draw_well_edge_spots: bool = True
+        self._draw_well_edge_spots: bool = False
 
         self.setStyleSheet("background:grey; border-radius: 5px;")
         self.setRenderHints(
@@ -243,6 +287,14 @@ class WellPlateView(ResizingGraphicsView):
     def selectionMode(self) -> QAbstractItemView.SelectionMode:
         return self._selection_mode
 
+    def drawLabels(self, draw: bool) -> None:
+        """Set whether to draw the well labels."""
+        self._draw_labels = draw
+
+    def drawWellEdgeSpots(self, draw: bool) -> None:
+        """Set whether to draw the well edge spots."""
+        self._draw_well_edge_spots = draw
+
     def _on_rubber_band_changed(self, rect: QRect) -> None:
         """When the rubber band changes, select the items within the rectangle."""
         if rect.isNull():  # pragma: no cover
@@ -271,7 +323,12 @@ class WellPlateView(ResizingGraphicsView):
         self._deselect_items(deselect)
 
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
-        if event and event.button() == Qt.MouseButton.LeftButton:
+        # enable only if we are NOT drawing well edge spots since they have their own
+        if (
+            event
+            and event.button() == Qt.MouseButton.LeftButton
+            and not self._draw_well_edge_spots
+        ):
             # store the state of selected items at the time of the mouse press
             self._selection_on_press = self._selected_items.copy()
 
@@ -287,7 +344,12 @@ class WellPlateView(ResizingGraphicsView):
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent | None) -> None:
-        if event and event.button() == Qt.MouseButton.LeftButton:
+        # enable only if we are NOT drawing well edge spots since they have their own
+        if (
+            event
+            and event.button() == Qt.MouseButton.LeftButton
+            and not self._draw_well_edge_spots
+        ):
             # if we are on the same item that we pressed,
             # toggle selection of that item
             for item in self.items(event.pos()):
@@ -393,13 +455,12 @@ class WellPlateView(ResizingGraphicsView):
             # item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
 
             # add text
-            if self._draw_labels and not self._draw_well_edge_spots:
+            if self._draw_labels:
                 if text_item := self._scene.addText(pos.name):
                     text_item.setFont(font)
                     br = text_item.boundingRect()
                     text_item.setPos(
-                        screen_x - br.width() // 2,
-                        screen_y - br.height() // 2,
+                        screen_x - br.width() // 2, screen_y - br.height() // 2
                     )
                     self._well_labels.append(text_item)
 
@@ -451,10 +512,12 @@ class WellPlateView(ResizingGraphicsView):
             edge_rect = QRectF(x - width / 2, y - width / 2, width, width)
             self._scene.addEllipse(edge_rect)
             new_pos = useq.Position(x=x, y=y, name=pos.name)
-            if item := self._scene.addEllipse(edge_rect):
-                item.setBrush(Qt.GlobalColor.black)
-                item.setData(DATA_POSITION, new_pos)
-                self._well_edge_spots.append(item)
+            item = HoverEllipse(edge_rect)
+            item.setData(DATA_POSITION, new_pos)
+            item.setZValue(1)  # make sure it's on top
+            item.signals.doubleClicked.connect(self.doubleClicked.emit)
+            self._scene.addItem(item)
+            self._well_edge_spots.append(item)
 
     def _resize_to_fit(self) -> None:
         self.setSceneRect(self._scene.itemsBoundingRect())

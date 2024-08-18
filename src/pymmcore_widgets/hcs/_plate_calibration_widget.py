@@ -13,11 +13,13 @@ from qtpy.QtWidgets import (
     QPushButton,
     QStackedWidget,
     QStyle,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 from superqt.fonticon import icon
 
+from pymmcore_widgets._util import SeparatorWidget
 from pymmcore_widgets.hcs._well_calibration_widget import (
     CALIBRATED_ICON,
     GREEN,
@@ -51,14 +53,24 @@ class PlateCalibrationWidget(QWidget):
 
         # WIDGETS ------------------------------------------------------------
 
+        self._tab_wdg = QTabWidget()
+
         self._plate_view = WellPlateView()
         self._plate_view.setDragMode(WellPlateView.DragMode.NoDrag)
         self._plate_view.setSelectionMode(WellPlateView.SelectionMode.SingleSelection)
         self._plate_view.setSelectedColor(Qt.GlobalColor.yellow)
 
-        self._test_btn = QPushButton("Test Well", self)
-        self._test_btn.setEnabled(False)
-        self._test_btn.hide()
+        self._plate_test = WellPlateView()
+        self._plate_test.setDragMode(WellPlateView.DragMode.NoDrag)
+        self._plate_test.setSelectionMode(WellPlateView.SelectionMode.NoSelection)
+        self._plate_test.drawWellEdgeSpots(True)
+        self._plate_test.drawLabels(False)
+
+        self._tab_wdg.addTab(self._plate_view, "Calibrate Plate")
+        self._tab_wdg.addTab(self._plate_test, "Test Calibration")
+
+        self._test_well_btn = QPushButton("Test Well", self)
+        self._test_well_btn.setEnabled(False)
 
         # mapping of well index (r, c) to calibration widget
         # these are created on demand in _get_or_create_well_calibration_widget
@@ -74,12 +86,12 @@ class PlateCalibrationWidget(QWidget):
         right_layout = QVBoxLayout()
         right_layout.setContentsMargins(6, 0, 0, 0)
         right_layout.addWidget(self._calibration_widget_stack)
-        # right_layout.addWidget(SeparatorWidget())
-        # right_layout.addWidget(self._test_btn)
+        right_layout.addWidget(SeparatorWidget())
+        right_layout.addWidget(self._test_well_btn)
         right_layout.addStretch()
 
         top = QHBoxLayout()
-        top.addWidget(self._plate_view, 1)
+        top.addWidget(self._tab_wdg, 1)
         top.addLayout(right_layout)
 
         info_layout = QHBoxLayout()
@@ -93,6 +105,58 @@ class PlateCalibrationWidget(QWidget):
         # CONNECTIONS ---------------------------------------------------------
 
         self._plate_view.selectionChanged.connect(self._on_plate_selection_changed)
+        self._tab_wdg.currentChanged.connect(self._on_tab_changed)
+        self._plate_test.doubleClicked.connect(self._on_double_click)
+        self._test_well_btn.clicked.connect(self._on_test_well_clicked)
+
+    def _on_double_click(self, pos: useq.Position) -> None:
+        """Move the stage to the selected well position."""
+        self._mmc.waitForSystem()
+        x, y = pos.x, pos.y
+        if x is None or y is None:
+            return
+        self._mmc.setXYPosition(x, y)
+
+    def _on_test_well_clicked(self) -> None:
+        """Move the stage to the edge of the selected well."""
+        well_idx = self._plate_view.selectedIndices()[0]
+        well_wdg = self._calibration_widgets[well_idx]
+        plate = self._current_plate
+        if plate is None:
+            return
+        if well_center := well_wdg.wellCenter():
+            self._move_xy_stage_to_well_edge(well_center, plate)
+
+    def _move_xy_stage_to_well_edge(
+        self, well_center: tuple[float, float], plate: useq.WellPlate
+    ) -> None:
+        """Move the XY stage to the edge of the well at the given center."""
+        x, y = well_center
+        width = plate.well_spacing[0] * 1000  # convert to µm
+        height = plate.well_spacing[1] * 1000  # convert to µm
+        edges = [
+            (x - width / 2, y),  # left edge
+            (x + width / 2, y),  # right edge
+            (x, y - height / 2),  # top edge
+            (x, y + height / 2),  # bottom edge
+        ]
+        self._mmc.waitForSystem()
+        rnd_x, rnd_y = self._get_random_edge(edges)
+        self._mmc.setXYPosition(rnd_x, rnd_y)
+
+    def _get_random_edge(self, edges: list[tuple[float, float]]) -> tuple[float, float]:
+        """Return a random edge from the list of edges."""
+        curr_x, curr_y = self._mmc.getXYPosition()
+        while True:
+            rnd_x, rnd_y = edges[np.random.randint(0, 4)]
+            if (round(curr_x), round(curr_y)) != (round(rnd_x), round(rnd_y)):
+                return rnd_x, rnd_y
+
+    def _on_tab_changed(self, idx: int) -> None:
+        """Hide or show the well calibration widget based on the selected tab."""
+        well_idx = self._plate_view.selectedIndices()[0]
+        well_wdg = self._calibration_widgets[well_idx]
+        well_wdg.setEnabled(idx == 0)  # enable when calibrate tab is selected
 
     def setPlate(self, plate: str | useq.WellPlate | useq.WellPlatePlan) -> None:
         """Set the plate to be calibrated."""
@@ -201,11 +265,11 @@ class PlateCalibrationWidget(QWidget):
             self._calibration_widget_stack.setCurrentWidget(well_calib_wdg)
 
         # enable/disable test button
-        self._test_btn.setEnabled(idx in self._calibrated_wells)
+        self._test_well_btn.setEnabled(idx in self._calibrated_wells)
 
     def _on_well_calibration_changed(self, calibrated: bool) -> None:
         """The current well calibration state has been changed."""
-        self._test_btn.setEnabled(calibrated)
+        self._test_well_btn.setEnabled(calibrated)
         if idx := self._selected_well_index():
             # update the color of the well in the plate view accordingly
             if calibrated and (well_calib_wdg := self._current_calibration_widget()):
@@ -219,6 +283,12 @@ class PlateCalibrationWidget(QWidget):
         osr = self._origin_spacing_rotation()
         fully_calibrated = osr is not None
         self._update_info(osr)
+
+        if fully_calibrated:
+            self._plate_test.drawPlate(plan=self.platePlan())
+        else:
+            self._plate_test.clear()
+
         self.calibrationChanged.emit(fully_calibrated)
 
     def _update_info(
