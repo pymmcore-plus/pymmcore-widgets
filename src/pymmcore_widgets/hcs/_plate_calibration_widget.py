@@ -193,6 +193,28 @@ class PlateCalibrationWidget(QWidget):
             rotation=rotation,
         )
 
+    def setCalibrated(self, plan: useq.WellPlatePlan | None = None) -> None:
+        """Set the stahe of the widget to calibrated or uncalibrated based on the plan.
+
+        If the plan is None, the plate is set to uncalibrated.
+
+        Parameters
+        ----------
+        plan : useq.WellPlatePlan | None
+            The plan with calibration information.
+
+        """
+        if plan is None:
+            self._plate_test.clear()
+            self.calibrationChanged.emit(False)
+            return
+
+        self.setPlate(plan)
+        self._plate_view.clearSelection()
+        self._plate_test.drawPlate(plan)
+        # self._update_info(plan.a1_center_xy, plan.plate.well_spacing, plan.rotation)
+        self.calibrationChanged.emit(True)
+
     # -----------------------------------------------
 
     def _origin_spacing_rotation(
@@ -289,7 +311,7 @@ class PlateCalibrationWidget(QWidget):
         self._update_info(osr)
 
         if fully_calibrated:
-            self._plate_test.drawPlate(plan=self.platePlan())
+            self._plate_test.drawPlate(self.platePlan())
         else:
             self._plate_test.clear()
 
