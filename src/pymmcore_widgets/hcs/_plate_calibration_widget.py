@@ -106,10 +106,10 @@ class PlateCalibrationWidget(QWidget):
 
         self._plate_view.selectionChanged.connect(self._on_plate_selection_changed)
         self._tab_wdg.currentChanged.connect(self._on_tab_changed)
-        self._plate_test.doubleClicked.connect(self._on_double_click)
-        self._test_well_btn.clicked.connect(self._on_test_well_clicked)
+        self._plate_test.doubleClicked.connect(self._move_to_xy_stage_position)
+        self._test_well_btn.clicked.connect(self._move_to_test_xy_stage_position)
 
-    def _on_double_click(self, pos: useq.Position) -> None:
+    def _move_to_xy_stage_position(self, pos: useq.Position) -> None:
         """Move the stage to the selected well position."""
         self._mmc.waitForSystem()
         x, y = pos.x, pos.y
@@ -117,37 +117,43 @@ class PlateCalibrationWidget(QWidget):
             return
         self._mmc.setXYPosition(x, y)
 
-    def _on_test_well_clicked(self) -> None:
+    def _move_to_test_xy_stage_position(self) -> None:
         """Move the stage to the edge of the selected well."""
         if well_wdg := self._current_calibration_widget():
             plate = self._current_plate
             if plate is None:
                 return
             if well_center := well_wdg.wellCenter():
-                self._move_xy_stage_to_well_edge(well_center, plate)
+                rnd_x, rnd_y = self._get_random_edge_point(plate, well_center)
+                self._move_to_xy_stage_position(useq.Position(x=rnd_x, y=rnd_y))
 
-    def _move_xy_stage_to_well_edge(
-        self, well_center: tuple[float, float], plate: useq.WellPlate
-    ) -> None:
-        """Move the XY stage to the edge of the well at the given center."""
+    def _get_random_edge_point(
+        self, plate: useq.WellPlate, well_center: tuple[float, float]
+    ) -> tuple[float, float]:
+        """Return a random edge from the list of edges."""
         x, y = well_center
         width = plate.well_spacing[0] * 1000  # convert to µm
         height = plate.well_spacing[1] * 1000  # convert to µm
-        edges = [
-            (x - width / 2, y),  # left edge
-            (x + width / 2, y),  # right edge
-            (x, y - height / 2),  # top edge
-            (x, y + height / 2),  # bottom edge
-        ]
-        self._mmc.waitForSystem()
-        rnd_x, rnd_y = self._get_random_edge(edges)
-        self._mmc.setXYPosition(rnd_x, rnd_y)
 
-    def _get_random_edge(self, edges: list[tuple[float, float]]) -> tuple[float, float]:
-        """Return a random edge from the list of edges."""
+        self._mmc.waitForSystem()
         curr_x, curr_y = self._mmc.getXYPosition()
+
         while True:
-            rnd_x, rnd_y = edges[np.random.randint(0, 4)]
+            # if circular, get a random point along the circumference of the well
+            if plate.circular_wells:
+                angle = np.random.uniform(0, 2 * np.pi)
+                rnd_x = x + width / 2 * np.cos(angle)
+                rnd_y = y + height / 2 * np.sin(angle)
+            # otherwise get the vertices of the squared/rectangular well
+            else:
+                edges = [
+                    (x - width / 2, y - height / 2),  # top left
+                    (x + width / 2, y - height / 2),  # top right
+                    (x + width / 2, y + height / 2),  # bottom right
+                    (x - width / 2, y + height / 2),  # bottom left
+                ]
+                rnd_x, rnd_y = edges[np.random.randint(0, 4)]
+            # make sure the random point is not the current point
             if (round(curr_x), round(curr_y)) != (round(rnd_x), round(rnd_y)):
                 return rnd_x, rnd_y
 
