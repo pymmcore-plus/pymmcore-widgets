@@ -119,13 +119,12 @@ class PlateCalibrationWidget(QWidget):
 
     def _on_test_well_clicked(self) -> None:
         """Move the stage to the edge of the selected well."""
-        well_idx = self._plate_view.selectedIndices()[0]
-        well_wdg = self._calibration_widgets[well_idx]
-        plate = self._current_plate
-        if plate is None:
-            return
-        if well_center := well_wdg.wellCenter():
-            self._move_xy_stage_to_well_edge(well_center, plate)
+        if well_wdg := self._current_calibration_widget():
+            plate = self._current_plate
+            if plate is None:
+                return
+            if well_center := well_wdg.wellCenter():
+                self._move_xy_stage_to_well_edge(well_center, plate)
 
     def _move_xy_stage_to_well_edge(
         self, well_center: tuple[float, float], plate: useq.WellPlate
@@ -154,9 +153,8 @@ class PlateCalibrationWidget(QWidget):
 
     def _on_tab_changed(self, idx: int) -> None:
         """Hide or show the well calibration widget based on the selected tab."""
-        well_idx = self._plate_view.selectedIndices()[0]
-        well_wdg = self._calibration_widgets[well_idx]
-        well_wdg.setEnabled(idx == 0)  # enable when calibrate tab is selected
+        if well_wdg := self._current_calibration_widget():
+            well_wdg.setEnabled(idx == 0)  # enable when calibrate tab is selected
 
     def setPlate(self, plate: str | useq.WellPlate | useq.WellPlatePlan) -> None:
         """Set the plate to be calibrated."""
