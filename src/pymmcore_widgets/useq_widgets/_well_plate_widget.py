@@ -212,16 +212,13 @@ class HoverEllipse(QGraphicsEllipseItem, QObject):
 
     def hoverEnterEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
         """Update color and position when hovering over the well."""
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setBrush(self._selected_color)
         super().hoverEnterEvent(event)
 
-    def hoverMoveEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
-        """Update color and position when hovering over the well."""
-        self.setBrush(self._selected_color)
-        super().hoverMoveEvent(event)
-
     def hoverLeaveEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
         """Reset color and position when leaving the well."""
+        self.setCursor(Qt.CursorShape.ArrowCursor)
         self.setBrush(self._unselected_color)
         super().hoverLeaveEvent(event)
 

@@ -68,6 +68,7 @@ class PlateCalibrationWidget(QWidget):
 
         self._tab_wdg.addTab(self._plate_view, "Calibrate Plate")
         self._tab_wdg.addTab(self._plate_test, "Test Calibration")
+        self._tab_wdg.setTabEnabled(1, False)
 
         self._test_well_btn = QPushButton("Test Well", self)
         self._test_well_btn.setEnabled(False)
@@ -161,6 +162,7 @@ class PlateCalibrationWidget(QWidget):
         """Hide or show the well calibration widget based on the selected tab."""
         if well_wdg := self._current_calibration_widget():
             well_wdg.setEnabled(idx == 0)  # enable when calibrate tab is selected
+        self._test_well_btn.setEnabled(idx == 0)
 
     def setPlate(self, plate: str | useq.WellPlate | useq.WellPlatePlan) -> None:
         """Set the plate to be calibrated."""
@@ -194,7 +196,7 @@ class PlateCalibrationWidget(QWidget):
         )
 
     def setCalibrated(self, plan: useq.WellPlatePlan | None = None) -> None:
-        """Set the stahe of the widget to calibrated or uncalibrated based on the plan.
+        """Set the state of the widget to calibrated or uncalibrated based on the plan.
 
         If the plan is None, the plate is set to uncalibrated.
 
@@ -315,6 +317,7 @@ class PlateCalibrationWidget(QWidget):
         else:
             self._plate_test.clear()
 
+        self._tab_wdg.setTabEnabled(1, fully_calibrated)
         self.calibrationChanged.emit(fully_calibrated)
 
     def _update_info(
