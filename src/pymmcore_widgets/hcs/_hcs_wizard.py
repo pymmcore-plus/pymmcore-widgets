@@ -51,6 +51,8 @@ class HCSWizard(QWizard):
         self.addPage(self.calibration_page)
         self.addPage(self.points_plan_page)
 
+        # TODO: fix this self.setMinimumSize(self.points_plan_page.widget.sizeHint())
+
         # SAVE/LOAD BUTTONS ----------------------
 
         # add custom button to save
