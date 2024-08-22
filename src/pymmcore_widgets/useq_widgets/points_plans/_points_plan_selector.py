@@ -119,7 +119,7 @@ class RelativePointPlanSelector(QWidget):
             (self.random_radio_btn, self.random_points_wdg),
             (self.grid_radio_btn, self.grid_wdg),
         ):
-            wdg.setEnabled(btn.isChecked())  # type: ignore [attr-defined]
+            wdg.setEnabled(btn.isChecked())
             grpbx = QGroupBox()
             # make a click on the groupbox act as a click on the button
             grpbx.mousePressEvent = lambda _, b=btn: b.setChecked(True)
