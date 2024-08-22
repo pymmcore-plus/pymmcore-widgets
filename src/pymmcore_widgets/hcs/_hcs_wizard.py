@@ -9,7 +9,7 @@ from useq import WellPlatePlan
 
 from pymmcore_widgets.useq_widgets import PointsPlanWidget, WellPlateWidget
 
-from ._calibration_widget import PlateCalibrationWidget
+from ._plate_calibration_widget import PlateCalibrationWidget
 
 
 class HCSWizard(QWizard):
@@ -77,7 +77,7 @@ class HCSWizard(QWizard):
 
     def setValue(self, value: useq.WellPlatePlan) -> None:
         self.plate_page.widget.setValue(value)
-        # self.calibration_page.setValue(value.calibration)
+        self.calibration_page.widget.setPlate(value)
         self.points_plan_page.widget.setValue(value.well_points_plan)
 
     def save(self, path: str | None = None) -> None:
@@ -111,6 +111,9 @@ class HCSWizard(QWizard):
 
     def _on_plate_changed(self, plate_plan: useq.WellPlatePlan) -> None:
         """Synchronize the points plan with the well size/shape."""
+        # update the calibration widget with the new plate
+        self.calibration_page.widget.setPlate(plate_plan.plate)
+
         pp_widget = self.points_plan_page.widget
 
         # set the well size on the points plan widget to the current plate well size
@@ -183,7 +186,7 @@ class _PointsPlanPage(QWizardPage):
         val.fov_width, val.fov_height = self._get_fov_size()
         self.widget.setValue(val)
 
-    def _get_fov_size(self) -> tuple[float, float]:
+    def _get_fov_size(self) -> tuple[float, float] | tuple[None, None]:
         if self._mmc.getCameraDevice() and (px := self._mmc.getPixelSizeUm()):
             return self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
         return (None, None)

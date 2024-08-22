@@ -169,7 +169,6 @@ class RelativePointPlanSelector(QWidget):
         plan : useq.RelativePosition | useq.RandomPoints | useq.GridRowsColumns
             The point plan to set.
         """
-        print("setting to ", plan)
         if plan == self.value():
             return
 
