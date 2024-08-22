@@ -67,6 +67,7 @@ class HCSWizard(QWizard):
 
     def value(self) -> useq.WellPlatePlan:
         plate_plan = self.plate_page.widget.value()
+
         return useq.WellPlatePlan(
             plate=plate_plan.plate,
             selected_wells=plate_plan.selected_wells,
@@ -77,7 +78,7 @@ class HCSWizard(QWizard):
 
     def setValue(self, value: useq.WellPlatePlan) -> None:
         self.plate_page.widget.setValue(value)
-        self.calibration_page.widget.setPlate(value)
+        self.calibration_page.widget.setValue(value)
         self.points_plan_page.widget.setValue(value.well_points_plan)
 
     def save(self, path: str | None = None) -> None:
@@ -112,7 +113,7 @@ class HCSWizard(QWizard):
     def _on_plate_changed(self, plate_plan: useq.WellPlatePlan) -> None:
         """Synchronize the points plan with the well size/shape."""
         # update the calibration widget with the new plate
-        self.calibration_page.widget.setPlate(plate_plan.plate)
+        self.calibration_page.widget.setValue(plate_plan.plate)
 
         pp_widget = self.points_plan_page.widget
 

@@ -11,24 +11,24 @@ def test_plate_calibration(global_mmcore: CMMCorePlus, qtbot) -> None:
     qtbot.addWidget(wdg)
 
     with qtbot.waitSignal(wdg.calibrationChanged) as sig:
-        wdg.setPlate(
+        wdg.setValue(
             useq.WellPlatePlan(plate="24-well", a1_center_xy=(0, 0), rotation=2)
         )
     assert sig.args == [True]
-    assert wdg.platePlan().plate.rows == 4
+    assert wdg.value().plate.rows == 4
     assert wdg._tab_wdg.isTabEnabled(1)
 
     with qtbot.waitSignal(wdg.calibrationChanged) as sig:
-        wdg.setPlate("96-well")
+        wdg.setValue("96-well")
     assert sig.args == [False]
-    assert wdg.platePlan()
-    assert wdg.platePlan().plate.rows == 8
+    assert wdg.value()
+    assert wdg.value().plate.rows == 8
     assert not wdg._tab_wdg.isTabEnabled(1)
 
     with qtbot.waitSignal(wdg.calibrationChanged) as sig:
-        wdg.setPlate(useq.WellPlate.from_str("12-well"))
+        wdg.setValue(useq.WellPlate.from_str("12-well"))
     assert sig.args == [False]
-    assert wdg.platePlan().plate.rows == 3
+    assert wdg.value().plate.rows == 3
     assert not wdg._tab_wdg.isTabEnabled(1)
 
     ORIGIN = (10, 20)
@@ -57,7 +57,7 @@ def test_plate_calibration(global_mmcore: CMMCorePlus, qtbot) -> None:
         assert sig.args == [True]
         assert wdg._tab_wdg.isTabEnabled(1)
     assert wdg._origin_spacing_rotation() is not None
-    assert wdg.platePlan().a1_center_xy == (ORIGIN)
+    assert wdg.value().a1_center_xy == (ORIGIN)
 
     # clear third well, show that it becomes uncalibrated
     with qtbot.waitSignal(wdg.calibrationChanged) as sig:
@@ -71,7 +71,7 @@ def test_plate_calibration_colinear(global_mmcore: CMMCorePlus, qtbot):
     wdg = PlateCalibrationWidget(mmcore=global_mmcore)
     wdg.show()
     qtbot.addWidget(wdg)
-    wdg.setPlate("24-well")
+    wdg.setValue("24-well")
 
     spacing = 100
     for point in ((0, 0), (1, 1), (2, 2)):
@@ -98,7 +98,7 @@ def test_plate_calibration_items(global_mmcore: CMMCorePlus, qtbot) -> None:
     scene_test = wdg._plate_test._scene
 
     # set the plan so that the plate is calibrated
-    wdg.setPlate(useq.WellPlatePlan(plate="96-well", a1_center_xy=(0, 0)))
+    wdg.setValue(useq.WellPlatePlan(plate="96-well", a1_center_xy=(0, 0)))
     assert scene.items()
     # we should have 96 QGraphicsEllipseItem wells, each with a QGraphicsTextItem
     assert len(scene.items()) == 96 * 2
@@ -108,7 +108,7 @@ def test_plate_calibration_items(global_mmcore: CMMCorePlus, qtbot) -> None:
     assert len(scene_test.items()) == 96 + (96 * 5)
 
     # we should not have any items in the test scene since not yet calibrated
-    wdg.setPlate("24-well")
+    wdg.setValue("24-well")
     assert not scene_test.items()
 
 
@@ -120,7 +120,7 @@ def test_plate_calibration_well_test(global_mmcore: CMMCorePlus, qtbot) -> None:
     qtbot.addWidget(wdg)
 
     # circular plate
-    wdg.setPlate("96-well")
+    wdg.setValue("96-well")
     well_wdg = wdg._current_calibration_widget()
     well_wdg.setWellCenter((100, 100))
 
@@ -133,14 +133,14 @@ def test_plate_calibration_well_test(global_mmcore: CMMCorePlus, qtbot) -> None:
     global_mmcore.waitForSystem()
     x, y = global_mmcore.getXYPosition()
     cx, cy = well_wdg.wellCenter()
-    w, h = wdg.platePlan().plate.well_size
+    w, h = wdg.value().plate.well_size
     r = w * 1000 / 2
     distance_squared = (x - cx) ** 2 + (y - cy) ** 2
     # assert that the current position is on the circumference of the well
     assert math.isclose(distance_squared, r**2, abs_tol=100)
 
     # rectangular plate
-    wdg.setPlate("384-well")
+    wdg.setValue("384-well")
     well_wdg = wdg._current_calibration_widget()
     well_wdg.setWellCenter((100, 100))
 
@@ -150,7 +150,7 @@ def test_plate_calibration_well_test(global_mmcore: CMMCorePlus, qtbot) -> None:
     global_mmcore.waitForSystem()
     x, y = global_mmcore.getXYPosition()
     cx, cy = well_wdg.wellCenter()
-    w, h = wdg.platePlan().plate.well_size
+    w, h = wdg.value().plate.well_size
     w, h = w * 1000, h * 1000
 
     vertices = [
@@ -168,7 +168,7 @@ def test_plate_calibration_test_positions(global_mmcore: CMMCorePlus, qtbot) -> 
     wdg.show()
     qtbot.addWidget(wdg)
 
-    wdg.setPlate(useq.WellPlatePlan(plate="96-well", a1_center_xy=(0, 0)))
+    wdg.setValue(useq.WellPlatePlan(plate="96-well", a1_center_xy=(0, 0)))
 
     scene = wdg._plate_test._scene
     assert scene.items()

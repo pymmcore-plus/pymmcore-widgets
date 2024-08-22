@@ -112,7 +112,7 @@ class PlateCalibrationWidget(QWidget):
 
     # ---------------------------PUBLIC API-----------------------------------
 
-    def setPlate(self, plate: str | useq.WellPlate | useq.WellPlatePlan) -> None:
+    def setValue(self, plate: str | useq.WellPlate | useq.WellPlatePlan) -> None:
         """Set the plate to be calibrated."""
         calibrated: bool = False
         plan: useq.WellPlatePlan | None = None
@@ -145,7 +145,7 @@ class PlateCalibrationWidget(QWidget):
         self._tab_wdg.setTabEnabled(1, calibrated)
         self.calibrationChanged.emit(calibrated)
 
-    def platePlan(self) -> useq.WellPlatePlan | None:
+    def value(self) -> useq.WellPlatePlan | None:
         """Return the plate plan with calibration information."""
         a1_center_xy = (0.0, 0.0)
         rotation: float = 0.0

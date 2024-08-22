@@ -20,7 +20,7 @@ plan = useq.WellPlatePlan(
 )
 
 wdg = PlateCalibrationWidget(mmcore=mmc)
-wdg.setPlate(plan)
+wdg.setValue(plan)
 wdg.show()
 
 app.exec()
