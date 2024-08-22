@@ -10,6 +10,7 @@ def test_plate_calibration(global_mmcore: CMMCorePlus, qtbot) -> None:
     qtbot.addWidget(w)
 
     w.setPlate("96-well")
+    assert w.platePlan()
     assert w.platePlan().plate.rows == 8
     w.setPlate(useq.WellPlate.from_str("12-well"))
     assert w.platePlan().plate.rows == 3

@@ -107,62 +107,10 @@ class PlateCalibrationWidget(QWidget):
 
         self._plate_view.selectionChanged.connect(self._on_plate_selection_changed)
         self._tab_wdg.currentChanged.connect(self._on_tab_changed)
-        self._plate_test.doubleClicked.connect(self._move_to_xy_stage_position)
-        self._test_well_btn.clicked.connect(self._move_to_test_xy_stage_position)
+        self._plate_test.doubleClicked.connect(self._move_to_xy_position)
+        self._test_well_btn.clicked.connect(self._move_to_test_position)
 
-    def _move_to_xy_stage_position(self, pos: useq.Position) -> None:
-        """Move the stage to the selected well position."""
-        self._mmc.waitForSystem()
-        x, y = pos.x, pos.y
-        if x is None or y is None:
-            return
-        self._mmc.setXYPosition(x, y)
-
-    def _move_to_test_xy_stage_position(self) -> None:
-        """Move the stage to the edge of the selected well."""
-        if well_wdg := self._current_calibration_widget():
-            plate = self._current_plate
-            if plate is None:
-                return
-            if well_center := well_wdg.wellCenter():
-                rnd_x, rnd_y = self._get_random_edge_point(plate, well_center)
-                self._move_to_xy_stage_position(useq.Position(x=rnd_x, y=rnd_y))
-
-    def _get_random_edge_point(
-        self, plate: useq.WellPlate, well_center: tuple[float, float]
-    ) -> tuple[float, float]:
-        """Return a random edge from the list of edges."""
-        x, y = well_center
-        width = plate.well_spacing[0] * 1000  # convert to µm
-        height = plate.well_spacing[1] * 1000  # convert to µm
-
-        self._mmc.waitForSystem()
-        curr_x, curr_y = self._mmc.getXYPosition()
-
-        while True:
-            # if circular, get a random point along the circumference of the well
-            if plate.circular_wells:
-                angle = np.random.uniform(0, 2 * np.pi)
-                rnd_x = x + width / 2 * np.cos(angle)
-                rnd_y = y + height / 2 * np.sin(angle)
-            # otherwise get the vertices of the squared/rectangular well
-            else:
-                edges = [
-                    (x - width / 2, y - height / 2),  # top left
-                    (x + width / 2, y - height / 2),  # top right
-                    (x + width / 2, y + height / 2),  # bottom right
-                    (x - width / 2, y + height / 2),  # bottom left
-                ]
-                rnd_x, rnd_y = edges[np.random.randint(0, 4)]
-            # make sure the random point is not the current point
-            if (round(curr_x), round(curr_y)) != (round(rnd_x), round(rnd_y)):
-                return rnd_x, rnd_y
-
-    def _on_tab_changed(self, idx: int) -> None:
-        """Hide or show the well calibration widget based on the selected tab."""
-        if well_wdg := self._current_calibration_widget():
-            well_wdg.setEnabled(idx == 0)  # enable when calibrate tab is selected
-        self._test_well_btn.setEnabled(idx == 0)
+    # ---------------------------PUBLIC API-----------------------------------
 
     def setPlate(self, plate: str | useq.WellPlate | useq.WellPlatePlan) -> None:
         """Set the plate to be calibrated."""
@@ -197,19 +145,79 @@ class PlateCalibrationWidget(QWidget):
         self._tab_wdg.setTabEnabled(1, calibrated)
         self.calibrationChanged.emit(calibrated)
 
-    def platePlan(self) -> useq.WellPlatePlan:
+    def platePlan(self) -> useq.WellPlatePlan | None:
         """Return the plate plan with calibration information."""
         a1_center_xy = (0.0, 0.0)
         rotation: float = 0.0
         if (osr := self._origin_spacing_rotation()) is not None:
             a1_center_xy, (unit_x, unit_y), rotation = osr
+        if self._current_plate is None:
+            return None
         return useq.WellPlatePlan(
             plate=self._current_plate,
             a1_center_xy=a1_center_xy,
             rotation=rotation,
         )
 
-    # -----------------------------------------------
+    # ---------------------------PRIVATE API----------------------------------
+
+    def _move_to_xy_position(self, pos: useq.Position) -> None:
+        """Move the stage to the selected well position."""
+        self._mmc.waitForSystem()
+        x, y = pos.x, pos.y
+        if x is None or y is None:
+            return
+        self._mmc.setXYPosition(x, y)
+
+    def _move_to_test_position(self) -> None:
+        """Move the stage to the edge of the selected well."""
+        if well_wdg := self._current_calibration_widget():
+            plate = self._current_plate
+            if plate is None:
+                return
+            if well_center := well_wdg.wellCenter():
+                rnd_x, rnd_y = self._get_random_edge_point(plate, well_center)
+                self._move_to_xy_position(useq.Position(x=rnd_x, y=rnd_y))
+
+    def _get_random_edge_point(
+        self, plate: useq.WellPlate, well_center: tuple[float, float]
+    ) -> tuple[float, float]:
+        """Return a random point along the edge of the well.
+
+        It returns a random point along the circumference of the well if the well is
+        circular, otherwise it returns a random point along the edge of the well.
+        """
+        x, y = well_center
+        width = plate.well_spacing[0] * 1000  # convert to µm
+        height = plate.well_spacing[1] * 1000  # convert to µm
+
+        self._mmc.waitForSystem()
+        curr_x, curr_y = self._mmc.getXYPosition()
+
+        while True:
+            # if circular, get a random point along the circumference of the well
+            if plate.circular_wells:
+                angle = np.random.uniform(0, 2 * np.pi)
+                rnd_x = x + width / 2 * np.cos(angle)
+                rnd_y = y + height / 2 * np.sin(angle)
+            # otherwise get the vertices of the squared/rectangular well
+            else:
+                edges = [
+                    (x - width / 2, y - height / 2),  # top left
+                    (x + width / 2, y - height / 2),  # top right
+                    (x + width / 2, y + height / 2),  # bottom right
+                    (x - width / 2, y + height / 2),  # bottom left
+                ]
+                rnd_x, rnd_y = edges[np.random.randint(0, 4)]
+            # make sure the random point is not the current point
+            if (round(curr_x), round(curr_y)) != (round(rnd_x), round(rnd_y)):
+                return rnd_x, rnd_y
+
+    def _on_tab_changed(self, idx: int) -> None:
+        """Hide or show the well calibration widget based on the selected tab."""
+        if well_wdg := self._current_calibration_widget():
+            well_wdg.setEnabled(idx == 0)  # enable when calibrate tab is selected
+        self._test_well_btn.setEnabled(idx == 0)
 
     def _origin_spacing_rotation(
         self,
@@ -304,8 +312,8 @@ class PlateCalibrationWidget(QWidget):
         fully_calibrated = osr is not None
         self._update_info(osr)
 
-        if fully_calibrated:
-            self._plate_test.drawPlate(self.platePlan())
+        if fully_calibrated and self._current_plate:
+            self._plate_test.drawPlate(self._current_plate)
         else:
             self._plate_test.clear()
 
