@@ -151,7 +151,7 @@ class PlateCalibrationWidget(QWidget):
         rotation: float = 0.0
         if (osr := self._origin_spacing_rotation()) is not None:
             a1_center_xy, (unit_x, unit_y), rotation = osr
-        if self._current_plate is None:
+        if self._current_plate is None:  # pragma: no cover
             return None
         return useq.WellPlatePlan(
             plate=self._current_plate,
@@ -165,7 +165,7 @@ class PlateCalibrationWidget(QWidget):
         """Move the stage to the selected well position."""
         self._mmc.waitForSystem()
         x, y = pos.x, pos.y
-        if x is None or y is None:
+        if x is None or y is None:  # pragma: no cover
             return
         self._mmc.setXYPosition(x, y)
 
@@ -173,7 +173,7 @@ class PlateCalibrationWidget(QWidget):
         """Move the stage to the edge of the selected well."""
         if well_wdg := self._current_calibration_widget():
             plate = self._current_plate
-            if plate is None:
+            if plate is None:  # pragma: no cover
                 return
             if well_center := well_wdg.wellCenter():
                 rnd_x, rnd_y = self._get_random_edge_point(plate, well_center)

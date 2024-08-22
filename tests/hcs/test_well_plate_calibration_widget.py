@@ -11,7 +11,9 @@ def test_plate_calibration(global_mmcore: CMMCorePlus, qtbot) -> None:
     qtbot.addWidget(wdg)
 
     with qtbot.waitSignal(wdg.calibrationChanged) as sig:
-        wdg.setPlate(useq.WellPlatePlan(plate="24-well", a1_center_xy=(0, 0)))
+        wdg.setPlate(
+            useq.WellPlatePlan(plate="24-well", a1_center_xy=(0, 0), rotation=2)
+        )
     assert sig.args == [True]
     assert wdg.platePlan().plate.rows == 4
     assert wdg._tab_wdg.isTabEnabled(1)
