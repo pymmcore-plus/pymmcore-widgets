@@ -5,6 +5,7 @@ from pathlib import Path
 
 import useq
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QFileDialog, QVBoxLayout, QWidget, QWizard, QWizardPage
 from useq import WellPlatePlan
 
@@ -26,6 +27,8 @@ class HCSWizard(QWizard):
     mmcore : CMMCorePlus | None
         The CMMCorePlus instance. By default, None.
     """
+
+    valueChanged = Signal(object)
 
     def __init__(
         self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
@@ -71,6 +74,13 @@ class HCSWizard(QWizard):
             self._on_calibration_changed
         )
 
+    def accept(self) -> None:
+        """Emit the valueChanged signal when the wizard is accepted."""
+        self.valueChanged.emit(self.value())
+        from rich import print
+
+        print(self.value())
+
     def value(self) -> useq.WellPlatePlan | None:
         plate_plan = self.plate_page.widget.value()
         calib_plan = self.calibration_page.widget.value()
@@ -79,7 +89,7 @@ class HCSWizard(QWizard):
             return None
 
         if plate_plan.plate != calib_plan.plate:
-            warnings.warn("Plate and Calibration Plan do not match.", stacklevel=2)
+            warnings.warn("Plate Plan and Calibration Plan do not match.", stacklevel=2)
             return None
 
         return useq.WellPlatePlan(
@@ -128,8 +138,10 @@ class HCSWizard(QWizard):
 
     def _on_plate_changed(self, plate_plan: useq.WellPlatePlan) -> None:
         """Synchronize the points plan with the well size/shape."""
-        # update the calibration widget with the new plate
-        self.calibration_page.widget.setValue(plate_plan.plate)
+        # update the calibration widget with the new plate if it's different
+        current_calib_plan = self.calibration_page.widget.value()
+        if not current_calib_plan or current_calib_plan.plate != plate_plan.plate:
+            self.calibration_page.widget.setValue(plate_plan.plate)
 
         pp_widget = self.points_plan_page.widget
 
