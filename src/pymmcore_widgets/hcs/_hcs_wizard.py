@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 import useq
@@ -41,6 +42,8 @@ class HCSWizard(QWizard):
         self.calibration_page = _PlateCalibrationPage(self._mmc, self)
         self.points_plan_page = _PointsPlanPage(self._mmc, self)
 
+        self._calibrated: bool = False
+
         self.addPage(self.plate_page)
         self.addPage(self.calibration_page)
         self.addPage(self.points_plan_page)
@@ -64,15 +67,26 @@ class HCSWizard(QWizard):
 
         self.plate_page.widget.valueChanged.connect(self._on_plate_changed)
         self._on_plate_changed(self.plate_page.widget.value())
+        self.calibration_page.widget.calibrationChanged.connect(
+            self._on_calibration_changed
+        )
 
-    def value(self) -> useq.WellPlatePlan:
+    def value(self) -> useq.WellPlatePlan | None:
         plate_plan = self.plate_page.widget.value()
+        calib_plan = self.calibration_page.widget.value()
+
+        if not self._calibrated or not calib_plan:
+            return None
+
+        if plate_plan.plate != calib_plan.plate:
+            warnings.warn("Plate and Calibration Plan do not match.", stacklevel=2)
+            return None
 
         return useq.WellPlatePlan(
             plate=plate_plan.plate,
             selected_wells=plate_plan.selected_wells,
-            rotation=0,
-            a1_center_xy=(0, 0),
+            rotation=calib_plan.rotation,
+            a1_center_xy=calib_plan.a1_center_xy,
             well_points_plan=self.points_plan_page.widget.value(),
         )
 
@@ -92,6 +106,8 @@ class HCSWizard(QWizard):
             )
         if path:
             value = self.value()
+            if value is None:
+                return
             if str(path).endswith((".yaml", ".yml")):
                 txt = value.yaml(exclude_unset=True)
             else:
@@ -138,6 +154,9 @@ class HCSWizard(QWizard):
         random_wdg.max_width.setValue(well_width * 1000 - fovw / 1.4)
         random_wdg.max_height.setMaximum(well_height * 1000)
         random_wdg.max_height.setValue(well_height * 1000 - fovh / 1.4)
+
+    def _on_calibration_changed(self, calibrated: bool) -> None:
+        self._calibrated = calibrated
 
 
 # ---------------------------------- PAGES ---------------------------------------
