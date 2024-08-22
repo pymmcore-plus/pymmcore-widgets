@@ -188,8 +188,8 @@ class PlateCalibrationWidget(QWidget):
         circular, otherwise it returns a random point along the edge of the well.
         """
         x, y = well_center
-        width = plate.well_spacing[0] * 1000  # convert to µm
-        height = plate.well_spacing[1] * 1000  # convert to µm
+        width = plate.well_size[0] * 1000  # convert to µm
+        height = plate.well_size[1] * 1000  # convert to µm
 
         self._mmc.waitForSystem()
         curr_x, curr_y = self._mmc.getXYPosition()
