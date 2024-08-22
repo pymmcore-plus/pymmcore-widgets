@@ -507,7 +507,6 @@ class WellPlateView(ResizingGraphicsView):
 
         for x, y in positions:
             edge_rect = QRectF(x - width / 2, y - width / 2, width, width)
-            self._scene.addEllipse(edge_rect)
             new_pos = useq.Position(x=x, y=y, name=pos.name)
             item = HoverEllipse(edge_rect)
             item.setData(DATA_POSITION, new_pos)
