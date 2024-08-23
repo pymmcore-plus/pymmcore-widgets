@@ -66,8 +66,8 @@ class PlateCalibrationWidget(QWidget):
         lbl.setStyleSheet("color: #CCC; font-size: 10px; background: transparent;")
         self._plate_test.setDragMode(WellPlateView.DragMode.NoDrag)
         self._plate_test.setSelectionMode(WellPlateView.SelectionMode.NoSelection)
-        self._plate_test.drawWellEdgeSpots(True)
-        self._plate_test.drawLabels(False)
+        self._plate_test.setDrawWellEdgeSpots(True)
+        self._plate_test.setDrawLabels(False)
 
         self._tab_wdg.addTab(self._plate_view, "Calibrate Plate")
         self._tab_wdg.addTab(self._plate_test, "Test Calibration")

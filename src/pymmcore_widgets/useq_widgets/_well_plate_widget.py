@@ -267,11 +267,11 @@ class WellPlateView(ResizingGraphicsView):
     def selectionMode(self) -> QAbstractItemView.SelectionMode:
         return self._selection_mode
 
-    def drawLabels(self, draw: bool) -> None:
+    def setDrawLabels(self, draw: bool) -> None:
         """Set whether to draw the well labels."""
         self._draw_labels = draw
 
-    def drawWellEdgeSpots(self, draw: bool) -> None:
+    def setDrawWellEdgeSpots(self, draw: bool) -> None:
         """Set whether to draw the well edge spots."""
         self._draw_well_edge_spots = draw
 
@@ -303,12 +303,7 @@ class WellPlateView(ResizingGraphicsView):
         self._deselect_items(deselect)
 
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
-        # enable only if we are NOT drawing well edge spots since they have their own
-        if (
-            event
-            and event.button() == Qt.MouseButton.LeftButton
-            and not self._draw_well_edge_spots
-        ):
+        if event and event.button() == Qt.MouseButton.LeftButton:
             # store the state of selected items at the time of the mouse press
             self._selection_on_press = self._selected_items.copy()
 
@@ -324,12 +319,7 @@ class WellPlateView(ResizingGraphicsView):
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent | None) -> None:
-        # enable only if we are NOT drawing well edge spots since they have their own
-        if (
-            event
-            and event.button() == Qt.MouseButton.LeftButton
-            and not self._draw_well_edge_spots
-        ):
+        if event and event.button() == Qt.MouseButton.LeftButton:
             # if we are on the same item that we pressed,
             # toggle selection of that item
             for item in self.items(event.pos()):
@@ -350,6 +340,7 @@ class WellPlateView(ResizingGraphicsView):
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent | None) -> None:
+        """Emit stage position when a position-storing item is double-clicked."""
         if event is not None:
             if pos := next(
                 (item.data(DATA_POSITION) for item in self.items(event.pos())), None
