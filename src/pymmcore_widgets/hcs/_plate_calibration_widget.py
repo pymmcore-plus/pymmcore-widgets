@@ -61,6 +61,9 @@ class PlateCalibrationWidget(QWidget):
         self._plate_view.setSelectedColor(Qt.GlobalColor.yellow)
 
         self._plate_test = WellPlateView()
+        lbl = QLabel("double-click on point to move stage", self._plate_test)
+        lbl.setGeometry(4, 0, 200, 20)
+        lbl.setStyleSheet("color: #CCC; font-size: 10px; background: transparent;")
         self._plate_test.setDragMode(WellPlateView.DragMode.NoDrag)
         self._plate_test.setSelectionMode(WellPlateView.SelectionMode.NoSelection)
         self._plate_test.drawWellEdgeSpots(True)
