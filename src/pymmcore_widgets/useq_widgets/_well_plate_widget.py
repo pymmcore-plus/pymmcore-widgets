@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable, Mapping
 
+import numpy as np
 import useq
 from qtpy.QtCore import QRect, QRectF, QSize, Qt, Signal
 from qtpy.QtGui import QColor, QFont, QMouseEvent, QPainter, QPen
@@ -10,8 +11,10 @@ from qtpy.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QComboBox,
+    QGraphicsEllipseItem,
     QGraphicsItem,
     QGraphicsScene,
+    QGraphicsSceneHoverEvent,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -189,10 +192,32 @@ class WellPlateWidget(QWidget):
         self._view.drawPlate(val)
 
 
+class HoverEllipse(QGraphicsEllipseItem):
+    def __init__(self, rect: QRectF, parent: QGraphicsItem | None = None):
+        super().__init__(rect, parent)
+        self.setAcceptHoverEvents(True)
+        self._selected_color = Qt.GlobalColor.green
+        self._unselected_color = Qt.GlobalColor.black
+        self.setBrush(self._unselected_color)
+
+    def hoverEnterEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
+        """Update color and position when hovering over the well."""
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setBrush(self._selected_color)
+        super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
+        """Reset color and position when leaving the well."""
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.setBrush(self._unselected_color)
+        super().hoverLeaveEvent(event)
+
+
 class WellPlateView(ResizingGraphicsView):
     """QGraphicsView for displaying a well plate."""
 
     selectionChanged = Signal()
+    positionDoubleClicked = Signal(useq.Position)
     SelectionMode = QAbstractItemView.SelectionMode
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -201,6 +226,8 @@ class WellPlateView(ResizingGraphicsView):
         self._selection_mode = QAbstractItemView.SelectionMode.MultiSelection
         self._selected_color = Qt.GlobalColor.green
         self._unselected_color = Qt.GlobalColor.transparent
+        self._draw_labels: bool = True
+        self._draw_well_edge_spots: bool = False
 
         self.setStyleSheet("background:grey; border-radius: 5px;")
         self.setRenderHints(
@@ -214,6 +241,7 @@ class WellPlateView(ResizingGraphicsView):
         self._well_items: dict[tuple[int, int], QAbstractGraphicsShapeItem] = {}
         # all the graphics items that label wells
         self._well_labels: list[QGraphicsItem] = []
+        self._well_edge_spots: list[QGraphicsItem] = []
 
         # we manually manage the selection state of items
         self._selected_items: set[QAbstractGraphicsShapeItem] = set()
@@ -238,6 +266,14 @@ class WellPlateView(ResizingGraphicsView):
 
     def selectionMode(self) -> QAbstractItemView.SelectionMode:
         return self._selection_mode
+
+    def setDrawLabels(self, draw: bool) -> None:
+        """Set whether to draw the well labels."""
+        self._draw_labels = draw
+
+    def setDrawWellEdgeSpots(self, draw: bool) -> None:
+        """Set whether to draw the well edge spots."""
+        self._draw_well_edge_spots = draw
 
     def _on_rubber_band_changed(self, rect: QRect) -> None:
         """When the rubber band changes, select the items within the rectangle."""
@@ -303,6 +339,15 @@ class WellPlateView(ResizingGraphicsView):
         self._selection_on_press.clear()
         super().mouseReleaseEvent(event)
 
+    def mouseDoubleClickEvent(self, event: QMouseEvent | None) -> None:
+        """Emit stage position when a position-storing item is double-clicked."""
+        if event is not None:
+            if pos := next(
+                (item.data(DATA_POSITION) for item in self.items(event.pos())), None
+            ):
+                self.positionDoubleClicked.emit(pos)
+        super().mouseDoubleClickEvent(event)
+
     def selectedIndices(self) -> tuple[tuple[int, int], ...]:
         """Return the indices of the selected wells."""
         return tuple(sorted(item.data(DATA_INDEX) for item in self._selected_items))
@@ -338,6 +383,8 @@ class WellPlateView(ResizingGraphicsView):
             self._scene.removeItem(self._well_items.popitem()[1])
         while self._well_labels:
             self._scene.removeItem(self._well_labels.pop())
+        while self._well_edge_spots:
+            self._scene.removeItem(self._well_edge_spots.pop())
         self.clearSelection()
 
     def drawPlate(self, plan: useq.WellPlate | useq.WellPlatePlan) -> None:
@@ -387,19 +434,67 @@ class WellPlateView(ResizingGraphicsView):
             # item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
 
             # add text
-            if text_item := self._scene.addText(pos.name):
-                text_item.setFont(font)
-                br = text_item.boundingRect()
-                text_item.setPos(
-                    screen_x - br.width() // 2,
-                    screen_y - br.height() // 2,
-                )
-                self._well_labels.append(text_item)
+            if self._draw_labels:
+                if text_item := self._scene.addText(pos.name):
+                    text_item.setFont(font)
+                    br = text_item.boundingRect()
+                    text_item.setPos(
+                        screen_x - br.width() // 2, screen_y - br.height() // 2
+                    )
+                    self._well_labels.append(text_item)
+
+            if self._draw_well_edge_spots:
+                self._add_preset_positions_items(rect, pos, plan)
 
         if plan.selected_wells:
             self.setSelectedIndices(plan.selected_well_indices)
 
         self._resize_to_fit()
+
+    def _add_preset_positions_items(
+        self,
+        rect: QRectF,
+        pos: useq.Position,
+        plan: useq.WellPlatePlan,
+    ) -> None:
+        plate = plan.plate
+        well_width = plate.well_size[0] * 1000
+        well_height = plate.well_size[1] * 1000
+
+        # calculate radius for the _PresetPositionItem based on well spacing and size
+        half_sx = plate.well_spacing[0] * 1000 / 2
+        half_sy = plate.well_spacing[1] * 1000 / 2
+        width, height = half_sx - well_width / 2, half_sy - well_height / 2
+        width = min(width, height)
+
+        # central point
+        cx, cy = rect.center().x(), rect.center().y()
+        positions = [
+            [cx, cy],
+            [cx - well_width / 2, cy],  # center  # left
+            [cx + well_width / 2, cy],  # right
+            [cx, cy - well_height / 2],  # top
+            [cx, cy + well_height / 2],  # bottom
+        ]
+
+        if plan.rotation:
+            rad = -np.deg2rad(plan.rotation)
+            cos_rad = np.cos(rad)
+            sin_rad = np.sin(rad)
+            for p in positions:
+                dx, dy = p[0] - cx, p[1] - cy
+                rotated_x = cx + dx * cos_rad - dy * sin_rad
+                rotated_y = cy + dx * sin_rad + dy * cos_rad
+                p[0], p[1] = rotated_x, rotated_y
+
+        for x, y in positions:
+            edge_rect = QRectF(x - width / 2, y - width / 2, width, width)
+            new_pos = useq.Position(x=x, y=y, name=pos.name)
+            item = HoverEllipse(edge_rect)
+            item.setData(DATA_POSITION, new_pos)
+            item.setZValue(1)  # make sure it's on top
+            self._scene.addItem(item)
+            self._well_edge_spots.append(item)
 
     def _resize_to_fit(self) -> None:
         self.setSceneRect(self._scene.itemsBoundingRect())

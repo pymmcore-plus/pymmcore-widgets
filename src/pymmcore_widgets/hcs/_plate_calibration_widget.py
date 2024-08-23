@@ -13,11 +13,13 @@ from qtpy.QtWidgets import (
     QPushButton,
     QStackedWidget,
     QStyle,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 from superqt.fonticon import icon
 
+from pymmcore_widgets._util import SeparatorWidget
 from pymmcore_widgets.hcs._well_calibration_widget import (
     CALIBRATED_ICON,
     GREEN,
@@ -51,14 +53,28 @@ class PlateCalibrationWidget(QWidget):
 
         # WIDGETS ------------------------------------------------------------
 
+        self._tab_wdg = QTabWidget()
+
         self._plate_view = WellPlateView()
         self._plate_view.setDragMode(WellPlateView.DragMode.NoDrag)
         self._plate_view.setSelectionMode(WellPlateView.SelectionMode.SingleSelection)
         self._plate_view.setSelectedColor(Qt.GlobalColor.yellow)
 
-        self._test_btn = QPushButton("Test Well", self)
-        self._test_btn.setEnabled(False)
-        self._test_btn.hide()
+        self._plate_test = WellPlateView()
+        lbl = QLabel("double-click on point to move stage", self._plate_test)
+        lbl.setGeometry(4, 0, 200, 20)
+        lbl.setStyleSheet("color: #CCC; font-size: 10px; background: transparent;")
+        self._plate_test.setDragMode(WellPlateView.DragMode.NoDrag)
+        self._plate_test.setSelectionMode(WellPlateView.SelectionMode.NoSelection)
+        self._plate_test.setDrawWellEdgeSpots(True)
+        self._plate_test.setDrawLabels(False)
+
+        self._tab_wdg.addTab(self._plate_view, "Calibrate Plate")
+        self._tab_wdg.addTab(self._plate_test, "Test Calibration")
+        self._tab_wdg.setTabEnabled(1, False)
+
+        self._test_well_btn = QPushButton("Test Well", self)
+        self._test_well_btn.setEnabled(False)
 
         # mapping of well index (r, c) to calibration widget
         # these are created on demand in _get_or_create_well_calibration_widget
@@ -74,12 +90,12 @@ class PlateCalibrationWidget(QWidget):
         right_layout = QVBoxLayout()
         right_layout.setContentsMargins(6, 0, 0, 0)
         right_layout.addWidget(self._calibration_widget_stack)
-        # right_layout.addWidget(SeparatorWidget())
-        # right_layout.addWidget(self._test_btn)
+        right_layout.addWidget(SeparatorWidget())
+        right_layout.addWidget(self._test_well_btn)
         right_layout.addStretch()
 
         top = QHBoxLayout()
-        top.addWidget(self._plate_view, 1)
+        top.addWidget(self._tab_wdg, 1)
         top.addLayout(right_layout)
 
         info_layout = QHBoxLayout()
@@ -93,13 +109,32 @@ class PlateCalibrationWidget(QWidget):
         # CONNECTIONS ---------------------------------------------------------
 
         self._plate_view.selectionChanged.connect(self._on_plate_selection_changed)
+        self._tab_wdg.currentChanged.connect(self._on_tab_changed)
+        self._plate_test.positionDoubleClicked.connect(self._move_to_xy_position)
+        self._test_well_btn.clicked.connect(self._move_to_test_position)
 
-    def setPlate(self, plate: str | useq.WellPlate | useq.WellPlatePlan) -> None:
-        """Set the plate to be calibrated."""
+    # ---------------------------PUBLIC API-----------------------------------
+
+    def setValue(self, plate: str | useq.WellPlate | useq.WellPlatePlan) -> None:
+        """Set the plate to be calibrated.
+
+        Parameters
+        ----------
+        plate : str | useq.WellPlate | useq.WellPlatePlan
+            The well plate to calibrate. If a string, it is assumed to be the name of a
+            well plate (e.g. "96-well"). If a WellPlate instance, it is used directly.
+            If a WellPlatePlan instance, the plate is set to the plan's plate and the
+            widget state is set to calibrated.
+        """
+        calibrated: bool = False
+        plan: useq.WellPlatePlan | None = None
+
         if isinstance(plate, str):
             plate = useq.WellPlate.from_str(plate)
         elif isinstance(plate, useq.WellPlatePlan):
+            plan = plate
             plate = plate.plate
+            calibrated = True
 
         self._current_plate = plate
         self._plate_view.drawPlate(plate)
@@ -110,22 +145,91 @@ class PlateCalibrationWidget(QWidget):
             self._calibration_widget_stack.removeWidget(wdg)
             wdg.deleteLater()
 
-        # Select A1 well
-        self._plate_view.setSelectedIndices([(0, 0)])
+        self._plate_view.setSelectedIndices([(0, 0)])  # select A1
 
-    def platePlan(self) -> useq.WellPlatePlan:
+        if calibrated and plan is not None:
+            self._plate_test.drawPlate(plan)
+            self._update_info((plan.a1_center_xy, plate.well_spacing, plan.rotation))
+        else:
+            self._plate_test.clear()
+            self._update_info(None)
+
+        self._tab_wdg.setTabEnabled(1, calibrated)
+        self.calibrationChanged.emit(calibrated)
+
+    def value(self) -> useq.WellPlatePlan | None:
         """Return the plate plan with calibration information."""
         a1_center_xy = (0.0, 0.0)
         rotation: float = 0.0
         if (osr := self._origin_spacing_rotation()) is not None:
             a1_center_xy, (unit_x, unit_y), rotation = osr
+        if self._current_plate is None:  # pragma: no cover
+            return None
         return useq.WellPlatePlan(
             plate=self._current_plate,
             a1_center_xy=a1_center_xy,
             rotation=rotation,
         )
 
-    # -----------------------------------------------
+    # ---------------------------PRIVATE API----------------------------------
+
+    def _move_to_xy_position(self, pos: useq.Position) -> None:
+        """Move the stage to the selected well position."""
+        self._mmc.waitForSystem()
+        x, y = pos.x, pos.y
+        if x is None or y is None:  # pragma: no cover
+            return
+        self._mmc.setXYPosition(x, y)
+
+    def _move_to_test_position(self) -> None:
+        """Move the stage to the edge of the selected well."""
+        if well_wdg := self._current_calibration_widget():
+            plate = self._current_plate
+            if plate is None:  # pragma: no cover
+                return
+            if well_center := well_wdg.wellCenter():
+                rnd_x, rnd_y = self._get_random_edge_point(plate, well_center)
+                self._move_to_xy_position(useq.Position(x=rnd_x, y=rnd_y))
+
+    def _get_random_edge_point(
+        self, plate: useq.WellPlate, well_center: tuple[float, float]
+    ) -> tuple[float, float]:
+        """Return a random point along the edge of the well.
+
+        It returns a random point along the circumference of the well if the well is
+        circular, otherwise it returns a random point along the edge of the well.
+        """
+        x, y = well_center
+        width = plate.well_size[0] * 1000  # convert to µm
+        height = plate.well_size[1] * 1000  # convert to µm
+
+        self._mmc.waitForSystem()
+        curr_x, curr_y = self._mmc.getXYPosition()
+
+        while True:
+            # if circular, get a random point along the circumference of the well
+            if plate.circular_wells:
+                angle = np.random.uniform(0, 2 * np.pi)
+                rnd_x = x + width / 2 * np.cos(angle)
+                rnd_y = y + height / 2 * np.sin(angle)
+            # otherwise get the vertices of the squared/rectangular well
+            else:
+                edges = [
+                    (x - width / 2, y - height / 2),  # top left
+                    (x + width / 2, y - height / 2),  # top right
+                    (x + width / 2, y + height / 2),  # bottom right
+                    (x - width / 2, y + height / 2),  # bottom left
+                ]
+                rnd_x, rnd_y = edges[np.random.randint(0, 4)]
+            # make sure the random point is not the current point
+            if (round(curr_x), round(curr_y)) != (round(rnd_x), round(rnd_y)):
+                return rnd_x, rnd_y
+
+    def _on_tab_changed(self, idx: int) -> None:
+        """Hide or show the well calibration widget based on the selected tab."""
+        if well_wdg := self._current_calibration_widget():
+            well_wdg.setEnabled(idx == 0)  # enable when calibrate tab is selected
+        self._test_well_btn.setEnabled(idx == 0)
 
     def _origin_spacing_rotation(
         self,
@@ -201,11 +305,11 @@ class PlateCalibrationWidget(QWidget):
             self._calibration_widget_stack.setCurrentWidget(well_calib_wdg)
 
         # enable/disable test button
-        self._test_btn.setEnabled(idx in self._calibrated_wells)
+        self._test_well_btn.setEnabled(idx in self._calibrated_wells)
 
     def _on_well_calibration_changed(self, calibrated: bool) -> None:
         """The current well calibration state has been changed."""
-        self._test_btn.setEnabled(calibrated)
+        self._test_well_btn.setEnabled(calibrated)
         if idx := self._selected_well_index():
             # update the color of the well in the plate view accordingly
             if calibrated and (well_calib_wdg := self._current_calibration_widget()):
@@ -219,10 +323,17 @@ class PlateCalibrationWidget(QWidget):
         osr = self._origin_spacing_rotation()
         fully_calibrated = osr is not None
         self._update_info(osr)
+
+        if fully_calibrated and self._current_plate:
+            self._plate_test.drawPlate(self._current_plate)
+        else:
+            self._plate_test.clear()
+
+        self._tab_wdg.setTabEnabled(1, fully_calibrated)
         self.calibrationChanged.emit(fully_calibrated)
 
     def _update_info(
-        self, osr: tuple[tuple[float, float], tuple[float, float], float] | None
+        self, osr: tuple[tuple[float, float], tuple[float, float], float | None] | None
     ) -> None:
         style = self.style()
         if osr is not None:
@@ -242,7 +353,7 @@ class PlateCalibrationWidget(QWidget):
             txt += "<br>"
             txt += f"\nA1 Center [mm]: ({origin[0]/1000:.2f}, {origin[1]/1000:.2f}),   "
             txt += f"Well Spacing [mm]: ({spacing[0]:.2f}, {spacing[1]:.2f}),   "
-            txt += f"Rotation: {rotation}°"
+            txt += f"Rotation: {rotation if rotation is not None else 0}°"
         elif len(self._calibrated_wells) < self._min_wells_required:
             txt = f"Please calibrate at least {self._min_wells_required} wells."
             ico = style.standardIcon(QStyle.StandardPixmap.SP_MessageBoxInformation)
