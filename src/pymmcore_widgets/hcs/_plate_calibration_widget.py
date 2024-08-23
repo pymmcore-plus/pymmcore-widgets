@@ -61,10 +61,13 @@ class PlateCalibrationWidget(QWidget):
         self._plate_view.setSelectedColor(Qt.GlobalColor.yellow)
 
         self._plate_test = WellPlateView()
+        lbl = QLabel("double-click on point to move stage", self._plate_test)
+        lbl.setGeometry(4, 0, 200, 20)
+        lbl.setStyleSheet("color: #CCC; font-size: 10px; background: transparent;")
         self._plate_test.setDragMode(WellPlateView.DragMode.NoDrag)
         self._plate_test.setSelectionMode(WellPlateView.SelectionMode.NoSelection)
-        self._plate_test.drawWellEdgeSpots(True)
-        self._plate_test.drawLabels(False)
+        self._plate_test.setDrawWellEdgeSpots(True)
+        self._plate_test.setDrawLabels(False)
 
         self._tab_wdg.addTab(self._plate_view, "Calibrate Plate")
         self._tab_wdg.addTab(self._plate_test, "Test Calibration")
@@ -107,13 +110,22 @@ class PlateCalibrationWidget(QWidget):
 
         self._plate_view.selectionChanged.connect(self._on_plate_selection_changed)
         self._tab_wdg.currentChanged.connect(self._on_tab_changed)
-        self._plate_test.doubleClicked.connect(self._move_to_xy_position)
+        self._plate_test.positionDoubleClicked.connect(self._move_to_xy_position)
         self._test_well_btn.clicked.connect(self._move_to_test_position)
 
     # ---------------------------PUBLIC API-----------------------------------
 
     def setValue(self, plate: str | useq.WellPlate | useq.WellPlatePlan) -> None:
-        """Set the plate to be calibrated."""
+        """Set the plate to be calibrated.
+
+        Parameters
+        ----------
+        plate : str | useq.WellPlate | useq.WellPlatePlan
+            The well plate to calibrate. If a string, it is assumed to be the name of a
+            well plate (e.g. "96-well"). If a WellPlate instance, it is used directly.
+            If a WellPlatePlan instance, the plate is set to the plan's plate and the
+            widget state is set to calibrated.
+        """
         calibrated: bool = False
         plan: useq.WellPlatePlan | None = None
 
