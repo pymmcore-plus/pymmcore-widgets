@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Iterable, Mapping
 
 import numpy as np
 import useq
-from qtpy.QtCore import QObject, QRect, QRectF, QSize, Qt, Signal
+from qtpy.QtCore import QRect, QRectF, QSize, Qt, Signal
 from qtpy.QtGui import QColor, QFont, QMouseEvent, QPainter, QPen
 from qtpy.QtWidgets import (
     QAbstractGraphicsShapeItem,
@@ -15,7 +15,6 @@ from qtpy.QtWidgets import (
     QGraphicsItem,
     QGraphicsScene,
     QGraphicsSceneHoverEvent,
-    QGraphicsSceneMouseEvent,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -193,21 +192,12 @@ class WellPlateWidget(QWidget):
         self._view.drawPlate(val)
 
 
-class HoverEllipse(QGraphicsEllipseItem, QObject):
-    class SignalEmitter(QObject):
-        doubleClicked = Signal(useq.Position)
-
-    def __init__(
-        self,
-        rect: QRectF,
-        parent: QGraphicsItem | None = None,
-    ):
+class HoverEllipse(QGraphicsEllipseItem):
+    def __init__(self, rect: QRectF, parent: QGraphicsItem | None = None):
         super().__init__(rect, parent)
-        self.signals = self.SignalEmitter()
         self.setAcceptHoverEvents(True)
         self._selected_color = Qt.GlobalColor.green
         self._unselected_color = Qt.GlobalColor.black
-        self.setRect(rect)
         self.setBrush(self._unselected_color)
 
     def hoverEnterEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
@@ -222,19 +212,12 @@ class HoverEllipse(QGraphicsEllipseItem, QObject):
         self.setBrush(self._unselected_color)
         super().hoverLeaveEvent(event)
 
-    def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent | None) -> None:
-        """Emit the doubleClicked signal when the well is double clicked."""
-        pos = self.data(DATA_POSITION)
-        if isinstance(pos, useq.Position):
-            self.signals.doubleClicked.emit(pos)
-        super().mouseDoubleClickEvent(event)
-
 
 class WellPlateView(ResizingGraphicsView):
     """QGraphicsView for displaying a well plate."""
 
     selectionChanged = Signal()
-    doubleClicked = Signal(useq.Position)
+    positionDoubleClicked = Signal(useq.Position)
     SelectionMode = QAbstractItemView.SelectionMode
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -365,6 +348,14 @@ class WellPlateView(ResizingGraphicsView):
         self._is_removing = False
         self._selection_on_press.clear()
         super().mouseReleaseEvent(event)
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent | None) -> None:
+        if event is not None:
+            if pos := next(
+                (item.data(DATA_POSITION) for item in self.items(event.pos())), None
+            ):
+                self.positionDoubleClicked.emit(pos)
+        super().mouseDoubleClickEvent(event)
 
     def selectedIndices(self) -> tuple[tuple[int, int], ...]:
         """Return the indices of the selected wells."""
@@ -511,7 +502,6 @@ class WellPlateView(ResizingGraphicsView):
             item = HoverEllipse(edge_rect)
             item.setData(DATA_POSITION, new_pos)
             item.setZValue(1)  # make sure it's on top
-            item.signals.doubleClicked.connect(self.doubleClicked.emit)
             self._scene.addItem(item)
             self._well_edge_spots.append(item)
 

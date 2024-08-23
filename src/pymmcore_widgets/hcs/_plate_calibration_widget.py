@@ -110,7 +110,7 @@ class PlateCalibrationWidget(QWidget):
 
         self._plate_view.selectionChanged.connect(self._on_plate_selection_changed)
         self._tab_wdg.currentChanged.connect(self._on_tab_changed)
-        self._plate_test.doubleClicked.connect(self._move_to_xy_position)
+        self._plate_test.positionDoubleClicked.connect(self._move_to_xy_position)
         self._test_well_btn.clicked.connect(self._move_to_test_position)
 
     # ---------------------------PUBLIC API-----------------------------------
