@@ -90,6 +90,7 @@ class WellPlateWidget(QWidget):
         self._view = WellPlateView(self)
 
         self._show_rotation = QCheckBox("Show Rotation", self._view)
+        self._show_rotation.setStyleSheet("background: transparent;")
         self._show_rotation.move(6, 6)
         self._show_rotation.hide()
 

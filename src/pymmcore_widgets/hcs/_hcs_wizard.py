@@ -51,7 +51,7 @@ class HCSWizard(QWizard):
         self.addPage(self.calibration_page)
         self.addPage(self.points_plan_page)
 
-        # TODO: fix this self.setMinimumSize(self.points_plan_page.widget.sizeHint())
+        self.setMinimumSize(880, 690)
 
         # SAVE/LOAD BUTTONS ----------------------
 
@@ -176,16 +176,34 @@ class HCSWizard(QWizard):
 # ---------------------------------- PAGES ---------------------------------------
 
 
+class WellPlateWidgetNoRotation(WellPlateWidget):
+    def __init__(
+        self, plan: useq.WellPlatePlan | None = None, parent: QWidget | None = None
+    ) -> None:
+        super().__init__(plan, parent)
+
+    def setValue(self, value: useq.WellPlatePlan) -> None:
+        """Override the setValue method to always hide the rotation checkbox."""
+        super().setValue(value)
+        self._show_rotation.hide()
+        self._show_rotation.setChecked(False)
+
+
 class _PlatePage(QWizardPage):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         self.setTitle("Plate and Well Selection")
 
-        self.widget = WellPlateWidget()
+        self.widget = WellPlateWidgetNoRotation()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.widget)
+
+        # TODO:
+        #   - modify useq so that if no well index is passed, it defaults to NO wells
+        #     selected instead of ALL wells selected
+        #   - modify useq so that the name arg in WellPlate is mandatory
 
 
 class _PlateCalibrationPage(QWizardPage):
