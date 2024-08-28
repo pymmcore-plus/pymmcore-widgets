@@ -208,6 +208,9 @@ class HoverEllipse(QGraphicsEllipseItem):
         """Update color and position when hovering over the well."""
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setBrush(self._selected_color)
+        # update tooltip font color
+        tooltip = self.toolTip()
+        self.setToolTip(f"<font color='#CCC'>{tooltip}</font>")
         super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
@@ -496,6 +499,8 @@ class WellPlateView(ResizingGraphicsView):
             new_pos = useq.Position(x=x, y=y, name=pos.name)
             item = HoverEllipse(edge_rect)
             item.setData(DATA_POSITION, new_pos)
+            if new_pos.x is not None and new_pos.y is not None:
+                item.setToolTip(f"{new_pos.name} ({new_pos.x:.0f}, {new_pos.y:.0f})")
             item.setZValue(1)  # make sure it's on top
             self._scene.addItem(item)
             self._well_edge_spots.append(item)
