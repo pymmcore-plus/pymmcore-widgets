@@ -5,7 +5,6 @@ from pathlib import Path
 
 import useq
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QFileDialog, QVBoxLayout, QWidget, QWizard, QWizardPage
 from useq import WellPlatePlan
 
@@ -27,8 +26,6 @@ class HCSWizard(QWizard):
     mmcore : CMMCorePlus | None
         The CMMCorePlus instance. By default, None.
     """
-
-    valueChanged = Signal(object)
 
     def __init__(
         self, parent: QWidget | None = None, *, mmcore: CMMCorePlus | None = None
@@ -77,11 +74,10 @@ class HCSWizard(QWizard):
         )
 
     def accept(self) -> None:
-        """Emit the valueChanged signal when the wizard is accepted."""
-        self.valueChanged.emit(self.value())
-        from rich import print
-
-        print(self.value())
+        """Override the accept method to only accept if a value is available."""
+        value = self.value()
+        if value is not None:
+            super().accept()
 
     def value(self) -> useq.WellPlatePlan | None:
         plate_plan = self.plate_page.widget.value()
