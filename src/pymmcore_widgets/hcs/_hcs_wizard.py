@@ -75,8 +75,7 @@ class HCSWizard(QWizard):
 
     def accept(self) -> None:
         """Override the accept method to only accept if a value is available."""
-        value = self.value()
-        if value is not None:
+        if self.value() is not None:
             super().accept()
 
     def value(self) -> useq.WellPlatePlan | None:
