@@ -8,6 +8,7 @@ import useq
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -87,16 +88,17 @@ class PlateCalibrationWidget(QWidget):
 
         # LAYOUT -------------------------------------------------------------
 
-        right_layout = QVBoxLayout()
-        right_layout.setContentsMargins(6, 0, 0, 0)
+        right_wdg = QGroupBox()
+        right_layout = QVBoxLayout(right_wdg)
+        right_layout.setContentsMargins(5, 5, 5, 5)
         right_layout.addWidget(self._calibration_widget_stack)
         right_layout.addWidget(SeparatorWidget())
         right_layout.addWidget(self._test_well_btn)
         right_layout.addStretch()
 
         top = QHBoxLayout()
+        top.addWidget(right_wdg, 0)
         top.addWidget(self._tab_wdg, 1)
-        top.addLayout(right_layout)
 
         info_layout = QHBoxLayout()
         info_layout.addWidget(self._info_icon, 0)
