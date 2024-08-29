@@ -6,8 +6,7 @@ from qtpy.QtWidgets import QApplication
 from pymmcore_widgets import StageWidget
 
 with suppress(ImportError):
-    pass
-
+    from rich import print
 
 from pymmcore_widgets.hcs import HCSWizard
 
@@ -16,8 +15,16 @@ mmc = CMMCorePlus.instance()
 mmc.loadSystemConfiguration()
 w = HCSWizard()
 w.show()
-# w.accepted.connect(print)
+w.accepted.connect(lambda: print(w.value()))
 s = StageWidget("XY", mmcore=mmc)
 s.show()
+
+
+# plan = useq.WellPlatePlan(
+#     plate=useq.WellPlate.from_str("96-well"),
+#     a1_center_xy=(1000, 1500),
+#     rotation=0.3,
+# )
+# w.setValue(plan)
 
 app.exec()
