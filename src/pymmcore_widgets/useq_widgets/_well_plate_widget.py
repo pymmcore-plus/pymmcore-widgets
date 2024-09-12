@@ -305,9 +305,7 @@ class WellPlateView(ResizingGraphicsView):
                 select.add(item)
             else:
                 deselect.add(item)
-        with signals_blocked(self):
-            self._select_items(select)
-        self._deselect_items(deselect)
+        self._change_selection(select, deselect)
 
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
         if event and event.button() == Qt.MouseButton.LeftButton:
@@ -332,13 +330,13 @@ class WellPlateView(ResizingGraphicsView):
             for item in self.items(event.pos()):
                 if item == self._pressed_item:
                     if self._pressed_item.data(DATA_SELECTED) is True:
-                        self._deselect_items((self._pressed_item,))
+                        self._change_selection((), (self._pressed_item,))
                     else:
                         if self._selection_mode == self.SelectionMode.SingleSelection:
                             # deselect all other items
-                            self._deselect_items(self._selected_items)
+                            self._change_selection((), self._selected_items)
                         if self._selection_mode != self.SelectionMode.NoSelection:
-                            self._select_items((self._pressed_item,))
+                            self._change_selection((self._pressed_item,), ())
                     break
 
         self._pressed_item = None
@@ -376,13 +374,11 @@ class WellPlateView(ResizingGraphicsView):
                 select.add(item)
             else:
                 deselect.add(item)
-        with signals_blocked(self):
-            self._select_items(select)
-        self._deselect_items(deselect)
+        self._change_selection(select, deselect)
 
     def clearSelection(self) -> None:
         """Clear the current selection."""
-        self._deselect_items(self._selected_items)
+        self._change_selection((), self._selected_items)
 
     def clear(self) -> None:
         """Clear all the wells from the view."""
@@ -509,22 +505,28 @@ class WellPlateView(ResizingGraphicsView):
         self.setSceneRect(self._scene.itemsBoundingRect())
         self.resizeEvent(None)
 
-    def _select_items(self, items: Iterable[QAbstractGraphicsShapeItem]) -> None:
-        for item in items:
+    def _change_selection(
+        self,
+        select: Iterable[QAbstractGraphicsShapeItem],
+        deselect: Iterable[QAbstractGraphicsShapeItem],
+    ) -> None:
+        before = self._selected_items.copy()
+
+        for item in select:
             color = item.data(DATA_COLOR) or self._selected_color
             item.setBrush(color)
             item.setData(DATA_SELECTED, True)
-        self._selected_items.update(items)
-        self.selectionChanged.emit()
+        self._selected_items.update(select)
 
-    def _deselect_items(self, items: Iterable[QAbstractGraphicsShapeItem]) -> None:
-        for item in items:
+        for item in deselect:
             if item.data(DATA_SELECTED):
                 color = item.data(DATA_COLOR) or self._unselected_color
                 item.setBrush(color)
                 item.setData(DATA_SELECTED, False)
-        self._selected_items.difference_update(items)
-        self.selectionChanged.emit()
+        self._selected_items.difference_update(deselect)
+
+        if before != self._selected_items:
+            self.selectionChanged.emit()
 
     def sizeHint(self) -> QSize:
         """Provide a reasonable size hint with aspect ratio of a well plate."""

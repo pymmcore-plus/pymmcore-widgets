@@ -73,11 +73,6 @@ class HCSWizard(QWizard):
             self._on_calibration_changed
         )
 
-    def accept(self) -> None:
-        """Override the accept method to only accept if a value is available."""
-        if self.value() is not None:
-            super().accept()
-
     def value(self) -> useq.WellPlatePlan | None:
         plate_plan = self.plate_page.widget.value()
         calib_plan = self.calibration_page.widget.value()
@@ -201,10 +196,19 @@ class _PlateCalibrationPage(QWizardPage):
         super().__init__(parent)
         self.setTitle("Plate Calibration")
 
+        self._is_complete = False
         self.widget = PlateCalibrationWidget(mmcore=mmcore)
+        self.widget.calibrationChanged.connect(self._on_calibration_changed)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.widget)
+
+    def isComplete(self) -> bool:
+        return self._is_complete
+
+    def _on_calibration_changed(self, calibrated: bool) -> None:
+        self._is_complete = calibrated
+        self.completeChanged.emit()
 
 
 class _PointsPlanPage(QWizardPage):
