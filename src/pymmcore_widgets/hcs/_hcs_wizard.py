@@ -101,6 +101,9 @@ class HCSWizard(QWizard):
         self.plate_page.widget.setValue(value)
         self.calibration_page.widget.setValue(value)
         self.points_plan_page.widget.setValue(value.well_points_plan)
+        # if no wells are explicitly selected, deselect all wells
+        if value.selected_wells is None:
+            self.plate_page.widget._view.setSelectedIndices([])  # select None
 
     def save(self, path: str | None = None) -> None:
         """Save the current well plate plan to disk."""
