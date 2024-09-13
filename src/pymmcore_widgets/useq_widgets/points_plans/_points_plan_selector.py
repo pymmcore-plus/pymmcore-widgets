@@ -183,7 +183,6 @@ class RelativePointPlanSelector(QWidget):
                 self.single_pos_wdg.setValue(plan)
                 self.single_radio_btn.setChecked(True)
             else:  # pragma: no cover
-                breakpoint()
                 raise ValueError(f"Invalid plan type: {type(plan)}")
             self.fov_h.setValue(plan.fov_height or 0)
             self.fov_w.setValue(plan.fov_width or 0)
