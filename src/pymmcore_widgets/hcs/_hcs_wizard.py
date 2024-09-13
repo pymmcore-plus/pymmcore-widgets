@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from contextlib import suppress
 from pathlib import Path
 
 import useq
@@ -224,6 +225,7 @@ class _PointsPlanPage(QWizardPage):
         self.widget.setValue(val)
 
     def _get_fov_size(self) -> tuple[float, float] | tuple[None, None]:
-        if self._mmc.getCameraDevice() and (px := self._mmc.getPixelSizeUm()):
-            return self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
+        with suppress(RuntimeError):
+            if self._mmc.getCameraDevice() and (px := self._mmc.getPixelSizeUm()):
+                return self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
         return (None, None)
