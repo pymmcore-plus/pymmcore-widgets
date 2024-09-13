@@ -57,13 +57,12 @@ class HCSWizard(QWizard):
         if save_btn := self.button(QWizard.WizardButton.CustomButton1):
             save_btn.setText("Save")
             save_btn.clicked.connect(self.save)
-            self.setButton(QWizard.WizardButton.CustomButton1, save_btn)
+            save_btn.setEnabled(False)
         # add custom button to load
         self.setOption(QWizard.WizardOption.HaveCustomButton2, True)
         if load_btn := self.button(QWizard.WizardButton.CustomButton2):
             load_btn.setText("Load")
             load_btn.clicked.connect(self.load)
-            self.setButton(QWizard.WizardButton.CustomButton2, load_btn)
 
         # CONNECTIONS ---------------------------
 
@@ -105,29 +104,19 @@ class HCSWizard(QWizard):
         """Save the current well plate plan to disk."""
         if not isinstance(path, str):
             path, _ = QFileDialog.getSaveFileName(
-                self,
-                "Save Well Plate Plan",
-                "",
-                "JSON or YAML (*.json *.yaml *.yml)",
+                self, "Save Well Plate Plan", "", "JSON (*.json)"
             )
-        if path:
-            value = self.value()
-            if value is None:
-                return
-            if str(path).endswith((".yaml", ".yml")):
-                txt = value.yaml(exclude_unset=True)
-            else:
-                txt = value.model_dump_json(exclude_unset=True, indent=2)
+        elif not path.endswith(".json"):  # pragma: no cover
+            raise ValueError("Path must end with '.json'")
+        if path and (value := self.value()):
+            txt = value.model_dump_json(exclude_unset=True, indent=2)
             Path(path).write_text(txt)
 
     def load(self, path: str | None = None) -> None:
         """Load a well plate plan from disk."""
         if not isinstance(path, str):
             path, _ = QFileDialog.getOpenFileName(
-                self,
-                "Load Well Plate Plan",
-                "",
-                "JSON or YAML (*.json *.yaml *.yml)",
+                self, "Load Well Plate Plan", "", "JSON (*.json)"
             )
         if path:
             self.setValue(WellPlatePlan.from_file(path))
@@ -165,6 +154,7 @@ class HCSWizard(QWizard):
 
     def _on_calibration_changed(self, calibrated: bool) -> None:
         self._calibrated = calibrated
+        self.button(QWizard.WizardButton.CustomButton1).setEnabled(calibrated)
 
 
 # ---------------------------------- PAGES ---------------------------------------
