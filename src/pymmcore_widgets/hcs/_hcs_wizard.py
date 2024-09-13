@@ -5,6 +5,7 @@ from pathlib import Path
 
 import useq
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import QSize
 from qtpy.QtWidgets import QFileDialog, QVBoxLayout, QWidget, QWizard, QWizardPage
 from useq import WellPlatePlan
 
@@ -14,10 +15,11 @@ from ._plate_calibration_widget import PlateCalibrationWidget
 
 
 class HCSWizard(QWizard):
-    """A wizard to setup an High Content experiment.
+    """A wizard to setup an High Content Screening (HCS) experiment.
 
     This widget can be used to select a plate, calibrate it, and then select the number
-    of images (and their arrangement) to acquire per well.
+    of images (and their arrangement) to acquire per well.  The output is a
+    [useq.WellPlatePlan][] object, which can be retrieved with the `value()` method.
 
     Parameters
     ----------
@@ -32,6 +34,7 @@ class HCSWizard(QWizard):
     ) -> None:
         super().__init__(parent)
         self._mmc = mmcore or CMMCorePlus.instance()
+        self._calibrated: bool = False
 
         self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
         self.setWindowTitle("HCS Wizard")
@@ -42,13 +45,9 @@ class HCSWizard(QWizard):
         self.calibration_page = _PlateCalibrationPage(self._mmc, self)
         self.points_plan_page = _PointsPlanPage(self._mmc, self)
 
-        self._calibrated: bool = False
-
         self.addPage(self.plate_page)
         self.addPage(self.calibration_page)
         self.addPage(self.points_plan_page)
-
-        self.setMinimumSize(880, 690)
 
         # SAVE/LOAD BUTTONS ----------------------
 
@@ -73,13 +72,16 @@ class HCSWizard(QWizard):
             self._on_calibration_changed
         )
 
-    def value(self) -> useq.WellPlatePlan | None:
-        plate_plan = self.plate_page.widget.value()
-        calib_plan = self.calibration_page.widget.value()
+    def sizeHint(self) -> QSize:
+        return QSize(880, 690)
 
+    def value(self) -> useq.WellPlatePlan | None:
+        """Return the current well plate plan, or None if the plan is uncalibrated."""
+        calib_plan = self.calibration_page.widget.value()
         if not self._calibrated or not calib_plan:
             return None
 
+        plate_plan = self.plate_page.widget.value()
         if plate_plan.plate != calib_plan.plate:
             warnings.warn("Plate Plan and Calibration Plan do not match.", stacklevel=2)
             return None
@@ -93,6 +95,7 @@ class HCSWizard(QWizard):
         )
 
     def setValue(self, value: useq.WellPlatePlan) -> None:
+        """Set the state of the wizard to a WellPlatePlan."""
         self.plate_page.widget.setValue(value)
         self.calibration_page.widget.setValue(value)
         self.points_plan_page.widget.setValue(value.well_points_plan)
