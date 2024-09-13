@@ -135,7 +135,7 @@ class HCSWizard(QWizard):
         """Synchronize the points plan with the well size/shape."""
         # update the calibration widget with the new plate if it's different
         current_calib_plan = self.calibration_page.widget.value()
-        if not current_calib_plan or current_calib_plan.plate != plate_plan.plate:
+        if current_calib_plan is None or current_calib_plan.plate != plate_plan.plate:
             self.calibration_page.widget.setValue(plate_plan.plate)
 
         pp_widget = self.points_plan_page.widget
@@ -169,29 +169,17 @@ class HCSWizard(QWizard):
 # ---------------------------------- PAGES ---------------------------------------
 
 
-class WellPlateWidgetNoRotation(WellPlateWidget):
-    def setValue(self, value: useq.WellPlatePlan) -> None:
-        """Override the setValue method to always hide the rotation checkbox."""
-        super().setValue(value)
-        self._show_rotation.hide()
-        self._show_rotation.setChecked(False)
-
-
 class _PlatePage(QWizardPage):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         self.setTitle("Plate and Well Selection")
 
-        self.widget = WellPlateWidgetNoRotation()
+        self.widget = WellPlateWidget()
+        self.widget.setShowRotation(False)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.widget)
-
-        # TODO:
-        #   - modify useq so that if no well index is passed, it defaults to NO wells
-        #     selected instead of ALL wells selected
-        #   - modify useq so that the name arg in WellPlate is mandatory
 
 
 class _PlateCalibrationPage(QWizardPage):

@@ -89,10 +89,11 @@ class WellPlateWidget(QWidget):
         # plate view
         self._view = WellPlateView(self)
 
-        self._show_rotation = QCheckBox("Show Rotation", self._view)
-        self._show_rotation.setStyleSheet("background: transparent;")
-        self._show_rotation.move(6, 6)
-        self._show_rotation.hide()
+        self._show_rotation_cb = QCheckBox("Show Rotation", self._view)
+        self._show_rotation_cb.setStyleSheet("background: transparent;")
+        self._show_rotation_cb.move(6, 6)
+        self._show_rotation_cb.hide()
+        self._show_rotation = True
 
         # LAYOUT ---------------------------------------
 
@@ -112,7 +113,7 @@ class WellPlateWidget(QWidget):
         self._view.selectionChanged.connect(self._on_value_changed)
         self._clear_button.clicked.connect(self._view.clearSelection)
         self.plate_name.currentTextChanged.connect(self._on_plate_name_changed)
-        self._show_rotation.toggled.connect(self._on_show_rotation_toggled)
+        self._show_rotation_cb.toggled.connect(self._update_view)
 
         if plan:
             self.setValue(plan)
@@ -120,6 +121,21 @@ class WellPlateWidget(QWidget):
             self.setValue(self.value())
 
     # _________________________PUBLIC METHODS_________________________ #
+
+    def setShowRotation(self, allow: bool) -> None:
+        """Set whether to allow visible rotation of the well plate.
+
+        If `allow` is False, the rotation checkbox is hidden and the rotation is
+        never shown.  If True, the checkbox is shown and the user can toggle the
+        rotation on/off.
+        """
+        self._show_rotation = allow
+        if not allow:
+            self._show_rotation_cb.hide()
+            self._show_rotation_cb.setChecked(False)
+        elif self._rotation:
+            self._show_rotation_cb.show()
+            self._show_rotation_cb.setChecked(True)
 
     def value(self) -> useq.WellPlatePlan:
         """Return the current plate and the selected wells as a `useq.WellPlatePlan`."""
@@ -149,14 +165,17 @@ class WellPlateWidget(QWidget):
         self._a1_center_xy = plan.a1_center_xy
         with signals_blocked(self):
             self.plate_name.setCurrentText(plan.plate.name)
-        self._view.drawPlate(plan)
+        self._update_view()
 
-        if plan.rotation:
-            self._show_rotation.show()
-            self._show_rotation.setChecked(True)
+        if self._show_rotation and plan.rotation:
+            self._show_rotation_cb.show()
         else:
-            self._show_rotation.hide()
-            self._show_rotation.setChecked(False)
+            self._show_rotation_cb.hide()
+
+    def _update_view(self) -> None:
+        rot = self._rotation if self._show_rotation_cb.isChecked() else None
+        val = self.value().model_copy(update={"rotation": rot})
+        self._view.drawPlate(val)
 
     def currentSelection(self) -> tuple[tuple[int, int], ...]:
         """Return the indices of the selected wells as `((row, col), ...)`."""
@@ -189,11 +208,6 @@ class WellPlateWidget(QWidget):
         plate = useq.WellPlate.from_str(plate_name)
         val = self.value().model_copy(update={"plate": plate, "selected_wells": None})
         self.setValue(val)
-
-    def _on_show_rotation_toggled(self, checked: bool) -> None:
-        rot = self._rotation if checked else None
-        val = self.value().model_copy(update={"rotation": rot})
-        self._view.drawPlate(val)
 
 
 class HoverEllipse(QGraphicsEllipseItem):
