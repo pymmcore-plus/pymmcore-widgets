@@ -205,6 +205,7 @@ class WellPlateWidget(QWidget):
         self.valueChanged.emit(self.value())
 
     def _on_plate_name_changed(self, plate_name: str) -> None:
+        self._view.clearSelection()
         plate = useq.WellPlate.from_str(plate_name)
         val = self.value().model_copy(update={"plate": plate, "selected_wells": None})
         self.setValue(val)
