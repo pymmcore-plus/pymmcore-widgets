@@ -13,10 +13,12 @@ from qtpy.QtWidgets import (
     QMessageBox,
     QPushButton,
     QWidget,
+    QWizard,
 )
 from superqt.fonticon import icon
 from useq import MDASequence, Position
 
+from pymmcore_widgets import HCSWizard
 from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 from pymmcore_widgets.useq_widgets._mda_sequence import PYMMCW_METADATA_KEY, MDATabs
@@ -94,6 +96,20 @@ class MDAWidget(MDASequenceWidget):
 
         self._on_sys_config_loaded()
 
+        # -------- HCS wizard --------
+        self._use_hcs: bool = False  # flag to indicate if HCS was used for positions
+        self.hcs = HCSWizard(parent=self)
+        # rename the finish button to "Add Positions"
+        self.hcs.points_plan_page.setButtonText(
+            QWizard.WizardButton.FinishButton, "Add Positions"
+        )
+        self.hcs_button = QPushButton("HCS")
+        self.hcs_button.setIcon(icon(MDI6.vector_polyline))
+        self.hcs_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.hcs_button.setToolTip("Open the HCS wizard.")
+        pos_table_layout = cast(QBoxLayout, self.stage_positions.layout().itemAt(2))
+        pos_table_layout.insertWidget(3, self.hcs_button)
+
         # ------------ layout ------------
 
         layout = cast("QBoxLayout", self.layout())
@@ -108,6 +124,9 @@ class MDAWidget(MDASequenceWidget):
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
+        self.hcs_button.clicked.connect(self._show_hcs)
+        self.hcs.accepted.connect(self._on_hcs_accepted)
+        self.stage_positions.valueChanged.connect(self._on_positions_changed)
 
         self.destroyed.connect(self._disconnect)
 
@@ -156,6 +175,8 @@ class MDAWidget(MDASequenceWidget):
         meta: dict = val.metadata.setdefault(PYMMCW_METADATA_KEY, {})
         if self.save_info.isChecked():
             meta.update(self.save_info.value())
+        if self._use_hcs:
+            meta["HCS"] = self.hcs.value()
         return val
 
     def setValue(self, value: MDASequence) -> None:
@@ -298,6 +319,23 @@ class MDAWidget(MDASequenceWidget):
                 child._enable_tabs(enable)
             elif child is not self.control_btns and hasattr(child, "setEnabled"):
                 child.setEnabled(enable)
+
+    def _show_hcs(self) -> None:
+        """Show or raise the HCS wizard."""
+        self.hcs.raise_() if self.hcs.isVisible() else self.hcs.show()
+
+    def _on_hcs_accepted(self) -> None:
+        """Add the positions from the HCS wizard to the stage positions."""
+        if (plan := self.hcs.value()) is not None:
+            self.stage_positions.setValue(list(plan))
+            self._use_hcs = True
+
+    def _on_positions_changed(self) -> None:
+        """Reset the HCS flag when the positions are changed manually."""
+        # TODO: add a confirmation dialog if the user modifies the positions and the
+        # HCS flag is set
+        if self._use_hcs:
+            self._use_hcs = False
 
     def _on_mda_started(self) -> None:
         self._enable_widgets(False)
