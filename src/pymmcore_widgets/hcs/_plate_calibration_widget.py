@@ -75,6 +75,7 @@ class PlateCalibrationWidget(QWidget):
         self._tab_wdg.setTabEnabled(1, False)
 
         self._test_well_btn = QPushButton("Test Well", self)
+        self._test_well_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._test_well_btn.setEnabled(False)
 
         # mapping of well index (r, c) to calibration widget
