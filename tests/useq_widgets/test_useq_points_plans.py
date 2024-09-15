@@ -45,7 +45,7 @@ RELATIVE_POSITION = RelativePosition()
 def test_random_points_widget(qtbot: QtBot) -> None:
     wdg = pp.RandomPointWidget()
     qtbot.addWidget(wdg)
-    assert wdg.num_points.value() == 1
+    assert wdg.num_points.value() == 10
     assert wdg.max_width.value() == 6000
     assert wdg.max_height.value() == 6000
     assert wdg.shape.currentText() == "ellipse"
@@ -69,8 +69,8 @@ def test_random_points_widget(qtbot: QtBot) -> None:
 def test_grid_plan_widget(qtbot: QtBot) -> None:
     wdg = pp.GridRowColumnWidget()
     qtbot.addWidget(wdg)
-    assert wdg.rows.value() == 1
-    assert wdg.columns.value() == 1
+    assert wdg.rows.value() == 3
+    assert wdg.columns.value() == 3
     assert wdg.overlap_x.value() == 0
     assert wdg.overlap_y.value() == 0
     assert wdg.mode.currentText() == "row_wise_snake"
