@@ -165,16 +165,17 @@ class WellPlateWidget(QWidget):
         self._a1_center_xy = plan.a1_center_xy
         with signals_blocked(self):
             self.plate_name.setCurrentText(plan.plate.name)
-        self._update_view()
+        self._update_view(plan)
 
         if self._show_rotation and plan.rotation:
             self._show_rotation_cb.show()
         else:
             self._show_rotation_cb.hide()
 
-    def _update_view(self) -> None:
+    def _update_view(self, value: bool | useq.WellPlatePlan | None = None) -> None:
         rot = self._rotation if self._show_rotation_cb.isChecked() else None
-        val = self.value().model_copy(update={"rotation": rot})
+        plan = value if isinstance(value, useq.WellPlatePlan) else self.value()
+        val = plan.model_copy(update={"rotation": rot})
         self._view.drawPlate(val)
 
     def currentSelection(self) -> tuple[tuple[int, int], ...]:

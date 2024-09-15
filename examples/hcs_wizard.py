@@ -25,6 +25,7 @@ plan = useq.WellPlatePlan(
     plate=useq.WellPlate.from_str("96-well"),
     a1_center_xy=(1000, 1500),
     rotation=0.3,
+    selected_wells=slice(0, 8, 2),
 )
 w.setValue(plan)
 
