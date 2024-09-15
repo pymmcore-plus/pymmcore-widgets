@@ -209,6 +209,7 @@ class WellPlateWidget(QWidget):
         plate = useq.WellPlate.from_str(plate_name)
         val = self.value().model_copy(update={"plate": plate, "selected_wells": None})
         self.setValue(val)
+        self.valueChanged.emit(self.value())
 
 
 class HoverEllipse(QGraphicsEllipseItem):
