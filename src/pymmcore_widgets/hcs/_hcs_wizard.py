@@ -98,7 +98,13 @@ class HCSWizard(QWizard):
         """Set the state of the wizard to a WellPlatePlan."""
         self.plate_page.widget.setValue(value)
         self.calibration_page.widget.setValue(value)
-        self.points_plan_page.widget.setValue(value.well_points_plan)
+        # update the points plan fov size if it's not set
+        point_plan = value.well_points_plan
+        if point_plan.fov_width is None or point_plan.fov_height is None:
+            point_plan.fov_width, point_plan.fov_height = (
+                self.points_plan_page._get_fov_size()
+            )
+        self.points_plan_page.widget.setValue(point_plan)
 
     def save(self, path: str | None = None) -> None:
         """Save the current well plate plan to disk."""
