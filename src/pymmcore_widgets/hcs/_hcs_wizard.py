@@ -213,6 +213,7 @@ class _PointsPlanPage(QWizardPage):
         layout.addWidget(self.widget)
 
         self._mmc.events.pixelSizeChanged.connect(self._on_px_size_changed)
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_px_size_changed)
         self._on_px_size_changed()
 
     def _on_px_size_changed(self) -> None:
