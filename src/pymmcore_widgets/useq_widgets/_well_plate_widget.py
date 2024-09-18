@@ -89,9 +89,11 @@ class WellPlateWidget(QWidget):
         # plate view
         self._view = WellPlateView(self)
 
-        self._show_rotation = QCheckBox("Show Rotation", self._view)
-        self._show_rotation.move(6, 6)
-        self._show_rotation.hide()
+        self._show_rotation_cb = QCheckBox("Show Rotation", self._view)
+        self._show_rotation_cb.setStyleSheet("background: transparent;")
+        self._show_rotation_cb.move(6, 6)
+        self._show_rotation_cb.hide()
+        self._show_rotation = True
 
         # LAYOUT ---------------------------------------
 
@@ -111,11 +113,29 @@ class WellPlateWidget(QWidget):
         self._view.selectionChanged.connect(self._on_value_changed)
         self._clear_button.clicked.connect(self._view.clearSelection)
         self.plate_name.currentTextChanged.connect(self._on_plate_name_changed)
-        self._show_rotation.toggled.connect(self._on_show_rotation_toggled)
+        self._show_rotation_cb.toggled.connect(self._update_view)
 
-        self.setValue(plan or self.value())
+        if plan:
+            self.setValue(plan)
+        else:
+            self.setValue(self.value())
 
     # _________________________PUBLIC METHODS_________________________ #
+
+    def setShowRotation(self, allow: bool) -> None:
+        """Set whether to allow visible rotation of the well plate.
+
+        If `allow` is False, the rotation checkbox is hidden and the rotation is
+        never shown.  If True, the checkbox is shown and the user can toggle the
+        rotation on/off.
+        """
+        self._show_rotation = allow
+        if not allow:
+            self._show_rotation_cb.hide()
+            self._show_rotation_cb.setChecked(False)
+        elif self._rotation:
+            self._show_rotation_cb.show()
+            self._show_rotation_cb.setChecked(True)
 
     def value(self) -> useq.WellPlatePlan:
         """Return the current plate and the selected wells as a `useq.WellPlatePlan`."""
@@ -145,14 +165,18 @@ class WellPlateWidget(QWidget):
         self._a1_center_xy = plan.a1_center_xy
         with signals_blocked(self):
             self.plate_name.setCurrentText(plan.plate.name)
-        self._view.drawPlate(plan)
+        self._update_view(plan)
 
-        if plan.rotation:
-            self._show_rotation.show()
-            self._show_rotation.setChecked(True)
+        if self._show_rotation and plan.rotation:
+            self._show_rotation_cb.show()
         else:
-            self._show_rotation.hide()
-            self._show_rotation.setChecked(False)
+            self._show_rotation_cb.hide()
+
+    def _update_view(self, value: bool | useq.WellPlatePlan | None = None) -> None:
+        rot = self._rotation if self._show_rotation_cb.isChecked() else None
+        plan = value if isinstance(value, useq.WellPlatePlan) else self.value()
+        val = plan.model_copy(update={"rotation": rot})
+        self._view.drawPlate(val)
 
     def currentSelection(self) -> tuple[tuple[int, int], ...]:
         """Return the indices of the selected wells as `((row, col), ...)`."""
@@ -182,14 +206,11 @@ class WellPlateWidget(QWidget):
         self.valueChanged.emit(self.value())
 
     def _on_plate_name_changed(self, plate_name: str) -> None:
+        self._view.clearSelection()
         plate = useq.WellPlate.from_str(plate_name)
         val = self.value().model_copy(update={"plate": plate, "selected_wells": None})
         self.setValue(val)
-
-    def _on_show_rotation_toggled(self, checked: bool) -> None:
-        rot = self._rotation if checked else None
-        val = self.value().model_copy(update={"rotation": rot})
-        self._view.drawPlate(val)
+        self.valueChanged.emit(self.value())
 
 
 class HoverEllipse(QGraphicsEllipseItem):
@@ -204,6 +225,9 @@ class HoverEllipse(QGraphicsEllipseItem):
         """Update color and position when hovering over the well."""
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setBrush(self._selected_color)
+        # update tooltip font color
+        tooltip = self.toolTip()
+        self.setToolTip(f"<font color='#CCC'>{tooltip}</font>")
         super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event: QGraphicsSceneHoverEvent | None) -> None:
@@ -298,9 +322,7 @@ class WellPlateView(ResizingGraphicsView):
                 select.add(item)
             else:
                 deselect.add(item)
-        with signals_blocked(self):
-            self._select_items(select)
-        self._deselect_items(deselect)
+        self._change_selection(select, deselect)
 
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
         if event and event.button() == Qt.MouseButton.LeftButton:
@@ -325,13 +347,13 @@ class WellPlateView(ResizingGraphicsView):
             for item in self.items(event.pos()):
                 if item == self._pressed_item:
                     if self._pressed_item.data(DATA_SELECTED) is True:
-                        self._deselect_items((self._pressed_item,))
+                        self._change_selection((), (self._pressed_item,))
                     else:
                         if self._selection_mode == self.SelectionMode.SingleSelection:
                             # deselect all other items
-                            self._deselect_items(self._selected_items)
+                            self._change_selection((), self._selected_items)
                         if self._selection_mode != self.SelectionMode.NoSelection:
-                            self._select_items((self._pressed_item,))
+                            self._change_selection((self._pressed_item,), ())
                     break
 
         self._pressed_item = None
@@ -369,13 +391,11 @@ class WellPlateView(ResizingGraphicsView):
                 select.add(item)
             else:
                 deselect.add(item)
-        with signals_blocked(self):
-            self._select_items(select)
-        self._deselect_items(deselect)
+        self._change_selection(select, deselect)
 
     def clearSelection(self) -> None:
         """Clear the current selection."""
-        self._deselect_items(self._selected_items)
+        self._change_selection((), self._selected_items)
 
     def clear(self) -> None:
         """Clear all the wells from the view."""
@@ -492,6 +512,8 @@ class WellPlateView(ResizingGraphicsView):
             new_pos = useq.Position(x=x, y=y, name=pos.name)
             item = HoverEllipse(edge_rect)
             item.setData(DATA_POSITION, new_pos)
+            if new_pos.x is not None and new_pos.y is not None:
+                item.setToolTip(f"{new_pos.name} ({new_pos.x:.0f}, {new_pos.y:.0f})")
             item.setZValue(1)  # make sure it's on top
             self._scene.addItem(item)
             self._well_edge_spots.append(item)
@@ -500,22 +522,28 @@ class WellPlateView(ResizingGraphicsView):
         self.setSceneRect(self._scene.itemsBoundingRect())
         self.resizeEvent(None)
 
-    def _select_items(self, items: Iterable[QAbstractGraphicsShapeItem]) -> None:
-        for item in items:
+    def _change_selection(
+        self,
+        select: Iterable[QAbstractGraphicsShapeItem],
+        deselect: Iterable[QAbstractGraphicsShapeItem],
+    ) -> None:
+        before = self._selected_items.copy()
+
+        for item in select:
             color = item.data(DATA_COLOR) or self._selected_color
             item.setBrush(color)
             item.setData(DATA_SELECTED, True)
-        self._selected_items.update(items)
-        self.selectionChanged.emit()
+        self._selected_items.update(select)
 
-    def _deselect_items(self, items: Iterable[QAbstractGraphicsShapeItem]) -> None:
-        for item in items:
+        for item in deselect:
             if item.data(DATA_SELECTED):
                 color = item.data(DATA_COLOR) or self._unselected_color
                 item.setBrush(color)
                 item.setData(DATA_SELECTED, False)
-        self._selected_items.difference_update(items)
-        self.selectionChanged.emit()
+        self._selected_items.difference_update(deselect)
+
+        if before != self._selected_items:
+            self.selectionChanged.emit()
 
     def sizeHint(self) -> QSize:
         """Provide a reasonable size hint with aspect ratio of a well plate."""

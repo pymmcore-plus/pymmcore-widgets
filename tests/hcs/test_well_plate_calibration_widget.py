@@ -5,6 +5,14 @@ from pymmcore_widgets.hcs._plate_calibration_widget import PlateCalibrationWidge
 from pymmcore_widgets.useq_widgets._well_plate_widget import DATA_POSITION
 
 
+def test_plate_calibration_value(global_mmcore: CMMCorePlus, qtbot) -> None:
+    wdg = PlateCalibrationWidget(mmcore=global_mmcore)
+    qtbot.addWidget(wdg)
+    plan = useq.WellPlatePlan(plate="96-well", a1_center_xy=(10, 20), rotation=2)
+    wdg.setValue(plan)
+    assert wdg.value() == plan
+
+
 def test_plate_calibration(global_mmcore: CMMCorePlus, qtbot) -> None:
     wdg = PlateCalibrationWidget(mmcore=global_mmcore)
     wdg.show()

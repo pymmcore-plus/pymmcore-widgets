@@ -132,7 +132,7 @@ class RelativePointPlanSelector(QWidget):
             layout.setSpacing(5)
             layout.addWidget(btn, 0)
             layout.addWidget(grpbx, 1)
-            main_layout.addLayout(layout)
+            main_layout.addLayout(layout, 1)
 
         # FOV widgets go at the bottom, and are combined into a single widget
         # for ease of showing/hiding the whole thing at once
@@ -144,10 +144,7 @@ class RelativePointPlanSelector(QWidget):
         fov_layout.addWidget(QLabel("FOV (w, h; µm):"))
         fov_layout.addWidget(self.fov_w)
         fov_layout.addWidget(self.fov_h)
-        main_layout.addWidget(self.fov_widgets)
-
-        # for i in range(1, 5, 2):
-        # main_layout.insertWidget(i, SeparatorWidget())
+        main_layout.addWidget(self.fov_widgets, 0)
 
     # _________________________PUBLIC METHODS_________________________ #
 
