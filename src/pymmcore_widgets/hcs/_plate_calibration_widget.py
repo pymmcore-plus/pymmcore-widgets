@@ -8,6 +8,7 @@ import useq
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -44,6 +45,9 @@ class PlateCalibrationWidget(QWidget):
 
         self._mmc = mmcore or CMMCorePlus.instance()
         self._current_plate: useq.WellPlate | None = None
+        self._a1_center_xy: tuple[float, float] = (0.0, 0.0)
+        self._well_spacing: tuple[float, float] | None = None
+        self._rotation: float | None = None
         # minimum number of wells required to be calibrated
         # before the plate is considered calibrated
         self._min_wells_required: int = 3
@@ -74,6 +78,7 @@ class PlateCalibrationWidget(QWidget):
         self._tab_wdg.setTabEnabled(1, False)
 
         self._test_well_btn = QPushButton("Test Well", self)
+        self._test_well_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._test_well_btn.setEnabled(False)
 
         # mapping of well index (r, c) to calibration widget
@@ -83,20 +88,21 @@ class PlateCalibrationWidget(QWidget):
 
         self._info = QLabel("Please calibrate at least three wells.")
         self._info_icon = QLabel()
-        self._update_info(None)
+        self._update_info()
 
         # LAYOUT -------------------------------------------------------------
 
-        right_layout = QVBoxLayout()
-        right_layout.setContentsMargins(6, 0, 0, 0)
+        right_wdg = QGroupBox()
+        right_layout = QVBoxLayout(right_wdg)
+        right_layout.setContentsMargins(5, 5, 5, 5)
         right_layout.addWidget(self._calibration_widget_stack)
         right_layout.addWidget(SeparatorWidget())
         right_layout.addWidget(self._test_well_btn)
         right_layout.addStretch()
 
         top = QHBoxLayout()
+        top.addWidget(right_wdg, 0)
         top.addWidget(self._tab_wdg, 1)
-        top.addLayout(right_layout)
 
         info_layout = QHBoxLayout()
         info_layout.addWidget(self._info_icon, 0)
@@ -115,12 +121,14 @@ class PlateCalibrationWidget(QWidget):
 
     # ---------------------------PUBLIC API-----------------------------------
 
-    def setValue(self, plate: str | useq.WellPlate | useq.WellPlatePlan) -> None:
+    def setValue(
+        self, plate_or_plan: str | useq.WellPlate | useq.WellPlatePlan
+    ) -> None:
         """Set the plate to be calibrated.
 
         Parameters
         ----------
-        plate : str | useq.WellPlate | useq.WellPlatePlan
+        plate_or_plan : str | useq.WellPlate | useq.WellPlatePlan
             The well plate to calibrate. If a string, it is assumed to be the name of a
             well plate (e.g. "96-well"). If a WellPlate instance, it is used directly.
             If a WellPlatePlan instance, the plate is set to the plan's plate and the
@@ -128,13 +136,17 @@ class PlateCalibrationWidget(QWidget):
         """
         calibrated: bool = False
         plan: useq.WellPlatePlan | None = None
-
-        if isinstance(plate, str):
-            plate = useq.WellPlate.from_str(plate)
-        elif isinstance(plate, useq.WellPlatePlan):
-            plan = plate
-            plate = plate.plate
+        plate: useq.WellPlate | None = None
+        if isinstance(plate_or_plan, str):
+            plate = useq.WellPlate.from_str(plate_or_plan)
+        elif isinstance(plate_or_plan, useq.WellPlatePlan):
+            self._a1_center_xy = plate_or_plan.a1_center_xy
+            self._rotation = plate_or_plan.rotation
+            plan = plate_or_plan
+            plate = plan.plate
             calibrated = True
+        elif isinstance(plate_or_plan, useq.WellPlate):
+            plate = plate_or_plan
 
         self._current_plate = plate
         self._plate_view.drawPlate(plate)
@@ -149,26 +161,21 @@ class PlateCalibrationWidget(QWidget):
 
         if calibrated and plan is not None:
             self._plate_test.drawPlate(plan)
-            self._update_info((plan.a1_center_xy, plate.well_spacing, plan.rotation))
         else:
             self._plate_test.clear()
-            self._update_info(None)
 
+        self._update_info()
         self._tab_wdg.setTabEnabled(1, calibrated)
         self.calibrationChanged.emit(calibrated)
 
     def value(self) -> useq.WellPlatePlan | None:
         """Return the plate plan with calibration information."""
-        a1_center_xy = (0.0, 0.0)
-        rotation: float = 0.0
-        if (osr := self._origin_spacing_rotation()) is not None:
-            a1_center_xy, (unit_x, unit_y), rotation = osr
         if self._current_plate is None:  # pragma: no cover
             return None
         return useq.WellPlatePlan(
             plate=self._current_plate,
-            a1_center_xy=a1_center_xy,
-            rotation=rotation,
+            a1_center_xy=self._a1_center_xy,
+            rotation=self._rotation,
         )
 
     # ---------------------------PRIVATE API----------------------------------
@@ -321,26 +328,27 @@ class PlateCalibrationWidget(QWidget):
                 self._plate_view.setWellColor(*idx, None)
 
         osr = self._origin_spacing_rotation()
-        fully_calibrated = osr is not None
-        self._update_info(osr)
-
-        if fully_calibrated and self._current_plate:
-            self._plate_test.drawPlate(self._current_plate)
+        if fully_calibrated := (osr is not None):
+            self._a1_center_xy, self._well_spacing, self._rotation = osr
+            if self._current_plate:
+                self._plate_test.drawPlate(self._current_plate)
         else:
+            self._a1_center_xy = (0.0, 0.0)
+            self._rotation = None
+            self._well_spacing = None
             self._plate_test.clear()
 
+        self._update_info()
         self._tab_wdg.setTabEnabled(1, fully_calibrated)
         self.calibrationChanged.emit(fully_calibrated)
 
-    def _update_info(
-        self, osr: tuple[tuple[float, float], tuple[float, float], float | None] | None
-    ) -> None:
+    def _update_info(self) -> None:
         style = self.style()
-        if osr is not None:
+        if self._rotation is not None:
+            spacing = self._well_spacing or (0, 0)
             txt = "<strong>Plate calibrated.</strong>"
             ico = icon(CALIBRATED_ICON, color=GREEN)
             if self._current_plate is not None:
-                origin, spacing, rotation = osr
                 spacing_diff = abs(spacing[0] - self._current_plate.well_spacing[0])
                 # if spacing is more than 5% different from the plate spacing...
                 if spacing_diff > 0.05 * self._current_plate.well_spacing[0]:
@@ -351,9 +359,10 @@ class PlateCalibrationWidget(QWidget):
                     )
                     ico = style.standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning)
             txt += "<br>"
-            txt += f"\nA1 Center [mm]: ({origin[0]/1000:.2f}, {origin[1]/1000:.2f}),   "
+            x0, y0 = self._a1_center_xy
+            txt += f"\nA1 Center [mm]: ({x0/1000:.2f}, {y0/1000:.2f}),   "
             txt += f"Well Spacing [mm]: ({spacing[0]:.2f}, {spacing[1]:.2f}),   "
-            txt += f"Rotation: {rotation if rotation is not None else 0}°"
+            txt += f"Rotation: {self._rotation}°"
         elif len(self._calibrated_wells) < self._min_wells_required:
             txt = f"Please calibrate at least {self._min_wells_required} wells."
             ico = style.standardIcon(QStyle.StandardPixmap.SP_MessageBoxInformation)
