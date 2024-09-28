@@ -78,11 +78,11 @@ class HCSWizard(QWizard):
     def value(self) -> useq.WellPlatePlan | None:
         """Return the current well plate plan, or None if the plan is uncalibrated."""
         calib_plan = self.calibration_page.widget.value()
-        if not self._calibrated or not calib_plan:
+        if not self._calibrated or not calib_plan:  # pragma: no cover
             return None
 
         plate_plan = self.plate_page.widget.value()
-        if plate_plan.plate != calib_plan.plate:
+        if plate_plan.plate != calib_plan.plate:  # pragma: no cover
             warnings.warn("Plate Plan and Calibration Plan do not match.", stacklevel=2)
             return None
 
@@ -212,6 +212,7 @@ class _PointsPlanPage(QWizardPage):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.widget)
 
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_px_size_changed)
         self._mmc.events.pixelSizeChanged.connect(self._on_px_size_changed)
         self._on_px_size_changed()
 
