@@ -13,6 +13,7 @@ from qtpy.QtWidgets import (
     QMessageBox,
     QPushButton,
     QWidget,
+    QWidgetAction,
     QWizard,
 )
 from superqt.fonticon import icon
@@ -110,6 +111,15 @@ class MDAWidget(MDASequenceWidget):
         pos_table_layout = cast(QBoxLayout, self.stage_positions.layout().itemAt(2))
         pos_table_layout.insertWidget(3, self.hcs_button)
 
+        # -------- edit positions button for HCS --------
+        p_toolbar = self.stage_positions.toolBar()
+        self._edit_hcs_pos = QPushButton("Edit Positions")
+        self._edit_hcs_pos.setStyleSheet("background-color: #C33;")
+        self._edit_hcs_pos.clicked.connect(self._enable_positions_editing)
+        action0 = next(x for x in p_toolbar.children() if isinstance(x, QWidgetAction))
+        self._edit_hcs_pos_action = p_toolbar.insertWidget(action0, self._edit_hcs_pos)
+        self._edit_hcs_pos_action.setVisible(False)
+
         # ------------ layout ------------
 
         layout = cast("QBoxLayout", self.layout())
@@ -126,7 +136,6 @@ class MDAWidget(MDASequenceWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self.hcs_button.clicked.connect(self._show_hcs)
         self.hcs.accepted.connect(self._on_hcs_accepted)
-        self.stage_positions.valueChanged.connect(self._on_positions_changed)
 
         self.destroyed.connect(self._disconnect)
 
@@ -183,6 +192,7 @@ class MDAWidget(MDASequenceWidget):
         """Get the current state of the widget as a [`useq.MDASequence`][]."""
         super().setValue(value)
         self.save_info.setValue(value.metadata.get(PYMMCW_METADATA_KEY, {}))
+        # TODO: decide how to handle the HCS data on setValue
 
     def get_next_available_path(self, requested_path: Path) -> Path:
         """Get the next available path.
@@ -329,13 +339,66 @@ class MDAWidget(MDASequenceWidget):
         if (plan := self.hcs.value()) is not None:
             self.stage_positions.setValue(list(plan))
             self._use_hcs = True
+            self._enable_position_table(False)
+            return
+        self._use_hcs = False
+        self._enable_position_table(True)
 
-    def _on_positions_changed(self) -> None:
-        """Reset the HCS flag when the positions are changed manually."""
-        # TODO: add a confirmation dialog if the user modifies the positions and the
-        # HCS flag is set
-        if self._use_hcs:
+    def _enable_positions_editing(self) -> None:
+        dialog = QMessageBox(
+            QMessageBox.Icon.Warning,
+            "Reset HCS",
+            "If you modify the positions, they will be considered as manually added, "
+            "and the HCS wizard will no longer be used for this MDA."
+            "\nWould you like to proceed?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            self,
+        )
+        dialog.setDefaultButton(QMessageBox.StandardButton.No)
+        if dialog.exec() == QMessageBox.StandardButton.Yes:
+            self._enable_position_table(True)
             self._use_hcs = False
+            return
+
+    def _enable_position_table(self, state: bool) -> None:
+        # show/hide the edit positions button
+        self._edit_hcs_pos_action.setVisible(not state)
+
+        # enable/disable the toolbar actions but the first two
+        p_toolbar = self.stage_positions.toolBar()
+        for action in p_toolbar.actions()[2:]:
+            action.setEnabled(state)
+
+        # enable/disable the table items
+        table = self.stage_positions.table()
+        for row in range(table.rowCount()):
+            for col in range(table.columnCount()):
+                item = table.item(row, col)
+                wdg_item = table.cellWidget(row, col)
+
+                if item is None and wdg_item is None:
+                    continue
+
+                # if enable is True, enable the item or widget
+                if state:
+                    if item is not None:
+                        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEnabled)
+                    elif wdg_item is not None:
+                        wdg_item.setEnabled(True)
+                # otherwise...
+                else:
+                    column_name = table.horizontalHeaderItem(col).text()
+                    # enable the pos name and AF columns
+                    if col == 0 or column_name == "AF":
+                        if item is not None:
+                            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEnabled)
+                        elif wdg_item is not None:
+                            wdg_item.setEnabled(True)
+                    # disable the rest of the columns
+                    elif item is not None:
+                        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEnabled)
+                    elif wdg_item is not None:
+                        wdg_item.setEnabled(False)
 
     def _on_mda_started(self) -> None:
         self._enable_widgets(False)
