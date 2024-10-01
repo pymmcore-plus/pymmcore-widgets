@@ -388,8 +388,8 @@ class MDAWidget(MDASequenceWidget):
                 # otherwise...
                 else:
                     column_name = table.horizontalHeaderItem(col).text()
-                    # enable the pos name and AF columns
-                    if col == 0 or column_name == "AF":
+                    # enable the pos name, "AF", and "Z" columns
+                    if col == 0 or column_name in {"AF", "Z [µm]"}:
                         if item is not None:
                             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEnabled)
                         elif wdg_item is not None:
