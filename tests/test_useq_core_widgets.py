@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, cast
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 import useq
@@ -21,6 +21,7 @@ from pymmcore_widgets.useq_widgets._mda_sequence import (
     PYMMCW_METADATA_KEY,
     AutofocusAxis,
     KeepShutterOpen,
+    QFileDialog,
 )
 from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP, _MDAPopup
 
@@ -580,8 +581,6 @@ def test_mda_no_pos_set(global_mmcore: CMMCorePlus, qtbot: QtBot):
 def test_core_mda_wdg_load_save(
     qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str
 ) -> None:
-    from pymmcore_widgets.useq_widgets._mda_sequence import QFileDialog
-
     wdg = MDAWidget()
     qtbot.addWidget(wdg)
     wdg.show()
@@ -701,7 +700,11 @@ def test_core_mda_with_hcs_value(qtbot: QtBot, global_mmcore: CMMCorePlus) -> No
         plate="96-well", a1_center_xy=(0, 0), selected_wells=((0, 1), (0, 1))
     )
     seq = useq.MDASequence(stage_positions=pos)
+
+    mock = Mock()
+    wdg.valueChanged.connect(mock)
     wdg.setValue(seq)
+    mock.assert_called_once()
 
     assert wdg.value().stage_positions == pos
     assert wdg.stage_positions.table().rowCount() == len(pos)
@@ -769,8 +772,6 @@ def test_core_mda_with_hcs_enable_disable(
 def test_core_mda_with_hcs_load_save(
     qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str
 ) -> None:
-    from pymmcore_widgets.useq_widgets._mda_sequence import QFileDialog
-
     wdg = MDAWidget()
     qtbot.addWidget(wdg)
     wdg.show()
