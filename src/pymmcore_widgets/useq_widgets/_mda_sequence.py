@@ -51,7 +51,6 @@ AXES = "tpgcz"
 ALLOWED_ORDERS = {"".join(p) for x in range(1, 6) for p in permutations(AXES, x)}
 for x in list(ALLOWED_ORDERS):
     for first, second in (
-        ("t", "c"),  # t cannot come after c
         ("t", "z"),  # t cannot come after z
         ("p", "g"),  # p cannot come after g
         ("p", "c"),  # p cannot come after c
