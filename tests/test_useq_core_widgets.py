@@ -9,6 +9,7 @@ import useq
 from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import QMessageBox
 
+from pymmcore_widgets import HCSWizard
 from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
@@ -686,3 +687,59 @@ def test_get_next_available_paths_special_cases(tmp_path: Path) -> None:
     high = tmp_path / "test_12345.txt"
     high.touch()
     assert get_next_available_path(high).name == "test_12346.txt"
+
+
+def test_core_mda_with_hcs_value(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    assert wdg.stage_positions.hcs is None
+    assert wdg.stage_positions._plate_plan is None
+
+    pos = useq.WellPlatePlan(
+        plate="96-well", a1_center_xy=(0, 0), selected_wells=((0, 0), (1, 1))
+    )
+    seq = useq.MDASequence(stage_positions=pos)
+    wdg.setValue(seq)
+
+    assert wdg.value().stage_positions == pos
+    assert wdg.stage_positions.table().rowCount() == len(pos)
+
+    assert isinstance(wdg.stage_positions.hcs, HCSWizard)
+    assert wdg.stage_positions._plate_plan == pos
+
+
+@pytest.mark.parametrize("ext", ["json", "yaml"])
+def test_core_mda_with_hcs_load_save(
+    qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str
+) -> None:
+    from pymmcore_widgets.useq_widgets._mda_sequence import QFileDialog
+
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    dest = tmp_path / f"sequence.{ext}"
+    # monkeypatch the dialog to load/save to our temp file
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a: (dest, None))
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *a: (dest, None))
+
+    # write the sequence to file and load the widget from it
+    mda = MDA.replace(
+        stage_positions=useq.WellPlatePlan(
+            plate="96-well",
+            a1_center_xy=(0, 0),
+            selected_wells=((0, 0), (1, 1)),
+            well_points_plan=useq.RelativePosition(fov_width=512.0, fov_height=512.0),
+        )
+    )
+    dest.write_text(mda.yaml() if ext == "yaml" else mda.model_dump_json())
+    wdg.load()
+
+    pos = wdg.value().stage_positions
+
+    # save the widget to file and load it back
+    dest.unlink()
+    wdg.save()
+    assert useq.MDASequence.from_file(dest).stage_positions == pos
