@@ -128,7 +128,7 @@ class CoreConnectedPositionTable(PositionTable):
         """Set the value of the positions table."""
         if isinstance(value, WellPlatePlan):
             self._init_hcs_wizard()
-            if self.hcs is None:
+            if self.hcs is None:  # pragma: no cover
                 return
             self._plate_plan = value
             self.hcs.setValue(value)
