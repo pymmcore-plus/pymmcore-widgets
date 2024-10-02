@@ -694,7 +694,7 @@ def test_core_mda_with_hcs_value(qtbot: QtBot, global_mmcore: CMMCorePlus) -> No
     qtbot.addWidget(wdg)
     wdg.show()
 
-    assert wdg.stage_positions.hcs is None
+    assert wdg.stage_positions._hcs_wizard is None
     assert wdg.stage_positions._plate_plan is None
 
     pos = useq.WellPlatePlan(
@@ -706,7 +706,7 @@ def test_core_mda_with_hcs_value(qtbot: QtBot, global_mmcore: CMMCorePlus) -> No
     assert wdg.value().stage_positions == pos
     assert wdg.stage_positions.table().rowCount() == len(pos)
 
-    assert isinstance(wdg.stage_positions.hcs, HCSWizard)
+    assert isinstance(wdg.stage_positions._hcs_wizard, HCSWizard)
     assert wdg.stage_positions._plate_plan == pos
 
 

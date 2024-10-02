@@ -127,18 +127,15 @@ class CoreConnectedPositionTable(PositionTable):
             return self._plate_plan
         return super().value(exclude_unchecked, exclude_hidden_cols)
 
-    def setValue(self, value: Sequence[Position] | WellPlatePlan) -> None:
+    def setValue(self, value: Sequence[Position]) -> None:  # type: ignore [override]
         """Set the value of the positions table."""
         if isinstance(value, WellPlatePlan):
             self._plate_plan = value
             self._hcs.setValue(value)
-            self.setValue(list(value))
+            self.setValue(tuple(value))
             self._set_position_table_editable(False)
         else:
             super().setValue(value)
-        raise TypeError(  # pragma: no cover
-            f"Expected a Sequence[Positions] or a WellPlatePlan, got {type(value)}."
-        )
 
     # ----------------------- private methods -----------------------
 

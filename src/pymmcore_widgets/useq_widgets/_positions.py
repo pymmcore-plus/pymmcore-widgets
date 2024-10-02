@@ -235,7 +235,7 @@ class PositionTable(DataTableWidget):
 
         return tuple(out)
 
-    def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore
+    def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore [override]
         """Set the current value of the table from a Sequence of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
 
         Parameters
