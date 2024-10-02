@@ -64,13 +64,13 @@ class CoreConnectedPositionTable(PositionTable):
         self.hcs: HCSWizard | None = None
         self._plate_plan: WellPlatePlan | None = None
 
-        self.hcs_button = QPushButton("HCS")
-        self.hcs_button.setIcon(icon(MDI6.vector_polyline))
-        self.hcs_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.hcs_button.setToolTip("Open the HCS wizard.")
-        self.hcs_button.clicked.connect(self._show_hcs)
+        self._hcs_button = QPushButton("HCS")
+        self._hcs_button.setIcon(icon(MDI6.vector_polyline))
+        self._hcs_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._hcs_button.setToolTip("Open the HCS wizard.")
+        self._hcs_button.clicked.connect(self._show_hcs)
         pos_table_layout = cast(QBoxLayout, self.layout().itemAt(2))
-        pos_table_layout.insertWidget(3, self.hcs_button)
+        pos_table_layout.insertWidget(3, self._hcs_button)
 
         self._edit_hcs_pos = QPushButton("Edit Table")
         self._edit_hcs_pos.setToolTip(
@@ -197,8 +197,8 @@ class CoreConnectedPositionTable(PositionTable):
     def _enable_position_table(self, state: bool) -> None:
         """Enable/disable the position table depending on the use of the HCS wizard."""
         self._edit_hcs_pos.setVisible(not state)
-        self._hide_columns(state)
         self.include_z.setVisible(state)
+        self._hide_columns(state)
         self._enable_toolbar(state)
         self._enable_table_items(state)
         # connect/disconnect the double click event

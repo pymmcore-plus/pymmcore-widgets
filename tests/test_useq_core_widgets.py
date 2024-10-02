@@ -698,7 +698,7 @@ def test_core_mda_with_hcs_value(qtbot: QtBot, global_mmcore: CMMCorePlus) -> No
     assert wdg.stage_positions._plate_plan is None
 
     pos = useq.WellPlatePlan(
-        plate="96-well", a1_center_xy=(0, 0), selected_wells=((0, 0), (1, 1))
+        plate="96-well", a1_center_xy=(0, 0), selected_wells=((0, 1), (0, 1))
     )
     seq = useq.MDASequence(stage_positions=pos)
     wdg.setValue(seq)
@@ -708,6 +708,61 @@ def test_core_mda_with_hcs_value(qtbot: QtBot, global_mmcore: CMMCorePlus) -> No
 
     assert isinstance(wdg.stage_positions.hcs, HCSWizard)
     assert wdg.stage_positions._plate_plan == pos
+
+
+def test_core_mda_with_hcs_enable_disable(
+    qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    table = wdg.stage_positions.table()
+    name_col = table.indexOf(wdg.stage_positions.NAME)
+    xy_btn_col = table.indexOf(wdg.stage_positions._xy_btn_col)
+    z_btn_col = table.indexOf(wdg.stage_positions._z_btn_col)
+    z_col = table.indexOf(wdg.stage_positions.Z)
+    sub_seq_btn_col = table.indexOf(wdg.stage_positions.SEQ)
+
+    mda = useq.MDASequence(stage_positions=[(0, 0, 0), (1, 1, 1)])
+    wdg.setValue(mda)
+
+    # edit table btn is hidden
+    assert wdg.stage_positions._edit_hcs_pos.isHidden()
+    # all table visible
+    assert not table.isColumnHidden(name_col)
+    assert not table.isColumnHidden(xy_btn_col)
+    assert not table.isColumnHidden(z_btn_col)
+    assert not table.isColumnHidden(z_col)
+    assert not table.isColumnHidden(sub_seq_btn_col)
+    # all toolbar actions enabled
+    assert all(action.isEnabled() for action in wdg.stage_positions.toolBar().actions())
+    # include_z checkbox enabled
+    assert wdg.stage_positions.include_z.isEnabled()
+
+    mda = useq.MDASequence(
+        stage_positions=useq.WellPlatePlan(
+            plate="96-well",
+            a1_center_xy=(0, 0),
+            selected_wells=((0, 1), (0, 1)),
+        )
+    )
+    wdg.setValue(mda)
+
+    # edit table btn is visible
+    assert not wdg.stage_positions._edit_hcs_pos.isHidden()
+    # all columns hidden but name
+    assert not table.isColumnHidden(name_col)
+    assert table.isColumnHidden(xy_btn_col)
+    assert table.isColumnHidden(z_btn_col)
+    assert table.isColumnHidden(z_col)
+    assert table.isColumnHidden(sub_seq_btn_col)
+    # all toolbar actions disabled but the move stage checkbox
+    assert all(
+        not action.isEnabled() for action in wdg.stage_positions.toolBar().actions()[1:]
+    )
+    # include_z checkbox disablex
+    assert wdg.stage_positions.include_z.isHidden()
 
 
 @pytest.mark.parametrize("ext", ["json", "yaml"])
