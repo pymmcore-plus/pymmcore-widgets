@@ -166,11 +166,27 @@ class CoreConnectedPositionTable(PositionTable):
         self._plate_plan = self.hcs.value()
 
         if self._plate_plan is not None:
-            # TODO: add warning message of overwriting positions
-            self.setValue(list(self._plate_plan))
-            self._enable_position_table(False)
-            self._rename_hcs_position_button("Update Positions List")
-            return
+            # show a ovwerwrite warning dialog if the table is not empty
+            if self.table().rowCount() > 0:
+                dialog = QMessageBox(
+                    QMessageBox.Icon.Warning,
+                    "Overwrite Positions",
+                    "This will replace the positions currently stored in the table."
+                    "\nWould you like to proceed?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    self,
+                )
+                dialog.setDefaultButton(QMessageBox.StandardButton.Yes)
+                if dialog.exec() == QMessageBox.StandardButton.Yes:
+                    self._update_table_positions(self._plate_plan)
+            else:
+                self._update_table_positions(self._plate_plan)
+
+    def _update_table_positions(self, plan: WellPlatePlan) -> None:
+        """Update the table with the positions from the HCS wizard."""
+        self.setValue(list(plan))
+        self._enable_position_table(False)
+        self._rename_hcs_position_button("Update Positions List")
 
     def _rename_hcs_position_button(self, text: str) -> None:
         if self.hcs is None:
