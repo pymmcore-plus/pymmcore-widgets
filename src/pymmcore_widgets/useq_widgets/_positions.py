@@ -176,16 +176,16 @@ class PositionTable(DataTableWidget):
         self._load_button = QPushButton("Load...")
         self._load_button.clicked.connect(self.load)
 
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(15)
-        btn_row.addWidget(self.include_z)
-        btn_row.addWidget(self.af_per_position)
-        btn_row.addStretch()
-        btn_row.addWidget(self._save_button)
-        btn_row.addWidget(self._load_button)
+        self._btn_row = QHBoxLayout()
+        self._btn_row.setSpacing(15)
+        self._btn_row.addWidget(self.include_z)
+        self._btn_row.addWidget(self.af_per_position)
+        self._btn_row.addStretch()
+        self._btn_row.addWidget(self._save_button)
+        self._btn_row.addWidget(self._load_button)
 
         layout = cast("QVBoxLayout", self.layout())
-        layout.addLayout(btn_row)
+        layout.addLayout(self._btn_row)
 
     # ------------------------- Public API -------------------------
 

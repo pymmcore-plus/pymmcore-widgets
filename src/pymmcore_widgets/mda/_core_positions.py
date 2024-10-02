@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence, cast
+from contextlib import suppress
+from typing import TYPE_CHECKING, Any, Sequence
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -8,7 +9,6 @@ from pymmcore_plus._logger import logger
 from pymmcore_plus._util import retry
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
-    QBoxLayout,
     QCheckBox,
     QMessageBox,
     QPushButton,
@@ -16,7 +16,6 @@ from qtpy.QtWidgets import (
     QWidgetAction,
     QWizard,
 )
-from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 from useq import WellPlatePlan
 
@@ -67,22 +66,22 @@ class CoreConnectedPositionTable(PositionTable):
         self._hcs_wizard: HCSWizard | None = None
         self._plate_plan: WellPlatePlan | None = None
 
-        self._hcs_button = QPushButton("HCS")
-        self._hcs_button.setIcon(icon(MDI6.vector_polyline))
+        self._hcs_button = QPushButton("Well Plate...")
+        # self._hcs_button.setIcon(icon(MDI6.view_comfy))
         self._hcs_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._hcs_button.setToolTip("Open the HCS wizard.")
         self._hcs_button.clicked.connect(self._show_hcs)
-        pos_table_layout = cast(QBoxLayout, self.layout().itemAt(2))
-        pos_table_layout.insertWidget(3, self._hcs_button)
 
-        self._edit_hcs_pos = QPushButton("Edit Table")
+        self._edit_hcs_pos = QPushButton("Make Editable")
         self._edit_hcs_pos.setToolTip(
             "Convert HCS positions to regular editable positions."
         )
         self._edit_hcs_pos.setStyleSheet("color: red")
-        pos_table_layout.insertWidget(3, self._edit_hcs_pos)
         self._edit_hcs_pos.hide()
         self._edit_hcs_pos.clicked.connect(self._show_pos_editing_dialog)
+
+        self._btn_row.insertWidget(3, self._hcs_button)
+        self._btn_row.insertWidget(3, self._edit_hcs_pos)
         # ------------------------------------------
 
         self.move_to_selection = QCheckBox("Move Stage to Selected Point")
@@ -93,19 +92,20 @@ class CoreConnectedPositionTable(PositionTable):
         self._z_btn_col = ButtonColumn(
             key="z_btn", glyph=MDI6.arrow_left, on_click=self._set_z_from_core
         )
-        self.table().addColumn(self._xy_btn_col, self.table().indexOf(self.X))
-        self.table().addColumn(self._z_btn_col, self.table().indexOf(self.Z) + 1)
-        self.table().addColumn(self._af_btn_col, self.table().indexOf(self.AF) + 1)
+        table = self.table()
+        table.addColumn(self._xy_btn_col, table.indexOf(self.X))
+        table.addColumn(self._z_btn_col, table.indexOf(self.Z) + 1)
+        table.addColumn(self._af_btn_col, table.indexOf(self.AF) + 1)
 
         # when a new row is inserted, call _on_rows_inserted
         # to update the new values from the core position
-        self.table().model().rowsInserted.connect(self._on_rows_inserted)
+        table.model().rowsInserted.connect(self._on_rows_inserted)
 
         # add move_to_selection to toolbar and link up callback
         toolbar = self.toolBar()
         action0 = next(x for x in toolbar.children() if isinstance(x, QWidgetAction))
         toolbar.insertWidget(action0, self.move_to_selection)
-        self.table().itemSelectionChanged.connect(self._on_selection_change)
+        table.itemSelectionChanged.connect(self._on_selection_change)
 
         # connect
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
@@ -200,6 +200,7 @@ class CoreConnectedPositionTable(PositionTable):
         """Enable/disable the position table depending on the use of the HCS wizard."""
         self._edit_hcs_pos.setVisible(not state)
         self.include_z.setVisible(state)
+        self.af_per_position.setVisible(state)
 
         # Hide or show all columns that are irrelevant when using the HCS wizard
         table = self.table()
@@ -217,12 +218,16 @@ class CoreConnectedPositionTable(PositionTable):
         # connect/disconnect the double click event and rename the button
         if state:
             self._rename_hcs_position_button(ADD_POSITIONS)
-            self.table().cellDoubleClicked.disconnect(self._show_pos_editing_dialog)
+            with suppress(RuntimeError):
+                self.table().cellDoubleClicked.disconnect(self._show_pos_editing_dialog)
         else:
             self._rename_hcs_position_button(UPDATE_POSITIONS)
-            self.table().cellDoubleClicked.connect(
-                self._show_pos_editing_dialog, Qt.ConnectionType.UniqueConnection
-            )
+            # using UniqueConnection to avoid multiple connections
+            # but catching the TypeError if the connection is already made
+            with suppress(TypeError, RuntimeError):
+                self.table().cellDoubleClicked.connect(
+                    self._show_pos_editing_dialog, Qt.ConnectionType.UniqueConnection
+                )
 
     def _enable_table_items(self, state: bool) -> None:
         """Enable or disable the table items depending on the use of the HCS wizard."""
