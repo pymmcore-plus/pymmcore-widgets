@@ -30,6 +30,9 @@ from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP
 if TYPE_CHECKING:
     from useq import Position
 
+UPDATE_POSITIONS = "Update Positions List"
+ADD_POSITIONS = "Add to Positions List"
+
 
 class CoreConnectedPositionTable(PositionTable):
     """[PositionTable](../PositionTable#) connected to a Micro-Manager core instance.
@@ -61,7 +64,7 @@ class CoreConnectedPositionTable(PositionTable):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         # -------------- HCS Wizard ----------------
-        self.hcs: HCSWizard | None = None
+        self._hcs_wizard: HCSWizard | None = None
         self._plate_plan: WellPlatePlan | None = None
 
         self._hcs_button = QPushButton("HCS")
@@ -74,7 +77,7 @@ class CoreConnectedPositionTable(PositionTable):
 
         self._edit_hcs_pos = QPushButton("Edit Table")
         self._edit_hcs_pos.setToolTip(
-            "Edit the positions manually. The HCS wizard will no longer be used."
+            "Convert HCS positions to regular editable positions."
         )
         self._edit_hcs_pos.setStyleSheet("color: red")
         pos_table_layout.insertWidget(3, self._edit_hcs_pos)
@@ -127,44 +130,34 @@ class CoreConnectedPositionTable(PositionTable):
     def setValue(self, value: Sequence[Position] | WellPlatePlan) -> None:
         """Set the value of the positions table."""
         if isinstance(value, WellPlatePlan):
-            self._init_hcs_wizard()
-            if self.hcs is None:  # pragma: no cover
-                return
             self._plate_plan = value
-            self.hcs.setValue(value)
+            self._hcs.setValue(value)
             self.setValue(list(value))
-            self._enable_position_table(False)
-            self._rename_hcs_position_button("Update Positions List")
-        elif isinstance(value, Sequence):
-            super().setValue(value)
+            self._set_position_table_editable(False)
         else:
-            raise TypeError(
-                f"Expected a Sequence[Positions] or a WellPlatePlan, got {type(value)}."
-            )
+            super().setValue(value)
+        raise TypeError(  # pragma: no cover
+            f"Expected a Sequence[Positions] or a WellPlatePlan, got {type(value)}."
+        )
 
     # ----------------------- private methods -----------------------
 
     def _show_hcs(self) -> None:
         """Show or raise the HCS wizard."""
-        # create the HCS wizard if it doesn't exist
-        self._init_hcs_wizard()
-        if self.hcs is None:
-            return
-        self.hcs.raise_() if self.hcs.isVisible() else self.hcs.show()
+        self._hcs.raise_() if self._hcs.isVisible() else self._hcs.show()
 
-    def _init_hcs_wizard(self) -> None:
-        """Initialize the HCS wizard if it doesn't exist."""
-        if self.hcs is None:
-            self.hcs = HCSWizard(self)
-            self._rename_hcs_position_button("Add to Positions List")
-            self.hcs.accepted.connect(self._on_hcs_accepted)
+    @property
+    def _hcs(self) -> HCSWizard:
+        """Get the HCS wizard, initializing it if it doesn't exist."""
+        if self._hcs_wizard is None:
+            self._hcs_wizard = HCSWizard(self)
+            self._rename_hcs_position_button(ADD_POSITIONS)
+            self._hcs_wizard.accepted.connect(self._on_hcs_accepted)
+        return self._hcs_wizard
 
     def _on_hcs_accepted(self) -> None:
         """Add the positions from the HCS wizard to the stage positions."""
-        if self.hcs is None:
-            return
-        self._plate_plan = self.hcs.value()
-
+        self._plate_plan = self._hcs.value()
         if self._plate_plan is not None:
             # show a ovwerwrite warning dialog if the table is not empty
             if self.table().rowCount() > 0:
@@ -177,21 +170,18 @@ class CoreConnectedPositionTable(PositionTable):
                     self,
                 )
                 dialog.setDefaultButton(QMessageBox.StandardButton.Yes)
-                if dialog.exec() == QMessageBox.StandardButton.Yes:
-                    self._update_table_positions(self._plate_plan)
-            else:
-                self._update_table_positions(self._plate_plan)
+                if dialog.exec() != QMessageBox.StandardButton.Yes:
+                    return
+            self._update_table_positions(self._plate_plan)
 
     def _update_table_positions(self, plan: WellPlatePlan) -> None:
         """Update the table with the positions from the HCS wizard."""
         self.setValue(list(plan))
-        self._enable_position_table(False)
-        self._rename_hcs_position_button("Update Positions List")
+        self._set_position_table_editable(False)
 
     def _rename_hcs_position_button(self, text: str) -> None:
-        if self.hcs is None:
-            return
-        self.hcs.points_plan_page.setButtonText(QWizard.WizardButton.FinishButton, text)
+        if wiz := self._hcs_wizard:
+            wiz.points_plan_page.setButtonText(QWizard.WizardButton.FinishButton, text)
 
     def _show_pos_editing_dialog(self) -> None:
         dialog = QMessageBox(
@@ -207,27 +197,35 @@ class CoreConnectedPositionTable(PositionTable):
         dialog.setDefaultButton(QMessageBox.StandardButton.No)
         if dialog.exec() == QMessageBox.StandardButton.Yes:
             self._plate_plan = None
-            self._enable_position_table(True)
-            self._rename_hcs_position_button("Add to Positions List")
+            self._set_position_table_editable(True)
 
-    def _enable_position_table(self, state: bool) -> None:
+    def _set_position_table_editable(self, state: bool) -> None:
         """Enable/disable the position table depending on the use of the HCS wizard."""
         self._edit_hcs_pos.setVisible(not state)
         self.include_z.setVisible(state)
-        self._hide_columns(state)
-        self._enable_toolbar(state)
+
+        # Hide or show all columns that are irrelevant when using the HCS wizard
+        table = self.table()
+        inc_z = self.include_z.isChecked()
+        table.setColumnHidden(table.indexOf(self._xy_btn_col), not state)
+        table.setColumnHidden(table.indexOf(self._z_btn_col), not state or not inc_z)
+        table.setColumnHidden(table.indexOf(self.Z), not state or not inc_z)
+        table.setColumnHidden(table.indexOf(self.SEQ), not state)
+
+        # Enable or disable the toolbar
+        for action in self.toolBar().actions()[1:]:
+            action.setEnabled(state)
+
         self._enable_table_items(state)
-        # connect/disconnect the double click event
+        # connect/disconnect the double click event and rename the button
         if state:
+            self._rename_hcs_position_button(ADD_POSITIONS)
             self.table().cellDoubleClicked.disconnect(self._show_pos_editing_dialog)
         else:
-            self.table().cellDoubleClicked.connect(self._show_pos_editing_dialog)
-
-    def _enable_toolbar(self, state: bool) -> None:
-        """Enable or disable the toolbar depending on the use of the HCS wizard."""
-        p_toolbar = self.toolBar()
-        for action in p_toolbar.actions()[1:]:
-            action.setEnabled(state)
+            self._rename_hcs_position_button(UPDATE_POSITIONS)
+            self.table().cellDoubleClicked.connect(
+                self._show_pos_editing_dialog, Qt.ConnectionType.UniqueConnection
+            )
 
     def _enable_table_items(self, state: bool) -> None:
         """Enable or disable the table items depending on the use of the HCS wizard."""
@@ -236,41 +234,18 @@ class CoreConnectedPositionTable(PositionTable):
         x_col = table.indexOf(self.X)
         y_col = table.indexOf(self.Y)
         for row in range(table.rowCount()):
-            # enable/disable the X cells
-            item_x = table.cellWidget(row, x_col)
-            item_x.setEnabled(state)
-            # enable/disable the Y cells
-            item_y = table.cellWidget(row, y_col)
-            item_y.setEnabled(state)
+            table.cellWidget(row, x_col).setEnabled(state)
+            table.cellWidget(row, y_col).setEnabled(state)
             # enable/disable the name cells
-            item_name = table.item(row, name_col)
+            name_item = table.item(row, name_col)
+            flags = name_item.flags() | Qt.ItemFlag.ItemIsEnabled
             if state:
-                print("making name enabled and editable")
-                item_name.setFlags(
-                    item_name.flags()
-                    | Qt.ItemFlag.ItemIsEnabled
-                    | Qt.ItemFlag.ItemIsEditable
-                )
+                flags |= Qt.ItemFlag.ItemIsEditable
             else:
                 # keep the name column enabled but NOT editable. We do not disable to
                 # keep available the "Move Stage to Selected Point" option
-                item_name.setFlags(
-                    (item_name.flags() | Qt.ItemFlag.ItemIsEnabled)
-                    & ~Qt.ItemFlag.ItemIsEditable
-                )
-
-    def _hide_columns(self, state: bool) -> None:
-        """Hide or show the columns depending on the use of the HCS wizard."""
-        xy_btn_col = self.table().indexOf(self._xy_btn_col)
-        self.table().setColumnHidden(xy_btn_col, not state)
-        z_btn_col = self.table().indexOf(self._z_btn_col)
-        self.table().setColumnHidden(
-            z_btn_col, not state or not self.include_z.isChecked()
-        )
-        z_col = self.table().indexOf(self.Z)
-        self.table().setColumnHidden(z_col, not state or not self.include_z.isChecked())
-        sub_seq_btn_col = self.table().indexOf(self.SEQ)
-        self.table().setColumnHidden(sub_seq_btn_col, not state)
+                flags &= ~Qt.ItemFlag.ItemIsEditable
+            name_item.setFlags(flags)
 
     def _on_sys_config_loaded(self) -> None:
         """Update the table when the system configuration is loaded."""

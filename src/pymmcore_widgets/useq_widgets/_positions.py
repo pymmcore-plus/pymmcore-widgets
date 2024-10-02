@@ -191,7 +191,7 @@ class PositionTable(DataTableWidget):
 
     def value(
         self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
-    ) -> tuple[useq.Position, ...]:
+    ) -> Sequence[useq.Position]:
         """Return the current value of the table as a tuple of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
 
         Parameters
