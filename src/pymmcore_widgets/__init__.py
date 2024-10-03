@@ -29,6 +29,7 @@ from ._shutter_widget import ShuttersWidget
 from ._snap_button_widget import SnapButton
 from ._stage_widget import StageWidget
 from .group_preset_widget import GroupPresetDialog
+from .hcs import HCSWizard
 from .hcwizard import ConfigWizard
 from .mda import MDAWidget
 from .useq_widgets import (
@@ -80,6 +81,7 @@ __all__ = [
     "GridPlanWidget",
     "GroupPresetDialog",
     "GroupPresetTableWidget",
+    "HCSWizard",
     "ImagePreview",
     "InstallWidget",
     "LiveButton",
