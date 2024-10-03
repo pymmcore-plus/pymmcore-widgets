@@ -76,6 +76,21 @@ def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
                 wiz.closeEvent(QCloseEvent())
 
 
+def test_config_wizard_rejection(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
+    global_mmcore.loadSystemConfiguration(str(TEST_CONFIG))
+    st1 = global_mmcore.getSystemState()
+
+    wiz = ConfigWizard(str(TEST_CONFIG), global_mmcore)
+    qtbot.addWidget(wiz)
+    wiz.show()
+    wiz.reject()
+
+    # Assert system state prior to wizard execution still present
+    st2 = global_mmcore.getSystemState()
+
+    assert st1 == st2
+
+
 def test_config_wizard_devices(
     global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path, qapp
 ):

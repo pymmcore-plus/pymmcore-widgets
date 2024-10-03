@@ -45,7 +45,7 @@ RELATIVE_POSITION = RelativePosition()
 def test_random_points_widget(qtbot: QtBot) -> None:
     wdg = pp.RandomPointWidget()
     qtbot.addWidget(wdg)
-    assert wdg.num_points.value() == 1
+    assert wdg.num_points.value() == 10
     assert wdg.max_width.value() == 6000
     assert wdg.max_height.value() == 6000
     assert wdg.shape.currentText() == "ellipse"
@@ -69,8 +69,8 @@ def test_random_points_widget(qtbot: QtBot) -> None:
 def test_grid_plan_widget(qtbot: QtBot) -> None:
     wdg = pp.GridRowColumnWidget()
     qtbot.addWidget(wdg)
-    assert wdg.rows.value() == 1
-    assert wdg.columns.value() == 1
+    assert wdg.rows.value() == 3
+    assert wdg.columns.value() == 3
     assert wdg.overlap_x.value() == 0
     assert wdg.overlap_y.value() == 0
     assert wdg.mode.currentText() == "row_wise_snake"
@@ -199,7 +199,7 @@ def test_max_points_detected(qtbot: QtBot) -> None:
     qtbot.addWidget(wdg)
 
     with qtbot.waitSignal(wdg._well_view.maxPointsDetected):
-        wdg._selector.random_points_wdg.num_points.setValue(100)
+        wdg.random_points_wdg.num_points.setValue(100)
 
     assert wdg.value().num_points < 60
 
@@ -236,7 +236,7 @@ def test_points_plan_set_well_info(qtbot: QtBot) -> None:
     well = wdg._well_view._well_outline_item.sceneBoundingRect()
     bound = wdg._well_view._bounding_area_item.sceneBoundingRect()
     assert well.center() == bound.center()
-    offset = 20  # ofset automatically added when drawing
+    offset = 20  # offset automatically added when drawing
     # bounding rect should be 1/3 the size of the well rect in width
     assert well.width() - offset == (bound.width() - offset) * 3
     # bounding rect should be 1/2 the size of the well rect in height
