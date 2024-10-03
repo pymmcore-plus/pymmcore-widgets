@@ -746,6 +746,7 @@ def test_core_mda_with_hcs_enable_disable(
     assert all(action.isEnabled() for action in wdg.stage_positions.toolBar().actions())
     # include_z checkbox enabled
     assert wdg.stage_positions.include_z.isEnabled()
+    # autofocus checkbox enabled
     assert wdg.stage_positions.af_per_position.isEnabled()
 
     mda = useq.MDASequence(
@@ -771,6 +772,7 @@ def test_core_mda_with_hcs_enable_disable(
     )
     # include_z checkbox disablex
     assert wdg.stage_positions.include_z.isHidden()
+    # autofocus checkbox enabled
     assert wdg.stage_positions.af_per_position.isEnabled()
 
 
