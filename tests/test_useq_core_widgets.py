@@ -240,7 +240,7 @@ def mock_getAutoFocusOffset(global_mmcore: CMMCorePlus):
 
 
 def test_core_position_table_add_position(
-    qtbot: QtBot, mock_getAutoFocusOffset
+    qtbot: QtBot, mock_getAutoFocusOffset: None
 ) -> None:
     wdg = MDAWidget()
     qtbot.addWidget(wdg)
@@ -692,6 +692,10 @@ def test_core_mda_with_hcs_value(qtbot: QtBot, global_mmcore: CMMCorePlus) -> No
     wdg = MDAWidget()
     qtbot.addWidget(wdg)
     wdg.show()
+
+    # uncheck all tabs
+    for t in range(wdg.tab_wdg.count() + 1):
+        wdg.tab_wdg.setChecked(t, False)
 
     assert wdg.stage_positions._hcs_wizard is None
     assert wdg.stage_positions._plate_plan is None

@@ -127,15 +127,14 @@ class CoreConnectedPositionTable(PositionTable):
             return self._plate_plan
         return super().value(exclude_unchecked, exclude_hidden_cols)
 
-    def setValue(self, value: Sequence[Position]) -> None:  # type: ignore [override]
+    def setValue(self, value: Sequence[Position] | WellPlatePlan) -> None:
         """Set the value of the positions table."""
         if isinstance(value, WellPlatePlan):
             self._plate_plan = value
             self._hcs.setValue(value)
-            self.setValue(tuple(value))
             self._set_position_table_editable(False)
-        else:
-            super().setValue(value)
+            value = tuple(value)
+        super().setValue(value)
 
     # ----------------------- private methods -----------------------
 
@@ -235,19 +234,20 @@ class CoreConnectedPositionTable(PositionTable):
         name_col = table.indexOf(self.NAME)
         x_col = table.indexOf(self.X)
         y_col = table.indexOf(self.Y)
-        for row in range(table.rowCount()):
-            table.cellWidget(row, x_col).setEnabled(state)
-            table.cellWidget(row, y_col).setEnabled(state)
-            # enable/disable the name cells
-            name_item = table.item(row, name_col)
-            flags = name_item.flags() | Qt.ItemFlag.ItemIsEnabled
-            if state:
-                flags |= Qt.ItemFlag.ItemIsEditable
-            else:
-                # keep the name column enabled but NOT editable. We do not disable to
-                # keep available the "Move Stage to Selected Point" option
-                flags &= ~Qt.ItemFlag.ItemIsEditable
-            name_item.setFlags(flags)
+        with signals_blocked(table):
+            for row in range(table.rowCount()):
+                table.cellWidget(row, x_col).setEnabled(state)
+                table.cellWidget(row, y_col).setEnabled(state)
+                # enable/disable the name cells
+                name_item = table.item(row, name_col)
+                flags = name_item.flags() | Qt.ItemFlag.ItemIsEnabled
+                if state:
+                    flags |= Qt.ItemFlag.ItemIsEditable
+                else:
+                    # keep the name column enabled but NOT editable. We do not disable
+                    # to keep available the "Move Stage to Selected Point" option
+                    flags &= ~Qt.ItemFlag.ItemIsEditable
+                name_item.setFlags(flags)
 
     def _on_sys_config_loaded(self) -> None:
         """Update the table when the system configuration is loaded."""
