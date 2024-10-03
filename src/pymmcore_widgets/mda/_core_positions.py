@@ -199,7 +199,6 @@ class CoreConnectedPositionTable(PositionTable):
         """Enable/disable the position table depending on the use of the HCS wizard."""
         self._edit_hcs_pos.setVisible(not state)
         self.include_z.setVisible(state)
-        self.af_per_position.setVisible(state)
 
         # Hide or show all columns that are irrelevant when using the HCS wizard
         table = self.table()
