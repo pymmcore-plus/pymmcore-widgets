@@ -2,6 +2,7 @@
 
 import warnings
 from importlib.metadata import PackageNotFoundError, version
+from typing import TYPE_CHECKING
 
 try:
     __version__ = version("pymmcore-widgets")
@@ -75,6 +76,12 @@ from .useq_widgets import (
     ZPlanWidget,
 )
 from .views import ImagePreview
+
+if TYPE_CHECKING:
+    from ._deprecated._device_widget import (  # noqa: TCH004
+        DeviceWidget,
+        StateDeviceWidget,
+    )
 
 
 def __getattr__(name: str) -> object:
