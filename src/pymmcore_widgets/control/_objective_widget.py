@@ -3,8 +3,8 @@ from __future__ import annotations
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QLabel, QSizePolicy, QWidget
 
-from ._device_widget import StateDeviceWidget
-from ._util import guess_objective_or_prompt
+from pymmcore_widgets._deprecated._device_widget import StateDeviceWidget
+from pymmcore_widgets._util import guess_objective_or_prompt
 
 
 class ObjectivesWidget(QWidget):

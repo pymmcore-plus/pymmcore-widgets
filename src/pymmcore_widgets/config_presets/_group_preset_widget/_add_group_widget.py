@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import warnings
+from typing import TYPE_CHECKING
+
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import (
     QDialog,
@@ -13,33 +16,37 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from pymmcore_widgets._device_property_table import DevicePropertyTable
-from pymmcore_widgets._device_type_filter import DeviceTypeFilters
-from pymmcore_widgets._util import block_core
+from pymmcore_widgets.device_properties._device_property_table import (
+    DevicePropertyTable,
+)
+from pymmcore_widgets.device_properties._device_type_filter import DeviceTypeFilters
+
+from ._add_first_preset_widget import AddFirstPresetWidget
+
+if TYPE_CHECKING:
+    from qtpy.QtGui import QCloseEvent
 
 
-class EditGroupWidget(QDialog):
-    """Widget to edit the specified Group."""
+class AddGroupWidget(QDialog):
+    """Widget to create a new group."""
 
-    def __init__(self, group: str, *, parent: QWidget | None = None) -> None:
+    def __init__(self, *, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
         self._mmc = CMMCorePlus.instance()
-
-        self._group = group
-
-        if self._group not in self._mmc.getAvailableConfigGroups():
-            return
-
         self._mmc.events.systemConfigurationLoaded.connect(self._update_filter)
 
         self._create_gui()
 
-        self.group_lineedit.setText(self._group)
-
         self.destroyed.connect(self._disconnect)
 
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Close also 'AddFirstPresetWidget' if is open."""
+        if hasattr(self, "_first_preset_wdg"):
+            self._first_preset_wdg.close()  # type: ignore
+        event.accept()
+
     def _create_gui(self) -> None:
-        self.setWindowTitle(f"Edit the '{self._group}' Group.")
+        self.setWindowTitle("Create a new Group")
 
         main_layout = QVBoxLayout()
         main_layout.setSpacing(10)
@@ -88,7 +95,6 @@ class EditGroupWidget(QDialog):
 
         self._prop_table = DevicePropertyTable(enable_property_widgets=False)
         self._prop_table.setRowsCheckable(True)
-        self._prop_table.checkGroup(self._group)
         self._device_filters = DeviceTypeFilters()
         self._device_filters.filtersChanged.connect(self._update_filter)
         self._device_filters.setShowReadOnly(False)
@@ -119,14 +125,14 @@ class EditGroupWidget(QDialog):
 
         self.info_lbl = QLabel()
 
-        self.modify_group_btn = QPushButton(text="Modify Group")
-        self.modify_group_btn.setSizePolicy(
+        self.new_group_btn = QPushButton(text="Create New Group")
+        self.new_group_btn.setSizePolicy(
             QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         )
-        self.modify_group_btn.clicked.connect(self._add_group)
+        self.new_group_btn.clicked.connect(self._add_group)
 
         layout.addWidget(self.info_lbl)
-        layout.addWidget(self.modify_group_btn)
+        layout.addWidget(self.new_group_btn)
 
         return wdg
 
@@ -143,53 +149,35 @@ class EditGroupWidget(QDialog):
         )
 
     def _add_group(self) -> None:
-        # rename group if it has been changed
-        renamed: bool = False
-        if self._group != self.group_lineedit.text():
-            self._mmc.renameConfigGroup(self._group, self.group_lineedit.text())
-            self._group = self.group_lineedit.text()
-            renamed = True
+        group = self.group_lineedit.text()
 
-        # [(device, property, value), ...], need to remove the value
-        new_dev_prop = [x[:2] for x in self._prop_table.getCheckedProperties()]
-
-        presets = self._mmc.getAvailableConfigs(self._group)
-        preset_dev_prop = [
-            (k[0], k[1]) for k in self._mmc.getConfigData(self._group, presets[0])
-        ]
-
-        if preset_dev_prop == new_dev_prop and not renamed:
+        if not group:
+            warnings.warn("Give a name to the group!", stacklevel=2)
+            self.info_lbl.setStyleSheet("color: magenta;")
+            self.info_lbl.setText("Give a name to the group!")
             return
 
-        # get any new dev prop to add to each preset
-        _to_add: list[tuple[str, str, str]] = []
-        for d, p in new_dev_prop:
-            if (d, p) not in preset_dev_prop:
-                value = self._mmc.getProperty(d, p)
-                _to_add.append((d, p, value))
+        if group in self._mmc.getAvailableConfigGroups():
+            warnings.warn(f"There is already a preset called '{group}'.", stacklevel=2)
+            self.info_lbl.setStyleSheet("color: magenta;")
+            self.info_lbl.setText(f"'{group}' already exist!")
+            return
 
-        # get the dev prop val to keep per preset
-        _prop_to_keep: list[list[tuple[str, str, str]]] = []
-        for preset in presets:
-            preset_dev_prop_val = [
-                (k[0], k[1], k[2]) for k in self._mmc.getConfigData(self._group, preset)
-            ]
-            _to_keep = [
-                (d, p, v) for d, p, v in preset_dev_prop_val if (d, p) in new_dev_prop
-            ]
-            _prop_to_keep.append(_to_keep)
+        # [(device, property, value_to_set), ...]
+        dev_prop_val_list = self._prop_table.getCheckedProperties()
 
-        self._mmc.deleteConfigGroup(self._group)
+        if not dev_prop_val_list:
+            warnings.warn("Select at lest one property!", stacklevel=2)
+            self.info_lbl.setStyleSheet("color: magenta;")
+            self.info_lbl.setText("Select at lest one property!")
+            return
 
-        for idx, preset in enumerate(presets):
-            preset_dpv = _prop_to_keep[idx]
-            if _to_add:
-                preset_dpv.extend(_to_add)
+        if hasattr(self, "_first_preset_wdg"):
+            self._first_preset_wdg.close()  # type: ignore
+        self._first_preset_wdg = AddFirstPresetWidget(
+            group, dev_prop_val_list, parent=self
+        )
+        self._first_preset_wdg.show()
 
-            with block_core(self._mmc.events):
-                for d, p, v in preset_dpv:
-                    self._mmc.defineConfig(self._group, preset, d, p, v)
-
-            self._mmc.events.configDefined.emit(self._group, preset, d, p, v)
-
-        self.info_lbl.setText(f"'{self._group}' Group Modified.")
+        self.info_lbl.setStyleSheet("")
+        self.info_lbl.setText("")

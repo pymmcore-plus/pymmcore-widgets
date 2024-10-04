@@ -8,7 +8,7 @@ from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QComboBox, QTableWidget, QTableWidgetItem, QWidget
 
-from pymmcore_widgets._property_widget import PropertyWidget
+from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 
 
 class PortSelector(QComboBox):
