@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping
+from typing import TYPE_CHECKING
 
 import numpy as np
 import useq
@@ -26,6 +26,8 @@ from superqt.utils import signals_blocked
 from pymmcore_widgets._util import ResizingGraphicsView
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
     from qtpy.QtGui import QMouseEvent
 
     Index = int | list[int] | tuple[int] | slice

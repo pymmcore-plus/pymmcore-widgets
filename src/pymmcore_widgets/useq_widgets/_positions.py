@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence, cast
+from typing import TYPE_CHECKING, cast
 
 import useq
 from fonticon_mdi6 import MDI6
@@ -23,6 +23,9 @@ from superqt.fonticon import icon
 
 from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
 NULL_SEQUENCE = useq.MDASequence()
