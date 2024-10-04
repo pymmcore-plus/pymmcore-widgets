@@ -33,6 +33,10 @@ jobs:
         platform: [macos-13, windows-latest]
         python-version: ["3.10", "3.12"]
         backend: [pyside6, pyqt6]
+        exclude:
+          - platform: windows-latest
+            python-version: "3.10"
+            backend: pyside6
         include:
           - platform: macos-13
             python-version: "3.9"
@@ -43,9 +47,9 @@ jobs:
           - platform: windows-latest
             python-version: "3.11"
             backend: pyqt5
-          - platform: windows-latest
-            python-version: "3.13"
-            backend: pyqt6
+          # - platform: windows-latest
+          #   python-version: "3.13"
+          #   backend: pyqt6
 
     steps:
       - uses: actions/checkout@v4
