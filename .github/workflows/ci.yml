@@ -40,12 +40,12 @@ jobs:
           - platform: windows-latest
             python-version: "3.9"
             backend: pyside2
-          - platform: macos-13
-            python-version: "3.13"
-            backend: pyqt6
           - platform: windows-latest
             python-version: "3.11"
             backend: pyqt5
+          - platform: windows-latest
+            python-version: "3.13"
+            backend: pyqt6
 
     steps:
       - uses: actions/checkout@v4
