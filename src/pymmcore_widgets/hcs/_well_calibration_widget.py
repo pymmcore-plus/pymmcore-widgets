@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterator, NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -22,6 +22,9 @@ from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
 from ._util import find_circle_center, find_rectangle_center
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 COMBO_ROLE = Qt.ItemDataRole.UserRole + 1
 ICON_PATH = Path(__file__).parent / "icons"

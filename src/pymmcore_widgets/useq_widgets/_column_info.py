@@ -4,7 +4,7 @@ import contextlib
 import re
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Callable, ClassVar, Generic, Iterable, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, ClassVar, Generic, TypeVar, cast
 
 import pint
 from qtpy.QtCore import Qt, Signal, SignalInstance
@@ -25,6 +25,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from typing import Any
 
 

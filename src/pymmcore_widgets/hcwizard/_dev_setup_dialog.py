@@ -85,7 +85,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import suppress
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import Qt
@@ -104,6 +104,8 @@ from superqt.utils import exceptions_as_dialog
 from ._simple_prop_table import PropTable
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from qtpy.QtGui import QFocusEvent
 
 logger = logging.getLogger(__name__)

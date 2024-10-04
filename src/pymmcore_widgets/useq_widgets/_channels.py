@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Any, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 import useq
 from pymmcore_plus import Keyword
@@ -17,6 +17,9 @@ from ._column_info import (
     TextColumn,
 )
 from ._data_table import DataTableWidget
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
 
 NAMED_CONFIG = TextColumn(key="config", default=None, is_row_selector=True)
 DEFAULT_GROUP = Keyword.Channel

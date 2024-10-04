@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from typing import Mapping
+from typing import TYPE_CHECKING
 
 import numpy as np
 import useq
@@ -27,6 +27,9 @@ from pymmcore_widgets.hcs._well_calibration_widget import (
     WellCalibrationWidget,
 )
 from pymmcore_widgets.useq_widgets._well_plate_widget import WellPlateView
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 class PlateCalibrationWidget(QWidget):
