@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import DeviceType
 
