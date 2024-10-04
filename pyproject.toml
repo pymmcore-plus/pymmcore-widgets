@@ -20,7 +20,7 @@ sources = ["src"]
 name = "pymmcore-widgets"
 description = "A set of Qt-based widgets onto the pymmcore-plus model"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { text = "BSD 3-Clause License" }
 authors = [
     { email = "federico.gasparoli@gmail.com", name = "Federico Gasparoli" },
@@ -34,10 +34,11 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: BSD License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python",
     "Topic :: Software Development :: Widget Sets",
     "Topic :: System :: Hardware :: Hardware Drivers",
@@ -60,7 +61,15 @@ allow-direct-references = true
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-test = ["pytest>=6.0", "pytest-cov", "pytest-qt", "PyYAML", "vispy", "cmap", "zarr"]
+test = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "pytest-qt",
+    "PyYAML",
+    "vispy",
+    "cmap",
+    "zarr",
+]
 pyqt5 = ["PyQt5"]
 pyside2 = ["PySide2"]
 pyqt6 = ["PyQt6"]
@@ -97,8 +106,9 @@ Documentation = "https://pymmcore-plus.github.io/pymmcore-widgets"
 # https://beta.ruff.rs/docs/rules/
 [tool.ruff]
 line-length = 88
-target-version = "py38"
+target-version = "py39"
 src = ["src", "tests"]
+
 [tool.ruff.lint]
 pydocstyle = { convention = "numpy" }
 select = [
@@ -115,7 +125,6 @@ select = [
     "RUF",  # ruff-specific rules
     "TID",  # tidy
     "TCH",  # typecheck
-    # "SLF",  # private-access
 ]
 ignore = [
     "D100", # Missing docstring in public module
@@ -178,4 +187,3 @@ ignore = [
 
 [tool.typos.default]
 extend-ignore-identifiers-re = ["(?i)nd2?.*", "(?i)ome", "FO(Vs?)?"]
-

@@ -31,29 +31,23 @@ jobs:
       fail-fast: false
       matrix:
         platform: [macos-13, windows-latest]
-        python-version: ["3.8", "3.11"]
+        python-version: ["3.9", "3.12"]
         backend: [pyside2, pyqt5]
         include:
           - platform: macos-13
             python-version: "3.10"
             backend: pyside6
           - platform: macos-13
-            python-version: "3.11"
+            python-version: "3.13"
             backend: pyqt6
           - platform: windows-latest
-            python-version: "3.10"
+            python-version: "3.13"
             backend: pyside6
           - platform: windows-latest
             python-version: "3.11"
             backend: pyqt6
-          - platform: windows-latest
-            python-version: "3.9"
-            backend: pyside2
-          - platform: windows-latest
-            python-version: "3.9"
-            backend: pyqt5
         exclude:
-          - python-version: "3.11"
+          - python-version: "3.19"
             backend: pyside2
 
     steps:
@@ -63,6 +57,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
 
       - name: Install dependencies
         run: |
