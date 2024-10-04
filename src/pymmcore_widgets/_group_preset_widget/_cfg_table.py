@@ -15,13 +15,13 @@ class _CfgTable(QTableWidget):
 
     def __init__(self) -> None:
         super().__init__()
-        if hdr := self.horizontalHeader():
-            hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
-            hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
-        if vh := self.verticalHeader():
-            vh.setVisible(False)
-            vh.setSectionResizeMode(vh.ResizeMode.Fixed)
-            vh.setDefaultSectionSize(24)
+        hdr = self.horizontalHeader()
+        hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
+        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
+        vh = self.verticalHeader()
+        vh.setVisible(False)
+        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
+        vh.setDefaultSectionSize(24)
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Device-Property", "Value"])
