@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, cast
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 import useq
 from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import QMessageBox
 
+from pymmcore_widgets import HCSWizard
 from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
@@ -20,6 +21,7 @@ from pymmcore_widgets.useq_widgets._mda_sequence import (
     PYMMCW_METADATA_KEY,
     AutofocusAxis,
     KeepShutterOpen,
+    QFileDialog,
 )
 from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP, _MDAPopup
 
@@ -238,7 +240,7 @@ def mock_getAutoFocusOffset(global_mmcore: CMMCorePlus):
 
 
 def test_core_position_table_add_position(
-    qtbot: QtBot, mock_getAutoFocusOffset
+    qtbot: QtBot, mock_getAutoFocusOffset: None
 ) -> None:
     wdg = MDAWidget()
     qtbot.addWidget(wdg)
@@ -579,8 +581,6 @@ def test_mda_no_pos_set(global_mmcore: CMMCorePlus, qtbot: QtBot):
 def test_core_mda_wdg_load_save(
     qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str
 ) -> None:
-    from pymmcore_widgets.useq_widgets._mda_sequence import QFileDialog
-
     wdg = MDAWidget()
     qtbot.addWidget(wdg)
     wdg.show()
@@ -686,3 +686,124 @@ def test_get_next_available_paths_special_cases(tmp_path: Path) -> None:
     high = tmp_path / "test_12345.txt"
     high.touch()
     assert get_next_available_path(high).name == "test_12346.txt"
+
+
+def test_core_mda_with_hcs_value(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    # uncheck all tabs
+    for t in range(wdg.tab_wdg.count() + 1):
+        wdg.tab_wdg.setChecked(t, False)
+
+    assert wdg.stage_positions._hcs_wizard is None
+    assert wdg.stage_positions._plate_plan is None
+
+    pos = useq.WellPlatePlan(
+        plate="96-well", a1_center_xy=(0, 0), selected_wells=((0, 1), (0, 1))
+    )
+    seq = useq.MDASequence(stage_positions=pos)
+
+    mock = Mock()
+    wdg.valueChanged.connect(mock)
+    wdg.setValue(seq)
+    mock.assert_called_once()
+
+    assert wdg.value().stage_positions == pos
+    assert wdg.stage_positions.table().rowCount() == len(pos)
+
+    assert isinstance(wdg.stage_positions._hcs_wizard, HCSWizard)
+    assert wdg.stage_positions._plate_plan == pos
+
+
+def test_core_mda_with_hcs_enable_disable(
+    qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    table = wdg.stage_positions.table()
+    name_col = table.indexOf(wdg.stage_positions.NAME)
+    xy_btn_col = table.indexOf(wdg.stage_positions._xy_btn_col)
+    z_btn_col = table.indexOf(wdg.stage_positions._z_btn_col)
+    z_col = table.indexOf(wdg.stage_positions.Z)
+    sub_seq_btn_col = table.indexOf(wdg.stage_positions.SEQ)
+
+    mda = useq.MDASequence(stage_positions=[(0, 0, 0), (1, 1, 1)])
+    wdg.setValue(mda)
+
+    # edit table btn is hidden
+    assert wdg.stage_positions._edit_hcs_pos.isHidden()
+    # all table visible
+    assert not table.isColumnHidden(name_col)
+    assert not table.isColumnHidden(xy_btn_col)
+    assert not table.isColumnHidden(z_btn_col)
+    assert not table.isColumnHidden(z_col)
+    assert not table.isColumnHidden(sub_seq_btn_col)
+    # all toolbar actions enabled
+    assert all(action.isEnabled() for action in wdg.stage_positions.toolBar().actions())
+    # include_z checkbox enabled
+    assert wdg.stage_positions.include_z.isEnabled()
+    # autofocus checkbox enabled
+    assert wdg.stage_positions.af_per_position.isEnabled()
+
+    mda = useq.MDASequence(
+        stage_positions=useq.WellPlatePlan(
+            plate="96-well",
+            a1_center_xy=(0, 0),
+            selected_wells=((0, 1), (0, 1)),
+        )
+    )
+    wdg.setValue(mda)
+
+    # edit table btn is visible
+    assert not wdg.stage_positions._edit_hcs_pos.isHidden()
+    # all columns hidden but name
+    assert not table.isColumnHidden(name_col)
+    assert table.isColumnHidden(xy_btn_col)
+    assert table.isColumnHidden(z_btn_col)
+    assert table.isColumnHidden(z_col)
+    assert table.isColumnHidden(sub_seq_btn_col)
+    # all toolbar actions disabled but the move stage checkbox
+    assert all(
+        not action.isEnabled() for action in wdg.stage_positions.toolBar().actions()[1:]
+    )
+    # include_z checkbox disablex
+    assert wdg.stage_positions.include_z.isHidden()
+    # autofocus checkbox enabled
+    assert wdg.stage_positions.af_per_position.isEnabled()
+
+
+@pytest.mark.parametrize("ext", ["json", "yaml"])
+def test_core_mda_with_hcs_load_save(
+    qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str
+) -> None:
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    dest = tmp_path / f"sequence.{ext}"
+    # monkeypatch the dialog to load/save to our temp file
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a: (dest, None))
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *a: (dest, None))
+
+    # write the sequence to file and load the widget from it
+    mda = MDA.replace(
+        stage_positions=useq.WellPlatePlan(
+            plate="96-well",
+            a1_center_xy=(0, 0),
+            selected_wells=((0, 0), (1, 1)),
+            well_points_plan=useq.RelativePosition(fov_width=512.0, fov_height=512.0),
+        )
+    )
+    dest.write_text(mda.yaml() if ext == "yaml" else mda.model_dump_json())
+    wdg.load()
+
+    pos = wdg.value().stage_positions
+
+    # save the widget to file and load it back
+    dest.unlink()
+    wdg.save()
+    assert useq.MDASequence.from_file(dest).stage_positions == pos
