@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 from pymmcore_plus import CMMCorePlus
 
-from pymmcore_widgets._shutter_widget import ShuttersWidget
+from pymmcore_widgets.control._shutter_widget import ShuttersWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot

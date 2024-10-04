@@ -5,7 +5,7 @@ from typing import Any, Sequence, cast
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QTableWidget, QTableWidgetItem
 
-from pymmcore_widgets._property_widget import PropertyWidget
+from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 
 DEV_PROP_ROLE = Qt.ItemDataRole.UserRole + 1
 
