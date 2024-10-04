@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
-def test_preset_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
+def test_preset_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     for group in global_mmcore.getAvailableConfigGroups():
         wdg = PresetsWidget(group)
         qtbot.addWidget(wdg)

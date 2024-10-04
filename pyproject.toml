@@ -144,7 +144,7 @@ testpaths = ["tests"]
 filterwarnings = [
     "error",
     "ignore:distutils Version classes are deprecated",
-    "ignore:Failed to disconnect::pytestqt",
+    "ignore:Failed to disconnect:RuntimeWarning:",
     # warning, but not error, that will show up on useq<0.3.3
 ]
 
