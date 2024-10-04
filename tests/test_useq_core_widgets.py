@@ -770,10 +770,10 @@ def test_core_mda_with_hcs_enable_disable(
     assert all(
         not action.isEnabled() for action in wdg.stage_positions.toolBar().actions()[1:]
     )
-    # include_z checkbox disablex
+    # include_z checkbox disabled
     assert wdg.stage_positions.include_z.isHidden()
-    # autofocus checkbox enabled
-    assert wdg.stage_positions.af_per_position.isEnabled()
+    # autofocus checkbox disabled
+    assert wdg.stage_positions.af_per_position.isHidden()
 
 
 @pytest.mark.parametrize("ext", ["json", "yaml"])
