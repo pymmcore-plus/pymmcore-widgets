@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QDialog,
     QGroupBox,
@@ -11,14 +10,13 @@ from qtpy.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QSpacerItem,
-    QTableWidget,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-from pymmcore_widgets._property_widget import PropertyWidget
 from pymmcore_widgets._util import block_core
+
+from ._cfg_table import _CfgTable
 
 
 class AddFirstPresetWidget(QDialog):
@@ -39,7 +37,7 @@ class AddFirstPresetWidget(QDialog):
 
         self._create_gui()
 
-        self._populate_table()
+        self.table.populate_table(self._dev_prop_val_list)
 
     def _create_gui(self) -> None:
         self.setWindowTitle(f"Add the first Preset to the new '{self._group}' Group")
@@ -58,7 +56,7 @@ class AddFirstPresetWidget(QDialog):
         top_wdg = self._create_top_wdg()
         wdg_layout.addWidget(top_wdg)
 
-        self.table = _Table()
+        self.table = _CfgTable()
         wdg_layout.addWidget(self.table)
 
         bottom_wdg = self._create_bottom_wdg()
@@ -121,26 +119,8 @@ class AddFirstPresetWidget(QDialog):
 
         return wdg
 
-    def _populate_table(self) -> None:
-        self.table.clearContents()
-
-        self.table.setRowCount(len(self._dev_prop_val_list))
-        for idx, (dev, prop, _) in enumerate(self._dev_prop_val_list):
-            item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
-            wdg._value_widget.valueChanged.disconnect()  # type: ignore
-            self.table.setItem(idx, 0, item)
-            self.table.setCellWidget(idx, 1, wdg)
-
     def _create_first_preset(self) -> None:
-        dev_prop_val = []
-        for row in range(self.table.rowCount()):
-            device_property = self.table.item(row, 0).text()
-            dev = device_property.split("-")[0]
-            prop = device_property.split("-")[1]
-            value = str(self.table.cellWidget(row, 1).value())
-            dev_prop_val.append((dev, prop, value))
-
+        dev_prop_val = self.table.get_state()
         preset = self.preset_name_lineedit.text()
         if not preset:
             preset = self.preset_name_lineedit.placeholderText()
@@ -153,20 +133,3 @@ class AddFirstPresetWidget(QDialog):
 
         self.close()
         self.parent().close()
-
-
-class _Table(QTableWidget):
-    """Set table properties for EditPresetWidget."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        hdr = self.horizontalHeader()
-        hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
-        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
-        vh = self.verticalHeader()
-        vh.setVisible(False)
-        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
-        vh.setDefaultSectionSize(24)
-        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.setColumnCount(2)
-        self.setHorizontalHeaderLabels(["Device-Property", "Value"])

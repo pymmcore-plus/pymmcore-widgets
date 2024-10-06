@@ -25,9 +25,6 @@ from superqt import QSearchableComboBox
 
 LOC_ROLE = Qt.ItemDataRole.UserRole + 1
 
-# src/pymmcore_widgets/_install_widget.py
-# 83-98, 101-105, 144-148, 152-170, 180-182, 186-199, 203-204, 209-214
-
 
 class InstallWidget(QWidget):
     """Widget to manage installation of MicroManager.

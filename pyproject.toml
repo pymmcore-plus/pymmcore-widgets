@@ -51,7 +51,7 @@ dependencies = [
     'pymmcore-plus[cli] >=0.11.0',
     'qtpy >=2.0',
     'superqt[quantity] >=0.5.3',
-    'useq-schema @ git+https://github.com/pymmcore-plus/useq-schema.git',  # temporary until new useq release
+    'useq-schema >=0.5.0',
 ]
 
 [tool.hatch.metadata]
