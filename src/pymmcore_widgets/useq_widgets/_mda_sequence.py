@@ -3,7 +3,7 @@ from __future__ import annotations
 from importlib.util import find_spec
 from itertools import permutations
 from pathlib import Path
-from typing import cast
+from typing import Sequence, cast
 
 import useq
 from qtpy.QtCore import Qt, Signal
@@ -568,8 +568,8 @@ class MDASequenceWidget(QWidget):
         return {"autofocus_plan": af_plan, "stage_positions": stage_positions}
 
     def _update_af_axes(
-        self, positions: tuple[useq.Position, ...]
-    ) -> tuple[useq.Position, ...]:
+        self, positions: Sequence[useq.Position]
+    ) -> Sequence[useq.Position]:
         """Add the autofocus axes to each subsequence."""
         new_pos = []
         for pos in positions:
