@@ -25,10 +25,11 @@ __all__ = [
     "ImagePreview",
     "InstallWidget",
     "LiveButton",
-    "MDAWidget",
     "MDASequenceWidget",
-    "ObjectivesWidget",
+    "MDAWidget",
     "ObjectivesPixelConfigurationWidget",
+    "ObjectivesWidget",
+    "OpticalConfigDialog",
     "PixelConfigurationWidget",
     "PositionTable",
     "PresetsWidget",
@@ -47,6 +48,7 @@ from ._install_widget import InstallWidget
 from .config_presets import (
     GroupPresetTableWidget,
     ObjectivesPixelConfigurationWidget,
+    OpticalConfigDialog,
     PixelConfigurationWidget,
 )
 from .control import (

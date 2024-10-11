@@ -23,8 +23,10 @@ from qtpy.QtWidgets import (
 )
 from superqt.utils import signals_blocked
 
-from pymmcore_widgets._device_property_table import DevicePropertyTable
-from pymmcore_widgets._objective_widget import ObjectivesWidget
+from pymmcore_widgets.control._objective_widget import ObjectivesWidget
+from pymmcore_widgets.device_properties._device_property_table import (
+    DevicePropertyTable,
+)
 
 
 class UniqueNameList(QWidget):
@@ -265,9 +267,7 @@ class OpticalConfigDialog(QWidget):
 
     def load_group(self, group: str) -> None:
         self.groups.setCurrentName(group)
-        print("load group", group)
         if group not in self._config_groups:
-            print("creating from core")
             self._config_groups[group] = ConfigGroup.create_from_core(self._core, group)
         self._config_group = self._config_groups[group]
 
@@ -282,7 +282,6 @@ class OpticalConfigDialog(QWidget):
         try:
             settings = self._config_group.presets[name].settings
         except KeyError:
-            print("nope", name)
             return
         self._scope_group.props.setValue(settings)
         self._cam_group.props.setValue(settings)
