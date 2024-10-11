@@ -11,11 +11,11 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QFileDialog
 
 from pymmcore_widgets import PresetsWidget
-from pymmcore_widgets._group_preset_widget._add_group_widget import AddGroupWidget
-from pymmcore_widgets._group_preset_widget._add_preset_widget import AddPresetWidget
-from pymmcore_widgets._group_preset_widget._edit_group_widget import EditGroupWidget
-from pymmcore_widgets._group_preset_widget._edit_preset_widget import EditPresetWidget
-from pymmcore_widgets._group_preset_widget._group_preset_table_widget import (
+from pymmcore_widgets.config_presets._group_preset_widget import (
+    AddGroupWidget,
+    AddPresetWidget,
+    EditGroupWidget,
+    EditPresetWidget,
     GroupPresetTableWidget,
 )
 
@@ -165,10 +165,15 @@ def test_edit_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
     item.setCheckState(Qt.CheckState.Checked)
     assert table.item(t_row, 0).text() == "Camera-CCDTemperature"
 
-    edit_gp.modify_group_btn.click()
-    assert edit_gp.info_lbl.text() == "'Camera' Group Modified."
+    edit_gp.group_lineedit.setText("Camera_New")
 
-    dp = [k[:2] for k in mmc.getConfigData("Camera", "LowRes")]
+    edit_gp.modify_group_btn.click()
+    assert edit_gp.info_lbl.text() == "'Camera_New' Group Modified."
+
+    assert "Camera" not in mmc.getAvailableConfigGroups()
+    assert "Camera_New" in mmc.getAvailableConfigGroups()
+
+    dp = [k[:2] for k in mmc.getConfigData("Camera_New", "LowRes")]
     assert ("Camera", "CCDTemperature") in dp
 
 

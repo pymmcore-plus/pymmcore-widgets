@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING
 
 from qtpy.QtWidgets import QComboBox
 
-from pymmcore_widgets._channel_widget import ChannelWidget
-from pymmcore_widgets._presets_widget import PresetsWidget
 from pymmcore_widgets._util import block_core
+from pymmcore_widgets.control._channel_widget import ChannelWidget
+from pymmcore_widgets.control._presets_widget import PresetsWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
