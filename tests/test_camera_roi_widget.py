@@ -5,7 +5,7 @@ from unittest.mock import Mock, call
 
 from pymmcore_plus import CMMCorePlus
 
-from pymmcore_widgets._camera_roi_widget import CameraRoiWidget
+from pymmcore_widgets.control._camera_roi_widget import CameraRoiWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot

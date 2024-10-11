@@ -9,7 +9,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from ._core import load_system_config
+from pymmcore_widgets._util import load_system_config
 
 
 class ConfigurationWidget(QWidget):

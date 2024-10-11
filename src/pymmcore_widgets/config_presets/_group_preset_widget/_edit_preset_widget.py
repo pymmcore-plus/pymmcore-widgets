@@ -3,7 +3,6 @@ from __future__ import annotations
 import warnings
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
@@ -14,15 +13,14 @@ from qtpy.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QSpacerItem,
-    QTableWidget,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 from superqt.utils import signals_blocked
 
-from pymmcore_widgets._property_widget import PropertyWidget
 from pymmcore_widgets._util import block_core
+
+from ._cfg_table import _CfgTable
 
 
 class EditPresetWidget(QDialog):
@@ -60,7 +58,7 @@ class EditPresetWidget(QDialog):
         top_wdg = self._create_top_wdg()
         wdg_layout.addWidget(top_wdg)
 
-        self.table = _Table()
+        self.table = _CfgTable()
         wdg_layout.addWidget(self.table)
 
         bottom_wdg = self._create_bottom_wdg()
@@ -151,20 +149,12 @@ class EditPresetWidget(QDialog):
     def _populate_table_and_combo(self) -> None:
         self._update_combo()
 
-        self.table.clearContents()
-
         dev_prop_val = [
             (k[0], k[1], k[2])
             for k in self._mmc.getConfigData(self._group, self._preset)
         ]
-        self.table.setRowCount(len(dev_prop_val))
-        for idx, (dev, prop, val) in enumerate(dev_prop_val):
-            item = QTableWidgetItem(f"{dev}-{prop}")
-            wdg = PropertyWidget(dev, prop, mmcore=self._mmc)
-            wdg._value_widget.valueChanged.disconnect()  # type: ignore
-            wdg.setValue(val)
-            self.table.setItem(idx, 0, item)
-            self.table.setCellWidget(idx, 1, wdg)
+
+        self.table.populate_table(dev_prop_val)
 
     def _on_combo_changed(self, preset: str) -> None:
         self._preset = preset
@@ -173,13 +163,7 @@ class EditPresetWidget(QDialog):
         self._populate_table_and_combo()
 
     def _apply_changes(self) -> None:
-        dev_prop_val = []
-        for row in range(self.table.rowCount()):
-            device_property = self.table.item(row, 0).text()
-            dev = device_property.split("-")[0]
-            prop = device_property.split("-")[1]
-            value = str(self.table.cellWidget(row, 1).value())
-            dev_prop_val.append((dev, prop, value))
+        dev_prop_val = self.table.get_state()
 
         for p in self._mmc.getAvailableConfigs(self._group):
             dpv_preset = [
@@ -205,29 +189,12 @@ class EditPresetWidget(QDialog):
         self._preset = self.preset_name_lineedit.text()
 
         with block_core(self._mmc.events):
-            for d, p, v in dev_prop_val:
-                self._mmc.defineConfig(self._group, self._preset, d, p, v)
+            for dev, prop, val in dev_prop_val:
+                self._mmc.defineConfig(self._group, self._preset, dev, prop, val)
 
-        self._mmc.events.configDefined.emit(self._group, self._preset, d, p, v)
+        self._mmc.events.configDefined.emit(self._group, self._preset, dev, prop, val)
 
         self._update_combo()
 
         self.info_lbl.setStyleSheet("")
         self.info_lbl.setText(f"'{self._preset}' has been modified!")
-
-
-class _Table(QTableWidget):
-    """Set table properties for EditPresetWidget."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        hdr = self.horizontalHeader()
-        hdr.setSectionResizeMode(hdr.ResizeMode.Stretch)
-        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
-        vh = self.verticalHeader()
-        vh.setVisible(False)
-        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
-        vh.setDefaultSectionSize(24)
-        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.setColumnCount(2)
-        self.setHorizontalHeaderLabels(["Device-Property", "Value"])
