@@ -14,7 +14,9 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from pymmcore_widgets._device_property_table import DevicePropertyTable
+from pymmcore_widgets.device_properties._device_property_table import (
+    DevicePropertyTable,
+)
 
 if TYPE_CHECKING:
     from pymmcore_plus.model import Setting
