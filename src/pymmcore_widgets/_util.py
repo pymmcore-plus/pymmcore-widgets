@@ -112,6 +112,8 @@ def cast_grid_plan(
         return None
     if isinstance(grid, dict):
         _grid = useq.MDASequence(grid_plan=grid).grid_plan
+        if isinstance(_grid, useq.RelativePosition):  # pragma: no cover
+            raise ValueError("Grid plan cannot be a single Relative position.")
         return None if isinstance(_grid, useq.RandomPoints) else _grid
     return grid
 

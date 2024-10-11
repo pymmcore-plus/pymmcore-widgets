@@ -200,11 +200,12 @@ class RelativePointPlanSelector(QWidget):
         wdg.setEnabled(checked)
         if checked:
             self._active_plan_widget = wdg
-            self._active_plan_type = {
+            d: dict[QRadioButton, type[RelativePointPlan]] = {
                 self.single_radio_btn: useq.RelativePosition,
                 self.random_radio_btn: useq.RandomPoints,
                 self.grid_radio_btn: useq.GridRowsColumns,
-            }[btn]
+            }
+            self._active_plan_type = d[btn]
             self._on_value_changed()
 
     def _on_value_changed(self) -> None:
