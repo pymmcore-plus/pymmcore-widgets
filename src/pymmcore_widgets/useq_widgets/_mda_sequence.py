@@ -3,7 +3,7 @@ from __future__ import annotations
 from importlib.util import find_spec
 from itertools import permutations
 from pathlib import Path
-from typing import Sequence, cast
+from typing import TYPE_CHECKING, cast
 
 import useq
 from qtpy.QtCore import Qt, Signal
@@ -27,6 +27,9 @@ from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
 from pymmcore_widgets.useq_widgets._positions import PositionTable
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 from pymmcore_widgets.useq_widgets._z import ZPlanWidget
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 try:
     from pint import Quantity
