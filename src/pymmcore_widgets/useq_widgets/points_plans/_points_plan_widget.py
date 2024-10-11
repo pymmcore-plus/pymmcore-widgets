@@ -97,6 +97,5 @@ class PointsPlanWidget(QWidget):
 
     def _on_view_position_clicked(self, position: useq.RelativePosition) -> None:
         if self._selector.active_plan_type is useq.RandomPoints:
-            breakpoint()
             pos_no_name = position.model_copy(update={"name": ""})
             self.random_points_wdg.start_at = pos_no_name
