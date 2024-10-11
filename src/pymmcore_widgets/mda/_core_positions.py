@@ -121,13 +121,13 @@ class CoreConnectedPositionTable(PositionTable):
 
     def value(
         self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
-    ) -> tuple[Position, ...] | WellPlatePlan:
+    ) -> Sequence[Position]:
         """Return the current state of the positions table."""
         if self._plate_plan is not None:
             return self._plate_plan
         return super().value(exclude_unchecked, exclude_hidden_cols)
 
-    def setValue(self, value: Sequence[Position] | WellPlatePlan) -> None:
+    def setValue(self, value: Sequence[Position]) -> None:  # type: ignore [override]
         """Set the value of the positions table."""
         if isinstance(value, WellPlatePlan):
             self._plate_plan = value
