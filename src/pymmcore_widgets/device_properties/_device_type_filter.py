@@ -17,6 +17,7 @@ DevTypeLabels: dict[str, tuple[DeviceType, ...]] = {
     "cameras": (DeviceType.CameraDevice,),
     "shutters": (DeviceType.ShutterDevice,),
     "stages": (DeviceType.StageDevice,),
+    "core": (DeviceType.CoreDevice,),
     "wheels, turrets, etc.": (DeviceType.StateDevice,),
 }
 _d: set[DeviceType] = set.union(*(set(i) for i in DevTypeLabels.values()))

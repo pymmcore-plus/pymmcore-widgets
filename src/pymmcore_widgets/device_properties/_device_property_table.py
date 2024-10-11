@@ -93,7 +93,7 @@ class DevicePropertyTable(QTableWidget):
                 color.setAlpha(255)
                 font.setBold(True)
             else:
-                color.setAlpha(175)
+                color.setAlpha(130)
                 font.setBold(False)
             item.setForeground(color)
             item.setFont(font)
@@ -206,9 +206,9 @@ class DevicePropertyTable(QTableWidget):
                 if result is False:
                     self.hideRow(row)
                     continue
-                if result is True:
-                    self.showRow(row)
-                    continue
+                # if result is True:
+                # self.showRow(row)
+                # continue
                 # for None: fall through to other filters
             if (
                 (prop.isReadOnly() and not include_read_only)

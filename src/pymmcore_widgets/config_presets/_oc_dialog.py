@@ -18,12 +18,14 @@ from qtpy.QtWidgets import (
     QPushButton,
     QSpacerItem,
     QSplitter,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets.control._objective_widget import ObjectivesWidget
+from pymmcore_widgets.device_properties import PropertyBrowser
 from pymmcore_widgets.device_properties._device_property_table import (
     DevicePropertyTable,
 )
@@ -213,9 +215,20 @@ class OpticalConfigDialog(QWidget):
         right_splitter.setStretchFactor(1, 1)
         right_splitter.setStretchFactor(2, 0)
 
+        self.expert_table = PropertyBrowser(parent=self, mmcore=self._core)
+        self.expert_table._prop_table.setRowsCheckable(True)
+        self.expert_table._device_filters.setShowReadOnly(False)
+        self.expert_table._device_filters._read_only_checkbox.hide()
+        self.expert_table._device_filters.setShowPreInitProps(False)
+        self.expert_table._device_filters._pre_init_checkbox.hide()
+
+        basic_expert_tabs = QTabWidget(self)
+        basic_expert_tabs.addTab(right_splitter, "Basic")
+        basic_expert_tabs.addTab(self.expert_table, "Expert")
+
         layout = QHBoxLayout(self)
         layout.addLayout(left_layout)
-        layout.addWidget(right_splitter, 1)
+        layout.addWidget(basic_expert_tabs, 1)
 
         self.resize(1080, 920)
 
@@ -309,6 +322,10 @@ class OpticalConfigDialog(QWidget):
         return [Setting(*k, v) for k, v in tmp.items()]
 
 
+def is_not_objective(prop: DeviceProperty) -> bool:
+    return not any(x in prop.device for x in prop.core.guessObjectiveDevices())
+
+
 def light_path_predicate(prop: DeviceProperty) -> bool | None:
     devtype = prop.deviceType()
     if devtype in (
@@ -324,7 +341,7 @@ def light_path_predicate(prop: DeviceProperty) -> bool | None:
             return False
     if devtype == DeviceType.Shutter and prop.name == Keyword.State.value:
         return False
-    if any(x in prop.device for x in prop.core.guessObjectiveDevices()):
+    if not is_not_objective(prop):
         return False
     return None
 
@@ -375,7 +392,7 @@ class _LightPathGroupBox(QGroupBox):
             exclude_devices=(DeviceType.Camera, DeviceType.Core),
             include_read_only=False,
             include_pre_init=False,
-            predicate=light_path_predicate if not checked else None,
+            predicate=light_path_predicate if not checked else is_not_objective,
         )
 
     def settings(self) -> Iterable[tuple[str, str, str]]:
