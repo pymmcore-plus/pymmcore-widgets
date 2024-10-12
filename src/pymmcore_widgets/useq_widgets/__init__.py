@@ -14,23 +14,26 @@ from ._grid import GridPlanWidget
 from ._mda_sequence import PYMMCW_METADATA_KEY, MDASequenceWidget
 from ._positions import PositionTable
 from ._time import TimePlanWidget
+from ._well_plate_widget import WellPlateWidget
 from ._z import ZPlanWidget
+from .points_plans import PointsPlanWidget
 
 __all__ = [
-    "PositionTable",
-    "ChannelTable",
-    "DataTableWidget",
-    "TimePlanWidget",
-    "DataTable",
-    "MDASequenceWidget",
-    "ChoiceColumn",
-    "GridPlanWidget",
-    "TextColumn",
-    "FloatColumn",
-    "IntColumn",
-    "ZPlanWidget",
     "BoolColumn",
-    "TimeDeltaColumn",
+    "ChannelTable",
+    "ChoiceColumn",
+    "DataTable",
+    "DataTableWidget",
+    "FloatColumn",
+    "GridPlanWidget",
+    "IntColumn",
+    "MDASequenceWidget",
+    "PointsPlanWidget",
+    "PositionTable",
     "PYMMCW_METADATA_KEY",
-    "MDAProgressBars",
+    "TextColumn",
+    "TimeDeltaColumn",
+    "TimePlanWidget",
+    "WellPlateWidget",
+    "ZPlanWidget",
 ]

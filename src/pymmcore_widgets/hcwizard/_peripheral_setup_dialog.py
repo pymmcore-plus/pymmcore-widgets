@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, cast
+from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus.model import Device, Microscope
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
+    QCheckBox,
     QDialog,
     QDialogButtonBox,
+    QHBoxLayout,
     QLabel,
     QTableWidget,
     QTableWidgetItem,
@@ -18,6 +20,8 @@ from superqt.utils import exceptions_as_dialog
 from ._dev_setup_dialog import DeviceSetupDialog
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from pymmcore_plus import CMMCorePlus
 
 FLAGS = Qt.WindowType.MSWindowsFixedSizeDialogHint | Qt.WindowType.Sheet
@@ -47,15 +51,28 @@ class PeripheralSetupDlg(QDialog):
         self.table = QTableWidget(0, len(headers))
         self.table.setHorizontalHeaderLabels(headers)
         self.table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        self.table.itemChanged.connect(self._on_selection_changed)
         hh = self.table.horizontalHeader()
         hh.setSectionResizeMode(hh.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(0, hh.ResizeMode.Stretch)
         self.table.verticalHeader().hide()
 
+        self._select_all = QCheckBox("Select All")
+        self._select_all.setTristate(True)
+        self._select_all.setCheckState(Qt.CheckState.Unchecked)
+        self._select_all.clicked.connect(self._on_select_all_clicked)
+
+        bot_row = QHBoxLayout()
+        bot_row.setContentsMargins(0, 0, 0, 0)
+        bot_row.addWidget(self._select_all)
+        bot_row.addStretch()
+        bot_row.addWidget(self.btns)
+
         layout = QVBoxLayout(self)
+        layout.setSpacing(4)
         layout.addWidget(QLabel(f"Add peripherals for {device.name}"))
         layout.addWidget(self.table)
-        layout.addWidget(self.btns)
+        layout.addLayout(bot_row)
 
         self.rebuild_table()
 
@@ -118,3 +135,32 @@ class PeripheralSetupDlg(QDialog):
             dev.initialize(self._core)
 
         self._model.devices.append(dev)
+
+    def _on_select_all_clicked(self, state: bool) -> None:
+        """Select or deselect all peripherals."""
+        if self._select_all.checkState() == Qt.CheckState.PartiallyChecked:
+            state = Qt.CheckState.Checked
+            self._select_all.setCheckState(Qt.CheckState.Checked)
+        else:
+            state = Qt.CheckState.Checked if state else Qt.CheckState.Unchecked
+        for row in range(self.table.rowCount()):
+            item = self.table.item(row, 0)
+            if item:
+                item.setCheckState(Qt.CheckState(state))
+
+    def _on_selection_changed(self) -> None:
+        self._select_all.setCheckState(self._table_selection_state())
+
+    def _table_selection_state(self) -> Qt.CheckState:
+        # determine how many of the items are checked
+        num_checked = 0
+        for row in range(self.table.rowCount()):
+            item = self.table.item(row, 0)
+            if item and item.checkState() == Qt.CheckState.Checked:
+                num_checked += 1
+
+        if num_checked == 0:
+            return Qt.CheckState.Unchecked
+        if num_checked == self.table.rowCount():
+            return Qt.CheckState.Checked
+        return Qt.CheckState.PartiallyChecked

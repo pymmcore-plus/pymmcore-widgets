@@ -85,7 +85,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import suppress
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import Qt
@@ -104,6 +104,8 @@ from superqt.utils import exceptions_as_dialog
 from ._simple_prop_table import PropTable
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from qtpy.QtGui import QFocusEvent
 
 logger = logging.getLogger(__name__)
@@ -195,7 +197,7 @@ class DeviceSetupDialog(QDialog):
         for prop_name in core.getDevicePropertyNames(device_label):
             if core.isPropertyPreInit(device_label, prop_name):
                 pre_init_props.append(prop_name)
-            if prop_name == Keyword.Port:
+            if prop_name == Keyword.Port:  # type: ignore [comparison-overlap]
                 current_port = core.getProperty(device_label, prop_name)
 
         self._library_name = library_name

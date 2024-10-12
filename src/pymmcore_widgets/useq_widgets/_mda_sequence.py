@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from importlib.util import find_spec
 from itertools import permutations
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import useq
 from qtpy.QtCore import Qt, Signal
@@ -20,12 +21,15 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 
 import pymmcore_widgets
-from pymmcore_widgets._mda._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
+from pymmcore_widgets.useq_widgets._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
 from pymmcore_widgets.useq_widgets._positions import PositionTable
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 from pymmcore_widgets.useq_widgets._z import ZPlanWidget
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 try:
     from pint import Quantity
@@ -50,7 +54,6 @@ AXES = "tpgcz"
 ALLOWED_ORDERS = {"".join(p) for x in range(1, 6) for p in permutations(AXES, x)}
 for x in list(ALLOWED_ORDERS):
     for first, second in (
-        ("t", "c"),  # t cannot come after c
         ("t", "z"),  # t cannot come after z
         ("p", "g"),  # p cannot come after g
         ("p", "c"),  # p cannot come after c
@@ -325,10 +328,10 @@ class MDASequenceWidget(QWidget):
         )
         self._duration_label.setWordWrap(True)
 
-        self._save_button = QPushButton("Save")
+        self._save_button = QPushButton("Save Settings")
         self._save_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._save_button.clicked.connect(self.save)
-        self._load_button = QPushButton("Load")
+        self._load_button = QPushButton("Load Settings")
         self._load_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._load_button.clicked.connect(self.load)
 
@@ -367,7 +370,7 @@ class MDASequenceWidget(QWidget):
         self.stage_positions.valueChanged.connect(self.valueChanged)
         self.z_plan.valueChanged.connect(self.valueChanged)
         self.grid_plan.valueChanged.connect(self.valueChanged)
-        self.tab_wdg.tabChecked.connect(self._on_tab_checked)
+        self.tab_wdg.tabChecked.connect(self._update_available_axis_orders)
         self.axis_order.currentTextChanged.connect(self.valueChanged)
         self.valueChanged.connect(self._on_value_change)
 
@@ -442,7 +445,6 @@ class MDASequenceWidget(QWidget):
             The [`useq.MDASequence`][] to set.
         """
         self.tab_wdg.setValue(value)
-        self.axis_order.setCurrentText("".join(value.axis_order))
 
         keep_shutter_open = value.keep_shutter_open_across
         self.keep_shutter_open.setValue(keep_shutter_open)
@@ -458,6 +460,8 @@ class MDASequenceWidget(QWidget):
                 if pos.sequence and pos.sequence.autofocus_plan:
                     axis.update(pos.sequence.autofocus_plan.axes)
         self.af_axis.setValue(tuple(axis))
+        axis_text = "".join(x for x in value.axis_order if x in self.tab_wdg.usedAxes())
+        self.axis_order.setCurrentText(axis_text)
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current [`useq.MDASequence`][] to a file."""
@@ -466,7 +470,7 @@ class MDASequenceWidget(QWidget):
                 self,
                 "Save MDASequence and filename.",
                 "",
-                "All (*.yaml *yml *json);;YAML (*.yaml *.yml);;JSON (*.json)",
+                self._settings_extensions(),
             )
             if not file:  # pragma: no cover
                 return
@@ -478,7 +482,9 @@ class MDASequenceWidget(QWidget):
             yaml = self.value().yaml(exclude_unset=True, exclude_defaults=True)
             data = cast("str", yaml)
         elif dest.suffix == ".json":
-            data = self.value().json(exclude_unset=True, exclude_defaults=True)
+            data = self.value().model_dump_json(
+                exclude_unset=True, exclude_defaults=True
+            )
         else:  # pragma: no cover
             raise ValueError(f"Invalid file extension: {dest.suffix!r}")
 
@@ -492,7 +498,7 @@ class MDASequenceWidget(QWidget):
                 self,
                 "Select an MDAsequence file.",
                 "",
-                "All (*.yaml *yml *json);;YAML (*.yaml *.yml);;JSON (*.json)",
+                self._settings_extensions(),
             )
             if not file:  # pragma: no cover
                 return
@@ -510,13 +516,21 @@ class MDASequenceWidget(QWidget):
 
     # -------------- Private API --------------
 
+    def _settings_extensions(self) -> str:
+        """Returns the available extensions for MDA settings save/load."""
+        if find_spec("yaml") is not None:
+            # YAML available
+            return "All (*.yaml *yml *.json);;YAML (*.yaml *.yml);;JSON (*.json)"
+        # Only JSON
+        return "All (*.json);;JSON (*.json)"
+
     def _on_af_toggled(self, checked: bool) -> None:
         # if the 'af_per_position' checkbox in the PositionTable is checked, set checked
         # also the autofocus p axis checkbox.
         if checked and self.tab_wdg.isChecked(self.stage_positions):
             self.af_axis.use_af_p.setChecked(True)
 
-    def _on_tab_checked(self, idx: int, checked: bool) -> None:
+    def _update_available_axis_orders(self) -> None:
         """Handle tabChecked signal.
 
         Hide columns in the channels tab accordingly.
@@ -588,8 +602,8 @@ class MDASequenceWidget(QWidget):
         return {"autofocus_plan": af_plan, "stage_positions": stage_positions}
 
     def _update_af_axes(
-        self, positions: tuple[useq.Position, ...]
-    ) -> tuple[useq.Position, ...]:
+        self, positions: Sequence[useq.Position]
+    ) -> Sequence[useq.Position]:
         """Add the autofocus axes to each subsequence."""
         new_pos = []
         for pos in positions:

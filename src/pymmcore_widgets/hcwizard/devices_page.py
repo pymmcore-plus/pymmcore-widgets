@@ -26,7 +26,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon, setTextIcon
 from superqt.utils import exceptions_as_dialog, signals_blocked
 
-from pymmcore_widgets._device_property_table import ICONS
+from pymmcore_widgets._icons import ICONS
 
 from ._base_page import ConfigWizardPage
 from ._dev_setup_dialog import DeviceSetupDialog
@@ -368,8 +368,9 @@ class _AvailableDevicesWidget(QWidget):
         current = self.dev_type.currentData()
         with signals_blocked(self.dev_type):
             self.dev_type.clear()
-            avail = {x.device_type for x in self._model.available_devices}
-            for x in (DeviceType.Any, *sorted(avail)):
+            _avail = {x.device_type for x in self._model.available_devices}
+            avail = sorted(x for x in _avail if x != DeviceType.Any)
+            for x in (DeviceType.Any, *avail):
                 self.dev_type.addItem(icon(ICONS.get(x, "")), str(x), x)
             if current in avail:
                 self.dev_type.setCurrentText(str(current))

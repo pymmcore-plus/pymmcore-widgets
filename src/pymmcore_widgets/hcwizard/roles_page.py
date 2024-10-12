@@ -39,17 +39,28 @@ class RolesPage(ConfigWizardPage):
         # reset and populate the combo boxes with available devices
         with signals_blocked(self.camera_combo):
             self.camera_combo.clear()
-            if cameras := self._core.getLoadedDevicesOfType(DeviceType.CameraDevice):
+            cameras = [
+                x.name
+                for x in self._model.filter_devices(device_type=DeviceType.Camera)
+            ]
+            if cameras:
                 self.camera_combo.addItems(("", *cameras))
 
         with signals_blocked(self.shutter_combo):
             self.shutter_combo.clear()
-            if shutters := self._core.getLoadedDevicesOfType(DeviceType.ShutterDevice):
+            shutters = [
+                x.name
+                for x in self._model.filter_devices(device_type=DeviceType.Shutter)
+            ]
+            if shutters:
                 self.shutter_combo.addItems(("", *shutters))
 
         with signals_blocked(self.focus_combo):
             self.focus_combo.clear()
-            if stages := self._core.getLoadedDevicesOfType(DeviceType.StageDevice):
+            stages = [
+                x.name for x in self._model.filter_devices(device_type=DeviceType.Stage)
+            ]
+            if stages:
                 self.focus_combo.addItems(("", *stages))
 
         with signals_blocked(self.auto_shutter_checkbox):

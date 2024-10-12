@@ -45,6 +45,7 @@ nav:
       - Widgets: widgets/
       - Troubleshooting: troubleshooting.md
       - Contributing: contributing.md
+  - napari-micromanager: /napari-micromanager/
 
 markdown_extensions:
   - tables

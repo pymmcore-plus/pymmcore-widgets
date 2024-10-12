@@ -128,6 +128,24 @@ class MDAWidget(MDASequenceWidget):
 
         self.destroyed.connect(self._disconnect)
 
+    # ----------- Override type hints in superclass -----------
+
+    @property
+    def channels(self) -> CoreConnectedChannelTable:
+        return cast("CoreConnectedChannelTable", self.tab_wdg.channels)
+
+    @property
+    def z_plan(self) -> CoreConnectedZPlanWidget:
+        return cast("CoreConnectedZPlanWidget", self.tab_wdg.z_plan)
+
+    @property
+    def stage_positions(self) -> CoreConnectedPositionTable:
+        return cast("CoreConnectedPositionTable", self.tab_wdg.stage_positions)
+
+    @property
+    def grid_plan(self) -> CoreConnectedGridPlanWidget:
+        return cast("CoreConnectedGridPlanWidget", self.tab_wdg.grid_plan)
+
     # ------------------- public Methods ----------------------
 
     def value(self) -> MDASequence:
@@ -200,8 +218,18 @@ class MDAWidget(MDASequenceWidget):
         """
         return get_next_available_path(requested_path=requested_path)
 
-    def run_mda(self) -> None:
-        """Run the MDA sequence experiment."""
+    def prepare_mda(self) -> bool | str | Path | None:
+        """Prepare the MDA sequence experiment.
+
+        Returns
+        -------
+        bool
+            False if MDA to be cancelled due to autofocus issue.
+        str | Path
+            Preparation successful, save path to be used for saving and saving active
+        None
+            Preparation successful, saving deactivated
+        """
         # in case the user does not press enter after editing the save name.
         self.save_info.save_name.editingFinished.emit()
 
@@ -214,20 +242,27 @@ class MDAWidget(MDASequenceWidget):
             and (not self.tab_wdg.isChecked(pos) or not pos.af_per_position.isChecked())
             and not self._confirm_af_intentions()
         ):
-            return
-
-        sequence = self.value()
+            return False
 
         # technically, this is in the metadata as well, but isChecked is more direct
         if self.save_info.isChecked():
-            save_path = self._update_save_path_from_metadata(
-                sequence, update_metadata=True
+            return self._update_save_path_from_metadata(
+                self.value(), update_metadata=True
             )
         else:
-            save_path = None
+            return None
 
+    def execute_mda(self, output: Path | str | object | None) -> None:
+        """Execute the MDA experiment corresponding to the current value."""
+        sequence = self.value()
         # run the MDA experiment asynchronously
-        self._mmc.run_mda(sequence, output=save_path)
+        self._mmc.run_mda(sequence, output=output)
+
+    def run_mda(self) -> None:
+        save_path = self.prepare_mda()
+        if save_path is False:
+            return
+        self.execute_mda(save_path)
 
     # ------------------- private Methods ----------------------
 

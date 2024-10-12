@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 
-from pymmcore_widgets._objectives_pixel_configuration_widget import (
+from pymmcore_widgets.config_presets._objectives_pixel_configuration_widget import (
     ObjectivesPixelConfigurationWidget,
     PixelSizeTable,
 )

@@ -90,9 +90,13 @@ class IntroPage(ConfigWizardPage):
         super().cleanupPage()
 
     def validatePage(self) -> bool:
-        """Validate. the page when the user clicks Next or Finish."""
+        """Validate the page when the user clicks Next or Finish."""
         if self.btn_group.checkedButton() is self.new_btn:
             self._model.reset()
+            try:
+                self._core.unloadAllDevices()
+            except Exception as e:
+                logger.exception(e)
         else:
             self._model.load_config(self.file_edit.text())
         self._model.mark_clean()

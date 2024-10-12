@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence, cast
+from typing import TYPE_CHECKING, cast
 
 import useq
 from fonticon_mdi6 import MDI6
@@ -23,6 +23,9 @@ from superqt.fonticon import icon
 
 from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
 NULL_SEQUENCE = useq.MDASequence()
@@ -176,22 +179,22 @@ class PositionTable(DataTableWidget):
         self._load_button = QPushButton("Load...")
         self._load_button.clicked.connect(self.load)
 
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(15)
-        btn_row.addWidget(self.include_z)
-        btn_row.addWidget(self.af_per_position)
-        btn_row.addStretch()
-        btn_row.addWidget(self._save_button)
-        btn_row.addWidget(self._load_button)
+        self._btn_row = QHBoxLayout()
+        self._btn_row.setSpacing(15)
+        self._btn_row.addWidget(self.include_z)
+        self._btn_row.addWidget(self.af_per_position)
+        self._btn_row.addStretch()
+        self._btn_row.addWidget(self._save_button)
+        self._btn_row.addWidget(self._load_button)
 
         layout = cast("QVBoxLayout", self.layout())
-        layout.addLayout(btn_row)
+        layout.addLayout(self._btn_row)
 
     # ------------------------- Public API -------------------------
 
     def value(
         self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
-    ) -> tuple[useq.Position, ...]:
+    ) -> Sequence[useq.Position]:
         """Return the current value of the table as a tuple of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
 
         Parameters
@@ -219,7 +222,9 @@ class PositionTable(DataTableWidget):
                     # get the current sub-sequence as dict or create a new one
                     sub_seq = r.get("sequence")
                     sub_seq = (
-                        sub_seq.dict() if isinstance(sub_seq, useq.MDASequence) else {}
+                        sub_seq.model_dump()
+                        if isinstance(sub_seq, useq.MDASequence)
+                        else {}
                     )
                     # add the autofocus plan to the sub-sequence
                     sub_seq["autofocus_plan"] = useq.AxesBasedAF(
@@ -233,7 +238,7 @@ class PositionTable(DataTableWidget):
 
         return tuple(out)
 
-    def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore
+    def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore [override]
         """Set the current value of the table from a Sequence of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
 
         Parameters
@@ -251,7 +256,7 @@ class PositionTable(DataTableWidget):
             if v.sequence is not None and v.sequence.autofocus_plan is not None:
                 # set sub-sequence to None if empty or we simply exclude the af plan
                 sub_seq: useq.MDASequence | None = useq.MDASequence(
-                    **v.sequence.dict(exclude={"autofocus_plan"})
+                    **v.sequence.model_dump(exclude={"autofocus_plan"})
                 )
                 if sub_seq == NULL_SEQUENCE:
                     sub_seq = None

@@ -2,20 +2,28 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import ContextManager, Sequence
+from typing import TYPE_CHECKING, Any
 
 import useq
+from psygnal import SignalInstance
 from pymmcore_plus import CMMCorePlus
-from pymmcore_plus.core.events import CMMCoreSignaler, PCoreSignaler
+from qtpy.QtCore import QMarginsF, QObject, Qt
+from qtpy.QtGui import QPainter, QPaintEvent, QPen, QResizeEvent
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QGraphicsScene,
+    QGraphicsView,
     QLabel,
     QVBoxLayout,
     QWidget,
 )
 from superqt.utils import signals_blocked
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from contextlib import AbstractContextManager
 
 
 class ComboMessageBox(QDialog):
@@ -87,12 +95,13 @@ def guess_objective_or_prompt(
     return None
 
 
-def block_core(mmcore_events: CMMCoreSignaler | PCoreSignaler) -> ContextManager:
+def block_core(obj: Any) -> AbstractContextManager:
     """Block core signals."""
-    if isinstance(mmcore_events, CMMCoreSignaler):
-        return mmcore_events.blocked()  # type: ignore
-    elif isinstance(mmcore_events, PCoreSignaler):
-        return signals_blocked(mmcore_events)  # type: ignore
+    if isinstance(obj, QObject):
+        return signals_blocked(obj)  # type: ignore [no-any-return]
+    if isinstance(obj, SignalInstance):
+        return obj.blocked()
+    raise TypeError(f"Cannot block signals for {obj}")
 
 
 def cast_grid_plan(
@@ -103,6 +112,8 @@ def cast_grid_plan(
         return None
     if isinstance(grid, dict):
         _grid = useq.MDASequence(grid_plan=grid).grid_plan
+        if isinstance(_grid, useq.RelativePosition):  # pragma: no cover
+            raise ValueError("Grid plan cannot be a single Relative position.")
         return None if isinstance(_grid, useq.RandomPoints) else _grid
     return grid
 
@@ -174,3 +185,46 @@ def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> 
             # use it
             current_max = max(int(num), current_max)
     return directory / f"{stem}_{current_max:0{min_digits}d}{extension}"
+
+
+class SeparatorWidget(QWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setFixedHeight(1)
+
+    def paintEvent(self, a0: QPaintEvent | None) -> None:
+        painter = QPainter(self)
+        painter.setPen(QPen(Qt.GlobalColor.gray, 1, Qt.PenStyle.SolidLine))
+        painter.drawLine(self.rect().topLeft(), self.rect().topRight())
+
+
+class ResizingGraphicsView(QGraphicsView):
+    """A QGraphicsView that resizes the scene to fit the view."""
+
+    def __init__(self, scene: QGraphicsScene, parent: QWidget | None = None) -> None:
+        super().__init__(scene, parent)
+        self.padding = 0.05  # fraction of the bounding rect
+
+    def resizeEvent(self, event: QResizeEvent | None) -> None:
+        if not (scene := self.scene()):
+            return
+        rect = scene.itemsBoundingRect()
+        xmargin = rect.width() * self.padding
+        ymargin = rect.height() * self.padding
+        margins = QMarginsF(xmargin, ymargin, xmargin, ymargin)
+        self.fitInView(rect.marginsAdded(margins), Qt.AspectRatioMode.KeepAspectRatio)
+        super().resizeEvent(event)
+
+
+def load_system_config(config: str = "", mmcore: CMMCorePlus | None = None) -> None:
+    """Internal convenience for `loadSystemConfiguration(config)`.
+
+    This also unloads all devices first and resets the STATE.
+    If config is `None` or empty string, will load the MMConfig_demo.
+    Note that it should also always be fine for the end-user to use something like
+    `CMMCorePlus.instance().loadSystemConfiguration(...)` (instead of this function)
+    and we need to handle that as well.  So this function shouldn't get too complex.
+    """
+    mmc = mmcore or CMMCorePlus.instance()
+    mmc.unloadAllDevices()
+    mmc.loadSystemConfiguration(config or "MMConfig_demo.cfg")

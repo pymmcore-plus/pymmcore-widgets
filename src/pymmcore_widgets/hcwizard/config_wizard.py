@@ -128,6 +128,13 @@ class ConfigWizard(QWizard):
         self._model.save(dest_path)
         super().accept()
 
+    def reject(self) -> None:
+        """Reject the wizard and reload the prior configuration."""
+        super().reject()
+        last_config_file = self._core.systemConfigurationFile()
+        if last_config_file is not None:
+            self._core.loadSystemConfiguration(last_config_file)
+
     def _update_step(self, current_index: int) -> None:
         """Change text on the left when the page changes."""
         for i, label in enumerate(self.step_labels):

@@ -1,5 +1,103 @@
 # Changelog
 
+## [v0.8.0](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.8.0) (2024-10-04)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.7.2...v0.8.0)
+
+**Implemented enhancements:**
+
+- feat: add HCSWizard to MDAWIdget [\#362](https://github.com/pymmcore-plus/pymmcore-widgets/pull/362) ([fdrgsp](https://github.com/fdrgsp))
+- feat: add High Content Screening wizard [\#360](https://github.com/pymmcore-plus/pymmcore-widgets/pull/360) ([fdrgsp](https://github.com/fdrgsp))
+- feat: reload prior config file on HCW rejection [\#359](https://github.com/pymmcore-plus/pymmcore-widgets/pull/359) ([gselzer](https://github.com/gselzer))
+- feat: plate navigator for HCS calibration testing [\#356](https://github.com/pymmcore-plus/pymmcore-widgets/pull/356) ([fdrgsp](https://github.com/fdrgsp))
+- feat: plate calibration widget [\#355](https://github.com/pymmcore-plus/pymmcore-widgets/pull/355) ([tlambert03](https://github.com/tlambert03))
+- feat: reusable single-well calibration widget for plate calibration widget [\#353](https://github.com/pymmcore-plus/pymmcore-widgets/pull/353) ([fdrgsp](https://github.com/fdrgsp))
+- feat: Refactor GridPlanWidget [\#351](https://github.com/pymmcore-plus/pymmcore-widgets/pull/351) ([gselzer](https://github.com/gselzer))
+- feat: add restrict well area [\#319](https://github.com/pymmcore-plus/pymmcore-widgets/pull/319) ([fdrgsp](https://github.com/fdrgsp))
+- feat: add useq.WellPlanPlan widget with well selection [\#318](https://github.com/pymmcore-plus/pymmcore-widgets/pull/318) ([tlambert03](https://github.com/tlambert03))
+- feat: add overlap checkbox [\#317](https://github.com/pymmcore-plus/pymmcore-widgets/pull/317) ([fdrgsp](https://github.com/fdrgsp))
+- feat: add minimal Points plan view [\#316](https://github.com/pymmcore-plus/pymmcore-widgets/pull/316) ([tlambert03](https://github.com/tlambert03))
+- feat: Points plan selector [\#315](https://github.com/pymmcore-plus/pymmcore-widgets/pull/315) ([tlambert03](https://github.com/tlambert03))
+- feat: multi point plan useq widgets [\#314](https://github.com/pymmcore-plus/pymmcore-widgets/pull/314) ([tlambert03](https://github.com/tlambert03))
+- feat: add select all for hub devices [\#310](https://github.com/pymmcore-plus/pymmcore-widgets/pull/310) ([tlambert03](https://github.com/tlambert03))
+
+**Fixed bugs:**
+
+- fix: fix splitting logic and deduplicate code in Groups Presets Widgets [\#365](https://github.com/pymmcore-plus/pymmcore-widgets/pull/365) ([tlambert03](https://github.com/tlambert03))
+- fix: disable Autofocus checkbox when using HCSWizard [\#364](https://github.com/pymmcore-plus/pymmcore-widgets/pull/364) ([fdrgsp](https://github.com/fdrgsp))
+- fix: enable ct axis order [\#361](https://github.com/pymmcore-plus/pymmcore-widgets/pull/361) ([fdrgsp](https://github.com/fdrgsp))
+- fix: fix valueChanged signals on PropertyWidget [\#352](https://github.com/pymmcore-plus/pymmcore-widgets/pull/352) ([tlambert03](https://github.com/tlambert03))
+- fix: Only allow YAML save/load when YAML available [\#347](https://github.com/pymmcore-plus/pymmcore-widgets/pull/347) ([gselzer](https://github.com/gselzer))
+- fix: Align spin boxes and labels in GridPlan [\#345](https://github.com/pymmcore-plus/pymmcore-widgets/pull/345) ([gselzer](https://github.com/gselzer))
+- fix: update the GroupPresetTableWidget policy [\#330](https://github.com/pymmcore-plus/pymmcore-widgets/pull/330) ([fdrgsp](https://github.com/fdrgsp))
+- fix: make name editable EditGroupWidget [\#328](https://github.com/pymmcore-plus/pymmcore-widgets/pull/328) ([fdrgsp](https://github.com/fdrgsp))
+- fix: WellPlateWidget initial drawing [\#327](https://github.com/pymmcore-plus/pymmcore-widgets/pull/327) ([fdrgsp](https://github.com/fdrgsp))
+- fix: fix bug in config wizard where core state bleeds into model [\#309](https://github.com/pymmcore-plus/pymmcore-widgets/pull/309) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- build: pin useq-schema to 0.5.0 [\#367](https://github.com/pymmcore-plus/pymmcore-widgets/pull/367) ([tlambert03](https://github.com/tlambert03))
+- refactor: full repo reorganization [\#366](https://github.com/pymmcore-plus/pymmcore-widgets/pull/366) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#358](https://github.com/pymmcore-plus/pymmcore-widgets/pull/358) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- ci\(pre-commit.ci\): autoupdate [\#357](https://github.com/pymmcore-plus/pymmcore-widgets/pull/357) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- refactor: more grid plan cleanup [\#354](https://github.com/pymmcore-plus/pymmcore-widgets/pull/354) ([tlambert03](https://github.com/tlambert03))
+- refactor: split run mda in mda widget [\#350](https://github.com/pymmcore-plus/pymmcore-widgets/pull/350) ([wl-stepp](https://github.com/wl-stepp))
+- style: clarify save/load buttons in MDAWidget [\#346](https://github.com/pymmcore-plus/pymmcore-widgets/pull/346) ([gselzer](https://github.com/gselzer))
+- style: unfill radio buttions in GridPlanWidget [\#344](https://github.com/pymmcore-plus/pymmcore-widgets/pull/344) ([gselzer](https://github.com/gselzer))
+- style: Manually compute sizeHint\(\) [\#343](https://github.com/pymmcore-plus/pymmcore-widgets/pull/343) ([gselzer](https://github.com/gselzer))
+- style: fix pixel affine table [\#341](https://github.com/pymmcore-plus/pymmcore-widgets/pull/341) ([tlambert03](https://github.com/tlambert03))
+- refactor: refactor stage widget [\#334](https://github.com/pymmcore-plus/pymmcore-widgets/pull/334) ([tlambert03](https://github.com/tlambert03))
+- refactor: remove old MDA widget [\#313](https://github.com/pymmcore-plus/pymmcore-widgets/pull/313) ([tlambert03](https://github.com/tlambert03))
+- refactor: pydantic2 syntax [\#311](https://github.com/pymmcore-plus/pymmcore-widgets/pull/311) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#306](https://github.com/pymmcore-plus/pymmcore-widgets/pull/306) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+
+## [v0.7.2](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.2) (2024-06-13)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.7.1...v0.7.2)
+
+**Merged pull requests:**
+
+- fix: fix attribute error in signal blocker [\#302](https://github.com/pymmcore-plus/pymmcore-widgets/pull/302) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#297](https://github.com/pymmcore-plus/pymmcore-widgets/pull/297) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- fix: pre test macos-13 [\#296](https://github.com/pymmcore-plus/pymmcore-widgets/pull/296) ([fdrgsp](https://github.com/fdrgsp))
+- ci\(pre-commit.ci\): autoupdate [\#294](https://github.com/pymmcore-plus/pymmcore-widgets/pull/294) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- ci\(pre-commit.ci\): autoupdate [\#291](https://github.com/pymmcore-plus/pymmcore-widgets/pull/291) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- feat: Stack viewer [\#187](https://github.com/pymmcore-plus/pymmcore-widgets/pull/187) ([wl-stepp](https://github.com/wl-stepp))
+
+## [v0.7.1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.1) (2024-03-13)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.7.0...v0.7.1)
+
+**Fixed bugs:**
+
+- fix: fix issue with channel group widget not working with only one group [\#288](https://github.com/pymmcore-plus/pymmcore-widgets/pull/288) ([fdrgsp](https://github.com/fdrgsp))
+
+**Merged pull requests:**
+
+- ci\(dependabot\): bump softprops/action-gh-release from 1 to 2 [\#287](https://github.com/pymmcore-plus/pymmcore-widgets/pull/287) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+## [v0.7.0](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.0) (2024-03-06)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.7.0rc1...v0.7.0)
+
+## [v0.7.0rc1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.7.0rc1) (2024-03-05)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.6.1...v0.7.0rc1)
+
+**Implemented enhancements:**
+
+- feat: add pymmcore-plus writer to MDAWidget [\#279](https://github.com/pymmcore-plus/pymmcore-widgets/pull/279) ([fdrgsp](https://github.com/fdrgsp))
+
+**Fixed bugs:**
+
+- fix: fix selection of axis orders in mdaWidget.setValue [\#286](https://github.com/pymmcore-plus/pymmcore-widgets/pull/286) ([tlambert03](https://github.com/tlambert03))
+- fix: make grid widget scrollable [\#285](https://github.com/pymmcore-plus/pymmcore-widgets/pull/285) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- docs: rename mda\_widget to mda\_demo [\#283](https://github.com/pymmcore-plus/pymmcore-widgets/pull/283) ([tlambert03](https://github.com/tlambert03))
+- chore: use ruff-format instead of black [\#282](https://github.com/pymmcore-plus/pymmcore-widgets/pull/282) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.6.1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.6.1) (2024-02-15)
 
 [Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.6.0...v0.6.1)

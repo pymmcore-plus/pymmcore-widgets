@@ -2,15 +2,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
 from pymmcore_plus import CMMCorePlus, DeviceType
-
-from pymmcore_widgets import DeviceWidget, StateDeviceWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
-def test_state_device_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+def test_state_device_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
+    from pymmcore_widgets import DeviceWidget, StateDeviceWidget
+
     for label in global_mmcore.getLoadedDevicesOfType(DeviceType.StateDevice):
         wdg: StateDeviceWidget = DeviceWidget.for_device(label)
         qtbot.addWidget(wdg)

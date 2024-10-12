@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Iterator, Sequence
+from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QComboBox, QTableWidget, QTableWidgetItem, QWidget
 
-from pymmcore_widgets._property_widget import PropertyWidget
+from pymmcore_widgets.device_properties._property_widget import PropertyWidget
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
 
 
 class PortSelector(QComboBox):
