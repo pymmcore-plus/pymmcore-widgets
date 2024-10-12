@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtWidgets import QHBoxLayout, QWidget
 
-from pymmcore_widgets.useq_widgets._grid import GridPlanWidget, Mode
+from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
 
 from ._xy_bounds import CoreXYBoundsControl
-
-if TYPE_CHECKING:
-    from qtpy.QtWidgets import QWidget
 
 
 class CoreConnectedGridPlanWidget(GridPlanWidget):
@@ -33,7 +29,6 @@ class CoreConnectedGridPlanWidget(GridPlanWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._core_xy_bounds = CoreXYBoundsControl(core=self._mmc)
-        self._core_xy_bounds.setEnabled(False)
         # replace GridPlanWidget attributes with CoreXYBoundsControl attributes so we
         # can use the same super() methods.
         self.top = self._core_xy_bounds.top_edit
@@ -42,18 +37,19 @@ class CoreConnectedGridPlanWidget(GridPlanWidget):
         self.bottom = self._core_xy_bounds.bottom_edit
 
         # replace the lrtb_wdg from the parent widget with the core_xy_bounds widget
-        self.bounds_layout.addWidget(self._core_xy_bounds, 1)
-        self.lrtb_wdg.hide()
+        # self.bounds_wdg.bounds_layout.removeWidget(self.bounds_wdg.lrtb_wdg)
+        # self.bounds_wdg.lrtb_wdg.hide()
 
-        # this is required to toggle the enabled/disabled state of our new xy_bounds
-        # widget when the radio buttons in the parent widget change.
-        self.mode_groups[Mode.BOUNDS] = (
-            self._core_xy_bounds,
-            self.top,
-            self.left,
-            self.right,
-            self.bottom,
-        )
+        for wdg in self.bounds_wdg.children():
+            if isinstance(wdg, QWidget):
+                wdg.setParent(self)
+                wdg.hide()
+        QWidget().setLayout(self.bounds_wdg.layout())
+
+        new_layout = QHBoxLayout()
+        new_layout.addWidget(self._core_xy_bounds)
+        self.bounds_wdg.setLayout(new_layout)
+        # self.bounds_wdg.layout().addWidget(self._core_xy_bounds)
 
         # connect
         self.top.valueChanged.connect(self._on_change)

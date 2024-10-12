@@ -176,22 +176,22 @@ class PositionTable(DataTableWidget):
         self._load_button = QPushButton("Load...")
         self._load_button.clicked.connect(self.load)
 
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(15)
-        btn_row.addWidget(self.include_z)
-        btn_row.addWidget(self.af_per_position)
-        btn_row.addStretch()
-        btn_row.addWidget(self._save_button)
-        btn_row.addWidget(self._load_button)
+        self._btn_row = QHBoxLayout()
+        self._btn_row.setSpacing(15)
+        self._btn_row.addWidget(self.include_z)
+        self._btn_row.addWidget(self.af_per_position)
+        self._btn_row.addStretch()
+        self._btn_row.addWidget(self._save_button)
+        self._btn_row.addWidget(self._load_button)
 
         layout = cast("QVBoxLayout", self.layout())
-        layout.addLayout(btn_row)
+        layout.addLayout(self._btn_row)
 
     # ------------------------- Public API -------------------------
 
     def value(
         self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
-    ) -> tuple[useq.Position, ...]:
+    ) -> Sequence[useq.Position]:
         """Return the current value of the table as a tuple of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
 
         Parameters
@@ -235,7 +235,7 @@ class PositionTable(DataTableWidget):
 
         return tuple(out)
 
-    def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore
+    def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore [override]
         """Set the current value of the table from a Sequence of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
 
         Parameters
