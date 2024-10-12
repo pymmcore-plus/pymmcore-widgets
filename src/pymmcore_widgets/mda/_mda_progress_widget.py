@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 import time
-from typing import TYPE_CHECKING, Any, Mapping, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from qtpy.QtCore import QRect, QRectF, Qt
 from qtpy.QtGui import QColor, QLinearGradient, QPainter
@@ -21,6 +21,7 @@ from qtpy.QtWidgets import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from typing import TypeAlias
 
     import useq
