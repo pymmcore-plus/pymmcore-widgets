@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, cast
+from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus.model import Device, Microscope
 from qtpy.QtCore import QSize, Qt
@@ -20,6 +20,8 @@ from superqt.utils import exceptions_as_dialog
 from ._dev_setup_dialog import DeviceSetupDialog
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from pymmcore_plus import CMMCorePlus
 
 FLAGS = Qt.WindowType.MSWindowsFixedSizeDialogHint | Qt.WindowType.Sheet
