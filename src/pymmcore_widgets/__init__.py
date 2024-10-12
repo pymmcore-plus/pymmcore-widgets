@@ -26,6 +26,7 @@ __all__ = [
     "InstallWidget",
     "LiveButton",
     "MDAWidget",
+    "MDAProgressWidget",
     "MDASequenceWidget",
     "ObjectivesWidget",
     "ObjectivesPixelConfigurationWidget",
@@ -66,7 +67,7 @@ from .control import (
 from .device_properties import PropertiesWidget, PropertyBrowser, PropertyWidget
 from .hcs import HCSWizard
 from .hcwizard import ConfigWizard
-from .mda import MDAWidget
+from .mda import MDAProgressWidget, MDAWidget
 from .useq_widgets import (
     ChannelTable,
     GridPlanWidget,
