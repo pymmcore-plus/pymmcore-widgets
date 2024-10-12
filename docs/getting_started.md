@@ -12,7 +12,18 @@ pip install pymmcore-widgets
 
 ### Installing PyQt or PySide
 
-Since [pymmcore-widgets](./index.md) relies on either the [PyQt](https://riverbankcomputing.com/software/pyqt/) or [PySide](https://www.qt.io/qt-for-python) libraries, you also **need** to install one of these packages. You can use any of the available versions of these libraries: [PyQt5](https://pypi.org/project/PyQt5/), [PyQt6](https://pypi.org/project/PyQt6/), [PySide2](https://pypi.org/project/PySide2/) or [PySide6](https://pypi.org/project/PySide6/). For example, to install [PyQt6](https://riverbankcomputing.com/software/pyqt/download), you can use:
+Since [pymmcore-widgets](./index.md) relies on either the
+[PyQt](https://riverbankcomputing.com/software/pyqt/) or
+[PySide](https://www.qt.io/qt-for-python) libraries, you also **need** to
+install one of these packages. You can use any of the available versions of
+these libraries: [PyQt5](https://pypi.org/project/PyQt5/),
+[PyQt6](https://pypi.org/project/PyQt6/),
+[PySide2](https://pypi.org/project/PySide2/) or
+[PySide6](https://pypi.org/project/PySide6/).  We strongly recommend using PyQt6
+if possible.  If you must use a specific backend version and run into problems,
+please open an issue
+
+For example, to install [PyQt6](https://riverbankcomputing.com/software/pyqt/download), you can use:
 
 ```sh
 pip install PyQt6
@@ -23,7 +34,7 @@ pip install PyQt6
 
     * macOS & Windows
     * Python 3.9 and above
-    * PyQt5, PyQt6, PySide2 & PySide6
+    * PyQt5, PyQt6, PySide2 & PySide6(==6.7)
 
 ### Installing Micro-Manager
 
