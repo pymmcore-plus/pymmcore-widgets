@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Iterable, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from fonticon_mdi6 import MDI6
 from qtpy.QtCore import QSize, Qt, Signal
@@ -23,7 +23,8 @@ from superqt.utils import signals_blocked
 from ._column_info import ColumnInfo
 
 if TYPE_CHECKING:
-    from typing import Any, Iterator
+    from collections.abc import Iterable, Iterator
+    from typing import Any
 
     ValueWidget = type[QCheckBox | QSpinBox | QDoubleSpinBox | QComboBox]
     from PyQt6.QtGui import QAction

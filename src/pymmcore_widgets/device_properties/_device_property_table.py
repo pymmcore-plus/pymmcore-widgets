@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from logging import getLogger
 from re import Pattern
-from typing import Callable, Iterable, Sequence, cast
+from typing import TYPE_CHECKING, Callable, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType
 from qtpy.QtCore import Qt, Signal
@@ -13,6 +14,9 @@ from superqt.fonticon import icon
 from pymmcore_widgets._icons import ICONS
 
 from ._property_widget import PropertyWidget
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
 
 logger = getLogger(__name__)
 
