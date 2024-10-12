@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Callable, Generic, Iterable, TypeVar
+from typing import TYPE_CHECKING, Callable, Generic, TypeVar
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType, Keyword
 from pymmcore_plus.model import ConfigGroup, ConfigPreset, Setting
@@ -28,6 +28,9 @@ from pymmcore_widgets.device_properties import PropertyBrowser
 from pymmcore_widgets.device_properties._device_property_table import (
     DevicePropertyTable,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class UniqueNameList(QWidget):
