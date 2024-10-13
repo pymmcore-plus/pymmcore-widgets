@@ -154,7 +154,7 @@ class UniqueNameList(QWidget):
 
     def currentName(self) -> str | None:
         if (current := self._name_list.currentItem()) is not None:
-            return current.text()
+            return current.text()  # type: ignore [no-any-return]
         return None
 
     def setCurrentName(self, name: str) -> None:
