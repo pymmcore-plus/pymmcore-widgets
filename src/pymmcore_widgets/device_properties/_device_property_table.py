@@ -10,6 +10,7 @@ from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QAbstractScrollArea, QTableWidget, QTableWidgetItem, QWidget
 from superqt.fonticon import icon
+from superqt.utils import signals_blocked
 
 from pymmcore_widgets._icons import ICONS
 
@@ -91,6 +92,7 @@ class DevicePropertyTable(QTableWidget):
 
     def _on_item_changed(self, item: QTableWidgetItem) -> None:
         if self._rows_checkable:
+            # set item style based on check state
             color = self.palette().color(self.foregroundRole())
             font = item.font()
             if item.checkState() == Qt.CheckState.Checked:
@@ -99,8 +101,9 @@ class DevicePropertyTable(QTableWidget):
             else:
                 color.setAlpha(130)
                 font.setBold(False)
-            item.setForeground(color)
-            item.setFont(font)
+            with signals_blocked(self):
+                item.setForeground(color)
+                item.setFont(font)
         self.valueChanged.emit()
 
     def _disconnect(self) -> None:
@@ -139,6 +142,13 @@ class DevicePropertyTable(QTableWidget):
             self.item(row, 0).setFlags(flags)
 
     def _rebuild_table(self) -> None:
+        self.blockSignals(True)
+        try:
+            self._rebuild_table_inner()
+        finally:
+            self.blockSignals(False)
+
+    def _rebuild_table_inner(self) -> None:
         self.clearContents()
         props = list(self._mmc.iterProperties(as_object=True))
         self.setRowCount(len(props))

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, overload
+from copy import deepcopy
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, overload
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -16,7 +17,7 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping, MutableMapping
 
 
 class UniqueListWidget(QListWidget):
@@ -59,12 +60,27 @@ class UniqueKeyList(QWidget):
         The base key used to generate new keys. Default is 'Item'.
     confirm_removal : bool
         Whether to confirm removal of items with a dialog. Default is True.
+
+
+    Attributes
+    ----------
+    keyAdded : Signal[str, object]
+        Signal emitted when a key is added. The first argument is the new key.  If the
+        key is duplicated from an existing key, the second argument is the old key,
+        otherwise it is None.
+    keyRemoved : Signal[str]
+        Signal emitted when a key is removed. The argument is the removed key.
+    keyChanged : Signal[str, str]
+        Signal emitted when a key is changed. The first argument is the new key, and
+        the second argument is the old key.
+    currentKeyChanged : Signal
+        Signal emitted when the currently selected key changes.
     """
 
     keyAdded = Signal(str, object)  # new key, old_key (if duplicated) | None
     keyRemoved = Signal(str)  # removed key
     keyChanged = Signal(str, str)  # new key, old key
-    currentkeyChanged = Signal()
+    currentKeyChanged = Signal()
     # TODO: could possibly add removingKey, and changingKey signals if needed
 
     def __init__(
@@ -137,7 +153,9 @@ class UniqueKeyList(QWidget):
 
     def clear(self) -> None:
         """Clear all keys from the list."""
-        self._list_widget.clear()
+        # this ensures signal emission
+        for txt in set(self._iter_texts()):
+            self.removeKey(txt)
 
     def addKey(self, key: str | QListWidgetItem) -> None:
         """Add a key to the list.
@@ -163,7 +181,7 @@ class UniqueKeyList(QWidget):
 
         item.setFlags(self._default_flags)
         self._list_widget.addItem(item)
-        self.keyAdded.emit(txt, None)
+        self._emit_key_added(txt, None)
 
         # select the new item
         if self._select_new_items:
@@ -184,8 +202,8 @@ class UniqueKeyList(QWidget):
         # slightly hacky... this is to ensure that the currentkeyChanged signal
         # is emitted only once after all keys have been added
         for key in keys:
-            self.keyAdded.emit(key, None)
-        self.currentkeyChanged.emit()
+            self._emit_key_added(key, None)
+        self.currentKeyChanged.emit()
 
     def removeKey(self, key: str | int) -> None:
         """Remove a key from the list.
@@ -212,17 +230,17 @@ class UniqueKeyList(QWidget):
         # so we need to update self._previous_keys manually here
         if item := self._list_widget.takeItem(idx):
             self._previous_keys = set(self._iter_texts())
-            self.keyRemoved.emit(item.text())
+            self._emit_key_removed(item.text())
 
-    def currentkey(self) -> str | None:
+    def currentKey(self) -> str | None:
         """Return the text of the currently selected item."""
         if (current := self._list_widget.currentItem()) is not None:
             return current.text()  # type: ignore [no-any-return]
         return None
 
-    def setCurrentkey(self, key: str) -> None:
+    def setCurrentKey(self, key: str) -> None:
         """Set the currently selected item by its text."""
-        if key == self.currentkey():
+        if key == self.currentKey():
             return
         for i, txt in enumerate(self._iter_texts()):
             if txt == key:
@@ -306,7 +324,7 @@ class UniqueKeyList(QWidget):
         # the keyAdded signal with the old key (which implies duplication)
         with signals_blocked(self):
             self.addKey(new_key)
-        self.keyAdded.emit(new_key, base_key)
+        self._emit_key_added(new_key, base_key)
 
     def _on_current_item_changed(
         self, current: QListWidgetItem | None, previous: QListWidgetItem | None
@@ -319,7 +337,7 @@ class UniqueKeyList(QWidget):
             prev_text, self._active_item_text = self._active_item_text, current.text()
             # emit signal if the key has changed
             if prev_text != self._active_item_text:
-                self.currentkeyChanged.emit()
+                self.currentKeyChanged.emit()
 
     def _on_item_changed(self, item: QListWidgetItem) -> None:
         """Called whenever the data of item has changed.."""
@@ -331,4 +349,143 @@ class UniqueKeyList(QWidget):
 
         # it's a valid change
         self._active_item_key = new_text
-        self.keyChanged.emit(new_text, previous_text)
+        self._emit_key_changed(new_text, previous_text)
+
+    def _emit_key_added(self, key: str, from_key: str | None) -> None:
+        """Emit the keyAdded signal with the new key and the old key (if duplicated).
+
+        Done in a separate method so that subclasses can override it if needed.
+        and do additional processing before emitting the signal.
+        """
+        self.keyAdded.emit(key, from_key)
+
+    def _emit_key_removed(self, key: str) -> None:
+        """Emit the keyRemoved signal with the removed key.
+
+        Done in a separate method so that subclasses can override it if needed.
+        """
+        self.keyRemoved.emit(key)
+
+    def _emit_key_changed(self, new_key: str, old_key: str) -> None:
+        """Emit the keyChanged signal with the new key and the old key.
+
+        Done in a separate method so that subclasses can override it if needed.
+        """
+        self.keyChanged.emit(new_key, old_key)
+
+
+T = TypeVar("T")
+
+
+def _default_clone(value: T, *a: Any, **k: Any) -> T:
+    """Clone a value by deepcopying it.  Ignore additional arguments."""
+    return deepcopy(value)
+
+
+class MapManager(UniqueKeyList, Generic[T]):
+    """Subclass of UniqueKeyList that manages a dictionary of unique keys and values.
+
+    Parameters
+    ----------
+    value_factory : Callable[[str], T]
+        A callable that creates a new value given a key.
+    clone_function : Callable[[T, str], T]
+        A callable that clones a value given a new key. Default is deepcopy (which
+        simply copies the value and ignores the new key).
+    parent : QWidget | None
+        The parent widget.
+    base_key : str
+        The base key used to generate new keys. Default is 'Item'.
+    confirm_removal : bool
+        Whether to confirm removal of items with a dialog. Default is True.
+
+    Attributes
+    ----------
+    currentValueChanged : Signal
+        Signal emitted when the current value changes.
+    """
+
+    # NOTE: I'm not 100% sure that the emission of this signal is a good idea.
+    # Depending on usage, it's conceivable that the value could change without
+    # the signal being emitted, in which case it might do more harm than good.
+    currentValueChanged = Signal()
+
+    def __init__(
+        self,
+        value_factory: Callable[[str], T],
+        clone_function: Callable[[T, str], T] = _default_clone,
+        parent: QWidget | None = None,
+        *,
+        base_key: str = "Item",
+        confirm_removal: bool = True,
+    ) -> None:
+        super().__init__(parent, base_key=base_key, confirm_removal=confirm_removal)
+        self._root: MutableMapping[str, T] = {}
+        self._value_factory = value_factory
+        self._clone_func = clone_function
+        self._setting_root = False
+
+        self.currentKeyChanged.connect(self.currentValueChanged)
+
+    def root(self) -> MutableMapping[str, T]:
+        """Return the root dictionary of keys and values."""
+        return self._root
+
+    def setRoot(self, root: Mapping[str, T]) -> None:
+        """Set the root dictionary of keys and values.
+
+        root will be copied, so changes to the original dictionary will not affect this
+        """
+        self._root = deepcopy(dict(root))  # make a copy
+        self._setting_root = True
+        try:
+            # TODO: this almost certainly emits excessive signals
+            self.clear()
+            self.addKeys(root)
+        finally:
+            self._setting_root = False
+
+    def currentValue(self) -> T | None:
+        """Return the value of the currently selected key, or None."""
+        if key := self.currentKey():
+            return self._root.get(key)
+        return None
+
+    # OVERRIDES ---------------------------------------------------
+    # override methods to update root dictionary before signals are emitted.
+
+    def _emit_key_added(self, key: str, from_key: str | None) -> None:
+        # if we're in the middle of setting the root, these keys will already be in
+        # the _root dictionary, so we don't want to overwrite them.
+        if not self._setting_root:
+            if from_key is None:  # new key
+                self._root[key] = self._value_factory(key)
+            else:  # duplicated key
+                self._root[key] = self._clone_func(self._root[from_key], key)
+        super()._emit_key_added(key, from_key)
+        self.currentValueChanged.emit()
+
+    def _emit_key_removed(self, key: str) -> None:
+        self._root.pop(key, None)
+        super()._emit_key_removed(key)
+        self.currentValueChanged.emit()
+
+    def _emit_key_changed(self, new_key: str, old_key: str) -> None:
+        if old_key in self._root:
+            self._root[new_key] = self._root.pop(old_key)
+        super()._emit_key_changed(new_key, old_key)
+
+
+if __name__ == "__main__":
+    import sys
+
+    from qtpy.QtWidgets import QApplication
+
+    app = QApplication(sys.argv)
+    w = MapManager(lambda name: f'Value for "{name}"')
+    w.currentValueChanged.connect(
+        lambda: print("changed -> ", w.currentKey(), ":", w.currentValue())
+    )
+
+    w.show()
+    sys.exit(app.exec())
