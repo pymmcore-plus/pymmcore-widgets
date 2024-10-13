@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import TYPE_CHECKING, Protocol, TypeVar
 
-from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType, Keyword
+from pymmcore_plus import DeviceType, Keyword
 from pymmcore_plus.model import ConfigGroup, ConfigPreset, Setting
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -21,15 +21,15 @@ from qtpy.QtWidgets import (
 )
 from superqt.utils import signals_blocked
 
-from pymmcore_widgets.control._objective_widget import ObjectivesWidget
-from pymmcore_widgets.device_properties._device_property_table import (
-    DevicePropertyTable,
-)
+from pymmcore_widgets.control import ObjectivesWidget
+from pymmcore_widgets.device_properties import DevicePropertyTable
 
 from ._unique_name_list import MapManager
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
+
+    from pymmcore_plus import CMMCorePlus, DeviceProperty
 
     class NamedObject(Protocol):
         name: str
@@ -37,30 +37,11 @@ if TYPE_CHECKING:
     T = TypeVar("T", bound=NamedObject)
 
 
-def _clone_named_obj(obj: T, new_name: str) -> T:
+def _copy_named_obj(obj: T, new_name: str) -> T:
+    """Copy object `obj` and set its name to `new_name`."""
     obj = deepcopy(obj)
     obj.name = new_name
     return obj
-
-
-class PresetList(MapManager[ConfigPreset]):
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(
-            ConfigPreset,
-            clone_function=_clone_named_obj,
-            parent=parent,
-            base_key="Config",
-        )
-
-
-class GroupList(MapManager[ConfigGroup]):
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(
-            ConfigGroup,
-            clone_function=_clone_named_obj,
-            parent=parent,
-            base_key="Group",
-        )
 
 
 class OpticalConfigDialog(QWidget):
@@ -70,25 +51,33 @@ class OpticalConfigDialog(QWidget):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self._core = None
 
-        self.groups = GroupList(self)
-        self.presets = PresetList(self)
+        self.groups = MapManager(
+            ConfigGroup, clone_function=_copy_named_obj, parent=self, base_key="Group"
+        )
+        self.groups.listWidget().setMinimumWidth(120)
+        self.presets = MapManager(
+            ConfigPreset, clone_function=_copy_named_obj, parent=self, base_key="Config"
+        )
 
         self.btn_activate = QPushButton("Set Active")
         self.presets.btn_layout.insertWidget(3, self.btn_activate)
 
         # Groups -----------------------------------------------------
-        self._light_path_group = _LightPathGroupBox(self, mmcore=self._core)
-        self._cam_group = _CameraGroupBox(self, mmcore=self._core)
-        self._obj_group = _ObjectiveGroupBox(self, mmcore=self._core)
+        self._light_path_group = _LightPathGroupBox(self)
+        self._cam_group = _CameraGroupBox(self)
+        self._obj_group = _ObjectiveGroupBox(self)
         self._light_path_group.valueChanged.connect(self._update_model_from_gui)
         self._cam_group.valueChanged.connect(self._update_model_from_gui)
         self._obj_group.valueChanged.connect(self._update_model_from_gui)
 
         left_layout = QVBoxLayout()
-        left_layout.addWidget(self.groups)
-        left_layout.addWidget(self.presets)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.addWidget(QLabel("<b>Groups</b>"), 0, Qt.AlignmentFlag.AlignLeft)
+        left_layout.addWidget(self.groups, 1)
+        left_layout.addSpacing(6)
+        left_layout.addWidget(QLabel("<b>Presets</b>"), 0, Qt.AlignmentFlag.AlignLeft)
+        left_layout.addWidget(self.presets, 1)
 
         right_splitter = QSplitter(Qt.Orientation.Vertical, self)
         right_splitter.setContentsMargins(0, 0, 0, 0)
@@ -127,27 +116,6 @@ class OpticalConfigDialog(QWidget):
 
     def setCurrentPreset(self, preset: str) -> None:
         self.presets.setCurrentKey(preset)
-
-    def _on_current_group_changed(self) -> None:
-        with signals_blocked(self.presets):
-            if config_group := self.groups.currentValue():
-                self.presets.setRoot(config_group.presets)
-        self.presets.listWidget().setCurrentRow(0)
-
-    def _selected_preset(self) -> ConfigPreset | None:
-        """Returns the data object for the currently selected preset."""
-        if grp := self.groups.currentValue():
-            if current_preset := self.presets.currentKey():
-                return grp.presets[current_preset]
-        return None
-
-    def _update_gui_from_model(self) -> None:
-        if preset := self._selected_preset():
-            self.setCurrentSettings(preset.settings)
-
-    def _update_model_from_gui(self) -> None:
-        if preset := self._selected_preset():
-            preset.settings = self.currentSettings()
 
     def currentSettings(self) -> list[Setting]:
         tmp = {}
@@ -190,12 +158,35 @@ class OpticalConfigDialog(QWidget):
         self._cam_group.active_camera.clear()
         self._cam_group.active_camera.addItems(("", *cameras))
 
+    # PRIVATE -----------------------------------------------------------
 
-def is_not_objective(prop: DeviceProperty) -> bool:
+    def _on_current_group_changed(self) -> None:
+        with signals_blocked(self.presets):
+            if config_group := self.groups.currentValue():
+                self.presets.setRoot(config_group.presets)
+        self.presets.listWidget().setCurrentRow(0)
+
+    def _selected_preset(self) -> ConfigPreset | None:
+        """Returns the data object for the currently selected preset."""
+        if grp := self.groups.currentValue():
+            if current_preset := self.presets.currentKey():
+                return grp.presets[current_preset]
+        return None
+
+    def _update_gui_from_model(self) -> None:
+        if preset := self._selected_preset():
+            self.setCurrentSettings(preset.settings)
+
+    def _update_model_from_gui(self) -> None:
+        if preset := self._selected_preset():
+            preset.settings = self.currentSettings()
+
+
+def _is_not_objective(prop: DeviceProperty) -> bool:
     return not any(x in prop.device for x in prop.core.guessObjectiveDevices())
 
 
-def light_path_predicate(prop: DeviceProperty) -> bool | None:
+def _light_path_predicate(prop: DeviceProperty) -> bool | None:
     devtype = prop.deviceType()
     if devtype in (
         DeviceType.Camera,
@@ -210,7 +201,7 @@ def light_path_predicate(prop: DeviceProperty) -> bool | None:
             return False
     if devtype == DeviceType.Shutter and prop.name == Keyword.State.value:
         return False
-    if not is_not_objective(prop):
+    if not _is_not_objective(prop):
         return False
     return None
 
@@ -218,9 +209,7 @@ def light_path_predicate(prop: DeviceProperty) -> bool | None:
 class _LightPathGroupBox(QGroupBox):
     valueChanged = Signal()
 
-    def __init__(
-        self, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
-    ) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Light Path", parent)
         self.setCheckable(True)
         self.toggled.connect(self.valueChanged)
@@ -237,7 +226,7 @@ class _LightPathGroupBox(QGroupBox):
         self.props.filterDevices(
             include_read_only=False,
             include_pre_init=False,
-            predicate=light_path_predicate,
+            predicate=_light_path_predicate,
         )
 
         shutter_layout = QHBoxLayout()
@@ -258,7 +247,7 @@ class _LightPathGroupBox(QGroupBox):
             exclude_devices=(DeviceType.Camera, DeviceType.Core),
             include_read_only=False,
             include_pre_init=False,
-            predicate=light_path_predicate if not checked else is_not_objective,
+            predicate=_light_path_predicate if not checked else _is_not_objective,
         )
 
     def settings(self) -> Iterable[tuple[str, str, str]]:
@@ -273,9 +262,7 @@ class _LightPathGroupBox(QGroupBox):
 class _CameraGroupBox(QGroupBox):
     valueChanged = Signal()
 
-    def __init__(
-        self, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
-    ) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Camera", parent)
         self.setCheckable(True)
         self.setChecked(False)
@@ -315,14 +302,12 @@ class _CameraGroupBox(QGroupBox):
 class _ObjectiveGroupBox(QGroupBox):
     valueChanged = Signal()
 
-    def __init__(
-        self, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
-    ) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Objective", parent)
         self.setCheckable(True)
         self.setChecked(False)
         self.toggled.connect(self.valueChanged)
-        self._obj_wdg = ObjectivesWidget(mmcore=mmcore)
+        self._obj_wdg = ObjectivesWidget()
 
         layout = QVBoxLayout(self)
         layout.addWidget(self._obj_wdg)

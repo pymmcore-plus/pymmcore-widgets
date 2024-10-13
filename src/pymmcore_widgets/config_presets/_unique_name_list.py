@@ -132,12 +132,14 @@ class UniqueKeyList(QWidget):
         # public so that subclasses can add more buttons
 
         self.btn_layout = QVBoxLayout()
+        self.btn_layout.setSpacing(8)
         self.btn_layout.addWidget(self.btn_new)
         self.btn_layout.addWidget(self.btn_remove)
         self.btn_layout.addWidget(self.btn_duplicate)
         self.btn_layout.addStretch()
 
         layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._list_widget)
         layout.addLayout(self.btn_layout)
 

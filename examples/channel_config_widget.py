@@ -12,6 +12,7 @@ print(scope.config_groups)
 app = QApplication([])
 ocd = OpticalConfigDialog(scope.config_groups)
 ocd.update_options_from_core(core)
+ocd.setCurrentGroup("Channel")
 ocd.show()
 
 app.exec()
