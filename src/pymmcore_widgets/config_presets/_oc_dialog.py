@@ -44,7 +44,7 @@ def _copy_named_obj(obj: T, new_name: str) -> T:
     return obj
 
 
-class OpticalConfigDialog(QWidget):
+class ConfigGroupWidget(QWidget):
     def __init__(
         self,
         data: dict[str, ConfigGroup] | None = None,

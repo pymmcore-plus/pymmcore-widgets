@@ -29,7 +29,7 @@ __all__ = [
     "MDAWidget",
     "ObjectivesPixelConfigurationWidget",
     "ObjectivesWidget",
-    "OpticalConfigDialog",
+    "ConfigGroupWidget",
     "PixelConfigurationWidget",
     "PositionTable",
     "PresetsWidget",
@@ -46,9 +46,9 @@ __all__ = [
 
 from ._install_widget import InstallWidget
 from .config_presets import (
+    ConfigGroupWidget,
     GroupPresetTableWidget,
     ObjectivesPixelConfigurationWidget,
-    OpticalConfigDialog,
     PixelConfigurationWidget,
 )
 from .control import (

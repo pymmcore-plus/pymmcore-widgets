@@ -2,12 +2,12 @@
 
 from ._group_preset_widget._group_preset_table_widget import GroupPresetTableWidget
 from ._objectives_pixel_configuration_widget import ObjectivesPixelConfigurationWidget
-from ._oc_dialog import OpticalConfigDialog
+from ._oc_dialog import ConfigGroupWidget
 from ._pixel_configuration_widget import PixelConfigurationWidget
 
 __all__ = [
     "GroupPresetTableWidget",
     "ObjectivesPixelConfigurationWidget",
     "PixelConfigurationWidget",
-    "OpticalConfigDialog",
+    "ConfigGroupWidget",
 ]
