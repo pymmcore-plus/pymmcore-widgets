@@ -44,7 +44,7 @@ class ObjectivesWidget(QWidget):
         )
         self._combo = self._create_objective_combo(objective_device)
 
-        lbl = QLabel("Objectives:")
+        lbl = QLabel("Objective:")
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

@@ -15,7 +15,6 @@ from qtpy.QtWidgets import (
     QPushButton,
     QSpacerItem,
     QSplitter,
-    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -27,7 +26,7 @@ from pymmcore_widgets.device_properties import DevicePropertyTable
 from ._unique_name_list import MapManager
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Collection, Iterable
 
     from pymmcore_plus import CMMCorePlus, DeviceProperty
 
@@ -45,9 +44,21 @@ def _copy_named_obj(obj: T, new_name: str) -> T:
 
 
 class ConfigGroupWidget(QWidget):
+    """Widget for managing configuration groups and presets.
+
+    This is a high level widget that allows the user to manage all of the configuration
+    groups/presets. It is composed of a list of groups on the top left and a list of
+    presets on the bottom left.  Once a preset is selected, the user can view and edit
+    all of the settings associated with that preset.
+
+    By design, the widget is not connected to a core instance, (changes to the settings
+    do not affect the core instance).  They must be exported and applied to the core
+    explicitly.
+    """
+
     def __init__(
         self,
-        data: dict[str, ConfigGroup] | None = None,
+        data: Iterable[ConfigGroup] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -95,29 +106,43 @@ class ConfigGroupWidget(QWidget):
         # self.expert_table._device_filters.setShowPreInitProps(False)
         # self.expert_table._device_filters._pre_init_checkbox.hide()
 
-        basic_expert_tabs = QTabWidget(self)
-        basic_expert_tabs.addTab(right_splitter, "Basic")
+        # basic_expert_tabs = QTabWidget(self)
+        # basic_expert_tabs.addTab(right_splitter, "Basic")
         # basic_expert_tabs.addTab(self.expert_table, "Expert")
 
         layout = QHBoxLayout(self)
         layout.addLayout(left_layout)
-        layout.addWidget(basic_expert_tabs, 1)
-
-        self.resize(1080, 920)
+        layout.addWidget(right_splitter, 1)
 
         self.groups.currentKeyChanged.connect(self._on_current_group_changed)
-        self.groups.setRoot(data or {})
+        if data is not None:
+            self.groups.setRoot({group.name: group for group in data})
 
         # after groups.setRoot to prevent a bunch of stuff when setting initial data
         self.presets.currentKeyChanged.connect(self._update_gui_from_model)
 
+    # Public API -------------------------------------------------------
+
     def setCurrentGroup(self, group: str) -> None:
+        """Set the current group by name.
+
+        If the group does not exist, nothing happens (a warning is logged).
+        """
         self.groups.setCurrentKey(group)
 
     def setCurrentPreset(self, preset: str) -> None:
+        """Set the current preset by name.
+
+        If the preset does not exist in the current group, nothing happens
+        (a warning is logged).
+        """
         self.presets.setCurrentKey(preset)
 
-    def currentSettings(self) -> list[Setting]:
+    def currentSettings(self) -> Collection[Setting]:
+        """Return the current settings as a collection of Setting objects.
+
+        This returns all of the currently **checked** property settings.
+        """
         tmp = {}
         if self._light_path_group.isChecked():
             tmp.update(
@@ -132,7 +157,8 @@ class ConfigGroupWidget(QWidget):
             )
         return [Setting(*k, v) for k, v in tmp.items()]
 
-    def setCurrentSettings(self, settings: Sequence[Setting]) -> None:
+    def setCurrentSettings(self, settings: Iterable[Setting]) -> None:
+        """Set the current settings to the given collection of Setting objects."""
         # update all the property browser tables
         self._light_path_group.props.setValue(settings)
         self._cam_group.props.setValue(settings)
@@ -148,8 +174,20 @@ class ConfigGroupWidget(QWidget):
         self._light_path_group.active_shutter.setCurrentText(active_shutter)
         self._cam_group.active_camera.setCurrentText(active_camera)
 
+    # Methods requiring a core instance ------------------------------
+
+    @classmethod
+    def create_from_core(
+        cls, core: CMMCorePlus, parent: QWidget | None = None
+    ) -> ConfigGroupWidget:
+        """Create a new instance and update it with the given core instance."""
+        groups = ConfigGroup.all_config_groups(core)
+        self = cls(data=groups.values(), parent=parent)
+        self.update_options_from_core(core)
+        return self
+
     def update_options_from_core(self, core: CMMCorePlus) -> None:
-        """The only place that a core instance should have influence."""
+        """Populate the comboboxes with the available devices from the core."""
         shutters = core.getLoadedDevicesOfType(DeviceType.Shutter)
         self._light_path_group.active_shutter.clear()
         self._light_path_group.active_shutter.addItems(("", *shutters))
@@ -179,7 +217,7 @@ class ConfigGroupWidget(QWidget):
 
     def _update_model_from_gui(self) -> None:
         if preset := self._selected_preset():
-            preset.settings = self.currentSettings()
+            preset.settings = list(self.currentSettings())
 
 
 def _is_not_objective(prop: DeviceProperty) -> bool:

@@ -17,7 +17,7 @@ from pymmcore_widgets._icons import ICONS
 from ._property_widget import PropertyWidget
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable
 
 logger = getLogger(__name__)
 
@@ -260,12 +260,12 @@ class DevicePropertyTable(QTableWidget):
     def value(self) -> list[tuple[str, str, str]]:
         return self.getCheckedProperties()
 
-    def setValue(self, value: Sequence[tuple[str, str, str]]) -> None:
+    def setValue(self, value: Iterable[tuple[str, str, str]]) -> None:
         self.setCheckedProperties(value, with_value=True)
 
     def setCheckedProperties(
         self,
-        value: Sequence[tuple[str, str, str]],
+        value: Iterable[tuple[str, str, str]],
         with_value: bool = True,
     ) -> None:
         for row in range(self.rowCount()):
