@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -19,29 +19,10 @@ from superqt.utils import signals_blocked
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, MutableMapping
 
+    from PyQt6.QtGui import QKeyEvent
 
-class UniqueListWidget(QListWidget):
-    @overload
-    def addItem(self, item: QListWidgetItem | None, /) -> None: ...
-    @overload
-    def addItem(self, label: str | None, /) -> None: ...
-    def addItem(self, item: QListWidgetItem | str | None) -> None:
-        if item is None:
-            item = QListWidgetItem()
-        txt = item.text() if isinstance(item, QListWidgetItem) else item
-        for i in self._iter_texts():
-            if i == txt:
-                raise ValueError(f"Item with text {txt!r} already exists.")
-        super().addItem(item)
 
-    def addItems(self, labels: Iterable[str | None]) -> None:
-        for label in labels:
-            self.addItem(label)
-
-    def _iter_texts(self) -> Iterable[str]:
-        for i in range(self.count()):
-            if item := self.item(i):
-                yield item.text()
+class UniqueListWidget(QListWidget): ...
 
 
 class UniqueKeyList(QWidget):
@@ -112,6 +93,7 @@ class UniqueKeyList(QWidget):
         self._list_widget.setEditTriggers(
             QListWidget.EditTrigger.DoubleClicked
             | QListWidget.EditTrigger.SelectedClicked
+            | QListWidget.EditTrigger.EditKeyPressed
         )
 
         self.btn_new = QPushButton("New")
@@ -268,6 +250,22 @@ class UniqueKeyList(QWidget):
         By default, the base key is 'Item'.
         """
         self._base_key = base_key
+
+    # Overrides ---------------------------------------------------
+
+    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
+        if a0 is None:
+            return
+        key = a0.key()
+        if key in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+            self._remove_current()
+        # command-D or control-D should duplicate the current item
+        elif (
+            key == Qt.Key.Key_D and a0.modifiers() & Qt.KeyboardModifier.ControlModifier
+        ):
+            self._duplicate_current()
+        else:
+            super().keyPressEvent(a0)
 
     # PRIVATE ---------------------------------------------------
 

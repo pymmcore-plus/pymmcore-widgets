@@ -12,7 +12,6 @@ from qtpy.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QSpacerItem,
     QSplitter,
     QVBoxLayout,
@@ -43,7 +42,7 @@ def _copy_named_obj(obj: T, new_name: str) -> T:
     return obj
 
 
-class ConfigGroupWidget(QWidget):
+class ConfigGroupsEditor(QWidget):
     """Widget for managing configuration groups and presets.
 
     This is a high level widget that allows the user to manage all of the configuration
@@ -70,9 +69,6 @@ class ConfigGroupWidget(QWidget):
         self.presets = MapManager(
             ConfigPreset, clone_function=_copy_named_obj, parent=self, base_key="Config"
         )
-
-        self.btn_activate = QPushButton("Set Active")
-        self.presets.btn_layout.insertWidget(3, self.btn_activate)
 
         # Groups -----------------------------------------------------
         self._light_path_group = _LightPathGroupBox(self)
@@ -116,12 +112,20 @@ class ConfigGroupWidget(QWidget):
 
         self.groups.currentKeyChanged.connect(self._on_current_group_changed)
         if data is not None:
-            self.groups.setRoot({group.name: group for group in data})
+            self.setData(data)
 
         # after groups.setRoot to prevent a bunch of stuff when setting initial data
         self.presets.currentKeyChanged.connect(self._update_gui_from_model)
 
     # Public API -------------------------------------------------------
+
+    def setData(self, data: Iterable[ConfigGroup]) -> None:
+        """Replace all data with the given collection of ConfigGroup objects."""
+        self.groups.setRoot({group.name: group for group in data})
+
+    def data(self) -> Collection[ConfigGroup]:
+        """Return the current data as a collection of ConfigGroup objects."""
+        return deepcopy(list(self.groups.root().values()))
 
     def setCurrentGroup(self, group: str) -> None:
         """Set the current group by name.
@@ -179,7 +183,7 @@ class ConfigGroupWidget(QWidget):
     @classmethod
     def create_from_core(
         cls, core: CMMCorePlus, parent: QWidget | None = None
-    ) -> ConfigGroupWidget:
+    ) -> ConfigGroupsEditor:
         """Create a new instance and update it with the given core instance."""
         groups = ConfigGroup.all_config_groups(core)
         self = cls(data=groups.values(), parent=parent)
