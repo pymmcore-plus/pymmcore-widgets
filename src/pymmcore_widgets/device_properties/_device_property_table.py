@@ -74,7 +74,7 @@ class DevicePropertyTable(QTableWidget):
         self.destroyed.connect(self._disconnect)
 
         self.setMinimumWidth(500)
-        self.setHorizontalHeaderLabels(["Property", "Value"])
+        self.setHorizontalHeaderLabels(["Device-Property", "Value"])
         self.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
         self.horizontalHeader().setStretchLastSection(True)
 
