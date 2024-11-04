@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -27,6 +27,8 @@ from pymmcore_widgets.useq_widgets._column_info import (
 from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from useq import Position
 
 UPDATE_POSITIONS = "Update Positions List"
@@ -121,13 +123,13 @@ class CoreConnectedPositionTable(PositionTable):
 
     def value(
         self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
-    ) -> tuple[Position, ...] | WellPlatePlan:
+    ) -> Sequence[Position]:
         """Return the current state of the positions table."""
         if self._plate_plan is not None:
             return self._plate_plan
         return super().value(exclude_unchecked, exclude_hidden_cols)
 
-    def setValue(self, value: Sequence[Position] | WellPlatePlan) -> None:
+    def setValue(self, value: Sequence[Position]) -> None:  # type: ignore [override]
         """Set the value of the positions table."""
         if isinstance(value, WellPlatePlan):
             self._plate_plan = value

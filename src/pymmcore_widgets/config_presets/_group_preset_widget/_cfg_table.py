@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, Sequence, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QTableWidget, QTableWidgetItem
 
 from pymmcore_widgets.device_properties._property_widget import PropertyWidget
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 DEV_PROP_ROLE = Qt.ItemDataRole.UserRole + 1
 

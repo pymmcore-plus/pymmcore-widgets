@@ -5,6 +5,7 @@ import warnings
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
+import qtpy
 import superqt
 from fonticon_mdi6 import MDI6
 from qtpy import QtCore, QtWidgets
@@ -56,6 +57,13 @@ class StackViewer(QtWidgets.QWidget):
         save_button: bool = True,
     ):
         super().__init__(parent=parent)
+        if qtpy.API_NAME.startswith("PySide"):
+            warnings.warn(
+                "StackViewer is not tested on PySide, it may not work as expected. "
+                "You can disable this warning by setting `warn_on_pyside6=False`.",
+                stacklevel=2,
+            )
+
         self._reload_position()
         self.sequence = sequence
         self.canvas_size = size

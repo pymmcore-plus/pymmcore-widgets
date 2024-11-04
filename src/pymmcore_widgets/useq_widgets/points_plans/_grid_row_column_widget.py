@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Mapping
+from typing import TYPE_CHECKING
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -13,6 +13,9 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from useq import GridRowsColumns, OrderMode
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 class GridRowColumnWidget(QWidget):

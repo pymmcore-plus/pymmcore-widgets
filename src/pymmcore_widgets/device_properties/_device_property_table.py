@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from logging import getLogger
-from typing import Iterable, cast
+from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType
 from qtpy.QtCore import Qt
@@ -12,6 +12,9 @@ from superqt.fonticon import icon
 from pymmcore_widgets._icons import ICONS
 
 from ._property_widget import PropertyWidget
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 logger = getLogger(__name__)
 
