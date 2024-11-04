@@ -390,16 +390,16 @@ class CoreConnectedPositionTable(PositionTable):
             # if 'af_per_position' is not checked and the autofocus was not locked
             # before moving, we do not use autofocus.
             if table_af_offset is not None or af_offset is not None:
-                self._mmc.setAutoFocusOffset(
-                    table_af_offset if table_af_offset is not None else af_offset
-                )
-                try:
-                    self._mmc.enableContinuousFocus(False)
-                    self._perform_autofocus()
-                    self._mmc.enableContinuousFocus(af_engaged)
-                    self._mmc.waitForSystem()
-                except RuntimeError as e:
-                    logger.warning("Hardware autofocus failed. %s", e)
+                _af = table_af_offset if table_af_offset is not None else af_offset
+                if _af is not None:
+                    self._mmc.setAutoFocusOffset(_af)
+                    try:
+                        self._mmc.enableContinuousFocus(False)
+                        self._perform_autofocus()
+                        self._mmc.enableContinuousFocus(af_engaged)
+                        self._mmc.waitForSystem()
+                    except RuntimeError as e:
+                        logger.warning("Hardware autofocus failed. %s", e)
 
             self._mmc.waitForSystem()
 
