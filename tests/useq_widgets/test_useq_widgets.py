@@ -3,11 +3,13 @@ from __future__ import annotations
 import enum
 from datetime import timedelta
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pint
 import pytest
 import useq
 from qtpy.QtCore import Qt, QTimer
+from qtpy.QtWidgets import QMessageBox
 
 import pymmcore_widgets
 from pymmcore_widgets.useq_widgets import (
@@ -481,3 +483,38 @@ def test_parse_time() -> None:
     assert parse_timedelta("3:40:10.500") == timedelta(
         hours=3, minutes=40, seconds=10.5
     )
+
+
+def test_autofocus_with_z_plans(qtbot: QtBot) -> None:
+    wdg = MDASequenceWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    assert not wdg.tab_wdg.isChecked(wdg.z_plan)
+    assert wdg.af_axis.isEnabled()
+
+    wdg.af_axis.setValue(("p", "t"))
+    assert wdg.af_axis.value() == ("p", "t")
+
+    def _qmsgbox(*args, **kwargs):
+        return True
+
+    with patch.object(QMessageBox, "warning", _qmsgbox):
+        wdg.tab_wdg.setChecked(wdg.z_plan, True)
+
+    assert wdg.z_plan.mode() == _z.Mode.TOP_BOTTOM
+    assert not wdg.af_axis.isEnabled()
+    assert wdg.af_axis.value() == ()
+
+    with patch.object(QMessageBox, "warning", _qmsgbox):
+        wdg.tab_wdg.setChecked(wdg.z_plan, False)
+
+    assert wdg.af_axis.isEnabled()
+
+    with patch.object(QMessageBox, "warning", _qmsgbox):
+        wdg.tab_wdg.setChecked(wdg.z_plan, True)
+
+    with patch.object(QMessageBox, "warning", _qmsgbox):
+        wdg.z_plan.setValue(useq.ZRangeAround(range=4, step=0.2))
+
+    assert wdg.af_axis.isEnabled()
