@@ -21,6 +21,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.fonticon import icon
+from superqt.utils import signals_blocked
 
 from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
@@ -289,8 +290,9 @@ class PositionTable(DataTableWidget):
             _values.append({**v.model_dump(exclude_unset=True), **_af})
 
         super().setValue(_values)
-        self.include_z.setChecked(_include_z)
-        self.af_per_position.setChecked(_use_af)
+        with signals_blocked(self):
+            self.include_z.setChecked(_include_z)
+            self.af_per_position.setChecked(_use_af)
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current positions to a JSON file."""
