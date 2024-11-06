@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType
 from qtpy.QtCore import Qt
-from qtpy.QtGui import QColor
+from qtpy.QtGui import QPalette
 from qtpy.QtWidgets import QAbstractScrollArea, QTableWidget, QTableWidgetItem, QWidget
 from superqt.fonticon import icon
 
@@ -123,6 +123,13 @@ class DevicePropertyTable(QTableWidget):
         self.clearContents()
         props = list(self._mmc.iterProperties(as_object=True))
         self.setRowCount(len(props))
+
+        # Retrieve the palette
+        palette = self.palette()  # This pulls the current theme colors
+
+        read_only_color = palette.color(QPalette.ColorRole.Dark)
+        pre_init_color = palette.color(QPalette.ColorRole.Dark).darker(130)
+
         for i, prop in enumerate(props):
             extra = " (pre-init)" if prop.isPreInit() else ""
             item = QTableWidgetItem(f"{prop.device}-{prop.name}{extra}")
@@ -150,23 +157,74 @@ class DevicePropertyTable(QTableWidget):
                 wdg.setEnabled(False)
 
             if prop.isReadOnly():
-                # TODO: make this more theme aware
-                item.setBackground(QColor("#AAA"))
-                wdg.setStyleSheet("QLabel { background-color : #AAA }")
+                item.setBackground(read_only_color)
+                wdg.setStyleSheet(
+                    f"QLabel {{ background-color : {read_only_color.name()} }}"
+                )
 
             if prop.isPreInit():
-                # TODO: make this more theme aware
-                item.setBackground(QColor("#dbdbdb"))
+                item.setBackground(pre_init_color)
                 # set a placeholder item to then color the cell background
                 placeholder_item = QTableWidgetItem()
-                placeholder_item.setBackground(QColor("#dbdbdb"))
+                placeholder_item.setBackground(pre_init_color)
                 self.setItem(i, 1, placeholder_item)
                 # color the widget background
-                wdg.setStyleSheet("QWidget { background-color : #dbdbdb }")
+                wdg.setStyleSheet(
+                    f"QWidget {{ background-color : {pre_init_color.name()} }}"
+                )
 
         self.resizeColumnsToContents()
         self.setRowsCheckable(self._rows_checkable)
         # TODO: install eventFilter to prevent mouse wheel from scrolling sliders
+
+    # def _rebuild_table(self) -> None:
+    #     self.clearContents()
+    #     props = list(self._mmc.iterProperties(as_object=True))
+    #     self.setRowCount(len(props))
+    #     for i, prop in enumerate(props):
+    #         extra = " (pre-init)" if prop.isPreInit() else ""
+    #         item = QTableWidgetItem(f"{prop.device}-{prop.name}{extra}")
+    #         item.setData(self.PROP_ROLE, prop)
+    #         icon_string = ICONS.get(prop.deviceType())
+    #         if icon_string:
+    #             item.setIcon(icon(icon_string, color="Gray"))
+    #         self.setItem(i, 0, item)
+
+    #         try:
+    #             wdg = PropertyWidget(
+    #                 prop.device,
+    #                 prop.name,
+    #                 mmcore=self._mmc,
+    #                 connect_core=self._connect_core,
+    #             )
+    #         except Exception as e:
+    #             logger.error(
+    #                 f"Error creating widget for {prop.device}-{prop.name}: {e}"
+    #             )
+    #             continue
+
+    #         self.setCellWidget(i, 1, wdg)
+    #         if not self._prop_widgets_enabled:
+    #             wdg.setEnabled(False)
+
+    #         if prop.isReadOnly():
+    #             # TODO: make this more theme aware
+    #             item.setBackground(QColor("#AAA"))
+    #             wdg.setStyleSheet("QLabel { background-color : #AAA }")
+
+    #         if prop.isPreInit():
+    #             # TODO: make this more theme aware
+    #             item.setBackground(QColor("#dbdbdb"))
+    #             # set a placeholder item to then color the cell background
+    #             placeholder_item = QTableWidgetItem()
+    #             placeholder_item.setBackground(QColor("#dbdbdb"))
+    #             self.setItem(i, 1, placeholder_item)
+    #             # color the widget background
+    #             wdg.setStyleSheet("QWidget { background-color : #dbdbdb }")
+
+    #     self.resizeColumnsToContents()
+    #     self.setRowsCheckable(self._rows_checkable)
+    #     # TODO: install eventFilter to prevent mouse wheel from scrolling sliders
 
     def setReadOnlyDevicesVisible(self, visible: bool = True) -> None:
         """Set whether read-only devices are visible."""
