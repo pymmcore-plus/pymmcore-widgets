@@ -56,22 +56,16 @@ def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
 
     global_mmcore.waitForDevice("XY")
     stage_xy._x_pos.setValue(5)
-    y_pos = global_mmcore.getYPosition()
-    x_pos = global_mmcore.getXPosition()
-    assert stage_xy._x_pos.value() == 5
-    assert stage_xy._y_pos.value() == 15
+    stage_xy._x_pos.editingFinished.emit()
+    assert 4 < global_mmcore.getXPosition() < 6
 
     global_mmcore.waitForDevice("XY")
     stage_xy._y_pos.setValue(5)
-    y_pos = global_mmcore.getYPosition()
-    x_pos = global_mmcore.getXPosition()
-    assert stage_xy._x_pos.value() == 5
-    assert stage_xy._y_pos.value() == 5
+    stage_xy._y_pos.editingFinished.emit()
+    assert 4 < global_mmcore.getYPosition() < 6
 
     global_mmcore.waitForDevice("XY")
     global_mmcore.setXYPosition(0.0, 0.0)
-    y_pos = global_mmcore.getYPosition()
-    x_pos = global_mmcore.getXPosition()
     assert stage_xy._x_pos.value() == 0
     assert stage_xy._y_pos.value() == 0
 
@@ -117,7 +111,8 @@ def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
 
     global_mmcore.waitForDevice("Z")
     stage_z._y_pos.setValue(5)
-    assert stage_z._y_pos.value() == 5
+    stage_z._y_pos.editingFinished.emit()
+    assert 4 < global_mmcore.getPosition() < 6
 
     global_mmcore.waitForDevice("Z")
     global_mmcore.setPosition(0.0)
