@@ -500,6 +500,14 @@ class MDASequenceWidget(QWidget):
         # Only JSON
         return "All (*.json);;JSON (*.json)"
 
+    def _enable_af(self, state: bool, tooltip1: str, tooltip2: str) -> None:
+        """Enable or disable autofocus settings."""
+        self.af_axis.setEnabled(state)
+        self.af_axis.setToolTip(tooltip1)
+        self.stage_positions.af_per_position.setEnabled(state)
+        self.stage_positions.af_per_position.setChecked(state)
+        self.stage_positions.af_per_position.setToolTip(tooltip2)
+
     def _validate_af_with_z_plan(self) -> None:
         """Check if the autofocus plan can be used with the current Z Plan.
 
@@ -510,11 +518,7 @@ class MDASequenceWidget(QWidget):
                 "The hardware autofocus cannot be used with absolute Z positions "
                 "(TOP_BOTTOM mode)."
             )
-            self.af_axis.setEnabled(False)
-            self.af_axis.setToolTip(tooltip)
-            self.stage_positions.af_per_position.setEnabled(False)
-            self.stage_positions.af_per_position.setChecked(False)
-            self.stage_positions.af_per_position.setToolTip(tooltip)
+            self._enable_af(False, tooltip, tooltip)
             if self.af_axis.use_af_p.isChecked():
                 QMessageBox.warning(
                     self,
@@ -527,10 +531,7 @@ class MDASequenceWidget(QWidget):
                     defaultButton=QMessageBox.StandardButton.Ok,
                 )
         else:
-            self.af_axis.setEnabled(True)
-            self.af_axis.setToolTip(AF_TOOLTIP)
-            self.stage_positions.af_per_position.setEnabled(True)
-            self.stage_positions.af_per_position.setToolTip(AF_DEFAULT_TOOLTIP)
+            self._enable_af(True, AF_TOOLTIP, AF_DEFAULT_TOOLTIP)
 
         self.valueChanged.emit()
 
@@ -540,10 +541,7 @@ class MDASequenceWidget(QWidget):
             if self.tab_wdg.isChecked(self.z_plan):
                 self._validate_af_with_z_plan()
             else:
-                self.af_axis.setEnabled(True)
-                self.af_axis.setToolTip(AF_TOOLTIP)
-                self.stage_positions.af_per_position.setEnabled(True)
-                self.stage_positions.af_per_position.setToolTip(AF_DEFAULT_TOOLTIP)
+                self._enable_af(True, AF_TOOLTIP, AF_DEFAULT_TOOLTIP)
 
         self._update_available_axis_orders()
 
