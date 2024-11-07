@@ -286,6 +286,9 @@ class MDASequenceWidget(QWidget):
         self.axis_order.setToolTip("Slowest to fastest axis order.")
         self.axis_order.setMinimumWidth(80)
 
+        # used in _validate_af_with_z_plan to store state of the autofocus per position
+        self._use_af_per_pos: bool = False
+
         # -------------- Other Widgets --------------
 
         # QLabel with standard warning icon to indicate time overflow
@@ -505,8 +508,12 @@ class MDASequenceWidget(QWidget):
         self.af_axis.setEnabled(state)
         self.af_axis.setToolTip(tooltip1)
         self.stage_positions.af_per_position.setEnabled(state)
-        self.stage_positions.af_per_position.setChecked(state)
         self.stage_positions.af_per_position.setToolTip(tooltip2)
+        if not state:
+            self.stage_positions.af_per_position.setChecked(state)
+        else:
+            # re-enable autofocus per position only if it was checked before
+            self.stage_positions.af_per_position.setChecked(self._use_af_per_pos)
 
     def _validate_af_with_z_plan(self) -> None:
         """Check if the autofocus plan can be used with the current Z Plan.
@@ -518,6 +525,7 @@ class MDASequenceWidget(QWidget):
                 "The hardware autofocus cannot be used with absolute Z positions "
                 "(TOP_BOTTOM mode)."
             )
+            self._use_af_per_pos = self.stage_positions.af_per_position.isChecked()
             self._enable_af(False, tooltip, tooltip)
             if self.af_axis.use_af_p.isChecked():
                 QMessageBox.warning(
