@@ -64,6 +64,10 @@ for x in list(ALLOWED_ORDERS):
         if _check_order(x, first, second):
             ALLOWED_ORDERS.discard(x)
 AF_TOOLTIP = "Use Hardware Autofocus on the selected axes."
+AF_DISABLED_TOOLTIP = (
+    "The hardware autofocus cannot be used with absolute Z positions "
+    "(TOP_BOTTOM mode)."
+)
 
 
 class MDATabs(CheckableTabWidget):
@@ -521,12 +525,8 @@ class MDASequenceWidget(QWidget):
         If the Z Plan is set to TOP_BOTTOM, the autofocus plan cannot be used.
         """
         if self.z_plan.mode() == Mode.TOP_BOTTOM:
-            tooltip = (
-                "The hardware autofocus cannot be used with absolute Z positions "
-                "(TOP_BOTTOM mode)."
-            )
             self._use_af_per_pos = self.stage_positions.af_per_position.isChecked()
-            self._enable_af(False, tooltip, tooltip)
+            self._enable_af(False, AF_DISABLED_TOOLTIP, AF_DISABLED_TOOLTIP)
             if self.af_axis.use_af_p.isChecked():
                 QMessageBox.warning(
                     self,
