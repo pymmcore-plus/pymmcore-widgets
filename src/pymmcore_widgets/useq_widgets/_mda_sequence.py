@@ -25,7 +25,7 @@ import pymmcore_widgets
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
 from pymmcore_widgets.useq_widgets._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
-from pymmcore_widgets.useq_widgets._positions import PositionTable
+from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP, PositionTable
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 from pymmcore_widgets.useq_widgets._z import Mode, ZPlanWidget
 
@@ -506,11 +506,15 @@ class MDASequenceWidget(QWidget):
         If the Z Plan is set to TOP_BOTTOM, the autofocus plan cannot be used.
         """
         if self.z_plan.mode() == Mode.TOP_BOTTOM:
-            self.af_axis.setEnabled(False)
-            self.af_axis.setToolTip(
+            tooltip = (
                 "The hardware autofocus cannot be used with absolute Z positions "
                 "(TOP_BOTTOM mode)."
             )
+            self.af_axis.setEnabled(False)
+            self.af_axis.setToolTip(tooltip)
+            self.stage_positions.af_per_position.setEnabled(False)
+            self.stage_positions.af_per_position.setChecked(False)
+            self.stage_positions.af_per_position.setToolTip(tooltip)
             if self.af_axis.use_af_p.isChecked():
                 QMessageBox.warning(
                     self,
@@ -525,6 +529,8 @@ class MDASequenceWidget(QWidget):
         else:
             self.af_axis.setEnabled(True)
             self.af_axis.setToolTip(AF_TOOLTIP)
+            self.stage_positions.af_per_position.setEnabled(True)
+            self.stage_positions.af_per_position.setToolTip(AF_DEFAULT_TOOLTIP)
 
         self.valueChanged.emit()
 
@@ -536,6 +542,8 @@ class MDASequenceWidget(QWidget):
             else:
                 self.af_axis.setEnabled(True)
                 self.af_axis.setToolTip(AF_TOOLTIP)
+                self.stage_positions.af_per_position.setEnabled(True)
+                self.stage_positions.af_per_position.setToolTip(AF_DEFAULT_TOOLTIP)
 
         self._update_available_axis_orders()
 
