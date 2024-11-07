@@ -490,9 +490,11 @@ def test_autofocus_with_z_plans(qtbot: QtBot) -> None:
     qtbot.addWidget(wdg)
     wdg.show()
 
+    wdg.tab_wdg.setChecked(wdg.stage_positions, True)
+
     assert not wdg.tab_wdg.isChecked(wdg.z_plan)
     assert wdg.af_axis.isEnabled()
-
+    assert wdg.stage_positions.af_per_position.isEnabled()
     wdg.af_axis.setValue(("p", "t"))
     assert wdg.af_axis.value() == ("p", "t")
 
@@ -504,12 +506,14 @@ def test_autofocus_with_z_plans(qtbot: QtBot) -> None:
 
     assert wdg.z_plan.mode() == _z.Mode.TOP_BOTTOM
     assert not wdg.af_axis.isEnabled()
+    assert not wdg.stage_positions.af_per_position.isEnabled()
     assert wdg.af_axis.value() == ()
 
     with patch.object(QMessageBox, "warning", _qmsgbox):
         wdg.tab_wdg.setChecked(wdg.z_plan, False)
 
     assert wdg.af_axis.isEnabled()
+    assert wdg.stage_positions.af_per_position.isEnabled()
 
     with patch.object(QMessageBox, "warning", _qmsgbox):
         wdg.tab_wdg.setChecked(wdg.z_plan, True)
@@ -518,3 +522,4 @@ def test_autofocus_with_z_plans(qtbot: QtBot) -> None:
         wdg.z_plan.setValue(useq.ZRangeAround(range=4, step=0.2))
 
     assert wdg.af_axis.isEnabled()
+    assert wdg.stage_positions.af_per_position.isEnabled()
