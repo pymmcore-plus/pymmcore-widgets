@@ -533,7 +533,7 @@ class MDASequenceWidget(QWidget):
                     "Autofocus Plan Disabled",
                     "The hardware autofocus cannot be used with absolute Z positions "
                     "(TOP_BOTTOM mode). It has been disabled.\n\n"
-                    "To re-enable autofocus, set the Z Plan Mode to a relative position"
+                    "To re-enable it, set the Z Plan Mode to a relative position"
                     " (RANGE_AROUND or ABOVE_BELOW mode).",
                     buttons=QMessageBox.StandardButton.Ok,
                     defaultButton=QMessageBox.StandardButton.Ok,
