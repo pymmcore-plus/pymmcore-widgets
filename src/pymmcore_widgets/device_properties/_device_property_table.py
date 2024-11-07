@@ -131,7 +131,7 @@ class DevicePropertyTable(QTableWidget):
         pre_init_color = palette.color(QPalette.ColorRole.Dark).darker(130)
 
         for i, prop in enumerate(props):
-            extra = " (pre-init)" if prop.isPreInit() else ""
+            extra = " 🅿" if prop.isPreInit() else ""
             item = QTableWidgetItem(f"{prop.device}-{prop.name}{extra}")
             item.setData(self.PROP_ROLE, prop)
             icon_string = ICONS.get(prop.deviceType())
