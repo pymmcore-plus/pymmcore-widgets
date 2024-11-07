@@ -137,6 +137,7 @@ class CoreConnectedPositionTable(PositionTable):
             self._set_position_table_editable(False)
             value = tuple(value)
         super().setValue(value)
+        self._update_z_enablement()
 
     # ----------------------- private methods -----------------------
 
