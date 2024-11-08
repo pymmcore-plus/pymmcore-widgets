@@ -146,7 +146,7 @@ class ZPlanWidget(QWidget):
         self.steps.setValue(0)
 
         self.range = QDoubleSpinBox()
-        self.range.setRange(-10_000, 10_000)
+        self.range.setRange(0, 10_000)
         self.range.setSingleStep(0.1)
         self.range.setDecimals(3)
         self.range.setValue(0)
