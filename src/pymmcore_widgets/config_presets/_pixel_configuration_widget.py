@@ -3,7 +3,7 @@ from __future__ import annotations
 import itertools
 import warnings
 from collections import Counter
-from typing import Any, Sequence, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty
 from pymmcore_plus.model import PixelSizeGroup, PixelSizePreset, Setting
@@ -27,11 +27,16 @@ from qtpy.QtWidgets import (
 )
 from superqt.utils import signals_blocked
 
-from pymmcore_widgets._device_property_table import DevicePropertyTable
-from pymmcore_widgets._device_type_filter import DeviceTypeFilters
-from pymmcore_widgets._property_widget import PropertyWidget
+from pymmcore_widgets.device_properties._device_property_table import (
+    DevicePropertyTable,
+)
+from pymmcore_widgets.device_properties._device_type_filter import DeviceTypeFilters
+from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 from pymmcore_widgets.useq_widgets import DataTable, DataTableWidget
 from pymmcore_widgets.useq_widgets._column_info import FloatColumn, TextColumn
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 FIXED = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 PX = "px"

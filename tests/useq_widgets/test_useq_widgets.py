@@ -169,6 +169,32 @@ def test_mda_wdg_load_save(
         assert dest.read_text() == mda_no_meta.yaml(exclude_defaults=True)
 
 
+def test_mda_wdg_set_value_ignore_z(qtbot: QtBot) -> None:
+    wdg = MDASequenceWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    MDA_noZ = useq.MDASequence(
+        axis_order="p",
+        stage_positions=[(0, 1), useq.Position(x=42, y=0)],
+        keep_shutter_open_across=("z",),
+    )
+    assert wdg.stage_positions.include_z.isChecked()
+    wdg.setValue(MDA_noZ)
+    assert wdg.value().replace(metadata={}) == MDA_noZ
+    assert not wdg.stage_positions.include_z.isChecked()
+
+    MDA_partialZ = useq.MDASequence(
+        axis_order="p",
+        stage_positions=[(0, 1), useq.Position(x=42, y=0, z=3)],
+        keep_shutter_open_across=("z",),
+    )
+
+    with pytest.warns(match="Only some positions have a z-position"):
+        wdg.setValue(MDA_partialZ)
+    assert wdg.stage_positions.include_z.isChecked()
+
+
 def test_qquant_line_edit(qtbot: QtBot) -> None:
     wdg = QTimeLineEdit("1.0 s")
     wdg.show()

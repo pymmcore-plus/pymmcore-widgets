@@ -8,7 +8,7 @@ from qtpy.QtGui import QBrush
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QWidget
 from superqt.utils import signals_blocked
 
-from ._util import block_core
+from pymmcore_widgets._util import block_core
 
 
 class PresetsWidget(QWidget):

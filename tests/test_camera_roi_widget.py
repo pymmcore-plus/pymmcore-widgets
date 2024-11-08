@@ -3,12 +3,12 @@ from __future__ import annotations
 import shutil
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, call
 
 import pytest
 
-from pymmcore_widgets._camera_roi_widget import (
+from pymmcore_widgets.control._camera_roi_widget import (
     CUSTOM_ROI,
     FULL,
     ROI,
@@ -17,6 +17,8 @@ from pymmcore_widgets._camera_roi_widget import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from pytestqt.qtbot import QtBot
 
 TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")

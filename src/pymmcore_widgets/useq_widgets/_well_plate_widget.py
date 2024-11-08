@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import useq
@@ -26,6 +26,8 @@ from superqt.utils import signals_blocked
 from pymmcore_widgets._util import ResizingGraphicsView
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
     from qtpy.QtGui import QMouseEvent
 
     Index = int | list[int] | tuple[int] | slice
@@ -438,7 +440,7 @@ class WellPlateView(ResizingGraphicsView):
         indices = plan.all_well_indices.reshape(-1, 2)
         for idx, pos in zip(indices, plan.all_well_positions):
             # invert y-axis for screen coordinates
-            screen_x, screen_y = pos.x, -pos.y
+            screen_x, screen_y = pos.x, -cast(float, pos.y)
             rect = well_rect.translated(screen_x, screen_y)
             if item := add_item(rect, pen):
                 item.setData(DATA_POSITION, pos)

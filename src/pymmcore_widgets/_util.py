@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, ContextManager, Sequence
+from typing import TYPE_CHECKING, Any
 
 import useq
 from psygnal import SignalInstance
@@ -20,6 +20,10 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import signals_blocked
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from contextlib import AbstractContextManager
 
 
 class ComboMessageBox(QDialog):
@@ -91,7 +95,7 @@ def guess_objective_or_prompt(
     return None
 
 
-def block_core(obj: Any) -> ContextManager:
+def block_core(obj: Any) -> AbstractContextManager:
     """Block core signals."""
     if isinstance(obj, QObject):
         return signals_blocked(obj)  # type: ignore [no-any-return]
@@ -108,6 +112,8 @@ def cast_grid_plan(
         return None
     if isinstance(grid, dict):
         _grid = useq.MDASequence(grid_plan=grid).grid_plan
+        if isinstance(_grid, useq.RelativePosition):  # pragma: no cover
+            raise ValueError("Grid plan cannot be a single Relative position.")
         return None if isinstance(_grid, useq.RandomPoints) else _grid
     return grid
 
@@ -208,3 +214,17 @@ class ResizingGraphicsView(QGraphicsView):
         margins = QMarginsF(xmargin, ymargin, xmargin, ymargin)
         self.fitInView(rect.marginsAdded(margins), Qt.AspectRatioMode.KeepAspectRatio)
         super().resizeEvent(event)
+
+
+def load_system_config(config: str = "", mmcore: CMMCorePlus | None = None) -> None:
+    """Internal convenience for `loadSystemConfiguration(config)`.
+
+    This also unloads all devices first and resets the STATE.
+    If config is `None` or empty string, will load the MMConfig_demo.
+    Note that it should also always be fine for the end-user to use something like
+    `CMMCorePlus.instance().loadSystemConfiguration(...)` (instead of this function)
+    and we need to handle that as well.  So this function shouldn't get too complex.
+    """
+    mmc = mmcore or CMMCorePlus.instance()
+    mmc.unloadAllDevices()
+    mmc.loadSystemConfiguration(config or "MMConfig_demo.cfg")

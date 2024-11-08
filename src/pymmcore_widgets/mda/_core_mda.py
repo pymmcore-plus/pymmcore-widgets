@@ -111,6 +111,24 @@ class MDAWidget(MDASequenceWidget):
 
         self.destroyed.connect(self._disconnect)
 
+    # ----------- Override type hints in superclass -----------
+
+    @property
+    def channels(self) -> CoreConnectedChannelTable:
+        return cast("CoreConnectedChannelTable", self.tab_wdg.channels)
+
+    @property
+    def z_plan(self) -> CoreConnectedZPlanWidget:
+        return cast("CoreConnectedZPlanWidget", self.tab_wdg.z_plan)
+
+    @property
+    def stage_positions(self) -> CoreConnectedPositionTable:
+        return cast("CoreConnectedPositionTable", self.tab_wdg.stage_positions)
+
+    @property
+    def grid_plan(self) -> CoreConnectedGridPlanWidget:
+        return cast("CoreConnectedGridPlanWidget", self.tab_wdg.grid_plan)
+
     # ------------------- public Methods ----------------------
 
     def value(self) -> MDASequence:

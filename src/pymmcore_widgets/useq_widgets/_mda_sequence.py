@@ -3,7 +3,7 @@ from __future__ import annotations
 from importlib.util import find_spec
 from itertools import permutations
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import useq
 from qtpy.QtCore import Qt, Signal
@@ -27,6 +27,9 @@ from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
 from pymmcore_widgets.useq_widgets._positions import PositionTable
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 from pymmcore_widgets.useq_widgets._z import ZPlanWidget
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 try:
     from pint import Quantity
@@ -568,8 +571,8 @@ class MDASequenceWidget(QWidget):
         return {"autofocus_plan": af_plan, "stage_positions": stage_positions}
 
     def _update_af_axes(
-        self, positions: tuple[useq.Position, ...]
-    ) -> tuple[useq.Position, ...]:
+        self, positions: Sequence[useq.Position]
+    ) -> Sequence[useq.Position]:
         """Add the autofocus axes to each subsequence."""
         new_pos = []
         for pos in positions:

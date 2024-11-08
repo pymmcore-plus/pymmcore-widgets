@@ -3,8 +3,9 @@ from __future__ import annotations
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QComboBox, QVBoxLayout, QWidget
 
+from pymmcore_widgets._util import ComboMessageBox
+
 from ._presets_widget import PresetsWidget
-from ._util import ComboMessageBox
 
 
 class ChannelWidget(QWidget):

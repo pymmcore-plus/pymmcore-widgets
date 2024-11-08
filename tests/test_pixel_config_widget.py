@@ -7,7 +7,7 @@ import pytest
 from pymmcore_plus.model import PixelSizePreset, Setting
 from qtpy.QtCore import Qt
 
-from pymmcore_widgets._pixel_configuration_widget import (
+from pymmcore_widgets.config_presets._pixel_configuration_widget import (
     ID,
     NEW,
     PixelConfigurationWidget,
