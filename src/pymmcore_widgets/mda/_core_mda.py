@@ -339,6 +339,13 @@ class MDAWidget(MDASequenceWidget):
             self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
             self._mmc.mda.events.sequenceFinished.disconnect(self._on_mda_finished)
 
+    def _enable_af(self, state: bool, tooltip1: str, tooltip2: str) -> None:
+        """Override the autofocus enablement to account for the autofocus device."""
+        if not self._mmc.getAutoFocusDevice():
+            self.stage_positions._update_autofocus_enablement()
+            return
+        return super()._enable_af(state, tooltip1, tooltip2)
+
 
 class _MDAControlButtons(QWidget):
     """Run, pause, and cancel buttons at the bottom of the MDA Widget."""
