@@ -195,15 +195,6 @@ def test_core_connected_position_wdg_property_changed(
     # stage device is set as default device.
     mmc = global_mmcore
 
-    with qtbot.waitSignal(mmc.events.propertyChanged):
-        if stage == "XY":
-            mmc.setProperty("Core", "XYStage", "")
-        elif stage == "Z":
-            mmc.setProperty("Core", "Focus", "")
-        elif stage == "Autofocus":
-            mmc.setProperty("Core", "AutoFocus", "")
-        mmc.waitForSystem()
-
     wdg = MDAWidget()
     qtbot.addWidget(wdg)
     wdg.show()
@@ -212,6 +203,17 @@ def test_core_connected_position_wdg_property_changed(
     assert isinstance(pos_table, CoreConnectedPositionTable)
 
     wdg.setValue(MDA)
+
+    pos_table.af_per_position.setChecked(True)
+
+    with qtbot.waitSignal(mmc.events.propertyChanged):
+        if stage == "XY":
+            mmc.setProperty("Core", "XYStage", "")
+        elif stage == "Z":
+            mmc.setProperty("Core", "Focus", "")
+        elif stage == "Autofocus":
+            mmc.setProperty("Core", "AutoFocus", "")
+        mmc.waitForSystem()
 
     # stage is not set as default device
     _assert_position_wdg_state(stage, pos_table, is_hidden=True)

@@ -259,7 +259,7 @@ class CoreConnectedPositionTable(PositionTable):
         self._update_autofocus_enablement()
 
     def _on_property_changed(self, device: str, prop: str, _val: str = "") -> None:
-        """Update the autofocus device combo box when the autofocus device changes."""
+        """Enable/Disable stages columns."""
         if device == "Core":
             if prop == "XYStage":
                 self._update_xy_enablement()
@@ -291,6 +291,9 @@ class CoreConnectedPositionTable(PositionTable):
         """Update the autofocus device combo box."""
         af_device = self._mmc.getAutoFocusDevice()
         self.af_per_position.setEnabled(bool(af_device))
+        # also hide the AF column if the autofocus device is not available
+        if not af_device:
+            self.af_per_position.setChecked(False)
         self.af_per_position.setToolTip(
             AF_DEFAULT_TOOLTIP if af_device else "AutoFocus device unavailable."
         )
