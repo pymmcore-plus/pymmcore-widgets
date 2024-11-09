@@ -150,7 +150,11 @@ class MDAWidget(MDASequenceWidget):
 
         # if there is an autofocus_plan but the autofocus_motor_offset is None, set it
         # to the current value
-        if (afplan := val.autofocus_plan) and afplan.autofocus_motor_offset is None:
+        if (
+            self._mmc.getAutoFocusDevice()
+            and (afplan := val.autofocus_plan)
+            and afplan.autofocus_motor_offset is None
+        ):
             p2 = afplan.replace(autofocus_motor_offset=self._mmc.getAutoFocusOffset())
             replace["autofocus_plan"] = p2
 
