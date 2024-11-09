@@ -53,11 +53,37 @@ class CameraInfo:
         )
 
 
-class _CameraRoiGUI(QWidget):
-    """A GUI to control the Camera ROI."""
+class CameraRoiWidget(QWidget):
+    """A Widget to control the camera device ROI.
 
-    def __init__(self, parent: QWidget | None = None):
+    When the ROI changes, the `roiChanged` Signal is emitted with the current ROI
+    (x, y, width, height, comboBoxText)
+
+    Parameters
+    ----------
+    parent : QWidget | None
+        Optional parent widget, by default None
+    mmcore : CMMCorePlus | None
+        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
+        By default, None. If not specified, the widget will use the active
+        (or create a new)
+        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
+    """
+
+    # (x, y, width, height, comboBoxText)
+    roiChanged = Signal(int, int, int, int, str)
+
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        mmcore: CMMCorePlus | None = None,
+    ) -> None:
         super().__init__(parent=parent)
+
+        self._mmc = mmcore or CMMCorePlus.instance()
+
+        self._cameras: dict[str, CameraInfo] = {}
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(5)
@@ -84,41 +110,8 @@ class _CameraRoiGUI(QWidget):
         main_layout.addWidget(self._selector_wdg)
 
         # custom roi group
-        self._custom_roi_wdg = self._custom_roi_group()
-        main_layout.addWidget(self._custom_roi_wdg)
-
-        # info label
-        _info_lbl_wdg = QGroupBox()
-        _info_layout = QVBoxLayout(_info_lbl_wdg)
-        _info_layout.setSpacing(5)
-        _info_layout.setContentsMargins(3, 3, 3, 3)
-        self.lbl_info = QLabel("....")
-        _info_layout.addWidget(self.lbl_info)
-
-        main_layout.addWidget(_info_lbl_wdg)
-
-        # snap and crop buttons
-        self._bottom_wdg = QWidget()
-        _bottom_layout = QHBoxLayout(self._bottom_wdg)
-        _bottom_layout.setSpacing(10)
-        _bottom_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.snap_checkbox = QCheckBox(text="Auto Snap")
-
-        self.crop_btn = QPushButton("Crop")
-        self.crop_btn.setMinimumWidth(100)
-        self.crop_btn.setIcon(icon(MDI6.crop, color=(0, 255, 0)))
-        self.crop_btn.setIconSize(QSize(30, 30))
-
-        _bottom_layout.addWidget(self.snap_checkbox)
-        _bottom_layout.addStretch()
-        _bottom_layout.addWidget(self.crop_btn)
-
-        main_layout.addWidget(self._bottom_wdg)
-
-    def _custom_roi_group(self) -> QGroupBox:
-        wdg = QGroupBox()
-        layout = QGridLayout(wdg)
+        self._custom_roi_wdg = QGroupBox()
+        layout = QGridLayout(self._custom_roi_wdg)
         layout.setSpacing(5)
         layout.setContentsMargins(3, 3, 3, 3)
 
@@ -163,61 +156,36 @@ class _CameraRoiGUI(QWidget):
         self.center_checkbox = QCheckBox(text="center ROI")
         layout.addWidget(self.center_checkbox, 3, 0, 1, 4)
 
-        return wdg
+        main_layout.addWidget(self._custom_roi_wdg)
 
-    def _enable(self, enabled: bool) -> None:
-        self._selector_wdg.setEnabled(enabled)
-        self._custom_roi_wdg.setEnabled(enabled)
-        self._bottom_wdg.setEnabled(enabled)
-        self._hide_spinbox_button(not enabled)
+        # info label
+        _info_lbl_wdg = QGroupBox()
+        _info_layout = QVBoxLayout(_info_lbl_wdg)
+        _info_layout.setSpacing(5)
+        _info_layout.setContentsMargins(3, 3, 3, 3)
+        self.lbl_info = QLabel("....")
+        _info_layout.addWidget(self.lbl_info)
 
-    def _hide_spinbox_button(
-        self, hide: bool, spinboxes: list[QSpinBox] | None = None
-    ) -> None:
-        spinboxes = spinboxes or [
-            self.start_x,
-            self.start_y,
-            self.roi_width,
-            self.roi_height,
-        ]
-        for spin in spinboxes:
-            if hide:
-                spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-            else:
-                spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.PlusMinus)
+        main_layout.addWidget(_info_lbl_wdg)
 
+        # snap and crop buttons
+        self._bottom_wdg = QWidget()
+        _bottom_layout = QHBoxLayout(self._bottom_wdg)
+        _bottom_layout.setSpacing(10)
+        _bottom_layout.setContentsMargins(0, 0, 0, 0)
 
-class CameraRoiWidget(_CameraRoiGUI):
-    """A Widget to control the camera device ROI.
+        self.snap_checkbox = QCheckBox(text="Auto Snap")
 
-    When the ROI changes, the `roiChanged` Signal is emitted with the current ROI
-    (x, y, width, height, comboBoxText)
+        self.crop_btn = QPushButton("Crop")
+        self.crop_btn.setMinimumWidth(100)
+        self.crop_btn.setIcon(icon(MDI6.crop, color=(0, 255, 0)))
+        self.crop_btn.setIconSize(QSize(30, 30))
 
-    Parameters
-    ----------
-    parent : QWidget | None
-        Optional parent widget, by default None
-    mmcore : CMMCorePlus | None
-        Optional [`pymmcore_plus.CMMCorePlus`][] micromanager core.
-        By default, None. If not specified, the widget will use the active
-        (or create a new)
-        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
-    """
+        _bottom_layout.addWidget(self.snap_checkbox)
+        _bottom_layout.addStretch()
+        _bottom_layout.addWidget(self.crop_btn)
 
-    # (x, y, width, height, comboBoxText)
-    roiChanged = Signal(int, int, int, int, str)
-
-    def __init__(
-        self,
-        parent: QWidget | None = None,
-        *,
-        mmcore: CMMCorePlus | None = None,
-    ) -> None:
-        super().__init__(parent=parent)
-
-        self._mmc = mmcore or CMMCorePlus.instance()
-
-        self._cameras: dict[str, CameraInfo] = {}
+        main_layout.addWidget(self._bottom_wdg)
 
         # core connections
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
@@ -360,6 +328,27 @@ class CameraRoiWidget(_CameraRoiGUI):
         self.roiChanged.emit(x, y, width, height, crop_mode)
 
     # ________________________________WIDGET CONNECTIONS________________________________
+
+    def _enable(self, enabled: bool) -> None:
+        self._selector_wdg.setEnabled(enabled)
+        self._custom_roi_wdg.setEnabled(enabled)
+        self._bottom_wdg.setEnabled(enabled)
+        self._hide_spinbox_button(not enabled)
+
+    def _hide_spinbox_button(
+        self, hide: bool, spinboxes: list[QSpinBox] | None = None
+    ) -> None:
+        spinboxes = spinboxes or [
+            self.start_x,
+            self.start_y,
+            self.roi_width,
+            self.roi_height,
+        ]
+        for spin in spinboxes:
+            if hide:
+                spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+            else:
+                spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.PlusMinus)
 
     def _on_camera_changed(self, camera: str) -> None:
         """Update the ROI When the camera combo box changes."""
