@@ -280,8 +280,7 @@ class MDAWidget(MDASequenceWidget):
     def _on_sys_config_loaded(self) -> None:
         self.stage_positions._update_xy_enablement()
         self.stage_positions._update_z_enablement()
-        self._update_af_axis_enablement()
-        self._update_autofocus_per_pos_enablement()
+        self._update_autofocus_enablement()
         # TODO: connect objective change event to update suggested step
         self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
 
@@ -293,29 +292,22 @@ class MDAWidget(MDASequenceWidget):
         elif prop == "Focus":
             self.stage_positions._update_z_enablement()
         else:  # prop == "AutoFocus"
-            self._update_af_axis_enablement()
-            self._update_autofocus_per_pos_enablement()
+            self._update_autofocus_enablement()
         self.valueChanged.emit()
 
-    def _update_af_axis_enablement(self) -> None:
-        """Enable or disable the autofocus axis.
+    def _update_autofocus_enablement(self) -> None:
+        """Enable or disable the autofocus widgets.
 
-        Enable af_axis only if there is an autofocus device and no absolute z plan is
-        selected.
+        Enable af_axis and af_per_position only if there is an autofocus device and no
+        absolute z plan is selected.
         """
         af_device = self._get_autofocus_device()
+
         self.af_axis.setEnabled(bool(af_device))
         self.af_axis.setToolTip(
             AF_TOOLTIP if af_device else "AutoFocus device unavailable."
         )
 
-    def _update_autofocus_per_pos_enablement(self) -> None:
-        """Enable or disable the autofocus per position checkbox.
-
-        Enable autofocus per position only if there is an autofocus device and no
-        absolute z plan is selected.
-        """
-        af_device = self._get_autofocus_device()
         self.stage_positions.af_per_position.setEnabled(bool(af_device))
         # also hide the AF column if the autofocus device is not available
         if not af_device:

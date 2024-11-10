@@ -877,7 +877,7 @@ def test_core_mda_autofocus_and_z_plan(
         mmc.setProperty("Core", "AutoFocus", "")
 
     # both af_axis and af_per_position should be disabled
-    assert not wdg.af_axis.isEnabled()
+    assert not wdg.af_axis.value()
     assert not wdg.stage_positions.af_per_position.isEnabled()
     assert not wdg.stage_positions.af_per_position.isChecked()
     # before disabling, the af_per_position was checked and stored in _use_af_per_pos
@@ -899,48 +899,16 @@ def test_core_mda_autofocus_and_z_plan(
     assert wdg.stage_positions.af_per_position.isChecked()
     assert wdg.value() == SEQ
 
+    if trigger == "core":
+        mmc.setProperty("Core", "AutoFocus", "")
+        wdg.tab_wdg.setChecked(wdg.z_plan, True)
+        assert not wdg.af_axis.value()
+        assert not wdg.stage_positions.af_per_position.isEnabled()
+        assert not wdg.stage_positions.af_per_position.isChecked()
 
-def test_core_mda_autofocus_and_z_plan_prop_change(
-    qtbot: QtBot, global_mmcore: CMMCorePlus
-) -> None:
-    wdg = MDAWidget()
-    qtbot.addWidget(wdg)
-    wdg.show()
-
-
-#     assert mmc.getAutoFocusDevice() == "Autofocus"
-
-#     wdg.setValue(SEQ)
-
-#     # # af_axis and af_per_position should be checked and enabled
-#     # assert wdg.af_axis.value() == ("p",)
-#     # assert wdg.stage_positions.af_per_position.isEnabled()
-#     # assert wdg.stage_positions.af_per_position.isChecked()
-
-#     # disable autofocus device
-#     mmc.setProperty("Core", "AutoFocus", "")
-
-#     # af_axis and af_per_position should be disabled
-#     assert not wdg.af_axis.isEnabled()
-#     assert wdg.af_axis.value() == ()
-#     # before disabling, the af_per_position was checked and stored in _use_af_per_pos
-#     assert wdg._use_af_per_pos
-#     assert not wdg.stage_positions.af_per_position.isEnabled()
-#     assert not wdg.stage_positions.af_per_position.isChecked()
-
-#     assert not wdg.value().autofocus_plan
-#     assert not wdg.value().stage_positions[0].sequence
-#     assert not wdg.value().stage_positions[1].sequence
-
-#     mmc.setProperty("Core", "AutoFocus", "Autofocus")
-
-#     # af_axis and af_per_position should be enabled
-#     assert wdg.af_axis.value() == ("p",)
-#     assert wdg.stage_positions.af_per_position.isEnabled()
-#     assert wdg.stage_positions.af_per_position.isChecked()
-#     assert wdg.value() == SEQ
-
-#     from rich import print
-
-#     print()
-#     print(wdg.value())
+        # is autofocus is re-enabled, the autofocus options should still be disabled
+        # since the absolute TopBottom z plan is active
+        mmc.setProperty("Core", "AutoFocus", "Autofocus")
+        assert not wdg.af_axis.value()
+        assert not wdg.stage_positions.af_per_position.isEnabled()
+        assert not wdg.stage_positions.af_per_position.isChecked()
