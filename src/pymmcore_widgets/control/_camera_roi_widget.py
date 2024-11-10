@@ -91,7 +91,7 @@ class CameraRoiWidget(QWidget):
         main_layout.setSpacing(5)
         main_layout.setContentsMargins(10, 10, 10, 10)
 
-        # camera and mode selector
+        # camera and mode selector groupbox ---------------------------------------
         self._selector_wdg = QGroupBox()
         _selector_layout = QGridLayout(self._selector_wdg)
         _selector_layout.setSpacing(5)
@@ -111,7 +111,7 @@ class CameraRoiWidget(QWidget):
 
         main_layout.addWidget(self._selector_wdg)
 
-        # custom roi group
+        # custom roi groupbox ---------------------------------------------------
         self._custom_roi_wdg = QGroupBox()
         layout = QGridLayout(self._custom_roi_wdg)
         layout.setSpacing(5)
@@ -160,7 +160,7 @@ class CameraRoiWidget(QWidget):
 
         main_layout.addWidget(self._custom_roi_wdg)
 
-        # info label
+        # info label groupbox ---------------------------------------------------
         _info_lbl_wdg = QGroupBox()
         _info_layout = QVBoxLayout(_info_lbl_wdg)
         _info_layout.setSpacing(5)
@@ -170,7 +170,7 @@ class CameraRoiWidget(QWidget):
 
         main_layout.addWidget(_info_lbl_wdg)
 
-        # snap and crop buttons
+        # snap and crop buttons widget -------------------------------------------
         self._bottom_wdg = QWidget()
         _bottom_layout = QHBoxLayout(self._bottom_wdg)
         _bottom_layout.setSpacing(10)
@@ -189,13 +189,13 @@ class CameraRoiWidget(QWidget):
 
         main_layout.addWidget(self._bottom_wdg)
 
-        # core connections
+        # core connections -------------------------------------------------------
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_cfg_loaded)
         self._mmc.events.pixelSizeChanged.connect(self._update_lbl_info)
         self._mmc.events.roiSet.connect(self._on_roi_set)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
-        # widget connections
+        # widget connections -----------------------------------------------------
         self.camera_combo.currentTextChanged.connect(self._on_camera_changed)
         self.camera_roi_combo.currentTextChanged.connect(self._on_crop_roi_mode_change)
         self.center_checkbox.toggled.connect(self._on_center_checkbox)
@@ -207,6 +207,7 @@ class CameraRoiWidget(QWidget):
 
         self.destroyed.connect(self._disconnect)
 
+        # initialize the widget --------------------------------------------------
         self._on_sys_cfg_loaded()
 
     @property
