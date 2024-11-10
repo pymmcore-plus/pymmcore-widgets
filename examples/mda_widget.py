@@ -9,7 +9,7 @@ import useq
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets import MDAWidget
+from pymmcore_widgets import MDAWidget, PropertyBrowser
 
 with suppress(ImportError):
     from rich import print
@@ -17,6 +17,9 @@ with suppress(ImportError):
 app = QApplication([])
 
 CMMCorePlus.instance().loadSystemConfiguration()
+
+p = PropertyBrowser()
+p.show()
 
 wdg = MDAWidget()
 wdg.channels.setChannelGroups({"Channel": ["DAPI", "FITC"]})
