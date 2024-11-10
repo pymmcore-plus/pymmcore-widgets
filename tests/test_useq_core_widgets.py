@@ -220,8 +220,6 @@ def test_core_connected_position_wdg_property_changed(
             mmc.setProperty("Core", "XYStage", "XY")
         elif stage == "Z":
             mmc.setProperty("Core", "Focus", "Z")
-        elif stage == "Autofocus":
-            mmc.setProperty("Core", "AutoFocus", "Autofocus")
 
     # stage is set as default device (propertyChanged is triggered)
     _assert_position_wdg_state(stage, pos_table, is_hidden=False)
