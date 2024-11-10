@@ -839,6 +839,29 @@ SEQ = useq.MDASequence(
 )
 
 
+def test_core_mda_autofocus_set_value(
+    qtbot: QtBot,
+    global_mmcore: CMMCorePlus,
+) -> None:
+    mmc = global_mmcore
+    mmc.unloadDevice("Autofocus")  # or mmc.setProperty("Core", "AutoFocus", "")
+
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    wdg.setValue(SEQ)
+
+    # even if autofocus_plans are in SEQ, the autofocus options should be disabled
+    # since the autofocus device is not loaded
+    assert not wdg.value().autofocus_plan
+    assert not wdg.value().stage_positions[0].sequence
+    assert not wdg.value().stage_positions[1].sequence
+    assert wdg.af_axis.value() == ()
+    assert not wdg.stage_positions.af_per_position.isEnabled()
+    assert not wdg.stage_positions.af_per_position.isChecked()
+
+
 @pytest.mark.parametrize("trigger", ["zplan", "core"])
 def test_core_mda_autofocus_and_z_plan(
     qtbot: QtBot, global_mmcore: CMMCorePlus, trigger: str
