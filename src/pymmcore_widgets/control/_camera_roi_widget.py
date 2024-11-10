@@ -83,6 +83,8 @@ class CameraRoiWidget(QWidget):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
+        # this is use to store each camera information so that when the camera is
+        # changed in the widget, the proper values can be updated.
         self._cameras: dict[str, CameraInfo] = {}
 
         main_layout = QVBoxLayout(self)
