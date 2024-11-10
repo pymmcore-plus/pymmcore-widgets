@@ -19,7 +19,11 @@ from useq import MDASequence, Position
 
 from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
-from pymmcore_widgets.useq_widgets._mda_sequence import PYMMCW_METADATA_KEY, MDATabs
+from pymmcore_widgets.useq_widgets._mda_sequence import (
+    AF_TOOLTIP,
+    PYMMCW_METADATA_KEY,
+    MDATabs,
+)
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 
 from ._core_channels import CoreConnectedChannelTable
@@ -254,8 +258,17 @@ class MDAWidget(MDASequenceWidget):
     # ------------------- private Methods ----------------------
 
     def _on_sys_config_loaded(self) -> None:
+        self._update_af_axis_enablement()
         # TODO: connect objective change event to update suggested step
         self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
+
+    def _update_af_axis_enablement(self) -> None:
+        """Enable or disable the autofocus axis based on the autofocus device."""
+        af_device = self._mmc.getAutoFocusDevice()
+        self.af_axis.setEnabled(bool(af_device))
+        self.af_axis.setToolTip(
+            AF_TOOLTIP if af_device else "AutoFocus device unavailable."
+        )
 
     def _get_current_stage_position(self) -> Position:
         """Return the current stage position."""
