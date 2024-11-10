@@ -179,6 +179,10 @@ def test_core_connected_position_wdg_cfg_loaded(
     # stage is not loaded
     _assert_position_wdg_state(stage, pos_table, is_hidden=True)
 
+    # the autofocus axis wdg should be disabled if Autofocus device is not loaded
+    if stage == "Autofocus":
+        assert not wdg.af_axis.isEnabled()
+
     with qtbot.waitSignal(mmc.events.systemConfigurationLoaded):
         mmc.loadSystemConfiguration(TEST_CONFIG)
 
