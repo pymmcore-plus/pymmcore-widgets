@@ -897,7 +897,8 @@ def test_core_mda_autofocus_and_z_plan(
     # disable autofocus device
     elif trigger == "core":
         assert mmc.getAutoFocusDevice() == "Autofocus"
-        mmc.setProperty("Core", "AutoFocus", "")
+        with qtbot.waitSignal(mmc.events.propertyChanged):
+            mmc.setProperty("Core", "AutoFocus", "")
 
     # both af_axis and af_per_position should be disabled
     assert not wdg.af_axis.value()
@@ -914,7 +915,8 @@ def test_core_mda_autofocus_and_z_plan(
         wdg.tab_wdg.setChecked(wdg.z_plan, False)
     # re-enable autofocus device
     elif trigger == "core":
-        mmc.setProperty("Core", "AutoFocus", "Autofocus")
+        with qtbot.waitSignal(mmc.events.propertyChanged):
+            mmc.setProperty("Core", "AutoFocus", "Autofocus")
 
     # af_axis and af_per_position should be enabled
     assert wdg.af_axis.value() == ("p",)
@@ -923,7 +925,8 @@ def test_core_mda_autofocus_and_z_plan(
     assert wdg.value() == SEQ
 
     if trigger == "core":
-        mmc.setProperty("Core", "AutoFocus", "")
+        with qtbot.waitSignal(mmc.events.propertyChanged):
+            mmc.setProperty("Core", "AutoFocus", "")
         wdg.tab_wdg.setChecked(wdg.z_plan, True)
         assert not wdg.af_axis.value()
         assert not wdg.stage_positions.af_per_position.isEnabled()
@@ -931,7 +934,8 @@ def test_core_mda_autofocus_and_z_plan(
 
         # is autofocus is re-enabled, the autofocus options should still be disabled
         # since the absolute TopBottom z plan is active
-        mmc.setProperty("Core", "AutoFocus", "Autofocus")
+        with qtbot.waitSignal(mmc.events.propertyChanged):
+            mmc.setProperty("Core", "AutoFocus", "Autofocus")
         assert not wdg.af_axis.value()
         assert not wdg.stage_positions.af_per_position.isEnabled()
         assert not wdg.stage_positions.af_per_position.isChecked()
