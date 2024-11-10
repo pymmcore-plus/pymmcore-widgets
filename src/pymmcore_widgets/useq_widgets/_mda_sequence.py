@@ -290,7 +290,7 @@ class MDASequenceWidget(QWidget):
         self.axis_order.setToolTip("Slowest to fastest axis order.")
         self.axis_order.setMinimumWidth(80)
 
-        # used in _validate_af_with_z_plan to store state of the autofocus per position
+        # store the previous state of the autofocus per position checkbox to restore it
         self._use_af_per_pos: bool = False
 
         # -------------- Other Widgets --------------
@@ -525,9 +525,10 @@ class MDASequenceWidget(QWidget):
         If the Z Plan is set to TOP_BOTTOM, the autofocus plan cannot be used.
         """
         if self.z_plan.mode() == Mode.TOP_BOTTOM:
+            # store the current state of the autofocus per position checkbox
             self._use_af_per_pos = self.stage_positions.af_per_position.isChecked()
-            self._enable_af(False, AF_DISABLED_TOOLTIP, AF_DISABLED_TOOLTIP)
-            if self.af_axis.use_af_p.isChecked():
+            # if any autofocus axis is selected, show a warning.
+            if self.af_axis.value():
                 QMessageBox.warning(
                     self,
                     "Autofocus Plan Disabled",
@@ -538,6 +539,7 @@ class MDASequenceWidget(QWidget):
                     buttons=QMessageBox.StandardButton.Ok,
                     defaultButton=QMessageBox.StandardButton.Ok,
                 )
+            self._enable_af(False, AF_DISABLED_TOOLTIP, AF_DISABLED_TOOLTIP)
         else:
             self._enable_af(True, AF_TOOLTIP, AF_DEFAULT_TOOLTIP)
 
