@@ -138,6 +138,7 @@ class CoreConnectedPositionTable(PositionTable):
             value = tuple(value)
         super().setValue(value)
         self._update_z_enablement()
+        self._update_autofocus_enablement()
 
     # ----------------------- private methods -----------------------
 
@@ -277,7 +278,6 @@ class CoreConnectedPositionTable(PositionTable):
         self.table().setColumnHidden(x_col, not bool(xy_device))
         self.table().setColumnHidden(y_col, not bool(xy_device))
         self.table().setColumnHidden(xy_btn_col, not bool(xy_device))
-        self.valueChanged.emit()
 
     def _update_z_enablement(self) -> None:
         """Enable/disable the Z columns and button."""
@@ -287,7 +287,6 @@ class CoreConnectedPositionTable(PositionTable):
             # but don't recheck it if it's already unchecked
             self.include_z.setChecked(False)
         self.include_z.setToolTip("" if z_device else "Focus device unavailable.")
-        self.valueChanged.emit()
 
     def _update_autofocus_enablement(self) -> None:
         """Update the autofocus per position checkbox state and tooltip."""
@@ -299,7 +298,6 @@ class CoreConnectedPositionTable(PositionTable):
         self.af_per_position.setToolTip(
             AF_DEFAULT_TOOLTIP if af_device else "AutoFocus device unavailable."
         )
-        self.valueChanged.emit()
 
     def _add_row(self) -> None:
         """Add a new to the end of the table and use the current core position."""

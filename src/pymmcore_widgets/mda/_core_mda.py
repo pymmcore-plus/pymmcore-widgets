@@ -35,6 +35,23 @@ from ._core_z import CoreConnectedZPlanWidget
 from ._save_widget import SaveGroupBox
 
 
+class _CoreConnectedPositionTable(CoreConnectedPositionTable):
+    def __init__(
+        self,
+        rows: int = 0,
+        mmcore: CMMCorePlus | None = None,
+        parent: QWidget | None = None,
+    ):
+        super().__init__(rows, mmcore, parent)
+
+        # disconnect the signals from this widget so we use the ones we will implement
+        # in the MDAWidget that takes into account both the autofocus device
+        # and the z plan
+        ev = self._mmc.events
+        ev.systemConfigurationLoaded.disconnect(self._on_sys_config_loaded)
+        ev.propertyChanged.disconnect(self._on_property_changed)
+
+
 class CoreMDATabs(MDATabs):
     def __init__(
         self, parent: QWidget | None = None, core: CMMCorePlus | None = None
@@ -44,7 +61,7 @@ class CoreMDATabs(MDATabs):
 
     def create_subwidgets(self) -> None:
         self.time_plan = TimePlanWidget(1)
-        self.stage_positions = CoreConnectedPositionTable(1, self._mmc)
+        self.stage_positions = _CoreConnectedPositionTable(1, self._mmc)
         self.z_plan = CoreConnectedZPlanWidget(self._mmc)
         self.grid_plan = CoreConnectedGridPlanWidget(self._mmc)
         self.channels = CoreConnectedChannelTable(1, self._mmc)
@@ -91,16 +108,6 @@ class MDAWidget(MDASequenceWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         super().__init__(parent=parent, tab_widget=CoreMDATabs(None, self._mmc))
-
-        # disconnect the signals from the stage_positions widget so we use the ones
-        # implemented in this class that takes into account both the autofocus device
-        # and the z plan
-        self._mmc.events.systemConfigurationLoaded.disconnect(
-            self.stage_positions._on_sys_config_loaded
-        )
-        self._mmc.events.propertyChanged.disconnect(
-            self.stage_positions._on_property_changed
-        )
 
         self.save_info = SaveGroupBox(parent=self)
         self.save_info.valueChanged.connect(self.valueChanged)
@@ -279,15 +286,16 @@ class MDAWidget(MDASequenceWidget):
         self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
 
     def _on_property_changed(self, device: str, prop: str, _val: str = "") -> None:
-        if device != "Core":
+        if device != "Core" and prop not in ("XYStage", "Focus", "AutoFocus"):
             return
         if prop == "XYStage":
             self.stage_positions._update_xy_enablement()
         elif prop == "Focus":
             self.stage_positions._update_z_enablement()
-        elif prop == "AutoFocus":
+        else:  # prop == "AutoFocus"
             self._update_af_axis_enablement()
             self._update_autofocus_per_pos_enablement()
+        self.valueChanged.emit()
 
     def _update_af_axis_enablement(self) -> None:
         """Enable or disable the autofocus axis.
@@ -300,7 +308,6 @@ class MDAWidget(MDASequenceWidget):
         self.af_axis.setToolTip(
             AF_TOOLTIP if af_device else "AutoFocus device unavailable."
         )
-        self.valueChanged.emit()
 
     def _update_autofocus_per_pos_enablement(self) -> None:
         """Enable or disable the autofocus per position checkbox.
@@ -321,7 +328,6 @@ class MDAWidget(MDASequenceWidget):
         self.stage_positions.af_per_position.setToolTip(
             AF_DEFAULT_TOOLTIP if af_device else "AutoFocus device unavailable."
         )
-        self.valueChanged.emit()
 
     def _get_autofocus_device(self) -> str | None:
         """Return the autofocus device if available.

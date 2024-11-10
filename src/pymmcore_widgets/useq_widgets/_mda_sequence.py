@@ -442,6 +442,8 @@ class MDASequenceWidget(QWidget):
             for pos in value.stage_positions:
                 if pos.sequence and pos.sequence.autofocus_plan:
                     axis.update(pos.sequence.autofocus_plan.axes)
+                    # store the current state of the autofocus per position checkbox
+                    self._use_af_per_pos = True
         self.af_axis.setValue(tuple(axis))
         axis_text = "".join(x for x in value.axis_order if x in self.tab_wdg.usedAxes())
         self.axis_order.setCurrentText(axis_text)
