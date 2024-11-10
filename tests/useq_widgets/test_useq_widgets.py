@@ -358,12 +358,15 @@ def test_z_plan_widget(qtbot: QtBot) -> None:
     assert wdg.mode() == _z.Mode.TOP_BOTTOM
     assert wdg.top.isVisible()
     assert not wdg.above.isVisible()
-    wdg._mode_range.trigger()
+    assert wdg._btn_top_bot.isChecked()
+    wdg.setMode(_z.Mode.RANGE_AROUND)
     assert wdg.range.isVisible()
     assert not wdg.top.isVisible()
-    wdg._mode_above_below.trigger()
+    assert wdg._btn_range.isChecked()
+    wdg.setMode(_z.Mode.ABOVE_BELOW)
     assert wdg.above.isVisible()
     assert not wdg.range.isVisible()
+    assert wdg._button_above_below.isChecked()
 
     assert wdg.step.value() == 1
     wdg.setSuggestedStep(0.5)

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING, Final, Literal, cast
+from typing import Final, Literal
 
 import useq
 from fonticon_mdi6 import MDI6
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
+    QAbstractButton,
     QButtonGroup,
     QDoubleSpinBox,
     QGridLayout,
@@ -15,7 +16,6 @@ from qtpy.QtWidgets import (
     QPushButton,
     QRadioButton,
     QSpinBox,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -23,11 +23,6 @@ from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets._util import SeparatorWidget
-
-if TYPE_CHECKING:
-    from PyQt6.QtGui import QAction, QActionGroup
-else:
-    from qtpy.QtGui import QAction, QActionGroup
 
 
 class Mode(enum.Enum):
@@ -69,50 +64,38 @@ class ZPlanWidget(QWidget):
 
         # #################### Mode Buttons ####################
 
-        # ------------------- actions ----------
-
-        self._mode_top_bot = QAction(
-            icon(MDI6.arrow_expand_vertical, scale_factor=1), "Mark top and bottom."
+        self._btn_top_bot = QRadioButton("TopBottom")
+        self._btn_top_bot.setIcon(icon(MDI6.arrow_expand_vertical))
+        self._btn_top_bot.setToolTip("Mark top and bottom.")
+        self._btn_range = QRadioButton("RangeAround")
+        self._btn_range.setIcon(icon(MDI6.arrow_split_horizontal))
+        self._btn_range.setToolTip("Range symmetric around reference.")
+        self._button_above_below = QRadioButton("AboveBelow")
+        self._button_above_below.setIcon(icon(MDI6.arrow_expand_up))
+        self._button_above_below.setToolTip(
+            "Range asymmetrically above/below reference."
         )
-        self._mode_top_bot.setCheckable(True)
-        self._mode_top_bot.setData(Mode.TOP_BOTTOM)
-        self._mode_top_bot.triggered.connect(self.setMode)
 
-        self._mode_range = QAction(
-            icon(MDI6.arrow_split_horizontal, scale_factor=1),
-            "Range symmetric around reference.",
-        )
-        self._mode_range.setCheckable(True)
-        self._mode_range.setData(Mode.RANGE_AROUND)
-        self._mode_range.triggered.connect(self.setMode)
+        self._mode_btn_group = QButtonGroup()
+        self._mode_btn_group.addButton(self._btn_top_bot)
+        self._mode_btn_group.addButton(self._btn_range)
+        self._mode_btn_group.addButton(self._button_above_below)
+        self._mode_btn_group.buttonToggled.connect(self.setMode)
 
-        self._mode_above_below = QAction(
-            icon(MDI6.arrow_expand_up, scale_factor=1),
-            "Range asymmetrically above/below reference.",
-        )
-        self._mode_above_below.setCheckable(True)
-        self._mode_above_below.setData(Mode.ABOVE_BELOW)
-        self._mode_above_below.triggered.connect(self.setMode)
-
-        self._mode_group = QActionGroup(self)
-        self._mode_group.addAction(self._mode_top_bot)
-        self._mode_group.addAction(self._mode_range)
-        self._mode_group.addAction(self._mode_above_below)
-
-        # -------------------
-
-        btn_top_bot = QToolButton()
-        btn_top_bot.setDefaultAction(self._mode_top_bot)
-        btn_range = QToolButton()
-        btn_range.setDefaultAction(self._mode_range)
-        button_above_below = QToolButton()
-        button_above_below.setDefaultAction(self._mode_above_below)
-
-        btn_layout = QHBoxLayout()
-        btn_layout.addWidget(btn_top_bot)
-        btn_layout.addWidget(btn_range)
-        btn_layout.addWidget(button_above_below)
+        btn_wdg = QWidget()
+        btn_layout = QHBoxLayout(btn_wdg)
+        btn_layout.setContentsMargins(0, 0, 0, 0)
+        btn_layout.setSpacing(10)
+        btn_layout.addWidget(self._btn_top_bot)
+        btn_layout.addWidget(self._btn_range)
+        btn_layout.addWidget(self._button_above_below)
         btn_layout.addStretch()
+
+        # FIXME: On Windows 11, buttons within an inner widget of a ScrollArea
+        # are filled in with the accent color, making it very difficult to see
+        # which radio button is checked. This HACK solves the issue. It's
+        # likely future Qt versions will fix this.
+        btn_wdg.setStyleSheet("QRadioButton {color: none}")
 
         # #################### Value Widgets ####################
 
@@ -248,7 +231,6 @@ class ZPlanWidget(QWidget):
 
         left_half = QVBoxLayout()
         left_half.addWidget(self._range_readout)
-        # left_half.addWidget(self.leave_shutter_open)
 
         right_half = QVBoxLayout()
         right_half.addWidget(self._bottom_to_top)
@@ -261,7 +243,7 @@ class ZPlanWidget(QWidget):
         below_grid.addLayout(right_half)
 
         layout = QVBoxLayout(self)
-        layout.addLayout(btn_layout)
+        layout.addWidget(btn_wdg)
         layout.addWidget(SeparatorWidget())
         layout.addLayout(self._grid_layout)
         layout.addStretch()
@@ -269,14 +251,13 @@ class ZPlanWidget(QWidget):
 
         # #################### Defaults ####################
 
-        self.setMode(Mode.TOP_BOTTOM)
-        # self.setSuggestedStep(1)
+        self._btn_top_bot.setChecked(True)
 
     # ------------------------- Public API -------------------------
 
     def setMode(
         self,
-        mode: Mode | Literal["top_bottom", "range_around", "above_below", None] = None,
+        mode: Mode | Literal["top_bottom", "range_around", "above_below"],
     ) -> None:
         """Set the current mode.
 
@@ -288,27 +269,35 @@ class ZPlanWidget(QWidget):
             The mode to set. By default, None.
             If None, the mode is determined by the sender().data(), for internal usage.
         """
-        if isinstance(mode, str):
-            mode = Mode(mode)
-        elif isinstance(mode, (bool, type(None))):
-            mode = cast("QAction", self.sender()).data()
-
-        self._mode = cast(Mode, mode)
+        if isinstance(mode, QRadioButton):
+            btn_map: dict[QAbstractButton, Mode] = {
+                self._btn_top_bot: Mode.TOP_BOTTOM,
+                self._btn_range: Mode.RANGE_AROUND,
+                self._button_above_below: Mode.ABOVE_BELOW,
+            }
+            self._mode = btn_map[mode]
+        elif isinstance(mode, str):
+            self._mode = Mode(mode)
+        else:
+            self._mode = mode
 
         if self._mode is Mode.TOP_BOTTOM:
-            self._mode_top_bot.setChecked(True)
+            with signals_blocked(self._mode_btn_group):
+                self._bottom_to_top.setChecked(True)
             self._set_row_visible(ROW_RANGE_AROUND, False)
             self._set_row_visible(ROW_ABOVE_BELOW, False)
             self._set_row_visible(ROW_TOP_BOTTOM, True)
 
         elif self._mode is Mode.RANGE_AROUND:
-            self._mode_range.setChecked(True)
+            with signals_blocked(self._mode_btn_group):
+                self._btn_range.setChecked(True)
             self._set_row_visible(ROW_TOP_BOTTOM, False)
             self._set_row_visible(ROW_ABOVE_BELOW, False)
             self._set_row_visible(ROW_RANGE_AROUND, True)
 
         elif self._mode is Mode.ABOVE_BELOW:
-            self._mode_above_below.setChecked(True)
+            with signals_blocked(self._mode_btn_group):
+                self._button_above_below.setChecked(True)
             self._set_row_visible(ROW_RANGE_AROUND, False)
             self._set_row_visible(ROW_TOP_BOTTOM, False)
             self._set_row_visible(ROW_ABOVE_BELOW, True)
