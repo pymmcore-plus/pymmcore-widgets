@@ -44,9 +44,9 @@ class _CoreConnectedPositionTable(CoreConnectedPositionTable):
     ):
         super().__init__(rows, mmcore, parent)
 
-        # disconnect the signals from this widget so we use the ones we will implement
-        # in the MDAWidget that takes into account both the autofocus device
-        # and the z plan
+        # subclassing to disconnect the signals from this widget so we use the ones
+        # we will implement in the MDAWidget that take into account both the autofocus
+        # device mand the z plan
         ev = self._mmc.events
         ev.systemConfigurationLoaded.disconnect(self._on_sys_config_loaded)
         ev.propertyChanged.disconnect(self._on_property_changed)
