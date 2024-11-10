@@ -922,6 +922,10 @@ def test_core_mda_autofocus_and_z_plan(
     assert wdg.af_axis.value() == ("p",)
     assert wdg.stage_positions.af_per_position.isEnabled()
     assert wdg.stage_positions.af_per_position.isChecked()
+    print("-------------")
+    print(wdg.value())
+    print(SEQ)
+    print("-------------")
     assert wdg.value() == SEQ
 
     if trigger == "core":
