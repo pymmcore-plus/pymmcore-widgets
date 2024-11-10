@@ -186,7 +186,7 @@ def test_core_connected_position_wdg_cfg_loaded(
     _assert_position_wdg_state(stage, pos_table, is_hidden=False)
 
 
-@pytest.mark.parametrize("stage", ["XY", "Z"])
+@pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
 def test_core_connected_position_wdg_property_changed(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
 ) -> None:
@@ -211,6 +211,9 @@ def test_core_connected_position_wdg_property_changed(
             mmc.setProperty("Core", "XYStage", "")
         elif stage == "Z":
             mmc.setProperty("Core", "Focus", "")
+        elif stage == "Autofocus":
+            mmc.setProperty("Core", "AutoFocus", "")
+        mmc.waitForSystem()
 
     # stage is not set as default device
     _assert_position_wdg_state(stage, pos_table, is_hidden=True)
@@ -220,6 +223,8 @@ def test_core_connected_position_wdg_property_changed(
             mmc.setProperty("Core", "XYStage", "XY")
         elif stage == "Z":
             mmc.setProperty("Core", "Focus", "Z")
+        elif stage == "Autofocus":
+            mmc.setProperty("Core", "AutoFocus", "Autofocus")
 
     # stage is set as default device (propertyChanged is triggered)
     _assert_position_wdg_state(stage, pos_table, is_hidden=False)
