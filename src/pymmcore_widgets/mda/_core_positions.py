@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
 UPDATE_POSITIONS = "Update Positions List"
 ADD_POSITIONS = "Add to Positions List"
+AF_UNAVAILABLE = "AutoFocus device unavailable."
 
 
 class CoreConnectedPositionTable(PositionTable):
@@ -294,9 +295,11 @@ class CoreConnectedPositionTable(PositionTable):
         self.af_per_position.setEnabled(bool(af_device))
         # also hide the AF column if the autofocus device is not available
         if not af_device:
-            self.af_per_position.setChecked(False)
+            # not simply calling self.af_per_position.setChecked(False)
+            # because we want to keep the previous state of the checkbox
+            self._on_af_per_position_toggled(False)
         self.af_per_position.setToolTip(
-            AF_PER_POS_TOOLTIP if af_device else "AutoFocus device unavailable."
+            AF_PER_POS_TOOLTIP if af_device else AF_UNAVAILABLE
         )
 
     def _add_row(self) -> None:

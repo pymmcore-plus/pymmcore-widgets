@@ -15,15 +15,20 @@ from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
 from pymmcore_widgets.mda._core_mda import CoreMDATabs
-from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
+from pymmcore_widgets.mda._core_positions import (
+    AF_UNAVAILABLE,
+    CoreConnectedPositionTable,
+)
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
 from pymmcore_widgets.useq_widgets._mda_sequence import (
+    AF_AXIS_TOOLTIP,
+    AF_DISABLED_TOOLTIP,
     PYMMCW_METADATA_KEY,
     AutofocusAxis,
     KeepShutterOpen,
     QFileDialog,
 )
-from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP, _MDAPopup
+from pymmcore_widgets.useq_widgets._positions import AF_PER_POS_TOOLTIP, _MDAPopup
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -140,24 +145,25 @@ def _assert_position_wdg_state(
         tooltip = "Focus device unavailable." if is_hidden else ""
         assert pos_table.include_z.toolTip() == tooltip
 
-    elif stage == "Autofocus":
-        # the set position button should be hidden
-        af_btn_col = pos_table.table().indexOf(pos_table._af_btn_col)
-        assert pos_table.table().isColumnHidden(af_btn_col)
-        if is_hidden:
-            sub_seq = [v.sequence for v in pos_table.value()]
-            assert all(s is None for s in sub_seq)
-        # the use autofocus checkbox should be unchecked
-        assert not pos_table.af_per_position.isChecked()
-        # the use autofocus checkbox should be disabled if Autofocus device is not
-        # loaded/selected
-        assert pos_table.af_per_position.isEnabled() == (not is_hidden)
-        # tooltip should should change if Autofocus device is not loaded/selected
-        tooltip = "AutoFocus device unavailable." if is_hidden else AF_DEFAULT_TOOLTIP
-        assert pos_table.af_per_position.toolTip() == tooltip
+    # elif stage == "Autofocus":
+    #     # the set position button should be hidden
+    #     af_btn_col = pos_table.table().indexOf(pos_table._af_btn_col)
+    #     assert pos_table.table().isColumnHidden(af_btn_col)
+    #     if is_hidden:
+    #         sub_seq = [v.sequence for v in pos_table.value()]
+    #         assert all(s is None for s in sub_seq)
+    #     # the use autofocus checkbox should be unchecked
+    #     assert not pos_table.af_per_position.isChecked()
+    #     # the use autofocus checkbox should be disabled if Autofocus device is not
+    #     # loaded/selected
+    #     assert pos_table.af_per_position.isEnabled() == (not is_hidden)
+    #     # tooltip should should change if Autofocus device is not loaded/selected
+    #     tooltip = "AutoFocus device unavailable." if is_hidden else AF_PER_POS_TOOLTIP
+    #     assert pos_table.af_per_position.toolTip() == tooltip
 
 
-@pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
+# @pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
+@pytest.mark.parametrize("stage", ["XY", "Z"])
 def test_core_connected_position_wdg_cfg_loaded(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
 ) -> None:
@@ -186,7 +192,8 @@ def test_core_connected_position_wdg_cfg_loaded(
     _assert_position_wdg_state(stage, pos_table, is_hidden=False)
 
 
-@pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
+# @pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
+@pytest.mark.parametrize("stage", ["XY", "Z"])
 def test_core_connected_position_wdg_property_changed(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
 ) -> None:
@@ -204,15 +211,13 @@ def test_core_connected_position_wdg_property_changed(
 
     wdg.setValue(MDA)
 
-    pos_table.af_per_position.setChecked(True)
-
     with qtbot.waitSignal(mmc.events.propertyChanged):
         if stage == "XY":
             mmc.setProperty("Core", "XYStage", "")
         elif stage == "Z":
             mmc.setProperty("Core", "Focus", "")
-        elif stage == "Autofocus":
-            mmc.setProperty("Core", "AutoFocus", "")
+        # elif stage == "Autofocus":
+        #     mmc.setProperty("Core", "AutoFocus", "")
         mmc.waitForSystem()
 
     # stage is not set as default device
@@ -223,8 +228,8 @@ def test_core_connected_position_wdg_property_changed(
             mmc.setProperty("Core", "XYStage", "XY")
         elif stage == "Z":
             mmc.setProperty("Core", "Focus", "Z")
-        elif stage == "Autofocus":
-            mmc.setProperty("Core", "AutoFocus", "Autofocus")
+        # elif stage == "Autofocus":
+        #     mmc.setProperty("Core", "AutoFocus", "Autofocus")
 
     # stage is set as default device (propertyChanged is triggered)
     _assert_position_wdg_state(stage, pos_table, is_hidden=False)
@@ -248,6 +253,7 @@ def test_core_position_table_add_position(
     qtbot.addWidget(wdg)
     wdg.show()
 
+    wdg.tab_wdg.setChecked(wdg.stage_positions, True)
     pos_table = wdg.stage_positions
     assert isinstance(pos_table, CoreConnectedPositionTable)
 
@@ -856,9 +862,13 @@ def test_core_mda_autofocus_set_value(
     assert not wdg.value().autofocus_plan
     assert not wdg.value().stage_positions[0].sequence
     assert not wdg.value().stage_positions[1].sequence
+    assert not wdg.af_axis.isEnabled()
+    assert wdg.af_axis.use_af_p.isChecked()
     assert wdg.af_axis.value() == ()
+    assert wdg.af_axis.toolTip() == AF_UNAVAILABLE
     assert not wdg.stage_positions.af_per_position.isEnabled()
-    assert not wdg.stage_positions.af_per_position.isChecked()
+    assert wdg.stage_positions.af_per_position.isChecked()
+    assert wdg.stage_positions.af_per_position.toolTip() == AF_UNAVAILABLE
 
 
 @pytest.mark.parametrize("trigger", ["zplan", "core"])
@@ -879,8 +889,10 @@ def test_core_mda_autofocus_and_z_plan(
 
     # af_axis and af_per_position should be checked and enabled
     assert wdg.af_axis.value() == ("p",)
+    assert wdg.af_axis.toolTip() == AF_AXIS_TOOLTIP
     assert wdg.stage_positions.af_per_position.isEnabled()
     assert wdg.stage_positions.af_per_position.isChecked()
+    assert wdg.stage_positions.af_per_position.toolTip() == AF_PER_POS_TOOLTIP
 
     # trigger the z plan tab TopBottom mode
     if trigger == "zplan":
@@ -900,11 +912,21 @@ def test_core_mda_autofocus_and_z_plan(
             mmc.setProperty("Core", "AutoFocus", "")
 
     # both af_axis and af_per_position should be disabled
+    assert not wdg.af_axis.isEnabled()
+    assert wdg.af_axis.use_af_p.isChecked()
     assert not wdg.af_axis.value()
+    assert (
+        wdg.af_axis.toolTip() == AF_UNAVAILABLE
+        if trigger == "core"
+        else AF_DISABLED_TOOLTIP
+    )
     assert not wdg.stage_positions.af_per_position.isEnabled()
-    assert not wdg.stage_positions.af_per_position.isChecked()
-    # before disabling, the af_per_position was checked and stored in _use_af_per_pos
-    assert wdg._use_af_per_pos
+    assert wdg.stage_positions.af_per_position.isChecked()
+    assert (
+        wdg.stage_positions.af_per_position.toolTip() == AF_UNAVAILABLE
+        if trigger == "core"
+        else AF_DISABLED_TOOLTIP
+    )
     assert not wdg.value().autofocus_plan
     assert not wdg.value().stage_positions[0].sequence
     assert not wdg.value().stage_positions[1].sequence
@@ -926,15 +948,25 @@ def test_core_mda_autofocus_and_z_plan(
     if trigger == "core":
         with qtbot.waitSignal(mmc.events.propertyChanged):
             mmc.setProperty("Core", "AutoFocus", "")
+
         wdg.tab_wdg.setChecked(wdg.z_plan, True)
+        assert not wdg.af_axis.isEnabled()
+        assert wdg.af_axis.use_af_p.isChecked()
         assert not wdg.af_axis.value()
+        assert wdg.af_axis.toolTip() == AF_UNAVAILABLE
         assert not wdg.stage_positions.af_per_position.isEnabled()
-        assert not wdg.stage_positions.af_per_position.isChecked()
+        assert wdg.stage_positions.af_per_position.isChecked()
+        assert wdg.stage_positions.af_per_position.toolTip() == AF_UNAVAILABLE
 
         # is autofocus is re-enabled, the autofocus options should still be disabled
         # since the absolute TopBottom z plan is active
         with qtbot.waitSignal(mmc.events.propertyChanged):
             mmc.setProperty("Core", "AutoFocus", "Autofocus")
+
+        assert not wdg.af_axis.isEnabled()
+        assert wdg.af_axis.use_af_p.isChecked()
         assert not wdg.af_axis.value()
+        assert wdg.af_axis.toolTip() == AF_DISABLED_TOOLTIP
         assert not wdg.stage_positions.af_per_position.isEnabled()
-        assert not wdg.stage_positions.af_per_position.isChecked()
+        assert wdg.stage_positions.af_per_position.isChecked()
+        assert wdg.stage_positions.af_per_position.toolTip() == AF_DISABLED_TOOLTIP

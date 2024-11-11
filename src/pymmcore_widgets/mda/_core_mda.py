@@ -21,6 +21,7 @@ from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 from pymmcore_widgets.useq_widgets._mda_sequence import (
     AF_AXIS_TOOLTIP,
+    AF_DISABLED_TOOLTIP,
     PYMMCW_METADATA_KEY,
     MDATabs,
 )
@@ -30,7 +31,7 @@ from pymmcore_widgets.useq_widgets._z import Mode
 
 from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
-from ._core_positions import CoreConnectedPositionTable
+from ._core_positions import AF_UNAVAILABLE, CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
 from ._save_widget import SaveGroupBox
 
@@ -308,9 +309,7 @@ class MDAWidget(MDASequenceWidget):
 
         # update the autofocus axis widget
         self.af_axis.setEnabled(bool(af_device))
-        self.af_axis.setToolTip(
-            AF_AXIS_TOOLTIP if af_device else "AutoFocus device unavailable."
-        )
+        self.af_axis.setToolTip(self._get_tooltip(self.af_axis))
 
         # update the autofocus per position widget
         self.stage_positions.af_per_position.setEnabled(bool(af_device))
@@ -323,8 +322,29 @@ class MDAWidget(MDASequenceWidget):
             self.stage_positions._on_af_per_position_toggled(True)
         # set tooltip af_per_position
         self.stage_positions.af_per_position.setToolTip(
-            AF_PER_POS_TOOLTIP if af_device else "AutoFocus device unavailable."
+            self._get_tooltip(self.stage_positions.af_per_position)
         )
+
+    def _get_tooltip(self, wdg: QWidget) -> str:
+        """Return the tooltip for the autofocus widgets."""
+        # if there is no autofocus device, return the unavailable tooltip
+        if not self._mmc.getAutoFocusDevice():
+            return AF_UNAVAILABLE
+        # if autofocus device is available, but the z plan is in absolute mode, return
+        # the disabled tooltip
+        if (
+            self.tab_wdg.isChecked(self.z_plan)
+            and self.z_plan.mode() == Mode.TOP_BOTTOM
+            and self._mmc.getAutoFocusDevice()
+        ):
+            return AF_DISABLED_TOOLTIP
+        # if the widget is the autofocus axis, return the autofocus axis tooltip
+        if wdg is self.af_axis:
+            return AF_AXIS_TOOLTIP
+        # if the widget is the autofocus per position, return the autofocus per position
+        if wdg is self.stage_positions.af_per_position:
+            return AF_PER_POS_TOOLTIP
+        return ""
 
     def _get_autofocus_device(self) -> str | None:
         """Return the autofocus device if available.

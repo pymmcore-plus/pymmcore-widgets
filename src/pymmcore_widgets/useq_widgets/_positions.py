@@ -224,7 +224,7 @@ class PositionTable(DataTableWidget):
             if not r.get(self.NAME.key, True):
                 r.pop(self.NAME.key, None)
 
-            if self.af_per_position.isChecked():
+            if self.af_per_position.isChecked() and self.af_per_position.isEnabled():
                 af_offset = r.get(self.AF.key, None)
                 if af_offset is not None:
                     # get the current sub-sequence as dict or create a new one
