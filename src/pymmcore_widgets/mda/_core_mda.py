@@ -20,11 +20,11 @@ from useq import MDASequence, Position
 from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
 from pymmcore_widgets.useq_widgets._mda_sequence import (
-    AF_TOOLTIP,
+    AF_AXIS_TOOLTIP,
     PYMMCW_METADATA_KEY,
     MDATabs,
 )
-from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP
+from pymmcore_widgets.useq_widgets._positions import AF_PER_POS_TOOLTIP
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 from pymmcore_widgets.useq_widgets._z import Mode
 
@@ -250,7 +250,7 @@ class MDAWidget(MDASequenceWidget):
         if (
             self.af_axis.value()
             and not self._mmc.isContinuousFocusLocked()
-            and (not self.tab_wdg.isChecked(pos) or not pos.af_per_position.isChecked())
+            and (not self.tab_wdg.isChecked(pos) or not self._use_af_per_position())
             and not self._confirm_af_intentions()
         ):
             return False
@@ -303,24 +303,27 @@ class MDAWidget(MDASequenceWidget):
         Enable af_axis and af_per_position only if there is an autofocus device and no
         absolute z plan is selected.
         """
+        # get the autofocus device
         af_device = self._get_autofocus_device()
 
+        # update the autofocus axis widget
         self.af_axis.setEnabled(bool(af_device))
         self.af_axis.setToolTip(
-            AF_TOOLTIP if af_device else "AutoFocus device unavailable."
+            AF_AXIS_TOOLTIP if af_device else "AutoFocus device unavailable."
         )
 
+        # update the autofocus per position widget
         self.stage_positions.af_per_position.setEnabled(bool(af_device))
         # also hide the AF column if the autofocus device is not available
         if not af_device:
-            # store the previous state of stage_positions.af_per_position
-            self._use_af_per_pos = self.stage_positions.af_per_position.isChecked()
-            self.stage_positions.af_per_position.setChecked(False)
-        # recheck the AF column if it was checked before
-        elif self._use_af_per_pos:
-            self.stage_positions.af_per_position.setChecked(True)
+            # not simply calling self.stage_positions.af_per_position.setChecked(False)
+            # because we want to keep the previous state of the checkbox
+            self.stage_positions._on_af_per_position_toggled(False)
+        elif self.stage_positions.af_per_position.isChecked():
+            self.stage_positions._on_af_per_position_toggled(True)
+        # set tooltip af_per_position
         self.stage_positions.af_per_position.setToolTip(
-            AF_DEFAULT_TOOLTIP if af_device else "AutoFocus device unavailable."
+            AF_PER_POS_TOOLTIP if af_device else "AutoFocus device unavailable."
         )
 
     def _get_autofocus_device(self) -> str | None:
@@ -429,7 +432,7 @@ class MDAWidget(MDASequenceWidget):
     def _enable_af(self, state: bool, tooltip1: str, tooltip2: str) -> None:
         """Override the autofocus enablement to account for the autofocus device."""
         if not self._mmc.getAutoFocusDevice():
-            self.stage_positions._update_autofocus_enablement()
+            self._update_autofocus_enablement()
             return
         return super()._enable_af(state, tooltip1, tooltip2)
 

@@ -25,7 +25,7 @@ import pymmcore_widgets
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
 from pymmcore_widgets.useq_widgets._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
-from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP, PositionTable
+from pymmcore_widgets.useq_widgets._positions import AF_PER_POS_TOOLTIP, PositionTable
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 from pymmcore_widgets.useq_widgets._z import Mode, ZPlanWidget
 
@@ -63,7 +63,7 @@ for x in list(ALLOWED_ORDERS):
     ):
         if _check_order(x, first, second):
             ALLOWED_ORDERS.discard(x)
-AF_TOOLTIP = "Use Hardware Autofocus on the selected axes."
+AF_AXIS_TOOLTIP = "Use Hardware Autofocus on the selected axes."
 AF_DISABLED_TOOLTIP = (
     "The hardware autofocus cannot be used with absolute Z positions "
     "(TOP_BOTTOM mode)."
@@ -205,7 +205,7 @@ class AutofocusAxis(QWidget):
         self.use_af_t.toggled.connect(self.valueChanged)
         self.use_af_g.toggled.connect(self.valueChanged)
 
-        self.setToolTip(AF_TOOLTIP)
+        self.setToolTip(AF_AXIS_TOOLTIP)
 
     def value(self) -> tuple[str, ...]:
         """Return the autofocus axes."""
@@ -289,9 +289,6 @@ class MDASequenceWidget(QWidget):
         self.axis_order = QComboBox()
         self.axis_order.setToolTip("Slowest to fastest axis order.")
         self.axis_order.setMinimumWidth(80)
-
-        # store the previous state of the autofocus per position checkbox to restore it
-        self._use_af_per_pos: bool = False
 
         # -------------- Other Widgets --------------
 
@@ -406,7 +403,7 @@ class MDASequenceWidget(QWidget):
             "keep_shutter_open_across": self.keep_shutter_open.value(),
         }
 
-        if self.stage_positions.af_per_position.isChecked():
+        if self._use_af_per_position():
             # check if the autofocus offsets are the same for all positions
             # and simplify to a single global autofocus plan if so.
             replace.update(self._simplify_af_offsets(val))
@@ -442,8 +439,6 @@ class MDASequenceWidget(QWidget):
             for pos in value.stage_positions:
                 if pos.sequence and pos.sequence.autofocus_plan:
                     axis.update(pos.sequence.autofocus_plan.axes)
-                    # store the current state of the autofocus per position checkbox
-                    self._use_af_per_pos = True
         self.af_axis.setValue(tuple(axis))
         axis_text = "".join(x for x in value.axis_order if x in self.tab_wdg.usedAxes())
         self.axis_order.setCurrentText(axis_text)
@@ -511,15 +506,20 @@ class MDASequenceWidget(QWidget):
 
     def _enable_af(self, state: bool, tooltip1: str, tooltip2: str) -> None:
         """Enable or disable autofocus settings."""
+        # enable autofocus axis widget
         self.af_axis.setEnabled(state)
         self.af_axis.setToolTip(tooltip1)
+        # enable autofocus per position checkbox
         self.stage_positions.af_per_position.setEnabled(state)
         self.stage_positions.af_per_position.setToolTip(tooltip2)
+        # hide the autofocus columns if autofocus per position is disabled
         if not state:
-            self.stage_positions.af_per_position.setChecked(state)
-        else:
-            # re-enable autofocus per position only if it was checked before
-            self.stage_positions.af_per_position.setChecked(self._use_af_per_pos)
+            # not simply calling self.stage_positions.af_per_position.setChecked(False)
+            # because we want to keep the previous state of the checkbox
+            self.stage_positions._on_af_per_position_toggled(False)
+        # show the autofocus columns only if it was checked before
+        elif self.stage_positions.af_per_position.isChecked():
+            self.stage_positions._on_af_per_position_toggled(True)
 
     def _validate_af_with_z_plan(self) -> None:
         """Check if the autofocus plan can be used with the current Z Plan.
@@ -527,25 +527,30 @@ class MDASequenceWidget(QWidget):
         If the Z Plan is set to TOP_BOTTOM, the autofocus plan cannot be used.
         """
         if self.z_plan.mode() == Mode.TOP_BOTTOM:
-            # store the current state of the autofocus per position checkbox
-            self._use_af_per_pos = self.stage_positions.af_per_position.isChecked()
             # if any autofocus axis is selected, show a warning.
-            if self.af_axis.value():
+            if self.af_axis.value() or self._use_af_per_position():
                 QMessageBox.warning(
                     self,
                     "Autofocus Plan Disabled",
-                    "The hardware autofocus cannot be used with absolute Z positions "
-                    "(TOP_BOTTOM mode). It has been disabled.\n\n"
-                    "To re-enable it, set the Z Plan Mode to a relative position"
-                    " (RANGE_AROUND or ABOVE_BELOW mode).",
+                    "The Hardware Autofocus cannot be used with a Z Plan with Absolute "
+                    "Z Positions (TOP_BOTTOM mode). It has been disabled.\n\n"
+                    "To re-enable it, select a Z Plan with Relative Positions"
+                    "(RANGE_AROUND or ABOVE_BELOW modes).",
                     buttons=QMessageBox.StandardButton.Ok,
                     defaultButton=QMessageBox.StandardButton.Ok,
                 )
             self._enable_af(False, AF_DISABLED_TOOLTIP, AF_DISABLED_TOOLTIP)
         else:
-            self._enable_af(True, AF_TOOLTIP, AF_DEFAULT_TOOLTIP)
+            self._enable_af(True, AF_AXIS_TOOLTIP, AF_PER_POS_TOOLTIP)
 
         self.valueChanged.emit()
+
+    def _use_af_per_position(self) -> bool:
+        """Return True if autofocus per position is checked and enabled."""
+        return bool(
+            self.stage_positions.af_per_position.isChecked()
+            and self.stage_positions.af_per_position.isEnabled()
+        )
 
     def _on_tab_checked(self, tab_idx: int) -> None:
         """Before updating autofocus axes, check if the autofocus plan can be used."""
@@ -553,14 +558,14 @@ class MDASequenceWidget(QWidget):
             if self.tab_wdg.isChecked(self.z_plan):
                 self._validate_af_with_z_plan()
             else:
-                self._enable_af(True, AF_TOOLTIP, AF_DEFAULT_TOOLTIP)
+                self._enable_af(True, AF_AXIS_TOOLTIP, AF_PER_POS_TOOLTIP)
 
         self._update_available_axis_orders()
 
-    def _on_af_toggled(self, checked: bool) -> None:
+    def _on_af_toggled(self, _checked: bool) -> None:
         # if the 'af_per_position' checkbox in the PositionTable is checked, set checked
         # also the autofocus p axis checkbox.
-        if checked and self.tab_wdg.isChecked(self.stage_positions):
+        if self._use_af_per_position() and self.tab_wdg.isChecked(self.stage_positions):
             self.af_axis.use_af_p.setChecked(True)
 
     def _update_available_axis_orders(self) -> None:

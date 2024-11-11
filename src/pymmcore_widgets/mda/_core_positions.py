@@ -24,7 +24,7 @@ from pymmcore_widgets.useq_widgets import PositionTable
 from pymmcore_widgets.useq_widgets._column_info import (
     ButtonColumn,
 )
-from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP
+from pymmcore_widgets.useq_widgets._positions import AF_PER_POS_TOOLTIP
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -296,7 +296,7 @@ class CoreConnectedPositionTable(PositionTable):
         if not af_device:
             self.af_per_position.setChecked(False)
         self.af_per_position.setToolTip(
-            AF_DEFAULT_TOOLTIP if af_device else "AutoFocus device unavailable."
+            AF_PER_POS_TOOLTIP if af_device else "AutoFocus device unavailable."
         )
 
     def _add_row(self) -> None:
