@@ -119,7 +119,7 @@ class RelativePointPlanSelector(QWidget):
             (self.random_radio_btn, self.random_points_wdg),
             (self.grid_radio_btn, self.grid_wdg),
         ):
-            wdg.setEnabled(btn.isChecked())  # type: ignore [attr-defined]
+            wdg.setEnabled(btn.isChecked())
             grpbx = QGroupBox()
             # make a click on the groupbox act as a click on the button
             grpbx.mousePressEvent = lambda _, b=btn: b.setChecked(True)
@@ -132,7 +132,7 @@ class RelativePointPlanSelector(QWidget):
             layout.setSpacing(5)
             layout.addWidget(btn, 0)
             layout.addWidget(grpbx, 1)
-            main_layout.addLayout(layout)
+            main_layout.addLayout(layout, 1)
 
         # FOV widgets go at the bottom, and are combined into a single widget
         # for ease of showing/hiding the whole thing at once
@@ -144,10 +144,7 @@ class RelativePointPlanSelector(QWidget):
         fov_layout.addWidget(QLabel("FOV (w, h; µm):"))
         fov_layout.addWidget(self.fov_w)
         fov_layout.addWidget(self.fov_h)
-        main_layout.addWidget(self.fov_widgets)
-
-        # for i in range(1, 5, 2):
-        # main_layout.insertWidget(i, SeparatorWidget())
+        main_layout.addWidget(self.fov_widgets, 0)
 
     # _________________________PUBLIC METHODS_________________________ #
 
@@ -203,11 +200,12 @@ class RelativePointPlanSelector(QWidget):
         wdg.setEnabled(checked)
         if checked:
             self._active_plan_widget = wdg
-            self._active_plan_type = {
+            d: dict[QRadioButton, type[RelativePointPlan]] = {
                 self.single_radio_btn: useq.RelativePosition,
                 self.random_radio_btn: useq.RandomPoints,
                 self.grid_radio_btn: useq.GridRowsColumns,
-            }[btn]
+            }
+            self._active_plan_type = d[btn]
             self._on_value_changed()
 
     def _on_value_changed(self) -> None:

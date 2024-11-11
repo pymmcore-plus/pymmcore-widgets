@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence, cast
+from typing import TYPE_CHECKING, cast
 
 import useq
 from fonticon_mdi6 import MDI6
@@ -20,9 +21,13 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.fonticon import icon
+from superqt.utils import signals_blocked
 
 from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
 NULL_SEQUENCE = useq.MDASequence()
@@ -176,23 +181,29 @@ class PositionTable(DataTableWidget):
         self._load_button = QPushButton("Load...")
         self._load_button.clicked.connect(self.load)
 
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(15)
-        btn_row.addWidget(self.include_z)
-        btn_row.addWidget(self.af_per_position)
-        btn_row.addStretch()
-        btn_row.addWidget(self._save_button)
-        btn_row.addWidget(self._load_button)
+        self._btn_row = QHBoxLayout()
+        self._btn_row.setSpacing(15)
+        self._btn_row.addWidget(self.include_z)
+        self._btn_row.addWidget(self.af_per_position)
+        self._btn_row.addStretch()
+        self._btn_row.addWidget(self._save_button)
+        self._btn_row.addWidget(self._load_button)
 
         layout = cast("QVBoxLayout", self.layout())
-        layout.addLayout(btn_row)
+        layout.addLayout(self._btn_row)
 
     # ------------------------- Public API -------------------------
 
     def value(
         self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
-    ) -> tuple[useq.Position, ...]:
+    ) -> Sequence[useq.Position]:
         """Return the current value of the table as a tuple of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
+
+        Note that `exclude_hidden_cols` has the result of:
+            - excluding the Z position in each of the Positions if
+              `include_z.isChecked()` is False
+            - excluding the AF offset in each of the Positions if
+              `af_per_position.isChecked()` is False
 
         Parameters
         ----------
@@ -235,7 +246,7 @@ class PositionTable(DataTableWidget):
 
         return tuple(out)
 
-    def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore
+    def setValue(self, value: Sequence[useq.Position]) -> None:  # type: ignore [override]
         """Set the current value of the table from a Sequence of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
 
         Parameters
@@ -245,10 +256,17 @@ class PositionTable(DataTableWidget):
         """
         _values = []
         _use_af = False
-        for v in value:
-            if not isinstance(v, useq.Position):  # pragma: no cover
-                raise TypeError(f"Expected useq.Position, got {type(v)}")
+        value = [useq.Position.model_validate(v) for v in value]
 
+        n_pos_with_z = sum(1 for v in value if v.z is not None)
+        if (_include_z := n_pos_with_z > 0) and n_pos_with_z < len(value):
+            warnings.warn(
+                "Only some positions have a z-position set. Z will be included, "
+                "but missing z-positions will be set to 0.",
+                stacklevel=2,
+            )
+
+        for v in value:
             _af = {}
             if v.sequence is not None and v.sequence.autofocus_plan is not None:
                 # set sub-sequence to None if empty or we simply exclude the af plan
@@ -272,8 +290,9 @@ class PositionTable(DataTableWidget):
             _values.append({**v.model_dump(exclude_unset=True), **_af})
 
         super().setValue(_values)
-
-        self.af_per_position.setChecked(_use_af)
+        with signals_blocked(self):
+            self.include_z.setChecked(_include_z)
+            self.af_per_position.setChecked(_use_af)
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current positions to a JSON file."""

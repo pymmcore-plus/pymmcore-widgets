@@ -111,6 +111,24 @@ class MDAWidget(MDASequenceWidget):
 
         self.destroyed.connect(self._disconnect)
 
+    # ----------- Override type hints in superclass -----------
+
+    @property
+    def channels(self) -> CoreConnectedChannelTable:
+        return cast("CoreConnectedChannelTable", self.tab_wdg.channels)
+
+    @property
+    def z_plan(self) -> CoreConnectedZPlanWidget:
+        return cast("CoreConnectedZPlanWidget", self.tab_wdg.z_plan)
+
+    @property
+    def stage_positions(self) -> CoreConnectedPositionTable:
+        return cast("CoreConnectedPositionTable", self.tab_wdg.stage_positions)
+
+    @property
+    def grid_plan(self) -> CoreConnectedGridPlanWidget:
+        return cast("CoreConnectedGridPlanWidget", self.tab_wdg.grid_plan)
+
     # ------------------- public Methods ----------------------
 
     def value(self) -> MDASequence:
@@ -132,7 +150,11 @@ class MDAWidget(MDASequenceWidget):
 
         # if there is an autofocus_plan but the autofocus_motor_offset is None, set it
         # to the current value
-        if (afplan := val.autofocus_plan) and afplan.autofocus_motor_offset is None:
+        if (
+            self._mmc.getAutoFocusDevice()
+            and (afplan := val.autofocus_plan)
+            and afplan.autofocus_motor_offset is None
+        ):
             p2 = afplan.replace(autofocus_motor_offset=self._mmc.getAutoFocusOffset())
             replace["autofocus_plan"] = p2
 
@@ -320,6 +342,13 @@ class MDAWidget(MDASequenceWidget):
         with suppress(Exception):
             self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
             self._mmc.mda.events.sequenceFinished.disconnect(self._on_mda_finished)
+
+    def _enable_af(self, state: bool, tooltip1: str, tooltip2: str) -> None:
+        """Override the autofocus enablement to account for the autofocus device."""
+        if not self._mmc.getAutoFocusDevice():
+            self.stage_positions._update_autofocus_enablement()
+            return
+        return super()._enable_af(state, tooltip1, tooltip2)
 
 
 class _MDAControlButtons(QWidget):

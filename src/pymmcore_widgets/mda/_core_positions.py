@@ -1,19 +1,38 @@
 from __future__ import annotations
 
-from typing import Any
+from contextlib import suppress
+from typing import TYPE_CHECKING, Any
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus._logger import logger
 from pymmcore_plus._util import retry
-from qtpy.QtWidgets import QCheckBox, QMessageBox, QWidget, QWidgetAction
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import (
+    QCheckBox,
+    QMessageBox,
+    QPushButton,
+    QWidget,
+    QWidgetAction,
+    QWizard,
+)
 from superqt.utils import signals_blocked
+from useq import WellPlatePlan
 
+from pymmcore_widgets import HCSWizard
 from pymmcore_widgets.useq_widgets import PositionTable
 from pymmcore_widgets.useq_widgets._column_info import (
     ButtonColumn,
 )
 from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from useq import Position
+
+UPDATE_POSITIONS = "Update Positions List"
+ADD_POSITIONS = "Add to Positions List"
 
 
 class CoreConnectedPositionTable(PositionTable):
@@ -45,6 +64,28 @@ class CoreConnectedPositionTable(PositionTable):
         super().__init__(rows, parent)
         self._mmc = mmcore or CMMCorePlus.instance()
 
+        # -------------- HCS Wizard ----------------
+        self._hcs_wizard: HCSWizard | None = None
+        self._plate_plan: WellPlatePlan | None = None
+
+        self._hcs_button = QPushButton("Well Plate...")
+        # self._hcs_button.setIcon(icon(MDI6.view_comfy))
+        self._hcs_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._hcs_button.setToolTip("Open the HCS wizard.")
+        self._hcs_button.clicked.connect(self._show_hcs)
+
+        self._edit_hcs_pos = QPushButton("Make Editable")
+        self._edit_hcs_pos.setToolTip(
+            "Convert HCS positions to regular editable positions."
+        )
+        self._edit_hcs_pos.setStyleSheet("color: red")
+        self._edit_hcs_pos.hide()
+        self._edit_hcs_pos.clicked.connect(self._show_pos_editing_dialog)
+
+        self._btn_row.insertWidget(3, self._hcs_button)
+        self._btn_row.insertWidget(3, self._edit_hcs_pos)
+        # ------------------------------------------
+
         self.move_to_selection = QCheckBox("Move Stage to Selected Point")
         # add a button to update XY to the current position
         self._xy_btn_col = ButtonColumn(
@@ -53,19 +94,20 @@ class CoreConnectedPositionTable(PositionTable):
         self._z_btn_col = ButtonColumn(
             key="z_btn", glyph=MDI6.arrow_left, on_click=self._set_z_from_core
         )
-        self.table().addColumn(self._xy_btn_col, self.table().indexOf(self.X))
-        self.table().addColumn(self._z_btn_col, self.table().indexOf(self.Z) + 1)
-        self.table().addColumn(self._af_btn_col, self.table().indexOf(self.AF) + 1)
+        table = self.table()
+        table.addColumn(self._xy_btn_col, table.indexOf(self.X))
+        table.addColumn(self._z_btn_col, table.indexOf(self.Z) + 1)
+        table.addColumn(self._af_btn_col, table.indexOf(self.AF) + 1)
 
         # when a new row is inserted, call _on_rows_inserted
         # to update the new values from the core position
-        self.table().model().rowsInserted.connect(self._on_rows_inserted)
+        table.model().rowsInserted.connect(self._on_rows_inserted)
 
         # add move_to_selection to toolbar and link up callback
         toolbar = self.toolBar()
         action0 = next(x for x in toolbar.children() if isinstance(x, QWidgetAction))
         toolbar.insertWidget(action0, self.move_to_selection)
-        self.table().itemSelectionChanged.connect(self._on_selection_change)
+        table.itemSelectionChanged.connect(self._on_selection_change)
 
         # connect
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
@@ -77,7 +119,138 @@ class CoreConnectedPositionTable(PositionTable):
         # hide the set-AF-offset button to begin with.
         self._on_af_per_position_toggled(self.af_per_position.isChecked())
 
+    # ---------------------- public methods -----------------------
+
+    def value(
+        self, exclude_unchecked: bool = True, exclude_hidden_cols: bool = True
+    ) -> Sequence[Position]:
+        """Return the current state of the positions table."""
+        if self._plate_plan is not None:
+            return self._plate_plan
+        return super().value(exclude_unchecked, exclude_hidden_cols)
+
+    def setValue(self, value: Sequence[Position]) -> None:  # type: ignore [override]
+        """Set the value of the positions table."""
+        if isinstance(value, WellPlatePlan):
+            self._plate_plan = value
+            self._hcs.setValue(value)
+            self._set_position_table_editable(False)
+            value = tuple(value)
+        super().setValue(value)
+        self._update_z_enablement()
+
     # ----------------------- private methods -----------------------
+
+    def _show_hcs(self) -> None:
+        """Show or raise the HCS wizard."""
+        self._hcs.raise_() if self._hcs.isVisible() else self._hcs.show()
+
+    @property
+    def _hcs(self) -> HCSWizard:
+        """Get the HCS wizard, initializing it if it doesn't exist."""
+        if self._hcs_wizard is None:
+            self._hcs_wizard = HCSWizard(self)
+            self._rename_hcs_position_button(ADD_POSITIONS)
+            self._hcs_wizard.accepted.connect(self._on_hcs_accepted)
+        return self._hcs_wizard
+
+    def _on_hcs_accepted(self) -> None:
+        """Add the positions from the HCS wizard to the stage positions."""
+        self._plate_plan = self._hcs.value()
+        if self._plate_plan is not None:
+            # show a ovwerwrite warning dialog if the table is not empty
+            if self.table().rowCount() > 0:
+                dialog = QMessageBox(
+                    QMessageBox.Icon.Warning,
+                    "Overwrite Positions",
+                    "This will replace the positions currently stored in the table."
+                    "\nWould you like to proceed?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    self,
+                )
+                dialog.setDefaultButton(QMessageBox.StandardButton.Yes)
+                if dialog.exec() != QMessageBox.StandardButton.Yes:
+                    return
+            self._update_table_positions(self._plate_plan)
+
+    def _update_table_positions(self, plan: WellPlatePlan) -> None:
+        """Update the table with the positions from the HCS wizard."""
+        self.setValue(list(plan))
+        self._set_position_table_editable(False)
+
+    def _rename_hcs_position_button(self, text: str) -> None:
+        if wiz := self._hcs_wizard:
+            wiz.points_plan_page.setButtonText(QWizard.WizardButton.FinishButton, text)
+
+    def _show_pos_editing_dialog(self) -> None:
+        dialog = QMessageBox(
+            QMessageBox.Icon.Warning,
+            "Reset HCS",
+            "Positions are currently autogenerated from the HCS Wizard."
+            "\n\nWould you like to cast them to a list of stage positions?"
+            "\n\nNOTE: you will no longer be able to edit them using the HCS Wizard "
+            "widget.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            self,
+        )
+        dialog.setDefaultButton(QMessageBox.StandardButton.No)
+        if dialog.exec() == QMessageBox.StandardButton.Yes:
+            self._plate_plan = None
+            self._set_position_table_editable(True)
+
+    def _set_position_table_editable(self, state: bool) -> None:
+        """Enable/disable the position table depending on the use of the HCS wizard."""
+        self._edit_hcs_pos.setVisible(not state)
+        self.include_z.setVisible(state)
+        self.af_per_position.setVisible(state)
+
+        # Hide or show all columns that are irrelevant when using the HCS wizard
+        table = self.table()
+        inc_z = self.include_z.isChecked()
+        table.setColumnHidden(table.indexOf(self._xy_btn_col), not state)
+        table.setColumnHidden(table.indexOf(self._z_btn_col), not state or not inc_z)
+        table.setColumnHidden(table.indexOf(self.Z), not state or not inc_z)
+        table.setColumnHidden(table.indexOf(self.SEQ), not state)
+
+        # Enable or disable the toolbar
+        for action in self.toolBar().actions()[1:]:
+            action.setEnabled(state)
+
+        self._enable_table_items(state)
+        # connect/disconnect the double click event and rename the button
+        if state:
+            self._rename_hcs_position_button(ADD_POSITIONS)
+            with suppress(RuntimeError):
+                self.table().cellDoubleClicked.disconnect(self._show_pos_editing_dialog)
+        else:
+            self._rename_hcs_position_button(UPDATE_POSITIONS)
+            # using UniqueConnection to avoid multiple connections
+            # but catching the TypeError if the connection is already made
+            with suppress(TypeError, RuntimeError):
+                self.table().cellDoubleClicked.connect(
+                    self._show_pos_editing_dialog, Qt.ConnectionType.UniqueConnection
+                )
+
+    def _enable_table_items(self, state: bool) -> None:
+        """Enable or disable the table items depending on the use of the HCS wizard."""
+        table = self.table()
+        name_col = table.indexOf(self.NAME)
+        x_col = table.indexOf(self.X)
+        y_col = table.indexOf(self.Y)
+        with signals_blocked(table):
+            for row in range(table.rowCount()):
+                table.cellWidget(row, x_col).setEnabled(state)
+                table.cellWidget(row, y_col).setEnabled(state)
+                # enable/disable the name cells
+                name_item = table.item(row, name_col)
+                flags = name_item.flags() | Qt.ItemFlag.ItemIsEnabled
+                if state:
+                    flags |= Qt.ItemFlag.ItemIsEditable
+                else:
+                    # keep the name column enabled but NOT editable. We do not disable
+                    # to keep available the "Move Stage to Selected Point" option
+                    flags &= ~Qt.ItemFlag.ItemIsEditable
+                name_item.setFlags(flags)
 
     def _on_sys_config_loaded(self) -> None:
         """Update the table when the system configuration is loaded."""
@@ -86,7 +259,7 @@ class CoreConnectedPositionTable(PositionTable):
         self._update_autofocus_enablement()
 
     def _on_property_changed(self, device: str, prop: str, _val: str = "") -> None:
-        """Update the autofocus device combo box when the autofocus device changes."""
+        """Enable/Disable stages columns."""
         if device == "Core":
             if prop == "XYStage":
                 self._update_xy_enablement()
@@ -118,6 +291,9 @@ class CoreConnectedPositionTable(PositionTable):
         """Update the autofocus device combo box."""
         af_device = self._mmc.getAutoFocusDevice()
         self.af_per_position.setEnabled(bool(af_device))
+        # also hide the AF column if the autofocus device is not available
+        if not af_device:
+            self.af_per_position.setChecked(False)
         self.af_per_position.setToolTip(
             AF_DEFAULT_TOOLTIP if af_device else "AutoFocus device unavailable."
         )
@@ -218,16 +394,16 @@ class CoreConnectedPositionTable(PositionTable):
             # if 'af_per_position' is not checked and the autofocus was not locked
             # before moving, we do not use autofocus.
             if table_af_offset is not None or af_offset is not None:
-                self._mmc.setAutoFocusOffset(
-                    table_af_offset if table_af_offset is not None else af_offset
-                )
-                try:
-                    self._mmc.enableContinuousFocus(False)
-                    self._perform_autofocus()
-                    self._mmc.enableContinuousFocus(af_engaged)
-                    self._mmc.waitForSystem()
-                except RuntimeError as e:
-                    logger.warning("Hardware autofocus failed. %s", e)
+                _af = table_af_offset if table_af_offset is not None else af_offset
+                if _af is not None:
+                    self._mmc.setAutoFocusOffset(_af)
+                    try:
+                        self._mmc.enableContinuousFocus(False)
+                        self._perform_autofocus()
+                        self._mmc.enableContinuousFocus(af_engaged)
+                        self._mmc.waitForSystem()
+                    except RuntimeError as e:
+                        logger.warning("Hardware autofocus failed. %s", e)
 
             self._mmc.waitForSystem()
 

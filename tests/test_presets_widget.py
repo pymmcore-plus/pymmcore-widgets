@@ -4,14 +4,14 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pymmcore_widgets._presets_widget import PresetsWidget
+from pymmcore_widgets.control._presets_widget import PresetsWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
 
-def test_preset_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
+def test_preset_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     for group in global_mmcore.getAvailableConfigGroups():
         wdg = PresetsWidget(group)
         qtbot.addWidget(wdg)

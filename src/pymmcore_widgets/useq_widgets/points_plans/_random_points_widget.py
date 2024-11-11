@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import Mapping
+from typing import TYPE_CHECKING
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -15,7 +15,10 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from useq import RandomPoints, Shape, TraversalOrder
+from useq import RandomPoints, RelativePosition, Shape, TraversalOrder
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 class RandomPointWidget(QWidget):
@@ -28,7 +31,7 @@ class RandomPointWidget(QWidget):
 
         # NON-GUI attributes
 
-        self._start_at: int = 0
+        self._start_at: int | RelativePosition = 0
 
         # setting a random seed for point generation reproducibility
         self.random_seed: int = self._new_seed()
@@ -54,6 +57,7 @@ class RandomPointWidget(QWidget):
         self.num_points = QSpinBox()
         self.num_points.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.num_points.setRange(1, 1000)
+        self.num_points.setValue(10)
         # order combobox
         self.order = QComboBox()
         self.order.addItems([mode.value for mode in TraversalOrder])
@@ -113,12 +117,12 @@ class RandomPointWidget(QWidget):
     # not in the gui for now...
 
     @property
-    def start_at(self) -> int:
+    def start_at(self) -> RelativePosition | int:
         """Return the start_at value."""
         return self._start_at
 
     @start_at.setter
-    def start_at(self, value: int) -> None:
+    def start_at(self, value: RelativePosition | int) -> None:
         """Set the start_at value."""
         self._start_at = value
         self._on_value_changed()
@@ -161,9 +165,9 @@ class RandomPointWidget(QWidget):
         self.shape.setCurrentText(value.shape.value)
         self._fov_size = (value.fov_width, value.fov_height)
         self.allow_overlap.setChecked(value.allow_overlap)
-        self.start_at = value.start_at  # type: ignore  # until useq is released
-        if value.order is not None:  # type: ignore  # until useq is released
-            self.order.setCurrentText(value.order.value)  # type: ignore  # until useq is released
+        self.start_at = value.start_at
+        if value.order is not None:
+            self.order.setCurrentText(value.order.value)
 
     def reset(self) -> None:
         """Reset value to 1 point and 0 area."""

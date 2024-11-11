@@ -3,11 +3,16 @@
 It is fully connected to the CMMCorePlus object, and has a "run" button.
 """
 
+from contextlib import suppress
+
 import useq
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
 from pymmcore_widgets import MDAWidget
+
+with suppress(ImportError):
+    from rich import print
 
 app = QApplication([])
 

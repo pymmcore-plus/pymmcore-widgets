@@ -3,11 +3,13 @@ from __future__ import annotations
 import enum
 from datetime import timedelta
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pint
 import pytest
 import useq
 from qtpy.QtCore import Qt, QTimer
+from qtpy.QtWidgets import QMessageBox
 
 import pymmcore_widgets
 from pymmcore_widgets.useq_widgets import (
@@ -167,6 +169,32 @@ def test_mda_wdg_load_save(
         assert dest.read_text() == mda_no_meta.model_dump_json(exclude_defaults=True)
     elif ext == "yaml":
         assert dest.read_text() == mda_no_meta.yaml(exclude_defaults=True)
+
+
+def test_mda_wdg_set_value_ignore_z(qtbot: QtBot) -> None:
+    wdg = MDASequenceWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    MDA_noZ = useq.MDASequence(
+        axis_order="p",
+        stage_positions=[(0, 1), useq.Position(x=42, y=0)],
+        keep_shutter_open_across=("z",),
+    )
+    assert wdg.stage_positions.include_z.isChecked()
+    wdg.setValue(MDA_noZ)
+    assert wdg.value().replace(metadata={}) == MDA_noZ
+    assert not wdg.stage_positions.include_z.isChecked()
+
+    MDA_partialZ = useq.MDASequence(
+        axis_order="p",
+        stage_positions=[(0, 1), useq.Position(x=42, y=0, z=3)],
+        keep_shutter_open_across=("z",),
+    )
+
+    with pytest.warns(match="Only some positions have a z-position"):
+        wdg.setValue(MDA_partialZ)
+    assert wdg.stage_positions.include_z.isChecked()
 
 
 def test_qquant_line_edit(qtbot: QtBot) -> None:
@@ -481,3 +509,43 @@ def test_parse_time() -> None:
     assert parse_timedelta("3:40:10.500") == timedelta(
         hours=3, minutes=40, seconds=10.5
     )
+
+
+def test_autofocus_with_z_plans(qtbot: QtBot) -> None:
+    wdg = MDASequenceWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    wdg.tab_wdg.setChecked(wdg.stage_positions, True)
+
+    assert not wdg.tab_wdg.isChecked(wdg.z_plan)
+    assert wdg.af_axis.isEnabled()
+    assert wdg.stage_positions.af_per_position.isEnabled()
+    wdg.af_axis.setValue(("p", "t"))
+    assert wdg.af_axis.value() == ("p", "t")
+
+    def _qmsgbox(*args, **kwargs):
+        return True
+
+    with patch.object(QMessageBox, "warning", _qmsgbox):
+        wdg.tab_wdg.setChecked(wdg.z_plan, True)
+
+    assert wdg.z_plan.mode() == _z.Mode.TOP_BOTTOM
+    assert not wdg.af_axis.isEnabled()
+    assert not wdg.stage_positions.af_per_position.isEnabled()
+    assert wdg.af_axis.value() == ()
+
+    with patch.object(QMessageBox, "warning", _qmsgbox):
+        wdg.tab_wdg.setChecked(wdg.z_plan, False)
+
+    assert wdg.af_axis.isEnabled()
+    assert wdg.stage_positions.af_per_position.isEnabled()
+
+    with patch.object(QMessageBox, "warning", _qmsgbox):
+        wdg.tab_wdg.setChecked(wdg.z_plan, True)
+
+    with patch.object(QMessageBox, "warning", _qmsgbox):
+        wdg.z_plan.setValue(useq.ZRangeAround(range=4, step=0.2))
+
+    assert wdg.af_axis.isEnabled()
+    assert wdg.stage_positions.af_per_position.isEnabled()
