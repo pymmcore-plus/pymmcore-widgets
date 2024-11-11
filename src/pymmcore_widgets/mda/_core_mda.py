@@ -285,15 +285,17 @@ class MDAWidget(MDASequenceWidget):
         self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
 
     def _on_property_changed(self, device: str, prop: str, _val: str = "") -> None:
-        if device != "Core" and prop not in ("XYStage", "Focus", "AutoFocus"):
+        if device != "Core":
             return
-        if prop == "XYStage":
-            self.stage_positions._update_xy_enablement()
-        elif prop == "Focus":
-            self.stage_positions._update_z_enablement()
-        else:  # prop == "AutoFocus"
-            self._update_autofocus_enablement()
-        self.valueChanged.emit()
+
+        props = {
+            "XYStage": self.stage_positions._update_xy_enablement,
+            "Focus": self.stage_positions._update_z_enablement,
+            "AutoFocus": self._update_autofocus_enablement,
+        }
+        if prop in props:
+            props[prop]()
+            self.valueChanged.emit()
 
     def _update_autofocus_enablement(self) -> None:
         """Enable or disable the autofocus widgets.
