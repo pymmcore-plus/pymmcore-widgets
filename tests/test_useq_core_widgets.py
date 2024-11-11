@@ -145,24 +145,7 @@ def _assert_position_wdg_state(
         tooltip = "Focus device unavailable." if is_hidden else ""
         assert pos_table.include_z.toolTip() == tooltip
 
-    # elif stage == "Autofocus":
-    #     # the set position button should be hidden
-    #     af_btn_col = pos_table.table().indexOf(pos_table._af_btn_col)
-    #     assert pos_table.table().isColumnHidden(af_btn_col)
-    #     if is_hidden:
-    #         sub_seq = [v.sequence for v in pos_table.value()]
-    #         assert all(s is None for s in sub_seq)
-    #     # the use autofocus checkbox should be unchecked
-    #     assert not pos_table.af_per_position.isChecked()
-    #     # the use autofocus checkbox should be disabled if Autofocus device is not
-    #     # loaded/selected
-    #     assert pos_table.af_per_position.isEnabled() == (not is_hidden)
-    #     # tooltip should should change if Autofocus device is not loaded/selected
-    #     tooltip = "AutoFocus device unavailable." if is_hidden else AF_PER_POS_TOOLTIP
-    #     assert pos_table.af_per_position.toolTip() == tooltip
 
-
-# @pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
 @pytest.mark.parametrize("stage", ["XY", "Z"])
 def test_core_connected_position_wdg_cfg_loaded(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
@@ -192,7 +175,6 @@ def test_core_connected_position_wdg_cfg_loaded(
     _assert_position_wdg_state(stage, pos_table, is_hidden=False)
 
 
-# @pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
 @pytest.mark.parametrize("stage", ["XY", "Z"])
 def test_core_connected_position_wdg_property_changed(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
@@ -216,8 +198,6 @@ def test_core_connected_position_wdg_property_changed(
             mmc.setProperty("Core", "XYStage", "")
         elif stage == "Z":
             mmc.setProperty("Core", "Focus", "")
-        # elif stage == "Autofocus":
-        #     mmc.setProperty("Core", "AutoFocus", "")
         mmc.waitForSystem()
 
     # stage is not set as default device
@@ -228,8 +208,6 @@ def test_core_connected_position_wdg_property_changed(
             mmc.setProperty("Core", "XYStage", "XY")
         elif stage == "Z":
             mmc.setProperty("Core", "Focus", "Z")
-        # elif stage == "Autofocus":
-        #     mmc.setProperty("Core", "AutoFocus", "Autofocus")
 
     # stage is set as default device (propertyChanged is triggered)
     _assert_position_wdg_state(stage, pos_table, is_hidden=False)
