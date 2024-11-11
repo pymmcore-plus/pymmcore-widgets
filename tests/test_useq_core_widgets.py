@@ -141,6 +141,7 @@ def _assert_position_wdg_state(
         assert pos_table.include_z.toolTip() == tooltip
 
     elif stage == "Autofocus":
+        # the set position button should be hidden
         af_btn_col = pos_table.table().indexOf(pos_table._af_btn_col)
         assert pos_table.table().isColumnHidden(af_btn_col)
         if is_hidden:
@@ -178,10 +179,6 @@ def test_core_connected_position_wdg_cfg_loaded(
     # stage is not loaded
     _assert_position_wdg_state(stage, pos_table, is_hidden=True)
 
-    # the autofocus axis wdg should be disabled if Autofocus device is not loaded
-    if stage == "Autofocus":
-        assert not wdg.af_axis.isEnabled()
-
     with qtbot.waitSignal(mmc.events.systemConfigurationLoaded):
         mmc.loadSystemConfiguration(TEST_CONFIG)
 
@@ -189,7 +186,7 @@ def test_core_connected_position_wdg_cfg_loaded(
     _assert_position_wdg_state(stage, pos_table, is_hidden=False)
 
 
-@pytest.mark.parametrize("stage", ["XY", "Z"])
+@pytest.mark.parametrize("stage", ["XY", "Z", "Autofocus"])
 def test_core_connected_position_wdg_property_changed(
     stage: str, qtbot: QtBot, global_mmcore: CMMCorePlus
 ) -> None:
@@ -207,11 +204,15 @@ def test_core_connected_position_wdg_property_changed(
 
     wdg.setValue(MDA)
 
+    pos_table.af_per_position.setChecked(True)
+
     with qtbot.waitSignal(mmc.events.propertyChanged):
         if stage == "XY":
             mmc.setProperty("Core", "XYStage", "")
         elif stage == "Z":
             mmc.setProperty("Core", "Focus", "")
+        elif stage == "Autofocus":
+            mmc.setProperty("Core", "AutoFocus", "")
         mmc.waitForSystem()
 
     # stage is not set as default device
@@ -222,6 +223,8 @@ def test_core_connected_position_wdg_property_changed(
             mmc.setProperty("Core", "XYStage", "XY")
         elif stage == "Z":
             mmc.setProperty("Core", "Focus", "Z")
+        elif stage == "Autofocus":
+            mmc.setProperty("Core", "AutoFocus", "Autofocus")
 
     # stage is set as default device (propertyChanged is triggered)
     _assert_position_wdg_state(stage, pos_table, is_hidden=False)
