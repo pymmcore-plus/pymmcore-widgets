@@ -64,13 +64,13 @@ class ZPlanWidget(QWidget):
 
         # #################### Mode Buttons ####################
 
-        self._btn_top_bot = QRadioButton("TopBottom")
+        self._btn_top_bot = QRadioButton("Top/Bottom")
         self._btn_top_bot.setIcon(icon(MDI6.arrow_expand_vertical))
         self._btn_top_bot.setToolTip("Mark top and bottom.")
-        self._btn_range = QRadioButton("RangeAround")
+        self._btn_range = QRadioButton("Range Around (Symmetric)")
         self._btn_range.setIcon(icon(MDI6.arrow_split_horizontal))
         self._btn_range.setToolTip("Range symmetric around reference.")
-        self._button_above_below = QRadioButton("AboveBelow")
+        self._button_above_below = QRadioButton("Range Asymmetric")
         self._button_above_below.setIcon(icon(MDI6.arrow_expand_up))
         self._button_above_below.setToolTip(
             "Range asymmetrically above/below reference."
@@ -82,14 +82,13 @@ class ZPlanWidget(QWidget):
         self._mode_btn_group.addButton(self._button_above_below)
         self._mode_btn_group.buttonToggled.connect(self.setMode)
 
+        # radio buttons on the top row
         btn_wdg = QWidget()
         btn_layout = QHBoxLayout(btn_wdg)
         btn_layout.setContentsMargins(0, 0, 0, 0)
-        btn_layout.setSpacing(10)
         btn_layout.addWidget(self._btn_top_bot)
         btn_layout.addWidget(self._btn_range)
         btn_layout.addWidget(self._button_above_below)
-        btn_layout.addStretch()
 
         # FIXME: On Windows 11, buttons within an inner widget of a ScrollArea
         # are filled in with the accent color, making it very difficult to see
