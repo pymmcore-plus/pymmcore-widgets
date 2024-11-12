@@ -62,15 +62,20 @@ class ZPlanWidget(QWidget):
         # to store a "suggested" step size
         self._suggested: float | None = None
 
+        self._mode: Mode = Mode.TOP_BOTTOM
+
         # #################### Mode Buttons ####################
 
         self._btn_top_bot = QRadioButton("Top/Bottom")
+        self._btn_top_bot.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._btn_top_bot.setIcon(icon(MDI6.arrow_expand_vertical))
         self._btn_top_bot.setToolTip("Mark top and bottom.")
         self._btn_range = QRadioButton("Range Around (Symmetric)")
+        self._btn_range.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._btn_range.setIcon(icon(MDI6.arrow_split_horizontal))
         self._btn_range.setToolTip("Range symmetric around reference.")
         self._button_above_below = QRadioButton("Range Asymmetric")
+        self._button_above_below.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._button_above_below.setIcon(icon(MDI6.arrow_expand_up))
         self._button_above_below.setToolTip(
             "Range asymmetrically above/below reference."
@@ -86,9 +91,9 @@ class ZPlanWidget(QWidget):
         btn_wdg = QWidget()
         btn_layout = QHBoxLayout(btn_wdg)
         btn_layout.setContentsMargins(0, 0, 0, 0)
-        btn_layout.addWidget(self._btn_top_bot)
-        btn_layout.addWidget(self._btn_range)
-        btn_layout.addWidget(self._button_above_below)
+        btn_layout.addWidget(self._btn_top_bot, 0)
+        btn_layout.addWidget(self._btn_range, 0)
+        btn_layout.addWidget(self._button_above_below, 1)
 
         # FIXME: On Windows 11, buttons within an inner widget of a ScrollArea
         # are filled in with the accent color, making it very difficult to see
@@ -250,7 +255,7 @@ class ZPlanWidget(QWidget):
 
         # #################### Defaults ####################
 
-        self._btn_top_bot.setChecked(True)
+        self.setMode(Mode.TOP_BOTTOM)
 
     # ------------------------- Public API -------------------------
 
@@ -282,7 +287,7 @@ class ZPlanWidget(QWidget):
 
         if self._mode is Mode.TOP_BOTTOM:
             with signals_blocked(self._mode_btn_group):
-                self._bottom_to_top.setChecked(True)
+                self._btn_top_bot.setChecked(True)
             self._set_row_visible(ROW_RANGE_AROUND, False)
             self._set_row_visible(ROW_ABOVE_BELOW, False)
             self._set_row_visible(ROW_TOP_BOTTOM, True)
