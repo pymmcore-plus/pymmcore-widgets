@@ -51,7 +51,7 @@ class CoreConnectedZPlanWidget(ZPlanWidget):
 
     def setMode(
         self,
-        mode: Mode | Literal["top_bottom", "range_around", "above_below"] | None = None,
+        mode: Mode | Literal["top_bottom", "range_around", "above_below"],
     ) -> None:
         super().setMode(mode)
         self.bottom_btn.setVisible(self._mode == Mode.TOP_BOTTOM)
