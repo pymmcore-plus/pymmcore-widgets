@@ -18,7 +18,6 @@ It forms the basis of [`napari-micromanager`](https://github.com/pymmcore-plus/n
 
 See complete list of available widgets in the [documentation](https://pymmcore-plus.github.io/pymmcore-widgets/#widgets)
 
-
 ## Installation
 
 ```sh
@@ -28,5 +27,5 @@ pip install pymmcore-widgets
 # you must install one yourself, for example:
 pip install PyQt5
 
-# package is tested against PyQt5, PyQt6, PySide2, and PySide6
+# package is tested against PyQt5, PyQt6, PySide2, and PySide6(==6.7)
 ```

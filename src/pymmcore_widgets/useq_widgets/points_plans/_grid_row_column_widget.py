@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Mapping
+from typing import TYPE_CHECKING
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -13,6 +13,9 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from useq import GridRowsColumns, OrderMode
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 class GridRowColumnWidget(QWidget):
@@ -36,10 +39,12 @@ class GridRowColumnWidget(QWidget):
         self.rows = QSpinBox()
         self.rows.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.rows.setMinimum(1)
+        self.rows.setValue(3)
         # columns
         self.columns = QSpinBox()
         self.columns.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.columns.setMinimum(1)
+        self.columns.setValue(3)
         # overlap along x
         self.overlap_x = QDoubleSpinBox()
         self.overlap_x.setAlignment(Qt.AlignmentFlag.AlignCenter)
