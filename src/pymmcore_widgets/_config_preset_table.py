@@ -1,4 +1,5 @@
-from typing import DefaultDict, cast
+from collections import defaultdict
+from typing import cast
 
 from pymmcore_plus import CMMCorePlus
 from PyQt6.QtCore import QEvent
@@ -234,7 +235,7 @@ class ConfigPresetTable(QTableWidget):
     def _rebuild_table(self, group: str) -> None:
         # Get all presets and their properties
         # Mapping {preset -> {(dev, prop) -> val}}
-        preset2props: DefaultDict[str, dict[tuple[str, str], str]] = DefaultDict(dict)
+        preset2props: defaultdict[str, dict[tuple[str, str], str]] = defaultdict(dict)
         for preset in self._core.getAvailableConfigs(group):
             for dev, prop, _val in self._core.getConfigData(group, preset):
                 preset2props[preset][(dev, prop)] = _val
