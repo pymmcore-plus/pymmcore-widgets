@@ -504,14 +504,16 @@ class MDASequenceWidget(QWidget):
         # Only JSON
         return "All (*.json);;JSON (*.json)"
 
-    def _enable_af(self, state: bool, tooltip1: str, tooltip2: str) -> None:
+    def _enable_af(self, state: bool) -> None:
         """Enable or disable autofocus settings."""
+        af_axis_tooltip = AF_AXIS_TOOLTIP if state else AF_DISABLED_TOOLTIP
+        af_per_pos_tooltip = AF_PER_POS_TOOLTIP if state else AF_DISABLED_TOOLTIP
         # enable autofocus axis widget
         self.af_axis.setEnabled(state)
-        self.af_axis.setToolTip(tooltip1)
+        self.af_axis.setToolTip(af_axis_tooltip)
         # enable autofocus per position checkbox
         self.stage_positions.af_per_position.setEnabled(state)
-        self.stage_positions.af_per_position.setToolTip(tooltip2)
+        self.stage_positions.af_per_position.setToolTip(af_per_pos_tooltip)
         # hide the autofocus columns if autofocus per position is disabled
         if not state:
             # not simply calling self.stage_positions.af_per_position.setChecked(False)
@@ -539,9 +541,9 @@ class MDASequenceWidget(QWidget):
                     buttons=QMessageBox.StandardButton.Ok,
                     defaultButton=QMessageBox.StandardButton.Ok,
                 )
-            self._enable_af(False, AF_DISABLED_TOOLTIP, AF_DISABLED_TOOLTIP)
+            self._enable_af(False)
         else:
-            self._enable_af(True, AF_AXIS_TOOLTIP, AF_PER_POS_TOOLTIP)
+            self._enable_af(True)
 
         self.valueChanged.emit()
 
@@ -558,7 +560,7 @@ class MDASequenceWidget(QWidget):
             if self.tab_wdg.isChecked(self.z_plan):
                 self._validate_af_with_z_plan()
             else:
-                self._enable_af(True, AF_AXIS_TOOLTIP, AF_PER_POS_TOOLTIP)
+                self._enable_af(True)
 
         self._update_available_axis_orders()
 

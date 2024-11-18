@@ -449,12 +449,12 @@ class MDAWidget(MDASequenceWidget):
         )
         self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
 
-    def _enable_af(self, state: bool, tooltip1: str, tooltip2: str) -> None:
+    def _enable_af(self, state: bool) -> None:
         """Override the autofocus enablement to account for the autofocus device."""
         if not self._mmc.getAutoFocusDevice():
             self._update_autofocus_enablement()
             return
-        return super()._enable_af(state, tooltip1, tooltip2)
+        return super()._enable_af(state)
 
 
 class _MDAControlButtons(QWidget):
