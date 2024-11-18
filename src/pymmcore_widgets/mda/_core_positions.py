@@ -7,7 +7,7 @@ from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus._logger import logger
 from pymmcore_plus._util import retry
-from qtpy.QtCore import Qt
+from qtpy.QtCore import QEvent, QObject, Qt
 from qtpy.QtWidgets import (
     QCheckBox,
     QMessageBox,
@@ -64,6 +64,12 @@ class CoreConnectedPositionTable(PositionTable):
         )
         super().__init__(rows, parent)
         self._mmc = mmcore or CMMCorePlus.instance()
+
+        # add event filter for the af_per_position checkbox
+        self.af_per_position.installEventFilter(self)
+
+        # to store the state of the af_per_position checkbox. Used in the event filter
+        self._use_af_per_pos: bool = False
 
         # -------------- HCS Wizard ----------------
         self._hcs_wizard: HCSWizard | None = None
@@ -142,6 +148,29 @@ class CoreConnectedPositionTable(PositionTable):
         self._update_autofocus_enablement()
 
     # ----------------------- private methods -----------------------
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        if obj is self.af_per_position and event.type() == QEvent.Type.EnabledChange:
+            self._on_af_per_position_enabled_change()
+        return super().eventFilter(obj, event)  # type: ignore [no-any-return]
+
+    def _on_af_per_position_enabled_change(self) -> None:
+        """Hide or show the AF column based on the enabled state of af_per_position.
+
+        This is to keep the state of the checkbox when it is disabled. If for any
+        reason the checkbox should be disabled (e.g. autofocus device is not available)
+        but it was checked, we want to keep it checked but disabled (the super.value
+        method takes care of excluding the AF column from the returned value if the
+        checkbox is disabled but checked).
+        """
+        if not self.af_per_position.isEnabled():
+            self._use_af_per_pos = self.af_per_position.isChecked()
+            # leave the checkbox checked but disable it
+            self.af_per_position.setEnabled(False)
+            self._on_af_per_position_toggled(False)
+        elif self._use_af_per_pos:
+            self._on_af_per_position_toggled(True)
+            self.af_per_position.setEnabled(True)
 
     def _show_hcs(self) -> None:
         """Show or raise the HCS wizard."""

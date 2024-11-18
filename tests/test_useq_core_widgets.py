@@ -847,6 +847,8 @@ def test_core_mda_autofocus_set_value(
     assert not wdg.stage_positions.af_per_position.isEnabled()
     assert wdg.stage_positions.af_per_position.isChecked()
     assert wdg.stage_positions.af_per_position.toolTip() == AF_UNAVAILABLE
+    af_btn_col = wdg.stage_positions.table().indexOf(wdg.stage_positions._af_btn_col)
+    assert wdg.stage_positions.table().isColumnHidden(af_btn_col)
 
 
 @pytest.mark.parametrize("trigger", ["zplan", "core"])
@@ -858,6 +860,10 @@ def test_core_mda_autofocus_and_z_plan(
     qtbot.addWidget(wdg)
     wdg.show()
 
+    pos_table = wdg.stage_positions
+    af_col = pos_table.table().indexOf(pos_table.AF)
+    af_btn_col = pos_table.table().indexOf(pos_table._af_btn_col)
+
     wdg.setValue(SEQ)
 
     # no general autofocus plan since each pos has a sequence with autofocus plan
@@ -868,9 +874,12 @@ def test_core_mda_autofocus_and_z_plan(
     # af_axis and af_per_position should be checked and enabled
     assert wdg.af_axis.value() == ("p",)
     assert wdg.af_axis.toolTip() == AF_AXIS_TOOLTIP
-    assert wdg.stage_positions.af_per_position.isEnabled()
-    assert wdg.stage_positions.af_per_position.isChecked()
-    assert wdg.stage_positions.af_per_position.toolTip() == AF_PER_POS_TOOLTIP
+    assert pos_table.af_per_position.isEnabled()
+    assert pos_table.af_per_position.isChecked()
+    assert pos_table.af_per_position.toolTip() == AF_PER_POS_TOOLTIP
+    # AF column should be visible
+    assert not pos_table.table().isColumnHidden(af_col)
+    assert not pos_table.table().isColumnHidden(af_btn_col)
 
     # trigger the z plan tab TopBottom mode
     if trigger == "zplan":
@@ -898,13 +907,17 @@ def test_core_mda_autofocus_and_z_plan(
         if trigger == "core"
         else AF_DISABLED_TOOLTIP
     )
-    assert not wdg.stage_positions.af_per_position.isEnabled()
-    assert wdg.stage_positions.af_per_position.isChecked()
+    assert not pos_table.af_per_position.isEnabled()
+    assert pos_table.af_per_position.isChecked()
     assert (
-        wdg.stage_positions.af_per_position.toolTip() == AF_UNAVAILABLE
+        pos_table.af_per_position.toolTip() == AF_UNAVAILABLE
         if trigger == "core"
         else AF_DISABLED_TOOLTIP
     )
+    # AF column should be hidden
+    assert pos_table.table().isColumnHidden(af_col)
+    assert pos_table.table().isColumnHidden(af_btn_col)
+
     assert not wdg.value().autofocus_plan
     assert not wdg.value().stage_positions[0].sequence
     assert not wdg.value().stage_positions[1].sequence
@@ -919,9 +932,12 @@ def test_core_mda_autofocus_and_z_plan(
 
     # af_axis and af_per_position should be enabled
     assert wdg.af_axis.value() == ("p",)
-    assert wdg.stage_positions.af_per_position.isEnabled()
-    assert wdg.stage_positions.af_per_position.isChecked()
+    assert pos_table.af_per_position.isEnabled()
+    assert pos_table.af_per_position.isChecked()
     assert wdg.value().replace(metadata={}) == SEQ.replace(metadata={})
+    # AF column should be visible
+    assert not pos_table.table().isColumnHidden(af_col)
+    assert not pos_table.table().isColumnHidden(af_btn_col)
 
     if trigger == "core":
         with qtbot.waitSignal(mmc.events.propertyChanged):
@@ -932,9 +948,13 @@ def test_core_mda_autofocus_and_z_plan(
         assert wdg.af_axis.use_af_p.isChecked()
         assert not wdg.af_axis.value()
         assert wdg.af_axis.toolTip() == AF_UNAVAILABLE
-        assert not wdg.stage_positions.af_per_position.isEnabled()
-        assert wdg.stage_positions.af_per_position.isChecked()
-        assert wdg.stage_positions.af_per_position.toolTip() == AF_UNAVAILABLE
+        assert not pos_table.af_per_position.isEnabled()
+        assert pos_table.af_per_position.isChecked()
+        assert pos_table.af_per_position.toolTip() == AF_UNAVAILABLE
+
+        # AF column should be hidden
+        assert pos_table.table().isColumnHidden(af_col)
+        assert pos_table.table().isColumnHidden(af_btn_col)
 
         # is autofocus is re-enabled, the autofocus options should still be disabled
         # since the absolute TopBottom z plan is active
@@ -945,6 +965,9 @@ def test_core_mda_autofocus_and_z_plan(
         assert wdg.af_axis.use_af_p.isChecked()
         assert not wdg.af_axis.value()
         assert wdg.af_axis.toolTip() == AF_DISABLED_TOOLTIP
-        assert not wdg.stage_positions.af_per_position.isEnabled()
-        assert wdg.stage_positions.af_per_position.isChecked()
-        assert wdg.stage_positions.af_per_position.toolTip() == AF_DISABLED_TOOLTIP
+        assert not pos_table.af_per_position.isEnabled()
+        assert pos_table.af_per_position.isChecked()
+        assert pos_table.af_per_position.toolTip() == AF_DISABLED_TOOLTIP
+        # AF column should be hidden
+        assert pos_table.table().isColumnHidden(af_col)
+        assert pos_table.table().isColumnHidden(af_btn_col)

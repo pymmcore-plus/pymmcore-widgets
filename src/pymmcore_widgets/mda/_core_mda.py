@@ -313,13 +313,6 @@ class MDAWidget(MDASequenceWidget):
 
         # update the autofocus per position widget
         self.stage_positions.af_per_position.setEnabled(bool(af_device))
-        # also hide the AF column if the autofocus device is not available
-        if not af_device:
-            # not simply calling self.stage_positions.af_per_position.setChecked(False)
-            # because we want to keep the previous state of the checkbox
-            self.stage_positions._on_af_per_position_toggled(False)
-        elif self.stage_positions.af_per_position.isChecked():
-            self.stage_positions._on_af_per_position_toggled(True)
         # set tooltip af_per_position
         self.stage_positions.af_per_position.setToolTip(
             self._get_tooltip(self.stage_positions.af_per_position)
