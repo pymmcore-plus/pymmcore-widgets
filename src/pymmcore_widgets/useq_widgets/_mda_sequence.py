@@ -562,7 +562,7 @@ class MDASequenceWidget(QWidget):
 
         self._update_available_axis_orders()
 
-    def _on_af_toggled(self, _checked: bool) -> None:
+    def _on_af_toggled(self) -> None:
         # if the 'af_per_position' checkbox in the PositionTable is checked, set checked
         # also the autofocus p axis checkbox.
         if self._use_af_per_position() and self.tab_wdg.isChecked(self.stage_positions):
