@@ -68,9 +68,6 @@ class CoreConnectedPositionTable(PositionTable):
         # add event filter for the af_per_position checkbox
         self.af_per_position.installEventFilter(self)
 
-        # to store the state of the af_per_position checkbox. Used in the event filter
-        self._use_af_per_pos: bool = False
-
         # -------------- HCS Wizard ----------------
         self._hcs_wizard: HCSWizard | None = None
         self._plate_plan: WellPlatePlan | None = None
@@ -164,11 +161,10 @@ class CoreConnectedPositionTable(PositionTable):
         checkbox is disabled but checked).
         """
         if not self.af_per_position.isEnabled():
-            self._use_af_per_pos = self.af_per_position.isChecked()
             # leave the checkbox checked but disable it
             self.af_per_position.setEnabled(False)
             self._on_af_per_position_toggled(False)
-        elif self._use_af_per_pos:
+        elif self.af_per_position.isChecked():
             self._on_af_per_position_toggled(True)
             self.af_per_position.setEnabled(True)
 
