@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import setTextIcon
+from superqt.fonticon import icon, setTextIcon
 from superqt.utils import signals_blocked
 
 if TYPE_CHECKING:
@@ -96,17 +96,17 @@ class MoveStageSpinBox(QDoubleSpinBox):
 
 
 class HaltButton(QPushButton):
-    def __init__(self, core: CMMCorePlus, parent: QWidget | None = None):
-        super().__init__("STOP!", parent=parent)
+    def __init__(self, device: str, core: CMMCorePlus, parent: QWidget | None = None):
+        super().__init__(parent=parent)
+        self._device = device
         self._core = core
-        self.setStyleSheet("color: red; font-weight: bold;")
+        self.setIcon(icon(MDI6.close_octagon, color=(255, 0, 0)))
+        self.setToolTip("Halt stage movement")
+        self.setText("STOP!")
         self.clicked.connect(self._on_clicked)
 
     def _on_clicked(self) -> None:
-        for stage in self._core.getLoadedDevicesOfType(DeviceType.Stage):
-            self._core.stop(stage)
-        for stage in self._core.getLoadedDevicesOfType(DeviceType.XYStage):
-            self._core.stop(stage)
+        self._core.stop(self._device)
 
 
 class StageMovementButtons(QWidget):
@@ -210,9 +210,12 @@ class StageWidget(QWidget):
         Stage device.
     levels: int | None:
         Number of "arrow" buttons per widget per direction, by default, 2.
+    absolute_positioning: bool | None
+        If True, the position displays can be edited to set absolute positions.
+        If False, the position displays cannot be edited.
     position_label_below: bool | None
-        If True, the position labels will appear below the move buttons.
-        If False, the position labels will appear to the right of the move buttons.
+        If True, the position displays will appear below the move buttons.
+        If False, the position displays will appear to the right of the move buttons.
     parent : QWidget | None
         Optional parent widget.
     mmcore : CMMCorePlus | None
@@ -229,6 +232,7 @@ class StageWidget(QWidget):
         device: str,
         levels: int = 2,
         *,
+        absolute_positioning: bool = False,
         position_label_below: bool = True,
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
@@ -256,16 +260,19 @@ class StageWidget(QWidget):
         if self._is_2axis:
             self._pos.addWidget(QLabel("X: "))
             self._x_pos = MoveStageSpinBox(label="X")
+            self._x_pos.setEnabled(absolute_positioning)
             self._pos.addWidget(self._x_pos)
             self._x_pos.editingFinished.connect(self._move_x_absolute)
 
         self._pos.addWidget(QLabel(f"{self._Ylabel}: "))
         self._y_pos = MoveStageSpinBox(label="Y")
         self._y_pos.editingFinished.connect(self._move_y_absolute)
+        self._y_pos.setEnabled(absolute_positioning)
         self._pos.addWidget(self._y_pos)
 
         self._pos.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        self._halt = HaltButton(device, self._mmc, self)
         self._poll_cb = QCheckBox("Poll")
         self.snap_checkbox = QCheckBox(text="Snap on Click")
         self._invert_x = QCheckBox(text="Invert X")
@@ -291,6 +298,7 @@ class StageWidget(QWidget):
         main_layout.setContentsMargins(5, 5, 5, 5)
         main_layout.addWidget(self._set_as_default_btn, 0, Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(self._move_btns, Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(self._halt)
         main_layout.addLayout(chxbox_grid)
 
         # pos label can appear either below or to the right of the move buttons

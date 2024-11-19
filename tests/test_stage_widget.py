@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     # test XY stage
-    stage_xy = StageWidget("XY", levels=3)
+    stage_xy = StageWidget("XY", levels=3, absolute_positioning=True)
     qtbot.addWidget(stage_xy)
 
     assert global_mmcore.getXYStageDevice() == "XY"
