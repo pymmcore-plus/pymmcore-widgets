@@ -260,14 +260,12 @@ class StageWidget(QWidget):
         if self._is_2axis:
             self._pos.addWidget(QLabel("X: "))
             self._x_pos = MoveStageSpinBox(label="X")
-            self._x_pos.setEnabled(absolute_positioning)
             self._pos.addWidget(self._x_pos)
             self._x_pos.editingFinished.connect(self._move_x_absolute)
 
         self._pos.addWidget(QLabel(f"{self._Ylabel}: "))
         self._y_pos = MoveStageSpinBox(label="Y")
         self._y_pos.editingFinished.connect(self._move_y_absolute)
-        self._y_pos.setEnabled(absolute_positioning)
         self._pos.addWidget(self._y_pos)
 
         self._pos.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -330,6 +328,7 @@ class StageWidget(QWidget):
         # INITIALIZATION ----------------------------------------
 
         self._update_position_from_core()
+        self.enable_absolute_positioning(absolute_positioning)
         self._set_as_default()
 
     def step(self) -> float:
@@ -339,6 +338,11 @@ class StageWidget(QWidget):
     def setStep(self, step: float) -> None:
         """Set the step size."""
         self._step.setValue(step)
+
+    def enable_absolute_positioning(self, enabled: bool) -> None:
+        if self._is_2axis:
+            self._x_pos.setEnabled(enabled)
+        self._y_pos.setEnabled(enabled)
 
     def _enable_wdg(self, enabled: bool) -> None:
         self._step.setEnabled(enabled)
