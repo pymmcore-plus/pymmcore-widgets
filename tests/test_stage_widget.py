@@ -73,6 +73,12 @@ def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     with qtbot.waitSignal(global_mmcore.events.imageSnapped):
         global_mmcore.waitForDevice("XY")
         xy_up_3.widget().click()
+    with qtbot.waitSignal(global_mmcore.events.imageSnapped):
+        stage_xy._x_pos.setValue(10)
+        stage_xy._x_pos.editingFinished.emit()
+    with qtbot.waitSignal(global_mmcore.events.imageSnapped):
+        stage_xy._y_pos.setValue(10)
+        stage_xy._y_pos.editingFinished.emit()
 
     # test Z stage
     stage_z = StageWidget("Z", levels=3)
@@ -123,6 +129,9 @@ def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     with qtbot.waitSignal(global_mmcore.events.imageSnapped):
         global_mmcore.waitForDevice("Z")
         z_up_2.widget().click()
+    with qtbot.waitSignal(global_mmcore.events.imageSnapped):
+        stage_xy._y_pos.setValue(10)
+        stage_xy._y_pos.editingFinished.emit()
 
     # disconnect
     assert global_mmcore.getFocusDevice() == "Z"
@@ -134,6 +143,50 @@ def test_stage_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     global_mmcore.setProperty("Core", "Focus", "Z1")
     assert stage_z._set_as_default_btn.isChecked()
     assert not stage_z1._set_as_default_btn.isChecked()
+
+
+def test_enable_position_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
+    # Absolute positioning disabled
+    stage_xy = StageWidget("XY", levels=3)
+    # Phase 1: position buttons cannot be enabled before the menu action is toggled
+    qtbot.addWidget(stage_xy)
+    assert not stage_xy._x_pos.isEnabled()
+    assert not stage_xy._y_pos.isEnabled()
+    stage_xy._enable_wdg(False)
+    assert not stage_xy._x_pos.isEnabled()
+    assert not stage_xy._y_pos.isEnabled()
+    stage_xy._enable_wdg(True)
+    assert not stage_xy._x_pos.isEnabled()
+    assert not stage_xy._y_pos.isEnabled()
+    # Phase 2: Trigger menu action, buttons can now be enabled
+    stage_xy._pos_toggle_action.trigger()
+    assert stage_xy._x_pos.isEnabled()
+    assert stage_xy._y_pos.isEnabled()
+    stage_xy._enable_wdg(False)
+    assert not stage_xy._x_pos.isEnabled()
+    assert not stage_xy._y_pos.isEnabled()
+    stage_xy._enable_wdg(True)
+    assert stage_xy._x_pos.isEnabled()
+    assert stage_xy._y_pos.isEnabled()
+    stage_xy._pos_toggle_action.trigger()
+    assert not stage_xy._x_pos.isEnabled()
+    assert not stage_xy._y_pos.isEnabled()
+    # Phase 3: Set absolute positioning using API
+    # Should be identical to Phase 2
+    stage_xy.enable_absolute_positioning(True)
+    assert stage_xy._pos_toggle_action.isChecked()
+    assert stage_xy._x_pos.isEnabled()
+    assert stage_xy._y_pos.isEnabled()
+    stage_xy._enable_wdg(False)
+    assert not stage_xy._x_pos.isEnabled()
+    assert not stage_xy._y_pos.isEnabled()
+    stage_xy._enable_wdg(True)
+    assert stage_xy._x_pos.isEnabled()
+    assert stage_xy._y_pos.isEnabled()
+    stage_xy.enable_absolute_positioning(False)
+    assert not stage_xy._pos_toggle_action.isChecked()
+    assert not stage_xy._x_pos.isEnabled()
+    assert not stage_xy._y_pos.isEnabled()
 
 
 def test_invert_axis(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
