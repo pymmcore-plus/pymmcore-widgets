@@ -5,13 +5,14 @@ from typing import TYPE_CHECKING, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType, Keyword
-from qtpy.QtCore import Qt, QTimerEvent, Signal
+from qtpy.QtCore import QEvent, QObject, QPoint, Qt, QTimerEvent, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
     QDoubleSpinBox,
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QMenu,
     QPushButton,
     QRadioButton,
     QSpinBox,
@@ -93,6 +94,28 @@ class MoveStageSpinBox(QDoubleSpinBox):
         self.setAttribute(Qt.WidgetAttribute.WA_MacShowFocusRect, 0)
         self.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # enable custom context menu handling for right-click events
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
+        self.installEventFilter(self)
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        # listen to right-click events even when the spinbox is disabled
+        if obj is self and event.type() == QEvent.Type.ContextMenu:
+            self._on_context_menu(event.globalPos())
+            return True
+        return super().eventFilter(obj, event)  # type: ignore [no-any-return]
+
+    def _on_context_menu(self, global_pos: QPoint) -> None:
+        menu = QMenu(self)
+        # update label based on the current state
+        label = "Disable Editing" if self.isEnabled() else "Enable Editing"
+        toggle_action = menu.addAction(label)
+        toggle_action.triggered.connect(self._toggle_enabled)
+        menu.exec(global_pos)
+
+    def _toggle_enabled(self) -> None:
+        self.setEnabled(not self.isEnabled())
 
 
 class HaltButton(QPushButton):
