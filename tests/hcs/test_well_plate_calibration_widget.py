@@ -2,7 +2,7 @@ import useq
 from pymmcore_plus import CMMCorePlus
 
 from pymmcore_widgets.hcs._plate_calibration_widget import PlateCalibrationWidget
-from pymmcore_widgets.useq_widgets._well_plate_widget import DATA_POSITION
+from useq_widgets._well_plate_widget import DATA_POSITION
 
 
 def test_plate_calibration_value(global_mmcore: CMMCorePlus, qtbot) -> None:

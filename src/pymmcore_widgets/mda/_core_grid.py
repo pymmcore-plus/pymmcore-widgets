@@ -3,7 +3,7 @@ from __future__ import annotations
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QHBoxLayout, QWidget
 
-from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
+from useq_widgets._grid import GridPlanWidget
 
 from ._xy_bounds import CoreXYBoundsControl
 

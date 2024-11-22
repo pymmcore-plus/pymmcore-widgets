@@ -20,11 +20,11 @@ from superqt.utils import signals_blocked
 from useq import WellPlatePlan
 
 from pymmcore_widgets import HCSWizard
-from pymmcore_widgets.useq_widgets import PositionTable
-from pymmcore_widgets.useq_widgets._column_info import (
+from useq_widgets import PositionTable
+from useq_widgets._column_info import (
     ButtonColumn,
 )
-from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP
+from useq_widgets._positions import AF_DEFAULT_TOOLTIP
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

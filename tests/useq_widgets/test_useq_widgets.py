@@ -12,7 +12,7 @@ from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import QMessageBox
 
 import pymmcore_widgets
-from pymmcore_widgets.useq_widgets import (
+from useq_widgets import (
     PYMMCW_METADATA_KEY,
     ChannelTable,
     DataTableWidget,
@@ -24,13 +24,13 @@ from pymmcore_widgets.useq_widgets import (
     _grid,
     _z,
 )
-from pymmcore_widgets.useq_widgets._column_info import (
+from useq_widgets._column_info import (
     FloatColumn,
     QTimeLineEdit,
     TextColumn,
     parse_timedelta,
 )
-from pymmcore_widgets.useq_widgets._positions import MDAButton, QFileDialog, _MDAPopup
+from useq_widgets._positions import MDAButton, QFileDialog, _MDAPopup
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -138,7 +138,7 @@ def test_mda_wdg(qtbot: QtBot):
 def test_mda_wdg_load_save(
     qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str
 ) -> None:
-    from pymmcore_widgets.useq_widgets._mda_sequence import QFileDialog
+    from useq_widgets._mda_sequence import QFileDialog
 
     wdg = MDASequenceWidget()
     qtbot.addWidget(wdg)
@@ -453,7 +453,7 @@ def test_proper_checked_index(qtbot) -> None:
     """
     import useq
 
-    from pymmcore_widgets.useq_widgets._positions import _MDAPopup
+    from useq_widgets._positions import _MDAPopup
 
     seq = useq.MDASequence(grid_plan=useq.GridRowsColumns(rows=2, columns=3))
     pop = _MDAPopup(seq)

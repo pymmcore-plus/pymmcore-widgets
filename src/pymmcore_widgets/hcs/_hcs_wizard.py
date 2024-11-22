@@ -10,7 +10,7 @@ from qtpy.QtCore import QSize
 from qtpy.QtWidgets import QFileDialog, QVBoxLayout, QWidget, QWizard, QWizardPage
 from useq import WellPlatePlan
 
-from pymmcore_widgets.useq_widgets import PointsPlanWidget, WellPlateWidget
+from useq_widgets import PointsPlanWidget, WellPlateWidget
 
 from ._plate_calibration_widget import PlateCalibrationWidget
 

@@ -17,13 +17,13 @@ from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
 from pymmcore_widgets.mda._core_mda import CoreMDATabs
 from pymmcore_widgets.mda._core_positions import CoreConnectedPositionTable
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
-from pymmcore_widgets.useq_widgets._mda_sequence import (
+from useq_widgets._mda_sequence import (
     PYMMCW_METADATA_KEY,
     AutofocusAxis,
     KeepShutterOpen,
     QFileDialog,
 )
-from pymmcore_widgets.useq_widgets._positions import AF_DEFAULT_TOOLTIP, _MDAPopup
+from useq_widgets._positions import AF_DEFAULT_TOOLTIP, _MDAPopup
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus

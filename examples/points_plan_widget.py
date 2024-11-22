@@ -1,7 +1,7 @@
 from qtpy.QtWidgets import QApplication
 from useq import RandomPoints
 
-from pymmcore_widgets.useq_widgets import PointsPlanWidget
+from useq_widgets import PointsPlanWidget
 
 app = QApplication([])
 

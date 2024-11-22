@@ -18,9 +18,9 @@ from superqt.fonticon import icon
 from useq import MDASequence, Position
 
 from pymmcore_widgets._util import get_next_available_path
-from pymmcore_widgets.useq_widgets import MDASequenceWidget
-from pymmcore_widgets.useq_widgets._mda_sequence import PYMMCW_METADATA_KEY, MDATabs
-from pymmcore_widgets.useq_widgets._time import TimePlanWidget
+from useq_widgets import MDASequenceWidget
+from useq_widgets._mda_sequence import PYMMCW_METADATA_KEY, MDATabs
+from useq_widgets._time import TimePlanWidget
 
 from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget

@@ -8,7 +8,7 @@ import useq
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QMouseEvent
 
-from pymmcore_widgets.useq_widgets import WellPlateWidget
+from useq_widgets import WellPlateWidget
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot

@@ -3,7 +3,7 @@ from contextlib import suppress
 import useq
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets.useq_widgets import WellPlateWidget
+from useq_widgets import WellPlateWidget
 
 with suppress(ImportError):
     from rich import print
