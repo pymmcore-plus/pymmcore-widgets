@@ -5,12 +5,17 @@ from typing import TYPE_CHECKING, Literal
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 
-from useq_widgets._z import ROW_TOP_BOTTOM, Mode, ZPlanWidget
+from useq_widgets import ZMode, ZPlanWidget
 
 from ._xy_bounds import MarkVisit
 
 if TYPE_CHECKING:
     from qtpy.QtWidgets import QWidget
+
+
+# avoiding private import from useq_widgets... but could go out of sync
+# see if this can be derived better
+ROW_TOP_BOTTOM = 4
 
 
 class CoreConnectedZPlanWidget(ZPlanWidget):
@@ -51,11 +56,11 @@ class CoreConnectedZPlanWidget(ZPlanWidget):
 
     def setMode(
         self,
-        mode: Mode | Literal["top_bottom", "range_around", "above_below"],
+        mode: ZMode | Literal["top_bottom", "range_around", "above_below"],
     ) -> None:
         super().setMode(mode)
-        self.bottom_btn.setVisible(self._mode == Mode.TOP_BOTTOM)
-        self.top_btn.setVisible(self._mode == Mode.TOP_BOTTOM)
+        self.bottom_btn.setVisible(self._mode == ZMode.TOP_BOTTOM)
+        self.top_btn.setVisible(self._mode == ZMode.TOP_BOTTOM)
 
     def _mark_bottom(self) -> None:
         self.bottom.setValue(self._mmc.getZPosition())

@@ -355,15 +355,15 @@ def test_z_plan_widget(qtbot: QtBot) -> None:
 
     wdg.setMode("top_bottom")
 
-    assert wdg.mode() == _z.Mode.TOP_BOTTOM
+    assert wdg.mode() == _z.ZMode.TOP_BOTTOM
     assert wdg.top.isVisible()
     assert not wdg.above.isVisible()
     assert wdg._btn_top_bot.isChecked()
-    wdg.setMode(_z.Mode.RANGE_AROUND)
+    wdg.setMode(_z.ZMode.RANGE_AROUND)
     assert wdg.range.isVisible()
     assert not wdg.top.isVisible()
     assert wdg._btn_range.isChecked()
-    wdg.setMode(_z.Mode.ABOVE_BELOW)
+    wdg.setMode(_z.ZMode.ABOVE_BELOW)
     assert wdg.above.isVisible()
     assert not wdg.range.isVisible()
     assert wdg._button_above_below.isChecked()
@@ -533,7 +533,7 @@ def test_autofocus_with_z_plans(qtbot: QtBot) -> None:
     with patch.object(QMessageBox, "warning", _qmsgbox):
         wdg.tab_wdg.setChecked(wdg.z_plan, True)
 
-    assert wdg.z_plan.mode() == _z.Mode.TOP_BOTTOM
+    assert wdg.z_plan.mode() == _z.ZMode.TOP_BOTTOM
     assert not wdg.af_axis.isEnabled()
     assert not wdg.stage_positions.af_per_position.isEnabled()
     assert wdg.af_axis.value() == ()

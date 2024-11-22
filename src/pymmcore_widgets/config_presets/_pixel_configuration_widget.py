@@ -32,8 +32,7 @@ from pymmcore_widgets.device_properties._device_property_table import (
 )
 from pymmcore_widgets.device_properties._device_type_filter import DeviceTypeFilters
 from pymmcore_widgets.device_properties._property_widget import PropertyWidget
-from useq_widgets import DataTable, DataTableWidget
-from useq_widgets._column_info import FloatColumn, TextColumn
+from useq_widgets import DataTable, DataTableWidget, FloatColumn, TextColumn
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

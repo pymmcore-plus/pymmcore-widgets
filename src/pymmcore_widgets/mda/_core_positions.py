@@ -20,11 +20,7 @@ from superqt.utils import signals_blocked
 from useq import WellPlatePlan
 
 from pymmcore_widgets import HCSWizard
-from useq_widgets import PositionTable
-from useq_widgets._column_info import (
-    ButtonColumn,
-)
-from useq_widgets._positions import AF_DEFAULT_TOOLTIP
+from useq_widgets import ButtonColumn, PositionTable
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -33,6 +29,10 @@ if TYPE_CHECKING:
 
 UPDATE_POSITIONS = "Update Positions List"
 ADD_POSITIONS = "Add to Positions List"
+AF_DEFAULT_TOOLTIP = (
+    "If checked, the user can set a different Hardware Autofocus Offset for each "
+    "Position in the table."
+)
 
 
 class CoreConnectedPositionTable(PositionTable):

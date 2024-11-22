@@ -22,12 +22,13 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 
 import pymmcore_widgets
-from useq_widgets._channels import ChannelTable
-from useq_widgets._checkable_tabwidget_widget import CheckableTabWidget
-from useq_widgets._grid import GridPlanWidget
-from useq_widgets._positions import AF_DEFAULT_TOOLTIP, PositionTable
-from useq_widgets._time import TimePlanWidget
-from useq_widgets._z import Mode, ZPlanWidget
+
+from ._channels import ChannelTable
+from ._checkable_tabwidget_widget import CheckableTabWidget
+from ._grid import GridPlanWidget
+from ._positions import AF_DEFAULT_TOOLTIP, PositionTable
+from ._time import TimePlanWidget
+from ._z import ZMode, ZPlanWidget
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -524,7 +525,7 @@ class MDASequenceWidget(QWidget):
 
         If the Z Plan is set to TOP_BOTTOM, the autofocus plan cannot be used.
         """
-        if self.z_plan.mode() == Mode.TOP_BOTTOM:
+        if self.z_plan.mode() == ZMode.TOP_BOTTOM:
             self._use_af_per_pos = self.stage_positions.af_per_position.isChecked()
             self._enable_af(False, AF_DISABLED_TOOLTIP, AF_DISABLED_TOOLTIP)
             if self.af_axis.use_af_p.isChecked():

@@ -26,7 +26,7 @@ from pymmcore_widgets.hcs._well_calibration_widget import (
     GREEN,
     WellCalibrationWidget,
 )
-from useq_widgets._well_plate_widget import WellPlateView
+from useq_widgets import WellPlateView
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
