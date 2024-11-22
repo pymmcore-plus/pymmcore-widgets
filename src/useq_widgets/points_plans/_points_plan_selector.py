@@ -58,7 +58,7 @@ class _FovWidget(QDoubleSpinBox):
 class RelativePointPlanSelector(QWidget):
     """Widget to select a relative multi-position point plan.
 
-    See also: [PointsPlanWidget][pymmcore_widgets.useq_widgets.PointsPlanWidget]
+    See also: [PointsPlanWidget][useq_widgets.PointsPlanWidget]
     which combines this widget with a graphical representation of the points.
 
     In useq, a RelativeMultiPointPlan is one of:

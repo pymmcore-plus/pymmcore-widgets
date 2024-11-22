@@ -25,7 +25,7 @@ from superqt.utils import signals_blocked
 from pymmcore_widgets._util import SeparatorWidget
 
 
-class Mode(enum.Enum):
+class ZMode(enum.Enum):
     """Recognized ZPlanWidget modes."""
 
     TOP_BOTTOM = "top_bottom"
@@ -62,7 +62,7 @@ class ZPlanWidget(QWidget):
         # to store a "suggested" step size
         self._suggested: float | None = None
 
-        self._mode: Mode = Mode.TOP_BOTTOM
+        self._mode: ZMode = ZMode.TOP_BOTTOM
 
         # #################### Mode Buttons ####################
 
@@ -255,13 +255,13 @@ class ZPlanWidget(QWidget):
 
         # #################### Defaults ####################
 
-        self.setMode(Mode.TOP_BOTTOM)
+        self.setMode(ZMode.TOP_BOTTOM)
 
     # ------------------------- Public API -------------------------
 
     def setMode(
         self,
-        mode: Mode | Literal["top_bottom", "range_around", "above_below"],
+        mode: ZMode | Literal["top_bottom", "range_around", "above_below"],
     ) -> None:
         """Set the current mode.
 
@@ -274,32 +274,32 @@ class ZPlanWidget(QWidget):
             If None, the mode is determined by the sender().data(), for internal usage.
         """
         if isinstance(mode, QRadioButton):
-            btn_map: dict[QAbstractButton, Mode] = {
-                self._btn_top_bot: Mode.TOP_BOTTOM,
-                self._btn_range: Mode.RANGE_AROUND,
-                self._button_above_below: Mode.ABOVE_BELOW,
+            btn_map: dict[QAbstractButton, ZMode] = {
+                self._btn_top_bot: ZMode.TOP_BOTTOM,
+                self._btn_range: ZMode.RANGE_AROUND,
+                self._button_above_below: ZMode.ABOVE_BELOW,
             }
             self._mode = btn_map[mode]
         elif isinstance(mode, str):
-            self._mode = Mode(mode)
+            self._mode = ZMode(mode)
         else:
             self._mode = mode
 
-        if self._mode is Mode.TOP_BOTTOM:
+        if self._mode is ZMode.TOP_BOTTOM:
             with signals_blocked(self._mode_btn_group):
                 self._btn_top_bot.setChecked(True)
             self._set_row_visible(ROW_RANGE_AROUND, False)
             self._set_row_visible(ROW_ABOVE_BELOW, False)
             self._set_row_visible(ROW_TOP_BOTTOM, True)
 
-        elif self._mode is Mode.RANGE_AROUND:
+        elif self._mode is ZMode.RANGE_AROUND:
             with signals_blocked(self._mode_btn_group):
                 self._btn_range.setChecked(True)
             self._set_row_visible(ROW_TOP_BOTTOM, False)
             self._set_row_visible(ROW_ABOVE_BELOW, False)
             self._set_row_visible(ROW_RANGE_AROUND, True)
 
-        elif self._mode is Mode.ABOVE_BELOW:
+        elif self._mode is ZMode.ABOVE_BELOW:
             with signals_blocked(self._mode_btn_group):
                 self._button_above_below.setChecked(True)
             self._set_row_visible(ROW_RANGE_AROUND, False)
@@ -308,7 +308,7 @@ class ZPlanWidget(QWidget):
 
         self._on_change()
 
-    def mode(self) -> Mode:
+    def mode(self) -> ZMode:
         """Return the current mode.
 
         One of "top_bottom", "range_around", or "above_below".
@@ -347,15 +347,15 @@ class ZPlanWidget(QWidget):
             return None
 
         common = {"step": self.step.value(), "go_up": self._bottom_to_top.isChecked()}
-        if self._mode is Mode.TOP_BOTTOM:
+        if self._mode is ZMode.TOP_BOTTOM:
             return useq.ZTopBottom(
                 top=round(self.top.value(), 4),
                 bottom=round(self.bottom.value(), 4),
                 **common,
             )
-        elif self._mode is Mode.RANGE_AROUND:
+        elif self._mode is ZMode.RANGE_AROUND:
             return useq.ZRangeAround(range=round(self.range.value(), 4), **common)
-        elif self._mode is Mode.ABOVE_BELOW:
+        elif self._mode is ZMode.ABOVE_BELOW:
             return useq.ZAboveBelow(
                 above=round(self.above.value(), 4),
                 below=round(self.below.value(), 4),
@@ -377,14 +377,14 @@ class ZPlanWidget(QWidget):
         if isinstance(value, useq.ZTopBottom):
             self.top.setValue(value.top)
             self.bottom.setValue(value.bottom)
-            self.setMode(Mode.TOP_BOTTOM)
+            self.setMode(ZMode.TOP_BOTTOM)
         elif isinstance(value, useq.ZRangeAround):
             self.range.setValue(value.range)
-            self.setMode(Mode.RANGE_AROUND)
+            self.setMode(ZMode.RANGE_AROUND)
         elif isinstance(value, useq.ZAboveBelow):
             self.above.setValue(value.above)
             self.below.setValue(value.below)
-            self.setMode(Mode.ABOVE_BELOW)
+            self.setMode(ZMode.ABOVE_BELOW)
         else:
             raise TypeError(f"Invalid value type: {type(value)}")
 
@@ -402,14 +402,14 @@ class ZPlanWidget(QWidget):
 
     def currentZRange(self) -> float:
         """Return the current Z range in microns."""
-        if self._mode is Mode.TOP_BOTTOM:
+        if self._mode is ZMode.TOP_BOTTOM:
             return abs(self.top.value() - self.bottom.value())  # type: ignore
-        elif self._mode is Mode.RANGE_AROUND:
+        elif self._mode is ZMode.RANGE_AROUND:
             return self.range.value()  # type: ignore
         else:  # _Mode.ABOVE_BELOW
             return self.above.value() + self.below.value()  # type: ignore
 
-    Mode: Final[type[Mode]] = Mode
+    Mode: Final[type[ZMode]] = ZMode
 
     # ------------------------- Private API -------------------------
 

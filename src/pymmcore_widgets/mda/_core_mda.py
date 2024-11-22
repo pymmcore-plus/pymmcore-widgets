@@ -18,16 +18,17 @@ from superqt.fonticon import icon
 from useq import MDASequence, Position
 
 from pymmcore_widgets._util import get_next_available_path
-from pymmcore_widgets.useq_widgets import MDASequenceWidget
-from pymmcore_widgets.useq_widgets._mda_sequence import (
-    AF_AXIS_TOOLTIP,
-    AF_DISABLED_TOOLTIP,
+from useq_widgets import (
     PYMMCW_METADATA_KEY,
+    MDASequenceWidget,
     MDATabs,
+    TimePlanWidget,
+    ZMode,
 )
-from pymmcore_widgets.useq_widgets._positions import AF_PER_POS_TOOLTIP
-from pymmcore_widgets.useq_widgets._time import TimePlanWidget
-from pymmcore_widgets.useq_widgets._z import Mode
+
+# FIXME: private imports
+from useq_widgets._mda_sequence import AF_AXIS_TOOLTIP, AF_DISABLED_TOOLTIP
+from useq_widgets._positions import AF_PER_POS_TOOLTIP
 
 from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
@@ -327,7 +328,7 @@ class MDAWidget(MDASequenceWidget):
         # the disabled tooltip
         if (
             self.tab_wdg.isChecked(self.z_plan)
-            and self.z_plan.mode() == Mode.TOP_BOTTOM
+            and self.z_plan.mode() == ZMode.TOP_BOTTOM
             and self._mmc.getAutoFocusDevice()
         ):
             return AF_DISABLED_TOOLTIP
@@ -348,7 +349,7 @@ class MDAWidget(MDASequenceWidget):
         return (
             None
             if self.tab_wdg.isChecked(self.z_plan)
-            and self.z_plan.mode() == Mode.TOP_BOTTOM
+            and self.z_plan.mode() == ZMode.TOP_BOTTOM
             else self._mmc.getAutoFocusDevice()
         )
 

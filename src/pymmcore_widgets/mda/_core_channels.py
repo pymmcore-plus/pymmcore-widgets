@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
 
-from pymmcore_widgets.useq_widgets import ChannelTable
+from useq_widgets import ChannelTable
 
 if TYPE_CHECKING:
     from qtpy.QtWidgets import QWidget

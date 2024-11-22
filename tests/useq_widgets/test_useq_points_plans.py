@@ -10,12 +10,12 @@ from qtpy.QtGui import QMouseEvent
 from qtpy.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsRectItem
 from useq import GridRowsColumns, OrderMode, RandomPoints, RelativePosition, Shape
 
-from pymmcore_widgets.useq_widgets import points_plans as pp
+from useq_widgets import points_plans as pp
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
-    from pymmcore_widgets.useq_widgets.points_plans._well_graphics_view import WellView
+    from useq_widgets.points_plans._well_graphics_view import WellView
 
 RANDOM_POINTS = RandomPoints(
     num_points=5,

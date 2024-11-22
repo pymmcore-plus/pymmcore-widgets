@@ -20,11 +20,7 @@ from superqt.utils import signals_blocked
 from useq import WellPlatePlan
 
 from pymmcore_widgets import HCSWizard
-from pymmcore_widgets.useq_widgets import PositionTable
-from pymmcore_widgets.useq_widgets._column_info import (
-    ButtonColumn,
-)
-from pymmcore_widgets.useq_widgets._positions import AF_PER_POS_TOOLTIP
+from useq_widgets import ButtonColumn, PositionTable
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -33,6 +29,14 @@ if TYPE_CHECKING:
 
 UPDATE_POSITIONS = "Update Positions List"
 ADD_POSITIONS = "Add to Positions List"
+AF_PER_POS_TOOLTIP = (
+    "If checked, the user can set a different Hardware Autofocus Offset for each "
+    "Position in the table."
+)
+AF_DEFAULT_TOOLTIP = (
+    "If checked, the user can set a different Hardware Autofocus Offset for each "
+    "Position in the table."
+)
 AF_UNAVAILABLE = "AutoFocus device unavailable."
 
 

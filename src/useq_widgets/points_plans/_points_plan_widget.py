@@ -4,7 +4,7 @@ import useq
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QHBoxLayout, QWidget
 
-from pymmcore_widgets.useq_widgets.points_plans import RelativePointPlanSelector
+from useq_widgets.points_plans import RelativePointPlanSelector
 
 from ._well_graphics_view import WellView
 

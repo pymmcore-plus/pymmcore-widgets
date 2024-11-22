@@ -20,7 +20,7 @@ from pymmcore_widgets.mda._core_positions import (
     CoreConnectedPositionTable,
 )
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
-from pymmcore_widgets.useq_widgets._mda_sequence import (
+from useq_widgets._mda_sequence import (
     AF_AXIS_TOOLTIP,
     AF_DISABLED_TOOLTIP,
     PYMMCW_METADATA_KEY,
@@ -28,7 +28,7 @@ from pymmcore_widgets.useq_widgets._mda_sequence import (
     KeepShutterOpen,
     QFileDialog,
 )
-from pymmcore_widgets.useq_widgets._positions import AF_PER_POS_TOOLTIP, _MDAPopup
+from useq_widgets._positions import AF_PER_POS_TOOLTIP, _MDAPopup
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus

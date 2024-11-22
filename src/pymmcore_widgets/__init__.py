@@ -43,6 +43,15 @@ __all__ = [
     "ZPlanWidget",
 ]
 
+from useq_widgets import (
+    ChannelTable,
+    GridPlanWidget,
+    MDASequenceWidget,
+    PositionTable,
+    TimePlanWidget,
+    ZPlanWidget,
+)
+
 from ._install_widget import InstallWidget
 from .config_presets import (
     GroupPresetTableWidget,
@@ -67,14 +76,6 @@ from .device_properties import PropertiesWidget, PropertyBrowser, PropertyWidget
 from .hcs import HCSWizard
 from .hcwizard import ConfigWizard
 from .mda import MDAWidget
-from .useq_widgets import (
-    ChannelTable,
-    GridPlanWidget,
-    MDASequenceWidget,
-    PositionTable,
-    TimePlanWidget,
-    ZPlanWidget,
-)
 from .views import ImagePreview
 
 if TYPE_CHECKING:

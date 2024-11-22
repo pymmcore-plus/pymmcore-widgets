@@ -12,7 +12,7 @@ from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import QMessageBox
 
 import pymmcore_widgets
-from pymmcore_widgets.useq_widgets import (
+from useq_widgets import (
     PYMMCW_METADATA_KEY,
     ChannelTable,
     DataTableWidget,
@@ -24,13 +24,13 @@ from pymmcore_widgets.useq_widgets import (
     _grid,
     _z,
 )
-from pymmcore_widgets.useq_widgets._column_info import (
+from useq_widgets._column_info import (
     FloatColumn,
     QTimeLineEdit,
     TextColumn,
     parse_timedelta,
 )
-from pymmcore_widgets.useq_widgets._positions import MDAButton, QFileDialog, _MDAPopup
+from useq_widgets._positions import MDAButton, QFileDialog, _MDAPopup
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -138,7 +138,7 @@ def test_mda_wdg(qtbot: QtBot):
 def test_mda_wdg_load_save(
     qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str
 ) -> None:
-    from pymmcore_widgets.useq_widgets._mda_sequence import QFileDialog
+    from useq_widgets._mda_sequence import QFileDialog
 
     wdg = MDASequenceWidget()
     qtbot.addWidget(wdg)
@@ -355,15 +355,15 @@ def test_z_plan_widget(qtbot: QtBot) -> None:
 
     wdg.setMode("top_bottom")
 
-    assert wdg.mode() == _z.Mode.TOP_BOTTOM
+    assert wdg.mode() == _z.ZMode.TOP_BOTTOM
     assert wdg.top.isVisible()
     assert not wdg.above.isVisible()
     assert wdg._btn_top_bot.isChecked()
-    wdg.setMode(_z.Mode.RANGE_AROUND)
+    wdg.setMode(_z.ZMode.RANGE_AROUND)
     assert wdg.range.isVisible()
     assert not wdg.top.isVisible()
     assert wdg._btn_range.isChecked()
-    wdg.setMode(_z.Mode.ABOVE_BELOW)
+    wdg.setMode(_z.ZMode.ABOVE_BELOW)
     assert wdg.above.isVisible()
     assert not wdg.range.isVisible()
     assert wdg._button_above_below.isChecked()
@@ -453,7 +453,7 @@ def test_proper_checked_index(qtbot) -> None:
     """
     import useq
 
-    from pymmcore_widgets.useq_widgets._positions import _MDAPopup
+    from useq_widgets._positions import _MDAPopup
 
     seq = useq.MDASequence(grid_plan=useq.GridRowsColumns(rows=2, columns=3))
     pop = _MDAPopup(seq)
@@ -533,7 +533,7 @@ def test_autofocus_with_z_plans(qtbot: QtBot) -> None:
     with patch.object(QMessageBox, "warning", _qmsgbox):
         wdg.tab_wdg.setChecked(wdg.z_plan, True)
 
-    assert wdg.z_plan.mode() == _z.Mode.TOP_BOTTOM
+    assert wdg.z_plan.mode() == _z.ZMode.TOP_BOTTOM
     assert not wdg.af_axis.isEnabled()
     assert not wdg.stage_positions.af_per_position.isEnabled()
     assert wdg.af_axis.value() == ()
