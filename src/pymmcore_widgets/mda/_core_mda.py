@@ -19,14 +19,38 @@ from useq import MDASequence, Position
 
 from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
-from pymmcore_widgets.useq_widgets._mda_sequence import PYMMCW_METADATA_KEY, MDATabs
+from pymmcore_widgets.useq_widgets._mda_sequence import (
+    AF_AXIS_TOOLTIP,
+    AF_DISABLED_TOOLTIP,
+    PYMMCW_METADATA_KEY,
+    MDATabs,
+)
+from pymmcore_widgets.useq_widgets._positions import AF_PER_POS_TOOLTIP
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
+from pymmcore_widgets.useq_widgets._z import Mode
 
 from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
-from ._core_positions import CoreConnectedPositionTable
+from ._core_positions import AF_UNAVAILABLE, CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
 from ._save_widget import SaveGroupBox
+
+
+class _CoreConnectedPositionTable(CoreConnectedPositionTable):
+    def __init__(
+        self,
+        rows: int = 0,
+        mmcore: CMMCorePlus | None = None,
+        parent: QWidget | None = None,
+    ):
+        super().__init__(rows, mmcore, parent)
+
+        # subclassing to disconnect the signals from this widget so we use the ones
+        # we will implement in the MDAWidget that take into account both the autofocus
+        # device mand the z plan
+        ev = self._mmc.events
+        ev.systemConfigurationLoaded.disconnect(self._on_sys_config_loaded)
+        ev.propertyChanged.disconnect(self._on_property_changed)
 
 
 class CoreMDATabs(MDATabs):
@@ -38,7 +62,7 @@ class CoreMDATabs(MDATabs):
 
     def create_subwidgets(self) -> None:
         self.time_plan = TimePlanWidget(1)
-        self.stage_positions = CoreConnectedPositionTable(1, self._mmc)
+        self.stage_positions = _CoreConnectedPositionTable(1, self._mmc)
         self.z_plan = CoreConnectedZPlanWidget(self._mmc)
         self.grid_plan = CoreConnectedGridPlanWidget(self._mmc)
         self.channels = CoreConnectedChannelTable(1, self._mmc)
@@ -108,6 +132,7 @@ class MDAWidget(MDASequenceWidget):
         self._mmc.mda.events.sequenceStarted.connect(self._on_mda_started)
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
+        self._mmc.events.propertyChanged.connect(self._on_property_changed)
 
         self.destroyed.connect(self._disconnect)
 
@@ -226,7 +251,7 @@ class MDAWidget(MDASequenceWidget):
         if (
             self.af_axis.value()
             and not self._mmc.isContinuousFocusLocked()
-            and (not self.tab_wdg.isChecked(pos) or not pos.af_per_position.isChecked())
+            and (not self.tab_wdg.isChecked(pos) or not self._use_af_per_position())
             and not self._confirm_af_intentions()
         ):
             return False
@@ -254,8 +279,78 @@ class MDAWidget(MDASequenceWidget):
     # ------------------- private Methods ----------------------
 
     def _on_sys_config_loaded(self) -> None:
+        self.stage_positions._update_xy_enablement()
+        self.stage_positions._update_z_enablement()
+        self._update_autofocus_enablement()
         # TODO: connect objective change event to update suggested step
         self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
+
+    def _on_property_changed(self, device: str, prop: str, _val: str = "") -> None:
+        if device != "Core":
+            return
+
+        props = {
+            "XYStage": self.stage_positions._update_xy_enablement,
+            "Focus": self.stage_positions._update_z_enablement,
+            "AutoFocus": self._update_autofocus_enablement,
+        }
+        if prop in props:
+            props[prop]()
+            self.valueChanged.emit()
+
+    def _update_autofocus_enablement(self) -> None:
+        """Enable or disable the autofocus widgets.
+
+        Enable af_axis and af_per_position only if there is an autofocus device and no
+        absolute z plan is selected.
+        """
+        # get the autofocus device
+        af_device = self._get_autofocus_device()
+
+        # update the autofocus axis widget
+        self.af_axis.setEnabled(bool(af_device))
+        self.af_axis.setToolTip(self._get_tooltip(self.af_axis))
+
+        # update the autofocus per position widget
+        self.stage_positions.af_per_position.setEnabled(bool(af_device))
+        # set tooltip af_per_position
+        self.stage_positions.af_per_position.setToolTip(
+            self._get_tooltip(self.stage_positions.af_per_position)
+        )
+
+    def _get_tooltip(self, wdg: QWidget) -> str:
+        """Return the tooltip for the autofocus widgets."""
+        # if there is no autofocus device, return the unavailable tooltip
+        if not self._mmc.getAutoFocusDevice():
+            return AF_UNAVAILABLE
+        # if autofocus device is available, but the z plan is in absolute mode, return
+        # the disabled tooltip
+        if (
+            self.tab_wdg.isChecked(self.z_plan)
+            and self.z_plan.mode() == Mode.TOP_BOTTOM
+            and self._mmc.getAutoFocusDevice()
+        ):
+            return AF_DISABLED_TOOLTIP
+        # if the widget is the autofocus axis, return the autofocus axis tooltip
+        if wdg is self.af_axis:
+            return AF_AXIS_TOOLTIP
+        # if the widget is the autofocus per position, return the autofocus per position
+        if wdg is self.stage_positions.af_per_position:
+            return AF_PER_POS_TOOLTIP
+        return ""
+
+    def _get_autofocus_device(self) -> str | None:
+        """Return the autofocus device if available.
+
+        If there is also a z plan selected, the Autofocus device is only available if
+        the z plan is not in absolute mode.
+        """
+        return (
+            None
+            if self.tab_wdg.isChecked(self.z_plan)
+            and self.z_plan.mode() == Mode.TOP_BOTTOM
+            else self._mmc.getAutoFocusDevice()
+        )
 
     def _get_current_stage_position(self) -> Position:
         """Return the current stage position."""
@@ -342,13 +437,17 @@ class MDAWidget(MDASequenceWidget):
         with suppress(Exception):
             self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
             self._mmc.mda.events.sequenceFinished.disconnect(self._on_mda_finished)
+        self._mmc.events.systemConfigurationLoaded.disconnect(
+            self._on_sys_config_loaded
+        )
+        self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
 
-    def _enable_af(self, state: bool, tooltip1: str, tooltip2: str) -> None:
+    def _enable_af(self, state: bool) -> None:
         """Override the autofocus enablement to account for the autofocus device."""
         if not self._mmc.getAutoFocusDevice():
-            self.stage_positions._update_autofocus_enablement()
+            self._update_autofocus_enablement()
             return
-        return super()._enable_af(state, tooltip1, tooltip2)
+        return super()._enable_af(state)
 
 
 class _MDAControlButtons(QWidget):

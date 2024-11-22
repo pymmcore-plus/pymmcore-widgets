@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
 NULL_SEQUENCE = useq.MDASequence()
 MAX = 9999999
-AF_DEFAULT_TOOLTIP = (
+AF_PER_POS_TOOLTIP = (
     "If checked, the user can set a different Hardware Autofocus Offset for each "
     "Position in the table."
 )
@@ -172,7 +172,7 @@ class PositionTable(DataTableWidget):
         self.include_z.toggled.connect(self._on_include_z_toggled)
 
         self.af_per_position = QCheckBox("Set AF Offset per Position")
-        self.af_per_position.setToolTip(AF_DEFAULT_TOOLTIP)
+        self.af_per_position.setToolTip(AF_PER_POS_TOOLTIP)
         self.af_per_position.toggled.connect(self._on_af_per_position_toggled)
         self._on_af_per_position_toggled(self.af_per_position.isChecked())
 
@@ -224,7 +224,7 @@ class PositionTable(DataTableWidget):
             if not r.get(self.NAME.key, True):
                 r.pop(self.NAME.key, None)
 
-            if self.af_per_position.isChecked():
+            if self.af_per_position.isChecked() and self.af_per_position.isEnabled():
                 af_offset = r.get(self.AF.key, None)
                 if af_offset is not None:
                     # get the current sub-sequence as dict or create a new one
