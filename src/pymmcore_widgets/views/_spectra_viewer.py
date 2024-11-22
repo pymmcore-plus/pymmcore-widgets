@@ -1,7 +1,7 @@
+from fpbase import get_filter, get_fluorophore, models
 from vispy import scene
 
 from pymmcore_widgets._vispy_plot import PlotWidget
-from pymmcore_widgets.fpbase import Spectrum, get_filter, get_fluorophore
 
 
 class SpectraViewer:
@@ -18,9 +18,9 @@ class SpectraViewer:
         self.view.add_widget(self.plot)
 
     def add_spectrum(self, name: str) -> None:
-        spectra: list[tuple[Spectrum, str]] = []
+        spectra: list[tuple[models.Spectrum, str]] = []
         try:
-            spectra.append((get_filter(name), "#AAAAAA"))
+            spectra.append((get_filter(name).spectrum, "#AAAAAA"))
         except ValueError:
             fluor = get_fluorophore(name)
             for state in fluor.states:
