@@ -1,24 +1,30 @@
 from __future__ import annotations
 
 from itertools import product
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType, Keyword
-from qtpy.QtCore import Qt, QTimerEvent, Signal
+from qtpy.QtCore import QEvent, QObject, Qt, QTimerEvent, Signal
+from qtpy.QtGui import QContextMenuEvent
 from qtpy.QtWidgets import (
     QCheckBox,
     QDoubleSpinBox,
     QGridLayout,
+    QHBoxLayout,
     QLabel,
+    QMenu,
     QPushButton,
     QRadioButton,
     QSpinBox,
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import setTextIcon
+from superqt.fonticon import icon, setTextIcon
 from superqt.utils import signals_blocked
+
+if TYPE_CHECKING:
+    from typing import Any
 
 CORE = Keyword.CoreDevice
 XY_STAGE = Keyword.CoreXYStage
@@ -69,18 +75,43 @@ class MoveStageButton(QPushButton):
         )
 
 
+class MoveStageSpinBox(QDoubleSpinBox):
+    """Common behavior for SpinBoxes that move stages."""
+
+    def __init__(
+        self,
+        label: str,
+        minimum: float = -99999,
+        maximum: float = 99999,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.setToolTip(f"Set {label} in µm")
+        self.setSuffix(" µm")
+        self.setMinimum(minimum)
+        self.setMaximum(maximum)
+        self.setDecimals(1)
+        self.setAttribute(Qt.WidgetAttribute.WA_MacShowFocusRect, 0)
+        self.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # enable custom context menu handling for right-click events
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
+
+
 class HaltButton(QPushButton):
-    def __init__(self, core: CMMCorePlus, parent: QWidget | None = None):
-        super().__init__("STOP!", parent=parent)
+    def __init__(self, device: str, core: CMMCorePlus, parent: QWidget | None = None):
+        super().__init__(parent=parent)
+        self._device = device
         self._core = core
-        self.setStyleSheet("color: red; font-weight: bold;")
+        self.setIcon(icon(MDI6.close_octagon, color=(255, 0, 0)))
+        self.setToolTip("Halt stage movement")
+        self.setText("STOP!")
         self.clicked.connect(self._on_clicked)
 
     def _on_clicked(self) -> None:
-        for stage in self._core.getLoadedDevicesOfType(DeviceType.Stage):
-            self._core.stop(stage)
-        for stage in self._core.getLoadedDevicesOfType(DeviceType.XYStage):
-            self._core.stop(stage)
+        self._core.stop(self._device)
 
 
 class StageMovementButtons(QWidget):
@@ -109,15 +140,8 @@ class StageMovementButtons(QWidget):
             btn_grid.addWidget(btn, row, col, Qt.AlignmentFlag.AlignCenter)
 
         # step size spinbox in the middle of the move buttons
-        self.step_size = QDoubleSpinBox()
-        self.step_size.setSuffix(" µm")
-        self.step_size.setDecimals(1)
-        self.step_size.setToolTip("Set step size in µm")
+        self.step_size = MoveStageSpinBox(label="step size", minimum=0)
         self.step_size.setValue(10)
-        self.step_size.setMaximum(99999)
-        self.step_size.setAttribute(Qt.WidgetAttribute.WA_MacShowFocusRect, 0)
-        self.step_size.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
-        self.step_size.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.step_size.valueChanged.connect(self._update_tooltips)
 
         btn_grid.addWidget(self.step_size, 3, 3, Qt.AlignmentFlag.AlignCenter)
@@ -191,9 +215,12 @@ class StageWidget(QWidget):
         Stage device.
     levels: int | None:
         Number of "arrow" buttons per widget per direction, by default, 2.
+    absolute_positioning: bool | None
+        If True, the position displays can be edited to set absolute positions.
+        If False, the position displays cannot be edited.
     position_label_below: bool | None
-        If True, the position labels will appear below the move buttons.
-        If False, the position labels will appear to the right of the move buttons.
+        If True, the position displays will appear below the move buttons.
+        If False, the position displays will appear to the right of the move buttons.
     parent : QWidget | None
         Optional parent widget.
     mmcore : CMMCorePlus | None
@@ -210,6 +237,7 @@ class StageWidget(QWidget):
         device: str,
         levels: int = 2,
         *,
+        absolute_positioning: bool = False,
         position_label_below: bool = True,
         parent: QWidget | None = None,
         mmcore: CMMCorePlus | None = None,
@@ -233,9 +261,32 @@ class StageWidget(QWidget):
         self._move_btns = StageMovementButtons(self._levels, self._is_2axis)
         self._step = self._move_btns.step_size
 
-        self._pos_label = QLabel()
-        self._pos_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._pos = QHBoxLayout()
+        self._pos_boxes: list[MoveStageSpinBox] = []
+        self._pos_menu = QMenu(self)
+        self._pos_toggle_action = self._pos_menu.addAction("Enable Editing")
+        self._pos_toggle_action.setCheckable(True)
+        self._pos_toggle_action.setChecked(absolute_positioning)
+        self._pos_toggle_action.triggered.connect(self.enable_absolute_positioning)
 
+        if self._is_2axis:
+            self._pos.addWidget(QLabel("X: "))
+            self._x_pos = MoveStageSpinBox(label="X")
+            self._pos_boxes.append(self._x_pos)
+            self._pos.addWidget(self._x_pos)
+            self._x_pos.editingFinished.connect(self._move_x_absolute)
+
+        self._pos.addWidget(QLabel(f"{self._Ylabel}: "))
+        self._y_pos = MoveStageSpinBox(label="Y")
+        self._pos_boxes.append(self._y_pos)
+        self._y_pos.editingFinished.connect(self._move_y_absolute)
+        self._pos.addWidget(self._y_pos)
+
+        for box in self._pos_boxes:
+            box.installEventFilter(self)
+        self._pos.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._halt = HaltButton(device, self._mmc, self)
         self._poll_cb = QCheckBox("Poll")
         self.snap_checkbox = QCheckBox(text="Snap on Click")
         self._invert_x = QCheckBox(text="Invert X")
@@ -261,15 +312,16 @@ class StageWidget(QWidget):
         main_layout.setContentsMargins(5, 5, 5, 5)
         main_layout.addWidget(self._set_as_default_btn, 0, Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(self._move_btns, Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(self._halt)
         main_layout.addLayout(chxbox_grid)
 
         # pos label can appear either below or to the right of the move buttons
         if position_label_below:
-            main_layout.insertWidget(2, self._pos_label)
+            main_layout.insertLayout(2, self._pos)
         else:
             move_btns_layout = cast("QGridLayout", self._move_btns.layout())
             move_btns_layout.addLayout(
-                self._pos_label, 4, 4, 2, 2, Qt.AlignmentFlag.AlignBottom
+                self._pos, 4, 4, 2, 2, Qt.AlignmentFlag.AlignBottom
             )
 
         if not self._is_2axis:
@@ -292,6 +344,7 @@ class StageWidget(QWidget):
         # INITIALIZATION ----------------------------------------
 
         self._update_position_from_core()
+        self.enable_absolute_positioning(absolute_positioning)
         self._set_as_default()
 
     def step(self) -> float:
@@ -302,9 +355,24 @@ class StageWidget(QWidget):
         """Set the step size."""
         self._step.setValue(step)
 
+    def enable_absolute_positioning(self, enabled: bool) -> None:
+        """Toggles whether the position spinboxes can be edited by the user.
+
+        Parameters
+        ----------
+        enabled: bool:
+            If True, the position spinboxes will be enabled for user editing.
+            If False, the position spinboxes will be disabled for user editing.
+        """
+        self._pos_toggle_action.setChecked(enabled)
+        for box in self._pos_boxes:
+            box.setEnabled(enabled)
+
     def _enable_wdg(self, enabled: bool) -> None:
         self._step.setEnabled(enabled)
         self._move_btns.setEnabled(enabled)
+        for box in self._pos_boxes:
+            box.setEnabled(enabled and self._pos_toggle_action.isChecked())
         self.snap_checkbox.setEnabled(enabled)
         self._set_as_default_btn.setEnabled(enabled)
         self._poll_cb.setEnabled(enabled)
@@ -359,31 +427,66 @@ class StageWidget(QWidget):
             self._update_position_from_core()
         super().timerEvent(event)
 
+    def eventFilter(self, obj: QObject | None, event: QEvent | None) -> bool:
+        # NB QAbstractSpinBox has its own Context Menu handler, which conflicts
+        # with the one we want to generate. So we intercept the event here >:)
+        # See https://stackoverflow.com/a/71126504
+        if obj in self._pos_boxes and isinstance(event, QContextMenuEvent):
+            self._pos_menu.exec_(event.globalPos())
+            return True
+        return super().eventFilter(obj, event)  # type: ignore [no-any-return]
+
     def _update_position_from_core(self) -> None:
         if self._device not in self._mmc.getLoadedDevicesOfType(self._dtype):
             return
         if self._is_2axis:
             x, y = self._mmc.getXYPosition(self._device)
-            lbl = f"X: {x:.01f}  {self._Ylabel}: {y:.01f}"
+            self._x_pos.setValue(x)
+            self._y_pos.setValue(y)
         else:
-            lbl = f"{self._Ylabel}: {self._mmc.getPosition(self._device):.01f}"
-        self._pos_label.setText(lbl)
+            y = self._mmc.getPosition(self._device)
+            self._y_pos.setValue(y)
 
     def _on_move_requested(self, xmag: float, ymag: float) -> None:
         if self._invert_x.isChecked():
             xmag *= -1
         if self._invert_y.isChecked():
             ymag *= -1
-        self._move_stage(xmag, ymag)
+        self._move_stage_relative(xmag, ymag)
 
-    def _move_stage(self, x: float, y: float) -> None:
+    def _move_stage_relative(self, x: float, y: float) -> None:
         try:
             if self._is_2axis:
                 self._mmc.setRelativeXYPosition(self._device, x, y)
             else:
                 self._mmc.setRelativePosition(self._device, y)
         except Exception as e:
-            self._mmc.logMessage(f"Error moving stage: {e}")
+            self._mmc.logMessage(f"Error moving stage: {e}")  # pragma: no cover
+        else:
+            if self.snap_checkbox.isChecked():
+                self._mmc.snap()
+
+    def _move_x_absolute(self) -> None:
+        x = self._x_pos.value()
+        try:
+            y = self._mmc.getYPosition(self._device)
+            self._mmc.setXYPosition(self._device, x, y)
+        except Exception as e:
+            self._mmc.logMessage(f"Error moving stage: {e}")  # pragma: no cover
+        else:
+            if self.snap_checkbox.isChecked():
+                self._mmc.snap()
+
+    def _move_y_absolute(self) -> None:
+        y = self._y_pos.value()
+        try:
+            if self._is_2axis:
+                x = self._mmc.getXPosition(self._device)
+                self._mmc.setXYPosition(self._device, x, y)
+            else:
+                self._mmc.setPosition(self._device, y)
+        except Exception as e:
+            self._mmc.logMessage(f"Error moving stage: {e}")  # pragma: no cover
         else:
             if self.snap_checkbox.isChecked():
                 self._mmc.snap()

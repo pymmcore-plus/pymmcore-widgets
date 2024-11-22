@@ -7,7 +7,7 @@ from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus._logger import logger
 from pymmcore_plus._util import retry
-from qtpy.QtCore import Qt
+from qtpy.QtCore import QEvent, QObject, Qt
 from qtpy.QtWidgets import (
     QCheckBox,
     QMessageBox,
@@ -29,10 +29,15 @@ if TYPE_CHECKING:
 
 UPDATE_POSITIONS = "Update Positions List"
 ADD_POSITIONS = "Add to Positions List"
+AF_PER_POS_TOOLTIP = (
+    "If checked, the user can set a different Hardware Autofocus Offset for each "
+    "Position in the table."
+)
 AF_DEFAULT_TOOLTIP = (
     "If checked, the user can set a different Hardware Autofocus Offset for each "
     "Position in the table."
 )
+AF_UNAVAILABLE = "AutoFocus device unavailable."
 
 
 class CoreConnectedPositionTable(PositionTable):
@@ -63,6 +68,9 @@ class CoreConnectedPositionTable(PositionTable):
         )
         super().__init__(rows, parent)
         self._mmc = mmcore or CMMCorePlus.instance()
+
+        # add event filter for the af_per_position checkbox
+        self.af_per_position.installEventFilter(self)
 
         # -------------- HCS Wizard ----------------
         self._hcs_wizard: HCSWizard | None = None
@@ -138,8 +146,31 @@ class CoreConnectedPositionTable(PositionTable):
             value = tuple(value)
         super().setValue(value)
         self._update_z_enablement()
+        self._update_autofocus_enablement()
 
     # ----------------------- private methods -----------------------
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        if obj is self.af_per_position and event.type() == QEvent.Type.EnabledChange:
+            self._on_af_per_position_enabled_change()
+        return super().eventFilter(obj, event)  # type: ignore [no-any-return]
+
+    def _on_af_per_position_enabled_change(self) -> None:
+        """Hide or show the AF column based on the enabled state of af_per_position.
+
+        This is to keep the state of the checkbox when it is disabled. If for any
+        reason the checkbox should be disabled (e.g. autofocus device is not available)
+        but it was checked, we want to keep it checked but disabled (the super.value
+        method takes care of excluding the AF column from the returned value if the
+        checkbox is disabled but checked).
+        """
+        if not self.af_per_position.isEnabled():
+            # leave the checkbox checked but disable it
+            self.af_per_position.setEnabled(False)
+            self._on_af_per_position_toggled(False)
+        elif self.af_per_position.isChecked():
+            self._on_af_per_position_toggled(True)
+            self.af_per_position.setEnabled(True)
 
     def _show_hcs(self) -> None:
         """Show or raise the HCS wizard."""
@@ -288,14 +319,16 @@ class CoreConnectedPositionTable(PositionTable):
         self.include_z.setToolTip("" if z_device else "Focus device unavailable.")
 
     def _update_autofocus_enablement(self) -> None:
-        """Update the autofocus device combo box."""
+        """Update the autofocus per position checkbox state and tooltip."""
         af_device = self._mmc.getAutoFocusDevice()
         self.af_per_position.setEnabled(bool(af_device))
         # also hide the AF column if the autofocus device is not available
         if not af_device:
-            self.af_per_position.setChecked(False)
+            # not simply calling self.af_per_position.setChecked(False)
+            # because we want to keep the previous state of the checkbox
+            self._on_af_per_position_toggled(False)
         self.af_per_position.setToolTip(
-            AF_DEFAULT_TOOLTIP if af_device else "AutoFocus device unavailable."
+            AF_PER_POS_TOOLTIP if af_device else AF_UNAVAILABLE
         )
 
     def _add_row(self) -> None:
