@@ -89,11 +89,24 @@ class StageExplorer(QWidget):
 
         self.canvas.events.mouse_wheel.connect(self._on_mouse_wheel)
 
+    def reset(self):
+        """Reset the widget."""
+        self.clear_scene()
+        self._image_store = DataStore()
+        self._current_scale = 1
+        self._info_text = None
+        self._reset_view()
+
     def clear_scene(self) -> None:
         """Clear the scene."""
+        if self._info_text is not None:
+            self._info_text.parent = None
+
         for child in reversed(self.view.scene.children):
             if isinstance(child, Image):
                 child.parent = None
+
+        self._reset_view()
 
     def get_zoom(self) -> float:
         """Return the zoom level."""
@@ -109,7 +122,7 @@ class StageExplorer(QWidget):
         scale = self._current_scale
         txt = f"Zoom: {zoom:.2f}, Scale: {scale}"
 
-        # Create the text visual only once
+        # create the text visual only once
         self._info_text = scene.Text(
             txt,
             color="white",
@@ -123,27 +136,37 @@ class StageExplorer(QWidget):
 
     def _on_mouse_wheel(self, event: MouseEvent | None) -> None:
         """On mouse wheel events."""
-        pass
+        # if the zoom level has changed, update the scene accordingly (redraw images)
+        scale = self._get_scale_from_zoom()
+        if scale != self._current_scale:
+            self._current_scale = scale
+            self._update_scene_by_scale(scale)
+
+        self._draw_zoom_and_scale_info()
 
     def _reset_view(self) -> None:
         min_x, max_x = None, None
         min_y, max_y = None, None
-        for (x, y), img in self._image_store.store[self._current_scale].items():
-            shape = img.shape
-            if min_x is None or x < min_x:
-                min_x = x
-            if max_x is None or x > max_x:
-                max_x = x
-            if min_y is None or y < min_y:
-                min_y = y
-            if max_y is None or y > max_y:
-                max_y = y
-        if min_x is None or max_x is None or min_y is None or max_y is None:
-            return
-        imheight, imwidth = shape
-        x_range = (min_x - imwidth / 2, max_x + imwidth / 2)
-        y_range = (min_y - imheight / 2, max_y + imheight / 2)
-        self.view.camera.set_range(x=x_range, y=y_range)
+
+        for child in self.view.scene.children:
+            if isinstance(child, Image):
+                # Extract only the x and y components of the translation
+                x, y = child.transform.translate[:2]
+                height, width = child.size
+                # Update bounds
+                min_x = x if min_x is None else min(min_x, x)
+                max_x = x + width if max_x is None else max(max_x, x + width)
+                min_y = y if min_y is None else min(min_y, y)
+                max_y = y + height if max_y is None else max(max_y, y + height)
+
+        # Ensure bounds are valid before setting range
+        if (
+            min_x is not None
+            and max_x is not None
+            and min_y is not None
+            and max_y is not None
+        ):
+            self.view.camera.set_range(x=(min_x, max_x), y=(min_y, max_y))
 
     def _on_image_snapped(self) -> None:
         x, y = self._mmc.getXYPosition()
@@ -176,6 +199,7 @@ class StageExplorer(QWidget):
         if scale != self._current_scale:
             self._current_scale = scale
             self._update_scene_by_scale(scale)
+            self._reset_view()
 
         self._draw_zoom_and_scale_info()
 
@@ -201,11 +225,10 @@ class StageExplorer(QWidget):
             x -= width / 2
             y -= height / 2
             frame.transform = STTransform(translate=(x, y))
-        self._reset_view()
 
 
 if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
+    from qtpy.QtWidgets import QApplication, QPushButton
 
     from pymmcore_widgets import StageWidget
 
@@ -222,5 +245,9 @@ if __name__ == "__main__":
     stage.snap_checkbox.setChecked(True)
     stage._invert_y.setChecked(True)
     stage.show()
+
+    btn = QPushButton("Reset")
+    btn.clicked.connect(exp.reset)
+    btn.show()
 
     app.exec()
