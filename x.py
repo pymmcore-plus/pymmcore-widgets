@@ -15,11 +15,15 @@ from vispy.scene.widgets import ViewBox
 from vispy.visuals.transforms import STTransform
 
 ZOOM_TO_SCALE = [
+    # (zoom, scale)
     (1, 1),  # zoom >= 1 -> scale = 1
-    (0.5, 2),  # 1 > zoom >= 0.5 -> scale = 2
-    (0.25, 4),  # 0.5 > zoom >= 0.25 -> scale = 4
-    (0.125, 8),  # 0.25 > zoom >= 0.125 -> scale = 8
-    (0.0625, 16),  # 0.125 > zoom >= 0.0625 -> scale = 16
+    (0.25, 2),  # zoom >= 0.25 -> scale = 2
+    (0.0625, 8),  # zoom >= 0.0625 -> scale = 8
+    # (1, 1),  # zoom >= 1 -> scale = 1
+    # (0.5, 2),  # 1 > zoom >= 0.5 -> scale = 2
+    # (0.25, 4),  # 0.5 > zoom >= 0.25 -> scale = 4
+    # (0.125, 8),  # 0.25 > zoom >= 0.125 -> scale = 8
+    # (0.0625, 16),  # 0.125 > zoom >= 0.0625 -> scale = 16
 ]
 
 
@@ -209,8 +213,7 @@ class StageExplorer(QWidget):
         for threshold, scale in ZOOM_TO_SCALE:
             if zoom >= threshold:
                 return scale
-
-        return 32  # Default for zoom < 0.0625
+        return 32
 
     def _update_scene_by_scale(self, scale: int) -> None:
         """Redraw all the images in the scene based on the scale."""
