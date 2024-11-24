@@ -94,7 +94,7 @@ class StageExplorer(QWidget):
         self.canvas.events.mouse_wheel.connect(self._on_mouse_wheel)
 
     def reset(self):
-        """Reset the widget."""
+        """Reset the widget and the variables."""
         self.clear_scene()
         self._image_store = DataStore()
         self._current_scale = 1
@@ -123,8 +123,7 @@ class StageExplorer(QWidget):
             self._info_text.parent = None
 
         zoom = self.get_zoom()
-        scale = self._current_scale
-        txt = f"Zoom: {zoom:.2f}, Scale: {scale}"
+        txt = f"Zoom: {zoom:.2f}, Scale: {self._current_scale}"
 
         # create the text visual only once
         self._info_text = scene.Text(
