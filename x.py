@@ -221,6 +221,9 @@ if __name__ == "__main__":
     mmc.setProperty("Camera", "OnCameraCCDXSize", 2048)
     mmc.setProperty("Camera", "OnCameraCCDYSize", 2048)
     mmc.setExposure(100)
+    # TODO: fix for pixel size =! 1
+    # mmc.setProperty("Objective", "Label", "Nikon 20X Plan Fluor ELWD")
+    # print(mmc.getPixelSizeUm())
 
     exp = StageExplorer()
     exp.show()
@@ -235,4 +238,4 @@ if __name__ == "__main__":
     btn.clicked.connect(exp.reset_widget)
     btn.show()
 
-    # app.exec()
+    app.exec()
