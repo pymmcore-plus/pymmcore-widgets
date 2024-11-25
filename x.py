@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from typing import Optional, cast
 
 import numpy as np
+import useq
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import (
     QVBoxLayout,
@@ -62,9 +63,8 @@ class StageExplorer(QWidget):
 
         # connections
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
-        self.canvas.events.mouse_double_click.connect(
-            self._move_stage_to_clicked_position
-        )
+        self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
+        self.canvas.events.mouse_double_click.connect(self._move_to_clicked_position)
         # this is to check if the scale has changed and update the scene accordingly
         self.canvas.events.draw.connect(self._on_draw_event)
 
@@ -88,7 +88,7 @@ class StageExplorer(QWidget):
 
     # --------------------PRIVATE METHODS--------------------
 
-    def _move_stage_to_clicked_position(self, event: MouseEvent) -> None:
+    def _move_to_clicked_position(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
         x, y, _, _ = self.view.camera.transform.imap(event.pos)
         self._mmc.setXYPosition(x, y)
@@ -103,6 +103,17 @@ class StageExplorer(QWidget):
             self._current_scale = scale
             self._update_scene_by_scale(scale)
             self._draw_scale_info()
+
+    def _get_scale(self) -> int:
+        """Return the scale based on the zoom level."""
+        # this just maps the camera to the scene.
+        coords = self.view.camera.transform.imap([[0, 0], [1, 0]])
+        pixel_ratio = coords[1][0] - coords[0][0]
+        # get breakpoints for zoom levels of pixel_ratio of powers of 2
+        scale = 1
+        while pixel_ratio / scale > 1:
+            scale *= 2
+        return scale
 
     def _reset_view(self) -> None:
         # TODO: fix this, it is not correctly centering the view
@@ -136,11 +147,15 @@ class StageExplorer(QWidget):
         self._draw_scale_info()
 
     def _on_image_snapped(self) -> None:
+        """Add the snapped image to the scene."""
         # get the snapped image
         img = self._mmc.getImage()
         # get the current stage position
         x, y = self._mmc.getXYPosition()
         # move the coordinates to the center of the image
+        self._add_image(img, x, y)
+
+    def _add_image(self, img: np.ndarray, x: float, y: float) -> None:
         h, w = img.shape
         x, y = round(x - w / 2), round(y - h / 2)
         # store the image in the _image_store
@@ -155,16 +170,10 @@ class StageExplorer(QWidget):
         self._reset_view()
         self._draw_scale_info()
 
-    def _get_scale(self) -> int:
-        """Return the scale based on the zoom level."""
-        # this just maps the camera to the scene.
-        coords = self.view.camera.transform.imap([[0, 0], [1, 0]])
-        pixel_ratio = coords[1][0] - coords[0][0]
-        # get breakpoints for zoom levels of pixel_ratio of powers of 2
-        scale = 1
-        while pixel_ratio / scale > 1:
-            scale *= 2
-        return scale
+    def _on_frame_ready(self, image: np.ndarray, event: useq.MDAEvent) -> None:
+        x = event.x_pos if event.x_pos is not None else self._mmc.getXPosition()
+        y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
+        self._add_image(image, x, y)
 
     def _update_scene_by_scale(self, scale: int) -> None:
         """Redraw all the images in the scene based on the scale."""
@@ -210,6 +219,9 @@ if __name__ == "__main__":
 
     mmc = CMMCorePlus.instance()
     mmc.loadSystemConfiguration()
+    # set camera size to 2048x2048
+    # mmc.setProperty("Camera", "OnCameraCCDXSize", 2048)
+    # mmc.setProperty("Camera", "OnCameraCCDYSize", 2048)
 
     exp = StageExplorer()
     exp.show()
