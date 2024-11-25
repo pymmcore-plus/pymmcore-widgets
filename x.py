@@ -176,16 +176,14 @@ class StageExplorer(QWidget):
         self._add_image(image, x, y)
 
     def _update_scene_by_scale(self, scale: int) -> None:
-        """Redraw all the images in the scene based on the scale."""
-        self.clear_scene()
-        for (x, y), img in self._image_store.store.items():
-            img_scaled = img[::scale, ::scale]
-            frame = Image(
-                img_scaled,
-                cmap="grays",
-                parent=self.view.scene,
-            )
-            frame.transform = scene.STTransform(translate=(x, y), scale=(scale, scale))
+        """Update the images in the scene based on the scale."""
+        for child in self.view.scene.children:
+            if isinstance(child, Image):
+                x, y = child.transform.translate[:2]
+                img = self._image_store.store[(x, y)]
+                img_scaled = img[::scale, ::scale]
+                child.set_data(img_scaled)
+                child.transform.scale = (scale, scale)
 
     def _draw_scale_info(self) -> None:
         """Update scale text on the top-right corner."""
@@ -220,8 +218,9 @@ if __name__ == "__main__":
     mmc = CMMCorePlus.instance()
     mmc.loadSystemConfiguration()
     # set camera size to 2048x2048
-    # mmc.setProperty("Camera", "OnCameraCCDXSize", 2048)
-    # mmc.setProperty("Camera", "OnCameraCCDYSize", 2048)
+    mmc.setProperty("Camera", "OnCameraCCDXSize", 2048)
+    mmc.setProperty("Camera", "OnCameraCCDYSize", 2048)
+    mmc.setExposure(100)
 
     exp = StageExplorer()
     exp.show()
@@ -236,4 +235,4 @@ if __name__ == "__main__":
     btn.clicked.connect(exp.reset_widget)
     btn.show()
 
-    app.exec()
+    # app.exec()
