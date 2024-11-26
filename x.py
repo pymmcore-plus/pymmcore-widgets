@@ -180,6 +180,9 @@ class StageExplorer(QWidget):
         # add the image to the scene with the current scale
         img = img[::scale, ::scale]
         frame = Image(img, cmap="grays", parent=self.view.scene, clim="auto")
+        # keep the added image on top of the others
+        order = min(child.order for child in self.view.scene.children) + -1
+        frame.order = order
         frame.transform = scene.STTransform(
             scale=(scale * pixel_size, scale * pixel_size), translate=(x, y)
         )
