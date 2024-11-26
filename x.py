@@ -141,7 +141,7 @@ class StageExplorer(QWidget):
 
         # Calculate the scale as the inverse of the zoom level
         scale = 1
-        while pixel_ratio / scale > 1:
+        while pixel_ratio / scale > 1 * self._mmc.getPixelSizeUm():
             scale *= 2
         return scale
 
@@ -193,7 +193,7 @@ class StageExplorer(QWidget):
         self._current_scale = scale = self._get_scale()
         # add the image to the scene with the current scale
         img = img[::scale, ::scale]
-        frame = Image(img, cmap="grays", parent=self.view.scene)
+        frame = Image(img, cmap="grays", parent=self.view.scene, clim="auto")
         # frame.transform = scene.STTransform(scale=(scale, scale), translate=(x, y))
         frame.transform = scene.STTransform(
             scale=(scale * pixel_size, scale * pixel_size), translate=(x, y)
