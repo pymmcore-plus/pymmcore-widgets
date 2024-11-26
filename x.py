@@ -52,6 +52,8 @@ class StageExplorer(QWidget):
 
         self._auto_reset_view: bool = True
 
+        self._snap_on_double_click: bool = True
+
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
         self.view = cast(ViewBox, self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1, flip=(0, 1))
@@ -82,6 +84,16 @@ class StageExplorer(QWidget):
         """Set the auto reset view property."""
         self._auto_reset_view = value
 
+    @property
+    def snap_on_double_click(self) -> bool:
+        """Return the snap on double click property."""
+        return self._snap_on_double_click
+
+    @snap_on_double_click.setter
+    def snap_on_double_click(self, value: bool) -> None:
+        """Set the snap on double click property."""
+        self._snap_on_double_click = value
+
     def clear_scene(self) -> None:
         """Clear the scene."""
         self._image_store.store.clear()
@@ -99,6 +111,8 @@ class StageExplorer(QWidget):
         """Move the stage to the clicked position."""
         x, y, _, _ = self.view.camera.transform.imap(event.pos)
         self._mmc.setXYPosition(x, y)
+        if self._snap_on_double_click:
+            self._mmc.snapImage()
 
     def _on_draw_event(self, event: MouseEvent) -> None:
         """Handle the draw event.
@@ -133,11 +147,12 @@ class StageExplorer(QWidget):
 
     def _reset_view(self) -> None:
         """Recenter the view to the center of all images."""
+        pixel_size = self._mmc.getPixelSizeUm()
         # get the max and min (x, y) values from _store_images
         min_x, max_x = None, None
         min_y, max_y = None, None
         for (x, y), img in self._image_store.store.items():
-            height, width = img.shape
+            height, width = np.array(img.shape) * pixel_size
             x, y = round(x), round(y)
             min_x = x if min_x is None else min(min_x, x)
             max_x = x + width if max_x is None else max(max_x, x + width)
@@ -170,7 +185,8 @@ class StageExplorer(QWidget):
         """Add an image to the scene and to the _image_store."""
         # move the coordinates to the center of the image
         h, w = np.array(img.shape)
-        x, y = round(x - w / 2), round(y - h / 2)
+        pixel_size = self._mmc.getPixelSizeUm()
+        x, y = round(x - w / 2 * pixel_size), round(y - h / 2 * pixel_size)
         # store the image in the _image_store
         self._image_store.add_image((x, y), img)
         # get the current scale
@@ -178,7 +194,10 @@ class StageExplorer(QWidget):
         # add the image to the scene with the current scale
         img = img[::scale, ::scale]
         frame = Image(img, cmap="grays", parent=self.view.scene)
-        frame.transform = scene.STTransform(scale=(scale, scale), translate=(x, y))
+        # frame.transform = scene.STTransform(scale=(scale, scale), translate=(x, y))
+        frame.transform = scene.STTransform(
+            scale=(scale * pixel_size, scale * pixel_size), translate=(x, y)
+        )
         if self._auto_reset_view:
             self._reset_view()
         else:
@@ -186,6 +205,7 @@ class StageExplorer(QWidget):
 
     def _update_scene_by_scale(self, scale: int) -> None:
         """Update the images in the scene based on the scale."""
+        pixel_size = self._mmc.getPixelSizeUm()
         for child in self.view.scene.children:
             if isinstance(child, Image):
                 x, y = child.transform.translate[:2]
@@ -194,7 +214,7 @@ class StageExplorer(QWidget):
                 # update the image data
                 child.set_data(img_scaled)
                 # update the scale
-                child.transform.scale = (scale, scale)
+                child.transform.scale = (scale * pixel_size, scale * pixel_size)
 
     def _draw_scale_info(self) -> None:
         """Update scale text on the top-right corner."""
@@ -217,7 +237,13 @@ class StageExplorer(QWidget):
 
 
 if __name__ == "__main__":
-    from qtpy.QtWidgets import QApplication
+    from qtpy.QtWidgets import (
+        QApplication,
+        QCheckBox,
+        QComboBox,
+        QHBoxLayout,
+        QPushButton,
+    )
 
     from pymmcore_widgets import MDAWidget, StageWidget
 
@@ -226,24 +252,87 @@ if __name__ == "__main__":
     mmc = CMMCorePlus.instance()
     mmc.loadSystemConfiguration()
     mmc.setExposure(100)
-    # TODO: fix considering the camera size
-    size = 2048
-    mmc.setProperty("Camera", "OnCameraCCDXSize", size)
-    mmc.setProperty("Camera", "OnCameraCCDYSize", size)
-    # TODO: fix considering pixel size
-    mmc.setProperty("Objective", "Label", "Nikon 20X Plan Fluor ELWD")
-    print("pixel size", mmc.getPixelSizeUm())
 
-    exp = StageExplorer()
-    exp.show()
+    se = StageExplorer()
 
+    # stage
     stage = StageWidget("XY")
-    stage.setStep(size)
     stage.snap_checkbox.setChecked(True)
     stage._invert_y.setChecked(True)
-    stage.show()
+
+    # clear
+    clear_btn = QPushButton("Clear")
+
+    # auto snap
+    def _on_auto_snap_changed(value):
+        se.snap_on_double_click = value
+
+    auto_snap_checkbox = QCheckBox("Auto Snap")
+    auto_snap_checkbox.setChecked(se.snap_on_double_click)
+    auto_snap_checkbox.stateChanged.connect(_on_auto_snap_changed)
+
+    # reset view
+    reset_view_btn = QPushButton("Reset View")
+    clear_btn.clicked.connect(se.clear_scene)
+    reset_view_btn.clicked.connect(se._reset_view)
+
+    def _on_checkbox_changed(value):
+        se.auto_reset_view = value
+
+    reset_checkbox = QCheckBox("Auto Reset View")
+    reset_checkbox.setChecked(se.auto_reset_view)
+    reset_checkbox.stateChanged.connect(_on_checkbox_changed)
+
+    reset_layout = QHBoxLayout()
+    reset_layout.addWidget(reset_view_btn)
+    reset_layout.addWidget(reset_checkbox)
+
+    # camera size
+    def _on_camera_size_changed(value):
+        mmc.setProperty("Camera", "OnCameraCCDXSize", value)
+        mmc.setProperty("Camera", "OnCameraCCDYSize", value)
+        stage.setStep(int(value))
+        print(
+            "camera size",
+            mmc.getProperty("Camera", "OnCameraCCDXSize"),
+            mmc.getProperty("Camera", "OnCameraCCDYSize"),
+        )
+
+    cam_size_combo = QComboBox()
+    cam_size_combo.currentTextChanged.connect(_on_camera_size_changed)
+    cam_size_combo.addItems(["512", "1024", "2048", "4096"])
+    stage.setStep(int(cam_size_combo.currentText()))
+
+    # pixel size
+    def _on_obj_combo_changed(value):
+        mmc.setConfig("Objective", value)
+        print("pixel size", mmc.getPixelSizeUm())
+
+    obj_combo = QComboBox()
+    obj_combo.addItems(list(mmc.getAvailableConfigs("Objective")))
+    obj_combo.currentTextChanged.connect(_on_obj_combo_changed)
+
+    left = QWidget()
+    left_layout = QVBoxLayout(left)
+    left_layout.addWidget(stage)
+    left_layout.addStretch()
+    left_layout.addWidget(cam_size_combo)
+    left_layout.addStretch()
+    left_layout.addWidget(obj_combo)
+    left_layout.addStretch()
+    left_layout.addWidget(auto_snap_checkbox)
+    left_layout.addStretch()
+    left_layout.addLayout(reset_layout)
+    left_layout.addStretch()
+    left_layout.addWidget(clear_btn)
 
     m = MDAWidget()
-    m.show()
+
+    wdg = QWidget()
+    layout = QHBoxLayout(wdg)
+    layout.addWidget(left, 0)
+    layout.addWidget(se, 1)
+    layout.addWidget(m, 0)
+    wdg.show()
 
     app.exec()
