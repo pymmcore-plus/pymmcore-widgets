@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from typing import Optional, cast
 
 import numpy as np
@@ -25,12 +24,6 @@ class DataStore:
         """Add an image to the store."""
         self.store[position] = image
 
-    def request_bounds(
-        self, scale: int, bounds: tuple[float, float]
-    ) -> Iterable[tuple[tuple[float, float], np.ndarray]]:
-        """Request images within the bounds."""
-        ...
-
 
 class StageExplorer(QWidget):
     """A stage positions viewer widget."""
@@ -50,8 +43,8 @@ class StageExplorer(QWidget):
 
         self._current_scale: int = 1
 
+        # properties
         self._auto_reset_view: bool = True
-
         self._snap_on_double_click: bool = True
 
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
@@ -128,20 +121,13 @@ class StageExplorer(QWidget):
 
     def _get_scale(self) -> int:
         """Return the scale based on the zoom level."""
-        # # this just maps the camera to the scene.
-        # coords = self.view.camera.transform.imap([[0, 0], [1, 0]])
-        # # get the pixel ratio
-        # pixel_ratio = coords[1][0] - coords[0][0]
-
-        # same as:
         # get the transform from the camera
         transform = self.view.camera.transform
         # calculate the zoom level as the inverse of the scale factor in the transform
         pixel_ratio = 1 / transform.scale[0]
-
         # Calculate the scale as the inverse of the zoom level
         scale = 1
-        while pixel_ratio / scale > 1 * self._mmc.getPixelSizeUm():
+        while pixel_ratio / scale > self._mmc.getPixelSizeUm():
             scale *= 2
         return scale
 
@@ -194,7 +180,6 @@ class StageExplorer(QWidget):
         # add the image to the scene with the current scale
         img = img[::scale, ::scale]
         frame = Image(img, cmap="grays", parent=self.view.scene, clim="auto")
-        # frame.transform = scene.STTransform(scale=(scale, scale), translate=(x, y))
         frame.transform = scene.STTransform(
             scale=(scale * pixel_size, scale * pixel_size), translate=(x, y)
         )
