@@ -10,6 +10,7 @@ from ._objective_widget import ObjectivesWidget
 from ._presets_widget import PresetsWidget
 from ._shutter_widget import ShuttersWidget
 from ._snap_button_widget import SnapButton
+from ._stage_explorer import StageExplorer, StageViewer
 from ._stage_widget import StageWidget
 
 __all__ = [
@@ -25,4 +26,6 @@ __all__ = [
     "ShuttersWidget",
     "SnapButton",
     "StageWidget",
+    "StageExplorer",
+    "StageViewer",
 ]
