@@ -77,11 +77,11 @@ class StageViewer(QWidget):
         self._flip_horizontal: bool = False
         self._flip_vertical: bool = False
 
+        self._info_text: scene.Text | None = None
+
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
         self.view = cast(ViewBox, self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1, flip=(0, 1))
-
-        self._info_text: scene.Text | None = None
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
@@ -155,6 +155,7 @@ class StageViewer(QWidget):
         max_x: int | None = None
         min_y: int | None = None
         max_y: int | None = None
+
         # get the max and min (x, y) values from _store_images
         for (x, y), img in self._image_store.store.items():
             height, width = np.array(img.shape) * pixel_size
@@ -269,11 +270,12 @@ class StageViewer(QWidget):
 
         # create the text visual only once
         self._info_text = scene.Text(
-            f"Scale: {self._get_scale()}",
+            f"scale: {self._get_scale()}",
             color="white",
             parent=self.canvas.scene,
             anchor_x="right",
             anchor_y="top",
+            font_size=9,
         )
         # move the text to the top-right corner
         self._info_text.transform = scene.STTransform(

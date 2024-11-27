@@ -5,9 +5,9 @@ from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QTimerEvent
 from qtpy.QtWidgets import (
     QAction,
-    QHBoxLayout,
     QLabel,
     QMenu,
+    QSizePolicy,
     QToolBar,
     QToolButton,
     QVBoxLayout,
@@ -50,6 +50,16 @@ class StageExplorer(QWidget):
 
     Properties
     ----------
+    auto_reset_view : bool
+        A boolean property that controls whether to automatically reset the view when an
+        image is added to the scene.
+    snap_on_double_click : bool
+        A boolean property that controls whether to snap an image when the user
+        double-clicks on the view.
+    flip_horizontal : bool
+        A boolean property that controls whether to flip images horizontally.
+    flip_vertical : bool
+        A boolean property that controls whether to flip images vertically.
     poll_stage_position : bool
         A boolean property that controls whether to poll the stage position.
         If True, the widget will poll the stage position every 100 ms and display
@@ -75,6 +85,7 @@ class StageExplorer(QWidget):
         # toolbar ---------------------------------------------------------------------
         toolbar = QToolBar()
         toolbar.setMovable(False)
+        toolbar.layout().setContentsMargins(0, 0, 10, 0)
         # reset view action
         self._act_reset = QAction(
             icon(MDI6.fullscreen, color=green), "Reset View", self
@@ -116,25 +127,69 @@ class StageExplorer(QWidget):
         self._flip_v_act.triggered.connect(self._on_setting_checked)
         self._poll_stage_act.triggered.connect(self._on_poll_stage)
 
-        toolbar.addWidget(self._settings_btn)
-        # ----------------------------------------------------------------------------
-
         # stage pos label
         self._stage_pos_label = QLabel()
 
-        top_bar = QHBoxLayout()
-        top_bar.setSpacing(0)
-        top_bar.setContentsMargins(0, 0, 10, 0)
-        top_bar.addWidget(toolbar)
-        top_bar.addStretch()
-        top_bar.addWidget(self._stage_pos_label)
+        toolbar.addWidget(self._settings_btn)
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        toolbar.addWidget(spacer)
+        toolbar.addWidget(self._stage_pos_label)
+        # ----------------------------------------------------------------------------
 
         # main layout
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addLayout(top_bar)
-        main_layout.addWidget(self._stage_viewer)
+        main_layout.addWidget(toolbar, 0)
+        main_layout.addWidget(self._stage_viewer, 1)
+
+    # -----------------------------PUBLIC METHODS-------------------------------------
+
+    @property
+    def auto_reset_view(self) -> bool:
+        """Return the auto reset view property."""
+        return self._stage_viewer.auto_reset_view
+
+    @auto_reset_view.setter
+    def auto_reset_view(self, value: bool) -> None:
+        """Set the auto reset view property."""
+        self._stage_viewer.auto_reset_view = value
+        self._auto_reset_act.setChecked(value)
+        self._on_reset_view(value)
+
+    @property
+    def snap_on_double_click(self) -> bool:
+        """Return the snap on double click property."""
+        return self._stage_viewer.snap_on_double_click
+
+    @snap_on_double_click.setter
+    def snap_on_double_click(self, value: bool) -> None:
+        """Set the snap on double click property."""
+        self._stage_viewer.snap_on_double_click = value
+        self._auto_snap_act.setChecked(value)
+
+    @property
+    def flip_horizontal(self) -> bool:
+        """Return the flip horizontal property."""
+        return self._stage_viewer.flip_h
+
+    @flip_horizontal.setter
+    def flip_horizontal(self, value: bool) -> None:
+        """Set the flip horizontal property."""
+        self._stage_viewer.flip_h = value
+        self._flip_h_act.setChecked(value)
+
+    @property
+    def flip_vertical(self) -> bool:
+        """Return the flip vertical property."""
+        return self._stage_viewer.flip_v
+
+    @flip_vertical.setter
+    def flip_vertical(self, value: bool) -> None:
+        """Set the flip vertical property."""
+        self._stage_viewer.flip_v = value
+        self._flip_v_act.setChecked(value)
 
     @property
     def poll_stage_position(self) -> bool:
@@ -145,6 +200,10 @@ class StageExplorer(QWidget):
     def poll_stage_position(self, value: bool) -> None:
         """Set the poll stage position property."""
         self._poll_stage_position = value
+        self._poll_stage_act.setChecked(value)
+        self._on_poll_stage(value)
+
+    # -----------------------------PRIVATE METHODS------------------------------------
 
     def _on_reset_view(self, checked: bool) -> None:
         """Set the auto reset view property based on the state of the action."""
