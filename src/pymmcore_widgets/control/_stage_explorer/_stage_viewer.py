@@ -23,6 +23,10 @@ class DataStore:
         """Add an image to the store."""
         self.store[position] = image
 
+    def get_image(self, position: tuple[float, float]) -> np.ndarray | None:
+        """Get an image from the store."""
+        return self.store.get(position, None)
+
 
 class StageViewer(QWidget):
     """A stage positions viewer widget.
@@ -269,7 +273,9 @@ class StageViewer(QWidget):
         for child in self.view.scene.children:
             if isinstance(child, Image):
                 x, y = child.transform.translate[:2]
-                img = self._image_store.store[(x, y)]
+                img = self._image_store.get_image((x, y))
+                if img is None:
+                    continue
                 img_scaled = img[::scale, ::scale]
                 # update the image data
                 child.set_data(img_scaled)
