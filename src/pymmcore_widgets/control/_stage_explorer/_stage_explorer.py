@@ -49,19 +49,21 @@ class StageExplorer(QWidget):
     ----------
     auto_reset_view : bool
         A boolean property that controls whether to automatically reset the view when an
-        image is added to the scene.
+        image is added to the scene. By default, True.
     snap_on_double_click : bool
         A boolean property that controls whether to snap an image when the user
-        double-clicks on the view.
+        double-clicks on the view. By default, False.
     flip_horizontal : bool
-        A boolean property that controls whether to flip images horizontally.
+        A boolean property that controls whether to flip images horizontally. By
+        default, False.
     flip_vertical : bool
-        A boolean property that controls whether to flip images vertically.
+        A boolean property that controls whether to flip images vertically. By default,
+        False.
     poll_stage_position : bool
         A boolean property that controls whether to poll the stage position.
         If True, the widget will poll the stage position every 100 ms and display
         the current X and Y position in the status bar. If False, the widget will
-        stop polling the stage position.
+        stop polling the stage position. By default, False.
     """
 
     def __init__(self, parent: QWidget | None = None, mmc: CMMCorePlus | None = None):
@@ -77,7 +79,6 @@ class StageExplorer(QWidget):
 
         # properties
         self._poll_stage_position: bool = False
-        self._timer_id = None
 
         # toolbar ---------------------------------------------------------------------
         toolbar = QToolBar()
@@ -106,24 +107,23 @@ class StageExplorer(QWidget):
         self._auto_reset_act.setChecked(self._stage_viewer.auto_reset_view)
         self._auto_snap_act = QAction(SNAP, self, checkable=True)
         self._auto_snap_act.setChecked(self._stage_viewer.snap_on_double_click)
-        self._flip_h_act = QAction(FLIP_H, self, checkable=True)
-        self._flip_h_act.setChecked(self._stage_viewer.flip_h)
-        self._flip_v_act = QAction(FLIP_V, self, checkable=True)
-        self._flip_v_act.setChecked(self._stage_viewer.flip_v)
+        self._flip_horizontal_act = QAction(FLIP_H, self, checkable=True)
+        self._flip_horizontal_act.setChecked(self._stage_viewer.flip_h)
+        self._flip_vertical_act = QAction(FLIP_V, self, checkable=True)
+        self._flip_vertical_act.setChecked(self._stage_viewer.flip_v)
         self._poll_stage_act = QAction(POLL_STAGE, self, checkable=True)
         # add actions to the menu
         menu.addAction(self._auto_reset_act)
         menu.addAction(self._auto_snap_act)
-        menu.addAction(self._flip_h_act)
-        menu.addAction(self._flip_v_act)
+        menu.addAction(self._flip_horizontal_act)
+        menu.addAction(self._flip_vertical_act)
         menu.addAction(self._poll_stage_act)
         # settings connections
         self._auto_reset_act.triggered.connect(self._on_reset_view)
         self._auto_snap_act.triggered.connect(self._on_setting_checked)
-        self._flip_h_act.triggered.connect(self._on_setting_checked)
-        self._flip_v_act.triggered.connect(self._on_setting_checked)
+        self._flip_horizontal_act.triggered.connect(self._on_setting_checked)
+        self._flip_vertical_act.triggered.connect(self._on_setting_checked)
         self._poll_stage_act.triggered.connect(self._on_poll_stage)
-
         # stage pos label
         self._stage_pos_label = QLabel()
 
@@ -153,6 +153,8 @@ class StageExplorer(QWidget):
         """Set the auto reset view property."""
         self._stage_viewer.auto_reset_view = value
         self._auto_reset_act.setChecked(value)
+        if value:
+            self._stage_viewer.reset_view()
 
     @property
     def snap_on_double_click(self) -> bool:
@@ -174,7 +176,7 @@ class StageExplorer(QWidget):
     def flip_horizontal(self, value: bool) -> None:
         """Set the flip horizontal property."""
         self._stage_viewer.flip_h = value
-        self._flip_h_act.setChecked(value)
+        self._flip_horizontal_act.setChecked(value)
 
     @property
     def flip_vertical(self) -> bool:
@@ -185,7 +187,7 @@ class StageExplorer(QWidget):
     def flip_vertical(self, value: bool) -> None:
         """Set the flip vertical property."""
         self._stage_viewer.flip_v = value
-        self._flip_v_act.setChecked(value)
+        self._flip_vertical_act.setChecked(value)
 
     @property
     def poll_stage_position(self) -> bool:
@@ -229,5 +231,7 @@ class StageExplorer(QWidget):
 
     def timerEvent(self, event: QTimerEvent) -> None:
         """Poll the stage position."""
+        if not self._mmc.getXYStageDevice():
+            return
         x, y = self._mmc.getXYPosition()
         self._stage_pos_label.setText(f"X: {x:.2f} Y: {y:.2f}")

@@ -49,14 +49,16 @@ class StageViewer(QWidget):
     ----------
     auto_reset_view : bool
         A boolean property that controls whether to automatically reset the view when an
-        image is added to the scene.
+        image is added to the scene. By default, True.
     snap_on_double_click : bool
         A boolean property that controls whether to snap an image when the user
-        double-clicks on the view.
+        double-clicks on the view. By default, False.
     flip_horizontal : bool
-        A boolean property that controls whether to flip images horizontally.
+        A boolean property that controls whether to flip images horizontally. By
+        default, False.
     flip_vertical : bool
-        A boolean property that controls whether to flip images vertically.
+        A boolean property that controls whether to flip images vertically. By default,
+        False.
     """
 
     def __init__(
@@ -76,7 +78,7 @@ class StageViewer(QWidget):
 
         # properties
         self._auto_reset_view: bool = True
-        self._snap_on_double_click: bool = True
+        self._snap_on_double_click: bool = False
         self._flip_horizontal: bool = False
         self._flip_vertical: bool = False
 
@@ -98,10 +100,6 @@ class StageViewer(QWidget):
         # this is to check if the scale has changed and update the scene accordingly
         self.canvas.events.draw.connect(self._on_draw_event)
         # connections to core events
-        self._mmc.events.systemConfigurationLoaded.connect(
-            self._on_system_config_loaded
-        )
-        self._mmc.events.propertyChanged.connect(self._on_property_changed)
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
 
     # --------------------PUBLIC METHODS--------------------
@@ -115,8 +113,6 @@ class StageViewer(QWidget):
     def auto_reset_view(self, value: bool) -> None:
         """Set the auto reset view property."""
         self._auto_reset_view = value
-        if value:
-            self.reset_view()
 
     @property
     def snap_on_double_click(self) -> bool:
@@ -185,14 +181,15 @@ class StageViewer(QWidget):
 
     # --------------------PRIVATE METHODS--------------------
 
-    def _on_system_config_loaded(self) -> None: ...
-
-    def _on_property_changed(self, prop: str, value: str) -> None: ...
-
-    def _on_pixel_size_changed(self, value: float) -> None: ...
+    def _on_pixel_size_changed(self, value: float) -> None:
+        """Clear the scene when the pixel size changes."""
+        # should this be a different behavior?
+        self.clear_scene()
 
     def _move_to_clicked_position(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
+        if not self._mmc.getXYStageDevice():
+            return
         x, y, _, _ = self.view.camera.transform.imap(event.pos)
         self._mmc.setXYPosition(x, y)
         if self._snap_on_double_click:
@@ -292,7 +289,6 @@ class StageViewer(QWidget):
             parent=self.canvas.scene,
             anchor_x="right",
             anchor_y="top",
-            font_size=9,
         )
         # move the text to the top-right corner
         self._info_text.transform = scene.STTransform(
