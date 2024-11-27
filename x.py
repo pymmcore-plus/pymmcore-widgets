@@ -137,7 +137,6 @@ class StageExplorer(QWidget):
         scale = self._get_scale()
         if scale == self._current_scale:
             return
-        print("scale changed")
         self._current_scale = scale
         self._update_scene_by_scale(scale)
         self._draw_scale_info()
