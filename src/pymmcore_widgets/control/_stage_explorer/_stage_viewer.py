@@ -129,22 +129,22 @@ class StageViewer(QWidget):
         self._snap_on_double_click = value
 
     @property
-    def flip_h(self) -> bool:
+    def flip_horizontal(self) -> bool:
         """Return the flip horizontally setting."""
         return self._flip_horizontal
 
-    @flip_h.setter
-    def flip_h(self, value: bool) -> None:
+    @flip_horizontal.setter
+    def flip_horizontal(self, value: bool) -> None:
         """Set the flip horizontally setting."""
         self._flip_horizontal = value
 
     @property
-    def flip_v(self) -> bool:
+    def flip_vertical(self) -> bool:
         """Return the flip vertically setting."""
         return self._flip_vertical
 
-    @flip_v.setter
-    def flip_v(self, value: bool) -> None:
+    @flip_vertical.setter
+    def flip_vertical(self, value: bool) -> None:
         """Set the flip vertically setting."""
         self._flip_vertical = value
 
@@ -284,6 +284,9 @@ class StageViewer(QWidget):
 
     def _draw_scale_info(self) -> None:
         """Update scale text on the top-right corner."""
+        # TODO: either remove this method (I used it to during development) or convert
+        # it to a scale bar
+
         # remove the previous text if it exists
         if self._info_text is not None:
             self._info_text.parent = None
