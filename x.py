@@ -137,6 +137,7 @@ class StageExplorer(QWidget):
         scale = self._get_scale()
         if scale == self._current_scale:
             return
+        print("scale changed")
         self._current_scale = scale
         self._update_scene_by_scale(scale)
         self._draw_scale_info()
@@ -221,16 +222,15 @@ class StageExplorer(QWidget):
     def _update_scene_by_scale(self, scale: int) -> None:
         """Update the images in the scene based on the scale."""
         pixel_size = self._mmc.getPixelSizeUm()
-        with self.canvas.events.draw.blocker():
-            for child in self.view.scene.children:
-                if isinstance(child, Image):
-                    x, y = child.transform.translate[:2]
-                    img = self._image_store.store[(x, y)]
-                    img_scaled = img[::scale, ::scale]
-                    # update the image data
-                    child.set_data(img_scaled)
-                    # update the scale
-                    child.transform.scale = (scale * pixel_size, scale * pixel_size)
+        for child in self.view.scene.children:
+            if isinstance(child, Image):
+                x, y = child.transform.translate[:2]
+                img = self._image_store.store[(x, y)]
+                img_scaled = img[::scale, ::scale]
+                # update the image data
+                child.set_data(img_scaled)
+                # update the scale
+                child.transform.scale = (scale * pixel_size, scale * pixel_size)
 
     def _draw_scale_info(self) -> None:
         """Update scale text on the top-right corner."""
