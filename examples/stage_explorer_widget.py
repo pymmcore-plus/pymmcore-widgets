@@ -24,18 +24,18 @@ class Explorer(QWidget):
         stage_layout.addWidget(stage)
         stage_layout.addStretch()
 
-        stage_explorer = StageExplorer()
-        stage_explorer.poll_stage_position = True
+        self.stage_explorer = StageExplorer()
+        self.stage_explorer.poll_stage_position = True
 
         layout = QHBoxLayout(self)
         layout.addLayout(stage_layout)
-        layout.addWidget(stage_explorer)
+        layout.addWidget(self.stage_explorer)
 
 
 if __name__ == "__main__":
     app = QApplication([])
     mmc = CMMCorePlus.instance()
     mmc.loadSystemConfiguration()
-    window = Explorer()
-    window.show()
+    wdg = Explorer()
+    wdg.show()
     app.exec()

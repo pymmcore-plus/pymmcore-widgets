@@ -95,7 +95,7 @@ class StageViewer(QWidget):
         # this is to check if the scale has changed and update the scene accordingly
         self.canvas.events.draw.connect(self._on_draw_event)
 
-    # --------------------PUBLIC METHODS--------------------\
+    # --------------------PUBLIC METHODS--------------------
 
     @property
     def auto_reset_view(self) -> bool:
@@ -106,6 +106,8 @@ class StageViewer(QWidget):
     def auto_reset_view(self, value: bool) -> None:
         """Set the auto reset view property."""
         self._auto_reset_view = value
+        if value:
+            self.reset_view()
 
     @property
     def snap_on_double_click(self) -> bool:

@@ -156,7 +156,6 @@ class StageExplorer(QWidget):
         """Set the auto reset view property."""
         self._stage_viewer.auto_reset_view = value
         self._auto_reset_act.setChecked(value)
-        self._on_reset_view(value)
 
     @property
     def snap_on_double_click(self) -> bool:
