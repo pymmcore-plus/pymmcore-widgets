@@ -46,6 +46,8 @@ class StageExplorer(QWidget):
         # properties
         self._auto_reset_view: bool = True
         self._snap_on_double_click: bool = True
+        self._flip_h: bool = False
+        self._flip_v: bool = False
 
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
         self.view = cast(ViewBox, self.canvas.central_widget.add_view())
@@ -86,6 +88,26 @@ class StageExplorer(QWidget):
     def snap_on_double_click(self, value: bool) -> None:
         """Set the snap on double click property."""
         self._snap_on_double_click = value
+
+    @property
+    def flip_h(self) -> bool:
+        """Return the flip horizontally setting."""
+        return self._flip_h
+
+    @flip_h.setter
+    def flip_h(self, value: bool) -> None:
+        """Set the flip horizontally setting."""
+        self._flip_h = value
+
+    @property
+    def flip_v(self) -> bool:
+        """Return the flip vertically setting."""
+        return self._flip_v
+
+    @flip_v.setter
+    def flip_v(self, value: bool) -> None:
+        """Set the flip vertically setting."""
+        self._flip_v = value
 
     def clear_scene(self) -> None:
         """Clear the scene."""
@@ -169,6 +191,11 @@ class StageExplorer(QWidget):
 
     def _add_image(self, img: np.ndarray, x: float, y: float) -> None:
         """Add an image to the scene and to the _image_store."""
+        # flip the image if needed
+        if self._flip_h:
+            img = np.fliplr(img)
+        if self._flip_v:
+            img = np.flipud(img)
         # move the coordinates to the center of the image
         h, w = np.array(img.shape)
         pixel_size = self._mmc.getPixelSizeUm()
@@ -194,15 +221,16 @@ class StageExplorer(QWidget):
     def _update_scene_by_scale(self, scale: int) -> None:
         """Update the images in the scene based on the scale."""
         pixel_size = self._mmc.getPixelSizeUm()
-        for child in self.view.scene.children:
-            if isinstance(child, Image):
-                x, y = child.transform.translate[:2]
-                img = self._image_store.store[(x, y)]
-                img_scaled = img[::scale, ::scale]
-                # update the image data
-                child.set_data(img_scaled)
-                # update the scale
-                child.transform.scale = (scale * pixel_size, scale * pixel_size)
+        with self.canvas.events.draw.blocker():
+            for child in self.view.scene.children:
+                if isinstance(child, Image):
+                    x, y = child.transform.translate[:2]
+                    img = self._image_store.store[(x, y)]
+                    img_scaled = img[::scale, ::scale]
+                    # update the image data
+                    child.set_data(img_scaled)
+                    # update the scale
+                    child.transform.scale = (scale * pixel_size, scale * pixel_size)
 
     def _draw_scale_info(self) -> None:
         """Update scale text on the top-right corner."""
@@ -300,6 +328,22 @@ if __name__ == "__main__":
     obj_combo.addItems(list(mmc.getAvailableConfigs("Objective")))
     obj_combo.currentTextChanged.connect(_on_obj_combo_changed)
 
+    # flip checkboxes
+    def _on_flip_h_changed(value):
+        se.flip_h = value
+
+    def _on_flip_v_changed(value):
+        se.flip_v = value
+
+    flip_h_checkbox = QCheckBox("Flip Horizontal")
+    flip_h_checkbox.stateChanged.connect(_on_flip_h_changed)
+    flip_v_checkbox = QCheckBox("Flip Vertical")
+    flip_v_checkbox.stateChanged.connect(_on_flip_v_changed)
+
+    flip_layout = QHBoxLayout()
+    flip_layout.addWidget(flip_h_checkbox)
+    flip_layout.addWidget(flip_v_checkbox)
+
     left = QWidget()
     left_layout = QVBoxLayout(left)
     left_layout.addWidget(stage)
@@ -307,6 +351,8 @@ if __name__ == "__main__":
     left_layout.addWidget(cam_size_combo)
     left_layout.addStretch()
     left_layout.addWidget(obj_combo)
+    left_layout.addStretch()
+    left_layout.addLayout(flip_layout)
     left_layout.addStretch()
     left_layout.addWidget(auto_snap_checkbox)
     left_layout.addStretch()
