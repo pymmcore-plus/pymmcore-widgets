@@ -30,9 +30,6 @@ POLL_STAGE = "Poll Stage Position"
 class StageExplorer(QWidget):
     """A stage positions explorer widget.
 
-    It is a top-level widget that contains a
-    [`StageViewer`][pymmcore_widgets.control.StageViewer].
-
     This widget provides a visual representation of the stage positions. The user can
     interact with the stage positions by panning and zooming the view. The user can also
     move the stage to a specific position (and optiionally snap an image) by

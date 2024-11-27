@@ -32,6 +32,9 @@ class StageViewer(QWidget):
     move the stage to a specific position (and optiionally snap an image) by
     double-clicking on the view.
 
+    The scale of the images is automatically adjusted based on the zoom level of the
+    view.
+
     Parameters
     ----------
     parent : QWidget | None
@@ -88,12 +91,18 @@ class StageViewer(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.canvas.native)
 
-        # connections
+        # connections to vispy events
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
         self.canvas.events.mouse_double_click.connect(self._move_to_clicked_position)
         # this is to check if the scale has changed and update the scene accordingly
         self.canvas.events.draw.connect(self._on_draw_event)
+        # connections to core events
+        self._mmc.events.systemConfigurationLoaded.connect(
+            self._on_system_config_loaded
+        )
+        self._mmc.events.propertyChanged.connect(self._on_property_changed)
+        self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
 
     # --------------------PUBLIC METHODS--------------------
 
@@ -175,6 +184,12 @@ class StageViewer(QWidget):
         self._draw_scale_info()
 
     # --------------------PRIVATE METHODS--------------------
+
+    def _on_system_config_loaded(self) -> None: ...
+
+    def _on_property_changed(self, prop: str, value: str) -> None: ...
+
+    def _on_pixel_size_changed(self, value: float) -> None: ...
 
     def _move_to_clicked_position(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
