@@ -90,15 +90,15 @@ class StageExplorer(QWidget):
         # properties
         self._auto_reset_view: bool = True
         self._snap_on_double_click: bool = False
-        self._flip_x: bool = False
-        self._flip_y: bool = False
+        self._flip_horizontal: bool = False
+        self._flip_vertical: bool = False
         self._poll_stage_position: bool = False
         self._image_store: DataStore = self._stage_viewer.image_store
 
         # marker for stage position
         self._stage_pos_marker: Markers | None = None
 
-        # toolbar ---------------------------------------------------------------------
+        # toolbar
         toolbar = QToolBar()
         toolbar.setMovable(False)
         toolbar.layout().setSpacing(5)
@@ -131,22 +131,19 @@ class StageExplorer(QWidget):
             setattr(self, f"_{a_text.lower().replace(' ', '_')}_act", action)
             toolbar.addAction(action)
 
-        # stage pos label
-        self._stage_pos_label = QLabel()
+        # set initial state of actions
+        self._auto_reset_view_act.setChecked(self._auto_reset_view)
+        self._snap_on_double_click_act.setChecked(self._snap_on_double_click)
+        self._flip_images_horizontally_act.setChecked(self._flip_horizontal)
+        self._flip_images_vertically_act.setChecked(self._flip_vertical)
+        self._poll_stage_position_act.setChecked(self._poll_stage_position)
 
-        # add actions and widgets to the toolbar
-        toolbar.addAction(self._clear_view_act)
-        toolbar.addAction(self._reset_view_act)
-        toolbar.addAction(self._auto_reset_view_act)
-        toolbar.addAction(self._snap_on_double_click_act)
-        toolbar.addAction(self._flip_images_horizontally_act)
-        toolbar.addAction(self._flip_images_vertically_act)
-        toolbar.addAction(self._poll_stage_position_act)
+        # add stage pos label to the toolbar
+        self._stage_pos_label = QLabel()
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         toolbar.addWidget(spacer)
         toolbar.addWidget(self._stage_pos_label)
-        # ----------------------------------------------------------------------------
 
         # main layout
         main_layout = QVBoxLayout(self)
@@ -198,25 +195,25 @@ class StageExplorer(QWidget):
         self._snap_on_double_click_act.setChecked(value)
 
     @property
-    def flip_x(self) -> bool:
+    def flip_horizontal(self) -> bool:
         """Return the flip x property."""
-        return self._flip_x
+        return self._flip_horizontal
 
-    @flip_x.setter
-    def flip_x(self, value: bool) -> None:
+    @flip_horizontal.setter
+    def flip_horizontal(self, value: bool) -> None:
         """Set the flip x property."""
-        self._flip_x = value
+        self._flip_horizontal = value
         self._flip_images_horizontally_act.setChecked(value)
 
     @property
-    def flip_y(self) -> bool:
+    def flip_vertical(self) -> bool:
         """Return the flip y property."""
-        return self._flip_y
+        return self._flip_vertical
 
-    @flip_y.setter
-    def flip_y(self, value: bool) -> None:
+    @flip_vertical.setter
+    def flip_vertical(self, value: bool) -> None:
         """Set the flip y property."""
-        self._flip_y = value
+        self._flip_vertical = value
         self._flip_images_vertically_act.setChecked(value)
 
     @property
@@ -335,8 +332,8 @@ class StageExplorer(QWidget):
         """Update the stage viewer settings based on the state of the action."""
         action_map = {
             self._snap_on_double_click_act: "snap_on_double_click",
-            self._flip_images_horizontally_act: "flip_x",
-            self._flip_images_vertically_act: "flip_y",
+            self._flip_images_horizontally_act: "flip_horizontal",
+            self._flip_images_vertically_act: "flip_vertical",
         }
         sender = cast(QAction, self.sender())
 
@@ -378,14 +375,14 @@ class StageExplorer(QWidget):
         # get the current stage position
         x, y = self._mmc.getXYPosition()
         # move the coordinates to the center of the image
-        self.add_image(img, x, y, self.flip_x, self.flip_y)
+        self.add_image(img, x, y, self.flip_horizontal, self.flip_vertical)
 
     def _on_frame_ready(self, image: np.ndarray, event: useq.MDAEvent) -> None:
         """Add the image to the scene when frameReady event is emitted."""
         # TODO: better handle z stack (e.g. max projection?)
         x = event.x_pos if event.x_pos is not None else self._mmc.getXPosition()
         y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
-        self.add_image(image, x, y, self.flip_x, self.flip_y)
+        self.add_image(image, x, y, self.flip_horizontal, self.flip_vertical)
 
     def _move_to_clicked_position(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
