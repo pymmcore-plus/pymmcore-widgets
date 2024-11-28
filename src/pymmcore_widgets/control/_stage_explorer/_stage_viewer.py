@@ -208,6 +208,8 @@ class StageViewer(QWidget):
         self.update_by_scale(scale)
         self.scaleChanged.emit(scale)
 
-    def _get_images(self) -> list[Image]:
-        """Return a list of images in the scene."""
-        return [child for child in self.view.scene.children if isinstance(child, Image)]
+    def _get_images(self) -> Iterator[Image]:
+        """Yield images in the scene."""
+        for child in self.view.scene.children:
+            if isinstance(child, Image):
+                yield child
