@@ -31,6 +31,11 @@ class Explorer(QWidget):
         layout.addLayout(stage_layout)
         layout.addWidget(self.stage_explorer)
 
+        self.stage_explorer.scaleChanged.connect(self._on_scale_changed)
+
+    def _on_scale_changed(self, scale: int) -> None:
+        print(f"Scale changed to: {scale}")
+
 
 if __name__ == "__main__":
     app = QApplication([])

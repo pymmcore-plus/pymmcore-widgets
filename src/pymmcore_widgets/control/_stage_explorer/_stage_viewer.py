@@ -1,8 +1,6 @@
 from typing import Optional, cast
 
 import numpy as np
-import useq
-from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QVBoxLayout,
@@ -15,7 +13,11 @@ from vispy.scene.widgets import ViewBox
 
 
 class DataStore:
-    """A data store for images."""
+    """A data store for images.
+
+    This class stores images and their stage positions in a dictionary where the keys
+    are the stage positions and the values are the images.
+    """
 
     def __init__(self) -> None:
         self.store: dict[tuple[float, float], np.ndarray] = {}
@@ -33,31 +35,26 @@ class StageViewer(QWidget):
     """A stage positions viewer widget.
 
     This widget provides a visual representation of the stage positions. The user can
-    interact with the stage positions by panning and zooming the view. The user can also
-    move the stage to a specific position (and optiionally snap an image) by
-    double-clicking on the view.
+    interact with the stage positions by panning and zooming the view.
 
     The scale of the images is automatically adjusted based on the zoom level of the
-    view.
+    view. A `scaleChanged` signal is emitted when the scale changes.
 
     Parameters
     ----------
     parent : QWidget | None
         Optional parent widget, by default None.
-    mmc : CMMCorePlus | None
-        Optional [`CMMCorePlus`][pymmcore_plus.CMMCorePlus] micromanager core.
-        By default, None. If not specified, the widget will use the active
-        (or create a new)
-        [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
 
     Properties
     ----------
+    image_store : DataStore
+        Return the image store object that contains the images added to the scene and
+        their stage positions.
     auto_reset_view : bool
         A boolean property that controls whether to automatically reset the view when an
         image is added to the scene. By default, True.
-    snap_on_double_click : bool
-        A boolean property that controls whether to snap an image when the user
-        double-clicks on the view. By default, False.
+    pixel_size : float
+        The pixel size in micrometers. By default, 1.0.
     flip_horizontal : bool
         A boolean property that controls whether to flip images horizontally. By
         default, False.
@@ -68,28 +65,18 @@ class StageViewer(QWidget):
 
     scaleChanged = Signal(int)
 
-    def __init__(
-        self,
-        parent: Optional[QWidget] = None,
-        *,
-        mmc: Optional[CMMCorePlus] = None,
-    ) -> None:
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Stage Explorer")
-
-        self._mmc = mmc or CMMCorePlus.instance()
-
-        self._image_store: DataStore = DataStore()
 
         self._current_scale: int = 1
 
         # properties
+        self._image_store: DataStore = DataStore()
         self._auto_reset_view: bool = True
-        self._snap_on_double_click: bool = False
+        self._pixel_size: float = 1.0
         self._flip_horizontal: bool = False
         self._flip_vertical: bool = False
-
-        self._info_text: scene.Text | None = None
 
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
         self.view = cast(ViewBox, self.canvas.central_widget.add_view())
@@ -100,17 +87,16 @@ class StageViewer(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.canvas.native)
 
-        # connections to vispy events
-        self.canvas.events.mouse_double_click.connect(self._move_to_clicked_position)
+        # connections
         # this is to check if the scale has changed and update the scene accordingly
         self.canvas.events.draw.connect(self._on_draw_event)
 
-        # connections to core events
-        self._mmc.events.imageSnapped.connect(self._on_image_snapped)
-        self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
-        self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
-
     # --------------------PUBLIC METHODS--------------------
+
+    @property
+    def image_store(self) -> DataStore:
+        """Return the image store."""
+        return self._image_store
 
     @property
     def auto_reset_view(self) -> bool:
@@ -123,14 +109,14 @@ class StageViewer(QWidget):
         self._auto_reset_view = value
 
     @property
-    def snap_on_double_click(self) -> bool:
-        """Return the snap on double click property."""
-        return self._snap_on_double_click
+    def pixel_size(self) -> float:
+        """Return the pixel size."""
+        return self._pixel_size
 
-    @snap_on_double_click.setter
-    def snap_on_double_click(self, value: bool) -> None:
-        """Set the snap on double click property."""
-        self._snap_on_double_click = value
+    @pixel_size.setter
+    def pixel_size(self, value: float) -> None:
+        """Set the pixel size."""
+        self._pixel_size = value
 
     @property
     def flip_horizontal(self) -> bool:
@@ -152,12 +138,64 @@ class StageViewer(QWidget):
         """Set the flip vertically setting."""
         self._flip_vertical = value
 
+    def add_image(self, img: np.ndarray, x: float, y: float) -> None:
+        """Add an image to the scene and to the image_store."""
+        # flip the image if needed
+        if self._flip_horizontal:
+            img = np.fliplr(img)
+        if self._flip_vertical:
+            img = np.flipud(img)
+        # move the coordinates to the center of the image
+        h, w = np.array(img.shape)
+        x, y = round(x - w / 2 * self.pixel_size), round(y - h / 2 * self.pixel_size)
+        # store the image in the _image_store
+        self._image_store.add_image((x, y), img)
+        # get the current scale
+        self._current_scale = scale = self.get_scale()
+        # add the image to the scene with the current scale
+        img = img[::scale, ::scale]
+        frame = Image(img, cmap="grays", parent=self.view.scene, clim="auto")
+        # keep the added image on top of the others
+        order = min(child.order for child in self.view.scene.children) + -1
+        frame.order = order
+        frame.transform = scene.STTransform(
+            scale=(scale * self.pixel_size, scale * self.pixel_size), translate=(x, y)
+        )
+        if self._auto_reset_view:
+            self.reset_view()
+
+    def update_by_scale(self, scale: int) -> None:
+        """Update the images in the scene based on scale and pixel size."""
+        for child in self.view.scene.children:
+            if isinstance(child, Image):
+                x, y = child.transform.translate[:2]
+                img = self._image_store.get_image((x, y))
+                if img is None:
+                    continue
+                img_scaled = img[::scale, ::scale]
+                # update the image data
+                child.set_data(img_scaled)
+                # update the scale
+                child.transform.scale = (
+                    scale * self.pixel_size,
+                    scale * self.pixel_size,
+                )
+
+    def get_scale(self) -> int:
+        """Return the scale based on the zoom level."""
+        # get the transform from the camera
+        transform = self.view.camera.transform
+        # calculate the zoom level as the inverse of the scale factor in the transform
+        pixel_ratio = 1 / transform.scale[0]
+        # Calculate the scale as the inverse of the zoom level
+        scale = 1
+        while pixel_ratio / scale > self.pixel_size:
+            scale *= 2
+        return scale
+
     def clear_scene(self) -> None:
         """Clear the scene."""
         self._image_store.store.clear()
-
-        if self._info_text is not None:
-            self._info_text.parent = None
 
         for child in reversed(self.view.scene.children):
             if isinstance(child, Image):
@@ -165,7 +203,6 @@ class StageViewer(QWidget):
 
     def reset_view(self) -> None:
         """Recenter the view to the center of all images."""
-        pixel_size = self._mmc.getPixelSizeUm()
         min_x: int | None = None
         max_x: int | None = None
         min_y: int | None = None
@@ -173,7 +210,7 @@ class StageViewer(QWidget):
 
         # get the max and min (x, y) values from _store_images
         for (x, y), img in self._image_store.store.items():
-            height, width = np.array(img.shape) * pixel_size
+            height, width = np.array(img.shape) * self.pixel_size
             x, y = round(x), round(y)
             min_x = x if min_x is None else min(min_x, x)
             max_x = x + width if max_x is None else max(max_x, x + width)
@@ -187,97 +224,14 @@ class StageViewer(QWidget):
 
     # --------------------PRIVATE METHODS--------------------
 
-    def _on_pixel_size_changed(self, value: float) -> None:
-        """Clear the scene when the pixel size changes."""
-        # should this be a different behavior?
-        self.clear_scene()
-
-    def _move_to_clicked_position(self, event: MouseEvent) -> None:
-        """Move the stage to the clicked position."""
-        if not self._mmc.getXYStageDevice():
-            return
-        x, y, _, _ = self.view.camera.transform.imap(event.pos)
-        self._mmc.setXYPosition(x, y)
-        if self._snap_on_double_click:
-            self._mmc.snapImage()
-
     def _on_draw_event(self, event: MouseEvent) -> None:
         """Handle the draw event.
 
         Update the scene if the scale has changed.
         """
-        scale = self._get_scale()
+        scale = self.get_scale()
         if scale == self._current_scale:
             return
         self._current_scale = scale
-        self._update_scene_by_scale(scale)
+        self.update_by_scale(scale)
         self.scaleChanged.emit(scale)
-
-    def _get_scale(self) -> int:
-        """Return the scale based on the zoom level."""
-        # get the transform from the camera
-        transform = self.view.camera.transform
-        # calculate the zoom level as the inverse of the scale factor in the transform
-        pixel_ratio = 1 / transform.scale[0]
-        # Calculate the scale as the inverse of the zoom level
-        scale = 1
-        while pixel_ratio / scale > self._mmc.getPixelSizeUm():
-            scale *= 2
-        return scale
-
-    def _on_image_snapped(self) -> None:
-        """Add the snapped image to the scene."""
-        # get the snapped image
-        img = self._mmc.getImage()
-        # get the current stage position
-        x, y = self._mmc.getXYPosition()
-        # move the coordinates to the center of the image
-        self._add_image(img, x, y)
-
-    def _on_frame_ready(self, image: np.ndarray, event: useq.MDAEvent) -> None:
-        """Add the image to the scene when frameReady event is emitted."""
-        x = event.x_pos if event.x_pos is not None else self._mmc.getXPosition()
-        y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
-        self._add_image(image, x, y)
-
-    def _add_image(self, img: np.ndarray, x: float, y: float) -> None:
-        """Add an image to the scene and to the _image_store."""
-        # flip the image if needed
-        if self._flip_horizontal:
-            img = np.fliplr(img)
-        if self._flip_vertical:
-            img = np.flipud(img)
-        # move the coordinates to the center of the image
-        h, w = np.array(img.shape)
-        pixel_size = self._mmc.getPixelSizeUm()
-        x, y = round(x - w / 2 * pixel_size), round(y - h / 2 * pixel_size)
-        # store the image in the _image_store
-        self._image_store.add_image((x, y), img)
-        # get the current scale
-        self._current_scale = scale = self._get_scale()
-        # add the image to the scene with the current scale
-        img = img[::scale, ::scale]
-        frame = Image(img, cmap="grays", parent=self.view.scene, clim="auto")
-        # keep the added image on top of the others
-        order = min(child.order for child in self.view.scene.children) + -1
-        frame.order = order
-        frame.transform = scene.STTransform(
-            scale=(scale * pixel_size, scale * pixel_size), translate=(x, y)
-        )
-        if self._auto_reset_view:
-            self.reset_view()
-
-    def _update_scene_by_scale(self, scale: int) -> None:
-        """Update the images in the scene based on the scale."""
-        pixel_size = self._mmc.getPixelSizeUm()
-        for child in self.view.scene.children:
-            if isinstance(child, Image):
-                x, y = child.transform.translate[:2]
-                img = self._image_store.get_image((x, y))
-                if img is None:
-                    continue
-                img_scaled = img[::scale, ::scale]
-                # update the image data
-                child.set_data(img_scaled)
-                # update the scale
-                child.transform.scale = (scale * pixel_size, scale * pixel_size)

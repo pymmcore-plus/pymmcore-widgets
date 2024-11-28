@@ -1,8 +1,10 @@
 from typing import cast
 
+import numpy as np
+import useq
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QTimerEvent
+from qtpy.QtCore import QTimerEvent, Signal
 from qtpy.QtWidgets import (
     QAction,
     QLabel,
@@ -14,6 +16,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.fonticon import icon
+from vispy.app.canvas import MouseEvent
 
 from ._stage_viewer import StageViewer
 
@@ -31,9 +34,9 @@ class StageExplorer(QWidget):
     """A stage positions explorer widget.
 
     This widget provides a visual representation of the stage positions. The user can
-    interact with the stage positions by panning and zooming the view. The user can also
-    move the stage to a specific position (and optiionally snap an image) by
-    double-clicking on the view.
+    interact with the stage positions by panning and zooming the view. A `scaleChanged`
+    signal is emitted when the scale changes. The user can also move the stage to a
+    specific position (and, optionally, snap an image) by double-clicking on the view.
 
     Parameters
     ----------
@@ -66,18 +69,21 @@ class StageExplorer(QWidget):
         stop polling the stage position. By default, False.
     """
 
+    scaleChanged = Signal(int)
+
     def __init__(self, parent: QWidget | None = None, mmc: CMMCorePlus | None = None):
         super().__init__(parent)
         self.setWindowTitle("Stage Explorer")
 
         self._mmc = mmc or CMMCorePlus.instance()
 
-        self._stage_viewer = StageViewer(mmc=self._mmc)
+        self._stage_viewer = StageViewer()
 
         # timer for polling stage position
         self._timer_id: int | None = None
 
         # properties
+        self._snap_on_double_click: bool = False
         self._poll_stage_position: bool = False
 
         # toolbar ---------------------------------------------------------------------
@@ -104,7 +110,7 @@ class StageExplorer(QWidget):
         self._auto_reset_act = QAction(RESET, self, checkable=True)
         self._auto_reset_act.setChecked(self._stage_viewer.auto_reset_view)
         self._auto_snap_act = QAction(SNAP, self, checkable=True)
-        self._auto_snap_act.setChecked(self._stage_viewer.snap_on_double_click)
+        self._auto_snap_act.setChecked(self.snap_on_double_click)
         self._flip_horizontal_act = QAction(FLIP_H, self, checkable=True)
         self._flip_horizontal_act.setChecked(self._stage_viewer.flip_horizontal)
         self._flip_vertical_act = QAction(FLIP_V, self, checkable=True)
@@ -141,6 +147,17 @@ class StageExplorer(QWidget):
         main_layout.addWidget(toolbar, 0)
         main_layout.addWidget(self._stage_viewer, 1)
 
+        # connect vispy events
+        self._stage_viewer.canvas.events.mouse_double_click.connect(
+            self._move_to_clicked_position
+        )
+        self._stage_viewer.scaleChanged.connect(self.scaleChanged)
+
+        # connections core events
+        self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
+        self._mmc.events.imageSnapped.connect(self._on_image_snapped)
+        self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
+
     # -----------------------------PUBLIC METHODS-------------------------------------
 
     @property
@@ -159,12 +176,12 @@ class StageExplorer(QWidget):
     @property
     def snap_on_double_click(self) -> bool:
         """Return the snap on double click property."""
-        return self._stage_viewer.snap_on_double_click
+        return self._snap_on_double_click
 
     @snap_on_double_click.setter
     def snap_on_double_click(self, value: bool) -> None:
         """Set the snap on double click property."""
-        self._stage_viewer.snap_on_double_click = value
+        self._snap_on_double_click = value
         self._auto_snap_act.setChecked(value)
 
     @property
@@ -209,17 +226,6 @@ class StageExplorer(QWidget):
         if checked:
             self._stage_viewer.reset_view()
 
-    def _on_setting_checked(self, checked: bool) -> None:
-        """Update the stage viewer settings based on the state of the action."""
-        action_map = {
-            self._auto_snap_act: "snap_on_double_click",
-            self._flip_horizontal_act: "flip_horizontal",
-            self._flip_vertical_act: "flip_vertical",
-        }
-        sender = cast(QAction, self.sender())
-        if value := action_map.get(sender):
-            setattr(self._stage_viewer, value, checked)
-
     def _on_poll_stage(self, checked: bool) -> None:
         """Set the poll stage position property based on the state of the action."""
         if checked:
@@ -235,3 +241,45 @@ class StageExplorer(QWidget):
             return
         x, y = self._mmc.getXYPosition()
         self._stage_pos_label.setText(f"X: {x:.2f} Y: {y:.2f}")
+
+    def _on_setting_checked(self, checked: bool) -> None:
+        """Update the stage viewer settings based on the state of the action."""
+        action_map = {
+            self._auto_snap_act: "snap_on_double_click",
+            self._flip_horizontal_act: "flip_horizontal",
+            self._flip_vertical_act: "flip_vertical",
+        }
+        sender = cast(QAction, self.sender())
+        if value := action_map.get(sender):
+            setattr(self, value, checked)
+
+    def _on_pixel_size_changed(self, value: float) -> None:
+        """Clear the scene when the pixel size changes."""
+        self._stage_viewer._pixel_size = value
+        # should this be a different behavior?
+        self._stage_viewer.clear_scene()
+
+    def _on_image_snapped(self) -> None:
+        """Add the snapped image to the scene."""
+        # get the snapped image
+        img = self._mmc.getImage()
+        # get the current stage position
+        x, y = self._mmc.getXYPosition()
+        # move the coordinates to the center of the image
+        self._stage_viewer.add_image(img, x, y)
+
+    def _on_frame_ready(self, image: np.ndarray, event: useq.MDAEvent) -> None:
+        """Add the image to the scene when frameReady event is emitted."""
+        # TODO: better handle z stack (e.g. max projection?)
+        x = event.x_pos if event.x_pos is not None else self._mmc.getXPosition()
+        y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
+        self._stage_viewer.add_image(image, x, y)
+
+    def _move_to_clicked_position(self, event: MouseEvent) -> None:
+        """Move the stage to the clicked position."""
+        if not self._mmc.getXYStageDevice():
+            return
+        x, y, _, _ = self._stage_viewer.view.camera.transform.imap(event.pos)
+        self._mmc.setXYPosition(x, y)
+        if self._snap_on_double_click:
+            self._mmc.snapImage()
