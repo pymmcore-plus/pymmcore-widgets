@@ -3,6 +3,7 @@ from typing import Optional, cast
 import numpy as np
 import useq
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
@@ -65,6 +66,8 @@ class StageViewer(QWidget):
         False.
     """
 
+    scaleChanged = Signal(int)
+
     def __init__(
         self,
         parent: Optional[QWidget] = None,
@@ -98,12 +101,13 @@ class StageViewer(QWidget):
         main_layout.addWidget(self.canvas.native)
 
         # connections to vispy events
-        self._mmc.events.imageSnapped.connect(self._on_image_snapped)
-        self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
         self.canvas.events.mouse_double_click.connect(self._move_to_clicked_position)
         # this is to check if the scale has changed and update the scene accordingly
         self.canvas.events.draw.connect(self._on_draw_event)
+
         # connections to core events
+        self._mmc.events.imageSnapped.connect(self._on_image_snapped)
+        self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
 
     # --------------------PUBLIC METHODS--------------------
@@ -181,8 +185,6 @@ class StageViewer(QWidget):
 
         self.view.camera.set_range(x=(min_x, max_x), y=(min_y, max_y))
 
-        self._draw_scale_info()
-
     # --------------------PRIVATE METHODS--------------------
 
     def _on_pixel_size_changed(self, value: float) -> None:
@@ -209,7 +211,7 @@ class StageViewer(QWidget):
             return
         self._current_scale = scale
         self._update_scene_by_scale(scale)
-        self._draw_scale_info()
+        self.scaleChanged.emit(scale)
 
     def _get_scale(self) -> int:
         """Return the scale based on the zoom level."""
@@ -264,8 +266,6 @@ class StageViewer(QWidget):
         )
         if self._auto_reset_view:
             self.reset_view()
-        else:
-            self._draw_scale_info()
 
     def _update_scene_by_scale(self, scale: int) -> None:
         """Update the images in the scene based on the scale."""
@@ -281,25 +281,3 @@ class StageViewer(QWidget):
                 child.set_data(img_scaled)
                 # update the scale
                 child.transform.scale = (scale * pixel_size, scale * pixel_size)
-
-    def _draw_scale_info(self) -> None:
-        """Update scale text on the top-right corner."""
-        # TODO: either remove this method (I used it to during development) or convert
-        # it to a scale bar
-
-        # remove the previous text if it exists
-        if self._info_text is not None:
-            self._info_text.parent = None
-
-        # create the text visual only once
-        self._info_text = scene.Text(
-            f"scale: {self._get_scale()}",
-            color="white",
-            parent=self.canvas.scene,
-            anchor_x="right",
-            anchor_y="top",
-        )
-        # move the text to the top-right corner
-        self._info_text.transform = scene.STTransform(
-            translate=(self.canvas.size[0] - 10, 30)
-        )
