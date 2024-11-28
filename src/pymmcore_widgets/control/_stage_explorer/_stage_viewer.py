@@ -179,13 +179,15 @@ class StageViewer(QWidget):
 
     # --------------------PRIVATE METHODS--------------------
 
-    def _get_boundaries(self) -> tuple[int | None, int | None, int | None, int | None]:
+    def _get_boundaries(
+        self,
+    ) -> tuple[float | None, float | None, float | None, float | None]:
         """Return the boundaries of the images in the scene."""
+        min_x: float | None = None
+        max_x: float | None = None
+        min_y: float | None = None
+        max_y: float | None = None
         # get the max and min (x, y) values from _store_images
-        min_x: int | None = None
-        max_x: int | None = None
-        min_y: int | None = None
-        max_y: int | None = None
         for (x, y), img in self._image_store:
             height, width = np.array(img.shape) * self.pixel_size
             x, y = round(x), round(y)

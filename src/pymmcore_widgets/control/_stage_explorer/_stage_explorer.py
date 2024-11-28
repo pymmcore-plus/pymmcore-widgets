@@ -279,10 +279,10 @@ class StageExplorer(QWidget):
         # consider the stage position marker if present
         marker_x, marker_y = self._get_stage_marker_position()
         if marker_x is not None and marker_y is not None:
-            min_x = min(min_x if min_x is not None else int(marker_x), int(marker_x))
-            max_x = max(max_x if max_x is not None else int(marker_x), int(marker_x))
-            min_y = min(min_y if min_y is not None else int(marker_y), int(marker_y))
-            max_y = max(max_y if max_y is not None else int(marker_y), int(marker_y))
+            min_x = min(min_x if min_x is not None else marker_x, marker_x)
+            max_x = max(max_x if max_x is not None else marker_x, marker_x)
+            min_y = min(min_y if min_y is not None else marker_y, marker_y)
+            max_y = max(max_y if max_y is not None else marker_y, marker_y)
 
         if any(val is None for val in (min_x, max_x, min_y, max_y)):
             return
