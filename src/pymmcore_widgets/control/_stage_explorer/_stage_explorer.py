@@ -9,10 +9,8 @@ from qtpy.QtCore import QTimerEvent, Signal
 from qtpy.QtWidgets import (
     QAction,
     QLabel,
-    QMenu,
     QSizePolicy,
     QToolBar,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -25,7 +23,9 @@ from ._stage_viewer import DataStore, StageViewer
 red = "#C33"
 green = "#3A3"
 gray = "#666"
-RESET = "Auto Reset View"
+AUTO_RESET = "Auto Reset View"
+RESET = "Reset View"
+CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
 FLIP_X = "Flip Images Horizontally"
 FLIP_Y = "Flip Images Vertically"
@@ -101,51 +101,47 @@ class StageExplorer(QWidget):
         # toolbar ---------------------------------------------------------------------
         toolbar = QToolBar()
         toolbar.setMovable(False)
+        toolbar.layout().setSpacing(5)
         toolbar.layout().setContentsMargins(0, 0, 10, 0)
-        # reset view action
-        self._act_reset = QAction(
-            icon(MDI6.fullscreen, color=green), "Reset View", self
-        )
-        self._act_reset.triggered.connect(self.reset_view)
-        # clear action
-        self._act_clear = QAction(icon(MDI6.close, color=red), "Clear View", self)
-        self._act_clear.triggered.connect(self._stage_viewer.clear_scene)
-        # settings button and context menu for settings
-        self._settings_btn = QToolButton()
-        self._settings_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        self._settings_btn.setToolTip("Settings Menu")
-        self._settings_btn.setIcon(icon(MDI6.cog_outline, color=gray))
-        # context menu
-        menu = QMenu(self)
-        self._settings_btn.setMenu(menu)
-        # create checkable actions for settings
-        self._auto_reset_act = QAction(RESET, self, checkable=True)
-        self._auto_reset_act.setChecked(self.auto_reset_view)
-        self._auto_snap_act = QAction(SNAP, self, checkable=True)
-        self._auto_snap_act.setChecked(self.snap_on_double_click)
-        self._flip_x_act = QAction(FLIP_X, self, checkable=True)
-        self._flip_x_act.setChecked(self.flip_x)
-        self._flip_y_act = QAction(FLIP_Y, self, checkable=True)
-        self._flip_y_act.setChecked(self.flip_y)
-        self._poll_stage_act = QAction(POLL_STAGE, self, checkable=True)
-        # connect actions to respective slots
-        self._auto_reset_act.triggered.connect(self._on_reset_view)
-        self._auto_snap_act.triggered.connect(self._on_setting_checked)
-        self._flip_x_act.triggered.connect(self._on_setting_checked)
-        self._flip_y_act.triggered.connect(self._on_setting_checked)
-        self._poll_stage_act.triggered.connect(self._on_poll_stage)
-        # add actions to the menu
-        menu.addAction(self._auto_reset_act)
-        menu.addAction(self._auto_snap_act)
-        menu.addAction(self._flip_x_act)
-        menu.addAction(self._flip_y_act)
-        menu.addAction(self._poll_stage_act)
+
+        # actions
+        self._clear_view_act: QAction
+        self._reset_view_act: QAction
+        self._auto_reset_view_act: QAction
+        self._snap_on_double_click_act: QAction
+        self._flip_images_horizontally_act: QAction
+        self._flip_images_vertically_act: QAction
+        self._poll_stage_position_act: QAction
+
+        ACTION_MAP = {
+            # action text: (icon, color, checkable, callback)
+            CLEAR: (MDI6.close_box_outline, red, False, self._stage_viewer.clear_scene),
+            RESET: (MDI6.checkbox_blank_outline, green, False, self.reset_view),
+            AUTO_RESET: (MDI6.alpha_a_box_outline, green, True, self._on_reset_view),
+            SNAP: (MDI6.camera_outline, gray, True, self._on_setting_checked),
+            FLIP_X: (MDI6.flip_horizontal, gray, True, self._on_setting_checked),
+            FLIP_Y: (MDI6.flip_vertical, gray, True, self._on_setting_checked),
+            POLL_STAGE: (MDI6.plus_box_outline, gray, True, self._on_poll_stage),
+        }
+
+        # create actions
+        for a_text, (a_icon, color, check, callback) in ACTION_MAP.items():
+            action = QAction(icon(a_icon, color=color), a_text, self, checkable=check)
+            action.triggered.connect(callback)
+            setattr(self, f"_{a_text.lower().replace(' ', '_')}_act", action)
+            toolbar.addAction(action)
+
         # stage pos label
         self._stage_pos_label = QLabel()
+
         # add actions and widgets to the toolbar
-        toolbar.addAction(self._act_reset)
-        toolbar.addAction(self._act_clear)
-        toolbar.addWidget(self._settings_btn)
+        toolbar.addAction(self._clear_view_act)
+        toolbar.addAction(self._reset_view_act)
+        toolbar.addAction(self._auto_reset_view_act)
+        toolbar.addAction(self._snap_on_double_click_act)
+        toolbar.addAction(self._flip_images_horizontally_act)
+        toolbar.addAction(self._flip_images_vertically_act)
+        toolbar.addAction(self._poll_stage_position_act)
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         toolbar.addWidget(spacer)
@@ -186,7 +182,7 @@ class StageExplorer(QWidget):
     def auto_reset_view(self, value: bool) -> None:
         """Set the auto reset view property."""
         self._auto_reset_view = value
-        self._auto_reset_act.setChecked(value)
+        self._auto_reset_view_act.setChecked(value)
         if value:
             self.reset_view()
 
@@ -199,7 +195,7 @@ class StageExplorer(QWidget):
     def snap_on_double_click(self, value: bool) -> None:
         """Set the snap on double click property."""
         self._snap_on_double_click = value
-        self._auto_snap_act.setChecked(value)
+        self._snap_on_double_click_act.setChecked(value)
 
     @property
     def flip_x(self) -> bool:
@@ -210,7 +206,7 @@ class StageExplorer(QWidget):
     def flip_x(self, value: bool) -> None:
         """Set the flip x property."""
         self._flip_x = value
-        self._flip_x_act.setChecked(value)
+        self._flip_images_horizontally_act.setChecked(value)
 
     @property
     def flip_y(self) -> bool:
@@ -221,7 +217,7 @@ class StageExplorer(QWidget):
     def flip_y(self, value: bool) -> None:
         """Set the flip y property."""
         self._flip_y = value
-        self._flip_y_act.setChecked(value)
+        self._flip_images_vertically_act.setChecked(value)
 
     @property
     def poll_stage_position(self) -> bool:
@@ -232,7 +228,7 @@ class StageExplorer(QWidget):
     def poll_stage_position(self, value: bool) -> None:
         """Set the poll stage position property."""
         self._poll_stage_position = value
-        self._poll_stage_act.setChecked(value)
+        self._poll_stage_position_act.setChecked(value)
         self._on_poll_stage(value)
 
     def add_image(
@@ -338,9 +334,9 @@ class StageExplorer(QWidget):
     def _on_setting_checked(self, checked: bool) -> None:
         """Update the stage viewer settings based on the state of the action."""
         action_map = {
-            self._auto_snap_act: "snap_on_double_click",
-            self._flip_x_act: "flip_x",
-            self._flip_y_act: "flip_y",
+            self._snap_on_double_click_act: "snap_on_double_click",
+            self._flip_images_horizontally_act: "flip_x",
+            self._flip_images_vertically_act: "flip_y",
         }
         sender = cast(QAction, self.sender())
 
