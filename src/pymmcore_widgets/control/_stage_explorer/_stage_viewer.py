@@ -138,8 +138,7 @@ class StageViewer(QWidget):
         """Update the images in the scene based on scale and pixel size."""
         for child in self._get_images():
             x, y = child.transform.translate[:2]
-            img = self._image_store.get_image((x, y))
-            if img is None:
+            if (img := self._image_store.get_image((x, y))) is None:
                 continue
             img_scaled = img[::scale, ::scale]
             # update the image data
