@@ -69,9 +69,9 @@ class StageExplorer(QWidget):
         False.
     poll_stage_position : bool
         A boolean property that controls whether to poll the stage position.
-        If True, the widget will poll the stage position every 100 ms and display
-        the current X and Y position in the status bar. If False, the widget will
-        stop polling the stage position. By default, False.
+        If True, the widget will poll the stage position and display the current X and Y
+        coordinates in the status bar and with a 'cross_lines' marker. If False, the
+        widget will stop polling the stage position. By default, False.
     """
 
     scaleChanged = Signal(int)
@@ -277,13 +277,12 @@ class StageExplorer(QWidget):
         min_x, max_x, min_y, max_y = self._stage_viewer._get_boundaries()
 
         # consider the stage position marker if present
-        if self._stage_pos_marker is not None:
-            x, y = self._get_stage_marker_position()
-            if x is not None and y is not None:
-                min_x = int(x) if min_x is None else min(min_x, int(x))
-                max_x = int(x) if max_x is None else max(max_x, int(x))
-                min_y = int(y) if min_y is None else min(min_y, int(y))
-                max_y = int(y) if max_y is None else max(max_y, int(y))
+        marker_x, marker_y = self._get_stage_marker_position()
+        if marker_x is not None and marker_y is not None:
+            min_x = min(min_x if min_x is not None else int(marker_x), int(marker_x))
+            max_x = max(max_x if max_x is not None else int(marker_x), int(marker_x))
+            min_y = min(min_y if min_y is not None else int(marker_y), int(marker_y))
+            max_y = max(max_y if max_y is not None else int(marker_y), int(marker_y))
 
         if any(val is None for val in (min_x, max_x, min_y, max_y)):
             return
@@ -301,7 +300,7 @@ class StageExplorer(QWidget):
     def _on_poll_stage(self, checked: bool) -> None:
         """Set the poll stage position property based on the state of the action."""
         if checked:
-            self._timer_id = self.startTimer(100)
+            self._timer_id = self.startTimer(50)
         elif self._timer_id is not None:
             self.killTimer(self._timer_id)
             self._timer_id = None
