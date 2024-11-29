@@ -338,7 +338,6 @@ class StageExplorer(QWidget):
         sender = cast(QAction, self.sender())
 
         if value := action_map.get(sender):
-            print(sender.text(), value, action_map.get(sender))
             setattr(self, value, checked)
 
     def _get_stage_marker_position(self) -> tuple[float | None, float | None]:
