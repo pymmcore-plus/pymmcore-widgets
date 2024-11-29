@@ -28,6 +28,24 @@ FLIP_X = "Flip Images Horizontally"
 FLIP_Y = "Flip Images Vertically"
 POLL_STAGE = "Poll Stage Position"
 
+SS_TOOLBUTTON = """
+    QToolButton:checked {
+        background-color: rgba(51, 170, 51, 255);
+        border: 2px solid rgba(102, 102, 102, 255);
+        border-radius: 5px;
+    }
+    QToolButton:!checked {
+        border: 2px solid rgba(102, 102, 102, 255);
+        border-radius: 5px;
+    }
+    QToolButton:checked:hover {
+        background-color: rgba(51, 170, 51, 180);
+    }
+    QToolButton:!checked:hover {
+        background-color: rgba(102, 102, 102, 100);
+    }
+"""
+
 
 class StageExplorer(QWidget):
     """A stage positions explorer widget.
@@ -98,7 +116,7 @@ class StageExplorer(QWidget):
         toolbar = QToolBar()
         toolbar.setMovable(False)
         toolbar.layout().setSpacing(5)
-        toolbar.layout().setContentsMargins(0, 0, 10, 0)
+        toolbar.setStyleSheet(SS_TOOLBUTTON)
 
         # actions
         self._clear_view_act: QAction
@@ -313,7 +331,7 @@ class StageExplorer(QWidget):
         # update stage marker position
         self._stage_pos_marker.set_data(
             symbol="cross_lines",
-            edge_color="green",
+            edge_color="#3A3",  # same as rgba(51, 170, 51, 255) used in SS_TOOLBUTTON
             size=50,
             edge_width=7,
             pos=np.array([[x, y]]),
