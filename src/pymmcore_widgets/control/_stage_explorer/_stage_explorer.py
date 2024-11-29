@@ -21,6 +21,7 @@ from vispy.scene.visuals import Markers
 from ._stage_viewer import StageViewer
 
 gray = "#666"
+RESET = "Reset View"
 AUTO_RESET = "Auto Reset View"
 CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
@@ -120,6 +121,7 @@ class StageExplorer(QWidget):
 
         # actions
         self._clear_view_act: QAction
+        self._reset_view_act: QAction
         self._auto_reset_view_act: QAction
         self._snap_on_double_click_act: QAction
         self._flip_images_horizontally_act: QAction
@@ -129,7 +131,8 @@ class StageExplorer(QWidget):
         ACTION_MAP = {
             # action text: (icon, color, checkable, callback)
             CLEAR: (MDI6.close, gray, False, self._stage_viewer.clear_scene),
-            AUTO_RESET: (MDI6.fullscreen, gray, True, self._on_reset_view),
+            RESET: (MDI6.checkbox_blank_outline, gray, False, self.reset_view),
+            AUTO_RESET: (MDI6.caps_lock, gray, True, self._on_reset_view),
             SNAP: (MDI6.camera_outline, gray, True, self._on_setting_checked),
             FLIP_X: (MDI6.flip_horizontal, gray, True, self._on_setting_checked),
             FLIP_Y: (MDI6.flip_vertical, gray, True, self._on_setting_checked),
