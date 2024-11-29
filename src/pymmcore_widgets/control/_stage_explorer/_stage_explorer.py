@@ -136,7 +136,7 @@ class StageExplorer(QWidget):
             SNAP: (MDI6.camera_outline, gray, True, self._on_setting_checked),
             FLIP_X: (MDI6.flip_horizontal, gray, True, self._on_setting_checked),
             FLIP_Y: (MDI6.flip_vertical, gray, True, self._on_setting_checked),
-            POLL_STAGE: (MDI6.plus_box_outline, gray, True, self._on_poll_stage),
+            POLL_STAGE: (MDI6.map_marker, gray, True, self._on_poll_stage),
         }
 
         # create actions
