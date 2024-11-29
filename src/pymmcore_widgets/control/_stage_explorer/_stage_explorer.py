@@ -116,7 +116,6 @@ class StageExplorer(QWidget):
         # toolbar
         toolbar = QToolBar()
         toolbar.setMovable(False)
-        toolbar.layout().setSpacing(5)
         toolbar.setStyleSheet(SS_TOOLBUTTON)
 
         # actions
@@ -323,7 +322,7 @@ class StageExplorer(QWidget):
         if not self._mmc.getXYStageDevice():
             return
         x, y = self._mmc.getXYPosition()
-        self._stage_pos_label.setText(f"X: {x:.2f} Y: {y:.2f}")
+        self._stage_pos_label.setText(f"X: {x:.2f} µm Y: {y:.2f} µm ")
 
         # add stage marker if not yet present
         if self._stage_pos_marker is None:
