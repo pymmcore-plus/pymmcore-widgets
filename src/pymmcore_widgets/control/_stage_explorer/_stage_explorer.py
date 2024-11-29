@@ -18,13 +18,10 @@ from superqt.fonticon import icon
 from vispy.app.canvas import MouseEvent
 from vispy.scene.visuals import Markers
 
-from ._stage_viewer import DataStore, StageViewer
+from ._stage_viewer import StageViewer
 
-red = "#C33"
-green = "#3A3"
 gray = "#666"
 AUTO_RESET = "Auto Reset View"
-RESET = "Reset View"
 CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
 FLIP_X = "Flip Images Horizontally"
@@ -52,9 +49,9 @@ class StageExplorer(QWidget):
 
     Properties
     ----------
-    image_store : DataStore
-        Return the image store object that contains the images added to the scene and
-        their stage positions.
+    image_store : dict[tuple[float, float], np.ndarray]
+        Return the image_store dictionary object where the keys are the stage positions
+        and values are the images added to the scene.
     auto_reset_view : bool
         A boolean property that controls whether to automatically reset the view when an
         image is added to the scene. By default, True.
@@ -93,7 +90,6 @@ class StageExplorer(QWidget):
         self._flip_horizontal: bool = False
         self._flip_vertical: bool = False
         self._poll_stage_position: bool = False
-        self._image_store: DataStore = self._stage_viewer.image_store
 
         # marker for stage position
         self._stage_pos_marker: Markers | None = None
@@ -106,7 +102,6 @@ class StageExplorer(QWidget):
 
         # actions
         self._clear_view_act: QAction
-        self._reset_view_act: QAction
         self._auto_reset_view_act: QAction
         self._snap_on_double_click_act: QAction
         self._flip_images_horizontally_act: QAction
@@ -115,9 +110,8 @@ class StageExplorer(QWidget):
 
         ACTION_MAP = {
             # action text: (icon, color, checkable, callback)
-            CLEAR: (MDI6.close_box_outline, red, False, self._stage_viewer.clear_scene),
-            RESET: (MDI6.checkbox_blank_outline, green, False, self.reset_view),
-            AUTO_RESET: (MDI6.alpha_a_box_outline, green, True, self._on_reset_view),
+            CLEAR: (MDI6.close, gray, False, self._stage_viewer.clear_scene),
+            AUTO_RESET: (MDI6.fullscreen, gray, True, self._on_reset_view),
             SNAP: (MDI6.camera_outline, gray, True, self._on_setting_checked),
             FLIP_X: (MDI6.flip_horizontal, gray, True, self._on_setting_checked),
             FLIP_Y: (MDI6.flip_vertical, gray, True, self._on_setting_checked),
@@ -166,7 +160,7 @@ class StageExplorer(QWidget):
     # -----------------------------PUBLIC METHODS-------------------------------------
 
     @property
-    def image_store(self) -> DataStore:
+    def image_store(self) -> dict[tuple[float, float], np.ndarray]:
         """Return the image store."""
         return self._stage_viewer.image_store
 
@@ -238,8 +232,8 @@ class StageExplorer(QWidget):
     ) -> None:
         """Add an image to the scene.
 
-        The image is also added to the `image_store` DataStore which is a dictionary
-        that uses the (x, y) positions as key and the images as value.
+        The image is also added to the `image_store` which is a dictionary that uses the
+        (x, y) positions as key and the images as value.
 
         Parameters
         ----------

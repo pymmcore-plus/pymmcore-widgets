@@ -13,51 +13,19 @@ from vispy.scene.visuals import Image
 from vispy.scene.widgets import ViewBox
 
 
-class DataStore:
-    """A data store for images.
-
-    This class stores images and their stage positions in a dictionary where the keys
-    are the stage positions and the values are the images.
-    """
-
-    def __init__(self) -> None:
-        self.store: dict[tuple[float, float], np.ndarray] = {}
-
-    def clear(self) -> None:
-        """Clear the store."""
-        self.store.clear()
-
-    def add_image(self, position: tuple[float, float], image: np.ndarray) -> None:
-        """Add an image to the store."""
-        self.store[position] = image
-
-    def get_image(self, position: tuple[float, float]) -> np.ndarray | None:
-        """Get an image from the store."""
-        return self.store.get(position, None)
-
-    def __iter__(self) -> Iterator[tuple[tuple[float, float], np.ndarray]]:
-        return iter(self.store.items())
-
-
 class StageViewer(QWidget):
     """A stage positions viewer widget.
 
     This widget provides a visual representation of the stage positions. The user can
-    interact with the stage positions by panning and zooming the view.
-
-    The scale of the images is automatically adjusted based on the zoom level of the
-    view. A `scaleChanged` signal is emitted when the scale changes.
-
-    Parameters
     ----------
     parent : QWidget | None
         Optional parent widget, by default None.
 
     Properties
     ----------
-    image_store : DataStore
-        Return the image store object that contains the images added to the scene and
-        their stage positions.
+    image_store : dict[tuple[float, float], np.ndarray]
+        Return the image_store dictionary object where the keys are the stage positions
+        and values are the images added to the scene.
     pixel_size : float
         The pixel size in micrometers. By default, 1.0.
     """
@@ -71,7 +39,7 @@ class StageViewer(QWidget):
         self._current_scale: int = 1
 
         # properties
-        self._image_store: DataStore = DataStore()
+        self._image_store: dict[tuple[float, float], np.ndarray] = {}
         self._pixel_size: float = 1.0
 
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
@@ -89,7 +57,7 @@ class StageViewer(QWidget):
     # --------------------PUBLIC METHODS--------------------
 
     @property
-    def image_store(self) -> DataStore:
+    def image_store(self) -> dict[tuple[float, float], np.ndarray]:
         """Return the image store."""
         return self._image_store
 
@@ -106,8 +74,8 @@ class StageViewer(QWidget):
     def add_image(self, img: np.ndarray, x: float, y: float) -> None:
         """Add an image to the scene.
 
-        The image is also added to the `image_store` DataStore which is a dictionary
-        that uses the (x, y) positions as key and the images as value.
+        The image is also added to the `image_store` dict where the (x, y) positions are
+        the keys and the images the value.
 
         Parameters
         ----------
@@ -122,7 +90,7 @@ class StageViewer(QWidget):
         h, w = np.array(img.shape)
         x, y = round(x - w / 2 * self.pixel_size), round(y - h / 2 * self.pixel_size)
         # store the image in the _image_store
-        self._image_store.add_image((x, y), img)
+        self._store_image((x, y), img)
         # get the current scale
         self._current_scale = scale = self.get_scale()
         # add the image to the scene with the current scale
@@ -138,7 +106,7 @@ class StageViewer(QWidget):
         """Update the images in the scene based on scale and pixel size."""
         for child in self._get_images():
             x, y = child.transform.translate[:2]
-            if (img := self._image_store.get_image((x, y))) is None:
+            if (img := self._get_stored_image((x, y))) is None:
                 continue
             img_scaled = img[::scale, ::scale]
             # update the image data
@@ -178,6 +146,14 @@ class StageViewer(QWidget):
 
     # --------------------PRIVATE METHODS--------------------
 
+    def _store_image(self, position: tuple[float, float], image: np.ndarray) -> None:
+        """Add an image to the store."""
+        self._image_store[position] = image
+
+    def _get_stored_image(self, position: tuple[float, float]) -> np.ndarray | None:
+        """Get an image from the store."""
+        return self._image_store.get(position)
+
     def _get_boundaries(
         self,
     ) -> tuple[float | None, float | None, float | None, float | None]:
@@ -187,7 +163,7 @@ class StageViewer(QWidget):
         min_y: float | None = None
         max_y: float | None = None
         # get the max and min (x, y) values from _store_images
-        for (x, y), img in self._image_store:
+        for (x, y), img in self._image_store.items():
             height, width = np.array(img.shape) * self.pixel_size
             x, y = round(x), round(y)
             min_x = x if min_x is None else min(min_x, x)
