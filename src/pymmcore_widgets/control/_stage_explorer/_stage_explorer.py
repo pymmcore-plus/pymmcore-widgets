@@ -399,7 +399,7 @@ class StageExplorer(QWidget):
 
     def _on_frame_ready(self, image: np.ndarray, event: useq.MDAEvent) -> None:
         """Add the image to the scene when frameReady event is emitted."""
-        # TODO: better handle z stack (e.g. max projection?)
+        # TODO: better handle c and z (e.g. max projection?)
         x = event.x_pos if event.x_pos is not None else self._mmc.getXPosition()
         y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
         self.add_image(image, x, y, self.flip_horizontal, self.flip_vertical)
