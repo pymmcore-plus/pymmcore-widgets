@@ -30,6 +30,12 @@ FLIP_Y = "Flip Images Vertically"
 POLL_STAGE = "Poll Stage Position"
 
 SS_TOOLBUTTON = """
+    QToolButton {
+        min-width: 25px;
+        min-height: 25px;
+        max-width: 25px;
+        max-height: 25px;
+    }
     QToolButton:checked {
         background-color: rgba(51, 170, 51, 255);
         border: 2px solid rgba(102, 102, 102, 255);
@@ -115,8 +121,9 @@ class StageExplorer(QWidget):
 
         # toolbar
         toolbar = QToolBar()
-        toolbar.setMovable(False)
         toolbar.setStyleSheet(SS_TOOLBUTTON)
+        toolbar.setMovable(False)
+        toolbar.setContentsMargins(0, 0, 10, 0)
 
         # actions
         self._clear_view_act: QAction
@@ -322,7 +329,7 @@ class StageExplorer(QWidget):
         if not self._mmc.getXYStageDevice():
             return
         x, y = self._mmc.getXYPosition()
-        self._stage_pos_label.setText(f"X: {x:.2f} µm Y: {y:.2f} µm ")
+        self._stage_pos_label.setText(f"X: {x:.2f} µm Y: {y:.2f} µm")
 
         # add stage marker if not yet present
         if self._stage_pos_marker is None:
