@@ -6,8 +6,8 @@ from ._edit_preset_widget import EditPresetWidget
 from ._group_preset_table_widget import GroupPresetTableWidget
 
 __all__ = [
-    "AddGroupWidget",
     "AddFirstPresetWidget",
+    "AddGroupWidget",
     "AddPresetWidget",
     "EditGroupWidget",
     "EditPresetWidget",
