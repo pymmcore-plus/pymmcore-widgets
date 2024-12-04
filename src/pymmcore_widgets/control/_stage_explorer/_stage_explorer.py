@@ -98,11 +98,13 @@ class StageExplorer(QWidget):
 
     scaleChanged = Signal(int)
 
-    def __init__(self, parent: QWidget | None = None, mmc: CMMCorePlus | None = None):
+    def __init__(
+        self, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
+    ):
         super().__init__(parent)
         self.setWindowTitle("Stage Explorer")
 
-        self._mmc = mmc or CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         self._stage_viewer = StageViewer()
 
@@ -390,6 +392,8 @@ class StageExplorer(QWidget):
 
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
+        if self._mmc.mda.is_running():
+            return
         # get the snapped image
         img = self._mmc.getImage()
         # get the current stage position
