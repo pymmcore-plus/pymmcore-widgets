@@ -5,7 +5,7 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QApplication, QDockWidget, QMainWindow, QVBoxLayout, QWidget
 from vispy import scene
 
-IMG = np.random.rand(100, 100)
+IMG = np.random.randint(0, 255, (512, 512), dtype=np.uint8)
 
 
 class VispyWidget(QWidget):
