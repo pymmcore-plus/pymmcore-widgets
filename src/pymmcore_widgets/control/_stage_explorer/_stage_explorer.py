@@ -106,7 +106,7 @@ class StageExplorer(QWidget):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self._stage_viewer = StageViewer()
+        self._stage_viewer = StageViewer(self)
 
         # timer for polling stage position
         self._timer_id: int | None = None
