@@ -395,6 +395,7 @@ class StageExplorer(QWidget):
         """Add the snapped image to the scene."""
         if self._mmc.mda.is_running():
             return
+        self._mmc.waitForSystem()  # TODO: maybe use current stage device instead
         # get the snapped image
         img = self._mmc.getImage()
         # get the current stage position

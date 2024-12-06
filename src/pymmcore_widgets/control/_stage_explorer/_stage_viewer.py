@@ -11,7 +11,8 @@ from vispy import scene
 from vispy.app.canvas import MouseEvent
 from vispy.scene.visuals import Image
 from vispy.scene.widgets import ViewBox
-
+from superqt.utils import qthrottled
+import time
 
 class StageViewer(QWidget):
     """A stage positions viewer widget.
@@ -52,7 +53,7 @@ class StageViewer(QWidget):
         main_layout.addWidget(self.canvas.native)
 
         # connections (if the scale has changed, update the scene accordingly)
-        self.canvas.events.draw.connect(self._on_draw_event)
+        self.canvas.events.draw.connect(qthrottled(self._on_draw_event))
 
     # --------------------PUBLIC METHODS--------------------
 
@@ -88,7 +89,7 @@ class StageViewer(QWidget):
         """
         # move the coordinates to the center of the image
         h, w = np.array(img.shape)
-        x, y = round(x - w / 2 * self.pixel_size), round(y - h / 2 * self.pixel_size)
+        x, y = round(x - w / 2 * self._pixel_size), round(y - h / 2 * self._pixel_size)
         # store the image in the _image_store
         self._store_image((x, y), img)
         # get the current scale
@@ -99,7 +100,7 @@ class StageViewer(QWidget):
         # keep the added image on top of the others
         frame.order = min(child.order for child in self._get_images()) - 1
         frame.transform = scene.STTransform(
-            scale=(scale * self.pixel_size, scale * self.pixel_size), translate=(x, y)
+            scale=(scale * self._pixel_size, scale * self._pixel_size), translate=(x, y)
         )
 
     def update_by_scale(self, scale: int) -> None:
@@ -183,6 +184,7 @@ class StageViewer(QWidget):
         self._current_scale = scale
         self.update_by_scale(scale)
         self.scaleChanged.emit(scale)
+
 
     def _get_images(self) -> Iterator[Image]:
         """Yield images in the scene."""
