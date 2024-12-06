@@ -95,7 +95,7 @@ def test_config_wizard_devices(
     global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path, qapp
 ):
     global_mmcore.unloadAllDevices()
-    assert global_mmcore.getLoadedDevices() == ("Core",)
+    assert tuple(global_mmcore.getLoadedDevices()) == ("Core",)
 
     wiz = ConfigWizard(core=global_mmcore)
     wiz.show()

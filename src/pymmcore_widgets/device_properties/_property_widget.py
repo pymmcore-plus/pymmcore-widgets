@@ -3,12 +3,7 @@ from __future__ import annotations
 import contextlib
 from typing import Any, Callable, Protocol, TypeVar, cast
 
-import pymmcore
-from pymmcore_plus import (
-    CMMCorePlus,
-    DeviceType,
-    PropertyType,
-)
+from pymmcore_plus import CMMCorePlus, DeviceType, Keyword, PropertyType
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -22,8 +17,8 @@ from qtpy.QtWidgets import (
 )
 from superqt import QLabeledDoubleSlider, QLabeledSlider, utils
 
-STATE = pymmcore.g_Keyword_State
-LABEL = pymmcore.g_Keyword_Label
+STATE = Keyword.State.value
+LABEL = Keyword.Label.value
 
 
 # fmt: off

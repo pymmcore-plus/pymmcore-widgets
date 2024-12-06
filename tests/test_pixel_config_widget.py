@@ -104,8 +104,22 @@ def test_pixel_config_wdg_define_configs(qtbot: QtBot, global_mmcore: CMMCorePlu
     wdg._on_apply()
 
     assert list(wdg._mmc.getAvailablePixelSizeConfigs()) == ["test_1", "test_2"]
-    assert wdg._mmc.getPixelSizeAffineByID("test_1") == (0.5, 0.0, 0.0, 0.0, 0.5, 0.0)
-    assert wdg._mmc.getPixelSizeAffineByID("test_2") == (2, 0.0, 0.0, 0.0, 2, 0.0)
+    assert tuple(wdg._mmc.getPixelSizeAffineByID("test_1")) == (
+        0.5,
+        0.0,
+        0.0,
+        0.0,
+        0.5,
+        0.0,
+    )
+    assert tuple(wdg._mmc.getPixelSizeAffineByID("test_2")) == (
+        2,
+        0.0,
+        0.0,
+        0.0,
+        2,
+        0.0,
+    )
 
 
 def test_pixel_config_wdg_enabled(qtbot: QtBot, global_mmcore: CMMCorePlus):

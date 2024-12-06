@@ -249,7 +249,7 @@ def test_add_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
         group_name = gp.table_wdg.item(r, 0).text()
         if group_name == "Channel":
             wdg = cast(PresetsWidget, gp.table_wdg.cellWidget(r, 1))
-            assert wdg.allowedValues() == mmc.getAvailableConfigs("Channel")
+            assert wdg.allowedValues() == tuple(mmc.getAvailableConfigs("Channel"))
             break
 
 
@@ -288,7 +288,7 @@ def test_delete_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
         if group_name == "Camera":
             camera_group_row = r
-            assert wdg.allowedValues() == mmc.getAvailableConfigs("Camera")
+            assert wdg.allowedValues() == tuple(mmc.getAvailableConfigs("Camera"))
             break
 
     with qtbot.waitSignal(mmc.events.configDeleted):
