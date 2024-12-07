@@ -115,8 +115,8 @@ class StageViewer(QWidget):
             child.set_data(img_scaled)
             # update the scale
             child.transform.scale = (
-                scale * self.pixel_size,
-                scale * self.pixel_size,
+                scale * self._pixel_size,
+                scale * self._pixel_size,
             )
 
     def get_scale(self) -> int:
@@ -127,7 +127,7 @@ class StageViewer(QWidget):
         pixel_ratio = 1 / transform.scale[0]
         # Calculate the scale as the inverse of the zoom level
         scale = 1
-        while pixel_ratio / scale > self.pixel_size:
+        while pixel_ratio / scale > self._pixel_size:
             scale *= 2
         return scale
 
@@ -158,7 +158,7 @@ class StageViewer(QWidget):
         max_y: float | None = None
         # get the max and min (x, y) values from _store_images
         for (x, y), img in self._image_store.items():
-            height, width = np.array(img.shape) * self.pixel_size
+            height, width = np.array(img.shape) * self._pixel_size
             x, y = round(x), round(y)
             min_x = x if min_x is None else min(min_x, x)
             max_x = x + width if max_x is None else max(max_x, x + width)

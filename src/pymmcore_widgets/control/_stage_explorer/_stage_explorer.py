@@ -134,7 +134,7 @@ class StageExplorer(QWidget):
 
         ACTION_MAP = {
             # action text: (icon, color, checkable, callback)
-            CLEAR: (MDI6.close, gray, False, self._stage_viewer.clear_scene),
+            CLEAR: (MDI6.close, gray, False, self.clear_scene),
             RESET: (MDI6.fullscreen, gray, False, self.reset_view),
             SNAP: (MDI6.camera_outline, gray, True, self._on_setting_checked),
             POLL_STAGE: (MDI6.map_marker, gray, True, self._on_poll_stage),
@@ -176,9 +176,12 @@ class StageExplorer(QWidget):
         self._stage_viewer.scaleChanged.connect(self.scaleChanged)
 
         # connections core events
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
+
+        self._on_sys_config_loaded()
 
     # -----------------------------PUBLIC METHODS-------------------------------------
 
@@ -284,13 +287,27 @@ class StageExplorer(QWidget):
 
         self._stage_viewer.view.camera.set_range(x=(min_x, max_x), y=(min_y, max_y))
 
+    def clear_scene(self) -> None:
+        """Clear the scene."""
+        self._stage_viewer.clear_scene()
+        self.reset_view()
+
     # -----------------------------PRIVATE METHODS------------------------------------
+
+    def _on_sys_config_loaded(self) -> None:
+        """Set the pixel size when the system configuration is loaded."""
+        self.clear_scene()
+        self._stage_viewer.pixel_size = self._mmc.getPixelSizeUm()
 
     def _on_pixel_size_changed(self, value: float) -> None:
         """Clear the scene when the pixel size changes."""
         self._stage_viewer._pixel_size = value
+        # delete stage position marker
+        if self._stage_pos_marker is not None:
+            self._stage_pos_marker.parent = None
+            self._stage_pos_marker = None
         # should this be a different behavior?
-        self._stage_viewer.clear_scene()
+        self.clear_scene()
 
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
@@ -374,13 +391,14 @@ class StageExplorer(QWidget):
             self._stage_pos_marker = Rectangle(
                 parent=self._stage_viewer.view.scene,
                 center=(x, y),
-                width=self._mmc.getImageWidth(),
-                height=self._mmc.getImageHeight(),
+                width=self._mmc.getImageWidth() * self._stage_viewer._pixel_size,
+                height=self._mmc.getImageHeight() * self._stage_viewer._pixel_size,
                 border_width=4,
                 border_color="#3A3",
                 color=None,
             )
             self._stage_pos_marker.set_gl_state(depth_test=False)
+            self.reset_view()
         # update stage marker position
         self._stage_pos_marker.center = (x, y)
 
@@ -416,8 +434,8 @@ class StageExplorer(QWidget):
     def _is_visual_within_view(self, x: float, y: float) -> bool:
         """Return True if the visual is within the view, otherwise False."""
         view_rect = self._stage_viewer.view.camera.rect
-        half_width = self._mmc.getImageWidth() / 2
-        half_height = self._mmc.getImageHeight() / 2
+        half_width = self._mmc.getImageWidth() / 2 * self._stage_viewer._pixel_size
+        half_height = self._mmc.getImageHeight() / 2 * self._stage_viewer._pixel_size
         vertices = [
             (x - half_width, y - half_height),
             (x + half_width, y - half_height),

@@ -1,7 +1,7 @@
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets import MDAWidget, StageWidget
+from pymmcore_widgets import GroupPresetTableWidget, MDAWidget, StageWidget
 from pymmcore_widgets.control import StageExplorer
 
 app = QApplication([])
@@ -20,5 +20,8 @@ stage.show()
 
 MDA = MDAWidget()
 MDA.show()
+
+gp = GroupPresetTableWidget()
+gp.show()
 
 app.exec()
