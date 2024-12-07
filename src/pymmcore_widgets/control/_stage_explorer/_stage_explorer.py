@@ -21,7 +21,6 @@ from ._stage_viewer import StageViewer
 
 gray = "#666"
 RESET = "Reset View"
-AUTO_RESET = "Auto Reset View"
 CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
 FLIP_X = "Flip Images Horizontally"
@@ -76,9 +75,6 @@ class StageExplorer(QWidget):
     image_store : dict[tuple[float, float], np.ndarray]
         Return the image_store dictionary object where the keys are the stage positions
         and values are the images added to the scene.
-    auto_reset_view : bool
-        A boolean property that controls whether to automatically reset the view when an
-        image is added to the scene. By default, True.
     snap_on_double_click : bool
         A boolean property that controls whether to snap an image when the user
         double-clicks on the view. By default, False.
@@ -111,7 +107,6 @@ class StageExplorer(QWidget):
         self._timer_id: int | None = None
 
         # properties
-        self._auto_reset_view: bool = True
         self._snap_on_double_click: bool = False
         self._flip_horizontal: bool = False
         self._flip_vertical: bool = False
@@ -132,7 +127,6 @@ class StageExplorer(QWidget):
         # actions
         self._clear_view_act: QAction
         self._reset_view_act: QAction
-        # self._auto_reset_view_act: QAction
         self._snap_on_double_click_act: QAction
         self._poll_stage_position_act: QAction
         self._flip_images_horizontally_act: QAction
@@ -142,7 +136,6 @@ class StageExplorer(QWidget):
             # action text: (icon, color, checkable, callback)
             CLEAR: (MDI6.close, gray, False, self._stage_viewer.clear_scene),
             RESET: (MDI6.fullscreen, gray, False, self.reset_view),
-            # AUTO_RESET: (MDI6.caps_lock, gray, True, self._on_reset_view),
             SNAP: (MDI6.camera_outline, gray, True, self._on_setting_checked),
             POLL_STAGE: (MDI6.map_marker, gray, True, self._on_poll_stage),
             FLIP_X: (MDI6.flip_horizontal, gray, True, self._on_setting_checked),
@@ -157,7 +150,6 @@ class StageExplorer(QWidget):
             toolbar.addAction(action)
 
         # set initial state of actions
-        # self._auto_reset_view_act.setChecked(self._auto_reset_view)
         self._snap_on_double_click_act.setChecked(self._snap_on_double_click)
         self._poll_stage_position_act.setChecked(self._poll_stage_position)
         self._flip_images_horizontally_act.setChecked(self._flip_horizontal)
@@ -181,7 +173,6 @@ class StageExplorer(QWidget):
         self._stage_viewer.canvas.events.mouse_double_click.connect(
             self._move_to_clicked_position
         )
-        # self._stage_viewer.canvas.events.mouse_wheel.connect(self._on_mouse_wheel)
         self._stage_viewer.scaleChanged.connect(self.scaleChanged)
 
         # connections core events
@@ -195,19 +186,6 @@ class StageExplorer(QWidget):
     def image_store(self) -> dict[tuple[float, float], np.ndarray]:
         """Return the image store."""
         return self._stage_viewer.image_store
-
-    # @property
-    # def auto_reset_view(self) -> bool:
-    #     """Return the auto reset view property."""
-    #     return self._auto_reset_view
-
-    # @auto_reset_view.setter
-    # def auto_reset_view(self, value: bool) -> None:
-    #     """Set the auto reset view property."""
-    #     self._auto_reset_view = value
-    #     self._auto_reset_view_act.setChecked(value)
-    #     if value:
-    #         self.reset_view()
 
     @property
     def snap_on_double_click(self) -> bool:
@@ -285,8 +263,6 @@ class StageExplorer(QWidget):
         if flip_y:
             img = np.flip(img, axis=0)
         self._stage_viewer.add_image(img, x, y)
-        # if self._auto_reset_view:
-        #     self.reset_view()
 
     def reset_view(self) -> None:
         """Recenter the view to the center of all images."""
@@ -309,17 +285,6 @@ class StageExplorer(QWidget):
         self._stage_viewer.view.camera.set_range(x=(min_x, max_x), y=(min_y, max_y))
 
     # -----------------------------PRIVATE METHODS------------------------------------
-
-    # def _on_mouse_wheel(self, event: MouseEvent) -> None:
-    #     """Disable the auto reset view property when the user zooms in/out."""
-    #     if self._auto_reset_view:
-    #         self.auto_reset_view = False
-
-    # def _on_reset_view(self, checked: bool) -> None:
-    #     """Set the auto reset view property based on the state of the action."""
-    #     self._auto_reset_view = checked
-    #     if checked:
-    #         self.reset_view()
 
     def _on_pixel_size_changed(self, value: float) -> None:
         """Clear the scene when the pixel size changes."""
