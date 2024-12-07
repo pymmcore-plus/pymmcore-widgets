@@ -335,6 +335,7 @@ class StageExplorer(QWidget):
         if not self._poll_stage_position:
             self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
         # reset the view if the image is not within the view
+        print(self._is_visual_within_view(x, y))
         if not self._is_visual_within_view(x, y):
             self.reset_view()
 
@@ -405,9 +406,11 @@ class StageExplorer(QWidget):
         # compare the old and new xy positions, if different means the stage position
         # has changed, so reset the view. This is useful because we dont want to trigger
         # reset_view when the user changes the zoom level or pans the view.
-        old_x, old_y = self._xy
-        if old_x != round(x, 2) or old_y != round(y, 2):
-            self.reset_view()
+        # if acquiring, reset is handled by _on_frame_ready
+        if not self._mmc.mda.is_running():
+            old_x, old_y = self._xy
+            if old_x != round(x, 2) or old_y != round(y, 2):
+                self.reset_view()
 
         # update _xy position with new values
         self._xy = (round(x, 2), round(y, 2))
