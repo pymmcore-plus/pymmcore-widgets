@@ -45,7 +45,7 @@ class StageViewer(QWidget):
 
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
         self.view = cast(ViewBox, self.canvas.central_widget.add_view())
-        self.view.camera = scene.PanZoomCamera(aspect=1, flip=(0, 1))
+        self.view.camera = scene.PanZoomCamera(aspect=1)
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
