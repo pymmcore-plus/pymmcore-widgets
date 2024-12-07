@@ -120,6 +120,9 @@ class StageExplorer(QWidget):
         # marker for stage position
         self._stage_pos_marker: Rectangle | None = None
 
+        # to store stage xy position. used in timerEvent
+        self._xy: tuple[float | None, float | None] = (None, None)
+
         # toolbar
         toolbar = QToolBar()
         toolbar.setStyleSheet(SS_TOOLBUTTON)
@@ -129,21 +132,21 @@ class StageExplorer(QWidget):
         # actions
         self._clear_view_act: QAction
         self._reset_view_act: QAction
-        self._auto_reset_view_act: QAction
+        # self._auto_reset_view_act: QAction
         self._snap_on_double_click_act: QAction
+        self._poll_stage_position_act: QAction
         self._flip_images_horizontally_act: QAction
         self._flip_images_vertically_act: QAction
-        self._poll_stage_position_act: QAction
 
         ACTION_MAP = {
             # action text: (icon, color, checkable, callback)
             CLEAR: (MDI6.close, gray, False, self._stage_viewer.clear_scene),
-            RESET: (MDI6.checkbox_blank_outline, gray, False, self.reset_view),
-            AUTO_RESET: (MDI6.caps_lock, gray, True, self._on_reset_view),
+            RESET: (MDI6.fullscreen, gray, False, self.reset_view),
+            # AUTO_RESET: (MDI6.caps_lock, gray, True, self._on_reset_view),
             SNAP: (MDI6.camera_outline, gray, True, self._on_setting_checked),
+            POLL_STAGE: (MDI6.map_marker, gray, True, self._on_poll_stage),
             FLIP_X: (MDI6.flip_horizontal, gray, True, self._on_setting_checked),
             FLIP_Y: (MDI6.flip_vertical, gray, True, self._on_setting_checked),
-            POLL_STAGE: (MDI6.map_marker, gray, True, self._on_poll_stage),
         }
 
         # create actions
@@ -154,11 +157,11 @@ class StageExplorer(QWidget):
             toolbar.addAction(action)
 
         # set initial state of actions
-        self._auto_reset_view_act.setChecked(self._auto_reset_view)
+        # self._auto_reset_view_act.setChecked(self._auto_reset_view)
         self._snap_on_double_click_act.setChecked(self._snap_on_double_click)
+        self._poll_stage_position_act.setChecked(self._poll_stage_position)
         self._flip_images_horizontally_act.setChecked(self._flip_horizontal)
         self._flip_images_vertically_act.setChecked(self._flip_vertical)
-        self._poll_stage_position_act.setChecked(self._poll_stage_position)
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
@@ -178,6 +181,7 @@ class StageExplorer(QWidget):
         self._stage_viewer.canvas.events.mouse_double_click.connect(
             self._move_to_clicked_position
         )
+        # self._stage_viewer.canvas.events.mouse_wheel.connect(self._on_mouse_wheel)
         self._stage_viewer.scaleChanged.connect(self.scaleChanged)
 
         # connections core events
@@ -192,18 +196,18 @@ class StageExplorer(QWidget):
         """Return the image store."""
         return self._stage_viewer.image_store
 
-    @property
-    def auto_reset_view(self) -> bool:
-        """Return the auto reset view property."""
-        return self._auto_reset_view
+    # @property
+    # def auto_reset_view(self) -> bool:
+    #     """Return the auto reset view property."""
+    #     return self._auto_reset_view
 
-    @auto_reset_view.setter
-    def auto_reset_view(self, value: bool) -> None:
-        """Set the auto reset view property."""
-        self._auto_reset_view = value
-        self._auto_reset_view_act.setChecked(value)
-        if value:
-            self.reset_view()
+    # @auto_reset_view.setter
+    # def auto_reset_view(self, value: bool) -> None:
+    #     """Set the auto reset view property."""
+    #     self._auto_reset_view = value
+    #     self._auto_reset_view_act.setChecked(value)
+    #     if value:
+    #         self.reset_view()
 
     @property
     def snap_on_double_click(self) -> bool:
@@ -281,8 +285,8 @@ class StageExplorer(QWidget):
         if flip_y:
             img = np.flip(img, axis=0)
         self._stage_viewer.add_image(img, x, y)
-        if self._auto_reset_view:
-            self.reset_view()
+        # if self._auto_reset_view:
+        #     self.reset_view()
 
     def reset_view(self) -> None:
         """Recenter the view to the center of all images."""
@@ -306,11 +310,76 @@ class StageExplorer(QWidget):
 
     # -----------------------------PRIVATE METHODS------------------------------------
 
-    def _on_reset_view(self, checked: bool) -> None:
-        """Set the auto reset view property based on the state of the action."""
-        self._auto_reset_view = checked
-        if checked:
+    # def _on_mouse_wheel(self, event: MouseEvent) -> None:
+    #     """Disable the auto reset view property when the user zooms in/out."""
+    #     if self._auto_reset_view:
+    #         self.auto_reset_view = False
+
+    # def _on_reset_view(self, checked: bool) -> None:
+    #     """Set the auto reset view property based on the state of the action."""
+    #     self._auto_reset_view = checked
+    #     if checked:
+    #         self.reset_view()
+
+    def _on_pixel_size_changed(self, value: float) -> None:
+        """Clear the scene when the pixel size changes."""
+        self._stage_viewer._pixel_size = value
+        # should this be a different behavior?
+        self._stage_viewer.clear_scene()
+
+    def _on_image_snapped(self) -> None:
+        """Add the snapped image to the scene."""
+        if self._mmc.mda.is_running():
+            return
+        # get the snapped image
+        img = self._mmc.getImage()
+        # get the current stage position
+        x, y = self._mmc.getXYPosition()
+        self._add_image_and_update_widget(img, x, y)
+
+    def _on_frame_ready(self, image: np.ndarray, event: useq.MDAEvent) -> None:
+        """Add the image to the scene when frameReady event is emitted."""
+        # TODO: better handle c and z (e.g. multi-channels?, max projection?)
+        x = event.x_pos if event.x_pos is not None else self._mmc.getXPosition()
+        y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
+        self._add_image_and_update_widget(image, x, y)
+
+    def _add_image_and_update_widget(
+        self, image: np.ndarray, x: float, y: float
+    ) -> None:
+        """Add the image to the scene and update position label and view."""
+        self.add_image(image, x, y, self.flip_horizontal, self.flip_vertical)
+        # update the stage position label if the stage position is not being polled
+        if not self._poll_stage_position:
+            self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
+        # reset the view if the image is not within the view
+        if not self._is_visual_within_view(x, y):
             self.reset_view()
+
+    def _move_to_clicked_position(self, event: MouseEvent) -> None:
+        """Move the stage to the clicked position."""
+        if not self._mmc.getXYStageDevice():
+            return
+        x, y, _, _ = self._stage_viewer.view.camera.transform.imap(event.pos)
+        self._mmc.setXYPosition(x, y)
+        # update the stage position label
+        self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
+        if self._snap_on_double_click:
+            # wait for the stage to be in position before snapping an image
+            self._mmc.waitForDevice(self._mmc.getXYStageDevice())
+            self._mmc.snapImage()
+
+    def _on_setting_checked(self, checked: bool) -> None:
+        """Update the stage viewer settings based on the state of the action."""
+        action_map = {
+            self._snap_on_double_click_act: "snap_on_double_click",
+            self._flip_images_horizontally_act: "flip_horizontal",
+            self._flip_images_vertically_act: "flip_vertical",
+        }
+        sender = cast(QAction, self.sender())
+
+        if value := action_map.get(sender):
+            setattr(self, value, checked)
 
     def _on_poll_stage(self, checked: bool) -> None:
         """Set the poll stage position property based on the state of the action."""
@@ -329,8 +398,11 @@ class StageExplorer(QWidget):
         """Poll the stage position."""
         if not self._mmc.getXYStageDevice():
             return
+
         x, y = self._mmc.getXYPosition()
-        self._stage_pos_label.setText(f"X: {x:.2f} µm Y: {y:.2f} µm")
+
+        # update the stage position label
+        self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
 
         # add stage marker if not yet present
         if self._stage_pos_marker is None:
@@ -347,20 +419,15 @@ class StageExplorer(QWidget):
         # update stage marker position
         self._stage_pos_marker.center = (x, y)
 
-        if self._auto_reset_view:
+        # compare the old and new xy positions, if different means the stage position
+        # has changed, so reset the view. This is useful because we dont want to trigger
+        # reset_view when the user changes the zoom level or pans the view.
+        old_x, old_y = self._xy
+        if old_x != round(x, 2) or old_y != round(y, 2):
             self.reset_view()
 
-    def _on_setting_checked(self, checked: bool) -> None:
-        """Update the stage viewer settings based on the state of the action."""
-        action_map = {
-            self._snap_on_double_click_act: "snap_on_double_click",
-            self._flip_images_horizontally_act: "flip_horizontal",
-            self._flip_images_vertically_act: "flip_vertical",
-        }
-        sender = cast(QAction, self.sender())
-
-        if value := action_map.get(sender):
-            setattr(self, value, checked)
+        # update _xy position with new values
+        self._xy = (round(x, 2), round(y, 2))
 
     def _get_stage_marker_position(
         self,
@@ -381,43 +448,15 @@ class StageExplorer(QWidget):
         max_x, max_y = x + w / 2, y + h / 2
         return min_x, min_y, max_x, max_y
 
-    def _on_pixel_size_changed(self, value: float) -> None:
-        """Clear the scene when the pixel size changes."""
-        self._stage_viewer._pixel_size = value
-        # should this be a different behavior?
-        self._stage_viewer.clear_scene()
-
-    def _on_image_snapped(self) -> None:
-        """Add the snapped image to the scene."""
-        if self._mmc.mda.is_running():
-            return
-        # get the snapped image
-        img = self._mmc.getImage()
-        # get the current stage position
-        x, y = self._mmc.getXYPosition()
-        # move the coordinates to the center of the image
-        self.add_image(img, x, y, self.flip_horizontal, self.flip_vertical)
-        # update the stage position label
-        if not self._poll_stage_position:
-            self._stage_pos_label.setText(f"X: {x:.2f} µm Y: {y:.2f} µm")
-
-    def _on_frame_ready(self, image: np.ndarray, event: useq.MDAEvent) -> None:
-        """Add the image to the scene when frameReady event is emitted."""
-        # TODO: better handle c and z (e.g. multi-channels?, max projection?)
-        x = event.x_pos if event.x_pos is not None else self._mmc.getXPosition()
-        y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
-        self.add_image(image, x, y, self.flip_horizontal, self.flip_vertical)
-        # update the stage position label
-        if not self._poll_stage_position:
-            self._stage_pos_label.setText(f"X: {x:.2f} µm Y: {y:.2f} µm")
-
-    def _move_to_clicked_position(self, event: MouseEvent) -> None:
-        """Move the stage to the clicked position."""
-        if not self._mmc.getXYStageDevice():
-            return
-        x, y, _, _ = self._stage_viewer.view.camera.transform.imap(event.pos)
-        self._mmc.setXYPosition(x, y)
-        if self._snap_on_double_click:
-            # wait for the stage to be in position before snapping an image
-            self._mmc.waitForDevice(self._mmc.getXYStageDevice())
-            self._mmc.snapImage()
+    def _is_visual_within_view(self, x: float, y: float) -> bool:
+        """Return True if the visual is within the view, otherwise False."""
+        view_rect = self._stage_viewer.view.camera.rect
+        half_width = self._mmc.getImageWidth() / 2
+        half_height = self._mmc.getImageHeight() / 2
+        vertices = [
+            (x - half_width, y - half_height),
+            (x + half_width, y - half_height),
+            (x - half_width, y + half_height),
+            (x + half_width, y + half_height),
+        ]
+        return all(view_rect.contains(*vertex) for vertex in vertices)

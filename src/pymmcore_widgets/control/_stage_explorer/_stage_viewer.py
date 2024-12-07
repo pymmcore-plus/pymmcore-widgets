@@ -91,7 +91,7 @@ class StageViewer(QWidget):
         h, w = np.array(img.shape)
         x, y = round(x - w / 2 * self._pixel_size), round(y - h / 2 * self._pixel_size)
         # store the image in the _image_store
-        self._store_image((x, y), img)
+        self._image_store[(x, y)] = img
         # get the current scale
         self._current_scale = scale = self.get_scale()
         # add the image to the scene with the current scale
@@ -107,7 +107,7 @@ class StageViewer(QWidget):
         """Update the images in the scene based on scale and pixel size."""
         for child in self._get_images():
             x, y = child.transform.translate[:2]
-            if (img := self._get_stored_image((x, y))) is None:
+            if (img := self._image_store.get((x, y))) is None:
                 continue
             # TODO: if x, y are out of the current view, skip the image
             img_scaled = img[::scale, ::scale]
@@ -147,14 +147,6 @@ class StageViewer(QWidget):
         self.view.camera.set_range(x=(min_x, max_x), y=(min_y, max_y))
 
     # --------------------PRIVATE METHODS--------------------
-
-    def _store_image(self, position: tuple[float, float], image: np.ndarray) -> None:
-        """Add an image to the store."""
-        self._image_store[position] = image
-
-    def _get_stored_image(self, position: tuple[float, float]) -> np.ndarray | None:
-        """Get an image from the store."""
-        return self._image_store.get(position)
 
     def _get_boundaries(
         self,
