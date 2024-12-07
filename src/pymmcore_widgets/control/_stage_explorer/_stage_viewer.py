@@ -127,7 +127,8 @@ class StageViewer(QWidget):
         pixel_ratio = 1 / transform.scale[0]
         # Calculate the scale as the inverse of the zoom level
         scale = 1
-        while pixel_ratio / scale > self._pixel_size:
+        # TODO: using *2 to not scale the image too much. Maybe find a better way
+        while (pixel_ratio / scale) > (self._pixel_size * 2):
             scale *= 2
         return scale
 

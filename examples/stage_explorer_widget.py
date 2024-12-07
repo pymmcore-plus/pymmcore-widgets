@@ -11,6 +11,7 @@ mmc.loadSystemConfiguration()
 
 wdg = StageExplorer()
 wdg.poll_stage_position = True
+wdg.scaleChanged.connect(lambda x: print(f"Scale changed to {x}"))
 wdg.show()
 
 stage = StageWidget("XY")
