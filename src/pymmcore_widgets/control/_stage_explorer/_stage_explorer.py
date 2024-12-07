@@ -335,7 +335,6 @@ class StageExplorer(QWidget):
         if not self._poll_stage_position:
             self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
         # reset the view if the image is not within the view
-        print(self._is_visual_within_view(x, y))
         if not self._is_visual_within_view(x, y):
             self.reset_view()
 
