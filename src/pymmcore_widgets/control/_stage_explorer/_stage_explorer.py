@@ -1,4 +1,3 @@
-import warnings
 from typing import cast
 
 import numpy as np
@@ -16,7 +15,7 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 from vispy.app.canvas import MouseEvent
-from vispy.scene.visuals import Markers
+from vispy.scene.visuals import Rectangle
 
 from ._stage_viewer import StageViewer
 
@@ -119,7 +118,7 @@ class StageExplorer(QWidget):
         self._poll_stage_position: bool = False
 
         # marker for stage position
-        self._stage_pos_marker: Markers | None = None
+        self._stage_pos_marker: Rectangle | None = None
 
         # toolbar
         toolbar = QToolBar()
@@ -293,12 +292,12 @@ class StageExplorer(QWidget):
         min_x, max_x, min_y, max_y = self._stage_viewer._get_boundaries()
 
         # consider the stage position marker if present
-        marker_x, marker_y = self._get_stage_marker_position()
-        if marker_x is not None and marker_y is not None:
-            min_x = min(min_x if min_x is not None else marker_x, marker_x)
-            max_x = max(max_x if max_x is not None else marker_x, marker_x)
-            min_y = min(min_y if min_y is not None else marker_y, marker_y)
-            max_y = max(max_y if max_y is not None else marker_y, marker_y)
+        mk_min_x, mk_min_y, mk_max_x, mk_max_y = self._get_stage_marker_position()
+        if all(val is not None for val in (mk_min_x, mk_max_x, mk_min_y, mk_max_y)):
+            min_x = min(min_x if min_x is not None else mk_min_x, mk_min_x)  # type: ignore
+            max_x = max(max_x if max_x is not None else mk_max_x, mk_max_x)  # type: ignore
+            min_y = min(min_y if min_y is not None else mk_min_y, mk_min_y)  # type: ignore
+            max_y = max(max_y if max_y is not None else mk_max_y, mk_max_y)  # type: ignore
 
         if any(val is None for val in (min_x, max_x, min_y, max_y)):
             return
@@ -321,7 +320,6 @@ class StageExplorer(QWidget):
         elif self._timer_id is not None:
             self.killTimer(self._timer_id)
             self._timer_id = None
-            self._stage_pos_label.setText("")
             # delete markers
             if self._stage_pos_marker is not None:
                 self._stage_pos_marker.parent = None
@@ -336,18 +334,18 @@ class StageExplorer(QWidget):
 
         # add stage marker if not yet present
         if self._stage_pos_marker is None:
-            self._stage_pos_marker = Markers(
-                parent=self._stage_viewer.view.scene, antialias=True
+            self._stage_pos_marker = Rectangle(
+                parent=self._stage_viewer.view.scene,
+                center=(x, y),
+                width=self._mmc.getImageWidth(),
+                height=self._mmc.getImageHeight(),
+                border_width=4,
+                border_color="#3A3",
+                color=None,
             )
             self._stage_pos_marker.set_gl_state(depth_test=False)
         # update stage marker position
-        self._stage_pos_marker.set_data(
-            symbol="cross_lines",
-            edge_color="#3A3",  # same as rgba(51, 170, 51, 255) used in SS_TOOLBUTTON
-            size=50,
-            edge_width=7,
-            pos=np.array([[x, y]]),
-        )
+        self._stage_pos_marker.center = (x, y)
 
         if self._auto_reset_view:
             self.reset_view()
@@ -364,26 +362,24 @@ class StageExplorer(QWidget):
         if value := action_map.get(sender):
             setattr(self, value, checked)
 
-    def _get_stage_marker_position(self) -> tuple[float | None, float | None]:
+    def _get_stage_marker_position(
+        self,
+    ) -> tuple[float | None, float | None, float | None, float | None]:
         """Return the stage marker position.
 
-        NOTE: the only way to get the a vispy Markers position is to use their private
-        _data['a_position'] attribute. In this method we first check if the private
-        attribute is available, if not we return the current stage position.
+        Returns
+        -------
+        tuple[float | None, float | None, float | None, float | None]
+            The min x, min y, max x, and max y coordinates of the stage position marker.
+            If the stage marker is not present, all values are None.
         """
         if self._stage_pos_marker is None:
-            return None, None
-        try:
-            # NOTE: _data is a numpy array
-            x, y, _ = self._stage_pos_marker._data["a_position"][0]
-        except (AttributeError, IndexError, TypeError, ValueError):
-            warnings.warn(
-                "Could not access the '_data' attribute of vispy Markers object. "
-                "Returning the current stage position.",
-                stacklevel=2,
-            )
-            x, y = self._mmc.getXYPosition()
-        return x, y
+            return None, None, None, None
+        x, y = self._stage_pos_marker.center
+        w, h = self._stage_pos_marker.width, self._stage_pos_marker.height
+        min_x, min_y = x - w / 2, y - h / 2
+        max_x, max_y = x + w / 2, y + h / 2
+        return min_x, min_y, max_x, max_y
 
     def _on_pixel_size_changed(self, value: float) -> None:
         """Clear the scene when the pixel size changes."""
@@ -395,20 +391,25 @@ class StageExplorer(QWidget):
         """Add the snapped image to the scene."""
         if self._mmc.mda.is_running():
             return
-        self._mmc.waitForSystem()  # TODO: maybe use current stage device instead
         # get the snapped image
         img = self._mmc.getImage()
         # get the current stage position
         x, y = self._mmc.getXYPosition()
         # move the coordinates to the center of the image
         self.add_image(img, x, y, self.flip_horizontal, self.flip_vertical)
+        # update the stage position label
+        if not self._poll_stage_position:
+            self._stage_pos_label.setText(f"X: {x:.2f} µm Y: {y:.2f} µm")
 
     def _on_frame_ready(self, image: np.ndarray, event: useq.MDAEvent) -> None:
         """Add the image to the scene when frameReady event is emitted."""
-        # TODO: better handle c and z (e.g. max projection?)
+        # TODO: better handle c and z (e.g. multi-channels?, max projection?)
         x = event.x_pos if event.x_pos is not None else self._mmc.getXPosition()
         y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
         self.add_image(image, x, y, self.flip_horizontal, self.flip_vertical)
+        # update the stage position label
+        if not self._poll_stage_position:
+            self._stage_pos_label.setText(f"X: {x:.2f} µm Y: {y:.2f} µm")
 
     def _move_to_clicked_position(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
@@ -417,4 +418,6 @@ class StageExplorer(QWidget):
         x, y, _, _ = self._stage_viewer.view.camera.transform.imap(event.pos)
         self._mmc.setXYPosition(x, y)
         if self._snap_on_double_click:
+            # wait for the stage to be in position before snapping an image
+            self._mmc.waitForDevice(self._mmc.getXYStageDevice())
             self._mmc.snapImage()

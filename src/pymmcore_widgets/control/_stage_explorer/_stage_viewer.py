@@ -7,12 +7,12 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.utils import qthrottled
 from vispy import scene
 from vispy.app.canvas import MouseEvent
 from vispy.scene.visuals import Image
 from vispy.scene.widgets import ViewBox
-from superqt.utils import qthrottled
-import time
+
 
 class StageViewer(QWidget):
     """A stage positions viewer widget.
@@ -109,6 +109,7 @@ class StageViewer(QWidget):
             x, y = child.transform.translate[:2]
             if (img := self._get_stored_image((x, y))) is None:
                 continue
+            # TODO: if x, y are out of the current view, skip the image
             img_scaled = img[::scale, ::scale]
             # update the image data
             child.set_data(img_scaled)
@@ -184,7 +185,6 @@ class StageViewer(QWidget):
         self._current_scale = scale
         self.update_by_scale(scale)
         self.scaleChanged.emit(scale)
-
 
     def _get_images(self) -> Iterator[Image]:
         """Yield images in the scene."""
