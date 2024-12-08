@@ -272,7 +272,7 @@ class StageExplorer(QWidget):
         # NOTE: Not using the `reset_view` method from `StageViewer` directly because we
         # also need to consider the stage position marker.
 
-        min_x, max_x, min_y, max_y = self._stage_viewer._get_boundaries()
+        min_x, max_x, min_y, max_y = self._stage_viewer._get_full_boundaries()
 
         # consider the stage position marker if present
         mk_min_x, mk_min_y, mk_max_x, mk_max_y = self._get_stage_marker_position()

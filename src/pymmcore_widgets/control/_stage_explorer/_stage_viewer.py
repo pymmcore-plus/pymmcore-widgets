@@ -89,8 +89,11 @@ class StageViewer(QWidget):
         """
         # move the coordinates to the center of the image
         h, w = np.array(img.shape)
+        # calculate the top-left corner of the image for the translation
         x, y = round(x - w / 2 * self._pixel_size), round(y - h / 2 * self._pixel_size)
-        # store the image in the _image_store
+        # store the image in the _image_store. NOTE: storing the translated coords and
+        # not the stage coords because it will be faster and easier to get the images
+        # from the _image_store when updating the scale (update_by_scale method).
         self._image_store[(x, y)] = img
         # get the current scale
         self._current_scale = scale = self.get_scale()
@@ -109,15 +112,14 @@ class StageViewer(QWidget):
             x, y = child.transform.translate[:2]
             if (img := self._image_store.get((x, y))) is None:
                 continue
-            # TODO: if x, y are out of the current view, skip the image
+            # if the image is not within the view, skip it. This speeds up the process
+            if not self._is_image_within_view(x, y, *img.shape):
+                continue
             img_scaled = img[::scale, ::scale]
             # update the image data
             child.set_data(img_scaled)
             # update the scale
-            child.transform.scale = (
-                scale * self._pixel_size,
-                scale * self._pixel_size,
-            )
+            child.transform.scale = (scale * self._pixel_size, scale * self._pixel_size)
 
     def get_scale(self) -> int:
         """Return the scale based on the zoom level."""
@@ -142,30 +144,12 @@ class StageViewer(QWidget):
 
     def reset_view(self) -> None:
         """Recenter the view to the center of all images."""
-        min_x, max_x, min_y, max_y = self._get_boundaries()
+        min_x, max_x, min_y, max_y = self._get_full_boundaries()
         if any(val is None for val in (min_x, max_x, min_y, max_y)):
             return
-        self.view.camera.set_range(x=(min_x, max_x), y=(min_y, max_y))
+        self.view.camera.set_range(x=(min_x, max_x), y=(min_y, max_y), margin=0)
 
     # --------------------PRIVATE METHODS--------------------
-
-    def _get_boundaries(
-        self,
-    ) -> tuple[float | None, float | None, float | None, float | None]:
-        """Return the boundaries of the images in the scene."""
-        min_x: float | None = None
-        max_x: float | None = None
-        min_y: float | None = None
-        max_y: float | None = None
-        # get the max and min (x, y) values from _store_images
-        for (x, y), img in self._image_store.items():
-            height, width = np.array(img.shape) * self._pixel_size
-            x, y = round(x), round(y)
-            min_x = x if min_x is None else min(min_x, x)
-            max_x = x + width if max_x is None else max(max_x, x + width)
-            min_y = y if min_y is None else min(min_y, y)
-            max_y = y + height if max_y is None else max(max_y, y + height)
-        return min_x, max_x, min_y, max_y
 
     def _on_draw_event(self, event: MouseEvent) -> None:
         """Handle the draw event.
@@ -184,3 +168,34 @@ class StageViewer(QWidget):
         for child in self.view.scene.children:
             if isinstance(child, Image):
                 yield child
+
+    def _get_full_boundaries(
+        self,
+    ) -> tuple[float | None, float | None, float | None, float | None]:
+        """Return the boundaries of the images in the scene."""
+        min_x: float | None = None
+        max_x: float | None = None
+        min_y: float | None = None
+        max_y: float | None = None
+        # calculate the max and min values of the images in the scene.
+        # NOTE: the (x, y) coords in the _image_store are the top-left corner of the
+        # image.
+        for (x, y), img in self._image_store.items():
+            height, width = np.array(img.shape) * self._pixel_size
+            x, y = round(x), round(y)
+            min_x = x if min_x is None else min(min_x, x)
+            max_x = x + width if max_x is None else max(max_x, x + width)
+            min_y = y if min_y is None else min(min_y, y)
+            max_y = y + height if max_y is None else max(max_y, y + height)
+        return min_x, max_x, min_y, max_y
+
+    def _is_image_within_view(self, x: float, y: float, w: float, h: float) -> bool:
+        """Return True if any vertex of the image is within the view.
+
+        Note that (x, y) is the top-left corner of the image and (w, h) are the width
+        and height of the image in pixels.
+        """
+        view_rect = self.view.camera.rect
+        w, h = np.array([w, h]) * self._pixel_size
+        vertices = [(x, y), (x + w, y), (x, y + h), (x + w, y + h)]
+        return any(view_rect.contains(*vertex) for vertex in vertices)
