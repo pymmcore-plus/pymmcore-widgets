@@ -301,7 +301,7 @@ class StageExplorer(QWidget):
 
     def _on_pixel_size_changed(self, value: float) -> None:
         """Clear the scene when the pixel size changes."""
-        self._stage_viewer._pixel_size = value
+        self._stage_viewer.pixel_size = value
         # delete stage position marker
         if self._stage_pos_marker is not None:
             self._stage_pos_marker.parent = None
@@ -391,8 +391,8 @@ class StageExplorer(QWidget):
             self._stage_pos_marker = Rectangle(
                 parent=self._stage_viewer.view.scene,
                 center=(x, y),
-                width=self._mmc.getImageWidth() * self._stage_viewer._pixel_size,
-                height=self._mmc.getImageHeight() * self._stage_viewer._pixel_size,
+                width=self._mmc.getImageWidth() * self._stage_viewer.pixel_size,
+                height=self._mmc.getImageHeight() * self._stage_viewer.pixel_size,
                 border_width=4,
                 border_color="#3A3",
                 color=None,
@@ -436,8 +436,8 @@ class StageExplorer(QWidget):
     def _is_visual_within_view(self, x: float, y: float) -> bool:
         """Return True if the visual is within the view, otherwise False."""
         view_rect = self._stage_viewer.view.camera.rect
-        half_width = self._mmc.getImageWidth() / 2 * self._stage_viewer._pixel_size
-        half_height = self._mmc.getImageHeight() / 2 * self._stage_viewer._pixel_size
+        half_width = self._mmc.getImageWidth() / 2 * self._stage_viewer.pixel_size
+        half_height = self._mmc.getImageHeight() / 2 * self._stage_viewer.pixel_size
         vertices = [
             (x - half_width, y - half_height),
             (x + half_width, y - half_height),
