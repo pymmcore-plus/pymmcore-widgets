@@ -39,6 +39,8 @@ class StageViewer(QWidget):
 
         self._current_scale: int = 1
 
+        self._drag: bool = False
+
         # properties
         self._image_store: dict[tuple[float, float], np.ndarray] = {}
         self._pixel_size: float = 1.0
@@ -54,6 +56,9 @@ class StageViewer(QWidget):
 
         # connections (if the scale has changed, update the scene accordingly)
         self.canvas.events.draw.connect(qthrottled(self._on_draw_event))
+
+        # self.canvas.events.mouse_move.connect(self._on_mouse_drag)
+        # self.canvas.events.mouse_release.connect(self._on_mouse_release)
 
     # --------------------PUBLIC METHODS--------------------
 
@@ -108,13 +113,21 @@ class StageViewer(QWidget):
 
     def update_by_scale(self, scale: int) -> None:
         """Update the images in the scene based on scale and pixel size."""
+        print()
+        print("Updating by scale", scale)
         for child in self._get_images():
             x, y = child.transform.translate[:2]
             if (img := self._image_store.get((x, y))) is None:
                 continue
             # if the image is not within the view, skip it. This speeds up the process
             if not self._is_image_within_view(x, y, *img.shape):
+                print("     Skipping", x, y)
                 continue
+            # is scale is the same, skip the update
+            if scale == child.transform.scale[0] / self._pixel_size:
+                print("     Skipping SAME SCALE", x, y)
+                continue
+            print("     Updating", x, y)
             img_scaled = img[::scale, ::scale]
             # update the image data
             child.set_data(img_scaled)
@@ -162,6 +175,17 @@ class StageViewer(QWidget):
         self._current_scale = scale
         self.update_by_scale(scale)
         self.scaleChanged.emit(scale)
+
+    def _on_mouse_drag(self, event: MouseEvent) -> None:
+        """Handle the mouse drag event."""
+        if event.is_dragging and not self._drag:
+            self._drag = True
+
+    def _on_mouse_release(self, event: MouseEvent) -> None:
+        """Handle the mouse release event."""
+        if self._drag:
+            self._drag = False
+            self.update_by_scale(self._current_scale)
 
     def _get_images(self) -> Iterator[Image]:
         """Yield images in the scene."""
