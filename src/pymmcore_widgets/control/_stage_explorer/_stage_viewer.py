@@ -120,14 +120,11 @@ class StageViewer(QWidget):
             if (img := self._image_store.get((x, y))) is None:
                 continue
             # if the image is not within the view, skip it. This speeds up the process
-            if not self._is_image_within_view(x, y, *img.shape):
-                print("     Skipping", x, y)
-                continue
+            # if not self._is_image_within_view(x, y, *img.shape):
+            #     continue
             # is scale is the same, skip the update
             if scale == child.transform.scale[0] / self._pixel_size:
-                print("     Skipping SAME SCALE", x, y)
                 continue
-            print("     Updating", x, y)
             img_scaled = img[::scale, ::scale]
             # update the image data
             child.set_data(img_scaled)
@@ -176,16 +173,16 @@ class StageViewer(QWidget):
         self.update_by_scale(scale)
         self.scaleChanged.emit(scale)
 
-    def _on_mouse_drag(self, event: MouseEvent) -> None:
-        """Handle the mouse drag event."""
-        if event.is_dragging and not self._drag:
-            self._drag = True
+    # def _on_mouse_drag(self, event: MouseEvent) -> None:
+    #     """Handle the mouse drag event."""
+    #     if event.is_dragging and not self._drag:
+    #         self._drag = True
 
-    def _on_mouse_release(self, event: MouseEvent) -> None:
-        """Handle the mouse release event."""
-        if self._drag:
-            self._drag = False
-            self.update_by_scale(self._current_scale)
+    # def _on_mouse_release(self, event: MouseEvent) -> None:
+    #     """Handle the mouse release event."""
+    #     if self._drag:
+    #         self._drag = False
+    #         self.update_by_scale(self._current_scale)
 
     def _get_images(self) -> Iterator[Image]:
         """Yield images in the scene."""
@@ -213,13 +210,13 @@ class StageViewer(QWidget):
             max_y = y + height if max_y is None else max(max_y, y + height)
         return min_x, max_x, min_y, max_y
 
-    def _is_image_within_view(self, x: float, y: float, w: float, h: float) -> bool:
-        """Return True if any vertex of the image is within the view.
+    # def _is_image_within_view(self, x: float, y: float, w: float, h: float) -> bool:
+    #     """Return True if any vertex of the image is within the view.
 
-        Note that (x, y) is the top-left corner of the image and (w, h) are the width
-        and height of the image in pixels.
-        """
-        view_rect = self.view.camera.rect
-        w, h = np.array([w, h]) * self._pixel_size
-        vertices = [(x, y), (x + w, y), (x, y + h), (x + w, y + h)]
-        return any(view_rect.contains(*vertex) for vertex in vertices)
+    #     Note that (x, y) is the top-left corner of the image and (w, h) are the width
+    #     and height of the image in pixels.
+    #     """
+    #     view_rect = self.view.camera.rect
+    #     w, h = np.array([w, h]) * self._pixel_size
+    #     vertices = [(x, y), (x + w, y), (x, y + h), (x + w, y + h)]
+    #     return any(view_rect.contains(*vertex) for vertex in vertices)
