@@ -26,6 +26,7 @@ SNAP = "Snap on Double Click"
 FLIP_X = "Flip Images Horizontally"
 FLIP_Y = "Flip Images Vertically"
 POLL_STAGE = "Poll Stage Position"
+MIN_XY_DIFF = 5
 
 SS_TOOLBUTTON = """
     QToolButton {
@@ -402,17 +403,21 @@ class StageExplorer(QWidget):
         # update stage marker position
         self._stage_pos_marker.center = (x, y)
 
-        # compare the old and new xy positions, if different means the stage position
-        # has changed, so reset the view. This is useful because we dont want to trigger
-        # reset_view when the user changes the zoom level or pans the view.
-        # if acquiring, reset is handled by _on_frame_ready
-        if not self._mmc.mda.is_running():
+        # Compare the old and new xy positions; if the percentage difference exceeds 5%,
+        # it means the stage position has significantly changed, so reset the view.
+        # This is useful because we don't want to trigger reset_view when the user
+        # changes the zoom level or pans the view.
+        # If acquiring, reset is handled by _on_frame_ready.
+        if not self._mmc.mda.is_running() and all(val is not None for val in self._xy):
             old_x, old_y = self._xy
-            if old_x != round(x, 2) or old_y != round(y, 2):
+            # 1e-6 is used to avoid division by zero
+            percent_diff_x = abs(x - old_x) / max(abs(old_x), 1e-6) * 100
+            percent_diff_y = abs(y - old_y) / max(abs(old_y), 1e-6) * 100
+            if percent_diff_x > MIN_XY_DIFF or percent_diff_y > MIN_XY_DIFF:
                 self.reset_view()
 
-        # update _xy position with new values
-        self._xy = (round(x, 2), round(y, 2))
+        # Update _xy position with new values
+        self._xy = (x, y)
 
     def _get_stage_marker_position(
         self,
