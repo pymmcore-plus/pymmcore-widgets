@@ -7,6 +7,7 @@ from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QTimerEvent, Signal
 from qtpy.QtWidgets import (
     QAction,
+    QHBoxLayout,
     QLabel,
     QSizePolicy,
     QToolBar,
@@ -51,6 +52,46 @@ SS_TOOLBUTTON = """
         background-color: rgba(102, 102, 102, 100);
     }
 """
+
+
+class RotationControl(QWidget):
+    """A widget to set the rotation of the images."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+
+        self._rotation: int = 0
+
+        self._cw_90 = QAction(
+            icon(MDI6.rotate_right, color=gray), "Rotate 90° CW", self
+        )
+        self._ccw_90 = QAction(
+            icon(MDI6.rotate_left, color=gray), "Rotate 90° CCW", self
+        )
+        self._lbl_value = QLabel("Rotation: 0°")
+
+        self._cw_90.triggered.connect(lambda: self._update_rotation(90))
+        self._ccw_90.triggered.connect(lambda: self._update_rotation(-90))
+
+        toolbar = QToolBar()
+        toolbar.setStyleSheet(SS_TOOLBUTTON)
+        toolbar.setMovable(False)
+        toolbar.setContentsMargins(0, 0, 10, 0)
+        toolbar.addAction(self._cw_90)
+        toolbar.addAction(self._ccw_90)
+        toolbar.addWidget(self._lbl_value)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(3)
+        layout.addWidget(toolbar)
+
+    def _update_rotation(self, value: int) -> None:
+        self._rotation += value
+        self._lbl_value.setText(f"Rotation: {self._rotation}°")
+
+    def value(self) -> int:
+        return self._rotation
 
 
 class StageExplorer(QWidget):
@@ -155,6 +196,10 @@ class StageExplorer(QWidget):
         self._poll_stage_position_act.setChecked(self._poll_stage_position)
         self._flip_images_horizontally_act.setChecked(self._flip_horizontal)
         self._flip_images_vertically_act.setChecked(self._flip_vertical)
+
+        # add rotation control to the toolbar
+        self._rotation_control = RotationControl()
+        toolbar.addWidget(self._rotation_control)
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
@@ -266,6 +311,10 @@ class StageExplorer(QWidget):
             img = np.flip(img, axis=1)
         if flip_y:
             img = np.flip(img, axis=0)
+        # add rotation if > 0
+        rotation = self._rotation_control.value()
+        if rotation != 0:
+            img = np.rot90(img, rotation // 90)
         self._stage_viewer.add_image(img, x, y)
 
     def reset_view(self) -> None:
