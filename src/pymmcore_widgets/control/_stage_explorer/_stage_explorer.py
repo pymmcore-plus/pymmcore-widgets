@@ -76,7 +76,7 @@ class RotationControl(QWidget):
         toolbar = QToolBar()
         toolbar.setStyleSheet(SS_TOOLBUTTON)
         toolbar.setMovable(False)
-        toolbar.setContentsMargins(0, 0, 10, 0)
+        toolbar.setContentsMargins(0, 0, 0, 0)
         toolbar.addAction(self._cw_90)
         toolbar.addAction(self._ccw_90)
         toolbar.addWidget(self._lbl_value)
@@ -180,12 +180,16 @@ class StageExplorer(QWidget):
             RESET: (MDI6.fullscreen, gray, False, self.reset_view),
             SNAP: (MDI6.camera_outline, gray, True, self._on_setting_checked),
             POLL_STAGE: (MDI6.map_marker, gray, True, self._on_poll_stage),
+            "separator": (None, None, None, None),
             FLIP_X: (MDI6.flip_horizontal, gray, True, self._on_setting_checked),
             FLIP_Y: (MDI6.flip_vertical, gray, True, self._on_setting_checked),
         }
 
         # create actions
         for a_text, (a_icon, color, check, callback) in ACTION_MAP.items():
+            if a_text == "separator":
+                toolbar.addSeparator()
+                continue
             action = QAction(icon(a_icon, color=color), a_text, self, checkable=check)
             action.triggered.connect(callback)
             setattr(self, f"_{a_text.lower().replace(' ', '_')}_act", action)
@@ -199,7 +203,9 @@ class StageExplorer(QWidget):
 
         # add rotation control to the toolbar
         self._rotation_control = RotationControl()
+        toolbar.addSeparator()
         toolbar.addWidget(self._rotation_control)
+        toolbar.addSeparator()
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
@@ -311,9 +317,8 @@ class StageExplorer(QWidget):
             img = np.flip(img, axis=1)
         if flip_y:
             img = np.flip(img, axis=0)
-        # add rotation if > 0
-        rotation = self._rotation_control.value()
-        if rotation != 0:
+        # add rotation if it is > 0
+        if (rotation := self._rotation_control.value()) > 0:
             img = np.rot90(img, rotation // 90)
         self._stage_viewer.add_image(img, x, y)
 
@@ -455,8 +460,8 @@ class StageExplorer(QWidget):
         # Compare the old and new xy positions; if the percentage difference exceeds 5%,
         # it means the stage position has significantly changed, so reset the view.
         # This is useful because we don't want to trigger reset_view when the user
-        # changes the zoom level or pans the view.
-        # If acquiring, reset is handled by _on_frame_ready.
+        # changes the zoom level or pans the view or if the stage jittered a bit.
+        # If acquiring, reset is handled by the _on_frame_ready method.
         if not self._mmc.mda.is_running() and all(val is not None for val in self._xy):
             old_x, old_y = self._xy
             # 1e-6 is used to avoid division by zero
