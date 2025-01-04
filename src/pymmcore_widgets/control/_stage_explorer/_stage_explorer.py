@@ -24,9 +24,9 @@ gray = "#666"
 RESET = "Reset View"
 CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
+POLL_STAGE = "Poll Stage Position"
 FLIP_X = "Flip Images Horizontally"
 FLIP_Y = "Flip Images Vertically"
-POLL_STAGE = "Poll Stage Position"
 MIN_XY_DIFF = 5
 
 SS_TOOLBUTTON = """
@@ -252,6 +252,17 @@ class StageExplorer(QWidget):
         """Set the snap on double click property."""
         self._snap_on_double_click = value
         self._snap_on_double_click_act.setChecked(value)
+    @property
+    def poll_stage_position(self) -> bool:
+        """Return the poll stage position property."""
+        return self._poll_stage_position
+
+    @poll_stage_position.setter
+    def poll_stage_position(self, value: bool) -> None:
+        """Set the poll stage position property."""
+        self._poll_stage_position = value
+        self._poll_stage_position_act.setChecked(value)
+        self._on_poll_stage(value)
 
     @property
     def flip_horizontal(self) -> bool:
@@ -274,18 +285,6 @@ class StageExplorer(QWidget):
         """Set the flip y property."""
         self._flip_vertical = value
         self._flip_images_vertically_act.setChecked(value)
-
-    @property
-    def poll_stage_position(self) -> bool:
-        """Return the poll stage position property."""
-        return self._poll_stage_position
-
-    @poll_stage_position.setter
-    def poll_stage_position(self, value: bool) -> None:
-        """Set the poll stage position property."""
-        self._poll_stage_position = value
-        self._poll_stage_position_act.setChecked(value)
-        self._on_poll_stage(value)
 
     def add_image(
         self,
