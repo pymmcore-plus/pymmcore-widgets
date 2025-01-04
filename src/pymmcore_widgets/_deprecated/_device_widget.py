@@ -3,12 +3,11 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Any
 
-import pymmcore
-from pymmcore_plus import CMMCorePlus, DeviceType
+from pymmcore_plus import CMMCorePlus, DeviceType, Keyword
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QWidget
 from superqt.utils import signals_blocked
 
-LABEL = pymmcore.g_Keyword_Label
+LABEL = Keyword.Label.value
 
 
 class DeviceWidget(QWidget):
