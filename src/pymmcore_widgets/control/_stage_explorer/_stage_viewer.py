@@ -92,13 +92,15 @@ class StageViewer(QWidget):
         y : float
             The y position of the image.
         """
-        # move the coordinates to the center of the image
+        # in vispy, when you add an image and translate it, the (x, y) translation
+        # coordinates represent the bottom-left corner of the image. For us is better
+        # to have the (x, y) coordinates represent the center of the image. So we need
+        # to adjust the coordinates and move the image to the left and bottom by half of
+        # the width and height of the image. We also have to considet the pixel size.
         h, w = np.array(img.shape)
-        # calculate the top-left corner of the image for the translation
         x, y = round(x - w / 2 * self._pixel_size), round(y - h / 2 * self._pixel_size)
-        # store the image in the _image_store. NOTE: storing the translated coords and
-        # not the stage coords because it will be faster and easier to get the images
-        # from the _image_store when updating the scale (update_by_scale method).
+        # store the image in the _image_store. NOTE: once the image is added to the view
+        # the (x, y) coords represent the bottom-left corner of the vispy Image.
         self._image_store[(x, y)] = img
         # get the current scale
         self._current_scale = scale = self.get_scale()
@@ -117,7 +119,7 @@ class StageViewer(QWidget):
             x, y = child.transform.translate[:2]
             if (img := self._image_store.get((x, y))) is None:
                 continue
-            # if the image is not within the view, skip it. This speeds up the process
+            # if the image is not within the view, skip it.
             # if not self._is_image_within_view(x, y, *img.shape):
             #     continue
             # is scale is the same, skip the update
@@ -175,6 +177,8 @@ class StageViewer(QWidget):
     #     """Handle the mouse drag event."""
     #     if event.is_dragging and not self._drag:
     #         self._drag = True
+    #     if self._drag:
+    #         self.update_by_scale(self._current_scale)
 
     # def _on_mouse_release(self, event: MouseEvent) -> None:
     #     """Handle the mouse release event."""
@@ -197,24 +201,34 @@ class StageViewer(QWidget):
         min_y: float | None = None
         max_y: float | None = None
         # calculate the max and min values of the images in the scene.
-        # NOTE: the (x, y) coords in the _image_store are the top-left corner of the
+        # NOTE: the (x, y) coords in the _image_store are the bottom-left corner of the
         # image.
         for (x, y), img in self._image_store.items():
             height, width = np.array(img.shape) * self._pixel_size
             x, y = round(x), round(y)
-            min_x = x if min_x is None else min(min_x, x)
-            max_x = x + width if max_x is None else max(max_x, x + width)
-            min_y = y if min_y is None else min(min_y, y)
-            max_y = y + height if max_y is None else max(max_y, y + height)
+            min_x = x if min_x is None else min(min_x, x)  # left
+            max_x = x + width if max_x is None else max(max_x, x + width)  # right
+            min_y = y if min_y is None else min(min_y, y)  # bottom
+            max_y = y + height if max_y is None else max(max_y, y + height)  # top
         return min_x, max_x, min_y, max_y
 
     # def _is_image_within_view(self, x: float, y: float, w: float, h: float) -> bool:
-    #     """Return True if any vertex of the image is within the view.
-
-    #     Note that (x, y) is the top-left corner of the image and (w, h) are the width
-    #     and height of the image in pixels.
     #     """
-    #     view_rect = self.view.camera.rect
+    #     Return True if any part of the image is within the view.
+
+    #     Note that (x, y) is the bottom-left corner of the image and (w, h) are the width
+    #     and height of the image in micrometers.
+    #     """
+    #     # scale image dimensions by pixel size
     #     w, h = np.array([w, h]) * self._pixel_size
-    #     vertices = [(x, y), (x + w, y), (x, y + h), (x + w, y + h)]
-    #     return any(view_rect.contains(*vertex) for vertex in vertices)
+    #     # create a Rect for the image
+    #     image_rect = Rect(x, y, w, h)
+    #     # get the view Rect
+    #     view_rect = cast(Rect, self.view.camera.rect)
+    #     # check for overlap
+    #     return not (
+    #         image_rect.left > view_rect.right
+    #         or image_rect.right < view_rect.left
+    #         or image_rect.top < view_rect.bottom
+    #         or image_rect.bottom > view_rect.top
+    #     )
