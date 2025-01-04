@@ -252,6 +252,7 @@ class StageExplorer(QWidget):
         """Set the snap on double click property."""
         self._snap_on_double_click = value
         self._snap_on_double_click_act.setChecked(value)
+
     @property
     def poll_stage_position(self) -> bool:
         """Return the poll stage position property."""
@@ -464,9 +465,11 @@ class StageExplorer(QWidget):
         if not self._mmc.mda.is_running() and all(val is not None for val in self._xy):
             old_x, old_y = self._xy
             # 1e-6 is used to avoid division by zero
-            percent_diff_x = abs(x - old_x) / max(abs(old_x), 1e-6) * 100
-            percent_diff_y = abs(y - old_y) / max(abs(old_y), 1e-6) * 100
-            if percent_diff_x > MIN_XY_DIFF or percent_diff_y > MIN_XY_DIFF:
+            diff_x = abs(x - old_x) / max(abs(old_x), 1e-6) * 100
+            diff_y = abs(y - old_y) / max(abs(old_y), 1e-6) * 100
+            if not self._is_visual_within_view(x, y) and (
+                diff_x > MIN_XY_DIFF or diff_y > MIN_XY_DIFF
+            ):
                 self.reset_view()
 
         # Update _xy position with new values
