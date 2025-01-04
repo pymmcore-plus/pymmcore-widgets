@@ -10,6 +10,7 @@ from qtpy.QtWidgets import (
 from superqt.utils import qthrottled
 from vispy import scene
 from vispy.app.canvas import MouseEvent
+from vispy.geometry import Rect
 from vispy.scene.visuals import Image
 from vispy.scene.widgets import ViewBox
 
@@ -57,8 +58,8 @@ class StageViewer(QWidget):
         # connections (if the scale has changed, update the scene accordingly)
         self.canvas.events.draw.connect(qthrottled(self._on_draw_event))
 
-        # self.canvas.events.mouse_move.connect(self._on_mouse_drag)
-        # self.canvas.events.mouse_release.connect(self._on_mouse_release)
+        self.canvas.events.mouse_move.connect(self._on_mouse_drag)
+        self.canvas.events.mouse_release.connect(self._on_mouse_release)
 
     # --------------------PUBLIC METHODS--------------------
 
@@ -115,13 +116,16 @@ class StageViewer(QWidget):
 
     def update_by_scale(self, scale: int) -> None:
         """Update the images in the scene based on scale and pixel size."""
+        print()
+        print()
         for child in self._get_images():
             x, y = child.transform.translate[:2]
             if (img := self._image_store.get((x, y))) is None:
                 continue
             # if the image is not within the view, skip it.
-            # if not self._is_image_within_view(x, y, *img.shape):
-            #     continue
+            if not self._is_image_within_view(x, y, *img.shape):
+                print('skipping', child)
+                continue
             # is scale is the same, skip the update
             if scale == child.transform.scale[0] / self._pixel_size:
                 continue
@@ -173,18 +177,18 @@ class StageViewer(QWidget):
         self.update_by_scale(scale)
         self.scaleChanged.emit(scale)
 
-    # def _on_mouse_drag(self, event: MouseEvent) -> None:
-    #     """Handle the mouse drag event."""
-    #     if event.is_dragging and not self._drag:
-    #         self._drag = True
-    #     if self._drag:
-    #         self.update_by_scale(self._current_scale)
+    def _on_mouse_drag(self, event: MouseEvent) -> None:
+        """Handle the mouse drag event."""
+        if event.is_dragging and not self._drag:
+            self._drag = True
+        if self._drag:
+            self.update_by_scale(self._current_scale)
 
-    # def _on_mouse_release(self, event: MouseEvent) -> None:
-    #     """Handle the mouse release event."""
-    #     if self._drag:
-    #         self._drag = False
-    #         self.update_by_scale(self._current_scale)
+    def _on_mouse_release(self, event: MouseEvent) -> None:
+        """Handle the mouse release event."""
+        if self._drag:
+            self._drag = False
+            self.update_by_scale(self._current_scale)
 
     def _get_images(self) -> Iterator[Image]:
         """Yield images in the scene."""
@@ -202,33 +206,32 @@ class StageViewer(QWidget):
         max_y: float | None = None
         # calculate the max and min values of the images in the scene.
         # NOTE: the (x, y) coords in the _image_store are the bottom-left corner of the
-        # image.
+        # vispy Image.
         for (x, y), img in self._image_store.items():
             height, width = np.array(img.shape) * self._pixel_size
-            x, y = round(x), round(y)
             min_x = x if min_x is None else min(min_x, x)  # left
             max_x = x + width if max_x is None else max(max_x, x + width)  # right
             min_y = y if min_y is None else min(min_y, y)  # bottom
             max_y = y + height if max_y is None else max(max_y, y + height)  # top
         return min_x, max_x, min_y, max_y
 
-    # def _is_image_within_view(self, x: float, y: float, w: float, h: float) -> bool:
-    #     """
-    #     Return True if any part of the image is within the view.
+    def _is_image_within_view(self, x: float, y: float, w: float, h: float) -> bool:
+        """
+        Return True if any part of the image is within the view.
 
-    #     Note that (x, y) is the bottom-left corner of the image and (w, h) are the width
-    #     and height of the image in micrometers.
-    #     """
-    #     # scale image dimensions by pixel size
-    #     w, h = np.array([w, h]) * self._pixel_size
-    #     # create a Rect for the image
-    #     image_rect = Rect(x, y, w, h)
-    #     # get the view Rect
-    #     view_rect = cast(Rect, self.view.camera.rect)
-    #     # check for overlap
-    #     return not (
-    #         image_rect.left > view_rect.right
-    #         or image_rect.right < view_rect.left
-    #         or image_rect.top < view_rect.bottom
-    #         or image_rect.bottom > view_rect.top
-    #     )
+        Note that (x, y) is the bottom-left corner of the image and (w, h) are the width
+        and height of the image in micrometers.
+        """
+        # scale image dimensions by pixel size
+        w, h = np.array([w, h]) * self._pixel_size
+        # create a Rect for the image
+        image_rect = Rect(x, y, w, h)
+        # get the view Rect
+        view_rect = cast(Rect, self.view.camera.rect)
+        # check for overlap
+        return not (
+            image_rect.left > view_rect.right
+            or image_rect.right < view_rect.left
+            or image_rect.top < view_rect.bottom
+            or image_rect.bottom > view_rect.top
+        )
