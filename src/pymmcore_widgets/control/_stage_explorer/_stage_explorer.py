@@ -317,8 +317,8 @@ class StageExplorer(QWidget):
             img = np.flip(img, axis=1)
         if flip_y:
             img = np.flip(img, axis=0)
-        # add rotation if it is > 0
-        if (rotation := self._rotation_control.value()) > 0:
+        # add rotation if it is != 0
+        if (rotation := self._rotation_control.value()) != 0:
             img = np.rot90(img, rotation // 90)
         self._stage_viewer.add_image(img, x, y)
 
