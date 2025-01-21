@@ -6,8 +6,8 @@ from ._objectives_pixel_configuration_widget import ObjectivesPixelConfiguration
 from ._pixel_configuration_widget import PixelConfigurationWidget
 
 __all__ = [
+    "ConfigGroupsEditor",
     "GroupPresetTableWidget",
     "ObjectivesPixelConfigurationWidget",
     "PixelConfigurationWidget",
-    "ConfigGroupsEditor",
 ]
