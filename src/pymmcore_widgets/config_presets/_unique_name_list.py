@@ -22,9 +22,6 @@ if TYPE_CHECKING:
     from PyQt6.QtGui import QKeyEvent
 
 
-class UniqueListWidget(QListWidget): ...
-
-
 class UniqueKeyList(QWidget):
     """A QListWidget container that displays a list of unique keys.
 
