@@ -29,7 +29,7 @@ class QOMEZarrDatastore(OMEZarrWriter):
         self.frame_ready.emit(event)
 
     def get_frame(self, event: MDAEvent) -> np.ndarray:
-        key = f'{POS_PREFIX}{event.index.get("p", 0)}'
+        key = f"{POS_PREFIX}{event.index.get('p', 0)}"
         ary = self.position_arrays[key]
 
         index = tuple(event.index.get(k) for k in self._used_axes)

@@ -95,7 +95,7 @@ class InstallWidget(QWidget):
         if dest := getattr(self, "_install_dest", None):  # for pytest, could expose
             cmd = [*cmd, "--dest", dest]
 
-        self.feedback_textbox.append(f'Running:\n{" ".join(cmd)}')
+        self.feedback_textbox.append(f"Running:\n{' '.join(cmd)}")
         self._cmd_thread = SubprocessThread(cmd)
         self._cmd_thread.stdout_ready.connect(self.feedback_textbox.append)
         self._cmd_thread.process_finished.connect(self._on_finished)

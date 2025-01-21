@@ -175,7 +175,7 @@ class _CurrentDevicesWidget(QWidget):
                     if dev.parent_label == device.name:
                         children.add(dev)
                 if children and not asked:
-                    child = f'{"child" if len(children) == 1 else "children"}'
+                    child = f"{'child' if len(children) == 1 else 'children'}"
                     response = QMessageBox.question(
                         self,
                         "Remove Children?",

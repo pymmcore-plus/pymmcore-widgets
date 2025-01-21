@@ -65,8 +65,7 @@ for x in list(ALLOWED_ORDERS):
             ALLOWED_ORDERS.discard(x)
 AF_AXIS_TOOLTIP = "Use Hardware Autofocus on the selected axes."
 AF_DISABLED_TOOLTIP = (
-    "The hardware autofocus cannot be used with absolute Z positions "
-    "(TOP_BOTTOM mode)."
+    "The hardware autofocus cannot be used with absolute Z positions (TOP_BOTTOM mode)."
 )
 
 

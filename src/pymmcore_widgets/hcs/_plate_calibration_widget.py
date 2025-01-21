@@ -363,7 +363,7 @@ class PlateCalibrationWidget(QWidget):
                     ico = style.standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning)
             txt += "<br>"
             x0, y0 = self._a1_center_xy
-            txt += f"\nA1 Center [mm]: ({x0/1000:.2f}, {y0/1000:.2f}),   "
+            txt += f"\nA1 Center [mm]: ({x0 / 1000:.2f}, {y0 / 1000:.2f}),   "
             txt += f"Well Spacing [mm]: ({spacing[0]:.2f}, {spacing[1]:.2f}),   "
             txt += f"Rotation: {self._rotation}°"
         elif len(self._calibrated_wells) < self._min_wells_required:
