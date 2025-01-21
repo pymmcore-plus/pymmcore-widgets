@@ -68,7 +68,7 @@ test = [
     "PyYAML",
     "vispy",
     "cmap",
-    "zarr",
+    "zarr<3",
 ]
 pyqt5 = ["PyQt5"]
 pyside2 = ["PySide2"]
@@ -86,6 +86,9 @@ dev = [
     "pytest-cov",
     "pytest",
     "rich",
+    # fix OSError: dlopen(Quartz.framework/Quartz on vispy
+    "pyopengl; platform_system == 'Darwin'",
+    "pyqt6",
 ]
 docs = [
     "vispy",
