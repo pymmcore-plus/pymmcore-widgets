@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from pymmcore import g_Keyword_CoreCamera, g_Keyword_CoreDevice
-from pymmcore_plus import CMMCorePlus
+from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QApplication, QDoubleSpinBox, QHBoxLayout, QLabel, QWidget
 from superqt.utils import signals_blocked
@@ -121,7 +120,7 @@ class DefaultCameraExposureWidget(ExposureWidget):
         super().__init__(parent=parent, mmcore=mmcore)
 
         self._mmc.events.devicePropertyChanged(
-            g_Keyword_CoreDevice, g_Keyword_CoreCamera
+            Keyword.CoreDevice, Keyword.CoreCamera
         ).connect(self._camera_updated)
 
         self.destroyed.connect(self._disconnect)
@@ -130,7 +129,7 @@ class DefaultCameraExposureWidget(ExposureWidget):
         self._mmc.events.exposureChanged.disconnect(self._on_exp_changed)
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_load)
         self._mmc.events.devicePropertyChanged(
-            g_Keyword_CoreDevice, g_Keyword_CoreCamera
+            Keyword.CoreDevice, Keyword.CoreCamera
         ).disconnect(self._camera_updated)
 
     def setCamera(self, camera: str | None = None, force: bool = False) -> None:

@@ -152,11 +152,12 @@ class DevicePropertyTable(QTableWidget):
         self.clearContents()
         props = list(self._mmc.iterProperties(as_object=True))
         self.setRowCount(len(props))
+
         for i, prop in enumerate(props):
-            item = QTableWidgetItem(f"{prop.device}-{prop.name}")
+            extra = " 🅿" if prop.isPreInit() else ""
+            item = QTableWidgetItem(f"{prop.device}-{prop.name}{extra}")
             item.setData(self.PROP_ROLE, prop)
-            icon_string = ICONS.get(prop.deviceType())
-            if icon_string:
+            if icon_string := ICONS.get(prop.deviceType()):
                 item.setIcon(icon(icon_string, color="Gray"))
             self.setItem(i, 0, item)
 

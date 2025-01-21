@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -20,6 +21,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.fonticon import icon
+from superqt.utils import signals_blocked
 
 from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
 from ._data_table import DataTableWidget
@@ -30,7 +32,7 @@ if TYPE_CHECKING:
 OK_CANCEL = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
 NULL_SEQUENCE = useq.MDASequence()
 MAX = 9999999
-AF_DEFAULT_TOOLTIP = (
+AF_PER_POS_TOOLTIP = (
     "If checked, the user can set a different Hardware Autofocus Offset for each "
     "Position in the table."
 )
@@ -170,7 +172,7 @@ class PositionTable(DataTableWidget):
         self.include_z.toggled.connect(self._on_include_z_toggled)
 
         self.af_per_position = QCheckBox("Set AF Offset per Position")
-        self.af_per_position.setToolTip(AF_DEFAULT_TOOLTIP)
+        self.af_per_position.setToolTip(AF_PER_POS_TOOLTIP)
         self.af_per_position.toggled.connect(self._on_af_per_position_toggled)
         self._on_af_per_position_toggled(self.af_per_position.isChecked())
 
@@ -197,6 +199,12 @@ class PositionTable(DataTableWidget):
     ) -> Sequence[useq.Position]:
         """Return the current value of the table as a tuple of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position).
 
+        Note that `exclude_hidden_cols` has the result of:
+            - excluding the Z position in each of the Positions if
+              `include_z.isChecked()` is False
+            - excluding the AF offset in each of the Positions if
+              `af_per_position.isChecked()` is False
+
         Parameters
         ----------
         exclude_unchecked : bool, optional
@@ -216,7 +224,7 @@ class PositionTable(DataTableWidget):
             if not r.get(self.NAME.key, True):
                 r.pop(self.NAME.key, None)
 
-            if self.af_per_position.isChecked():
+            if self.af_per_position.isChecked() and self.af_per_position.isEnabled():
                 af_offset = r.get(self.AF.key, None)
                 if af_offset is not None:
                     # get the current sub-sequence as dict or create a new one
@@ -248,10 +256,17 @@ class PositionTable(DataTableWidget):
         """
         _values = []
         _use_af = False
-        for v in value:
-            if not isinstance(v, useq.Position):  # pragma: no cover
-                raise TypeError(f"Expected useq.Position, got {type(v)}")
+        value = [useq.Position.model_validate(v) for v in value]
 
+        n_pos_with_z = sum(1 for v in value if v.z is not None)
+        if (_include_z := n_pos_with_z > 0) and n_pos_with_z < len(value):
+            warnings.warn(
+                "Only some positions have a z-position set. Z will be included, "
+                "but missing z-positions will be set to 0.",
+                stacklevel=2,
+            )
+
+        for v in value:
             _af = {}
             if v.sequence is not None and v.sequence.autofocus_plan is not None:
                 # set sub-sequence to None if empty or we simply exclude the af plan
@@ -275,8 +290,9 @@ class PositionTable(DataTableWidget):
             _values.append({**v.model_dump(exclude_unset=True), **_af})
 
         super().setValue(_values)
-
-        self.af_per_position.setChecked(_use_af)
+        with signals_blocked(self):
+            self.include_z.setChecked(_include_z)
+            self.af_per_position.setChecked(_use_af)
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current positions to a JSON file."""
