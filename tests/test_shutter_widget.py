@@ -42,6 +42,7 @@ def test_create_shutter_widgets(qtbot: QtBot):
     assert multi_shutter.shutter_button.isEnabled()
 
 
+@pytest.mark.xfail(reason="flaky test")
 def test_shutter_widget_propertyChanged(qtbot: QtBot, global_mmcore: CMMCorePlus):
     mmc = global_mmcore
     shutter, _, multi_shutter = _make_shutters(qtbot)

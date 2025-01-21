@@ -67,6 +67,8 @@ test = [
     "pytest-qt",
     "PyYAML",
     "vispy",
+    # fix OSError: dlopen(Quartz.framework/Quartz on vispy
+    "pyopengl; platform_system == 'Darwin'",
     "cmap",
     "zarr<3",
 ]
@@ -86,8 +88,6 @@ dev = [
     "pytest-cov",
     "pytest",
     "rich",
-    # fix OSError: dlopen(Quartz.framework/Quartz on vispy
-    "pyopengl; platform_system == 'Darwin'",
     "pyqt6",
 ]
 docs = [
