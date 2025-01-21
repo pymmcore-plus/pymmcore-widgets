@@ -1,5 +1,32 @@
 # Changelog
 
+## [v0.9.0](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.9.0) (2025-01-21)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.8.0...v0.9.0)
+
+**Implemented enhancements:**
+
+- feat: support pymmcore-nano [\#392](https://github.com/pymmcore-plus/pymmcore-widgets/pull/392) ([tlambert03](https://github.com/tlambert03))
+- feat: use QRadioButtons to select z\_plan [\#385](https://github.com/pymmcore-plus/pymmcore-widgets/pull/385) ([fdrgsp](https://github.com/fdrgsp))
+- feat: Absolute stage position controls [\#383](https://github.com/pymmcore-plus/pymmcore-widgets/pull/383) ([gselzer](https://github.com/gselzer))
+- feat: indicate pre-init properties in device property browser [\#382](https://github.com/pymmcore-plus/pymmcore-widgets/pull/382) ([fdrgsp](https://github.com/fdrgsp))
+- feat: update the CameraRoiWidget to handle multiple cameras [\#292](https://github.com/pymmcore-plus/pymmcore-widgets/pull/292) ([fdrgsp](https://github.com/fdrgsp))
+
+**Fixed bugs:**
+
+- Fix: Bump default maximum for IntColumn from 10\_000 to 99\_999 [\#394](https://github.com/pymmcore-plus/pymmcore-widgets/pull/394) ([Gronemeyer](https://github.com/Gronemeyer))
+- fix: disable autofocus axis widget if no autofocus device is loaded/selected [\#386](https://github.com/pymmcore-plus/pymmcore-widgets/pull/386) ([fdrgsp](https://github.com/fdrgsp))
+- fix: fix af per pos bug on prop changed [\#384](https://github.com/pymmcore-plus/pymmcore-widgets/pull/384) ([fdrgsp](https://github.com/fdrgsp))
+- fix: fix include\_z when setting stage positions value in PositionTable widget [\#381](https://github.com/pymmcore-plus/pymmcore-widgets/pull/381) ([tlambert03](https://github.com/tlambert03))
+- fix: "range" in range-around z-stack widget starts form 0 \(no negative numbers\) [\#379](https://github.com/pymmcore-plus/pymmcore-widgets/pull/379) ([fdrgsp](https://github.com/fdrgsp))
+- fix: fix z plan and hardware autofocus plan validation error [\#378](https://github.com/pymmcore-plus/pymmcore-widgets/pull/378) ([fdrgsp](https://github.com/fdrgsp))
+
+**Merged pull requests:**
+
+- ci\(dependabot\): bump codecov/codecov-action from 4 to 5 [\#389](https://github.com/pymmcore-plus/pymmcore-widgets/pull/389) ([dependabot[bot]](https://github.com/apps/dependabot))
+- chore: fix typing for useq 0.5 [\#371](https://github.com/pymmcore-plus/pymmcore-widgets/pull/371) ([tlambert03](https://github.com/tlambert03))
+- build: drop support for python 3.8, test 3.12 [\#368](https://github.com/pymmcore-plus/pymmcore-widgets/pull/368) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.8.0](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.8.0) (2024-10-04)
 
 [Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.7.2...v0.8.0)
