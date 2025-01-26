@@ -512,7 +512,7 @@ class CameraRoiWidget(QWidget):
 
         self.lbl_info.setText(text)
 
-        if self._mmc.getROI(self.camera) == [start_x, start_y, width, height]:
+        if tuple(self._mmc.getROI(self.camera)) == (start_x, start_y, width, height):
             self.lbl_info.setStyleSheet("")
         else:
             self.lbl_info.setStyleSheet("color: magenta;")

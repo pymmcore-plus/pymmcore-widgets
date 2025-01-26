@@ -19,6 +19,7 @@ from ._z import ZPlanWidget
 from .points_plans import PointsPlanWidget
 
 __all__ = [
+    "PYMMCW_METADATA_KEY",
     "BoolColumn",
     "ChannelTable",
     "ChoiceColumn",
@@ -30,7 +31,6 @@ __all__ = [
     "MDASequenceWidget",
     "PointsPlanWidget",
     "PositionTable",
-    "PYMMCW_METADATA_KEY",
     "TextColumn",
     "TimeDeltaColumn",
     "TimePlanWidget",

@@ -281,7 +281,7 @@ class _RangeColumn(WidgetColumn, Generic[W, T]):
 class IntColumn(_RangeColumn):
     data_type: WdgGetSet = TableIntWidget
     minimum: int = 0
-    maximum: int = 10_000
+    maximum: int = 99_999
 
 
 @dataclass(frozen=True)

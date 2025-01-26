@@ -7,7 +7,7 @@ from ._random_points_widget import RandomPointWidget
 
 __all__ = [
     "GridRowColumnWidget",
+    "PointsPlanWidget",
     "RandomPointWidget",
     "RelativePointPlanSelector",
-    "PointsPlanWidget",
 ]

@@ -444,7 +444,7 @@ class WellPlateView(ResizingGraphicsView):
             rect = well_rect.translated(screen_x, screen_y)
             if item := add_item(rect, pen):
                 item.setData(DATA_POSITION, pos)
-                index = tuple(idx.tolist())
+                index = (idx[0], idx[1])
                 item.setData(DATA_INDEX, index)
                 if plan.rotation:
                     item.setTransformOriginPoint(rect.center())

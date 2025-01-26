@@ -146,7 +146,7 @@ def test_preset_crop_mode(qtbot: QtBot, multi_cam_cfg: Path):
 
     cam.camera_roi_combo.setCurrentText("256 x 256")
 
-    assert mmc.getROI("Camera1") == [128, 128, 256, 256]
+    assert tuple(mmc.getROI("Camera1")) == (128, 128, 256, 256)
 
     _, _, x, y, w, h, cbox, snap, crop = _get_wdgs(cam)
     assert not cam._custom_roi_wdg.isEnabled()
@@ -213,14 +213,14 @@ def test_custom_crop_mode(qtbot: QtBot, multi_cam_cfg: Path):
     # without pressing the crop button, the stored roi should not change
     assert cam.value()["Camera2"].roi == ROI(x=0, y=0, w=512, h=512, centered=True)
     assert cam.value()["Camera2"].crop_mode == FULL
-    assert mmc.getROI("Camera2") == [0, 0, 512, 512]
+    assert tuple(mmc.getROI("Camera2")) == (0, 0, 512, 512)
 
     with qtbot.waitSignal(mmc.events.roiSet):
         crop.click()
 
     assert cam.value()["Camera2"].roi == ROI(x=6, y=50, w=500, h=412, centered=True)
     assert cam.value()["Camera2"].crop_mode == CUSTOM_ROI
-    assert mmc.getROI("Camera2") == [6, 50, 500, 412]
+    assert tuple(mmc.getROI("Camera2")) == (6, 50, 500, 412)
     assert not cam.lbl_info.styleSheet()
 
     # change the camera ROI with centered=False
@@ -228,14 +228,14 @@ def test_custom_crop_mode(qtbot: QtBot, multi_cam_cfg: Path):
     w.setValue(412)
     assert cam.lbl_info.text() == "Size: 412 px * 412 px [103.0 µm * 103.0 µm]"
     assert cam.lbl_info.styleSheet() == "color: magenta;"
-    assert mmc.getROI("Camera2") == [6, 50, 500, 412]
+    assert tuple(mmc.getROI("Camera2")) == (6, 50, 500, 412)
 
     with qtbot.waitSignal(mmc.events.roiSet):
         crop.click()
 
     assert cam.value()["Camera2"].roi == ROI(x=6, y=50, w=412, h=412, centered=False)
     assert cam.value()["Camera2"].crop_mode == CUSTOM_ROI
-    assert mmc.getROI("Camera2") == [6, 50, 412, 412]
+    assert tuple(mmc.getROI("Camera2")) == (6, 50, 412, 412)
     assert not cam.lbl_info.styleSheet()
 
     assert cam.value()["Camera2"] == CameraInfo(
@@ -262,7 +262,7 @@ def test_core_setROI(qtbot: QtBot, multi_cam_cfg: Path):
         mmc.setROI(10, 10, 100, 100)
     assert cam.value()["Camera"].roi == ROI(x=10, y=10, w=100, h=100, centered=False)
     assert cam.value()["Camera"].crop_mode == CUSTOM_ROI
-    assert mmc.getROI("Camera") == [10, 10, 100, 100]
+    assert tuple(mmc.getROI("Camera")) == (10, 10, 100, 100)
     assert x.value() == 10
     assert y.value() == 10
     assert w.value() == 100

@@ -14,8 +14,8 @@ __all__ = [
     "ChannelGroupWidget",
     "ChannelTable",
     "ChannelWidget",
-    "ConfigurationWidget",
     "ConfigWizard",
+    "ConfigurationWidget",
     "DefaultCameraExposureWidget",
     "DeviceWidget",
     "ExposureWidget",
@@ -25,10 +25,10 @@ __all__ = [
     "ImagePreview",
     "InstallWidget",
     "LiveButton",
-    "MDAWidget",
     "MDASequenceWidget",
-    "ObjectivesWidget",
+    "MDAWidget",
     "ObjectivesPixelConfigurationWidget",
+    "ObjectivesWidget",
     "PixelConfigurationWidget",
     "PositionTable",
     "PresetsWidget",
@@ -78,7 +78,7 @@ from .useq_widgets import (
 from .views import ImagePreview
 
 if TYPE_CHECKING:
-    from ._deprecated._device_widget import (  # noqa: TCH004
+    from ._deprecated._device_widget import (  # noqa: TC004
         DeviceWidget,
         StateDeviceWidget,
     )
