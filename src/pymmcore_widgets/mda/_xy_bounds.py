@@ -12,7 +12,6 @@ from qtpy.QtWidgets import (
     QApplication,
     QCheckBox,
     QDoubleSpinBox,
-    QFormLayout,
     QGridLayout,
     QHBoxLayout,
     QPushButton,
@@ -21,7 +20,10 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 
+from pymmcore_widgets.useq_widgets._grid import _BoundsWidget
+
 if TYPE_CHECKING:
+    import useq
     from pymmcore import CMMCore
 
 
@@ -100,11 +102,6 @@ class XYBoundsControl(QWidget):
     ) -> None:
         super().__init__(parent)
 
-        self.top_edit = _PositionSpinBox()
-        self.left_edit = _PositionSpinBox()
-        self.right_edit = _PositionSpinBox()
-        self.bottom_edit = _PositionSpinBox()
-
         self.btn_top = _MarkVisitButton("top")
         self.btn_left = _MarkVisitButton("left")
         self.btn_right = _MarkVisitButton("right")
@@ -135,22 +132,13 @@ class XYBoundsControl(QWidget):
 
         grid_layout.addWidget(self.go_middle, 2, 2, CTR)
 
-        values_layout = QFormLayout()
-        values_layout.setContentsMargins(0, 0, 0, 0)
-        values_layout.setSpacing(10)
-        values_layout.setFieldGrowthPolicy(
-            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
-        )
-        values_layout.addRow("Top:", self.top_edit)
-        values_layout.addRow("Left:", self.left_edit)
-        values_layout.addRow("Right:", self.right_edit)
-        values_layout.addRow("Bottom:", self.bottom_edit)
+        self._bounds_wdg = _BoundsWidget()
 
         top_layout = QHBoxLayout()
         top_layout.setContentsMargins(0, 0, 0, 0)
         top_layout.setSpacing(15)
         top_layout.addWidget(grid)
-        top_layout.addLayout(values_layout)
+        top_layout.addWidget(self._bounds_wdg)
 
         self.setLayout(top_layout)
         self.setWindowTitle("Mark XY Boundaries")
@@ -176,6 +164,11 @@ class CoreXYBoundsControl(XYBoundsControl):
         self._mmc = core or CMMCorePlus.instance()
         self._device = device
 
+        self.top = self._bounds_wdg.top
+        self.left = self._bounds_wdg.left
+        self.right = self._bounds_wdg.right
+        self.bottom = self._bounds_wdg.bottom
+
         self.btn_top.clicked.connect(lambda: self._mark_or_visit(top=True))
         self.btn_left.clicked.connect(lambda: self._mark_or_visit(left=True))
         self.btn_right.clicked.connect(lambda: self._mark_or_visit(left=False))
@@ -185,16 +178,24 @@ class CoreXYBoundsControl(XYBoundsControl):
         self.btn_bottom_left.clicked.connect(lambda: self._mark_or_visit(False, True))
         self.btn_bottom_right.clicked.connect(lambda: self._mark_or_visit(False, False))
 
+    def value(self) -> dict[str, float]:
+        """Return the current value of the grid plan widget."""
+        return self._bounds_wdg.value()
+
+    def setValue(self, value: useq.GridFromEdges) -> None:
+        """Set the value of the grid plan widget."""
+        self._bounds_wdg.setValue(value)
+
     def _mark_or_visit(self, top: bool | None = None, left: bool | None = None) -> None:
         self._visit(top, left) if self.go_middle.isChecked() else self._mark(top, left)
 
     def _mark(self, top: bool | None = None, left: bool | None = None) -> None:
         device = self._device or self._mmc.getXYStageDevice()
         if top is not None:
-            wdg = self.top_edit if top else self.bottom_edit
+            wdg = self.top if top else self.bottom
             wdg.setValue(self._mmc.getYPosition(device))
         if left is not None:
-            wdg = self.left_edit if left else self.right_edit
+            wdg = self.left if left else self.right
             wdg.setValue(self._mmc.getXPosition(device))
 
     def _visit(self, top: bool | None = None, left: bool | None = None) -> None:
@@ -202,11 +203,11 @@ class CoreXYBoundsControl(XYBoundsControl):
         if top is None:
             y = self._mmc.getYPosition(device)
         else:
-            y = self.top_edit.value() if top else self.bottom_edit.value()
+            y = self.top.value() if top else self.bottom.value()
         if left is None:
             x = self._mmc.getXPosition(device)
         else:
-            x = self.left_edit.value() if left else self.right_edit.value()
+            x = self.left.value() if left else self.right.value()
 
         self._mmc.setXYPosition(device, x, y)
         self._mmc.waitForDevice(device)
