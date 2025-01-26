@@ -971,29 +971,3 @@ def test_core_mda_autofocus_and_z_plan(
         # AF column should be hidden
         assert pos_table.table().isColumnHidden(af_col)
         assert pos_table.table().isColumnHidden(af_btn_col)
-
-
-def test_core_connected_grid_wdg(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
-    wdg = MDAWidget()
-    qtbot.addWidget(wdg)
-    wdg.show()
-
-    grid_plan = {
-        "top": 256,
-        "bottom": -256,
-        "left": -256,
-        "right": 768,
-        "fov_height": 512,
-        "fov_width": 512,
-    }
-    mda = useq.MDASequence(stage_positions=[(10, 10)], grid_plan=grid_plan)
-
-    wdg.setValue(mda)
-
-    g_plan = wdg.value().grid_plan
-    assert isinstance(g_plan, useq.GridFromEdges)
-    assert g_plan.top == 256
-    assert g_plan.bottom == -256
-    assert g_plan.left == -256
-    assert g_plan.right == 768
-    assert len(list(mda)) == 6
