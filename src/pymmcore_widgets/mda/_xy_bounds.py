@@ -182,9 +182,9 @@ class CoreXYBoundsControl(XYBoundsControl):
         """Return the current value of the grid plan widget."""
         return self._bounds_wdg.value()
 
-    def setValue(self, value: useq.GridFromEdges) -> None:
+    def setValue(self, plan: useq.GridFromEdges) -> None:
         """Set the value of the grid plan widget."""
-        self._bounds_wdg.setValue(value)
+        self._bounds_wdg.setValue(plan)
 
     def _mark_or_visit(self, top: bool | None = None, left: bool | None = None) -> None:
         self._visit(top, left) if self.go_middle.isChecked() else self._mark(top, left)
