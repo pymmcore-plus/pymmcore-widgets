@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol
 
 import useq
 from qtpy.QtCore import Qt, Signal
@@ -31,6 +31,9 @@ if TYPE_CHECKING:
     GridPlan: TypeAlias = (
         useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
     )
+
+    class ValueWidget(Protocol, QWidget):  # pyright: ignore
+        def setValue(self, plan: Any) -> None: ...
 
 
 class RelativeTo(Enum):
@@ -105,9 +108,7 @@ class GridPlanWidget(QScrollArea):
         self.width_height_wdg = _WidthHeightWidget()
         self.bounds_wdg = _BoundsWidget()
         # ease of lookup
-        self._mode_to_widget: dict[
-            Mode, _RowsColsWidget | _WidthHeightWidget | _BoundsWidget
-        ] = {
+        self._mode_to_widget: dict[Mode, ValueWidget] = {
             Mode.NUMBER: self.row_col_wdg,
             Mode.AREA: self.width_height_wdg,
             Mode.BOUNDS: self.bounds_wdg,
@@ -226,7 +227,7 @@ class GridPlanWidget(QScrollArea):
 
         with signals_blocked(self):
             mode_wdg = self._mode_to_widget[mode]
-            mode_wdg.setValue(value)  # type: ignore [arg-type]
+            mode_wdg.setValue(value)
             self._stack.setCurrentWidget(mode_wdg)
             if value.fov_height:
                 self._fov_height = value.fov_height

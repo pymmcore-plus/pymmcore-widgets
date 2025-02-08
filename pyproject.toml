@@ -51,7 +51,7 @@ dependencies = [
     'fonticon-materialdesignicons6',
     'pymmcore-plus[cli] >=0.11.0',
     'qtpy >=2.0',
-    'superqt[quantity] >=0.5.3',
+    'superqt[quantity,cmap] >=0.7.1',
     'useq-schema >=0.5.0',
     'vispy'
 ]
@@ -62,20 +62,24 @@ allow-direct-references = true
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-test = [
-    "pytest>=6.0",
-    "pytest-cov",
-    "pytest-qt",
-    "PyYAML",
-    "vispy",
-    "cmap",
-    "zarr",
-]
 pyqt5 = ["PyQt5"]
 pyside2 = ["PySide2"]
 pyqt6 = ["PyQt6"]
 pyside6 = ["PySide6==6.7.3"] # pretty hard to find a good match here...
-image = ["vispy"]
+image = [
+    "vispy",
+    # fix OSError: dlopen(Quartz.framework/Quartz on vispy
+    "pyopengl; platform_system == 'Darwin'",
+]
+
+test = [
+    "pymmcore-widgets[image]",
+    "pytest>=6.0",
+    "pytest-cov",
+    "pytest-qt",
+    "PyYAML",
+    "zarr<3",
+]
 
 dev = [
     "cruft",
@@ -87,9 +91,10 @@ dev = [
     "pytest-cov",
     "pytest",
     "rich",
+    "pyqt6",
 ]
 docs = [
-    "vispy",
+    "pymmcore-widgets[image]",
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings-python",
