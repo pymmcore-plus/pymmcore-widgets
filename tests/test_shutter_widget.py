@@ -202,10 +202,10 @@ def test_shutter_widget_setters(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert shutter.icon_size == 30
 
     assert shutter.icon_color_open == (0, 255, 0)
-    shutter.icon_color_open = "magenta"
-    assert shutter.icon_color_open == "magenta"
+    shutter.icon_color_open = "gray"
+    assert shutter.icon_color_open == "gray"
 
-    assert shutter.icon_color_closed == "magenta"
+    assert shutter.icon_color_closed == "gray"
     shutter.icon_color_closed = (0, 255, 0)
     assert shutter.icon_color_closed == (0, 255, 0)
 
