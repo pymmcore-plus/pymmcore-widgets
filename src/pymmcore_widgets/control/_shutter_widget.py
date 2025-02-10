@@ -60,7 +60,7 @@ class ShuttersWidget(QWidget):
         self._icon_open: str = MDI6.hexagon_outline
         self._icon_closed: str = MDI6.hexagon_slice_6
         self._icon_color_open: COLOR_TYPE = (0, 255, 0)
-        self._icon_color_closed: COLOR_TYPE = "magenta"
+        self._icon_color_closed: COLOR_TYPE = "gray"
         self._icon_size: int = 25
         self._button_text_open: str = ""
         self._button_text_closed: str = ""
