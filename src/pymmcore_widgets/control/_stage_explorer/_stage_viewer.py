@@ -124,7 +124,7 @@ class StageViewer(QWidget):
                 continue
             # if the image is not within the view, skip it.
             if not self._is_image_within_view(x, y, *img.shape):
-                print('skipping', child)
+                print("skipping", child)
                 continue
             # is scale is the same, skip the update
             if scale == child.transform.scale[0] / self._pixel_size:

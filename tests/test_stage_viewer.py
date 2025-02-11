@@ -48,7 +48,10 @@ def test_update_by_scale(qtbot: QtBot):
     initial_scale = stage_viewer.get_scale()
     stage_viewer.update_by_scale(initial_scale * 2)
     image = next(i for i in stage_viewer.view.scene.children if isinstance(i, Image))
-    assert (image.transform.scale[0], image.transform.scale[1]) == (initial_scale * 2, initial_scale * 2)
+    assert (image.transform.scale[0], image.transform.scale[1]) == (
+        initial_scale * 2,
+        initial_scale * 2,
+    )
 
 
 def test_pixel_size_property(qtbot: QtBot):

@@ -25,6 +25,6 @@ __all__ = [
     "PresetsWidget",
     "ShuttersWidget",
     "SnapButton",
-    "StageWidget",
     "StageExplorer",
+    "StageWidget",
 ]
