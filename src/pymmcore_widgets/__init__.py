@@ -14,6 +14,7 @@ __all__ = [
     "ChannelGroupWidget",
     "ChannelTable",
     "ChannelWidget",
+    "ConfigGroupsEditor",
     "ConfigWizard",
     "ConfigurationWidget",
     "DefaultCameraExposureWidget",
@@ -45,6 +46,7 @@ __all__ = [
 
 from ._install_widget import InstallWidget
 from .config_presets import (
+    ConfigGroupsEditor,
     GroupPresetTableWidget,
     ObjectivesPixelConfigurationWidget,
     PixelConfigurationWidget,
