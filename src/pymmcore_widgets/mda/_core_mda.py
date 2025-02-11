@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, cast, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
