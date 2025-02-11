@@ -269,7 +269,6 @@ class MDAWidget(MDASequenceWidget):
         else:
             return None
 
-    # def execute_mda(self, output: Path | str | object | None) -> None:
     def execute_mda(
         self,
         output: (
