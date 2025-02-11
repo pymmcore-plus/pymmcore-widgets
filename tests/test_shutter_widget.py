@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pymmcore_widgets.control._shutter_widget import ShuttersWidget
+from pymmcore_widgets.control._shutter_widget import GRAY, GREEN, ShuttersWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -201,13 +201,13 @@ def test_shutter_widget_setters(qtbot: QtBot, global_mmcore: CMMCorePlus):
     shutter.icon_size = 30
     assert shutter.icon_size == 30
 
-    assert shutter.icon_color_open == (0, 255, 0)
-    shutter.icon_color_open = "gray"
-    assert shutter.icon_color_open == "gray"
+    assert shutter.icon_color_open == GREEN
+    shutter.icon_color_open = GRAY
+    assert shutter.icon_color_open == GRAY
 
-    assert shutter.icon_color_closed == "gray"
-    shutter.icon_color_closed = (0, 255, 0)
-    assert shutter.icon_color_closed == (0, 255, 0)
+    assert shutter.icon_color_closed == GRAY
+    shutter.icon_color_closed = GREEN
+    assert shutter.icon_color_closed == GREEN
 
     assert shutter.button_text_open == "Shutter opened"
     shutter.button_text_open = "O"
