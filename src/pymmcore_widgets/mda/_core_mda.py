@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
@@ -34,6 +34,11 @@ from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import AF_UNAVAILABLE, CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
 from ._save_widget import SaveGroupBox
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from pymmcore_plus.mda import SupportsFrameReady
 
 
 class _CoreConnectedPositionTable(CoreConnectedPositionTable):
@@ -264,7 +269,17 @@ class MDAWidget(MDASequenceWidget):
         else:
             return None
 
-    def execute_mda(self, output: Path | str | object | None) -> None:
+    # def execute_mda(self, output: Path | str | object | None) -> None:
+    def execute_mda(
+        self,
+        output: (
+            Path
+            | str
+            | SupportsFrameReady
+            | Sequence[Path | str | SupportsFrameReady]
+            | None
+        ),
+    ) -> None:
         """Execute the MDA experiment corresponding to the current value."""
         sequence = self.value()
         # run the MDA experiment asynchronously
@@ -274,7 +289,7 @@ class MDAWidget(MDASequenceWidget):
         save_path = self.prepare_mda()
         if save_path is False:
             return
-        self.execute_mda(save_path)
+        self.execute_mda(cast(Path | None, save_path))
 
     # ------------------- private Methods ----------------------
 
