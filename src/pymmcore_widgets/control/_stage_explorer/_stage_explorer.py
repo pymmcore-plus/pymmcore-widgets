@@ -17,7 +17,6 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from vispy.app.canvas import MouseEvent
 from vispy.scene.visuals import Rectangle
-from vispy.visuals.transforms import MatrixTransform
 
 from ._stage_viewer import StageViewer
 
@@ -58,6 +57,8 @@ SS_TOOLBUTTON = """
 class RotationControl(QWidget):
     """A widget to set the rotation of the images."""
 
+    valueChanged = Signal(int)
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
 
@@ -90,6 +91,7 @@ class RotationControl(QWidget):
     def _update_rotation(self, value: int) -> None:
         self._rotation += value
         self._lbl_value.setText(f"Rotation: {self._rotation}°")
+        self.valueChanged.emit(self._rotation)
 
     def value(self) -> int:
         return self._rotation
@@ -205,6 +207,7 @@ class StageExplorer(QWidget):
 
         # add rotation control to the toolbar
         self._rotation_control = RotationControl()
+        self._rotation_control.valueChanged.connect(self._on_rotation_changed)
         toolbar.addSeparator()
         toolbar.addWidget(self._rotation_control)
         toolbar.addSeparator()
@@ -346,6 +349,14 @@ class StageExplorer(QWidget):
 
     # -----------------------------PRIVATE METHODS------------------------------------
 
+    def _on_rotation_changed(self, value: int) -> None:
+        """Update the rotation property."""
+        self._rotation = value
+        # reset the stage position marker
+        if self._stage_pos_marker is not None:
+            self._stage_pos_marker.parent = None
+            self._stage_pos_marker = None
+
     def _on_sys_config_loaded(self) -> None:
         """Set the pixel size when the system configuration is loaded."""
         self.clear_scene()
@@ -449,17 +460,22 @@ class StageExplorer(QWidget):
 
         # add stage marker if not yet present
         if self._stage_pos_marker is None:
+            w, h = self._mmc.getImageWidth(), self._mmc.getImageHeight()
+            # invert width and height if the image is rotated (-) 90, 270, 450, etc.
+            if self._rotation % 180 != 0:
+                w, h = h, w
             self._stage_pos_marker = Rectangle(
                 parent=self._stage_viewer.view.scene,
                 center=(x, y),
-                width=self._mmc.getImageWidth() * self._stage_viewer.pixel_size,
-                height=self._mmc.getImageHeight() * self._stage_viewer.pixel_size,
+                width=w * self._stage_viewer.pixel_size,
+                height=h * self._stage_viewer.pixel_size,
                 border_width=4,
                 border_color="#3A3",
                 color=None,
             )
             self._stage_pos_marker.set_gl_state(depth_test=False)
             self.reset_view()
+
         # update stage marker position
         self._stage_pos_marker.center = (x, y)
 
@@ -480,24 +496,6 @@ class StageExplorer(QWidget):
 
         # Update _xy position with new values
         self._xy = (x, y)
-
-        # rotate the stage marker if needed
-        if (rotation := self._rotation_control.value()) != self._rotation:
-            self._handle_rotation(rotation)
-
-    def _handle_rotation(self, rotation: int) -> None:
-        """Rotate the stage position marker."""
-        self._rotation = rotation
-        # vispy does not have a built-in method to rotate a visual
-        matrix = MatrixTransform()
-        cx, cy = self._stage_pos_marker.center
-        # move the rectangle back to the origin
-        matrix.translate((-cx, -cy))
-        # rotate the rectangle
-        matrix.rotate(rotation, (0, 0, 1))
-        # move the rectangle back to the original position
-        self._stage_pos_marker.transform = matrix
-        matrix.translate((+cx, +cy))
 
     def _get_stage_marker_position(
         self,
