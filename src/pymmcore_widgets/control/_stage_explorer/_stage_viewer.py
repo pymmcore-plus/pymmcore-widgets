@@ -116,15 +116,12 @@ class StageViewer(QWidget):
 
     def update_by_scale(self, scale: int) -> None:
         """Update the images in the scene based on scale and pixel size."""
-        print()
-        print()
         for child in self._get_images():
             x, y = child.transform.translate[:2]
             if (img := self._image_store.get((x, y))) is None:
                 continue
             # if the image is not within the view, skip it.
             if not self._is_image_within_view(x, y, *img.shape):
-                print("skipping", child)
                 continue
             # is scale is the same, skip the update
             if scale == child.transform.scale[0] / self._pixel_size:
