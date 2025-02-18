@@ -17,6 +17,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon
 from vispy.app.canvas import MouseEvent
 from vispy.scene.visuals import Rectangle
+from vispy.visuals.transforms import MatrixTransform
 
 from ._stage_viewer import StageViewer
 
@@ -153,6 +154,7 @@ class StageExplorer(QWidget):
         self._flip_horizontal: bool = False
         self._flip_vertical: bool = False
         self._poll_stage_position: bool = False
+        self._rotation: int = 0
 
         # marker for stage position
         self._stage_pos_marker: Rectangle | None = None
@@ -230,6 +232,7 @@ class StageExplorer(QWidget):
         # connections core events
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
+        self._mmc.events.roiSet.connect(self._on_roi_set)
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
 
@@ -358,6 +361,15 @@ class StageExplorer(QWidget):
         # should this be a different behavior?
         self.clear_scene()
 
+    def _on_roi_set(self) -> None:
+        """Clear the scene when the ROI is set.
+
+        If polling the stage position, the stage position marker will redraw.
+        """
+        if self._stage_pos_marker is not None:
+            self._stage_pos_marker.parent = None
+            self._stage_pos_marker = None
+
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
         if self._mmc.mda.is_running():
@@ -468,6 +480,23 @@ class StageExplorer(QWidget):
 
         # Update _xy position with new values
         self._xy = (x, y)
+
+        # rotate the stage marker if needed
+        if (rotation := self._rotation_control.value()) != self._rotation:
+            self._handle_rotation(rotation)
+
+    def _handle_rotation(self, rotation: int) -> None:
+        """Rotate the stage position marker."""
+        # vispy does not have a built-in method to rotate a visual
+        matrix = MatrixTransform()
+        cx, cy = self._stage_pos_marker.center
+        # move the rectangle back to the origin
+        matrix.translate((-cx, -cy))
+        # rotate the rectangle
+        matrix.rotate(rotation, (0, 0, 1))
+        # move the rectangle back to the original position
+        self._stage_pos_marker.transform = matrix
+        matrix.translate((+cx, +cy))
 
     def _get_stage_marker_position(
         self,
