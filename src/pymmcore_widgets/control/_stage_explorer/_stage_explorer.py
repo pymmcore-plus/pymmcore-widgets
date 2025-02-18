@@ -292,8 +292,6 @@ class StageExplorer(QWidget):
         img: np.ndarray,
         x: float,
         y: float,
-        flip_x: bool = False,
-        flip_y: bool = False,
     ) -> None:
         """Add an image to the scene.
 
@@ -308,14 +306,10 @@ class StageExplorer(QWidget):
             The x position of the image.
         y : float
             The y position of the image.
-        flip_x : bool
-            Flip the image horizontally, by default False.
-        flip_y : bool
-            Flip the image vertically, by default False.
         """
-        if flip_x:
+        if self.flip_horizontal:
             img = np.flip(img, axis=1)
-        if flip_y:
+        if self.flip_vertical:
             img = np.flip(img, axis=0)
         # add rotation if it is != 0
         if (rotation := self._rotation_control.value()) != 0:
@@ -385,7 +379,7 @@ class StageExplorer(QWidget):
         self, image: np.ndarray, x: float, y: float
     ) -> None:
         """Add the image to the scene and update position label and view."""
-        self.add_image(image, x, y, self.flip_horizontal, self.flip_vertical)
+        self.add_image(image, x, y)
         # update the stage position label if the stage position is not being polled
         if not self._poll_stage_position:
             self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
