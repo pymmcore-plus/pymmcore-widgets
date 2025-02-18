@@ -11,6 +11,9 @@ from qtpy.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QSizePolicy, QWi
 from superqt.fonticon import icon
 from superqt.utils import signals_blocked
 
+GRAY = (183, 183, 183)
+GREEN = (0, 255, 0)
+
 COLOR_TYPE = Union[
     QColor,
     int,
@@ -59,8 +62,8 @@ class ShuttersWidget(QWidget):
 
         self._icon_open: str = MDI6.hexagon_outline
         self._icon_closed: str = MDI6.hexagon_slice_6
-        self._icon_color_open: COLOR_TYPE = (0, 255, 0)
-        self._icon_color_closed: COLOR_TYPE = "magenta"
+        self._icon_color_open: COLOR_TYPE = GREEN
+        self._icon_color_closed: COLOR_TYPE = GRAY
         self._icon_size: int = 25
         self._button_text_open: str = ""
         self._button_text_closed: str = ""
@@ -143,7 +146,7 @@ class ShuttersWidget(QWidget):
         """
         Set the button icon color for when the shutter is closed.
 
-        Default = 'magenta'
+        Default = (183, 183, 183)
 
         COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, tuple[int, int, int, int],
         tuple[int, int, int]]
@@ -203,7 +206,7 @@ class ShuttersWidget(QWidget):
     def _create_wdg(self) -> None:
         main_layout = QHBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(3)
+        main_layout.setSpacing(7)
 
         self.shutter_button = QPushButton(text=self._button_text_closed)
         sizepolicy_btn = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
