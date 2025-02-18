@@ -487,6 +487,7 @@ class StageExplorer(QWidget):
 
     def _handle_rotation(self, rotation: int) -> None:
         """Rotate the stage position marker."""
+        self._rotation = rotation
         # vispy does not have a built-in method to rotate a visual
         matrix = MatrixTransform()
         cx, cy = self._stage_pos_marker.center

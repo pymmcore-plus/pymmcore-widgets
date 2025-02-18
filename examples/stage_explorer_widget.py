@@ -9,6 +9,10 @@ app = QApplication([])
 mmc = CMMCorePlus.instance()
 mmc.loadSystemConfiguration()
 
+# set camera roi
+mmc.setROI(0, 0, 512, 256)
+# mmc.setROI(0, 0, 256, 512)
+
 wdg = StageExplorer()
 wdg.poll_stage_position = True
 wdg.scaleChanged.connect(lambda x: print(f"Scale changed to {x}"))
