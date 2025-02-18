@@ -206,7 +206,7 @@ class ShuttersWidget(QWidget):
     def _create_wdg(self) -> None:
         main_layout = QHBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(3)
+        main_layout.setSpacing(7)
 
         self.shutter_button = QPushButton(text=self._button_text_closed)
         sizepolicy_btn = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
