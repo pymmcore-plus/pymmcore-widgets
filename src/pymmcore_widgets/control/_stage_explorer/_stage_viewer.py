@@ -210,7 +210,7 @@ class StageViewer(QWidget):
 
     def _tform(self) -> scene.transforms.BaseTransform:
         """Return the transform from canvas to scene."""
-        return self._rect.transforms.get_transform("canvas", "scene")
+        return self._rects[-1].transforms.get_transform("canvas", "scene")
 
     def _on_key_press(self, event: KeyEvent) -> None:
         """Delete the last rectangle added to the scene when pressing Cmd/Ctrl + Z."""
