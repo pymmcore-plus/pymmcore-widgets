@@ -3,14 +3,14 @@ from collections.abc import Iterator
 from typing import Optional, cast
 
 import numpy as np
-from qtpy.QtCore import Signal
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
 from superqt.utils import qthrottled
 from vispy import scene
-from vispy.app.canvas import MouseEvent
+from vispy.app.canvas import KeyEvent, MouseEvent
 from vispy.geometry import Rect
 from vispy.scene.visuals import Image
 from vispy.scene.widgets import ViewBox
@@ -39,6 +39,7 @@ class StageViewer(QWidget):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Stage Explorer")
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         self._current_scale: int = 1
 
@@ -54,6 +55,8 @@ class StageViewer(QWidget):
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
         self.view = cast(ViewBox, self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1)
+
+        self._rects: list[scene.visuals.Rectangle] = []
 
         self._rect = scene.visuals.Rectangle(
             center=[0, 0],
@@ -77,6 +80,7 @@ class StageViewer(QWidget):
         self.canvas.events.mouse_press.connect(self._on_mouse_press)
         self.canvas.events.mouse_move.connect(self._on_mouse_move)
         self.canvas.events.mouse_release.connect(self._on_mouse_release)
+        self.canvas.events.key_press.connect(self._on_key_press)
 
     # --------------------PUBLIC METHODS--------------------
 
@@ -182,17 +186,18 @@ class StageViewer(QWidget):
 
     def clear_scene(self) -> None:
         """Clear the scene."""
+        # clear the image store
         self._image_store.clear()
 
+        # remove all images from the scene
         for child in reversed(self.view.scene.children):
             if isinstance(child, Image):
                 child.parent = None
 
-        # reset the rectangle visual
-        self._rect.visible = False
-        self._rect.center = (0, 0)
-        self._rect.width = 1
-        self._rectheight = 1
+        # remove all rectangles from the scene
+        for rect in self._rects:
+            rect.parent = None
+        self._rects.clear()
 
     def reset_view(self) -> None:
         """Recenter the view to the center of all images."""
@@ -219,14 +224,40 @@ class StageViewer(QWidget):
         """Return the transform from canvas to scene."""
         return self._rect.transforms.get_transform("canvas", "scene")
 
+    def _on_key_press(self, event: KeyEvent) -> None:
+        """Delete the last rectangle added to the scene when pressing Cmd/Ctrl + Z."""
+        key: Key = event.key
+        modifiers: tuple[Key, ...] = event.modifiers
+        if key == Key("Z") and (
+            Key("Meta") in modifiers or Key("Control") in modifiers
+        ):
+            if self._rects:
+                self._rects.pop(-1).parent = None
+
     def _on_mouse_press(self, event: MouseEvent) -> None:
         """Handle the mouse press event."""
         if (self._roi or Key("Alt").name in event.modifiers) and event.button == 1:
             self.view.camera.interactive = False
-            self._rect.visible = True
+            rect = self._create_rect()
+            self._rects.append(rect)
+            rect.visible = True
             canvas_pos = (event.pos[0], event.pos[1])
             world_pos = self._tform().map(canvas_pos)[:2]
             self._rect_start_pos = world_pos
+
+    def _create_rect(self) -> scene.visuals.Rectangle:
+        """Create a new rectangle visual."""
+        rect = scene.visuals.Rectangle(
+            center=[0, 0],
+            width=1,
+            height=1,
+            color=None,
+            border_color="yellow",
+            border_width=2,
+            parent=self.view.scene,
+        )
+        rect.set_gl_state(depth_test=False)
+        return rect
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
         """Handle the mouse drag event."""
@@ -251,10 +282,11 @@ class StageViewer(QWidget):
         with contextlib.suppress(Exception):
             x0, y0 = self._rect_start_pos
             x1, y1 = end
-            self._rect.center = (x0 + x1) / 2, (y0 + y1) / 2
+            rect = self._rects[-1]
+            rect.center = (x0 + x1) / 2, (y0 + y1) / 2
             width, height = abs(x0 - x1), abs(y0 - y1)
-            self._rect.width = width
-            self._rect.height = height
+            rect.width = width
+            rect.height = height
 
     def _on_mouse_release(self, event: MouseEvent) -> None:
         """Handle the mouse release event."""
