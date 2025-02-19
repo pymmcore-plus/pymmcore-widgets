@@ -58,18 +58,6 @@ class StageViewer(QWidget):
 
         self._rects: list[scene.visuals.Rectangle] = []
 
-        self._rect = scene.visuals.Rectangle(
-            center=[0, 0],
-            width=1,
-            height=1,
-            color=None,
-            border_color="yellow",
-            border_width=2,
-            parent=self.view.scene,
-        )
-        self._rect.set_gl_state(depth_test=False)
-        self._rect.visible = False
-
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -111,9 +99,9 @@ class StageViewer(QWidget):
         self._roi = value
 
     @property
-    def rect(self) -> scene.visuals.Rectangle:
+    def rects(self) -> list[scene.visuals.Rectangle]:
         """Return the rectangle visual."""
-        return self._rect
+        return self._rects
 
     def add_image(self, img: np.ndarray, x: float, y: float) -> None:
         """Add an image to the scene.
