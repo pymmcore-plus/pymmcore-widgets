@@ -35,6 +35,7 @@ class StageViewer(QWidget):
     """
 
     scaleChanged = Signal(int)
+    rectChanged = Signal(object)
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -183,8 +184,8 @@ class StageViewer(QWidget):
                 child.parent = None
 
         # remove all rectangles from the scene
-        for rect in self._rects:
-            rect.parent = None
+        for r in self._rects:
+            r.parent = None
         self._rects.clear()
 
     def reset_view(self) -> None:
@@ -216,11 +217,13 @@ class StageViewer(QWidget):
         """Delete the last rectangle added to the scene when pressing Cmd/Ctrl + Z."""
         key: Key = event.key
         modifiers: tuple[Key, ...] = event.modifiers
-        if key == Key("Z") and (
-            Key("Meta") in modifiers or Key("Control") in modifiers
+        if (
+            key == Key("Z")
+            and (Key("Meta") in modifiers or Key("Control") in modifiers)
+            and self._rects
         ):
-            if self._rects:
-                self._rects.pop(-1).parent = None
+            self._rects.pop(-1).parent = None
+            self.rectChanged.emit(self._rects)
 
     def _on_mouse_press(self, event: MouseEvent) -> None:
         """Handle the mouse press event."""
@@ -235,7 +238,7 @@ class StageViewer(QWidget):
 
     def _create_rect(self) -> scene.visuals.Rectangle:
         """Create a new rectangle visual."""
-        rect = scene.visuals.Rectangle(
+        new_rect = scene.visuals.Rectangle(
             center=[0, 0],
             width=1,
             height=1,
@@ -244,8 +247,8 @@ class StageViewer(QWidget):
             border_width=2,
             parent=self.view.scene,
         )
-        rect.set_gl_state(depth_test=False)
-        return rect
+        new_rect.set_gl_state(depth_test=False)
+        return new_rect
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
         """Handle the mouse drag event."""
@@ -285,6 +288,7 @@ class StageViewer(QWidget):
         ):
             self._rect_start_pos = None
             self.view.camera.interactive = True
+            self.rectChanged.emit(self._rects)
             return
         if self._drag:
             self._drag = False

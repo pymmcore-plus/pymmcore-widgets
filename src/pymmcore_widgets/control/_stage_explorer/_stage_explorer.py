@@ -138,6 +138,7 @@ class StageExplorer(QWidget):
     """
 
     scaleChanged = Signal(int)
+    rectChanged = Signal(object)
 
     def __init__(
         self, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
@@ -232,6 +233,7 @@ class StageExplorer(QWidget):
             self._move_to_clicked_position
         )
         self._stage_viewer.scaleChanged.connect(self.scaleChanged)
+        self._stage_viewer.rectChanged.connect(self.rectChanged)
 
         # connections core events
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
@@ -347,6 +349,32 @@ class StageExplorer(QWidget):
         """Clear the scene."""
         self._stage_viewer.clear_scene()
         self.reset_view()
+
+    def value(self) -> list[useq.Position]:
+        """Return a list of `GridFromEdges` objects from the drawn rectangles."""
+        rects = self._stage_viewer.rects
+        positions = []
+        px = self._mmc.getPixelSizeUm()
+        fov_w, fov_h = self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
+        for rct in rects:
+            x, y = rct.center
+            w, h = rct.width, rct.height
+            grid_plan = useq.GridFromEdges(
+                top=y + h / 2,
+                bottom=y - h / 2,
+                left=x - w / 2,
+                right=x + w / 2,
+                fov_width=fov_w,
+                fov_height=fov_h,
+            )
+            pos = useq.AbsolutePosition(
+                x=x,
+                y=y,
+                z=self._mmc.getZPosition(),
+                sequence=useq.MDASequence(grid_plan=grid_plan),
+            )
+            positions.append(pos)
+        return positions
 
     # -----------------------------PRIVATE METHODS------------------------------------
 
