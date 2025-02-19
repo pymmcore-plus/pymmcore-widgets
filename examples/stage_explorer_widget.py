@@ -17,8 +17,11 @@ wdg = StageExplorer()
 wdg.poll_stage_position = True
 wdg.scaleChanged.connect(lambda x: print(f"Scale changed to {x}"))
 
+
 def _print_stage_position():
     print(wdg.value())
+
+
 wdg.rectChanged.connect(_print_stage_position)
 
 wdg.show()
