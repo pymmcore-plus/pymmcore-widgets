@@ -14,6 +14,7 @@ from vispy.app.canvas import MouseEvent
 from vispy.geometry import Rect
 from vispy.scene.visuals import Image
 from vispy.scene.widgets import ViewBox
+from vispy.util.keys import Key
 
 
 class StageViewer(QWidget):
@@ -189,8 +190,8 @@ class StageViewer(QWidget):
 
         # reset the rectangle visual
         self._rect.visible = False
-        self._rect.center = ([0, 0],)
-        self._rect.width = (1,)
+        self._rect.center = (0, 0)
+        self._rect.width = 1
         self._rectheight = 1
 
     def reset_view(self) -> None:
@@ -220,7 +221,7 @@ class StageViewer(QWidget):
 
     def _on_mouse_press(self, event: MouseEvent) -> None:
         """Handle the mouse press event."""
-        if self._roi and event.button == 1:
+        if (self._roi or Key("Alt").name in event.modifiers) and event.button == 1:
             self.view.camera.interactive = False
             self._rect.visible = True
             canvas_pos = (event.pos[0], event.pos[1])
@@ -229,7 +230,11 @@ class StageViewer(QWidget):
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
         """Handle the mouse drag event."""
-        if self._roi and self._rect_start_pos is not None and event.button == 1:
+        if self._roi or (
+            Key("Alt").name in event.modifiers
+            and self._rect_start_pos is not None
+            and event.button == 1
+        ):
             canvas_pos = (event.pos[0], event.pos[1])
             world_pos = self._tform().map(canvas_pos)[:2]
             self.update_rectangle(world_pos)
@@ -253,7 +258,11 @@ class StageViewer(QWidget):
 
     def _on_mouse_release(self, event: MouseEvent) -> None:
         """Handle the mouse release event."""
-        if self._roi and self._rect_start_pos is not None and event.button == 1:
+        if self._roi or (
+            Key("Alt").name in event.modifiers
+            and self._rect_start_pos is not None
+            and event.button == 1
+        ):
             self._rect_start_pos = None
             self.view.camera.interactive = True
             return

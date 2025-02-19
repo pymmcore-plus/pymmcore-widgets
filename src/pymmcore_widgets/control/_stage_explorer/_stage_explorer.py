@@ -27,6 +27,7 @@ SNAP = "Snap on Double Click"
 POLL_STAGE = "Poll Stage Position"
 FLIP_X = "Flip Images Horizontally"
 FLIP_Y = "Flip Images Vertically"
+SEPARATOR = "Separator"
 MIN_XY_DIFF = 5
 
 SS_TOOLBUTTON = """
@@ -184,14 +185,14 @@ class StageExplorer(QWidget):
             RESET: (MDI6.fullscreen, gray, False, self.reset_view),
             SNAP: (MDI6.camera_outline, gray, True, self._on_setting_checked),
             POLL_STAGE: (MDI6.map_marker, gray, True, self._on_poll_stage),
-            "separator": (None, None, None, None),
+            f"{SEPARATOR}1": (None, None, None, None),
             FLIP_X: (MDI6.flip_horizontal, gray, True, self._on_setting_checked),
             FLIP_Y: (MDI6.flip_vertical, gray, True, self._on_setting_checked),
         }
 
         # create actions
         for a_text, (a_icon, color, check, callback) in ACTION_MAP.items():
-            if a_text == "separator":
+            if SEPARATOR in a_text:
                 toolbar.addSeparator()
                 continue
             action = QAction(icon(a_icon, color=color), a_text, self, checkable=check)
