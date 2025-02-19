@@ -244,7 +244,7 @@ class StageExplorer(QWidget):
     # -----------------------------PUBLIC METHODS-------------------------------------
 
     @property
-    def image_store(self) -> dict[tuple[float, float], np.ndarray]:
+    def image_store(self) -> dict[float, dict[tuple[float, float], np.ndarray]]:
         """Return the image store."""
         return self._stage_viewer.image_store
 
@@ -369,8 +369,6 @@ class StageExplorer(QWidget):
         if self._stage_pos_marker is not None:
             self._stage_pos_marker.parent = None
             self._stage_pos_marker = None
-        # should this be a different behavior?
-        self.clear_scene()
 
     def _on_roi_set(self) -> None:
         """Clear the scene when the ROI is set.
@@ -486,13 +484,14 @@ class StageExplorer(QWidget):
         # If acquiring, reset is handled by the _on_frame_ready method.
         if not self._mmc.mda.is_running() and all(val is not None for val in self._xy):
             old_x, old_y = self._xy
-            # 1e-6 is used to avoid division by zero
-            diff_x = abs(x - old_x) / max(abs(old_x), 1e-6) * 100
-            diff_y = abs(y - old_y) / max(abs(old_y), 1e-6) * 100
-            if not self._is_visual_within_view(x, y) and (
-                diff_x > MIN_XY_DIFF or diff_y > MIN_XY_DIFF
-            ):
-                self.reset_view()
+            if old_x is not None and old_y is not None:
+                # 1e-6 is used to avoid division by zero
+                diff_x = abs(x - old_x) / max(abs(old_x), 1e-6) * 100
+                diff_y = abs(y - old_y) / max(abs(old_y), 1e-6) * 100
+                if not self._is_visual_within_view(x, y) and (
+                    diff_x > MIN_XY_DIFF or diff_y > MIN_XY_DIFF
+                ):
+                    self.reset_view()
 
         # Update _xy position with new values
         self._xy = (x, y)
