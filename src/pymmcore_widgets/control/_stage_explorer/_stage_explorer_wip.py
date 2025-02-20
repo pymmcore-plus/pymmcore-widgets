@@ -165,12 +165,6 @@ class StageExplorer(QWidget):
         self._poll_stage_position: bool = False
         self._rotation: float = 0.0
 
-        # marker for stage position
-        self._stage_pos_marker = self._init_rectangle(self._mmc)
-
-        # to store stage xy position. used in timerEvent
-        self._xy: tuple[float | None, float | None] = (None, None)
-
         # toolbar
         toolbar = QToolBar()
         toolbar.setStyleSheet(SS_TOOLBUTTON)
@@ -231,6 +225,12 @@ class StageExplorer(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(toolbar, 0)
         main_layout.addWidget(self._stage_viewer, 1)
+
+        # marker for stage position
+        self._stage_pos_marker = self._init_rectangle(self._mmc)
+        self._update_stage_marker()
+        # to store stage xy position. used in timerEvent
+        self._xy: tuple[float | None, float | None] = (None, None)
 
         # connect vispy events
         self._stage_viewer.canvas.events.mouse_double_click.connect(
@@ -299,11 +299,15 @@ class StageExplorer(QWidget):
         self._flip_vertical = value
         self._flip_images_vertically_act.setChecked(value)
 
-    def add_image(self, image: np.ndarray) -> None:
+    def add_image(
+        self, image: np.ndarray, x_pos: float | None = None, y_pos: float | None = None
+    ) -> None:
         """Add an image to the scene considering position and rotation."""
         affine = self._mmc.getPixelSizeAffine()
         rotation = self._rotation_control.value() if affine == (1, 0, 0, 0, 1, 0) else 0
-        matrix = self._build_matrix(rotation=rotation)
+        matrix = self._build_image_transformation_matrix(
+            x_pos=x_pos, y_pos=y_pos, rotation=rotation
+        )
         # transpose matrix because vispy uses column-major order
         self._stage_viewer.add_image(image, transform=matrix.T)
 
@@ -365,73 +369,6 @@ class StageExplorer(QWidget):
         """Set the pixel size when the system configuration is loaded."""
         self.clear_scene()
 
-    def _init_rectangle(self, mmc: CMMCorePlus) -> Rectangle | None:
-        """Initialize the stage position marker."""
-        if not mmc.getXYStageDevice():
-            return None
-        pixel_size = mmc.getPixelSizeUm()
-        rect = Rectangle(
-            parent=self._stage_viewer.view.scene,
-            center=(0, 0),
-            width=self._mmc.getImageWidth() * pixel_size,
-            height=self._mmc.getImageHeight() * pixel_size,
-            border_width=4,
-            border_color="#3A3",
-            color=None,
-        )
-        rect.set_gl_state(depth_test=False)
-        rect.visible = False
-        return rect
-
-    def _update_stage_marker(self) -> None:
-        """Reset the stage position marker when the pixel size changes."""
-        if self._stage_pos_marker is None:
-            return
-        # update width and height
-        pixel_size = self._mmc.getPixelSizeUm()
-        self._stage_pos_marker.width = self._mmc.getImageWidth() * pixel_size
-        self._stage_pos_marker.height = self._mmc.getImageHeight() * pixel_size
-        # rootation and scaling
-        T = np.eye(4)
-        rotation_rad = np.deg2rad(self._rotation_control.value())
-        cos_ = np.cos(rotation_rad)
-        sin_ = np.sin(rotation_rad)
-        T[:2, :2] = np.array([[cos_, -sin_], [sin_, cos_]])
-        T *= pixel_size
-        self._stage_pos_marker.transform = scene.MatrixTransform(matrix=T.T)
-
-    def _build_matrix(self, rotation: float = 0) -> np.ndarray:
-        """Return the transformation matrix."""
-        # TODO: add support for flipping images
-        pixel_size = self._mmc.getPixelSizeUm()
-        T = np.eye(4)
-        affine = self._mmc.getPixelSizeAffine()
-        if affine == (1, 0, 0, 0, 1, 0):
-            rotation_rad = np.deg2rad(rotation)
-            cos_ = np.cos(rotation_rad)
-            sin_ = np.sin(rotation_rad)
-            T[:2, :2] = np.array([[cos_, -sin_], [sin_, cos_]])
-            T *= pixel_size
-        else:
-            T[:2, :3] = np.array(affine).reshape(2, 3)
-
-        x_pos, y_pos = self._mmc.getXYPosition()
-
-        # by default, vispy add the images from the bottom-left corner. We
-        # need to translate by -w/2 and -h/2 the center so the position corresponds to
-        # the center of the images.
-        x_pos -= self._mmc.getImageWidth() / 2 * pixel_size
-        y_pos -= self._mmc.getImageHeight() / 2 * pixel_size
-
-        # TODO: remove polarity since will be handled the xa stage transposition in
-        # the property browser
-        x_polarity = 1
-        y_polarity = 1
-        T[0, 3] += x_pos * x_polarity
-        T[1, 3] += y_pos * y_polarity
-
-        return T
-
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
         if self._mmc.mda.is_running():
@@ -453,7 +390,7 @@ class StageExplorer(QWidget):
         self, image: np.ndarray, x: float, y: float
     ) -> None:
         """Add the image to the scene and update position label and view."""
-        self.add_image(image)
+        self.add_image(image, x, y)
         # update the stage position label if the stage position is not being polled
         if not self._poll_stage_position:
             self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
@@ -461,10 +398,104 @@ class StageExplorer(QWidget):
         if not self._is_visual_within_view(x, y):
             self.reset_view()
 
+    def _init_rectangle(self, mmc: CMMCorePlus) -> Rectangle | None:
+        """Initialize the stage position marker."""
+        if not mmc.getXYStageDevice():
+            return None
+        rect = Rectangle(
+            parent=self._stage_viewer.view.scene,
+            center=(0, 0),
+            width=self._mmc.getImageWidth(),
+            height=self._mmc.getImageHeight(),
+            border_width=4,
+            border_color="#3A3",
+            color=None,
+        )
+        rect.set_gl_state(depth_test=False)
+        rect.visible = False
+        return rect
+
+    def _build_transformation_matrix(
+        self,
+        x_pos: float | None = None,
+        y_pos: float | None = None,
+        rotation: float = 0,
+    ) -> np.ndarray:
+        """Return the transformation matrix.
+
+        It takes into account the pixel size (scale), rotation, and stage position.
+
+        For rotation and scaling, if the Micro-Manager configuration uses the default
+        affine transformation (1, 0, 0, 0, 1, 0), compute the transformation based on
+        the pixel size and rotation. Otherwise, apply the pixel affine transformation
+        matrix specified in the Micro-Manager configuration.
+        """
+        pixel_size = self._mmc.getPixelSizeUm()
+        affine = self._mmc.getPixelSizeAffine()
+        if affine == (1, 0, 0, 0, 1, 0):
+            # rotation matrix
+            R = np.eye(4)
+            rotation_rad = np.deg2rad(rotation)
+            cos_ = np.cos(rotation_rad)
+            sin_ = np.sin(rotation_rad)
+            R[:2, :2] = np.array([[cos_, -sin_], [sin_, cos_]])
+            # scaling matrix
+            S = np.eye(4)
+            S[0, 0] = pixel_size
+            S[1, 1] = pixel_size
+            RS = R @ S
+        else:
+            RS = np.eye(4)
+            RS[:2, :3] = np.array(affine).reshape(2, 3)
+
+        T = np.eye(4)
+        x_pos = self._mmc.getXPosition() if x_pos is None else x_pos
+        y_pos = self._mmc.getYPosition() if y_pos is None else y_pos
+        T[0, 3] += x_pos  # * x_polarity
+        T[1, 3] += y_pos  # * y_polarity
+
+        return T @ RS
+
+    def _build_image_transformation_matrix(
+        self,
+        x_pos: float | None = None,
+        y_pos: float | None = None,
+        rotation: float = 0,
+    ) -> np.ndarray:
+        """Return the transformation matrix to apply to the image.
+
+        It takes into account the pixel size (scale), rotation, and stage position.
+        """
+        # TODO: add support for flipping images
+        # build scale and rotation matrix
+        T = self._build_transformation_matrix(x_pos, y_pos, rotation)
+        # by default, vispy add the images from the bottom-left corner. We need to
+        # translate by -w/2 and -h/2 so the position corresponds to the center of the
+        # images. In addition, make sure the rotation is applied around the center of
+        # the image.
+        T_center = np.eye(4)
+        T_center[0, 3] = -self._mmc.getImageWidth() / 2
+        T_center[1, 3] = -self._mmc.getImageHeight() / 2
+
+        return T @ T_center
+
+    def _update_stage_marker(
+        self, x_pos: float | None = None, y_pos: float | None = None
+    ) -> None:
+        """Update the stage position marker."""
+        if self._stage_pos_marker is None:
+            return
+        # build transformation matrix
+        T = self._build_transformation_matrix(
+            x_pos, y_pos, self._rotation_control.value()
+        )
+        self._stage_pos_marker.transform = scene.MatrixTransform(matrix=T.T)
+
     def _move_to_clicked_position(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
         if not self._mmc.getXYStageDevice():
             return
+        # map the clicked canvas position to the stage position
         x, y, _, _ = self._stage_viewer.view.camera.transform.imap(event.pos)
         self._mmc.setXYPosition(x, y)
         # update the stage position label
@@ -511,18 +542,10 @@ class StageExplorer(QWidget):
         self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
 
         # update stage marker position
-        # by default, vispy add the images from the bottom-left corner. We
-        # need to translate by +w/2 and +h/2 the center so the stage marker's center
-        # position corresponds to the center of the images.
         if self._stage_pos_marker is not None:
-            # pixel_size = self._mmc.getPixelSizeUm()
-            # self._stage_pos_marker.center = (
-            #     x + self._mmc.getImageWidth() / 2 * pixel_size,
-            #     y + self._mmc.getImageHeight() / 2 * pixel_size
-            # )
-            self._stage_pos_marker.center = (x, y)
+            self._update_stage_marker(x, y)
 
-        # Compare the old and new xy positions; if the percentage difference exceeds 5%,
+        # compare the old and new xy positions; if the percentage difference exceeds 5%,
         # it means the stage position has significantly changed, so reset the view.
         # This is useful because we don't want to trigger reset_view when the user
         # changes the zoom level or pans the view or if the stage jittered a bit.
@@ -554,7 +577,8 @@ class StageExplorer(QWidget):
         """
         if self._stage_pos_marker is None:
             return None, None, None, None
-        x, y = self._stage_pos_marker.center
+        matrix = self._stage_pos_marker.transform.matrix
+        x, y = matrix[:2, 3]
         w, h = self._stage_pos_marker.width, self._stage_pos_marker.height
         min_x, min_y = x - w / 2, y - h / 2
         max_x, max_y = x + w / 2, y + h / 2

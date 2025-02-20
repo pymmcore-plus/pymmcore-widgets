@@ -25,8 +25,6 @@ class StageViewer(QWidget):
     image_store : dict[tuple[float, float], np.ndarray]
         Return the image_store dictionary object where the keys are the stage positions
         and values are the images added to the scene.
-    pixel_size : float
-        The pixel size in micrometers. By default, 1.0.
     """
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:

@@ -30,16 +30,16 @@ wdg.rectChanged.connect(_print_stage_position)
 
 wdg.show()
 
-stage = StageWidget("XY")
-stage.setStep(512)
-stage.snap_checkbox.setChecked(True)
-stage.show()
+# stage = StageWidget("XY")
+# stage.setStep(512)
+# stage.snap_checkbox.setChecked(True)
+# stage.show()
 
 # MDA = MDAWidget()
 # MDA.show()
 
-gp = GroupPresetTableWidget()
-gp.show()
+# gp = GroupPresetTableWidget()
+# gp.show()
 
 v = wdg._stage_viewer
-app.exec()
+# app.exec()
