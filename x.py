@@ -1,13 +1,15 @@
 import numpy as np
-import sys
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout, QWidget, QDoubleSpinBox
+from qtpy.QtWidgets import (
+    QDoubleSpinBox,
+    QHBoxLayout,
+    QVBoxLayout,
+    QWidget,
+)
 
 from pymmcore_widgets import LiveButton, SnapButton, StageWidget
 from pymmcore_widgets.control._stage_explorer._stage_viewer_wip import StageViewer
 from pymmcore_widgets.views._image_widget import ImagePreview
-
-
 
 
 class V(QWidget):
@@ -29,7 +31,6 @@ class V(QWidget):
         self.rot.setRange(-360, 360)
         stage = StageWidget("XY")
         stage.snap_checkbox.setChecked(True)
-
 
         top = QHBoxLayout()
         top.addWidget(self.v)
@@ -86,6 +87,6 @@ class V(QWidget):
         self.v.add_image(self.mmc.getImage(), transform=T.T)
         self.v.reset_view()
 
+
 v = V()
 v.show()
-
