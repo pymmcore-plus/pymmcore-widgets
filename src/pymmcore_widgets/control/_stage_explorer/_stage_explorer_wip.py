@@ -166,7 +166,7 @@ class StageExplorer(QWidget):
         self._rotation: float = 0.0
 
         # marker for stage position
-        self._stage_pos_marker: Rectangle | None = None
+        self._stage_pos_marker = self._init_rectangle(self._mmc)
 
         # to store stage xy position. used in timerEvent
         self._xy: tuple[float | None, float | None] = (None, None)
@@ -237,13 +237,13 @@ class StageExplorer(QWidget):
             self._move_to_clicked_position
         )
         # connect rotation control
-        self._rotation_control.valueChanged.connect(self._reset_stage_pos_marker)
+        self._rotation_control.valueChanged.connect(self._update_stage_marker)
         # connections core events
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
-        self._mmc.events.pixelSizeChanged.connect(self._reset_stage_pos_marker)
-        self._mmc.events.roiSet.connect(self._reset_stage_pos_marker)
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
+        self._mmc.events.pixelSizeChanged.connect(self._update_stage_marker)
+        self._mmc.events.roiSet.connect(self._update_stage_marker)
 
         self._on_sys_config_loaded()
 
@@ -330,7 +330,7 @@ class StageExplorer(QWidget):
     def clear_scene(self) -> None:
         """Clear the scene."""
         self._stage_viewer.clear_scene()
-        self._reset_stage_pos_marker()
+        self._update_stage_marker()
         self.reset_view()
 
     def value(self) -> list[useq.Position]:
@@ -365,11 +365,40 @@ class StageExplorer(QWidget):
         """Set the pixel size when the system configuration is loaded."""
         self.clear_scene()
 
-    def _reset_stage_pos_marker(self) -> None:
-        """Reset the stage position marker."""
-        if self._stage_pos_marker is not None:
-            self._stage_pos_marker.parent = None
-            self._stage_pos_marker = None
+    def _init_rectangle(self, mmc: CMMCorePlus) -> Rectangle | None:
+        """Initialize the stage position marker."""
+        if not mmc.getXYStageDevice():
+            return None
+        pixel_size = mmc.getPixelSizeUm()
+        rect = Rectangle(
+            parent=self._stage_viewer.view.scene,
+            center=(0, 0),
+            width=self._mmc.getImageWidth() * pixel_size,
+            height=self._mmc.getImageHeight() * pixel_size,
+            border_width=4,
+            border_color="#3A3",
+            color=None,
+        )
+        rect.set_gl_state(depth_test=False)
+        rect.visible = False
+        return rect
+
+    def _update_stage_marker(self) -> None:
+        """Reset the stage position marker when the pixel size changes."""
+        if self._stage_pos_marker is None:
+            return
+        # update width and height
+        pixel_size = self._mmc.getPixelSizeUm()
+        self._stage_pos_marker.width = self._mmc.getImageWidth() * pixel_size
+        self._stage_pos_marker.height = self._mmc.getImageHeight() * pixel_size
+        # rootation and scaling
+        T = np.eye(4)
+        rotation_rad = np.deg2rad(self._rotation_control.value())
+        cos_ = np.cos(rotation_rad)
+        sin_ = np.sin(rotation_rad)
+        T[:2, :2] = np.array([[cos_, -sin_], [sin_, cos_]])
+        T *= pixel_size
+        self._stage_pos_marker.transform = scene.MatrixTransform(matrix=T.T)
 
     def _build_matrix(self, rotation: float = 0) -> np.ndarray:
         """Return the transformation matrix."""
@@ -391,8 +420,8 @@ class StageExplorer(QWidget):
         # by default, vispy add the images from the bottom-left corner. We
         # need to translate by -w/2 and -h/2 the center so the position corresponds to
         # the center of the images.
-        # x_pos -= self._mmc.getImageWidth() / 2 * pixel_size
-        # y_pos -= self._mmc.getImageHeight() / 2 * pixel_size
+        x_pos -= self._mmc.getImageWidth() / 2 * pixel_size
+        y_pos -= self._mmc.getImageHeight() / 2 * pixel_size
 
         # TODO: remove polarity since will be handled the xa stage transposition in
         # the property browser
@@ -462,13 +491,14 @@ class StageExplorer(QWidget):
         self._poll_stage_position = checked
         if checked:
             self._timer_id = self.startTimer(50)
+            if self._stage_pos_marker is not None:
+                self._stage_pos_marker.visible = True
+                self.reset_view()
         elif self._timer_id is not None:
             self.killTimer(self._timer_id)
             self._timer_id = None
-            # delete markers
             if self._stage_pos_marker is not None:
-                self._stage_pos_marker.parent = None
-                self._stage_pos_marker = None
+                self._stage_pos_marker.visible = False
 
     def timerEvent(self, event: QTimerEvent) -> None:
         """Poll the stage position."""
@@ -480,40 +510,17 @@ class StageExplorer(QWidget):
         # update the stage position label
         self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
 
-        pixel_size = self._mmc.getPixelSizeUm()
-        # # by default, vispy add the images from the bottom-left corner. We
-        # # need to translate by +w/2 and +h/2 the center so the stage marker's center
-        # # position corresponds to the center of the images.
-        # x_pos = x + self._mmc.getImageWidth() / 2 * pixel_size
-        # y_pos = y + self._mmc.getImageHeight() / 2 * pixel_size
-
-        # add stage marker if not yet present
-        if self._stage_pos_marker is None:
-            self._stage_pos_marker = Rectangle(
-                parent=self._stage_viewer.view.scene,
-                center=(0, 0),
-                width=self._mmc.getImageWidth() * pixel_size,
-                height=self._mmc.getImageHeight() * pixel_size,
-                border_width=4,
-                border_color="#3A3",
-                color=None,
-            )
-            self._stage_pos_marker.set_gl_state(depth_test=False)
-
-            # set the transformation matrix
-            T = np.eye(4)
-            rotation_rad = np.deg2rad(self._rotation_control.value())
-            cos_ = np.cos(rotation_rad)
-            sin_ = np.sin(rotation_rad)
-            T[:2, :2] = np.array([[cos_, -sin_], [sin_, cos_]])
-            T *= pixel_size
-            self._stage_pos_marker.transform = scene.MatrixTransform(matrix=T.T)
-
-            self.reset_view()
-
         # update stage marker position
-        # self._stage_pos_marker.center = (x_pos, y_pos)
-        self._stage_pos_marker.center = (x, y)
+        # by default, vispy add the images from the bottom-left corner. We
+        # need to translate by +w/2 and +h/2 the center so the stage marker's center
+        # position corresponds to the center of the images.
+        if self._stage_pos_marker is not None:
+            # pixel_size = self._mmc.getPixelSizeUm()
+            # self._stage_pos_marker.center = (
+            #     x + self._mmc.getImageWidth() / 2 * pixel_size,
+            #     y + self._mmc.getImageHeight() / 2 * pixel_size
+            # )
+            self._stage_pos_marker.center = (x, y)
 
         # Compare the old and new xy positions; if the percentage difference exceeds 5%,
         # it means the stage position has significantly changed, so reset the view.

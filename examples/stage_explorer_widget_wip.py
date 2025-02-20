@@ -42,4 +42,4 @@ gp = GroupPresetTableWidget()
 gp.show()
 
 v = wdg._stage_viewer
-# app.exec()
+app.exec()
