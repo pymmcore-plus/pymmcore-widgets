@@ -9,15 +9,15 @@
 # app = QApplication([])
 
 # mmc = CMMCorePlus.instance()
-# mmc.loadSystemConfiguration(r"c:\Users\Admin\dev\min.cfg")
-# mmc.setROI(0, 0, 256 * 4, 256 * 6)
+# mmc.loadSystemConfiguration()
+# # mmc.setROI(0, 0, 256 * 4, 256 * 6)
 
 
 # viewer = StageViewer()
 # prev = ImagePreview()
 # snap = SnapButton()
 # live = LiveButton()
-# stage = StageWidget("XYStage")
+# stage = StageWidget("XY")
 # stage.snap_checkbox.setChecked(True)
 
 
@@ -39,6 +39,14 @@
 # HAS_RESET = [0]
 
 
+# # matrix = child.transform.matrix
+# # x, y = np.round(matrix[:2, 3]).astype(int)
+# # x, y = np.round(matrix[:2, 3]).astype(int)  # rounded
+# # scale = np.linalg.norm(matrix[:3, 0])  # along x-axis
+# # rotation = matrix[:3, :3] / scale
+# # theta = np.arctan2(rotation[1, 0], rotation[0, 0])
+# # theta_deg = -np.degrees(theta)
+
 # @mmc.events.imageSnapped.connect
 # def _on_image_snapped():
 #     T = np.eye(4)
@@ -48,7 +56,7 @@
 #         # no pixel size affine available,
 #         # build one from pixel size and (optionally) rotation
 #         pixel_size = mmc.getPixelSizeUm()
-#         rotation = 97  # EXPOSE ME
+#         rotation = 0  # EXPOSE ME
 #         rotation_rad = np.deg2rad(rotation)
 
 #         cos_ = np.cos(rotation_rad)
@@ -75,4 +83,4 @@
 #         HAS_RESET[0] = 1
 
 
-# app.exec()
+# # app.exec()
