@@ -1,6 +1,7 @@
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QApplication
 
+from pymmcore_widgets import GroupPresetTableWidget, MDAWidget, StageWidget
 from pymmcore_widgets.control._stage_explorer._stage_explorer_wip import StageExplorer
 
 app = QApplication([])
@@ -29,16 +30,16 @@ def _print_stage_position():
 
 wdg.show()
 
-# stage = StageWidget("XY")
-# stage.setStep(512)
-# stage.snap_checkbox.setChecked(True)
-# stage.show()
+stage = StageWidget("XY")
+stage.setStep(512)
+stage.snap_checkbox.setChecked(True)
+stage.show()
 
-# MDA = MDAWidget()
-# MDA.show()
+MDA = MDAWidget()
+MDA.show()
 
-# gp = GroupPresetTableWidget()
-# gp.show()
+gp = GroupPresetTableWidget()
+gp.show()
 
 v = wdg._stage_viewer
-# app.exec()
+app.exec()
