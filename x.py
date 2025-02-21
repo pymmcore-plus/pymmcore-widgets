@@ -55,6 +55,12 @@ class V(QWidget):
         # theta = np.arctan2(rotation[1, 0], rotation[0, 0])
         # theta_deg = -np.degrees(theta)
 
+        # new_scale = scale * child.scale
+        # if new_scale != current_scale:
+        #     # matrix[:2, :2] = np.eye(2) * new_scale
+        #     child.transform.matrix[:2, :2] = np.eye(2) * new_scale
+        # print("new scale from matrix:", np.linalg.norm(matrix[:3, 0]))
+
         self.mmc.events.imageSnapped.connect(self._on_image_snapped)
 
     def _on_image_snapped(self):
