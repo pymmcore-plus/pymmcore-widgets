@@ -159,6 +159,11 @@ class StageViewer(QWidget):
                 child.transform.matrix[:2, :2] = np.eye(2) * new_scale
                 print("new scale from matrix:", np.linalg.norm(matrix[:3, 0]))
 
+                # TODO: scale th eactual image
+                # img_scaled = img[::scale, ::scale]
+                # # update the image data
+                # child.set_data(img_scaled)
+
     def _get_images(self) -> Iterator[Image]:
         """Yield images in the scene."""
         for child in self.view.scene.children:
