@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from typing import Optional, cast
+from typing import Any, Optional, cast
 
 import numpy as np
 from qtpy.QtCore import Qt
@@ -7,15 +7,44 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.utils import qthrottled
 from vispy import scene
+from vispy.app.canvas import MouseEvent
 from vispy.scene.visuals import Image
 from vispy.scene.widgets import ViewBox
+
+
+class ImageWithScale(Image):
+    """A subclass of vispy's Image visual to store scale.
+
+    The _base_scale property added is basically the pixel size that was used to acquire
+    the image and corresponds to the original scale of the image.
+
+    This is used in the StageViewer widget in the _update_by_scale method to retrieve
+    the original scale of the image to allow different images to be scaled differently
+    depending on the pixel size they were acquired with.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # unfreeze the visual to allow setting the scale
+        self.unfreeze()
+        self._base_scale: float = 1.0
+
+    @property
+    def scale(self) -> float:
+        """Return the scale of the image."""
+        return self._base_scale
+
+    @scale.setter
+    def scale(self, value: float) -> None:
+        """Set the scale of the image."""
 
 
 class StageViewer(QWidget):
     """A stage positions viewer widget.
 
-    This widget provides a visual representation of the stage positions. The user can
+    This widget provides a visual representation of the stage positions.
     ----------
     parent : QWidget | None
         Optional parent widget, by default None.
@@ -32,41 +61,48 @@ class StageViewer(QWidget):
         self.setWindowTitle("Stage Explorer")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
-        # to store the images added to the scene by pixel size
-        self._image_store: dict[tuple[float, float], np.ndarray] = {}
-
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
         self.view = cast(ViewBox, self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1)
+
+        # pixel size property
+        self._pixel_size: float = 1.0
+
+        # to store the displayed images scale
+        self._current_scale: float = 1
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.canvas.native)
 
-    # --------------------PUBLIC METHODS--------------------
+        # connect vispy events
+        self.canvas.events.draw.connect(qthrottled(self._on_draw_event))
 
     @property
-    def image_store(self) -> dict[tuple[float, float], np.ndarray]:
-        """Return the image store."""
-        return self._image_store
+    def pixel_size(self) -> float:
+        """Return the pixel size. By default, the pixel size is 1.0."""
+        return self._pixel_size
+
+    @pixel_size.setter
+    def pixel_size(self, value: float) -> None:
+        """Set the pixel size."""
+        self._pixel_size = value
+        self._update()
+
+    # --------------------PUBLIC METHODS--------------------
 
     def add_image(self, img: np.ndarray, transform: np.ndarray) -> None:
         """Add an image to the scene with the given transform."""
-        frame = Image(img, cmap="grays", parent=self.view.scene, clim="auto")
+        frame = ImageWithScale(img, cmap="grays", parent=self.view.scene, clim="auto")
+        frame.scale = self._pixel_size
         # keep the added image on top of the others
         frame.order = min(child.order for child in self._get_images()) - 1
-        # store the image in the _image_store.
-        x, y = np.round(transform[:2, 3]).astype(int)
-        self._image_store[(x, y)] = img
         # add the image to the scene with the transform
         frame.transform = scene.MatrixTransform(matrix=transform)
 
     def clear_scene(self) -> None:
         """Clear the scene."""
-        # clear the image store
-        self._image_store.clear()
-
         # remove all images from the scene
         for child in reversed(self.view.scene.children):
             if isinstance(child, Image):
@@ -80,6 +116,48 @@ class StageViewer(QWidget):
         self.view.camera.set_range(x=(min_x, max_x), y=(min_y, max_y), margin=0)
 
     # --------------------PRIVATE METHODS--------------------
+
+    def _update(self) -> None:
+        """Update the scene based if the scale has changed."""
+        scale = self._get_scale()
+        if scale == self._current_scale:
+            return
+        self._current_scale = scale
+        self._update_by_scale(scale)
+
+    def _on_draw_event(self, event: MouseEvent) -> None:
+        """Handle the draw event.
+
+        Useful for updating the scene when pan or zoom is applied.
+        """
+        self._update()
+
+    def _get_scale(self) -> int:
+        """Return the scale based on the zoom level."""
+        # get the transform from the camera
+        transform = self.view.camera.transform
+        # calculate the zoom level as the inverse of the scale factor in the transform
+        pixel_ratio = 1 / transform.scale[0]
+        # calculate the scale as the inverse of the zoom level
+        scale = 1
+        pixel_size = self._pixel_size
+        # using *2 to not scale the image too much. Maybe find a different way?
+        while (pixel_ratio / scale) > (pixel_size * 2):
+            scale *= 2
+        return scale
+
+    def _update_by_scale(self, scale: int) -> None:
+        """Update the images in the scene based on scale and pixel size."""
+        for child in self._get_images():
+            child = cast(ImageWithScale, child)
+            matrix = child.transform.matrix
+            current_scale = np.linalg.norm(matrix[:3, 0])  # along x-axis
+            # only change the scale if the new scale is different from the current one
+            new_scale = scale * child.scale
+            if new_scale != current_scale:
+                # matrix[:2, :2] = np.eye(2) * new_scale
+                child.transform.matrix[:2, :2] = np.eye(2) * new_scale
+                print("new scale from matrix:", np.linalg.norm(matrix[:3, 0]))
 
     def _get_images(self) -> Iterator[Image]:
         """Yield images in the scene."""
