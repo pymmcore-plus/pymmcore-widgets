@@ -3,7 +3,7 @@ from typing import cast
 import numpy as np
 import useq
 from fonticon_mdi6 import MDI6
-from pymmcore_plus import CMMCorePlus
+from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QTimerEvent, Signal
 from qtpy.QtWidgets import (
     QAction,
@@ -421,10 +421,10 @@ class StageExplorer(QWidget):
 
         # flip the image if the camera has transpose mirror options enabled
         if (cam := self._mmc.getCameraDevice()) is not None:
-            flip_h = 1 if self._mmc.getProperty(cam, "Transpose_MirrorX") == 1 else -1
-            flip_v = 1 if self._mmc.getProperty(cam, "Transpose_MirrorY") == 1 else -1
-            RS[0, 0] *= flip_h
-            RS[1, 1] *= flip_v
+            mirror_x = Keyword.Transpose_MirrorX
+            mirror_y = Keyword.Transpose_MirrorY
+            RS[0, 0] *= 1 if self._mmc.getProperty(cam, mirror_x) == 0 else -1
+            RS[1, 1] *= 1 if self._mmc.getProperty(cam, mirror_y) == 0 else -1
 
         T = np.eye(4)
         x_pos = self._mmc.getXPosition() if x_pos is None else x_pos
