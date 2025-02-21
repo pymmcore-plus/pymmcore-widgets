@@ -18,7 +18,6 @@ class ImageData(Image):
     """A subclass of vispy's Image visual.
 
     A data property has been added to easy access the image data.
-    A scale property has been added to store the original scale of the image.
     """
 
     def __init__(self, data: np.ndarray, *args: Any, **kwargs: Any) -> None:
@@ -26,22 +25,11 @@ class ImageData(Image):
         # unfreeze the visual to allow setting the scale
         self.unfreeze()
         self._imagedata = data
-        self._scale: float = 1
 
     @property
     def data(self) -> np.ndarray:
         """Return the image data."""
         return self._imagedata
-
-    @property
-    def scale(self) -> float:
-        """Return the scale of the image."""
-        return self._scale
-
-    @scale.setter
-    def scale(self, value: float) -> None:
-        """Set the scale of the image."""
-        self._scale = value
 
 
 class StageViewer(QWidget):
@@ -80,18 +68,6 @@ class StageViewer(QWidget):
         main_layout.addWidget(self.canvas.native)
 
         # connect vispy events
-        self.canvas.events.draw.connect(qthrottled(self._on_draw_event))
-
-    @property
-    def pixel_size(self) -> float:
-        """Return the pixel size. By default, the pixel size is 1.0."""
-        return self._pixel_size
-
-    @pixel_size.setter
-    def pixel_size(self, value: float) -> None:
-        """Set the pixel size."""
-        self._pixel_size = value
-        self._update()
 
     # --------------------PUBLIC METHODS--------------------
 
@@ -119,56 +95,6 @@ class StageViewer(QWidget):
         self.view.camera.set_range(x=(min_x, max_x), y=(min_y, max_y), margin=0)
 
     # --------------------PRIVATE METHODS--------------------
-
-    def _update(self) -> None:
-        """Update the scene based if the scale has changed."""
-        scale = self._get_scale()
-        if scale == self._current_scale:
-            return
-        self._current_scale = scale
-        self._update_by_scale(scale)
-
-    def _on_draw_event(self, event: MouseEvent) -> None:
-        """Handle the draw event.
-
-        Useful for updating the scene when pan or zoom is applied.
-        """
-        self._update()
-
-    def _get_scale(self) -> int:
-        """Return the scale based on the zoom level."""
-        # get the transform from the camera
-        transform = self.view.camera.transform
-        # calculate the zoom level as the inverse of the scale factor in the transform
-        pixel_ratio = 1 / transform.scale[0]
-        # calculate the scale as the inverse of the zoom level
-        scale = 1
-        pixel_size = self._pixel_size
-        # using *2 to not scale the image too much. Maybe find a different way?
-        # while (pixel_ratio / scale) > (pixel_size * 2):
-        while (pixel_ratio / scale) > (pixel_size):
-            scale *= 2
-        return scale
-
-    def _update_by_scale(self, scale: int) -> None:
-        """Update the images in the scene based on scale and pixel size."""
-        for child in self._get_images():
-            child = cast(ImageData, child)
-            matrix = child.transform.matrix
-
-            # if the image is not within the view, skip it.
-            # x, y = matrix[:2, 3]
-            # if not self._is_image_within_view(x, y, *img.shape):
-            #     continue
-
-            new_scale = scale / child.scale
-            current_scale = np.linalg.norm(matrix[:3, 0])
-            if new_scale != current_scale:
-                img_scaled = child.data[::scale, ::scale]
-                print(img_scaled.shape)
-                child.set_data(img_scaled)
-                child.transform.matrix[:2, :2] = np.eye(2) * current_scale / scale
-                print(child.transform.matrix)
 
     def _get_images(self) -> Iterator[Image]:
         """Yield images in the scene."""

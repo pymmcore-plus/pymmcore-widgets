@@ -419,6 +419,13 @@ class StageExplorer(QWidget):
             RS = np.eye(4)
             RS[:2, :3] = np.array(affine).reshape(2, 3)
 
+        # flip the image if the camera has transpose mirror options enabled
+        if (cam:=self._mmc.getCameraDevice()) is not None:
+            flip_h = 1 if self._mmc.getProperty(cam, "Transpose_MirrorX") == 1 else -1
+            flip_v = 1 if self._mmc.getProperty(cam, "Transpose_MirrorY") == 1 else -1
+            RS[0, 0] *= flip_h
+            RS[1, 1] *= flip_v
+
         T = np.eye(4)
         x_pos = self._mmc.getXPosition() if x_pos is None else x_pos
         y_pos = self._mmc.getYPosition() if y_pos is None else y_pos
@@ -448,6 +455,7 @@ class StageExplorer(QWidget):
         T_center[0, 3] = -self._mmc.getImageWidth() / 2
         T_center[1, 3] = -self._mmc.getImageHeight() / 2
 
+        print(T @ T_center)
         return T @ T_center
 
     # STAGE MARKER ----------------------------------------------------------------
