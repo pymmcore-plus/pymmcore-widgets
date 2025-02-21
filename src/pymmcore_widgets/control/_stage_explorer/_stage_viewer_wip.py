@@ -7,9 +7,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.utils import qthrottled
 from vispy import scene
-from vispy.app.canvas import MouseEvent
 from vispy.scene.visuals import Image
 from vispy.scene.widgets import ViewBox
 
