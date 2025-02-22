@@ -549,7 +549,7 @@ class StageExplorer(QWidget):
         if self._stage_pos_marker is None:
             return None, None, None, None
         matrix = self._stage_pos_marker.transform.matrix
-        x, y = matrix[:2, 3]
+        x, y = matrix[3, :2]
         w, h = self._stage_pos_marker.width, self._stage_pos_marker.height
         min_x, min_y = x - w / 2, y - h / 2
         max_x, max_y = x + w / 2, y + h / 2
