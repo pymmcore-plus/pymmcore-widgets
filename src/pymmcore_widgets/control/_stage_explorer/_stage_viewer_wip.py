@@ -14,6 +14,8 @@ from vispy.scene.visuals import Image
 from vispy.scene.widgets import ViewBox
 from vispy.util.keys import Key
 
+from ._rois import ROIRectangle
+
 
 class ImageData(Image):
     """A subclass of vispy's Image visual.
@@ -58,8 +60,7 @@ class StageViewer(QWidget):
         self.view.camera = scene.PanZoomCamera(aspect=1)
 
         # to handle the drawing of rois
-        self._rois: list[scene.visuals.Rectangle] = []
-        self._roi_start_pos: tuple[float, float] | None = None
+        self._rois: list[ROIRectangle] = []
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
@@ -68,7 +69,6 @@ class StageViewer(QWidget):
 
         # connect vispy events
         self.canvas.events.mouse_press.connect(self._on_mouse_press)
-        self.canvas.events.mouse_move.connect(self._on_mouse_move)
         self.canvas.events.mouse_release.connect(self._on_mouse_release)
         self.canvas.events.key_press.connect(self._on_key_press)
 
@@ -100,16 +100,8 @@ class StageViewer(QWidget):
         """Return the list of ROIs in the scene as (top, bottom, left, right) coords."""
         tblr: list[tuple[float, float, float, float]] = []
         for rect in self._rois:
-            x, y = rect.center
-            w, h = rect.width, rect.height
-            tblr.append(
-                (
-                    y + h / 2,  # top
-                    y - h / 2,  # bottom
-                    x - w / 2,  # left
-                    x + w / 2,  # right
-                )
-            )
+            top_left, bottom_right = rect.bounding_box()
+            tblr.append((top_left[1], bottom_right[1], top_left[0], bottom_right[0]))
         return tblr
 
     # --------------------PRIVATE METHODS--------------------
@@ -150,46 +142,46 @@ class StageViewer(QWidget):
 
     # --------------------ROI--------------------
 
-    def _tform(self) -> scene.transforms.BaseTransform:
-        """Return the transform from canvas to scene."""
-        return self._rois[-1].transforms.get_transform("canvas", "scene")
+    def _active_roi(self) -> ROIRectangle | None:
+        """Return the next active ROI."""
+        return next((roi for roi in self._rois if roi.selected()), None)
 
     def _on_mouse_press(self, event: MouseEvent) -> None:
         """Handle the mouse press event."""
-        if (Key("Alt").name in event.modifiers) and event.button == 1:
-            self.view.camera.interactive = False
-            rect = self._create_rect()
-            self._rois.append(rect)
-            rect.visible = True
-            canvas_pos = (event.pos[0], event.pos[1])
-            world_pos = self._tform().map(canvas_pos)[:2]
-            self._roi_start_pos = world_pos
+        canvas_pos = (event.pos[0], event.pos[1])
 
-    def _on_mouse_move(self, event: MouseEvent) -> None:
-        """Handle the mouse drag event."""
-        if (
-            Key("Alt").name in event.modifiers
-            and self._roi_start_pos is not None
-            and event.button == 1
-        ):
-            canvas_pos = (event.pos[0], event.pos[1])
-            world_pos = self._tform().map(canvas_pos)[:2]
-            self._update_rectangle(world_pos)
-            return
+        if self._active_roi() is not None:
+            self.view.camera.interactive = False
+
+        # create a new roi only if the Alt key is pressed
+        # TODO: add button to activate/deactivate the ROI creation as well as to delete
+        # all the ROIs
+        elif Key("Alt").name in event.modifiers and event.button == 1:
+            self.view.camera.interactive = False
+            # create the ROI rectangle for the first time
+            roi = self._create_roi(canvas_pos)
+            self._rois.append(roi)
+
+    def _create_roi(self, canvas_pos: tuple[float, float]) -> ROIRectangle:
+        """Create a new ROI rectangle and connect its events."""
+        roi = ROIRectangle(self.view.scene)
+        self.canvas.events.mouse_press.connect(roi.on_mouse_press)
+        self.canvas.events.mouse_move.connect(roi.on_mouse_move)
+        self.canvas.events.mouse_release.connect(roi.on_mouse_release)
+        world_pos = roi._tform().map(canvas_pos)[:2]
+        roi.set_selected(True)
+        roi.set_visible(True)
+        roi.set_anchor(world_pos)
+        roi.set_bounding_box(world_pos, world_pos)
+        return roi
 
     def _on_mouse_release(self, event: MouseEvent) -> None:
         """Handle the mouse release event."""
-        if (
-            Key("Alt").name in event.modifiers
-            and self._roi_start_pos is not None
-            and event.button == 1
-        ):
-            self._roi_start_pos = None
-            self.view.camera.interactive = True
-            # self.rectChanged.emit(self._rects)
+        # if Key("Alt").name in event.modifiers and event.button == 1:
+        self.view.camera.interactive = True
 
     def _on_key_press(self, event: KeyEvent) -> None:
-        """Delete the last rectangle added to the scene when pressing Cmd/Ctrl + Z."""
+        """Delete the last ROI added to the scene when pressing Cmd/Ctrl + Z."""
         key: Key = event.key
         modifiers: tuple[Key, ...] = event.modifiers
         if (
@@ -197,32 +189,9 @@ class StageViewer(QWidget):
             and (Key("Meta") in modifiers or Key("Control") in modifiers)
             and self._rois
         ):
-            self._rois.pop(-1).parent = None
-            # self.rectChanged.emit(self._rects)
-
-    def _create_rect(self) -> scene.visuals.Rectangle:
-        """Create a new rectangle visual."""
-        new_rect = scene.visuals.Rectangle(
-            center=[0, 0],
-            width=1,
-            height=1,
-            color=None,
-            border_color="yellow",
-            border_width=2,
-            parent=self.view.scene,
-        )
-        new_rect.set_gl_state(depth_test=False)
-        return new_rect
-
-    def _update_rectangle(self, end: tuple[float, float]) -> None:
-        """Update the rectangle visual with correct coordinates."""
-        if self._roi_start_pos is None:
-            return
-        with contextlib.suppress(Exception):
-            x0, y0 = self._roi_start_pos
-            x1, y1 = end
-            rect = self._rois[-1]
-            rect.center = (x0 + x1) / 2, (y0 + y1) / 2
-            width, height = abs(x0 - x1), abs(y0 - y1)
-            rect.width = width
-            rect.height = height
+            roi = self._rois.pop(-1)
+            roi.remove()
+            with contextlib.suppress(Exception):
+                self.canvas.events.mouse_press.disconnect(roi.on_mouse_press)
+                self.canvas.events.mouse_move.disconnect(roi.on_mouse_move)
+                self.canvas.events.mouse_release.disconnect(roi.on_mouse_release)
