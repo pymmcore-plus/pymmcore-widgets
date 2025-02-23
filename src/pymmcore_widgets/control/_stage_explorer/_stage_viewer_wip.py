@@ -117,7 +117,7 @@ class StageViewer(QWidget):
             # define the four corners of the image (bottom-left origin by vispy default)
             corners = np.array([[x, y], [x + w, y], [x, y + h], [x + w, y + h]])
             # transform the corners to scene coordinates
-            all_corners.append(child.transform.map(corners)[:, :2])
+            all_corners.append(corners)
 
         if not all_corners:
             return None, None, None, None
