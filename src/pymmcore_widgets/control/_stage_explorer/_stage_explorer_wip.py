@@ -326,7 +326,6 @@ class StageExplorer(QWidget):
 
     def _on_pixel_size_changed(self) -> None:
         """Update the stage position marker when the pixel size changes."""
-        self._stage_viewer.pixel_size = self._mmc.getPixelSizeUm()
         self._update_stage_marker()
 
     def _on_image_snapped(self) -> None:

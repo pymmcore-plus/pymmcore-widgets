@@ -54,9 +54,6 @@ class StageViewer(QWidget):
         self.view = cast(ViewBox, self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1)
 
-        # pixel size property
-        self._pixel_size: float = 1.0
-
         # to store the displayed images scale
         self._current_scale: float = 1
 
@@ -72,7 +69,6 @@ class StageViewer(QWidget):
     def add_image(self, img: np.ndarray, transform: np.ndarray) -> None:
         """Add an image to the scene with the given transform."""
         frame = ImageData(img, cmap="grays", parent=self.view.scene, clim="auto")
-        frame.scale = self._pixel_size
         # keep the added image on top of the others
         frame.order = min(child.order for child in self._get_images()) - 1
         # add the image to the scene with the transform
