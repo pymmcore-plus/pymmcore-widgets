@@ -23,8 +23,11 @@ class ROIRectangle:
     """A rectangle ROI."""
 
     def __init__(self, parent: Any) -> None:
+        # flag to indicate if the ROI is selected
         self._selected = False
+        # flag to indicate the move mode
         self._move_mode: ROIMoveMode = ROIMoveMode.DRAW
+        # anchor point for the move mode
         self._move_anchor: tuple[float, float] = (0, 0)
 
         self._rect = scene.Rectangle(
@@ -79,7 +82,10 @@ class ROIRectangle:
         self._handles.parent = None
 
     def set_anchor(self, pos: tuple[float, float]) -> None:
-        """Set the anchor of the ROI."""
+        """Set the anchor of the ROI.
+
+        The anchor is the point where the ROI is created or moved from.
+        """
         self._move_anchor = pos
 
     def bounding_box(self) -> tuple[tuple[float, float], tuple[float, float]]:
@@ -94,18 +100,15 @@ class ROIRectangle:
         self, mi: tuple[float, float], ma: tuple[float, float]
     ) -> None:
         """Set the bounding box of the ROI using two diagonal points."""
-        # NB: Support two diagonal points, not necessarily true min/max
         x1 = float(min(mi[0], ma[0]))
         y1 = float(min(mi[1], ma[1]))
         x2 = float(max(mi[0], ma[0]))
         y2 = float(max(mi[1], ma[1]))
-
-        # Update rectangle
+        # update rectangle
         self._rect.center = [(x1 + x2) / 2, (y1 + y2) / 2]
         self._rect.width = max(float(x2 - x1), 1e-30)
         self._rect.height = max(float(y2 - y1), 1e-30)
-
-        # Update handles
+        # update handles
         self._handle_data[0] = x1, y1
         self._handle_data[1] = x2, y1
         self._handle_data[2] = x2, y2
@@ -113,16 +116,39 @@ class ROIRectangle:
         self._handles.set_data(pos=self._handle_data)
 
     def get_cursor(self, event: MouseEvent) -> QCursor | None:
+        """Return the cursor shape depending on the mouse position.
+
+        If the mouse is over a handle, return a cursor indicating that the handle can be
+        dragged. If the mouse is over the rectangle, return a cursor indicating that th
+        whole ROI can be moved. Otherwise, return the default cursor.
+        """
         canvas_pos = (event.pos[0], event.pos[1])
         pos = self._tform().map(canvas_pos)[:2]
         if (idx := self._under_mouse_index(pos)) is not None:
+            # if the mouse is over the rectangle, return a SizeAllCursor cursor
+            # indicating that the whole ROI can be moved
             if idx == -1:
                 return QCursor(Qt.CursorShape.SizeAllCursor)
+            # if the mouse is over a handle, return a cursor indicating that the handle
+            # can be dragged
             elif idx >= 0:
                 return QCursor(Qt.CursorShape.DragMoveCursor)
+            # otherwise, return the default cursor
             else:
                 return QCursor(Qt.CursorShape.ArrowCursor)
         return QCursor(Qt.CursorShape.ArrowCursor)
+
+    def connect(self, canvas: scene.SceneCanvas) -> None:
+        """Connect the ROI events to the canvas."""
+        canvas.events.mouse_press.connect(self.on_mouse_press)
+        canvas.events.mouse_move.connect(self.on_mouse_move)
+        canvas.events.mouse_release.connect(self.on_mouse_release)
+
+    def disconnect(self, canvas: scene.SceneCanvas) -> None:
+        """Disconnect the ROI events from the canvas."""
+        canvas.events.mouse_press.disconnect(self.on_mouse_press)
+        canvas.events.mouse_move.disconnect(self.on_mouse_move)
+        canvas.events.mouse_release.disconnect(self.on_mouse_release)
 
     # ---------------------MOUSE EVENTS---------------------
 
@@ -132,17 +158,21 @@ class ROIRectangle:
         canvas_pos = (event.pos[0], event.pos[1])
         world_pos = self._tform().map(canvas_pos)[:2]
 
+        # check if the mouse is over a handle or the rectangle
         idx = self._under_mouse_index(world_pos)
 
+        # if the mouse is over a handle, set the move mode to HANDLE
         if idx is not None and idx >= 0:
             self.set_selected(True)
             opposite_idx = (idx + 2) % 4
             self._move_mode = ROIMoveMode.HANDLE
             self._move_anchor = tuple(self._handle_data[opposite_idx].copy())
+        # if the mouse is over the rectangle, set the move mode to
         elif idx == -1:
             self.set_selected(True)
             self._move_mode = ROIMoveMode.TRANSLATE
             self._move_anchor = world_pos
+        # if the mouse is not over a handle or the rectangle, set the move mode to
         else:
             self.set_selected(False)
             self._move_mode = ROIMoveMode.NONE
@@ -189,10 +219,12 @@ class ROIRectangle:
         If -1, means that the mouse is within the rectangle.
         If None, there is no handle at pos.
         """
+        # check if the mouse is over a handle
         rad2 = (self._handle_size / 2) ** 2
         for i, p in enumerate(self._handle_data):
             if (p[0] - pos[0]) ** 2 + (p[1] - pos[1]) ** 2 <= rad2:
                 return i
+        # check if the mouse is within the rectangle
         left, bottom = self._handle_data[0]
         right, top = self._handle_data[2]
         return -1 if left <= pos[0] <= right and bottom <= pos[1] <= top else None

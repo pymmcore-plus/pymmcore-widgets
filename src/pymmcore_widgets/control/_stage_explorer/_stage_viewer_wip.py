@@ -166,9 +166,7 @@ class StageViewer(QWidget):
     def _create_roi(self, canvas_pos: tuple[float, float]) -> ROIRectangle:
         """Create a new ROI rectangle and connect its events."""
         roi = ROIRectangle(self.view.scene)
-        self.canvas.events.mouse_press.connect(roi.on_mouse_press)
-        self.canvas.events.mouse_move.connect(roi.on_mouse_move)
-        self.canvas.events.mouse_release.connect(roi.on_mouse_release)
+        roi.connect(self.canvas)
         world_pos = roi._tform().map(canvas_pos)[:2]
         roi.set_selected(True)
         roi.set_visible(True)
@@ -177,7 +175,7 @@ class StageViewer(QWidget):
         return roi
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
-        """Handle the mouse move event."""
+        """Update the cursor shape when hovering over the ROIs."""
         if (roi := self._active_roi()) is not None:
             cursor = roi.get_cursor(event)
             self.canvas.native.setCursor(cursor)
@@ -200,6 +198,4 @@ class StageViewer(QWidget):
             roi = self._rois.pop(-1)
             roi.remove()
             with contextlib.suppress(Exception):
-                self.canvas.events.mouse_press.disconnect(roi.on_mouse_press)
-                self.canvas.events.mouse_move.disconnect(roi.on_mouse_move)
-                self.canvas.events.mouse_release.disconnect(roi.on_mouse_release)
+                roi.disconnect(self.canvas)
