@@ -56,6 +56,11 @@ class ROIRectangle:
 
         self.set_visible(False)
 
+    @property
+    def center(self) -> tuple[float, float]:
+        """Return the center of the ROI."""
+        return tuple(self._rect.center)
+
     # ---------------------PUBLIC METHODS---------------------
 
     def visible(self) -> bool:

@@ -291,31 +291,32 @@ class StageExplorer(QWidget):
         self._update_stage_marker()
         self.reset_view()
 
-    # def value(self) -> list[useq.Position]:
-    #     """Return a list of `GridFromEdges` objects from the drawn rectangles."""
-    #     rects = self._stage_viewer.rects
-    #     positions = []
-    #     px = self._mmc.getPixelSizeUm()
-    #     fov_w, fov_h = self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
-    #     for rct in rects:
-    #         x, y = rct.center
-    #         w, h = rct.width, rct.height
-    #         grid_plan = useq.GridFromEdges(
-    #             top=y + h / 2,
-    #             bottom=y - h / 2,
-    #             left=x - w / 2,
-    #             right=x + w / 2,
-    #             fov_width=fov_w,
-    #             fov_height=fov_h,
-    #         )
-    #         pos = useq.AbsolutePosition(
-    #             x=x,
-    #             y=y,
-    #             z=self._mmc.getZPosition(),
-    #             sequence=useq.MDASequence(grid_plan=grid_plan),
-    #         )
-    #         positions.append(pos)
-    #     return positions
+    def value(self) -> list[useq.Position]:
+        """Return a list of `GridFromEdges` objects from the drawn rectangles."""
+        # TODO: add a way to set overlap
+        rects = self._stage_viewer.rois()
+        positions = []
+        px = self._mmc.getPixelSizeUm()
+        fov_w, fov_h = self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
+        for rect in rects:
+            top_left, bottom_right = rect.bounding_box()
+            grid_plan = useq.GridFromEdges(
+                top=top_left[1],
+                bottom=bottom_right[1],
+                left=top_left[0],
+                right=bottom_right[0],
+                fov_width=fov_w,
+                fov_height=fov_h,
+            )
+            x, y = rect.center
+            pos = useq.AbsolutePosition(
+                x=x,
+                y=y,
+                z=self._mmc.getZPosition(),
+                sequence=useq.MDASequence(grid_plan=grid_plan),
+            )
+            positions.append(pos)
+        return positions
 
     # -----------------------------PRIVATE METHODS------------------------------------
 
