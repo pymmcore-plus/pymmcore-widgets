@@ -53,6 +53,7 @@ dependencies = [
     'qtpy >=2.0',
     'superqt[quantity,cmap] >=0.7.1',
     'useq-schema >=0.5.0',
+    'vispy'
 ]
 
 [tool.hatch.metadata]
