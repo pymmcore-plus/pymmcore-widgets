@@ -96,7 +96,7 @@ class StageViewer(QWidget):
             return
         self.view.camera.set_range(x=(min_x, max_x), y=(min_y, max_y), margin=0)
 
-    def get_rois(self) -> list[tuple[float, float, float, float]]:
+    def rois(self) -> list[tuple[float, float, float, float]]:
         """Return the list of ROIs in the scene as (top, bottom, left, right) coords."""
         tblr: list[tuple[float, float, float, float]] = []
         for rect in self._rois:
@@ -154,6 +154,40 @@ class StageViewer(QWidget):
         """Return the transform from canvas to scene."""
         return self._rois[-1].transforms.get_transform("canvas", "scene")
 
+    def _on_mouse_press(self, event: MouseEvent) -> None:
+        """Handle the mouse press event."""
+        if (Key("Alt").name in event.modifiers) and event.button == 1:
+            self.view.camera.interactive = False
+            rect = self._create_rect()
+            self._rois.append(rect)
+            rect.visible = True
+            canvas_pos = (event.pos[0], event.pos[1])
+            world_pos = self._tform().map(canvas_pos)[:2]
+            self._roi_start_pos = world_pos
+
+    def _on_mouse_move(self, event: MouseEvent) -> None:
+        """Handle the mouse drag event."""
+        if (
+            Key("Alt").name in event.modifiers
+            and self._roi_start_pos is not None
+            and event.button == 1
+        ):
+            canvas_pos = (event.pos[0], event.pos[1])
+            world_pos = self._tform().map(canvas_pos)[:2]
+            self._update_rectangle(world_pos)
+            return
+
+    def _on_mouse_release(self, event: MouseEvent) -> None:
+        """Handle the mouse release event."""
+        if (
+            Key("Alt").name in event.modifiers
+            and self._roi_start_pos is not None
+            and event.button == 1
+        ):
+            self._roi_start_pos = None
+            self.view.camera.interactive = True
+            # self.rectChanged.emit(self._rects)
+
     def _on_key_press(self, event: KeyEvent) -> None:
         """Delete the last rectangle added to the scene when pressing Cmd/Ctrl + Z."""
         key: Key = event.key
@@ -165,17 +199,6 @@ class StageViewer(QWidget):
         ):
             self._rois.pop(-1).parent = None
             # self.rectChanged.emit(self._rects)
-
-    def _on_mouse_press(self, event: MouseEvent) -> None:
-        """Handle the mouse press event."""
-        if (Key("Alt").name in event.modifiers) and event.button == 1:
-            self.view.camera.interactive = False
-            rect = self._create_rect()
-            self._rois.append(rect)
-            rect.visible = True
-            canvas_pos = (event.pos[0], event.pos[1])
-            world_pos = self._tform().map(canvas_pos)[:2]
-            self._roi_start_pos = world_pos
 
     def _create_rect(self) -> scene.visuals.Rectangle:
         """Create a new rectangle visual."""
@@ -191,19 +214,7 @@ class StageViewer(QWidget):
         new_rect.set_gl_state(depth_test=False)
         return new_rect
 
-    def _on_mouse_move(self, event: MouseEvent) -> None:
-        """Handle the mouse drag event."""
-        if (
-            Key("Alt").name in event.modifiers
-            and self._roi_start_pos is not None
-            and event.button == 1
-        ):
-            canvas_pos = (event.pos[0], event.pos[1])
-            world_pos = self._tform().map(canvas_pos)[:2]
-            self.update_rectangle(world_pos)
-            return
-
-    def update_rectangle(self, end: tuple[float, float]) -> None:
+    def _update_rectangle(self, end: tuple[float, float]) -> None:
         """Update the rectangle visual with correct coordinates."""
         if self._roi_start_pos is None:
             return
@@ -215,14 +226,3 @@ class StageViewer(QWidget):
             width, height = abs(x0 - x1), abs(y0 - y1)
             rect.width = width
             rect.height = height
-
-    def _on_mouse_release(self, event: MouseEvent) -> None:
-        """Handle the mouse release event."""
-        if (
-            Key("Alt").name in event.modifiers
-            and self._roi_start_pos is not None
-            and event.button == 1
-        ):
-            self._roi_start_pos = None
-            self.view.camera.interactive = True
-            # self.rectChanged.emit(self._rects)
