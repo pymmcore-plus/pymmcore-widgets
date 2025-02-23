@@ -69,6 +69,7 @@ class StageViewer(QWidget):
 
         # connect vispy events
         self.canvas.events.mouse_press.connect(self._on_mouse_press)
+        self.canvas.events.mouse_move.connect(self._on_mouse_move)
         self.canvas.events.mouse_release.connect(self._on_mouse_release)
         self.canvas.events.key_press.connect(self._on_key_press)
 
@@ -175,9 +176,16 @@ class StageViewer(QWidget):
         roi.set_bounding_box(world_pos, world_pos)
         return roi
 
+    def _on_mouse_move(self, event: MouseEvent) -> None:
+        """Handle the mouse move event."""
+        if (roi := self._active_roi()) is not None:
+            cursor = roi.get_cursor(event)
+            self.canvas.native.setCursor(cursor)
+        else:
+            self.canvas.native.setCursor(Qt.CursorShape.ArrowCursor)
+
     def _on_mouse_release(self, event: MouseEvent) -> None:
         """Handle the mouse release event."""
-        # if Key("Alt").name in event.modifiers and event.button == 1:
         self.view.camera.interactive = True
 
     def _on_key_press(self, event: KeyEvent) -> None:

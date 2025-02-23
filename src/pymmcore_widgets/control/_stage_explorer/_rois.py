@@ -4,6 +4,8 @@ from typing import Any
 
 import numpy as np
 import vispy.color
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QCursor
 from vispy import scene
 from vispy.app.canvas import MouseEvent
 
@@ -25,7 +27,6 @@ class ROIRectangle:
         self._move_mode: ROIMoveMode = ROIMoveMode.DRAW
         self._move_anchor: tuple[float, float] = (0, 0)
 
-        # Rectangle handles both fill and border
         self._rect = scene.Rectangle(
             center=[0, 0],
             width=1,
@@ -35,7 +36,6 @@ class ROIRectangle:
             border_width=2,
             parent=parent,
         )
-        # NB: Should be greater than image orders BUT NOT handle order
         self._rect.set_gl_state(depth_test=False)
         self._rect.interactive = True
 
@@ -48,11 +48,12 @@ class ROIRectangle:
             face_color=vispy.color.Color("white"),
             parent=parent,
         )
-        # NB: Should be greater than image orders and rect order
         self._handles.set_gl_state(depth_test=False)
         self._handles.interactive = True
 
         self.set_visible(False)
+
+    # ---------------------PUBLIC METHODS---------------------
 
     def visible(self) -> bool:
         """Return whether the ROI is visible."""
@@ -111,7 +112,21 @@ class ROIRectangle:
         self._handle_data[3] = x1, y2
         self._handles.set_data(pos=self._handle_data)
 
-    # canvas.events.mouse_press.connect(self.on_mouse_press)
+    def get_cursor(self, event: MouseEvent) -> QCursor | None:
+        canvas_pos = (event.pos[0], event.pos[1])
+        pos = self._tform().map(canvas_pos)[:2]
+        if (idx := self._under_mouse_index(pos)) is not None:
+            if idx == -1:
+                return QCursor(Qt.CursorShape.SizeAllCursor)
+            elif idx >= 0:
+                return QCursor(Qt.CursorShape.DragMoveCursor)
+            else:
+                return QCursor(Qt.CursorShape.ArrowCursor)
+        return QCursor(Qt.CursorShape.ArrowCursor)
+
+    # ---------------------MOUSE EVENTS---------------------
+
+    # for canvas.events.mouse_press.connect
     def on_mouse_press(self, event: MouseEvent) -> None:
         """Handle the mouse press event."""
         canvas_pos = (event.pos[0], event.pos[1])
@@ -132,7 +147,7 @@ class ROIRectangle:
             self.set_selected(False)
             self._move_mode = ROIMoveMode.NONE
 
-    # canvas.events.mouse_move.connect(self.on_mouse_move)
+    # for canvas.events.mouse_move.connect
     def on_mouse_move(self, event: MouseEvent) -> None:
         """Handle the mouse drag event."""
         # convert canvas -> world
@@ -157,10 +172,12 @@ class ROIRectangle:
             self._move_anchor = world_pos
             self.set_bounding_box(new_min, new_max)
 
-    # canvas.events.mouse_release.connect(self.on_mouse_release)
+    # for canvas.events.mouse_release.connect
     def on_mouse_release(self, event: MouseEvent) -> None:
         """Handle the mouse release event."""
         self._move_mode = ROIMoveMode.NONE
+
+    # ---------------------PRIVATE METHODS---------------------
 
     def _tform(self) -> scene.transforms.BaseTransform:
         return self._rect.transforms.get_transform("canvas", "scene")
@@ -178,38 +195,4 @@ class ROIRectangle:
                 return i
         left, bottom = self._handle_data[0]
         right, top = self._handle_data[2]
-        if left <= pos[0] <= right and bottom <= pos[1] <= top:
-            return -1
-        return None
-
-    # def get_cursor(self, event: MouseEvent) -> QCursor | None:
-    #     canvas_pos = (event.pos[0], event.pos[1])
-    #     pos = self._tform().map(canvas_pos)[:2]
-    #     if self._handle_under(pos) is not None:
-    #         center = self._rect.center
-    #         # if the mouse is in the top left or bottom right corner
-    #         if pos[0] < center[0] and pos[1] < center[1]:
-    #             cursor = QCursor(Qt.CursorShape.SizeFDiagCursor)
-    #         # if the mouse is in the top right or bottom left corner
-    #         if pos[0] > center[0] and pos[1] > center[1]:
-    #             cursor = QCursor(Qt.CursorShape.SizeFDiagCursor)
-    #         # if the mouse is in the top right or bottom left corner
-    #         cursor = QCursor(Qt.CursorShape.SizeBDiagCursor)
-    #     # if the mouse is in the center
-    #     cursor = QCursor(Qt.CursorShape.SizeAllCursor)
-    #     print(cursor)
-    #     return cursor
-
-    # canvas.events.mouse_move.connect(self.on_mouse_move)
-    # def get_cursor(self, mme: MouseEvent) -> CursorType | None:
-    #     """Return the cursor type."""
-    #     canvas_pos = (mme.x, mme.y)
-    #     pos = self._tform().map(canvas_pos)[:2]
-    #     if self._handle_under(pos) is not None:
-    #         center = self._rect.center
-    #         if pos[0] < center[0] and pos[1] < center[1]:
-    #             return CursorType.FDIAG_ARROW
-    #         if pos[0] > center[0] and pos[1] > center[1]:
-    #             return CursorType.FDIAG_ARROW
-    #         return CursorType.BDIAG_ARROW
-    #     return CursorType.ALL_ARROW
+        return -1 if left <= pos[0] <= right and bottom <= pos[1] <= top else None
