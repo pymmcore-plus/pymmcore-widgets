@@ -97,13 +97,9 @@ class StageViewer(QWidget):
             return
         self.view.camera.set_range(x=(min_x, max_x), y=(min_y, max_y), margin=0)
 
-    def rois(self) -> list[tuple[float, float, float, float]]:
-        """Return the list of ROIs in the scene as (top, bottom, left, right) coords."""
-        tblr: list[tuple[float, float, float, float]] = []
-        for rect in self._rois:
-            top_left, bottom_right = rect.bounding_box()
-            tblr.append((top_left[1], bottom_right[1], top_left[0], bottom_right[0]))
-        return tblr
+    def rois(self) -> list[ROIRectangle]:
+        """Return the list of ROIs."""
+        return self._rois
 
     # --------------------PRIVATE METHODS--------------------
 
