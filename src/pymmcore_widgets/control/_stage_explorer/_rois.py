@@ -54,6 +54,18 @@ class ROIRectangle:
         self._handles.set_gl_state(depth_test=False)
         self._handles.interactive = True
 
+        # Add text at the center of the rectangle
+        self._text = scene.Text(
+            text="",
+            bold=True,
+            color="yellow",
+            font_size=12,
+            anchor_x="center",
+            anchor_y="center",
+            depth_test=False,
+            parent=parent,
+        )
+
         self.set_visible(False)
 
     @property
@@ -71,6 +83,7 @@ class ROIRectangle:
         """Set the ROI as visible."""
         self._rect.visible = visible
         self._handles.visible = visible and self.selected()
+        self._text.visible = visible
 
     def selected(self) -> bool:
         """Return whether the ROI is selected."""
@@ -80,11 +93,13 @@ class ROIRectangle:
         """Set the ROI as selected."""
         self._selected = selected
         self._handles.visible = selected and self.visible()
+        self._text.visible = selected
 
     def remove(self) -> None:
         """Remove the ROI from the scene."""
         self._rect.parent = None
         self._handles.parent = None
+        self._text.parent = None
 
     def set_anchor(self, pos: tuple[float, float]) -> None:
         """Set the anchor of the ROI.
@@ -92,6 +107,10 @@ class ROIRectangle:
         The anchor is the point where the ROI is created or moved from.
         """
         self._move_anchor = pos
+
+    def set_text(self, text: str) -> None:
+        """Set the text of the ROI."""
+        self._text.text = text
 
     def bounding_box(self) -> tuple[tuple[float, float], tuple[float, float]]:
         """Return the bounding box of the ROI as top-left and bottom-right corners."""
@@ -119,6 +138,8 @@ class ROIRectangle:
         self._handle_data[2] = x2, y2
         self._handle_data[3] = x1, y2
         self._handles.set_data(pos=self._handle_data)
+
+        self._text.pos = self._rect.center
 
     def get_cursor(self, event: MouseEvent) -> QCursor | None:
         """Return the cursor shape depending on the mouse position.

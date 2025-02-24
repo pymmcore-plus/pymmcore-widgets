@@ -225,6 +225,8 @@ class StageExplorer(QWidget):
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
         self._mmc.events.roiSet.connect(self._update_stage_marker)
+        # connect vispy events
+        self._stage_viewer.canvas.events.mouse_move.connect(self._on_mouse_move)
 
         self._on_sys_config_loaded()
 
@@ -568,3 +570,25 @@ class StageExplorer(QWidget):
             (x + half_width, y + half_height),
         ]
         return all(view_rect.contains(*vertex) for vertex in vertices)
+
+    # ---------------------MOUSE EVENTS---------------------
+
+    def _on_mouse_move(self, event: MouseEvent) -> None:
+        """Update the roi text when the roi changes size."""
+        if (roi := self._stage_viewer._active_roi()) is not None:
+            px = self._mmc.getPixelSizeUm()
+            fov_w = self._mmc.getImageWidth() * px
+            fov_h = self._mmc.getImageHeight() * px
+            top_left, bottom_right = roi.bounding_box()
+            grid_plan = useq.GridFromEdges(
+                top=top_left[1],
+                bottom=bottom_right[1],
+                left=top_left[0],
+                right=bottom_right[0],
+                fov_width=fov_w,
+                fov_height=fov_h,
+            )
+            pos = list(grid_plan)
+            rows = max(r.row for r in pos if r.row is not None) + 1
+            cols = max(c.col for c in pos if c.col is not None) + 1
+            roi.set_text(f"Rows: {rows} Cols: {cols}")
