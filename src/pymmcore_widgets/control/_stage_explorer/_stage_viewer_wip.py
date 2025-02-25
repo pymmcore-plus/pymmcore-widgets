@@ -116,6 +116,8 @@ class StageViewer(QWidget):
 
         as (min_x, max_x, min_y, max_y).
         """
+        # TODO: FIX ME!!! This logic does not work if the user flips the x (or y)
+        # coordinates sign (transposing the stage axis)...
         # TODO: maybe consider also the rectangles (ROIs) in the scene
         all_corners: list[np.ndarray] = []
         for child in self._get_images():
