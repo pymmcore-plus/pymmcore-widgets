@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, cast
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
@@ -286,9 +286,9 @@ class MDAWidget(MDASequenceWidget):
 
     def run_mda(self) -> None:
         save_path = self.prepare_mda()
-        if save_path is False:
+        if isinstance(save_path, bool):
             return
-        self.execute_mda(cast(Optional[Path], save_path))
+        self.execute_mda(save_path)
 
     # ------------------- private Methods ----------------------
 
