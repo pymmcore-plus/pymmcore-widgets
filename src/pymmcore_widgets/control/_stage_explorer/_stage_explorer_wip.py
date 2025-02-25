@@ -509,7 +509,7 @@ class StageExplorer(QWidget):
         # update stage marker position
         if self._stage_pos_marker is not None:
             # if the difference between (x, y) and (current_x, current_y) is greater
-            # than a cartain %, then update the marker position and reset the view.
+            # than a certain %, then update the marker position and reset the view.
             # This is useful because we don't want to trigger reset_view when the user
             # changes the zoom level or pans the view or if the stage jittered a bit.
             current_x, current_y = self._stage_pos_marker.transform.matrix[3, :2]
