@@ -43,7 +43,7 @@ class ROIRectangle:
         self._rect.interactive = True
 
         self._handle_data = np.zeros((4, 2))
-        self._handle_size = 10  # px
+        self._handle_size = 20  # px
         self._handles = scene.Markers(
             pos=self._handle_data,
             size=self._handle_size,
