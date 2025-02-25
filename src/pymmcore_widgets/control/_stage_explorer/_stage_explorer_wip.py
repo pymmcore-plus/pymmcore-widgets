@@ -110,6 +110,9 @@ class StageExplorer(QWidget):
     move the stage to a specific position (and, optionally, snap an image) by
     double-clicking on the view.
 
+    The widget `value` method returns a list of `useq.AbsolutePosition` objects, each
+    containing a `useq.GridFromEdges` plan subsequence for each drawn roi.
+
     Parameters
     ----------
     parent : QWidget | None
@@ -302,11 +305,15 @@ class StageExplorer(QWidget):
         fov_w, fov_h = self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
         for rect in rects:
             top_left, bottom_right = rect.bounding_box()
+            # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
+            # bottom_right corners respectively because the grid plan is created
+            # considering the center of the fov and we want the roi to define the edges
+            # of the grid plan.
             grid_plan = useq.GridFromEdges(
-                top=top_left[1],
-                bottom=bottom_right[1],
-                left=top_left[0],
-                right=bottom_right[0],
+                top=top_left[1] - (fov_h / 2),
+                bottom=bottom_right[1] + (fov_h / 2),
+                left=top_left[0] + (fov_w / 2),
+                right=bottom_right[0] - (fov_w / 2),
                 fov_width=fov_w,
                 fov_height=fov_h,
             )
@@ -580,11 +587,15 @@ class StageExplorer(QWidget):
             fov_w = self._mmc.getImageWidth() * px
             fov_h = self._mmc.getImageHeight() * px
             top_left, bottom_right = roi.bounding_box()
+            # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
+            # bottom_right corners respectively because the grid plan is created
+            # considering the center of the fov and we want the roi to define the edges
+            # of the grid plan.
             grid_plan = useq.GridFromEdges(
-                top=top_left[1],
-                bottom=bottom_right[1],
-                left=top_left[0],
-                right=bottom_right[0],
+                top=top_left[1] - (fov_h / 2),
+                bottom=bottom_right[1] + (fov_h / 2),
+                left=top_left[0] + (fov_w / 2),
+                right=bottom_right[0] - (fov_w / 2),
                 fov_width=fov_w,
                 fov_height=fov_h,
             )

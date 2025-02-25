@@ -115,9 +115,9 @@ class ROIRectangle:
     def bounding_box(self) -> tuple[tuple[float, float], tuple[float, float]]:
         """Return the bounding box of the ROI as top-left and bottom-right corners."""
         x1 = self._rect.center[0] - self._rect.width / 2
-        y1 = self._rect.center[1] - self._rect.height / 2
+        y1 = self._rect.center[1] + self._rect.height / 2
         x2 = self._rect.center[0] + self._rect.width / 2
-        y2 = self._rect.center[1] + self._rect.height / 2
+        y2 = self._rect.center[1] - self._rect.height / 2
         return (x1, y1), (x2, y2)
 
     def set_bounding_box(
