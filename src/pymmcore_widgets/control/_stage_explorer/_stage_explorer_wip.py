@@ -35,7 +35,7 @@ CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
 POLL_STAGE = "Poll Stage Position"
 SEPARATOR = "Separator"
-MIN_XY_DIFF = 5
+MIN_RESET_XY_DIFF = 5
 
 SS_TOOLBUTTON = """
     QToolButton {
@@ -215,8 +215,6 @@ class StageExplorer(QWidget):
 
         # marker for stage position
         self._stage_pos_marker = self._init_stage_position_marker(self._mmc)
-        # to store stage xy position. used in timerEvent
-        self._xy: tuple[float | None, float | None] = (None, None)
 
         # connect vispy events
         self._stage_viewer.canvas.events.mouse_double_click.connect(
@@ -413,7 +411,6 @@ class StageExplorer(QWidget):
             S = np.eye(4)
             S[0, 0] = pixel_size
             S[1, 1] = pixel_size
-
             # flip the image if the camera has transpose mirror options enabled
             if cam := self._mmc.getCameraDevice():
                 mirror_x = Keyword.Transpose_MirrorX
@@ -443,8 +440,6 @@ class StageExplorer(QWidget):
 
         It takes into account the pixel size (scale), rotation, and stage position.
         """
-        # TODO: add support for flipping images using the mirror transpose camera option
-        # build scale and rotation matrix
         T = self._build_transformation_matrix(x_pos, y_pos, rotation)
         # by default, vispy add the images from the bottom-left corner. We need to
         # translate by -w/2 and -h/2 so the position corresponds to the center of the
@@ -513,26 +508,16 @@ class StageExplorer(QWidget):
 
         # update stage marker position
         if self._stage_pos_marker is not None:
-            self._update_stage_marker(x, y)
-
-        # compare the old and new xy positions; if the percentage difference exceeds 5%,
-        # it means the stage position has significantly changed, so reset the view.
-        # This is useful because we don't want to trigger reset_view when the user
-        # changes the zoom level or pans the view or if the stage jittered a bit.
-        # If acquiring, reset is handled by the _on_frame_ready method.
-        if not self._mmc.mda.is_running() and all(val is not None for val in self._xy):
-            old_x, old_y = self._xy
-            if old_x is not None and old_y is not None:
-                # 1e-6 is used to avoid division by zero
-                diff_x = abs(x - old_x) / max(abs(old_x), 1e-6) * 100
-                diff_y = abs(y - old_y) / max(abs(old_y), 1e-6) * 100
-                if not self._is_visual_within_view(x, y) and (
-                    diff_x > MIN_XY_DIFF or diff_y > MIN_XY_DIFF
-                ):
-                    self.reset_view()
-
-        # Update _xy position with new values
-        self._xy = (x, y)
+            # if the difference between (x, y) and (current_x, current_y) is greater
+            # than a cartain %, then update the marker position and reset the view.
+            # This is useful because we don't want to trigger reset_view when the user
+            # changes the zoom level or pans the view or if the stage jittered a bit.
+            current_x, current_y = self._stage_pos_marker.transform.matrix[3, :2]
+            diff_x = abs(x - current_x) / max(abs(current_x), 1e-6) * 100
+            diff_y = abs(y - current_y) / max(abs(current_y), 1e-6) * 100
+            if diff_x > MIN_RESET_XY_DIFF or diff_y > MIN_RESET_XY_DIFF:
+                self._update_stage_marker(x, y)
+                self.reset_view()
 
     def _get_stage_marker_position(
         self,
