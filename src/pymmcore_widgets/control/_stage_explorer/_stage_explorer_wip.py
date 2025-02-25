@@ -20,6 +20,8 @@ from vispy import scene
 from vispy.app.canvas import MouseEvent
 from vispy.scene.visuals import Rectangle
 
+from pymmcore_widgets.control._stage_explorer._rois import ROIRectangle
+
 from ._stage_viewer_wip import StageViewer
 
 # suppress scientific notation when printing numpy arrays
@@ -304,19 +306,7 @@ class StageExplorer(QWidget):
         px = self._mmc.getPixelSizeUm()
         fov_w, fov_h = self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
         for rect in rects:
-            top_left, bottom_right = rect.bounding_box()
-            # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
-            # bottom_right corners respectively because the grid plan is created
-            # considering the center of the fov and we want the roi to define the edges
-            # of the grid plan.
-            grid_plan = useq.GridFromEdges(
-                top=top_left[1] - (fov_h / 2),
-                bottom=bottom_right[1] + (fov_h / 2),
-                left=top_left[0] + (fov_w / 2),
-                right=bottom_right[0] - (fov_w / 2),
-                fov_width=fov_w,
-                fov_height=fov_h,
-            )
+            grid_plan = self._build_grid_plan(rect, fov_w, fov_h)
             x, y = rect.center
             pos = useq.AbsolutePosition(
                 x=x,
@@ -586,20 +576,26 @@ class StageExplorer(QWidget):
             px = self._mmc.getPixelSizeUm()
             fov_w = self._mmc.getImageWidth() * px
             fov_h = self._mmc.getImageHeight() * px
-            top_left, bottom_right = roi.bounding_box()
-            # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
-            # bottom_right corners respectively because the grid plan is created
-            # considering the center of the fov and we want the roi to define the edges
-            # of the grid plan.
-            grid_plan = useq.GridFromEdges(
-                top=top_left[1] - (fov_h / 2),
-                bottom=bottom_right[1] + (fov_h / 2),
-                left=top_left[0] + (fov_w / 2),
-                right=bottom_right[0] - (fov_w / 2),
-                fov_width=fov_w,
-                fov_height=fov_h,
-            )
+            grid_plan = self._build_grid_plan(roi, fov_w, fov_h)
             pos = list(grid_plan)
             rows = max(r.row for r in pos if r.row is not None) + 1
             cols = max(c.col for c in pos if c.col is not None) + 1
             roi.set_text(f"Rows: {rows} Cols: {cols}")
+
+    def _build_grid_plan(
+        self, roi: ROIRectangle, fov_w: float, fov_h: float
+    ) -> useq.GridFromEdges:
+        """Return a `GridFromEdges` plan from the roi and fov width and height."""
+        top_left, bottom_right = roi.bounding_box()
+        # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
+        # bottom_right corners respectively because the grid plan is created
+        # considering the center of the fov and we want the roi to define the edges
+        # of the grid plan.
+        return useq.GridFromEdges(
+            top=top_left[1] - (fov_h / 2),
+            bottom=bottom_right[1] + (fov_h / 2),
+            left=top_left[0] + (fov_w / 2),
+            right=bottom_right[0] - (fov_w / 2),
+            fov_width=fov_w,
+            fov_height=fov_h,
+        )
