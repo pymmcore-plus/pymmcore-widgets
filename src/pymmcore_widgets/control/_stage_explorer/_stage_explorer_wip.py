@@ -560,7 +560,7 @@ class StageExplorer(QWidget):
         ]
         return all(view_rect.contains(*vertex) for vertex in vertices)
 
-    # ---------------------ROIs--------------------
+    # ROIs ------------------------------------------------------------------------
 
     def _active_roi(self) -> ROIRectangle | None:
         """Return the next active ROI."""
