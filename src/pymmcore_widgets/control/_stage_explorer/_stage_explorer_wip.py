@@ -77,29 +77,18 @@ class RotationControl(QWidget):
         lbl_pre = QLabel("Rotation:")
         lbl_post = QLabel("°")
         self._rotation_spin = QDoubleSpinBox()
+        self._rotation_spin.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
         self._rotation_spin.setRange(-360, 360)
         self._rotation_spin.setSingleStep(1)
         self._rotation_spin.setValue(0)
         self._rotation_spin.valueChanged.connect(self._on_value_changed)
 
-        wdg = QWidget()
-        layout = QHBoxLayout(wdg)
+        layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(3)
         layout.addWidget(lbl_pre, 0)
         layout.addWidget(self._rotation_spin, 0)
         layout.addWidget(lbl_post, 0)
-
-        toolbar = QToolBar()
-        toolbar.setStyleSheet(SS_TOOLBUTTON)
-        toolbar.setMovable(False)
-        toolbar.setContentsMargins(0, 0, 0, 0)
-        toolbar.addWidget(wdg)
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(3)
-        layout.addWidget(toolbar)
 
     def _on_value_changed(self, value: float) -> None:
         self.valueChanged.emit(value)
@@ -209,6 +198,7 @@ class StageExplorer(QWidget):
         self._rotation_control = RotationControl()
         toolbar.addSeparator()
         toolbar.addWidget(self._rotation_control)
+        toolbar.addSeparator()
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
