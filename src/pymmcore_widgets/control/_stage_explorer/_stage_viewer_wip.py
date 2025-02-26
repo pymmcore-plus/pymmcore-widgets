@@ -1,4 +1,3 @@
-import contextlib
 from collections.abc import Iterator
 from typing import Any, Optional, cast
 
@@ -9,10 +8,8 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from vispy import scene
-from vispy.app.canvas import KeyEvent, MouseEvent
 from vispy.scene.visuals import Image
 from vispy.scene.widgets import ViewBox
-from vispy.util.keys import Key
 
 from ._rois import ROIRectangle
 
@@ -66,12 +63,6 @@ class StageViewer(QWidget):
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.canvas.native)
-
-        # connect vispy events
-        self.canvas.events.mouse_press.connect(self._on_mouse_press)
-        self.canvas.events.mouse_move.connect(self._on_mouse_move)
-        self.canvas.events.mouse_release.connect(self._on_mouse_release)
-        self.canvas.events.key_press.connect(self._on_key_press)
 
     # --------------------PUBLIC METHODS--------------------
 
@@ -138,62 +129,3 @@ class StageViewer(QWidget):
         min_x, min_y = all_corners_combined.min(axis=0)
         max_x, max_y = all_corners_combined.max(axis=0)
         return min_x, max_x, min_y, max_y
-
-    # --------------------ROI--------------------
-
-    def _active_roi(self) -> ROIRectangle | None:
-        """Return the next active ROI."""
-        return next((roi for roi in self._rois if roi.selected()), None)
-
-    def _on_mouse_press(self, event: MouseEvent) -> None:
-        """Handle the mouse press event."""
-        canvas_pos = (event.pos[0], event.pos[1])
-
-        if self._active_roi() is not None:
-            self.view.camera.interactive = False
-
-        # create a new roi only if the Alt key is pressed
-        # TODO: add button to activate/deactivate the ROI creation as well as to delete
-        # all the ROIs
-        elif Key("Alt").name in event.modifiers and event.button == 1:
-            self.view.camera.interactive = False
-            # create the ROI rectangle for the first time
-            roi = self._create_roi(canvas_pos)
-            self._rois.append(roi)
-
-    def _create_roi(self, canvas_pos: tuple[float, float]) -> ROIRectangle:
-        """Create a new ROI rectangle and connect its events."""
-        roi = ROIRectangle(self.view.scene)
-        roi.connect(self.canvas)
-        world_pos = roi._tform().map(canvas_pos)[:2]
-        roi.set_selected(True)
-        roi.set_visible(True)
-        roi.set_anchor(world_pos)
-        roi.set_bounding_box(world_pos, world_pos)
-        return roi
-
-    def _on_mouse_move(self, event: MouseEvent) -> None:
-        """Update the cursor shape when hovering over the ROIs."""
-        if (roi := self._active_roi()) is not None:
-            cursor = roi.get_cursor(event)
-            self.canvas.native.setCursor(cursor)
-        else:
-            self.canvas.native.setCursor(Qt.CursorShape.ArrowCursor)
-
-    def _on_mouse_release(self, event: MouseEvent) -> None:
-        """Handle the mouse release event."""
-        self.view.camera.interactive = True
-
-    def _on_key_press(self, event: KeyEvent) -> None:
-        """Delete the last ROI added to the scene when pressing Cmd/Ctrl + Z."""
-        key: Key = event.key
-        modifiers: tuple[Key, ...] = event.modifiers
-        if (
-            key == Key("Z")
-            and (Key("Meta") in modifiers or Key("Control") in modifiers)
-            and self._rois
-        ):
-            roi = self._rois.pop(-1)
-            roi.remove()
-            with contextlib.suppress(Exception):
-                roi.disconnect(self.canvas)

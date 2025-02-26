@@ -1,10 +1,11 @@
+import contextlib
 from typing import cast
 
 import numpy as np
 import useq
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QTimerEvent, Signal
+from qtpy.QtCore import Qt, QTimerEvent, Signal
 from qtpy.QtWidgets import (
     QAction,
     QDoubleSpinBox,
@@ -17,11 +18,11 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 from vispy import scene
-from vispy.app.canvas import MouseEvent
+from vispy.app.canvas import KeyEvent, MouseEvent
 from vispy.scene.visuals import Rectangle
+from vispy.util.keys import Key
 
-from pymmcore_widgets.control._stage_explorer._rois import ROIRectangle
-
+from ._rois import ROIRectangle
 from ._stage_viewer_wip import StageViewer
 
 # suppress scientific notation when printing numpy arrays
@@ -153,6 +154,9 @@ class StageExplorer(QWidget):
         # timer for polling stage position
         self._timer_id: int | None = None
 
+        # to store the rois
+        self._rois: list[ROIRectangle] = []
+
         # properties
         self._snap_on_double_click: bool = False
         self._poll_stage_position: bool = False
@@ -229,7 +233,10 @@ class StageExplorer(QWidget):
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
         self._mmc.events.roiSet.connect(self._update_stage_marker)
         # connect vispy events
+        self._stage_viewer.canvas.events.mouse_press.connect(self._on_mouse_press)
         self._stage_viewer.canvas.events.mouse_move.connect(self._on_mouse_move)
+        self._stage_viewer.canvas.events.mouse_release.connect(self._on_mouse_release)
+        self._stage_viewer.canvas.events.key_press.connect(self._on_key_press)
 
         self._on_sys_config_loaded()
 
@@ -553,11 +560,46 @@ class StageExplorer(QWidget):
         ]
         return all(view_rect.contains(*vertex) for vertex in vertices)
 
-    # ---------------------MOUSE EVENTS---------------------
+    # ---------------------ROIs--------------------
+
+    def _active_roi(self) -> ROIRectangle | None:
+        """Return the next active ROI."""
+        return next((roi for roi in self._rois if roi.selected()), None)
+
+    def _on_mouse_press(self, event: MouseEvent) -> None:
+        """Handle the mouse press event."""
+        canvas_pos = (event.pos[0], event.pos[1])
+
+        if self._active_roi() is not None:
+            self._stage_viewer.view.camera.interactive = False
+
+        # create a new roi only if the Alt key is pressed
+        # TODO: add button to activate/deactivate the ROI creation as well as to delete
+        # all the ROIs
+        elif Key("Alt").name in event.modifiers and event.button == 1:
+            self._stage_viewer.view.camera.interactive = False
+            # create the ROI rectangle for the first time
+            roi = self._create_roi(canvas_pos)
+            self._rois.append(roi)
+
+    def _create_roi(self, canvas_pos: tuple[float, float]) -> ROIRectangle:
+        """Create a new ROI rectangle and connect its events."""
+        roi = ROIRectangle(self._stage_viewer.view.scene)
+        roi.connect(self._stage_viewer.canvas)
+        world_pos = roi._tform().map(canvas_pos)[:2]
+        roi.set_selected(True)
+        roi.set_visible(True)
+        roi.set_anchor(world_pos)
+        roi.set_bounding_box(world_pos, world_pos)
+        return roi
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
         """Update the roi text when the roi changes size."""
-        if (roi := self._stage_viewer._active_roi()) is not None:
+        if (roi := self._active_roi()) is not None:
+            # set cursor
+            cursor = roi.get_cursor(event)
+            self._stage_viewer.canvas.native.setCursor(cursor)
+            # update roi text
             px = self._mmc.getPixelSizeUm()
             fov_w = self._mmc.getImageWidth() * px
             fov_h = self._mmc.getImageHeight() * px
@@ -565,7 +607,30 @@ class StageExplorer(QWidget):
             pos = list(grid_plan)
             rows = max(r.row for r in pos if r.row is not None) + 1
             cols = max(c.col for c in pos if c.col is not None) + 1
-            roi.set_text(f"Rows: {rows} Cols: {cols}")
+            roi.set_text(f"Rows: {rows}\nCols: {cols}")
+        else:
+            # reset cursor to default
+            self._stage_viewer.canvas.native.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def _on_mouse_release(self, event: MouseEvent) -> None:
+        """Handle the mouse release event."""
+        self._stage_viewer.view.camera.interactive = True
+
+    def _on_key_press(self, event: KeyEvent) -> None:
+        """Delete the last ROI added to the scene when pressing Cmd/Ctrl + Z."""
+        key: Key = event.key
+        modifiers: tuple[Key, ...] = event.modifiers
+        if (
+            key == Key("Z")
+            and (Key("Meta") in modifiers or Key("Control") in modifiers)
+            and self._rois
+        ):
+            roi = self._rois.pop(-1)
+            roi.remove()
+            with contextlib.suppress(Exception):
+                roi.disconnect(self._stage_viewer.canvas)
+
+    # ---------------------GRID PLAN--------------------
 
     def _build_grid_plan(
         self, roi: ROIRectangle, fov_w: float, fov_h: float
