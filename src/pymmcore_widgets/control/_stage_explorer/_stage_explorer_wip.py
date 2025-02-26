@@ -35,7 +35,10 @@ RESET = "Reset View"
 CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
 POLL_STAGE = "Poll Stage Position"
-SEPARATOR = "Separator"
+ROIS = "Activate ROIs Tool"
+DELETE_ROIS = "Delete All ROIs"
+SEPARATOR = "separator"
+
 MIN_RESET_XY_DIFF = 5
 
 SS_TOOLBUTTON = """
@@ -173,14 +176,19 @@ class StageExplorer(QWidget):
         self._reset_view_act: QAction
         self._snap_on_double_click_act: QAction
         self._poll_stage_position_act: QAction
+        self._activate_rois_tool_act: QAction
+        self._delete_rois_act: QAction
 
         ACTION_MAP = {
             # action text: (icon, color, checkable, callback)
             CLEAR: (MDI6.close, GRAY, False, self.clear_scene),
             RESET: (MDI6.fullscreen, GRAY, False, self.reset_view),
+            f"{SEPARATOR}1": (None, None, False, None),
             SNAP: (MDI6.camera_outline, GRAY, True, self._on_setting_checked),
             POLL_STAGE: (MDI6.map_marker, GRAY, True, self._on_poll_stage),
-            f"{SEPARATOR}1": (None, None, None, None),
+            f"{SEPARATOR}2": (None, None, False, None),
+            ROIS: (MDI6.vector_rectangle, GRAY, True, self._on_setting_checked),
+            DELETE_ROIS: (MDI6.vector_square_remove, GRAY, False, self._remove_rois),
         }
 
         # create actions
@@ -201,7 +209,6 @@ class StageExplorer(QWidget):
         self._rotation_control = RotationControl()
         toolbar.addSeparator()
         toolbar.addWidget(self._rotation_control)
-        toolbar.addSeparator()
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
@@ -370,6 +377,7 @@ class StageExplorer(QWidget):
         """Update the stage viewer settings based on the state of the action."""
         action_map = {
             self._snap_on_double_click_act: "snap_on_double_click",
+            self._activate_rois_tool_act: "activate_rois_tool",
         }
         sender = cast(QAction, self.sender())
 
@@ -573,10 +581,10 @@ class StageExplorer(QWidget):
         if self._active_roi() is not None:
             self._stage_viewer.view.camera.interactive = False
 
-        # create a new roi only if the Alt key is pressed
-        # TODO: add button to activate/deactivate the ROI creation as well as to delete
-        # all the ROIs
-        elif Key("Alt").name in event.modifiers and event.button == 1:
+        elif (
+            Key("Alt").name in event.modifiers
+            or self._activate_rois_tool_act.isChecked()
+        ) and event.button == 1:
             self._stage_viewer.view.camera.interactive = False
             # create the ROI rectangle for the first time
             roi = self._create_roi(canvas_pos)
@@ -607,7 +615,7 @@ class StageExplorer(QWidget):
             pos = list(grid_plan)
             rows = max(r.row for r in pos if r.row is not None) + 1
             cols = max(c.col for c in pos if c.col is not None) + 1
-            roi.set_text(f"Rows: {rows} Cols: {cols}")
+            roi.set_text(f"r{rows} x c{cols}")
         else:
             # reset cursor to default
             self._stage_viewer.canvas.native.setCursor(Qt.CursorShape.ArrowCursor)
@@ -625,12 +633,21 @@ class StageExplorer(QWidget):
             and (Key("Meta") in modifiers or Key("Control") in modifiers)
             and self._rois
         ):
-            roi = self._rois.pop(-1)
-            roi.remove()
-            with contextlib.suppress(Exception):
-                roi.disconnect(self._stage_viewer.canvas)
+            self._remove_roi()
 
-    # ---------------------GRID PLAN--------------------
+    def _remove_roi(self) -> None:
+        """Delete the last ROI added to the scene."""
+        roi = self._rois.pop(-1)
+        roi.remove()
+        with contextlib.suppress(Exception):
+            roi.disconnect(self._stage_viewer.canvas)
+
+    def _remove_rois(self) -> None:
+        """Delete all the ROIs."""
+        while self._rois:
+            self._remove_roi()
+
+    # GRID PLAN -------------------------------------------------------------------
 
     def _build_grid_plan(
         self, roi: ROIRectangle, fov_w: float, fov_h: float
