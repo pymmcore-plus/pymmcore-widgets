@@ -607,7 +607,7 @@ class StageExplorer(QWidget):
             pos = list(grid_plan)
             rows = max(r.row for r in pos if r.row is not None) + 1
             cols = max(c.col for c in pos if c.col is not None) + 1
-            roi.set_text(f"Rows: {rows}\nCols: {cols}")
+            roi.set_text(f"Rows: {rows} Cols: {cols}")
         else:
             # reset cursor to default
             self._stage_viewer.canvas.native.setCursor(Qt.CursorShape.ArrowCursor)
