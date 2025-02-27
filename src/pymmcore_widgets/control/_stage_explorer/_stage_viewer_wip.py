@@ -115,10 +115,10 @@ class StageViewer(QWidget):
             # the bottom-right corner.
             corners = np.array(
                 [
-                    [x, y], # bottom-right
-                    [x - w, y], # bottom-left
-                    [x - w, y + h], # top-left
-                    [x, y + h], # top-right
+                    [x, y],  # bottom-right
+                    [x - w, y],  # bottom-left
+                    [x - w, y + h],  # top-left
+                    [x, y + h],  # top-right
                 ]
             )
             # transform the corners to scene coordinates
