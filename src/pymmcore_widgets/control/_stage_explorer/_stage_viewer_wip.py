@@ -11,8 +11,6 @@ from vispy import scene
 from vispy.scene.visuals import Image
 from vispy.scene.widgets import ViewBox
 
-from ._rois import ROIRectangle
-
 
 class ImageData(Image):
     """A subclass of vispy's Image visual.
@@ -56,9 +54,6 @@ class StageViewer(QWidget):
         self.view = cast(ViewBox, self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1)
 
-        # to handle the drawing of rois
-        self._rois: list[ROIRectangle] = []
-
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -88,10 +83,6 @@ class StageViewer(QWidget):
             return
         self.view.camera.set_range(x=(min_x, max_x), y=(min_y, max_y), margin=0)
 
-    def rois(self) -> list[ROIRectangle]:
-        """Return the list of ROIs."""
-        return self._rois
-
     # --------------------PRIVATE METHODS--------------------
 
     def _get_images(self) -> Iterator[Image]:
@@ -101,23 +92,35 @@ class StageViewer(QWidget):
                 yield child
 
     def _get_full_boundaries(
-        self,
+        self, pixel_size: float = 1.0
     ) -> tuple[float | None, float | None, float | None, float | None]:
         """Return the boundaries of the images in the scene...
 
         as (min_x, max_x, min_y, max_y).
+
+        The pixel_size is used to convert the image dimensions to the scene
+        coordinates.
         """
-        # TODO: FIX ME!!! This logic does not work if the user flips the x (or y)
-        # coordinates sign (transposing the stage axis)...
         # TODO: maybe consider also the rectangles (ROIs) in the scene
         all_corners: list[np.ndarray] = []
         for child in self._get_images():
             # get image dimensions
-            w, h = child.bounds(0)[1], child.bounds(1)[1]
+            w, h = child.bounds(0)[1] * pixel_size, child.bounds(1)[1] * pixel_size
             # get the (x, y) coordinates from the transform matrix
             x, y = child.transform.matrix[3, :2]
-            # define the four corners of the image (bottom-left origin by vispy default)
-            corners = np.array([[x, y], [x + w, y], [x, y + h], [x + w, y + h]])
+            # define the four corners of the image
+            # note: we use a coords system where (0, 0) is the origin, going
+            # up and right is positive and going down and left is negative.
+            # When an image is added to the scene with vispy, its origin is at
+            # the bottom-right corner.
+            corners = np.array(
+                [
+                    [x, y], # bottom-right
+                    [x - w, y], # bottom-left
+                    [x - w, y + h], # top-left
+                    [x, y + h], # top-right
+                ]
+            )
             # transform the corners to scene coordinates
             all_corners.append(corners)
 

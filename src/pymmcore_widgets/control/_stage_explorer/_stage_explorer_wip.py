@@ -279,7 +279,9 @@ class StageExplorer(QWidget):
         # NOTE: Not using the `reset_view` method from `StageViewer` directly because we
         # also need to consider the stage position marker.
 
-        min_x, max_x, min_y, max_y = self._stage_viewer._get_full_boundaries()
+        min_x, max_x, min_y, max_y = self._stage_viewer._get_full_boundaries(
+            pixel_size=self._mmc.getPixelSizeUm()
+        )
 
         # consider the stage position marker if present
         mk_min_x, mk_min_y, mk_max_x, mk_max_y = self._get_stage_marker_position()
@@ -300,14 +302,17 @@ class StageExplorer(QWidget):
         self._update_stage_marker()
         self.reset_view()
 
+    def rois(self) -> list[ROIRectangle]:
+        """Return the list of ROIs."""
+        return self._rois
+
     def value(self) -> list[useq.Position]:
         """Return a list of `GridFromEdges` objects from the drawn rectangles."""
         # TODO: add a way to set overlap
-        rects = self._stage_viewer.rois()
         positions = []
         px = self._mmc.getPixelSizeUm()
         fov_w, fov_h = self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
-        for rect in rects:
+        for rect in self._rois:
             grid_plan = self._build_grid_plan(rect, fov_w, fov_h)
             x, y = rect.center
             pos = useq.AbsolutePosition(
@@ -357,7 +362,7 @@ class StageExplorer(QWidget):
         # update the stage position label
         self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
         if self._snap_on_double_click:
-            # wait for the stage to be in position before snapping an image
+            # wait for the stage to be in position before snapping an images
             self._mmc.waitForDevice(self._mmc.getXYStageDevice())
             self._mmc.snapImage()
 
@@ -513,15 +518,17 @@ class StageExplorer(QWidget):
 
         # update stage marker position
         if self._stage_pos_marker is not None:
+            current_x, current_y = self._stage_pos_marker.transform.matrix[3, :2]
+            diff_x = abs(x - current_x) / max(abs(current_x), 1e-6) * 100
+            diff_y = abs(y - current_y) / max(abs(current_y), 1e-6) * 100
+            # NOTE: diff_x and diff_y should be calculated before calling
+            # _update_stage_marker
+            self._update_stage_marker(x, y)
             # if the difference between (x, y) and (current_x, current_y) is greater
             # than a certain %, then update the marker position and reset the view.
             # This is useful because we don't want to trigger reset_view when the user
             # changes the zoom level or pans the view or if the stage jittered a bit.
-            current_x, current_y = self._stage_pos_marker.transform.matrix[3, :2]
-            diff_x = abs(x - current_x) / max(abs(current_x), 1e-6) * 100
-            diff_y = abs(y - current_y) / max(abs(current_y), 1e-6) * 100
             if diff_x > MIN_RESET_XY_DIFF or diff_y > MIN_RESET_XY_DIFF:
-                self._update_stage_marker(x, y)
                 self.reset_view()
 
     def _get_stage_marker_position(
@@ -535,7 +542,7 @@ class StageExplorer(QWidget):
             The min x, min y, max x, and max y coordinates of the stage position marker.
             If the stage marker is not present, all values are None.
         """
-        if self._stage_pos_marker is None:
+        if self._stage_pos_marker is None or not self._stage_pos_marker.visible:
             return None, None, None, None
         matrix = self._stage_pos_marker.transform.matrix
         x, y = matrix[3, :2]
