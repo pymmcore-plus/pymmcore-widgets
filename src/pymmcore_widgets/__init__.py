@@ -37,6 +37,7 @@ __all__ = [
     "PropertyWidget",
     "ShuttersWidget",
     "SnapButton",
+    "StageExplorer",
     "StageWidget",
     "StateDeviceWidget",
     "TimePlanWidget",
@@ -61,6 +62,7 @@ from .control import (
     PresetsWidget,
     ShuttersWidget,
     SnapButton,
+    StageExplorer,
     StageWidget,
 )
 from .device_properties import PropertiesWidget, PropertyBrowser, PropertyWidget
