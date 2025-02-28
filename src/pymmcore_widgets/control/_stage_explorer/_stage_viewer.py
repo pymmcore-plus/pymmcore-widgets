@@ -1,192 +1,51 @@
-import contextlib
 from collections.abc import Iterator
 from typing import Optional, cast
 
 import numpy as np
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.utils import qthrottled
 from vispy import scene
-from vispy.app.canvas import KeyEvent, MouseEvent
-from vispy.geometry import Rect
 from vispy.scene.visuals import Image
 from vispy.scene.widgets import ViewBox
-from vispy.util.keys import Key
 
 
 class StageViewer(QWidget):
-    """A stage positions viewer widget.
-
-    This widget provides a visual representation of the stage positions. The user can
-    ----------
-    parent : QWidget | None
-        Optional parent widget, by default None.
-
-    Properties
-    ----------
-    image_store : dict[tuple[float, float], np.ndarray]
-        Return the image_store dictionary object where the keys are the stage positions
-        and values are the images added to the scene.
-    pixel_size : float
-        The pixel size in micrometers. By default, 1.0.
-    """
-
-    scaleChanged = Signal(int)
-    rectChanged = Signal(object)
+    """A widget to add images with a transform to a vispy canves."""
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Stage Explorer")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
-        self._current_scale: int = 1
-
-        self._drag: bool = False
-
-        self._roi: bool = False
-        self._rect_start_pos: tuple[float, float] | None = None
-
-        # properties
-        self._image_store: dict[float, dict[tuple[float, float], np.ndarray]] = {}
-        self._pixel_size: float = 1.0
-
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
         self.view = cast(ViewBox, self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1)
-
-        self._rects: list[scene.visuals.Rectangle] = []
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.canvas.native)
 
-        # connections (if the scale has changed, update the scene accordingly)
-        self.canvas.events.draw.connect(qthrottled(self._on_draw_event))
-        self.canvas.events.mouse_press.connect(self._on_mouse_press)
-        self.canvas.events.mouse_move.connect(self._on_mouse_move)
-        self.canvas.events.mouse_release.connect(self._on_mouse_release)
-        self.canvas.events.key_press.connect(self._on_key_press)
-
     # --------------------PUBLIC METHODS--------------------
 
-    @property
-    # def image_store(self) -> dict[tuple[float, float], np.ndarray]:
-    def image_store(self) -> dict[float, dict[tuple[float, float], np.ndarray]]:
-        """Return the image store."""
-        return self._image_store
-
-    @property
-    def pixel_size(self) -> float:
-        """Return the pixel size."""
-        return self._pixel_size
-
-    @pixel_size.setter
-    def pixel_size(self, value: float) -> None:
-        """Set the pixel size."""
-        self._pixel_size = value
-
-    @property
-    def roi(self) -> bool:
-        """Return True if the ROI is active."""
-        return self._roi
-
-    @roi.setter
-    def roi(self, value: bool) -> None:
-        """Set the ROI."""
-        self._roi = value
-
-    @property
-    def rects(self) -> list[scene.visuals.Rectangle]:
-        """Return the rectangle visual."""
-        return self._rects
-
-    def add_image(self, img: np.ndarray, x: float, y: float) -> None:
-        """Add an image to the scene.
-
-        The image is also added to the `image_store` dict where the (x, y) positions are
-        the keys and the images the value.
-
-        Parameters
-        ----------
-        img : np.ndarray
-            The image to add to the scene.
-        x : float
-            The x position of the image.
-        y : float
-            The y position of the image.
-        """
-        # in vispy, when you add an image and translate it, the (x, y) translation
-        # coordinates represent the bottom-left corner of the image. For us is better
-        # to have the (x, y) coordinates represent the center of the image. So we need
-        # to adjust the coordinates and move the image to the left and bottom by half of
-        # the width and height of the image. We also have to considet the pixel size.
-        h, w = np.array(img.shape)
-        x, y = round(x - w / 2 * self._pixel_size), round(y - h / 2 * self._pixel_size)
-        # store the image in the _image_store. NOTE: once the image is added to the view
-        # the (x, y) coords represent the bottom-left corner of the vispy Image.
-        if self.pixel_size not in self._image_store:
-            self._image_store[self.pixel_size] = {}
-        self._image_store[self.pixel_size][(x, y)] = img
-        # get the current scale
-        self._current_scale = scale = self.get_scale()
-        # add the image to the scene with the current scale
-        img = img[::scale, ::scale]
+    def add_image(self, img: np.ndarray, transform: np.ndarray | None = None) -> None:
+        """Add an image to the scene with the given transform."""
         frame = Image(img, cmap="grays", parent=self.view.scene, clim="auto")
         # keep the added image on top of the others
         frame.order = min(child.order for child in self._get_images()) - 1
-        frame.transform = scene.STTransform(
-            scale=(scale * self._pixel_size, scale * self._pixel_size), translate=(x, y)
-        )
-
-    def update_by_scale(self, scale: int) -> None:
-        """Update the images in the scene based on scale and pixel size."""
-        for child in self._get_images():
-            x, y = child.transform.translate[:2]
-            if (img := self._image_store.get(self._pixel_size, {}).get((x, y))) is None:
-                continue
-            # if the image is not within the view, skip it.
-            if not self._is_image_within_view(x, y, *img.shape):
-                continue
-            # is scale is the same, skip the update
-            if scale == child.transform.scale[0] / self._pixel_size:
-                continue
-            img_scaled = img[::scale, ::scale]
-            # update the image data
-            child.set_data(img_scaled)
-            # update the scale
-            child.transform.scale = (scale * self._pixel_size, scale * self._pixel_size)
-
-    def get_scale(self) -> int:
-        """Return the scale based on the zoom level."""
-        # get the transform from the camera
-        transform = self.view.camera.transform
-        # calculate the zoom level as the inverse of the scale factor in the transform
-        pixel_ratio = 1 / transform.scale[0]
-        # Calculate the scale as the inverse of the zoom level
-        scale = 1
-        # TODO: using *2 to not scale the image too much. Maybe find a better way
-        while (pixel_ratio / scale) > (self._pixel_size * 2):
-            scale *= 2
-        return scale
+        # add the image to the scene with the transform
+        transform = np.eye(4) if transform is None else transform
+        frame.transform = scene.MatrixTransform(matrix=transform)
 
     def clear_scene(self) -> None:
         """Clear the scene."""
-        # clear the image store
-        self._image_store.clear()
-
         # remove all images from the scene
         for child in reversed(self.view.scene.children):
             if isinstance(child, Image):
                 child.parent = None
-
-        # remove all rectangles from the scene
-        for r in self._rects:
-            r.parent = None
-        self._rects.clear()
 
     def reset_view(self) -> None:
         """Recenter the view to the center of all images."""
@@ -197,103 +56,6 @@ class StageViewer(QWidget):
 
     # --------------------PRIVATE METHODS--------------------
 
-    def _on_draw_event(self, event: MouseEvent) -> None:
-        """Handle the draw event.
-
-        Update the scene if the scale has changed.
-        """
-        scale = self.get_scale()
-        if scale == self._current_scale:
-            return
-        self._current_scale = scale
-        self.update_by_scale(scale)
-        self.scaleChanged.emit(scale)
-
-    def _tform(self) -> scene.transforms.BaseTransform:
-        """Return the transform from canvas to scene."""
-        return self._rects[-1].transforms.get_transform("canvas", "scene")
-
-    def _on_key_press(self, event: KeyEvent) -> None:
-        """Delete the last rectangle added to the scene when pressing Cmd/Ctrl + Z."""
-        key: Key = event.key
-        modifiers: tuple[Key, ...] = event.modifiers
-        if (
-            key == Key("Z")
-            and (Key("Meta") in modifiers or Key("Control") in modifiers)
-            and self._rects
-        ):
-            self._rects.pop(-1).parent = None
-            self.rectChanged.emit(self._rects)
-
-    def _on_mouse_press(self, event: MouseEvent) -> None:
-        """Handle the mouse press event."""
-        if (self._roi or Key("Alt").name in event.modifiers) and event.button == 1:
-            self.view.camera.interactive = False
-            rect = self._create_rect()
-            self._rects.append(rect)
-            rect.visible = True
-            canvas_pos = (event.pos[0], event.pos[1])
-            world_pos = self._tform().map(canvas_pos)[:2]
-            self._rect_start_pos = world_pos
-
-    def _create_rect(self) -> scene.visuals.Rectangle:
-        """Create a new rectangle visual."""
-        new_rect = scene.visuals.Rectangle(
-            center=[0, 0],
-            width=1,
-            height=1,
-            color=None,
-            border_color="yellow",
-            border_width=2,
-            parent=self.view.scene,
-        )
-        new_rect.set_gl_state(depth_test=False)
-        return new_rect
-
-    def _on_mouse_move(self, event: MouseEvent) -> None:
-        """Handle the mouse drag event."""
-        if self._roi or (
-            Key("Alt").name in event.modifiers
-            and self._rect_start_pos is not None
-            and event.button == 1
-        ):
-            canvas_pos = (event.pos[0], event.pos[1])
-            world_pos = self._tform().map(canvas_pos)[:2]
-            self.update_rectangle(world_pos)
-            return
-        if event.is_dragging and not self._drag:
-            self._drag = True
-        if self._drag:
-            self.update_by_scale(self._current_scale)
-
-    def update_rectangle(self, end: tuple[float, float]) -> None:
-        """Update the rectangle visual with correct coordinates."""
-        if self._rect_start_pos is None:
-            return
-        with contextlib.suppress(Exception):
-            x0, y0 = self._rect_start_pos
-            x1, y1 = end
-            rect = self._rects[-1]
-            rect.center = (x0 + x1) / 2, (y0 + y1) / 2
-            width, height = abs(x0 - x1), abs(y0 - y1)
-            rect.width = width
-            rect.height = height
-
-    def _on_mouse_release(self, event: MouseEvent) -> None:
-        """Handle the mouse release event."""
-        if self._roi or (
-            Key("Alt").name in event.modifiers
-            and self._rect_start_pos is not None
-            and event.button == 1
-        ):
-            self._rect_start_pos = None
-            self.view.camera.interactive = True
-            self.rectChanged.emit(self._rects)
-            return
-        if self._drag:
-            self._drag = False
-            self.update_by_scale(self._current_scale)
-
     def _get_images(self) -> Iterator[Image]:
         """Yield images in the scene."""
         for child in self.view.scene.children:
@@ -301,46 +63,43 @@ class StageViewer(QWidget):
                 yield child
 
     def _get_full_boundaries(
-        self,
+        self, pixel_size: float = 1.0
     ) -> tuple[float | None, float | None, float | None, float | None]:
-        """Return the boundaries of the images in the scene."""
-        min_x: float | None = None
-        max_x: float | None = None
-        min_y: float | None = None
-        max_y: float | None = None
-        # calculate the max and min values of the images in the scene.
-        # NOTE: the (x, y) coords in the _image_store are the bottom-left corner of the
-        # vispy Image.
-        # first get the biggest pixel size key in the image store and use it to get the
-        # current image store so we get the borders of the images with the biggest pixel
-        # size and thus the biggest images.
-        max_px_size = max(self._image_store.keys(), default=1)
-        current_image_store = self._image_store.get(max_px_size, {})
-        for (x, y), img in current_image_store.items():
-            height, width = np.array(img.shape) * self._pixel_size
-            min_x = x if min_x is None else min(min_x, x)  # left
-            max_x = x + width if max_x is None else max(max_x, x + width)  # right
-            min_y = y if min_y is None else min(min_y, y)  # bottom
-            max_y = y + height if max_y is None else max(max_y, y + height)  # top
+        """Return the boundaries of the images in the scene...
+
+        as (min_x, max_x, min_y, max_y).
+
+        The pixel_size is used to convert the image dimensions to the scene
+        coordinates.
+        """
+        # TODO: maybe consider also the rectangles (ROIs) in the scene
+        all_corners: list[np.ndarray] = []
+        for child in self._get_images():
+            # get image dimensions
+            w, h = child.bounds(0)[1] * pixel_size, child.bounds(1)[1] * pixel_size
+            # get the (x, y) coordinates from the transform matrix
+            x, y = child.transform.matrix[3, :2]
+            # get the four corners of the image. NOTE: when an image is added to
+            # the scene with vispy, image origin is at the bottom-left corner
+            # TODO: Fix me! If we invert the coordinates in micromnager
+            # (e.g. transpose X), the image origin will be at the bottom-right.
+            # need to figure out what to do...
+            corners = np.array(
+                [
+                    [x, y],  # bottom-left
+                    [x + w, y],  # bottom-right
+                    [x + w, y + h],  # top-right
+                    [x, y + h],  # top-left
+                ]
+            )
+            # transform the corners to scene coordinates
+            all_corners.append(corners)
+
+        if not all_corners:
+            return None, None, None, None
+
+        # combine all corners into one array and compute the bounding box
+        all_corners_combined = np.vstack(all_corners)
+        min_x, min_y = all_corners_combined.min(axis=0)
+        max_x, max_y = all_corners_combined.max(axis=0)
         return min_x, max_x, min_y, max_y
-
-    def _is_image_within_view(self, x: float, y: float, w: float, h: float) -> bool:
-        """
-        Return True if any part of the image is within the view.
-
-        Note that (x, y) is the bottom-left corner of the image and (w, h) are the width
-        and height of the image in micrometers.
-        """
-        # scale image dimensions by pixel size
-        w, h = np.array([w, h]) * self._pixel_size
-        # create a Rect for the image
-        image_rect = Rect(x, y, w, h)
-        # get the view Rect
-        view_rect = cast(Rect, self.view.camera.rect)
-        # check for overlap
-        return not (
-            image_rect.left > view_rect.right
-            or image_rect.right < view_rect.left
-            or image_rect.top < view_rect.bottom
-            or image_rect.bottom > view_rect.top
-        )
