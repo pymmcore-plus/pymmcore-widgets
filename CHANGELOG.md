@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.9.1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.9.1) (2025-02-26)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.9.0...v0.9.1)
+
+**Fixed bugs:**
+
+- fix: increase range fore the "Absolute Bounds" mode in the GridPlanWidget [\#402](https://github.com/pymmcore-plus/pymmcore-widgets/pull/402) ([fdrgsp](https://github.com/fdrgsp))
+- fix: update shutter widget color when closed [\#399](https://github.com/pymmcore-plus/pymmcore-widgets/pull/399) ([fdrgsp](https://github.com/fdrgsp))
+- fix: fix a bug in the CoreConnectedGridPlanWidget when selecting the bound mode [\#396](https://github.com/pymmcore-plus/pymmcore-widgets/pull/396) ([fdrgsp](https://github.com/fdrgsp))
+
+**Merged pull requests:**
+
+- ci\(pre-commit.ci\): autoupdate [\#397](https://github.com/pymmcore-plus/pymmcore-widgets/pull/397) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+
 ## [v0.9.0](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.9.0) (2025-01-21)
 
 [Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.8.0...v0.9.0)
