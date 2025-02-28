@@ -28,4 +28,4 @@ MDA = MDAWidget()
 MDA.show()
 
 v = wdg._stage_viewer
-# app.exec()
+app.exec()

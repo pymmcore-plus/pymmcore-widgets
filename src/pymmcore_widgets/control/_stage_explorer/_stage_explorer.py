@@ -1,11 +1,10 @@
-import contextlib
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import useq
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import Qt, QTimerEvent, Signal
+from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QAction,
     QDoubleSpinBox,
@@ -17,13 +16,12 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.fonticon import icon
-from vispy import scene
-from vispy.app.canvas import KeyEvent, MouseEvent
-from vispy.scene.visuals import Rectangle
-from vispy.util.keys import Key
+from vispy.app.canvas import MouseEvent
 
-from ._rois import ROIRectangle
 from ._stage_viewer import StageViewer
+
+if TYPE_CHECKING:
+    from ._rois import ROIRectangle
 
 # suppress scientific notation when printing numpy arrays
 np.set_printoptions(suppress=True)
@@ -33,6 +31,7 @@ GRAY = "#666"
 GREEN = "#3A3"
 RESET = "Reset View"
 CLEAR = "Clear View"
+SNAP = "Snap on Double Click"
 
 SS_TOOLBUTTON = """
     QToolButton {
@@ -98,9 +97,6 @@ class StageExplorer(QWidget):
     move the stage to a specific position (and, optionally, snap an image) by
     double-clicking on the view.
 
-    The widget `value` method returns a list of `useq.AbsolutePosition` objects, each
-    containing a `useq.GridFromEdges` plan subsequence for each drawn roi.
-
     Parameters
     ----------
     parent : QWidget | None
@@ -116,11 +112,6 @@ class StageExplorer(QWidget):
     snap_on_double_click : bool
         A boolean property that controls whether to snap an image when the user
         double-clicks on the view. By default, False.
-    poll_stage_position : bool
-        A boolean property that controls whether to poll the stage position.
-        If True, the widget will poll the stage position and display the current X and Y
-        coordinates in the status bar and with a 'cross_lines' marker. If False, the
-        widget will stop polling the stage position. By default, False.
     """
 
     def __init__(
@@ -156,11 +147,13 @@ class StageExplorer(QWidget):
         # actions
         self._clear_view_act: QAction
         self._reset_view_act: QAction
+        self._snap_on_double_click_act: QAction
 
         ACTION_MAP = {
             # action text: (icon, color, checkable, callback)
             CLEAR: (MDI6.close, GRAY, False, self._stage_viewer.clear_scene),
             RESET: (MDI6.fullscreen, GRAY, False, self._stage_viewer.reset_view),
+            SNAP: (MDI6.camera_outline, GRAY, True, self._on_setting_checked),
         }
 
         # create actions
@@ -169,6 +162,9 @@ class StageExplorer(QWidget):
             action.triggered.connect(callback)
             setattr(self, f"_{a_text.lower().replace(' ', '_')}_act", action)
             toolbar.addAction(action)
+
+        # set initial state of actions
+        self._snap_on_double_click_act.setChecked(self._snap_on_double_click)
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
@@ -189,9 +185,25 @@ class StageExplorer(QWidget):
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
 
+        # connections vispy events
+        self._stage_viewer.canvas.events.mouse_double_click.connect(
+            self._move_to_clicked_position
+        )
+
         self._on_sys_config_loaded()
 
     # -----------------------------PUBLIC METHODS-------------------------------------
+
+    @property
+    def snap_on_double_click(self) -> bool:
+        """Return the snap on double click property."""
+        return self._snap_on_double_click
+
+    @snap_on_double_click.setter
+    def snap_on_double_click(self, value: bool) -> None:
+        """Set the snap on double click property."""
+        self._snap_on_double_click = value
+        self._snap_on_double_click_act.setChecked(value)
 
     def add_image(
         self, image: np.ndarray, x_pos: float | None = None, y_pos: float | None = None
@@ -208,10 +220,37 @@ class StageExplorer(QWidget):
 
     # -----------------------------PRIVATE METHODS------------------------------------
 
+    # WIDGET ----------------------------------------------------------------------
+
+    def _on_setting_checked(self, checked: bool) -> None:
+        """Update the stage viewer settings based on the state of the action."""
+        action_map = {
+            self._snap_on_double_click_act: "snap_on_double_click",
+        }
+        sender = cast(QAction, self.sender())
+
+        if value := action_map.get(sender):
+            setattr(self, value, checked)
+
     # CORE ------------------------------------------------------------------------
+
     def _on_sys_config_loaded(self) -> None:
         """Clear the scene when the system configuration is loaded."""
         self._stage_viewer.clear_scene()
+
+    def _move_to_clicked_position(self, event: MouseEvent) -> None:
+        """Move the stage to the clicked position."""
+        if not self._mmc.getXYStageDevice():
+            return
+        # map the clicked canvas position to the stage position
+        x, y, _, _ = self._stage_viewer.view.camera.transform.imap(event.pos)
+        self._mmc.setXYPosition(x, y)
+        # update the stage position label
+        self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
+        if self._snap_on_double_click:
+            # wait for the stage to be in position before snapping an images
+            self._mmc.waitForDevice(self._mmc.getXYStageDevice())
+            self._mmc.snapImage()
 
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
@@ -241,7 +280,6 @@ class StageExplorer(QWidget):
         if not self._poll_stage_position:
             self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
         # reset the view if the image is not within the view
-        print(self._is_visual_within_view(x, y))
         if not self._is_visual_within_view(x, y):
             self._stage_viewer.reset_view()
 
@@ -251,13 +289,13 @@ class StageExplorer(QWidget):
         px = self._mmc.getPixelSizeUm()
         half_width = self._mmc.getImageWidth() / 2 * px
         half_height = self._mmc.getImageHeight() / 2 * px
+        # NOTE: x, y is the center of the image
         vertices = [
             (x - half_width, y - half_height),
             (x + half_width, y - half_height),
             (x - half_width, y + half_height),
             (x + half_width, y + half_height),
         ]
-        print(vertices)
         return all(view_rect.contains(*vertex) for vertex in vertices)
 
     def _build_transformation_matrix(
@@ -265,6 +303,8 @@ class StageExplorer(QWidget):
         x_pos: float | None = None,
         y_pos: float | None = None,
         rotation: float = 0,
+        flip_x: bool = False,
+        flip_y: bool = False,
     ) -> np.ndarray:
         """Return the transformation matrix.
 
@@ -288,12 +328,10 @@ class StageExplorer(QWidget):
             S = np.eye(4)
             S[0, 0] = pixel_size
             S[1, 1] = pixel_size
-            # flip the image if the camera has transpose mirror options enabled
-            if cam := self._mmc.getCameraDevice():
-                mirror_x = Keyword.Transpose_MirrorX
-                mirror_y = Keyword.Transpose_MirrorY
-                S[0, 0] *= -1 if self._mmc.getProperty(cam, mirror_x) == "1" else 1
-                S[1, 1] *= -1 if self._mmc.getProperty(cam, mirror_y) == "1" else 1
+            # flip the image if required
+            if self._mmc.getCameraDevice():
+                S[0, 0] *= -1 if flip_x else 1
+                S[1, 1] *= -1 if flip_y else 1
             RS = R @ S
         else:
             RS = np.eye(4)
@@ -302,6 +340,8 @@ class StageExplorer(QWidget):
         T = np.eye(4)
         x_pos = self._mmc.getXPosition() if x_pos is None else x_pos
         y_pos = self._mmc.getYPosition() if y_pos is None else y_pos
+        # is not really necessary to multiply by the polarity because the stage
+        # devices already inveret the coords sign if activated in Micro-Manager
         T[0, 3] += x_pos  # * x_polarity
         T[1, 3] += y_pos  # * y_polarity
 
@@ -317,202 +357,25 @@ class StageExplorer(QWidget):
 
         It takes into account the pixel size (scale), rotation, and stage position.
         """
-        T = self._build_transformation_matrix(x_pos, y_pos, rotation)
+        # get the flip status
+        # NOTE: this can be an issue since here we are retrieving the flip status
+        # from the camera device. The cameras I have used do not directly
+        # flip the image if the Transpose_Mirror option is set to 1 but others
+        # might do. In this latter case we will flip the image twice and is not
+        # correct. How to fix this???
+        if cam := self._mmc.getCameraDevice():
+            mirror_x = Keyword.Transpose_MirrorX
+            mirror_y = Keyword.Transpose_MirrorY
+            flip_x = self._mmc.getProperty(cam, mirror_x) == "1"
+            flip_y = self._mmc.getProperty(cam, mirror_y) == "1"
+        # build the transformation matrix
+        T = self._build_transformation_matrix(x_pos, y_pos, rotation, flip_x, flip_y)
         # by default, vispy add the images from the bottom-left corner. We need to
         # translate by -w/2 and -h/2 so the position corresponds to the center of the
-        # images. In addition, make sure the rotation is applied around the center of
-        # the image.
+        # images. In addition, this make sure the rotation (if any) is applied around
+        # the center of the image.
         T_center = np.eye(4)
         T_center[0, 3] = -self._mmc.getImageWidth() / 2
         T_center[1, 3] = -self._mmc.getImageHeight() / 2
 
         return T @ T_center
-
-    # STAGE MARKER ----------------------------------------------------------------
-
-    # def _init_stage_position_marker(self, mmc: CMMCorePlus) -> Rectangle | None:
-    #     """Initialize the stage position marker."""
-    #     if not mmc.getXYStageDevice():
-    #         return None
-    #     rect = Rectangle(
-    #         parent=self._stage_viewer.view.scene,
-    #         center=(0, 0),
-    #         width=self._mmc.getImageWidth(),
-    #         height=self._mmc.getImageHeight(),
-    #         border_width=4,
-    #         border_color=GREEN,
-    #         color=None,
-    #     )
-    #     rect.set_gl_state(depth_test=False)
-    #     rect.visible = False
-    #     return rect
-
-    # def _update_stage_marker(
-    #     self, x_pos: float | None = None, y_pos: float | None = None
-    # ) -> None:
-    #     """Update the stage position marker."""
-    #     if self._stage_pos_marker is None:
-    #         return
-    #     # build transformation matrix
-    #     T = self._build_transformation_matrix(
-    #         x_pos, y_pos, self._rotation_control.value()
-    #     )
-    #     self._stage_pos_marker.transform = scene.MatrixTransform(matrix=T.T)
-
-    # def _on_poll_stage(self, checked: bool) -> None:
-    #     """Set the poll stage position property based on the state of the action."""
-    #     self._poll_stage_position = checked
-    #     if checked:
-    #         self._timer_id = self.startTimer(50)
-    #         if self._stage_pos_marker is not None:
-    #             self._stage_pos_marker.visible = True
-    #             self.reset_view()
-    #     elif self._timer_id is not None:
-    #         self.killTimer(self._timer_id)
-    #         self._timer_id = None
-    #         if self._stage_pos_marker is not None:
-    #             self._stage_pos_marker.visible = False
-
-    # def timerEvent(self, event: QTimerEvent) -> None:
-    #     """Poll the stage position."""
-    #     if not self._mmc.getXYStageDevice():
-    #         return
-
-    #     x, y = self._mmc.getXYPosition()
-
-    #     # update the stage position label
-    #     self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
-
-    #     # update stage marker position
-    #     if self._stage_pos_marker is not None:
-    #         current_x, current_y = self._stage_pos_marker.transform.matrix[3, :2]
-    #         diff_x = abs(x - current_x) / max(abs(current_x), 1e-6) * 100
-    #         diff_y = abs(y - current_y) / max(abs(current_y), 1e-6) * 100
-    #         # NOTE: diff_x and diff_y should be calculated before calling
-    #         # _update_stage_marker
-    #         self._update_stage_marker(x, y)
-    #         # if the difference between (x, y) and (current_x, current_y) is greater
-    #         # than a certain %, then update the marker position and reset the view.
-    #         # This is useful because we don't want to trigger reset_view when the user
-    #         # changes the zoom level or pans the view or if the stage jittered a bit.
-    #         if diff_x > MIN_RESET_XY_DIFF or diff_y > MIN_RESET_XY_DIFF:
-    #             self.reset_view()
-
-    # def _get_stage_marker_position(
-    #     self,
-    # ) -> tuple[float | None, float | None, float | None, float | None]:
-    #     """Return the stage marker position.
-
-    #     Returns
-    #     -------
-    #     tuple[float | None, float | None, float | None, float | None]
-    #         The min x, min y, max x, and max y coordinates of the stage position marker.
-    #         If the stage marker is not present, all values are None.
-    #     """
-    #     if self._stage_pos_marker is None or not self._stage_pos_marker.visible:
-    #         return None, None, None, None
-    #     matrix = self._stage_pos_marker.transform.matrix
-    #     x, y = matrix[3, :2]
-    #     w, h = self._stage_pos_marker.width, self._stage_pos_marker.height
-    #     min_x, min_y = x - w / 2, y - h / 2
-    #     max_x, max_y = x + w / 2, y + h / 2
-    #     return min_x, min_y, max_x, max_y
-
-    # # ROIs ------------------------------------------------------------------------
-
-    # def _active_roi(self) -> ROIRectangle | None:
-    #     """Return the next active ROI."""
-    #     return next((roi for roi in self._rois if roi.selected()), None)
-
-    # def _on_mouse_press(self, event: MouseEvent) -> None:
-    #     """Handle the mouse press event."""
-    #     canvas_pos = (event.pos[0], event.pos[1])
-
-    #     if self._active_roi() is not None:
-    #         self._stage_viewer.view.camera.interactive = False
-
-    #     elif (
-    #         Key("Alt").name in event.modifiers
-    #         or self._activate_rois_tool_act.isChecked()
-    #     ) and event.button == 1:
-    #         self._stage_viewer.view.camera.interactive = False
-    #         # create the ROI rectangle for the first time
-    #         roi = self._create_roi(canvas_pos)
-    #         self._rois.append(roi)
-
-    # def _create_roi(self, canvas_pos: tuple[float, float]) -> ROIRectangle:
-    #     """Create a new ROI rectangle and connect its events."""
-    #     roi = ROIRectangle(self._stage_viewer.view.scene)
-    #     roi.connect(self._stage_viewer.canvas)
-    #     world_pos = roi._tform().map(canvas_pos)[:2]
-    #     roi.set_selected(True)
-    #     roi.set_visible(True)
-    #     roi.set_anchor(world_pos)
-    #     roi.set_bounding_box(world_pos, world_pos)
-    #     return roi
-
-    # def _on_mouse_move(self, event: MouseEvent) -> None:
-    #     """Update the roi text when the roi changes size."""
-    #     if (roi := self._active_roi()) is not None:
-    #         # set cursor
-    #         cursor = roi.get_cursor(event)
-    #         self._stage_viewer.canvas.native.setCursor(cursor)
-    #         # update roi text
-    #         px = self._mmc.getPixelSizeUm()
-    #         fov_w = self._mmc.getImageWidth() * px
-    #         fov_h = self._mmc.getImageHeight() * px
-    #         grid_plan = self._build_grid_plan(roi, fov_w, fov_h)
-    #         pos = list(grid_plan)
-    #         rows = max(r.row for r in pos if r.row is not None) + 1
-    #         cols = max(c.col for c in pos if c.col is not None) + 1
-    #         roi.set_text(f"r{rows} x c{cols}")
-    #     else:
-    #         # reset cursor to default
-    #         self._stage_viewer.canvas.native.setCursor(Qt.CursorShape.ArrowCursor)
-
-    # def _on_mouse_release(self, event: MouseEvent) -> None:
-    #     """Handle the mouse release event."""
-    #     self._stage_viewer.view.camera.interactive = True
-
-    # def _on_key_press(self, event: KeyEvent) -> None:
-    #     """Delete the last ROI added to the scene when pressing Cmd/Ctrl + Z."""
-    #     key: Key = event.key
-    #     modifiers: tuple[Key, ...] = event.modifiers
-    #     if (
-    #         key == Key("Z")
-    #         and (Key("Meta") in modifiers or Key("Control") in modifiers)
-    #         and self._rois
-    #     ):
-    #         self._remove_roi()
-
-    # def _remove_roi(self) -> None:
-    #     """Delete the last ROI added to the scene."""
-    #     roi = self._rois.pop(-1)
-    #     roi.remove()
-    #     with contextlib.suppress(Exception):
-    #         roi.disconnect(self._stage_viewer.canvas)
-
-    # def _remove_rois(self) -> None:
-    #     """Delete all the ROIs."""
-    #     while self._rois:
-    #         self._remove_roi()
-
-    # # GRID PLAN -------------------------------------------------------------------
-
-    # def _build_grid_plan(
-    #     self, roi: ROIRectangle, fov_w: float, fov_h: float
-    # ) -> useq.GridFromEdges:
-    #     """Return a `GridFromEdges` plan from the roi and fov width and height."""
-    #     top_left, bottom_right = roi.bounding_box()
-    #     # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
-    #     # bottom_right corners respectively because the grid plan is created
-    #     # considering the center of the fov and we want the roi to define the edges
-    #     # of the grid plan.
-    #     return useq.GridFromEdges(
-    #         top=top_left[1] - (fov_h / 2),
-    #         bottom=bottom_right[1] + (fov_h / 2),
-    #         left=top_left[0] + (fov_w / 2),
-    #         right=bottom_right[0] - (fov_w / 2),
-    #         fov_width=fov_w,
-    #         fov_height=fov_h,
-    #     )
