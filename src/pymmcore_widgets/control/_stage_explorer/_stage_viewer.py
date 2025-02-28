@@ -79,16 +79,17 @@ class StageViewer(QWidget):
             w, h = child.bounds(0)[1] * pixel_size, child.bounds(1)[1] * pixel_size
             # get the (x, y) coordinates from the transform matrix
             x, y = child.transform.matrix[3, :2]
-            # get the four corners of the image. NOTE: we use a coords system where
-            # (0, 0) is the origin, going up and right is positive and going down
-            # and left is negative. When an image is added to the scene with vispy,
-            # its origin is at the bottom-right corner.
+            # get the four corners of the image. NOTE: when an image is added to
+            # the scene with vispy, image origin is at the bottom-left corner
+            # TODO: Fix me! If we invert the coordinates in micromnager
+            # (e.g. transpose X), the image origin will be at the bottom-right.
+            # need to figure out what to do...
             corners = np.array(
                 [
-                    [x, y],  # bottom-right
-                    [x - w, y],  # bottom-left
-                    [x - w, y + h],  # top-left
-                    [x, y + h],  # top-right
+                    [x, y],  # bottom-left
+                    [x + w, y],  # bottom-right
+                    [x + w, y + h],  # top-right
+                    [x, y + h],  # top-left
                 ]
             )
             # transform the corners to scene coordinates
