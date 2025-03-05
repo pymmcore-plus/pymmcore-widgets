@@ -7,6 +7,8 @@ img = np.random.randint(0, 255, (256, 256))
 
 
 class SV(StageViewer):
+    """Stage viewer widget with mouse press event."""
+
     def __init__(self):
         super().__init__()
 
