@@ -5,6 +5,7 @@ from pymmcore_widgets.control._stage_explorer._stage_viewer import StageViewer
 
 img = np.random.randint(0, 255, (256, 256))
 
+
 class SV(StageViewer):
     def __init__(self):
         super().__init__()
@@ -21,6 +22,7 @@ class SV(StageViewer):
     def _tform(self) -> scene.transforms.BaseTransform:
         """Return the transform from canvas to scene."""
         return list(self._get_images())[-1].transforms.get_transform("canvas", "scene")
+
 
 wdg = SV()
 wdg.show()
