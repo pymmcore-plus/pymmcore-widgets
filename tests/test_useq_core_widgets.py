@@ -971,3 +971,27 @@ def test_core_mda_autofocus_and_z_plan(
         # AF column should be hidden
         assert pos_table.table().isColumnHidden(af_col)
         assert pos_table.table().isColumnHidden(af_btn_col)
+
+
+def test_grid_plan_fov_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
+    mmc = global_mmcore
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    wdg.tab_wdg.setChecked(wdg.grid_plan, True)
+    grid_plan = useq.GridRowsColumns(rows=2, columns=1)
+    wdg.grid_plan.setValue(grid_plan)
+
+    assert wdg.value().grid_plan.fov_height == 512
+    assert wdg.value().grid_plan.fov_width == 512
+
+    with qtbot.waitSignal(mmc.events.roiSet):
+        mmc.setROI(0, 0, 100, 150)
+    assert wdg.value().grid_plan.fov_width == 100
+    assert wdg.value().grid_plan.fov_height == 150
+
+    with qtbot.waitSignal(mmc.events.pixelSizeChanged):
+        mmc.setPixelSizeConfig("Res20x")
+    assert wdg.value().grid_plan.fov_width == 50
+    assert wdg.value().grid_plan.fov_height == 75
