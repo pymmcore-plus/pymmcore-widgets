@@ -995,3 +995,40 @@ def test_grid_plan_fov_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
         mmc.setPixelSizeConfig("Res20x")
     assert wdg.value().grid_plan.fov_width == 50
     assert wdg.value().grid_plan.fov_height == 75
+
+
+def test_grid_plan_subsequence_fov_update(
+    qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    mmc = global_mmcore
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    pos = useq.AbsolutePosition(
+        x=0.0,
+        y=0.0,
+        z=0.0,
+        sequence=useq.MDASequence(
+            grid_plan=useq.GridRowsColumns(
+                fov_width=512.0, fov_height=512.0, rows=3, columns=1
+            )
+        ),
+    )
+    wdg.tab_wdg.setChecked(wdg.stage_positions, True)
+    wdg.stage_positions.setValue([pos])
+
+    sp = wdg.stage_positions
+    assert sp.value()[0].sequence.grid_plan.fov_width == 512
+    assert sp.value()[0].sequence.grid_plan.fov_height == 512
+
+    with qtbot.waitSignal(mmc.events.roiSet):
+        mmc.setROI(0, 0, 100, 150)
+
+    assert sp.value()[0].sequence.grid_plan.fov_width == 100
+    assert sp.value()[0].sequence.grid_plan.fov_height == 150
+
+    with qtbot.waitSignal(mmc.events.pixelSizeChanged):
+        mmc.setPixelSizeConfig("Res20x")
+    assert sp.value()[0].sequence.grid_plan.fov_width == 50
+    assert sp.value()[0].sequence.grid_plan.fov_height == 75

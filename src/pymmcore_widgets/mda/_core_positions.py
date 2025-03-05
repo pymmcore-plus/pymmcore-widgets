@@ -17,7 +17,7 @@ from qtpy.QtWidgets import (
     QWizard,
 )
 from superqt.utils import signals_blocked
-from useq import WellPlatePlan
+from useq import MDASequence, WellPlatePlan
 
 from pymmcore_widgets import HCSWizard
 from pymmcore_widgets.useq_widgets import PositionTable
@@ -116,6 +116,8 @@ class CoreConnectedPositionTable(PositionTable):
         # connect
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
+        self._mmc.events.roiSet.connect(self._update_fov_size)
+        self._mmc.events.pixelSizeChanged.connect(self._update_fov_size)
 
         self.destroyed.connect(self._disconnect)
 
@@ -461,3 +463,30 @@ class CoreConnectedPositionTable(PositionTable):
             self._on_sys_config_loaded
         )
         self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
+
+    def _update_fov_size(self) -> None:
+        """Update the FOV size of any grid plan subsequence."""
+        if not (pos_list := self.value()):
+            return
+
+        # get updated FOV size
+        px = self._mmc.getPixelSizeUm()
+        fov_w = self._mmc.getImageWidth() * px
+        fov_h = self._mmc.getImageHeight() * px
+
+        new_pos_list = []
+        for pos in pos_list:
+            # skip if there is not a subsequence
+            if pos.sequence is None:
+                new_pos_list.append(pos)
+                continue
+            # skip if there is not a grid plan
+            if (gp := pos.sequence.grid_plan) is None:
+                new_pos_list.append(pos)
+                continue
+            # update the FOV size
+            new_gp = gp.model_copy(update={"fov_width": fov_w, "fov_height": fov_h})
+            new_pos = pos.model_copy(update={"sequence": MDASequence(grid_plan=new_gp)})
+            new_pos_list.append(new_pos)
+        # update the table
+        self.setValue(new_pos_list)
