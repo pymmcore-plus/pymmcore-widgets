@@ -10,52 +10,43 @@ from pymmcore_widgets.control._stage_explorer._stage_viewer import StageViewer
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
+IMG = np.random.randint(0, 255, (100, 50), dtype=np.uint8)
+
+
+def _build_transform_matrix(x: float, y: float) -> np.ndarray:
+    T = np.eye(4)
+    T[0, 3] += x
+    T[1, 3] += y
+    return T
+
 
 def test_add_image(qtbot: QtBot):
     stage_viewer = StageViewer()
     qtbot.addWidget(stage_viewer)
-    img = np.random.randint(0, 255, (100, 100), dtype=np.uint8)
-    stage_viewer.add_image(img, 150, 300)
-    # assert translated position is in the image store
-    assert (100, 250) in stage_viewer.image_store
-    assert np.array_equal(stage_viewer.image_store[(100, 250)], img)
+    T = _build_transform_matrix(100, 150)
+    stage_viewer.add_image(IMG, T.T)
+    images = [i for i in stage_viewer.view.scene.children if isinstance(i, Image)]
+    assert len(images) == 1
+    added_img = next(iter(images))
+    assert tuple(added_img.transform.matrix[3, :2]) == (100, 150)
 
 
 def test_clear_scene(qtbot: QtBot):
     stage_viewer = StageViewer()
     qtbot.addWidget(stage_viewer)
-    img = np.random.randint(0, 255, (100, 100), dtype=np.uint8)
-    stage_viewer.add_image(img, 150, 300)
+    T = _build_transform_matrix(200, 50)
+    stage_viewer.add_image(IMG, T.T)
+    assert [i for i in stage_viewer.view.scene.children if isinstance(i, Image)]
     stage_viewer.clear_scene()
-    assert not stage_viewer.image_store
     assert not [i for i in stage_viewer.view.scene.children if isinstance(i, Image)]
 
 
 def test_reset_view(qtbot: QtBot):
     stage_viewer = StageViewer()
     qtbot.addWidget(stage_viewer)
-    img = np.random.randint(0, 255, (100, 100), dtype=np.uint8)
-    stage_viewer.add_image(img, 150, 300)
+    T = _build_transform_matrix(500, 100)
+    stage_viewer.add_image(IMG, T.T)
     stage_viewer.reset_view()
-    assert stage_viewer.view.camera.rect.center == (150, 300)
-
-
-def test_update_by_scale(qtbot: QtBot):
-    stage_viewer = StageViewer()
-    qtbot.addWidget(stage_viewer)
-    img = np.random.randint(0, 255, (100, 100), dtype=np.uint8)
-    stage_viewer.add_image(img, 150, 300)
-    initial_scale = stage_viewer.get_scale()
-    stage_viewer.update_by_scale(initial_scale * 2)
-    image = next(i for i in stage_viewer.view.scene.children if isinstance(i, Image))
-    assert (image.transform.scale[0], image.transform.scale[1]) == (
-        initial_scale * 2,
-        initial_scale * 2,
-    )
-
-
-def test_pixel_size_property(qtbot: QtBot):
-    stage_viewer = StageViewer()
-    qtbot.addWidget(stage_viewer)
-    stage_viewer.pixel_size = 2.0
-    assert stage_viewer.pixel_size == 2.0
+    cx, cy = stage_viewer.view.camera.rect.center
+    assert round(cx) == 525  # image width is 50, center should be Tx + width/2
+    assert round(cy) == 150  # image height is 100, center should be Ty + height/2
