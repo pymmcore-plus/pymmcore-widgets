@@ -80,7 +80,7 @@ from .useq_widgets import (
 from .views import ImagePreview
 
 if TYPE_CHECKING:
-    from ._deprecated._device_widget import (  # noqa: TC004
+    from ._deprecated._device_widget import (
         DeviceWidget,
         StateDeviceWidget,
     )
