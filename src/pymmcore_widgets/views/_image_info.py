@@ -1,19 +1,14 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from typing import TYPE_CHECKING
 
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt, QTimer, Signal
-from qtpy.QtWidgets import QVBoxLayout, QWidget, QLabel
 import numpy as np
-
-if TYPE_CHECKING:
-    from typing import Literal
-
-    import numpy as np
+from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Qt, QTimer
+from qtpy.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 _DEFAULT_WAIT = 10
+
 
 class ImageInfo(QWidget):
     """A Widget that displays information about the last image by active core.
@@ -62,7 +57,7 @@ class ImageInfo(QWidget):
         self._max: float | None = None
         self._std: float | None = None
         self._cvals: list[float] = []
- 
+
         self.streaming_timer = QTimer(parent=self)
         self.streaming_timer.setTimerType(Qt.TimerType.PreciseTimer)
         self.streaming_timer.setInterval(int(self._mmc.getExposure()) or _DEFAULT_WAIT)
@@ -74,19 +69,23 @@ class ImageInfo(QWidget):
         ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
         ev.exposureChanged.connect(self._on_exposure_changed)
 
-        self.info_label = QLabel(f"Min: {self._min}, Max: {self._max}, Std: {self._std}")
+        self.info_label = QLabel(
+            f"Min: {self._min}, Max: {self._max}, Std: {self._std}"
+        )
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._histogram_widget = pg.PlotWidget(background=None)
         self._histogram_widget.setLabel("left", "Frequency")
         self._histogram_widget.setLabel("bottom", "Pixel Value")
-        self._histogram_plot = self._histogram_widget.plot(stepMode=True, fillLevel=0, brush=(0, 0, 255, 80))
+        self._histogram_plot = self._histogram_widget.plot(
+            stepMode=True, fillLevel=0, brush=(0, 0, 255, 80)
+        )
 
         self.setLayout(QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addWidget(self._histogram_widget)
         self.layout().addWidget(self.info_label)
-        
+
         self.destroyed.connect(self._disconnect)
 
     @property
@@ -133,7 +132,9 @@ class ImageInfo(QWidget):
     def _update_image(self, img: np.ndarray) -> None:
         self._min, self._max = img.min(), img.max()
         self._std = img.std()
-        self.info_label.setText(f"Min: {self._min}, Max: {self._max}, Std: {self._std:.1f}")
+        self.info_label.setText(
+            f"Min: {self._min}, Max: {self._max}, Std: {self._std:.1f}"
+        )
 
-        y,x = np.histogram(img.flatten())
+        y, x = np.histogram(img.flatten())
         self._histogram_plot.setData(x, y)
