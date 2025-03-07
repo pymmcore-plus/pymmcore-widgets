@@ -5,7 +5,7 @@ from contextlib import suppress
 import numpy as np
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, QTimer
-from qtpy.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout, QWidget, QComboBox
+from qtpy.QtWidgets import QComboBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 _DEFAULT_WAIT = 10
 
@@ -56,7 +56,7 @@ class ImageInfo(QWidget):
         self._min: float | None = None
         self._max: float | None = None
         self._std: float | None = None
-        self._clims: tuple[float, float] | Literal["auto"] = "auto"
+        self._clims: tuple[float, float] | Literal[auto] = "auto"
 
         self.streaming_timer = QTimer(parent=self)
         self.streaming_timer.setTimerType(Qt.TimerType.PreciseTimer)
@@ -69,7 +69,6 @@ class ImageInfo(QWidget):
         )
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-
         # histogram plot ---
         self._histogram_widget = pg.PlotWidget(background=None)
         self._histogram_widget.setXRange(0, 255)  # Set the x-limits here
@@ -81,7 +80,15 @@ class ImageInfo(QWidget):
 
         # options
         self._range_selector = QComboBox()
-        self._range_selector.addItems(["auto", "8-bit (0-255)", "10-bit (0-1023)", "12-bit (0-4095)", "16-bit (0-65535)"])
+        self._range_selector.addItems(
+            [
+                "auto",
+                "8-bit (0-255)",
+                "10-bit (0-1023)",
+                "12-bit (0-4095)",
+                "16-bit (0-65535)",
+            ]
+        )
         self._range_selector.setCurrentText("auto")
 
         # layout
