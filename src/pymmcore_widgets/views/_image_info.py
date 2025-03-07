@@ -5,7 +5,7 @@ from contextlib import suppress
 import numpy as np
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, QTimer
-from qtpy.QtWidgets import QLabel, QVBoxLayout, QWidget
+from qtpy.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout, QWidget, QComboBox
 
 _DEFAULT_WAIT = 10
 
@@ -56,35 +56,53 @@ class ImageInfo(QWidget):
         self._min: float | None = None
         self._max: float | None = None
         self._std: float | None = None
+        self._clims: tuple[float, float] | Literal["auto"] = "auto"
 
         self.streaming_timer = QTimer(parent=self)
         self.streaming_timer.setTimerType(Qt.TimerType.PreciseTimer)
         self.streaming_timer.setInterval(int(self._mmc.getExposure()) or _DEFAULT_WAIT)
         self.streaming_timer.timeout.connect(self._on_streaming_timeout)
 
-        ev = self._mmc.events
-        ev.imageSnapped.connect(self._on_image_snapped)
-        ev.continuousSequenceAcquisitionStarted.connect(self._on_streaming_start)
-        ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
-        ev.exposureChanged.connect(self._on_exposure_changed)
-
+        # info label ---
         self.info_label = QLabel(
             f"Min: {self._min}, Max: {self._max}, Std: {self._std}"
         )
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+
+        # histogram plot ---
         self._histogram_widget = pg.PlotWidget(background=None)
+        self._histogram_widget.setXRange(0, 255)  # Set the x-limits here
         self._histogram_widget.setLabel("left", "Frequency")
         self._histogram_widget.setLabel("bottom", "Pixel Value")
         self._histogram_plot = self._histogram_widget.plot(
             stepMode=True, fillLevel=0, brush=(0, 0, 255, 80)
         )
 
+        # options
+        self._range_selector = QComboBox()
+        self._range_selector.addItems(["auto", "8-bit (0-255)", "10-bit (0-1023)", "12-bit (0-4095)", "16-bit (0-65535)"])
+        self._range_selector.setCurrentText("auto")
+
+        # layout
         self.setLayout(QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addWidget(self._histogram_widget)
-        self.layout().addWidget(self.info_label)
 
+        self._bottom_layout = QHBoxLayout()
+        self._bottom_layout.addWidget(self.info_label)
+        self._bottom_layout.addWidget(self._range_selector)
+
+        self.layout().addLayout(self._bottom_layout)
+
+        # connect to events
+        ev = self._mmc.events
+        ev.imageSnapped.connect(self._on_image_snapped)
+        ev.continuousSequenceAcquisitionStarted.connect(self._on_streaming_start)
+        ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
+        ev.exposureChanged.connect(self._on_exposure_changed)
+
+        self._range_selector.currentIndexChanged.connect(self._on_dropdown_changed)
         self.destroyed.connect(self._disconnect)
 
     @property
@@ -137,3 +155,27 @@ class ImageInfo(QWidget):
 
         y, x = np.histogram(img.flatten())
         self._histogram_plot.setData(x, y)
+        self._update_range()
+
+    def _on_dropdown_changed(self):
+        self._update_range()
+
+    def _update_range(self):
+        selected_option = self._range_selector.currentIndex()
+
+        if selected_option == 0:
+            # auto
+            self._clims = "auto"
+            self._histogram_widget.setXRange(self._min, self._max)
+        elif selected_option == 1:
+            # 8-bit
+            self._histogram_widget.setXRange(0, 255)
+        elif selected_option == 2:
+            # 10-bit
+            self._histogram_widget.setXRange(0, 1023)
+        elif selected_option == 3:
+            # 12-bit
+            self._histogram_widget.setXRange(0, 4095)
+        elif selected_option == 4:
+            # 16-bit
+            self._histogram_widget.setXRange(0, 65535)
