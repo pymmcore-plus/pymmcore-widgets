@@ -56,7 +56,6 @@ class ImageInfo(QWidget):
         self._min: float | None = None
         self._max: float | None = None
         self._std: float | None = None
-        self._cvals: list[float] = []
 
         self.streaming_timer = QTimer(parent=self)
         self.streaming_timer.setTimerType(Qt.TimerType.PreciseTimer)
