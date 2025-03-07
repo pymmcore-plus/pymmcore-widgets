@@ -23,6 +23,7 @@ __all__ = [
     "GroupPresetTableWidget",
     "HCSWizard",
     "ImagePreview",
+    "ImageInfo",
     "InstallWidget",
     "LiveButton",
     "MDASequenceWidget",
@@ -75,7 +76,7 @@ from .useq_widgets import (
     TimePlanWidget,
     ZPlanWidget,
 )
-from .views import ImagePreview
+from .views import ImagePreview, ImageInfo
 
 if TYPE_CHECKING:
     from ._deprecated._device_widget import (

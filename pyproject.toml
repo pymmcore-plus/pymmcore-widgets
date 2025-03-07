@@ -70,6 +70,7 @@ image = [
     # fix OSError: dlopen(Quartz.framework/Quartz on vispy
     "pyopengl; platform_system == 'Darwin'",
 ]
+plot = ["pyqtgraph"]
 
 test = [
     "pymmcore-widgets[image]",
