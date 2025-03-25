@@ -93,10 +93,12 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
 
     wdg._mmc.setXYPosition(11, 22)
     wdg._mmc.setZPosition(33)
+    wdg._mmc.waitForSystem()
     xyidx = pos_table.table().indexOf(pos_table._xy_btn_col)
     z_idx = pos_table.table().indexOf(pos_table._z_btn_col)
     pos_table.table().cellWidget(0, xyidx).click()
     pos_table.table().cellWidget(0, z_idx).click()
+
     p0 = pos_table.value()[0]
     assert round(p0.x) == 11
     assert round(p0.y) == 22
@@ -554,6 +556,7 @@ def test_mda_no_pos_set(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     MDA = useq.MDASequence(channels=[{"config": "DAPI", "exposure": 1}])
     wdg.setValue(MDA)
+    wdg._mmc.waitForSystem()
 
     assert wdg.value().stage_positions
     assert round(wdg.value().stage_positions[0].x) == 10
