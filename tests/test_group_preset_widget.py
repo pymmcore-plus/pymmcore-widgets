@@ -10,7 +10,6 @@ from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QFileDialog
 
-from pymmcore_widgets import PresetsWidget
 from pymmcore_widgets.config_presets._group_preset_widget import (
     AddGroupWidget,
     AddPresetWidget,
@@ -21,6 +20,8 @@ from pymmcore_widgets.config_presets._group_preset_widget import (
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
+
+    from pymmcore_widgets import PresetsWidget
 
 
 def test_populating_group_preset_table(global_mmcore: CMMCorePlus, qtbot: QtBot):
@@ -248,7 +249,7 @@ def test_add_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
     for r in range(gp.table_wdg.rowCount()):
         group_name = gp.table_wdg.item(r, 0).text()
         if group_name == "Channel":
-            wdg = cast(PresetsWidget, gp.table_wdg.cellWidget(r, 1))
+            wdg = cast("PresetsWidget", gp.table_wdg.cellWidget(r, 1))
             assert wdg.allowedValues() == tuple(mmc.getAvailableConfigs("Channel"))
             break
 
@@ -284,7 +285,7 @@ def test_delete_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
     camera_group_row = 0
     for r in range(gp.table_wdg.rowCount()):
         group_name = gp.table_wdg.item(r, 0).text()
-        wdg = cast(PresetsWidget, gp.table_wdg.cellWidget(r, 1))
+        wdg = cast("PresetsWidget", gp.table_wdg.cellWidget(r, 1))
 
         if group_name == "Camera":
             camera_group_row = r
@@ -295,7 +296,7 @@ def test_delete_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
         mmc.deleteConfig("Camera", "LowRes")
 
     assert "LowRes" not in mmc.getAvailableConfigs("Camera")
-    wdg = cast(PresetsWidget, gp.table_wdg.cellWidget(camera_group_row, 1))
+    wdg = cast("PresetsWidget", gp.table_wdg.cellWidget(camera_group_row, 1))
     assert "LowRes" not in wdg.allowedValues()
 
 

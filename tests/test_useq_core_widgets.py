@@ -14,7 +14,6 @@ from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
-from pymmcore_widgets.mda._core_mda import CoreMDATabs
 from pymmcore_widgets.mda._core_positions import (
     AF_UNAVAILABLE,
     CoreConnectedPositionTable,
@@ -33,6 +32,8 @@ from pymmcore_widgets.useq_widgets._positions import AF_PER_POS_TOOLTIP, _MDAPop
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
+
+    from pymmcore_widgets.mda._core_mda import CoreMDATabs
 
 
 TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")
@@ -501,7 +502,7 @@ def test_enable_core_tab(qtbot: QtBot):
             and mda_tabs.channels.isEnabled()
         )
 
-    mda_tabs = cast(CoreMDATabs, wdg.tab_wdg)
+    mda_tabs = cast("CoreMDATabs", wdg.tab_wdg)
 
     mda_tabs._enable_tabs(True)
     # all tabs are enabled (you can switch between them)

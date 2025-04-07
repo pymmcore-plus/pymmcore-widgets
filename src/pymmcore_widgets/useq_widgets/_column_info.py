@@ -177,14 +177,14 @@ class WidgetColumn(ColumnInfo, Generic[W, T]):
 
     def get_cell_data(self, table: QTableWidget, row: int, col: int) -> dict[str, Any]:
         if wdg := table.cellWidget(row, col):
-            return {self.key: self.data_type.getter(cast(W, wdg))}
+            return {self.key: self.data_type.getter(cast("W", wdg))}
         return {}
 
     def set_cell_data(
         self, table: QTableWidget, row: int, col: int, value: Any
     ) -> None:
         if value is not None and (wdg := table.cellWidget(row, col)):
-            self.data_type.setter(cast(W, wdg), value)
+            self.data_type.setter(cast("W", wdg), value)
 
 
 # ############################# Booleans ################################

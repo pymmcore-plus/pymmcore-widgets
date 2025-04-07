@@ -201,8 +201,8 @@ class PixelSizeTable(QTableWidget):
     def _delete_cfg(self) -> None:
         w = self.sender().parent()
         row = self.indexAt(w.pos()).row()
-        resId_edit = cast(QLineEdit, self.cellWidget(row, RESOLUTION_ID))
-        img_px_edit = cast(QLineEdit, self.cellWidget(row, IMAGE_PX_SIZE))
+        resId_edit = cast("QLineEdit", self.cellWidget(row, RESOLUTION_ID))
+        img_px_edit = cast("QLineEdit", self.cellWidget(row, IMAGE_PX_SIZE))
         if resId_edit.text() in self._mmc.getAvailablePixelSizeConfigs():
             self._mmc.deletePixelSizeConfig(resId_edit.text())
         resId_edit.setText("None")
@@ -310,7 +310,7 @@ class ObjectivesPixelConfigurationWidget(QDialog):
     def _enable_column(self, column: int, enable: bool) -> None:
         with signals_blocked(self.table):
             for row in range(self.table.rowCount()):
-                item = cast(QLineEdit, self.table.cellWidget(row, column))
+                item = cast("QLineEdit", self.table.cellWidget(row, column))
                 if enable:
                     item.setReadOnly(False)
                     item.setStyleSheet("")
@@ -372,7 +372,7 @@ class ObjectivesPixelConfigurationWidget(QDialog):
     def _connect_lineedit(self, state: bool) -> None:
         for col in range(1, 5):
             for row in range(self.table.rowCount()):
-                item = cast(QLineEdit, self.table.cellWidget(row, col))
+                item = cast("QLineEdit", self.table.cellWidget(row, col))
                 if state:
                     if col == RESOLUTION_ID:
                         item.editingFinished.connect(self._on_resolutioID_changed)
@@ -439,7 +439,7 @@ class ObjectivesPixelConfigurationWidget(QDialog):
     def _on_resolutioID_changed(self) -> None:
         sender = self.sender()
         row = self.table.indexAt(sender.pos()).row()
-        wdg = cast(QLineEdit, self.table.cellWidget(row, RESOLUTION_ID))
+        wdg = cast("QLineEdit", self.table.cellWidget(row, RESOLUTION_ID))
         wdg.focusNextChild()
         value = wdg.text()
 
