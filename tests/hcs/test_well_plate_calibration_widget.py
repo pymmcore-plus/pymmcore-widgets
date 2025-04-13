@@ -186,8 +186,8 @@ def test_plate_calibration_test_positions(global_mmcore: CMMCorePlus, qtbot) -> 
         (0, 0, "A1"),
         (-3200, 0, "A1"),
         (3200, 0, "A1"),
-        (0, -3200, "A1"),
         (0, 3200, "A1"),
+        (0, -3200, "A1"),
     ]
     data = []
     for hover_item in hover_items:
