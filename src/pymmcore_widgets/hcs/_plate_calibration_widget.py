@@ -333,8 +333,8 @@ class PlateCalibrationWidget(QWidget):
         osr = self._origin_spacing_rotation()
         if fully_calibrated := (osr is not None):
             self._a1_center_xy, self._well_spacing, self._rotation = osr
-            if self._current_plate:
-                self._plate_test.drawPlate(self._current_plate)
+            if (plate_plan := self.value()) is not None:
+                self._plate_test.drawPlate(plate_plan)
         else:
             self._a1_center_xy = (0.0, 0.0)
             self._rotation = None
