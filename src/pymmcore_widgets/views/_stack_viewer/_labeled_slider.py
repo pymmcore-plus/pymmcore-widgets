@@ -36,7 +36,7 @@ class QLabeledSlider(superqt.QLabeledSlider):
         self.lock_btn.setMaximumWidth(24)
         self.lock_btn.toggled.connect(self._on_lock_toggled)
 
-        layout = cast(QtWidgets.QBoxLayout, self.layout())
+        layout = cast("QtWidgets.QBoxLayout", self.layout())
         layout.insertWidget(0, self.play_btn, 0, QtCore.Qt.AlignmentFlag.AlignRight)
         layout.insertWidget(0, name_label)
         # FIXME: the padding/vertical alignment is a bit off here
