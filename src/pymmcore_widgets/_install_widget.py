@@ -28,7 +28,6 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.utils import create_worker
 
 if TYPE_CHECKING:
     from qtpy.QtGui import QKeyEvent
@@ -75,15 +74,7 @@ class InstallWidget(QWidget):
 
         self.version_combo = QComboBox()
         self.version_combo.addItems(["latest-compatible", "latest"])
-
-        worker = create_worker(available_versions)
-
-        @worker.returned.connect  # type: ignore
-        def _add_items(versions: list[str]) -> None:
-            with suppress(RuntimeError):
-                self.version_combo.addItems(versions)
-
-        worker.start()
+        self.version_combo.addItems(available_versions())
 
         self.install_btn = QPushButton("Install")
         self.install_btn.clicked.connect(self._on_install_clicked)
