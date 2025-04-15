@@ -265,6 +265,7 @@ class _RangeColumn(WidgetColumn, Generic[W, T]):
     data_type: WdgGetSet[W, float]
     minimum: float = 0
     maximum: float = 999_999
+    decimals: int = 2
 
     def _init_widget(self) -> W:
         wdg = self.data_type.widget()
@@ -273,6 +274,8 @@ class _RangeColumn(WidgetColumn, Generic[W, T]):
             wdg.setMinimum(self.minimum)
         if self.maximum is not None and hasattr(wdg, "setMaximum"):
             wdg.setMaximum(self.maximum)
+        if self.decimals is not None and hasattr(wdg, "setDecimals"):
+            wdg.setDecimals(self.decimals)
 
         return wdg  # type: ignore
 

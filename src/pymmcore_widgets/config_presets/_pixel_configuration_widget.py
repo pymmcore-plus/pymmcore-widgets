@@ -453,7 +453,7 @@ class _PixelTable(DataTableWidget):
 
     ID = TextColumn(key=ID, header="ResolutionID", default=NEW, is_row_selector=False)
     VALUE = FloatColumn(
-        key=PX, header="pixel value [µm]", default=0, is_row_selector=False
+        key=PX, header="pixel value [µm]", default=0, is_row_selector=False, decimals=3
     )
 
     def __init__(self, rows: int = 0, parent: QWidget | None = None):
@@ -499,7 +499,7 @@ class AffineTable(QTableWidget):
         for row, col in itertools.product(range(3), range(3)):
             spin = QDoubleSpinBox()
             spin.setRange(-100000, 100000)
-            spin.setDecimals(1)
+            spin.setDecimals(3)
             spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
             spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
             self.setCellWidget(row, col, spin)
