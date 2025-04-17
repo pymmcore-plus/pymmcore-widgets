@@ -170,7 +170,7 @@ class PlateCalibrationWidget(QWidget):
             self._plate_test.drawPlate(plan)
             # make sure no wells are selected since we are in test mode
             self._plate_test.setSelectedIndices([])
-            # seyt the tab to the test mode
+            # set the tab to the test mode
             self._tab_wdg.setCurrentIndex(1)
         else:
             self._plate_test.clear()
