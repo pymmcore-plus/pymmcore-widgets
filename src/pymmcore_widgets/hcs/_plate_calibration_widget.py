@@ -357,9 +357,6 @@ class PlateCalibrationWidget(QWidget):
         style = self.style()
         if self._rotation is not None:
             spacing = self._well_spacing or (0, 0)
-
-            print("spacing", spacing)
-
             txt = "<strong>Plate calibrated.</strong>"
             ico = icon(CALIBRATED_ICON, color=GREEN)
             if self._current_plate is not None:
