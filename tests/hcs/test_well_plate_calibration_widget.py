@@ -32,7 +32,7 @@ def test_plate_calibration(global_mmcore: CMMCorePlus, qtbot) -> None:
     assert wdg._tab_wdg.isTabEnabled(1)
     assert wdg._tab_wdg.currentIndex() == 1
     assert not wdg._plate_test.selectedIndices()
-    # the info text should nnot contain the warning about well spacing
+    # the info text should not contain the warning about well spacing
     assert "Expected well spacing of" not in wdg._info.text()
 
     with qtbot.waitSignal(wdg.calibrationChanged) as sig:
