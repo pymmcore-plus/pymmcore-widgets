@@ -20,11 +20,20 @@ def test_plate_calibration(global_mmcore: CMMCorePlus, qtbot) -> None:
 
     with qtbot.waitSignal(wdg.calibrationChanged) as sig:
         wdg.setValue(
-            useq.WellPlatePlan(plate="24-well", a1_center_xy=(0, 0), rotation=2)
+            useq.WellPlatePlan(
+                plate="24-well",
+                a1_center_xy=(0, 0),
+                rotation=2,
+                selected_wells=slice(0, 8, 2),
+            )
         )
     assert sig.args == [True]
     assert wdg.value().plate.rows == 4
     assert wdg._tab_wdg.isTabEnabled(1)
+    assert wdg._tab_wdg.currentIndex() == 1
+    assert not wdg._plate_test.selectedIndices()
+    # the info text should not contain the warning about well spacing
+    assert "Expected well spacing of" not in wdg._info.text()
 
     with qtbot.waitSignal(wdg.calibrationChanged) as sig:
         wdg.setValue("96-well")
