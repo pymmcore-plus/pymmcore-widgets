@@ -148,6 +148,10 @@ class PlateCalibrationWidget(QWidget):
             plan = plate_or_plan
             plate = plan.plate
             calibrated = True
+            # set the well spacing to the plate's well spacing to correctly update the
+            # info label (since we are assuming the plate is correctly calibrated,
+            # we can assume the well spacing is correct)
+            self._well_spacing = plate.well_spacing
         elif isinstance(plate_or_plan, useq.WellPlate):
             plate = plate_or_plan
 
@@ -164,6 +168,10 @@ class PlateCalibrationWidget(QWidget):
 
         if calibrated and plan is not None:
             self._plate_test.drawPlate(plan)
+            # make sure no wells are selected since we are in test mode
+            self._plate_test.setSelectedIndices([])
+            # seyt the tab to the test mode
+            self._tab_wdg.setCurrentIndex(1)
         else:
             self._plate_test.clear()
 
@@ -349,6 +357,9 @@ class PlateCalibrationWidget(QWidget):
         style = self.style()
         if self._rotation is not None:
             spacing = self._well_spacing or (0, 0)
+
+            print("spacing", spacing)
+
             txt = "<strong>Plate calibrated.</strong>"
             ico = icon(CALIBRATED_ICON, color=GREEN)
             if self._current_plate is not None:
