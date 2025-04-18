@@ -49,7 +49,7 @@ class _LabelTable(QTableWidget):
     def _on_item_changed(self, item: QTableWidgetItem) -> None:
         if item.column() != 1:
             return
-        dev = cast(Device, item.data(Qt.ItemDataRole.UserRole))
+        dev = cast("Device", item.data(Qt.ItemDataRole.UserRole))
         dev.set_label(item.row(), item.text())
 
 

@@ -177,14 +177,14 @@ class WidgetColumn(ColumnInfo, Generic[W, T]):
 
     def get_cell_data(self, table: QTableWidget, row: int, col: int) -> dict[str, Any]:
         if wdg := table.cellWidget(row, col):
-            return {self.key: self.data_type.getter(cast(W, wdg))}
+            return {self.key: self.data_type.getter(cast("W", wdg))}
         return {}
 
     def set_cell_data(
         self, table: QTableWidget, row: int, col: int, value: Any
     ) -> None:
         if value is not None and (wdg := table.cellWidget(row, col)):
-            self.data_type.setter(cast(W, wdg), value)
+            self.data_type.setter(cast("W", wdg), value)
 
 
 # ############################# Booleans ################################
@@ -265,6 +265,7 @@ class _RangeColumn(WidgetColumn, Generic[W, T]):
     data_type: WdgGetSet[W, float]
     minimum: float = 0
     maximum: float = 999_999
+    decimals: int = 2
 
     def _init_widget(self) -> W:
         wdg = self.data_type.widget()
@@ -273,6 +274,8 @@ class _RangeColumn(WidgetColumn, Generic[W, T]):
             wdg.setMinimum(self.minimum)
         if self.maximum is not None and hasattr(wdg, "setMaximum"):
             wdg.setMaximum(self.maximum)
+        if self.decimals is not None and hasattr(wdg, "setDecimals"):
+            wdg.setDecimals(self.decimals)
 
         return wdg  # type: ignore
 

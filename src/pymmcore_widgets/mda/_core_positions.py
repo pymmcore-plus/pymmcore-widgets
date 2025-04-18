@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
@@ -102,10 +102,6 @@ class CoreConnectedPositionTable(PositionTable):
         table.addColumn(self._xy_btn_col, table.indexOf(self.X))
         table.addColumn(self._z_btn_col, table.indexOf(self.Z) + 1)
         table.addColumn(self._af_btn_col, table.indexOf(self.AF) + 1)
-
-        # when a new row is inserted, call _on_rows_inserted
-        # to update the new values from the core position
-        table.model().rowsInserted.connect(self._on_rows_inserted)
 
         # add move_to_selection to toolbar and link up callback
         toolbar = self.toolBar()
@@ -336,16 +332,10 @@ class CoreConnectedPositionTable(PositionTable):
         # has had a chance to update the values from the current stage position
         with signals_blocked(self):
             super()._add_row()
-        self.valueChanged.emit()
-
-    def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
-        # when a new row is inserted by any means, populate it with default values
-        # this is connected above in __init_ with self.model().rowsInserted.connect
-        with signals_blocked(self):
-            for row_idx in range(start, end + 1):
-                self._set_xy_from_core(row_idx)
-                self._set_z_from_core(row_idx)
-                self._set_af_from_core(row_idx)
+            row_idx = self.table().rowCount() - 1
+            self._set_xy_from_core(row_idx)
+            self._set_z_from_core(row_idx)
+            self._set_af_from_core(row_idx)
         self.valueChanged.emit()
 
     def _set_xy_from_core(self, row: int, col: int = 0) -> None:
