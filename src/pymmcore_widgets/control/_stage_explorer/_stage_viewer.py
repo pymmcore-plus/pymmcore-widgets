@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from typing import Optional, cast
+from typing import TYPE_CHECKING, Optional, cast
 
 import numpy as np
 from qtpy.QtCore import Qt
@@ -9,7 +9,9 @@ from qtpy.QtWidgets import (
 )
 from vispy import scene
 from vispy.scene.visuals import Image
-from vispy.scene.widgets import ViewBox
+
+if TYPE_CHECKING:
+    from vispy.scene.widgets import ViewBox
 
 
 class StageViewer(QWidget):
@@ -21,7 +23,7 @@ class StageViewer(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
-        self.view = cast(ViewBox, self.canvas.central_widget.add_view())
+        self.view = cast("ViewBox", self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1)
 
         main_layout = QVBoxLayout(self)
