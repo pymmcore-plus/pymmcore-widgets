@@ -14,7 +14,6 @@ from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.mda import MDAWidget
 from pymmcore_widgets.mda._core_channels import CoreConnectedChannelTable
 from pymmcore_widgets.mda._core_grid import CoreConnectedGridPlanWidget
-from pymmcore_widgets.mda._core_mda import CoreMDATabs
 from pymmcore_widgets.mda._core_positions import (
     AF_UNAVAILABLE,
     CoreConnectedPositionTable,
@@ -33,6 +32,8 @@ from pymmcore_widgets.useq_widgets._positions import AF_PER_POS_TOOLTIP, _MDAPop
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
+
+    from pymmcore_widgets.mda._core_mda import CoreMDATabs
 
 
 TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")
@@ -93,10 +94,12 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
 
     wdg._mmc.setXYPosition(11, 22)
     wdg._mmc.setZPosition(33)
+    wdg._mmc.waitForSystem()
     xyidx = pos_table.table().indexOf(pos_table._xy_btn_col)
     z_idx = pos_table.table().indexOf(pos_table._z_btn_col)
     pos_table.table().cellWidget(0, xyidx).click()
     pos_table.table().cellWidget(0, z_idx).click()
+
     p0 = pos_table.value()[0]
     assert round(p0.x) == 11
     assert round(p0.y) == 22
@@ -499,7 +502,7 @@ def test_enable_core_tab(qtbot: QtBot):
             and mda_tabs.channels.isEnabled()
         )
 
-    mda_tabs = cast(CoreMDATabs, wdg.tab_wdg)
+    mda_tabs = cast("CoreMDATabs", wdg.tab_wdg)
 
     mda_tabs._enable_tabs(True)
     # all tabs are enabled (you can switch between them)
@@ -554,6 +557,7 @@ def test_mda_no_pos_set(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
     MDA = useq.MDASequence(channels=[{"config": "DAPI", "exposure": 1}])
     wdg.setValue(MDA)
+    wdg._mmc.waitForSystem()
 
     assert wdg.value().stage_positions
     assert round(wdg.value().stage_positions[0].x) == 10

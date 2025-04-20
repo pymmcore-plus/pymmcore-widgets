@@ -219,7 +219,7 @@ class PixelConfigurationWidget(QWidget):
             self._px_table._add_row()
             self._px_table.table().setRowData(row, data)
             # connect the valueChanged signal of the px table spinboxes.
-            wdg = cast(QDoubleSpinBox, self._px_table._table.cellWidget(row, 1))
+            wdg = cast("QDoubleSpinBox", self._px_table._table.cellWidget(row, 1))
             wdg.valueChanged.connect(self._on_px_value_changed)
 
             if row == 0:
@@ -278,8 +278,8 @@ class PixelConfigurationWidget(QWidget):
 
     def _on_px_value_changed(self) -> None:
         """Update the pixel size value in the configuration map."""
-        spin = cast(QDoubleSpinBox, self.sender())
-        table = cast(DataTable, self.sender().parent().parent())
+        spin = cast("QDoubleSpinBox", self.sender())
+        table = cast("DataTable", self.sender().parent().parent())
         row = table.indexAt(spin.pos()).row()
         self._resID_map[row].pixel_size_um = spin.value()
         self._update_affine_transformations(spin.value())
@@ -345,7 +345,7 @@ class PixelConfigurationWidget(QWidget):
         self._resID_map[end] = PixelSizePreset(NEW, props)
 
         # connect the valueChanged signal of the spinbox
-        wdg = cast(QDoubleSpinBox, self._px_table._table.cellWidget(end, 1))
+        wdg = cast("QDoubleSpinBox", self._px_table._table.cellWidget(end, 1))
         wdg.valueChanged.connect(self._on_px_value_changed)
 
         # select the added row
@@ -453,7 +453,7 @@ class _PixelTable(DataTableWidget):
 
     ID = TextColumn(key=ID, header="ResolutionID", default=NEW, is_row_selector=False)
     VALUE = FloatColumn(
-        key=PX, header="pixel value [µm]", default=0, is_row_selector=False
+        key=PX, header="pixel value [µm]", default=0, is_row_selector=False, decimals=3
     )
 
     def __init__(self, rows: int = 0, parent: QWidget | None = None):
@@ -499,7 +499,7 @@ class AffineTable(QTableWidget):
         for row, col in itertools.product(range(3), range(3)):
             spin = QDoubleSpinBox()
             spin.setRange(-100000, 100000)
-            spin.setDecimals(1)
+            spin.setDecimals(3)
             spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
             spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
             self.setCellWidget(row, col, spin)
@@ -518,7 +518,7 @@ class AffineTable(QTableWidget):
         """Return the current widget value describing the affine transformation."""
         value: list[float] = []
         for row, col in itertools.product(range(2), range(3)):
-            spin = cast(QDoubleSpinBox, self.cellWidget(row, col))
+            spin = cast("QDoubleSpinBox", self.cellWidget(row, col))
             value.append(spin.value())
         return tuple(value)  # type: ignore
 
@@ -528,7 +528,7 @@ class AffineTable(QTableWidget):
             raise ValueError("The affine transformation must have 6 values.")
 
         for row, col in itertools.product(range(2), range(3)):
-            spin = cast(QDoubleSpinBox, self.cellWidget(row, col))
+            spin = cast("QDoubleSpinBox", self.cellWidget(row, col))
             spin.setValue(value[row * 3 + col])
 
 
@@ -649,10 +649,10 @@ class _PropertySelector(QWidget):
         # check only the rows that are in value
         for row in range(self._prop_table.rowCount()):
             dev_prop = cast(
-                DeviceProperty,
+                "DeviceProperty",
                 self._prop_table.item(row, 0).data(self._prop_table.PROP_ROLE),
             )
-            val_wdg = cast(PropertyWidget, self._prop_table.cellWidget(row, 1))
+            val_wdg = cast("PropertyWidget", self._prop_table.cellWidget(row, 1))
 
             with signals_blocked(self._prop_table):
                 # check if the device-property is in value

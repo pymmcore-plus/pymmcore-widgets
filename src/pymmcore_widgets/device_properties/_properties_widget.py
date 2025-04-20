@@ -96,7 +96,7 @@ class PropertiesWidget(QWidget):
         )
 
         # create and add widgets
-        layout = cast(QGridLayout, self.layout())
+        layout = cast("QGridLayout", self.layout())
         for i, (dev, prop) in enumerate(properties):
             layout.addWidget(QLabel(f"{dev}::{prop}"), i, 0)
             layout.addWidget(PropertyWidget(dev, prop, mmcore=self._mmc), i, 1)

@@ -49,7 +49,7 @@ class DeviceTypeFilters(QWidget):
         self._dev_gb.setLayout(grid)
 
         for x in self._dev_gb.findChildren(QWidget):
-            cast(QWidget, x).setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            cast("QWidget", x).setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self._read_only_checkbox = QCheckBox("Show read-only")
         self._read_only_checkbox.setChecked(True)
@@ -70,14 +70,14 @@ class DeviceTypeFilters(QWidget):
 
     def _check_all(self) -> None:
         for cxbx in self._dev_gb.findChildren(QCheckBox):
-            cast(QCheckBox, cxbx).setChecked(True)
+            cast("QCheckBox", cxbx).setChecked(True)
 
     def _check_none(self) -> None:
         for cxbx in self._dev_gb.findChildren(QCheckBox):
-            cast(QCheckBox, cxbx).setChecked(False)
+            cast("QCheckBox", cxbx).setChecked(False)
 
     def _toggle_filter(self, toggled: bool) -> None:
-        label = cast(QCheckBox, self.sender()).text()
+        label = cast("QCheckBox", self.sender()).text()
         self._filters.symmetric_difference_update(DevTypeLabels[label])
         self.filtersChanged.emit()
 
