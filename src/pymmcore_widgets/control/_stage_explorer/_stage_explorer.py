@@ -227,7 +227,7 @@ class StageExplorer(QWidget):
         action_map = {
             self._snap_on_double_click_act: "snap_on_double_click",
         }
-        sender = cast(QAction, self.sender())
+        sender = cast("QAction", self.sender())
 
         if value := action_map.get(sender):
             setattr(self, value, checked)
