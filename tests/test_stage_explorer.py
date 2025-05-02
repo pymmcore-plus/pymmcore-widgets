@@ -1,0 +1,111 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import numpy as np
+from qtpy.QtWidgets import QToolBar
+from vispy.app.canvas import MouseEvent
+from vispy.scene.visuals import Image
+
+from pymmcore_widgets.control._stage_explorer import _stage_explorer
+from pymmcore_widgets.control._stage_explorer._stage_explorer import StageExplorer
+from pymmcore_widgets.control._stage_explorer._stage_viewer import StageViewer
+
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
+
+IMG = np.random.randint(0, 255, (100, 50), dtype=np.uint8)
+
+
+def _build_transform_matrix(x: float, y: float) -> np.ndarray:
+    T = np.eye(4)
+    T[0, 3] += x
+    T[1, 3] += y
+    return T
+
+
+def test_stage_viewer_add_image(qtbot: QtBot) -> None:
+    stage_viewer = StageViewer()
+    qtbot.addWidget(stage_viewer)
+    T = _build_transform_matrix(100, 150)
+    stage_viewer.add_image(IMG, T.T)
+    images = [i for i in stage_viewer.view.scene.children if isinstance(i, Image)]
+    assert len(images) == 1
+    added_img = next(iter(images))
+    assert tuple(added_img.transform.matrix[3, :2]) == (100, 150)
+
+
+def test_stage_viewer_clear_scene(qtbot: QtBot) -> None:
+    stage_viewer = StageViewer()
+    qtbot.addWidget(stage_viewer)
+    T = _build_transform_matrix(200, 50)
+    stage_viewer.add_image(IMG, T.T)
+    assert [i for i in stage_viewer.view.scene.children if isinstance(i, Image)]
+    stage_viewer.clear()
+    assert not [i for i in stage_viewer.view.scene.children if isinstance(i, Image)]
+
+
+def test_stage_viewer_reset_view(qtbot: QtBot) -> None:
+    stage_viewer = StageViewer()
+    qtbot.addWidget(stage_viewer)
+    T = _build_transform_matrix(500, 100)
+    stage_viewer.add_image(IMG, T.T)
+    stage_viewer.zoom_to_fit()
+    cx, cy = stage_viewer.view.camera.rect.center
+    assert round(cx) == 525  # image width is 50, center should be Tx + width/2
+    assert round(cy) == 150  # image height is 100, center should be Ty + height/2
+
+
+def test_stage_explorer_initialization(qtbot: QtBot) -> None:
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    assert explorer.windowTitle() == "Stage Explorer"
+    assert explorer.snap_on_double_click is False
+
+
+def test_stage_explorer_snap_on_double_click(qtbot: QtBot) -> None:
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    explorer.snap_on_double_click = True
+    assert explorer.snap_on_double_click is True
+    explorer.snap_on_double_click = False
+    assert explorer.snap_on_double_click is False
+
+
+def test_stage_explorer_add_image(qtbot: QtBot) -> None:
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    image = np.random.randint(0, 255, (100, 100), dtype=np.uint8)
+    stage_x, stage_y = 50.0, 75.0
+    explorer.add_image(image, stage_x, stage_y)
+    # Verify the image was added to the stage viewer
+    nimages = len(list(explorer._stage_viewer._get_images()))
+    assert nimages == 1
+
+
+def test_stage_explorer_actions(qtbot: QtBot) -> None:
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    explorer.add_image(IMG, 0, 0)
+
+    tb = explorer.findChild(QToolBar)
+    actions = tb.actions()
+    snap_action = next(a for a in actions if a.text() == _stage_explorer.SNAP)
+    with qtbot.waitSignal(snap_action.triggered):
+        snap_action.trigger()
+    assert explorer.snap_on_double_click is True
+
+
+def test_stage_explorer_move_on_click(qtbot: QtBot) -> None:
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+
+    explorer.add_image(IMG, 0, 0)
+    stage_pos = explorer._mmc.getXYPosition()
+
+    explorer._snap_on_double_click = True
+    event = MouseEvent("mouse_press", pos=(100, 100), button=1)
+    with qtbot.waitSignal(explorer._mmc.events.imageSnapped):
+        explorer._move_to_clicked_position(event)
+
+    assert explorer._mmc.getXYPosition() != stage_pos

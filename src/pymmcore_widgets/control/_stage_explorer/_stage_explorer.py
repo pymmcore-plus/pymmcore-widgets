@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import numpy as np
 from fonticon_mdi6 import MDI6
@@ -119,7 +119,7 @@ class StageExplorer(QWidget):
             # action text: (icon, color, checkable, callback)
             CLEAR: (MDI6.close, GRAY, False, self._stage_viewer.clear),
             RESET: (MDI6.fullscreen, GRAY, False, self._stage_viewer.zoom_to_fit),
-            SNAP: (MDI6.camera_outline, GRAY, True, self._on_setting_checked),
+            SNAP: (MDI6.camera_outline, GRAY, True, self._on_snap_action_triggered),
         }
 
         # create actions
@@ -184,15 +184,9 @@ class StageExplorer(QWidget):
 
     # WIDGET ----------------------------------------------------------------------
 
-    def _on_setting_checked(self, checked: bool) -> None:
+    def _on_snap_action_triggered(self, checked: bool) -> None:
         """Update the stage viewer settings based on the state of the action."""
-        action_map = {
-            self._snap_on_double_click_act: "snap_on_double_click",
-        }
-        sender = cast("QAction", self.sender())
-
-        if value := action_map.get(sender):
-            setattr(self, value, checked)
+        self.snap_on_double_click = checked
 
     # CORE ------------------------------------------------------------------------
 
@@ -204,6 +198,7 @@ class StageExplorer(QWidget):
         """Move the stage to the clicked position."""
         if not self._mmc.getXYStageDevice():
             return
+
         # map the clicked canvas position to the stage position
         x, y, _, _ = self._stage_viewer.view.camera.transform.imap(event.pos)
         self._mmc.setXYPosition(x, y)
