@@ -253,7 +253,7 @@ def _creat_prop_widget(mmcore: CMMCorePlus, dev: str, prop: str) -> PPropValueWi
             wdg.setMaximum(wdg.type_cast(mmcore.getPropertyUpperLimit(dev, prop)))
     else:
         wdg = StringWidget()
-    return cast(PPropValueWidget, wdg)
+    return cast("PPropValueWidget", wdg)
 
 
 # -----------------------------------------------------------------------
@@ -328,7 +328,7 @@ class PropertyWidget(QWidget):
         self._mmc.events.propertyChanged.connect(self._on_core_change)
         self._value_widget.valueChanged.connect(self._on_value_widget_change)
 
-        self.layout().addWidget(cast(QWidget, self._value_widget))
+        self.layout().addWidget(cast("QWidget", self._value_widget))
         self.destroyed.connect(self._disconnect)
 
     def _try_update_from_core(self) -> Any:

@@ -440,7 +440,7 @@ class WellPlateView(ResizingGraphicsView):
         indices = plan.all_well_indices.reshape(-1, 2)
         for idx, pos in zip(indices, plan.all_well_positions):
             # invert y-axis for screen coordinates
-            screen_x, screen_y = pos.x, -cast(float, pos.y)
+            screen_x, screen_y = pos.x, -cast("float", pos.y)
             rect = well_rect.translated(screen_x, screen_y)
             if item := add_item(rect, pen):
                 item.setData(DATA_POSITION, pos)
@@ -511,7 +511,10 @@ class WellPlateView(ResizingGraphicsView):
 
         for x, y in positions:
             edge_rect = QRectF(x - width / 2, y - width / 2, width, width)
-            new_pos = useq.Position(x=x, y=y, name=pos.name)
+            # NOTE: we are inverting the y-coordinate because the y-axis is inverted
+            # in the scene coordinate system (in pymmcore-plus we use a coordinate
+            # system where y is negative downwards and positive upwards)
+            new_pos = useq.Position(x=x, y=-y, name=pos.name)
             item = HoverEllipse(edge_rect)
             item.setData(DATA_POSITION, new_pos)
             if new_pos.x is not None and new_pos.y is not None:

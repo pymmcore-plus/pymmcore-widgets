@@ -91,7 +91,7 @@ class _CalibrationModeWidget(QComboBox):
 
     def currentMode(self) -> Mode:
         """Return the selected calibration mode."""
-        return cast(Mode, self.itemData(self.currentIndex(), COMBO_ROLE))
+        return cast("Mode", self.itemData(self.currentIndex(), COMBO_ROLE))
 
 
 class _CalibrationTable(QTableWidget):
