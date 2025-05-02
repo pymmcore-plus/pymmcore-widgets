@@ -100,57 +100,39 @@ class GroupPresetTableWidget(QGroupBox):
         self._enable_buttons(False)
 
     def _add_groups_presets_buttons(self) -> QWidget:
-        main_wdg = QWidget()
-        main_wdg_layout = QHBoxLayout()
-        main_wdg_layout.setSpacing(10)
-        main_wdg_layout.setContentsMargins(0, 0, 0, 0)
-        main_wdg.setLayout(main_wdg_layout)
-
-        lbl_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
-        # groups
-        groups_btn_wdg = QWidget()
-        groups_layout = QHBoxLayout()
-        groups_layout.setSpacing(5)
-        groups_layout.setContentsMargins(0, 0, 0, 0)
-        groups_btn_wdg.setLayout(groups_layout)
-
-        groups_lbl = QLabel(text="Group:")
-        groups_lbl.setSizePolicy(lbl_sizepolicy)
         self.groups_add_btn = QPushButton(text="+")
         self.groups_add_btn.clicked.connect(self._add_group)
         self.groups_remove_btn = QPushButton(text="-")
         self.groups_remove_btn.clicked.connect(self._delete_group)
         self.groups_edit_btn = QPushButton(text="Edit")
         self.groups_edit_btn.clicked.connect(self._edit_group)
-        groups_layout.addWidget(groups_lbl)
-        groups_layout.addWidget(self.groups_add_btn)
-        groups_layout.addWidget(self.groups_remove_btn)
-        groups_layout.addWidget(self.groups_edit_btn)
 
-        main_wdg_layout.addWidget(groups_btn_wdg)
-
-        # presets
-        presets_btn_wdg = QWidget()
-        presets_layout = QHBoxLayout()
-        presets_layout.setSpacing(5)
-        presets_layout.setContentsMargins(0, 0, 0, 0)
-        presets_btn_wdg.setLayout(presets_layout)
-
-        presets_lbl = QLabel(text="Preset:")
-        presets_lbl.setSizePolicy(lbl_sizepolicy)
         self.presets_add_btn = QPushButton(text="+")
         self.presets_add_btn.clicked.connect(self._add_preset)
         self.presets_remove_btn = QPushButton(text="-")
         self.presets_remove_btn.clicked.connect(self._delete_preset)
         self.presets_edit_btn = QPushButton(text="Edit")
         self.presets_edit_btn.clicked.connect(self._edit_preset)
-        presets_layout.addWidget(presets_lbl)
-        presets_layout.addWidget(self.presets_add_btn)
-        presets_layout.addWidget(self.presets_remove_btn)
-        presets_layout.addWidget(self.presets_edit_btn)
 
-        main_wdg_layout.addWidget(presets_btn_wdg)
+        # groups
+        group_layout = QHBoxLayout()
+        group_layout.addWidget(QLabel("Group:"))
+        group_layout.addWidget(self.groups_add_btn)
+        group_layout.addWidget(self.groups_remove_btn)
+        group_layout.addWidget(self.groups_edit_btn)
+
+        preset_layout = QHBoxLayout()
+        preset_layout.addWidget(QLabel("Preset:"))
+        preset_layout.addWidget(self.presets_add_btn)
+        preset_layout.addWidget(self.presets_remove_btn)
+        preset_layout.addWidget(self.presets_edit_btn)
+
+        main_wdg = QWidget()
+        main_wdg_layout = QVBoxLayout(main_wdg)
+        main_wdg_layout.setSpacing(2)
+        main_wdg_layout.setContentsMargins(0, 0, 0, 0)
+        main_wdg_layout.addLayout(group_layout)
+        main_wdg_layout.addLayout(preset_layout)
 
         return main_wdg
 
