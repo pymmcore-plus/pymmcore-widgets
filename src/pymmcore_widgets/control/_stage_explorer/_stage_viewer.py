@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple, cast
 
+import cmap
 import numpy as np
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import (
-    QVBoxLayout,
-    QWidget,
-)
+from qtpy.QtWidgets import QVBoxLayout, QWidget
 from vispy import scene
 from vispy.scene.visuals import Image
 
@@ -25,6 +23,9 @@ class StageViewer(QWidget):
         self.setWindowTitle("Stage Explorer")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
+        self._clims: tuple[float, float] | None = None
+        self._cmap: cmap.Colormap = cmap.Colormap("gray")
+
         self.canvas = scene.SceneCanvas(keys="interactive", show=True)
         self.view = cast("ViewBox", self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1)
@@ -35,6 +36,18 @@ class StageViewer(QWidget):
         main_layout.addWidget(self.canvas.native)
 
     # --------------------PUBLIC METHODS--------------------
+
+    def set_clims(self, clim: tuple[float, float] | None) -> None:
+        """Set the color limits of the images in the scene."""
+        self._clims = clim
+        for child in self._get_images():
+            child.clim = "auto" if clim is None else clim
+
+    def set_colormap(self, colormap: cmap.ColormapLike) -> None:
+        """Set the colormap of the images in the scene."""
+        self._cmap = cmap.Colormap(colormap)
+        for child in self._get_images():
+            child.cmap = self._cmap.to_vispy()
 
     def add_image(self, img: np.ndarray, transform: np.ndarray | None = None) -> None:
         """Add an image to the scene with the given transform."""
@@ -51,7 +64,12 @@ class StageViewer(QWidget):
                 transform = transform.T
 
         # add the image to the scene with the transform
-        frame = Image(img, cmap="grays", parent=self.view.scene, clim="auto")
+        frame = Image(
+            img,
+            cmap=self._cmap.to_vispy(),
+            parent=self.view.scene,
+            clim="auto" if self._clims is None else self._clims,
+        )
         # keep the added image on top of the others
         frame.order = min(child.order for child in self._get_images()) - 1
         frame.transform = scene.MatrixTransform(matrix=transform)

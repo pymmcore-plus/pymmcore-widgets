@@ -91,7 +91,7 @@ class StageExplorer(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._stage_viewer = StageViewer(self)
-        self._rezoom_on_new_image: bool = True
+        self._rezoom_on_new_image: bool = False
 
         # to keep track of the current scale depending on the zoom level
         self._current_scale: int = 1
@@ -296,7 +296,7 @@ class StageExplorer(QWidget):
 
         # 2. get the affine transform from the core configuration, or
         # fallback to a manually constructed one if not set
-        system_affine = self._current_pixel_config_affine()
+        system_affine = self._current_pixel_config_affine(flip_x, flip_y)
         if system_affine is None:
             system_affine = self._build_linear_matrix(0, flip_x, flip_y)
 
@@ -308,7 +308,9 @@ class StageExplorer(QWidget):
         # (reminder: the order of the matrix multiplication is reversed :)
         return stage_shift @ system_affine @ half_img_shift  # type: ignore
 
-    def _current_pixel_config_affine(self) -> np.ndarray | None:
+    def _current_pixel_config_affine(
+        self, flip_x: bool = False, flip_y: bool = False
+    ) -> np.ndarray | None:
         """Return the current pixel configuration affine, if set.
 
         If the pixel configuration is not set (i.e. is the identity matrix),
@@ -322,6 +324,12 @@ class StageExplorer(QWidget):
 
         tform = np.eye(4)
         tform[:2, :3] = np.array(affine).reshape(2, 3)
+        # flip the image if required
+        # TODO: Should this ALWAYS be done?
+        if flip_x:
+            tform[0, 0] *= -1
+        if flip_y:
+            tform[1, 1] *= -1
         return tform
 
     def _build_linear_matrix(
@@ -343,9 +351,10 @@ class StageExplorer(QWidget):
         S[0, 0] = pixel_size
         S[1, 1] = pixel_size
         # flip the image if required
-        if self._mmc.getCameraDevice():
-            S[0, 0] *= -1 if flip_x else 1
-            S[1, 1] *= -1 if flip_y else 1
+        if flip_x:
+            S[0, 0] *= -1
+        if flip_y:
+            S[1, 1] *= -1
         return R @ S
 
     def _t_half_width(self) -> np.ndarray:
