@@ -1,4 +1,5 @@
-from collections.abc import Iterator
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Optional, cast
 
 import numpy as np
@@ -11,13 +12,15 @@ from vispy import scene
 from vispy.scene.visuals import Image
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from vispy.scene.widgets import ViewBox
 
 
 class StageViewer(QWidget):
     """A widget to add images with a transform to a vispy canves."""
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Stage Explorer")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)

@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
-import useq
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import Signal
@@ -16,11 +17,13 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.fonticon import icon
-from vispy.app.canvas import MouseEvent
 
 from ._stage_viewer import StageViewer
 
 if TYPE_CHECKING:
+    import useq
+    from vispy.app.canvas import MouseEvent
+
     from ._rois import ROIRectangle
 
 # suppress scientific notation when printing numpy arrays
