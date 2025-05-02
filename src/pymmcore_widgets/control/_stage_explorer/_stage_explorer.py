@@ -154,8 +154,8 @@ class StageExplorer(QWidget):
 
         ACTION_MAP = {
             # action text: (icon, color, checkable, callback)
-            CLEAR: (MDI6.close, GRAY, False, self._stage_viewer.clear_scene),
-            RESET: (MDI6.fullscreen, GRAY, False, self._stage_viewer.reset_view),
+            CLEAR: (MDI6.close, GRAY, False, self._stage_viewer.clear),
+            RESET: (MDI6.fullscreen, GRAY, False, self._stage_viewer.zoom_to_fit),
             SNAP: (MDI6.camera_outline, GRAY, True, self._on_setting_checked),
         }
 
@@ -239,7 +239,7 @@ class StageExplorer(QWidget):
 
     def _on_sys_config_loaded(self) -> None:
         """Clear the scene when the system configuration is loaded."""
-        self._stage_viewer.clear_scene()
+        self._stage_viewer.clear()
 
     def _move_to_clicked_position(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
@@ -284,7 +284,7 @@ class StageExplorer(QWidget):
             self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
         # reset the view if the image is not within the view
         if not self._is_visual_within_view(x, y):
-            self._stage_viewer.reset_view()
+            self._stage_viewer.zoom_to_fit()
 
     def _is_visual_within_view(self, x: float, y: float) -> bool:
         """Return True if the visual is within the view, otherwise False."""
