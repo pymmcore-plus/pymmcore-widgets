@@ -10,9 +10,8 @@ mmc = CMMCorePlus.instance()
 mmc.loadSystemConfiguration()
 
 # Just in case, clear any previous settings to the default (identity) affine.
-mmc.setPixelSizeAffine("Res10x", [1.0, 0.0, 0.0, 0.0, 1.0, 0.0])
-mmc.setPixelSizeAffine("Res20x", [1.0, 0.0, 0.0, 0.0, 1.0, 0.0])
-mmc.setPixelSizeAffine("Res40x", [1.0, 0.0, 0.0, 0.0, 1.0, 0.0])
+cur_group = mmc.getCurrentPixelSizeConfig()
+mmc.setPixelSizeAffine(cur_group, [1.0, 0.0, 0.0, 0.0, 1.0, 0.0])
 
 # set camera roi (rectangular helps confirm orientation)
 mmc.setROI(0, 0, 512, 256)

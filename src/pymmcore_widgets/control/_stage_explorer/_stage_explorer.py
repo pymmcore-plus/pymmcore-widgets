@@ -5,11 +5,8 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QAction,
-    QDoubleSpinBox,
-    QHBoxLayout,
     QLabel,
     QSizePolicy,
     QToolBar,
@@ -24,7 +21,6 @@ if TYPE_CHECKING:
     import useq
     from vispy.app.canvas import MouseEvent
 
-    from ._rois import ROIRectangle
 
 # suppress scientific notation when printing numpy arrays
 np.set_printoptions(suppress=True)
@@ -61,37 +57,6 @@ SS_TOOLBUTTON = """
 """
 
 
-class RotationControl(QWidget):
-    """A widget to set the rotation of the images."""
-
-    valueChanged = Signal(int)
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-
-        lbl_pre = QLabel("Rotation:")
-        lbl_post = QLabel("°")
-        self._rotation_spin = QDoubleSpinBox()
-        self._rotation_spin.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
-        self._rotation_spin.setRange(-360, 360)
-        self._rotation_spin.setSingleStep(1)
-        self._rotation_spin.setValue(0)
-        self._rotation_spin.valueChanged.connect(self._on_value_changed)
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(3)
-        layout.addWidget(lbl_pre, 0)
-        layout.addWidget(self._rotation_spin, 0)
-        layout.addWidget(lbl_post, 0)
-
-    def _on_value_changed(self, value: float) -> None:
-        self.valueChanged.emit(value)
-
-    def value(self) -> float:
-        return self._rotation_spin.value()  # type: ignore
-
-
 class StageExplorer(QWidget):
     """A stage positions explorer widget.
 
@@ -126,15 +91,13 @@ class StageExplorer(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._stage_viewer = StageViewer(self)
+        self._rezoom_on_new_image: bool = True
 
         # to keep track of the current scale depending on the zoom level
         self._current_scale: int = 1
 
         # timer for polling stage position
         self._timer_id: int | None = None
-
-        # to store the rois
-        self._rois: list[ROIRectangle] = []
 
         # properties
         self._snap_on_double_click: bool = False
@@ -209,16 +172,12 @@ class StageExplorer(QWidget):
         self._snap_on_double_click_act.setChecked(value)
 
     def add_image(
-        self, image: np.ndarray, x_pos: float | None = None, y_pos: float | None = None
+        self, image: np.ndarray, stage_x_um: float, stage_y_um: float
     ) -> None:
-        """Add an image to the scene considering position and rotation."""
+        """Add an image to the scene at a give (x, y) stage position in microns."""
         # TODO: expose rotation and use if affine = self._mmc.getPixelSizeAffine()
         # is not set (if equal to (1.0, 0.0, 0.0, 0.0, 1.0, 0.0))
-        rotation = 0
-        matrix = self._build_image_transformation_matrix(
-            x_pos=x_pos, y_pos=y_pos, rotation=rotation
-        )
-        # transpose matrix because vispy uses column-major order
+        matrix = self._create_complete_affine_matrix(x_pos=stage_x_um, y_pos=stage_y_um)
         self._stage_viewer.add_image(image, transform=matrix.T)
 
     # -----------------------------PRIVATE METHODS------------------------------------
@@ -275,15 +234,25 @@ class StageExplorer(QWidget):
     # IMAGES -----------------------------------------------------------------------
 
     def _add_image_and_update_widget(
-        self, image: np.ndarray, x: float, y: float
+        self, image: np.ndarray, stage_x_um: float, stage_y_um: float
     ) -> None:
-        """Add the image to the scene and update position label and view."""
-        self.add_image(image, x, y)
+        """Add the image to the scene and update position label and view.
+
+        (called by _on_image_snapped and _on_frame_ready).
+        """
+        self.add_image(image, stage_x_um, stage_y_um)
+
         # update the stage position label if the stage position is not being polled
         if not self._poll_stage_position:
-            self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
+            self._stage_pos_label.setText(
+                f"X: {stage_x_um:.2f} µm  Y: {stage_y_um:.2f} µm"
+            )
+
         # reset the view if the image is not within the view
-        if not self._is_visual_within_view(x, y):
+        if (
+            not self._is_visual_within_view(stage_x_um, stage_y_um)
+            and self._rezoom_on_new_image
+        ):
             self._stage_viewer.zoom_to_fit()
 
     def _is_visual_within_view(self, x: float, y: float) -> bool:
@@ -301,64 +270,13 @@ class StageExplorer(QWidget):
         ]
         return all(view_rect.contains(*vertex) for vertex in vertices)
 
-    def _build_transformation_matrix(
-        self,
-        x_pos: float | None = None,
-        y_pos: float | None = None,
-        rotation: float = 0,
-        flip_x: bool = False,
-        flip_y: bool = False,
-    ) -> np.ndarray:
-        """Return the transformation matrix.
+    def _create_complete_affine_matrix(self, x_pos: float, y_pos: float) -> np.ndarray:
+        """Construct affine matrix for the current state of the system + stage position.
 
-        It takes into account the pixel size (scale), rotation, and stage position.
-
-        For rotation and scaling, if the Micro-Manager configuration uses the default
-        affine transformation (1, 0, 0, 0, 1, 0), compute the transformation based on
-        the pixel size and rotation. Otherwise, apply the pixel affine transformation
-        matrix specified in the Micro-Manager configuration.
-        """
-        pixel_size = self._mmc.getPixelSizeUm()
-        affine = self._mmc.getPixelSizeAffine()
-        if affine == (1, 0, 0, 0, 1, 0):
-            # rotation matrix
-            R = np.eye(4)
-            rotation_rad = np.deg2rad(rotation)
-            cos_ = np.cos(rotation_rad)
-            sin_ = np.sin(rotation_rad)
-            R[:2, :2] = np.array([[cos_, -sin_], [sin_, cos_]])
-            # scaling matrix
-            S = np.eye(4)
-            S[0, 0] = pixel_size
-            S[1, 1] = pixel_size
-            # flip the image if required
-            if self._mmc.getCameraDevice():
-                S[0, 0] *= -1 if flip_x else 1
-                S[1, 1] *= -1 if flip_y else 1
-            RS = R @ S
-        else:
-            RS = np.eye(4)
-            RS[:2, :3] = np.array(affine).reshape(2, 3)
-
-        T = np.eye(4)
-        x_pos = self._mmc.getXPosition() if x_pos is None else x_pos
-        y_pos = self._mmc.getYPosition() if y_pos is None else y_pos
-        # is not really necessary to multiply by the polarity because the stage
-        # devices already inveret the coords sign if activated in Micro-Manager
-        T[0, 3] += x_pos  # * x_polarity
-        T[1, 3] += y_pos  # * y_polarity
-
-        return T @ RS
-
-    def _build_image_transformation_matrix(
-        self,
-        x_pos: float | None = None,
-        y_pos: float | None = None,
-        rotation: float = 0,
-    ) -> np.ndarray:
-        """Return the transformation matrix to apply to the image.
-
-        It takes into account the pixel size (scale), rotation, and stage position.
+        This method combines the system affine matrix (if set) with a translation
+        according to the provided stage position. The resulting matrix can be passed
+        to the `add_image` method of the `StageViewer` class to position the image
+        correctly in the scene.
         """
         # get the flip status
         # NOTE: this can be an issue since here we are retrieving the flip status
@@ -371,8 +289,67 @@ class StageExplorer(QWidget):
             mirror_y = Keyword.Transpose_MirrorY
             flip_x = self._mmc.getProperty(cam, mirror_x) == "1"
             flip_y = self._mmc.getProperty(cam, mirror_y) == "1"
-        # build the transformation matrix
-        T = self._build_transformation_matrix(x_pos, y_pos, rotation, flip_x, flip_y)
+
+        # Create the complete matrix
+        # 1. translate_half the image width
+        half_img_shift = self._t_half_width()
+
+        # 2. get the affine transform from the core configuration, or
+        # fallback to a manually constructed one if not set
+        system_affine = self._current_pixel_config_affine()
+        if system_affine is None:
+            system_affine = self._build_linear_matrix(0, flip_x, flip_y)
+
+        # 3. translate to the stage position
+        stage_shift = np.eye(4)
+        stage_shift[0:2, 3] = (x_pos, y_pos)
+
+        # 1. translate_half_width -> 2. rotate/scale -> 3. translate_to_stage_pos
+        # (reminder: the order of the matrix multiplication is reversed :)
+        return stage_shift @ system_affine @ half_img_shift  # type: ignore
+
+    def _current_pixel_config_affine(self) -> np.ndarray | None:
+        """Return the current pixel configuration affine, if set.
+
+        If the pixel configuration is not set (i.e. is the identity matrix),
+        it will return None.
+        """
+        affine = self._mmc.getPixelSizeAffine()
+        # TODO: determine whether this is the best way to check if this info is
+        # available or not.
+        if np.allclose(affine, (1.0, 0.0, 0.0, 0.0, 1.0, 0.0)):
+            return None
+
+        tform = np.eye(4)
+        tform[:2, :3] = np.array(affine).reshape(2, 3)
+        return tform
+
+    def _build_linear_matrix(
+        self, rotation: float = 0, flip_x: bool = False, flip_y: bool = False
+    ) -> np.ndarray:
+        """Build linear transformation matrix for rotation and scaling.
+
+        The matrix is still 4x4, but has no translation component.
+        """
+        # rotation matrix
+        R = np.eye(4)
+        rotation_rad = np.deg2rad(rotation)
+        cos_ = np.cos(rotation_rad)
+        sin_ = np.sin(rotation_rad)
+        R[:2, :2] = np.array([[cos_, -sin_], [sin_, cos_]])
+        # scaling matrix
+        pixel_size = self._mmc.getPixelSizeUm()
+        S = np.eye(4)
+        S[0, 0] = pixel_size
+        S[1, 1] = pixel_size
+        # flip the image if required
+        if self._mmc.getCameraDevice():
+            S[0, 0] *= -1 if flip_x else 1
+            S[1, 1] *= -1 if flip_y else 1
+        return R @ S
+
+    def _t_half_width(self) -> np.ndarray:
+        """Return the transformation matrix to translate half the size of the image."""
         # by default, vispy add the images from the bottom-left corner. We need to
         # translate by -w/2 and -h/2 so the position corresponds to the center of the
         # images. In addition, this make sure the rotation (if any) is applied around
@@ -380,5 +357,4 @@ class StageExplorer(QWidget):
         T_center = np.eye(4)
         T_center[0, 3] = -self._mmc.getImageWidth() / 2
         T_center[1, 3] = -self._mmc.getImageHeight() / 2
-
-        return T @ T_center
+        return T_center
