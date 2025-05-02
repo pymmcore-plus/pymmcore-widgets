@@ -464,6 +464,7 @@ class StageWidget(QWidget):
             self._mmc.logMessage(f"Error moving stage: {e}")  # pragma: no cover
         else:
             if self.snap_checkbox.isChecked():
+                self._mmc.waitForDevice(self._device)
                 self._mmc.snap()
 
     def _move_x_absolute(self) -> None:
@@ -475,6 +476,7 @@ class StageWidget(QWidget):
             self._mmc.logMessage(f"Error moving stage: {e}")  # pragma: no cover
         else:
             if self.snap_checkbox.isChecked():
+                self._mmc.waitForDevice(self._device)
                 self._mmc.snap()
 
     def _move_y_absolute(self) -> None:
@@ -489,6 +491,7 @@ class StageWidget(QWidget):
             self._mmc.logMessage(f"Error moving stage: {e}")  # pragma: no cover
         else:
             if self.snap_checkbox.isChecked():
+                self._mmc.waitForDevice(self._device)
                 self._mmc.snap()
 
     def _disconnect(self) -> None:
