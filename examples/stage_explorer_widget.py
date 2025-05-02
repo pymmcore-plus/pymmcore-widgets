@@ -1,5 +1,5 @@
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QApplication
+from qtpy.QtWidgets import QApplication, QSplitter, QVBoxLayout, QWidget
 
 from pymmcore_widgets import MDAWidget, StageWidget
 from pymmcore_widgets.control._stage_explorer._stage_explorer import StageExplorer
@@ -8,24 +8,35 @@ app = QApplication([])
 
 mmc = CMMCorePlus.instance()
 mmc.loadSystemConfiguration()
-# delete px size affine
+
+# Just in case, clear any previous settings to the default (identity) affine.
 mmc.setPixelSizeAffine("Res10x", [1.0, 0.0, 0.0, 0.0, 1.0, 0.0])
 mmc.setPixelSizeAffine("Res20x", [1.0, 0.0, 0.0, 0.0, 1.0, 0.0])
 mmc.setPixelSizeAffine("Res40x", [1.0, 0.0, 0.0, 0.0, 1.0, 0.0])
 
-# set camera roi
+# set camera roi (rectangular helps confirm orientation)
 mmc.setROI(0, 0, 512, 256)
 
-wdg = StageExplorer()
-wdg.show()
+explorer = StageExplorer()
+explorer.show()
 
-stage = StageWidget("XY")
-stage.setStep(512)
-stage.snap_checkbox.setChecked(True)
-stage.show()
+stage_ctrl = StageWidget("XY")
+stage_ctrl.setStep(512)
+stage_ctrl.snap_checkbox.setChecked(True)
+stage_ctrl.show()
 
-MDA = MDAWidget()
-MDA.show()
+mda_widget = MDAWidget()
+mda_widget.show()
 
-v = wdg._stage_viewer
+# v = explorer._stage_viewer
+
+splitter = QSplitter()
+splitter.addWidget(explorer)
+right = QWidget()
+rlayout = QVBoxLayout(right)
+rlayout.addWidget(stage_ctrl)
+rlayout.addWidget(mda_widget)
+splitter.addWidget(right)
+splitter.show()
+
 app.exec()
