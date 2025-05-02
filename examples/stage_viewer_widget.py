@@ -1,3 +1,5 @@
+# NOTE: run in ipython with `%run examples/stage_viewer_widget.py`
+
 import numpy as np
 from vispy import scene
 
@@ -11,6 +13,9 @@ class SV(StageViewer):
 
     def __init__(self):
         super().__init__()
+
+        self.add_image(img)
+        self.reset_view()
 
         self.canvas.events.mouse_press.connect(self._on_mouse_press)
 
