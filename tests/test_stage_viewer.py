@@ -37,7 +37,7 @@ def test_clear_scene(qtbot: QtBot):
     T = _build_transform_matrix(200, 50)
     stage_viewer.add_image(IMG, T.T)
     assert [i for i in stage_viewer.view.scene.children if isinstance(i, Image)]
-    stage_viewer.clear_scene()
+    stage_viewer.clear()
     assert not [i for i in stage_viewer.view.scene.children if isinstance(i, Image)]
 
 
@@ -46,7 +46,7 @@ def test_reset_view(qtbot: QtBot):
     qtbot.addWidget(stage_viewer)
     T = _build_transform_matrix(500, 100)
     stage_viewer.add_image(IMG, T.T)
-    stage_viewer.reset_view()
+    stage_viewer.zoom_to_fit()
     cx, cy = stage_viewer.view.camera.rect.center
     assert round(cx) == 525  # image width is 50, center should be Tx + width/2
     assert round(cy) == 150  # image height is 100, center should be Ty + height/2

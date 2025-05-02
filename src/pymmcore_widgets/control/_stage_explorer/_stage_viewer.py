@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 import numpy as np
 from qtpy.QtCore import Qt
@@ -38,26 +38,36 @@ class StageViewer(QWidget):
 
     def add_image(self, img: np.ndarray, transform: np.ndarray | None = None) -> None:
         """Add an image to the scene with the given transform."""
+        # normalize the transform
+        if transform is None:
+            transform = np.eye(4)
+        else:
+            transform = np.asarray(transform)
+            if transform.shape != (4, 4):
+                raise ValueError("Transform must be a 4x4 matrix.")
+            # vispy uses a column-major order for the transform matrix
+            # so we need to transpose it to get the correct order
+            if np.allclose(transform[-1], (0, 0, 0, 1)):
+                transform = transform.T
+
+        # add the image to the scene with the transform
         frame = Image(img, cmap="grays", parent=self.view.scene, clim="auto")
         # keep the added image on top of the others
         frame.order = min(child.order for child in self._get_images()) - 1
-        # add the image to the scene with the transform
-        transform = np.eye(4) if transform is None else transform
         frame.transform = scene.MatrixTransform(matrix=transform)
 
-    def clear_scene(self) -> None:
+    def clear(self) -> None:
         """Clear the scene."""
         # remove all images from the scene
         for child in reversed(self.view.scene.children):
             if isinstance(child, Image):
                 child.parent = None
 
-    def reset_view(self) -> None:
+    def zoom_to_fit(self) -> None:
         """Recenter the view to the center of all images."""
-        min_x, max_x, min_y, max_y = self._get_full_boundaries()
-        if any(val is None for val in (min_x, max_x, min_y, max_y)):
+        if not (bounds := self._get_scene_boundary()):
             return
-        self.view.camera.set_range(x=(min_x, max_x), y=(min_y, max_y), margin=0)
+        self.view.camera.set_range(x=bounds.x_coord, y=bounds.y_coord, margin=0)
 
     # --------------------PRIVATE METHODS--------------------
 
@@ -67,12 +77,8 @@ class StageViewer(QWidget):
             if isinstance(child, Image):
                 yield child
 
-    def _get_full_boundaries(
-        self, pixel_size: float = 1.0
-    ) -> tuple[float | None, float | None, float | None, float | None]:
+    def _get_scene_boundary(self, pixel_size: float = 1.0) -> Bounds | None:
         """Return the boundaries of the images in the scene...
-
-        as (min_x, max_x, min_y, max_y).
 
         The pixel_size is used to convert the image dimensions to the scene
         coordinates.
@@ -89,22 +95,49 @@ class StageViewer(QWidget):
             # TODO: Fix me! If we invert the coordinates in micromnager
             # (e.g. transpose X), the image origin will be at the bottom-right.
             # need to figure out what to do...
-            corners = np.array(
-                [
-                    [x, y],  # bottom-left
-                    [x + w, y],  # bottom-right
-                    [x + w, y + h],  # top-right
-                    [x, y + h],  # top-left
-                ]
-            )
+            bot_left = (x, y)
+            bot_right = (x + w, y)
+            top_right = (x + w, y + h)
+            top_left = (x, y + h)
+            corners = np.array([bot_left, bot_right, top_right, top_left])
             # transform the corners to scene coordinates
             all_corners.append(corners)
 
         if not all_corners:
-            return None, None, None, None
+            return None
 
         # combine all corners into one array and compute the bounding box
         all_corners_combined = np.vstack(all_corners)
+        # create a Bounds object to store x/y coordinates and width/height
         min_x, min_y = all_corners_combined.min(axis=0)
         max_x, max_y = all_corners_combined.max(axis=0)
-        return min_x, max_x, min_y, max_y
+        return Bounds(min_x, max_x, min_y, max_y)
+
+
+class Bounds(NamedTuple):
+    """A named tuple to store the bounds of an image."""
+
+    min_x: float
+    max_x: float
+    min_y: float
+    max_y: float
+
+    @property
+    def x_coord(self) -> tuple[float, float]:
+        """Return the x coordinates of the bounding box."""
+        return self.min_x, self.max_x
+
+    @property
+    def y_coord(self) -> tuple[float, float]:
+        """Return the y coordinates of the bounding box."""
+        return self.min_y, self.max_y
+
+    @property
+    def width(self) -> float:
+        """Return the width of the bounding box."""
+        return self.max_x - self.min_x
+
+    @property
+    def height(self) -> float:
+        """Return the height of the bounding box."""
+        return self.max_y - self.min_y
