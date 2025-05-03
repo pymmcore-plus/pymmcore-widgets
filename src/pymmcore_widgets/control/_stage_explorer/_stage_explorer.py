@@ -323,18 +323,20 @@ class StageExplorer(QWidget):
             self._stage_pos_label.setText("No XY stage device")
             return
 
-        x, y = self._mmc.getXYPosition()
+        stage_x, stage_y = self._mmc.getXYPosition()
 
         # update the stage position label
-        self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
+        self._stage_pos_label.setText(f"X: {stage_x:.2f} µm  Y: {stage_y:.2f} µm")
 
-        # add stage marker if not yet present
+        # build the stage marker affine using the affine matrix since we need to take
+        # into account the rotation and scaling
+        matrix = self._build_stage_marker_complete_affine_matrix(stage_x, stage_y)
+
+        # create stage marker if not yet present
         if self._stage_pos_marker is None:
-            self._create_stage_marker(x, y)
+            self._create_stage_marker()
 
-        # update stage marker position (using the affine matrix since we need to take
-        # into account the rotation and scaling)
-        matrix = self._build_stage_marker_complete_affine_matrix(x, y)
+        # update stage marker position
         mk = cast("Rectangle", self._stage_pos_marker)
         mk.transform = MatrixTransform(matrix=matrix.T)
 
@@ -344,7 +346,7 @@ class StageExplorer(QWidget):
             self.zoom_to_fit()
 
     def _build_stage_marker_complete_affine_matrix(
-        self, x: float, y: float
+        self, stage_x: float, stage_y: float
     ) -> np.ndarray:
         """Build the affine matrix for the stage position marker.
 
@@ -355,10 +357,10 @@ class StageExplorer(QWidget):
         if system_affine is None:
             system_affine = self._build_linear_matrix(0)
         stage_shift = np.eye(4)
-        stage_shift[0:2, 3] = (x, y)
+        stage_shift[0:2, 3] = (stage_x, stage_y)
         return stage_shift @ system_affine  # type: ignore
 
-    def _create_stage_marker(self, x: float, y: float) -> None:
+    def _create_stage_marker(self) -> None:
         """Create a marker at the current stage position."""
         self._stage_pos_marker = Rectangle(
             parent=self._stage_viewer.view.scene,
