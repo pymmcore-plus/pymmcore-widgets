@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
-from fonticon_mdi6 import MDI6
+import vispy
+import vispy.color
 from pymmcore_plus import CMMCorePlus, Keyword
+from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QAction,
     QLabel,
@@ -13,12 +16,15 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import icon
+from superqt import QIconifyIcon
+from vispy.scene.visuals import Rectangle, VisualNode
+from vispy.visuals.transforms import STTransform
 
-from ._stage_viewer import StageViewer
+from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 
 if TYPE_CHECKING:
     import useq
+    from qtpy.QtCore import QTimerEvent
     from vispy.app.canvas import MouseEvent
 
 
@@ -27,10 +33,12 @@ np.set_printoptions(suppress=True)
 
 
 GRAY = "#666"
-GREEN = "#3A3"
-RESET = "Reset View"
+ZOOM_TO_FIT = "Zoom to Fit"
+AUTO_ZOOM_TO_FIT = "Auto Zoom to Fit"
+AUTO_ZOOM_TO_FIT_ICON = QIcon(str(Path(__file__).parent / "auto_zoom_to_fit_icon.svg"))
 CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
+POLL_STAGE = "Poll Stage Position"
 
 SS_TOOLBUTTON = """
     QToolButton {
@@ -77,9 +85,18 @@ class StageExplorer(QWidget):
 
     Properties
     ----------
+    auto_zoom_to_fit : bool
+        A boolean property that controls whether to automatically "zoom to fit"
+        the view when a new image is added to the scene or when the position of the
+        stage marker (if enabled) is out of view. By default, False.
+        By default, False.
     snap_on_double_click : bool
         A boolean property that controls whether to snap an image when the user
         double-clicks on the view. By default, False.
+    poll_stage_position : bool
+        A boolean property that controls whether to poll the stage position.
+        If True, the widget will poll the stage position and display a rectangle
+        around the current stage position. By default, False.
     """
 
     def __init__(
@@ -91,18 +108,19 @@ class StageExplorer(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._stage_viewer = StageViewer(self)
-        self._rezoom_on_new_image: bool = False
 
         # to keep track of the current scale depending on the zoom level
         self._current_scale: int = 1
 
-        # timer for polling stage position
-        self._timer_id: int | None = None
-
         # properties
+        self._auto_zoom_to_fit: bool = False
         self._snap_on_double_click: bool = False
         self._poll_stage_position: bool = False
-        self._rotation: float = 0.0
+
+        # timer for polling stage position
+        self._timer_id: int | None = None
+        # marker for stage position
+        self._stage_pos_marker: Rectangle | None = None
 
         # toolbar
         toolbar = QToolBar()
@@ -112,22 +130,29 @@ class StageExplorer(QWidget):
 
         # actions
         self._clear_view_act: QAction
-        self._reset_view_act: QAction
+        self._zoom_to_fit_act: QAction
+        self._auto_zoom_to_fit_act: QAction
         self._snap_on_double_click_act: QAction
+        self._poll_stage_position_act: QAction
 
+        # fmt: off
         ACTION_MAP = {
             # action text: (icon, color, checkable, callback)
-            CLEAR: (MDI6.close, GRAY, False, self._stage_viewer.clear),
-            RESET: (MDI6.fullscreen, GRAY, False, self._stage_viewer.zoom_to_fit),
-            SNAP: (MDI6.camera_outline, GRAY, True, self._on_snap_action_triggered),
+            CLEAR: ("mdi:close", GRAY, False, self._stage_viewer.clear),
+            ZOOM_TO_FIT: ("mdi:fullscreen", GRAY, False, self.zoom_to_fit),
+            AUTO_ZOOM_TO_FIT: (AUTO_ZOOM_TO_FIT_ICON, GRAY, True, self._on_auto_zoom_to_fit_action),  # noqa: E501
+            SNAP: ("mdi:camera-outline", GRAY, True, self._on_snap_action),
+            POLL_STAGE: ("mdi:map-marker-outline", GRAY, True, self._on_poll_stage_action),  # noqa: E501
         }
 
         # create actions
         for a_text, (a_icon, color, check, callback) in ACTION_MAP.items():
-            action = QAction(icon(a_icon, color=color), a_text, self, checkable=check)
+            ic = a_icon if isinstance(a_icon, QIcon) else QIconifyIcon(a_icon, color=color)  # noqa: E501
+            action = QAction(ic, a_text, self, checkable=check)
             action.triggered.connect(callback)
             setattr(self, f"_{a_text.lower().replace(' ', '_')}_act", action)
             toolbar.addAction(action)
+        # fmt: on
 
         # set initial state of actions
         self._snap_on_double_click_act.setChecked(self._snap_on_double_click)
@@ -150,6 +175,7 @@ class StageExplorer(QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
+        self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
 
         # connections vispy events
         self._stage_viewer.canvas.events.mouse_double_click.connect(
@@ -159,6 +185,19 @@ class StageExplorer(QWidget):
         self._on_sys_config_loaded()
 
     # -----------------------------PUBLIC METHODS-------------------------------------
+
+    @property
+    def auto_zoom_to_fit(self) -> bool:
+        """Return the auto zoom to fit property."""
+        return self._auto_zoom_to_fit
+
+    @auto_zoom_to_fit.setter
+    def auto_zoom_to_fit(self, value: bool) -> None:
+        """Set the auto zoom to fit property."""
+        self._auto_zoom_to_fit = value
+        self._auto_zoom_to_fit_act.setChecked(value)
+        if value:
+            self.zoom_to_fit()
 
     @property
     def snap_on_double_click(self) -> bool:
@@ -171,6 +210,18 @@ class StageExplorer(QWidget):
         self._snap_on_double_click = value
         self._snap_on_double_click_act.setChecked(value)
 
+    @property
+    def poll_stage_position(self) -> bool:
+        """Return the poll stage position property."""
+        return self._poll_stage_position
+
+    @poll_stage_position.setter
+    def poll_stage_position(self, value: bool) -> None:
+        """Set the poll stage position property."""
+        self._poll_stage_position = value
+        self._poll_stage_position_act.setChecked(value)
+        self._on_poll_stage_action(value)
+
     def add_image(
         self, image: np.ndarray, stage_x_um: float, stage_y_um: float
     ) -> None:
@@ -180,19 +231,40 @@ class StageExplorer(QWidget):
         matrix = self._create_complete_affine_matrix(x_pos=stage_x_um, y_pos=stage_y_um)
         self._stage_viewer.add_image(image, transform=matrix.T)
 
+    def zoom_to_fit(self, *, margin: float = 0.05) -> None:
+        """Zoom to fit the current view to the images in the scene.
+
+        ...also considering the stage position marker.
+        """
+        visuals: list[VisualNode] = list(self._stage_viewer._get_images())
+        if self._stage_pos_marker is not None:
+            visuals.append(self._stage_pos_marker)
+        x_bounds, y_bounds, *_ = get_vispy_scene_bounds(visuals)
+        self._stage_viewer.view.camera.set_range(x=x_bounds, y=y_bounds, margin=margin)
+
     # -----------------------------PRIVATE METHODS------------------------------------
 
-    # WIDGET ----------------------------------------------------------------------
+    # ACTIONS ----------------------------------------------------------------------
 
-    def _on_snap_action_triggered(self, checked: bool) -> None:
+    def _on_snap_action(self, checked: bool) -> None:
         """Update the stage viewer settings based on the state of the action."""
         self.snap_on_double_click = checked
+
+    def _on_auto_zoom_to_fit_action(self, checked: bool) -> None:
+        """Set the auto zoom to fit property based on the state of the action."""
+        self._auto_zoom_to_fit = checked
+        if checked:
+            self.zoom_to_fit()
 
     # CORE ------------------------------------------------------------------------
 
     def _on_sys_config_loaded(self) -> None:
         """Clear the scene when the system configuration is loaded."""
         self._stage_viewer.clear()
+
+    def _on_pixel_size_changed(self, value: float) -> None:
+        """Clear the scene when the pixel size changes."""
+        self._delete_stage_position_marker()
 
     def _move_to_clicked_position(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
@@ -227,6 +299,88 @@ class StageExplorer(QWidget):
         y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
         self._add_image_and_update_widget(image, x, y)
 
+    # STAGE POSITION MARKER -----------------------------------------------------
+
+    def _on_poll_stage_action(self, checked: bool) -> None:
+        """Set the poll stage position property based on the state of the action."""
+        self._poll_stage_position = checked
+        if checked:
+            self._timer_id = self.startTimer(10)
+        elif self._timer_id is not None:
+            self.killTimer(self._timer_id)
+            self._timer_id = None
+            self._delete_stage_position_marker()
+
+    def _delete_stage_position_marker(self) -> None:
+        """Delete the stage position marker."""
+        if self._stage_pos_marker is not None:
+            self._stage_pos_marker.parent = None
+            self._stage_pos_marker = None
+
+    def timerEvent(self, event: QTimerEvent) -> None:
+        """Poll the stage position."""
+        if not self._mmc.getXYStageDevice():
+            self._stage_pos_label.setText("No XY stage device")
+            return
+
+        x, y = self._mmc.getXYPosition()
+
+        # update the stage position label
+        self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
+
+        # add stage marker if not yet present
+        if self._stage_pos_marker is None:
+            self._create_stage_marker(x, y)
+
+        # update stage marker position
+        mk = cast("Rectangle", self._stage_pos_marker)
+        mk.transform = STTransform(translate=(x, y))
+
+        # zoom_to_fit only if the stage position marker is out of view
+        # (and the auto _auto_zoom_to_fit property is set to True)
+        if self._auto_zoom_to_fit and self._is_stage_marker_out_of_view():
+            self.zoom_to_fit()
+
+    def _create_stage_marker(self, x: float, y: float) -> None:
+        """Create a marker at the current stage position."""
+        px = self._mmc.getPixelSizeUm()
+        w = self._mmc.getImageWidth() * px
+        h = self._mmc.getImageHeight() * px
+        self._stage_pos_marker = Rectangle(
+            parent=self._stage_viewer.view.scene,
+            center=(x, y),
+            width=w,
+            height=h,
+            border_width=4,
+            border_color=vispy.color.Color("#3A3"),
+            color=vispy.color.Color("transparent"),
+        )
+        self._stage_pos_marker.set_gl_state(depth_test=False)
+        # reset if the view is empty (only the stage marker is present)
+        if not list(self._stage_viewer._get_images()):
+            self.zoom_to_fit()
+
+    def _is_stage_marker_out_of_view(self) -> bool:
+        """Return True if the stage position marker center is out of view."""
+        if self._stage_pos_marker is None:
+            return False
+
+        # marker center in local coords
+        cx, cy = self._stage_pos_marker.center
+
+        # transform to world/scene coords
+        world_center = self._stage_pos_marker.transform.map([[cx, cy]])[0, :2]
+
+        # get visible view rectangle from camera
+        view = self._stage_viewer.view
+        view_left, view_bottom = view.camera.rect.left, view.camera.rect.bottom
+        view_right = view_left + view.camera.rect.width
+        view_top = view_bottom + view.camera.rect.height
+
+        # check if center is outside the visible rectangle
+        x, y = world_center
+        return bool(x < view_left or x > view_right or y < view_bottom or y > view_top)
+
     # IMAGES -----------------------------------------------------------------------
 
     def _add_image_and_update_widget(
@@ -247,7 +401,7 @@ class StageExplorer(QWidget):
         # reset the view if the image is not within the view
         if (
             not self._is_visual_within_view(stage_x_um, stage_y_um)
-            and self._rezoom_on_new_image
+            and self._auto_zoom_to_fit
         ):
             self._stage_viewer.zoom_to_fit()
 
