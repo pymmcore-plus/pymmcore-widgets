@@ -69,7 +69,7 @@ class StageExplorer(QWidget):
     ----------
     parent : QWidget | None
         Optional parent widget, by default None.
-    mmc : CMMCorePlus | None
+    mmcore : CMMCorePlus | None
         Optional [`CMMCorePlus`][pymmcore_plus.CMMCorePlus] micromanager core.
         By default, None. If not specified, the widget will use the active
         (or create a new)
@@ -202,11 +202,12 @@ class StageExplorer(QWidget):
         # map the clicked canvas position to the stage position
         x, y, _, _ = self._stage_viewer.view.camera.transform.imap(event.pos)
         self._mmc.setXYPosition(x, y)
+        # wait for the stage to be in position before continuing
+        self._mmc.waitForDevice(self._mmc.getXYStageDevice())
         # update the stage position label
         self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
+        # snap an image if the snap on double click property is set
         if self._snap_on_double_click:
-            # wait for the stage to be in position before snapping an images
-            self._mmc.waitForDevice(self._mmc.getXYStageDevice())
             self._mmc.snapImage()
 
     def _on_image_snapped(self) -> None:
