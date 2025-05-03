@@ -10,12 +10,12 @@ mmc = CMMCorePlus.instance()
 mmc.loadSystemConfiguration()
 
 # add a small rotation
-mmc.setPixelSizeAffine("Res10x", (0.9962, -0.0872, 0.0, 0.0872, 0.9962, 0.0))  # 1
-mmc.setPixelSizeAffine("Res20x", (0.4981, -0.0436, 0.0, 0.0436, 0.4981, 0.0))  # 0.5
-mmc.setPixelSizeAffine("Res40x", (0.24905, -0.0218, 0.0, 0.0218, 0.24905, 0.0))  # 0.25
+# mmc.setPixelSizeAffine("Res10x", (0.9962, -0.0872, 0.0, 0.0872, 0.9962, 0.0))
+# mmc.setPixelSizeAffine("Res20x", (0.4981, -0.0436, 0.0, 0.0436, 0.4981, 0.0))
+# mmc.setPixelSizeAffine("Res40x", (0.24905, -0.0218, 0.0, 0.0218, 0.24905, 0.0))
 
 # set camera roi (rectangular helps confirm orientation)
-mmc.setROI(0, 0, 400, 500)
+# mmc.setROI(0, 0, 400, 500)
 
 explorer = StageExplorer()
 
