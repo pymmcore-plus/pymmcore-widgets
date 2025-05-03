@@ -55,15 +55,25 @@ class StageViewer(QWidget):
             child.cmap = self._cmap.to_vispy()
 
     def global_autoscale(self, *, ignore_min: float = 0, ignore_max: float = 0) -> None:
-        """Set the color limits of all images in the scene to the global min and max."""
+        """Set the color limits of all images in the scene to the global min and max.
+
+        Parameters
+        ----------
+        ignore_min : float
+            The fraction of dim values to ignore. Default is 0. Ranges from 0 to 1.
+            Passed to `numpy.quantile`.
+        ignore_max : float
+            The fraction of bright values to ignore. Default is 0. Ranges from 0 to 1.
+            Passed to `numpy.quantile`.
+        """
         if not (visuals := list(self._get_images())):
             return
 
         # NOTE: if this function is to be called more often, we could retain a running
         # min and max for each image and only update min and max when adding an image.
-        mi, ma = np.percentile(
+        mi, ma = np.quantile(
             np.concatenate([child._data.flatten() for child in visuals]),
-            (ignore_min, 100 - ignore_max),
+            (np.clip(ignore_min, 0, 1), np.clip(1 - ignore_max, 0, 1)),
         )
         self.set_clims((mi, ma))
 

@@ -35,6 +35,18 @@ def test_stage_viewer_add_image(qtbot: QtBot) -> None:
     assert tuple(added_img.transform.matrix[3, :2]) == (100, 150)
 
 
+def test_stage_viewer_clims_cmaps(qtbot: QtBot) -> None:
+    stage_viewer = StageViewer()
+    qtbot.addWidget(stage_viewer)
+    T = _build_transform_matrix(100, 150)
+    stage_viewer.add_image(IMG, T.T)
+
+    # just some smoke tests
+    stage_viewer.set_clims((0, 1))
+    stage_viewer.global_autoscale(ignore_min=0.1, ignore_max=0.1)
+    stage_viewer.set_colormap("viridis")
+
+
 def test_stage_viewer_clear_scene(qtbot: QtBot) -> None:
     stage_viewer = StageViewer()
     qtbot.addWidget(stage_viewer)
