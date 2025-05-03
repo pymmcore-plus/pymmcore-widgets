@@ -8,8 +8,6 @@ app = QApplication([])
 
 mmc = CMMCorePlus.instance()
 mmc.loadSystemConfiguration()
-mmc.setPixelSizeUm(mmc.getCurrentPixelSizeConfig(), 0.1)
-mmc.setPixelSizeAffine(mmc.getCurrentPixelSizeConfig(), (1, 0.5, 0, -0.6, 1, 0))
 
 # set camera roi (rectangular helps confirm orientation)
 mmc.setROI(0, 0, 400, 500)
@@ -40,4 +38,4 @@ rlayout.addWidget(mda_widget)
 splitter.addWidget(right)
 splitter.show()
 
-app.exec()
+# app.exec()

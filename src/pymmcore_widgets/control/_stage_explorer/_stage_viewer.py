@@ -54,8 +54,33 @@ class StageViewer(QWidget):
         for child in self._get_images():
             child.cmap = self._cmap.to_vispy()
 
+    def global_autoscale(self, *, ignore_min: float = 0, ignore_max: float = 0) -> None:
+        """Set the color limits of all images in the scene to the global min and max."""
+        if not (visuals := list(self._get_images())):
+            return
+
+        # NOTE: if this function is to be called more often, we could retain a running
+        # min and max for each image and only update min and max when adding an image.
+        mi, ma = np.percentile(
+            np.concatenate([child._data.flatten() for child in visuals]),
+            (ignore_min, 100 - ignore_max),
+        )
+        self.set_clims((mi, ma))
+
     def add_image(self, img: np.ndarray, transform: np.ndarray | None = None) -> None:
-        """Add an image to the scene with the given transform."""
+        """Add an image to the scene with the given transform.
+
+        Parameters
+        ----------
+        img : np.ndarray
+            The image to add to the scene. It should be a (Y, X) or (Y, X, 3) array.
+        transform : np.ndarray | None
+            The transform to apply to the image. It should be a 4x4 matrix.
+            If None, the image will be added with the identity transform.
+            The transformation is indented to be calculated elsewhere (in higher level
+            widgets) based on, e.g., the stage position, pixel size, configuration
+            affine, etc.  This is a relatively low-level, direct function.
+        """
         # normalize the transform
         if transform is None:
             transform = np.eye(4)
@@ -78,6 +103,9 @@ class StageViewer(QWidget):
         # keep the added image on top of the others
         frame.order = min(child.order for child in self._get_images()) - 1
         frame.transform = scene.MatrixTransform(matrix=transform)
+        if len(list(self._get_images())) == 1:
+            # if this is the first image, set the camera to fit it
+            self.zoom_to_fit()
 
     def clear(self) -> None:
         """Clear the scene."""
@@ -86,8 +114,15 @@ class StageViewer(QWidget):
             if isinstance(child, Image):
                 child.parent = None
 
-    def zoom_to_fit(self, margin: float = 0.1) -> None:
-        """Recenter the view to the center of all images."""
+    def zoom_to_fit(self, *, margin: float = 0.05) -> None:
+        """Recenter the view to the center of all images.
+
+        Parameters
+        ----------
+        margin : float
+            Extra margin to add between the images and the edge of the view.
+            This is a percentage of the view size. Default is 0.05 (5%).
+        """
         if not (visuals := self._get_images()):
             return
         x_bounds, y_bounds, *_ = get_vispy_scene_bounds(visuals)
