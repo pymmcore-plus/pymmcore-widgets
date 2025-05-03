@@ -358,14 +358,11 @@ class StageExplorer(QWidget):
 
     def _create_stage_marker(self, x: float, y: float) -> None:
         """Create a marker at the current stage position."""
-        px = self._mmc.getPixelSizeUm()
-        w = self._mmc.getImageWidth() * px
-        h = self._mmc.getImageHeight() * px
         self._stage_pos_marker = Rectangle(
             parent=self._stage_viewer.view.scene,
-            center=(x, y),
-            width=w,
-            height=h,
+            center=(0, 0),
+            width=self._mmc.getImageWidth(),
+            height=self._mmc.getImageHeight(),
             border_width=4,
             border_color=vispy.color.Color("#3A3"),
             color=vispy.color.Color("transparent"),
@@ -422,16 +419,18 @@ class StageExplorer(QWidget):
 
     def _is_visual_within_view(self, x: float, y: float) -> bool:
         """Return True if the visual is within the view, otherwise False."""
+        # TODO: use the affine matrix to get the correct coordinates, currently this
+        # is not considering any rotation...
         view_rect = self._stage_viewer.view.camera.rect
         px = self._mmc.getPixelSizeUm()
         half_width = self._mmc.getImageWidth() / 2 * px
         half_height = self._mmc.getImageHeight() / 2 * px
         # NOTE: x, y is the center of the image
         vertices = [
-            (x - half_width, y - half_height),
-            (x + half_width, y - half_height),
-            (x - half_width, y + half_height),
-            (x + half_width, y + half_height),
+            (x - half_width, y - half_height),  # bottom-left
+            (x + half_width, y - half_height),  # bottom-right
+            (x - half_width, y + half_height),  # top-left
+            (x + half_width, y + half_height),  # top-right
         ]
         return all(view_rect.contains(*vertex) for vertex in vertices)
 
