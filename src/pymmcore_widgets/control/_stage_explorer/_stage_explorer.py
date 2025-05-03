@@ -419,8 +419,6 @@ class StageExplorer(QWidget):
 
     def _is_visual_within_view(self, x: float, y: float) -> bool:
         """Return True if the visual is within the view, otherwise False."""
-        # TODO: use the affine matrix to get the correct coordinates, currently this
-        # is not considering any rotation...
         view_rect = self._stage_viewer.view.camera.rect
         px = self._mmc.getPixelSizeUm()
         half_width = self._mmc.getImageWidth() / 2 * px
