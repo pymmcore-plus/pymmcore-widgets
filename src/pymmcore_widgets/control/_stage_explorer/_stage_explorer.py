@@ -332,7 +332,8 @@ class StageExplorer(QWidget):
         if self._stage_pos_marker is None:
             self._create_stage_marker(x, y)
 
-        # update stage marker position
+        # update stage marker position (using the affine matrix since we need to take
+        # into account the rotation and scaling)
         matrix = self._build_stage_marker_complete_affine_matrix(x, y)
         mk = cast("Rectangle", self._stage_pos_marker)
         mk.transform = MatrixTransform(matrix=matrix.T)
@@ -347,7 +348,8 @@ class StageExplorer(QWidget):
     ) -> np.ndarray:
         """Build the affine matrix for the stage position marker.
 
-        We need this to take into account any rotation.
+        We need this to take into account any rotation (but do not need to flip or shift
+        the position half the width and height since the marker is already centered).
         """
         system_affine = self._current_pixel_config_affine()
         if system_affine is None:
