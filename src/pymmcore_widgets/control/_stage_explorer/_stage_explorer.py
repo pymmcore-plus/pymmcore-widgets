@@ -17,8 +17,8 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QIconifyIcon
+from vispy.scene import MatrixTransform
 from vispy.scene.visuals import Rectangle, VisualNode
-from vispy.visuals.transforms import STTransform
 
 from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 
@@ -333,13 +333,28 @@ class StageExplorer(QWidget):
             self._create_stage_marker(x, y)
 
         # update stage marker position
+        matrix = self._build_stage_marker_complete_affine_matrix(x, y)
         mk = cast("Rectangle", self._stage_pos_marker)
-        mk.transform = STTransform(translate=(x, y))
+        mk.transform = MatrixTransform(matrix=matrix.T)
 
         # zoom_to_fit only if the stage position marker is out of view
         # (and the auto _auto_zoom_to_fit property is set to True)
         if self._auto_zoom_to_fit and self._is_stage_marker_out_of_view():
             self.zoom_to_fit()
+
+    def _build_stage_marker_complete_affine_matrix(
+        self, x: float, y: float
+    ) -> np.ndarray:
+        """Build the affine matrix for the stage position marker.
+
+        We need this to take into account any rotation.
+        """
+        system_affine = self._current_pixel_config_affine()
+        if system_affine is None:
+            system_affine = self._build_linear_matrix(0)
+        stage_shift = np.eye(4)
+        stage_shift[0:2, 3] = (x, y)
+        return stage_shift @ system_affine  # type: ignore
 
     def _create_stage_marker(self, x: float, y: float) -> None:
         """Create a marker at the current stage position."""

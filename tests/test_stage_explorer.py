@@ -121,3 +121,7 @@ def test_stage_explorer_move_on_click(qtbot: QtBot) -> None:
         explorer._move_to_clicked_position(event)
 
     assert explorer._mmc.getXYPosition() != stage_pos
+
+
+# to add 5deg rotation
+# mmc.setPixelSizeAffine("Res10x", (0.9962, -0.0872, 0.0, 0.0872, 0.9962, 0.0))

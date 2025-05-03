@@ -9,6 +9,10 @@ app = QApplication([])
 mmc = CMMCorePlus.instance()
 mmc.loadSystemConfiguration()
 
+mmc.setPixelSizeAffine("Res10x", (0.9962, -0.0872, 0.0, 0.0872, 0.9962, 0.0))
+
+print(mmc.getPixelSizeAffine())
+
 # set camera roi (rectangular helps confirm orientation)
 mmc.setROI(0, 0, 400, 500)
 
