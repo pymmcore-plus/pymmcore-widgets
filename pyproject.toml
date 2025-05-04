@@ -51,7 +51,7 @@ dependencies = [
     'fonticon-materialdesignicons6',
     'pymmcore-plus[cli] >=0.13.7',
     'qtpy >=2.0',
-    'superqt[quantity,cmap] >=0.7.1',
+    'superqt[quantity,cmap,iconify] >=0.7.1',
     'useq-schema >=0.5.0',
     'vispy'
 ]
@@ -164,6 +164,9 @@ show_error_codes = true
 pretty = true
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+module = ["vispy.*"]
+ignore_missing_imports = true
 
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]

@@ -9,8 +9,15 @@ app = QApplication([])
 mmc = CMMCorePlus.instance()
 mmc.loadSystemConfiguration()
 
+# add a small rotation
+# mmc.setPixelSizeAffine("Res10x", (0.9962, -0.0872, 0.0, 0.0872, 0.9962, 0.0))
+# mmc.setPixelSizeAffine("Res20x", (0.4981, -0.0436, 0.0, 0.0436, 0.4981, 0.0))
+# mmc.setPixelSizeAffine("Res40x", (0.24905, -0.0218, 0.0, 0.0218, 0.24905, 0.0))
+
 # set camera roi (rectangular helps confirm orientation)
 mmc.setROI(0, 0, 400, 500)
+
+mmc.setProperty("XY", "Velocity", 1)
 
 explorer = StageExplorer()
 
@@ -22,7 +29,6 @@ z_ctrl = StageWidget(mmc.getFocusDevice())
 z_ctrl.snap_checkbox.setChecked(True)
 
 mda_widget = MDAWidget()
-
 
 group_wdg = GroupPresetTableWidget()
 splitter = QSplitter()
@@ -38,4 +44,4 @@ rlayout.addWidget(mda_widget)
 splitter.addWidget(right)
 splitter.show()
 
-# app.exec()
+app.exec()

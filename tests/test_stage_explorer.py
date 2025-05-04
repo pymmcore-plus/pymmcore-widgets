@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from qtpy.QtWidgets import QToolBar
 from vispy.app.canvas import MouseEvent
 from vispy.scene.visuals import Image
 
@@ -100,8 +99,7 @@ def test_stage_explorer_actions(qtbot: QtBot) -> None:
     qtbot.addWidget(explorer)
     explorer.add_image(IMG, 0, 0)
 
-    tb = explorer.findChild(QToolBar)
-    actions = tb.actions()
+    actions = explorer.toolBar().actions()
     snap_action = next(a for a in actions if a.text() == _stage_explorer.SNAP)
     with qtbot.waitSignal(snap_action.triggered):
         snap_action.trigger()
@@ -121,3 +119,31 @@ def test_stage_explorer_move_on_click(qtbot: QtBot) -> None:
         explorer._move_to_clicked_position(event)
 
     assert explorer._mmc.getXYPosition() != stage_pos
+
+
+def test_stage_explorer_position_indicator(qtbot: QtBot) -> None:
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+
+    poll_action = explorer._actions[_stage_explorer.POLL_STAGE]
+    with qtbot.waitSignal(poll_action.triggered):
+        poll_action.trigger()
+
+    assert explorer._poll_stage_position is True
+    assert explorer._timer_id is not None
+
+    # wait for timerEvent to be triggered
+    qtbot.waitUntil(lambda: explorer._stage_pos_marker is not None, timeout=1000)
+    assert explorer._stage_pos_marker is not None
+    assert explorer._stage_pos_marker.visible
+
+    with qtbot.waitSignal(poll_action.triggered):
+        poll_action.trigger()
+
+    assert explorer._poll_stage_position is False
+    assert explorer._stage_pos_marker is None
+    assert explorer._timer_id is None
+
+
+# to add 5deg rotation
+# mmc.setPixelSizeAffine("Res10x", (0.9962, -0.0872, 0.0, 0.0872, 0.9962, 0.0))
