@@ -4,28 +4,30 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
-import vispy
-import vispy.color
 from pymmcore_plus import CMMCorePlus, Keyword
+from qtpy.QtCore import QPoint, Qt
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QAction,
+    QActionGroup,
     QLabel,
+    QMenu,
     QSizePolicy,
     QToolBar,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 from superqt import QIconifyIcon
-from vispy.scene import MatrixTransform
-from vispy.scene.visuals import Rectangle, VisualNode
 
+from ._stage_position_marker import StagePositionMarker
 from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 
 if TYPE_CHECKING:
     import useq
     from qtpy.QtCore import QTimerEvent
     from vispy.app.canvas import MouseEvent
+    from vispy.scene.visuals import VisualNode
 
 
 # suppress scientific notation when printing numpy arrays
@@ -39,6 +41,9 @@ AUTO_ZOOM_TO_FIT_ICON = QIcon(str(Path(__file__).parent / "auto_zoom_to_fit_icon
 CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
 POLL_STAGE = "Poll Stage Position"
+RECT_MODE = "FOV Rectangle"
+CENTER_MODE = "FOV Center"
+BOTH_MODE = "Both"
 
 SS_TOOLBUTTON = """
     QToolButton {
@@ -117,10 +122,13 @@ class StageExplorer(QWidget):
         self._snap_on_double_click: bool = False
         self._poll_stage_position: bool = False
 
+        # poll mode to select the stage position marker type
+        self._poll_mode: str = BOTH_MODE
+
         # timer for polling stage position
         self._timer_id: int | None = None
         # marker for stage position
-        self._stage_pos_marker: Rectangle | None = None
+        self._stage_pos_marker: StagePositionMarker | None = None
 
         # toolbar
         toolbar = QToolBar()
@@ -151,11 +159,18 @@ class StageExplorer(QWidget):
             action = QAction(ic, a_text, self, checkable=check)
             action.triggered.connect(callback)
             setattr(self, f"_{a_text.lower().replace(' ', '_')}_act", action)
-            toolbar.addAction(action)
+            # add a QToolButton to the toolbar if the action is "Poll Stage" so we can
+            # set up a context menu
+            if a_text == POLL_STAGE:
+                btn = QToolButton(self)
+                btn.setDefaultAction(action)
+                self._setup_poll_stage_context_menu(btn)
+                btn.setToolTip(f"{POLL_STAGE} (right-click for marker options)")
+                self._setup_poll_stage_context_menu(btn)
+                toolbar.addWidget(btn)
+            else:
+                toolbar.addAction(action)
         # fmt: on
-
-        # set initial state of actions
-        self._snap_on_double_click_act.setChecked(self._snap_on_double_click)
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
@@ -256,6 +271,65 @@ class StageExplorer(QWidget):
         if checked:
             self.zoom_to_fit()
 
+    def _setup_poll_stage_context_menu(self, button: QToolButton) -> None:
+        # Allow custom context menu
+        button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+
+        # Connect the signal
+        button.customContextMenuRequested.connect(
+            lambda pos: self._show_poll_stage_menu(button.mapToGlobal(pos))
+        )
+
+    def _show_poll_stage_menu(self, global_pos: QPoint) -> None:
+        # create exclusive action group for the poll mode
+        group = QActionGroup(self)
+        group.setExclusive(True)
+
+        action_fov_rect = QAction(RECT_MODE, self, checkable=True)
+        action_fov_center = QAction(CENTER_MODE, self, checkable=True)
+        action_both = QAction(BOTH_MODE, self, checkable=True)
+
+        group.addAction(action_fov_rect)
+        group.addAction(action_fov_center)
+        group.addAction(action_both)
+
+        # set checked state based on current mode
+        if self._poll_mode == RECT_MODE:
+            action_fov_rect.setChecked(True)
+        elif self._poll_mode == CENTER_MODE:
+            action_fov_center.setChecked(True)
+        else:
+            action_both.setChecked(True)
+
+        # connect actions
+        action_fov_rect.triggered.connect(lambda: self._set_poll_mode(RECT_MODE))
+        action_fov_center.triggered.connect(lambda: self._set_poll_mode(CENTER_MODE))
+        action_both.triggered.connect(lambda: self._set_poll_mode(BOTH_MODE))
+
+        menu = QMenu()
+        menu.addActions(group.actions())
+        menu.exec(global_pos)
+
+    def _set_poll_mode(self, mode: str) -> None:
+        """Update the poll mode and show/hide the required stage position marker."""
+        self._poll_mode = mode
+
+        if self._stage_pos_marker is None:
+            return
+
+        if mode == BOTH_MODE:
+            self._stage_pos_marker.show_rectangle(True)
+            self._stage_pos_marker.show_marker(True)
+        elif mode == RECT_MODE:
+            self._stage_pos_marker.show_rectangle(True)
+            self._stage_pos_marker.show_marker(False)
+        elif mode == CENTER_MODE:
+            self._stage_pos_marker.show_rectangle(False)
+            self._stage_pos_marker.show_marker(True)
+        else:
+            self._stage_pos_marker.show_rectangle(False)
+            self._stage_pos_marker.show_marker(False)
+
     # CORE ------------------------------------------------------------------------
 
     def _on_sys_config_loaded(self) -> None:
@@ -314,7 +388,7 @@ class StageExplorer(QWidget):
     def _delete_stage_position_marker(self) -> None:
         """Delete the stage position marker."""
         if self._stage_pos_marker is not None:
-            self._stage_pos_marker.parent = None
+            self._stage_pos_marker.delete_stage_marker()
             self._stage_pos_marker = None
 
     def timerEvent(self, event: QTimerEvent) -> None:
@@ -334,11 +408,11 @@ class StageExplorer(QWidget):
 
         # create stage marker if not yet present
         if self._stage_pos_marker is None:
-            self._create_stage_marker()
+            self._create_stage_pos_marker()
 
         # update stage marker position
-        mk = cast("Rectangle", self._stage_pos_marker)
-        mk.transform = MatrixTransform(matrix=matrix.T)
+        mk = cast("StagePositionMarker", self._stage_pos_marker)
+        mk.applyTransform(matrix.T)
 
         # zoom_to_fit only if the stage position marker is out of view
         # (and the auto _auto_zoom_to_fit property is set to True)
@@ -360,18 +434,24 @@ class StageExplorer(QWidget):
         stage_shift[0:2, 3] = (stage_x, stage_y)
         return stage_shift @ system_affine  # type: ignore
 
-    def _create_stage_marker(self) -> None:
+    def _create_stage_pos_marker(self) -> None:
         """Create a marker at the current stage position."""
-        self._stage_pos_marker = Rectangle(
+        w, h = self._mmc.getImageWidth(), self._mmc.getImageHeight()
+        self._stage_pos_marker = StagePositionMarker(
             parent=self._stage_viewer.view.scene,
             center=(0, 0),
-            width=self._mmc.getImageWidth(),
-            height=self._mmc.getImageHeight(),
-            border_width=4,
-            border_color=vispy.color.Color("#3A3"),
-            color=vispy.color.Color("transparent"),
+            rect_width=w,
+            rect_height=h,
+            rect_color="#3A3",
+            rect_thickness=4,
+            show_rect=True,
+            marker_symbol="x",
+            marker_symbol_color="#3A3",
+            marker_symbol_size=min((w, h)) / 10,
+            show_marker_symbol=True,
         )
-        self._stage_pos_marker.set_gl_state(depth_test=False)
+        # update the marker state depending on the selected poll mode
+        self._set_poll_mode(self._poll_mode)
         # reset if the view is empty (only the stage marker is present)
         if not list(self._stage_viewer._get_images()):
             self.zoom_to_fit()
@@ -385,6 +465,7 @@ class StageExplorer(QWidget):
         cx, cy = self._stage_pos_marker.center
 
         # transform to world/scene coords
+        print(self._stage_pos_marker.transform)
         world_center = self._stage_pos_marker.transform.map([[cx, cy]])[0, :2]
 
         # get visible view rectangle from camera
