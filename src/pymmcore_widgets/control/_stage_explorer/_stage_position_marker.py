@@ -34,8 +34,10 @@ class StagePositionMarker(Node):
         Whether to show the rectangle.
     marker_symbol : str
         The symbol to use for the marker. This can be any of the symbols
-        supported by the Markers visual: disc, arrow, ring, clobber, square, diamond,
-        vbar, hbar, cross, tailed_arrow, x, triangle_up, triangle_down, and star.
+        supported by the Markers visual: 'disc', 'arrow', 'ring', 'clobber', 'square',
+        'x', 'diamond', 'vbar', 'hbar', 'cross', 'tailed_arrow', 'triangle_up',
+        'triangle_down', 'star', 'cross_lines', 'o', '+', '++', 's', '-', '|', '->',
+        '>', '^', 'v', '*'. By default, '++'.
     marker_symbol_color : str
         The color of the symbol.
     marker_symbol_size : int
@@ -54,7 +56,7 @@ class StagePositionMarker(Node):
         rect_color: str = GREEN,
         rect_thickness: int = 4,
         show_rect: bool = True,
-        marker_symbol: str = "x",
+        marker_symbol: str = "++",
         marker_symbol_color: str = GREEN,
         marker_symbol_size: float = 15,
         show_marker_symbol: bool = True,

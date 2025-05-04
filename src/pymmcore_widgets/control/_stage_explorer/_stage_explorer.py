@@ -441,7 +441,7 @@ class StageExplorer(QWidget):
             rect_color="#3A3",
             rect_thickness=4,
             show_rect=True,
-            marker_symbol="x",
+            marker_symbol="++",
             marker_symbol_color="#3A3",
             marker_symbol_size=min((w, h)) / 10,
             show_marker_symbol=True,
