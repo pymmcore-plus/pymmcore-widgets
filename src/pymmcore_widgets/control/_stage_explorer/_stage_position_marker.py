@@ -44,6 +44,8 @@ class StagePositionMarker(Node):
         The size of the symbol in pixels.
     show_marker_symbol : bool
         Whether to show the symbol.
+    marker_symbol_edge_width : float
+        The edge width of the symbol in pixels.
     """
 
     def __init__(
@@ -59,6 +61,7 @@ class StagePositionMarker(Node):
         marker_symbol: str = "++",
         marker_symbol_color: str = GREEN,
         marker_symbol_size: float = 15,
+        marker_symbol_edge_width: float = 10,
         show_marker_symbol: bool = True,
     ):
         super().__init__(parent)
@@ -83,6 +86,7 @@ class StagePositionMarker(Node):
         self._marker_symbol: str = marker_symbol
         self._marker_symbol_color: str = marker_symbol_color
         self._marker_symbol_size: float = marker_symbol_size
+        self._marker_symbol_edge_width: float = marker_symbol_edge_width
 
         # rectangle
         self.show_rectangle(show_rect)
@@ -223,6 +227,7 @@ class StagePositionMarker(Node):
             edge_color=Color(self._marker_symbol_color),
             symbol=self._marker_symbol,
             size=self._marker_symbol_size,
+            edge_width=self._marker_symbol_edge_width,
             scaling=True,
         )
         self._marker.set_gl_state(depth_test=False)

@@ -444,6 +444,7 @@ class StageExplorer(QWidget):
             marker_symbol="++",
             marker_symbol_color="#3A3",
             marker_symbol_size=min((w, h)) / 10,
+            marker_symbol_edge_width=10,
             show_marker_symbol=True,
         )
         # update the marker state depending on the selected poll mode
