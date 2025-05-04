@@ -137,6 +137,13 @@ def test_stage_explorer_position_indicator(qtbot: QtBot) -> None:
     assert explorer._stage_pos_marker is not None
     assert explorer._stage_pos_marker.visible
 
+    with qtbot.waitSignal(poll_action.triggered):
+        poll_action.trigger()
+
+    assert explorer._poll_stage_position is False
+    assert explorer._stage_pos_marker is None
+    assert explorer._timer_id is None
+
 
 # to add 5deg rotation
 # mmc.setPixelSizeAffine("Res10x", (0.9962, -0.0872, 0.0, 0.0872, 0.9962, 0.0))
