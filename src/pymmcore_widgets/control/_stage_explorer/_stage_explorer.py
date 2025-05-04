@@ -382,7 +382,7 @@ class StageExplorer(QWidget):
         """Set the poll stage position property based on the state of the action."""
         self._poll_stage_position = checked
         if checked:
-            self._timer_id = self.startTimer(10)
+            self._timer_id = self.startTimer(20)
         elif self._timer_id is not None:
             self.killTimer(self._timer_id)
             self._timer_id = None

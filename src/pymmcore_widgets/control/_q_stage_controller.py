@@ -226,7 +226,7 @@ def get_stage_batcher(
 class QStageController(QObject):
     moveFinished = Signal()
 
-    def __init__(self, device: str, mmcore: CMMCorePlus, *, poll_ms: int = 10):
+    def __init__(self, device: str, mmcore: CMMCorePlus, *, poll_ms: int = 20):
         super().__init__()
         self._batcher = get_stage_batcher(device, mmcore)
         self._batcher.finished.connect(self.moveFinished.emit)
