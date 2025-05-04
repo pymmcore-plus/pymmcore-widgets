@@ -164,6 +164,9 @@ show_error_codes = true
 pretty = true
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+module = ["vispy.*"]
+ignore_missing_imports = true
 
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]

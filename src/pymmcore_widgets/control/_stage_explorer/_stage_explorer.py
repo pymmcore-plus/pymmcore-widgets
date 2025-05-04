@@ -1,15 +1,14 @@
 from __future__ import annotations
 
+from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Callable, cast
 
 import numpy as np
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QPoint, Qt
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
-    QAction,
-    QActionGroup,
     QLabel,
     QMenu,
     QSizePolicy,
@@ -25,10 +24,12 @@ from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 
 if TYPE_CHECKING:
     import useq
+    from PyQt6.QtGui import QAction, QActionGroup
     from qtpy.QtCore import QTimerEvent
     from vispy.app.canvas import MouseEvent
     from vispy.scene.visuals import VisualNode
-
+else:
+    from qtpy.QtWidgets import QAction, QActionGroup
 
 # suppress scientific notation when printing numpy arrays
 np.set_printoptions(suppress=True)
@@ -41,9 +42,29 @@ AUTO_ZOOM_TO_FIT_ICON = QIcon(str(Path(__file__).parent / "auto_zoom_to_fit_icon
 CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
 POLL_STAGE = "Poll Stage Position"
-RECT_MODE = "FOV Rectangle"
-CENTER_MODE = "FOV Center"
-BOTH_MODE = "Both"
+
+
+# this might belong in _stage_position_marker.py
+class PositionIndicator(str, Enum):
+    """Way in which the stage position is indicated."""
+
+    RECTANGLE = "FOV Rectangle"
+    CENTER = "FOV Center"
+    BOTH = "Both"
+
+    def __str__(self) -> str:
+        return self.value
+
+    @property
+    def show_rect(self) -> bool:
+        """Whether to show the rectangle."""
+        return self in (self.RECTANGLE, self.BOTH)
+
+    @property
+    def show_marker(self) -> bool:
+        """Whether to show the marker."""
+        return self in (self.CENTER, self.BOTH)
+
 
 SS_TOOLBUTTON = """
     QToolButton {
@@ -122,8 +143,8 @@ class StageExplorer(QWidget):
         self._snap_on_double_click: bool = False
         self._poll_stage_position: bool = False
 
-        # poll mode to select the stage position marker type
-        self._poll_mode: str = BOTH_MODE
+        # stage position marker mode
+        self._position_indicator: PositionIndicator = PositionIndicator.BOTH
 
         # timer for polling stage position
         self._timer_id: int | None = None
@@ -137,39 +158,34 @@ class StageExplorer(QWidget):
         toolbar.setContentsMargins(0, 0, 10, 0)
 
         # actions
-        self._clear_view_act: QAction
-        self._zoom_to_fit_act: QAction
-        self._auto_zoom_to_fit_act: QAction
-        self._snap_on_double_click_act: QAction
-        self._poll_stage_position_act: QAction
+        self._actions: dict[str, QAction] = {}
 
         # fmt: off
-        ACTION_MAP = {
-            # action text: (icon, color, checkable, callback)
-            CLEAR: ("mdi:close", GRAY, False, self._stage_viewer.clear),
-            ZOOM_TO_FIT: ("mdi:fullscreen", GRAY, False, self.zoom_to_fit),
-            AUTO_ZOOM_TO_FIT: (AUTO_ZOOM_TO_FIT_ICON, GRAY, True, self._on_auto_zoom_to_fit_action),  # noqa: E501
-            SNAP: ("mdi:camera-outline", GRAY, True, self._on_snap_action),
-            POLL_STAGE: ("mdi:map-marker-outline", GRAY, True, self._on_poll_stage_action),  # noqa: E501
+        # {text: (icon, checkable, on_triggered)}
+        ACTION_MAP: dict[str, tuple[str | QIcon, bool, Callable]] = {
+            CLEAR: ("mdi:close", False, self._stage_viewer.clear),
+            ZOOM_TO_FIT: ("mdi:fullscreen", False, self.zoom_to_fit),
+            AUTO_ZOOM_TO_FIT: (AUTO_ZOOM_TO_FIT_ICON, True, self._on_auto_zoom_to_fit_action),  # noqa: E501
+            SNAP: ("mdi:camera-outline", True, self._on_snap_action),
+            POLL_STAGE: ("mdi:map-marker-outline", True, self._on_poll_stage_action),
         }
+        # fmt: on
 
         # create actions
-        for a_text, (a_icon, color, check, callback) in ACTION_MAP.items():
-            ic = a_icon if isinstance(a_icon, QIcon) else QIconifyIcon(a_icon, color=color)  # noqa: E501
-            action = QAction(ic, a_text, self, checkable=check)
+        for a_text, (icon, check, callback) in ACTION_MAP.items():
+            if isinstance(icon, str):
+                icon = QIconifyIcon(icon, color=GRAY)
+            self._actions[a_text] = action = QAction(icon, a_text, self)
+            action.setCheckable(check)
             action.triggered.connect(callback)
-            setattr(self, f"_{a_text.lower().replace(' ', '_')}_act", action)
-            # add a QToolButton to the toolbar if the action is "Poll Stage" so we can
-            # set up a context menu
+
             if a_text == POLL_STAGE:
-                btn = QToolButton(toolbar)
+                # create special toolbutton with a context menu on right-click
+                btn = self._create_poll_stage_button()
                 btn.setDefaultAction(action)
-                btn.setToolTip(f"{POLL_STAGE} (right-click for marker options)")
-                self._setup_poll_stage_context_menu(btn)
                 toolbar.addWidget(btn)
             else:
                 toolbar.addAction(action)
-        # fmt: on
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
@@ -202,38 +218,45 @@ class StageExplorer(QWidget):
 
     @property
     def auto_zoom_to_fit(self) -> bool:
-        """Return the auto zoom to fit property."""
+        """Whether to automatically zoom to fit the full scene in the view.
+
+        When True, the view will automatically zoom to fit the full scene
+        when a new image is added or when the stage position marker moves
+        out of view.
+        """
         return self._auto_zoom_to_fit
 
     @auto_zoom_to_fit.setter
     def auto_zoom_to_fit(self, value: bool) -> None:
-        """Set the auto zoom to fit property."""
         self._auto_zoom_to_fit = value
-        self._auto_zoom_to_fit_act.setChecked(value)
+        self._actions[ZOOM_TO_FIT].setChecked(value)
         if value:
             self.zoom_to_fit()
 
     @property
     def snap_on_double_click(self) -> bool:
-        """Return the snap on double click property."""
+        """Whether to snap an image on double click.
+
+        When True, the widget will snap an image when the user double-clicks
+        on the view, after the stage has moved to the clicked position.
+        """
         return self._snap_on_double_click
 
     @snap_on_double_click.setter
     def snap_on_double_click(self, value: bool) -> None:
-        """Set the snap on double click property."""
         self._snap_on_double_click = value
-        self._snap_on_double_click_act.setChecked(value)
+        self._actions[SNAP].setChecked(value)
 
     @property
     def poll_stage_position(self) -> bool:
-        """Return the poll stage position property."""
+        """Whether to continually show the current stage position."""
         return self._poll_stage_position
 
     @poll_stage_position.setter
     def poll_stage_position(self, value: bool) -> None:
         """Set the poll stage position property."""
         self._poll_stage_position = value
-        self._poll_stage_position_act.setChecked(value)
+        self._actions[POLL_STAGE].setChecked(value)
         self._on_poll_stage_action(value)
 
     def add_image(
@@ -270,68 +293,32 @@ class StageExplorer(QWidget):
         if checked:
             self.zoom_to_fit()
 
-    def _setup_poll_stage_context_menu(self, button: QToolButton) -> None:
-        # create exclusive action group for the poll mode
-        self._poll_stage_menu = self._create_poll_stage_menu()
+    def _create_poll_stage_button(self) -> QToolButton:
+        btn = QToolButton()
+        btn.setToolTip(f"{POLL_STAGE} (right-click for marker options)")
 
-        # allow custom context menu
-        button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        # menu that can be shown on right-click
+        menu = _PollStageCtxMenu(btn)
+        menu.setIndicator(self._position_indicator)
+        menu.action_group.triggered.connect(self._set_poll_mode)
 
-        # Connect the signal
-        button.customContextMenuRequested.connect(
-            lambda pos: self._show_poll_stage_menu(button.mapToGlobal(pos))
-        )
+        # connect right click to show the menu
+        btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        btn.customContextMenuRequested.connect(menu.show_at_position)
+        return btn
 
-    def _create_poll_stage_menu(self) -> QMenu:
-        """Create the poll stage position context menu."""
-        group = QActionGroup(self)
-        group.setExclusive(True)
+    def _set_poll_mode(self) -> None:
+        """Update the poll mode and show/hide the required stage position marker.
 
-        action_fov_rect = QAction(RECT_MODE, self, checkable=True)
-        action_fov_center = QAction(CENTER_MODE, self, checkable=True)
-        action_both = QAction(BOTH_MODE, self, checkable=True)
+        Usually, the sender will be the action_group on the _PollStageCtxMenu.
+        """
+        sender = self.sender()
+        if isinstance(sender, QActionGroup) and (action := sender.checkedAction()):
+            self._position_indicator = PositionIndicator(action.text())
 
-        group.addAction(action_fov_rect)
-        group.addAction(action_fov_center)
-        group.addAction(action_both)
-
-        # set checked state based on current mode
-        if self._poll_mode == RECT_MODE:
-            action_fov_rect.setChecked(True)
-        elif self._poll_mode == CENTER_MODE:
-            action_fov_center.setChecked(True)
-        else:
-            action_both.setChecked(True)
-
-        # connect actions
-        action_fov_rect.triggered.connect(lambda: self._set_poll_mode(RECT_MODE))
-        action_fov_center.triggered.connect(lambda: self._set_poll_mode(CENTER_MODE))
-        action_both.triggered.connect(lambda: self._set_poll_mode(BOTH_MODE))
-
-        menu = QMenu()
-        menu.addActions(group.actions())
-
-        return menu
-
-    def _show_poll_stage_menu(self, global_pos: QPoint) -> None:
-        """Show the poll stage position context menu at the given global position."""
-        self._poll_stage_menu.exec(global_pos)
-
-    def _set_poll_mode(self, mode: str) -> None:
-        """Update the poll mode and show/hide the required stage position marker."""
-        self._poll_mode = mode
-
-        if self._stage_pos_marker is None:
-            return
-
-        visibility = {
-            BOTH_MODE: (True, True),
-            RECT_MODE: (True, False),
-            CENTER_MODE: (False, True),
-        }
-        show_rect, show_marker = visibility.get(mode, (False, False))
-        self._stage_pos_marker.show_rectangle(show_rect)
-        self._stage_pos_marker.show_marker(show_marker)
+        if self._stage_pos_marker is not None:
+            self._stage_pos_marker.show_rectangle(self._position_indicator.show_rect)
+            self._stage_pos_marker.show_marker(self._position_indicator.show_marker)
 
     # CORE ------------------------------------------------------------------------
 
@@ -455,7 +442,7 @@ class StageExplorer(QWidget):
             show_marker_symbol=True,
         )
         # update the marker state depending on the selected poll mode
-        self._set_poll_mode(self._poll_mode)
+        self._set_poll_mode()
         # reset if the view is empty (only the stage marker is present)
         if not list(self._stage_viewer._get_images()):
             self.zoom_to_fit()
@@ -469,7 +456,6 @@ class StageExplorer(QWidget):
         cx, cy = self._stage_pos_marker.center
 
         # transform to world/scene coords
-        print(self._stage_pos_marker.transform)
         world_center = self._stage_pos_marker.transform.map([[cx, cy]])[0, :2]
 
         # get visible view rectangle from camera
@@ -618,3 +604,38 @@ class StageExplorer(QWidget):
         T_center[0, 3] = -self._mmc.getImageWidth() / 2
         T_center[1, 3] = -self._mmc.getImageHeight() / 2
         return T_center
+
+
+class _PollStageCtxMenu(QMenu):
+    """Custom context menu for the poll stage position button.
+
+    The menu contains options to select the type of marker to display (rectangle,
+    center, or both).
+    """
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        self.action_group = group = QActionGroup(self)
+        group.setExclusive(True)
+
+        for mode in PositionIndicator:
+            action = cast("QAction", group.addAction(mode.value))
+            action.setCheckable(True)
+
+        self.addActions(group.actions())
+
+    def setIndicator(self, mode: PositionIndicator | str) -> None:
+        """Set the poll mode based on the selected action."""
+        mode = PositionIndicator(mode)
+        action = next(action for action in self.actions() if action.text() == mode)
+        action.setChecked(True)
+
+    def show_at_position(self, pos: QPoint) -> None:
+        """Show the poll stage position context menu at the given global position.
+
+        If a button is the sender, the position is mapped to global coordinates.
+        """
+        if isinstance(sender := self.sender(), QWidget):
+            pos = sender.mapToGlobal(pos)
+        self.exec(pos)
