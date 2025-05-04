@@ -152,10 +152,10 @@ class StageExplorer(QWidget):
         self._stage_pos_marker: StagePositionMarker | None = None
 
         # toolbar
-        toolbar = QToolBar()
-        toolbar.setStyleSheet(SS_TOOLBUTTON)
-        toolbar.setMovable(False)
-        toolbar.setContentsMargins(0, 0, 10, 0)
+        self._toolbar = QToolBar()
+        self._toolbar.setStyleSheet(SS_TOOLBUTTON)
+        self._toolbar.setMovable(False)
+        self._toolbar.setContentsMargins(0, 0, 10, 0)
 
         # actions
         self._actions: dict[str, QAction] = {}
@@ -183,22 +183,22 @@ class StageExplorer(QWidget):
                 # create special toolbutton with a context menu on right-click
                 btn = self._create_poll_stage_button()
                 btn.setDefaultAction(action)
-                toolbar.addWidget(btn)
+                self._toolbar.addWidget(btn)
             else:
-                toolbar.addAction(action)
+                self._toolbar.addAction(action)
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        toolbar.addWidget(spacer)
-        toolbar.addWidget(self._stage_pos_label)
+        self._toolbar.addWidget(spacer)
+        self._toolbar.addWidget(self._stage_pos_label)
 
         # main layout
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(toolbar, 0)
+        main_layout.addWidget(self._toolbar, 0)
         main_layout.addWidget(self._stage_viewer, 1)
 
         # connections core events
@@ -215,6 +215,10 @@ class StageExplorer(QWidget):
         self._on_sys_config_loaded()
 
     # -----------------------------PUBLIC METHODS-------------------------------------
+
+    def toolBar(self) -> QToolBar:
+        """Return the toolbar of the widget."""
+        return self._toolbar
 
     @property
     def auto_zoom_to_fit(self) -> bool:
