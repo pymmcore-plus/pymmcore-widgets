@@ -15,7 +15,9 @@ mmc.loadSystemConfiguration()
 # mmc.setPixelSizeAffine("Res40x", (0.24905, -0.0218, 0.0, 0.0218, 0.24905, 0.0))
 
 # set camera roi (rectangular helps confirm orientation)
-# mmc.setROI(0, 0, 400, 500)
+mmc.setROI(0, 0, 400, 500)
+
+mmc.setProperty("XY", "Velocity", 1)
 
 explorer = StageExplorer()
 
@@ -27,7 +29,6 @@ z_ctrl = StageWidget(mmc.getFocusDevice())
 z_ctrl.snap_checkbox.setChecked(True)
 
 mda_widget = MDAWidget()
-
 
 group_wdg = GroupPresetTableWidget()
 splitter = QSplitter()
