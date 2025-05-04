@@ -23,6 +23,8 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon, setTextIcon
 from superqt.utils import signals_blocked
 
+from ._q_stage_controller import get_q_stage_controller
+
 if TYPE_CHECKING:
     from typing import Any
 
@@ -256,6 +258,10 @@ class StageWidget(QWidget):
         self._is_2axis = self._dtype is DeviceType.XYStage
         self._Ylabel = "Y" if self._is_2axis else self._device
 
+        # Initialize stage controller
+        self._stage_controller = get_q_stage_controller(self._device, self._mmc)
+        self._stage_controller.moveFinished.connect(self._on_move_finished)
+
         # WIDGETS ------------------------------------------------
 
         self._move_btns = StageMovementButtons(self._levels, self._is_2axis)
@@ -334,12 +340,7 @@ class StageWidget(QWidget):
         self._poll_cb.toggled.connect(self._toggle_poll_timer)
         self._mmc.events.propertyChanged.connect(self._on_prop_changed)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_system_cfg)
-        if self._is_2axis:
-            pos_event = self._mmc.events.XYStagePositionChanged
-        else:
-            pos_event = self._mmc.events.stagePositionChanged
-        pos_event.connect(self._update_position_from_core)
-        self.destroyed.connect(self._disconnect)
+        self._stage_controller.moveFinished.connect(self._update_position_from_core)
 
         # INITIALIZATION ----------------------------------------
 
@@ -452,47 +453,29 @@ class StageWidget(QWidget):
             xmag *= -1
         if self._invert_y.isChecked():
             ymag *= -1
-        self._move_stage_relative(xmag, ymag)
 
-    def _move_stage_relative(self, x: float, y: float) -> None:
-        try:
-            if self._is_2axis:
-                self._mmc.setRelativeXYPosition(self._device, x, y)
-            else:
-                self._mmc.setRelativePosition(self._device, y)
-        except Exception as e:
-            self._mmc.logMessage(f"Error moving stage: {e}")  # pragma: no cover
+        if self._is_2axis:
+            self._stage_controller.move_relative((xmag, ymag))
         else:
-            if self.snap_checkbox.isChecked():
-                self._mmc.waitForDevice(self._device)
-                self._mmc.snap()
+            self._stage_controller.move_relative(ymag)
 
     def _move_x_absolute(self) -> None:
-        x = self._x_pos.value()
-        try:
-            y = self._mmc.getYPosition(self._device)
-            self._mmc.setXYPosition(self._device, x, y)
-        except Exception as e:
-            self._mmc.logMessage(f"Error moving stage: {e}")  # pragma: no cover
-        else:
-            if self.snap_checkbox.isChecked():
-                self._mmc.waitForDevice(self._device)
-                self._mmc.snap()
+        if self._is_2axis:
+            x = self._x_pos.value()
+            y = self._y_pos.value()
+            self._stage_controller.move_absolute((x, y))
 
     def _move_y_absolute(self) -> None:
         y = self._y_pos.value()
-        try:
-            if self._is_2axis:
-                x = self._mmc.getXPosition(self._device)
-                self._mmc.setXYPosition(self._device, x, y)
-            else:
-                self._mmc.setPosition(self._device, y)
-        except Exception as e:
-            self._mmc.logMessage(f"Error moving stage: {e}")  # pragma: no cover
+        if self._is_2axis:
+            x = self._x_pos.value()
+            self._stage_controller.move_absolute((x, y))
         else:
-            if self.snap_checkbox.isChecked():
-                self._mmc.waitForDevice(self._device)
-                self._mmc.snap()
+            self._stage_controller.move_absolute(y)
+
+    def _on_move_finished(self) -> None:
+        if self.snap_checkbox.isChecked():
+            self._mmc.snap()
 
     def _disconnect(self) -> None:
         self._mmc.events.propertyChanged.disconnect(self._on_prop_changed)
