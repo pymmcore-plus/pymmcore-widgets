@@ -162,7 +162,7 @@ class StageExplorer(QWidget):
             # add a QToolButton to the toolbar if the action is "Poll Stage" so we can
             # set up a context menu
             if a_text == POLL_STAGE:
-                btn = QToolButton(self)
+                btn = QToolButton(toolbar)
                 btn.setDefaultAction(action)
                 btn.setToolTip(f"{POLL_STAGE} (right-click for marker options)")
                 self._setup_poll_stage_context_menu(btn)
