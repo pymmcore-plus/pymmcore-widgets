@@ -317,8 +317,10 @@ class StageExplorer(QWidget):
             self._position_indicator = PositionIndicator(action.text())
 
         if self._stage_pos_marker is not None:
-            self._stage_pos_marker.show_rectangle(self._position_indicator.show_rect)
-            self._stage_pos_marker.show_marker(self._position_indicator.show_marker)
+            self._stage_pos_marker.set_rect_visible(self._position_indicator.show_rect)
+            self._stage_pos_marker.set_marker_visible(
+                self._position_indicator.show_marker
+            )
 
     # CORE ------------------------------------------------------------------------
 
@@ -378,7 +380,7 @@ class StageExplorer(QWidget):
     def _delete_stage_position_marker(self) -> None:
         """Delete the stage position marker."""
         if self._stage_pos_marker is not None:
-            self._stage_pos_marker.delete_stage_marker()
+            self._stage_pos_marker.parent = None
             self._stage_pos_marker = None
 
     def timerEvent(self, event: QTimerEvent) -> None:
@@ -397,16 +399,15 @@ class StageExplorer(QWidget):
         matrix = self._build_stage_marker_complete_affine_matrix(stage_x, stage_y)
 
         # create stage marker if not yet present
-        if self._stage_pos_marker is None:
-            self._create_stage_pos_marker()
+        if (mk := self._stage_pos_marker) is None:
+            mk = self._create_stage_pos_marker()
 
         # update stage marker position
-        mk = cast("StagePositionMarker", self._stage_pos_marker)
-        mk.applyTransform(matrix.T)
+        mk.apply_transform(matrix.T)
 
-        # zoom_to_fit only if the stage position marker is out of view
-        # (and the auto _auto_zoom_to_fit property is set to True)
-        if self._auto_zoom_to_fit and self._is_stage_marker_out_of_view():
+        # zoom_to_fit only if auto _auto_zoom_to_fit property is set to True.
+        # NOTE: this could be slightly annoying...  might need a sub-option?
+        if self._auto_zoom_to_fit:
             self.zoom_to_fit()
 
     def _build_stage_marker_complete_affine_matrix(
@@ -424,22 +425,14 @@ class StageExplorer(QWidget):
         stage_shift[0:2, 3] = (stage_x, stage_y)
         return stage_shift @ system_affine  # type: ignore
 
-    def _create_stage_pos_marker(self) -> None:
+    def _create_stage_pos_marker(self) -> StagePositionMarker:
         """Create a marker at the current stage position."""
         w, h = self._mmc.getImageWidth(), self._mmc.getImageHeight()
         self._stage_pos_marker = StagePositionMarker(
             parent=self._stage_viewer.view.scene,
-            center=(0, 0),
             rect_width=w,
             rect_height=h,
-            rect_color="#3A3",
-            rect_thickness=4,
-            show_rect=True,
-            marker_symbol="++",
-            marker_symbol_color="#3A3",
             marker_symbol_size=min((w, h)) / 10,
-            marker_symbol_edge_width=10,
-            show_marker_symbol=True,
         )
         # update the marker state depending on the selected poll mode
         self._set_poll_mode()
@@ -447,26 +440,7 @@ class StageExplorer(QWidget):
         if not list(self._stage_viewer._get_images()):
             self.zoom_to_fit()
 
-    def _is_stage_marker_out_of_view(self) -> bool:
-        """Return True if the stage position marker center is out of view."""
-        if self._stage_pos_marker is None:
-            return False
-
-        # marker center in local coords
-        cx, cy = self._stage_pos_marker.center
-
-        # transform to world/scene coords
-        world_center = self._stage_pos_marker.transform.map([[cx, cy]])[0, :2]
-
-        # get visible view rectangle from camera
-        view = self._stage_viewer.view
-        view_left, view_bottom = view.camera.rect.left, view.camera.rect.bottom
-        view_right = view_left + view.camera.rect.width
-        view_top = view_bottom + view.camera.rect.height
-
-        # check if center is outside the visible rectangle
-        x, y = world_center
-        return bool(x < view_left or x > view_right or y < view_bottom or y > view_top)
+        return self._stage_pos_marker
 
     # IMAGES -----------------------------------------------------------------------
 
