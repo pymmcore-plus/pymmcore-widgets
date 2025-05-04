@@ -317,18 +317,14 @@ class StageExplorer(QWidget):
         if self._stage_pos_marker is None:
             return
 
-        if mode == BOTH_MODE:
-            self._stage_pos_marker.show_rectangle(True)
-            self._stage_pos_marker.show_marker(True)
-        elif mode == RECT_MODE:
-            self._stage_pos_marker.show_rectangle(True)
-            self._stage_pos_marker.show_marker(False)
-        elif mode == CENTER_MODE:
-            self._stage_pos_marker.show_rectangle(False)
-            self._stage_pos_marker.show_marker(True)
-        else:
-            self._stage_pos_marker.show_rectangle(False)
-            self._stage_pos_marker.show_marker(False)
+        visibility = {
+            BOTH_MODE: (True, True),
+            RECT_MODE: (True, False),
+            CENTER_MODE: (False, True),
+        }
+        show_rect, show_marker = visibility.get(mode, (False, False))
+        self._stage_pos_marker.show_rectangle(show_rect)
+        self._stage_pos_marker.show_marker(show_marker)
 
     # CORE ------------------------------------------------------------------------
 
