@@ -164,7 +164,6 @@ class StageExplorer(QWidget):
             if a_text == POLL_STAGE:
                 btn = QToolButton(self)
                 btn.setDefaultAction(action)
-                self._setup_poll_stage_context_menu(btn)
                 btn.setToolTip(f"{POLL_STAGE} (right-click for marker options)")
                 self._setup_poll_stage_context_menu(btn)
                 toolbar.addWidget(btn)
@@ -272,7 +271,10 @@ class StageExplorer(QWidget):
             self.zoom_to_fit()
 
     def _setup_poll_stage_context_menu(self, button: QToolButton) -> None:
-        # Allow custom context menu
+        # create exclusive action group for the poll mode
+        self._poll_stage_menu = self._create_poll_stage_menu()
+
+        # allow custom context menu
         button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
 
         # Connect the signal
@@ -280,8 +282,8 @@ class StageExplorer(QWidget):
             lambda pos: self._show_poll_stage_menu(button.mapToGlobal(pos))
         )
 
-    def _show_poll_stage_menu(self, global_pos: QPoint) -> None:
-        # create exclusive action group for the poll mode
+    def _create_poll_stage_menu(self) -> QMenu:
+        """Create the poll stage position context menu."""
         group = QActionGroup(self)
         group.setExclusive(True)
 
@@ -308,7 +310,12 @@ class StageExplorer(QWidget):
 
         menu = QMenu()
         menu.addActions(group.actions())
-        menu.exec(global_pos)
+
+        return menu
+
+    def _show_poll_stage_menu(self, global_pos: QPoint) -> None:
+        """Show the poll stage position context menu at the given global position."""
+        self._poll_stage_menu.exec(global_pos)
 
     def _set_poll_mode(self, mode: str) -> None:
         """Update the poll mode and show/hide the required stage position marker."""
