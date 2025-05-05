@@ -1934,7 +1934,7 @@ requires-dist = [
     { name = "fonticon-materialdesignicons6", specifier = ">=6.9.96" },
     { name = "pymmcore-plus", extras = ["cli"], specifier = ">=0.14.0" },
     { name = "pyopengl", marker = "sys_platform == 'darwin'", specifier = ">=3.1.9" },
-    { name = "pyqt5", marker = "extra == 'pyqt5'", specifier = ">=5.15.4" },
+    { name = "pyqt5", marker = "extra == 'pyqt5'", specifier = ">=5.15.11" },
     { name = "pyqt6", marker = "extra == 'pyqt6'", specifier = ">=6.4.2" },
     { name = "pyside2", marker = "extra == 'pyside2'", specifier = ">=5.15.2.1" },
     { name = "pyside6", marker = "extra == 'pyside6'", specifier = "==6.7.3" },

@@ -145,6 +145,7 @@ filterwarnings = [
     "error",
     "ignore:distutils Version classes are deprecated",
     "ignore:Failed to disconnect:RuntimeWarning:",
+    "ignore:'count' is passed as positional argument::vispy"
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
