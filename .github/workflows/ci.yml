@@ -25,63 +25,93 @@ jobs:
       - run: pip install check-manifest && check-manifest
 
   test:
-    name: ${{ matrix.platform }} py${{ matrix.python-version }} ${{ matrix.backend }}
-    runs-on: ${{ matrix.platform }}
+    name: ${{ matrix.os }} py${{ matrix.python-version }} ${{ matrix.backend }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-13, windows-latest]
-        python-version: ["3.10", "3.12"]
-        backend: [pyside6, pyqt6]
+        os: [macos-13, windows-latest]
+        python-version: ["3.9", "3.13"]
+        backend: [PySide6, PyQt6]
         exclude:
-          - platform: windows-latest
+          - os: windows-latest
             python-version: "3.10"
-            backend: pyside6
+            backend: PySide2
         include:
-          - platform: macos-13
+          - os: macos-13
+            python-version: "3.10"
+            backend: pyside2
+          - os: windows-latest
             python-version: "3.9"
             backend: pyside2
-          - platform: windows-latest
-            python-version: "3.9"
-            backend: pyside2
-          - platform: windows-latest
+          - os: windows-latest
             python-version: "3.11"
-            backend: pyqt5
-          # - platform: windows-latest
-          #   python-version: "3.13"
-          #   backend: pyqt6
+            backend: PyQt5
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
-          allow-prereleases: true
+          enable-cache: true
+
+      - run: uv sync --no-dev --group test --extra ${{ matrix.backend }}
+
+      - uses: pyvista/setup-headless-display-action@v4
+
+      - name: Install Micro-Manager
+        run: uv run mmcore install
+
+      - name: Test
+        run: uv run coverage run -p -m pytest -v --color=yes
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: covreport-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.backend }}
+          path: ./.coverage*
+          include-hidden-files: true
+
+  upload_coverage:
+    if: always()
+    needs: [test]
+    uses: pyapp-kit/workflows/.github/workflows/upload-coverage.yml@v2
+    secrets:
+      codecov_token: ${{ secrets.CODECOV_TOKEN }}
+
+  test-pymmcore-gui:
+    name: test pymmcore-gui
+    runs-on: windows-latest
+    env:
+      UV_NO_SYNC: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: pymmcore-plus/pymmcore-gui
+          fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        with:
+          path: pymmcore-widgets
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - uses: pyvista/setup-headless-display-action@v4
 
       - name: Install dependencies
         run: |
-          python -m pip install -U pip
-          python -m pip install -e .[test,image,${{ matrix.backend }}]
-
-      - name: Install Windows OpenGL
-        if: runner.os == 'Windows'
-        run: |
-          git clone --depth 1 https://github.com/pyvista/gl-ci-helpers.git
-          powershell gl-ci-helpers/appveyor/install_opengl.ps1
-          if (Test-Path -Path "C:\Windows\system32\opengl32.dll" -PathType Leaf) {Exit 0} else {Exit 1}
+          uv sync
+          uv pip install ./pymmcore-widgets
 
       - name: Install Micro-Manager
         run: mmcore install
 
-      - name: Test
-        run: pytest -v --cov=pymmcore_widgets --cov-report=xml --color=yes
-
-      - name: Coverage
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Run pymmcore-gui tests
+        run: uv run pytest -v --color=yes -W ignore
 
   test-napari-micromanager:
     name: test napari-micromanager
@@ -100,13 +130,9 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
-      - name: Install Windows OpenGL
-        if: runner.os == 'Windows'
-        run: |
-          git clone --depth 1 https://github.com/pyvista/gl-ci-helpers.git
-          powershell gl-ci-helpers/appveyor/install_opengl.ps1
+      - uses: pyvista/setup-headless-display-action@v4
 
       - name: Install dependencies
         run: |
@@ -124,32 +150,27 @@ jobs:
   deploy:
     name: Deploy
     needs: test
-    if: "success() && startsWith(github.ref, 'refs/tags/')"
+    if: ${{ github.repository == 'pymmcore-plus/pymmcore-widgets' && contains(github.ref, 'tags') }}
     runs-on: ubuntu-latest
-
+    permissions:
+      id-token: write
+      contents: write
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          fetch-depth: 0
 
-      - name: install
-        run: |
-          git tag
-          pip install -U pip
-          pip install -U build twine
-          python -m build
-          twine check dist/*
-          ls -lh dist
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
 
-      - name: Build and publish
-        run: twine upload dist/*
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      - name: 👷 Build
+        run: uv build
+
+      - name: 🚢 Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
 
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          files: "./dist/*"
