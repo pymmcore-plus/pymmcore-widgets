@@ -19,10 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-      - run: pip install check-manifest && check-manifest
+      - uses: astral-sh/setup-uv@v6
+      - run: uvx check-manifest
 
   test:
     name: ${{ matrix.os }} py${{ matrix.python-version }} ${{ matrix.backend }}
