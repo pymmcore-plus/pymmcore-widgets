@@ -29,3 +29,25 @@ pip install PyQt5
 
 # package is tested against PyQt5, PyQt6, PySide2, and PySide6(==6.7)
 ```
+
+## Development
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
+
+```sh
+git clone <your-fork>
+cd pymmcore-widgets
+uv sync
+```
+
+### Testing
+
+```sh
+uv run pytest
+```
+
+### Docs
+
+```sh
+uv run --group docs mkdocs serve
+```
