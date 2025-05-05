@@ -142,10 +142,10 @@ class _ValueBatcher(Generic[T]):
         # issue the move command
         try:
             self._fset(target)
-        except Exception as e:  # pragma: no cover
-            CMMCorePlus.instance().logMessage(
-                f"Error setting ValueBatcher to {target}: {e}"
-            )
+        except Exception:  # pragma: no cover
+            from pymmcore_plus._logger import logger
+
+            logger.exception(f"Error setting ValueBatcher to {target}")
         self._last_issued_seq = self._seq
 
 
