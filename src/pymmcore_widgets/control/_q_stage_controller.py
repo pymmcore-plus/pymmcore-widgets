@@ -140,7 +140,12 @@ class _ValueBatcher(Generic[T]):
         # self._base and self._delta are guaranteed to be not None here
         target = self._fadd(self._base, self._delta)  # type: ignore[arg-type]
         # issue the move command
-        self._fset(target)
+        try:
+            self._fset(target)
+        except Exception as e:  # pragma: no cover
+            CMMCorePlus.instance().logMessage(
+                f"Error setting ValueBatcher to {target}: {e}"
+            )
         self._last_issued_seq = self._seq
 
 
