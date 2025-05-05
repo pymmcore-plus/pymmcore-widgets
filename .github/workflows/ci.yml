@@ -108,7 +108,7 @@ jobs:
           uv pip install ./pymmcore-widgets
 
       - name: Install Micro-Manager
-        run: mmcore install
+        run: uv run mmcore install
 
       - name: Run pymmcore-gui tests
         run: uv run pytest -v --color=yes -W ignore
