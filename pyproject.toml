@@ -186,6 +186,7 @@ ignore = [
     "mkdocs.yml",
     "examples/**/*",
     "CHANGELOG.md",
+    "uv.lock",
 ]
 
 [tool.typos.default]
