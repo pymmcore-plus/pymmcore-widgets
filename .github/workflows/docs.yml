@@ -13,21 +13,23 @@ on:
 jobs:
   deploy:
     runs-on: macos-13
+    env:
+      UV_NO_SYNC: "1"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.10"
+          python-version: 3.13
+
       - name: Install dependencies
         run: |
-          pip install -e .[docs,image]
-          pip install pyside2
-          mmcore install
+          uv sync --no-dev --group docs --extra PyQt6
+          uv run mmcore install
 
       - name: Test docs
         if: github.event_name == 'pull_request'
-        run: mkdocs build --strict
+        run: uv run mkdocs build --strict
 
       - name: Deploy docs
         if: github.ref == 'refs/heads/main'
-        run: mkdocs gh-deploy --force
+        run: uv run mkdocs gh-deploy --strict --force
