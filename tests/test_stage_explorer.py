@@ -116,7 +116,7 @@ def test_stage_explorer_move_on_click(qtbot: QtBot) -> None:
     explorer._snap_on_double_click = True
     event = MouseEvent("mouse_press", pos=(100, 100), button=1)
     with qtbot.waitSignal(explorer._mmc.events.imageSnapped):
-        explorer._move_to_clicked_position(event)
+        explorer._on_mouse_double_click(event)
 
     assert explorer._mmc.getXYPosition() != stage_pos
 
@@ -126,9 +126,6 @@ def test_stage_explorer_position_indicator(qtbot: QtBot) -> None:
     qtbot.addWidget(explorer)
 
     poll_action = explorer._actions[_stage_explorer.POLL_STAGE]
-    with qtbot.waitSignal(poll_action.triggered):
-        poll_action.trigger()
-
     assert explorer._poll_stage_position is True
     assert explorer._timer_id is not None
 
