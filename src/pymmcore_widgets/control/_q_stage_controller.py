@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from pymmcore_plus import AbstractChangeAccumulator, CMMCorePlus, core
 from qtpy.QtCore import QObject, QTimerEvent, Signal
@@ -47,18 +47,6 @@ class QStageMoveAccumulator(QObject):
             cls._CACHE[key] = QStageMoveAccumulator(accum)
         return cls._CACHE[key]
 
-    def move_relative(self, delta: Any) -> None:
-        self._accum.add_relative(delta)
-        if self._timer_id is None:
-            self._timer_id = self.startTimer(self._poll_ms)
-
-    def move_absolute(self, target: Any) -> None:
-        self._accum.set_absolute(target)
-        if self._timer_id is None:
-            self._timer_id = self.startTimer(self._poll_ms)
-
-    # --------------------------------------------------------------
-
     _CACHE: ClassVar[dict[tuple[int, str], QStageMoveAccumulator]] = {}
 
     def __init__(self, accumulator: AbstractChangeAccumulator, *, poll_ms: int = 20):
@@ -69,6 +57,18 @@ class QStageMoveAccumulator(QObject):
         # mutable field that may be set by any caller.
         # will always be set to False when the move is finished (after snapping)
         self.snap_on_finish: bool = False
+
+    def move_relative(self, delta: float | tuple[float, float]) -> None:
+        """Move the stage relative to its current position."""
+        self._accum.add_relative(delta)
+        if self._timer_id is None:
+            self._timer_id = self.startTimer(self._poll_ms)
+
+    def move_absolute(self, target: float | tuple[float, float]) -> None:
+        """Move the stage to an absolute position."""
+        self._accum.set_absolute(target)
+        if self._timer_id is None:
+            self._timer_id = self.startTimer(self._poll_ms)
 
     def timerEvent(self, event: QTimerEvent | None) -> None:
         if self._accum.poll_done() is True:
