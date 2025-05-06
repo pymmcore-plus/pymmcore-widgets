@@ -1,20 +1,51 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pymmcore_plus import AbstractChangeAccumulator, CMMCorePlus, core
 from qtpy.QtCore import QObject, QTimerEvent, Signal
 
 
-class QChangeAccumulator(QObject):
-    moveFinished = Signal()
+class QStageMoveAccumulator(QObject):
+    """Object to accumulate stage moves and poll for completion.
 
-    def __init__(self, accumulator: AbstractChangeAccumulator, *, poll_ms: int = 20):
-        super().__init__()
-        self._accum = accumulator
-        self._accum.finished.connect(self.moveFinished.emit)
-        self._poll_ms = poll_ms
-        self._timer_id: int | None = None
+    This class is meant to be shared by multiple widgets/users that need to share
+    control of a stage device, possibly accumulating relative moves.
+
+    Create using the `for_device` class method, which will return a cached instance
+    for the given device and core.
+
+    Attributes
+    ----------
+    moveFinished : Signal
+        Emitted when the move is finished. This is a signal that can be connected to
+        other slots to perform actions after the move is completed.
+    snap_on_finish : bool
+        If True, a snap will be performed after the move is finished.  Prefer using
+        this to connecting a callback to the `moveFinished` signal, so that multiple
+        snaps can be avoided if multiple widgets are connected to the signal.
+    """
+
+    moveFinished = Signal()
+    snap_on_finish: bool = False
+
+    @classmethod
+    def for_device(
+        cls, device: str, mmcore: CMMCorePlus | None = None
+    ) -> QStageMoveAccumulator:
+        """Get a stage controller for the given device."""
+        mmcore = mmcore or CMMCorePlus.instance()
+        key = (id(mmcore), device)
+        if key not in cls._CACHE:
+            dev_obj = mmcore.getDeviceObject(device)
+            if not isinstance(dev_obj, (core.XYStageDevice, core.StageDevice)):
+                raise TypeError(
+                    f"Cannot {device} is not a stage device. "
+                    f"It is a {dev_obj.type().name!r}."
+                )
+            accum = dev_obj.getPositionAccumulator()
+            cls._CACHE[key] = QStageMoveAccumulator(accum)
+        return cls._CACHE[key]
 
     def move_relative(self, delta: Any) -> None:
         self._accum.add_relative(delta)
@@ -26,29 +57,30 @@ class QChangeAccumulator(QObject):
         if self._timer_id is None:
             self._timer_id = self.startTimer(self._poll_ms)
 
+    # --------------------------------------------------------------
+
+    _CACHE: ClassVar[dict[tuple[int, str], QStageMoveAccumulator]] = {}
+
+    def __init__(self, accumulator: AbstractChangeAccumulator, *, poll_ms: int = 20):
+        super().__init__()
+        self._accum = accumulator
+        self._poll_ms = poll_ms
+        self._timer_id: int | None = None
+        # mutable field that may be set by any caller.
+        # will always be set to False when the move is finished (after snapping)
+        self.snap_on_finish: bool = False
+
     def timerEvent(self, event: QTimerEvent | None) -> None:
-        device_idle = self._accum.poll_done()
-        if device_idle is True and self._timer_id is not None:
-            self.killTimer(self._timer_id)
-            self._timer_id = None
+        if self._accum.poll_done() is True:
+            if self._timer_id is not None:
+                self.killTimer(self._timer_id)
+                self._timer_id = None
 
+            if self.snap_on_finish:
+                core = getattr(self._accum, "_mmcore", None)
+                if not isinstance(core, CMMCorePlus):
+                    core = CMMCorePlus.instance()
+                core.snapImage()
+                self.snap_on_finish = False
 
-_Q_ACCUMULATORS: dict[tuple[int, str], QChangeAccumulator] = {}
-
-
-def get_q_stage_controller(
-    device: str, mmcore: CMMCorePlus | None = None
-) -> QChangeAccumulator:
-    """Get a stage controller for the given device."""
-    mmcore = mmcore or CMMCorePlus.instance()
-    key = (id(mmcore), device)
-    if key not in _Q_ACCUMULATORS:
-        dev_obj = mmcore.getDeviceObject(device)
-        if not isinstance(dev_obj, (core.XYStageDevice, core.StageDevice)):
-            raise TypeError(
-                f"Cannot {device} is not a stage device. "
-                f"It is a {dev_obj.type().name!r}."
-            )
-        accum = dev_obj.getPositionAccumulator()
-        _Q_ACCUMULATORS[key] = QChangeAccumulator(accum)
-    return _Q_ACCUMULATORS[key]
+            self.moveFinished.emit()

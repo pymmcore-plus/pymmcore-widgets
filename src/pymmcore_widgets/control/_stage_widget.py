@@ -23,7 +23,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon, setTextIcon
 from superqt.utils import signals_blocked
 
-from ._q_stage_controller import get_q_stage_controller
+from ._q_stage_controller import QStageMoveAccumulator
 
 if TYPE_CHECKING:
     from typing import Any
@@ -259,8 +259,9 @@ class StageWidget(QWidget):
         self._Ylabel = "Y" if self._is_2axis else self._device
 
         # Initialize stage controller
-        self._stage_controller = get_q_stage_controller(self._device, self._mmc)
-        self._stage_controller.moveFinished.connect(self._on_move_finished)
+        self._stage_controller = QStageMoveAccumulator.for_device(
+            self._device, self._mmc
+        )
 
         # WIDGETS ------------------------------------------------
 
@@ -280,12 +281,12 @@ class StageWidget(QWidget):
             self._x_pos = MoveStageSpinBox(label="X")
             self._pos_boxes.append(self._x_pos)
             self._pos.addWidget(self._x_pos)
-            self._x_pos.editingFinished.connect(self._move_x_absolute)
+            self._x_pos.editingFinished.connect(self._move_absolute)
 
         self._pos.addWidget(QLabel(f"{self._Ylabel}: "))
         self._y_pos = MoveStageSpinBox(label="Y")
         self._pos_boxes.append(self._y_pos)
-        self._y_pos.editingFinished.connect(self._move_y_absolute)
+        self._y_pos.editingFinished.connect(self._move_absolute)
         self._pos.addWidget(self._y_pos)
 
         for box in self._pos_boxes:
@@ -454,28 +455,20 @@ class StageWidget(QWidget):
         if self._invert_y.isChecked():
             ymag *= -1
 
-        if self._is_2axis:
-            self._stage_controller.move_relative((xmag, ymag))
-        else:
-            self._stage_controller.move_relative(ymag)
+        val = (xmag, ymag) if self._is_2axis else ymag
+        self._do_move(val, relative=True)
 
-    def _move_x_absolute(self) -> None:
-        if self._is_2axis:
-            x = self._x_pos.value()
-            y = self._y_pos.value()
-            self._stage_controller.move_absolute((x, y))
-
-    def _move_y_absolute(self) -> None:
+    def _move_absolute(self) -> None:
         y = self._y_pos.value()
-        if self._is_2axis:
-            x = self._x_pos.value()
-            self._stage_controller.move_absolute((x, y))
-        else:
-            self._stage_controller.move_absolute(y)
+        val = (self._x_pos.value(), y) if self._is_2axis else y
+        self._do_move(val, relative=False)
 
-    def _on_move_finished(self) -> None:
-        if self.snap_checkbox.isChecked():
-            self._mmc.snap()
+    def _do_move(self, val: Any, relative: bool) -> None:
+        if relative:
+            self._stage_controller.move_relative(val)
+        else:
+            self._stage_controller.move_absolute(val)
+        self._stage_controller.snap_on_finish = self.snap_checkbox.isChecked()
 
     def _disconnect(self) -> None:
         self._mmc.events.propertyChanged.disconnect(self._on_prop_changed)

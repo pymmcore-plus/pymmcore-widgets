@@ -19,7 +19,7 @@ from qtpy.QtWidgets import (
 )
 from superqt import QIconifyIcon
 
-from pymmcore_widgets.control._q_stage_controller import get_q_stage_controller
+from pymmcore_widgets.control._q_stage_controller import QStageMoveAccumulator
 
 from ._stage_position_marker import StagePositionMarker
 from ._stage_viewer import StageViewer, get_vispy_scene_bounds
@@ -136,8 +136,7 @@ class StageExplorer(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         device = self._mmc.getXYStageDevice()
-        self._stage_controller = get_q_stage_controller(device, self._mmc)
-        self._stage_controller.moveFinished.connect(self._on_move_finished)
+        self._stage_controller = QStageMoveAccumulator.for_device(device, self._mmc)
 
         self._stage_viewer = StageViewer(self)
 
@@ -350,14 +349,11 @@ class StageExplorer(QWidget):
         # map the clicked canvas position to the stage position
         x, y, _, _ = self._stage_viewer.view.camera.transform.imap(event.pos)
         self._stage_controller.move_absolute((x, y))
+        self._stage_controller.snap_on_finish = self._snap_on_double_click
+
         # update the stage position label
         self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
         # snap an image if the snap on double click property is set
-
-    def _on_move_finished(self) -> None:
-        if self._snap_on_double_click:
-            # wait for the stage to be in position before continuing
-            self._mmc.snapImage()
 
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
