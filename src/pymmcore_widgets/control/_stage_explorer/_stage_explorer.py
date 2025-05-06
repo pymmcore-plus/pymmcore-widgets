@@ -20,6 +20,8 @@ from qtpy.QtWidgets import (
 )
 from superqt import QIconifyIcon
 
+from pymmcore_widgets.control._q_stage_controller import QStageMoveAccumulator
+
 from ._stage_position_marker import StagePositionMarker
 from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 
@@ -134,6 +136,9 @@ class StageExplorer(QWidget):
         self.setWindowTitle("Stage Explorer")
 
         self._mmc = mmcore or CMMCorePlus.instance()
+
+        device = self._mmc.getXYStageDevice()
+        self._stage_controller = QStageMoveAccumulator.for_device(device, self._mmc)
 
         self._stage_viewer = StageViewer(self)
         self._stage_viewer.setCursor(Qt.CursorShape.CrossCursor)
@@ -360,14 +365,12 @@ class StageExplorer(QWidget):
 
         # map the clicked canvas position to the stage position
         x, y, _, _ = self._stage_viewer.view.camera.transform.imap(event.pos)
-        self._mmc.setXYPosition(x, y)
+        self._stage_controller.move_absolute((x, y))
+        self._stage_controller.snap_on_finish = self._snap_on_double_click
+
         # update the stage position label
         self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
         # snap an image if the snap on double click property is set
-        if self._snap_on_double_click:
-            # wait for the stage to be in position before continuing
-            self._mmc.waitForDevice(self._mmc.getXYStageDevice())
-            self._mmc.snapImage()
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
         canvas_pos = (event.pos[0], event.pos[1])
@@ -404,7 +407,7 @@ class StageExplorer(QWidget):
         """Set the poll stage position property based on the state of the action."""
         self._poll_stage_position = checked
         if checked:
-            self._timer_id = self.startTimer(10)
+            self._timer_id = self.startTimer(20)
         elif self._timer_id is not None:
             self.killTimer(self._timer_id)
             self._timer_id = None
