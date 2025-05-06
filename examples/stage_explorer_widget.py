@@ -10,8 +10,11 @@ mmc = CMMCorePlus.instance()
 mmc.loadSystemConfiguration()
 
 # set camera roi (rectangular helps confirm orientation)
-mmc.setROI(0, 0, 400, 500)
+mmc.setROI(0, 0, 400, 600)
 
+xy = mmc.getXYStageDevice()
+if mmc.hasProperty(xy, "Velocity"):
+    mmc.setProperty(xy, "Velocity", 2)
 
 explorer = StageExplorer()
 

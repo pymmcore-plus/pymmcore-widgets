@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, cast
 
 import numpy as np
+import vispy.scene
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QPoint, Qt
 from qtpy.QtGui import QIcon
@@ -43,7 +44,8 @@ AUTO_ZOOM_TO_FIT = "Auto Zoom to Fit"
 AUTO_ZOOM_TO_FIT_ICON = QIcon(str(Path(__file__).parent / "auto_zoom_to_fit_icon.svg"))
 CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
-POLL_STAGE = "Poll Stage Position"
+POLL_STAGE = "Show FOV Position"
+SHOW_GRID = "Show Grid"
 
 
 # this might belong in _stage_position_marker.py
@@ -139,6 +141,14 @@ class StageExplorer(QWidget):
         self._stage_controller = QStageMoveAccumulator.for_device(device, self._mmc)
 
         self._stage_viewer = StageViewer(self)
+        self._stage_viewer.setCursor(Qt.CursorShape.CrossCursor)
+
+        self._grid_lines = vispy.scene.GridLines(
+            parent=self._stage_viewer.view.scene,
+            color="#888888",
+            border_width=1,
+        )
+        self._grid_lines.visible = False
 
         # to keep track of the current scale depending on the zoom level
         self._current_scale: int = 1
@@ -146,7 +156,7 @@ class StageExplorer(QWidget):
         # properties
         self._auto_zoom_to_fit: bool = False
         self._snap_on_double_click: bool = False
-        self._poll_stage_position: bool = False
+        self._poll_stage_position: bool = True
 
         # stage position marker mode
         self._position_indicator: PositionIndicator = PositionIndicator.BOTH
@@ -169,10 +179,11 @@ class StageExplorer(QWidget):
         # {text: (icon, checkable, on_triggered)}
         ACTION_MAP: dict[str, tuple[str | QIcon, bool, Callable]] = {
             CLEAR: ("mdi:close", False, self._stage_viewer.clear),
-            ZOOM_TO_FIT: ("mdi:fullscreen", False, self.zoom_to_fit),
+            ZOOM_TO_FIT: ("mdi:fullscreen", False, self._on_zoom_to_fit_action),
             AUTO_ZOOM_TO_FIT: (AUTO_ZOOM_TO_FIT_ICON, True, self._on_auto_zoom_to_fit_action),  # noqa: E501
             SNAP: ("mdi:camera-outline", True, self._on_snap_action),
             POLL_STAGE: ("mdi:map-marker-outline", True, self._on_poll_stage_action),
+            SHOW_GRID: ("mdi:grid", True, self._on_show_grid_action),
         }
         # fmt: on
 
@@ -189,11 +200,14 @@ class StageExplorer(QWidget):
                 btn = self._create_poll_stage_button()
                 btn.setDefaultAction(action)
                 self._toolbar.addWidget(btn)
+                action.setChecked(self._poll_stage_position)
+                self._on_poll_stage_action(self._poll_stage_position)
             else:
                 self._toolbar.addAction(action)
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
+
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._toolbar.addWidget(spacer)
@@ -214,7 +228,7 @@ class StageExplorer(QWidget):
 
         # connections vispy events
         self._stage_viewer.canvas.events.mouse_double_click.connect(
-            self._move_to_clicked_position
+            self._on_mouse_double_click
         )
 
         self._on_sys_config_loaded()
@@ -296,6 +310,12 @@ class StageExplorer(QWidget):
         """Update the stage viewer settings based on the state of the action."""
         self.snap_on_double_click = checked
 
+    def _on_zoom_to_fit_action(self, checked: bool) -> None:
+        """Set the zoom to fit property based on the state of the action."""
+        self._actions[AUTO_ZOOM_TO_FIT].setChecked(False)
+        self._auto_zoom_to_fit = False
+        self.zoom_to_fit()
+
     def _on_auto_zoom_to_fit_action(self, checked: bool) -> None:
         """Set the auto zoom to fit property based on the state of the action."""
         self._auto_zoom_to_fit = checked
@@ -341,7 +361,7 @@ class StageExplorer(QWidget):
         """Clear the scene when the pixel size changes."""
         self._delete_stage_position_marker()
 
-    def _move_to_clicked_position(self, event: MouseEvent) -> None:
+    def _on_mouse_double_click(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
         if not self._mmc.getXYStageDevice():
             return
@@ -384,6 +404,11 @@ class StageExplorer(QWidget):
             self._timer_id = None
             self._delete_stage_position_marker()
 
+    def _on_show_grid_action(self, checked: bool) -> None:
+        """Set the show grid property based on the state of the action."""
+        self._grid_lines.visible = checked
+        self._actions[SHOW_GRID].setChecked(checked)
+
     def _delete_stage_position_marker(self) -> None:
         """Delete the stage position marker."""
         if self._stage_pos_marker is not None:
@@ -411,7 +436,6 @@ class StageExplorer(QWidget):
 
         # update stage marker position
         mk.apply_transform(matrix.T)
-
         # zoom_to_fit only if auto _auto_zoom_to_fit property is set to True.
         # NOTE: this could be slightly annoying...  might need a sub-option?
         if self._auto_zoom_to_fit:
