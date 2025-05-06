@@ -113,9 +113,6 @@ class StageViewer(QWidget):
         # keep the added image on top of the others
         frame.order = min(child.order for child in self._get_images()) - 1
         frame.transform = scene.MatrixTransform(matrix=transform)
-        if len(list(self._get_images())) == 1:
-            # if this is the first image, set the camera to fit it
-            self.zoom_to_fit()
 
     def clear(self) -> None:
         """Clear the scene."""

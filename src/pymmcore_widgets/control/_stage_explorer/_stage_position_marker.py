@@ -5,7 +5,7 @@ from vispy.color import Color
 from vispy.scene import Compound, MatrixTransform, Node
 from vispy.scene.visuals import Markers, Rectangle
 
-GREEN = "#33AA33"
+GREEN = "#33CC33"
 
 
 class StagePositionMarker(Compound):
@@ -19,12 +19,12 @@ class StagePositionMarker(Compound):
         rect_width: int = 50,
         rect_height: int = 50,
         rect_color: str = GREEN,
-        rect_thickness: int = 4,
+        rect_thickness: int = 2,
         show_rect: bool = True,
         marker_symbol: str = "++",
         marker_symbol_color: str = GREEN,
-        marker_symbol_size: float = 15,
-        marker_symbol_edge_width: float = 10,
+        marker_symbol_size: float = 10,
+        marker_symbol_edge_width: float = 2,
         show_marker_symbol: bool = True,
     ) -> None:
         self._rect = Rectangle(
@@ -43,7 +43,7 @@ class StagePositionMarker(Compound):
             edge_color=Color(marker_symbol_color),
             size=marker_symbol_size,
             edge_width=marker_symbol_edge_width,
-            scaling=True,
+            scaling="fixed",
         )
 
         super().__init__([self._marker, self._rect])

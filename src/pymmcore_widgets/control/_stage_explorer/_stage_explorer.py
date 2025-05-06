@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, cast
 
 import numpy as np
+import vispy.scene
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QPoint, Qt
 from qtpy.QtGui import QIcon
@@ -42,6 +43,7 @@ AUTO_ZOOM_TO_FIT_ICON = QIcon(str(Path(__file__).parent / "auto_zoom_to_fit_icon
 CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
 POLL_STAGE = "Poll Stage Position"
+SHOW_GRID = "Show Grid"
 
 
 # this might belong in _stage_position_marker.py
@@ -134,6 +136,14 @@ class StageExplorer(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._stage_viewer = StageViewer(self)
+        self._stage_viewer.setCursor(Qt.CursorShape.CrossCursor)
+
+        self._grid_lines = vispy.scene.GridLines(
+            parent=self._stage_viewer.view.scene,
+            color="#555555",
+            border_width=1,
+        )
+        self._grid_lines.visible = False
 
         # to keep track of the current scale depending on the zoom level
         self._current_scale: int = 1
@@ -141,7 +151,7 @@ class StageExplorer(QWidget):
         # properties
         self._auto_zoom_to_fit: bool = False
         self._snap_on_double_click: bool = False
-        self._poll_stage_position: bool = False
+        self._poll_stage_position: bool = True
 
         # stage position marker mode
         self._position_indicator: PositionIndicator = PositionIndicator.BOTH
@@ -168,6 +178,7 @@ class StageExplorer(QWidget):
             AUTO_ZOOM_TO_FIT: (AUTO_ZOOM_TO_FIT_ICON, True, self._on_auto_zoom_to_fit_action),  # noqa: E501
             SNAP: ("mdi:camera-outline", True, self._on_snap_action),
             POLL_STAGE: ("mdi:map-marker-outline", True, self._on_poll_stage_action),
+            SHOW_GRID: ("mdi:grid", True, self._on_show_grid_action),
         }
         # fmt: on
 
@@ -184,11 +195,16 @@ class StageExplorer(QWidget):
                 btn = self._create_poll_stage_button()
                 btn.setDefaultAction(action)
                 self._toolbar.addWidget(btn)
+                action.setChecked(self._poll_stage_position)
+                self._on_poll_stage_action(self._poll_stage_position)
             else:
                 self._toolbar.addAction(action)
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
+        self._hover_pos_label = QLabel(self)
+        self._hover_pos_label.setStyleSheet("color: rgba(100, 255, 255, 100); ")
+
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._toolbar.addWidget(spacer)
@@ -209,8 +225,9 @@ class StageExplorer(QWidget):
 
         # connections vispy events
         self._stage_viewer.canvas.events.mouse_double_click.connect(
-            self._move_to_clicked_position
+            self._on_mouse_double_click
         )
+        self._stage_viewer.canvas.events.mouse_move.connect(self._on_mouse_move)
 
         self._on_sys_config_loaded()
 
@@ -336,7 +353,7 @@ class StageExplorer(QWidget):
         """Clear the scene when the pixel size changes."""
         self._delete_stage_position_marker()
 
-    def _move_to_clicked_position(self, event: MouseEvent) -> None:
+    def _on_mouse_double_click(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
         if not self._mmc.getXYStageDevice():
             return
@@ -351,6 +368,18 @@ class StageExplorer(QWidget):
             # wait for the stage to be in position before continuing
             self._mmc.waitForDevice(self._mmc.getXYStageDevice())
             self._mmc.snapImage()
+
+    def _on_mouse_move(self, event: MouseEvent) -> None:
+        canvas_pos = (event.pos[0], event.pos[1])
+        # map canvas position to world position
+        tform = self._stage_viewer.view.scene.transform
+        x, y, *_ = tform.imap(canvas_pos)
+        self._hover_pos_label.setText(f"({x:.2f}, {y:.2f})")
+        # move hover label to the mouse position
+        self._hover_pos_label.move(event.pos[0] + 20, event.pos[1])
+        self._hover_pos_label.setVisible(True)
+        # resize to fit the text
+        self._hover_pos_label.adjustSize()
 
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
@@ -380,6 +409,11 @@ class StageExplorer(QWidget):
             self.killTimer(self._timer_id)
             self._timer_id = None
             self._delete_stage_position_marker()
+
+    def _on_show_grid_action(self, checked: bool) -> None:
+        """Set the show grid property based on the state of the action."""
+        self._grid_lines.visible = checked
+        self._actions[SHOW_GRID].setChecked(checked)
 
     def _delete_stage_position_marker(self) -> None:
         """Delete the stage position marker."""
