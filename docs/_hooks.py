@@ -16,7 +16,7 @@ def on_page_markdown(md: str, **_: Any) -> str:
 
         for section, widget_list in widget_dict.items():
             # e.g.  {{ CONFIGURATION_WIDGETS }} in index.md
-            section_key = "{{ " + cast(str, section).upper() + " }}"
+            section_key = "{{ " + cast("str", section).upper() + " }}"
             if section_key in md:
                 md = md.replace(section_key, _widget_table(widget_list))
         return md

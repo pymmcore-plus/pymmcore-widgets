@@ -14,7 +14,7 @@ PY311 = sys.version_info[:2] == (3, 11)
 CI = os.getenv("CI", True)
 
 
-@pytest.mark.skipif(bool(LINUX or not PY311 or not CI), reason="minimize downloads")
+@pytest.mark.skipif(bool(LINUX or not CI), reason="enabled CI=1")
 def test_install_widget_download(qtbot: QtBot, tmp_path: Path):
     wdg = InstallWidget()
     qtbot.addWidget(wdg)
@@ -30,7 +30,7 @@ def test_install_widget_download(qtbot: QtBot, tmp_path: Path):
     assert "emitting stdout" in wdg.feedback_textbox.toPlainText()
 
 
-@pytest.mark.skipif(bool(LINUX or not PY311 or not CI), reason="minimize downloads")
+@pytest.mark.skipif(bool(LINUX or not CI), reason="enabled CI=1")
 def test_install_widget(qtbot: QtBot, tmp_path: Path):
     wdg = InstallWidget()
     qtbot.addWidget(wdg)

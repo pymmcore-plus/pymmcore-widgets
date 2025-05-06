@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QHBoxLayout, QWidget
+from typing import TYPE_CHECKING
 
-from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
+from pymmcore_plus import CMMCorePlus
+
+from pymmcore_widgets.useq_widgets._grid import GridPlanWidget, Mode
 
 from ._xy_bounds import CoreXYBoundsControl
+
+if TYPE_CHECKING:
+    from qtpy.QtWidgets import QWidget
 
 
 class CoreConnectedGridPlanWidget(GridPlanWidget):
@@ -25,37 +29,19 @@ class CoreConnectedGridPlanWidget(GridPlanWidget):
     def __init__(
         self, mmcore: CMMCorePlus | None = None, parent: QWidget | None = None
     ) -> None:
-        super().__init__(parent)
         self._mmc = mmcore or CMMCorePlus.instance()
-
         self._core_xy_bounds = CoreXYBoundsControl(core=self._mmc)
-        # replace GridPlanWidget attributes with CoreXYBoundsControl attributes so we
-        # can use the same super() methods.
-        self.top = self._core_xy_bounds.top_edit
-        self.left = self._core_xy_bounds.left_edit
-        self.right = self._core_xy_bounds.right_edit
-        self.bottom = self._core_xy_bounds.bottom_edit
 
-        # replace the lrtb_wdg from the parent widget with the core_xy_bounds widget
-        # self.bounds_wdg.bounds_layout.removeWidget(self.bounds_wdg.lrtb_wdg)
-        # self.bounds_wdg.lrtb_wdg.hide()
+        super().__init__(parent)
 
-        for wdg in self.bounds_wdg.children():
-            if isinstance(wdg, QWidget):
-                wdg.setParent(self)
-                wdg.hide()
-        QWidget().setLayout(self.bounds_wdg.layout())
+        # replace self._mode_to_widget[Mode.BOUNDS] with self._core_xy_bounds
+        self._mode_to_widget[Mode.BOUNDS] = self._core_xy_bounds
 
-        new_layout = QHBoxLayout()
-        new_layout.addWidget(self._core_xy_bounds)
-        self.bounds_wdg.setLayout(new_layout)
-        # self.bounds_wdg.layout().addWidget(self._core_xy_bounds)
-
-        # connect
-        self.top.valueChanged.connect(self._on_change)
-        self.left.valueChanged.connect(self._on_change)
-        self.right.valueChanged.connect(self._on_change)
-        self.bottom.valueChanged.connect(self._on_change)
+        # remove self.bounds_wdg from GridPlanWidget
+        self._stack.removeWidget(self.bounds_wdg)
+        self.bounds_wdg.hide()
+        # add CoreXYBoundsControl widget to GridPlanWidget
+        self._stack.addWidget(self._core_xy_bounds)
 
         self._mmc.events.systemConfigurationLoaded.connect(self._update_fov_size)
         self._mmc.events.pixelSizeChanged.connect(self._update_fov_size)

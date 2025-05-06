@@ -118,7 +118,7 @@ class DevicePropertyTable(QTableWidget):
             return
         included = [tuple(c)[:2] for c in self._mmc.getConfigData(group, presets[0])]
         for row in range(self.rowCount()):
-            prop = cast(DeviceProperty, self.item(row, 0).data(self.PROP_ROLE))
+            prop = cast("DeviceProperty", self.item(row, 0).data(self.PROP_ROLE))
             if (prop.device, prop.name) in included:
                 self.item(row, 0).setCheckState(Qt.CheckState.Checked)
             else:
@@ -193,7 +193,7 @@ class DevicePropertyTable(QTableWidget):
     def setReadOnlyDevicesVisible(self, visible: bool = True) -> None:
         """Set whether read-only devices are visible."""
         for row in range(self.rowCount()):
-            prop = cast(DeviceProperty, self.item(row, 0).data(self.PROP_ROLE))
+            prop = cast("DeviceProperty", self.item(row, 0).data(self.PROP_ROLE))
             if prop.isReadOnly():
                 self.setRowHidden(row, not visible)
 
@@ -212,7 +212,7 @@ class DevicePropertyTable(QTableWidget):
         include_devices = set(include_devices)
         for row in range(self.rowCount()):
             item = self.item(row, 0)
-            prop = cast(DeviceProperty, item.data(self.PROP_ROLE))
+            prop = cast("DeviceProperty", item.data(self.PROP_ROLE))
             if include_devices and prop.deviceType() not in include_devices:
                 self.hideRow(row)
                 continue

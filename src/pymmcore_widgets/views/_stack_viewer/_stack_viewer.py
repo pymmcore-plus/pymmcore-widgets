@@ -73,7 +73,7 @@ class StackViewer(QtWidgets.QWidget):
         self.cmaps = [
             cm for x in self.cmap_names if (cm := try_cast_colormap(x)) is not None
         ]
-        self.display_index = {dim: 0 for dim in DIMENSIONS}
+        self.display_index = dict.fromkeys(DIMENSIONS, 0)
 
         self.main_layout = QtWidgets.QVBoxLayout()
         self.setLayout(self.main_layout)
@@ -233,7 +233,7 @@ class StackViewer(QtWidgets.QWidget):
             try:
                 clim_slider = self.channel_row.boxes[indices.get("c", 0)].slider
             except KeyError:
-                this_channel = cast(_channel.Channel, event.channel)
+                this_channel = cast("_channel.Channel", event.channel)
                 self.channel_row.add_channel(this_channel, indices.get("c", 0))
                 self._redisplay(event)
                 return

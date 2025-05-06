@@ -38,6 +38,7 @@ __all__ = [
     "PropertyWidget",
     "ShuttersWidget",
     "SnapButton",
+    "StageExplorer",
     "StageWidget",
     "StateDeviceWidget",
     "TimePlanWidget",
@@ -63,6 +64,7 @@ from .control import (
     PresetsWidget,
     ShuttersWidget,
     SnapButton,
+    StageExplorer,
     StageWidget,
 )
 from .device_properties import PropertiesWidget, PropertyBrowser, PropertyWidget
@@ -80,7 +82,7 @@ from .useq_widgets import (
 from .views import ImagePreview
 
 if TYPE_CHECKING:
-    from ._deprecated._device_widget import (  # noqa: TC004
+    from ._deprecated._device_widget import (
         DeviceWidget,
         StateDeviceWidget,
     )
