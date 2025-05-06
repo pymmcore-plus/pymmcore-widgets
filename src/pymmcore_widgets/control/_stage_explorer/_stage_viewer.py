@@ -8,13 +8,15 @@ import vispy
 import vispy.scene
 import vispy.visuals
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QVBoxLayout, QWidget
+from qtpy.QtWidgets import QLabel, QVBoxLayout, QWidget
 from vispy import scene
 from vispy.scene.visuals import Image
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
+    from PyQt6.QtGui import QMouseEvent
+    from vispy.app.canvas import MouseEvent
     from vispy.scene.widgets import ViewBox
 
     class VisualNode(vispy.scene.Node, vispy.visuals.Visual): ...
@@ -40,7 +42,19 @@ class StageViewer(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.canvas.native)
 
+        self._show_hover_label = True
+        self._hover_pos_label = QLabel(self)
+        self._hover_pos_label.setStyleSheet("color: rgba(100, 255, 255, 100); ")
+        self._hover_pos_label.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
+        )
+        self.canvas.events.mouse_move.connect(self._on_mouse_move)
+
     # --------------------PUBLIC METHODS--------------------
+
+    def set_hover_label_visible(self, visible: bool) -> None:
+        """Set the visibility of the hover label."""
+        self._show_hover_label = visible
 
     def set_clims(self, clim: tuple[float, float] | None) -> None:
         """Set the color limits of the images in the scene."""
@@ -142,6 +156,30 @@ class StageViewer(QWidget):
         for child in self.view.scene.children:
             if isinstance(child, Image):
                 yield child
+
+    def _on_mouse_move(self, event: MouseEvent) -> None:
+        if not self._show_hover_label:
+            return
+
+        # map canvas position to world position
+        world_x, world_y, *_ = self.view.scene.transform.imap(event.pos)
+        self._hover_pos_label.setText(f"({world_x:.2f}, {world_y:.2f})")
+        self._hover_pos_label.adjustSize()
+
+        # move hover label to the mouse position
+        # ensure horizontally and vertically within the view
+        lbl_width = self._hover_pos_label.width()
+        x = event.pos[0] - (lbl_width // 2)
+        margin = 5
+        x = max(margin, min(x, self.width() - lbl_width - margin))
+        y = event.pos[1] - 32
+        if y < 8:
+            y += 48
+        self._hover_pos_label.move(x, y)
+        self._hover_pos_label.setVisible(True)
+
+    def leaveEvent(self, a0: QMouseEvent | None) -> None:
+        self._hover_pos_label.setVisible(False)
 
 
 def get_vispy_scene_bounds(

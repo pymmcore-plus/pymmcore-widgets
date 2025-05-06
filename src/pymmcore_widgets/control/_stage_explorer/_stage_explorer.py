@@ -44,7 +44,7 @@ AUTO_ZOOM_TO_FIT = "Auto Zoom to Fit"
 AUTO_ZOOM_TO_FIT_ICON = QIcon(str(Path(__file__).parent / "auto_zoom_to_fit_icon.svg"))
 CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
-POLL_STAGE = "Poll Stage Position"
+POLL_STAGE = "Show FOV Position"
 SHOW_GRID = "Show Grid"
 
 
@@ -179,7 +179,7 @@ class StageExplorer(QWidget):
         # {text: (icon, checkable, on_triggered)}
         ACTION_MAP: dict[str, tuple[str | QIcon, bool, Callable]] = {
             CLEAR: ("mdi:close", False, self._stage_viewer.clear),
-            ZOOM_TO_FIT: ("mdi:fullscreen", False, self.zoom_to_fit),
+            ZOOM_TO_FIT: ("mdi:fullscreen", False, self._on_zoom_to_fit_action),
             AUTO_ZOOM_TO_FIT: (AUTO_ZOOM_TO_FIT_ICON, True, self._on_auto_zoom_to_fit_action),  # noqa: E501
             SNAP: ("mdi:camera-outline", True, self._on_snap_action),
             POLL_STAGE: ("mdi:map-marker-outline", True, self._on_poll_stage_action),
@@ -207,8 +207,6 @@ class StageExplorer(QWidget):
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
-        self._hover_pos_label = QLabel(self)
-        self._hover_pos_label.setStyleSheet("color: rgba(100, 255, 255, 100); ")
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -232,7 +230,6 @@ class StageExplorer(QWidget):
         self._stage_viewer.canvas.events.mouse_double_click.connect(
             self._on_mouse_double_click
         )
-        self._stage_viewer.canvas.events.mouse_move.connect(self._on_mouse_move)
 
         self._on_sys_config_loaded()
 
@@ -313,6 +310,12 @@ class StageExplorer(QWidget):
         """Update the stage viewer settings based on the state of the action."""
         self.snap_on_double_click = checked
 
+    def _on_zoom_to_fit_action(self, checked: bool) -> None:
+        """Set the zoom to fit property based on the state of the action."""
+        self._actions[AUTO_ZOOM_TO_FIT].setChecked(False)
+        self._auto_zoom_to_fit = False
+        self.zoom_to_fit()
+
     def _on_auto_zoom_to_fit_action(self, checked: bool) -> None:
         """Set the auto zoom to fit property based on the state of the action."""
         self._auto_zoom_to_fit = checked
@@ -371,18 +374,6 @@ class StageExplorer(QWidget):
         # update the stage position label
         self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
         # snap an image if the snap on double click property is set
-
-    def _on_mouse_move(self, event: MouseEvent) -> None:
-        canvas_pos = (event.pos[0], event.pos[1])
-        # map canvas position to world position
-        tform = self._stage_viewer.view.scene.transform
-        x, y, *_ = tform.imap(canvas_pos)
-        self._hover_pos_label.setText(f"({x:.2f}, {y:.2f})")
-        # move hover label to the mouse position
-        self._hover_pos_label.move(event.pos[0] + 20, event.pos[1])
-        self._hover_pos_label.setVisible(True)
-        # resize to fit the text
-        self._hover_pos_label.adjustSize()
 
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
@@ -445,7 +436,6 @@ class StageExplorer(QWidget):
 
         # update stage marker position
         mk.apply_transform(matrix.T)
-
         # zoom_to_fit only if auto _auto_zoom_to_fit property is set to True.
         # NOTE: this could be slightly annoying...  might need a sub-option?
         if self._auto_zoom_to_fit:
