@@ -159,7 +159,7 @@ class StageViewer(QWidget):
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
         if not self._show_hover_label:
-            return
+            return  # pragma: no cover
 
         # map canvas position to world position
         world_x, world_y, *_ = self.view.scene.transform.imap(event.pos)
@@ -179,7 +179,7 @@ class StageViewer(QWidget):
         self._hover_pos_label.setVisible(True)
 
     def leaveEvent(self, a0: QMouseEvent | None) -> None:
-        self._hover_pos_label.setVisible(False)
+        self._hover_pos_label.setVisible(False)  # pragma: no cover
 
 
 def get_vispy_scene_bounds(

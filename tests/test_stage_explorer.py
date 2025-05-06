@@ -105,6 +105,18 @@ def test_stage_explorer_actions(qtbot: QtBot) -> None:
         snap_action.trigger()
     assert explorer.snap_on_double_click is True
 
+    auto_action = explorer._actions[_stage_explorer.AUTO_ZOOM_TO_FIT]
+    auto_action.trigger()
+    assert explorer.auto_zoom_to_fit
+    # this turns it off
+    explorer._actions[_stage_explorer.ZOOM_TO_FIT].trigger()
+    assert not explorer.auto_zoom_to_fit
+
+    assert not explorer._grid_lines.visible
+    grid_action = explorer._actions[_stage_explorer.SHOW_GRID]
+    grid_action.trigger()
+    assert explorer._grid_lines.visible
+
 
 def test_stage_explorer_move_on_click(qtbot: QtBot) -> None:
     explorer = StageExplorer()
@@ -142,5 +154,16 @@ def test_stage_explorer_position_indicator(qtbot: QtBot) -> None:
     assert explorer._timer_id is None
 
 
-# to add 5deg rotation
-# mmc.setPixelSizeAffine("Res10x", (0.9962, -0.0872, 0.0, 0.0872, 0.9962, 0.0))
+def test_mouse_hover_shows_position(qtbot: QtBot) -> None:
+    viewer = StageViewer()
+    viewer.show()
+    qtbot.addWidget(viewer)
+    viewer.set_hover_label_visible(True)
+
+    # Simulate mouse move event
+    event = MouseEvent("mouse_move", pos=(100, 2))
+    viewer._on_mouse_move(event)
+
+    # Check if the hover label is visible and shows the correct position
+    assert viewer._hover_pos_label.isVisible()
+    assert viewer._hover_pos_label.text().startswith("(")
