@@ -145,7 +145,7 @@ class StageExplorer(QWidget):
 
         self._grid_lines = vispy.scene.GridLines(
             parent=self._stage_viewer.view.scene,
-            color="#555555",
+            color="#888888",
             border_width=1,
         )
         self._grid_lines.visible = False
