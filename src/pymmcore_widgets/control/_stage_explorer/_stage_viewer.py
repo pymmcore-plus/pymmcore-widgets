@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
+from unittest.mock import patch
 
 import cmap
 import numpy as np
 import vispy
+import vispy.app
+import vispy.app.backends
 import vispy.scene
 import vispy.visuals
 from qtpy.QtCore import Qt
@@ -22,6 +25,25 @@ if TYPE_CHECKING:
     class VisualNode(vispy.scene.Node, vispy.visuals.Visual): ...
 
 
+class KeylessSceneCanvas(vispy.scene.SceneCanvas):
+    """Steal all key events from vispy."""
+
+    def create_native(self):
+        from vispy.app.backends._qt import CanvasBackendDesktop
+
+        class CustomCanvasBackend(CanvasBackendDesktop):
+            def keyPressEvent(self, ev):
+                QWidget.keyPressEvent(self, ev)
+
+            def keyReleaseEvent(self, ev):
+                QWidget.keyPressEvent(self, ev)
+
+        with patch.object(
+            self._app.backend_module, "CanvasBackend", CustomCanvasBackend
+        ):
+            super().create_native()
+
+
 class StageViewer(QWidget):
     """A widget to add images with a transform to a vispy canves."""
 
@@ -33,7 +55,8 @@ class StageViewer(QWidget):
         self._clims: tuple[float, float] | None = None
         self._cmap: cmap.Colormap = cmap.Colormap("gray")
 
-        self.canvas = scene.SceneCanvas(keys="interactive", show=True)
+        self.canvas = KeylessSceneCanvas(show=True)
+
         self.view = cast("ViewBox", self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1)
 

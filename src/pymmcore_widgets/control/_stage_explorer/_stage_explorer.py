@@ -10,7 +10,7 @@ import useq
 import vispy.scene
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QPoint, Qt
-from qtpy.QtGui import QIcon
+from qtpy.QtGui import QIcon, QKeyEvent
 from qtpy.QtWidgets import (
     QLabel,
     QMenu,
@@ -21,7 +21,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QIconifyIcon
-from vispy.util.keys import Key
 
 from pymmcore_widgets.control._q_stage_controller import QStageMoveAccumulator
 
@@ -32,7 +31,7 @@ from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 if TYPE_CHECKING:
     from PyQt6.QtGui import QAction, QActionGroup
     from qtpy.QtCore import QTimerEvent
-    from vispy.app.canvas import KeyEvent, MouseEvent
+    from vispy.app.canvas import MouseEvent
     from vispy.scene.visuals import VisualNode
 else:
     from qtpy.QtWidgets import QAction, QActionGroup
@@ -245,8 +244,6 @@ class StageExplorer(QWidget):
         self._stage_viewer.canvas.events.mouse_press.connect(self._on_mouse_press)
         self._stage_viewer.canvas.events.mouse_move.connect(self._on_mouse_move)
         self._stage_viewer.canvas.events.mouse_release.connect(self._on_mouse_release)
-        self._stage_viewer.canvas.events.key_press.connect(self._on_key_press)
-        self._stage_viewer.canvas.events.key_release.connect(self._on_key_release)
 
         self._on_sys_config_loaded()
 
@@ -713,39 +710,36 @@ class StageExplorer(QWidget):
     def _on_mouse_release(self, event: MouseEvent) -> None:
         """Handle the mouse release event."""
         self._stage_viewer.view.camera.interactive = True
+        self._actions[ROIS].setChecked(False)
 
-    def _on_key_press(self, event: KeyEvent) -> None:
-        """Delete the last ROI added to the scene when pressing Cmd/Ctrl + Z."""
-        key: Key = event.key
-        modifiers: tuple[Key, ...] = event.modifiers
+    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
+        if a0 is None:
+            return
+        from rich import print
+
         # if key is cmd/ctrl + z, remove the last roi
-        if (
-            key == Key("Z")
-            and (Key("Meta") in modifiers or Key("Control") in modifiers)
-            and self._rois
-        ):
+        if a0.key() == Qt.Key.Key_Z and (a0.modifiers() & Qt.Modifier.CTRL):
             self._remove_last_roi()
         # if key is alt, activate rois tool
-        elif key == Key("Alt") and not self._actions[ROIS].isChecked():
+        elif a0.key() == Qt.Key.Key_Alt and not self._actions[ROIS].isChecked():
             self._actions[ROIS].setChecked(True)
         # if key is del or cancel, remove the selected roi
-        # TODO: fix me!!!
-        elif key in (Key("Delete"), Key("Cancel")):
+        elif a0.key() == Qt.Key.Key_Backspace:
             if self._active_roi() is not None:
                 self._remove_selected_roi()
-
-        # TO REMOVE------------------
-        elif key == Key("v"):
-            from rich import print
-
+        elif a0.key() == Qt.Key.Key_V:
             print(self.value())
-        # -----------------------------
+        else:
+            super().keyPressEvent(a0)
 
-    def _on_key_release(self, event: KeyEvent) -> None:
-        """Deactivate the ROIs tool when releasing the Alt key."""
-        key: Key = event.key
-        if key == Key("Alt") and self._actions[ROIS].isChecked():
+    def keyReleaseEvent(self, a0: QKeyEvent | None) -> None:
+        if a0 is None:
+            return
+
+        if a0.key() == Qt.Key.Key_Alt and self._actions[ROIS].isChecked():
             self._actions[ROIS].setChecked(False)
+        else:
+            super().keyReleaseEvent(a0)
 
     def _remove_last_roi(self) -> None:
         """Delete the last ROI added to the scene."""
