@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import contextlib
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, cast
 
 import numpy as np
+import useq
 import vispy.scene
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QPoint, Qt
@@ -19,17 +21,18 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QIconifyIcon
+from vispy.util.keys import Key
 
 from pymmcore_widgets.control._q_stage_controller import QStageMoveAccumulator
 
+from ._rois import ROIRectangle
 from ._stage_position_marker import StagePositionMarker
 from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 
 if TYPE_CHECKING:
-    import useq
     from PyQt6.QtGui import QAction, QActionGroup
     from qtpy.QtCore import QTimerEvent
-    from vispy.app.canvas import MouseEvent
+    from vispy.app.canvas import KeyEvent, MouseEvent
     from vispy.scene.visuals import VisualNode
 else:
     from qtpy.QtWidgets import QAction, QActionGroup
@@ -46,6 +49,8 @@ CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
 POLL_STAGE = "Show FOV Position"
 SHOW_GRID = "Show Grid"
+ROIS = "Activate/Deactivate ROIs Tool"
+DELETE_ROIS = "Delete All ROIs"
 
 
 # this might belong in _stage_position_marker.py
@@ -157,6 +162,8 @@ class StageExplorer(QWidget):
         self._auto_zoom_to_fit: bool = False
         self._snap_on_double_click: bool = False
         self._poll_stage_position: bool = True
+        # to store the rois
+        self._rois: list[ROIRectangle] = []
 
         # stage position marker mode
         self._position_indicator: PositionIndicator = PositionIndicator.BOTH
@@ -184,6 +191,8 @@ class StageExplorer(QWidget):
             SNAP: ("mdi:camera-outline", True, self._on_snap_action),
             POLL_STAGE: ("mdi:map-marker-outline", True, self._on_poll_stage_action),
             SHOW_GRID: ("mdi:grid", True, self._on_show_grid_action),
+            ROIS: ("mdi:vector-square", True, None),
+            DELETE_ROIS: ("mdi:vector-square-remove", False, self._remove_rois),
         }
         # fmt: on
 
@@ -193,7 +202,8 @@ class StageExplorer(QWidget):
                 icon = QIconifyIcon(icon, color=GRAY)
             self._actions[a_text] = action = QAction(icon, a_text, self)
             action.setCheckable(check)
-            action.triggered.connect(callback)
+            if callback is not None:
+                action.triggered.connect(callback)
 
             if a_text == POLL_STAGE:
                 # create special toolbutton with a context menu on right-click
@@ -230,6 +240,13 @@ class StageExplorer(QWidget):
         self._stage_viewer.canvas.events.mouse_double_click.connect(
             self._on_mouse_double_click
         )
+
+        # connections vispy events for ROIs
+        self._stage_viewer.canvas.events.mouse_press.connect(self._on_mouse_press)
+        self._stage_viewer.canvas.events.mouse_move.connect(self._on_mouse_move)
+        self._stage_viewer.canvas.events.mouse_release.connect(self._on_mouse_release)
+        self._stage_viewer.canvas.events.key_press.connect(self._on_key_press)
+        self._stage_viewer.canvas.events.key_release.connect(self._on_key_release)
 
         self._on_sys_config_loaded()
 
@@ -282,6 +299,11 @@ class StageExplorer(QWidget):
         self._actions[POLL_STAGE].setChecked(value)
         self._on_poll_stage_action(value)
 
+    @property
+    def rois(self) -> list[ROIRectangle]:
+        """List of ROIs in the scene."""
+        return self._rois
+
     def add_image(
         self, image: np.ndarray, stage_x_um: float, stage_y_um: float
     ) -> None:
@@ -301,6 +323,27 @@ class StageExplorer(QWidget):
             visuals.append(self._stage_pos_marker)
         x_bounds, y_bounds, *_ = get_vispy_scene_bounds(visuals)
         self._stage_viewer.view.camera.set_range(x=x_bounds, y=y_bounds, margin=margin)
+
+    def value(self) -> list[useq.Position]:
+        """Return a list of `GridFromEdges` objects from the drawn rectangles."""
+        # TODO: add a way to set overlap
+        positions = []
+        px = self._mmc.getPixelSizeUm()
+        fov_w, fov_h = self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
+        for rect in self._rois:
+            grid_plan = self._build_grid_plan(rect, fov_w, fov_h)
+            if isinstance(grid_plan, useq.AbsolutePosition):
+                positions.append(grid_plan)
+            else:
+                x, y = rect.center
+                pos = useq.AbsolutePosition(
+                    x=x,
+                    y=y,
+                    z=self._mmc.getZPosition(),
+                    sequence=useq.MDASequence(grid_plan=grid_plan),
+                )
+                positions.append(pos)
+        return positions
 
     # -----------------------------PRIVATE METHODS------------------------------------
 
@@ -350,6 +393,16 @@ class StageExplorer(QWidget):
             self._stage_pos_marker.set_marker_visible(
                 self._position_indicator.show_marker
             )
+
+    def _on_show_grid_action(self, checked: bool) -> None:
+        """Set the show grid property based on the state of the action."""
+        self._grid_lines.visible = checked
+        self._actions[SHOW_GRID].setChecked(checked)
+
+    def _remove_rois(self) -> None:
+        """Delete all the ROIs."""
+        while self._rois:
+            self._remove_last_roi()
 
     # CORE ------------------------------------------------------------------------
 
@@ -403,11 +456,6 @@ class StageExplorer(QWidget):
             self.killTimer(self._timer_id)
             self._timer_id = None
             self._delete_stage_position_marker()
-
-    def _on_show_grid_action(self, checked: bool) -> None:
-        """Set the show grid property based on the state of the action."""
-        self._grid_lines.visible = checked
-        self._actions[SHOW_GRID].setChecked(checked)
 
     def _delete_stage_position_marker(self) -> None:
         """Delete the stage position marker."""
@@ -609,6 +657,141 @@ class StageExplorer(QWidget):
         T_center[0, 3] = -self._mmc.getImageWidth() / 2
         T_center[1, 3] = -self._mmc.getImageHeight() / 2
         return T_center
+
+    # ROIs ------------------------------------------------------------------------
+
+    def _active_roi(self) -> ROIRectangle | None:
+        """Return the next active ROI."""
+        return next((roi for roi in self._rois if roi.selected()), None)
+
+    def _on_mouse_press(self, event: MouseEvent) -> None:
+        """Handle the mouse press event."""
+        canvas_pos = (event.pos[0], event.pos[1])
+
+        if self._active_roi() is not None:
+            self._stage_viewer.view.camera.interactive = False
+
+        elif self._actions[ROIS].isChecked() and event.button == 1:
+            self._stage_viewer.view.camera.interactive = False
+            # create the ROI rectangle for the first time
+            roi = self._create_roi(canvas_pos)
+            self._rois.append(roi)
+
+    def _create_roi(self, canvas_pos: tuple[float, float]) -> ROIRectangle:
+        """Create a new ROI rectangle and connect its events."""
+        roi = ROIRectangle(self._stage_viewer.view.scene)
+        roi.connect(self._stage_viewer.canvas)
+        world_pos = roi._tform().map(canvas_pos)[:2]
+        roi.set_selected(True)
+        roi.set_visible(True)
+        roi.set_anchor(world_pos)
+        roi.set_bounding_box(world_pos, world_pos)
+        return roi
+
+    def _on_mouse_move(self, event: MouseEvent) -> None:
+        """Update the roi text when the roi changes size."""
+        if (roi := self._active_roi()) is not None:
+            # set cursor
+            cursor = roi.get_cursor(event)
+            self._stage_viewer.canvas.native.setCursor(cursor)
+            # update roi text
+            px = self._mmc.getPixelSizeUm()
+            fov_w = self._mmc.getImageWidth() * px
+            fov_h = self._mmc.getImageHeight() * px
+            grid_plan = self._build_grid_plan(roi, fov_w, fov_h)
+            try:
+                pos = list(grid_plan)
+                rows = max(r.row for r in pos if r.row is not None) + 1
+                cols = max(c.col for c in pos if c.col is not None) + 1
+                roi.set_text(f"r{rows} x c{cols}")
+            except AttributeError:
+                roi.set_text("r1 x c1")
+        else:
+            # reset cursor to default
+            self._stage_viewer.canvas.native.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def _on_mouse_release(self, event: MouseEvent) -> None:
+        """Handle the mouse release event."""
+        self._stage_viewer.view.camera.interactive = True
+
+    def _on_key_press(self, event: KeyEvent) -> None:
+        """Delete the last ROI added to the scene when pressing Cmd/Ctrl + Z."""
+        key: Key = event.key
+        modifiers: tuple[Key, ...] = event.modifiers
+        # if key is cmd/ctrl + z, remove the last roi
+        if (
+            key == Key("Z")
+            and (Key("Meta") in modifiers or Key("Control") in modifiers)
+            and self._rois
+        ):
+            self._remove_last_roi()
+        # if key is alt, activate rois tool
+        elif key == Key("Alt") and not self._actions[ROIS].isChecked():
+            self._actions[ROIS].setChecked(True)
+        # if key is del or cancel, remove the selected roi
+        # TODO: fix me!!!
+        elif key in (Key("Delete"), Key("Cancel")):
+            if self._active_roi() is not None:
+                self._remove_selected_roi()
+
+        # TO REMOVE------------------
+        elif key == Key("v"):
+            from rich import print
+
+            print(self.value())
+        # -----------------------------
+
+    def _on_key_release(self, event: KeyEvent) -> None:
+        """Deactivate the ROIs tool when releasing the Alt key."""
+        key: Key = event.key
+        if key == Key("Alt") and self._actions[ROIS].isChecked():
+            self._actions[ROIS].setChecked(False)
+
+    def _remove_last_roi(self) -> None:
+        """Delete the last ROI added to the scene."""
+        roi = self._rois.pop(-1)
+        roi.remove()
+        with contextlib.suppress(Exception):
+            roi.disconnect(self._stage_viewer.canvas)
+
+    def _remove_selected_roi(self) -> None:
+        """Delete the selected ROI from the scene."""
+        if (roi := self._active_roi()) is not None:
+            roi.remove()
+            self._rois.remove(roi)
+            with contextlib.suppress(Exception):
+                roi.disconnect(self._stage_viewer.canvas)
+
+    # GRID PLAN -------------------------------------------------------------------
+
+    def _build_grid_plan(
+        self, roi: ROIRectangle, fov_w: float, fov_h: float
+    ) -> useq.GridFromEdges | useq.AbsolutePosition:
+        """Return a `GridFromEdges` plan from the roi and fov width and height."""
+        top_left, bottom_right = roi.bounding_box()
+
+        # if the width and the height of the roi are smaller than the fov width and
+        # height, return a single position at the center of the roi and not a grid plan.
+        w = bottom_right[0] - top_left[0]
+        h = bottom_right[1] - top_left[1]
+        if w < fov_w and h < fov_h:
+            return useq.AbsolutePosition(
+                x=top_left[0] + (w / 2),
+                y=top_left[1] + (h / 2),
+                z=self._mmc.getZPosition(),
+            )
+        # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
+        # bottom_right corners respectively because the grid plan is created
+        # considering the center of the fov and we want the roi to define the edges
+        # of the grid plan.
+        return useq.GridFromEdges(
+            top=top_left[1] - (fov_h / 2),
+            bottom=bottom_right[1] + (fov_h / 2),
+            left=top_left[0] + (fov_w / 2),
+            right=bottom_right[0] - (fov_w / 2),
+            fov_width=fov_w,
+            fov_height=fov_h,
+        )
 
 
 class _PollStageCtxMenu(QMenu):
