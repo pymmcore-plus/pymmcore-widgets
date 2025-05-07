@@ -10,8 +10,9 @@ import useq
 import vispy.scene
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QPoint, Qt
-from qtpy.QtGui import QIcon, QKeyEvent
+from qtpy.QtGui import QIcon, QKeyEvent, QKeySequence, QUndoCommand, QUndoStack
 from qtpy.QtWidgets import (
+    QApplication,
     QLabel,
     QMenu,
     QSizePolicy,
@@ -99,6 +100,29 @@ SS_TOOLBUTTON = """
 """
 
 
+class _RoiCommand(QUndoCommand):
+    def __init__(self, explorer: StageExplorer, roi: ROIRectangle) -> None:
+        super().__init__("Add ROI")
+        self._explorer = explorer
+        self._roi = roi
+
+
+class InsertRoiCommand(_RoiCommand):
+    def undo(self) -> None:
+        self._explorer._remove_roi(self._roi)
+
+    def redo(self) -> None:
+        self._explorer._add_roi(self._roi)
+
+
+class DeleteRoiCommand(_RoiCommand):
+    def undo(self) -> None:
+        self._explorer._add_roi(self._roi)
+
+    def redo(self) -> None:
+        self._explorer._remove_roi(self._roi)
+
+
 class StageExplorer(QWidget):
     """A stage positions explorer widget.
 
@@ -140,6 +164,13 @@ class StageExplorer(QWidget):
         self.setWindowTitle("Stage Explorer")
 
         self._mmc = mmcore or CMMCorePlus.instance()
+        self._undo_stack = QUndoStack(self)
+        self._undo_stack.setUndoLimit(10)
+        self._undo_act = self._undo_stack.createUndoAction(self, "&Undo")
+        self._undo_act.triggered.connect(lambda: print("Undo triggered"))
+        self._undo_act.setShortcut(QKeySequence.StandardKey.Undo)
+        self._redo_act = self._undo_stack.createRedoAction(self, "&Redo")
+        self._redo_act.setShortcut(QKeySequence.StandardKey.Redo)
 
         device = self._mmc.getXYStageDevice()
         self._stage_controller = QStageMoveAccumulator.for_device(device, self._mmc)
@@ -162,7 +193,7 @@ class StageExplorer(QWidget):
         self._snap_on_double_click: bool = False
         self._poll_stage_position: bool = True
         # to store the rois
-        self._rois: list[ROIRectangle] = []
+        self._rois: set[ROIRectangle] = set()
 
         # stage position marker mode
         self._position_indicator: PositionIndicator = PositionIndicator.BOTH
@@ -399,7 +430,8 @@ class StageExplorer(QWidget):
     def _remove_rois(self) -> None:
         """Delete all the ROIs."""
         while self._rois:
-            self._remove_last_roi()
+            roi = self._rois.pop()
+            self._remove_roi(roi)
 
     # CORE ------------------------------------------------------------------------
 
@@ -665,24 +697,33 @@ class StageExplorer(QWidget):
         """Handle the mouse press event."""
         canvas_pos = (event.pos[0], event.pos[1])
 
+        picked = None
+        for roi in self._rois:
+            if not picked and (grb := roi.obj_at_pos(event.pos)) is not None:
+                roi.anchor_at(grb, event.pos)
+                roi.set_selected(True)
+                picked = roi
+            else:
+                roi.set_selected(False)
+
         if self._active_roi() is not None:
             self._stage_viewer.view.camera.interactive = False
 
+        # (button = 1 is left mouse button)
         elif self._actions[ROIS].isChecked() and event.button == 1:
             self._stage_viewer.view.camera.interactive = False
             # create the ROI rectangle for the first time
             roi = self._create_roi(canvas_pos)
-            self._rois.append(roi)
+            self._undo_stack.push(InsertRoiCommand(self, roi))
 
     def _create_roi(self, canvas_pos: tuple[float, float]) -> ROIRectangle:
         """Create a new ROI rectangle and connect its events."""
         roi = ROIRectangle(self._stage_viewer.view.scene)
-        roi.connect(self._stage_viewer.canvas)
         world_pos = roi._tform().map(canvas_pos)[:2]
+        roi.visible = True
         roi.set_selected(True)
-        roi.set_visible(True)
         roi.set_anchor(world_pos)
-        roi.set_bounding_box(world_pos, world_pos)
+        # roi.set_bounding_box(world_pos, world_pos)
         return roi
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
@@ -710,51 +751,60 @@ class StageExplorer(QWidget):
     def _on_mouse_release(self, event: MouseEvent) -> None:
         """Handle the mouse release event."""
         self._stage_viewer.view.camera.interactive = True
-        self._actions[ROIS].setChecked(False)
+
+        # if alt key is not down...
+        if QApplication.keyboardModifiers() != Qt.KeyboardModifier.AltModifier:
+            # set the roi to not selected
+            self._actions[ROIS].setChecked(False)
 
     def keyPressEvent(self, a0: QKeyEvent | None) -> None:
-        if a0 is None:
+        if a0 is None:  # pragma: no cover
             return
-        from rich import print
 
-        # if key is cmd/ctrl + z, remove the last roi
-        if a0.key() == Qt.Key.Key_Z and (a0.modifiers() & Qt.Modifier.CTRL):
-            self._remove_last_roi()
         # if key is alt, activate rois tool
-        elif a0.key() == Qt.Key.Key_Alt and not self._actions[ROIS].isChecked():
+        if a0.key() == Qt.Key.Key_Alt and not self._actions[ROIS].isChecked():
             self._actions[ROIS].setChecked(True)
         # if key is del or cancel, remove the selected roi
         elif a0.key() == Qt.Key.Key_Backspace:
-            if self._active_roi() is not None:
-                self._remove_selected_roi()
+            self._remove_selected_roi()
         elif a0.key() == Qt.Key.Key_V:
             print(self.value())
-        else:
+        elif a0.key() == Qt.Key.Key_Z:
+            if a0.modifiers() == Qt.KeyboardModifier.ControlModifier:
+                self._undo_stack.undo()
+            elif (
+                a0.modifiers()
+                == Qt.KeyboardModifier.ShiftModifier
+                | Qt.KeyboardModifier.ControlModifier
+            ):
+                self._undo_stack.redo()
+        else:  # pragma: no cover
             super().keyPressEvent(a0)
 
     def keyReleaseEvent(self, a0: QKeyEvent | None) -> None:
-        if a0 is None:
-            return
-
-        if a0.key() == Qt.Key.Key_Alt and self._actions[ROIS].isChecked():
-            self._actions[ROIS].setChecked(False)
-        else:
-            super().keyReleaseEvent(a0)
-
-    def _remove_last_roi(self) -> None:
-        """Delete the last ROI added to the scene."""
-        roi = self._rois.pop(-1)
-        roi.remove()
-        with contextlib.suppress(Exception):
-            roi.disconnect(self._stage_viewer.canvas)
+        if a0 is not None:
+            if a0.key() == Qt.Key.Key_Alt and self._actions[ROIS].isChecked():
+                self._actions[ROIS].setChecked(False)
+            else:
+                super().keyReleaseEvent(a0)
 
     def _remove_selected_roi(self) -> None:
         """Delete the selected ROI from the scene."""
         if (roi := self._active_roi()) is not None:
-            roi.remove()
+            self._undo_stack.push(DeleteRoiCommand(self, roi))
+
+    def _remove_roi(self, roi: ROIRectangle) -> None:
+        """Delete the selected ROI from the scene."""
+        if roi in self._rois:
+            roi.parent = None
             self._rois.remove(roi)
             with contextlib.suppress(Exception):
                 roi.disconnect(self._stage_viewer.canvas)
+
+    def _add_roi(self, roi: ROIRectangle) -> None:
+        roi.parent = self._stage_viewer.view.scene
+        roi.connect(self._stage_viewer.canvas)
+        self._rois.add(roi)
 
     # GRID PLAN -------------------------------------------------------------------
 
