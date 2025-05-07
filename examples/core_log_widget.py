@@ -1,6 +1,6 @@
 from qtpy.QtWidgets import QApplication
 
-from pymmcore_widgets._log import CoreLogWidget
+from pymmcore_widgets import CoreLogWidget
 
 app = QApplication([])
 wdg = CoreLogWidget()
