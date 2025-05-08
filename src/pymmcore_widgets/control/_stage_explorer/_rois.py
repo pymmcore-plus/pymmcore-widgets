@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import useq
 import vispy.color
-from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QUndoCommand, QUndoStack
 from vispy import scene
@@ -18,7 +17,6 @@ from vispy.scene import Compound
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from pymmcore_plus import CMMCorePlus
     from qtpy.QtGui import QUndoStack
     from vispy.app.canvas import MouseEvent
 
@@ -287,17 +285,12 @@ class ROIManager:
     ----------
     stage_viewer : StageViewer
         The stage viewer where ROIs will be displayed.
-    mmcore : CMMCorePlus
-        The micro-manager core instance.
     undo_stack : QUndoStack
         The undo stack for ROI operations.
     """
 
-    def __init__(
-        self, stage_viewer: StageViewer, mmcore: CMMCorePlus, undo_stack: QUndoStack
-    ):
+    def __init__(self, stage_viewer: StageViewer, undo_stack: QUndoStack):
         self._stage_viewer = stage_viewer
-        self._mmc = mmcore
         self._undo_stack = undo_stack
         self._rois: set[ROIRectangle] = set()
 
@@ -306,14 +299,14 @@ class ROIManager:
         """List of ROIs in the scene."""
         return self._rois
 
-    def value(self) -> list[useq.AbsolutePosition]:
+    def value(
+        self, fov_w: float, fov_h: float, z_pos: float
+    ) -> list[useq.AbsolutePosition]:
         """Return a list of `GridFromEdges` objects from the drawn rectangles."""
         # TODO: add a way to set overlap
         positions = []
-        px = self._mmc.getPixelSizeUm()
-        fov_w, fov_h = self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
         for rect in self._rois:
-            grid_plan = self._build_grid_plan(rect, fov_w, fov_h)
+            grid_plan = self._build_grid_plan(rect, fov_w, fov_h, z_pos)
             if isinstance(grid_plan, useq.AbsolutePosition):
                 positions.append(grid_plan)
             else:
@@ -321,7 +314,7 @@ class ROIManager:
                 pos = useq.AbsolutePosition(
                     x=x,
                     y=y,
-                    z=self._mmc.getZPosition(),
+                    z=z_pos,
                     sequence=useq.MDASequence(grid_plan=grid_plan),
                 )
                 positions.append(pos)
@@ -409,28 +402,32 @@ class ROIManager:
 
     def handle_mouse_move(self, event: MouseEvent) -> None:
         """Update the roi text when the roi changes size."""
-        if (roi := self._active_roi()) is not None:
-            # set cursor
-            cursor = roi.get_cursor(event)
-            self._stage_viewer.canvas.native.setCursor(cursor)
-            # update roi text
-            px = self._mmc.getPixelSizeUm()
-            fov_w = self._mmc.getImageWidth() * px
-            fov_h = self._mmc.getImageHeight() * px
-            grid_plan = self._build_grid_plan(roi, fov_w, fov_h)
-            try:
-                pos = list(grid_plan)
-                rows = max(r.row for r in pos if r.row is not None) + 1
-                cols = max(c.col for c in pos if c.col is not None) + 1
-                roi.set_text(f"r{rows} x c{cols}")
-            except AttributeError:
-                roi.set_text("r1 x c1")
-        else:
+        if (roi := self._active_roi()) is None:
             # reset cursor to default
             self._stage_viewer.canvas.native.setCursor(Qt.CursorShape.ArrowCursor)
+            return
+
+        # set cursor
+        cursor = roi.get_cursor(event)
+        self._stage_viewer.canvas.native.setCursor(cursor)
+
+        # update roi text
+        px = self._mmc.getPixelSizeUm()
+        fov_w = self._mmc.getImageWidth() * px
+        fov_h = self._mmc.getImageHeight() * px
+        z_pos = self._mmc.getFocusPosition()
+        grid_plan = self._build_grid_plan(roi, fov_w, fov_h, z_pos)
+        try:
+            pos = list(grid_plan)
+            rows = max(r.row for r in pos if r.row is not None) + 1
+            cols = max(c.col for c in pos if c.col is not None) + 1
+            roi.set_text(f"r{rows} x c{cols}")
+        except AttributeError:
+            breakpoint()
+            roi.set_text("r1 x c1")
 
     def _build_grid_plan(
-        self, roi: ROIRectangle, fov_w: float, fov_h: float
+        self, roi: ROIRectangle, fov_w: float, fov_h: float, z_pos: float
     ) -> useq.GridFromEdges | useq.AbsolutePosition:
         """Return a `GridFromEdges` plan from the roi and fov width and height."""
         top_left, bottom_right = roi.bounding_box()
@@ -443,7 +440,7 @@ class ROIManager:
             return useq.AbsolutePosition(
                 x=top_left[0] + (w / 2),
                 y=top_left[1] + (h / 2),
-                z=self._mmc.getZPosition(),
+                z=z_pos,
             )
         # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
         # bottom_right corners respectively because the grid plan is created

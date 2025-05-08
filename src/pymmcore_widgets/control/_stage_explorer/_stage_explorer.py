@@ -100,8 +100,6 @@ SS_TOOLBUTTON = """
 """
 
 
-
-
 class StageExplorer(QWidget):
     """A stage positions explorer widget.
 
@@ -252,7 +250,7 @@ class StageExplorer(QWidget):
         self._on_sys_config_loaded()
 
         # ROI Manager
-        self._roi_manager = ROIManager(self._stage_viewer, self._mmc, self._undo_stack)
+        self._roi_manager = ROIManager(self._stage_viewer, self._undo_stack)
 
     # -----------------------------PUBLIC METHODS-------------------------------------
 
@@ -330,7 +328,10 @@ class StageExplorer(QWidget):
 
     def value(self) -> list[useq.Position]:
         """Return a list of `GridFromEdges` objects from the drawn rectangles."""
-        return self._roi_manager.value()
+        px = self._mmc.getPixelSizeUm()
+        fov_w, fov_h = self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
+        z_pos = self._mmc.getZPosition()
+        return self._roi_manager.value(fov_w=fov_w, fov_h=fov_h, z_pos=z_pos)
 
     # -----------------------------PRIVATE METHODS------------------------------------
 
