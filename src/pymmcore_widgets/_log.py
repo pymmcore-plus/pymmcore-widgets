@@ -24,9 +24,9 @@ class CoreLogWidget(QWidget):
 
         self._layout = QVBoxLayout(self)
 
-        self.path_input = QLineEdit()
-        self.path_input.setText(self._path)
-        self.path_input.setReadOnly(True)
+        self.log_path = QLineEdit()
+        self.log_path.setText(self._path)
+        self.log_path.setReadOnly(True)
 
         self.text_area = QTextEdit()
         self.text_area.setReadOnly(True)
@@ -37,10 +37,12 @@ class CoreLogWidget(QWidget):
         font.setFamily("Courier")
         self.text_area.setFont(font)
 
-        self._layout.addWidget(self.path_input)
+        self._layout.addWidget(self.log_path)
         self._layout.addWidget(self.text_area)
 
-        # Poll for file changes
+        # Initialize with the current core log content
+        self.check_for_updates()
+        # Begin polling for file changes
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.check_for_updates)
         self.update_timer.start(100)
@@ -50,7 +52,6 @@ class CoreLogWidget(QWidget):
 
     def check_for_updates(self) -> None:
         """Check if the file has new content and update the display."""
-        # TODO: Test
         new_lines = "".join(self._file.readlines())
         if not new_lines:
             return
