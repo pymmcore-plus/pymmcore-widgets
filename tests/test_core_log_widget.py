@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING
 
 from qtpy.QtWidgets import QApplication
@@ -14,6 +13,7 @@ if TYPE_CHECKING:
 
 def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     wdg = CoreLogWidget()
+    qtbot.addWidget(wdg)
 
     # Assert log path is in the widget LineEdit
     log_path = global_mmcore.getPrimaryLogFile()
@@ -27,20 +27,20 @@ def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> Non
     # Log something new
     new_message = "Test message"
     global_mmcore.logMessage(new_message)
-    # Wait for log to update
-    time.sleep(0.1)
-    # Wait for widget to check for updates
-    wdg.check_for_updates()
 
-    # Assert the new log message is in the TextEdit
-    last_line = wdg._text_area.toPlainText().splitlines()[-1]
-    last_line = last_line.split(" ", 2)[-1]  # Remove timestamp
-    assert f"[IFO,App] {new_message}" == last_line
+    def wait_for_update() -> None:
+        # Assert the new log message is in the TextEdit
+        last_line = wdg._text_area.toPlainText().splitlines()[-1]
+        last_line = last_line.split(" ", 2)[-1]  # Remove timestamp
+        assert f"[IFO,App] {new_message}" == last_line
+
+    qtbot.waitUntil(wait_for_update, timeout=1000)
 
 
 def test_core_log_widget_autoscroll(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     wdg = CoreLogWidget()
     qtbot.addWidget(wdg)
+    # Note that we must show the widget for the scrollbar maximum to be computed
     wdg.show()
     sb = wdg._text_area.verticalScrollBar()
     assert sb is not None
