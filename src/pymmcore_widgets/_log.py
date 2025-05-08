@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import (
