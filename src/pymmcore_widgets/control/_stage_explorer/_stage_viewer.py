@@ -172,6 +172,18 @@ class StageViewer(QWidget):
         x_bounds, y_bounds, *_ = get_vispy_scene_bounds(visuals)
         self.view.camera.set_range(x=x_bounds, y=y_bounds, margin=margin)
 
+    def canvas_to_world(self, canvas_pos: tuple[float, float]) -> tuple[float, float]:
+        """Convert canvas coordinates to world coordinates."""
+        # map canvas position to world position
+        world_x, world_y, *_ = self.view.scene.transform.imap(canvas_pos)
+        return world_x, world_y
+
+    def world_to_canvas(self, world_pos: tuple[float, float]) -> tuple[float, float]:
+        """Convert world coordinates to canvas coordinates."""
+        # map world position to canvas position
+        canvas_x, canvas_y, *_ = self.view.scene.transform.map(world_pos)
+        return canvas_x, canvas_y
+
     # --------------------PRIVATE METHODS--------------------
 
     def _get_images(self) -> Iterator[Image]:
@@ -185,7 +197,7 @@ class StageViewer(QWidget):
             return  # pragma: no cover
 
         # map canvas position to world position
-        world_x, world_y, *_ = self.view.scene.transform.imap(event.pos)
+        world_x, world_y = self.canvas_to_world(event.pos)
         self._hover_pos_label.setText(f"({world_x:.2f}, {world_y:.2f})")
         self._hover_pos_label.adjustSize()
 
