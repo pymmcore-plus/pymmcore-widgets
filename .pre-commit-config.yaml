@@ -5,12 +5,12 @@ ci:
 
 repos:
   - repo: https://github.com/crate-ci/typos
-    rev: v1.31.1
+    rev: v1.32.0
     hooks:
       - id: typos
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.4
+    rev: v0.11.8
     hooks:
       - id: ruff
         args: [--fix, --unsafe-fixes]
@@ -27,5 +27,5 @@ repos:
       - id: mypy
         files: "^src/"
         additional_dependencies:
-          - pymmcore-plus >=0.13.4
+          - pymmcore-plus >=0.14.0
           - useq-schema >=0.5.0

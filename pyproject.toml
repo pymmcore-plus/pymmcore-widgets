@@ -28,7 +28,7 @@ authors = [
     { email = "ianhuntisaak@gmail.com", name = "Ian Hunt-Isaak" },
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: X11 Applications :: Qt",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
@@ -48,71 +48,66 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    'fonticon-materialdesignicons6',
-    'pymmcore-plus[cli] >=0.13.7',
+    'fonticon-materialdesignicons6 >=6.9.96',
+    'pymmcore-plus[cli] >=0.14.0',
     'qtpy >=2.0',
-    'superqt[quantity,cmap] >=0.7.1',
-    'useq-schema >=0.5.0',
+    'superqt[quantity,cmap,iconify] >=0.7.1',
+    'useq-schema >=0.7.2',
+    'vispy >=0.15.0',
+    "pyopengl >=3.1.9; platform_system == 'Darwin'"
 ]
 
-[tool.hatch.metadata]
-allow-direct-references = true
-
-# extras
-# https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-pyqt5 = ["PyQt5"]
-pyside2 = ["PySide2"]
-pyqt6 = ["PyQt6"]
-pyside6 = ["PySide6==6.7.3"] # pretty hard to find a good match here...
-image = [
-    "vispy",
-    # fix OSError: dlopen(Quartz.framework/Quartz on vispy
-    "pyopengl; platform_system == 'Darwin'",
-]
-
-test = [
-    "pymmcore-widgets[image]",
-    "pytest>=6.0",
-    "pytest-cov",
-    "pytest-qt",
-    "PyYAML",
-    "zarr<3",
-]
-
-dev = [
-    "cruft",
-    "ruff",
-    "ipython",
-    "mypy",
-    "pdbpp",
-    "pre-commit",
-    "pytest-cov",
-    "pytest",
-    "rich",
-    "pyqt6",
-]
-docs = [
-    "pymmcore-widgets[image]",
-    "mkdocs",
-    "mkdocs-material",
-    "mkdocstrings-python",
-    "mkdocs-literate-nav",
-    "mkdocs-gen-files",
-    "mkdocs-section-index",
-    "mkdocs-video",
-]
+PySide2 = ["PySide2 >=5.15.2.1"]
+PySide6 = ["PySide6 ==6.7.3"]
+PyQt5 = ["PyQt5 >=5.15.11"]
+PyQt6 = ["PyQt6 >=6.4.2"]
 
 [project.urls]
 Homepage = "https://github.com/pymmcore-plus/pymmcore-widgets"
 "Source Code" = "https://github.com/pymmcore-plus/pymmcore-widgets"
 Documentation = "https://pymmcore-plus.github.io/pymmcore-widgets"
 
-# https://beta.ruff.rs/docs/rules/
+[dependency-groups]
+test = [
+    "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
+    "pytest-qt>=4.4.0",
+    "pyyaml>=6.0.2",
+    "zarr >=2.15,<3",
+    "numcodecs >0.14.0,<0.16; python_version >= '3.13'",
+    "numcodecs >0.12.0,<0.16"
+]
+dev = [
+    { include-group = "docs" },
+    { include-group = "test" },
+    "ipython>=8.18.1",
+    "mypy>=1.15.0",
+    "pdbpp>=0.11.6 ; sys_platform != 'win32'",
+    "pre-commit>=4.2.0",
+    "pyqt6>=6.9.0",
+    "rich>=14.0.0",
+    "ruff>=0.11.8",
+]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-literate-nav>=0.6.2",
+    "mkdocs-material>=9.6.12",
+    "mkdocs-section-index>=0.3.10",
+    "mkdocs-video>=1.5.0",
+    "mkdocstrings-python>=1.16.10",
+]
+
+[tool.uv.sources]
+pymmcore-widgets = { workspace = true }
+
 [tool.ruff]
 line-length = 88
 target-version = "py39"
 src = ["src", "tests"]
+fix = true
+unsafe-fixes = true
 
 [tool.ruff.lint]
 pydocstyle = { convention = "numpy" }
@@ -129,7 +124,7 @@ select = [
     "A001", # flake8-builtins
     "RUF",  # ruff-specific rules
     "TID",  # tidy
-    "TCH",  # typecheck
+    "TC",   # typecheck
 ]
 ignore = [
     "D100", # Missing docstring in public module
@@ -150,7 +145,7 @@ filterwarnings = [
     "error",
     "ignore:distutils Version classes are deprecated",
     "ignore:Failed to disconnect:RuntimeWarning:",
-    # warning, but not error, that will show up on useq<0.3.3
+    "ignore:'count' is passed as positional argument::vispy"
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
@@ -163,6 +158,9 @@ show_error_codes = true
 pretty = true
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+module = ["vispy.*"]
+ignore_missing_imports = true
 
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]
@@ -189,7 +187,11 @@ ignore = [
     "mkdocs.yml",
     "examples/**/*",
     "CHANGELOG.md",
+    "uv.lock",
 ]
 
 [tool.typos.default]
 extend-ignore-identifiers-re = ["(?i)nd2?.*", "(?i)ome", "FO(Vs?)?"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
