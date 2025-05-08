@@ -40,7 +40,7 @@ class ROIRectangle(Compound):
             center=[0, 0],
             width=1,
             height=1,
-            color=None,
+            color=vispy.color.Color("transparent"),
             border_color=vispy.color.Color("yellow"),
             border_width=2,
         )

@@ -28,14 +28,14 @@ if TYPE_CHECKING:
 class KeylessSceneCanvas(vispy.scene.SceneCanvas):
     """Steal all key events from vispy."""
 
-    def create_native(self):
+    def create_native(self) -> None:
         from vispy.app.backends._qt import CanvasBackendDesktop
 
         class CustomCanvasBackend(CanvasBackendDesktop):
-            def keyPressEvent(self, ev):
+            def keyPressEvent(self, ev) -> None:
                 QWidget.keyPressEvent(self, ev)
 
-            def keyReleaseEvent(self, ev):
+            def keyReleaseEvent(self, ev) -> None:
                 QWidget.keyPressEvent(self, ev)
 
         with patch.object(

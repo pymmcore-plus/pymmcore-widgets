@@ -214,7 +214,7 @@ class StageExplorer(QWidget):
 
         # fmt: off
         # {text: (icon, checkable, on_triggered)}
-        ACTION_MAP: dict[str, tuple[str | QIcon, bool, Callable]] = {
+        ACTION_MAP: dict[str, tuple[str | QIcon, bool, Callable | None]] = {
             CLEAR: ("mdi:close", False, self._stage_viewer.clear),
             ZOOM_TO_FIT: ("mdi:fullscreen", False, self._on_zoom_to_fit_action),
             AUTO_ZOOM_TO_FIT: (AUTO_ZOOM_TO_FIT_ICON, True, self._on_auto_zoom_to_fit_action),  # noqa: E501
@@ -328,7 +328,7 @@ class StageExplorer(QWidget):
         self._on_poll_stage_action(value)
 
     @property
-    def rois(self) -> list[ROIRectangle]:
+    def rois(self) -> set[ROIRectangle]:
         """List of ROIs in the scene."""
         return self._rois
 
