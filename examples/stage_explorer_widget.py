@@ -43,4 +43,4 @@ rlayout.addWidget(mda_widget)
 splitter.addWidget(right)
 splitter.show()
 
-# app.exec()
+app.exec()
