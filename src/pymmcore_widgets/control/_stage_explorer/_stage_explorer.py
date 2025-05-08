@@ -365,8 +365,9 @@ class StageExplorer(QWidget):
         pos = active_roi.create_useq_position(fov_w=fov_w, fov_h=fov_h, z_pos=z_pos)
         seq = useq.MDASequence(stage_positions=[pos])
 
-        self._our_mda_running = True
-        self._mmc.run_mda(seq)
+        if not self._mmc.mda.is_running():
+            self._our_mda_running = True
+            self._mmc.run_mda(seq)
 
     def _create_poll_stage_button(self) -> QToolButton:
         btn = QToolButton()
