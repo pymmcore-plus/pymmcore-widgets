@@ -51,6 +51,7 @@ POLL_STAGE = "Show FOV Position"
 SHOW_GRID = "Show Grid"
 ROIS = "Create ROI"
 DELETE_ROIS = "Delete All ROIs"
+SCAN = "Scan Selected ROIs"
 
 
 # this might belong in _stage_position_marker.py
@@ -159,6 +160,7 @@ class StageExplorer(QWidget):
         self._current_scale: int = 1
 
         # properties
+        self._show_mda_images: bool = False
         self._auto_zoom_to_fit: bool = False
         self._snap_on_double_click: bool = True
         self._poll_stage_position: bool = True
@@ -191,6 +193,7 @@ class StageExplorer(QWidget):
             SHOW_GRID: ("mdi:grid", True, self._on_show_grid_action),
             ROIS: ("mdi:vector-square", True, None),
             DELETE_ROIS: ("mdi:vector-square-remove", False, self._remove_rois),
+            SCAN: ("iconoir:path-arrow-solid", False, self._on_scan_action),
         }
         # fmt: on
 
@@ -351,6 +354,18 @@ class StageExplorer(QWidget):
         if checked:
             self.zoom_to_fit()
 
+    def _on_scan_action(self) -> None:
+        """Scan the selected ROIs."""
+        if not (active_roi := self._roi_manager.selected_roi()):
+            return
+        fov_w, fov_h, z_pos = self._fov_w_h_z_pos()
+        pos = active_roi.create_useq_position(fov_w=fov_w, fov_h=fov_h, z_pos=z_pos)
+        seq = useq.MDASequence(stage_positions=[pos])
+
+        self._show_mda_images = True
+        # fixme: turn back off
+        self._mmc.run_mda(seq)
+
     def _create_poll_stage_button(self) -> QToolButton:
         btn = QToolButton()
         btn.setToolTip(f"{POLL_STAGE} (right-click for marker options)")
@@ -401,7 +416,7 @@ class StageExplorer(QWidget):
 
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
-        if self._mmc.mda.is_running():
+        if self._mmc.mda.is_running() and not self._show_mda_images:
             return
         # get the snapped image
         img = self._mmc.getImage()
@@ -650,15 +665,20 @@ class StageExplorer(QWidget):
     def _on_mouse_move(self, event: MouseEvent) -> None:
         """Update the roi text when the roi changes size."""
         if roi := self._roi_manager.selected_roi():
-            self._stage_viewer.setCursor(roi.get_cursor(event))
-            px = self._mmc.getPixelSizeUm()
-            fov_w = self._mmc.getImageWidth() * px
-            fov_h = self._mmc.getImageHeight() * px
-            z_pos = self._mmc.getZPosition()
+            self._stage_viewer.setCursor(roi.obj_at_pos(event.pos).qt_cursor())
+            fov_w, fov_h, z_pos = self._fov_w_h_z_pos()
             roi.update_rows_cols_text(fov_w=fov_w, fov_h=fov_h, z_pos=z_pos)
         else:
             # reset cursor to default
             self._stage_viewer.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def _fov_w_h_z_pos(self) -> tuple[float, float, float]:
+        """Return the field of view width, height and z position."""
+        px = self._mmc.getPixelSizeUm()
+        fov_w = self._mmc.getImageWidth() * px
+        fov_h = self._mmc.getImageHeight() * px
+        z_pos = self._mmc.getZPosition()
+        return fov_w, fov_h, z_pos
 
     def _on_mouse_release(self, event: MouseEvent) -> None:
         """Handle the mouse release event."""

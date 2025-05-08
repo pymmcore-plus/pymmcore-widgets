@@ -46,6 +46,10 @@ class Grab(IntEnum):
         """Return the opposite handle."""
         return Grab((self + 2) % 4)
 
+    def qt_cursor(self) -> Qt.CursorShape:
+        """Return the Qt cursor for this handle."""
+        _CURSOR_MAP.get(self, Qt.CursorShape.ArrowCursor)
+
 
 _CURSOR_MAP: dict[Grab | None, Qt.CursorShape] = {
     None: Qt.CursorShape.ArrowCursor,
@@ -163,16 +167,6 @@ class ROIRectangle(Compound):
         # Keep text centered
         self._text.pos = self._rect.center
 
-    def get_cursor(self, event: MouseEvent) -> Qt.CursorShape:
-        """Return the cursor shape depending on the mouse position.
-
-        If the mouse is over a handle, return a cursor indicating that the handle can be
-        dragged. If the mouse is over the rectangle, return a cursor indicating that th
-        whole ROI can be moved. Otherwise, return the default cursor.
-        """
-        grab = self.obj_at_pos(event.pos)
-        return _CURSOR_MAP.get(grab, Qt.CursorShape.ArrowCursor)
-
     def connect(self, canvas: scene.SceneCanvas) -> None:
         """Connect the ROI events to the canvas."""
         canvas.events.mouse_move.connect(self.on_mouse_move)
@@ -208,31 +202,29 @@ class ROIRectangle(Compound):
     def create_useq_position(
         self, fov_w: float, fov_h: float, z_pos: float
     ) -> useq.AbsolutePosition:
-        """Return a `GridFromEdges` plan from the roi and fov width and height."""
+        """Return a useq.AbsolutePosition object that covers the ROI."""
         (left, top), (right, bottom) = self.bounding_box()
-        x, y = self.center
+        pos = useq.AbsolutePosition(x=self.center[0], y=self.center[1], z=z_pos)
 
         # if the width and the height of the roi are smaller than the fov width and
-        # a single position at the center of the roi is sufficient
-        if abs(right - left) < fov_w and abs(bottom - top) < fov_h:
-            return useq.AbsolutePosition(x=x, y=y, z=z_pos)
-
-        # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
-        # bottom_right corners respectively because the grid plan is created
-        # considering the center of the fov and we want the roi to define the edges
-        # of the grid plan.
-        grid_plan = useq.GridFromEdges(
-            top=top,
-            bottom=bottom,
-            left=left,
-            right=right,
-            fov_width=fov_w,
-            fov_height=fov_h,
-        )
-
-        return useq.AbsolutePosition(
-            x=x, y=y, z=z_pos, sequence=useq.MDASequence(grid_plan=grid_plan)
-        )
+        # a single position at the center of the roi is sufficient, otherwise create a
+        # grid plan that covers the roi
+        if abs(right - left) > fov_w or abs(bottom - top) > fov_h:
+            # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
+            # bottom_right corners respectively because the grid plan is created
+            # considering the center of the fov and we want the roi to define the edges
+            # of the grid plan.
+            pos.sequence = useq.MDASequence(
+                grid_plan=useq.GridFromEdges(
+                    top=top,
+                    bottom=bottom,
+                    left=left,
+                    right=right,
+                    fov_width=fov_w,
+                    fov_height=fov_h,
+                )
+            )
+        return pos
 
     def update_rows_cols_text(self, fov_w: float, fov_h: float, z_pos: float) -> None:
         """Update the text of the ROI with the number of rows and columns."""
