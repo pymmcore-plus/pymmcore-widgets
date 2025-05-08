@@ -8,7 +8,7 @@ import numpy as np
 import useq
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QPoint, Qt
-from qtpy.QtGui import QCloseEvent, QIcon, QKeyEvent, QKeySequence, QUndoStack
+from qtpy.QtGui import QIcon, QKeyEvent, QKeySequence, QUndoStack
 from qtpy.QtWidgets import (
     QApplication,
     QLabel,
