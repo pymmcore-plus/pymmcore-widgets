@@ -24,28 +24,28 @@ class CoreLogWidget(QWidget):
 
         self._layout = QVBoxLayout(self)
 
-        self.log_path = QLineEdit()
-        self.log_path.setText(self._path)
-        self.log_path.setReadOnly(True)
+        self._log_path = QLineEdit()
+        self._log_path.setText(self._path)
+        self._log_path.setReadOnly(True)
 
-        self.text_area = QTextEdit()
-        self.text_area.setReadOnly(True)
-        if sb := self.text_area.verticalScrollBar():
+        self._text_area = QTextEdit()
+        self._text_area.setReadOnly(True)
+        if sb := self._text_area.verticalScrollBar():
             sb.rangeChanged.connect(self._auto_scroll)
 
-        font = self.text_area.font()
+        font = self._text_area.font()
         font.setFamily("Courier")
-        self.text_area.setFont(font)
+        self._text_area.setFont(font)
 
-        self._layout.addWidget(self.log_path)
-        self._layout.addWidget(self.text_area)
+        self._layout.addWidget(self._log_path)
+        self._layout.addWidget(self._text_area)
 
         # Initialize with the current core log content
         self.check_for_updates()
         # Begin polling for file changes
-        self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.check_for_updates)
-        self.update_timer.start(100)
+        self._update_timer = QTimer(self)
+        self._update_timer.timeout.connect(self.check_for_updates)
+        self._update_timer.start(100)
 
     def __del__(self) -> None:
         self._file.close()
@@ -55,11 +55,11 @@ class CoreLogWidget(QWidget):
         new_lines = "".join(self._file.readlines())
         if not new_lines:
             return
-        self.text_area.append(new_lines.strip())
+        self._text_area.append(new_lines.strip())
 
     def _auto_scroll(self, min: int, max: int) -> None:
         """Stays at the bottom of the scroll area when already there."""
-        sb = self.text_area.verticalScrollBar()
+        sb = self._text_area.verticalScrollBar()
         if sb is None:
             return
         if sb.value() == self._last_max:

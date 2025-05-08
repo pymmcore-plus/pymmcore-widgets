@@ -17,12 +17,12 @@ def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> Non
 
     # Assert log path is in the widget LineEdit
     log_path = global_mmcore.getPrimaryLogFile()
-    assert log_path == wdg.log_path.text()
+    assert log_path == wdg._log_path.text()
 
     # Assert log content is in the widget TextEdit
     with open(log_path) as f:
         log_content = "".join(f.readlines()).strip()
-    assert log_content == wdg.text_area.toPlainText()
+    assert log_content == wdg._text_area.toPlainText()
 
     # Log something new
     new_message = "Test message"
@@ -33,7 +33,7 @@ def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> Non
     wdg.check_for_updates()
 
     # Assert the new log message is in the TextEdit
-    last_line = wdg.text_area.toPlainText().splitlines()[-1]
+    last_line = wdg._text_area.toPlainText().splitlines()[-1]
     last_line = last_line.split(" ", 2)[-1]  # Remove timestamp
     assert f"[IFO,App] {new_message}" == last_line
 
@@ -42,11 +42,11 @@ def test_core_log_widget_autoscroll(qtbot: QtBot, global_mmcore: CMMCorePlus) ->
     wdg = CoreLogWidget()
     qtbot.addWidget(wdg)
     wdg.show()
-    sb = wdg.text_area.verticalScrollBar()
+    sb = wdg._text_area.verticalScrollBar()
     assert sb is not None
 
     def add_new_line() -> None:
-        wdg.text_area.append("Test message")
+        wdg._text_area.append("Test message")
         QApplication.processEvents()
 
     # Make sure we have a scrollbar with nonzero size to test with
