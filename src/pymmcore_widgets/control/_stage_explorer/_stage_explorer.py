@@ -649,16 +649,23 @@ class StageExplorer(QWidget):
 
     def _on_mouse_press(self, event: MouseEvent) -> None:
         """Handle the mouse press event."""
-        if self._roi_manager.handle_mouse_press(event):
+        # 1. tell manager to update selection where the mouse was pressed
+        if self._roi_manager.select_roi_at(event.pos) is not None:
+            # if a roi was selected, disable the camera interaction
+            # because we are entering move mode...
+            self._stage_viewer.view.camera.interactive = False
             return
 
+        # 2. If there was no roi there, and we are in roi creation mode,
+        # create a new roi at the mouse position
         # (button = 1 is left mouse button)
         if event.button == 1 and self._actions[ROIS].isChecked():
+            self._stage_viewer.view.camera.interactive = False
             self._roi_manager.create_roi_at(event.pos)
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
         """Update the roi text when the roi changes size."""
-        if roi := self._roi_manager.active_roi():
+        if roi := self._roi_manager.selected_roi():
             self._stage_viewer.setCursor(roi.get_cursor(event))
             px = self._mmc.getPixelSizeUm()
             fov_w = self._mmc.getImageWidth() * px
@@ -671,6 +678,7 @@ class StageExplorer(QWidget):
 
     def _on_mouse_release(self, event: MouseEvent) -> None:
         """Handle the mouse release event."""
+        # restore the camera interaction, in case it was disabled by roi selection
         self._stage_viewer.view.camera.interactive = True
 
         # if alt key is not down...

@@ -300,18 +300,18 @@ class _RoiCommand(QUndoCommand):
 
 class InsertRoiCommand(_RoiCommand):
     def undo(self) -> None:
-        self._manager._remove_roi(self._roi)
+        self._manager.remove(self._roi)
 
     def redo(self) -> None:
-        self._manager._add_roi(self._roi)
+        self._manager.add(self._roi)
 
 
 class DeleteRoiCommand(_RoiCommand):
     def undo(self) -> None:
-        self._manager._add_roi(self._roi)
+        self._manager.add(self._roi)
 
     def redo(self) -> None:
-        self._manager._remove_roi(self._roi)
+        self._manager.remove(self._roi)
 
 
 class ROIManager:
@@ -354,32 +354,26 @@ class ROIManager:
         """Delete all the ROIs."""
         while self._rois:
             roi = self._rois.pop()
-            self._remove_roi(roi)
+            self.remove(roi)
 
-    def active_roi(self) -> ROIRectangle | None:
+    def selected_roi(self) -> ROIRectangle | None:
         """Return the active ROI (the one that is currently selected)."""
         return next((roi for roi in self._rois if roi.selected()), None)
 
     def remove_selected_roi(self) -> None:
         """Delete the selected ROI from the scene."""
-        if (roi := self.active_roi()) is not None:
+        if (roi := self.selected_roi()) is not None:
             self._undo_stack.push(DeleteRoiCommand(self, roi))
 
-    def create_roi(self, canvas_pos: tuple[float, float]) -> ROIRectangle:
-        """Create a new ROI rectangle and connect its events."""
-        roi = ROIRectangle(self._stage_viewer.view.scene)
-        roi.visible = True
-        roi.set_selected(True)
-        roi.set_anchor(roi._canvas_to_world(canvas_pos))
-        return roi
-
-    def _add_roi(self, roi: ROIRectangle) -> None:
+    def add(self, roi: ROIRectangle) -> None:
         """Add a ROI to the scene."""
+        if roi in self._rois:
+            return
         roi.parent = self._stage_viewer.view.scene
         roi.connect(self._stage_viewer.canvas)
         self._rois.add(roi)
 
-    def _remove_roi(self, roi: ROIRectangle) -> None:
+    def remove(self, roi: ROIRectangle) -> None:
         """Remove a ROI from the scene."""
         if roi in self._rois:
             roi.parent = None
@@ -387,40 +381,21 @@ class ROIManager:
             with contextlib.suppress(Exception):
                 roi.disconnect(self._stage_viewer.canvas)
 
-    def handle_mouse_press(self, event: MouseEvent) -> bool:
-        """Handle mouse press event for ROIs.
-
-        Returns
-        -------
-        bool
-            True if the event was handled, False otherwise.
-        """
-        (event.pos[0], event.pos[1])
-
+    def select_roi_at(self, position: Sequence[float]) -> ROIRectangle | None:
         picked = None
         for roi in self._rois:
-            if not picked and (grb := roi.obj_at_pos(event.pos)) is not None:
-                roi.anchor_at(grb, event.pos)
+            if not picked and (grb := roi.obj_at_pos(position)) is not None:
+                roi.anchor_at(grb, position)
                 roi.set_selected(True)
                 picked = roi
             else:
                 roi.set_selected(False)
-
-        if self.active_roi() is not None:
-            self._stage_viewer.view.camera.interactive = False
-            return True
-
-        return False
+        return picked
 
     def create_roi_at(self, position: Sequence[float]) -> None:
-        """Create a new ROI at the given position if in create ROI mode.
-
-        Returns
-        -------
-        bool
-            True if a ROI was created, False otherwise.
-        """
-        self._stage_viewer.view.camera.interactive = False
-        # create the ROI rectangle for the first time
-        roi = self.create_roi(position)
+        """Create a new ROI at the given position."""
+        roi = ROIRectangle(self._stage_viewer.view.scene)
+        roi.visible = True
+        roi.set_selected(True)
+        roi.set_anchor(roi._canvas_to_world(position))
         self._undo_stack.push(InsertRoiCommand(self, roi))
