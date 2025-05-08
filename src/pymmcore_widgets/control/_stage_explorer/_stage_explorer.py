@@ -238,14 +238,12 @@ class StageExplorer(QWidget):
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
 
         # connections vispy events
-        self._stage_viewer.canvas.events.mouse_double_click.connect(
-            self._on_mouse_double_click
-        )
-
-        # connections vispy events for ROIs
         self._stage_viewer.canvas.events.mouse_press.connect(self._on_mouse_press)
         self._stage_viewer.canvas.events.mouse_move.connect(self._on_mouse_move)
         self._stage_viewer.canvas.events.mouse_release.connect(self._on_mouse_release)
+        self._stage_viewer.canvas.events.mouse_double_click.connect(
+            self._on_mouse_double_click
+        )
 
         self._on_sys_config_loaded()
 
@@ -400,20 +398,6 @@ class StageExplorer(QWidget):
     def _on_pixel_size_changed(self, value: float) -> None:
         """Clear the scene when the pixel size changes."""
         self._delete_stage_position_marker()
-
-    def _on_mouse_double_click(self, event: MouseEvent) -> None:
-        """Move the stage to the clicked position."""
-        if not self._mmc.getXYStageDevice():
-            return
-
-        # map the clicked canvas position to the stage position
-        x, y, _, _ = self._stage_viewer.view.camera.transform.imap(event.pos)
-        self._stage_controller.move_absolute((x, y))
-        self._stage_controller.snap_on_finish = self._snap_on_double_click
-
-        # update the stage position label
-        self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
-        # snap an image if the snap on double click property is set
 
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
@@ -645,7 +629,7 @@ class StageExplorer(QWidget):
         T_center[1, 3] = -self._mmc.getImageHeight() / 2
         return T_center
 
-    # ROIs ------------------------------------------------------------------------
+    # MOUSE/KEYBOARD EVENTS -----------------------------------------------------
 
     def _on_mouse_press(self, event: MouseEvent) -> None:
         """Handle the mouse press event."""
@@ -665,7 +649,6 @@ class StageExplorer(QWidget):
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
         """Update the roi text when the roi changes size."""
-        print("explorer mouse move", event.pos)
         if roi := self._roi_manager.selected_roi():
             self._stage_viewer.setCursor(roi.get_cursor(event))
             px = self._mmc.getPixelSizeUm()
@@ -686,6 +669,21 @@ class StageExplorer(QWidget):
         # if alt key is not still pressed, disable the roi creation mode
         if QApplication.keyboardModifiers() != Qt.KeyboardModifier.AltModifier:
             self._actions[ROIS].setChecked(False)
+
+    def _on_mouse_double_click(self, event: MouseEvent) -> None:
+        """Move the stage to the clicked position."""
+        # right click, or no stage device
+        if event.button != 1 or not self._mmc.getXYStageDevice():
+            return  # pragma: no cover
+
+        # map the clicked canvas position to the stage position
+        x, y, _, _ = self._stage_viewer.view.camera.transform.imap(event.pos)
+        self._stage_controller.move_absolute((x, y))
+        self._stage_controller.snap_on_finish = self._snap_on_double_click
+
+        # update the stage position label
+        self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
+        # snap an image if the snap on double click property is set
 
     def keyPressEvent(self, a0: QKeyEvent | None) -> None:
         if a0 is None:  # pragma: no cover

@@ -259,7 +259,6 @@ class ROIRectangle(Compound):
 
     def on_mouse_move(self, event: MouseEvent) -> None:
         """Handle the mouse drag event."""
-        print("roi mouse move", self, event.pos)
         # convert canvas -> world
         world_pos = self._canvas_to_world(event.pos)
         # drawing or resizing the ROI
