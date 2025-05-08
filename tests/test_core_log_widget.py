@@ -11,7 +11,8 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
-def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
+def test_core_log_widget_init(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
+    """Asserts that the CoreLogWidget initializes with the entire log to this point."""
     wdg = CoreLogWidget()
     qtbot.addWidget(wdg)
 
@@ -20,9 +21,18 @@ def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> Non
     assert log_path == wdg._log_path.text()
 
     # Assert log content is in the widget TextEdit
+    # This is a bit tricky because more can be appended to the log file.
     with open(log_path) as f:
-        log_content = "".join(f.readlines()).strip()
-    assert log_content == wdg._text_area.toPlainText()
+        log_content = [s.strip() for s in f.readlines()]
+    edit_content = [s.strip() for s in wdg._text_area.toPlainText().splitlines()]
+    min_length = min(len(log_content), len(edit_content))
+    for i in range(min_length):
+        assert log_content[i] == edit_content[i]
+
+
+def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
+    wdg = CoreLogWidget()
+    qtbot.addWidget(wdg)
 
     # Log something new
     new_message = "Test message"
