@@ -719,11 +719,9 @@ class StageExplorer(QWidget):
     def _create_roi(self, canvas_pos: tuple[float, float]) -> ROIRectangle:
         """Create a new ROI rectangle and connect its events."""
         roi = ROIRectangle(self._stage_viewer.view.scene)
-        world_pos = roi._tform().map(canvas_pos)[:2]
         roi.visible = True
         roi.set_selected(True)
-        roi.set_anchor(world_pos)
-        # roi.set_bounding_box(world_pos, world_pos)
+        roi.set_anchor(roi._canvas_to_world(canvas_pos))
         return roi
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
