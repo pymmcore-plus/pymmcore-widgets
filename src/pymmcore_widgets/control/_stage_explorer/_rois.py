@@ -3,7 +3,7 @@ from __future__ import annotations
 import contextlib
 import math
 from enum import Enum, IntEnum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import useq
@@ -207,6 +207,46 @@ class ROIRectangle(Compound):
 
         return None
 
+    def create_useq_position(
+        self, fov_w: float, fov_h: float, z_pos: float
+    ) -> useq.AbsolutePosition:
+        """Return a `GridFromEdges` plan from the roi and fov width and height."""
+        (left, top), (right, bottom) = self.bounding_box()
+        x, y = self.center
+
+        # if the width and the height of the roi are smaller than the fov width and
+        # a single position at the center of the roi is sufficient
+        if abs(right - left) < fov_w and abs(bottom - top) < fov_h:
+            return useq.AbsolutePosition(x=x, y=y, z=z_pos)
+
+        # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
+        # bottom_right corners respectively because the grid plan is created
+        # considering the center of the fov and we want the roi to define the edges
+        # of the grid plan.
+        grid_plan = useq.GridFromEdges(
+            top=top,
+            bottom=bottom,
+            left=left,
+            right=right,
+            fov_width=fov_w,
+            fov_height=fov_h,
+        )
+
+        return useq.AbsolutePosition(
+            x=x, y=y, z=z_pos, sequence=useq.MDASequence(grid_plan=grid_plan)
+        )
+
+    def update_rows_cols_text(self, fov_w: float, fov_h: float, z_pos: float) -> None:
+        """Update the text of the ROI with the number of rows and columns."""
+        pos = self.create_useq_position(fov_w, fov_h, z_pos)
+        if pos.sequence:
+            grid = cast("useq.GridFromEdges", pos.sequence.grid_plan)
+            nc = math.ceil(abs(grid.right - grid.left) / fov_w)
+            nr = math.ceil(abs(grid.top - grid.bottom) / fov_h)
+            self.set_text(f"r{nr} x c{nc}")
+        else:
+            self.set_text("r1 x c1")
+
     # ---------------------MOUSE EVENTS---------------------
 
     def anchor_at(self, grab: Grab, position: Sequence[float]) -> None:
@@ -305,19 +345,9 @@ class ROIManager:
         """Return a list of `GridFromEdges` objects from the drawn rectangles."""
         # TODO: add a way to set overlap
         positions = []
-        for rect in self._rois:
-            grid_plan = self._build_grid_plan(rect, fov_w, fov_h, z_pos)
-            if isinstance(grid_plan, useq.AbsolutePosition):
-                positions.append(grid_plan)
-            else:
-                x, y = rect.center
-                pos = useq.AbsolutePosition(
-                    x=x,
-                    y=y,
-                    z=z_pos,
-                    sequence=useq.MDASequence(grid_plan=grid_plan),
-                )
-                positions.append(pos)
+        for roi in self._rois:
+            pos = self._generate_area_coverage(roi, fov_w, fov_h, z_pos)
+            positions.append(pos)
         return positions
 
     def remove_all_rois(self) -> None:
@@ -326,13 +356,13 @@ class ROIManager:
             roi = self._rois.pop()
             self._remove_roi(roi)
 
-    def _active_roi(self) -> ROIRectangle | None:
+    def active_roi(self) -> ROIRectangle | None:
         """Return the active ROI (the one that is currently selected)."""
         return next((roi for roi in self._rois if roi.selected()), None)
 
     def remove_selected_roi(self) -> None:
         """Delete the selected ROI from the scene."""
-        if (roi := self._active_roi()) is not None:
+        if (roi := self.active_roi()) is not None:
             self._undo_stack.push(DeleteRoiCommand(self, roi))
 
     def create_roi(self, canvas_pos: tuple[float, float]) -> ROIRectangle:
@@ -376,7 +406,7 @@ class ROIManager:
             else:
                 roi.set_selected(False)
 
-        if self._active_roi() is not None:
+        if self.active_roi() is not None:
             self._stage_viewer.view.camera.interactive = False
             return True
 
@@ -399,58 +429,3 @@ class ROIManager:
             self._undo_stack.push(InsertRoiCommand(self, roi))
             return True
         return False
-
-    def handle_mouse_move(self, event: MouseEvent) -> None:
-        """Update the roi text when the roi changes size."""
-        if (roi := self._active_roi()) is None:
-            # reset cursor to default
-            self._stage_viewer.canvas.native.setCursor(Qt.CursorShape.ArrowCursor)
-            return
-
-        # set cursor
-        cursor = roi.get_cursor(event)
-        self._stage_viewer.canvas.native.setCursor(cursor)
-
-        # update roi text
-        px = self._mmc.getPixelSizeUm()
-        fov_w = self._mmc.getImageWidth() * px
-        fov_h = self._mmc.getImageHeight() * px
-        z_pos = self._mmc.getFocusPosition()
-        grid_plan = self._build_grid_plan(roi, fov_w, fov_h, z_pos)
-        try:
-            pos = list(grid_plan)
-            rows = max(r.row for r in pos if r.row is not None) + 1
-            cols = max(c.col for c in pos if c.col is not None) + 1
-            roi.set_text(f"r{rows} x c{cols}")
-        except AttributeError:
-            breakpoint()
-            roi.set_text("r1 x c1")
-
-    def _build_grid_plan(
-        self, roi: ROIRectangle, fov_w: float, fov_h: float, z_pos: float
-    ) -> useq.GridFromEdges | useq.AbsolutePosition:
-        """Return a `GridFromEdges` plan from the roi and fov width and height."""
-        top_left, bottom_right = roi.bounding_box()
-
-        # if the width and the height of the roi are smaller than the fov width and
-        # height, return a single position at the center of the roi and not a grid plan.
-        w = bottom_right[0] - top_left[0]
-        h = bottom_right[1] - top_left[1]
-        if w < fov_w and h < fov_h:
-            return useq.AbsolutePosition(
-                x=top_left[0] + (w / 2),
-                y=top_left[1] + (h / 2),
-                z=z_pos,
-            )
-        # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
-        # bottom_right corners respectively because the grid plan is created
-        # considering the center of the fov and we want the roi to define the edges
-        # of the grid plan.
-        return useq.GridFromEdges(
-            top=top_left[1] - (fov_h / 2),
-            bottom=bottom_right[1] + (fov_h / 2),
-            left=top_left[0] + (fov_w / 2),
-            right=bottom_right[0] - (fov_w / 2),
-            fov_width=fov_w,
-            fov_height=fov_h,
-        )

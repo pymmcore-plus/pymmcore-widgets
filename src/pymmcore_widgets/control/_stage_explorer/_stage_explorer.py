@@ -657,7 +657,16 @@ class StageExplorer(QWidget):
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
         """Update the roi text when the roi changes size."""
-        self._roi_manager.handle_mouse_move(event)
+        if roi := self._roi_manager.active_roi():
+            self._stage_viewer.setCursor(roi.get_cursor(event))
+            px = self._mmc.getPixelSizeUm()
+            fov_w = self._mmc.getImageWidth() * px
+            fov_h = self._mmc.getImageHeight() * px
+            z_pos = self._mmc.getZPosition()
+            roi.update_rows_cols_text(fov_w=fov_w, fov_h=fov_h, z_pos=z_pos)
+        else:
+            # reset cursor to default
+            self._stage_viewer.setCursor(Qt.CursorShape.ArrowCursor)
 
     def _on_mouse_release(self, event: MouseEvent) -> None:
         """Handle the mouse release event."""
