@@ -60,6 +60,13 @@ class StageViewer(QWidget):
         self.view = cast("ViewBox", self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1)
 
+        self._grid_lines = vispy.scene.GridLines(
+            parent=self.view.scene,
+            color="#888888",
+            border_width=1,
+        )
+        self._grid_lines.visible = False
+
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -90,6 +97,9 @@ class StageViewer(QWidget):
         self._cmap = cmap.Colormap(colormap)
         for child in self._get_images():
             child.cmap = self._cmap.to_vispy()
+
+    def set_grid_visible(self, visible: bool) -> None:
+        self._grid_lines.visible = visible
 
     def global_autoscale(self, *, ignore_min: float = 0, ignore_max: float = 0) -> None:
         """Set the color limits of all images in the scene to the global min and max.

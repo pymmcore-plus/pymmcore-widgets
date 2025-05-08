@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Callable, cast
 
 import numpy as np
 import useq
-import vispy.scene
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QPoint, Qt
 from qtpy.QtGui import QIcon, QKeyEvent, QKeySequence, QUndoCommand, QUndoStack
@@ -178,19 +177,12 @@ class StageExplorer(QWidget):
         self._stage_viewer = StageViewer(self)
         self._stage_viewer.setCursor(Qt.CursorShape.CrossCursor)
 
-        self._grid_lines = vispy.scene.GridLines(
-            parent=self._stage_viewer.view.scene,
-            color="#888888",
-            border_width=1,
-        )
-        self._grid_lines.visible = False
-
         # to keep track of the current scale depending on the zoom level
         self._current_scale: int = 1
 
         # properties
         self._auto_zoom_to_fit: bool = False
-        self._snap_on_double_click: bool = False
+        self._snap_on_double_click: bool = True
         self._poll_stage_position: bool = True
         # to store the rois
         self._rois: set[ROIRectangle] = set()
@@ -241,9 +233,12 @@ class StageExplorer(QWidget):
                 btn.setDefaultAction(action)
                 self._toolbar.addWidget(btn)
                 action.setChecked(self._poll_stage_position)
-                self._on_poll_stage_action(self._poll_stage_position)
             else:
                 self._toolbar.addAction(action)
+
+        # update checked state of the actions
+        self._on_poll_stage_action(self._poll_stage_position)
+        self._on_snap_action(self._snap_on_double_click)
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
@@ -424,7 +419,7 @@ class StageExplorer(QWidget):
 
     def _on_show_grid_action(self, checked: bool) -> None:
         """Set the show grid property based on the state of the action."""
-        self._grid_lines.visible = checked
+        self._stage_viewer.set_grid_visible(checked)
         self._actions[SHOW_GRID].setChecked(checked)
 
     def _remove_rois(self) -> None:
