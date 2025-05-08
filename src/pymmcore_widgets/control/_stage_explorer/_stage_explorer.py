@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-import contextlib
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable
 
 import numpy as np
-import useq
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QPoint, Qt
-from qtpy.QtGui import QIcon, QKeyEvent, QKeySequence, QUndoCommand, QUndoStack
+from qtpy.QtGui import QIcon, QKeyEvent, QKeySequence, QUndoStack
 from qtpy.QtWidgets import (
     QApplication,
     QLabel,
@@ -24,15 +22,18 @@ from superqt import QIconifyIcon
 
 from pymmcore_widgets.control._q_stage_controller import QStageMoveAccumulator
 
-from ._rois import ROIRectangle
+from ._rois import ROIManager
 from ._stage_position_marker import StagePositionMarker
 from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 
 if TYPE_CHECKING:
+    import useq
     from PyQt6.QtGui import QAction, QActionGroup
     from qtpy.QtCore import QTimerEvent
     from vispy.app.canvas import MouseEvent
     from vispy.scene.visuals import VisualNode
+
+    from ._rois import ROIRectangle
 else:
     from qtpy.QtWidgets import QAction, QActionGroup
 
@@ -99,210 +100,6 @@ SS_TOOLBUTTON = """
 """
 
 
-class _RoiCommand(QUndoCommand):
-    def __init__(self, manager: ROIManager, roi: ROIRectangle) -> None:
-        super().__init__("Add ROI")
-        self._manager = manager
-        self._roi = roi
-
-
-class InsertRoiCommand(_RoiCommand):
-    def undo(self) -> None:
-        self._manager._remove_roi(self._roi)
-
-    def redo(self) -> None:
-        self._manager._add_roi(self._roi)
-
-
-class DeleteRoiCommand(_RoiCommand):
-    def undo(self) -> None:
-        self._manager._add_roi(self._roi)
-
-    def redo(self) -> None:
-        self._manager._remove_roi(self._roi)
-
-
-class ROIManager:
-    """Manager for ROI rectangles in the StageViewer.
-
-    This class is responsible for creating, adding, removing, and updating ROIs.
-    It also handles mouse events related to ROIs and maintains an undo stack
-    for ROI operations.
-
-    Parameters
-    ----------
-    stage_viewer : StageViewer
-        The stage viewer where ROIs will be displayed.
-    mmcore : CMMCorePlus
-        The micro-manager core instance.
-    undo_stack : QUndoStack
-        The undo stack for ROI operations.
-    """
-
-    def __init__(
-        self, stage_viewer: StageViewer, mmcore: CMMCorePlus, undo_stack: QUndoStack
-    ):
-        self._stage_viewer = stage_viewer
-        self._mmc = mmcore
-        self._undo_stack = undo_stack
-        self._rois: set[ROIRectangle] = set()
-
-    @property
-    def rois(self) -> set[ROIRectangle]:
-        """List of ROIs in the scene."""
-        return self._rois
-
-    def value(self) -> list[useq.AbsolutePosition]:
-        """Return a list of `GridFromEdges` objects from the drawn rectangles."""
-        # TODO: add a way to set overlap
-        positions = []
-        px = self._mmc.getPixelSizeUm()
-        fov_w, fov_h = self._mmc.getImageWidth() * px, self._mmc.getImageHeight() * px
-        for rect in self._rois:
-            grid_plan = self._build_grid_plan(rect, fov_w, fov_h)
-            if isinstance(grid_plan, useq.AbsolutePosition):
-                positions.append(grid_plan)
-            else:
-                x, y = rect.center
-                pos = useq.AbsolutePosition(
-                    x=x,
-                    y=y,
-                    z=self._mmc.getZPosition(),
-                    sequence=useq.MDASequence(grid_plan=grid_plan),
-                )
-                positions.append(pos)
-        return positions
-
-    def remove_all_rois(self) -> None:
-        """Delete all the ROIs."""
-        while self._rois:
-            roi = self._rois.pop()
-            self._remove_roi(roi)
-
-    def _active_roi(self) -> ROIRectangle | None:
-        """Return the active ROI (the one that is currently selected)."""
-        return next((roi for roi in self._rois if roi.selected()), None)
-
-    def remove_selected_roi(self) -> None:
-        """Delete the selected ROI from the scene."""
-        if (roi := self._active_roi()) is not None:
-            self._undo_stack.push(DeleteRoiCommand(self, roi))
-
-    def create_roi(self, canvas_pos: tuple[float, float]) -> ROIRectangle:
-        """Create a new ROI rectangle and connect its events."""
-        roi = ROIRectangle(self._stage_viewer.view.scene)
-        roi.visible = True
-        roi.set_selected(True)
-        roi.set_anchor(roi._canvas_to_world(canvas_pos))
-        return roi
-
-    def _add_roi(self, roi: ROIRectangle) -> None:
-        """Add a ROI to the scene."""
-        roi.parent = self._stage_viewer.view.scene
-        roi.connect(self._stage_viewer.canvas)
-        self._rois.add(roi)
-
-    def _remove_roi(self, roi: ROIRectangle) -> None:
-        """Remove a ROI from the scene."""
-        if roi in self._rois:
-            roi.parent = None
-            self._rois.remove(roi)
-            with contextlib.suppress(Exception):
-                roi.disconnect(self._stage_viewer.canvas)
-
-    def handle_mouse_press(self, event: MouseEvent) -> bool:
-        """Handle mouse press event for ROIs.
-
-        Returns
-        -------
-        bool
-            True if the event was handled, False otherwise.
-        """
-        (event.pos[0], event.pos[1])
-
-        picked = None
-        for roi in self._rois:
-            if not picked and (grb := roi.obj_at_pos(event.pos)) is not None:
-                roi.anchor_at(grb, event.pos)
-                roi.set_selected(True)
-                picked = roi
-            else:
-                roi.set_selected(False)
-
-        if self._active_roi() is not None:
-            self._stage_viewer.view.camera.interactive = False
-            return True
-
-        return False
-
-    def create_roi_at(self, event: MouseEvent, create_roi_mode: bool) -> bool:
-        """Create a new ROI at the given position if in create ROI mode.
-
-        Returns
-        -------
-        bool
-            True if a ROI was created, False otherwise.
-        """
-        # (button = 1 is left mouse button)
-        if create_roi_mode and event.button == 1:
-            self._stage_viewer.view.camera.interactive = False
-            # create the ROI rectangle for the first time
-            canvas_pos = (event.pos[0], event.pos[1])
-            roi = self.create_roi(canvas_pos)
-            self._undo_stack.push(InsertRoiCommand(self, roi))
-            return True
-        return False
-
-    def handle_mouse_move(self, event: MouseEvent) -> None:
-        """Update the roi text when the roi changes size."""
-        if (roi := self._active_roi()) is not None:
-            # set cursor
-            cursor = roi.get_cursor(event)
-            self._stage_viewer.canvas.native.setCursor(cursor)
-            # update roi text
-            px = self._mmc.getPixelSizeUm()
-            fov_w = self._mmc.getImageWidth() * px
-            fov_h = self._mmc.getImageHeight() * px
-            grid_plan = self._build_grid_plan(roi, fov_w, fov_h)
-            try:
-                pos = list(grid_plan)
-                rows = max(r.row for r in pos if r.row is not None) + 1
-                cols = max(c.col for c in pos if c.col is not None) + 1
-                roi.set_text(f"r{rows} x c{cols}")
-            except AttributeError:
-                roi.set_text("r1 x c1")
-        else:
-            # reset cursor to default
-            self._stage_viewer.canvas.native.setCursor(Qt.CursorShape.ArrowCursor)
-
-    def _build_grid_plan(
-        self, roi: ROIRectangle, fov_w: float, fov_h: float
-    ) -> useq.GridFromEdges | useq.AbsolutePosition:
-        """Return a `GridFromEdges` plan from the roi and fov width and height."""
-        top_left, bottom_right = roi.bounding_box()
-
-        # if the width and the height of the roi are smaller than the fov width and
-        # height, return a single position at the center of the roi and not a grid plan.
-        w = bottom_right[0] - top_left[0]
-        h = bottom_right[1] - top_left[1]
-        if w < fov_w and h < fov_h:
-            return useq.AbsolutePosition(
-                x=top_left[0] + (w / 2),
-                y=top_left[1] + (h / 2),
-                z=self._mmc.getZPosition(),
-            )
-        # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
-        # bottom_right corners respectively because the grid plan is created
-        # considering the center of the fov and we want the roi to define the edges
-        # of the grid plan.
-        return useq.GridFromEdges(
-            top=top_left[1] - (fov_h / 2),
-            bottom=bottom_right[1] + (fov_h / 2),
-            left=top_left[0] + (fov_w / 2),
-            right=bottom_right[0] - (fov_w / 2),
-            fov_width=fov_w,
-            fov_height=fov_h,
-        )
 
 
 class StageExplorer(QWidget):
