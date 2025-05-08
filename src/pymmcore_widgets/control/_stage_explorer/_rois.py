@@ -412,7 +412,7 @@ class ROIManager:
 
         return False
 
-    def create_roi_at(self, event: MouseEvent, create_roi_mode: bool) -> bool:
+    def create_roi_at(self, position: Sequence[float]) -> None:
         """Create a new ROI at the given position if in create ROI mode.
 
         Returns
@@ -420,12 +420,7 @@ class ROIManager:
         bool
             True if a ROI was created, False otherwise.
         """
-        # (button = 1 is left mouse button)
-        if create_roi_mode and event.button == 1:
-            self._stage_viewer.view.camera.interactive = False
-            # create the ROI rectangle for the first time
-            canvas_pos = (event.pos[0], event.pos[1])
-            roi = self.create_roi(canvas_pos)
-            self._undo_stack.push(InsertRoiCommand(self, roi))
-            return True
-        return False
+        self._stage_viewer.view.camera.interactive = False
+        # create the ROI rectangle for the first time
+        roi = self.create_roi(position)
+        self._undo_stack.push(InsertRoiCommand(self, roi))
