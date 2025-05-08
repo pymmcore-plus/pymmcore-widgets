@@ -46,10 +46,6 @@ class Grab(IntEnum):
         """Return the opposite handle."""
         return Grab((self + 2) % 4)
 
-    def qt_cursor(self) -> Qt.CursorShape:
-        """Return the Qt cursor for this handle."""
-        _CURSOR_MAP.get(self, Qt.CursorShape.ArrowCursor)
-
 
 _CURSOR_MAP: dict[Grab | None, Qt.CursorShape] = {
     None: Qt.CursorShape.ArrowCursor,
@@ -175,6 +171,10 @@ class ROIRectangle(Compound):
         """Disconnect the ROI events from the canvas."""
         canvas.events.mouse_move.disconnect(self.on_mouse_move)
 
+    def get_cursor(self, position: Sequence[float]) -> Qt.CursorShape:
+        """Return the cursor shape for the given position."""
+        return _CURSOR_MAP.get(self.obj_at_pos(position), Qt.CursorShape.ArrowCursor)
+
     def obj_at_pos(self, canvas_position: Sequence[float]) -> Grab | None:
         """Return the object at the given position."""
         # 1) Convert to world coords
@@ -214,15 +214,19 @@ class ROIRectangle(Compound):
             # bottom_right corners respectively because the grid plan is created
             # considering the center of the fov and we want the roi to define the edges
             # of the grid plan.
-            pos.sequence = useq.MDASequence(
-                grid_plan=useq.GridFromEdges(
-                    top=top,
-                    bottom=bottom,
-                    left=left,
-                    right=right,
-                    fov_width=fov_w,
-                    fov_height=fov_h,
-                )
+            pos = pos.model_copy(
+                update={
+                    "sequence": useq.MDASequence(
+                        grid_plan=useq.GridFromEdges(
+                            top=top - fov_h / 2,
+                            bottom=bottom + fov_h / 2,
+                            left=left + fov_w / 2,
+                            right=right - fov_w / 2,
+                            fov_width=fov_w,
+                            fov_height=fov_h,
+                        )
+                    )
+                }
             )
         return pos
 
@@ -231,8 +235,10 @@ class ROIRectangle(Compound):
         pos = self.create_useq_position(fov_w, fov_h, z_pos)
         if pos.sequence:
             grid = cast("useq.GridFromEdges", pos.sequence.grid_plan)
-            nc = math.ceil(abs(grid.right - grid.left) / fov_w)
-            nr = math.ceil(abs(grid.top - grid.bottom) / fov_h)
+            # the added fov here is to account for the fact that the grid plan
+            # is created above with fov/2 added to the edges.
+            nc = math.ceil((fov_w + abs(grid.right - grid.left)) / fov_w)
+            nr = math.ceil((fov_h + abs(grid.top - grid.bottom)) / fov_h)
             self.set_text(f"r{nr} x c{nc}")
         else:
             self.set_text("r1 x c1")

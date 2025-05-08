@@ -5,9 +5,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable
 
 import numpy as np
+import useq
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QPoint, Qt
-from qtpy.QtGui import QIcon, QKeyEvent, QKeySequence, QUndoStack
+from qtpy.QtGui import QCloseEvent, QIcon, QKeyEvent, QKeySequence, QUndoStack
 from qtpy.QtWidgets import (
     QApplication,
     QLabel,
@@ -27,7 +28,6 @@ from ._stage_position_marker import StagePositionMarker
 from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 
 if TYPE_CHECKING:
-    import useq
     from PyQt6.QtGui import QAction, QActionGroup
     from qtpy.QtCore import QTimerEvent
     from vispy.app.canvas import MouseEvent
@@ -158,9 +158,10 @@ class StageExplorer(QWidget):
 
         # to keep track of the current scale depending on the zoom level
         self._current_scale: int = 1
+        # whether we started the MDA
+        self._our_mda_running: bool = False
 
         # properties
-        self._show_mda_images: bool = False
         self._auto_zoom_to_fit: bool = False
         self._snap_on_double_click: bool = True
         self._poll_stage_position: bool = True
@@ -218,6 +219,7 @@ class StageExplorer(QWidget):
         # update checked state of the actions
         self._on_poll_stage_action(self._poll_stage_position)
         self._on_snap_action(self._snap_on_double_click)
+        self._actions[SCAN].setEnabled(False)
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
@@ -238,6 +240,7 @@ class StageExplorer(QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
+        self._mmc.mda.events.sequenceFinished.connect(self._on_sequence_finished)
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
 
         # connections vispy events
@@ -362,8 +365,7 @@ class StageExplorer(QWidget):
         pos = active_roi.create_useq_position(fov_w=fov_w, fov_h=fov_h, z_pos=z_pos)
         seq = useq.MDASequence(stage_positions=[pos])
 
-        self._show_mda_images = True
-        # fixme: turn back off
+        self._our_mda_running = True
         self._mmc.run_mda(seq)
 
     def _create_poll_stage_button(self) -> QToolButton:
@@ -416,7 +418,7 @@ class StageExplorer(QWidget):
 
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
-        if self._mmc.mda.is_running() and not self._show_mda_images:
+        if self._mmc.mda.is_running() and not self._our_mda_running:
             return
         # get the snapped image
         img = self._mmc.getImage()
@@ -430,6 +432,10 @@ class StageExplorer(QWidget):
         x = event.x_pos if event.x_pos is not None else self._mmc.getXPosition()
         y = event.y_pos if event.y_pos is not None else self._mmc.getYPosition()
         self._add_image_and_update_widget(image, x, y)
+
+    def _on_sequence_finished(self) -> None:
+        """Reset the MDA running flag when the sequence is finished."""
+        self._our_mda_running = False
 
     # STAGE POSITION MARKER -----------------------------------------------------
 
@@ -665,11 +671,10 @@ class StageExplorer(QWidget):
     def _on_mouse_move(self, event: MouseEvent) -> None:
         """Update the roi text when the roi changes size."""
         if roi := self._roi_manager.selected_roi():
-            self._stage_viewer.setCursor(roi.obj_at_pos(event.pos).qt_cursor())
+            self._stage_viewer.setCursor(roi.get_cursor(event.pos))
             fov_w, fov_h, z_pos = self._fov_w_h_z_pos()
             roi.update_rows_cols_text(fov_w=fov_w, fov_h=fov_h, z_pos=z_pos)
         else:
-            # reset cursor to default
             self._stage_viewer.setCursor(Qt.CursorShape.ArrowCursor)
 
     def _fov_w_h_z_pos(self) -> tuple[float, float, float]:
@@ -689,6 +694,8 @@ class StageExplorer(QWidget):
         # if alt key is not still pressed, disable the roi creation mode
         if QApplication.keyboardModifiers() != Qt.KeyboardModifier.AltModifier:
             self._actions[ROIS].setChecked(False)
+
+        self._actions[SCAN].setEnabled(bool(self._roi_manager.selected_roi()))
 
     def _on_mouse_double_click(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
