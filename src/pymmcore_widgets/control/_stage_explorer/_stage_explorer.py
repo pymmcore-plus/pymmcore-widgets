@@ -100,8 +100,6 @@ SS_TOOLBUTTON = """
 """
 
 
-
-
 class StageExplorer(QWidget):
     """A stage positions explorer widget.
 
