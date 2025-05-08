@@ -48,7 +48,7 @@ CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
 POLL_STAGE = "Show FOV Position"
 SHOW_GRID = "Show Grid"
-ROIS = "Activate/Deactivate ROIs Tool"
+ROIS = "Create ROI"
 DELETE_ROIS = "Delete All ROIs"
 
 
