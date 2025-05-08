@@ -7,7 +7,7 @@ from pymmcore_widgets.control._stage_explorer._stage_explorer import StageExplor
 app = QApplication([])
 
 mmc = CMMCorePlus.instance()
-mmc.loadSystemConfiguration(r'D:\Christina\MyChristina.cfg')
+mmc.loadSystemConfiguration(r"D:\Christina\MyChristina.cfg")
 mmc.setConfig("Channel", "BF")
 mmc.setExposure(10)
 
