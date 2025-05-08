@@ -654,7 +654,7 @@ class StageExplorer(QWidget):
 
         # (button = 1 is left mouse button)
         if event.button == 1 and self._actions[ROIS].isChecked():
-            self._roi_manager.create_roi_at(event)
+            self._roi_manager.create_roi_at(event.pos)
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
         """Update the roi text when the roi changes size."""
