@@ -389,7 +389,7 @@ class StageExplorer(QWidget):
 
     def _remove_rois(self) -> None:
         """Delete all the ROIs."""
-        self._roi_manager.remove_all_rois()
+        self._roi_manager.clear()
 
     # CORE ------------------------------------------------------------------------
 
@@ -665,6 +665,7 @@ class StageExplorer(QWidget):
 
     def _on_mouse_move(self, event: MouseEvent) -> None:
         """Update the roi text when the roi changes size."""
+        print("explorer mouse move", event.pos)
         if roi := self._roi_manager.selected_roi():
             self._stage_viewer.setCursor(roi.get_cursor(event))
             px = self._mmc.getPixelSizeUm()
@@ -678,12 +679,12 @@ class StageExplorer(QWidget):
 
     def _on_mouse_release(self, event: MouseEvent) -> None:
         """Handle the mouse release event."""
+        self._roi_manager.reset_action_modes()
         # restore the camera interaction, in case it was disabled by roi selection
         self._stage_viewer.view.camera.interactive = True
 
-        # if alt key is not down...
+        # if alt key is not still pressed, disable the roi creation mode
         if QApplication.keyboardModifiers() != Qt.KeyboardModifier.AltModifier:
-            # set the roi to not selected
             self._actions[ROIS].setChecked(False)
 
     def keyPressEvent(self, a0: QKeyEvent | None) -> None:

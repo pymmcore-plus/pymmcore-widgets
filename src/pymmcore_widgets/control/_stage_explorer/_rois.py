@@ -176,12 +176,10 @@ class ROIRectangle(Compound):
     def connect(self, canvas: scene.SceneCanvas) -> None:
         """Connect the ROI events to the canvas."""
         canvas.events.mouse_move.connect(self.on_mouse_move)
-        canvas.events.mouse_release.connect(self.on_mouse_release)
 
     def disconnect(self, canvas: scene.SceneCanvas) -> None:
         """Disconnect the ROI events from the canvas."""
         canvas.events.mouse_move.disconnect(self.on_mouse_move)
-        canvas.events.mouse_release.disconnect(self.on_mouse_release)
 
     def obj_at_pos(self, canvas_position: Sequence[float]) -> Grab | None:
         """Return the object at the given position."""
@@ -261,6 +259,7 @@ class ROIRectangle(Compound):
 
     def on_mouse_move(self, event: MouseEvent) -> None:
         """Handle the mouse drag event."""
+        print("roi mouse move", self, event.pos)
         # convert canvas -> world
         world_pos = self._canvas_to_world(event.pos)
         # drawing or resizing the ROI
@@ -277,10 +276,6 @@ class ROIRectangle(Compound):
             new_max = (self._handle_data[2, 0] + dx, self._handle_data[2, 1] + dy)
             self._move_anchor = world_pos
             self.set_bounding_box(new_min, new_max)
-
-    def on_mouse_release(self, event: MouseEvent) -> None:
-        """Handle the mouse release event."""
-        self._action_mode = ROIActionMode.NONE
 
     # ---------------------PRIVATE METHODS---------------------
 
@@ -300,18 +295,33 @@ class _RoiCommand(QUndoCommand):
 
 class InsertRoiCommand(_RoiCommand):
     def undo(self) -> None:
-        self._manager.remove(self._roi)
+        self._manager._remove(self._roi)
 
     def redo(self) -> None:
-        self._manager.add(self._roi)
+        self._manager._add(self._roi)
 
 
 class DeleteRoiCommand(_RoiCommand):
     def undo(self) -> None:
-        self._manager.add(self._roi)
+        self._manager._add(self._roi)
 
     def redo(self) -> None:
-        self._manager.remove(self._roi)
+        self._manager._remove(self._roi)
+
+
+class ClearRoisCommand(QUndoCommand):
+    def __init__(self, manager: ROIManager) -> None:
+        super().__init__("Clear ROIs")
+        self._manager = manager
+        self._rois = set(self._manager.rois)
+
+    def undo(self) -> None:
+        for roi in self._rois:
+            self._manager._add(roi)
+
+    def redo(self) -> None:
+        for roi in self._rois:
+            self._manager._remove(roi)
 
 
 class ROIManager:
@@ -339,33 +349,36 @@ class ROIManager:
         """List of ROIs in the scene."""
         return self._rois
 
-    def value(
-        self, fov_w: float, fov_h: float, z_pos: float
-    ) -> list[useq.AbsolutePosition]:
-        """Return a list of `GridFromEdges` objects from the drawn rectangles."""
-        # TODO: add a way to set overlap
-        positions = []
-        for roi in self._rois:
-            pos = self._generate_area_coverage(roi, fov_w, fov_h, z_pos)
-            positions.append(pos)
-        return positions
-
-    def remove_all_rois(self) -> None:
-        """Delete all the ROIs."""
-        while self._rois:
-            roi = self._rois.pop()
-            self.remove(roi)
+    # undo/redoable operations ---------------------------
 
     def selected_roi(self) -> ROIRectangle | None:
         """Return the active ROI (the one that is currently selected)."""
         return next((roi for roi in self._rois if roi.selected()), None)
+
+    def clear(self) -> None:
+        """Delete all the ROIs."""
+        self._undo_stack.push(ClearRoisCommand(self))
+
+    def reset_action_modes(self) -> None:
+        for roi in self._rois:
+            roi._action_mode = ROIActionMode.NONE
 
     def remove_selected_roi(self) -> None:
         """Delete the selected ROI from the scene."""
         if (roi := self.selected_roi()) is not None:
             self._undo_stack.push(DeleteRoiCommand(self, roi))
 
-    def add(self, roi: ROIRectangle) -> None:
+    def create_roi_at(self, position: Sequence[float]) -> None:
+        """Create a new ROI at the given position."""
+        roi = ROIRectangle(self._stage_viewer.view.scene)
+        roi.visible = True
+        roi.set_selected(True)
+        roi.set_anchor(roi._canvas_to_world(position))
+        self._undo_stack.push(InsertRoiCommand(self, roi))
+
+    # direct manipulation of ROIs (NOT undoable) ---------------------------
+
+    def _add(self, roi: ROIRectangle) -> None:
         """Add a ROI to the scene."""
         if roi in self._rois:
             return
@@ -373,7 +386,7 @@ class ROIManager:
         roi.connect(self._stage_viewer.canvas)
         self._rois.add(roi)
 
-    def remove(self, roi: ROIRectangle) -> None:
+    def _remove(self, roi: ROIRectangle) -> None:
         """Remove a ROI from the scene."""
         if roi in self._rois:
             roi.parent = None
@@ -392,10 +405,9 @@ class ROIManager:
                 roi.set_selected(False)
         return picked
 
-    def create_roi_at(self, position: Sequence[float]) -> None:
-        """Create a new ROI at the given position."""
-        roi = ROIRectangle(self._stage_viewer.view.scene)
-        roi.visible = True
-        roi.set_selected(True)
-        roi.set_anchor(roi._canvas_to_world(position))
-        self._undo_stack.push(InsertRoiCommand(self, roi))
+    def value(
+        self, fov_w: float, fov_h: float, z_pos: float
+    ) -> list[useq.AbsolutePosition]:
+        """Return a list of useq.Position objects from the drawn rectangles."""
+        # TODO: add a way to set overlap
+        return [roi.create_useq_position(fov_w, fov_h, z_pos) for roi in self._rois]
