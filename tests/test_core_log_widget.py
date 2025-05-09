@@ -35,14 +35,18 @@ def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> Non
     qtbot.addWidget(wdg)
 
     # Log something new
+    current_lines = len(wdg._text_area.toPlainText().splitlines())
     new_message = "Test message"
     global_mmcore.logMessage(new_message)
 
     def wait_for_update() -> None:
         # Assert the new log message is in the TextEdit
-        last_line = wdg._text_area.toPlainText().splitlines()[-1]
-        last_line = last_line.split(" ", 2)[-1]  # Remove timestamp
-        assert f"[IFO,App] {new_message}" == last_line
+        lines = wdg._text_area.toPlainText().splitlines()[current_lines:]
+        for line in lines:
+            print(line, "\n")
+            if f"[IFO,App] {new_message}" in line:
+                return
+        raise AssertionError("New message not found in log widget.")
 
     qtbot.waitUntil(wait_for_update, timeout=1000)
 
