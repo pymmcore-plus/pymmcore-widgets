@@ -41,16 +41,16 @@ class CoreLogWidget(QWidget):
         self._layout.addWidget(self._text_area)
 
         # Initialize with the current core log content
-        self.check_for_updates()
+        self._update()
         # Begin polling for file changes
         self._update_timer = QTimer(self)
-        self._update_timer.timeout.connect(self.check_for_updates)
+        self._update_timer.timeout.connect(self._update)
         self._update_timer.start(100)
 
     def __del__(self) -> None:
         self._file.close()
 
-    def check_for_updates(self) -> None:
+    def _update(self) -> None:
         """Check if the file has new content and update the display."""
         new_lines = "".join(self._file.readlines())
         if not new_lines:
