@@ -34,19 +34,23 @@ def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> Non
     wdg = CoreLogWidget()
     qtbot.addWidget(wdg)
 
-    # Log something new
+    # Sometimes, our new message will be flushed before other initialization completes.
+    # Thus we need to check all lines after what is currently written to the TextEdit.
     current_lines = len(wdg._text_area.toPlainText().splitlines())
+    # Log something new
     new_message = "Test message"
     global_mmcore.logMessage(new_message)
 
     def wait_for_update() -> None:
-        # Assert the new log message is in the TextEdit
-        lines = wdg._text_area.toPlainText().splitlines()[current_lines:]
-        for line in lines:
-            print(line, "\n")
+        nonlocal current_lines
+        # Loop through the new lines for the line we want.
+        all_lines = wdg._text_area.toPlainText().splitlines()
+        new_lines = all_lines[current_lines:]
+        current_lines = len(all_lines)
+        for line in new_lines:
             if f"[IFO,App] {new_message}" in line:
                 return
-        raise AssertionError("New message not found in log widget.")
+        raise AssertionError("New message not found in CoreLogWidget.")
 
     qtbot.waitUntil(wait_for_update, timeout=1000)
 

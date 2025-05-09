@@ -67,7 +67,7 @@ jobs:
         run: uv run mmcore install
 
       - name: Test
-        run: uv run coverage run -p -m pytest -s -v --color=yes
+        run: uv run coverage run -p -m pytest -v --color=yes
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
