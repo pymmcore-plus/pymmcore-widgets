@@ -49,7 +49,7 @@ CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
 POLL_STAGE = "Show FOV Position"
 SHOW_GRID = "Show Grid"
-ROIS = "Create ROI"
+ROIS = "Create ROI (option click)"
 DELETE_ROIS = "Delete All ROIs"
 SCAN = "Scan Selected ROIs"
 
@@ -406,6 +406,7 @@ class StageExplorer(QWidget):
     def _remove_rois(self) -> None:
         """Delete all the ROIs."""
         self._roi_manager.clear()
+        self._actions[SCAN].setEnabled(bool(self._roi_manager.selected_roi()))
 
     # CORE ------------------------------------------------------------------------
 
@@ -723,6 +724,7 @@ class StageExplorer(QWidget):
         # if key is del or cancel, remove the selected roi
         elif a0.key() == Qt.Key.Key_Backspace:
             self._roi_manager.remove_selected_roi()
+            self._actions[SCAN].setEnabled(bool(self._roi_manager.selected_roi()))
         elif a0.key() == Qt.Key.Key_V:
             print(self.value())
         elif a0.key() == Qt.Key.Key_Z:
