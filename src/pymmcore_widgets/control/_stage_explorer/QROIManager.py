@@ -395,29 +395,31 @@ class CanvasEventFilter(QObject):
             # start a vertex-drag
             self._drag_roi, self._drag_vertex_idx = vertex
             self._drag_start = wp
+            self._select_only(self._drag_roi)
             return True
 
-        self.selection_model.clearSelection()
-        hits = self.roi_manager.pick_rois(wp)
         # 2) fallback to whole-ROI drag if clicked inside
-        if hits:
-            roi = hits[0]
-            self._drag_roi = roi
+        if hits := self.roi_manager.pick_rois(wp):
+            self._drag_roi = hits[0]
             self._drag_vertex_idx = None
             self._drag_start = wp
-            self.selection_model.select(
-                self.roi_manager.index_of(roi),
-                QItemSelectionModel.SelectionFlag.ClearAndSelect,
-            )
+            self._select_only(self._drag_roi)
             return True
 
         # else let the canvas handle panning
         self._drag_roi = None
         return False
 
+    def _select_only(self, roi: ROI) -> None:
+        self.selection_model.clearSelection()
+        self.selection_model.select(
+            self.roi_manager.index_of(roi),
+            QItemSelectionModel.SelectionFlag.ClearAndSelect,
+        )
+
     def _vertex_under_pointer(self, event: QMouseEvent) -> tuple[ROI, int] | None:
         """Return the index of the vertex under the pointer, or None."""
-        for roi in self._scene_widget.selected_rois():
+        for roi in self.roi_manager._rois:
             if (vertex_idx := self._find_vertex(event.position(), roi)) is not None:
                 return roi, vertex_idx
         return None
