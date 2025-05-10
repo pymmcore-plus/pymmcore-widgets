@@ -395,10 +395,6 @@ class CanvasEventFilter(QObject):
             # start a vertex-drag
             self._drag_roi, self._drag_vertex_idx = vertex
             self._drag_start = wp
-            self.selection_model.select(
-                self.roi_manager.index_of(self._drag_roi),
-                QItemSelectionModel.SelectionFlag.ClearAndSelect,
-            )
             return True
 
         self.selection_model.clearSelection()
