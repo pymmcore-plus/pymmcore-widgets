@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import numpy as np
@@ -28,9 +28,10 @@ NULL_INDEX = QModelIndex()
 
 
 @dataclass(eq=False)
-class ROIBase:
-    """A simple ROI class."""
+class ROI:
+    """A polygonal ROI."""
 
+    vertices: np.ndarray = field(default_factory=list)  # type: ignore[arg-type]
     text: str = "ROI"
     selected: bool = False
     border_color: str = "#F0F66C"
@@ -39,28 +40,37 @@ class ROIBase:
     font_color: str = "yellow"
     font_size: int = 12
 
+    def translate(self, dx: float, dy: float) -> None:
+        """Translate the ROI in place by (dx, dy)."""
+        self.vertices = self.vertices + np.array([dx, dy], dtype=self.vertices.dtype)
+
+    def __post_init__(self) -> None:
+        self.vertices = np.asarray(self.vertices).astype(np.float32)
+        if self.vertices.ndim != 2 or self.vertices.shape[1] != 2:
+            raise ValueError("Vertices must be a 2D array of shape (n, 2)")
+
     _uuid: UUID = field(default_factory=uuid4, init=False, repr=False)
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, ROIBase) and self._uuid == other._uuid
+        return isinstance(other, ROI) and self._uuid == other._uuid
 
     def __hash__(self) -> int:
         return hash(self._uuid)
 
-    def contains(self, point: tuple[float, float]) -> bool:
-        """Test if `point` lies inside this ROI."""
-        raise NotImplementedError
-
     def bbox(self) -> tuple[float, float, float, float]:
-        xs, ys = zip(*self.vertices)
-        return min(xs), min(ys), max(xs), max(ys)
-
-
-@dataclass(eq=False)
-class PolygonROI(ROIBase):
-    vertices: np.typing.ArrayLike = field(default_factory=list)
+        """Return the bounding box of this ROI."""
+        (x0, y0) = self.vertices.min(axis=0)
+        (x1, y1) = self.vertices.max(axis=0)
+        return float(x0), float(y0), float(x1), float(y1)
 
     def contains(self, point: tuple[float, float]) -> bool:
+        """Return True if `point` lies inside this ROI."""
+        x0, y0, x1, y1 = self.bbox()
+        if not (x0 <= point[0] <= x1 and y0 <= point[1] <= y1):
+            return False
+        return self._inner_contains(point)
+
+    def _inner_contains(self, point: tuple[float, float]) -> bool:
         """Standard even-odd rule ray-crossing test."""
         x, y = point
         inside = False
@@ -79,37 +89,62 @@ class PolygonROI(ROIBase):
 
 
 @dataclass(eq=False)
-class RectangleROI(ROIBase):
+class RectangleROI(ROI):
     """A rectangle ROI class."""
 
-    top_left: tuple[int, int] = (0, 0)
-    bot_right: tuple[int, int] = (0, 0)
+    def __init__(
+        self,
+        top_left: tuple[float, float],
+        bot_right: tuple[float, float],
+        **kwargs: Any,
+    ) -> None:
+        """Create a rectangle ROI.
+
+        Parameters
+        ----------
+        top_left : tuple[float, float]
+            The top left corner of the rectangle.
+        bot_right : tuple[float, float]
+            The bottom right corner of the rƒectangle.
+        **kwargs : Any
+            Additional keyword arguments to pass to the base class.
+        """
+        vertices = np.array(
+            [
+                top_left,
+                (top_left[0], bot_right[1]),
+                bot_right,
+                (bot_right[0], top_left[1]),
+            ]
+        )
+        super().__init__(vertices=vertices, **kwargs)
 
     @property
-    def vertices(self) -> list[tuple[int, int]]:
-        """Return the vertices of the rectangle ROI."""
-        return [
-            (self.top_left[0], self.top_left[1]),
-            (self.bot_right[0], self.top_left[1]),
-            (self.bot_right[0], self.bot_right[1]),
-            (self.top_left[0], self.bot_right[1]),
-        ]
+    def top_left(self) -> tuple[float, float]:
+        """Return the top left corner of the rectangle."""
+        return self.vertices[0]  # type: ignore[no-any-return]
 
-    def contains(self, point: tuple[float, float]) -> bool:
-        """Test if `point` lies inside this rectangle ROI."""
-        x, y = point
-        x0, y0 = self.top_left
-        x1, y1 = self.bot_right
-        return x0 <= x <= x1 and y0 <= y <= y1
+    @property
+    def bot_right(self) -> tuple[float, float]:
+        """Return the bottom right corner of the rectangle."""
+        return self.vertices[2]  # type: ignore[no-any-return]
 
+    @property
+    def width(self) -> float:
+        """Return the width of the rectangle."""
+        return self.bot_right[0] - self.top_left[0]
 
-ROI: TypeAlias = "PolygonROI | RectangleROI"
+    @property
+    def height(self) -> float:
+        """Return the height of the rectangle."""
+        return self.bot_right[1] - self.top_left[1]
 
 
 class QROIManager(QAbstractListModel):
     """A QAbstractListModel for ROIs."""
 
     ROI_ROLE = Qt.ItemDataRole.UserRole + 1
+    VERTEX_ROLE = Qt.ItemDataRole.UserRole + 2
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -202,7 +237,7 @@ class QROIManager(QAbstractListModel):
         """Inserts `count` rows before the given row."""
         self.beginInsertRows(parent, row, row + count - 1)
         for _ in range(count):
-            self._rois.insert(row, PolygonROI())
+            self._rois.insert(row, ROI())
         self.endInsertRows()
         return True
 
@@ -223,7 +258,7 @@ class QROIManager(QAbstractListModel):
 
     def addROI(self, roi: ROI | None = None) -> ROI:
         """Adds a new ROI to the list."""
-        roi = roi or PolygonROI()
+        roi = roi or ROI()
         self.beginInsertRows(NULL_INDEX, len(self._rois), len(self._rois))
         self._rois.append(roi)
         self.endInsertRows()
@@ -267,11 +302,17 @@ class RoiPolygon(Compound):
 
         super().__init__([self._polygon, self._handles])
 
+    def update_vertices(self, vertices: np.ndarray) -> None:
+        """Update the vertices of the polygon."""
+        self._polygon.pos = vertices
+        self._handles.set_data(pos=vertices)
+
     def update_from_roi(self, roi: ROI) -> None:
-        self.pos = roi.vertices
         self._polygon.color = roi.fill_color
         self._polygon.border_color = roi.border_color
         self._polygon._border_width = roi.border_width
+
+        self.update_vertices(roi.vertices)
         self.set_selected(roi.selected)
 
     def set_selected(self, selected: bool) -> None:
@@ -279,11 +320,111 @@ class RoiPolygon(Compound):
         self._handles.visible = selected
 
 
+class CanvasEventFilter(QObject):
+    """A QObject that filters events for a canvas."""
+
+    def __init__(
+        self,
+        view: ViewBox,
+        roi_manager: QROIManager,
+        selection_model: QItemSelectionModel,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.view = view
+        self.roi_manager = roi_manager
+        self.selection_model = selection_model
+
+        self._drag_roi: ROI | None = None
+        self._drag_start: tuple[float, float] = (0.0, 0.0)
+
+    def canvas_to_world(self, point: QPointF) -> tuple[float, float]:
+        """Convert a point from canvas coordinates to world coordinates."""
+        return tuple(self.view.scene.transform.imap((point.x(), point.y()))[:2])
+
+    def _handle_mouse_press(self, event: QMouseEvent) -> bool:
+        if event.button() == Qt.MouseButton.LeftButton:
+            wp = self.canvas_to_world(event.position())
+
+            hits = self.roi_manager.pick_rois(wp)
+            self.selection_model.clearSelection()
+            if hits:
+                roi = next(iter(hits))
+                idx = self.roi_manager.index_of(roi)
+                self.selection_model.select(
+                    idx,
+                    QItemSelectionModel.SelectionFlag.ClearAndSelect,
+                )
+
+                self._drag_roi = roi
+                self._drag_start = wp
+                return True
+
+            # clicked empty space → no selection, let canvas pan
+            self._drag_roi = None
+        return False
+
+    def _handle_mouse_move(self, event: QMouseEvent) -> bool:
+        if event.buttons() & Qt.MouseButton.LeftButton:
+            if not self._drag_roi:
+                return False
+            wp = self.canvas_to_world(event.position())
+
+            # compute delta in world coords
+            dx = wp[0] - self._drag_start[0]
+            dy = wp[1] - self._drag_start[1]
+
+            # move the ROI data
+            self._drag_roi.translate(dx, dy)
+            self._drag_start = wp
+
+            # tell the model “this row changed”
+            # the dataChanged handler will update the visual
+            model = self.roi_manager
+            idx = model.index_of(self._drag_roi)
+            model.dataChanged.emit(idx, idx, [model.VERTEX_ROLE])
+            return True
+        return False
+
+    def _handle_mouse_release(self, event: QMouseEvent) -> bool:
+        if event.button() == Qt.MouseButton.LeftButton and self._drag_roi:
+            self._drag_roi = None
+            return True
+        return False
+
+    def _handle_key_press(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key.Key_Backspace:
+            # delete selected ROIs
+            if sel := self.selection_model.selectedIndexes():
+                rows = [index.row() for index in sel]
+                for row in sorted(rows, reverse=True):
+                    self.roi_manager.removeRows(row, 1)
+
+    def eventFilter(self, source: QObject | None, event: QEvent | None) -> bool:
+        if isinstance(event, QKeyEvent):
+            if event.type() == QEvent.Type.KeyPress and not event.isAutoRepeat():
+                self._handle_key_press(event)
+            # no key events ever get passed to vispy
+            event.ignore()
+            return True
+
+        if isinstance(event, QMouseEvent):
+            if event.type() == QEvent.Type.MouseButtonPress:
+                return self._handle_mouse_press(event)
+            if event.type() == QEvent.Type.MouseMove:
+                return self._handle_mouse_move(event)
+            if event.type() == QEvent.Type.MouseButtonRelease:
+                return self._handle_mouse_release(event)
+
+        return False
+
+
 class ROIScene(QWidget):
     def __init__(self, canvas: SceneCanvas, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("ROI Manager")
         self.setGeometry(100, 100, 800, 600)
+
         for child in canvas.central_widget.children:
             if isinstance(child, ViewBox):
                 self.view = child
@@ -291,28 +432,35 @@ class ROIScene(QWidget):
         else:
             self.view = canvas.central_widget.add_view(camera="panzoom")
 
+        self.roi_manager = QROIManager()
         self.roi_list = QListView()
         self.roi_list.setSelectionMode(QListView.SelectionMode.ExtendedSelection)
-        self.model = QROIManager()
-        self.roi_list.setModel(self.model)
+        self.roi_list.setModel(self.roi_manager)
+        self.roi_list.installEventFilter(self)
+        self._selection_model = cast(
+            "QItemSelectionModel", self.roi_list.selectionModel()
+        )
 
         self._canvas = canvas
-        canvas.native.installEventFilter(self)
-        self.roi_list.installEventFilter(self)
+        self._canvas_filter = CanvasEventFilter(
+            self.view, self.roi_manager, self._selection_model, self
+        )
+        canvas.native.installEventFilter(self._canvas_filter)
 
         self._roi_visuals: dict[ROI, RoiPolygon] = {}
+        self._drag_roi: ROI | None = None
+        self._drag_start_wp: tuple[float, float] | None = None
+
+        self.roi_manager.rowsInserted.connect(self._on_rows_inserted)
+        self.roi_manager.rowsAboutToBeRemoved.connect(self._on_rows_about_to_be_removed)
+        self.roi_manager.dataChanged.connect(self._on_data_changed)
+        self._selection_model.selectionChanged.connect(self._on_selection_changed)
+
+        # LAYOUT
 
         layout = QHBoxLayout(self)
         layout.addWidget(canvas.native)
         layout.addWidget(self.roi_list)
-
-        self.model.rowsInserted.connect(self._on_rows_inserted)
-        self.model.rowsAboutToBeRemoved.connect(self._on_rows_about_to_be_removed)
-        self.model.dataChanged.connect(self._on_data_changed)
-        self._selection_model = cast(
-            "QItemSelectionModel", self.roi_list.selectionModel()
-        )
-        self._selection_model.selectionChanged.connect(self._on_selection_changed)
 
     def canavs_to_world(self, point: QPointF) -> tuple[float, float]:
         """Convert a point from canvas coordinates to world coordinates."""
@@ -322,19 +470,6 @@ class ROIScene(QWidget):
         """Filter events for the ROI list."""
         if not event:
             return False
-
-        if isinstance(event, QMouseEvent):
-            if event.type() == QEvent.Type.MouseButtonPress:
-                # when the left mouse button is pressed, select the ROI
-                world_point = self.canavs_to_world(event.position())
-                self._selection_model.clearSelection()
-                for roi in self.model.pick_rois(world_point):
-                    self._selection_model.select(
-                        self.model.index_of(roi),
-                        QItemSelectionModel.SelectionFlag.Select
-                        | QItemSelectionModel.SelectionFlag.Rows,
-                    )
-                return True
 
         if isinstance(event, QKeyEvent):
             # when the delete key is pressed, remove the selected ROIs
@@ -358,7 +493,7 @@ class ROIScene(QWidget):
         if sel := self._selection_model.selectedIndexes():
             rows = [index.row() for index in sel]
             for row in sorted(rows, reverse=True):
-                self.model.removeRows(row, 1)
+                self.roi_manager.removeRows(row, 1)
 
     @property
     def _scene(self) -> SubScene:
@@ -374,33 +509,38 @@ class ROIScene(QWidget):
     ) -> None:
         # Remove the ROIs from the canvas
         for row in range(first, last + 1):
-            roi = self.model.index(row).internalPointer()
+            roi = self.roi_manager.index(row).internalPointer()
             self._remove_roi_from_canvas(roi)
 
     def _on_data_changed(
         self, top_left: QModelIndex, bottom_right: QModelIndex, roles: list[int]
     ) -> None:
+        if set(roles) == {self.roi_manager.VERTEX_ROLE}:
+            do_update = self._update_roi_vertices
+        else:
+            do_update = self._update_roi_visual
+
         # Update the ROI on the canvas
         for row in range(top_left.row(), bottom_right.row() + 1):
-            roi = self.model.index(row).internalPointer()
-            self._update_roi_visual(roi)
+            roi = self.roi_manager.index(row).internalPointer()
+            do_update(roi)
 
     def _on_selection_changed(
         self, selected: QItemSelection, deselected: QItemSelection
     ) -> None:
         for index in deselected.indexes():
-            roi = cast("ROI", self.model.index(index.row()).internalPointer())
+            roi = cast("ROI", self.roi_manager.index(index.row()).internalPointer())
             if visual := self._roi_visuals.get(roi):
                 visual.set_selected(False)
         for index in selected.indexes():
-            roi = cast("ROI", self.model.index(index.row()).internalPointer())
+            roi = cast("ROI", self.roi_manager.index(index.row()).internalPointer())
             if visual := self._roi_visuals.get(roi):
                 visual.set_selected(True)
 
     def _on_rows_inserted(self, parent: QModelIndex, first: int, last: int) -> None:
         # how do I actually add the new ROIs to the canvas here?
         for row in range(first, last + 1):
-            roi = self.model.index(row).internalPointer()
+            roi = self.roi_manager.index(row).internalPointer()
             self._add_roi_to_canvas(roi)
         self._reset_range()
 
@@ -415,9 +555,14 @@ class ROIScene(QWidget):
             visual.parent = None
 
     def _update_roi_visual(self, roi: ROI) -> None:
-        # Update the ROI visual already on the canvas
+        # Update the the full ROI visual already on the canvas
         if visual := self._roi_visuals.get(roi):
             visual.update_from_roi(roi)
+
+    def _update_roi_vertices(self, roi: ROI) -> None:
+        # Update the only vertices of the ROI visual
+        if visual := self._roi_visuals.get(roi):
+            visual.update_vertices(roi.vertices)
 
 
 if __name__ == "__main__":
@@ -435,6 +580,6 @@ if __name__ == "__main__":
             )
         else:
             npoints = np.random.randint(3, 7)
-            roi = PolygonROI(vertices=np.random.rand(npoints, 2) * 100)
-        scene.model.addROI(roi).text = f"ROI {i + 1}"
+            roi = ROI(vertices=np.random.rand(npoints, 2) * 100)
+        scene.roi_manager.addROI(roi).text = f"ROI {i + 1}"
     app.exec()
