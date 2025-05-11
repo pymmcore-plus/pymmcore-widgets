@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 from uuid import UUID, uuid4
 
 import numpy as np
@@ -16,8 +16,15 @@ from qtpy.QtCore import (
     QPointF,
     Qt,
 )
-from qtpy.QtGui import QCursor, QKeyEvent, QMouseEvent
-from qtpy.QtWidgets import QApplication, QHBoxLayout, QListView, QWidget
+from qtpy.QtGui import QActionGroup, QCursor, QKeyEvent, QMouseEvent
+from qtpy.QtWidgets import (
+    QApplication,
+    QHBoxLayout,
+    QListView,
+    QToolBar,
+    QVBoxLayout,
+    QWidget,
+)
 from vispy import color
 from vispy.scene import Compound, Markers, Polygon, SceneCanvas, ViewBox
 
@@ -177,7 +184,7 @@ class QROIManager(QAbstractListModel):
         """Return a dictionary of role names for the model."""
         roles = super().roleNames()
         roles[self.ROI_ROLE] = QByteArray(b"roi")
-        return roles
+        return roles  # type: ignore[no-any-return]
 
     def rowCount(self, parent: QModelIndex = NULL_INDEX) -> int:
         return len(self._rois)
@@ -347,7 +354,6 @@ class CanvasEventFilter(QObject):
     def __init__(self, parent: ROIScene) -> None:
         super().__init__(parent)
         self._scene_widget = parent
-        self.view = parent.view
         self.roi_manager = parent.roi_manager
         self.selection_model = parent._selection_model
 
@@ -375,14 +381,17 @@ class CanvasEventFilter(QObject):
             if event.type() == QEvent.Type.MouseMove:
                 if type(self._creating) is ROI:
                     self._handle_polygon_move(event)
-                elif event.buttons() == Qt.MouseButton.NoButton:
-                    return self._handle_mouse_hover(event, source)  # type: ignore
                 else:
                     return self._handle_mouse_move(event)
             if event.type() == QEvent.Type.MouseButtonRelease:
                 return self._handle_mouse_release(event)
 
         return False
+
+    def _handle_key_press(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key.Key_Backspace:
+            # delete selected ROIs
+            self._scene_widget._delete_selected_rois()
 
     def _handle_mouse_double_click(self, event: QMouseEvent) -> bool:
         if event.button() == Qt.MouseButton.LeftButton:
@@ -391,21 +400,6 @@ class CanvasEventFilter(QObject):
                 self._creating = None
                 return True
         return False
-
-    def _handle_polygon_move(self, event: QMouseEvent) -> bool:
-        if type(self._creating) is not ROI:
-            return False
-        wp = self._scene_widget.canvas_to_world(event.position())
-        # drag the last point only
-        self._creating.vertices[-1] = wp
-        idx = self.roi_manager.index_of(self._creating)
-        self.roi_manager.dataChanged.emit(idx, idx, [self.roi_manager.VERTEX_ROLE])
-        return True
-
-    def _handle_key_press(self, event: QKeyEvent) -> None:
-        if event.key() == Qt.Key.Key_Backspace:
-            # delete selected ROIs
-            self._scene_widget._delete_selected_rois()
 
     def _handle_mouse_press(self, event: QMouseEvent) -> bool:
         if event.button() != Qt.MouseButton.LeftButton:
@@ -420,7 +414,7 @@ class CanvasEventFilter(QObject):
 
         # 1) if alt is down and no ROIs at the clicked position
         #    then create a new rectangular ROI at the clicked position
-        if bool(event.modifiers() & Qt.KeyboardModifier.AltModifier) and not rois_at_wp:
+        if self._scene_widget.mode == "create-rect" and not rois_at_wp:
             # make a new rectangle ROI at the clicked position
             new_roi: ROI = RectangleROI(top_left=wp, bot_right=wp)
             self._creating = new_roi
@@ -433,20 +427,17 @@ class CanvasEventFilter(QObject):
         #    then create a new polygon ROI at the clicked position
         if type(self._creating) is ROI:
             self._add_polygon_vertex(wp)
-        else:
-            if (
-                bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
-                and not rois_at_wp
-            ):
-                self._creating = new_roi = ROI(vertices=np.array([wp]))
-                self._add_polygon_vertex(wp)
-                self.roi_manager.addROI(new_roi)
-                self._start_dragging(new_roi)
-                return True
+            return True
+        elif self._scene_widget.mode == "create-poly" and not rois_at_wp:
+            self._creating = new_roi = ROI(vertices=np.array([wp]))
+            self._add_polygon_vertex(wp)
+            self.roi_manager.addROI(new_roi)
+            self._start_dragging(new_roi)
+            return True
 
         # 2) if we've clicked on a vertex of an existing ROI
         #    then start a vertex-drag
-        if (vertex := self._vertex_under_pointer(event, rois_at_wp)) is not None:
+        if (vertex := self._vertex_under_pointer(sp, rois_at_wp)) is not None:
             roi, idx = vertex
             self._drag_vertex_idx = idx
             self._start_dragging(roi)
@@ -461,40 +452,37 @@ class CanvasEventFilter(QObject):
         self.selection_model.clearSelection()
         return False
 
-    def _add_polygon_vertex(self, wp: tuple[float, float]) -> None:
+    def _handle_polygon_move(self, event: QMouseEvent) -> bool:
         if type(self._creating) is not ROI:
-            return
-        self._creating.vertices = np.vstack([self._creating.vertices, wp])
+            return False
+        wp = self._scene_widget.canvas_to_world(event.position())
+        # drag the last point only
+        self._creating.vertices[-1] = wp
         idx = self.roi_manager.index_of(self._creating)
         self.roi_manager.dataChanged.emit(idx, idx, [self.roi_manager.VERTEX_ROLE])
+        return True
 
-    def _start_dragging(self, roi: ROI) -> None:
-        self._drag_roi = roi
-        self.selection_model.clearSelection()
-        self.selection_model.select(
-            self.roi_manager.index_of(roi),
-            QItemSelectionModel.SelectionFlag.ClearAndSelect,
-        )
-
-    def _vertex_under_pointer(
-        self, event: QMouseEvent, rois: Sequence[ROI] | None = None
-    ) -> tuple[ROI, int] | None:
-        """Return the index of the vertex under the pointer, or None."""
-        for roi in rois or self.roi_manager._rois:
-            if (vertex_idx := self._find_vertex(event.position(), roi)) is not None:
-                return roi, vertex_idx
-        return None
-
-    def _handle_mouse_hover(self, event: QMouseEvent, source: QWidget) -> bool:
+    def _update_cursor(self, point: QPointF) -> None:
         # check for handle under pointer
-        if self._vertex_under_pointer(event) is not None:
-            source.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
+        wp = self._scene_widget.canvas_to_world(point)
+        rois_at_wp = self.roi_manager.pick_rois(wp)
+        if self._scene_widget.mode == "create-poly":
+            self._scene_widget.setCursor(QCursor(Qt.CursorShape.CrossCursor))
+        elif self._vertex_under_pointer(point, rois_at_wp) is not None:
+            self._scene_widget.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
+        elif rois_at_wp and self._drag_roi is None:
+            self._scene_widget.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
         else:
-            source.unsetCursor()
-        return False
+            self._scene_widget.unsetCursor()
 
     def _handle_mouse_move(self, event: QMouseEvent) -> bool:
-        if event.buttons() & Qt.MouseButton.LeftButton and self._drag_roi:
+        btns = event.buttons()
+        if btns == Qt.MouseButton.NoButton:
+            # just hovering
+            self._update_cursor(event.position())
+            return False
+
+        if btns & Qt.MouseButton.LeftButton and self._drag_roi:
             wp = self._scene_widget.canvas_to_world(event.position())
             dx = wp[0] - self._drag_start[0]
             dy = wp[1] - self._drag_start[1]
@@ -516,13 +504,41 @@ class CanvasEventFilter(QObject):
     def _handle_mouse_release(self, event: QMouseEvent) -> bool:
         if event.button() != Qt.MouseButton.LeftButton:
             return False
-        if type(self._creating) is ROI:
-            ...
-        else:
+        if type(self._creating) is not ROI:
             self._creating = None
+            self._scene_widget.mode = "select"
             self._drag_roi = None
             self._drag_vertex_idx = None
+            self._update_cursor(event.position())
         return False
+
+    def _add_polygon_vertex(self, wp: tuple[float, float]) -> None:
+        if type(self._creating) is not ROI:
+            return
+        self._creating.vertices = np.vstack([self._creating.vertices, wp])
+        idx = self.roi_manager.index_of(self._creating)
+        self.roi_manager.dataChanged.emit(idx, idx, [self.roi_manager.VERTEX_ROLE])
+
+    def _start_dragging(self, roi: ROI) -> None:
+        self._drag_roi = roi
+        if type(self._creating) is ROI:
+            self._scene_widget.setCursor(QCursor(Qt.CursorShape.CrossCursor))
+        elif self._drag_vertex_idx is None:
+            self._scene_widget.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
+        self.selection_model.clearSelection()
+        self.selection_model.select(
+            self.roi_manager.index_of(roi),
+            QItemSelectionModel.SelectionFlag.ClearAndSelect,
+        )
+
+    def _vertex_under_pointer(
+        self, point: QPointF, rois: Sequence[ROI] | None = None
+    ) -> tuple[ROI, int] | None:
+        """Return the index of the vertex under the pointer, or None."""
+        for roi in rois or self.roi_manager._rois:
+            if (vertex_idx := self._find_vertex(point, roi)) is not None:
+                return roi, vertex_idx
+        return None
 
     def _find_vertex(self, sp: QPointF, roi: ROI) -> int | None:
         """Return index of roi vertex under screen-pos `sp`, or None."""
@@ -530,7 +546,7 @@ class CanvasEventFilter(QObject):
         # rather than converting the point to world... this avoids issues with zoom
         data = roi.vertices  # shape (N,2)
         pts = np.column_stack([data, np.zeros(len(data))])
-        screen_vertices = self.view.scene.transform.map(pts)[:, :2]
+        screen_vertices = self._scene_widget.view.scene.transform.map(pts)[:, :2]
 
         # find the closest vertex to the screen position
         d2 = np.sum((screen_vertices - np.array([sp.x(), sp.y()])) ** 2, axis=1)
@@ -546,16 +562,10 @@ class ROIScene(QWidget):
         self.setWindowTitle("ROI Manager")
         self.setGeometry(100, 100, 800, 600)
 
-        # create a viewbox if one doesn't exist
-        for child in canvas.central_widget.children:
-            if isinstance(child, ViewBox):
-                self.view = child
-                break
-        else:
-            self.view = canvas.central_widget.add_view(camera="panzoom")
+        self._mode: Literal["select", "create-rect", "create-poly"] = "select"
+        self._roi_visuals: dict[ROI, RoiPolygon] = {}
 
         self.roi_manager = QROIManager()
-
         self.roi_list = QListView()
         self.roi_list.setModel(self.roi_manager)
         self.roi_list.setSelectionMode(QListView.SelectionMode.ExtendedSelection)
@@ -564,22 +574,65 @@ class ROIScene(QWidget):
             "QItemSelectionModel", self.roi_list.selectionModel()
         )
 
+        toolbar = QToolBar()
+        self._mode_actions = QActionGroup(self)
+        # make three toggle-actions
+        for title, shortcut, _mode in [
+            ("Select", "v", "select"),
+            ("Rectangle", "r", "create-rect"),
+            ("Polygon", "p", "create-poly"),
+        ]:
+            act = self._mode_actions.addAction(title)
+            act.setShortcut(shortcut)
+            act.setCheckable(True)
+            act.setChecked(_mode == self.mode)
+            act.triggered.connect(lambda _, m=_mode: setattr(self, "_mode", m))
+            toolbar.addAction(act)
+
+        # prepare canvas and view
         self._canvas = canvas
+        # create a viewbox if one doesn't exist
+        for child in canvas.central_widget.children:
+            if isinstance(child, ViewBox):
+                self.view: ViewBox = child
+                break
+        else:
+            self.view = canvas.central_widget.add_view(camera="panzoom")
         self._canvas_filter = CanvasEventFilter(self)
         canvas.native.installEventFilter(self._canvas_filter)
 
-        self._roi_visuals: dict[ROI, RoiPolygon] = {}
+        # LAYOUT
+
+        layout = QHBoxLayout(self)
+        left = QVBoxLayout()
+        left.addWidget(toolbar)
+        left.addWidget(canvas.native)
+        layout.addLayout(left)
+        layout.addWidget(self.roi_list)
+
+        # SIGNALS
 
         self.roi_manager.rowsInserted.connect(self._on_rows_inserted)
         self.roi_manager.rowsAboutToBeRemoved.connect(self._on_rows_about_to_be_removed)
         self.roi_manager.dataChanged.connect(self._on_data_changed)
         self._selection_model.selectionChanged.connect(self._on_selection_changed)
 
-        # LAYOUT
+    @property
+    def mode(self) -> Literal["select", "create-rect", "create-poly"]:
+        """Return the current mode of the ROI manager."""
+        return self._mode
 
-        layout = QHBoxLayout(self)
-        layout.addWidget(canvas.native)
-        layout.addWidget(self.roi_list)
+    @mode.setter
+    def mode(self, mode: Literal["select", "create-rect", "create-poly"]) -> None:
+        self._mode = mode
+        # keep toolbar in sync
+        action_names = {
+            "select": "Select",
+            "create-rect": "Rectangle",
+            "create-poly": "Polygon",
+        }
+        for action in self._mode_actions.actions():
+            action.setChecked(action.text() == action_names[mode])
 
     def canvas_to_world(self, point: QPointF) -> tuple[float, float]:
         """Convert a point from canvas coordinates to world coordinates."""
@@ -605,7 +658,7 @@ class ROIScene(QWidget):
                 event.ignore()
                 return True
 
-        return super().eventFilter(source, event)
+        return False
 
     def selected_rois(self) -> list[ROI]:
         """Return a list of selected ROIs."""
