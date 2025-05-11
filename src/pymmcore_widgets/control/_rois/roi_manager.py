@@ -24,15 +24,53 @@ from qtpy.QtWidgets import (
 )
 from vispy.scene import SceneCanvas, ViewBox
 
-from pymmcore_widgets.control._rois._vispy import RoiPolygon
-from pymmcore_widgets.control._rois.canvas_event_filter import CanvasEventFilter
-from pymmcore_widgets.control._rois.model import ROI, RectangleROI
-from pymmcore_widgets.control._rois.q_roi_manager import QROIModel
+from ._vispy import RoiPolygon
+from .canvas_event_filter import CanvasEventFilter
+from .q_roi_model import QROIModel
+from .roi_model import ROI, RectangleROI
 
 if TYPE_CHECKING:
     from PyQt6.QtGui import QActionGroup
 else:
     from qtpy.QtGui import QActionGroup
+
+
+# class _RoiCommand(QUndoCommand):
+#     def __init__(self, manager: ROIManager, roi: ROIRectangle) -> None:
+#         super().__init__("Add ROI")
+#         self._manager = manager
+#         self._roi = roi
+
+
+# class InsertRoiCommand(_RoiCommand):
+#     def undo(self) -> None:
+#         self._manager._remove(self._roi)
+
+#     def redo(self) -> None:
+#         self._manager._add(self._roi)
+
+
+# class DeleteRoiCommand(_RoiCommand):
+#     def undo(self) -> None:
+#         self._manager._add(self._roi)
+
+#     def redo(self) -> None:
+#         self._manager._remove(self._roi)
+
+
+# class ClearRoisCommand(QUndoCommand):
+#     def __init__(self, manager: ROIManager) -> None:
+#         super().__init__("Clear ROIs")
+#         self._manager = manager
+#         self._rois = set(self._manager.rois)
+
+#     def undo(self) -> None:
+#         for roi in self._rois:
+#             self._manager._add(roi)
+
+#     def redo(self) -> None:
+#         for roi in self._rois:
+#             self._manager._remove(roi)
 
 
 class SceneROIManager(QObject):
@@ -47,6 +85,19 @@ class SceneROIManager(QObject):
 
         self.roi_model = QROIModel()
         self.selection_model = QItemSelectionModel(self.roi_model)
+        self.mode_actions = QActionGroup(self)
+        # make three toggle-actions
+        for title, shortcut, _mode in [
+            ("Select", "v", "select"),
+            ("Rectangle", "r", "create-rect"),
+            ("Polygon", "p", "create-poly"),
+        ]:
+            if act := self.mode_actions.addAction(title):
+                act.setCheckable(True)
+                act.setChecked(_mode == self._mode)
+                act.setShortcut(shortcut)
+                act.setData(_mode)
+                act.triggered.connect(lambda _, m=_mode: setattr(self, "mode", m))
 
         # prepare canvas and view
         self._canvas = canvas
@@ -90,7 +141,12 @@ class SceneROIManager(QObject):
 
     @mode.setter
     def mode(self, mode: Literal["select", "create-rect", "create-poly"]) -> None:
+        if mode not in {"select", "create-rect", "create-poly"}:
+            raise ValueError(f"Invalid mode: {mode}")
         before, self._mode = self._mode, mode
+        # update the action group
+        for action in self.mode_actions.actions():
+            action.setChecked(action.data() == mode)
         if before != mode:
             self.modeChanged.emit(mode)
 
@@ -108,6 +164,10 @@ class SceneROIManager(QObject):
         """Delete the selected ROIs from the model."""
         for roi in self.selected_rois():
             self.roi_model.removeROI(roi)
+
+    def clear(self) -> None:
+        """Clear all ROIs from the model."""
+        self.roi_model.clear()
 
     def _on_rows_about_to_be_removed(
         self, parent: QModelIndex, first: int, last: int
@@ -182,21 +242,7 @@ class ROIScene(QWidget):
         self.roi_list.installEventFilter(self)
 
         toolbar = QToolBar()
-        self._mode_actions = QActionGroup(self)
-        # make three toggle-actions
-        for title, shortcut, _mode in [
-            ("Select", "v", "select"),
-            ("Rectangle", "r", "create-rect"),
-            ("Polygon", "p", "create-poly"),
-        ]:
-            if act := self._mode_actions.addAction(title):
-                act.setShortcut(shortcut)
-                act.setCheckable(True)
-                act.setChecked(_mode == self.roi_manager.mode)
-                act.triggered.connect(
-                    lambda _, m=_mode: setattr(self.roi_manager, "mode", m)
-                )
-                toolbar.addAction(act)
+        toolbar.addActions(self.roi_manager.mode_actions.actions())
 
         # LAYOUT
 
@@ -206,20 +252,6 @@ class ROIScene(QWidget):
         left.addWidget(canvas.native)
         layout.addLayout(left)
         layout.addWidget(self.roi_list)
-
-        self.roi_manager.modeChanged.connect(self._on_mode_changed)
-
-    def _on_mode_changed(
-        self, mode: Literal["select", "create-rect", "create-poly"]
-    ) -> None:
-        # keep toolbar in sync
-        action_names = {
-            "select": "Select",
-            "create-rect": "Rectangle",
-            "create-poly": "Polygon",
-        }
-        for action in self._mode_actions.actions():
-            action.setChecked(action.text() == action_names[mode])
 
     def eventFilter(self, source: QObject | None, event: QEvent | None) -> bool:
         """Filter events for the ROI list."""

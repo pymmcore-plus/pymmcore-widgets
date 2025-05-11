@@ -3,6 +3,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import numpy as np
+import useq
 
 
 @dataclass(eq=False)
@@ -36,10 +37,18 @@ class ROI:
         return hash(self._uuid)
 
     def bbox(self) -> tuple[float, float, float, float]:
-        """Return the bounding box of this ROI."""
+        """Return the bounding box of this ROI.
+
+        left, top, right, bottom
+        """
         (x0, y0) = self.vertices.min(axis=0)
         (x1, y1) = self.vertices.max(axis=0)
         return float(x0), float(y0), float(x1), float(y1)
+
+    def center(self) -> tuple[float, float]:
+        """Return the center of this ROI."""
+        x0, y0, x1, y1 = self.bbox()
+        return (x0 + x1) / 2, (y0 + y1) / 2
 
     def contains(self, point: tuple[float, float]) -> bool:
         """Return True if `point` lies inside this ROI."""
@@ -70,6 +79,43 @@ class ROI:
         if not (0 <= idx < len(self.vertices)):
             raise IndexError("Vertex index out of range")
         self.vertices[idx] += np.array([dx, dy], dtype=self.vertices.dtype)
+
+    def create_useq_position(
+        self, fov_w: float, fov_h: float, z_pos: float
+    ) -> useq.AbsolutePosition:
+        """Return a useq.AbsolutePosition object that covers the ROI."""
+        if type(self) is not RectangleROI:
+            raise NotImplementedError(
+                "create_useq_position() only works for RectangleROI"
+            )
+
+        left, top, right, bottom = self.bbox()
+        x, y = self.center()
+        pos = useq.AbsolutePosition(x=x, y=y, z=z_pos)
+
+        # if the width and the height of the roi are smaller than the fov width and
+        # a single position at the center of the roi is sufficient, otherwise create a
+        # grid plan that covers the roi
+        if abs(right - left) > fov_w or abs(bottom - top) > fov_h:
+            # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
+            # bottom_right corners respectively because the grid plan is created
+            # considering the center of the fov and we want the roi to define the edges
+            # of the grid plan.
+            pos = pos.model_copy(
+                update={
+                    "sequence": useq.MDASequence(
+                        grid_plan=useq.GridFromEdges(
+                            top=top - fov_h / 2,
+                            bottom=bottom + fov_h / 2,
+                            left=left + fov_w / 2,
+                            right=right - fov_w / 2,
+                            fov_width=fov_w,
+                            fov_height=fov_h,
+                        )
+                    )
+                }
+            )
+        return pos
 
 
 @dataclass(eq=False)

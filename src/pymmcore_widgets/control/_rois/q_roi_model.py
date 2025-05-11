@@ -4,7 +4,7 @@ from typing import Any
 
 from qtpy.QtCore import QAbstractListModel, QByteArray, QModelIndex, QObject, Qt
 
-from pymmcore_widgets.control._rois.model import ROI
+from pymmcore_widgets.control._rois.roi_model import ROI
 
 NULL_INDEX = QModelIndex()
 
@@ -38,6 +38,8 @@ class QROIModel(QAbstractListModel):
             return roi.text
         elif role == self.ROI_ROLE:
             return roi
+        elif role == self.VERTEX_ROLE:
+            return roi.vertices
         else:
             return None
 
@@ -143,6 +145,14 @@ class QROIModel(QAbstractListModel):
                 break
         else:
             raise ValueError("ROI not found in list")
+
+    def clear(self) -> None:
+        """Clears the list of ROIs."""
+        n = self.rowCount()
+        if n > 0:
+            self.beginRemoveRows(QModelIndex(), 0, n - 1)
+            self._rois.clear()
+            self.endRemoveRows()
 
     def pick_rois(self, point: tuple[float, float]) -> list[ROI]:
         """Return a list of ROIs that contain the given point."""

@@ -7,7 +7,7 @@ from vispy import color
 from vispy.scene import Compound, Markers, Polygon
 
 if TYPE_CHECKING:
-    from .model import ROI
+    from .roi_model import ROI
 
 
 class RoiPolygon(Compound):
@@ -31,6 +31,7 @@ class RoiPolygon(Compound):
         self._handles.visible = roi.selected
 
         super().__init__([self._polygon, self._handles])
+        self.set_gl_state(depth_test=False)
 
     def update_vertices(self, vertices: np.ndarray) -> None:
         """Update the vertices of the polygon."""

@@ -6,14 +6,14 @@ import numpy as np
 from qtpy.QtCore import QEvent, QObject, QPointF, Qt
 from qtpy.QtGui import QCursor, QKeyEvent, QMouseEvent
 
-from pymmcore_widgets.control._rois.model import ROI, RectangleROI
+from pymmcore_widgets.control._rois.roi_model import ROI, RectangleROI
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from qtpy.QtWidgets import QWidget
 
-    from pymmcore_widgets.control._rois.roi_scene import SceneROIManager
+    from pymmcore_widgets.control._rois.roi_manager import SceneROIManager
 
 
 class CanvasEventFilter(QObject):
