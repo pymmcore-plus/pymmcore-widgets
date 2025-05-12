@@ -59,12 +59,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
 
-      - run: uv sync --no-dev --group test --extra ${{ matrix.backend }}
-
+      - uses: pymmcore-plus/setup-mm-test-adapters@main
       - uses: pyvista/setup-headless-display-action@v4
 
-      - name: Install Micro-Manager
-        run: uv run mmcore install
+      - name: Install dependencies
+        run: uv sync --no-dev --group test --extra ${{ matrix.backend }}
 
       - name: Test
         run: uv run coverage run -p -m pytest -v --color=yes
@@ -103,15 +102,13 @@ jobs:
         with:
           enable-cache: true
 
+      - uses: pymmcore-plus/setup-mm-test-adapters@main
       - uses: pyvista/setup-headless-display-action@v4
 
       - name: Install dependencies
         run: |
           uv sync
           uv pip install ./pymmcore-widgets
-
-      - name: Install Micro-Manager
-        run: uv run mmcore install
 
       - name: Run pymmcore-gui tests
         run: uv run pytest -v --color=yes -W ignore
@@ -135,6 +132,7 @@ jobs:
         with:
           python-version: "3.11"
 
+      - uses: pymmcore-plus/setup-mm-test-adapters@main
       - uses: pyvista/setup-headless-display-action@v4
 
       - name: Install dependencies
@@ -142,9 +140,6 @@ jobs:
           python -m pip install -U pip
           python -m pip install -e ./pymmcore-widgets[PyQt5]
           python -m pip install -e ./napari-micromanager[test]
-
-      - name: Install Micro-Manager
-        run: mmcore install
 
       - name: Run napari-micromanager tests
         run: python -m pytest -v --color=yes -W ignore
