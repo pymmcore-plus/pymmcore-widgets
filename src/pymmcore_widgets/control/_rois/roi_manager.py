@@ -283,6 +283,7 @@ if __name__ == "__main__":
             roi: ROI = RectangleROI(
                 top_left=(min(x1, x2), min(y1, y2)),
                 bot_right=(max(x1, x2), max(y1, y2)),
+                fov_size=(20, 20),
             )
         else:
             npoints = np.random.randint(3, 7)

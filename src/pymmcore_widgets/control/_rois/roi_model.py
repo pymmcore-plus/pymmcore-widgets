@@ -19,6 +19,9 @@ class ROI:
     font_color: str = "yellow"
     font_size: int = 12
 
+    fov_size: tuple[float, float] | None = (400, 600)  # (width, height)
+    fov_overlap: tuple[float, float] | None = None  # frac (width, height) 0..1
+
     def translate(self, dx: float, dy: float) -> None:
         """Translate the ROI in place by (dx, dy)."""
         self.vertices = self.vertices + np.array([dx, dy], dtype=self.vertices.dtype)
@@ -81,20 +84,25 @@ class ROI:
         self.vertices[idx] += np.array([dx, dy], dtype=self.vertices.dtype)
 
     def create_useq_position(
-        self, fov_w: float, fov_h: float, z_pos: float
+        self,
+        fov_w: float | None = None,
+        fov_h: float | None = None,
+        z_pos: float = 0.0,
     ) -> useq.AbsolutePosition:
         """Return a useq.AbsolutePosition object that covers the ROI."""
         if type(self) is not RectangleROI:
             raise NotImplementedError(
                 "create_useq_position() only works for RectangleROI"
             )
+        if fov_w is None or fov_h is None:
+            if self.fov_size is None:
+                raise ValueError("fov_size must be set or fov_w and fov_h must be set")
+            fov_w, fov_h = self.fov_size
 
         left, top, right, bottom = self.bbox()
         x, y = self.center()
         pos = useq.AbsolutePosition(x=x, y=y, z=z_pos)
-        from rich import print
 
-        print(self.vertices, pos, (x, y), (fov_h, fov_w))
         # if the width and the height of the roi are smaller than the fov width and
         # a single position at the center of the roi is sufficient, otherwise create a
         # grid plan that covers the roi
@@ -107,10 +115,10 @@ class ROI:
                 update={
                     "sequence": useq.MDASequence(
                         grid_plan=useq.GridFromEdges(
-                            top=top - fov_h / 2,
-                            bottom=bottom + fov_h / 2,
-                            left=left + fov_w / 2,
-                            right=right - fov_w / 2,
+                            top=top,
+                            bottom=bottom,
+                            left=left,
+                            right=right,
                             fov_width=fov_w,
                             fov_height=fov_h,
                         )
