@@ -1,67 +1,167 @@
 from __future__ import annotations
 
+import os
+from collections import deque
+from typing import TYPE_CHECKING
+
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QTimer
+from qtpy.QtCore import QFileSystemWatcher, QObject, QThread, QTimer, QUrl, Signal
+from qtpy.QtGui import QCloseEvent, QDesktopServices, QFontDatabase, QPalette
 from qtpy.QtWidgets import (
-    QLineEdit,
-    QTextEdit,
+    QApplication,
+    QHBoxLayout,
+    QPlainTextEdit,
+    QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
+from superqt import QElidingLabel, QIconifyIcon
+
+if TYPE_CHECKING:
+    from io import TextIOWrapper
+
+
+class LogReader(QObject):
+    """Watches a log file and emits new lines as they arrive."""
+
+    new_lines: Signal = Signal(str)
+    finished: Signal = Signal()
+
+    def __init__(
+        self,
+        path: str,
+        interval: int = 200,
+        parent: QObject | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._path = path
+        self._interval = interval
+        self._file: TextIOWrapper | None = None
+
+        # Timer for periodic reads
+        self._timer = QTimer(self)
+        self._timer.setInterval(self._interval)
+        self._timer.timeout.connect(self._read_new)
+
+        # Watcher for rotation/truncate events
+        self._watcher = QFileSystemWatcher(self)
+        self._watcher.addPath(self._path)
+        self._watcher.fileChanged.connect(self._on_file_changed)
+
+    def start(self) -> None:
+        """Open the file and start polling."""
+        self._file = open(self._path, encoding="utf-8", errors="replace")
+        self._file.seek(0, os.SEEK_END)
+        self._timer.start()
+
+    def stop(self) -> None:
+        """Stop polling and close the file."""
+        self._timer.stop()
+        if self._file:
+            self._file.close()
+        self.finished.emit()
+
+    def _on_file_changed(self, path: str) -> None:
+        """Handle log rotation or truncation."""
+        try:
+            real_size = os.path.getsize(path)
+            current_pos = self._file.tell() if self._file else 0
+            if real_size < current_pos:
+                # rotated or truncated
+                if self._file:
+                    self._file.close()
+                self._file = open(self._path, encoding="utf-8", errors="replace")
+            self._read_new()
+        except Exception:
+            pass
+
+    def _read_new(self) -> None:
+        """Read and emit any new lines."""
+        if not self._file:
+            return
+        for line in self._file:
+            self.new_lines.emit(line.rstrip("\n"))
 
 
 class CoreLogWidget(QWidget):
-    """A widget that displays the current Micro-Manager Core Log."""
+    """High-performance log console with pause, follow-tail, clear, and initial load."""
 
     def __init__(
-        self, *, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
+        self,
+        path: str | None = None,
+        max_lines: int = 5_000,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent)
-        self._mmc = mmcore or CMMCorePlus().instance()
-        self._path = self._mmc.getPrimaryLogFile()
-        self._file = open(self._path)
-        self._last_max = 0
+        self._mmcore = mmcore or CMMCorePlus().instance()
+        self.setWindowTitle("Log Console")
 
-        self._layout = QVBoxLayout(self)
+        # --- Log path ---
+        self._log_path = QElidingLabel()
+        self._log_path.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+        )
 
-        self._log_path = QLineEdit()
-        self._log_path.setText(self._path)
-        self._log_path.setReadOnly(True)
+        self._log_btn = QPushButton()
+        color = QApplication.palette().color(QPalette.ColorRole.WindowText).name()
+        self._log_btn.setIcon(QIconifyIcon("majesticons:open", color=color))
 
-        self._text_area = QTextEdit()
-        self._text_area.setReadOnly(True)
-        if sb := self._text_area.verticalScrollBar():
-            sb.rangeChanged.connect(self._auto_scroll)
+        # --- Log view ---
+        self._log_view = QPlainTextEdit(self)
+        self._log_view.setReadOnly(True)
+        self._log_view.setMaximumBlockCount(max_lines)
+        self._log_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        # Monospaced font
+        fixed_font = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+        fixed_font.setPixelSize(12)
+        self._log_view.setFont(fixed_font)
 
-        font = self._text_area.font()
-        font.setFamily("Courier")
-        self._text_area.setFont(font)
+        path = path or self._mmcore.getPrimaryLogFile()
+        self._log_path.setText(path)
+        # Load the last `max_lines` from file
+        try:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                for line in deque(f, maxlen=max_lines):
+                    self._log_view.appendPlainText(line.rstrip("\n"))
+        except Exception:
+            pass
 
-        self._layout.addWidget(self._log_path)
-        self._layout.addWidget(self._text_area)
+        # --- Reader thread setup ---
+        self._reader = LogReader(path)
+        self._thread = QThread(self)
+        self._reader.moveToThread(self._thread)
+        self._thread.started.connect(self._reader.start)
+        self._reader.finished.connect(self._thread.quit)
 
-        # Initialize with the current core log content
-        self._update()
-        # Begin polling for file changes
-        self._update_timer = QTimer(self)
-        self._update_timer.timeout.connect(self._update)
-        self._update_timer.start(100)
+        # --- Layout ---
+        file_layout = QHBoxLayout()
+        file_layout.setContentsMargins(5, 5, 5, 0)
+        file_layout.addWidget(self._log_path)
+        file_layout.addWidget(self._log_btn)
 
-    def __del__(self) -> None:
-        self._file.close()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addLayout(file_layout)
+        layout.addWidget(self._log_view)
+        self.setLayout(layout)
 
-    def _update(self) -> None:
-        """Check if the file has new content and update the display."""
-        new_lines = "".join(self._file.readlines())
-        if not new_lines:
-            return
-        self._text_area.append(new_lines.strip())
+        # --- Connections ---
+        self._reader.new_lines.connect(self._append_line)
+        self._log_btn.clicked.connect(self._open_native)
+        self._thread.start()
 
-    def _auto_scroll(self, min: int, max: int) -> None:
-        """Stays at the bottom of the scroll area when already there."""
-        sb = self._text_area.verticalScrollBar()
-        if sb is None:
-            return
-        if sb.value() == self._last_max:
-            sb.setValue(max)
-        self._last_max = max
+    def _append_line(self, line: str) -> None:
+        """Append a line, respecting pause/follow settings."""
+        self._log_view.appendPlainText(line)
+
+    def closeEvent(self, event: QCloseEvent | None) -> None:
+        """Clean up thread on close."""
+        self._reader.stop()
+        self._thread.wait()
+        super().closeEvent(event)
+
+    def _open_native(self) -> None:
+        """Open the log file in the system's default text editor."""
+        QDesktopServices.openUrl(QUrl.fromLocalFile(self._mmcore.getPrimaryLogFile()))
