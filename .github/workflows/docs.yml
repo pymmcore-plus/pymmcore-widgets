@@ -18,13 +18,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-        with:
-          python-version: 3.13
+      - uses: pymmcore-plus/setup-mm-test-adapters@main
 
       - name: Install dependencies
-        run: |
-          uv sync --no-dev --group docs --extra PyQt6
-          uv run mmcore install
+        run: uv sync --no-dev --group docs --extra PyQt6
 
       - name: Test docs
         if: github.event_name == 'pull_request'
