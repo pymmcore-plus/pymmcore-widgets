@@ -92,7 +92,9 @@ class ROI:
         left, top, right, bottom = self.bbox()
         x, y = self.center()
         pos = useq.AbsolutePosition(x=x, y=y, z=z_pos)
+        from rich import print
 
+        print(self.vertices, pos, (x, y), (fov_h, fov_w))
         # if the width and the height of the roi are smaller than the fov width and
         # a single position at the center of the roi is sufficient, otherwise create a
         # grid plan that covers the roi

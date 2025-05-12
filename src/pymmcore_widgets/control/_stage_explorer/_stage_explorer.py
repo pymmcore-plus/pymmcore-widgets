@@ -216,7 +216,7 @@ class StageExplorer(QWidget):
         # update checked state of the actions
         self._on_poll_stage_action(self._poll_stage_position)
         self._on_snap_action(self._snap_on_double_click)
-        self._actions[SCAN].setEnabled(False)
+        # self._actions[SCAN].setEnabled(False)
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
