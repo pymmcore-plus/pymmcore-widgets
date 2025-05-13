@@ -23,7 +23,13 @@ class GridFromPolygon(useq._grid._GridPlan[useq.AbsolutePosition]):
 
     def num_positions(self) -> int:
         """Return the number of positions in the grid."""
-        return len(self._cached_tiles(fov=(1, 1), overlap=(0, 0)))
+        if self.fov_width is None or self.fov_height is None:
+            raise ValueError("fov_width and fov_height must be set")
+        return len(
+            self._cached_tiles(
+                fov=(self.fov_width, self.fov_height), overlap=self.overlap
+            )
+        )
 
     def iter_grid_positions(
         self,
@@ -72,6 +78,7 @@ class GridFromPolygon(useq._grid._GridPlan[useq.AbsolutePosition]):
         # Compute grid spacing and half-extents
         mode = useq.OrderMode(order) if order is not None else self.mode
         key = (fov, overlap, mode)
+
         if key not in self._poly_cache:
             w, h = fov
             dx = w * (1 - overlap[0])
@@ -117,7 +124,7 @@ class ROI:
     font_color: str = "yellow"
     font_size: int = 12
 
-    fov_size: tuple[float, float] | None = (400, 600)  # (width, height)
+    fov_size: tuple[float, float] | None = None  # (width, height)
     fov_overlap: tuple[float, float] | None = None  # frac (width, height) 0..1
 
     def translate(self, dx: float, dy: float) -> None:

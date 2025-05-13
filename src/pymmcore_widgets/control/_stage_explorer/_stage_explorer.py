@@ -28,7 +28,7 @@ from ._stage_position_marker import StagePositionMarker
 from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 
 if TYPE_CHECKING:
-    from PyQt6.QtGui import QAction, QActionGroup
+    from PyQt6.QtGui import QAction, QActionGroup, QKeyEvent
     from qtpy.QtCore import QTimerEvent
     from vispy.app.canvas import MouseEvent
     from vispy.scene.visuals import VisualNode
@@ -140,6 +140,7 @@ class StageExplorer(QWidget):
         self.setWindowTitle("Stage Explorer")
 
         self._mmc = mmcore or CMMCorePlus.instance()
+        self._mmc.events.roiSet.connect(self._on_roi_changed)
 
         device = self._mmc.getXYStageDevice()
         self._stage_controller = QStageMoveAccumulator.for_device(device, self._mmc)
@@ -245,6 +246,7 @@ class StageExplorer(QWidget):
         )
 
         self._on_sys_config_loaded()
+        self._on_roi_changed()
 
     # -----------------------------PUBLIC METHODS-------------------------------------
 
@@ -319,6 +321,14 @@ class StageExplorer(QWidget):
 
     # ACTIONS ----------------------------------------------------------------------
 
+    def _on_roi_changed(self) -> None:
+        """Update the ROI manager when a new ROI is set."""
+        fov_w, fov_h, z_pos = self._fov_w_h_z_pos()
+        self.roi_manager.update_fovs((fov_w, fov_h))
+        # create stage marker if not yet present
+        if (mk := self._stage_pos_marker) is not None:
+            mk.set_rect_size(fov_w, fov_h)
+
     def _on_snap_action(self, checked: bool) -> None:
         """Update the stage viewer settings based on the state of the action."""
         self.snap_on_double_click = checked
@@ -374,12 +384,21 @@ class StageExplorer(QWidget):
             return
         active_roi = active_rois[0]
         fov_w, fov_h, z_pos = self._fov_w_h_z_pos()
-        pos = active_roi.create_useq_position(fov_w=fov_w, fov_h=fov_h, z_pos=z_pos)
-        seq = useq.MDASequence(stage_positions=[pos])
+        if plan := active_roi.create_grid_plan(fov_w=fov_w, fov_h=fov_h):
+            seq = useq.MDASequence(stage_positions=list(plan))
 
-        if not self._mmc.mda.is_running():
-            self._our_mda_running = True
-            self._mmc.run_mda(seq)
+            if not self._mmc.mda.is_running():
+                self._our_mda_running = True
+                self._mmc.run_mda(seq)
+
+    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
+        if a0 is None:
+            return
+        if a0.key() == Qt.Key.Key_Escape:
+            if self._our_mda_running:
+                self._mmc.mda.cancel()
+                self._our_mda_running = False
+        super().keyPressEvent(a0)
 
     # CORE ------------------------------------------------------------------------
 

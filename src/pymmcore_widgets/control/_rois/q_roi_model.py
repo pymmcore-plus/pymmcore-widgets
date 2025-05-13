@@ -157,3 +157,8 @@ class QROIModel(QAbstractListModel):
     def pick_rois(self, point: tuple[float, float]) -> list[ROI]:
         """Return a list of ROIs that contain the given point."""
         return [roi for roi in self._rois if roi.contains(point)]
+
+    def emitDataChange(self, roi: ROI, roles: list[int] | None = None) -> None:
+        """Emit data changed signal for the given ROI."""
+        if (idx := self.index_of(roi)).isValid():
+            self.dataChanged.emit(idx, idx, roles or [self.ROI_ROLE])

@@ -57,6 +57,23 @@ class CanvasEventFilter(QObject):
         return False
 
     def _handle_key_press(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key.Key_Escape:
+            if type(self._creating) is ROI:
+                # remove the last vertex of the polygon and finish creating it
+                if len(self._creating.vertices) > 3:
+                    self._creating.vertices = self._creating.vertices[:-1]
+                    self.roi_model.emitDataChange(
+                        self._creating, [self.roi_model.VERTEX_ROLE]
+                    )
+                else:
+                    # remove the ROI
+                    self.roi_model.removeROI(self._creating)
+                self._creating = None
+            elif not self._creating:
+                # cancel the current operation
+                self.manager.mode = "select"
+                self.manager.clear_selection()
+
         if event.key() == Qt.Key.Key_Backspace:
             # delete selected ROIs
             self.manager.delete_selected_rois()
@@ -80,38 +97,43 @@ class CanvasEventFilter(QObject):
         self._drag_vertex_idx = None
         self._drag_roi = None
 
-        # 1) if alt is down and no ROIs at the clicked position
-        #    then create a new rectangular ROI at the clicked position
+        # 1) if we're in create-rect mode and no ROIs at the clicked position
+        #    then create a new rectangle ROI at the clicked position
         if self.manager.mode == "create-rect" and not rois_at_wp:
             # make a new rectangle ROI at the clicked position
-            new_roi: ROI = RectangleROI(top_left=wp, bot_right=wp)
+            new_roi: ROI = RectangleROI(
+                top_left=wp, bot_right=wp, fov_size=self.manager._fov_size
+            )
             self._creating = new_roi
             self._drag_vertex_idx = 2  # bottom-right corner
             self.roi_model.addROI(new_roi)
             self._start_dragging(new_roi)
             return True
 
-        # 1) if ctrl is down and no ROIs at the clicked position
-        #    then create a new polygon ROI at the clicked position
+        # 2) If we're actively creating a polygon, add the vertex to the polygon
         if type(self._creating) is ROI:
             self._add_polygon_vertex(wp)
             return True
+        # 3) Otherwise, if we're in create-poly mode and no ROIs at the clicked position
+        #    then create a new polygon ROI at the clicked position
         elif self.manager.mode == "create-poly" and not rois_at_wp:
-            self._creating = new_roi = ROI(vertices=np.array([wp]))
+            self._creating = new_roi = ROI(
+                vertices=np.array([wp]), fov_size=self.manager._fov_size
+            )
             self._add_polygon_vertex(wp)
             self.roi_model.addROI(new_roi)
             self._start_dragging(new_roi)
             return True
 
-        # 2) if we've clicked on a vertex of an existing ROI
-        #    then start a vertex-drag
+        # 4) if we're in create-poly mode and clicked on a vertex of the polygon
+        #    then start dragging the vertex
         if (vertex := self._vertex_under_pointer(sp, rois_at_wp)) is not None:
             roi, idx = vertex
             self._drag_vertex_idx = idx
             self._start_dragging(roi)
             return True
 
-        # 3) fallback to whole-ROI drag if we clicked on an ROI
+        # 5) fallback to whole-ROI drag if we clicked on an ROI
         if hits := rois_at_wp:
             self._start_dragging(hits[0])
             return True

@@ -83,6 +83,8 @@ class SceneROIManager(QObject):
         self._mode: Literal["select", "create-rect", "create-poly"] = "select"
         self._roi_visuals: dict[ROI, RoiPolygon] = {}
 
+        self._fov_size: tuple[float, float] | None = None
+
         self.roi_model = QROIModel()
         self.selection_model = QItemSelectionModel(self.roi_model)
         self.mode_actions = QActionGroup(self)
@@ -133,6 +135,14 @@ class SceneROIManager(QObject):
     def add_roi(self, roi: ROI | None = None) -> ROI:
         """Add a new ROI to the model."""
         return self.roi_model.addROI(roi)
+
+    def update_fovs(self, fov: tuple[float, float]) -> None:
+        """Update the FOVs of all ROIs."""
+        self._fov_size = fov
+        for row in range(self.roi_model.rowCount()):
+            roi = cast("ROI", self.roi_model.index(row).internalPointer())
+            roi.fov_size = fov
+            self.roi_model.emitDataChange(roi)
 
     @property
     def mode(self) -> Literal["select", "create-rect", "create-poly"]:

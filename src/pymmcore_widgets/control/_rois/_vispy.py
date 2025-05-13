@@ -54,9 +54,9 @@ class RoiPolygon(Compound):
             raise
             print(e)
 
-        if centers:
+        if centers and (fov_size := self._roi.fov_size):
             edges = []
-            fovw, fovh = self._roi.fov_size
+            fovw, fovh = fov_size
             for x, y in centers:
                 L = x - fovw / 2
                 R = x + fovw / 2
