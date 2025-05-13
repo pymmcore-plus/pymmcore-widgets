@@ -1,9 +1,107 @@
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Any
+from functools import cached_property
+from typing import Annotated, Any
 from uuid import UUID, uuid4
 
 import numpy as np
 import useq
+import useq._grid
+from pydantic import Field, PrivateAttr
+from shapely import Polygon, box, prepared
+
+
+class GridFromPolygon(useq._grid._GridPlan[useq.AbsolutePosition]):
+    vertices: Annotated[
+        list[tuple[float, float]],
+        Field(
+            min_length=3,
+            description="List of points that define the polygon",
+            frozen=True,
+        ),
+    ]
+
+    def num_positions(self) -> int:
+        """Return the number of positions in the grid."""
+        return len(self._cached_tiles(fov=(1, 1), overlap=(0, 0)))
+
+    def iter_grid_positions(
+        self,
+        fov_width: float | None = None,
+        fov_height: float | None = None,
+        *,
+        order: useq.OrderMode | None = None,
+    ) -> Iterator[useq.AbsolutePosition]:
+        """Iterate over all grid positions, given a field of view size."""
+        try:
+            pos = self._cached_tiles(
+                fov=(
+                    fov_width or self.fov_width or 1,
+                    fov_height or self.fov_height or 1,
+                ),
+                overlap=self.overlap,
+                order=order,
+            )
+        except ValueError:
+            pos = []
+        for x, y in pos:
+            yield useq.AbsolutePosition(x=x, y=y)
+
+    @cached_property
+    def poly(self) -> Polygon:
+        """Return the polygon vertices as a list of (x, y) tuples."""
+        return Polygon(self.vertices)
+
+    @cached_property
+    def prepared_poly(self) -> prepared.PreparedGeometry:
+        """Return the prepared polygon for faster intersection tests."""
+        return prepared.prep(self.poly)
+
+    _poly_cache: dict[tuple, list[tuple[float, float]]] = PrivateAttr(
+        default_factory=dict
+    )
+
+    def _cached_tiles(
+        self,
+        *,
+        fov: tuple[float, float],
+        overlap: tuple[float, float],
+        order: useq.OrderMode | None = None,
+    ) -> list[tuple[float, float]]:
+        """Compute an ordered list of (x, y) stage positions that cover the ROI."""
+        # Compute grid spacing and half-extents
+        mode = useq.OrderMode(order) if order is not None else self.mode
+        key = (fov, overlap, mode)
+        if key not in self._poly_cache:
+            w, h = fov
+            dx = w * (1 - overlap[0])
+            dy = h * (1 - overlap[1])
+            half_w, half_h = w / 2, h / 2
+
+            # Expand bounds to ensure full coverage
+            minx, miny, maxx, maxy = self.poly.bounds
+            minx -= half_w
+            miny -= half_h
+            maxx += half_w
+            maxy += half_h
+
+            # Determine grid dimensions
+            n_cols = int(np.ceil((maxx - minx) / dx))
+            n_rows = int(np.ceil((maxy - miny) / dy))
+
+            # Generate grid positions
+            positions: list[tuple[float, float]] = []
+            prepared_poly = self.prepared_poly
+
+            for r, c in mode.generate_indices(n_rows, n_cols):
+                x = c + minx + (c + 0.5) * dx
+                y = r + miny + (r + 0.5) * dy
+                tile = box(x - half_w, y - half_h, x + half_w, y + half_h)
+                if prepared_poly.intersects(tile):
+                    positions.append((x, y))
+
+            self._poly_cache[key] = positions
+        return self._poly_cache[key]
 
 
 @dataclass(eq=False)
@@ -83,6 +181,42 @@ class ROI:
             raise IndexError("Vertex index out of range")
         self.vertices[idx] += np.array([dx, dy], dtype=self.vertices.dtype)
 
+    def create_grid_plan(
+        self,
+        fov_w: float | None = None,
+        fov_h: float | None = None,
+    ) -> useq._grid._GridPlan | None:
+        """Return a useq.AbsolutePosition object that covers the ROI."""
+        if fov_w is None or fov_h is None:
+            if self.fov_size is None:
+                raise ValueError("fov_size must be set or fov_w and fov_h must be set")
+            fov_w, fov_h = self.fov_size
+
+        left, top, right, bottom = self.bbox()
+
+        # if the width and the height of the roi are smaller than the fov width and
+        # a single position at the center of the roi is sufficient, otherwise create a
+        # grid plan that covers the roi
+        if abs(right - left) > fov_w or abs(bottom - top) > fov_h:
+            if type(self) is not RectangleROI:
+                if len(self.vertices) < 3:
+                    return None
+                return GridFromPolygon(
+                    vertices=self.vertices,
+                    fov_width=fov_w,
+                    fov_height=fov_h,
+                )
+            else:
+                return useq.GridFromEdges(
+                    top=top,
+                    bottom=bottom,
+                    left=left,
+                    right=right,
+                    fov_width=fov_w,
+                    fov_height=fov_h,
+                )
+        return None
+
     def create_useq_position(
         self,
         fov_w: float | None = None,
@@ -90,42 +224,21 @@ class ROI:
         z_pos: float = 0.0,
     ) -> useq.AbsolutePosition:
         """Return a useq.AbsolutePosition object that covers the ROI."""
-        if type(self) is not RectangleROI:
-            raise NotImplementedError(
-                "create_useq_position() only works for RectangleROI"
-            )
-        if fov_w is None or fov_h is None:
-            if self.fov_size is None:
-                raise ValueError("fov_size must be set or fov_w and fov_h must be set")
-            fov_w, fov_h = self.fov_size
-
-        left, top, right, bottom = self.bbox()
+        grid_plan = self.create_grid_plan(fov_w=fov_w, fov_h=fov_h)
         x, y = self.center()
         pos = useq.AbsolutePosition(x=x, y=y, z=z_pos)
+        if grid_plan is None:
+            return pos
 
-        # if the width and the height of the roi are smaller than the fov width and
-        # a single position at the center of the roi is sufficient, otherwise create a
-        # grid plan that covers the roi
-        if abs(right - left) > fov_w or abs(bottom - top) > fov_h:
-            # NOTE: we need to add the fov_w/2 and fov_h/2 to the top_left and
-            # bottom_right corners respectively because the grid plan is created
-            # considering the center of the fov and we want the roi to define the edges
-            # of the grid plan.
-            pos = pos.model_copy(
-                update={
-                    "sequence": useq.MDASequence(
-                        grid_plan=useq.GridFromEdges(
-                            top=top,
-                            bottom=bottom,
-                            left=left,
-                            right=right,
-                            fov_width=fov_w,
-                            fov_height=fov_h,
-                        )
-                    )
-                }
-            )
-        return pos
+        return pos.model_copy(
+            update={
+                "sequence": useq.MDASequence(
+                    grid_plan=grid_plan,
+                    fov_width=fov_w,
+                    fov_height=fov_h,
+                )
+            }
+        )
 
 
 @dataclass(eq=False)

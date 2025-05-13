@@ -1,18 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
-import useq
-from shapely.geometry import Polygon, box
-from shapely.prepared import prep
 from vispy.scene import Compound
 from vispy.visuals import LineVisual, MarkersVisual, PolygonVisual
 
-from .roi_model import ROI
-
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from .roi_model import ROI
+
+    pass
 
 
 class RoiPolygon(Compound):
@@ -49,20 +46,13 @@ class RoiPolygon(Compound):
         self._handles.set_data(pos=vertices)
 
         centers: list[tuple[float, float]] = []
-        if type(self._roi) is ROI:
-            try:
-                centers = plan_polygon_tiling(
-                    vertices, self._roi.fov_size, order="serpentine"
-                )
-            except Exception as e:
-                print(e)
-        else:
-            pos = self._roi.create_useq_position()
-            if (seq := pos.sequence) is not None and isinstance(
-                (grid := seq.grid_plan), useq.GridFromEdges
-            ):
+        try:
+            if (grid := self._roi.create_grid_plan()) is not None:
                 for p in grid:
                     centers.append((p.x, p.y))
+        except Exception as e:
+            raise
+            print(e)
 
         if centers:
             edges = []
@@ -100,70 +90,3 @@ class RoiPolygon(Compound):
         self._handles.visible = selected
         self._fov_lines.visible = selected
         self._fov_centers.visible = selected
-
-
-def plan_polygon_tiling(
-    poly_xy: Sequence[tuple[float, float]],
-    fov: tuple[float, float],
-    overlap: float = 0,
-    order: Literal["serpentine", "raster"] = "serpentine",
-) -> list[tuple[float, float]]:
-    """
-    Compute an ordered list of (x, y) stage positions that cover the polygonal ROI.
-
-    Args:
-        poly_xy: Sequence of (x, y) vertices defining a non-self-intersecting polygon.
-        fov: Tuple (width, height) of the camera's field of view in the same units.
-        overlap: Fractional overlap between adjacent tiles (0 <= overlap < 1).
-        order: 'serpentine' for alternating scan direction, 'raster' for left-to-right each row.
-
-    Returns
-    -------
-        List of (x, y) positions in acquisition order.
-
-    Raises
-    ------
-        ValueError: If overlap is out of [0, 1) or the polygon is invalid.
-    """
-    if not 0 <= overlap < 1:
-        raise ValueError("overlap must be in [0, 1)")
-
-    poly = Polygon(poly_xy)
-    if not poly.is_valid:
-        raise ValueError("Invalid or self-intersecting polygon.")
-    prepared_poly = prep(poly)
-
-    # Compute grid spacing and half-extents
-    w, h = fov
-    dx = w * (1 - overlap)
-    dy = h * (1 - overlap)
-    half_w, half_h = w / 2, h / 2
-
-    # Expand bounds to ensure full coverage
-    minx, miny, maxx, maxy = poly.bounds
-    minx -= half_w
-    miny -= half_h
-    maxx += half_w
-    maxy += half_h
-
-    # Determine grid dimensions
-    n_cols = int(np.ceil((maxx - minx) / dx))
-    n_rows = int(np.ceil((maxy - miny) / dy))
-
-    # Generate center coordinates
-    xs = minx + (np.arange(n_cols) + 0.5) * dx
-    ys = miny + (np.arange(n_rows) + 0.5) * dy
-
-    positions: list[tuple[float, float]] = []
-    for row_idx, y in enumerate(ys):
-        row_xs = (
-            xs
-            if order == "raster" or (order == "serpentine" and row_idx % 2 == 0)
-            else xs[::-1]
-        )
-        for x in row_xs:
-            tile = box(x - half_w, y - half_h, x + half_w, y + half_h)
-            if prepared_poly.intersects(tile):
-                positions.append((x, y))
-
-    return positions
