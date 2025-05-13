@@ -327,6 +327,8 @@ class StageExplorer(QWidget):
         self.roi_manager.update_fovs((fov_w, fov_h))
         # create stage marker if not yet present
         if (mk := self._stage_pos_marker) is not None:
+            fov_w = self._mmc.getImageWidth()
+            fov_h = self._mmc.getImageHeight()
             mk.set_rect_size(fov_w, fov_h)
 
     def _on_snap_action(self, checked: bool) -> None:
@@ -492,6 +494,12 @@ class StageExplorer(QWidget):
         # create stage marker if not yet present
         if (mk := self._stage_pos_marker) is None:
             mk = self._create_stage_pos_marker()
+
+        # IMPORTANT!
+        # the transform we apply here *also* includes the pixel size scaling, along
+        # with the rotation and translation. That's why the stage position marker
+        # does not account for pixel size scaling.  This needs to be standardized
+        # unified somewhere.
 
         # update stage marker position
         mk.apply_transform(matrix.T)
