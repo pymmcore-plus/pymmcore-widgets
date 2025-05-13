@@ -34,8 +34,6 @@ def test_core_log_widget_init(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     for i in range(min_length):
         assert log_content[i] == edit_content[i]
 
-    wdg.close()
-
 
 def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     wdg = CoreLogWidget()
@@ -58,7 +56,6 @@ def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> Non
         raise AssertionError("New message not found in CoreLogWidget.")
 
     qtbot.waitUntil(wait_for_update, timeout=1000)
-    wdg.close()
 
 
 def test_core_log_widget_clear(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
@@ -99,5 +96,3 @@ def test_core_log_widget_autoscroll(qtbot: QtBot, global_mmcore: CMMCorePlus) ->
     add_new_line()
     assert sb.maximum() == old_max + 1
     assert sb.value() == sb.maximum()
-
-    wdg.close()

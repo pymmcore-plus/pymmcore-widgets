@@ -156,6 +156,10 @@ class CoreLogWidget(QWidget):
         self._log_btn.clicked.connect(self._open_native)
         self._reader.start()
 
+    def __del__(self) -> None:
+        """Stop reader before deletion."""
+        self._reader._stop()
+
     def _append_line(self, line: str) -> None:
         """Append a line, respecting pause/follow settings."""
         self._log_view.appendPlainText(line)
