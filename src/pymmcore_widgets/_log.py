@@ -39,7 +39,10 @@ class _LogReader(QObject):
         self._interval = interval
         self._file: TextIOWrapper | None = None
 
-        # Timer for periodic reads
+        # Unfortunately, on Windows, QFileSystemWatcher does not detect file changes
+        # unless the file is flushed from cache to disk. This does NOT happen
+        # when CMMCorePlus.logMessage() is called. So we need to poll the file for
+        # Windows' sake.
         self._timer = QTimer(self)
         self._timer.setInterval(self._interval)
         self._timer.timeout.connect(self._read_new)
