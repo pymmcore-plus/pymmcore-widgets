@@ -163,6 +163,7 @@ class StageExplorer(QWidget):
         self._auto_zoom_to_fit: bool = False
         self._snap_on_double_click: bool = True
         self._poll_stage_position: bool = True
+        self._our_mda_running: bool = False
 
         # stage position marker mode
         self._position_indicator: PositionIndicator = PositionIndicator.BOTH
