@@ -5,7 +5,7 @@ from collections import deque
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QFileSystemWatcher, QObject, QThread, QTimer, QUrl, Signal
+from qtpy.QtCore import QFileSystemWatcher, QObject, QTimer, QUrl, Signal
 from qtpy.QtGui import QCloseEvent, QDesktopServices, QFontDatabase, QPalette
 from qtpy.QtWidgets import (
     QApplication,
@@ -55,7 +55,7 @@ class LogReader(QObject):
         self._file.seek(0, os.SEEK_END)
         self._timer.start()
 
-    def stop(self) -> None:
+    def _stop(self) -> None:
         """Stop polling and close the file."""
         self._timer.stop()
         if self._file:
@@ -130,10 +130,6 @@ class CoreLogWidget(QWidget):
 
         # --- Reader thread setup ---
         self._reader = LogReader(path)
-        self._thread = QThread(self)
-        self._reader.moveToThread(self._thread)
-        self._thread.started.connect(self._reader.start)
-        self._reader.finished.connect(self._thread.quit)
 
         # --- Layout ---
         file_layout = QHBoxLayout()
@@ -150,7 +146,7 @@ class CoreLogWidget(QWidget):
         # --- Connections ---
         self._reader.new_lines.connect(self._append_line)
         self._log_btn.clicked.connect(self._open_native)
-        self._thread.start()
+        self._reader.start()
 
     def _append_line(self, line: str) -> None:
         """Append a line, respecting pause/follow settings."""
@@ -158,8 +154,9 @@ class CoreLogWidget(QWidget):
 
     def closeEvent(self, event: QCloseEvent | None) -> None:
         """Clean up thread on close."""
-        self._reader.stop()
-        self._thread.wait()
+        self._reader._stop()
+        # self._thread.quit()
+        # self._thread.wait()
         super().closeEvent(event)
 
     def _open_native(self) -> None:
