@@ -61,6 +61,15 @@ def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> Non
     wdg.close()
 
 
+def test_core_log_widget_clear(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
+    wdg = CoreLogWidget()
+    qtbot.addWidget(wdg)
+
+    assert wdg._log_view.toPlainText() != ""
+    wdg._clear_btn.click()
+    assert wdg._log_view.toPlainText() == ""
+
+
 def test_core_log_widget_autoscroll(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     wdg = CoreLogWidget()
     qtbot.addWidget(wdg)

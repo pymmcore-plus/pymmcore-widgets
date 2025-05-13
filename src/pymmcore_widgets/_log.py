@@ -104,9 +104,15 @@ class CoreLogWidget(QWidget):
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
         )
 
+        self._clear_btn = QPushButton("Clear Display")
+        self._clear_btn.setToolTip(
+            "Clears this view. Does not delete lines from the log file."
+        )
+
         self._log_btn = QPushButton()
         color = QApplication.palette().color(QPalette.ColorRole.WindowText).name()
         self._log_btn.setIcon(QIconifyIcon("majesticons:open", color=color))
+        self._log_btn.setToolTip("Open log file in native editor")
 
         # --- Log view ---
         self._log_view = QPlainTextEdit(self)
@@ -135,6 +141,7 @@ class CoreLogWidget(QWidget):
         file_layout = QHBoxLayout()
         file_layout.setContentsMargins(5, 5, 5, 0)
         file_layout.addWidget(self._log_path)
+        file_layout.addWidget(self._clear_btn)
         file_layout.addWidget(self._log_btn)
 
         layout = QVBoxLayout(self)
@@ -145,6 +152,7 @@ class CoreLogWidget(QWidget):
 
         # --- Connections ---
         self._reader.new_lines.connect(self._append_line)
+        self._clear_btn.clicked.connect(self._log_view.clear)
         self._log_btn.clicked.connect(self._open_native)
         self._reader.start()
 
