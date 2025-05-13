@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from io import TextIOWrapper
 
 
-class LogReader(QObject):
+class _LogReader(QObject):
     """Watches a log file and emits new lines as they arrive."""
 
     new_lines: Signal = Signal(str)
@@ -135,7 +135,7 @@ class CoreLogWidget(QWidget):
             pass
 
         # --- Reader thread setup ---
-        self._reader = LogReader(path)
+        self._reader = _LogReader(path)
 
         # --- Layout ---
         file_layout = QHBoxLayout()
