@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from qtpy.QtCore import QPoint, QPointF, Qt
+from qtpy.QtGui import QWheelEvent
 
 from pymmcore_widgets.control._presets_widget import PresetsWidget
 
@@ -79,3 +81,25 @@ def test_preset_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
 
     global_mmcore.deleteConfigGroup("Camera")
     assert "Camera" not in global_mmcore.getAvailableConfigGroups()
+
+
+def test_preset_widget_no_scroll(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
+    # Test that the widget does not respond to scroll events when unfocused.
+    # It is easy to accidentally scroll the widget when trying to scroll the group
+    # preset window, which could lead to costly accidents (e.g. switching objectives)
+    wdg = PresetsWidget("Camera")
+    qtbot.addWidget(wdg)
+
+    previous = wdg._combo.currentText()
+    e = QWheelEvent(
+        QPointF(0, 0),  # pos
+        QPointF(0, 0),  # globalPos
+        QPoint(0, 0),  # pixelDelta
+        QPoint(0, -120),  # angleDelta
+        Qt.MouseButton.NoButton,  # buttons
+        Qt.KeyboardModifier.NoModifier,  # modifiers
+        Qt.ScrollPhase.NoScrollPhase,  # phase
+        False,  # inverted
+    )
+    wdg._combo.wheelEvent(e)
+    assert wdg._combo.currentText() == previous

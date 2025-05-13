@@ -4,11 +4,20 @@ import warnings
 
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtCore import Qt
-from qtpy.QtGui import QBrush
+from qtpy.QtGui import QBrush, QWheelEvent
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QWidget
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets._util import block_core
+
+
+class _PresetComboBox(QComboBox):
+    """A QComboBox tailored to selecting group presets."""
+
+    def wheelEvent(self, e: QWheelEvent | None) -> None:
+        # Scrolling over the combobox can easily lead to accidents, e.g. switching the
+        # objective lens.
+        pass
 
 
 class PresetsWidget(QWidget):
@@ -52,7 +61,7 @@ class PresetsWidget(QWidget):
         # since they must be all the same
         self.dev_prop = self._get_preset_dev_prop(self._group, self._presets[0])
 
-        self._combo = QComboBox()
+        self._combo = _PresetComboBox()
         self._combo.currentTextChanged.connect(self._update_tooltip)
         self._combo.addItems(self._presets)
         self._combo.setCurrentText(self._mmc.getCurrentConfig(self._group))
