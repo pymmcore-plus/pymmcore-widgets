@@ -228,7 +228,6 @@ class GroupPresetTableWidget(QGroupBox):
                 self.table_wdg.insertRow(row)
                 self.table_wdg.setItem(row, 0, QTableWidgetItem(str(group)))
                 wdg = self._create_group_widget(group)
-                # FIXME: Uninstall event filter
                 self.table_wdg.setCellWidget(row, 1, wdg)
                 if isinstance(wdg, PresetsWidget):
                     wdg = wdg._combo
