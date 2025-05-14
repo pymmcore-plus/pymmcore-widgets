@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt
+from qtpy.QtCore import QEvent, QObject, Qt
+from qtpy.QtGui import QWheelEvent
 from qtpy.QtWidgets import (
     QAbstractScrollArea,
     QFileDialog,
@@ -215,6 +216,8 @@ class GroupPresetTableWidget(QGroupBox):
     def _disconnect_wdgs(self) -> None:
         for r in range(self.table_wdg.rowCount()):
             wdg = self.table_wdg.cellWidget(r, 1)
+            if wdg is not None:
+                wdg.removeEventFilter(self)
             if isinstance(wdg, PresetsWidget):
                 wdg._disconnect()
 
@@ -225,14 +228,26 @@ class GroupPresetTableWidget(QGroupBox):
                 self.table_wdg.insertRow(row)
                 self.table_wdg.setItem(row, 0, QTableWidgetItem(str(group)))
                 wdg = self._create_group_widget(group)
+                # FIXME: Uninstall event filter
                 self.table_wdg.setCellWidget(row, 1, wdg)
                 if isinstance(wdg, PresetsWidget):
                     wdg = wdg._combo
                 elif isinstance(wdg, PropertyWidget):
                     wdg = wdg._value_widget  # type: ignore
+                    if hasattr(wdg, "_slider"):
+                        wdg = wdg._slider
+                wdg.installEventFilter(self)
 
         # resize to contents the table
         self.table_wdg.resizeColumnToContents(0)
+
+    def eventFilter(self, obj: QObject | None, qevent: QEvent | None) -> bool:
+        if isinstance(qevent, QWheelEvent):
+            # Scrolling over preset widgets can easily lead to accidents, e.g.
+            # switching the objective lens. We will just direct these to the table.
+            self.wheelEvent(qevent)
+            return True
+        return False
 
     def _get_cfg_data(self, group: str, preset: str) -> tuple[str, str, str, int]:
         # Return last device-property-value for the preset and the
