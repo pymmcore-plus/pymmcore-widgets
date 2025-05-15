@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import useq
 from psygnal import SignalInstance
@@ -28,13 +28,14 @@ from superqt.utils import signals_blocked
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from contextlib import AbstractContextManager
+    from typing import Any
 
 
 class NoWheelTableWidget(QTableWidget):
     """QTableWidget that prevents scrolling behavior of child widgets."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
         if view := self.viewport():
             view.installEventFilter(self)
 

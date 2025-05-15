@@ -10,6 +10,7 @@ from qtpy.QtWidgets import QAbstractScrollArea, QTableWidget, QTableWidgetItem, 
 from superqt.fonticon import icon
 
 from pymmcore_widgets._icons import ICONS
+from pymmcore_widgets._util import NoWheelTableWidget
 
 from ._property_widget import PropertyWidget
 
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 logger = getLogger(__name__)
 
 
-class DevicePropertyTable(QTableWidget):
+class DevicePropertyTable(NoWheelTableWidget):
     """Table of all currently loaded device properties.
 
     This table is used by `PropertyBrowser` to display all properties in the system,
