@@ -39,6 +39,7 @@
     "ChannelWidget",
     "ImagePreview",
     "SnapButton",
-    "LiveButton"
+    "LiveButton",
+    "CoreLogWidget"
   ]
 }
