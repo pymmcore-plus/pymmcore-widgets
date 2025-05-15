@@ -41,10 +41,10 @@ class NoWheelTableWidget(QTableWidget):
 
     def setCellWidget(self, row: int, column: int, widget: QWidget | None) -> None:
         if widget is not None:
-            for child in widget.findChildren(
-                (QAbstractSpinBox, QAbstractSlider, QComboBox)
-            ):
-                child.installEventFilter(self)
+            # Note that PySide does not allow a tuple as an arg to findChildren
+            for widget_type in (QAbstractSpinBox, QAbstractSlider, QComboBox):
+                for child in widget.findChildren(widget_type):
+                    child.installEventFilter(self)
             widget.installEventFilter(self)
         super().setCellWidget(row, column, widget)
 
