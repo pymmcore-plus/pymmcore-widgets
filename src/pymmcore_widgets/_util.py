@@ -7,15 +7,19 @@ from typing import TYPE_CHECKING, Any
 import useq
 from psygnal import SignalInstance
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QMarginsF, QObject, Qt
-from qtpy.QtGui import QPainter, QPaintEvent, QPen, QResizeEvent
+from qtpy.QtCore import QEvent, QMarginsF, QObject, Qt
+from qtpy.QtGui import QPainter, QPaintEvent, QPen, QResizeEvent, QWheelEvent
 from qtpy.QtWidgets import (
+    QAbstractSlider,
+    QAbstractSpinBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QGraphicsScene,
     QGraphicsView,
     QLabel,
+    QScrollBar,
+    QTableWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -24,6 +28,41 @@ from superqt.utils import signals_blocked
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from contextlib import AbstractContextManager
+
+
+class NoWheelTableWidget(QTableWidget):
+    """QTableWidget that prevents scrolling behavior of child widgets."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        if view := self.viewport():
+            view.installEventFilter(self)
+
+    def setCellWidget(self, row: int, column: int, widget: QWidget | None) -> None:
+        if widget is not None:
+            for child in widget.findChildren(
+                (QAbstractSpinBox, QAbstractSlider, QComboBox)
+            ):
+                child.installEventFilter(self)
+            widget.installEventFilter(self)
+        super().setCellWidget(row, column, widget)
+
+    def eventFilter(self, object: QObject | None, event: QEvent | None) -> bool:
+        # Many "value widgets" (e.g. Combo boxes, sliders) use scroll events to
+        # change their value. The purpose of this widget is to prevent that.
+        # Note that if that widget provides a scrollbar (e.g. the ListView
+        # dropdown of a Combo Box), scroll events going to that scrollbar should
+        # be let through.
+        if isinstance(event, QWheelEvent) and not isinstance(object, QScrollBar):
+            # Scroll the vertical scrollbar manually, to avoid recursion error.
+            if sb := self.verticalScrollBar():
+                delta = event.angleDelta().y()
+                sb.setValue(sb.value() - delta)
+            # Consume the event so child widgets don't process it
+            return True
+
+        # otherwise process normally
+        return False
 
 
 class ComboMessageBox(QDialog):

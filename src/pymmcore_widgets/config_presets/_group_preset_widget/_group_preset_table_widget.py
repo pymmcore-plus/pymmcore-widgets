@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QEvent, QObject, Qt
-from qtpy.QtGui import QWheelEvent
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QAbstractScrollArea,
     QFileDialog,
@@ -21,7 +20,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from pymmcore_widgets._util import block_core, load_system_config
+from pymmcore_widgets._util import NoWheelTableWidget, block_core, load_system_config
 from pymmcore_widgets.control._presets_widget import PresetsWidget
 from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 
@@ -33,18 +32,18 @@ from ._edit_preset_widget import EditPresetWidget
 UNNAMED_PRESET = "NewPreset"
 
 
-class _MainTable(QTableWidget):
+class _MainTable(NoWheelTableWidget):
     """Set table properties for Group and Preset TableWidget."""
 
     def __init__(self) -> None:
         super().__init__()
-        hdr = self.horizontalHeader()
-        hdr.setStretchLastSection(True)
-        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
-        vh = self.verticalHeader()
-        vh.setVisible(False)
-        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
-        vh.setDefaultSectionSize(24)
+        if (hdr := self.horizontalHeader()) is not None:
+            hdr.setStretchLastSection(True)
+            hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
+        if (vh := self.verticalHeader()) is not None:
+            vh.setVisible(False)
+            vh.setSectionResizeMode(vh.ResizeMode.Fixed)
+            vh.setDefaultSectionSize(24)
         self.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -216,8 +215,6 @@ class GroupPresetTableWidget(QGroupBox):
     def _disconnect_wdgs(self) -> None:
         for r in range(self.table_wdg.rowCount()):
             wdg = self.table_wdg.cellWidget(r, 1)
-            if wdg is not None:
-                wdg.removeEventFilter(self)
             if isinstance(wdg, PresetsWidget):
                 wdg._disconnect()
 
@@ -233,20 +230,9 @@ class GroupPresetTableWidget(QGroupBox):
                     wdg = wdg._combo
                 elif isinstance(wdg, PropertyWidget):
                     wdg = wdg._value_widget  # type: ignore
-                    if hasattr(wdg, "_slider"):
-                        wdg = wdg._slider
-                wdg.installEventFilter(self)
 
         # resize to contents the table
         self.table_wdg.resizeColumnToContents(0)
-
-    def eventFilter(self, obj: QObject | None, qevent: QEvent | None) -> bool:
-        if isinstance(qevent, QWheelEvent):
-            # Scrolling over preset widgets can easily lead to accidents, e.g.
-            # switching the objective lens. We will just direct these to the table.
-            self.wheelEvent(qevent)
-            return True
-        return False
 
     def _get_cfg_data(self, group: str, preset: str) -> tuple[str, str, str, int]:
         # Return last device-property-value for the preset and the
