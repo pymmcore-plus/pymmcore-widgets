@@ -131,14 +131,14 @@ class CoreConnectedPositionTable(PositionTable):
 
     def setValue(self, value: Sequence[Position]) -> None:  # type: ignore [override]
         """Set the value of the positions table."""
+        super().setValue(value)
+        self._update_z_enablement()
+        self._update_autofocus_enablement()
         if isinstance(value, WellPlatePlan):
             self._plate_plan = value
             self._hcs.setValue(value)
             self._set_position_table_editable(False)
             value = tuple(value)
-        super().setValue(value)
-        self._update_z_enablement()
-        self._update_autofocus_enablement()
 
     # ----------------------- private methods -----------------------
 
@@ -271,16 +271,12 @@ class CoreConnectedPositionTable(PositionTable):
                     flags |= (
                         Qt.ItemFlag.ItemIsEditable | Qt.ItemFlag.ItemIsUserCheckable
                     )
-                    # show the checkbox and set it to checked
-                    name_item.setCheckState(Qt.CheckState.Checked)
                 else:
                     # keep the name column enabled but NOT editable. We do not disable
                     # to keep available the "Move Stage to Selected Point" option
                     flags &= ~(
                         Qt.ItemFlag.ItemIsEditable | Qt.ItemFlag.ItemIsUserCheckable
                     )
-                    # hide the checkbox
-                    name_item.setData(Qt.ItemDataRole.CheckStateRole, None)
                 name_item.setFlags(flags)
 
     def _on_sys_config_loaded(self) -> None:

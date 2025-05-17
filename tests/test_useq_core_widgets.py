@@ -732,13 +732,10 @@ def test_core_mda_with_hcs_enable_disable(
     assert not table.isColumnHidden(z_btn_col)
     assert not table.isColumnHidden(z_col)
     assert not table.isColumnHidden(sub_seq_btn_col)
-    # name_col_checkbox is visible
+    # name_col_checkbox can be checked
     for row in range(table.rowCount()):
         item = table.item(row, name_col)
-        # checkable
         assert item.flags() & Qt.ItemFlag.ItemIsUserCheckable
-        # visible
-        assert item.checkState() == Qt.CheckState.Checked
     # all toolbar actions enabled
     assert all(action.isEnabled() for action in wdg.stage_positions.toolBar().actions())
     # include_z checkbox enabled
@@ -763,18 +760,10 @@ def test_core_mda_with_hcs_enable_disable(
     assert table.isColumnHidden(z_btn_col)
     assert table.isColumnHidden(z_col)
     assert table.isColumnHidden(sub_seq_btn_col)
-    # name_col_checkbox is hidden
+    # name_col_checkbox cannot be checked
     for row in range(table.rowCount()):
         item = table.item(row, name_col)
-        # uncheckable
-        assert item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable
-        # hidden
-        assert item.data(Qt.ItemDataRole.CheckStateRole) not in (
-            Qt.CheckState.Checked,
-            Qt.CheckState.Unchecked,
-            Qt.CheckState.PartiallyChecked,
-        )
-
+        assert not (item.flags() & Qt.ItemFlag.ItemIsUserCheckable)
     # all toolbar actions disabled but the move stage checkbox
     assert all(
         not action.isEnabled() for action in wdg.stage_positions.toolBar().actions()[1:]
