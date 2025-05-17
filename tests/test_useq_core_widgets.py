@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import useq
-from qtpy.QtCore import QTimer
+from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import QMessageBox
 
 from pymmcore_widgets import HCSWizard
@@ -732,6 +732,13 @@ def test_core_mda_with_hcs_enable_disable(
     assert not table.isColumnHidden(z_btn_col)
     assert not table.isColumnHidden(z_col)
     assert not table.isColumnHidden(sub_seq_btn_col)
+    # name_col_checkbox is visible
+    for row in range(table.rowCount()):
+        item = table.item(row, name_col)
+        # checkable
+        assert item.flags() & Qt.ItemFlag.ItemIsUserCheckable
+        # visible
+        assert item.checkState() == Qt.CheckState.Checked
     # all toolbar actions enabled
     assert all(action.isEnabled() for action in wdg.stage_positions.toolBar().actions())
     # include_z checkbox enabled
@@ -756,6 +763,18 @@ def test_core_mda_with_hcs_enable_disable(
     assert table.isColumnHidden(z_btn_col)
     assert table.isColumnHidden(z_col)
     assert table.isColumnHidden(sub_seq_btn_col)
+    # name_col_checkbox is hidden
+    for row in range(table.rowCount()):
+        item = table.item(row, name_col)
+        # uncheckable
+        assert item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable
+        # hidden
+        assert item.data(Qt.ItemDataRole.CheckStateRole) not in (
+            Qt.CheckState.Checked,
+            Qt.CheckState.Unchecked,
+            Qt.CheckState.PartiallyChecked,
+        )
+
     # all toolbar actions disabled but the move stage checkbox
     assert all(
         not action.isEnabled() for action in wdg.stage_positions.toolBar().actions()[1:]
