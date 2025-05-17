@@ -268,11 +268,19 @@ class CoreConnectedPositionTable(PositionTable):
                 name_item = table.item(row, name_col)
                 flags = name_item.flags() | Qt.ItemFlag.ItemIsEnabled
                 if state:
-                    flags |= Qt.ItemFlag.ItemIsEditable
+                    flags |= (
+                        Qt.ItemFlag.ItemIsEditable | Qt.ItemFlag.ItemIsUserCheckable
+                    )
+                    # show the checkbox and set it to checked
+                    name_item.setCheckState(Qt.CheckState.Checked)
                 else:
                     # keep the name column enabled but NOT editable. We do not disable
                     # to keep available the "Move Stage to Selected Point" option
-                    flags &= ~Qt.ItemFlag.ItemIsEditable
+                    flags &= ~(
+                        Qt.ItemFlag.ItemIsEditable | Qt.ItemFlag.ItemIsUserCheckable
+                    )
+                    # hide the checkbox
+                    name_item.setData(Qt.ItemDataRole.CheckStateRole, None)
                 name_item.setFlags(flags)
 
     def _on_sys_config_loaded(self) -> None:
