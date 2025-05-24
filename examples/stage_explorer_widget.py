@@ -7,14 +7,16 @@ from pymmcore_widgets.control._stage_explorer._stage_explorer import StageExplor
 app = QApplication([])
 
 mmc = CMMCorePlus.instance()
+
+# mmc.loadSystemConfiguration(r"D:\Christina\MyChristina.cfg")
+# mmc.setConfig("Channel", "BF")
+# mmc.setExposure(10)
+
 mmc.loadSystemConfiguration()
-
-# set camera roi (rectangular helps confirm orientation)
 mmc.setROI(0, 0, 400, 600)
-
 xy = mmc.getXYStageDevice()
 if mmc.hasProperty(xy, "Velocity"):
-    mmc.setProperty(xy, "Velocity", 2)
+    mmc.setProperty(xy, "Velocity", 5)
 
 explorer = StageExplorer()
 
