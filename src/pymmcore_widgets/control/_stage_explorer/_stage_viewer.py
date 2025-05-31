@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
+from unittest.mock import patch
 
 import cmap
 import numpy as np
@@ -22,6 +23,25 @@ if TYPE_CHECKING:
     class VisualNode(vispy.scene.Node, vispy.visuals.Visual): ...
 
 
+class KeylessSceneCanvas(vispy.scene.SceneCanvas):
+    """Steal all key events from vispy."""
+
+    def create_native(self) -> None:
+        from vispy.app.backends._qt import CanvasBackendDesktop
+
+        class CustomCanvasBackend(CanvasBackendDesktop):
+            def keyPressEvent(self, ev: Any) -> None:
+                QWidget.keyPressEvent(self, ev)
+
+            def keyReleaseEvent(self, ev: Any) -> None:
+                QWidget.keyPressEvent(self, ev)
+
+        with patch.object(
+            self._app.backend_module, "CanvasBackend", CustomCanvasBackend
+        ):
+            super().create_native()
+
+
 class StageViewer(QWidget):
     """A widget to add images with a transform to a vispy canves."""
 
@@ -33,9 +53,17 @@ class StageViewer(QWidget):
         self._clims: tuple[float, float] | None = None
         self._cmap: cmap.Colormap = cmap.Colormap("gray")
 
-        self.canvas = scene.SceneCanvas(keys="interactive", show=True)
+        self.canvas = KeylessSceneCanvas(show=True)
+
         self.view = cast("ViewBox", self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1)
+
+        self._grid_lines = vispy.scene.GridLines(
+            parent=self.view.scene,
+            color="#888888",
+            border_width=1,
+        )
+        self._grid_lines.visible = False
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
@@ -67,6 +95,9 @@ class StageViewer(QWidget):
         self._cmap = cmap.Colormap(colormap)
         for child in self._get_images():
             child.cmap = self._cmap.to_vispy()
+
+    def set_grid_visible(self, visible: bool) -> None:
+        self._grid_lines.visible = visible
 
     def global_autoscale(self, *, ignore_min: float = 0, ignore_max: float = 0) -> None:
         """Set the color limits of all images in the scene to the global min and max.
@@ -149,6 +180,18 @@ class StageViewer(QWidget):
         x_bounds, y_bounds, *_ = get_vispy_scene_bounds(visuals)
         self.view.camera.set_range(x=x_bounds, y=y_bounds, margin=margin)
 
+    def canvas_to_world(self, canvas_pos: tuple[float, float]) -> tuple[float, float]:
+        """Convert canvas coordinates to world coordinates."""
+        # map canvas position to world position
+        world_x, world_y, *_ = self.view.scene.transform.imap(canvas_pos)
+        return world_x, world_y
+
+    def world_to_canvas(self, world_pos: tuple[float, float]) -> tuple[float, float]:
+        """Convert world coordinates to canvas coordinates."""
+        # map world position to canvas position
+        canvas_x, canvas_y, *_ = self.view.scene.transform.map(world_pos)
+        return canvas_x, canvas_y
+
     # --------------------PRIVATE METHODS--------------------
 
     def _get_images(self) -> Iterator[Image]:
@@ -162,7 +205,7 @@ class StageViewer(QWidget):
             return  # pragma: no cover
 
         # map canvas position to world position
-        world_x, world_y, *_ = self.view.scene.transform.imap(event.pos)
+        world_x, world_y = self.canvas_to_world(event.pos)
         self._hover_pos_label.setText(f"({world_x:.2f}, {world_y:.2f})")
         self._hover_pos_label.adjustSize()
 
