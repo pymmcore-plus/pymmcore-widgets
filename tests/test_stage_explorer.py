@@ -71,7 +71,7 @@ def test_stage_explorer_initialization(qtbot: QtBot) -> None:
     explorer = StageExplorer()
     qtbot.addWidget(explorer)
     assert explorer.windowTitle() == "Stage Explorer"
-    assert explorer.snap_on_double_click is False
+    assert explorer.snap_on_double_click is True
 
 
 def test_stage_explorer_snap_on_double_click(qtbot: QtBot) -> None:
@@ -101,9 +101,10 @@ def test_stage_explorer_actions(qtbot: QtBot) -> None:
 
     actions = explorer.toolBar().actions()
     snap_action = next(a for a in actions if a.text() == _stage_explorer.SNAP)
+    assert explorer.snap_on_double_click is True
     with qtbot.waitSignal(snap_action.triggered):
         snap_action.trigger()
-    assert explorer.snap_on_double_click is True
+    assert explorer.snap_on_double_click is False
 
     auto_action = explorer._actions[_stage_explorer.AUTO_ZOOM_TO_FIT]
     auto_action.trigger()
@@ -112,10 +113,10 @@ def test_stage_explorer_actions(qtbot: QtBot) -> None:
     explorer._actions[_stage_explorer.ZOOM_TO_FIT].trigger()
     assert not explorer.auto_zoom_to_fit
 
-    assert not explorer._grid_lines.visible
+    assert not explorer._stage_viewer._grid_lines.visible
     grid_action = explorer._actions[_stage_explorer.SHOW_GRID]
     grid_action.trigger()
-    assert explorer._grid_lines.visible
+    assert explorer._stage_viewer._grid_lines.visible
 
 
 def test_stage_explorer_move_on_click(qtbot: QtBot) -> None:
