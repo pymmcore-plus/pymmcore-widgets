@@ -37,15 +37,11 @@ theme:
         name: "Switch to light mode"
 
 nav:
-  - pymmcore-plus: /pymmcore-plus/
-  - useq-schema: /useq-schema/
-  - pymmcore-widgets:
-      - Overview: index.md
-      - Getting Started: getting_started.md
-      - Widgets: widgets/
-      - Troubleshooting: troubleshooting.md
-      - Contributing: contributing.md
-  - napari-micromanager: /napari-micromanager/
+  - Overview: index.md
+  - Getting Started: getting_started.md
+  - Widgets: widgets/
+  - Troubleshooting: troubleshooting.md
+  - Contributing: contributing.md
 
 markdown_extensions:
   - tables
