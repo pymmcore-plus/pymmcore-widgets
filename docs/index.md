@@ -69,4 +69,4 @@ For a pre-made user interface, see [napari-micromanager](https://pypi.org/projec
 
 ## Widgets
 
-For a complete list of widgets offered by this package, see the [Widgets List](widgets).
+For a complete list of widgets offered by this package, see the [Widgets List](widgets/index.md).

@@ -84,7 +84,7 @@ def _generate_widget_page(widget: str) -> None:
     mkdocs_gen_files.set_edit_path(filename, Path(__file__).name)
 
 
-def _generate_widget_pages() -> None:
+def generate_widget_pages() -> None:
     # it would be nice to do this in parallel,
     # but mkdocs_gen_files doesn't work well with multiprocessing
     with open(WIDGET_LIST) as f:
@@ -97,4 +97,4 @@ def _generate_widget_pages() -> None:
                     _generate_widget_page(widget)
 
 
-_generate_widget_pages()
+generate_widget_pages()

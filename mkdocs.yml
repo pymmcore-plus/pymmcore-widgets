@@ -6,42 +6,24 @@ repo_url: https://github.com/pymmcore-plus/pymmcore-widgets
 edit_uri: edit/main/docs/
 strict: true
 
-theme:
-  name: "material"
-  features:
-    - content.tabs.link
-    - content.code.copy
-    - content.code.annotate
-    - navigation.instant
-    - navigation.tabs
-  icon:
-    logo: fontawesome/solid/microscope
-    repo: fontawesome/brands/github
-  favicon: docs/images/favicon.ico
-  palette:
-    # Palette toggle for light mode
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: dark blue
-      accent: dark blue
-      toggle:
-        icon: material/lightbulb-outline
-        name: "Switch to dark mode"
-    # Palette toggle for dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: teal
-      accent: light green
-      toggle:
-        icon: material/lightbulb
-        name: "Switch to light mode"
-
 nav:
   - Overview: index.md
   - Getting Started: getting_started.md
   - Widgets: widgets/
   - Troubleshooting: troubleshooting.md
   - Contributing: contributing.md
+
+theme:
+  name: "material"
+  favicon: docs/images/favicon.ico
+  features:
+    - content.tabs.link
+    - content.code.copy
+    - content.code.annotate
+    - navigation.instant
+  icon:
+    logo: fontawesome/solid/microscope
+    repo: fontawesome/brands/github
 
 markdown_extensions:
   - tables
@@ -76,7 +58,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          import:
+          inventories:
             - https://docs.python.org/3/objects.inv
             - https://numpy.org/doc/stable/objects.inv
             - https://pymmcore-plus.github.io/pymmcore-plus/objects.inv
