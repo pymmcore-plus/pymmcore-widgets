@@ -86,4 +86,4 @@ if __name__ == "__main__":
     app = QApplication([])
     frame = MDA()
     frame.show()
-    app.exec_()
+    app.exec()

@@ -16,19 +16,25 @@ app = QApplication([])
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-wdg = QWidget()
-wdg.setLayout(QHBoxLayout())
 
-shutter_dev_list = list(mmc.getLoadedDevicesOfType(DeviceType.Shutter))
+class MyShutters(QWidget):
+    """A simple widget to display all available shutters."""
 
-for idx, shutter_dev in enumerate(shutter_dev_list):
-    # bool to display the autoshutter checkbox only with the last shutter
-    autoshutter = bool(idx >= len(shutter_dev_list) - 1)
-    shutter = ShuttersWidget(shutter_dev, autoshutter=autoshutter)
-    shutter.button_text_open = shutter_dev
-    shutter.button_text_closed = shutter_dev
-    wdg.layout().addWidget(shutter)
+    def __init__(self) -> None:
+        super().__init__()
+        layout = QHBoxLayout(self)
 
+        shutter_dev_list = list(mmc.getLoadedDevicesOfType(DeviceType.Shutter))
+        for idx, shutter_dev in enumerate(shutter_dev_list):
+            # bool to display the autoshutter checkbox only with the last shutter
+            autoshutter = bool(idx >= len(shutter_dev_list) - 1)
+            shutter = ShuttersWidget(shutter_dev, autoshutter=autoshutter)
+            shutter.button_text_open = shutter_dev
+            shutter.button_text_closed = shutter_dev
+            layout.addWidget(shutter)
+
+
+wdg = MyShutters()
 wdg.show()
 
-app.exec_()
+app.exec()

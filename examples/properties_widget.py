@@ -22,4 +22,4 @@ wdg = PropertiesWidget(
 )
 
 wdg.show()
-app.exec_()
+app.exec()

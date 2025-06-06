@@ -17,4 +17,4 @@ mmc.loadSystemConfiguration()
 z_wdg = ZPlanWidget()
 z_wdg.show()
 
-app.exec_()
+app.exec()

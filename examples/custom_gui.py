@@ -62,4 +62,4 @@ if __name__ == "__main__":
     app = QApplication([])
     widget = MyWidget()
     widget.show()
-    app.exec_()
+    app.exec()

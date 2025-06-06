@@ -11,4 +11,4 @@ mmc.loadSystemConfiguration()
 wiz = ConfigWizard()
 wiz.show()
 
-app.exec_()
+app.exec()

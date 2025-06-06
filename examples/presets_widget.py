@@ -14,13 +14,19 @@ app = QApplication([])
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-wdg = QWidget()
-wdg.setLayout(QFormLayout())
 
-for group in mmc.getAvailableConfigGroups():
-    gp_wdg = PresetsWidget(group)
-    wdg.layout().addRow(f"{group}:", gp_wdg)
+class Configs(QWidget):
+    """A simple widget to display all available config groups."""
 
-wdg.show()
+    def __init__(self) -> None:
+        super().__init__()
+        layout = QFormLayout(self)
+        for group in mmc.getAvailableConfigGroups():
+            gp_wdg = PresetsWidget(group)
+            layout.addRow(f"{group}:", gp_wdg)
 
-app.exec_()
+
+configs = Configs()
+configs.show()
+
+app.exec()

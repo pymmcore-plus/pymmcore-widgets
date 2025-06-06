@@ -8,19 +8,21 @@ app = QApplication([])
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-wdg = QWidget()
-wdg.setLayout(QFormLayout())
+class CustomPropertyWidget(QWidget):
+    def __init__(self) -> None:
+        super().__init__()
+        devs_pros = [
+            ("Camera", "AllowMultiROI"),
+            ("Camera", "Binning"),
+            ("Camera", "CCDTemperature"),
+        ]
 
-devs_pros = [
-    ("Camera", "AllowMultiROI"),
-    ("Camera", "Binning"),
-    ("Camera", "CCDTemperature"),
-]
+        layout = QFormLayout(self)
+        for dev, prop in devs_pros:
+            prop_wdg = PropertyWidget(dev, prop)
+            layout.addRow(f"{dev}-{prop}:", prop_wdg)
 
-for dev, prop in devs_pros:
-    prop_wdg = PropertyWidget(dev, prop)
-    wdg.layout().addRow(f"{dev}-{prop}:", prop_wdg)
-
+wdg = CustomPropertyWidget()
 wdg.show()
 
-app.exec_()
+app.exec()

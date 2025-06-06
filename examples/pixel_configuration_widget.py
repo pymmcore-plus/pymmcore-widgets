@@ -11,4 +11,4 @@ mmc.loadSystemConfiguration()
 px_wdg = PixelConfigurationWidget()
 px_wdg.show()
 
-app.exec_()
+app.exec()

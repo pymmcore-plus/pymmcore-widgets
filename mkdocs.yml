@@ -4,7 +4,6 @@ site_description: Widgets to control micro-manager in python.
 repo_name: pymmcore-plus/pymmcore-widgets
 repo_url: https://github.com/pymmcore-plus/pymmcore-widgets
 edit_uri: edit/main/docs/
-strict: true
 
 nav:
   - Overview: index.md
@@ -52,9 +51,9 @@ plugins:
   - autorefs
   - literate-nav # autegenerate nav from _gen_widgets
   - section-index
-  - gen-files:
-      scripts:
-        - docs/_gen_widget_pages.py
+  # - gen-files:
+      # scripts:
+        # - docs/_gen_widget_pages.py
   - mkdocstrings:
       handlers:
         python:

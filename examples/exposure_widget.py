@@ -11,4 +11,4 @@ mmc.loadSystemConfiguration()
 exp_wdg = ExposureWidget()
 exp_wdg.show()
 
-app.exec_()
+app.exec()

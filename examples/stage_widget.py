@@ -14,19 +14,26 @@ app = QApplication([])
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
-wdg = QWidget()
-wdg_layout = QHBoxLayout(wdg)
 
-stages = list(mmc.getLoadedDevicesOfType(DeviceType.XYStage))
-stages.extend(mmc.getLoadedDevicesOfType(DeviceType.Stage))
-for stage in stages:
-    lbl = "Z" if mmc.getDeviceType(stage) == DeviceType.Stage else "XY"
-    bx = QGroupBox(f"{lbl} Control")
-    bx_layout = QHBoxLayout(bx)
-    bx_layout.setContentsMargins(0, 0, 0, 0)
-    bx_layout.addWidget(StageWidget(device=stage, position_label_below=True))
-    wdg_layout.addWidget(bx)
+class MyStages(QWidget):
+    """A simple widget to display all available stages."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        stages = list(mmc.getLoadedDevicesOfType(DeviceType.XYStage))
+        stages.extend(mmc.getLoadedDevicesOfType(DeviceType.Stage))
+        layout = QHBoxLayout(self)
+        for stage in stages:
+            lbl = "Z" if mmc.getDeviceType(stage) == DeviceType.Stage else "XY"
+            bx = QGroupBox(f"{lbl} Control")
+            bx_layout = QHBoxLayout(bx)
+            bx_layout.setContentsMargins(0, 0, 0, 0)
+            bx_layout.addWidget(StageWidget(device=stage, position_label_below=True))
+            layout.addWidget(bx)
 
 
+wdg = MyStages()
 wdg.show()
+
 app.exec()

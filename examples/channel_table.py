@@ -19,4 +19,4 @@ ch_table_wdg.setChannelGroups({"Channel": ["DAPI", "FITC"]})
 ch_table_wdg.resize(500, 200)
 ch_table_wdg.show()
 
-app.exec_()
+app.exec()

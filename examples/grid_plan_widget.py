@@ -18,4 +18,4 @@ grid_wdg = GridPlanWidget()
 grid_wdg.valueChanged.connect(print)
 grid_wdg.show()
 
-app.exec_()
+app.exec()
