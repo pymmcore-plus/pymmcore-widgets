@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from mkdocs.plugins import get_plugin_logger
 from mkdocs.structure.files import File, Files, InclusionLevel
+from mkdocs.structure.nav import Navigation, Page
 from qtpy.QtWidgets import QWidget
 
 import pymmcore_widgets
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
     from mkdocs.config.defaults import MkDocsConfig
 
 logger = get_plugin_logger("pymmcore_widgets")
+GEN_SCREENSHOTS = os.getenv("GEN_SCREENSHOTS", "1") in ("1", "true", "yes", "on")
 EXAMPLES = Path(__file__).parent.parent / "examples"
 WIDGET_LIST: list[str] = []
 for name in dir(pymmcore_widgets):
@@ -57,7 +59,7 @@ def on_files(files: Files, /, *, config: MkDocsConfig) -> None:
         logger.info("Creating widget page: %s", widget)
         snake = _camel_to_snake(widget)
         example = EXAMPLES / f"{_camel_to_snake(widget)}.py"
-        if example.exists():
+        if example.exists() and GEN_SCREENSHOTS:
             png = File.generated(
                 config=config,
                 src_uri=f"images/{snake}.png",
@@ -77,6 +79,22 @@ def on_files(files: Files, /, *, config: MkDocsConfig) -> None:
         if file.src_uri in files.src_uris:
             files.remove(file)
         files.append(file)
+
+
+def on_nav(nav: Navigation, *, files: Files, config: MkDocsConfig) -> None:
+    """Add pymmcore_widgets to the navigation."""
+    top = next((sec.children for sec in nav if sec.title == "pymmcore-widgets"), nav)
+    widget_section = next(sec for sec in top if sec.title == "Widgets")
+    pages = [
+        Page(
+            str(f.src_uri.split("/")[-1].replace(".md", "")),
+            file=f,
+            config=config,
+        )
+        for f in files
+        if f.src_uri.startswith("widgets/")
+    ]
+    widget_section.children.extend(pages)
 
 
 SNAP = """
