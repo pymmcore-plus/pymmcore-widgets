@@ -49,11 +49,8 @@ hooks:
 plugins:
   - search
   - autorefs
-  - literate-nav # autegenerate nav from _gen_widgets
+  - literate-nav # needed for now to expand the widget nav
   - section-index
-  # - gen-files:
-      # scripts:
-        # - docs/_gen_widget_pages.py
   - mkdocstrings:
       handlers:
         python:

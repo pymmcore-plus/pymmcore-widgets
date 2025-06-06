@@ -7,6 +7,7 @@ from pathlib import Path
 from tempfile import mkstemp
 from typing import TYPE_CHECKING
 
+from mkdocs.plugins import get_plugin_logger
 from mkdocs.structure.files import File, Files, InclusionLevel
 from qtpy.QtWidgets import QWidget
 
@@ -15,6 +16,7 @@ import pymmcore_widgets
 if TYPE_CHECKING:
     from mkdocs.config.defaults import MkDocsConfig
 
+logger = get_plugin_logger("pymmcore_widgets")
 EXAMPLES = Path(__file__).parent.parent / "examples"
 WIDGET_LIST: list[str] = []
 for name in dir(pymmcore_widgets):
@@ -49,31 +51,28 @@ TEMPLATE = """
 ```
 """
 
-from rich import print
-
 
 def on_files(files: Files, /, *, config: MkDocsConfig) -> None:
     for widget in WIDGET_LIST:
-        print("Generating snapshot for....", widget)
+        logger.info("Creating widget page: %s", widget)
         snake = _camel_to_snake(widget)
-        path = EXAMPLES / f"{_camel_to_snake(widget)}.py"
-        if not path.exists():
-            print(f"Could not find example: {path}, {widget}")
-            continue
-        img_uri = f"images/{snake}.png"
-        abs_png = snapshot(str(path))
-        png = File.generated(
-            config=config,
-            src_uri=img_uri,
-            abs_src_path=abs_png,
-            inclusion=InclusionLevel.NOT_IN_NAV,
-        )
-        files.append(png)
-        print("Generated snapshot for", widget, "at", img_uri, png)
+        example = EXAMPLES / f"{_camel_to_snake(widget)}.py"
+        if example.exists():
+            png = File.generated(
+                config=config,
+                src_uri=f"images/{snake}.png",
+                abs_src_path=snapshot(str(example)),
+                inclusion=InclusionLevel.NOT_IN_NAV,
+            )
+            files.append(png)
+            content = TEMPLATE.format(widget=widget, snake=snake, img=png.src_uri)
+        else:
+            # just a simple page
+            content = f"# {widget}\n\n::: pymmcore_widgets.{widget}\n"
         file = File.generated(
             config,
             src_uri=os.path.join("widgets", f"{widget}.md"),
-            content=TEMPLATE.format(widget=widget, snake=snake, img=img_uri),
+            content=content,
         )
         if file.src_uri in files.src_uris:
             files.remove(file)
@@ -83,7 +82,6 @@ def on_files(files: Files, /, *, config: MkDocsConfig) -> None:
 SNAP = """
 app = QApplication.instance()
 app.processEvents()
-print(app.topLevelWidgets())
 widget = next(
     w for w in app.topLevelWidgets()
     if any(n in w.__class__.__module__ for n in ["pymmcore", "__main__"])
