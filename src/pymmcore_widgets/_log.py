@@ -54,7 +54,8 @@ class _LogReader(QObject):
 
     def __del__(self) -> None:
         """Ensure file is closed when object is deleted."""
-        self._stop()
+        with suppress(RuntimeError):
+            self._stop()
 
     def timerEvent(self, event: QTimerEvent | None) -> None:
         if event and event.timerId() == self._timer_id:
