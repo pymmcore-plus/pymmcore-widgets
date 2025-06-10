@@ -4,7 +4,6 @@ import enum
 from typing import Final, Literal
 
 import useq
-from fonticon_mdi6 import MDI6
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractButton,
@@ -19,7 +18,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets._util import SeparatorWidget
@@ -68,15 +67,15 @@ class ZPlanWidget(QWidget):
 
         self._btn_top_bot = QRadioButton("Top/Bottom")
         self._btn_top_bot.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._btn_top_bot.setIcon(icon(MDI6.arrow_expand_vertical))
+        self._btn_top_bot.setIcon(QIconifyIcon("mdi:arrow-expand-vertical"))
         self._btn_top_bot.setToolTip("Mark top and bottom.")
         self._btn_range = QRadioButton("Range Around (Symmetric)")
         self._btn_range.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._btn_range.setIcon(icon(MDI6.arrow_split_horizontal))
+        self._btn_range.setIcon(QIconifyIcon("mdi:arrow-split-horizontal"))
         self._btn_range.setToolTip("Range symmetric around reference.")
         self._button_above_below = QRadioButton("Range Asymmetric")
         self._button_above_below.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._button_above_below.setIcon(icon(MDI6.arrow_expand_up))
+        self._button_above_below.setIcon(QIconifyIcon("mdi:arrow-expand-up"))
         self._button_above_below.setToolTip(
             "Range asymmetrically above/below reference."
         )
@@ -166,7 +165,7 @@ class ZPlanWidget(QWidget):
         # #################### Other Widgets ####################
 
         self._use_suggested_btn = QPushButton()
-        self._use_suggested_btn.setIcon(icon(MDI6.arrow_left_thick))
+        self._use_suggested_btn.setIcon(QIconifyIcon("mdi:arrow-left-thick"))
         self._use_suggested_btn.clicked.connect(self.useSuggestedStep)
         self._use_suggested_btn.hide()
 

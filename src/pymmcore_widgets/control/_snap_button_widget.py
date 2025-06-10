@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from typing import Union
 
-from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QPushButton, QSizePolicy, QWidget
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 from superqt.utils import create_worker
 
 COLOR_TYPES = Union[
@@ -71,7 +70,7 @@ class SnapButton(QPushButton):
 
     def _create_button(self) -> None:
         self.setText("Snap")
-        self.setIcon(icon(MDI6.camera_outline, color=(0, 255, 0)))
+        self.setIcon(QIconifyIcon("mdi:camera-outline", color="green"))
         self.setIconSize(QSize(30, 30))
         self.clicked.connect(self._snap)
 
