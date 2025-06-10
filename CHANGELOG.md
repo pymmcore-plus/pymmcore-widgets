@@ -1,5 +1,44 @@
 # Changelog
 
+## [v0.10.0](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.10.0) (2025-06-10)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.9.1...v0.10.0)
+
+**Implemented enhancements:**
+
+- feat: Core log widget [\#429](https://github.com/pymmcore-plus/pymmcore-widgets/pull/429) ([gselzer](https://github.com/gselzer))
+- feat: grid lines and hover position in stage explorer [\#426](https://github.com/pymmcore-plus/pymmcore-widgets/pull/426) ([tlambert03](https://github.com/tlambert03))
+- feat: stage explorer part 3 [\#422](https://github.com/pymmcore-plus/pymmcore-widgets/pull/422) ([fdrgsp](https://github.com/fdrgsp))
+- feat: stage explorer part 2 [\#420](https://github.com/pymmcore-plus/pymmcore-widgets/pull/420) ([fdrgsp](https://github.com/fdrgsp))
+- feat: add 3 decimals to pixel size config widget  [\#418](https://github.com/pymmcore-plus/pymmcore-widgets/pull/418) ([fdrgsp](https://github.com/fdrgsp))
+- feat: updates to install widget [\#417](https://github.com/pymmcore-plus/pymmcore-widgets/pull/417) ([tlambert03](https://github.com/tlambert03))
+- feat: stage explorer part 1 [\#407](https://github.com/pymmcore-plus/pymmcore-widgets/pull/407) ([fdrgsp](https://github.com/fdrgsp))
+
+**Fixed bugs:**
+
+- fix: fix property widget for pymmcore-plus 0.15.0 [\#438](https://github.com/pymmcore-plus/pymmcore-widgets/pull/438) ([tlambert03](https://github.com/tlambert03))
+- fix: make position checkboxes uncheckable when using HCSWidget [\#434](https://github.com/pymmcore-plus/pymmcore-widgets/pull/434) ([fdrgsp](https://github.com/fdrgsp))
+- fix: Use an event filter to avoid scrolling [\#433](https://github.com/pymmcore-plus/pymmcore-widgets/pull/433) ([gselzer](https://github.com/gselzer))
+- fix: Disable preset combo scroll [\#432](https://github.com/pymmcore-plus/pymmcore-widgets/pull/432) ([gselzer](https://github.com/gselzer))
+- fix: Stage controller objects that batch repeated relative/absolute calls and emit moveFinished when done [\#423](https://github.com/pymmcore-plus/pymmcore-widgets/pull/423) ([tlambert03](https://github.com/tlambert03))
+- fix: minor HCSWizard bugs [\#419](https://github.com/pymmcore-plus/pymmcore-widgets/pull/419) ([fdrgsp](https://github.com/fdrgsp))
+- fix: fix plate calibration [\#415](https://github.com/pymmcore-plus/pymmcore-widgets/pull/415) ([fdrgsp](https://github.com/fdrgsp))
+- fix: connect core roiSet signal to MDAWidget \_core\_grid and \_core\_position [\#406](https://github.com/pymmcore-plus/pymmcore-widgets/pull/406) ([fdrgsp](https://github.com/fdrgsp))
+
+**Merged pull requests:**
+
+- test: relax log widget test for robustness, and update example [\#439](https://github.com/pymmcore-plus/pymmcore-widgets/pull/439) ([tlambert03](https://github.com/tlambert03))
+- refactor: remove mdi6 fonticon dependency [\#437](https://github.com/pymmcore-plus/pymmcore-widgets/pull/437) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#436](https://github.com/pymmcore-plus/pymmcore-widgets/pull/436) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- tests: turn widget leaks into warning [\#435](https://github.com/pymmcore-plus/pymmcore-widgets/pull/435) ([tlambert03](https://github.com/tlambert03))
+- tests: Speed up tests using pymmcore-plus/setup-mm-test-adapters action [\#430](https://github.com/pymmcore-plus/pymmcore-widgets/pull/430) ([tlambert03](https://github.com/tlambert03))
+- build: setup uv dependency groups and use for testing [\#425](https://github.com/pymmcore-plus/pymmcore-widgets/pull/425) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#424](https://github.com/pymmcore-plus/pymmcore-widgets/pull/424) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- refactor: 2-row button layout in GroupPresetTableWidget [\#421](https://github.com/pymmcore-plus/pymmcore-widgets/pull/421) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#416](https://github.com/pymmcore-plus/pymmcore-widgets/pull/416) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- test: fix stage widget [\#414](https://github.com/pymmcore-plus/pymmcore-widgets/pull/414) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#404](https://github.com/pymmcore-plus/pymmcore-widgets/pull/404) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+
 ## [v0.9.1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.9.1) (2025-02-26)
 
 [Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.9.0...v0.9.1)
