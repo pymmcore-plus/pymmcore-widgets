@@ -53,7 +53,7 @@ dependencies = [
     'superqt[quantity,cmap,iconify] >=0.7.1',
     'useq-schema >=0.7.2',
     'vispy >=0.15.0',
-    "pyopengl >=3.1.9; platform_system == 'Darwin'"
+    "pyopengl >=3.1.9; platform_system == 'Darwin'",
 ]
 
 [project.optional-dependencies]
@@ -75,7 +75,7 @@ test = [
     "pyyaml>=6.0.2",
     "zarr >=2.15,<3",
     "numcodecs >0.14.0,<0.16; python_version >= '3.13'",
-    "numcodecs >0.12.0,<0.16"
+    "numcodecs >0.12.0,<0.16",
 ]
 dev = [
     { include-group = "docs" },
@@ -144,7 +144,7 @@ filterwarnings = [
     "error",
     "ignore:distutils Version classes are deprecated",
     "ignore:Failed to disconnect:RuntimeWarning:",
-    "ignore:'count' is passed as positional argument::vispy"
+    "ignore:'count' is passed as positional argument::vispy",
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
@@ -173,6 +173,10 @@ exclude_lines = [
     "raise NotImplementedError",
 ]
 show_missing = true
+
+[tool.coverage.paths]
+source = ["src/", "*/pymmcore-widgets/pymmcore-widgets/src", "*/site-packages/"]
+
 [tool.coverage.run]
 source = ['pymmcore_widgets']
 
