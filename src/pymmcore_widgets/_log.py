@@ -6,8 +6,15 @@ from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
-from PyQt6.QtCore import QSize, QTimerEvent
-from qtpy.QtCore import QFileSystemWatcher, QObject, QTimer, QUrl, Signal
+from qtpy.QtCore import (
+    QFileSystemWatcher,
+    QObject,
+    QSize,
+    QTimer,
+    QTimerEvent,
+    QUrl,
+    Signal,
+)
 from qtpy.QtGui import QCloseEvent, QDesktopServices, QFontDatabase, QPalette
 from qtpy.QtWidgets import (
     QApplication,
