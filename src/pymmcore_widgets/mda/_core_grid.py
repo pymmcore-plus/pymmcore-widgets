@@ -45,6 +45,7 @@ class CoreConnectedGridPlanWidget(GridPlanWidget):
 
         self._mmc.events.systemConfigurationLoaded.connect(self._update_fov_size)
         self._mmc.events.pixelSizeChanged.connect(self._update_fov_size)
+        self._mmc.events.roiSet.connect(self._update_fov_size)
         self._update_fov_size()
 
     def _update_fov_size(self) -> None:
