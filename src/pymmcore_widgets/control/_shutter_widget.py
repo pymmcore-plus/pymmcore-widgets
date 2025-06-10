@@ -131,7 +131,7 @@ class ShuttersWidget(QWidget):
         """
         Set the button icon color for when the shutter is open.
 
-        Default = (0, 255, 0)
+        Default = "green"
 
         COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, tuple[int, int, int, int],
         tuple[int, int, int]]
