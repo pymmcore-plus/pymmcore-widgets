@@ -1931,7 +1931,7 @@ wheels = [
 
 [[package]]
 name = "pymmcore-plus"
-version = "0.14.0"
+version = "0.15.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -1947,9 +1947,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "useq-schema" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5f/47/060ec8fde7f47d7a6b6ac0131eedf510de9d0ad68127e3fa5df3cba582c6/pymmcore_plus-0.14.0.tar.gz", hash = "sha256:89b41a28edee5788b729e28ba92b2d550c584dcff1d169b42f3a0916b327b5d8", size = 181299, upload-time = "2025-05-05T18:24:08.206Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/95/c6/ed29554c6fc4d6678493b6751db74d32161ae1d0d6c30705934fb29e5bde/pymmcore_plus-0.15.0.tar.gz", hash = "sha256:e6b2fc0ee4b4f13efac1c85fd9121a6867eb3b2b6d404ae6cc864aab9fb309e8", size = 207832, upload-time = "2025-06-10T18:15:03.58Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/26/ef/45824320daf03cdaa4cfb24a37f878082900cf474e406d105090cb11108c/pymmcore_plus-0.14.0-py3-none-any.whl", hash = "sha256:9440029523ac904d88ed5c49e3759afe002f3e64522f23bc511aa35447c27d21", size = 182626, upload-time = "2025-05-05T18:24:06.03Z" },
+    { url = "https://files.pythonhosted.org/packages/bf/ff/3a4cef9677e08e7a9ac8ae195a148ad683fadcc2856a5da004300cdfec02/pymmcore_plus-0.15.0-py3-none-any.whl", hash = "sha256:5a67fcfc609c538a40645018beb5ad797e7777b862dc134a4ebe411e6e83e4dc", size = 200497, upload-time = "2025-06-10T18:15:01.836Z" },
 ]
 
 [package.optional-dependencies]
