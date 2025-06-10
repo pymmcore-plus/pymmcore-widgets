@@ -84,7 +84,7 @@ dev = [
     "ipython>=8.18.1",
     "mypy>=1.15.0",
     "pdbpp>=0.11.6 ; sys_platform != 'win32'",
-    "pre-commit-uv >=4.2.0",
+    "pre-commit-uv >=4.1.0",
     "pyqt6>=6.9.0",
     "rich>=14.0.0",
     "ruff>=0.11.8",
