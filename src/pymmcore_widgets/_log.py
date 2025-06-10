@@ -87,17 +87,8 @@ class _LogReader(QObject):
             if real_size < current_pos:
                 # rotated or truncated
                 if self._file:
-                    try:
-                        self._file.close()
-                    except Exception:
-                        pass  # Ignore errors during cleanup
-                    finally:
-                        self._file = None
-                try:
-                    self._file = open(self._path, encoding="utf-8", errors="replace")
-                except Exception:
-                    self._file = None
-                    return
+                    self._file.close()
+                self._file = open(self._path, encoding="utf-8", errors="replace")
             self._read_new()
         except Exception:
             pass
