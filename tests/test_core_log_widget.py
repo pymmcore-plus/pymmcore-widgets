@@ -20,19 +20,15 @@ def test_core_log_widget_init(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     log_path = global_mmcore.getPrimaryLogFile()
     assert log_path == wdg._log_path.text()
 
-    # Assert log content is in the widget TextEdit
-    # This is a bit tricky because more can be appended to the log file.
-    with open(log_path) as f:
-        log_content = [s.strip() for s in f.readlines()]
-        # Trim down to the final 5000 lines if necessary
-        # (this is all that will fit in the Log Widget)
-        max_lines = wdg._log_view.maximumBlockCount()
-        if len(log_content) > max_lines:
-            log_content = log_content[-max_lines:]
-    edit_content = [s.strip() for s in wdg._log_view.toPlainText().splitlines()]
-    min_length = min(len(log_content), len(edit_content))
-    for i in range(min_length):
-        assert log_content[i] == edit_content[i]
+    wdg.clear()
+    with qtbot.waitSignal(global_mmcore.events.systemConfigurationLoaded):
+        global_mmcore.loadSystemConfiguration()
+
+    def _check_log() -> None:
+        if "Finished initializing" not in wdg._log_view.toPlainText():
+            raise AssertionError("CoreLogWidget did not finish initializing.")
+
+    qtbot.waitUntil(_check_log, timeout=1000)
 
 
 def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
