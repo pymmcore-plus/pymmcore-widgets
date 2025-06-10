@@ -33,9 +33,17 @@ class StageViewer(QWidget):
         self._clims: tuple[float, float] | None = None
         self._cmap: cmap.Colormap = cmap.Colormap("gray")
 
-        self.canvas = scene.SceneCanvas(keys="interactive", show=True)
+        self.canvas = vispy.scene.SceneCanvas(show=True)
+
         self.view = cast("ViewBox", self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1)
+
+        self._grid_lines = vispy.scene.GridLines(
+            parent=self.view.scene,
+            color="#888888",
+            border_width=1,
+        )
+        self._grid_lines.visible = False
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
@@ -67,6 +75,9 @@ class StageViewer(QWidget):
         self._cmap = cmap.Colormap(colormap)
         for child in self._get_images():
             child.cmap = self._cmap.to_vispy()
+
+    def set_grid_visible(self, visible: bool) -> None:
+        self._grid_lines.visible = visible
 
     def global_autoscale(self, *, ignore_min: float = 0, ignore_max: float = 0) -> None:
         """Set the color limits of all images in the scene to the global min and max.
@@ -149,6 +160,18 @@ class StageViewer(QWidget):
         x_bounds, y_bounds, *_ = get_vispy_scene_bounds(visuals)
         self.view.camera.set_range(x=x_bounds, y=y_bounds, margin=margin)
 
+    def canvas_to_world(self, canvas_pos: tuple[float, float]) -> tuple[float, float]:
+        """Convert canvas coordinates to world coordinates."""
+        # map canvas position to world position
+        world_x, world_y, *_ = self.view.scene.transform.imap(canvas_pos)
+        return world_x, world_y
+
+    def world_to_canvas(self, world_pos: tuple[float, float]) -> tuple[float, float]:
+        """Convert world coordinates to canvas coordinates."""
+        # map world position to canvas position
+        canvas_x, canvas_y, *_ = self.view.scene.transform.map(world_pos)
+        return canvas_x, canvas_y
+
     # --------------------PRIVATE METHODS--------------------
 
     def _get_images(self) -> Iterator[Image]:
@@ -162,7 +185,7 @@ class StageViewer(QWidget):
             return  # pragma: no cover
 
         # map canvas position to world position
-        world_x, world_y, *_ = self.view.scene.transform.imap(event.pos)
+        world_x, world_y = self.canvas_to_world(event.pos)
         self._hover_pos_label.setText(f"({world_x:.2f}, {world_y:.2f})")
         self._hover_pos_label.adjustSize()
 
