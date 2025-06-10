@@ -3,7 +3,6 @@ from __future__ import annotations
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
-from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus._logger import logger
 from pymmcore_plus._util import retry
@@ -60,7 +59,7 @@ class CoreConnectedPositionTable(PositionTable):
     ):
         # must come before __init__ since it is used in super()._on_use_af_toggled
         self._af_btn_col = ButtonColumn(
-            key="af_btn", glyph=MDI6.arrow_left, on_click=self._set_af_from_core
+            key="af_btn", glyph="mdi:arrow-left", on_click=self._set_af_from_core
         )
         super().__init__(rows, parent)
         self._mmc = mmcore or CMMCorePlus.instance()
@@ -73,7 +72,7 @@ class CoreConnectedPositionTable(PositionTable):
         self._plate_plan: WellPlatePlan | None = None
 
         self._hcs_button = QPushButton("Well Plate...")
-        # self._hcs_button.setIcon(icon(MDI6.view_comfy))
+        # self._hcs_button.setIcon(QIconifyIcon('mdi:view-comfy'))
         self._hcs_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._hcs_button.setToolTip("Open the HCS wizard.")
         self._hcs_button.clicked.connect(self._show_hcs)
@@ -93,10 +92,10 @@ class CoreConnectedPositionTable(PositionTable):
         self.move_to_selection = QCheckBox("Move Stage to Selected Point")
         # add a button to update XY to the current position
         self._xy_btn_col = ButtonColumn(
-            key="xy_btn", glyph=MDI6.arrow_right, on_click=self._set_xy_from_core
+            key="xy_btn", glyph="mdi:arrow-right", on_click=self._set_xy_from_core
         )
         self._z_btn_col = ButtonColumn(
-            key="z_btn", glyph=MDI6.arrow_left, on_click=self._set_z_from_core
+            key="z_btn", glyph="mdi:arrow-left", on_click=self._set_z_from_core
         )
         table = self.table()
         table.addColumn(self._xy_btn_col, table.indexOf(self.X))

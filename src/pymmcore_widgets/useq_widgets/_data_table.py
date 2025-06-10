@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar, cast
 
-from fonticon_mdi6 import MDI6
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -17,7 +16,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 from superqt.utils import signals_blocked
 
 from ._column_info import ColumnInfo
@@ -231,26 +230,26 @@ class DataTableWidget(QWidget):
         green = "#3A3"
         gray = "#666"
 
-        self.act_add_row = QAction(icon(MDI6.plus_thick, color=green), "Add new row", self) # noqa
+        self.act_add_row = QAction(QIconifyIcon('mdi:plus-thick', color=green), "Add new row", self) # noqa
         self.act_add_row.triggered.connect(self._add_row)
 
-        self.act_check_all = QAction(icon(MDI6.checkbox_multiple_marked_outline, color=gray), "Select all rows", self)  # noqa
+        self.act_check_all = QAction(QIconifyIcon('mdi:checkbox-multiple-marked-outline', color=gray), "Select all rows", self)  # noqa
         self.act_check_all.triggered.connect(self._check_all)
 
-        self.act_check_none = QAction(icon(MDI6.checkbox_multiple_blank_outline, color=gray), "Clear selection", self)  # noqa
+        self.act_check_none = QAction(QIconifyIcon('mdi:checkbox-multiple-blank-outline', color=gray), "Clear selection", self)  # noqa
         self.act_check_none.triggered.connect(self._check_none)
 
         # hard to implement so far
-        # self.act_move_up = QAction(icon(MDI6.arrow_up_thin, color=gray), "Move selected row up", self)  # noqa
+        # self.act_move_up = QAction(QIconifyIcon('mdi:arrow-up-thin', color=gray), "Move selected row up", self)  # noqa
         # self.act_move_up.triggered.connect(self._move_selected_rows_up)
 
-        # self.act_move_down = QAction(icon(MDI6.arrow_down_thin, color=gray), "Move selected row down", self)  # noqa
+        # self.act_move_down = QAction(QIconifyIcon('mdi:arrow-down-thin', color=gray), "Move selected row down", self)  # noqa
         # self.act_move_down.triggered.connect(self._move_selected_rows_down)
 
-        self.act_remove_row = QAction(icon(MDI6.close_box_outline, color=red), "Remove selected row", self)  # noqa
+        self.act_remove_row = QAction(QIconifyIcon('mdi:close-box-outline', color=red), "Remove selected row", self)  # noqa
         self.act_remove_row.triggered.connect(self._remove_selected)
 
-        self.act_clear = QAction(icon(MDI6.close_box_multiple_outline, color=red), "Remove all rows", self)  # noqa
+        self.act_clear = QAction(QIconifyIcon('mdi:close-box-multiple-outline', color=red), "Remove all rows", self)  # noqa
         self.act_clear.triggered.connect(self._remove_all)
         # fmt: on
 

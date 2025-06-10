@@ -3,9 +3,9 @@ from __future__ import annotations
 from itertools import product
 from typing import TYPE_CHECKING, cast
 
-from fonticon_mdi6 import MDI6
+from pyconify import svg_path
 from pymmcore_plus import CMMCorePlus, DeviceType, Keyword
-from qtpy.QtCore import QEvent, QObject, Qt, QTimerEvent, Signal
+from qtpy.QtCore import QEvent, QObject, QSize, Qt, QTimerEvent, Signal
 from qtpy.QtGui import QContextMenuEvent
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -20,7 +20,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import icon, setTextIcon
+from superqt.iconify import QIconifyIcon
 from superqt.utils import signals_blocked
 
 from ._q_stage_controller import QStageMoveAccumulator
@@ -34,18 +34,18 @@ FOCUS = Keyword.CoreFocus
 
 MOVE_BUTTONS: dict[str, tuple[int, int, int, int]] = {
     # btn glyph                (r, c, xmag, ymag)
-    MDI6.chevron_triple_up: (0, 3, 0, 3),
-    MDI6.chevron_double_up: (1, 3, 0, 2),
-    MDI6.chevron_up: (2, 3, 0, 1),
-    MDI6.chevron_down: (4, 3, 0, -1),
-    MDI6.chevron_double_down: (5, 3, 0, -2),
-    MDI6.chevron_triple_down: (6, 3, 0, -3),
-    MDI6.chevron_triple_left: (3, 0, -3, 0),
-    MDI6.chevron_double_left: (3, 1, -2, 0),
-    MDI6.chevron_left: (3, 2, -1, 0),
-    MDI6.chevron_right: (3, 4, 1, 0),
-    MDI6.chevron_double_right: (3, 5, 2, 0),
-    MDI6.chevron_triple_right: (3, 6, 3, 0),
+    "mdi:chevron-triple-up": (0, 3, 0, 3),
+    "mdi:chevron-double-up": (1, 3, 0, 2),
+    "mdi:chevron-up": (2, 3, 0, 1),
+    "mdi:chevron-down": (4, 3, 0, -1),
+    "mdi:chevron-double-down": (5, 3, 0, -2),
+    "mdi:chevron-triple-down": (6, 3, 0, -3),
+    "mdi:chevron-triple-left": (3, 0, -3, 0),
+    "mdi:chevron-double-left": (3, 1, -2, 0),
+    "mdi:chevron-left": (3, 2, -1, 0),
+    "mdi:chevron-right": (3, 4, 1, 0),
+    "mdi:chevron-double-right": (3, 5, 2, 0),
+    "mdi:chevron-triple-right": (3, 6, 3, 0),
 }
 
 
@@ -58,21 +58,20 @@ class MoveStageButton(QPushButton):
         self.setFlat(True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        setTextIcon(self, glyph)
         self.setStyleSheet(
-            """
-            MoveStageButton {
+            f"""
+            MoveStageButton {{
                 border: none;
                 background: transparent;
-                color: rgb(0, 180, 0);
+                image: url({svg_path(glyph, color="rgb(0, 180, 0)")});
                 font-size: 36px;
-            }
-            MoveStageButton:hover:!pressed {
-                color: rgb(0, 255, 0);
-            }
-            MoveStageButton:pressed {
-                color: rgb(0, 100, 0);
-            }
+            }}
+            MoveStageButton:hover:!pressed {{
+                image: url({svg_path(glyph, color="lime")});
+            }}
+            MoveStageButton:pressed {{
+                image: url({svg_path(glyph, color="green")});
+            }}
             """
         )
 
@@ -107,7 +106,8 @@ class HaltButton(QPushButton):
         super().__init__(parent=parent)
         self._device = device
         self._core = core
-        self.setIcon(icon(MDI6.close_octagon, color=(255, 0, 0)))
+        self.setIcon(QIconifyIcon("bi:sign-stop-fill", color="red"))
+        self.setIconSize(QSize(24, 24))
         self.setToolTip("Halt stage movement")
         self.setText("STOP!")
         self.clicked.connect(self._on_clicked)

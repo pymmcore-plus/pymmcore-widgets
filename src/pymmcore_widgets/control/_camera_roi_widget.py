@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, NamedTuple
 
-from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import (
@@ -21,7 +20,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 from superqt.utils import signals_blocked
 
 fixed_sizepolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -180,7 +179,7 @@ class CameraRoiWidget(QWidget):
 
         self.crop_btn = QPushButton("Crop")
         self.crop_btn.setMinimumWidth(100)
-        self.crop_btn.setIcon(icon(MDI6.crop, color=(0, 255, 0)))
+        self.crop_btn.setIcon(QIconifyIcon("mdi:crop", color="green"))
         self.crop_btn.setIconSize(QSize(30, 30))
 
         _bottom_layout.addWidget(self.snap_checkbox)

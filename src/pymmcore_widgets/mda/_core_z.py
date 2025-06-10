@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal
 
-from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 
 from pymmcore_widgets.useq_widgets._z import ROW_TOP_BOTTOM, Mode, ZPlanWidget
@@ -31,10 +30,10 @@ class CoreConnectedZPlanWidget(ZPlanWidget):
         self, mmcore: CMMCorePlus | None = None, parent: QWidget | None = None
     ) -> None:
         self.bottom_btn = MarkVisit(
-            MDI6.arrow_collapse_down, mark_text="Mark Bottom", icon_size=16
+            "mdi:arrow-collapse-down", mark_text="Mark Bottom", icon_size=16
         )
         self.top_btn = MarkVisit(
-            MDI6.arrow_collapse_up, mark_text="Mark Top", icon_size=16
+            "mdi:arrow-collapse-up", mark_text="Mark Top", icon_size=16
         )
 
         super().__init__(parent)

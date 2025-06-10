@@ -48,7 +48,6 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    'fonticon-materialdesignicons6 >=6.9.96',
     'pymmcore-plus[cli] >=0.14.0',
     'qtpy >=2.0',
     'superqt[quantity,cmap,iconify] >=0.7.1',

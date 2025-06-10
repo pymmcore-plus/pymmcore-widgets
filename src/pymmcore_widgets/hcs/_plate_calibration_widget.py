@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 
 from pymmcore_widgets._util import SeparatorWidget
 from pymmcore_widgets.hcs._well_calibration_widget import (
@@ -358,7 +358,7 @@ class PlateCalibrationWidget(QWidget):
         if self._rotation is not None:
             spacing = self._well_spacing or (0, 0)
             txt = "<strong>Plate calibrated.</strong>"
-            ico = icon(CALIBRATED_ICON, color=GREEN)
+            ico = QIconifyIcon(CALIBRATED_ICON, color=GREEN)
             if self._current_plate is not None:
                 spacing_diff = abs(spacing[0] - self._current_plate.well_spacing[0])
                 # if spacing is more than 5% different from the plate spacing...

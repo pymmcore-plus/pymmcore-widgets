@@ -388,15 +388,6 @@ wheels = [
 ]
 
 [[package]]
-name = "fonticon-materialdesignicons6"
-version = "6.9.96"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/2d/17/5ccdaaf03de6527b9cb086b63fc12f0befb0e1ed41caa7f042394b8bba0a/fonticon_materialdesignicons6-6.9.96.tar.gz", hash = "sha256:b382a662520c095e513e51b8586cb71f9a9ab5f56d6df9fba89f334e0e61b297", size = 609869, upload-time = "2023-04-17T17:16:20.128Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/50/7d/dbb0ba9372893ec0316bf8c630b9de2c8a5e2d0cc5d65c6884f13075f3f1/fonticon_materialdesignicons6-6.9.96-py3-none-any.whl", hash = "sha256:313ea02b68bcc04b604c4172a2fc93b24c799216b9b210dd7d2f8135cc4fa3b4", size = 608618, upload-time = "2023-04-17T17:16:17.801Z" },
-]
-
-[[package]]
 name = "freetype-py"
 version = "2.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1962,7 +1953,6 @@ cli = [
 name = "pymmcore-widgets"
 source = { editable = "." }
 dependencies = [
-    { name = "fonticon-materialdesignicons6" },
     { name = "pymmcore-plus", extra = ["cli"] },
     { name = "pyopengl", marker = "sys_platform == 'darwin'" },
     { name = "qtpy" },
@@ -2038,7 +2028,6 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "fonticon-materialdesignicons6", specifier = ">=6.9.96" },
     { name = "pymmcore-plus", extras = ["cli"], specifier = ">=0.14.0" },
     { name = "pyopengl", marker = "sys_platform == 'darwin'", specifier = ">=3.1.9" },
     { name = "pyqt5", marker = "extra == 'pyqt5'", specifier = ">=5.15.11" },

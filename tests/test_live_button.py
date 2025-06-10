@@ -18,7 +18,7 @@ def test_live_button_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     assert live_btn.text() == "Live"
     assert live_btn.iconSize() == QSize(30, 30)
-    assert live_btn.icon_color_on == (0, 255, 0)
+    assert live_btn.icon_color_on == "green"
     assert live_btn.icon_color_off == "magenta"
 
     # test from direct mmcore signals
