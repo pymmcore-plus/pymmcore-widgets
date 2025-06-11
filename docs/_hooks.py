@@ -3,6 +3,7 @@ from __future__ import annotations
 import atexit
 import os
 import subprocess
+import time
 from pathlib import Path
 from tempfile import mkstemp
 from typing import TYPE_CHECKING
@@ -80,6 +81,15 @@ def on_files(files: Files, /, *, config: MkDocsConfig) -> None:
             files.remove(file)
         files.append(file)
 
+    # cleanup
+    from qtpy.QtWidgets import QApplication
+
+    if app := QApplication.instance():
+        app.quit()
+        for _i in range(10):
+            app.processEvents()
+            time.sleep(0.01)
+
 
 def on_nav(nav: Navigation, *, files: Files, config: MkDocsConfig) -> None:
     """Add pymmcore_widgets to the navigation."""
@@ -108,20 +118,39 @@ widget.setMinimumWidth(300)
 app.processEvents()
 widget.grab().save({})
 app.processEvents()
+for w in app.topLevelWidgets():
+    w.close()
+    w.deleteLater()
+app.processEvents()
+app.processEvents()
 """
 
 
-def snapshot(filename: str) -> str:
+def snapshot(filename: str, sub: bool = False) -> str:
     """Run filename in a subprocess and snapshot top level widget.
 
     replace calls to `app.exec()` with a function that calls processEvents() and then
     grabs the top level widget, saving it to filename.
     """
     fpath = Path(filename)
+
+    # create a temporary file to save the screenshot
     dest = mkstemp(prefix=fpath.stem, suffix=".png")[1]
     atexit.register(os.remove, dest)
-    append = SNAP.format(repr(dest))
+
+    # replace the app.exec() call with a function that saves the screenshot
+    new_exec = SNAP.format(repr(dest))
     src = fpath.read_text().strip()
-    src = src.replace("app.exec_()", append).replace("app.exec()", append)
-    subprocess.run(["python", "-c", src], check=True)
+    src = src.replace("app.exec_()", new_exec).replace("app.exec()", new_exec)
+    src = src.replace("QApplication([])", "QApplication.instance() or QApplication([])")
+
+    if sub:
+        subprocess.run(["python", "-c", src], check=True)
+    else:
+        exec(src, {"__name__": "__main__", "__file__": str(fpath)})
+        from pymmcore_plus.core import _mmcore_plus
+
+        del _mmcore_plus._instance
+        _mmcore_plus._instance = None
+
     return dest
