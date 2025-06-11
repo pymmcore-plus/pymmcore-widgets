@@ -3,7 +3,6 @@ from __future__ import annotations
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
-from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus._logger import logger
 from pymmcore_plus._util import retry
@@ -17,7 +16,7 @@ from qtpy.QtWidgets import (
     QWizard,
 )
 from superqt.utils import signals_blocked
-from useq import WellPlatePlan
+from useq import MDASequence, WellPlatePlan
 
 from pymmcore_widgets import HCSWizard
 from pymmcore_widgets.useq_widgets import PositionTable
@@ -60,7 +59,7 @@ class CoreConnectedPositionTable(PositionTable):
     ):
         # must come before __init__ since it is used in super()._on_use_af_toggled
         self._af_btn_col = ButtonColumn(
-            key="af_btn", glyph=MDI6.arrow_left, on_click=self._set_af_from_core
+            key="af_btn", glyph="mdi:arrow-left", on_click=self._set_af_from_core
         )
         super().__init__(rows, parent)
         self._mmc = mmcore or CMMCorePlus.instance()
@@ -73,7 +72,7 @@ class CoreConnectedPositionTable(PositionTable):
         self._plate_plan: WellPlatePlan | None = None
 
         self._hcs_button = QPushButton("Well Plate...")
-        # self._hcs_button.setIcon(icon(MDI6.view_comfy))
+        # self._hcs_button.setIcon(QIconifyIcon('mdi:view-comfy'))
         self._hcs_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._hcs_button.setToolTip("Open the HCS wizard.")
         self._hcs_button.clicked.connect(self._show_hcs)
@@ -93,10 +92,10 @@ class CoreConnectedPositionTable(PositionTable):
         self.move_to_selection = QCheckBox("Move Stage to Selected Point")
         # add a button to update XY to the current position
         self._xy_btn_col = ButtonColumn(
-            key="xy_btn", glyph=MDI6.arrow_right, on_click=self._set_xy_from_core
+            key="xy_btn", glyph="mdi:arrow-right", on_click=self._set_xy_from_core
         )
         self._z_btn_col = ButtonColumn(
-            key="z_btn", glyph=MDI6.arrow_left, on_click=self._set_z_from_core
+            key="z_btn", glyph="mdi:arrow-left", on_click=self._set_z_from_core
         )
         table = self.table()
         table.addColumn(self._xy_btn_col, table.indexOf(self.X))
@@ -112,6 +111,8 @@ class CoreConnectedPositionTable(PositionTable):
         # connect
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
+        self._mmc.events.roiSet.connect(self._update_fov_size)
+        self._mmc.events.pixelSizeChanged.connect(self._update_fov_size)
 
         self.destroyed.connect(self._disconnect)
 
@@ -455,3 +456,30 @@ class CoreConnectedPositionTable(PositionTable):
             self._on_sys_config_loaded
         )
         self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
+
+    def _update_fov_size(self) -> None:
+        """Update the FOV size of any grid plan subsequence."""
+        if not (pos_list := self.value()):
+            return
+
+        # get updated FOV size
+        px = self._mmc.getPixelSizeUm()
+        fov_w = self._mmc.getImageWidth() * px
+        fov_h = self._mmc.getImageHeight() * px
+
+        new_pos_list = []
+        for pos in pos_list:
+            # skip if there is not a subsequence
+            if pos.sequence is None:
+                new_pos_list.append(pos)
+                continue
+            # skip if there is not a grid plan
+            if (gp := pos.sequence.grid_plan) is None:
+                new_pos_list.append(pos)
+                continue
+            # update the FOV size
+            new_gp = gp.model_copy(update={"fov_width": fov_w, "fov_height": fov_h})
+            new_pos = pos.model_copy(update={"sequence": MDASequence(grid_plan=new_gp)})
+            new_pos_list.append(new_pos)
+        # update the table
+        self.setValue(new_pos_list)

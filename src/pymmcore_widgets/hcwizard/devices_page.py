@@ -4,7 +4,6 @@ import logging
 from contextlib import suppress
 from typing import TYPE_CHECKING, cast
 
-from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
 from pymmcore_plus.model import AvailableDevice, Device, Microscope
 from qtpy.QtCore import QRegularExpression, Qt, Signal
@@ -23,7 +22,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import icon, setTextIcon
+from superqt.iconify import QIconifyIcon
 from superqt.utils import exceptions_as_dialog, signals_blocked
 
 from pymmcore_widgets._icons import ICONS
@@ -62,8 +61,9 @@ class _DeviceTable(QTableWidget):
         self.setRowCount(len(model.devices))
         for i, device in enumerate(model.devices):
             type_icon = ICONS.get(device.device_type, "")
+            wdg: QWidget
             if device.device_type == DeviceType.Hub:
-                wdg = QPushButton(icon(type_icon, color="blue"), "")
+                wdg = QPushButton(QIconifyIcon(type_icon, color="blue"), "")
                 wdg.setToolTip("Add peripheral device")
                 wdg.setCursor(Qt.CursorShape.PointingHandCursor)
                 wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -74,8 +74,7 @@ class _DeviceTable(QTableWidget):
 
             else:
                 wdg = QLabel()
-                setTextIcon(wdg, type_icon, size=14)
-                wdg.setStyleSheet("QLabel { color: gray; }")
+                wdg.setPixmap(QIconifyIcon(type_icon, color="gray").pixmap(16, 16))
 
             container = QWidget()
             layout = QHBoxLayout(container)
@@ -92,13 +91,13 @@ class _DeviceTable(QTableWidget):
             if device.device_type == DeviceType.Core:  # pragma: no cover
                 # shouldn't be possible to have a core device in this list
                 status = "Core"
-                _icon = icon(MDI6.heart_cog, color="gray")
+                _icon = QIconifyIcon("mdi:heart-cog", color="gray")
             elif device.initialized:
                 status = "OK"
-                _icon = icon(MDI6.check_circle, color="green")
+                _icon = QIconifyIcon("mdi:check-circle", color="green")
             else:
                 status = "Failed"
-                _icon = icon(MDI6.alert, color="Red")
+                _icon = QIconifyIcon("mdi:alert", color="Red")
             item = QTableWidgetItem(_icon, status)
             if info := errs.get(device.name):
                 item.setToolTip(str(info))
@@ -121,11 +120,11 @@ class _CurrentDevicesWidget(QWidget):
         self.table.cellDoubleClicked.connect(self._edit_selected_device)
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
 
-        self.edit_btn = QPushButton(icon(MDI6.pencil), "Edit")
+        self.edit_btn = QPushButton(QIconifyIcon("mdi:pencil"), "Edit")
         self.edit_btn.setDisabled(True)
         self.edit_btn.clicked.connect(self._edit_selected_device)
 
-        self.remove_btn = QPushButton(icon(MDI6.delete), "Remove")
+        self.remove_btn = QPushButton(QIconifyIcon("mdi:delete"), "Remove")
         self.remove_btn.setDisabled(True)
         self.remove_btn.clicked.connect(self._remove_selected_devices)
 
@@ -358,7 +357,7 @@ class _AvailableDevicesWidget(QWidget):
             item = QTableWidgetItem(str(device.device_type))
             icon_string = ICONS.get(device.device_type, None)
             if icon_string:
-                item.setIcon(icon(icon_string, color="Gray"))
+                item.setIcon(QIconifyIcon(icon_string, color="Gray"))
             if device.library_hub:
                 item.setFlags(Qt.ItemFlag.NoItemFlags)
             self.table.setItem(i, 2, item)
@@ -371,7 +370,7 @@ class _AvailableDevicesWidget(QWidget):
             _avail = {x.device_type for x in self._model.available_devices}
             avail = sorted(x for x in _avail if x != DeviceType.Any)
             for x in (DeviceType.Any, *avail):
-                self.dev_type.addItem(icon(ICONS.get(x, "")), str(x), x)
+                self.dev_type.addItem(QIconifyIcon(ICONS.get(x, "")), str(x), x)
             if current in avail:
                 self.dev_type.setCurrentText(str(current))
 

@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import os
 from collections import deque
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QFileSystemWatcher, QObject, QTimer, QUrl, Signal
+from qtpy.QtCore import (
+    QFileSystemWatcher,
+    QObject,
+    QSize,
+    QTimer,
+    QTimerEvent,
+    QUrl,
+    Signal,
+)
 from qtpy.QtGui import QCloseEvent, QDesktopServices, QFontDatabase, QPalette
 from qtpy.QtWidgets import (
     QApplication,
@@ -43,26 +52,38 @@ class _LogReader(QObject):
         # unless the file is flushed from cache to disk. This does NOT happen
         # when CMMCorePlus.logMessage() is called. So we need to poll the file for
         # Windows' sake.
-        self._timer = QTimer(self)
-        self._timer.setInterval(self._interval)
-        self._timer.timeout.connect(self._read_new)
+        self._timer_id: int | None = None
 
         # Watcher for rotation/truncate events
         self._watcher = QFileSystemWatcher(self)
         self._watcher.addPath(self._path)
         self._watcher.fileChanged.connect(self._on_file_changed)
 
+    def __del__(self) -> None:
+        """Ensure file is closed when object is deleted."""
+        with suppress(RuntimeError):
+            self._stop()
+
+    def timerEvent(self, event: QTimerEvent | None) -> None:
+        if event and event.timerId() == self._timer_id:
+            self._read_new()
+
     def start(self) -> None:
         """Open the file and start polling."""
-        self._file = open(self._path, encoding="utf-8", errors="replace")
-        self._file.seek(0, os.SEEK_END)
-        self._timer.start()
+        if self._timer_id is None:
+            self._file = open(self._path, encoding="utf-8", errors="replace")
+            self._file.seek(0, os.SEEK_END)
+            self._timer_id = self.startTimer(self._interval)
 
     def _stop(self) -> None:
         """Stop polling and close the file."""
-        self._timer.stop()
-        if self._file:
-            self._file.close()
+        if self._timer_id is not None:
+            self.killTimer(self._timer_id)
+            self._timer_id = None
+        if self._file is not None:
+            with suppress(Exception):
+                self._file.close()
+            self._file = None
         self.finished.emit()
 
     def _on_file_changed(self, path: str) -> None:
@@ -151,17 +172,27 @@ class CoreLogWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(file_layout)
         layout.addWidget(self._log_view)
-        self.setLayout(layout)
 
         # --- Connections ---
         self._reader.new_lines.connect(self._append_line)
-        self._clear_btn.clicked.connect(self._log_view.clear)
+        self._clear_btn.clicked.connect(self.clear)
         self._log_btn.clicked.connect(self._open_native)
         self._reader.start()
 
-    def __del__(self) -> None:
-        """Stop reader before deletion."""
-        self._reader._stop()
+        # scroll left to begin
+        def _scroll_left() -> None:
+            if sb := self._log_view.horizontalScrollBar():
+                sb.setValue(0)
+
+        QTimer.singleShot(0, _scroll_left)
+
+    def clear(self) -> None:
+        """Clear the log view."""
+        self._log_view.clear()
+
+    def sizeHint(self) -> QSize:
+        hint = super().sizeHint()
+        return hint.expandedTo(QSize(1000, 800))
 
     def _append_line(self, line: str) -> None:
         """Append a line, respecting pause/follow settings."""
@@ -170,8 +201,6 @@ class CoreLogWidget(QWidget):
     def closeEvent(self, event: QCloseEvent | None) -> None:
         """Clean up thread on close."""
         self._reader._stop()
-        # self._thread.quit()
-        # self._thread.wait()
         super().closeEvent(event)
 
     def _open_native(self) -> None:

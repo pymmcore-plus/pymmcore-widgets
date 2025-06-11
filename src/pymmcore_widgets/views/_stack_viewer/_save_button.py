@@ -4,10 +4,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import zarr
-from fonticon_mdi6 import MDI6
 from qtpy.QtCore import QSize
 from qtpy.QtWidgets import QFileDialog, QPushButton, QWidget
-from superqt import fonticon
+from superqt.iconify import QIconifyIcon
 
 from ._datastore import QOMEZarrDatastore
 
@@ -24,7 +23,7 @@ class SaveButton(QPushButton):
         super().__init__(parent=parent)
         # self.setFont(QFont('Arial', 50))
         # self.setMinimumHeight(30)
-        self.setIcon(fonticon.icon(MDI6.content_save_outline, color="gray"))
+        self.setIcon(QIconifyIcon("mdi:content-save-outline", color="gray"))
         self.setIconSize(QSize(25, 25))
         self.setFixedSize(30, 30)
         self.clicked.connect(self._on_click)

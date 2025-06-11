@@ -7,7 +7,7 @@ from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QAbstractScrollArea, QTableWidget, QTableWidgetItem, QWidget
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 
 from pymmcore_widgets._icons import ICONS
 from pymmcore_widgets._util import NoWheelTableWidget
@@ -130,7 +130,7 @@ class DevicePropertyTable(NoWheelTableWidget):
             item = QTableWidgetItem(f"{prop.device}-{prop.name}{extra}")
             item.setData(self.PROP_ROLE, prop)
             if icon_string := ICONS.get(prop.deviceType()):
-                item.setIcon(icon(icon_string, color="Gray"))
+                item.setIcon(QIconifyIcon(icon_string, color="Gray"))
             self.setItem(i, 0, item)
 
             try:

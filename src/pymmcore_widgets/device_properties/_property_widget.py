@@ -152,10 +152,13 @@ class ChoiceWidget(QComboBox):
     def _refresh_choices(self) -> None:
         with utils.signals_blocked(self):
             self.clear()
-            allowed = list(self._get_allowed())
-            with contextlib.suppress(ValueError):
-                # natural sort for numbers
-                allowed.sort(key=float)
+            try:
+                allowed = list(self._get_allowed())
+                with contextlib.suppress(ValueError):
+                    # natural sort for numbers
+                    allowed.sort(key=float)
+            except RuntimeError:
+                allowed = []
 
             self.addItems(allowed)
 

@@ -3,16 +3,15 @@ from __future__ import annotations
 import warnings
 from typing import Any, Union
 
-from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QSizePolicy, QWidget
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 from superqt.utils import signals_blocked
 
-GRAY = (183, 183, 183)
-GREEN = (0, 255, 0)
+GRAY = "gray"
+GREEN = "green"
 
 COLOR_TYPE = Union[
     QColor,
@@ -60,8 +59,8 @@ class ShuttersWidget(QWidget):
         self._is_multiShutter = False
         self.autoshutter = autoshutter
 
-        self._icon_open: str = MDI6.hexagon_outline
-        self._icon_closed: str = MDI6.hexagon_slice_6
+        self._icon_open: str = "mdi:hexagon-outline"
+        self._icon_closed: str = "mdi:hexagon-slice-6"
         self._icon_color_open: COLOR_TYPE = GREEN
         self._icon_color_closed: COLOR_TYPE = GRAY
         self._icon_size: int = 25
@@ -92,7 +91,7 @@ class ShuttersWidget(QWidget):
 
         The icon_open.setter icon string should be any key recognizable as
         a superqt fonticon (e.g. mdi6.abacus).
-        Default = MDI6.hexagon_outline (https://github.com/templarian/MaterialDesign).
+        Default = 'mdi:hexagon-outline' (https://github.com/templarian/MaterialDesign).
         Note that MDI6 is installed by default, you must install other fonts
         if you want to use them.
         """
@@ -101,7 +100,9 @@ class ShuttersWidget(QWidget):
     @icon_open.setter
     def icon_open(self, icon_o: str) -> None:
         if self._mmc.getShutterOpen(self.shutter_device):
-            self.shutter_button.setIcon(icon(icon_o, color=self._icon_color_open))
+            self.shutter_button.setIcon(
+                QIconifyIcon(icon_o, color=self._icon_color_open)
+            )
         self._icon_open = icon_o
 
     @property
@@ -111,7 +112,7 @@ class ShuttersWidget(QWidget):
 
         The icon_closed.setter icon string should be any key recognizable as
         a superqt fonticon (e.g. mdi6.abacus).
-        Default = MDI6.hexagon_slice_6 (https://github.com/templarian/MaterialDesign).
+        Default = 'mdi:hexagon-slice-6' (https://github.com/templarian/MaterialDesign).
         Note that MDI6 is installed by default, you must install other fonts
         if you want to use them.
         """
@@ -120,7 +121,9 @@ class ShuttersWidget(QWidget):
     @icon_closed.setter
     def icon_closed(self, icon_c: str) -> None:
         if not self._mmc.getShutterOpen(self.shutter_device):
-            self.shutter_button.setIcon(icon(icon_c, color=self._icon_color_closed))
+            self.shutter_button.setIcon(
+                QIconifyIcon(icon_c, color=self._icon_color_closed)
+            )
         self._icon_closed = icon_c
 
     @property
@@ -128,7 +131,7 @@ class ShuttersWidget(QWidget):
         """
         Set the button icon color for when the shutter is open.
 
-        Default = (0, 255, 0)
+        Default = "green"
 
         COLOR_TYPE = Union[QColor, int, str, Qt.GlobalColor, tuple[int, int, int, int],
         tuple[int, int, int]]
@@ -138,7 +141,7 @@ class ShuttersWidget(QWidget):
     @icon_color_open.setter
     def icon_color_open(self, color: COLOR_TYPE) -> None:
         if self._mmc.getShutterOpen(self.shutter_device):
-            self.shutter_button.setIcon(icon(self._icon_open, color=color))
+            self.shutter_button.setIcon(QIconifyIcon(self._icon_open, color=color))
         self._icon_color_open = color
 
     @property
@@ -156,7 +159,7 @@ class ShuttersWidget(QWidget):
     @icon_color_closed.setter
     def icon_color_closed(self, color: COLOR_TYPE) -> None:
         if not self._mmc.getShutterOpen(self.shutter_device):
-            self.shutter_button.setIcon(icon(self._icon_closed, color=color))
+            self.shutter_button.setIcon(QIconifyIcon(self._icon_closed, color=color))
         self._icon_color_closed = color
 
     @property
@@ -212,7 +215,7 @@ class ShuttersWidget(QWidget):
         sizepolicy_btn = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.shutter_button.setSizePolicy(sizepolicy_btn)
         self.shutter_button.setIcon(
-            icon(self._icon_closed, color=self._icon_color_closed)
+            QIconifyIcon(self._icon_closed, color=self._icon_color_closed)
         )
         self.shutter_button.setIconSize(QSize(self._icon_size, self._icon_size))
         self.shutter_button.clicked.connect(self._on_shutter_btn_clicked)
@@ -345,12 +348,14 @@ class ShuttersWidget(QWidget):
 
     def _set_shutter_wdg_to_opened(self) -> None:
         self.shutter_button.setText(self._button_text_open)
-        self.shutter_button.setIcon(icon(self._icon_open, color=self._icon_color_open))
+        self.shutter_button.setIcon(
+            QIconifyIcon(self._icon_open, color=self._icon_color_open)
+        )
 
     def _set_shutter_wdg_to_closed(self) -> None:
         self.shutter_button.setText(self._button_text_closed)
         self.shutter_button.setIcon(
-            icon(self._icon_closed, color=self._icon_color_closed)
+            QIconifyIcon(self._icon_closed, color=self._icon_color_closed)
         )
 
     def _disconnect(self) -> None:

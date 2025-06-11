@@ -3,7 +3,6 @@ from __future__ import annotations
 import webbrowser
 from typing import TYPE_CHECKING
 
-from fonticon_mdi6 import MDI6
 from qtpy.QtWidgets import (
     QDoubleSpinBox,
     QTableWidget,
@@ -12,7 +11,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 
 from ._base_page import ConfigWizardPage
 
@@ -52,7 +51,7 @@ class DelayTable(QTableWidget):
         self.setRowCount(len(devs))
         for i, dev in enumerate(devs):
             btn = QToolButton()
-            btn.setIcon(icon(MDI6.information_outline, color="blue"))
+            btn.setIcon(QIconifyIcon("mdi:information-outline", color="blue"))
             self.setCellWidget(i, 0, btn)
             self.setItem(i, 1, QTableWidgetItem(dev.name))
             self.setItem(i, 2, QTableWidgetItem(dev.adapter_name))
