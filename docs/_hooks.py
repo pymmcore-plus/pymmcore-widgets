@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from mkdocs.plugins import get_plugin_logger
 from mkdocs.structure.files import File, Files, InclusionLevel
 from mkdocs.structure.nav import Navigation, Page
-from qtpy.QtWidgets import QWidget
+from qtpy.QtWidgets import QApplication, QWidget
 
 import pymmcore_widgets
 
@@ -54,10 +54,19 @@ TEMPLATE = """
 ```
 """
 
+from rich import print
+
 
 def on_files(files: Files, /, *, config: MkDocsConfig) -> None:
+    print(config)
+    widget_index = next(
+        f
+        for f in files
+        if "widgets/index.md" in f.src_uri and "-widgets/index.md" not in f.src_uri
+    )
+    root = str(widget_index.src_uri).rsplit("/", 1)[0]
+    print(widget_index)
     for widget in WIDGET_LIST:
-        logger.info("Creating widget page: %s", widget)
         snake = _camel_to_snake(widget)
         example = EXAMPLES / f"{_camel_to_snake(widget)}.py"
         if example.exists() and GEN_SCREENSHOTS:
@@ -74,12 +83,13 @@ def on_files(files: Files, /, *, config: MkDocsConfig) -> None:
             content = f"# {widget}\n\n::: pymmcore_widgets.{widget}\n"
         file = File.generated(
             config,
-            src_uri=os.path.join("widgets", f"{widget}.md"),
+            src_uri=os.path.join(root, f"{widget}.md"),
             content=content,
         )
         if file.src_uri in files.src_uris:
             files.remove(file)
         files.append(file)
+        logger.info("Created widget page: %s at %s", widget, file.src_uri)
 
     # cleanup
     from qtpy.QtWidgets import QApplication
@@ -117,12 +127,6 @@ widget = next(
 widget.setMinimumWidth(300)
 app.processEvents()
 widget.grab().save({})
-app.processEvents()
-for w in app.topLevelWidgets():
-    w.close()
-    w.deleteLater()
-app.processEvents()
-app.processEvents()
 """
 
 
@@ -153,4 +157,11 @@ def snapshot(filename: str, sub: bool = False) -> str:
         del _mmcore_plus._instance
         _mmcore_plus._instance = None
 
+        if app := QApplication.instance():
+            app.processEvents()
+            for w in QApplication.topLevelWidgets():
+                w.close()
+                w.deleteLater()
+            app.processEvents()
+            app.processEvents()
     return dest

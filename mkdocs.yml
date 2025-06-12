@@ -1,5 +1,4 @@
 site_name: pymmcore-widgets
-site_url: https://pymmcore-plus.github.io/pymmcore-widgets
 site_description: Widgets to control micro-manager in python.
 repo_name: pymmcore-plus/pymmcore-widgets
 repo_url: https://github.com/pymmcore-plus/pymmcore-widgets
