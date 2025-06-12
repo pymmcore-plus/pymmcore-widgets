@@ -74,7 +74,8 @@ class InstallWidget(QWidget):
 
         self.version_combo = QComboBox()
         self.version_combo.addItems(["latest-compatible", "latest"])
-        self.version_combo.addItems(available_versions())
+        with suppress(Exception):
+            self.version_combo.addItems(available_versions())
 
         self.install_btn = QPushButton("Install")
         self.install_btn.clicked.connect(self._on_install_clicked)

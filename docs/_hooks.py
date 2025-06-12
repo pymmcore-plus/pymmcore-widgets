@@ -84,6 +84,7 @@ def on_files(files: Files, /, *, config: MkDocsConfig) -> None:
                 PAGES_TO_GENERATE[key] = value
 
     for widget, src_uri in PAGES_TO_GENERATE.items():
+        logger.info("Generating widget page for %s at %s ...", widget, src_uri)
         snake = _camel_to_snake(widget)
         example = EXAMPLES / f"{_camel_to_snake(widget)}.py"
         if example.exists() and GEN_SCREENSHOTS:
@@ -112,7 +113,6 @@ def on_files(files: Files, /, *, config: MkDocsConfig) -> None:
         if file.src_uri in files.src_uris:
             files.remove(file)
         files.append(file)
-        logger.info("Created widget page: %s at %s", widget, file.src_uri)
 
     # cleanup
     from qtpy.QtWidgets import QApplication
