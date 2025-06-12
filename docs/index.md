@@ -1,4 +1,8 @@
-# Overview
+---
+title: pymmcore-widgets
+icon: material/widgets
+description: Overview of pymmcore-widgets
+---
 
 [pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/)
 ([github](https://github.com/pymmcore-plus/pymmcore-widgets)) is a library of

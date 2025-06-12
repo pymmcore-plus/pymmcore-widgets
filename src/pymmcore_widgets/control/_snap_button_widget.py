@@ -41,7 +41,7 @@ class SnapButton(QPushButton):
     --------
     !!! example "Combining `SnapButton` with other widgets"
 
-        see [ImagePreview](ImagePreview.md#example)
+        see [ImagePreview][pymmcore_widgets.ImagePreview]
     """
 
     def __init__(

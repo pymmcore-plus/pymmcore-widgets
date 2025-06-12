@@ -35,7 +35,7 @@ class ChannelWidget(QWidget):
     --------
     !!! example "Combining `ChannelWidget` with other widgets"
 
-        see [ImagePreview](ImagePreview.md#example)
+        see [ImagePreview][pymmcore_widgets.ImagePreview]
 
     """
 
