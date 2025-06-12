@@ -8,6 +8,7 @@ app = QApplication([])
 mmc = CMMCorePlus().instance()
 mmc.loadSystemConfiguration()
 
+
 class CustomPropertyWidget(QWidget):
     def __init__(self) -> None:
         super().__init__()
@@ -21,6 +22,7 @@ class CustomPropertyWidget(QWidget):
         for dev, prop in devs_pros:
             prop_wdg = PropertyWidget(dev, prop)
             layout.addRow(f"{dev}-{prop}:", prop_wdg)
+
 
 wdg = CustomPropertyWidget()
 wdg.show()
