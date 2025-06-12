@@ -6,13 +6,11 @@ import subprocess
 import time
 from pathlib import Path
 from tempfile import mkstemp
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from mkdocs.plugins import get_plugin_logger
 from mkdocs.structure.files import File, Files, InclusionLevel
-from mkdocs.structure.pages import Page
 from qtpy.QtWidgets import QApplication, QWidget
-from mkdocs.structure.nav import Navigation, Section
 
 import pymmcore_widgets
 
@@ -36,60 +34,84 @@ def _camel_to_snake(name: str) -> str:
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 
-TEMPLATE = """
+WIDGET_PAGE_TEMPLATE = """
 # {widget}
 
 <figure markdown>
-  ![{widget} widget](../{img}){{ loading=lazy, class="widget-image" }}
+  ![{widget} widget](/{img_uri}){{ loading=lazy, class="widget-image" }}
   <figcaption>
     This image generated from <a href="#example">example code below</a>.
   </figcaption>
 </figure>
 
 ::: pymmcore_widgets.{widget}
+    options:
+      heading_level: 2
+      show_source: false
 
 ## Example
 
 ```python linenums="1" title="{snake}.py"
---8<-- "examples/{snake}.py"
+{src}
 ```
 """
 
-WIDGET_FILES: dict[str, File] = {}
+
+def _look_for_section(sections: list, title: str = "Widgets") -> dict | None:
+    """Look for the 'Widgets' section in the navigation."""
+    for section in sections:
+        if isinstance(section, dict):
+            if set(section) == {title}:
+                return section
+            for _key, value in section.items():
+                if isinstance(value, list):
+                    if (result := _look_for_section(value, title)) is not None:
+                        return result
+        if isinstance(section, list):
+            if (result := _look_for_section(section, title)) is not None:
+                return result
+    return None
 
 
 def on_files(files: Files, /, *, config: MkDocsConfig) -> None:
-    widget_index = next(
-        f
-        for f in files
-        if "widgets/index.md" in f.src_uri and "-widgets/index.md" not in f.src_uri
-    )
-    root = str(widget_index.src_uri).rsplit("/", 1)[0]
-    for widget in WIDGET_LIST:
+    if not (widget_section := _look_for_section(cast("list", config.nav), "Widgets")):
+        raise RuntimeError("Could not find 'Widgets' section in navigation.")
+    widget_contents = widget_section["Widgets"]
+    PAGES_TO_GENERATE = {}
+    for item in widget_contents:
+        if isinstance(item, dict):
+            for key, value in item.items():
+                PAGES_TO_GENERATE[key] = value
+
+    for widget, src_uri in PAGES_TO_GENERATE.items():
         snake = _camel_to_snake(widget)
         example = EXAMPLES / f"{_camel_to_snake(widget)}.py"
         if example.exists() and GEN_SCREENSHOTS:
             png = File.generated(
                 config=config,
-                src_uri=f"images/{snake}.png",
+                src_uri=src_uri.replace(".md", ".png"),
                 abs_src_path=snapshot(str(example)),
                 inclusion=InclusionLevel.NOT_IN_NAV,
             )
             files.append(png)
-            content = TEMPLATE.format(widget=widget, snake=snake, img=png.src_uri)
+            content = WIDGET_PAGE_TEMPLATE.format(
+                widget=widget,
+                snake=snake,
+                img_uri=png.src_uri,
+                src=example.read_text(),
+            )
         else:
             # just a simple page
             content = f"# {widget}\n\n::: pymmcore_widgets.{widget}\n"
+
         file = File.generated(
             config,
-            src_uri=os.path.join(root, f"{widget}.md"),
+            src_uri=src_uri,
             content=content,
         )
         if file.src_uri in files.src_uris:
             files.remove(file)
-            WIDGET_FILES.pop(widget, None)
         files.append(file)
-        WIDGET_FILES[widget] = file
         logger.info("Created widget page: %s at %s", widget, file.src_uri)
 
     # cleanup
@@ -100,20 +122,6 @@ def on_files(files: Files, /, *, config: MkDocsConfig) -> None:
         for _i in range(10):
             app.processEvents()
             time.sleep(0.01)
-
-
-def on_nav(nav: Navigation, *, files: Files, config: MkDocsConfig) -> None:
-    """Add pymmcore_widgets to the navigation."""
-    top = next((sec.children for sec in nav if sec.title == "pymmcore-widgets"), nav)
-    widget_section = next(sec for sec in top if sec.title == "Widgets")
-    pages = [
-        Page(name, file=file, config=config) for name, file in WIDGET_FILES.items()
-    ]
-    if not isinstance(widget_section, Section):
-        raise RuntimeError(
-            "Widget section not found, add navigation.indexes to theme.features."
-        )
-    widget_section.children.extend(pages)
 
 
 SNAP = """
@@ -129,7 +137,9 @@ widget.grab().save({})
 """
 
 
-def snapshot(filename: str, sub: bool = False) -> str:
+# sub=True is slower... but sub=False is still prone to picking the wrong
+# top widget to show...
+def snapshot(filename: str, sub: bool = True) -> str:
     """Run filename in a subprocess and snapshot top level widget.
 
     replace calls to `app.exec()` with a function that calls processEvents() and then

@@ -43,13 +43,13 @@ devices and properties** of a `Micro-Manager` core
 ## Multi-Dimensional Acquisition Widgets
 
 The widgets in this section can be used to **define (and run) a
-multi-dimensional acquisition** based on the [useq-schema MDASequence][useqASequence].
+multi-dimensional acquisition** based on the [useq-schema MDASequence][useq.MDASequence].
 
 | Widget | Description |
 | ------ | ----------- |
 | [ChannelTable](./ChannelTable.md) | Table to edit a list of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel). |
 | [GridPlanWidget](./GridPlanWidget.md) | Widget to edit a [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans). |
-| [MDASequenceWidget](./MDASequenceWidget.md) | A widget that provides a GUI to construct and edit a [`useqASequence`][]. |
+| [MDASequenceWidget](./MDASequenceWidget.md) | A widget that provides a GUI to construct and edit a [`useq-schema` MDASequence][useq.MDASequence]. |
 | [MDAWidget](./MDAWidget.md) | Main MDA Widget connected to a [`pymmcore_plus.CMMCorePlus`][] instance. |
 | [PositionTable](./PositionTable.md) | Table to edit a list of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position). |
 | [TimePlanWidget](./TimePlanWidget.md) | Table to edit a [useq.TimePlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#time-plans). |

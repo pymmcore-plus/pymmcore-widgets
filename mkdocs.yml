@@ -3,12 +3,46 @@ site_description: Widgets to control micro-manager in python.
 repo_name: pymmcore-plus/pymmcore-widgets
 repo_url: https://github.com/pymmcore-plus/pymmcore-widgets
 edit_uri: edit/main/docs/
-
+validation:
+  absolute_links: ignore  # easier for images at /images/...
+  
 nav:
   - Overview: index.md
   - Getting Started: getting_started.md
   - Widgets:
-    - widgets/index.md
+      - widgets/index.md
+      - CameraRoiWidget: widgets/CameraRoiWidget.md
+      - ChannelGroupWidget: widgets/ChannelGroupWidget.md
+      - ChannelTable: widgets/ChannelTable.md
+      - ChannelWidget: widgets/ChannelWidget.md
+      - ConfigWizard: widgets/ConfigWizard.md
+      - ConfigurationWidget: widgets/ConfigurationWidget.md
+      - CoreLogWidget: widgets/CoreLogWidget.md
+      - DefaultCameraExposureWidget: widgets/DefaultCameraExposureWidget.md
+      - ExposureWidget: widgets/ExposureWidget.md
+      - GridPlanWidget: widgets/GridPlanWidget.md
+      - GroupPresetTableWidget: widgets/GroupPresetTableWidget.md
+      - HCSWizard: widgets/HCSWizard.md
+      - ImagePreview: widgets/ImagePreview.md
+      - InstallWidget: widgets/InstallWidget.md
+      - LiveButton: widgets/LiveButton.md
+      - MDASequenceWidget: widgets/MDASequenceWidget.md
+      - MDAWidget: widgets/MDAWidget.md
+      - ObjectivesPixelConfigurationWidget: widgets/ObjectivesPixelConfigurationWidget.md
+      - ObjectivesWidget: widgets/ObjectivesWidget.md
+      - PixelConfigurationWidget: widgets/PixelConfigurationWidget.md
+      - PositionTable: widgets/PositionTable.md
+      - PresetsWidget: widgets/PresetsWidget.md
+      - PropertiesWidget: widgets/PropertiesWidget.md
+      - PropertyBrowser: widgets/PropertyBrowser.md
+      - PropertyWidget: widgets/PropertyWidget.md
+      - ShuttersWidget: widgets/ShuttersWidget.md
+      - SnapButton: widgets/SnapButton.md
+      - StageExplorer: widgets/StageExplorer.md
+      - StageWidget: widgets/StageWidget.md
+      - TimePlanWidget: widgets/TimePlanWidget.md
+      - ZPlanWidget: widgets/ZPlanWidget.md
+
   - Troubleshooting: troubleshooting.md
   - Contributing: contributing.md
 
