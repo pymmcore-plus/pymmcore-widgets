@@ -7,7 +7,8 @@ edit_uri: edit/main/docs/
 nav:
   - Overview: index.md
   - Getting Started: getting_started.md
-  - Widgets: widgets/
+  - Widgets:
+    - widgets/index.md
   - Troubleshooting: troubleshooting.md
   - Contributing: contributing.md
 
@@ -19,6 +20,7 @@ theme:
     - content.code.copy
     - content.code.annotate
     - navigation.instant
+    - navigation.indexes
   icon:
     logo: fontawesome/solid/microscope
     repo: fontawesome/brands/github
@@ -48,7 +50,6 @@ hooks:
 plugins:
   - search
   - autorefs
-  - literate-nav # needed for now to expand the widget nav
   - section-index
   - mkdocstrings:
       handlers:

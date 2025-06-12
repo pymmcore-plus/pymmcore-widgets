@@ -10,8 +10,9 @@ from typing import TYPE_CHECKING
 
 from mkdocs.plugins import get_plugin_logger
 from mkdocs.structure.files import File, Files, InclusionLevel
-from mkdocs.structure.nav import Navigation, Page
+from mkdocs.structure.pages import Page
 from qtpy.QtWidgets import QApplication, QWidget
+from mkdocs.structure.nav import Navigation, Section
 
 import pymmcore_widgets
 
@@ -54,18 +55,16 @@ TEMPLATE = """
 ```
 """
 
-from rich import print
+WIDGET_FILES: dict[str, File] = {}
 
 
 def on_files(files: Files, /, *, config: MkDocsConfig) -> None:
-    print(config)
     widget_index = next(
         f
         for f in files
         if "widgets/index.md" in f.src_uri and "-widgets/index.md" not in f.src_uri
     )
     root = str(widget_index.src_uri).rsplit("/", 1)[0]
-    print(widget_index)
     for widget in WIDGET_LIST:
         snake = _camel_to_snake(widget)
         example = EXAMPLES / f"{_camel_to_snake(widget)}.py"
@@ -88,7 +87,9 @@ def on_files(files: Files, /, *, config: MkDocsConfig) -> None:
         )
         if file.src_uri in files.src_uris:
             files.remove(file)
+            WIDGET_FILES.pop(widget, None)
         files.append(file)
+        WIDGET_FILES[widget] = file
         logger.info("Created widget page: %s at %s", widget, file.src_uri)
 
     # cleanup
@@ -106,14 +107,12 @@ def on_nav(nav: Navigation, *, files: Files, config: MkDocsConfig) -> None:
     top = next((sec.children for sec in nav if sec.title == "pymmcore-widgets"), nav)
     widget_section = next(sec for sec in top if sec.title == "Widgets")
     pages = [
-        Page(
-            str(f.src_uri.split("/")[-1].replace(".md", "")),
-            file=f,
-            config=config,
-        )
-        for f in files
-        if f.src_uri.startswith("widgets/")
+        Page(name, file=file, config=config) for name, file in WIDGET_FILES.items()
     ]
+    if not isinstance(widget_section, Section):
+        raise RuntimeError(
+            "Widget section not found, add navigation.indexes to theme.features."
+        )
     widget_section.children.extend(pages)
 
 
