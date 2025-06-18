@@ -101,8 +101,8 @@ class GridFromPolygon(useq._grid._GridPlan[useq.AbsolutePosition]):
             prepared_poly = self.prepared_poly
 
             for r, c in mode.generate_indices(n_rows, n_cols):
-                x = c + minx + (c + 0.5) * dx
-                y = r + miny + (r + 0.5) * dy
+                x = c + minx + (c + 0.5) * dx + half_w
+                y = maxy - (r + 0.5) * dy - half_h
                 tile = box(x - half_w, y - half_h, x + half_w, y + half_h)
                 if prepared_poly.intersects(tile):
                     positions.append((x, y))
