@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal, cast
 
-import numpy as np
 from qtpy.QtCore import (
     QEvent,
     QItemSelection,
@@ -15,22 +14,23 @@ from qtpy.QtCore import (
 )
 from qtpy.QtGui import QKeyEvent
 from qtpy.QtWidgets import (
-    QApplication,
     QHBoxLayout,
     QListView,
     QToolBar,
     QVBoxLayout,
     QWidget,
 )
+from superqt import QIconifyIcon
 from vispy.scene import SceneCanvas, ViewBox
 
 from ._vispy import RoiPolygon
 from .canvas_event_filter import CanvasEventFilter
 from .q_roi_model import QROIModel
-from .roi_model import ROI, RectangleROI
 
 if TYPE_CHECKING:
     from PyQt6.QtGui import QActionGroup
+
+    from .roi_model import ROI
 else:
     from qtpy.QtGui import QActionGroup
 
@@ -89,16 +89,17 @@ class SceneROIManager(QObject):
         self.selection_model = QItemSelectionModel(self.roi_model)
         self.mode_actions = QActionGroup(self)
         # make three toggle-actions
-        for title, shortcut, _mode in [
-            ("Select", "v", "select"),
-            ("Rectangle", "r", "create-rect"),
-            ("Polygon", "p", "create-poly"),
+        for title, shortcut, _mode, icon in [
+            ("Select", "v", "select", "ph:hand-tap-light"),
+            ("Rectangle", "r", "create-rect", "ph:bounding-box-light"),
+            ("Polygon", "p", "create-poly", "ph:polygon-light"),
         ]:
             if act := self.mode_actions.addAction(title):
                 act.setCheckable(True)
                 act.setChecked(_mode == self._mode)
                 act.setShortcut(shortcut)
                 act.setData(_mode)
+                act.setIcon(QIconifyIcon(icon))
                 act.triggered.connect(lambda _, m=_mode: setattr(self, "mode", m))
 
         # prepare canvas and view
@@ -279,26 +280,3 @@ class ROIScene(QWidget):
                 return True
 
         return False
-
-
-if __name__ == "__main__":
-    app = QApplication([])
-    canvas = SceneCanvas()
-    wdg = ROIScene(canvas)
-    wdg.show()
-    for i in range(4):
-        if i % 2 == 0:
-            x1, y1 = np.random.randint(0, 100, size=2)
-            x2, y2 = np.random.randint(0, 100, size=2)
-            roi: ROI = RectangleROI(
-                top_left=(min(x1, x2), min(y1, y2)),
-                bot_right=(max(x1, x2), max(y1, y2)),
-                fov_size=(20, 20),
-            )
-        else:
-            npoints = np.random.randint(3, 7)
-            roi = ROI(vertices=np.random.rand(npoints, 2) * 100)
-        wdg.roi_manager.add_roi(roi).text = f"ROI {i + 1}"
-    wdg.roi_manager.view.camera.set_range()
-
-    app.exec()
