@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from typing import Union
 
-from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QPushButton, QWidget
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 
 COLOR_TYPE = Union[
     QColor,
@@ -57,7 +56,7 @@ class LiveButton(QPushButton):
         self._mmc = mmcore or CMMCorePlus.instance()
         self._button_text_on: str = "Live"
         self._button_text_off: str = "Stop"
-        self._icon_color_on: COLOR_TYPE = (0, 255, 0)
+        self._icon_color_on: COLOR_TYPE = "green"
         self._icon_color_off: COLOR_TYPE = "magenta"
 
         self.streaming_timer = None
@@ -118,7 +117,7 @@ class LiveButton(QPushButton):
     @icon_color_on.setter
     def icon_color_on(self, color: COLOR_TYPE) -> None:
         if not self._mmc.isSequenceRunning():
-            self.setIcon(icon(MDI6.video_outline, color=color))
+            self.setIcon(QIconifyIcon("mdi:video-outline", color=color))
         self._icon_color_on = color
 
     @property
@@ -133,7 +132,7 @@ class LiveButton(QPushButton):
     @icon_color_off.setter
     def icon_color_off(self, color: COLOR_TYPE) -> None:
         if self._mmc.isSequenceRunning():
-            self.setIcon(icon(MDI6.video_off_outline, color=color))
+            self.setIcon(QIconifyIcon("mdi:video-off-outline", color=color))
         self._icon_color_off = color
 
     def _create_button(self) -> None:
@@ -158,10 +157,12 @@ class LiveButton(QPushButton):
     def _set_icon_state(self, state: bool) -> None:
         """Set the icon in the on or off state."""
         if state:  # set in the off mode
-            self.setIcon(icon(MDI6.video_off_outline, color=self._icon_color_off))
+            self.setIcon(
+                QIconifyIcon("mdi:video-off-outline", color=self._icon_color_off)
+            )
             self.setText(self._button_text_off)
         else:  # set in the on mode
-            self.setIcon(icon(MDI6.video_outline, color=self._icon_color_on))
+            self.setIcon(QIconifyIcon("mdi:video-outline", color=self._icon_color_on))
             self.setText(self._button_text_on)
 
     def _on_sequence_started(self) -> None:

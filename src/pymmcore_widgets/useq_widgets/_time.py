@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from fonticon_mdi6 import MDI6
 from qtpy.QtGui import QIcon
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 from superqt.utils import signals_blocked
 from useq import MultiPhaseTimePlan, TDurationLoops, TIntervalDuration, TIntervalLoops
 
@@ -149,7 +148,9 @@ class TimePlanWidget(DataTableWidget):
             with signals_blocked(self):
                 for col in range(table.columnCount()):
                     if header := table.horizontalHeaderItem(col):
-                        header.setIcon(icon(MDI6.flag) if col == col_idx else QIcon())
+                        header.setIcon(
+                            QIconifyIcon("mdi:flag") if col == col_idx else QIcon()
+                        )
             self._emitting = True
             try:
                 self.valueChanged.emit()

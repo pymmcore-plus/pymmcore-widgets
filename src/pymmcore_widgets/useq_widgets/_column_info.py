@@ -22,7 +22,7 @@ from qtpy.QtWidgets import (
     QTableWidgetItem,
     QWidget,
 )
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -547,7 +547,7 @@ class ButtonColumn(WidgetColumn):
         if self.text:
             new_wdg.setText(self.text)
         if self.glyph:
-            new_wdg.setIcon(icon(self.glyph))
+            new_wdg.setIcon(QIconifyIcon(self.glyph))
         if self.checkable:
             new_wdg.setCheckable(True)
             new_wdg.setChecked(self.checked)

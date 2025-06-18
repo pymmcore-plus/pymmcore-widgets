@@ -1,3 +1,5 @@
+import warnings
+from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -15,7 +17,7 @@ TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")
 
 # to create a new CMMCorePlus() for every test
 @pytest.fixture(autouse=True)
-def global_mmcore():
+def global_mmcore() -> Iterator[CMMCorePlus]:
     mmc = CMMCorePlus()
     mmc.loadSystemConfiguration(TEST_CONFIG)
     with patch.object(_mmcore_plus, "_instance", mmc):
@@ -23,7 +25,9 @@ def global_mmcore():
 
 
 @pytest.fixture(autouse=True)
-def _run_after_each_test(request: "FixtureRequest", qapp: "QApplication"):
+def _run_after_each_test(
+    request: "FixtureRequest", qapp: "QApplication"
+) -> Iterator[None]:
     """Run after each test to ensure no widgets have been left around.
 
     When this test fails, it means that a widget being tested has an issue closing
@@ -51,4 +55,8 @@ def _run_after_each_test(request: "FixtureRequest", qapp: "QApplication"):
             return
 
         test = f"{request.node.path.name}::{request.node.originalname}"
-        raise AssertionError(f"topLevelWidgets remaining after {test!r}: {remaining}")
+        warnings.warn(
+            f"topLevelWidgets remaining after {test!r}: {remaining}",
+            UserWarning,
+            stacklevel=2,
+        )

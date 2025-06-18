@@ -48,7 +48,6 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    'fonticon-materialdesignicons6 >=6.9.96',
     'pymmcore-plus[cli] >=0.14.0',
     'qtpy >=2.0',
     'superqt[quantity,cmap,iconify] >=0.7.1',
@@ -77,7 +76,7 @@ test = [
     "pyyaml>=6.0.2",
     "zarr >=2.15,<3",
     "numcodecs >0.14.0,<0.16; python_version >= '3.13'",
-    "numcodecs >0.12.0,<0.16"
+    "numcodecs >0.12.0,<0.16",
 ]
 dev = [
     { include-group = "docs" },
@@ -85,7 +84,7 @@ dev = [
     "ipython>=8.18.1",
     "mypy>=1.15.0",
     "pdbpp>=0.11.6 ; sys_platform != 'win32'",
-    "pre-commit>=4.2.0",
+    "pre-commit-uv >=4.1.0",
     "pyqt6>=6.9.0",
     "rich>=14.0.0",
     "ruff>=0.11.8",
@@ -147,7 +146,7 @@ filterwarnings = [
     "error",
     "ignore:distutils Version classes are deprecated",
     "ignore:Failed to disconnect:RuntimeWarning:",
-    "ignore:'count' is passed as positional argument::vispy"
+    "ignore:'count' is passed as positional argument::vispy",
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
@@ -176,6 +175,10 @@ exclude_lines = [
     "raise NotImplementedError",
 ]
 show_missing = true
+
+[tool.coverage.paths]
+source = ["src/", "*/pymmcore-widgets/pymmcore-widgets/src", "*/site-packages/"]
+
 [tool.coverage.run]
 source = ['pymmcore_widgets']
 

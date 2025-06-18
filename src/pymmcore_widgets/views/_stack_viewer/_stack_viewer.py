@@ -7,10 +7,9 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import qtpy
 import superqt
-from fonticon_mdi6 import MDI6
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import QTimer
-from superqt import fonticon
+from superqt.iconify import QIconifyIcon
 from useq import MDAEvent, MDASequence, _channel
 
 from ._channel_row import ChannelRow, try_cast_colormap
@@ -118,7 +117,7 @@ class StackViewer(QtWidgets.QWidget):
         self.destroyed.connect(self._disconnect)
 
         self.collapse_btn = QtWidgets.QPushButton()
-        self.collapse_btn.setIcon(fonticon.icon(MDI6.arrow_collapse_all))
+        self.collapse_btn.setIcon(QIconifyIcon("mdi:arrow-collapse-all"))
         self.collapse_btn.clicked.connect(self._collapse_view)
 
         self.bottom_buttons = QtWidgets.QHBoxLayout()
