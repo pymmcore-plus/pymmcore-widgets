@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, cast
 
 import numpy as np
-import vispy.scene
+import useq
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QPoint, Qt
 from qtpy.QtGui import QIcon
@@ -21,13 +21,13 @@ from qtpy.QtWidgets import (
 from superqt import QIconifyIcon
 
 from pymmcore_widgets.control._q_stage_controller import QStageMoveAccumulator
+from pymmcore_widgets.control._rois.roi_manager import GRAY, SceneROIManager
 
 from ._stage_position_marker import StagePositionMarker
 from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 
 if TYPE_CHECKING:
-    import useq
-    from PyQt6.QtGui import QAction, QActionGroup
+    from PyQt6.QtGui import QAction, QActionGroup, QKeyEvent
     from qtpy.QtCore import QTimerEvent
     from vispy.app.canvas import MouseEvent
     from vispy.scene.visuals import VisualNode
@@ -37,8 +37,6 @@ else:
 # suppress scientific notation when printing numpy arrays
 np.set_printoptions(suppress=True)
 
-
-GRAY = "#666"
 ZOOM_TO_FIT = "Zoom to Fit"
 AUTO_ZOOM_TO_FIT = "Auto Zoom to Fit"
 AUTO_ZOOM_TO_FIT_ICON = QIcon(str(Path(__file__).parent / "auto_zoom_to_fit_icon.svg"))
@@ -46,6 +44,9 @@ CLEAR = "Clear View"
 SNAP = "Snap on Double Click"
 POLL_STAGE = "Show FOV Position"
 SHOW_GRID = "Show Grid"
+ROIS = "Create ROI (option click)"
+DELETE_ROIS = "Delete All ROIs"
+SCAN = "Scan Selected ROIs"
 
 
 # this might belong in _stage_position_marker.py
@@ -79,11 +80,11 @@ SS_TOOLBUTTON = """
     }
     QToolButton:checked {
         background-color: rgba(51, 170, 51, 255);
-        border: 2px solid rgba(102, 102, 102, 255);
+        border: 1px solid rgba(102, 102, 102, 255);
         border-radius: 5px;
     }
     QToolButton:!checked {
-        border: 2px solid rgba(102, 102, 102, 255);
+        border: 1px solid rgba(102, 102, 102, 255);
         border-radius: 5px;
     }
     QToolButton:checked:hover {
@@ -136,27 +137,20 @@ class StageExplorer(QWidget):
         self.setWindowTitle("Stage Explorer")
 
         self._mmc = mmcore or CMMCorePlus.instance()
+        self._mmc.events.roiSet.connect(self._on_roi_changed)
 
         device = self._mmc.getXYStageDevice()
         self._stage_controller = QStageMoveAccumulator.for_device(device, self._mmc)
 
         self._stage_viewer = StageViewer(self)
         self._stage_viewer.setCursor(Qt.CursorShape.CrossCursor)
-
-        self._grid_lines = vispy.scene.GridLines(
-            parent=self._stage_viewer.view.scene,
-            color="#888888",
-            border_width=1,
-        )
-        self._grid_lines.visible = False
-
-        # to keep track of the current scale depending on the zoom level
-        self._current_scale: int = 1
+        self.roi_manager = SceneROIManager(self._stage_viewer.canvas)
 
         # properties
         self._auto_zoom_to_fit: bool = False
-        self._snap_on_double_click: bool = False
+        self._snap_on_double_click: bool = True
         self._poll_stage_position: bool = True
+        self._our_mda_running: bool = False
 
         # stage position marker mode
         self._position_indicator: PositionIndicator = PositionIndicator.BOTH
@@ -184,6 +178,9 @@ class StageExplorer(QWidget):
             SNAP: ("mdi:camera-outline", True, self._on_snap_action),
             POLL_STAGE: ("mdi:map-marker-outline", True, self._on_poll_stage_action),
             SHOW_GRID: ("mdi:grid", True, self._on_show_grid_action),
+            # ROIS: ("mdi:vector-square", True, None),
+            DELETE_ROIS: ("mdi:vector-square-remove", False, self._remove_rois),
+            SCAN: ("ph:path-duotone", False, self._on_scan_action),
         }
         # fmt: on
 
@@ -193,7 +190,8 @@ class StageExplorer(QWidget):
                 icon = QIconifyIcon(icon, color=GRAY)
             self._actions[a_text] = action = QAction(icon, a_text, self)
             action.setCheckable(check)
-            action.triggered.connect(callback)
+            if callback is not None:
+                action.triggered.connect(callback)
 
             if a_text == POLL_STAGE:
                 # create special toolbutton with a context menu on right-click
@@ -201,9 +199,13 @@ class StageExplorer(QWidget):
                 btn.setDefaultAction(action)
                 self._toolbar.addWidget(btn)
                 action.setChecked(self._poll_stage_position)
-                self._on_poll_stage_action(self._poll_stage_position)
             else:
                 self._toolbar.addAction(action)
+        self._toolbar.addActions(self.roi_manager.mode_actions.actions())
+        # update checked state of the actions
+        self._on_poll_stage_action(self._poll_stage_position)
+        self._on_snap_action(self._snap_on_double_click)
+        # self._actions[SCAN].setEnabled(False)
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
@@ -232,6 +234,7 @@ class StageExplorer(QWidget):
         )
 
         self._on_sys_config_loaded()
+        self._on_roi_changed()
 
     # -----------------------------PUBLIC METHODS-------------------------------------
 
@@ -306,6 +309,16 @@ class StageExplorer(QWidget):
 
     # ACTIONS ----------------------------------------------------------------------
 
+    def _on_roi_changed(self) -> None:
+        """Update the ROI manager when a new ROI is set."""
+        fov_w, fov_h, z_pos = self._fov_w_h_z_pos()
+        self.roi_manager.update_fovs((fov_w, fov_h))
+        # create stage marker if not yet present
+        if (mk := self._stage_pos_marker) is not None:
+            fov_w = self._mmc.getImageWidth()
+            fov_h = self._mmc.getImageHeight()
+            mk.set_rect_size(fov_w, fov_h)
+
     def _on_snap_action(self, checked: bool) -> None:
         """Update the stage viewer settings based on the state of the action."""
         self.snap_on_double_click = checked
@@ -351,7 +364,41 @@ class StageExplorer(QWidget):
                 self._position_indicator.show_marker
             )
 
+    def _remove_rois(self) -> None:
+        """Delete all the ROIs."""
+        self.roi_manager.clear()
+
+    def _on_scan_action(self) -> None:
+        """Scan the selected ROIs."""
+        if not (active_rois := self.roi_manager.selected_rois()):
+            return
+        active_roi = active_rois[0]
+        fov_w, fov_h, z_pos = self._fov_w_h_z_pos()
+        if plan := active_roi.create_grid_plan(fov_w=fov_w, fov_h=fov_h):
+            seq = useq.MDASequence(stage_positions=list(plan))
+
+            if not self._mmc.mda.is_running():
+                self._our_mda_running = True
+                self._mmc.run_mda(seq)
+
+    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
+        if a0 is None:
+            return
+        if a0.key() == Qt.Key.Key_Escape:
+            if self._our_mda_running:
+                self._mmc.mda.cancel()
+                self._our_mda_running = False
+        super().keyPressEvent(a0)
+
     # CORE ------------------------------------------------------------------------
+
+    def _fov_w_h_z_pos(self) -> tuple[float, float, float]:
+        """Return the field of view width, height and z position."""
+        px = self._mmc.getPixelSizeUm()
+        fov_w = self._mmc.getImageWidth() * px
+        fov_h = self._mmc.getImageHeight() * px
+        z_pos = self._mmc.getZPosition()
+        return fov_w, fov_h, z_pos
 
     def _on_sys_config_loaded(self) -> None:
         """Clear the scene when the system configuration is loaded."""
@@ -364,6 +411,8 @@ class StageExplorer(QWidget):
     def _on_mouse_double_click(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
         if not self._mmc.getXYStageDevice():
+            return
+        if self.roi_manager.mode == "create-poly":
             return
 
         # map the clicked canvas position to the stage position
@@ -406,7 +455,7 @@ class StageExplorer(QWidget):
 
     def _on_show_grid_action(self, checked: bool) -> None:
         """Set the show grid property based on the state of the action."""
-        self._grid_lines.visible = checked
+        self._stage_viewer.set_grid_visible(checked)
         self._actions[SHOW_GRID].setChecked(checked)
 
     def _delete_stage_position_marker(self) -> None:
@@ -433,6 +482,12 @@ class StageExplorer(QWidget):
         # create stage marker if not yet present
         if (mk := self._stage_pos_marker) is None:
             mk = self._create_stage_pos_marker()
+
+        # IMPORTANT!
+        # the transform we apply here *also* includes the pixel size scaling, along
+        # with the rotation and translation. That's why the stage position marker
+        # does not account for pixel size scaling.  This needs to be standardized
+        # unified somewhere.
 
         # update stage marker position
         mk.apply_transform(matrix.T)
