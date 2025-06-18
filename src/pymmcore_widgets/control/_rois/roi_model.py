@@ -1,7 +1,8 @@
-from collections.abc import Iterator
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID, uuid4
 
 import numpy as np
@@ -9,6 +10,9 @@ import useq
 import useq._grid
 from pydantic import Field, PrivateAttr
 from shapely import Polygon, box, prepared
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 class GridFromPolygon(useq._grid._GridPlan[useq.AbsolutePosition]):
