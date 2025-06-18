@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Callable, cast
 
 import numpy as np
 import useq
-import vispy.scene
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QPoint, Qt
 from qtpy.QtGui import QIcon
@@ -148,16 +147,6 @@ class StageExplorer(QWidget):
         self._stage_viewer = StageViewer(self)
         self._stage_viewer.setCursor(Qt.CursorShape.CrossCursor)
         self.roi_manager = SceneROIManager(self._stage_viewer.canvas)
-
-        self._grid_lines = vispy.scene.GridLines(
-            parent=self._stage_viewer.view.scene,
-            color="#888888",
-            border_width=1,
-        )
-        self._grid_lines.visible = False
-
-        # to keep track of the current scale depending on the zoom level
-        self._current_scale: int = 1
 
         # properties
         self._auto_zoom_to_fit: bool = False
@@ -468,7 +457,7 @@ class StageExplorer(QWidget):
 
     def _on_show_grid_action(self, checked: bool) -> None:
         """Set the show grid property based on the state of the action."""
-        self._grid_lines.visible = checked
+        self._stage_viewer.set_grid_visible(checked)
         self._actions[SHOW_GRID].setChecked(checked)
 
     def _delete_stage_position_marker(self) -> None:

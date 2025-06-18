@@ -2040,7 +2040,7 @@ requires-dist = [
     { name = "qtpy", specifier = ">=2.0" },
     { name = "shapely", specifier = ">=2.0.7" },
     { name = "superqt", extras = ["cmap", "iconify", "quantity"], specifier = ">=0.7.1" },
-    { name = "useq-schema", specifier = ">=0.7.2" },
+    { name = "useq-schema", specifier = ">=0.7.3" },
     { name = "vispy", specifier = ">=0.15.0" },
 ]
 provides-extras = ["pyqt5", "pyqt6", "pyside2", "pyside6"]
@@ -2835,7 +2835,7 @@ wheels = [
 
 [[package]]
 name = "useq-schema"
-version = "0.7.2"
+version = "0.7.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -2844,9 +2844,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8e/d1/ecc1bb1177293c06995b59ba2dc2e3070eff437e5a7ab401844e9523f976/useq_schema-0.7.2.tar.gz", hash = "sha256:6c27e952e071791fd61473b21c6b2b5959420e8971a9fdfaf7dccf9b7825f934", size = 68035, upload-time = "2025-03-29T16:46:41.197Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e1/9f/d12d145976f218558607bb552b62a0cbd83c54a0c47275ea2be9fb7d9ed4/useq_schema-0.7.3.tar.gz", hash = "sha256:e61b6d2f88f80f6b52b28f9defffc5f082fe04c69883396a864c4323aa85067b", size = 65748, upload-time = "2025-06-18T18:40:54.311Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/4f/791914c3e128aaf46bbb14810714f05a0d28fa09981d2f618d76337881b4/useq_schema-0.7.2-py3-none-any.whl", hash = "sha256:a776a60879aafd35063f0b3929c796c934920da3b7dd58cdcf1420c8ddd05326", size = 55208, upload-time = "2025-03-29T16:46:39.507Z" },
+    { url = "https://files.pythonhosted.org/packages/30/e8/4885def6cfece3c2a71a81bd913c4f5485919e6d86882b2ff41985f3c598/useq_schema-0.7.3-py3-none-any.whl", hash = "sha256:8873fbce2445e93e4d1b766ba64ab8162eaaec85eb571e1ff51fe8dfe2848b22", size = 50570, upload-time = "2025-06-18T18:40:52.986Z" },
 ]
 
 [[package]]
