@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 else:
     from qtpy.QtGui import QActionGroup
 
-
+GRAY = "#666"
 # class _RoiCommand(QUndoCommand):
 #     def __init__(self, manager: ROIManager, roi: ROIRectangle) -> None:
 #         super().__init__("Add ROI")
@@ -90,16 +90,17 @@ class SceneROIManager(QObject):
         self.mode_actions = QActionGroup(self)
         # make three toggle-actions
         for title, shortcut, _mode, icon in [
-            ("Select", "v", "select", "ph:hand-tap-light"),
-            ("Rectangle", "r", "create-rect", "ph:bounding-box-light"),
-            ("Polygon", "p", "create-poly", "ph:polygon-light"),
+            ("Select", "v", "select", "mdi:cursor-default-outline"),
+            ("Rectangle", "r", "create-rect", "mdi:vector-square"),
+            ("Polygon", "p", "create-poly", "mdi:vector-polygon"),
         ]:
             if act := self.mode_actions.addAction(title):
                 act.setCheckable(True)
                 act.setChecked(_mode == self._mode)
                 act.setShortcut(shortcut)
+                act.setToolTip(f"{title} ({shortcut.upper()})")
                 act.setData(_mode)
-                act.setIcon(QIconifyIcon(icon))
+                act.setIcon(QIconifyIcon(icon, color=GRAY))
                 act.triggered.connect(lambda _, m=_mode: setattr(self, "mode", m))
 
         # prepare canvas and view

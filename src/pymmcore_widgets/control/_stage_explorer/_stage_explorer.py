@@ -21,7 +21,7 @@ from qtpy.QtWidgets import (
 from superqt import QIconifyIcon
 
 from pymmcore_widgets.control._q_stage_controller import QStageMoveAccumulator
-from pymmcore_widgets.control._rois.roi_manager import SceneROIManager
+from pymmcore_widgets.control._rois.roi_manager import GRAY, SceneROIManager
 
 from ._stage_position_marker import StagePositionMarker
 from ._stage_viewer import StageViewer, get_vispy_scene_bounds
@@ -37,8 +37,6 @@ else:
 # suppress scientific notation when printing numpy arrays
 np.set_printoptions(suppress=True)
 
-
-GRAY = "#666"
 ZOOM_TO_FIT = "Zoom to Fit"
 AUTO_ZOOM_TO_FIT = "Auto Zoom to Fit"
 AUTO_ZOOM_TO_FIT_ICON = QIcon(str(Path(__file__).parent / "auto_zoom_to_fit_icon.svg"))
@@ -82,11 +80,11 @@ SS_TOOLBUTTON = """
     }
     QToolButton:checked {
         background-color: rgba(51, 170, 51, 255);
-        border: 2px solid rgba(102, 102, 102, 255);
+        border: 1px solid rgba(102, 102, 102, 255);
         border-radius: 5px;
     }
     QToolButton:!checked {
-        border: 2px solid rgba(102, 102, 102, 255);
+        border: 1px solid rgba(102, 102, 102, 255);
         border-radius: 5px;
     }
     QToolButton:checked:hover {
@@ -182,7 +180,7 @@ class StageExplorer(QWidget):
             SHOW_GRID: ("mdi:grid", True, self._on_show_grid_action),
             # ROIS: ("mdi:vector-square", True, None),
             DELETE_ROIS: ("mdi:vector-square-remove", False, self._remove_rois),
-            SCAN: ("iconoir:path-arrow-solid", False, self._on_scan_action),
+            SCAN: ("ph:path-duotone", False, self._on_scan_action),
         }
         # fmt: on
 
