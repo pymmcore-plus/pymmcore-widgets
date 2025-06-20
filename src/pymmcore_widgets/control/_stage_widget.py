@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from itertools import product
 from typing import TYPE_CHECKING, cast
 
 from pyconify import svg_path
@@ -62,9 +61,9 @@ class MoveStageButton(QPushButton):
             f"""
             MoveStageButton {{
                 border: none;
-                background: transparent;
+                width: 38px;
                 image: url({svg_path(glyph, color="rgb(0, 180, 0)")});
-                font-size: 36px;
+                font-size: 38px;
             }}
             MoveStageButton:hover:!pressed {{
                 image: url({svg_path(glyph, color="lime")});
@@ -130,16 +129,18 @@ class StageMovementButtons(QWidget):
         self, levels: int = 2, show_x: bool = True, parent: QWidget | None = None
     ) -> None:
         super().__init__(parent)
+        if not (1 <= levels <= 3):
+            raise ValueError("levels must be between 1-3")
+
         self._levels = levels
         self._x_visible = show_x
 
         btn_grid = QGridLayout(self)
         btn_grid.setContentsMargins(0, 0, 0, 0)
         btn_grid.setSpacing(0)
-        for glyph, (row, col, xmag, ymag) in MOVE_BUTTONS.items():
-            btn = MoveStageButton(glyph, xmag, ymag)
-            btn.clicked.connect(self._on_move_btn_clicked)
-            btn_grid.addWidget(btn, row, col, Qt.AlignmentFlag.AlignCenter)
+
+        # Create buttons based on levels and show_x settings
+        self._create_buttons_for_levels(btn_grid)
 
         # step size spinbox in the middle of the move buttons
         self.step_size = MoveStageSpinBox(label="step size", minimum=0)
@@ -147,50 +148,31 @@ class StageMovementButtons(QWidget):
         self.step_size.valueChanged.connect(self._update_tooltips)
 
         btn_grid.addWidget(self.step_size, 3, 3, Qt.AlignmentFlag.AlignCenter)
-
-        self.set_visible_levels(self._levels)
-        self.set_x_visible(self._x_visible)
         self._update_tooltips()
+
+    def _create_buttons_for_levels(self, btn_grid: QGridLayout) -> None:
+        """Create only the buttons needed based on levels and x visibility."""
+        for glyph, (row, col, xmag, ymag) in MOVE_BUTTONS.items():
+            # Determine if this button should be created based on levels
+
+            # Level 1: only center arrows (magnitude 1)
+            # Level 2: center + double arrows (magnitude 1, 2)
+            # Level 3: all arrows (magnitude 1, 2, 3)
+            if xmag != 0 or ymag != 0:
+                max_magnitude = abs(max(xmag, ymag, key=abs))
+            else:
+                max_magnitude = 0
+
+            if max_magnitude > self._levels or (xmag != 0 and not self._x_visible):
+                continue
+
+            btn = MoveStageButton(glyph, xmag, ymag)
+            btn.clicked.connect(self._on_move_btn_clicked)
+            btn_grid.addWidget(btn, row, col)
 
     def _on_move_btn_clicked(self) -> None:
         btn = cast("MoveStageButton", self.sender())
         self.moveRequested.emit(self._scale(btn.xmag), self._scale(btn.ymag))
-
-    def set_visible_levels(self, levels: int) -> None:
-        """Hide upper-level stage buttons as desired. Levels must be between 1-3."""
-        if not (1 <= levels <= 3):
-            raise ValueError("levels must be between 1-3")
-        self._levels = levels
-
-        btn_layout = cast("QGridLayout", self.layout())
-        for btn in self.findChildren(MoveStageButton):
-            btn.show()
-
-        to_hide: set[tuple[int, int]] = set()
-        if levels < 3:
-            to_hide.update(product(range(7), (0, 6)))
-        if levels < 2:
-            to_hide.update(product(range(1, 6), (1, 5)))
-        # add all the flipped indices as well
-        to_hide.update((c, r) for r, c in list(to_hide))
-
-        for r, c in to_hide:
-            if (item := btn_layout.itemAtPosition(r, c)) and (wdg := item.widget()):
-                wdg.hide()
-
-    def set_x_visible(self, visible: bool) -> None:
-        """Show or hide the horizontal buttons."""
-        self._x_visible = visible
-        btn_layout = cast("QGridLayout", self.layout())
-        cols: list[int] = [2, 4]
-        if self._levels > 1:
-            cols += [1, 5]
-            if self._levels > 2:
-                cols += [0, 6]
-
-        for c in cols:
-            if (item := btn_layout.itemAtPosition(3, c)) and (wdg := item.widget()):
-                wdg.setVisible(visible)
 
     def _update_tooltips(self) -> None:
         """Update tooltips for the move buttons."""

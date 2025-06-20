@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -65,7 +67,7 @@ class PositionIndicator(str, Enum):
 
 SS_TOOLBUTTON = """
     QToolButton:checked {
-        background-color: rgba(51, 170, 51, 255);
+        background-color: rgba(51, 170, 51, 180);
         border: 1px solid rgba(102, 102, 102, 80);
         border-radius: 5px;
     }
@@ -79,90 +81,18 @@ SS_TOOLBUTTON = """
     QToolButton:!checked:hover {
         background-color: rgba(102, 102, 102, 80);
     }
+    QToolButton[popupMode="1"] {
+        padding-right: 8px;
+    }
+    QToolButton::menu-button {
+        border: 3px solid transparent;
+        border-left: 1px solid  rgba(102, 102, 102, 80);
+        width: 8px;
+    }
+    QToolButton::menu-arrow {
+        width: 8px;
+    }
 """
-
-
-class PositionIndicatorMenu(QMenu):
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.action_group = group = QActionGroup(self)
-        group.setExclusive(True)
-        for icon, mode in (
-            (
-                QIconifyIcon("ic:outline-check-box-outline-blank"),
-                PositionIndicator.RECTANGLE,
-            ),
-            (QIconifyIcon("ic:baseline-plus"), PositionIndicator.CENTER),
-            (QIconifyIcon("ic:outline-add-box"), PositionIndicator.BOTH),
-        ):
-            action = cast("QAction", group.addAction(icon, mode.value))
-            action.setCheckable(True)
-            action.setIconVisibleInMenu(True)
-        self.addActions(group.actions())
-
-
-class StageExplorerToolbar(QToolBar):
-    """A custom toolbar for the StageExplorer widget.
-
-    This toolbar contains actions to control the stage explorer, such as zooming to fit,
-    snapping images, and showing the current stage position.
-    """
-
-    if TYPE_CHECKING:
-
-        def addAction(self, icon: QIcon, text: str) -> QAction: ...
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setIconSize(QSize(20, 20))
-        self.setMovable(False)
-        self.setContentsMargins(0, 0, 10, 0)
-        # self.setStyleSheet(SS_TOOLBUTTON)
-
-        self.clear_action = self.addAction(
-            QIconifyIcon("mdi:close", color=GRAY),
-            "Clear View",
-        )
-        self.zoom_to_fit_action = self.addAction(
-            QIconifyIcon("mdi:fullscreen", color=GRAY),
-            "Zoom to Fit",
-        )
-        self.auto_zoom_to_fit_action = self.addAction(
-            QIcon(str(Path(__file__).parent / "auto_zoom_to_fit_icon.svg")),
-            "Auto Zoom to Fit",
-        )
-        self.auto_zoom_to_fit_action.setCheckable(True)
-        self.snap_action = self.addAction(
-            QIconifyIcon("mdi:camera-outline", color=GRAY),
-            "Snap on Double Click",
-        )
-        self.snap_action.setCheckable(True)
-        self.poll_stage_action = self.addAction(
-            QIconifyIcon("mdi:map-marker-outline", color=GRAY),
-            "Show FOV Position",
-        )
-        self.poll_stage_action.setCheckable(True)
-        poll_btn = cast("QToolButton", self.widgetForAction(self.poll_stage_action))
-
-        # menu that can be shown on right-click
-        menu = PositionIndicatorMenu(self)
-        self.marker_mode_action_group = menu.action_group
-        poll_btn.setMenu(menu)
-        poll_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
-
-        self.show_grid_action = self.addAction(
-            QIconifyIcon("mdi:grid", color=GRAY),
-            "Show Grid",
-        )
-        self.show_grid_action.setCheckable(True)
-        self.delete_rois_action = self.addAction(
-            QIconifyIcon("mdi:vector-square-remove", color=GRAY),
-            "Delete All ROIs",
-        )
-        self.scan_action = self.addAction(
-            QIconifyIcon("ph:path-duotone", color=GRAY),
-            "Scan Selected ROIs",
-        )
 
 
 class StageExplorer(QWidget):
@@ -208,8 +138,8 @@ class StageExplorer(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
         self._mmc.events.roiSet.connect(self._on_roi_changed)
 
-        device = self._mmc.getXYStageDevice()
-        self._stage_controller = QStageMoveAccumulator.for_device(device, self._mmc)
+        xy_device = self._mmc.getXYStageDevice()
+        self._stage_controller = QStageMoveAccumulator.for_device(xy_device, self._mmc)
 
         self._stage_viewer = StageViewer(self)
         self._stage_viewer.setCursor(Qt.CursorShape.CrossCursor)
@@ -221,11 +151,9 @@ class StageExplorer(QWidget):
         self._poll_stage_position: bool = True
         self._our_mda_running: bool = False
 
-        # stage position marker mode
-        self._position_indicator: PositionIndicator = PositionIndicator.BOTH
-
         # timer for polling stage position
         self._timer_id: int | None = None
+
         # marker for stage position
         w, h = self._mmc.getImageWidth(), self._mmc.getImageHeight()
         self._stage_pos_marker: StagePositionMarker = StagePositionMarker(
@@ -237,32 +165,31 @@ class StageExplorer(QWidget):
         self._stage_pos_marker.visible = False
 
         # --- cached parameters for efficient affine calculations ---
-        self._pixel_size_affine: tuple[float, ...] = self._mmc.getPixelSizeAffine()
-        self._pixel_size_um: float = self._mmc.getPixelSizeUm()
-        self._system_affine: np.ndarray = self._compute_system_affine()
-        self._half_img_shift: np.ndarray = self._t_half_width()
+        self._affine_state = AffineState(self._mmc)
 
-        # toolbar
+        # toolbar and actions
         self._toolbar = tb = StageExplorerToolbar()
-
-        tb.clear_action.triggered.connect(self._stage_viewer.clear)
-        tb.zoom_to_fit_action.triggered.connect(self._on_zoom_to_fit_action)
-        tb.auto_zoom_to_fit_action.triggered.connect(self._on_auto_zoom_to_fit_action)
-        tb.snap_action.triggered.connect(self._on_snap_action)
-        tb.poll_stage_action.triggered.connect(self._on_poll_stage_action)
-        tb.show_grid_action.triggered.connect(self._on_show_grid_action)
-        tb.delete_rois_action.triggered.connect(self._remove_rois)
-        tb.scan_action.triggered.connect(self._on_scan_action)
-        tb.marker_mode_action_group.triggered.connect(self._set_marker_mode)
-
-        self._toolbar.addActions(self.roi_manager.mode_actions.actions())
-
+        # (also add the actions from the ROI manager)
+        self._toolbar.insertActions(
+            tb.delete_rois_action, self.roi_manager.mode_actions.actions()
+        )
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._toolbar.addWidget(spacer)
         self._toolbar.addWidget(self._stage_pos_label)
+
+        # connect actions to methods
+        tb.clear_action.triggered.connect(self._stage_viewer.clear)
+        tb.zoom_to_fit_action.triggered.connect(self._on_zoom_to_fit_action)
+        tb.auto_zoom_to_fit_action.triggered.connect(self._on_auto_zoom_to_fit_action)
+        tb.snap_action.triggered.connect(self._on_snap_action)
+        tb.poll_stage_action.triggered.connect(self._on_poll_stage_action)
+        tb.show_grid_action.triggered.connect(self._on_show_grid_action)
+        tb.delete_rois_action.triggered.connect(self.roi_manager.clear)
+        tb.scan_action.triggered.connect(self._on_scan_action)
+        tb.marker_mode_action_group.triggered.connect(self._update_marker_mode)
 
         # main layout
         main_layout = QVBoxLayout(self)
@@ -285,15 +212,16 @@ class StageExplorer(QWidget):
             self._on_mouse_double_click
         )
 
+        # initial setup
         self._on_sys_config_loaded()
         self._on_roi_changed()
-
+        self._toolbar.snap_action.setChecked(self._snap_on_double_click)
         self._toolbar.poll_stage_action.trigger()
         self.zoom_to_fit()
 
     # -----------------------------PUBLIC METHODS-------------------------------------
 
-    def toolBar(self) -> QToolBar:
+    def toolBar(self) -> StageExplorerToolbar:
         """Return the toolbar of the widget."""
         return self._toolbar
 
@@ -346,7 +274,9 @@ class StageExplorer(QWidget):
         """Add an image to the scene at a give (x, y) stage position in microns."""
         stage_shift = np.eye(4)
         stage_shift[0:2, 3] = (stage_x_um, stage_y_um)
-        matrix = stage_shift @ self._system_affine @ self._half_img_shift
+        # TODO: it's a little odd we apply half_img_shift here, but not in the
+        # stage position marker... figure that out.
+        matrix = stage_shift @ self._affine_state.system_affine @ self._half_img_shift
         self._stage_viewer.add_image(image, transform=matrix.T)
 
     def zoom_to_fit(self, *, margin: float = 0.05) -> None:
@@ -367,13 +297,19 @@ class StageExplorer(QWidget):
 
     def _on_roi_changed(self) -> None:
         """Update the ROI manager when a new ROI is set."""
-        fov_w, fov_h, z_pos = self._fov_w_h_z_pos()
-        self.roi_manager.update_fovs((fov_w, fov_h))
-        # update stage marker size
-        fov_w = self._mmc.getImageWidth()
-        fov_h = self._mmc.getImageHeight()
-        self._half_img_shift = self._t_half_width()
-        self._stage_pos_marker.set_rect_size(fov_w, fov_h)
+        img_w = self._mmc.getImageWidth()
+        img_h = self._mmc.getImageHeight()
+        px = self._mmc.getPixelSizeUm()
+        self.roi_manager.update_fovs((img_w * px, img_h * px))
+
+        # by default, vispy add the images from the bottom-left corner. We need to
+        # translate by -w/2 and -h/2 so the position corresponds to the center of the
+        # images. In addition, this makes sure the rotation (if any) is applied around
+        # the center of the image.
+        self._half_img_shift = np.eye(4)
+        self._half_img_shift[0:2, 3] = (-img_w / 2, -img_h / 2)
+
+        self._stage_pos_marker.set_rect_size(img_w, img_h)
 
     def _on_snap_action(self, checked: bool) -> None:
         """Update the stage viewer settings based on the state of the action."""
@@ -391,29 +327,23 @@ class StageExplorer(QWidget):
         if checked:
             self.zoom_to_fit()
 
-    def _set_marker_mode(self) -> None:
+    def _update_marker_mode(self) -> None:
         """Update the poll mode and show/hide the required stage position marker.
 
-        Usually, the sender will be the action_group on the _PollStageCtxMenu.
+        Usually, the sender will be the action_group on the PositionIndicatorMenu.
         """
         sender = self.sender()
         if isinstance(sender, QActionGroup) and (action := sender.checkedAction()):
-            self._position_indicator = PositionIndicator(action.text())
-
-        self._stage_pos_marker.set_rect_visible(self._position_indicator.show_rect)
-        self._stage_pos_marker.set_marker_visible(self._position_indicator.show_marker)
-
-    def _remove_rois(self) -> None:
-        """Delete all the ROIs."""
-        self.roi_manager.clear()
+            pi = PositionIndicator(action.text())
+            self._stage_pos_marker.set_rect_visible(pi.show_rect)
+            self._stage_pos_marker.set_marker_visible(pi.show_marker)
 
     def _on_scan_action(self) -> None:
         """Scan the selected ROIs."""
         if not (active_rois := self.roi_manager.selected_rois()):
             return
         active_roi = active_rois[0]
-        fov_w, fov_h, z_pos = self._fov_w_h_z_pos()
-        if plan := active_roi.create_grid_plan(fov_w=fov_w, fov_h=fov_h):
+        if plan := active_roi.create_grid_plan(*self._fov_w_h()):
             # for now, we expand the grid plan to a list of positions because
             # useq grid_plan= doesn't yet support our custom polygon ROIs
             seq = useq.MDASequence(stage_positions=list(plan))
@@ -432,13 +362,23 @@ class StageExplorer(QWidget):
 
     # CORE ------------------------------------------------------------------------
 
-    def _fov_w_h_z_pos(self) -> tuple[float, float, float]:
-        """Return the field of view width, height and z position."""
+    def _fov_w_h(self) -> tuple[float, float]:
+        """Return the field of view width and height."""
         px = self._mmc.getPixelSizeUm()
         fov_w = self._mmc.getImageWidth() * px
         fov_h = self._mmc.getImageHeight() * px
-        z_pos = self._mmc.getZPosition()
-        return fov_w, fov_h, z_pos
+        return fov_w, fov_h
+
+    def _half_img_translation_mtx(self, img_w: int, img_h: int) -> np.ndarray:
+        """Return the transformation matrix to translate half the size of the image."""
+        # by default, vispy add the images from the bottom-left corner. We need to
+        # translate by -w/2 and -h/2 so the position corresponds to the center of the
+        # images. In addition, this make sure the rotation (if any) is applied around
+        # the center of the image.
+        T_center = np.eye(4)
+        T_center[0, 3] = -img_w / 2
+        T_center[1, 3] = -img_h / 2
+        return T_center
 
     def _on_sys_config_loaded(self) -> None:
         """Clear the scene when the system configuration is loaded."""
@@ -446,14 +386,12 @@ class StageExplorer(QWidget):
 
     def _on_pixel_size_changed(self, value: float) -> None:
         """Update scene when the pixel size changes."""
-        self._pixel_size_um = value
-        self._half_img_shift = self._t_half_width()
-        self._system_affine = self._compute_system_affine()
+        self._affine_state.refresh()
 
     def _on_pixel_size_affine_changed(self) -> None:
         """Handle updates to the 2 x 3 pixel size affine."""
         self._pixel_size_affine = self._mmc.getPixelSizeAffine()
-        self._system_affine = self._compute_system_affine()
+        self._affine_state.refresh()
 
     def _on_mouse_double_click(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
@@ -504,9 +442,8 @@ class StageExplorer(QWidget):
     def _on_show_grid_action(self, checked: bool) -> None:
         """Set the show grid property based on the state of the action."""
         self._stage_viewer.set_grid_visible(checked)
-        # self._toolbar.show_grid_action.setChecked(checked)
 
-    def timerEvent(self, event: QTimerEvent) -> None:
+    def timerEvent(self, event: QTimerEvent | None) -> None:
         """Poll the stage position."""
         if not self._mmc.getXYStageDevice():
             self._stage_pos_label.setText("No XY stage device")
@@ -517,9 +454,9 @@ class StageExplorer(QWidget):
         self._stage_pos_label.setText(f"X: {stage_x:.2f} µm  Y: {stage_y:.2f} µm")
 
         # fast path: copy cached rotation/scale part and just update translation
-        matrix = self._system_affine.copy()
-        matrix[0:2, 3] = (stage_x, stage_y)
+        matrix = self._affine_state.system_affine_translated(stage_x, stage_y)
         self._stage_pos_marker.apply_transform(matrix.T)
+
         # zoom_to_fit only if auto _auto_zoom_to_fit property is set to True.
         # NOTE: this could be slightly annoying...  might need a sub-option?
         if self._auto_zoom_to_fit:
@@ -552,9 +489,9 @@ class StageExplorer(QWidget):
     def _is_visual_within_view(self, x: float, y: float) -> bool:
         """Return True if the visual is within the view, otherwise False."""
         view_rect = self._stage_viewer.view.camera.rect
-        px = self._mmc.getPixelSizeUm()
-        half_width = self._mmc.getImageWidth() / 2 * px
-        half_height = self._mmc.getImageHeight() / 2 * px
+        fov_w, fov_h = self._fov_w_h()
+        half_width = fov_w / 2
+        half_height = fov_h / 2
         # NOTE: x, y is the center of the image
         vertices = [
             (x - half_width, y - half_height),  # bottom-left
@@ -564,50 +501,138 @@ class StageExplorer(QWidget):
         ]
         return all(view_rect.contains(*vertex) for vertex in vertices)
 
-    # ---------------------------------------------------------------------
-    #   Cached affine helpers
-    # ---------------------------------------------------------------------
+
+class PositionIndicatorMenu(QMenu):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.action_group = group = QActionGroup(self)
+        group.setExclusive(True)
+        for icon, mode in (
+            (
+                QIconifyIcon("ic:outline-check-box-outline-blank"),
+                PositionIndicator.RECTANGLE,
+            ),
+            (QIconifyIcon("ic:baseline-plus"), PositionIndicator.CENTER),
+            (QIconifyIcon("ic:outline-add-box"), PositionIndicator.BOTH),
+        ):
+            action = cast("QAction", group.addAction(icon, mode.value))
+            action.setCheckable(True)
+            action.setIconVisibleInMenu(True)
+        self.addActions(group.actions())
+
+
+class StageExplorerToolbar(QToolBar):
+    """A custom toolbar for the StageExplorer widget.
+
+    This toolbar contains actions to control the stage explorer, such as zooming to fit,
+    snapping images, and showing the current stage position.
+    """
+
+    if TYPE_CHECKING:
+
+        def addAction(self, icon: QIcon, text: str) -> QAction: ...
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setIconSize(QSize(22, 22))
+        # self.setMovable(False)
+        self.setContentsMargins(0, 0, 8, 0)
+        self.setStyleSheet(SS_TOOLBUTTON)
+
+        self.clear_action = self.addAction(
+            QIconifyIcon("mdi:close", color=GRAY),
+            "Clear View",
+        )
+        self.zoom_to_fit_action = self.addAction(
+            QIconifyIcon("mdi:fullscreen", color=GRAY),
+            "Zoom to Fit",
+        )
+        self.auto_zoom_to_fit_action = self.addAction(
+            QIcon(str(Path(__file__).parent / "auto_zoom_to_fit_icon.svg")),
+            "Auto Zoom to Fit",
+        )
+        self.auto_zoom_to_fit_action.setCheckable(True)
+        self.snap_action = self.addAction(
+            QIconifyIcon("mdi:camera-outline", color=GRAY),
+            "Snap on Double Click",
+        )
+        self.snap_action.setCheckable(True)
+        self.poll_stage_action = self.addAction(
+            QIconifyIcon("mdi:map-marker-outline", color=GRAY),
+            "Show FOV Position",
+        )
+        self.poll_stage_action.setCheckable(True)
+        poll_btn = cast("QToolButton", self.widgetForAction(self.poll_stage_action))
+
+        # menu that can be shown on right-click
+        menu = PositionIndicatorMenu(self)
+        self.marker_mode_action_group = menu.action_group
+        poll_btn.setMenu(menu)
+        poll_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+
+        self.show_grid_action = self.addAction(
+            QIconifyIcon("mdi:grid", color=GRAY),
+            "Show Grid",
+        )
+        self.show_grid_action.setCheckable(True)
+        self.addSeparator()
+        self.delete_rois_action = self.addAction(
+            QIconifyIcon("mdi:vector-square-remove", color=GRAY),
+            "Delete All ROIs",
+        )
+        self.addSeparator()
+        self.scan_action = self.addAction(
+            QIconifyIcon("ph:path-duotone", color=GRAY),
+            "Scan Selected ROIs",
+        )
+
+
+SLOTS = {"slots": True} if sys.version_info >= (3, 10) else {}
+
+
+@dataclass(**SLOTS)
+class AffineState:
+    """Cached state for the affine transformation of the stage viewer.
+
+    Call refresh() to recompute the state based on the current camera settings.
+    """
+
+    mmc: CMMCorePlus
+    pixel_size_um: float = field(init=False)
+    pixel_size_affine: tuple[float, ...] = field(init=False)
+    system_affine: np.ndarray = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.refresh()
+
+    # Public
+
+    def refresh(self) -> None:
+        """Recompute everything that depends on camera settings."""
+        self.pixel_size_um = self.mmc.getPixelSizeUm()
+        self.pixel_size_affine = self.mmc.getPixelSizeAffine()
+        self.system_affine = self._compute_system_affine()
+
+    def system_affine_translated(self, x: float, y: float) -> np.ndarray:
+        """Return the system affine matrix translated to the given (x, y) position."""
+        # fast path: copy cached rotation/scale part and just update translation
+        matrix = self.system_affine.copy()
+        matrix[0:2, 3] = (x, y)
+        return matrix
+
+    # Private helpers
 
     def _compute_system_affine(self) -> np.ndarray:
-        """Compute and cache the rotation/scale part of the affine transform."""
-        flip_x = False
-        flip_y = False
-        if cam := self._mmc.getCameraDevice():
-            mirror_x = Keyword.Transpose_MirrorX
-            mirror_y = Keyword.Transpose_MirrorY
-            flip_x = self._mmc.getProperty(cam, mirror_x) == "1"
-            flip_y = self._mmc.getProperty(cam, mirror_y) == "1"
+        flip_x = flip_y = False
+        if cam := self.mmc.getCameraDevice():
+            flip_x = self.mmc.getProperty(cam, Keyword.Transpose_MirrorX) == "1"
+            flip_y = self.mmc.getProperty(cam, Keyword.Transpose_MirrorY) == "1"
 
-        sys_affine = self._current_pixel_config_affine(flip_x, flip_y)
-        if sys_affine is None:
-            sys_affine = self._build_linear_matrix(0, flip_x, flip_y)
-        return sys_affine
+        if self._pixel_config_is_identity():
+            return self._linear_matrix(flip_x, flip_y)
+        return self._pixel_config_matrix(flip_x, flip_y)
 
-    def _current_pixel_config_affine(
-        self, flip_x: bool = False, flip_y: bool = False
-    ) -> np.ndarray | None:
-        """Return the current pixel configuration affine, if set.
-
-        If the pixel configuration is not set (i.e. is the identity matrix),
-        it will return None.
-        """
-        affine = self._mmc.getPixelSizeAffine()
-        # TODO: determine whether this is the best way to check if this info is
-        # available or not.
-        if np.allclose(affine, (1.0, 0.0, 0.0, 0.0, 1.0, 0.0)):
-            return None
-
-        tform = np.eye(4)
-        tform[:2, :3] = np.array(affine).reshape(2, 3)
-        # flip the image if required
-        # TODO: Should this ALWAYS be done?
-        if flip_x:
-            tform[0, 0] *= -1
-        if flip_y:
-            tform[1, 1] *= -1
-        return tform
-
-    def _build_linear_matrix(
+    def _linear_matrix(
         self, rotation: float = 0, flip_x: bool = False, flip_y: bool = False
     ) -> np.ndarray:
         """Build linear transformation matrix for rotation and scaling.
@@ -621,50 +646,31 @@ class StageExplorer(QWidget):
         sin_ = np.sin(rotation_rad)
         R[:2, :2] = np.array([[cos_, -sin_], [sin_, cos_]])
         # scaling matrix
-        pixel_size = self._mmc.getPixelSizeUm()
-        S = np.eye(4)
-        S[0, 0] = pixel_size
-        S[1, 1] = pixel_size
+        S = np.diag([self.pixel_size_um, self.pixel_size_um, 1, 1])
         # flip the image if required
         if flip_x:
             S[0, 0] *= -1
         if flip_y:
             S[1, 1] *= -1
-        return R @ S
+        return R @ S  # type: ignore[no-any-return]
 
-    def _t_half_width(self) -> np.ndarray:
-        """Return the transformation matrix to translate half the size of the image."""
-        # by default, vispy add the images from the bottom-left corner. We need to
-        # translate by -w/2 and -h/2 so the position corresponds to the center of the
-        # images. In addition, this make sure the rotation (if any) is applied around
-        # the center of the image.
-        T_center = np.eye(4)
-        T_center[0, 3] = -self._mmc.getImageWidth() / 2
-        T_center[1, 3] = -self._mmc.getImageHeight() / 2
-        return T_center
+    def _pixel_config_is_identity(self) -> bool:
+        return np.allclose(self.pixel_size_affine, (1.0, 0.0, 0.0, 0.0, 1.0, 0.0))
 
+    def _pixel_config_matrix(
+        self, flip_x: bool = False, flip_y: bool = False
+    ) -> np.ndarray:
+        """Return the current pixel configuration affine, if set.
 
-class _PollStageCtxMenu(QMenu):
-    """Custom context menu for the poll stage position button.
-
-    The menu contains options to select the type of marker to display (rectangle,
-    center, or both).
-    """
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-
-        self.action_group = group = QActionGroup(self)
-        group.setExclusive(True)
-
-        for mode in PositionIndicator:
-            action = cast("QAction", group.addAction(mode.value))
-            action.setCheckable(True)
-
-        self.addActions(group.actions())
-
-    def setIndicator(self, mode: PositionIndicator | str) -> None:
-        """Set the poll mode based on the selected action."""
-        mode = PositionIndicator(mode)
-        action = next(action for action in self.actions() if action.text() == mode)
-        action.setChecked(True)
+        If the pixel configuration is not set (i.e. is the identity matrix),
+        it will return None.
+        """
+        tform = np.eye(4)
+        tform[:2, :3] = np.array(self.pixel_size_affine).reshape(2, 3)
+        # flip the image if required
+        # TODO: Should this ALWAYS be done?
+        if flip_x:
+            tform[0, 0] *= -1
+        if flip_y:
+            tform[1, 1] *= -1
+        return tform
