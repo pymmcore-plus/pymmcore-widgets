@@ -236,6 +236,12 @@ class StageExplorer(QWidget):
         )
         self._stage_pos_marker.visible = False
 
+        # --- cached parameters for efficient affine calculations ---
+        self._pixel_size_affine: tuple[float, ...] = self._mmc.getPixelSizeAffine()
+        self._pixel_size_um: float = self._mmc.getPixelSizeUm()
+        self._system_affine: np.ndarray = self._compute_system_affine()
+        self._half_img_shift: np.ndarray = self._t_half_width()
+
         # toolbar
         self._toolbar = tb = StageExplorerToolbar()
 
@@ -270,6 +276,9 @@ class StageExplorer(QWidget):
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
+        self._mmc.events.pixelSizeAffineChanged.connect(
+            self._on_pixel_size_affine_changed
+        )
 
         # connections vispy events
         self._stage_viewer.canvas.events.mouse_double_click.connect(
@@ -335,9 +344,9 @@ class StageExplorer(QWidget):
         self, image: np.ndarray, stage_x_um: float, stage_y_um: float
     ) -> None:
         """Add an image to the scene at a give (x, y) stage position in microns."""
-        # TODO: expose rotation and use if affine = self._mmc.getPixelSizeAffine()
-        # is not set (if equal to (1.0, 0.0, 0.0, 0.0, 1.0, 0.0))
-        matrix = self._create_complete_affine_matrix(x_pos=stage_x_um, y_pos=stage_y_um)
+        stage_shift = np.eye(4)
+        stage_shift[0:2, 3] = (stage_x_um, stage_y_um)
+        matrix = stage_shift @ self._system_affine @ self._half_img_shift
         self._stage_viewer.add_image(image, transform=matrix.T)
 
     def zoom_to_fit(self, *, margin: float = 0.05) -> None:
@@ -363,6 +372,7 @@ class StageExplorer(QWidget):
         # update stage marker size
         fov_w = self._mmc.getImageWidth()
         fov_h = self._mmc.getImageHeight()
+        self._half_img_shift = self._t_half_width()
         self._stage_pos_marker.set_rect_size(fov_w, fov_h)
 
     def _on_snap_action(self, checked: bool) -> None:
@@ -404,8 +414,9 @@ class StageExplorer(QWidget):
         active_roi = active_rois[0]
         fov_w, fov_h, z_pos = self._fov_w_h_z_pos()
         if plan := active_roi.create_grid_plan(fov_w=fov_w, fov_h=fov_h):
+            # for now, we expand the grid plan to a list of positions because
+            # useq grid_plan= doesn't yet support our custom polygon ROIs
             seq = useq.MDASequence(stage_positions=list(plan))
-
             if not self._mmc.mda.is_running():
                 self._our_mda_running = True
                 self._mmc.run_mda(seq)
@@ -435,7 +446,14 @@ class StageExplorer(QWidget):
 
     def _on_pixel_size_changed(self, value: float) -> None:
         """Update scene when the pixel size changes."""
-        ...
+        self._pixel_size_um = value
+        self._half_img_shift = self._t_half_width()
+        self._system_affine = self._compute_system_affine()
+
+    def _on_pixel_size_affine_changed(self) -> None:
+        """Handle updates to the 2 x 3 pixel size affine."""
+        self._pixel_size_affine = self._mmc.getPixelSizeAffine()
+        self._system_affine = self._compute_system_affine()
 
     def _on_mouse_double_click(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
@@ -498,37 +516,14 @@ class StageExplorer(QWidget):
         stage_x, stage_y = self._mmc.getXYPosition()
         self._stage_pos_label.setText(f"X: {stage_x:.2f} µm  Y: {stage_y:.2f} µm")
 
-        # build the stage marker affine using the affine matrix since we need to take
-        # into account the rotation and scaling
-        matrix = self._build_stage_marker_complete_affine_matrix(stage_x, stage_y)
-
-        # IMPORTANT!
-        # the transform we apply here *also* includes the pixel size scaling, along
-        # with the rotation and translation. That's why the stage position marker
-        # does not account for pixel size scaling.  This needs to be standardized
-        # unified somewhere.
-
-        # update stage marker position
+        # fast path: copy cached rotation/scale part and just update translation
+        matrix = self._system_affine.copy()
+        matrix[0:2, 3] = (stage_x, stage_y)
         self._stage_pos_marker.apply_transform(matrix.T)
         # zoom_to_fit only if auto _auto_zoom_to_fit property is set to True.
         # NOTE: this could be slightly annoying...  might need a sub-option?
         if self._auto_zoom_to_fit:
             self.zoom_to_fit()
-
-    def _build_stage_marker_complete_affine_matrix(
-        self, stage_x: float, stage_y: float
-    ) -> np.ndarray:
-        """Build the affine matrix for the stage position marker.
-
-        We need this to take into account any rotation (but do not need to flip or shift
-        the position half the width and height since the marker is already centered).
-        """
-        system_affine = self._current_pixel_config_affine()
-        if system_affine is None:
-            system_affine = self._build_linear_matrix(0)
-        stage_shift = np.eye(4)
-        stage_shift[0:2, 3] = (stage_x, stage_y)
-        return stage_shift @ system_affine  # type: ignore
 
     # IMAGES -----------------------------------------------------------------------
 
@@ -569,43 +564,24 @@ class StageExplorer(QWidget):
         ]
         return all(view_rect.contains(*vertex) for vertex in vertices)
 
-    def _create_complete_affine_matrix(self, x_pos: float, y_pos: float) -> np.ndarray:
-        """Construct affine matrix for the current state of the system + stage position.
+    # ---------------------------------------------------------------------
+    #   Cached affine helpers
+    # ---------------------------------------------------------------------
 
-        This method combines the system affine matrix (if set) with a translation
-        according to the provided stage position. The resulting matrix can be passed
-        to the `add_image` method of the `StageViewer` class to position the image
-        correctly in the scene.
-        """
-        # get the flip status
-        # NOTE: this can be an issue since here we are retrieving the flip status
-        # from the camera device. The cameras I have used do not directly
-        # flip the image if the Transpose_Mirror option is set to 1 but others
-        # might do. In this latter case we will flip the image twice and is not
-        # correct. How to fix this???
+    def _compute_system_affine(self) -> np.ndarray:
+        """Compute and cache the rotation/scale part of the affine transform."""
+        flip_x = False
+        flip_y = False
         if cam := self._mmc.getCameraDevice():
             mirror_x = Keyword.Transpose_MirrorX
             mirror_y = Keyword.Transpose_MirrorY
             flip_x = self._mmc.getProperty(cam, mirror_x) == "1"
             flip_y = self._mmc.getProperty(cam, mirror_y) == "1"
 
-        # Create the complete matrix
-        # 1. translate_half the image width
-        half_img_shift = self._t_half_width()
-
-        # 2. get the affine transform from the core configuration, or
-        # fallback to a manually constructed one if not set
-        system_affine = self._current_pixel_config_affine(flip_x, flip_y)
-        if system_affine is None:
-            system_affine = self._build_linear_matrix(0, flip_x, flip_y)
-
-        # 3. translate to the stage position
-        stage_shift = np.eye(4)
-        stage_shift[0:2, 3] = (x_pos, y_pos)
-
-        # 1. translate_half_width -> 2. rotate/scale -> 3. translate_to_stage_pos
-        # (reminder: the order of the matrix multiplication is reversed :)
-        return stage_shift @ system_affine @ half_img_shift  # type: ignore
+        sys_affine = self._current_pixel_config_affine(flip_x, flip_y)
+        if sys_affine is None:
+            sys_affine = self._build_linear_matrix(0, flip_x, flip_y)
+        return sys_affine
 
     def _current_pixel_config_affine(
         self, flip_x: bool = False, flip_y: bool = False
