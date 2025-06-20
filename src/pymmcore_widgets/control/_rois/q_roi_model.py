@@ -10,7 +10,15 @@ NULL_INDEX = QModelIndex()
 
 
 class QROIModel(QAbstractListModel):
-    """A QAbstractListModel for ROIs."""
+    """A QAbstractListModel for ROIs.
+
+    This is a low-level pure-model class that manages instances of `roi_model.ROI`.
+    It implements all the necessary QAbstractListModel methods to be used with a
+    QAbstractItemView.
+
+    See `SceneROIManager` for a higher-level class that manages the interaction with
+    the canvas and the selection of ROIs.
+    """
 
     ROI_ROLE = Qt.ItemDataRole.UserRole + 1
     VERTEX_ROLE = Qt.ItemDataRole.UserRole + 2

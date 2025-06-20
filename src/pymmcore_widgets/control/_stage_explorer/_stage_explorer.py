@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import useq
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QPoint, Qt
+from qtpy.QtCore import QSize, Qt
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QLabel,
@@ -27,26 +27,18 @@ from ._stage_position_marker import StagePositionMarker
 from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from PyQt6.QtGui import QAction, QActionGroup, QKeyEvent
     from qtpy.QtCore import QTimerEvent
     from vispy.app.canvas import MouseEvent
-    from vispy.scene.visuals import VisualNode
+
+    from ._stage_viewer import VisualNode
 else:
     from qtpy.QtWidgets import QAction, QActionGroup
 
 # suppress scientific notation when printing numpy arrays
 np.set_printoptions(suppress=True)
-
-ZOOM_TO_FIT = "Zoom to Fit"
-AUTO_ZOOM_TO_FIT = "Auto Zoom to Fit"
-AUTO_ZOOM_TO_FIT_ICON = QIcon(str(Path(__file__).parent / "auto_zoom_to_fit_icon.svg"))
-CLEAR = "Clear View"
-SNAP = "Snap on Double Click"
-POLL_STAGE = "Show FOV Position"
-SHOW_GRID = "Show Grid"
-ROIS = "Create ROI (option click)"
-DELETE_ROIS = "Delete All ROIs"
-SCAN = "Scan Selected ROIs"
 
 
 # this might belong in _stage_position_marker.py
@@ -72,28 +64,105 @@ class PositionIndicator(str, Enum):
 
 
 SS_TOOLBUTTON = """
-    QToolButton {
-        min-width: 25px;
-        min-height: 25px;
-        max-width: 25px;
-        max-height: 25px;
-    }
     QToolButton:checked {
         background-color: rgba(51, 170, 51, 255);
-        border: 1px solid rgba(102, 102, 102, 255);
+        border: 1px solid rgba(102, 102, 102, 80);
         border-radius: 5px;
     }
     QToolButton:!checked {
-        border: 1px solid rgba(102, 102, 102, 255);
+        border: 1px solid rgba(102, 102, 102, 80);
         border-radius: 5px;
     }
     QToolButton:checked:hover {
         background-color: rgba(51, 170, 51, 180);
     }
     QToolButton:!checked:hover {
-        background-color: rgba(102, 102, 102, 100);
+        background-color: rgba(102, 102, 102, 80);
     }
 """
+
+
+class PositionIndicatorMenu(QMenu):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.action_group = group = QActionGroup(self)
+        group.setExclusive(True)
+        for icon, mode in (
+            (
+                QIconifyIcon("ic:outline-check-box-outline-blank"),
+                PositionIndicator.RECTANGLE,
+            ),
+            (QIconifyIcon("ic:baseline-plus"), PositionIndicator.CENTER),
+            (QIconifyIcon("ic:outline-add-box"), PositionIndicator.BOTH),
+        ):
+            action = cast("QAction", group.addAction(icon, mode.value))
+            action.setCheckable(True)
+            action.setIconVisibleInMenu(True)
+        self.addActions(group.actions())
+
+
+class StageExplorerToolbar(QToolBar):
+    """A custom toolbar for the StageExplorer widget.
+
+    This toolbar contains actions to control the stage explorer, such as zooming to fit,
+    snapping images, and showing the current stage position.
+    """
+
+    if TYPE_CHECKING:
+
+        def addAction(self, icon: QIcon, text: str) -> QAction: ...
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setIconSize(QSize(20, 20))
+        self.setMovable(False)
+        self.setContentsMargins(0, 0, 10, 0)
+        # self.setStyleSheet(SS_TOOLBUTTON)
+
+        self.clear_action = self.addAction(
+            QIconifyIcon("mdi:close", color=GRAY),
+            "Clear View",
+        )
+        self.zoom_to_fit_action = self.addAction(
+            QIconifyIcon("mdi:fullscreen", color=GRAY),
+            "Zoom to Fit",
+        )
+        self.auto_zoom_to_fit_action = self.addAction(
+            QIcon(str(Path(__file__).parent / "auto_zoom_to_fit_icon.svg")),
+            "Auto Zoom to Fit",
+        )
+        self.auto_zoom_to_fit_action.setCheckable(True)
+        self.snap_action = self.addAction(
+            QIconifyIcon("mdi:camera-outline", color=GRAY),
+            "Snap on Double Click",
+        )
+        self.snap_action.setCheckable(True)
+        self.poll_stage_action = self.addAction(
+            QIconifyIcon("mdi:map-marker-outline", color=GRAY),
+            "Show FOV Position",
+        )
+        self.poll_stage_action.setCheckable(True)
+        poll_btn = cast("QToolButton", self.widgetForAction(self.poll_stage_action))
+
+        # menu that can be shown on right-click
+        menu = PositionIndicatorMenu(self)
+        self.marker_mode_action_group = menu.action_group
+        poll_btn.setMenu(menu)
+        poll_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+
+        self.show_grid_action = self.addAction(
+            QIconifyIcon("mdi:grid", color=GRAY),
+            "Show Grid",
+        )
+        self.show_grid_action.setCheckable(True)
+        self.delete_rois_action = self.addAction(
+            QIconifyIcon("mdi:vector-square-remove", color=GRAY),
+            "Delete All ROIs",
+        )
+        self.scan_action = self.addAction(
+            QIconifyIcon("ph:path-duotone", color=GRAY),
+            "Scan Selected ROIs",
+        )
 
 
 class StageExplorer(QWidget):
@@ -158,58 +227,32 @@ class StageExplorer(QWidget):
         # timer for polling stage position
         self._timer_id: int | None = None
         # marker for stage position
-        self._stage_pos_marker: StagePositionMarker | None = None
+        w, h = self._mmc.getImageWidth(), self._mmc.getImageHeight()
+        self._stage_pos_marker: StagePositionMarker = StagePositionMarker(
+            parent=self._stage_viewer.view.scene,
+            rect_width=w,
+            rect_height=h,
+            marker_symbol_size=min((w, h)) / 10,
+        )
+        self._stage_pos_marker.visible = False
 
         # toolbar
-        self._toolbar = QToolBar()
-        self._toolbar.setStyleSheet(SS_TOOLBUTTON)
-        self._toolbar.setMovable(False)
-        self._toolbar.setContentsMargins(0, 0, 10, 0)
+        self._toolbar = tb = StageExplorerToolbar()
 
-        # actions
-        self._actions: dict[str, QAction] = {}
+        tb.clear_action.triggered.connect(self._stage_viewer.clear)
+        tb.zoom_to_fit_action.triggered.connect(self._on_zoom_to_fit_action)
+        tb.auto_zoom_to_fit_action.triggered.connect(self._on_auto_zoom_to_fit_action)
+        tb.snap_action.triggered.connect(self._on_snap_action)
+        tb.poll_stage_action.triggered.connect(self._on_poll_stage_action)
+        tb.show_grid_action.triggered.connect(self._on_show_grid_action)
+        tb.delete_rois_action.triggered.connect(self._remove_rois)
+        tb.scan_action.triggered.connect(self._on_scan_action)
+        tb.marker_mode_action_group.triggered.connect(self._set_marker_mode)
 
-        # fmt: off
-        # {text: (icon, checkable, on_triggered)}
-        ACTION_MAP: dict[str, tuple[str | QIcon, bool, Callable]] = {
-            CLEAR: ("mdi:close", False, self._stage_viewer.clear),
-            ZOOM_TO_FIT: ("mdi:fullscreen", False, self._on_zoom_to_fit_action),
-            AUTO_ZOOM_TO_FIT: (AUTO_ZOOM_TO_FIT_ICON, True, self._on_auto_zoom_to_fit_action),  # noqa: E501
-            SNAP: ("mdi:camera-outline", True, self._on_snap_action),
-            POLL_STAGE: ("mdi:map-marker-outline", True, self._on_poll_stage_action),
-            SHOW_GRID: ("mdi:grid", True, self._on_show_grid_action),
-            # ROIS: ("mdi:vector-square", True, None),
-            DELETE_ROIS: ("mdi:vector-square-remove", False, self._remove_rois),
-            SCAN: ("ph:path-duotone", False, self._on_scan_action),
-        }
-        # fmt: on
-
-        # create actions
-        for a_text, (icon, check, callback) in ACTION_MAP.items():
-            if isinstance(icon, str):
-                icon = QIconifyIcon(icon, color=GRAY)
-            self._actions[a_text] = action = QAction(icon, a_text, self)
-            action.setCheckable(check)
-            if callback is not None:
-                action.triggered.connect(callback)
-
-            if a_text == POLL_STAGE:
-                # create special toolbutton with a context menu on right-click
-                btn = self._create_poll_stage_button()
-                btn.setDefaultAction(action)
-                self._toolbar.addWidget(btn)
-                action.setChecked(self._poll_stage_position)
-            else:
-                self._toolbar.addAction(action)
         self._toolbar.addActions(self.roi_manager.mode_actions.actions())
-        # update checked state of the actions
-        self._on_poll_stage_action(self._poll_stage_position)
-        self._on_snap_action(self._snap_on_double_click)
-        # self._actions[SCAN].setEnabled(False)
 
         # add stage pos label to the toolbar
         self._stage_pos_label = QLabel()
-
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._toolbar.addWidget(spacer)
@@ -236,6 +279,9 @@ class StageExplorer(QWidget):
         self._on_sys_config_loaded()
         self._on_roi_changed()
 
+        self._toolbar.poll_stage_action.trigger()
+        self.zoom_to_fit()
+
     # -----------------------------PUBLIC METHODS-------------------------------------
 
     def toolBar(self) -> QToolBar:
@@ -255,7 +301,7 @@ class StageExplorer(QWidget):
     @auto_zoom_to_fit.setter
     def auto_zoom_to_fit(self, value: bool) -> None:
         self._auto_zoom_to_fit = value
-        self._actions[ZOOM_TO_FIT].setChecked(value)
+        self._toolbar.auto_zoom_to_fit_action.setChecked(value)
         if value:
             self.zoom_to_fit()
 
@@ -271,7 +317,7 @@ class StageExplorer(QWidget):
     @snap_on_double_click.setter
     def snap_on_double_click(self, value: bool) -> None:
         self._snap_on_double_click = value
-        self._actions[SNAP].setChecked(value)
+        self._toolbar.snap_action.setChecked(value)
 
     @property
     def poll_stage_position(self) -> bool:
@@ -282,7 +328,7 @@ class StageExplorer(QWidget):
     def poll_stage_position(self, value: bool) -> None:
         """Set the poll stage position property."""
         self._poll_stage_position = value
-        self._actions[POLL_STAGE].setChecked(value)
+        self._toolbar.poll_stage_action.setChecked(value)
         self._on_poll_stage_action(value)
 
     def add_image(
@@ -299,9 +345,10 @@ class StageExplorer(QWidget):
 
         ...also considering the stage position marker.
         """
-        visuals: list[VisualNode] = list(self._stage_viewer._get_images())
-        if self._stage_pos_marker is not None:
-            visuals.append(self._stage_pos_marker)
+        visuals: Iterable[VisualNode] = [
+            *self._stage_viewer._get_images(),  # pyright: ignore
+            self._stage_pos_marker,
+        ]
         x_bounds, y_bounds, *_ = get_vispy_scene_bounds(visuals)
         self._stage_viewer.view.camera.set_range(x=x_bounds, y=y_bounds, margin=margin)
 
@@ -313,11 +360,10 @@ class StageExplorer(QWidget):
         """Update the ROI manager when a new ROI is set."""
         fov_w, fov_h, z_pos = self._fov_w_h_z_pos()
         self.roi_manager.update_fovs((fov_w, fov_h))
-        # create stage marker if not yet present
-        if (mk := self._stage_pos_marker) is not None:
-            fov_w = self._mmc.getImageWidth()
-            fov_h = self._mmc.getImageHeight()
-            mk.set_rect_size(fov_w, fov_h)
+        # update stage marker size
+        fov_w = self._mmc.getImageWidth()
+        fov_h = self._mmc.getImageHeight()
+        self._stage_pos_marker.set_rect_size(fov_w, fov_h)
 
     def _on_snap_action(self, checked: bool) -> None:
         """Update the stage viewer settings based on the state of the action."""
@@ -325,7 +371,7 @@ class StageExplorer(QWidget):
 
     def _on_zoom_to_fit_action(self, checked: bool) -> None:
         """Set the zoom to fit property based on the state of the action."""
-        self._actions[AUTO_ZOOM_TO_FIT].setChecked(False)
+        # self._toolbar.zoom_to_fit_action.setChecked(checked)
         self._auto_zoom_to_fit = False
         self.zoom_to_fit()
 
@@ -335,21 +381,7 @@ class StageExplorer(QWidget):
         if checked:
             self.zoom_to_fit()
 
-    def _create_poll_stage_button(self) -> QToolButton:
-        btn = QToolButton()
-        btn.setToolTip(f"{POLL_STAGE} (right-click for marker options)")
-
-        # menu that can be shown on right-click
-        menu = _PollStageCtxMenu(btn)
-        menu.setIndicator(self._position_indicator)
-        menu.action_group.triggered.connect(self._set_poll_mode)
-
-        # connect right click to show the menu
-        btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        btn.customContextMenuRequested.connect(menu.show_at_position)
-        return btn
-
-    def _set_poll_mode(self) -> None:
+    def _set_marker_mode(self) -> None:
         """Update the poll mode and show/hide the required stage position marker.
 
         Usually, the sender will be the action_group on the _PollStageCtxMenu.
@@ -358,11 +390,8 @@ class StageExplorer(QWidget):
         if isinstance(sender, QActionGroup) and (action := sender.checkedAction()):
             self._position_indicator = PositionIndicator(action.text())
 
-        if self._stage_pos_marker is not None:
-            self._stage_pos_marker.set_rect_visible(self._position_indicator.show_rect)
-            self._stage_pos_marker.set_marker_visible(
-                self._position_indicator.show_marker
-            )
+        self._stage_pos_marker.set_rect_visible(self._position_indicator.show_rect)
+        self._stage_pos_marker.set_marker_visible(self._position_indicator.show_marker)
 
     def _remove_rois(self) -> None:
         """Delete all the ROIs."""
@@ -405,8 +434,8 @@ class StageExplorer(QWidget):
         self._stage_viewer.clear()
 
     def _on_pixel_size_changed(self, value: float) -> None:
-        """Clear the scene when the pixel size changes."""
-        self._delete_stage_position_marker()
+        """Update scene when the pixel size changes."""
+        ...
 
     def _on_mouse_double_click(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
@@ -445,24 +474,19 @@ class StageExplorer(QWidget):
 
     def _on_poll_stage_action(self, checked: bool) -> None:
         """Set the poll stage position property based on the state of the action."""
+        self._stage_pos_marker.visible = checked
+        print("Stage position marker visible:", self._stage_pos_marker.visible)
         self._poll_stage_position = checked
         if checked:
             self._timer_id = self.startTimer(20)
         elif self._timer_id is not None:
             self.killTimer(self._timer_id)
             self._timer_id = None
-            self._delete_stage_position_marker()
 
     def _on_show_grid_action(self, checked: bool) -> None:
         """Set the show grid property based on the state of the action."""
         self._stage_viewer.set_grid_visible(checked)
-        self._actions[SHOW_GRID].setChecked(checked)
-
-    def _delete_stage_position_marker(self) -> None:
-        """Delete the stage position marker."""
-        if self._stage_pos_marker is not None:
-            self._stage_pos_marker.parent = None
-            self._stage_pos_marker = None
+        # self._toolbar.show_grid_action.setChecked(checked)
 
     def timerEvent(self, event: QTimerEvent) -> None:
         """Poll the stage position."""
@@ -470,18 +494,13 @@ class StageExplorer(QWidget):
             self._stage_pos_label.setText("No XY stage device")
             return
 
-        stage_x, stage_y = self._mmc.getXYPosition()
-
         # update the stage position label
+        stage_x, stage_y = self._mmc.getXYPosition()
         self._stage_pos_label.setText(f"X: {stage_x:.2f} µm  Y: {stage_y:.2f} µm")
 
         # build the stage marker affine using the affine matrix since we need to take
         # into account the rotation and scaling
         matrix = self._build_stage_marker_complete_affine_matrix(stage_x, stage_y)
-
-        # create stage marker if not yet present
-        if (mk := self._stage_pos_marker) is None:
-            mk = self._create_stage_pos_marker()
 
         # IMPORTANT!
         # the transform we apply here *also* includes the pixel size scaling, along
@@ -490,7 +509,7 @@ class StageExplorer(QWidget):
         # unified somewhere.
 
         # update stage marker position
-        mk.apply_transform(matrix.T)
+        self._stage_pos_marker.apply_transform(matrix.T)
         # zoom_to_fit only if auto _auto_zoom_to_fit property is set to True.
         # NOTE: this could be slightly annoying...  might need a sub-option?
         if self._auto_zoom_to_fit:
@@ -510,23 +529,6 @@ class StageExplorer(QWidget):
         stage_shift = np.eye(4)
         stage_shift[0:2, 3] = (stage_x, stage_y)
         return stage_shift @ system_affine  # type: ignore
-
-    def _create_stage_pos_marker(self) -> StagePositionMarker:
-        """Create a marker at the current stage position."""
-        w, h = self._mmc.getImageWidth(), self._mmc.getImageHeight()
-        self._stage_pos_marker = StagePositionMarker(
-            parent=self._stage_viewer.view.scene,
-            rect_width=w,
-            rect_height=h,
-            marker_symbol_size=min((w, h)) / 10,
-        )
-        # update the marker state depending on the selected poll mode
-        self._set_poll_mode()
-        # reset if the view is empty (only the stage marker is present)
-        if not list(self._stage_viewer._get_images()):
-            self.zoom_to_fit()
-
-        return self._stage_pos_marker
 
     # IMAGES -----------------------------------------------------------------------
 
@@ -690,12 +692,3 @@ class _PollStageCtxMenu(QMenu):
         mode = PositionIndicator(mode)
         action = next(action for action in self.actions() if action.text() == mode)
         action.setChecked(True)
-
-    def show_at_position(self, pos: QPoint) -> None:
-        """Show the poll stage position context menu at the given global position.
-
-        If a button is the sender, the position is mapped to global coordinates.
-        """
-        if isinstance(sender := self.sender(), QWidget):
-            pos = sender.mapToGlobal(pos)
-        self.exec(pos)

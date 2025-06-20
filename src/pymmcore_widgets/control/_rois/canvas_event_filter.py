@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from pymmcore_widgets.control._rois.roi_manager import SceneROIManager
 
 
-class CanvasEventFilter(QObject):
+class CanvasROIEventFilter(QObject):
     """A QObject that filters events for a canvas."""
 
     def __init__(self, manager: SceneROIManager) -> None:
