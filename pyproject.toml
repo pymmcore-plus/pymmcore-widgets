@@ -58,7 +58,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-PySide2 = ["PySide2 >=5.15.2.1"]
+PySide2 = ["PySide2 >=5.15.2.1", "numpy<=2; python_version < '3.13'"]
 PySide6 = ["PySide6 >=6.9.0"]
 PyQt5 = ["PyQt5 >=5.15.11"]
 PyQt6 = ["PyQt6 >=6.4.2"]
