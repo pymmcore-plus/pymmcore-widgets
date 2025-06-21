@@ -24,7 +24,7 @@ from superqt import QIconifyIcon
 from vispy.scene import SceneCanvas, ViewBox
 
 from ._vispy import RoiPolygon
-from .canvas_event_filter import CanvasEventFilter
+from .canvas_event_filter import CanvasROIEventFilter
 from .q_roi_model import QROIModel
 
 if TYPE_CHECKING:
@@ -35,46 +35,24 @@ else:
     from qtpy.QtGui import QActionGroup
 
 GRAY = "#666"
-# class _RoiCommand(QUndoCommand):
-#     def __init__(self, manager: ROIManager, roi: ROIRectangle) -> None:
-#         super().__init__("Add ROI")
-#         self._manager = manager
-#         self._roi = roi
-
-
-# class InsertRoiCommand(_RoiCommand):
-#     def undo(self) -> None:
-#         self._manager._remove(self._roi)
-
-#     def redo(self) -> None:
-#         self._manager._add(self._roi)
-
-
-# class DeleteRoiCommand(_RoiCommand):
-#     def undo(self) -> None:
-#         self._manager._add(self._roi)
-
-#     def redo(self) -> None:
-#         self._manager._remove(self._roi)
-
-
-# class ClearRoisCommand(QUndoCommand):
-#     def __init__(self, manager: ROIManager) -> None:
-#         super().__init__("Clear ROIs")
-#         self._manager = manager
-#         self._rois = set(self._manager.rois)
-
-#     def undo(self) -> None:
-#         for roi in self._rois:
-#             self._manager._add(roi)
-
-#     def redo(self) -> None:
-#         for roi in self._rois:
-#             self._manager._remove(roi)
 
 
 class SceneROIManager(QObject):
-    """A class to link the ROI manager and the canvas."""
+    """A manager for ROIs in a SceneCanvas.
+
+    This object handles the creation, selection, and management of ROIs in a
+    SceneCanvas. It provides methods to add, remove, and update ROIs, as well as to
+    change the current mode of interaction (selecting, creating rectangles, or creating
+    polygons).
+
+    It combines a `QROIModel` with a `QItemSelectionModel` to manage the ROIs and their
+    selection state.  It also installs a `CanvasROIEventFilter` on the provided
+    vispy `SceneCanvas` to handle mouse and keyboard events related to ROIS.  Note, that
+    the event filter stops ALL key events from being passed to the vispy canvas.
+
+    (Because QROIModel is a QAbstractListModel, it could also be used in parallel with
+    a `QListView`, to display the ROIs in a tabular format).
+    """
 
     modeChanged = Signal(str)
 
@@ -112,7 +90,8 @@ class SceneROIManager(QObject):
                 break
         else:
             self.view = canvas.central_widget.add_view(camera="panzoom")
-        self._canvas_filter = CanvasEventFilter(self)
+
+        self._canvas_filter = CanvasROIEventFilter(self)
         canvas.native.installEventFilter(self._canvas_filter)
 
         # SIGNALS
@@ -122,17 +101,18 @@ class SceneROIManager(QObject):
         self.roi_model.dataChanged.connect(self._on_data_changed)
         self.selection_model.selectionChanged.connect(self._on_selection_changed)
 
+    # PUBLIC API ------------------------------------------------------------
+
     def clear_selection(self) -> None:
-        """Clear the current selection."""
+        """Clear the current selection (unselect all)."""
         self.selection_model.clearSelection()
 
-    def select_roi(
-        self,
-        roi: ROI,
-        command: QItemSelectionModel.SelectionFlag = QItemSelectionModel.SelectionFlag.ClearAndSelect,  # noqa: E501
-    ) -> None:
-        """Select a single ROI."""
-        self.selection_model.select(self.roi_model.index_of(roi), command)
+    def select_roi(self, roi: ROI) -> None:
+        """Select a single ROI, (unselect all others)."""
+        self.selection_model.select(
+            self.roi_model.index_of(roi),
+            QItemSelectionModel.SelectionFlag.ClearAndSelect,
+        )
 
     def add_roi(self, roi: ROI | None = None) -> ROI:
         """Add a new ROI to the model."""
@@ -180,6 +160,8 @@ class SceneROIManager(QObject):
     def clear(self) -> None:
         """Clear all ROIs from the model."""
         self.roi_model.clear()
+
+    # PRIVATE -----------------------------------------------------------
 
     def _on_rows_about_to_be_removed(
         self, parent: QModelIndex, first: int, last: int
