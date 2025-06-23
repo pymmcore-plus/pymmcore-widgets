@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import useq
-from fonticon_mdi6 import MDI6
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -20,7 +19,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 from superqt.utils import signals_blocked
 
 from ._column_info import FloatColumn, TextColumn, WdgGetSet, WidgetColumn
@@ -97,10 +96,10 @@ class MDAButton(QWidget):
             QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred
         )
         self.seq_btn.clicked.connect(self._on_click)
-        self.seq_btn.setIcon(icon(MDI6.axis))
+        self.seq_btn.setIcon(QIconifyIcon("mdi:axis"))
 
         self.clear_btn = QPushButton()
-        self.clear_btn.setIcon(icon(MDI6.close_circle, color="red"))
+        self.clear_btn.setIcon(QIconifyIcon("mdi:close-circle", color="red"))
         self.clear_btn.setFixedWidth(20)
         self.clear_btn.hide()
         self.clear_btn.clicked.connect(lambda: self.setValue(None))
@@ -131,10 +130,10 @@ class MDAButton(QWidget):
             # if sub-sequence is equal to the null sequence (useq.MDASequence())
             # treat it as None
             if value and value != NULL_SEQUENCE:
-                self.seq_btn.setIcon(icon(MDI6.axis_arrow, color="green"))
+                self.seq_btn.setIcon(QIconifyIcon("mdi:axis-arrow", color="green"))
                 self.clear_btn.show()
             else:
-                self.seq_btn.setIcon(icon(MDI6.axis))
+                self.seq_btn.setIcon(QIconifyIcon("mdi:axis"))
                 self.clear_btn.hide()
             self.valueChanged.emit()
 

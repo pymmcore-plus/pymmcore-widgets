@@ -20,7 +20,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from pymmcore_widgets._util import block_core, load_system_config
+from pymmcore_widgets._util import NoWheelTableWidget, block_core, load_system_config
 from pymmcore_widgets.control._presets_widget import PresetsWidget
 from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 
@@ -32,18 +32,18 @@ from ._edit_preset_widget import EditPresetWidget
 UNNAMED_PRESET = "NewPreset"
 
 
-class _MainTable(QTableWidget):
+class _MainTable(NoWheelTableWidget):
     """Set table properties for Group and Preset TableWidget."""
 
     def __init__(self) -> None:
         super().__init__()
-        hdr = self.horizontalHeader()
-        hdr.setStretchLastSection(True)
-        hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
-        vh = self.verticalHeader()
-        vh.setVisible(False)
-        vh.setSectionResizeMode(vh.ResizeMode.Fixed)
-        vh.setDefaultSectionSize(24)
+        if (hdr := self.horizontalHeader()) is not None:
+            hdr.setStretchLastSection(True)
+            hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
+        if (vh := self.verticalHeader()) is not None:
+            vh.setVisible(False)
+            vh.setSectionResizeMode(vh.ResizeMode.Fixed)
+            vh.setDefaultSectionSize(24)
         self.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)

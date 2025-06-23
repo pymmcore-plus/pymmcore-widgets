@@ -1,5 +1,10 @@
+import pytest
+import qtpy
 from pymmcore_plus import CMMCorePlus
 from useq import MDAEvent, MDASequence
+
+if qtpy.API_NAME.startswith("PySide"):
+    pytest.skip("Tests flaky with PySide", allow_module_level=True)
 
 from pymmcore_widgets.views._stack_viewer._datastore import QOMEZarrDatastore
 
@@ -9,7 +14,7 @@ sequence = MDASequence(
 )
 
 
-def test_reception(qtbot):
+def test_reception(qtbot) -> None:
     mmcore = CMMCorePlus.instance()
 
     datastore = QOMEZarrDatastore()

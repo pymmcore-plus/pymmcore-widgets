@@ -63,4 +63,13 @@ class StagePositionMarker(Compound):
 
     def apply_transform(self, mat: np.ndarray) -> None:
         """Apply a uniform transform to both sub-visuals."""
+        # IMPORTANT!
+        # the transform we apply here should *already* includes the pixel size scaling,
+        # along with the rotation and translation.
         self.transform = MatrixTransform(matrix=mat)
+
+    def set_rect_size(self, width: int | float, height: int | float) -> None:
+        """Set the size of the rectangle."""
+        self._rect.width = width
+        self._rect.height = height
+        self._rect.update()

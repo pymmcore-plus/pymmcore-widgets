@@ -4,7 +4,6 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtGui import QTransform
@@ -18,12 +17,13 @@ from qtpy.QtWidgets import (
     QSizePolicy,
     QWidget,
 )
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 
 from pymmcore_widgets.useq_widgets._grid import _BoundsWidget
 
 if TYPE_CHECKING:
     import useq
+    from pyconify.iconify_types import Flip
     from pymmcore import CMMCore
 
 
@@ -43,24 +43,24 @@ def _rotate(deg: int, size_x: int, size_y: int) -> QTransform:
 
 
 ICONS_GO: dict[str, str] = {
-    "top": MDI6.arrow_up_thick,
-    "left": MDI6.arrow_left_thick,
-    "right": MDI6.arrow_right_thick,
-    "bottom": MDI6.arrow_down_thick,
-    "top_left": MDI6.arrow_top_left_thick,
-    "top_right": MDI6.arrow_top_right_thick,
-    "bottom_left": MDI6.arrow_bottom_left_thick,
-    "bottom_right": MDI6.arrow_bottom_right_thick,
+    "top": "mdi:arrow-up-thick",
+    "left": "mdi:arrow-left-thick",
+    "right": "mdi:arrow-right-thick",
+    "bottom": "mdi:arrow-down-thick",
+    "top_left": "mdi:arrow-top-left-thick",
+    "top_right": "mdi:arrow-top-right-thick",
+    "bottom_left": "mdi:arrow-bottom-left-thick",
+    "bottom_right": "mdi:arrow-bottom-right-thick",
 }
-ICONS_MARK: dict[str, tuple[str, QTransform | None]] = {
-    "top": (MDI6.border_top_variant, None),
-    "left": (MDI6.border_left_variant, None),
-    "right": (MDI6.border_right_variant, None),
-    "bottom": (MDI6.border_bottom_variant, None),
-    "top_left": (MDI6.border_style, None),
-    "top_right": (MDI6.border_style, _rotate(90, TRANSLATE_ICON, 0)),
-    "bottom_left": (MDI6.border_style, _rotate(270, 0, TRANSLATE_ICON)),
-    "bottom_right": (MDI6.border_style, _rotate(180, TRANSLATE_ICON, TRANSLATE_ICON)),
+ICONS_MARK: dict[str, tuple[str, Flip | None]] = {
+    "top": ("mdi:border-top-variant", None),
+    "left": ("mdi:border-left-variant", None),
+    "right": ("mdi:border-right-variant", None),
+    "bottom": ("mdi:border-bottom-variant", None),
+    "top_left": ("mdi:border-style", None),
+    "top_right": ("mdi:border-style", "horizontal"),
+    "bottom_left": ("mdi:border-style", "vertical"),
+    "bottom_right": ("mdi:border-style", "horizontal,vertical"),
 }
 
 BTN_STYLE = f"""
@@ -233,9 +233,9 @@ class _MarkVisitButton(QPushButton):
     ) -> None:
         super().__init__(parent)
         self._name = name
-        self._visit_icon = icon(ICONS_GO[self._name])
-        glyph, transform = ICONS_MARK[self._name]
-        self._mark_icon = icon(glyph, transform=transform)
+        self._visit_icon = QIconifyIcon(ICONS_GO[self._name])
+        glyph, flip = ICONS_MARK[self._name]
+        self._mark_icon = QIconifyIcon(glyph, flip=flip)
 
         self.setIcon(self._mark_icon)
         self.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
@@ -267,11 +267,11 @@ class MarkVisit(QWidget):
 
         mode = "top" if "top" in mark_text.lower() else "bottom"
 
-        self.mark = QPushButton(icon(mark_glyph), mark_text)
+        self.mark = QPushButton(QIconifyIcon(mark_glyph), mark_text)
         self.mark.setIconSize(QSize(icon_size, icon_size))
         self.mark.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        self.visit = QPushButton(icon(ICONS_GO[mode]), "")
+        self.visit = QPushButton(QIconifyIcon(ICONS_GO[mode]), "")
         self.visit.setIconSize(QSize(icon_size, icon_size))
         self.visit.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.visit.setToolTip(f"Move to {mode}.")

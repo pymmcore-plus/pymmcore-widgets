@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, cast
 
-from fonticon_mdi6 import MDI6
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QItemSelection, QSize, Qt, Signal
 from qtpy.QtGui import QIcon
@@ -18,7 +17,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 from superqt.utils import signals_blocked
 
 from ._util import find_circle_center, find_rectangle_center
@@ -33,11 +32,11 @@ ONE_SQUARE = QIcon(str(ICON_PATH / "square-center.svg"))
 TWO = QIcon(str(ICON_PATH / "square-vertices.svg"))
 THREE = QIcon(str(ICON_PATH / "circle-edges.svg"))
 FOUR = QIcon(str(ICON_PATH / "square-edges.svg"))
-NON_CALIBRATED_ICON = MDI6.circle
-CALIBRATED_ICON = MDI6.check_circle
+NON_CALIBRATED_ICON = "mdi:circle"
+CALIBRATED_ICON = "mdi:check-circle"
 ICON_SIZE = QSize(30, 30)
-YELLOW = Qt.GlobalColor.yellow
-GREEN = Qt.GlobalColor.green
+YELLOW = "#ffff00"
+GREEN = "#00ff00"
 
 
 class Mode(NamedTuple):
@@ -201,7 +200,7 @@ class WellCalibrationWidget(QWidget):
 
         # Icon for calibration status
         self._calibration_icon = QLabel()
-        icn = icon(NON_CALIBRATED_ICON, color=YELLOW)
+        icn = QIconifyIcon(NON_CALIBRATED_ICON, color=YELLOW)
         self._calibration_icon.setPixmap(icn.pixmap(ICON_SIZE))
 
         # calibration mode
@@ -258,9 +257,9 @@ class WellCalibrationWidget(QWidget):
 
         self._well_center = center
         if center is None:
-            icn = icon(NON_CALIBRATED_ICON, color=YELLOW)
+            icn = QIconifyIcon(NON_CALIBRATED_ICON, color=YELLOW)
         else:
-            icn = icon(CALIBRATED_ICON, color=GREEN)
+            icn = QIconifyIcon(CALIBRATED_ICON, color=GREEN)
         self._calibration_icon.setPixmap(icn.pixmap(ICON_SIZE))
         self.calibrationChanged.emit(center is not None)
 

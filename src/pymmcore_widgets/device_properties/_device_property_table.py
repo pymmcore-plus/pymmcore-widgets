@@ -9,10 +9,11 @@ from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QAbstractScrollArea, QTableWidget, QTableWidgetItem, QWidget
-from superqt.fonticon import icon
+from superqt.iconify import QIconifyIcon
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets._icons import ICONS
+from pymmcore_widgets._util import NoWheelTableWidget
 
 from ._property_widget import PropertyWidget
 
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 logger = getLogger(__name__)
 
 
-class DevicePropertyTable(QTableWidget):
+class DevicePropertyTable(NoWheelTableWidget):
     """Table of all currently loaded device properties.
 
     This table is used by `PropertyBrowser` to display all properties in the system,
@@ -158,7 +159,7 @@ class DevicePropertyTable(QTableWidget):
             item = QTableWidgetItem(f"{prop.device}-{prop.name}{extra}")
             item.setData(self.PROP_ROLE, prop)
             if icon_string := ICONS.get(prop.deviceType()):
-                item.setIcon(icon(icon_string, color="Gray"))
+                item.setIcon(QIconifyIcon(icon_string, color="Gray"))
             self.setItem(i, 0, item)
 
             try:

@@ -6,7 +6,6 @@ import numpy as np
 from vispy.app.canvas import MouseEvent
 from vispy.scene.visuals import Image
 
-from pymmcore_widgets.control._stage_explorer import _stage_explorer
 from pymmcore_widgets.control._stage_explorer._stage_explorer import StageExplorer
 from pymmcore_widgets.control._stage_explorer._stage_viewer import StageViewer
 
@@ -71,7 +70,7 @@ def test_stage_explorer_initialization(qtbot: QtBot) -> None:
     explorer = StageExplorer()
     qtbot.addWidget(explorer)
     assert explorer.windowTitle() == "Stage Explorer"
-    assert explorer.snap_on_double_click is False
+    assert explorer.snap_on_double_click is True
 
 
 def test_stage_explorer_snap_on_double_click(qtbot: QtBot) -> None:
@@ -99,23 +98,23 @@ def test_stage_explorer_actions(qtbot: QtBot) -> None:
     qtbot.addWidget(explorer)
     explorer.add_image(IMG, 0, 0)
 
-    actions = explorer.toolBar().actions()
-    snap_action = next(a for a in actions if a.text() == _stage_explorer.SNAP)
+    snap_action = explorer._toolbar.snap_action
+    assert explorer.snap_on_double_click is True
     with qtbot.waitSignal(snap_action.triggered):
         snap_action.trigger()
-    assert explorer.snap_on_double_click is True
+    assert explorer.snap_on_double_click is False
 
-    auto_action = explorer._actions[_stage_explorer.AUTO_ZOOM_TO_FIT]
+    auto_action = explorer._toolbar.auto_zoom_to_fit_action
     auto_action.trigger()
     assert explorer.auto_zoom_to_fit
     # this turns it off
-    explorer._actions[_stage_explorer.ZOOM_TO_FIT].trigger()
+    explorer._toolbar.zoom_to_fit_action.trigger()
     assert not explorer.auto_zoom_to_fit
 
-    assert not explorer._grid_lines.visible
-    grid_action = explorer._actions[_stage_explorer.SHOW_GRID]
+    assert not explorer._stage_viewer._grid_lines.visible
+    grid_action = explorer._toolbar.show_grid_action
     grid_action.trigger()
-    assert explorer._grid_lines.visible
+    assert explorer._stage_viewer._grid_lines.visible
 
 
 def test_stage_explorer_move_on_click(qtbot: QtBot) -> None:
@@ -137,7 +136,7 @@ def test_stage_explorer_position_indicator(qtbot: QtBot) -> None:
     explorer = StageExplorer()
     qtbot.addWidget(explorer)
 
-    poll_action = explorer._actions[_stage_explorer.POLL_STAGE]
+    poll_action = explorer._toolbar.poll_stage_action
     assert explorer._poll_stage_position is True
     assert explorer._timer_id is not None
 
@@ -150,7 +149,6 @@ def test_stage_explorer_position_indicator(qtbot: QtBot) -> None:
         poll_action.trigger()
 
     assert explorer._poll_stage_position is False
-    assert explorer._stage_pos_marker is None
     assert explorer._timer_id is None
 
 
