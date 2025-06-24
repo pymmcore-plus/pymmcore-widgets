@@ -69,7 +69,7 @@ class _Node:
 # -----------------------------------------------------------------------------
 
 
-class ConfigTreeModel(QAbstractItemModel):
+class _ConfigTreeModel(QAbstractItemModel):
     """Three-level model: root → groups → presets → settings."""
 
     # emitted when underlying data change in any way
@@ -166,7 +166,7 @@ class ConfigTreeModel(QAbstractItemModel):
         return 3
 
     def index(
-        self, row: int, column: int, parent: QModelIndex | None = None
+        self, row: int, column: int = 0, parent: QModelIndex | None = None
     ) -> QModelIndex:
         parent_node = self._node(parent)
         if 0 <= row < len(parent_node.children):
@@ -381,7 +381,7 @@ class ConfigEditor(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._model = ConfigTreeModel()
+        self._model = _ConfigTreeModel()
 
         # views --------------------------------------------------------------
         self._group_view = QListView()
@@ -441,13 +441,19 @@ class ConfigEditor(QWidget):
     # ------------------------------------------------------------------
 
     def setData(self, data: Iterable[ConfigGroup]) -> None:
+        """Set the configuration data to be displayed in the editor."""
         self._model.set_data(data)
-        self._group_view.setCurrentIndex(QModelIndex())
-        self._preset_view.setRootIndex(QModelIndex())
         self._prop_table.setValue([])
+        # Auto-select first group
+        if self._model.rowCount():
+            self._group_view.setCurrentIndex(self._model.index(0))
+        else:
+            self._preset_view.setRootIndex(QModelIndex())
+            self._preset_view.clearSelection()
         self.configChanged.emit()
 
     def data(self) -> Sequence[ConfigGroup]:
+        """Return the current configuration data as a list of ConfigGroup."""
         return self._model.data_as_groups()
 
     # ------------------------------------------------------------------
@@ -511,7 +517,7 @@ class ConfigEditor(QWidget):
             self._preset_view.clearSelection()
 
     # ------------------------------------------------------------------
-    # Property‑table sync
+    # Property-table sync
     # ------------------------------------------------------------------
 
     def _on_preset_sel(self, current: QModelIndex, _prev: QModelIndex) -> None:
