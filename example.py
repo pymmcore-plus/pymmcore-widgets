@@ -36,7 +36,7 @@ class _Node:
     def __init__(
         self,
         name: str,
-        payload: ConfigGroup | ConfigPreset | None = None,
+        payload: ConfigGroup | ConfigPreset | Setting | None = None,
         parent: _Node | None = None,
     ) -> None:
         self.name = name
@@ -178,7 +178,7 @@ class _ConfigTreeModel(QAbstractItemModel):
 
         If the item has no parent, an invalid QModelIndex is returned.
         """
-        if not child.isValid():
+        if not child or not child.isValid():
             return QModelIndex()
         parent_node = cast("_Node", child.internalPointer()).parent
         if parent_node is self._root or parent_node is None:
@@ -294,6 +294,47 @@ class _ConfigTreeModel(QAbstractItemModel):
                     snode = _Node(s.device_name, s, pnode)
                     pnode.children.append(snode)
 
+    # ------------------------------------------------------------------
+    # Public mutator helpers
+    # ------------------------------------------------------------------
+
+    def update_preset_settings(
+        self, preset_idx: QModelIndex, settings: list[Setting]
+    ) -> None:
+        """Replace <preset> settings and update the tree safely.
+
+        We remove old Setting rows with beginRemoveRows/endRemoveRows,
+        then insert the new ones.  This guarantees attached views drop any
+        QModelIndex that referenced the old child nodes (avoiding the crash
+        seen when switching presets).
+        """
+        if not self._is_preset_index(preset_idx):
+            return
+
+        preset_node = cast("_Node", preset_idx.internalPointer())
+        preset: ConfigPreset = cast("ConfigPreset", preset_node.payload)
+
+        # --- mutate underlying dataclass ----------------------------------
+        preset.settings = list(settings)
+
+        # --- remove existing Setting rows ---------------------------------
+        old_row_count = len(preset_node.children)
+        if old_row_count:
+            self.beginRemoveRows(preset_idx, 0, old_row_count - 1)
+            preset_node.children.clear()
+            self.endRemoveRows()
+
+        # --- insert new Setting rows --------------------------------------
+        new_row_count = len(settings)
+        if new_row_count:
+            self.beginInsertRows(preset_idx, 0, new_row_count - 1)
+            for s in settings:
+                preset_node.children.append(_Node(s.device_name, s, preset_node))
+            self.endInsertRows()
+
+        # notify any non-view observers
+        self.dataChangedExternally.emit()
+
     def headerData(
         self,
         section: int,
@@ -353,7 +394,7 @@ class _ConfigTreeModel(QAbstractItemModel):
 
     # external data API -------------------------------------------------------
 
-    def set_data(self, groups: Iterable[ConfigGroup]) -> None:
+    def set_groups(self, groups: Iterable[ConfigGroup]) -> None:
         self.beginResetModel()
         self._build_tree(groups)
         self.endResetModel()
@@ -442,7 +483,7 @@ class ConfigEditor(QWidget):
 
     def setData(self, data: Iterable[ConfigGroup]) -> None:
         """Set the configuration data to be displayed in the editor."""
-        self._model.set_data(data)
+        self._model.set_groups(data)
         self._prop_table.setValue([])
         # Auto-select first group
         if self._model.rowCount():
@@ -541,10 +582,8 @@ class ConfigEditor(QWidget):
         node = cast("_Node", idx.internalPointer())
         if not node.is_preset:
             return
-        preset = cast("ConfigPreset", node.payload)
-        preset.settings = self._prop_table.value()
-        # notify observers that model content changed
-        self._model.dataChangedExternally.emit()
+        new_settings = self._prop_table.value()
+        self._model.update_preset_settings(idx, new_settings)
         self.configChanged.emit()
 
 
