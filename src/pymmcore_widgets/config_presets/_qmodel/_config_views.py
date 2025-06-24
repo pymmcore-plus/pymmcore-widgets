@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, cast
 
-from PyQt6.QtCore import (
+from qtpy.QtCore import (
     QAbstractItemModel,
     QModelIndex,
     Qt,
-    pyqtSignal,
+    Signal,
 )
-from PyQt6.QtWidgets import (
+from qtpy.QtWidgets import (
     QHBoxLayout,
     QListView,
     QSplitter,
@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
 from pymmcore_widgets.device_properties import DevicePropertyTable
 from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 
-from ._config_model import ConfigTreeModel, _Node
+from ._config_model import QConfigTreeModel, _Node
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -76,11 +76,11 @@ class SettingValueDelegate(QStyledItemDelegate):
 class ConfigGroupsEditor(QWidget):
     """Widget composed of two QListViews backed by a single tree model."""
 
-    configChanged = pyqtSignal()
+    configChanged = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._model = ConfigTreeModel()
+        self._model = QConfigTreeModel()
 
         # views --------------------------------------------------------------
         self._group_view = QListView()

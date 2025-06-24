@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING, Any, cast
 
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.model import ConfigGroup, ConfigPreset, Setting
-from PyQt6.QtCore import QAbstractItemModel, QModelIndex, Qt
-from PyQt6.QtGui import QFont, QIcon
-from PyQt6.QtWidgets import (
+from qtpy.QtCore import QAbstractItemModel, QModelIndex, Qt
+from qtpy.QtGui import QFont, QIcon
+from qtpy.QtWidgets import (
     QMessageBox,
     QStyledItemDelegate,
     QStyleOptionViewItem,
@@ -38,7 +38,7 @@ class _Node:
     def __init__(
         self,
         name: str,
-        payload: ConfigGroup | ConfigPreset | Setting,
+        payload: ConfigGroup | ConfigPreset | Setting | None = None,
         parent: _Node | None = None,
     ) -> None:
         self.name = name
@@ -66,12 +66,12 @@ class _Node:
         return isinstance(self.payload, Setting)
 
 
-class ConfigTreeModel(QAbstractItemModel):
+class QConfigTreeModel(QAbstractItemModel):
     """Three-level model: root → groups → presets → settings."""
 
     def __init__(self, groups: Iterable[ConfigGroup] | None = None) -> None:
         super().__init__()
-        self._root = _Node("<root>")
+        self._root = _Node("<root>", None)
         if groups:
             self._build_tree(groups)
 
@@ -84,7 +84,7 @@ class ConfigTreeModel(QAbstractItemModel):
     def add_group(self, base_name: str = "Group") -> QModelIndex:
         """Append a *new* empty group and return its QModelIndex."""
         name = self._unique_child_name(self._root, base_name)
-        group = ConfigGroup(name)
+        group = ConfigGroup(name=name)
         node = _Node(name, group, self._root)
         return self._insert_node(node, self._root, len(self._root.children))
 
@@ -250,7 +250,7 @@ class ConfigTreeModel(QAbstractItemModel):
             node.payload = setting
             # also update the preset.settings list reference
             # find node.parent.payload (ConfigPreset) and update list element
-            parent_preset = cast("ConfigPreset", node.parent.payload)
+            parent_preset = cast("ConfigPreset", node.parent.payload)  # type: ignore
             for i, s in enumerate(parent_preset.settings):
                 if (
                     s.device_name == setting.device_name
