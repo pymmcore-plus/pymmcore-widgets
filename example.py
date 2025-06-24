@@ -5,7 +5,12 @@ from typing import TYPE_CHECKING, Any, Callable, cast
 
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.model import ConfigGroup, ConfigPreset, Setting
-from PyQt6.QtCore import QAbstractItemModel, QModelIndex, Qt, pyqtSignal
+from PyQt6.QtCore import (
+    QAbstractItemModel,
+    QModelIndex,
+    Qt,
+    pyqtSignal,
+)
 from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtWidgets import (
     QApplication,
@@ -71,9 +76,6 @@ class _Node:
 
 class _ConfigTreeModel(QAbstractItemModel):
     """Three-level model: root → groups → presets → settings."""
-
-    # emitted when underlying data change in any way
-    dataChangedExternally = pyqtSignal()
 
     def __init__(self, groups: Iterable[ConfigGroup] | None = None) -> None:
         super().__init__()
@@ -144,7 +146,6 @@ class _ConfigTreeModel(QAbstractItemModel):
         self.beginRemoveRows(idx.parent(), idx.row(), idx.row())
         parent_node.children.pop(idx.row())
         self.endRemoveRows()
-        self.dataChangedExternally.emit()
 
     # ------------------------------------------------------------------
     # Required Qt model overrides
@@ -262,7 +263,6 @@ class _ConfigTreeModel(QAbstractItemModel):
                     parent_preset.settings[i] = setting
                     break
             self.dataChanged.emit(index, index, [role])
-            self.dataChangedExternally.emit()
             return True
         new_name = cast("str", value)
         if new_name == node.name:
@@ -274,7 +274,6 @@ class _ConfigTreeModel(QAbstractItemModel):
         if node.payload is not None:
             node.payload.name = new_name  # keep dataclass in sync
         self.dataChanged.emit(index, index, [role])
-        self.dataChangedExternally.emit()
         return True
 
     # ------------------------------------------------------------------
@@ -332,9 +331,6 @@ class _ConfigTreeModel(QAbstractItemModel):
                 preset_node.children.append(_Node(s.device_name, s, preset_node))
             self.endInsertRows()
 
-        # notify any non-view observers
-        self.dataChangedExternally.emit()
-
     def headerData(
         self,
         section: int,
@@ -384,7 +380,6 @@ class _ConfigTreeModel(QAbstractItemModel):
         self.beginInsertRows(self._index_from_node(parent_node), row, row)
         parent_node.children.insert(row, node)
         self.endInsertRows()
-        self.dataChangedExternally.emit()
         return self.createIndex(row, 0, node)
 
     def _index_from_node(self, node: _Node) -> QModelIndex:
@@ -398,7 +393,6 @@ class _ConfigTreeModel(QAbstractItemModel):
         self.beginResetModel()
         self._build_tree(groups)
         self.endResetModel()
-        self.dataChangedExternally.emit()
 
     def data_as_groups(self) -> list[ConfigGroup]:
         """Return a *deep copy* of current configuration as dataclasses."""
@@ -473,9 +467,11 @@ class ConfigEditor(QWidget):
         lay.addWidget(splitter)
 
         # signals ------------------------------------------------------------
-        self._group_view.selectionModel().currentChanged.connect(self._on_group_sel)
-        self._preset_view.selectionModel().currentChanged.connect(self._on_preset_sel)
-        self._model.dataChangedExternally.connect(self.configChanged)
+        if sm := self._group_view.selectionModel():
+            sm.currentChanged.connect(self._on_group_sel)
+        if sm := self._preset_view.selectionModel():
+            sm.currentChanged.connect(self._on_preset_sel)
+        self._model.dataChanged.connect(self._on_model_data_changed)
 
     # ------------------------------------------------------------------
     # Public API required by spec
@@ -586,6 +582,29 @@ class ConfigEditor(QWidget):
         self._model.update_preset_settings(idx, new_settings)
         self.configChanged.emit()
 
+    def _on_model_data_changed(
+        self,
+        topLeft: QModelIndex,
+        bottomRight: QModelIndex,
+        _roles: list[int] | None = None,
+    ) -> None:
+        """Refresh DevicePropertyTable if a setting in the current preset was edited."""
+        cur_preset = self._current_preset_index()
+        if not cur_preset.isValid():
+            return
+
+        # We only care about edits to rows that are direct children of the
+        # currently-selected preset (i.e. Setting rows).
+        if topLeft.parent() != cur_preset:
+            return
+
+        # pull updated settings from the model and push to the table
+        node = cast("_Node", cur_preset.internalPointer())
+        preset = cast("ConfigPreset", node.payload)
+        self._prop_table.blockSignals(True)  # avoid feedback loop
+        self._prop_table.setValue(preset.settings)
+        self._prop_table.blockSignals(False)
+
 
 # -----------------------------------------------------------------------------
 # Demo
@@ -607,8 +626,7 @@ if __name__ == "__main__":
                 name="Cy5",
                 settings=[
                     Setting("Dichroic", "Label", "400DCLP"),
-                    Setting("Emission", "Label", "Chroma-HQ700"),
-                    Setting("Excitation", "Label", "Chroma-HQ570"),
+                    Setting("Camera", "Gain", "0"),
                     Setting("Core", "Shutter", "White Light Shutter"),
                 ],
             ),
@@ -617,8 +635,6 @@ if __name__ == "__main__":
                 settings=[
                     Setting("Dichroic", "Label", "400DCLP"),
                     Setting("Emission", "Label", "Chroma-HQ620"),
-                    Setting("Excitation", "Label", "Chroma-D360"),
-                    Setting("Core", "Shutter", "White Light Shutter"),
                 ],
             ),
         },
