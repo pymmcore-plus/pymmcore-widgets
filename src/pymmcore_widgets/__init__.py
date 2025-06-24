@@ -14,6 +14,7 @@ __all__ = [
     "ChannelGroupWidget",
     "ChannelTable",
     "ChannelWidget",
+    "ConfigGroupsEditor",
     "ConfigWizard",
     "ConfigurationWidget",
     "CoreLogWidget",
@@ -52,6 +53,7 @@ from .config_presets import (
     ObjectivesPixelConfigurationWidget,
     PixelConfigurationWidget,
 )
+from .config_presets._qmodel._config_views import ConfigGroupsEditor
 from .control import (
     CameraRoiWidget,
     ChannelGroupWidget,
