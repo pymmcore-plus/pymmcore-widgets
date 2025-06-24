@@ -105,8 +105,8 @@ class _ConfigTreeModel(QAbstractItemModel):
     def duplicate_group(self, idx: QModelIndex) -> QModelIndex:
         if not self._is_group_index(idx):
             return QModelIndex()
-        orig = cast("_Node", idx.internalPointer())
-        new_grp = deepcopy(orig.payload)
+        node = cast("_Node", idx.internalPointer())
+        new_grp = deepcopy(node.payload)
         assert isinstance(new_grp, ConfigGroup)
         new_grp.name = self._unique_child_name(self._root, new_grp.name)
         node = _Node(new_grp.name, new_grp, self._root)
@@ -279,8 +279,12 @@ class _ConfigTreeModel(QAbstractItemModel):
         new_name = cast("str", value)
         if new_name == node.name:
             return True
+        if not new_name:
+            return False
         if self._name_exists(node.parent, new_name):
-            self._show_dup_name_error(new_name)
+            QMessageBox.warning(
+                None, "Duplicate name", f"Name '{new_name}' already exists."
+            )
             return False
         node.name = new_name
         if node.payload is not None:
@@ -371,10 +375,6 @@ class _ConfigTreeModel(QAbstractItemModel):
     @staticmethod
     def _name_exists(parent: _Node | None, name: str) -> bool:
         return parent is not None and any(c.name == name for c in parent.children)
-
-    @staticmethod
-    def _show_dup_name_error(name: str) -> None:
-        QMessageBox.warning(None, "Duplicate name", f"Name '{name}' already exists.")
 
     # convenience guards ------------------------------------------------------
 
