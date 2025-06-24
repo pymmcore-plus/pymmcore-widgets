@@ -343,6 +343,7 @@ class ConfigEditor(QWidget):
         self._prop_table = DevicePropertyTable()
         self._prop_table.setRowsCheckable(True)
         self._prop_table.filterDevices(include_pre_init=False, include_read_only=False)
+        self._prop_table.valueChanged.connect(self._on_prop_table_changed)
         splitter.addWidget(self._prop_table)
 
         # right-hand tree view showing the *same* model
@@ -360,6 +361,7 @@ class ConfigEditor(QWidget):
 
         # signals ------------------------------------------------------------
         self._group_view.selectionModel().currentChanged.connect(self._on_group_sel)
+        self._preset_view.selectionModel().currentChanged.connect(self._on_preset_sel)
         self._model.dataChangedExternally.connect(self.configChanged)
 
     # ------------------------------------------------------------------
@@ -370,6 +372,7 @@ class ConfigEditor(QWidget):
         self._model.set_data(data)
         self._group_view.setCurrentIndex(QModelIndex())
         self._preset_view.setRootIndex(QModelIndex())
+        self._prop_table.setValue([])
         self.configChanged.emit()
 
     def data(self) -> Sequence[ConfigGroup]:
@@ -435,6 +438,37 @@ class ConfigEditor(QWidget):
         else:
             self._preset_view.clearSelection()
 
+    # ------------------------------------------------------------------
+    # Property‑table sync
+    # ------------------------------------------------------------------
+
+    def _on_preset_sel(self, current: QModelIndex, _prev: QModelIndex) -> None:
+        """Populate the DevicePropertyTable whenever the selected preset changes."""
+        if not current.isValid():
+            # clear table when nothing is selected
+            self._prop_table.setValue([])
+            return
+        node = cast("_Node", current.internalPointer())
+        if not node.is_preset:
+            self._prop_table.setValue([])
+            return
+        preset = cast("ConfigPreset", node.payload)
+        self._prop_table.setValue(preset.settings)
+
+    def _on_prop_table_changed(self) -> None:
+        """Write back edits from the table into the underlying ConfigPreset."""
+        idx = self._current_preset_index()
+        if not idx.isValid():
+            return
+        node = cast("_Node", idx.internalPointer())
+        if not node.is_preset:
+            return
+        preset = cast("ConfigPreset", node.payload)
+        preset.settings = self._prop_table.value()
+        # notify observers that model content changed
+        self._model.dataChangedExternally.emit()
+        self.configChanged.emit()
+
 
 # -----------------------------------------------------------------------------
 # Demo
@@ -452,8 +486,24 @@ if __name__ == "__main__":
     cam_grp = ConfigGroup(
         "Camera",
         presets={
-            "Cy5": ConfigPreset("Cy5", [Setting("Camera", "Exposure", "10")]),
-            "FITC": ConfigPreset("FITC", [Setting("Camera", "Exposure", "5")]),
+            "Cy5": ConfigPreset(
+                name="Cy5",
+                settings=[
+                    Setting("Dichroic", "Label", "400DCLP"),
+                    Setting("Emission", "Label", "Chroma-HQ700"),
+                    Setting("Excitation", "Label", "Chroma-HQ570"),
+                    Setting("Core", "Shutter", "White Light Shutter"),
+                ],
+            ),
+            "FITC": ConfigPreset(
+                name="FITC",
+                settings=[
+                    Setting("Dichroic", "Label", "400DCLP"),
+                    Setting("Emission", "Label", "Chroma-HQ620"),
+                    Setting("Excitation", "Label", "Chroma-D360"),
+                    Setting("Core", "Shutter", "White Light Shutter"),
+                ],
+            ),
         },
     )
     obj_grp = ConfigGroup("Objective")
