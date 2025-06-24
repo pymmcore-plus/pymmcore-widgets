@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, cast
 
@@ -18,13 +19,18 @@ from PyQt6.QtWidgets import (
     QListView,
     QMessageBox,
     QSplitter,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
     QToolBar,
     QTreeView,
     QVBoxLayout,
     QWidget,
 )
+from superqt import QIconifyIcon
 
+from pymmcore_widgets._icons import ICONS
 from pymmcore_widgets.device_properties import DevicePropertyTable
+from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -207,6 +213,12 @@ class _ConfigTreeModel(QAbstractItemModel):
             if node.is_preset:
                 return QIcon.fromTheme("document")
             if node.is_setting:
+                setting = cast("Setting", node.payload)
+                with suppress(Exception):
+                    dtype = CMMCorePlus.instance().getDeviceType(setting.device_name)
+                    if icon_string := ICONS.get(dtype):
+                        return QIconifyIcon(icon_string, color="gray").pixmap(16, 16)
+
                 return QIcon.fromTheme("emblem-system")
 
         if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
@@ -404,6 +416,44 @@ class _ConfigTreeModel(QAbstractItemModel):
 # -----------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Delegate: always use QLineEdit for a Setting's value cell (column 2)
+# ---------------------------------------------------------------------------
+class _SettingValueDelegate(QStyledItemDelegate):
+    """Provide a plain QLineEdit for editing Setting value cells."""
+
+    def createEditor(
+        self, parent: QWidget, option: QStyleOptionViewItem, index: QModelIndex
+    ) -> QWidget | None:
+        node = cast("_Node", index.internalPointer())
+        if not (model := index.model()) or (index.column() != 2) or not node.is_setting:
+            return super().createEditor(parent, option, index)
+
+        row = index.row()
+
+        device = model.data(index.sibling(row, 0), Qt.ItemDataRole.DisplayRole)
+        prop = model.data(index.sibling(row, 1), Qt.ItemDataRole.DisplayRole)
+        widget = PropertyWidget(device, prop, parent=parent, connect_core=False)
+        widget.valueChanged.connect(lambda: self.commitData.emit(widget))
+        widget.setAutoFillBackground(True)
+        return widget
+
+    def setEditorData(self, editor: QWidget, index: QModelIndex) -> None:
+        if (model := index.model()) and isinstance(editor, PropertyWidget):
+            data = model.data(index, Qt.ItemDataRole.EditRole)
+            editor.setValue(data)
+        else:
+            super().setEditorData(editor, index)
+
+    def setModelData(
+        self, editor: QWidget, model: QAbstractItemModel, index: QModelIndex
+    ) -> None:
+        if isinstance(editor, PropertyWidget):
+            model.setData(index, editor.value(), Qt.ItemDataRole.EditRole)
+        else:
+            super().setModelData(editor, model, index)
+
+
 # -----------------------------------------------------------------------------
 # High-level editor widget
 # -----------------------------------------------------------------------------
@@ -458,6 +508,11 @@ class ConfigEditor(QWidget):
         self._tree_view.setModel(self._model)
         self._tree_view.expandAll()  # helpful for the demo
         splitter.addWidget(self._tree_view)
+
+        # column 2 (Value) uses a line-edit when editing a Setting
+        self._tree_view.setItemDelegateForColumn(
+            2, _SettingValueDelegate(self._tree_view)
+        )
 
         splitter.setStretchFactor(1, 1)  # property table expands
         splitter.setStretchFactor(2, 1)  # tree view expands
