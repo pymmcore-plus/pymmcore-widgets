@@ -81,8 +81,8 @@ class MoveStageSpinBox(QDoubleSpinBox):
     def __init__(
         self,
         label: str,
-        minimum: float = -99999,
-        maximum: float = 99999,
+        minimum: float = -10000000,
+        maximum: float = 10000000,
         *args: Any,
         **kwargs: Any,
     ) -> None:
