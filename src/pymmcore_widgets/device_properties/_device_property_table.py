@@ -206,20 +206,21 @@ class DevicePropertyTable(NoWheelTableWidget):
         include_read_only: bool = True,
         include_pre_init: bool = True,
         init_props_only: bool = False,
-        predicate: Callable[[DeviceProperty], bool | None] | None = None,
+        predicate: Callable[[DeviceProperty, QTableWidgetItem], bool | None]
+        | None = None,
     ) -> None:
         """Update the table to only show devices that match the given query/filter."""
         exclude_devices = set(exclude_devices)
         include_devices = set(include_devices)
         for row in range(self.rowCount()):
-            item = self.item(row, 0)
+            if (item := self.item(row, 0)) is None:
+                continue
             prop = cast("DeviceProperty", item.data(self.PROP_ROLE))
             if include_devices and prop.deviceType() not in include_devices:
                 self.hideRow(row)
                 continue
             if predicate:
-                result = predicate(prop)
-                if result is False:
+                if predicate(prop, item) is False:
                     self.hideRow(row)
                     continue
                 # if result is True:

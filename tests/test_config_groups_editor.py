@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pytest
 from pymmcore_plus.model import ConfigGroup
 from qtpy.QtCore import Qt
 
@@ -13,7 +12,6 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
-@pytest.mark.xfail
 def test_config_groups_editor(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     original_groups = ConfigGroup.all_config_groups(global_mmcore)
     wdg = ConfigGroupsEditor.create_from_core(global_mmcore)

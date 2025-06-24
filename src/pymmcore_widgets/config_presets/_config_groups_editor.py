@@ -14,6 +14,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QSpacerItem,
     QSplitter,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -69,6 +70,9 @@ class ConfigGroupsEditor(QWidget):
         self.presets = MapManager(
             ConfigPreset, clone_function=_copy_named_obj, parent=self, base_key="Config"
         )
+
+        # Track initialization state to prevent premature model updates
+        self._initializing = True  # Flag to prevent premature model updates
 
         # Groups -----------------------------------------------------
         self._light_path_group = _LightPathGroupBox(self)
@@ -159,22 +163,76 @@ class ConfigGroupsEditor(QWidget):
             tmp.update(
                 {(dev, prop): val for dev, prop, val in self._cam_group.settings()}
             )
-        return [Setting(*k, v) for k, v in tmp.items()]
+        return [Setting(dev, prop, val) for (dev, prop), val in tmp.items()]
 
     def setCurrentSettings(self, settings: Iterable[Setting]) -> None:
         """Set the current settings to the given collection of Setting objects."""
-        # update all the property browser tables
-        self._light_path_group.props.setValue(settings)
-        self._cam_group.props.setValue(settings)
+        settings_list = list(settings)
+
+        # Determine which groups should be enabled based on settings
+        has_light_path_settings = False
+        has_camera_settings = False
+        has_core_shutter = False
+        has_core_camera = False
         active_shutter = ""
         active_camera = ""
-        for s in settings:
+
+        for s in settings_list:
             if s.device_name == Keyword.CoreDevice:
                 if s.property_name == Keyword.CoreShutter:
                     active_shutter = s.property_value
+                    has_light_path_settings = True
+                    has_core_shutter = True
                 elif s.property_name == Keyword.CoreCamera:
                     active_camera = s.property_value
+                    has_camera_settings = True
+                    has_core_camera = True
+            else:
+                # Check if this setting belongs to light path or camera group
+                if s.device_name == "Camera":
+                    has_camera_settings = True
+                elif s.device_name in [
+                    "Dichroic",
+                    "Emission",
+                    "Excitation",
+                    "Path",
+                    "Shutter",
+                ]:
+                    has_light_path_settings = True
 
+        # Enable/disable groups based on whether they have settings
+        self._light_path_group.setChecked(has_light_path_settings)
+        self._cam_group.setChecked(has_camera_settings)
+
+        # Set flags for including active device settings
+        self._light_path_group._include_active_shutter = has_core_shutter
+        self._cam_group._include_active_camera = has_core_camera
+
+        # Filter settings for each group to avoid conflicts
+        light_path_settings = [
+            s
+            for s in settings_list
+            if s.device_name != "Camera"
+            and not (
+                s.device_name == Keyword.CoreDevice
+                and s.property_name == Keyword.CoreCamera
+            )
+        ]
+        camera_settings = [
+            s
+            for s in settings_list
+            if s.device_name == "Camera"
+            or (
+                s.device_name == Keyword.CoreDevice
+                and s.property_name == Keyword.CoreCamera
+            )
+        ]
+
+        # Update property tables with filtered settings
+        self._light_path_group.props.setCheckedProperties(light_path_settings)
+        self._cam_group.props.setCheckedProperties(camera_settings)
+
+        # Set active devices only if they were explicitly specified
         self._light_path_group.active_shutter.setCurrentText(active_shutter)
         self._cam_group.active_camera.setCurrentText(active_camera)
 
@@ -188,6 +246,7 @@ class ConfigGroupsEditor(QWidget):
         groups = ConfigGroup.all_config_groups(core)
         self = cls(data=groups.values(), parent=parent)
         self.update_options_from_core(core)
+        self._initializing = False
         return self
 
     def update_options_from_core(self, core: CMMCorePlus) -> None:
@@ -216,19 +275,27 @@ class ConfigGroupsEditor(QWidget):
         return None
 
     def _update_gui_from_model(self) -> None:
+        """Update GUI when preset selection changes."""
         if preset := self._selected_preset():
             self.setCurrentSettings(preset.settings)
 
     def _update_model_from_gui(self) -> None:
+        if self._initializing:
+            return
         if preset := self._selected_preset():
-            preset.settings = list(self.currentSettings())
+            current_settings = list(self.currentSettings())
+            preset.settings = current_settings
 
 
-def _is_not_objective(prop: DeviceProperty) -> bool:
+def _is_not_objective(
+    prop: DeviceProperty, item: QTableWidgetItem | None = None
+) -> bool:
     return not any(x in prop.device for x in prop.core.guessObjectiveDevices())
 
 
-def _light_path_predicate(prop: DeviceProperty) -> bool | None:
+def _light_path_predicate(
+    prop: DeviceProperty, item: QTableWidgetItem | None = None
+) -> bool | None:
     devtype = prop.deviceType()
     if devtype in (
         DeviceType.Camera,
@@ -255,6 +322,9 @@ class _LightPathGroupBox(QGroupBox):
         super().__init__("Light Path", parent)
         self.setCheckable(True)
         self.toggled.connect(self.valueChanged)
+
+        # Track whether to include active shutter in settings
+        self._include_active_shutter = False
 
         self.active_shutter = QComboBox(self)
         self.active_shutter.currentIndexChanged.connect(self.valueChanged)
@@ -284,21 +354,35 @@ class _LightPathGroupBox(QGroupBox):
         layout.addLayout(shutter_layout)
         layout.addWidget(self.props)
 
-    def _show_all_toggled(self, checked: bool) -> None:
+    def _show_all_toggled(self, show_all: bool) -> None:
+        def predicate_with_checked_override(
+            prop: DeviceProperty, item: QTableWidgetItem
+        ) -> bool | None:
+            """Predicate that shows checked properties regardless of heuristic."""
+            # Always show checked rows
+            if item.checkState() == Qt.CheckState.Checked:
+                return True
+            # For unchecked properties, apply the original heuristic
+            if not show_all:
+                return _light_path_predicate(prop, item)
+            else:
+                return _is_not_objective(prop, item)
+
         self.props.filterDevices(
             exclude_devices=(DeviceType.Camera, DeviceType.Core),
             include_read_only=False,
             include_pre_init=False,
-            predicate=_light_path_predicate if not checked else _is_not_objective,
+            predicate=predicate_with_checked_override,
         )
 
     def settings(self) -> Iterable[tuple[str, str, str]]:
         yield from self.props.value()
-        yield (
-            Keyword.CoreDevice.value,
-            Keyword.CoreShutter.value,
-            self.active_shutter.currentText(),
-        )
+        if self._include_active_shutter:
+            yield (
+                Keyword.CoreDevice.value,
+                Keyword.CoreShutter.value,
+                self.active_shutter.currentText(),
+            )
 
 
 class _CameraGroupBox(QGroupBox):
@@ -309,6 +393,9 @@ class _CameraGroupBox(QGroupBox):
         self.setCheckable(True)
         self.setChecked(False)
         self.toggled.connect(self.valueChanged)
+
+        # Track whether to include active camera in settings
+        self._include_active_camera = False
 
         self.active_camera = QComboBox(self)
         self.active_camera.currentIndexChanged.connect(self.valueChanged)
@@ -334,11 +421,12 @@ class _CameraGroupBox(QGroupBox):
 
     def settings(self) -> Iterable[tuple[str, str, str]]:
         yield from self.props.value()
-        yield (
-            Keyword.CoreDevice.value,
-            Keyword.CoreCamera.value,
-            self.active_camera.currentText(),
-        )
+        if self._include_active_camera:
+            yield (
+                Keyword.CoreDevice.value,
+                Keyword.CoreCamera.value,
+                self.active_camera.currentText(),
+            )
 
 
 class _ObjectiveGroupBox(QGroupBox):
