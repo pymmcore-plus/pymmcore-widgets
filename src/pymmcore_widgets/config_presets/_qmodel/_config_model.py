@@ -38,7 +38,7 @@ class _Node:
     def __init__(
         self,
         name: str,
-        payload: ConfigGroup | ConfigPreset | Setting | None = None,
+        payload: ConfigGroup | ConfigPreset | Setting,
         parent: _Node | None = None,
     ) -> None:
         self.name = name
@@ -166,7 +166,7 @@ class ConfigTreeModel(QAbstractItemModel):
             return self.createIndex(row, column, parent_node.children[row])
         return QModelIndex()
 
-    def parent(self, child: QModelIndex) -> QModelIndex:  # type: ignore[override]
+    def parent(self, child: QModelIndex) -> QModelIndex:
         """Returns the parent of the model item with the given index.
 
         If the item has no parent, an invalid QModelIndex is returned.
@@ -208,7 +208,7 @@ class ConfigTreeModel(QAbstractItemModel):
         if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
             # settings: show Device, Property, Value
             if node.is_setting:
-                setting: Setting = cast("Setting", node.payload)
+                setting = cast("Setting", node.payload)
                 if index.column() == Col.Item:
                     return setting.device_name
                 if index.column() == Col.Property:
@@ -271,7 +271,7 @@ class ConfigTreeModel(QAbstractItemModel):
             )
             return False
         node.name = new_name
-        if node.payload is not None:
+        if isinstance(node.payload, (ConfigGroup, ConfigPreset)):
             node.payload.name = new_name  # keep dataclass in sync
         self.dataChanged.emit(index, index, [role])
         return True
