@@ -14,7 +14,6 @@ from qtpy.QtWidgets import (
     QLabel,
     QSpacerItem,
     QSplitter,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -287,15 +286,11 @@ class ConfigGroupsEditor(QWidget):
             preset.settings = current_settings
 
 
-def _is_not_objective(
-    prop: DeviceProperty, item: QTableWidgetItem | None = None
-) -> bool:
+def _is_not_objective(prop: DeviceProperty) -> bool:
     return not any(x in prop.device for x in prop.core.guessObjectiveDevices())
 
 
-def _light_path_predicate(
-    prop: DeviceProperty, item: QTableWidgetItem | None = None
-) -> bool | None:
+def _light_path_predicate(prop: DeviceProperty) -> bool | None:
     devtype = prop.deviceType()
     if devtype in (
         DeviceType.Camera,
@@ -355,24 +350,12 @@ class _LightPathGroupBox(QGroupBox):
         layout.addWidget(self.props)
 
     def _show_all_toggled(self, show_all: bool) -> None:
-        def predicate_with_checked_override(
-            prop: DeviceProperty, item: QTableWidgetItem
-        ) -> bool | None:
-            """Predicate that shows checked properties regardless of heuristic."""
-            # Always show checked rows
-            if item.checkState() == Qt.CheckState.Checked:
-                return True
-            # For unchecked properties, apply the original heuristic
-            if not show_all:
-                return _light_path_predicate(prop, item)
-            else:
-                return _is_not_objective(prop, item)
-
         self.props.filterDevices(
             exclude_devices=(DeviceType.Camera, DeviceType.Core),
             include_read_only=False,
             include_pre_init=False,
-            predicate=predicate_with_checked_override,
+            always_include_checked=True,
+            predicate=_light_path_predicate if not show_all else _is_not_objective,
         )
 
     def settings(self) -> Iterable[tuple[str, str, str]]:

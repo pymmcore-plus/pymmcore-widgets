@@ -201,40 +201,74 @@ class DevicePropertyTable(NoWheelTableWidget):
     def filterDevices(
         self,
         query: str | Pattern = "",
+        *,
         exclude_devices: Iterable[DeviceType] = (),
         include_devices: Iterable[DeviceType] = (),
         include_read_only: bool = True,
         include_pre_init: bool = True,
-        init_props_only: bool = False,
-        predicate: Callable[[DeviceProperty, QTableWidgetItem], bool | None]
-        | None = None,
+        always_include_checked: bool = False,
+        predicate: Callable[[DeviceProperty], bool | None] | None = None,
     ) -> None:
-        """Update the table to only show devices that match the given query/filter."""
+        """Update the table to only show devices that match the given query/filter.
+
+        Filters are applied in the following order:
+        1. If `include_devices` is provided, only devices of the specified types
+           will be considered.
+        2. If `exclude_devices` is provided, devices of the specified types will be
+           hidden (even if they are in `include_devices`).
+        3. If `always_include_checked` is True, remaining rows that are checked will
+           always be shown, regardless of other filters.
+        4. If `predicate` is provided and it returns False, the row is hidden.
+        5. If `include_read_only` is False, read-only properties are hidden.
+        6. If `include_pre_init` is False, pre-initialized properties are hidden.
+        7. Query filtering is applied last, hiding rows that do not match the query.
+
+        Parameters
+        ----------
+        query : str | Pattern, optional
+            A string or regex pattern to match against the device-property names.
+            If empty, no filtering is applied, by default ""
+        exclude_devices : Iterable[DeviceType], optional
+            A list of device types to exclude from the table, by default ()
+        include_devices : Iterable[DeviceType], optional
+            A list of device types to include in the table, by default ()
+        include_read_only : bool, optional
+            Whether to include read-only properties in the table, by default True
+        include_pre_init : bool, optional
+            Whether to include pre-initialized properties in the table, by default True
+        always_include_checked : bool, optional
+            Whether to always include rows that are checked, by default False.
+        predicate : Callable[[DeviceProperty, QTableWidgetItem], bool | None] | None
+            A function that takes a `DeviceProperty` and `QTableWidgetItem` and returns
+            True to include the row, False to exclude it, or None to skip filtering.
+            If None, no additional filtering is applied, by default None
+        """
         exclude_devices = set(exclude_devices)
         include_devices = set(include_devices)
         for row in range(self.rowCount()):
             if (item := self.item(row, 0)) is None:
                 continue
+
             prop = cast("DeviceProperty", item.data(self.PROP_ROLE))
-            if include_devices and prop.deviceType() not in include_devices:
-                self.hideRow(row)
-                continue
-            if predicate:
-                if predicate(prop, item) is False:
-                    self.hideRow(row)
-                    continue
-                # if result is True:
-                # self.showRow(row)
-                # continue
-                # for None: fall through to other filters
-            if (
-                (prop.isReadOnly() and not include_read_only)
-                or (prop.isPreInit() and not include_pre_init)
-                or (init_props_only and not prop.isPreInit())
-                or (prop.deviceType() in exclude_devices)
+            dev_type = prop.deviceType()
+            if (include_devices and dev_type not in include_devices) or (
+                exclude_devices and dev_type in exclude_devices
             ):
                 self.hideRow(row)
                 continue
+
+            if always_include_checked and item.checkState() == Qt.CheckState.Checked:
+                self.showRow(row)
+                continue
+
+            if (
+                (predicate and predicate(prop) is False)
+                or (not include_read_only and prop.isReadOnly())
+                or (not include_pre_init and prop.isPreInit())
+            ):
+                self.hideRow(row)
+                continue
+
             if query:
                 if isinstance(query, str) and query.lower() not in item.text().lower():
                     self.hideRow(row)
