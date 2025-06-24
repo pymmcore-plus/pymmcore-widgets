@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable, cast
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.model import ConfigGroup, ConfigPreset, Setting
 from PyQt6.QtCore import QAbstractItemModel, QModelIndex, Qt, pyqtSignal
+from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -58,6 +59,10 @@ class _Node:
     def is_preset(self) -> bool:
         return isinstance(self.payload, ConfigPreset)
 
+    @property
+    def is_setting(self) -> bool:
+        return isinstance(self.payload, Setting)
+
 
 # -----------------------------------------------------------------------------
 # ConfigTreeModel
@@ -65,7 +70,7 @@ class _Node:
 
 
 class ConfigTreeModel(QAbstractItemModel):
-    """Two-level model: root → groups → presets."""
+    """Three-level model: root → groups → presets → settings."""
 
     # emitted when underlying data change in any way
     dataChangedExternally = pyqtSignal()
@@ -158,16 +163,14 @@ class ConfigTreeModel(QAbstractItemModel):
         return len(self._node(parent).children)
 
     def columnCount(self, _parent: QModelIndex | None = None) -> int:
-        return 1
+        return 3
 
     def index(
         self, row: int, column: int, parent: QModelIndex | None = None
     ) -> QModelIndex:
-        if column != 0:
-            return QModelIndex()
         parent_node = self._node(parent)
         if 0 <= row < len(parent_node.children):
-            return self.createIndex(row, 0, parent_node.children[row])
+            return self.createIndex(row, column, parent_node.children[row])
         return QModelIndex()
 
     def parent(self, child: QModelIndex) -> QModelIndex:  # type: ignore[override]
@@ -185,19 +188,52 @@ class ConfigTreeModel(QAbstractItemModel):
     # data & editing ----------------------------------------------------------
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
-        if not index.isValid() or role not in (
-            Qt.ItemDataRole.DisplayRole,
-            Qt.ItemDataRole.EditRole,
-        ):
+        if not index.isValid():
             return None
-        return cast("_Node", index.internalPointer()).name
+
+        node = cast("_Node", index.internalPointer())
+        if role == Qt.ItemDataRole.FontRole and index.column() == 0:
+            f = QFont()
+            if node.is_group:
+                f.setBold(True)
+            elif node.is_preset:
+                f.setItalic(True)
+            return f
+
+        if role == Qt.ItemDataRole.DecorationRole and index.column() == 0:
+            if node.is_group:
+                return QIcon.fromTheme("folder")
+            if node.is_preset:
+                return QIcon.fromTheme("document")
+            if node.is_setting:
+                return QIcon.fromTheme("emblem-system")
+
+        if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
+            # settings: show Device, Property, Value
+            if node.is_setting:
+                setting: Setting = cast("Setting", node.payload)
+                if index.column() == 0:
+                    return setting.device_name
+                if index.column() == 1:
+                    return setting.property_name
+                if index.column() == 2:
+                    return setting.property_value
+                return None
+
+            # groups / presets: only show name
+            elif index.column() == 0:
+                return node.name
+        return None
 
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
         fl = Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled
-        # allow renaming
-        fl |= Qt.ItemFlag.ItemIsEditable
+        node = cast("_Node", index.internalPointer())
+        if node.is_setting and index.column() == 2:
+            fl |= Qt.ItemFlag.ItemIsEditable
+        elif not node.is_setting:
+            fl |= Qt.ItemFlag.ItemIsEditable
         return fl
 
     def setData(
@@ -209,6 +245,25 @@ class ConfigTreeModel(QAbstractItemModel):
         if role != Qt.ItemDataRole.EditRole or not index.isValid():
             return False
         node = cast("_Node", index.internalPointer())
+        if node.is_setting and index.column() == 2:
+            setting = cast("Setting", node.payload)
+            setting = Setting(
+                setting.device_name, setting.property_name, cast("str", value)
+            )
+            node.payload = setting
+            # also update the preset.settings list reference
+            # find node.parent.payload (ConfigPreset) and update list element
+            parent_preset = cast("ConfigPreset", node.parent.payload)
+            for i, s in enumerate(parent_preset.settings):
+                if (
+                    s.device_name == setting.device_name
+                    and s.property_name == setting.property_name
+                ):
+                    parent_preset.settings[i] = setting
+                    break
+            self.dataChanged.emit(index, index, [role])
+            self.dataChangedExternally.emit()
+            return True
         new_name = cast("str", value)
         if new_name == node.name:
             return True
@@ -234,6 +289,23 @@ class ConfigTreeModel(QAbstractItemModel):
             for p in g.presets.values():
                 pnode = _Node(p.name, p, gnode)
                 gnode.children.append(pnode)
+                # add one child per Setting
+                for s in p.settings:
+                    snode = _Node(s.device_name, s, pnode)
+                    pnode.children.append(snode)
+
+    def headerData(
+        self,
+        section: int,
+        orientation: Qt.Orientation,
+        role: int = Qt.ItemDataRole.DisplayRole,
+    ) -> Any:
+        if (
+            orientation == Qt.Orientation.Horizontal
+            and role == Qt.ItemDataRole.DisplayRole
+        ):
+            return ["Item", "Property", "Value"][section] if 0 <= section < 3 else None
+        return super().headerData(section, orientation, role)
 
     # name uniqueness ---------------------------------------------------------
 
@@ -510,6 +582,6 @@ if __name__ == "__main__":
 
     w = ConfigEditor()
     w.setData([cam_grp, obj_grp])
-    w.resize(800, 600)
+    w.resize(1200, 600)
     w.show()
     sys.exit(app.exec())
