@@ -246,6 +246,7 @@ def _creat_prop_widget(mmcore: CMMCorePlus, dev: str, prop: str) -> PPropValueWi
     elif ptype in (PropertyType.Integer, PropertyType.Float):
         if not mmcore.hasPropertyLimits(dev, prop):
             wdg = IntegerWidget() if ptype is PropertyType.Integer else FloatWidget()
+            wdg.setRange(-(2**31), 2**31 - 1)
         else:
             wdg = (
                 RangedIntegerWidget()
