@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, cast
 
+from pymmcore_plus import DeviceProperty, DeviceType, Keyword
 from qtpy.QtCore import QAbstractItemModel, QModelIndex, QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QGroupBox,
@@ -16,15 +17,107 @@ from qtpy.QtWidgets import (
 )
 from superqt import QIconifyIcon
 
-from pymmcore_widgets.device_properties import DevicePropertyTable
-from pymmcore_widgets.device_properties._property_widget import PropertyWidget
+from pymmcore_widgets.device_properties import DevicePropertyTable, PropertyWidget
 
 from ._config_model import QConfigTreeModel, _Node
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Callable, Iterable, Sequence
 
-    from pymmcore_plus.model import ConfigGroup, ConfigPreset
+    from pymmcore_plus.model import ConfigGroup, ConfigPreset, Setting
+
+
+def _is_not_objective(prop: DeviceProperty) -> bool:
+    return not any(x in prop.device for x in prop.core.guessObjectiveDevices())
+
+
+def _light_path_predicate(prop: DeviceProperty) -> bool | None:
+    devtype = prop.deviceType()
+    if devtype in (
+        DeviceType.Camera,
+        DeviceType.Core,
+        DeviceType.AutoFocus,
+        DeviceType.Stage,
+        DeviceType.XYStage,
+    ):
+        return False
+    if devtype == DeviceType.State:
+        if "State" in prop.name or "ClosedPosition" in prop.name:
+            return False
+    if devtype == DeviceType.Shutter and prop.name == Keyword.State.value:
+        return False
+    if not _is_not_objective(prop):
+        return False
+    return None
+
+
+class DualDevicePropertyTable(QWidget):
+    valueChanged = Signal()
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        # widgets --------------------------------------------------------------
+
+        self._light_path_table = DevicePropertyTable()
+        self._light_path_table.setRowsCheckable(True)
+        self._light_path_table.valueChanged.connect(self.valueChanged)
+
+        self._camera_table = DevicePropertyTable()
+        self._camera_table.setRowsCheckable(True)
+        self._camera_table.valueChanged.connect(self.valueChanged)
+
+        # layout ------------------------------------------------------------
+
+        light_path_group = QGroupBox("Light Path", self)
+        layout = QVBoxLayout(light_path_group)
+        layout.addWidget(self._light_path_table)
+
+        camera_group = QGroupBox("Camera", self)
+        layout = QVBoxLayout(camera_group)
+        layout.addWidget(self._camera_table)
+
+        splitter = QSplitter(Qt.Orientation.Vertical, self)
+        splitter.addWidget(light_path_group)
+        splitter.addWidget(camera_group)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 1)
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(splitter)
+
+        # init ------------------------------------------------------------
+
+        self.filterDevices()
+
+    # --------------------------------------------------------------------- API
+    def value(self) -> list[Setting]:
+        """Return the union of checked settings from both panels."""
+        # remove duplicates by converting to a dict keyed on (device, prop_name)
+        settings = {
+            (setting[0], setting[1]): setting
+            for table in (self._light_path_table, self._camera_table)
+            for setting in table.getCheckedProperties(visible_only=True)
+        }
+        return list(settings.values())
+
+    def setValue(self, value: Iterable[Setting]) -> None:
+        self._light_path_table.setValue(value)
+        self._camera_table.setValue(value)
+
+    def filterDevices(self) -> None:
+        """Call ``filterDevices`` on *both* tables with the same arguments."""
+        self._light_path_table.filterDevices(
+            include_pre_init=False,
+            include_read_only=False,
+            predicate=_light_path_predicate,
+        )
+        self._camera_table.filterDevices(
+            include_devices=[DeviceType.Camera],
+            include_pre_init=False,
+            include_read_only=False,
+        )
 
 
 class SettingValueDelegate(QStyledItemDelegate):
@@ -101,7 +194,6 @@ class _NameList(QGroupBox):
         self._view = list_view
         self._model = cast("QConfigTreeModel", list_view.model())
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._toolbar)
         layout.addWidget(list_view)
 
@@ -140,10 +232,7 @@ class ConfigGroupsEditor(QWidget):
         self._preset_view.setModel(self._model)
         preset_box = _NameList("Presets", self, self._new_preset, self._preset_view)
 
-        self._prop_table = DevicePropertyTable()
-        self._prop_table.setRowsCheckable(True)
-        self._prop_table.filterDevices(include_pre_init=False, include_read_only=False)
-        self._prop_table.valueChanged.connect(self._on_prop_table_changed)
+        self._prop_table = DualDevicePropertyTable()
 
         # layout ------------------------------------------------------------
 
@@ -153,13 +242,10 @@ class ConfigGroupsEditor(QWidget):
         lv.addWidget(group_box)
         lv.addWidget(preset_box)
 
-        splitter = QSplitter()
-        splitter.addWidget(left)
-        splitter.addWidget(self._prop_table)
-
         lay = QHBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
-        lay.addWidget(splitter)
+        lay.addWidget(left)
+        lay.addWidget(self._prop_table)
 
         # signals ------------------------------------------------------------
 
@@ -168,6 +254,7 @@ class ConfigGroupsEditor(QWidget):
         if sm := self._preset_view.selectionModel():
             sm.currentChanged.connect(self._on_preset_sel)
         self._model.dataChanged.connect(self._on_model_data_changed)
+        self._prop_table.valueChanged.connect(self._on_prop_table_changed)
 
     # ------------------------------------------------------------------
     # Public API

@@ -280,7 +280,7 @@ class DevicePropertyTable(NoWheelTableWidget):
 
             self.showRow(row)
 
-    def getCheckedProperties(self) -> list[Setting]:
+    def getCheckedProperties(self, *, visible_only: bool = False) -> list[Setting]:
         """Return a list of checked properties.
 
         Each item in the list is a tuple of (device, property, value).
@@ -290,8 +290,10 @@ class DevicePropertyTable(NoWheelTableWidget):
         dev_prop_val_list: list[Setting] = []
         for row in range(self.rowCount()):
             if (
-                item := self.item(row, 0)
-            ) and item.checkState() == Qt.CheckState.Checked:
+                (item := self.item(row, 0))
+                and item.checkState() == Qt.CheckState.Checked
+                and (not visible_only or not self.isRowHidden(row))
+            ):
                 dev_prop_val_list.append(Setting(*self.getRowData(row)))
         return dev_prop_val_list
 
