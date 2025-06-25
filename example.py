@@ -1,8 +1,9 @@
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.model import ConfigGroup, ConfigPreset, Setting
-from qtpy.QtWidgets import QApplication
+from qtpy.QtWidgets import QApplication, QHBoxLayout, QTreeView, QWidget
 
 from pymmcore_widgets import ConfigGroupsEditor
+from pymmcore_widgets.config_presets._qmodel._config_views import SettingValueDelegate
 
 app = QApplication([])
 core = CMMCorePlus()
@@ -31,8 +32,22 @@ cam_grp = ConfigGroup(
 )
 obj_grp = ConfigGroup("Objective")
 
-w = ConfigGroupsEditor()
-w.setData([cam_grp, obj_grp])
-w.resize(1200, 600)
+cfg = ConfigGroupsEditor()
+cfg.setData([cam_grp, obj_grp])
+
+# right-hand tree view showing the *same* model
+tree = QTreeView()
+tree.setModel(cfg._model)
+tree.setColumnWidth(0, 160)  # column 0 (Name) width
+# column 2 (Value) uses a line-edit when editing a Setting
+tree.setItemDelegateForColumn(2, SettingValueDelegate(tree))
+
+
+w = QWidget()
+layout = QHBoxLayout(w)
+layout.addWidget(cfg)
+layout.addWidget(tree)
+w.resize(1400, 800)
 w.show()
+
 app.exec()

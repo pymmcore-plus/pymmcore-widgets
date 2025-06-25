@@ -2,23 +2,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, cast
 
-from qtpy.QtCore import (
-    QAbstractItemModel,
-    QModelIndex,
-    Qt,
-    Signal,
-)
+from qtpy.QtCore import QAbstractItemModel, QModelIndex, QSize, Qt, Signal
 from qtpy.QtWidgets import (
+    QGroupBox,
     QHBoxLayout,
     QListView,
     QSplitter,
     QStyledItemDelegate,
     QStyleOptionViewItem,
     QToolBar,
-    QTreeView,
     QVBoxLayout,
     QWidget,
 )
+from superqt import QIconifyIcon
 
 from pymmcore_widgets.device_properties import DevicePropertyTable
 from pymmcore_widgets.device_properties._property_widget import PropertyWidget
@@ -73,6 +69,58 @@ class SettingValueDelegate(QStyledItemDelegate):
 # -----------------------------------------------------------------------------
 
 
+class _NameList(QGroupBox):
+    """A group box that contains a toolbar and a QListView for cfg groups or presets."""
+
+    def __init__(
+        self, title: str, parent: QWidget | None, new_fn: Callable, list_view: QListView
+    ) -> None:
+        super().__init__(title, parent)
+
+        # toolbar
+        self._toolbar = QToolBar()
+        self._toolbar.setIconSize(QSize(18, 18))
+        self._toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+
+        self._toolbar.addAction(
+            QIconifyIcon("mdi:plus-thick", color="gray"),
+            f"Add {title.rstrip('s')}",
+            new_fn,
+        )
+        self._toolbar.addAction(
+            QIconifyIcon("mdi:remove-bold", color="gray"),
+            "Remove",
+            self._remove,
+        )
+        self._toolbar.addAction(
+            QIconifyIcon("mdi:content-duplicate", color="gray"),
+            "Duplicate",
+            self._dupe,
+        )
+
+        self._view = list_view
+        self._model = cast("QConfigTreeModel", list_view.model())
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._toolbar)
+        layout.addWidget(list_view)
+
+    def _is_groups(self) -> bool:
+        """Check if this box is for groups."""
+        return bool(self.title() == "Groups")
+
+    def _remove(self) -> None:
+        self._model.remove(self._view.currentIndex())
+
+    def _dupe(self) -> None:
+        idx = self._view.currentIndex()
+        if idx.isValid():
+            if self._is_groups():
+                self._view.setCurrentIndex(self._model.duplicate_group(idx))
+            else:
+                self._view.setCurrentIndex(self._model.duplicate_preset(idx))
+
+
 class ConfigGroupsEditor(QWidget):
     """Widget composed of two QListViews backed by a single tree model."""
 
@@ -82,60 +130,39 @@ class ConfigGroupsEditor(QWidget):
         super().__init__(parent)
         self._model = QConfigTreeModel()
 
-        # views --------------------------------------------------------------
+        # widgets --------------------------------------------------------------
+
         self._group_view = QListView()
         self._group_view.setModel(self._model)
-        self._group_view.setSelectionMode(QListView.SelectionMode.SingleSelection)
+        group_box = _NameList("Groups", self, self._new_group, self._group_view)
 
         self._preset_view = QListView()
         self._preset_view.setModel(self._model)
-        self._preset_view.setSelectionMode(QListView.SelectionMode.SingleSelection)
+        preset_box = _NameList("Presets", self, self._new_preset, self._preset_view)
 
-        # toolbars -----------------------------------------------------------
-        self._group_tb = self._make_tb(self._new_group, self._remove, self._dup_group)
-        self._preset_tb = self._make_tb(
-            self._new_preset, self._remove, self._dup_preset
-        )
-
-        # layout -------------------------------------------------------------
-        left = QWidget()
-        lv = QVBoxLayout(left)
-        lv.setContentsMargins(0, 0, 0, 0)
-        lv.addWidget(self._group_tb)
-        lv.addWidget(self._group_view)
-        lv.addWidget(self._preset_tb)
-        lv.addWidget(self._preset_view)
-
-        splitter = QSplitter()
-        # left-hand panel
-        splitter.addWidget(left)
-
-        # center placeholder property table
         self._prop_table = DevicePropertyTable()
         self._prop_table.setRowsCheckable(True)
         self._prop_table.filterDevices(include_pre_init=False, include_read_only=False)
         self._prop_table.valueChanged.connect(self._on_prop_table_changed)
+
+        # layout ------------------------------------------------------------
+
+        left = QWidget()
+        lv = QVBoxLayout(left)
+        lv.setContentsMargins(0, 0, 0, 0)
+        lv.addWidget(group_box)
+        lv.addWidget(preset_box)
+
+        splitter = QSplitter()
+        splitter.addWidget(left)
         splitter.addWidget(self._prop_table)
-
-        # right-hand tree view showing the *same* model
-        self._tree_view = QTreeView()
-        self._tree_view.setModel(self._model)
-        self._tree_view.expandAll()  # helpful for the demo
-        splitter.addWidget(self._tree_view)
-
-        # column 2 (Value) uses a line-edit when editing a Setting
-        self._tree_view.setItemDelegateForColumn(
-            2, SettingValueDelegate(self._tree_view)
-        )
-
-        splitter.setStretchFactor(1, 1)  # property table expands
-        splitter.setStretchFactor(2, 1)  # tree view expands
 
         lay = QHBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.addWidget(splitter)
 
         # signals ------------------------------------------------------------
+
         if sm := self._group_view.selectionModel():
             sm.currentChanged.connect(self._on_group_sel)
         if sm := self._preset_view.selectionModel():
@@ -143,7 +170,7 @@ class ConfigGroupsEditor(QWidget):
         self._model.dataChanged.connect(self._on_model_data_changed)
 
     # ------------------------------------------------------------------
-    # Public API required by spec
+    # Public API
     # ------------------------------------------------------------------
 
     def setData(self, data: Iterable[ConfigGroup]) -> None:
@@ -162,56 +189,18 @@ class ConfigGroupsEditor(QWidget):
         """Return the current configuration data as a list of ConfigGroup."""
         return self._model.data_as_groups()
 
-    # ------------------------------------------------------------------
-    # Toolbar action helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _make_tb(new_fn: Callable, rem_fn: Callable, dup_fn: Callable) -> QToolBar:
-        tb = QToolBar()
-        tb.addAction("New", new_fn)
-        tb.addAction("Remove", rem_fn)
-        tb.addAction("Duplicate", dup_fn)
-        return tb
-
-    def _current_group_index(self) -> QModelIndex:
-        return self._group_view.currentIndex()
-
-    def _current_preset_index(self) -> QModelIndex:
-        return self._preset_view.currentIndex()
-
-    # group actions ----------------------------------------------------------
+    # "new" actions ----------------------------------------------------------
 
     def _new_group(self) -> None:
         idx = self._model.add_group()
         self._group_view.setCurrentIndex(idx)
 
-    def _dup_group(self) -> None:
-        idx = self._current_group_index()
-        if idx.isValid():
-            self._group_view.setCurrentIndex(self._model.duplicate_group(idx))
-
-    # preset actions ---------------------------------------------------------
-
     def _new_preset(self) -> None:
-        gidx = self._current_group_index()
+        gidx = self._group_view.currentIndex()
         if not gidx.isValid():
             return
         pidx = self._model.add_preset(gidx)
         self._preset_view.setCurrentIndex(pidx)
-
-    def _dup_preset(self) -> None:
-        pidx = self._current_preset_index()
-        if pidx.isValid():
-            self._preset_view.setCurrentIndex(self._model.duplicate_preset(pidx))
-
-    # shared --------------------------------------------------------------
-
-    def _remove(self) -> None:
-        # Determine which view called us based on focus
-        view = self._preset_view if self._preset_view.hasFocus() else self._group_view
-        idx = view.currentIndex()
-        self._model.remove(idx)
 
     # selection sync ---------------------------------------------------------
 
@@ -221,10 +210,6 @@ class ConfigGroupsEditor(QWidget):
             self._preset_view.setCurrentIndex(self._model.index(0, 0, current))
         else:
             self._preset_view.clearSelection()
-
-    # ------------------------------------------------------------------
-    # Property-table sync
-    # ------------------------------------------------------------------
 
     def _on_preset_sel(self, current: QModelIndex, _prev: QModelIndex) -> None:
         """Populate the DevicePropertyTable whenever the selected preset changes."""
@@ -239,9 +224,13 @@ class ConfigGroupsEditor(QWidget):
         preset = cast("ConfigPreset", node.payload)
         self._prop_table.setValue(preset.settings)
 
+    # ------------------------------------------------------------------
+    # Property-table sync
+    # ------------------------------------------------------------------
+
     def _on_prop_table_changed(self) -> None:
         """Write back edits from the table into the underlying ConfigPreset."""
-        idx = self._current_preset_index()
+        idx = self._preset_view.currentIndex()
         if not idx.isValid():
             return
         node = cast("_Node", idx.internalPointer())
@@ -258,7 +247,7 @@ class ConfigGroupsEditor(QWidget):
         _roles: list[int] | None = None,
     ) -> None:
         """Refresh DevicePropertyTable if a setting in the current preset was edited."""
-        cur_preset = self._current_preset_index()
+        cur_preset = self._preset_view.currentIndex()
         if not cur_preset.isValid():
             return
 
