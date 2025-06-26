@@ -33,7 +33,7 @@ class Col(IntEnum):
 
 
 class _Node:
-    """Generic tree node that wraps a ConfigGroup or ConfigPreset."""
+    """Generic tree node that wraps a ConfigGroup, ConfigPreset, or Setting."""
 
     def __init__(
         self,
