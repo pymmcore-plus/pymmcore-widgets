@@ -207,7 +207,7 @@ class DevicePropertyTable(NoWheelTableWidget):
         include_devices: Iterable[DeviceType] = (),
         include_read_only: bool = True,
         include_pre_init: bool = True,
-        always_include_checked: bool = False,
+        always_show_checked: bool = False,
         predicate: Callable[[DeviceProperty], bool | None] | None = None,
     ) -> None:
         """Update the table to only show devices that match the given query/filter.
@@ -217,7 +217,7 @@ class DevicePropertyTable(NoWheelTableWidget):
            will be considered.
         2. If `exclude_devices` is provided, devices of the specified types will be
            hidden (even if they are in `include_devices`).
-        3. If `always_include_checked` is True, remaining rows that are checked will
+        3. If `always_show_checked` is True, remaining rows that are checked will
            always be shown, regardless of other filters.
         4. If `predicate` is provided and it returns False, the row is hidden.
         5. If `include_read_only` is False, read-only properties are hidden.
@@ -237,7 +237,7 @@ class DevicePropertyTable(NoWheelTableWidget):
             Whether to include read-only properties in the table, by default True
         include_pre_init : bool, optional
             Whether to include pre-initialized properties in the table, by default True
-        always_include_checked : bool, optional
+        always_show_checked : bool, optional
             Whether to always include rows that are checked, by default False.
         predicate : Callable[[DeviceProperty, QTableWidgetItem], bool | None] | None
             A function that takes a `DeviceProperty` and `QTableWidgetItem` and returns
@@ -258,7 +258,7 @@ class DevicePropertyTable(NoWheelTableWidget):
                 self.hideRow(row)
                 continue
 
-            if always_include_checked and item.checkState() == Qt.CheckState.Checked:
+            if always_show_checked and item.checkState() == Qt.CheckState.Checked:
                 self.showRow(row)
                 continue
 

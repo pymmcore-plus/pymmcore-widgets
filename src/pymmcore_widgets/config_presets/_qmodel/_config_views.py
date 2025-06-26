@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, cast
 
-from pymmcore_plus import DeviceProperty, DeviceType, Keyword
+from pymmcore_plus.model import ConfigGroup
 from qtpy.QtCore import QAbstractItemModel, QModelIndex, QSize, Qt, Signal
 from qtpy.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QListView,
-    QSplitter,
     QStyledItemDelegate,
     QStyleOptionViewItem,
     QToolBar,
@@ -17,110 +17,19 @@ from qtpy.QtWidgets import (
 )
 from superqt import QIconifyIcon
 
-from pymmcore_widgets.device_properties import DevicePropertyTable, PropertyWidget
+from pymmcore_widgets.device_properties import PropertyWidget
 
-from ._config_model import QConfigTreeModel, _Node
+from ._config_model import QConfigGroupsModel, _Node
+from ._config_properties import GroupedDevicePropertyTable
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
-    from pymmcore_plus.model import ConfigGroup, ConfigPreset, Setting
+    from pymmcore_plus import CMMCorePlus
+    from pymmcore_plus.model import ConfigPreset
 
 
-def _is_not_objective(prop: DeviceProperty) -> bool:
-    return not any(x in prop.device for x in prop.core.guessObjectiveDevices())
-
-
-def _light_path_predicate(prop: DeviceProperty) -> bool | None:
-    devtype = prop.deviceType()
-    if devtype in (
-        DeviceType.Camera,
-        DeviceType.Core,
-        DeviceType.AutoFocus,
-        DeviceType.Stage,
-        DeviceType.XYStage,
-    ):
-        return False
-    if devtype == DeviceType.State:
-        if "State" in prop.name or "ClosedPosition" in prop.name:
-            return False
-    if devtype == DeviceType.Shutter and prop.name == Keyword.State.value:
-        return False
-    if not _is_not_objective(prop):
-        return False
-    return None
-
-
-class DualDevicePropertyTable(QWidget):
-    valueChanged = Signal()
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-
-        # widgets --------------------------------------------------------------
-
-        self._light_path_table = DevicePropertyTable()
-        self._light_path_table.setRowsCheckable(True)
-        self._light_path_table.valueChanged.connect(self.valueChanged)
-
-        self._camera_table = DevicePropertyTable()
-        self._camera_table.setRowsCheckable(True)
-        self._camera_table.valueChanged.connect(self.valueChanged)
-
-        # layout ------------------------------------------------------------
-
-        light_path_group = QGroupBox("Light Path", self)
-        layout = QVBoxLayout(light_path_group)
-        layout.addWidget(self._light_path_table)
-
-        camera_group = QGroupBox("Camera", self)
-        layout = QVBoxLayout(camera_group)
-        layout.addWidget(self._camera_table)
-
-        splitter = QSplitter(Qt.Orientation.Vertical, self)
-        splitter.addWidget(light_path_group)
-        splitter.addWidget(camera_group)
-        splitter.setStretchFactor(0, 3)
-        splitter.setStretchFactor(1, 1)
-
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.addWidget(splitter)
-
-        # init ------------------------------------------------------------
-
-        self.filterDevices()
-
-    # --------------------------------------------------------------------- API
-    def value(self) -> list[Setting]:
-        """Return the union of checked settings from both panels."""
-        # remove duplicates by converting to a dict keyed on (device, prop_name)
-        settings = {
-            (setting[0], setting[1]): setting
-            for table in (self._light_path_table, self._camera_table)
-            for setting in table.getCheckedProperties(visible_only=True)
-        }
-        return list(settings.values())
-
-    def setValue(self, value: Iterable[Setting]) -> None:
-        self._light_path_table.setValue(value)
-        self._camera_table.setValue(value)
-
-    def filterDevices(self) -> None:
-        """Call ``filterDevices`` on *both* tables with the same arguments."""
-        self._light_path_table.filterDevices(
-            include_pre_init=False,
-            include_read_only=False,
-            predicate=_light_path_predicate,
-        )
-        self._camera_table.filterDevices(
-            include_devices=[DeviceType.Camera],
-            include_pre_init=False,
-            include_read_only=False,
-        )
-
-
-class SettingValueDelegate(QStyledItemDelegate):
+class PropertyValueDelegate(QStyledItemDelegate):
     """Item delegate that uses a PropertyWidget for editing PropertySetting values."""
 
     def createEditor(
@@ -162,18 +71,19 @@ class SettingValueDelegate(QStyledItemDelegate):
 # -----------------------------------------------------------------------------
 
 
-class _NameList(QGroupBox):
+class _NameList(QWidget):
     """A group box that contains a toolbar and a QListView for cfg groups or presets."""
 
     def __init__(
         self, title: str, parent: QWidget | None, new_fn: Callable, list_view: QListView
     ) -> None:
-        super().__init__(title, parent)
+        super().__init__(parent)
+        self._title = title
 
         # toolbar
         self._toolbar = QToolBar()
         self._toolbar.setIconSize(QSize(18, 18))
-        self._toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+        # self._toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
 
         self._toolbar.addAction(
             QIconifyIcon("mdi:plus-thick", color="gray"),
@@ -192,14 +102,21 @@ class _NameList(QGroupBox):
         )
 
         self._view = list_view
-        self._model = cast("QConfigTreeModel", list_view.model())
+        self._model = cast("QConfigGroupsModel", list_view.model())
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         layout.addWidget(self._toolbar)
         layout.addWidget(list_view)
 
+        if isinstance(self, QGroupBox):
+            self.setTitle(title)
+        else:
+            layout.insertWidget(0, QLabel(self._title, self))
+
     def _is_groups(self) -> bool:
         """Check if this box is for groups."""
-        return bool(self.title() == "Groups")
+        return bool(self._title == "Groups")
 
     def _remove(self) -> None:
         self._model.remove(self._view.currentIndex())
@@ -213,14 +130,30 @@ class _NameList(QGroupBox):
                 self._view.setCurrentIndex(self._model.duplicate_preset(idx))
 
 
+# This should perhaps be a QAbstractItemView
 class ConfigGroupsEditor(QWidget):
     """Widget composed of two QListViews backed by a single tree model."""
 
     configChanged = Signal()
 
+    @classmethod
+    def create_from_core(
+        cls, core: CMMCorePlus, parent: QWidget | None = None
+    ) -> ConfigGroupsEditor:
+        """Create a ConfigGroupsEditor from a CMMCorePlus instance."""
+        obj = cls(parent)
+        groups = ConfigGroup.all_config_groups(core)
+        obj.setData(groups.values())
+        obj.update_options_from_core(core)
+        return obj
+
+    def update_options_from_core(self, core: CMMCorePlus) -> None:
+        """Populate the comboboxes with the available devices from the core."""
+        self._prop_tables.update_options_from_core(core)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._model = QConfigTreeModel()
+        self._model = QConfigGroupsModel()
 
         # widgets --------------------------------------------------------------
 
@@ -232,7 +165,7 @@ class ConfigGroupsEditor(QWidget):
         self._preset_view.setModel(self._model)
         preset_box = _NameList("Presets", self, self._new_preset, self._preset_view)
 
-        self._prop_table = DualDevicePropertyTable()
+        self._prop_tables = GroupedDevicePropertyTable()
 
         # layout ------------------------------------------------------------
 
@@ -245,7 +178,7 @@ class ConfigGroupsEditor(QWidget):
         lay = QHBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.addWidget(left)
-        lay.addWidget(self._prop_table)
+        lay.addWidget(self._prop_tables)
 
         # signals ------------------------------------------------------------
 
@@ -254,7 +187,7 @@ class ConfigGroupsEditor(QWidget):
         if sm := self._preset_view.selectionModel():
             sm.currentChanged.connect(self._on_preset_sel)
         self._model.dataChanged.connect(self._on_model_data_changed)
-        self._prop_table.valueChanged.connect(self._on_prop_table_changed)
+        self._prop_tables.valueChanged.connect(self._on_prop_table_changed)
 
     # ------------------------------------------------------------------
     # Public API
@@ -262,8 +195,9 @@ class ConfigGroupsEditor(QWidget):
 
     def setData(self, data: Iterable[ConfigGroup]) -> None:
         """Set the configuration data to be displayed in the editor."""
+        data = list(data)  # ensure we can iterate multiple times
         self._model.set_groups(data)
-        self._prop_table.setValue([])
+        self._prop_tables.setValue([])
         # Auto-select first group
         if self._model.rowCount():
             self._group_view.setCurrentIndex(self._model.index(0))
@@ -302,14 +236,14 @@ class ConfigGroupsEditor(QWidget):
         """Populate the DevicePropertyTable whenever the selected preset changes."""
         if not current.isValid():
             # clear table when nothing is selected
-            self._prop_table.setValue([])
+            self._prop_tables.setValue([])
             return
         node = cast("_Node", current.internalPointer())
         if not node.is_preset:
-            self._prop_table.setValue([])
+            self._prop_tables.setValue([])
             return
         preset = cast("ConfigPreset", node.payload)
-        self._prop_table.setValue(preset.settings)
+        self._prop_tables.setValue(preset.settings)
 
     # ------------------------------------------------------------------
     # Property-table sync
@@ -323,7 +257,7 @@ class ConfigGroupsEditor(QWidget):
         node = cast("_Node", idx.internalPointer())
         if not node.is_preset:
             return
-        new_settings = self._prop_table.value()
+        new_settings = self._prop_tables.value()
         self._model.update_preset_settings(idx, new_settings)
         self.configChanged.emit()
 
@@ -346,6 +280,6 @@ class ConfigGroupsEditor(QWidget):
         # pull updated settings from the model and push to the table
         node = cast("_Node", cur_preset.internalPointer())
         preset = cast("ConfigPreset", node.payload)
-        self._prop_table.blockSignals(True)  # avoid feedback loop
-        self._prop_table.setValue(preset.settings)
-        self._prop_table.blockSignals(False)
+        self._prop_tables.blockSignals(True)  # avoid feedback loop
+        self._prop_tables.setValue(preset.settings)
+        self._prop_tables.blockSignals(False)

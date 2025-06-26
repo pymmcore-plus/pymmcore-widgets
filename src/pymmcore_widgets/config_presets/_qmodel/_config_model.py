@@ -66,7 +66,7 @@ class _Node:
         return isinstance(self.payload, Setting)
 
 
-class QConfigTreeModel(QAbstractItemModel):
+class QConfigGroupsModel(QAbstractItemModel):
     """Three-level model: root → groups → presets → settings."""
 
     def __init__(self, groups: Iterable[ConfigGroup] | None = None) -> None:
@@ -407,7 +407,7 @@ class SettingValueDelegate(QStyledItemDelegate):
     """Item delegate that uses a PropertyWidget for editing PropertySetting values."""
 
     def createEditor(
-        self, parent: QWidget, option: QStyleOptionViewItem, index: QModelIndex
+        self, parent: QWidget | None, option: QStyleOptionViewItem, index: QModelIndex
     ) -> QWidget | None:
         node = cast("_Node", index.internalPointer())
         if (
