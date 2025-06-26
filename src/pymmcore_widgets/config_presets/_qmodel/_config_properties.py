@@ -1,4 +1,5 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, ClassVar, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType, Keyword
@@ -19,6 +20,8 @@ from qtpy.QtWidgets import (
 from pymmcore_widgets.device_properties import DevicePropertyTable
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
     from qtpy.QtGui import QMouseEvent
 
 
