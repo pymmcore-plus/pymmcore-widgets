@@ -79,6 +79,25 @@ class QConfigGroupsModel(QAbstractItemModel):
     # Public helpers used by the widget toolbar actions
     # ------------------------------------------------------------------
 
+    def index_for_group(self, group_name: str) -> QModelIndex:
+        """Return the QModelIndex for the group with the given name."""
+        for i, node in enumerate(self._root.children):
+            if node.is_group and node.name == group_name:
+                return self.createIndex(i, 0, node)
+        return QModelIndex()
+
+    def index_for_preset(
+        self, preset_name: str, group_index: QModelIndex
+    ) -> QModelIndex:
+        """Return the QModelIndex for the preset with the given name in the group."""
+        if not self._is_group_index(group_index):
+            return QModelIndex()
+        parent_node = cast("_Node", group_index.internalPointer())
+        for i, node in enumerate(parent_node.children):
+            if node.is_preset and node.name == preset_name:
+                return self.createIndex(i, 0, node)
+        return QModelIndex()
+
     # group-level -------------------------------------------------------------
 
     def add_group(self, base_name: str = "Group") -> QModelIndex:
