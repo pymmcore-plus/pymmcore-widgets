@@ -3,7 +3,9 @@ from qtpy.QtCore import QModelIndex
 from qtpy.QtWidgets import QApplication, QHBoxLayout, QTreeView, QWidget
 
 from pymmcore_widgets import ConfigGroupsEditor
-from pymmcore_widgets.config_presets._qmodel._config_views import PropertyValueDelegate
+from pymmcore_widgets.config_presets._qmodel._property_value_delegate import (
+    PropertyValueDelegate,
+)
 
 app = QApplication([])
 core = CMMCorePlus()
