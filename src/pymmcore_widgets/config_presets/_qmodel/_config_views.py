@@ -17,6 +17,7 @@ from qtpy.QtWidgets import (
 from superqt import QIconifyIcon
 
 from pymmcore_widgets._icons import ICONS
+from pymmcore_widgets.config_presets._qmodel._presets_table import PresetsTable
 from pymmcore_widgets.device_properties import DevicePropertyTable
 
 from ._config_model import QConfigGroupsModel, _Node
@@ -183,6 +184,7 @@ class ConfigGroupsEditor(QWidget):
         preset_box.add_action.triggered.connect(self._new_preset)
 
         self._props = _PropSettings(self)
+        self._props._presets_table.setModel(self._model)
 
         # layout ------------------------------------------------------------
 
@@ -195,7 +197,7 @@ class ConfigGroupsEditor(QWidget):
         lay = QHBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.addWidget(left)
-        lay.addWidget(self._props)
+        lay.addWidget(self._props, 1)
 
         # signals ------------------------------------------------------------
 
@@ -222,7 +224,7 @@ class ConfigGroupsEditor(QWidget):
         """Set the currently selected preset in the editor."""
         self.setCurrentGroup(group)
         group_index = self._model.index_for_group(group)
-        idx = self._model.index_for_preset(preset, group_index)
+        idx = self._model.index_for_preset(group_index, preset)
         if idx.isValid():
             self._preset_view.setCurrentIndex(idx)
         else:
@@ -265,6 +267,7 @@ class ConfigGroupsEditor(QWidget):
 
     def _on_group_sel(self, current: QModelIndex, _prev: QModelIndex) -> None:
         self._preset_view.setRootIndex(current)
+        self._props._presets_table.setGroup(current)
         if current.isValid() and self._model.rowCount(current):
             self._preset_view.setCurrentIndex(self._model.index(0, 0, current))
         else:
@@ -330,6 +333,8 @@ class _PropSettings(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._presets_table = PresetsTable(self)
+
         self._action_group = QActionGroup(self)
         self._action_group.setExclusive(False)
         self._prop_tables = DevicePropertyTable()
@@ -338,6 +343,7 @@ class _PropSettings(QWidget):
         tb, self._action_group = self._create_device_buttons()
         rv = QVBoxLayout(self)
         rv.setContentsMargins(0, 0, 0, 0)
+        rv.addWidget(self._presets_table)
         rv.addWidget(tb)
         rv.addWidget(self._prop_tables)
 

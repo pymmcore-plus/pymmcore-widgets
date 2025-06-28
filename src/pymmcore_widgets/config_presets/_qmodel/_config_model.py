@@ -23,6 +23,8 @@ from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from typing_extensions import Self
+
 
 class Col(IntEnum):
     """Column indices for the ConfigTreeModel."""
@@ -69,6 +71,10 @@ class _Node:
 class QConfigGroupsModel(QAbstractItemModel):
     """Three-level model: root → groups → presets → settings."""
 
+    @classmethod
+    def create_from_core(cls, core: CMMCorePlus) -> Self:
+        return cls(ConfigGroup.all_config_groups(core).values())
+
     def __init__(self, groups: Iterable[ConfigGroup] | None = None) -> None:
         super().__init__()
         self._root = _Node("<root>", None)
@@ -87,9 +93,16 @@ class QConfigGroupsModel(QAbstractItemModel):
         return QModelIndex()
 
     def index_for_preset(
-        self, preset_name: str, group_index: QModelIndex
+        self, group: QModelIndex | str, preset_name: str
     ) -> QModelIndex:
         """Return the QModelIndex for the preset with the given name in the group."""
+        if isinstance(group, QModelIndex):
+            if not self._is_group_index(group):
+                return QModelIndex()
+            group_index = group
+        else:
+            group_index = self.index_for_group(group)
+
         if not self._is_group_index(group_index):
             return QModelIndex()
         parent_node = cast("_Node", group_index.internalPointer())
@@ -107,13 +120,15 @@ class QConfigGroupsModel(QAbstractItemModel):
         node = _Node(name, group, self._root)
         return self._insert_node(node, self._root, len(self._root.children))
 
-    def duplicate_group(self, idx: QModelIndex) -> QModelIndex:
+    def duplicate_group(
+        self, idx: QModelIndex, new_name: str | None = None
+    ) -> QModelIndex:
         if not self._is_group_index(idx):
             return QModelIndex()
         node = cast("_Node", idx.internalPointer())
         new_grp = deepcopy(node.payload)
         assert isinstance(new_grp, ConfigGroup)
-        new_grp.name = self._unique_child_name(self._root, new_grp.name)
+        new_grp.name = new_name or self._unique_child_name(self._root, new_grp.name)
         node = _Node(new_grp.name, new_grp, self._root)
         # duplicate presets
         for p in new_grp.presets.values():
@@ -134,14 +149,18 @@ class QConfigGroupsModel(QAbstractItemModel):
         node = _Node(name, preset, parent_node)
         return self._insert_node(node, parent_node, len(parent_node.children))
 
-    def duplicate_preset(self, idx: QModelIndex) -> QModelIndex:
+    def duplicate_preset(
+        self, idx: QModelIndex, new_name: str | None = None
+    ) -> QModelIndex:
         if not self._is_preset_index(idx):
             return QModelIndex()
         parent_node = cast("_Node", idx.parent().internalPointer())
         orig = cast("_Node", idx.internalPointer())
         new_preset = deepcopy(orig.payload)
         assert isinstance(new_preset, ConfigPreset)
-        new_preset.name = self._unique_child_name(parent_node, new_preset.name)
+        new_preset.name = new_name or self._unique_child_name(
+            parent_node, new_preset.name
+        )
         node = _Node(new_preset.name, new_preset, parent_node)
         return self._insert_node(node, parent_node, idx.row() + 1)
 
@@ -203,7 +222,13 @@ class QConfigGroupsModel(QAbstractItemModel):
         if not index.isValid():
             return None
 
-        node = cast("_Node", index.internalPointer())
+        if not isinstance(node := index.internalPointer(), _Node):
+            return None
+
+        if role == Qt.ItemDataRole.UserRole:
+            # return the node itself for easy access in views
+            return node.payload
+
         if role == Qt.ItemDataRole.FontRole and index.column() == Col.Item:
             f = QFont()
             if node.is_group:
@@ -370,10 +395,14 @@ class QConfigGroupsModel(QAbstractItemModel):
         names = {c.name for c in parent.children}
         if base not in names:
             return base
-        i = 1
-        while f"{base} {i}" in names:
-            i += 1
-        return f"{base} {i}"
+        # try 'base copy' ... but then resort to 'base copy(n)' if needed
+        if (name := f"{base} copy") not in names:
+            return name
+        n = 1
+        while name in names:
+            name = f"{base} copy ({n})"
+            n += 1
+        return name
 
     @staticmethod
     def _name_exists(parent: _Node | None, name: str) -> bool:
@@ -394,6 +423,22 @@ class QConfigGroupsModel(QAbstractItemModel):
     def _insert_node(self, node: _Node, parent_node: _Node, row: int) -> QModelIndex:
         self.beginInsertRows(self._index_from_node(parent_node), row, row)
         parent_node.children.insert(row, node)
+        if parent_node.is_group and node.is_preset:
+            # update the python model too
+            if isinstance((group := parent_node.payload), ConfigGroup):
+                # recreate group.presets so that node.name lands at row index:
+                presets = list(group.presets.values())
+                presets.insert(row, cast("ConfigPreset", node.payload))
+                group.presets = {p.name: p for p in presets}
+
+        elif parent_node.is_preset and node.is_setting:
+            # update the python model too
+            if isinstance((preset := parent_node.payload), ConfigPreset):
+                # recreate preset.settings so that node.name lands at row index:
+                settings = list(preset.settings)
+                settings.insert(row, cast("Setting", node.payload))
+                preset.settings = settings
+
         self.endInsertRows()
         return self.createIndex(row, 0, node)
 

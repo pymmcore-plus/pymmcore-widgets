@@ -1,10 +1,10 @@
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QModelIndex
-from qtpy.QtWidgets import QApplication, QHBoxLayout, QTreeView, QWidget
+from qtpy.QtWidgets import QApplication, QSplitter, QTreeView
 
 from pymmcore_widgets import ConfigGroupsEditor
-from pymmcore_widgets.config_presets._qmodel._property_value_delegate import (
-    PropertyValueDelegate,
+from pymmcore_widgets.config_presets._qmodel._property_setting_delegate import (
+    PropertySettingDelegate,
 )
 
 app = QApplication([])
@@ -20,14 +20,14 @@ tree.setModel(cfg._model)
 tree.expandRecursively(QModelIndex())
 tree.setColumnWidth(0, 180)
 # make values in in the tree editable
-tree.setItemDelegateForColumn(2, PropertyValueDelegate(tree))
+tree.setItemDelegateForColumn(2, PropertySettingDelegate(tree))
 
 
-w = QWidget()
-layout = QHBoxLayout(w)
-layout.addWidget(cfg)
-layout.addWidget(tree)
-w.resize(1400, 800)
-w.show()
+splitter = QSplitter()
+splitter.addWidget(cfg)
+splitter.addWidget(tree)
+splitter.resize(1400, 800)
+splitter.setSizes([900, 500])
+splitter.show()
 
 app.exec()
