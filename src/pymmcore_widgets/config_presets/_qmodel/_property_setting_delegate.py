@@ -15,14 +15,7 @@ class PropertySettingDelegate(QStyledItemDelegate):
             return super().createEditor(parent, option, index)
         dev, prop, *_ = setting
         widget = PropertyWidget(dev, prop, parent=parent, connect_core=False)
-
-        # For persistent editors, we connect valueChanged to setModelData directly
-        # instead of commitData to avoid the "editor doesn't belong to view" error
-        def on_value_changed() -> None:
-            if index.isValid() and (model := index.model()):
-                model.setData(index, widget.value(), Qt.ItemDataRole.EditRole)
-
-        widget.valueChanged.connect(on_value_changed)
+        widget.valueChanged.connect(lambda: self.commitData.emit(widget))
         widget.setAutoFillBackground(True)
         return widget
 
