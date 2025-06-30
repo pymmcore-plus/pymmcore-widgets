@@ -474,20 +474,43 @@ class QConfigGroupsModel(QAbstractItemModel):
         parent_node = self._node_from_index(parent)
 
         # ---------- basic validation ----------
-        if (
-            count <= 0
-            or 0 > row > len(parent_node.children)
-            or (_payloads is None or len(_payloads) != count)
-        ):
-            return False  # pragma: no cover
+        if count <= 0 or not (0 <= row <= len(parent_node.children)):
+            return False  # bad range  # pragma: no cover
+        if _payloads is not None and len(_payloads) != count:
+            return False  # mismatch  # pragma: no cover
+
+        # ---------- build default payloads for external callers ----------
+        if _payloads is None:
+            _payloads = []
+            for _ in range(count):
+                if isinstance(parent_node.payload, ConfigGroup):
+                    # inserting a new ConfigPreset
+                    name = self._unique_child_name(parent_node, "Preset")
+                    _payloads.append(ConfigPreset(name=name))
+                elif isinstance(parent_node.payload, ConfigPreset):
+                    raise NotImplementedError(
+                        "Inserting a Setting is not supported in this context."
+                    )
+                    # # inserting a placeholder Setting
+                    # idx_placeholder = len(parent_node.children) + len(_payloads)
+                    # _payloads.append(
+                    #     Setting(
+                    #         device_name=f"Device {idx_placeholder}",
+                    #         property_name=f"Property {idx_placeholder}",
+                    #         property_value="",
+                    #     )
+                    # )
+                else:  # root level → ConfigGroup
+                    name = self._unique_child_name(parent_node, "Group")
+                    _payloads.append(ConfigGroup(name=name))
 
         self.beginInsertRows(parent, row, row + count - 1)
 
+        # ---------- modify the tree ----------
         for i, payload in enumerate(_payloads):
-            node = _Node.create(payload, parent_node)
-            parent_node.children.insert(row + i, node)
+            parent_node.children.insert(row + i, _Node.create(payload, parent_node))
 
-        # ---------- keep dataclass payloads in sync ----------
+        # ---------- keep dataclasses in sync ----------
         if isinstance((grp := parent_node.payload), ConfigGroup):
             presets = list(grp.presets.values())
             for i, payload in enumerate(_payloads):

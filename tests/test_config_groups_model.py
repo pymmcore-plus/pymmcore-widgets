@@ -231,3 +231,9 @@ def test_update_preset_settings(model: QConfigGroupsModel, qtbot: QtBot) -> None
 
     with pytest.raises(ValueError, match="Reference index is not a ConfigPreset."):
         model.update_preset_settings(QModelIndex(), new_settings)
+
+
+# def test_standard_item_model(
+#     model: QConfigGroupsModel, qtmodeltester: ModelTester
+# ) -> None:
+#     qtmodeltester.check(model)
