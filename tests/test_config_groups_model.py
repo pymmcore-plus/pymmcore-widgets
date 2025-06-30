@@ -10,7 +10,7 @@ from qtpy.QtCore import QModelIndex, Qt
 from qtpy.QtGui import QFont, QIcon, QPixmap
 from qtpy.QtWidgets import QMessageBox
 
-from pymmcore_widgets.config_presets._qmodel._config_model import QConfigGroupsModel
+from pymmcore_widgets.config_presets import QConfigGroupsModel
 
 if TYPE_CHECKING:
     from pytestqt.modeltest import ModelTester
