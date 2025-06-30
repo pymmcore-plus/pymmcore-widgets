@@ -21,9 +21,11 @@ from pymmcore_widgets._icons import ICONS
 from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping
 
     from typing_extensions import Self
+
+NULL_INDEX = QModelIndex()
 
 
 class Col(IntEnum):
@@ -184,11 +186,25 @@ class QConfigGroupsModel(QAbstractItemModel):
     # structure helpers -------------------------------------------------------
 
     def _node(self, index: QModelIndex | None) -> _Node:
-        return (
-            cast("_Node", index.internalPointer())
-            if index and index.isValid()
-            else self._root
-        )
+        if (
+            index
+            and index.isValid()
+            and isinstance((node := index.internalPointer()), _Node)
+        ):
+            # return the node if index is valid
+            return node
+        # otherwise return the root node
+        return self._root
+
+    def python_object(
+        self, index: QModelIndex = NULL_INDEX
+    ) -> Mapping[str, ConfigGroup] | ConfigGroup | ConfigPreset | Setting | None:
+        """Return the Python object (ConfigGroup, ConfigPreset, or Setting) at index."""
+        node = self._node(index)
+        if node is self._root:
+            # return a copy of the root's children as a dict
+            return {n.name: cast("ConfigGroup", n.payload) for n in self._root.children}
+        return node.payload
 
     def rowCount(self, parent: QModelIndex | None = None) -> int:
         return len(self._node(parent).children)
@@ -209,20 +225,16 @@ class QConfigGroupsModel(QAbstractItemModel):
 
         If the item has no parent, an invalid QModelIndex is returned.
         """
-        if not child or not child.isValid():
-            return QModelIndex()
-        parent_node = cast("_Node", child.internalPointer()).parent
-        if parent_node is self._root or parent_node is None:
+        node = self._node(child)
+        if node is self._root or not (parent_node := node.parent):
             return QModelIndex()
         return self.createIndex(parent_node.row_in_parent(), 0, parent_node)
 
     # data & editing ----------------------------------------------------------
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
-        if not index.isValid():
-            return None
-
-        if not isinstance(node := index.internalPointer(), _Node):
+        node = self._node(index)
+        if node is self._root:
             return None
 
         if role == Qt.ItemDataRole.UserRole:
@@ -267,10 +279,11 @@ class QConfigGroupsModel(QAbstractItemModel):
         return None
 
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:
-        if not index.isValid():
+        node = self._node(index)
+        if node is self._root:
             return Qt.ItemFlag.NoItemFlags
+
         fl = Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled
-        node = cast("_Node", index.internalPointer())
         if node.is_setting and index.column() == Col.Value:
             fl |= Qt.ItemFlag.ItemIsEditable
         elif not node.is_setting and index.column() == Col.Item:
@@ -283,9 +296,10 @@ class QConfigGroupsModel(QAbstractItemModel):
         value: Any,
         role: int = Qt.ItemDataRole.EditRole,
     ) -> bool:
-        if role != Qt.ItemDataRole.EditRole or not index.isValid():
+        node = self._node(index)
+        if node is self._root or role != Qt.ItemDataRole.EditRole:
             return False
-        node = cast("_Node", index.internalPointer())
+
         if node.is_setting and index.column() == Col.Value:
             setting = cast("Setting", node.payload)
             setting = Setting(
@@ -304,7 +318,8 @@ class QConfigGroupsModel(QAbstractItemModel):
                     break
             self.dataChanged.emit(index, index, [role])
             return True
-        new_name = cast("str", value)
+
+        new_name = str(value)
         if new_name == node.name:
             return True
         if not new_name:
