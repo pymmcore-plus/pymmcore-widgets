@@ -14,6 +14,7 @@ __all__ = [
     "ChannelGroupWidget",
     "ChannelTable",
     "ChannelWidget",
+    "ConfigGroupsTree",
     "ConfigWizard",
     "ConfigurationWidget",
     "CoreLogWidget",
@@ -48,6 +49,7 @@ __all__ = [
 from ._install_widget import InstallWidget
 from ._log import CoreLogWidget
 from .config_presets import (
+    ConfigGroupsTree,
     GroupPresetTableWidget,
     ObjectivesPixelConfigurationWidget,
     PixelConfigurationWidget,
