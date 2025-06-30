@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from contextlib import suppress
 from typing import TYPE_CHECKING, Any, cast
 
 from pymmcore_plus.model import ConfigPreset, Setting
 from qtpy.QtCore import (
+    QAbstractItemModel,
     QAbstractTableModel,
     QModelIndex,
     QSize,
@@ -24,8 +24,86 @@ if TYPE_CHECKING:
     from pymmcore_plus.model import ConfigPreset
 
 
-class PresetsTable(QWidget):
-    """A 2D table View onto a ConfigGroup's presets.
+class ConfigPresetsTableView(QTableView):
+    """Plain QTableView for displaying configuration presets.
+
+    Introduces a pivot model to transform the QConfigGroupsModel (tree model)
+    into a 2D table with devices and properties as rows, and presets as columns.
+
+    To use, call `setModel` with a `QConfigGroupsModel`, and then
+    `setGroup` with the name or index of the group you want to view.
+    """
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setItemDelegate(PropertySettingDelegate(self))
+
+    def setModel(self, model: QAbstractItemModel | None) -> None:
+        """Set the model for the table view."""
+        if isinstance(model, QConfigGroupsModel):
+            matrix = _ConfigGroupPivotModel()
+            matrix.setSourceModel(model)
+        elif isinstance(model, _ConfigGroupPivotModel):
+            matrix = model
+        else:
+            raise TypeError(
+                "Model must be an instance of QConfigGroupsModel "
+                f"or ConfigGroupPivotModel. Got: {type(model).__name__}"
+            )
+
+        super().setModel(matrix)
+        matrix.modelReset.connect(self._on_model_reset)
+
+    def _on_model_reset(self) -> None:
+        matrix = self.model()
+        if not isinstance(matrix, _ConfigGroupPivotModel):
+            return
+
+        if hh := self.horizontalHeader():
+            hh.setSectionResizeMode(hh.ResizeMode.Stretch)
+
+    def _get_pivot_model(self) -> _ConfigGroupPivotModel:
+        model = self.model()
+        if isinstance(model, QTransposeProxyModel):
+            model = cast("_ConfigGroupPivotModel", model.sourceModel())
+        if not isinstance(model, _ConfigGroupPivotModel):
+            raise ValueError("Source model is not set. Call setSourceModel first.")
+        return model
+
+    def sourceModel(self) -> QConfigGroupsModel:
+        pivot_model = self._get_pivot_model()
+        src_model = pivot_model.sourceModel()
+        if not isinstance(src_model, QConfigGroupsModel):
+            raise ValueError("Source model is not a QConfigGroupsModel.")
+        return src_model
+
+    def setGroup(self, group_name_or_index: str | QModelIndex) -> None:
+        """Set the group for the pivot model."""
+        model = self._get_pivot_model()
+        model.setGroup(group_name_or_index)
+
+    def transpose(self) -> None:
+        """Transpose the table view."""
+        pivot = self.model()
+        if isinstance(pivot, _ConfigGroupPivotModel):
+            proxy = QTransposeProxyModel(self)
+            proxy.setSourceModel(pivot)
+            super().setModel(proxy)
+        elif isinstance(pivot, QTransposeProxyModel):
+            # Already transposed, revert to original model
+            source_model = pivot.sourceModel()
+            if isinstance(source_model, _ConfigGroupPivotModel):
+                super().setModel(source_model)
+
+    def isTransposed(self) -> bool:
+        """Check if the table view is currently transposed."""
+        return isinstance(self.model(), QTransposeProxyModel)
+
+
+class ConfigPresetsTable(QWidget):
+    """2D Table for viewing configuration presets.
+
+    Adds buttons to transpose, duplicate, and remove presets.
 
     With all the presets as columns and the device/property pairs as rows.
     (unless transposed).
@@ -37,7 +115,7 @@ class PresetsTable(QWidget):
     @classmethod
     def create_from_core(
         cls, core: CMMCorePlus, parent: QWidget | None = None
-    ) -> PresetsTable:
+    ) -> ConfigPresetsTable:
         """Create a PresetsTable from a CMMCorePlus instance."""
         obj = cls(parent)
         model = QConfigGroupsModel.create_from_core(core)
@@ -46,114 +124,60 @@ class PresetsTable(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.table_view = QTableView(self)
-        self.table_view.setItemDelegate(PropertySettingDelegate(self.table_view))
+        self.table_view = ConfigPresetsTableView(self)
 
         self._toolbar = tb = QToolBar(self)
         tb.setIconSize(QSize(16, 16))
         tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         if act := tb.addAction(
-            QIconifyIcon("carbon:transpose"), "Transpose", self._transpose
+            QIconifyIcon("carbon:transpose"), "Transpose", self.table_view.transpose
         ):
             act.setCheckable(True)
 
-        tb.addAction("Remove", self._on_remove_action)
-        tb.addAction("Duplicate", self._on_duplicate_action)
+        tb.addAction(
+            QIconifyIcon("mdi:delete-outline"), "Remove", self._on_remove_action
+        )
+        tb.addAction(
+            QIconifyIcon("mdi:content-duplicate"),
+            "Duplicate",
+            self._on_duplicate_action,
+        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._toolbar)
         layout.addWidget(self.table_view)
 
+    def setModel(self, model: QAbstractItemModel | None) -> None:
+        """Set the model for the table view."""
+        self.table_view.setModel(model)
+
+    def setGroup(self, group_name_or_index: str | QModelIndex) -> None:
+        """Set the group to be displayed."""
+        self.table_view.setGroup(group_name_or_index)
+
+    def _on_remove_action(self) -> None:
+        if self.table_view.isTransposed():
+            ...
+        else:
+            source_idx = self._get_selected_preset_index()
+            self.table_view.sourceModel().remove(source_idx)
+
+    def _on_duplicate_action(self) -> None:
+        if self.table_view.isTransposed():
+            ...
+        else:
+            source_idx = self._get_selected_preset_index()
+            self.table_view.sourceModel().duplicate_preset(source_idx)
+
     def _get_selected_preset_index(self) -> QModelIndex:
         """Get the currently selected preset from the source model."""
         if sm := self.table_view.selectionModel():
             if indices := sm.selectedColumns():
-                pivot_model = self._get_pivot_model()
+                pivot_model = self.table_view._get_pivot_model()
                 col = indices[0].column()
                 return pivot_model.get_source_index_for_column(col)
         return QModelIndex()
-
-    def _on_remove_action(self) -> None:
-        if self._is_transposed():
-            ...
-        else:
-            source_idx = self._get_selected_preset_index()
-            self._get_source_model().remove(source_idx)
-
-    def _on_duplicate_action(self) -> None:
-        if self._is_transposed():
-            ...
-        else:
-            source_idx = self._get_selected_preset_index()
-            self._get_source_model().duplicate_preset(source_idx)
-
-    def _is_transposed(self) -> bool:
-        """Check if the table view is currently transposed."""
-        return isinstance(self.table_view.model(), QTransposeProxyModel)
-
-    def _transpose(self) -> None:
-        """Transpose the table view."""
-        pivot = self.table_view.model()
-        if isinstance(pivot, _ConfigGroupPivotModel):
-            proxy = QTransposeProxyModel(self)
-            proxy.setSourceModel(pivot)
-            self.table_view.setModel(proxy)
-        elif isinstance(pivot, QTransposeProxyModel):
-            # Already transposed, revert to original model
-            source_model = pivot.sourceModel()
-            if isinstance(source_model, _ConfigGroupPivotModel):
-                self.table_view.setModel(source_model)
-
-    def sourceModel(self) -> QConfigGroupsModel | None:
-        """Return the source model of the table view."""
-        with suppress(ValueError):
-            return self._get_pivot_model().sourceModel()
-        return None
-
-    def setModel(self, model: QConfigGroupsModel | _ConfigGroupPivotModel) -> None:
-        """Set the model for the table view."""
-        if isinstance(model, QConfigGroupsModel):
-            matrix = _ConfigGroupPivotModel()
-            matrix.setSourceModel(model)
-        elif isinstance(model, _ConfigGroupPivotModel):
-            matrix = model
-        else:
-            raise TypeError(
-                "Model must be an instance of QConfigGroupsModel "
-                "or ConfigGroupPivotModel."
-            )
-
-        self.table_view.setModel(matrix)
-        matrix.modelReset.connect(self._on_model_reset)
-
-    def _on_model_reset(self) -> None:
-        matrix = self.table_view.model()
-        if not isinstance(matrix, _ConfigGroupPivotModel):
-            return
-
-        if hh := self.table_view.horizontalHeader():
-            hh.setSectionResizeMode(hh.ResizeMode.Stretch)
-
-    def setGroup(self, group_name_or_index: str | QModelIndex) -> None:
-        """Set the group for the pivot model."""
-        model = self._get_pivot_model()
-        model.setGroup(group_name_or_index)
-
-    def _get_pivot_model(self) -> _ConfigGroupPivotModel:
-        model = self.table_view.model()
-        if isinstance(model, QTransposeProxyModel):
-            model = cast("_ConfigGroupPivotModel", model.sourceModel())
-        if not isinstance(model, _ConfigGroupPivotModel):
-            raise ValueError("Source model is not set. Call setSourceModel first.")
-        return model
-
-    def _get_source_model(self) -> QConfigGroupsModel:
-        pivot_model = self._get_pivot_model()
-        src_model = pivot_model.sourceModel()
-        if not isinstance(src_model, QConfigGroupsModel):
-            raise ValueError("Source model is not a QConfigGroupsModel.")
-        return src_model
 
 
 # -----------------------------------------------------------------------------
