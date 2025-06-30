@@ -13,6 +13,7 @@ from qtpy.QtWidgets import QMessageBox
 from pymmcore_widgets.config_presets._qmodel._config_model import QConfigGroupsModel
 
 if TYPE_CHECKING:
+    from pytestqt.modeltest import ModelTester
     from pytestqt.qtbot import QtBot
 
 
@@ -233,7 +234,7 @@ def test_update_preset_settings(model: QConfigGroupsModel, qtbot: QtBot) -> None
         model.update_preset_settings(QModelIndex(), new_settings)
 
 
-# def test_standard_item_model(
-#     model: QConfigGroupsModel, qtmodeltester: ModelTester
-# ) -> None:
-#     qtmodeltester.check(model)
+def test_standard_item_model(
+    model: QConfigGroupsModel, qtmodeltester: ModelTester
+) -> None:
+    qtmodeltester.check(model)

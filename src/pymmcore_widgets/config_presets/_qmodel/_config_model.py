@@ -105,6 +105,9 @@ class QConfigGroupsModel(QAbstractItemModel):
     # structure helpers -------------------------------------------------------
 
     def rowCount(self, parent: QModelIndex | None = None) -> int:
+        # Only column 0 should have children in tree models
+        if parent is not None and parent.isValid() and parent.column() != 0:
+            return 0
         return len(self._node_from_index(parent).children)
 
     def columnCount(self, _parent: QModelIndex | None = None) -> int:
@@ -132,8 +135,12 @@ class QConfigGroupsModel(QAbstractItemModel):
         if child is None:  # pragma: no cover
             return None
         node = self._node_from_index(child)
-        if node is self._root or not (parent_node := node.parent):
-            return QModelIndex()  # pragma: no cover
+        if (
+            node is self._root
+            or not (parent_node := node.parent)
+            or parent_node is self._root
+        ):
+            return QModelIndex()
 
         # A common convention used in models that expose tree data structures is that
         # only items in the first column have children.
@@ -182,7 +189,7 @@ class QConfigGroupsModel(QAbstractItemModel):
             elif index.column() == Col.Item:
                 return node.name
 
-        return None  # pragma: no cover
+        return None
 
     def setData(
         self,
@@ -193,7 +200,6 @@ class QConfigGroupsModel(QAbstractItemModel):
         node = self._node_from_index(index)
         if node is self._root or role != Qt.ItemDataRole.EditRole:
             return False  # pragma: no cover
-
         if node.is_setting:
             if 0 > index.column() > 3:
                 return False  # pragma: no cover
