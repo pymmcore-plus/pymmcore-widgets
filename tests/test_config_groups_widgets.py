@@ -1,0 +1,46 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from pymmcore_plus import CMMCorePlus
+
+from pymmcore_widgets import ConfigGroupsTree
+from pymmcore_widgets.config_presets._qmodel._config_model import QConfigGroupsModel
+from pymmcore_widgets.config_presets._views._property_setting_delegate import (
+    PropertySettingDelegate,
+)
+from pymmcore_widgets.device_properties._property_widget import PropertyWidget
+
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
+
+
+def test_config_groups_tree(qtbot: QtBot) -> None:
+    core = CMMCorePlus()
+    core.loadSystemConfiguration()
+    tree = ConfigGroupsTree.create_from_core(core)
+    qtbot.addWidget(tree)
+    tree.show()
+    model = tree.model()
+    assert isinstance(model, QConfigGroupsModel)
+
+    # test the editor delegate -----------------------------
+
+    delegate = tree.itemDelegateForColumn(2)
+    assert isinstance(delegate, PropertySettingDelegate)
+
+    setting_value = model.index(0, 2, model.index(0, 0, model.index(0, 0)))
+    assert model.data(setting_value) == "1"
+
+    # open an editor
+    tree.edit(setting_value)
+    editor = tree.focusWidget()
+    assert isinstance(editor, PropertyWidget)
+    with qtbot.waitSignal(delegate.commitData):
+        editor.setValue("2")
+
+    # make sure the model is updated
+    assert model.data(setting_value) == "2"
+    group0 = model.get_groups()[0]
+    preset0 = next(iter(group0.presets.values()))
+    assert preset0.settings[0].property_value == "2"

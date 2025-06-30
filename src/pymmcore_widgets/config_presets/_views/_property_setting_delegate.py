@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pymmcore_plus.model import Setting
 from qtpy.QtCore import QAbstractItemModel, QModelIndex, Qt
 from qtpy.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QWidget
@@ -12,7 +14,7 @@ class PropertySettingDelegate(QStyledItemDelegate):
         self, parent: QWidget | None, option: QStyleOptionViewItem, index: QModelIndex
     ) -> QWidget | None:
         if not isinstance((setting := index.data(Qt.ItemDataRole.UserRole)), Setting):
-            return super().createEditor(parent, option, index)
+            return super().createEditor(parent, option, index)  # pragma: no cover
         dev, prop, *_ = setting
         widget = PropertyWidget(dev, prop, parent=parent, connect_core=False)
         widget.setValue(setting.property_value)  # avoids commitData warnings
@@ -22,11 +24,10 @@ class PropertySettingDelegate(QStyledItemDelegate):
 
     def setEditorData(self, editor: QWidget | None, index: QModelIndex) -> None:
         setting = index.data(Qt.ItemDataRole.UserRole)
-        if not isinstance(setting, Setting) or not isinstance(editor, PropertyWidget):
+        if isinstance(setting, Setting) and isinstance(editor, PropertyWidget):
+            editor.setValue(setting.property_value)
+        else:  # pragma: no cover
             super().setEditorData(editor, index)
-            return
-
-        editor.setValue(setting.property_value)
 
     def setModelData(
         self,
@@ -36,5 +37,5 @@ class PropertySettingDelegate(QStyledItemDelegate):
     ) -> None:
         if model and isinstance(editor, PropertyWidget):
             model.setData(index, editor.value(), Qt.ItemDataRole.EditRole)
-        else:
+        else:  # pragma: no cover
             super().setModelData(editor, model, index)
