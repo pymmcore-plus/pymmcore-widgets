@@ -290,20 +290,24 @@ class QConfigGroupsModel(QAbstractItemModel):
         """Append a *new* empty group and return its QModelIndex."""
         name = self._unique_child_name(self._root, base_name)
         group = ConfigGroup(name=name)
-        node = _Node.create(group, self._root)
-        return self._insert_node(node, self._root, len(self._root.children))
+        row = self.rowCount()
+        if self.insertRows(row, 1, NULL_INDEX, _payloads=[group]):
+            return self.index(row, 0)
+        return QModelIndex()  # pragma: no cover
 
     def duplicate_group(
         self, idx: QModelIndex, new_name: str | None = None
     ) -> QModelIndex:
         node = self._node_from_index(idx)
-        if not isinstance((group := node.payload), ConfigGroup):
+        if not isinstance((grp := node.payload), ConfigGroup):
             raise ValueError("Reference index is not a ConfigGroup.")
 
-        new_grp = deepcopy(group)
+        new_grp = deepcopy(grp)
         new_grp.name = new_name or self._unique_child_name(self._root, new_grp.name)
-        new_node = _Node.create(new_grp, self._root)
-        return self._insert_node(new_node, self._root, idx.row() + 1)
+        row = idx.row() + 1
+        if self.insertRows(row, 1, NULL_INDEX, _payloads=[new_grp]):
+            return self.index(row, 0)
+        return QModelIndex()  # pragma: no cover
 
     # preset-level ------------------------------------------------------------
 
@@ -316,22 +320,26 @@ class QConfigGroupsModel(QAbstractItemModel):
 
         name = self._unique_child_name(group_node, base_name)
         preset = ConfigPreset(name)
-        node = _Node.create(preset, group_node)
-        return self._insert_node(node, group_node, len(group_node.children))
+        row = len(group_node.children)
+        if self.insertRows(row, 1, group_idx, _payloads=[preset]):
+            return self.index(row, 0, group_idx)
+        return QModelIndex()  # pragma: no cover
 
     def duplicate_preset(
         self, preset_index: QModelIndex, new_name: str | None = None
     ) -> QModelIndex:
-        preset_node = self._node_from_index(preset_index)
-        if not isinstance((preset := preset_node.payload), ConfigPreset):
+        pre_node = self._node_from_index(preset_index)
+        if not isinstance((pre := pre_node.payload), ConfigPreset):
             raise ValueError("Reference index is not a ConfigPreset.")
-        if not isinstance(group_node := preset_node.parent, _Node):
-            raise ValueError("Preset has no parent group.")  # pragma: no cover
 
-        preset = deepcopy(preset)
-        preset.name = new_name or self._unique_child_name(group_node, preset.name)
-        node = _Node.create(preset, group_node)
-        return self._insert_node(node, group_node, preset_index.row() + 1)
+        pre_copy = deepcopy(pre)
+        group_idx = preset_index.parent()
+        group_node = self._node_from_index(group_idx)
+        pre_copy.name = new_name or self._unique_child_name(group_node, pre_copy.name)
+        row = preset_index.row() + 1
+        if self.insertRows(row, 1, group_idx, _payloads=[pre_copy]):
+            return self.index(row, 0, group_idx)
+        return QModelIndex()  # pragma: no cover
 
     # generic remove ----------------------------------------------------------
 
@@ -450,29 +458,47 @@ class QConfigGroupsModel(QAbstractItemModel):
     #     self, row: int, count: int, parent: QModelIndex = NULL_INDEX
     # ) -> bool: ...
 
-    def _insert_node(self, node: _Node, parent_node: _Node, row: int) -> QModelIndex:
-        self.beginInsertRows(self._index_from_node(parent_node), row, row)
-        parent_node.children.insert(row, node)
-        if parent_node.is_group and node.is_preset:
-            # update the python model too
-            if isinstance((group := parent_node.payload), ConfigGroup):
-                # recreate group.presets so that node.name lands at row index:
-                presets = list(group.presets.values())
-                presets.insert(row, cast("ConfigPreset", node.payload))
-                group.presets = {p.name: p for p in presets}
+    def insertRows(
+        self,
+        row: int,
+        count: int,
+        parent: QModelIndex = NULL_INDEX,
+        *,
+        _payloads: list[ConfigGroup | ConfigPreset | Setting] | None = None,
+    ) -> bool:
+        """Insert *count* rows at *row* under *parent*.
 
-        elif parent_node.is_preset and node.is_setting:
-            # update the python model too
-            if isinstance((preset := parent_node.payload), ConfigPreset):
-                # recreate preset.settings so that node.name lands at row index:
-                settings = list(preset.settings)
-                settings.insert(row, cast("Setting", node.payload))
-                preset.settings = settings
+        *_payloads* is for internal use, and must be a list of exactly *count* data
+        objects (ConfigGroup, ConfigPreset, or Setting) that will become the new rows.
+        """
+        parent_node = self._node_from_index(parent)
+
+        # ---------- basic validation ----------
+        if (
+            count <= 0
+            or 0 > row > len(parent_node.children)
+            or (_payloads is None or len(_payloads) != count)
+        ):
+            return False  # pragma: no cover
+
+        self.beginInsertRows(parent, row, row + count - 1)
+
+        for i, payload in enumerate(_payloads):
+            node = _Node.create(payload, parent_node)
+            parent_node.children.insert(row + i, node)
+
+        # ---------- keep dataclass payloads in sync ----------
+        if isinstance((grp := parent_node.payload), ConfigGroup):
+            presets = list(grp.presets.values())
+            for i, payload in enumerate(_payloads):
+                presets.insert(row + i, cast("ConfigPreset", payload))
+            grp.presets = {p.name: p for p in presets}
+
+        elif isinstance((pre := parent_node.payload), ConfigPreset):
+            settings = list(pre.settings)
+            for i, payload in enumerate(_payloads):
+                settings.insert(row + i, cast("Setting", payload))
+            pre.settings = settings
 
         self.endInsertRows()
-        return self.createIndex(row, 0, node)
-
-    def _index_from_node(self, node: _Node) -> QModelIndex:
-        if node is self._root:
-            return QModelIndex()
-        return self.createIndex(node.row_in_parent(), 0, node)
+        return True
