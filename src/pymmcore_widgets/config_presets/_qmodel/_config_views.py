@@ -246,7 +246,7 @@ class ConfigGroupsEditor(QWidget):
 
     def data(self) -> Sequence[ConfigGroup]:
         """Return the current configuration data as a list of ConfigGroup."""
-        return self._model.data_as_groups()
+        return self._model.get_groups()
 
     # TODO:
     # def selectionModel(self) -> QItemSelectionModel: ...
