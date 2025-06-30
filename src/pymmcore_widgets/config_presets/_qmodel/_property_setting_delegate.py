@@ -15,6 +15,7 @@ class PropertySettingDelegate(QStyledItemDelegate):
             return super().createEditor(parent, option, index)
         dev, prop, *_ = setting
         widget = PropertyWidget(dev, prop, parent=parent, connect_core=False)
+        widget.setValue(setting.property_value)
         widget.valueChanged.connect(lambda: self.commitData.emit(widget))
         widget.setAutoFillBackground(True)
         return widget

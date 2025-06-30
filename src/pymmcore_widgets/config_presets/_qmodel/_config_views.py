@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from pymmcore_plus import DeviceType
+from pymmcore_plus import DeviceProperty, DeviceType, Keyword
 from pymmcore_plus.model import ConfigGroup
 from qtpy.QtCore import QModelIndex, QSize, Qt, Signal
 from qtpy.QtWidgets import (
@@ -10,6 +10,7 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QListView,
+    QSplitter,
     QToolBar,
     QVBoxLayout,
     QWidget,
@@ -190,7 +191,7 @@ class ConfigGroupsEditor(QWidget):
 
         left = QWidget()
         lv = QVBoxLayout(left)
-        lv.setContentsMargins(0, 0, 0, 0)
+        lv.setContentsMargins(12, 12, 4, 12)
         lv.addWidget(group_box)
         lv.addWidget(preset_box)
 
@@ -309,43 +310,61 @@ class ConfigGroupsEditor(QWidget):
         _roles: list[int] | None = None,
     ) -> None:
         """Refresh DevicePropertyTable if a setting in the current preset was edited."""
-        cur_preset = self._preset_view.currentIndex()
-        if not cur_preset.isValid():
+        if not (preset := self._our_preset_changed_by_range(topLeft, bottomRight)):
             return
 
-        # We only care about edits to rows that are direct children of the
-        # currently-selected preset (i.e. Setting rows).
-        if topLeft.parent() != cur_preset:
-            return
-
-        # pull updated settings from the model and push to the table
-        node = cast("_Node", cur_preset.internalPointer())
-        preset = cast("ConfigPreset", node.payload)
         self._props.blockSignals(True)  # avoid feedback loop
         self._props.setValue(preset.settings)
         self._props.blockSignals(False)
 
+    def _our_preset_changed_by_range(
+        self, topLeft: QModelIndex, bottomRight: QModelIndex
+    ) -> ConfigPreset | None:
+        """Return our current preset if it was changed in the given range."""
+        cur_preset = self._preset_view.currentIndex()
+        if (
+            not cur_preset.isValid()
+            or not topLeft.isValid()
+            or topLeft.parent() != cur_preset.parent()
+            or topLeft.internalPointer().payload.name
+            != cur_preset.internalPointer().payload.name
+        ):
+            return None
 
-class _PropSettings(QWidget):
+        # pull updated settings from the model and push to the table
+        node = cast("_Node", self._preset_view.currentIndex().internalPointer())
+        preset = cast("ConfigPreset", node.payload)
+        return preset
+
+
+class _PropSettings(QSplitter):
     """A wrapper for DevicePropertyTable for use in ConfigGroupsEditor."""
 
     valueChanged = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
+        super().__init__(Qt.Orientation.Vertical, parent)
+        # 2D table with presets as columns and device properties as rows
         self._presets_table = PresetsTable(self)
 
-        self._action_group = QActionGroup(self)
-        self._action_group.setExclusive(False)
+        # regular property table for editing all device properties
         self._prop_tables = DevicePropertyTable()
+        self._prop_tables.valueChanged.connect(self.valueChanged)
         self._prop_tables.setRowsCheckable(True)
 
+        # toolbar with device type buttons
+        self._action_group = QActionGroup(self)
+        self._action_group.setExclusive(False)
         tb, self._action_group = self._create_device_buttons()
-        rv = QVBoxLayout(self)
-        rv.setContentsMargins(0, 0, 0, 0)
-        rv.addWidget(self._presets_table)
-        rv.addWidget(tb)
-        rv.addWidget(self._prop_tables)
+
+        bot = QWidget()
+        bl = QVBoxLayout(bot)
+        bl.setContentsMargins(0, 0, 0, 0)
+        bl.addWidget(tb)
+        bl.addWidget(self._prop_tables)
+
+        self.addWidget(self._presets_table)
+        self.addWidget(bot)
 
         self._filter_properties()
 
@@ -417,6 +436,7 @@ class _PropSettings(QWidget):
                 include_read_only=False,
                 always_show_checked=True,
                 include_devices=include_devices,
+                predicate=_hide_state_state,
             )
 
     def _update_device_buttons(self, core: CMMCorePlus) -> None:
@@ -435,3 +455,10 @@ class _PropSettings(QWidget):
                     break
             else:
                 action.setVisible(False)
+
+
+def _hide_state_state(prop: DeviceProperty) -> bool | None:
+    """Hide the State property for StateDevice (it duplicates state label)."""
+    if prop.deviceType() == DeviceType.StateDevice and prop.name == Keyword.State:
+        return False
+    return None
