@@ -225,7 +225,6 @@ class _ConfigGroupPivotModel(QAbstractTableModel):
         src_model.rowsInserted.connect(self._rebuild)
         src_model.rowsRemoved.connect(self._rebuild)
         src_model.dataChanged.connect(self._rebuild)
-        src_model.modelReset.connect(self._rebuild)
 
     def setGroup(self, group_name_or_index: str | QModelIndex) -> None:
         """Set the group index to pivot and rebuild the matrix."""
@@ -251,7 +250,7 @@ class _ConfigGroupPivotModel(QAbstractTableModel):
             or (row := index.row()) >= len(self._rows)
             or (col := index.column()) >= len(self._presets)
         ):
-            return False
+            return False  # pragma: no cover
 
         # Get the preset and device/property for this cell
         preset = self._presets[col]

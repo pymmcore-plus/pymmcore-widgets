@@ -248,3 +248,115 @@ def test_pivot_model(model: QConfigGroupsModel, qtmodeltester: ModelTester) -> N
     pivot.setSourceModel(model)
     pivot.setGroup("Channel")
     qtmodeltester.check(pivot)
+
+
+def test_pivot_model_two_way_sync(
+    model: QConfigGroupsModel, qtmodeltester: ModelTester, qtbot: QtBot
+) -> None:
+    """Test _ConfigGroupPivotModel stays in sync with QConfigGroupsModel."""
+    # Create pivot model and set it up
+    pivot = _ConfigGroupPivotModel()
+    pivot.setSourceModel(model)
+    pivot.setGroup("Camera")  # Camera group has 3 presets and 2 settings each
+    qtmodeltester.check(pivot)
+
+    # Get initial state
+    camera_group_idx = model.index_for_group("Camera")
+
+    # Verify initial pivot model state matches source
+    assert pivot.rowCount() == 2  # Camera-Binning, Camera-BitDepth
+    assert pivot.columnCount() == 3  # HighRes, LowRes, MedRes
+    assert pivot.headerData(0, Qt.Orientation.Horizontal) == "HighRes"
+    assert pivot.headerData(1, Qt.Orientation.Horizontal) == "LowRes"
+    assert pivot.headerData(2, Qt.Orientation.Horizontal) == "MedRes"
+    assert pivot.headerData(0, Qt.Orientation.Vertical) == "Camera-Binning"
+    assert pivot.headerData(1, Qt.Orientation.Vertical) == "Camera-BitDepth"
+
+    # Test 1: Changes in source model trigger _rebuild in pivot model
+    # Add a new preset to the source model and verify pivot model updates
+    new_preset_idx = model.add_preset(camera_group_idx, "TestPreset")
+    assert new_preset_idx.isValid()
+
+    # Pivot should automatically rebuild and show the new preset
+    assert pivot.columnCount() == 4  # Now includes TestPreset
+    assert pivot.headerData(3, Qt.Orientation.Horizontal) == "TestPreset"
+
+    # Add a setting to the new preset
+    test_settings = [
+        Setting("Camera", "Binning", "8"),
+        Setting("Camera", "BitDepth", "14"),
+    ]
+    model.update_preset_settings(new_preset_idx, test_settings)
+
+    # Pivot should show the new data
+    assert pivot.data(pivot.index(0, 3)) == "8"  # Camera-Binning for TestPreset
+    assert pivot.data(pivot.index(1, 3)) == "14"  # Camera-BitDepth for TestPreset
+
+    # Test 2: Modifying data in source model updates pivot model
+    highres_preset_idx = model.index_for_preset(camera_group_idx, "HighRes")
+    # Value column of first setting
+    highres_setting_idx = model.index(0, 2, highres_preset_idx)
+
+    with qtbot.waitSignal(model.dataChanged):
+        model.setData(highres_setting_idx, "3")  # Change binning from 1 to 3
+
+    # Pivot should reflect the change
+    assert pivot.data(pivot.index(0, 0)) == "3"  # Camera-Binning for HighRes
+
+    # Test 3: Changes in pivot model update source model (setData direction)
+    # Change a value in the pivot model
+    pivot_idx = pivot.index(1, 1)  # Camera-BitDepth for LowRes
+    new_value = "16"
+
+    assert pivot.setData(pivot_idx, new_value)
+
+    # Verify the source model was updated
+    updated_groups = model.get_groups()
+    updated_camera_group = next(g for g in updated_groups if g.name == "Camera")
+    lowres_preset = updated_camera_group.presets["LowRes"]
+    bitdepth_setting = next(
+        s for s in lowres_preset.settings if s.property_name == "BitDepth"
+    )
+    assert bitdepth_setting.property_value == new_value
+
+    # Test 4: Removing presets from source updates pivot
+    # Remove the TestPreset we added
+    model.remove(new_preset_idx)
+    assert pivot.columnCount() == 3  # Back to original 3 presets
+
+    # Test 5: Adding a new device/property combination
+    # Add a setting with a new device/property to trigger row changes
+    medres_preset_idx = model.index_for_preset(camera_group_idx, "MedRes")
+    medres_preset_node = model._node_from_index(medres_preset_idx)
+
+    # Cast the payload to ConfigPreset type
+    from typing import cast
+
+    medres_preset = cast("ConfigPreset", medres_preset_node.payload)
+
+    # Add a new setting that doesn't exist in other presets
+    new_settings = [
+        *medres_preset.settings,
+        Setting("Camera", "NewProperty", "NewValue"),
+    ]
+    model.update_preset_settings(medres_preset_idx, new_settings)
+
+    # Pivot should add a new row for the new device/property combination
+    assert pivot.rowCount() == 3  # Now includes Camera-NewProperty
+    assert pivot.headerData(2, Qt.Orientation.Vertical) == "Camera-NewProperty"
+    assert pivot.data(pivot.index(2, 2)) == "NewValue"  # MedRes has the new property
+
+    # Other presets should show None/empty for this new property
+    assert pivot.data(pivot.index(2, 0)) is None  # HighRes doesn't have NewProperty
+    assert pivot.data(pivot.index(2, 1)) is None  # LowRes doesn't have NewProperty
+
+    # Test 6: Group change triggers complete rebuild
+    pivot.setGroup("LightPath")  # Switch to a different group
+    assert pivot.columnCount() == 3  # Camera-left, Camera-right, Eyepiece
+    assert pivot.rowCount() == 1  # Only Path-State
+    assert pivot.headerData(0, Qt.Orientation.Vertical) == "Path-State"
+
+    # Switch back to Camera group
+    pivot.setGroup("Camera")
+    assert pivot.rowCount() == 3  # Should reflect the state we left it in
+    assert pivot.columnCount() == 3
