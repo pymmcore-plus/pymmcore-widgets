@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from pymmcore_plus.model import ConfigPreset, Setting
@@ -41,6 +42,8 @@ class ConfigPresetsTableView(QTableView):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setItemDelegate(PropertySettingDelegate(self))
+        self._transpose_proxy: QTransposeProxyModel | None = None
+        self._pivot_model: _ConfigGroupPivotModel | None = None
 
     def setModel(self, model: QAbstractItemModel | None) -> None:
         """Set the model for the table view."""
@@ -55,6 +58,7 @@ class ConfigPresetsTableView(QTableView):
                 f"or ConfigGroupPivotModel. Got: {type(model).__name__}"
             )
 
+        self._pivot_model = matrix
         super().setModel(matrix)
         # this is a bit magical... but it looks better
         # will only happen once
@@ -62,10 +66,11 @@ class ConfigPresetsTableView(QTableView):
             QTimer.singleShot(0, self.stretchHeaders)
 
     def stretchHeaders(self) -> None:
-        if hh := self.horizontalHeader():
-            for col in range(hh.count()):
-                hh.setSectionResizeMode(col, hh.ResizeMode.Stretch)
-            self._have_stretched_headers = True
+        with suppress(RuntimeError):
+            if hh := self.horizontalHeader():
+                for col in range(hh.count()):
+                    hh.setSectionResizeMode(col, hh.ResizeMode.Stretch)
+                self._have_stretched_headers = True
 
     def _get_pivot_model(self) -> _ConfigGroupPivotModel:
         model = self.model()
@@ -91,14 +96,14 @@ class ConfigPresetsTableView(QTableView):
         """Transpose the table view."""
         pivot = self.model()
         if isinstance(pivot, _ConfigGroupPivotModel):
-            proxy = QTransposeProxyModel(self)
-            proxy.setSourceModel(pivot)
-            super().setModel(proxy)
+            self._transpose_proxy = QTransposeProxyModel()
+            self._transpose_proxy.setSourceModel(pivot)
+            super().setModel(self._transpose_proxy)
         elif isinstance(pivot, QTransposeProxyModel):
             # Already transposed, revert to original model
-            source_model = pivot.sourceModel()
-            if isinstance(source_model, _ConfigGroupPivotModel):
-                super().setModel(source_model)
+            if self._pivot_model:
+                super().setModel(self._pivot_model)
+                self._transpose_proxy = None
 
     def isTransposed(self) -> bool:
         """Check if the table view is currently transposed."""
