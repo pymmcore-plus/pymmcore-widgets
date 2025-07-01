@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from pymmcore_plus.model import ConfigPreset, Setting
 from qtpy.QtCore import (
@@ -9,6 +9,7 @@ from qtpy.QtCore import (
     QModelIndex,
     QSize,
     Qt,
+    QTimer,
     QTransposeProxyModel,
 )
 from qtpy.QtWidgets import QTableView, QToolBar, QVBoxLayout, QWidget
@@ -22,6 +23,9 @@ from ._property_setting_delegate import PropertySettingDelegate
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
     from pymmcore_plus.model import ConfigPreset
+    from PyQt6.QtGui import QAction
+else:
+    from qtpy.QtGui import QAction
 
 
 class ConfigPresetsTableView(QTableView):
@@ -43,37 +47,38 @@ class ConfigPresetsTableView(QTableView):
         if isinstance(model, QConfigGroupsModel):
             matrix = _ConfigGroupPivotModel()
             matrix.setSourceModel(model)
-        elif isinstance(model, _ConfigGroupPivotModel):
+        elif isinstance(model, _ConfigGroupPivotModel):  # pragma: no cover
             matrix = model
-        else:
+        else:  # pragma: no cover
             raise TypeError(
                 "Model must be an instance of QConfigGroupsModel "
                 f"or ConfigGroupPivotModel. Got: {type(model).__name__}"
             )
 
         super().setModel(matrix)
-        matrix.modelReset.connect(self._on_model_reset)
+        # this is a bit magical... but it looks better
+        # will only happen once
+        if not getattr(self, "_have_stretched_headers", False):
+            QTimer.singleShot(0, self.stretchHeaders)
 
-    def _on_model_reset(self) -> None:
-        matrix = self.model()
-        if not isinstance(matrix, _ConfigGroupPivotModel):
-            return
-
+    def stretchHeaders(self) -> None:
         if hh := self.horizontalHeader():
-            hh.setSectionResizeMode(hh.ResizeMode.Stretch)
+            for col in range(hh.count()):
+                hh.setSectionResizeMode(col, hh.ResizeMode.Stretch)
+            self._have_stretched_headers = True
 
     def _get_pivot_model(self) -> _ConfigGroupPivotModel:
         model = self.model()
         if isinstance(model, QTransposeProxyModel):
-            model = cast("_ConfigGroupPivotModel", model.sourceModel())
-        if not isinstance(model, _ConfigGroupPivotModel):
+            model = model.sourceModel()
+        if not isinstance(model, _ConfigGroupPivotModel):  # pragma: no cover
             raise ValueError("Source model is not set. Call setSourceModel first.")
         return model
 
     def sourceModel(self) -> QConfigGroupsModel:
         pivot_model = self._get_pivot_model()
         src_model = pivot_model.sourceModel()
-        if not isinstance(src_model, QConfigGroupsModel):
+        if not isinstance(src_model, QConfigGroupsModel):  # pragma: no cover
             raise ValueError("Source model is not a QConfigGroupsModel.")
         return src_model
 
@@ -124,60 +129,66 @@ class ConfigPresetsTable(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.table_view = ConfigPresetsTableView(self)
+        self.view = ConfigPresetsTableView(self)
 
         self._toolbar = tb = QToolBar(self)
         tb.setIconSize(QSize(16, 16))
         tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         if act := tb.addAction(
-            QIconifyIcon("carbon:transpose"), "Transpose", self.table_view.transpose
+            QIconifyIcon("carbon:transpose"), "Transpose", self.view.transpose
         ):
             act.setCheckable(True)
 
-        tb.addAction(
-            QIconifyIcon("mdi:delete-outline"), "Remove", self._on_remove_action
+        self.remove_action = QAction(QIconifyIcon("mdi:delete-outline"), "Remove")
+        tb.addAction(self.remove_action)
+        self.remove_action.triggered.connect(self._on_remove_action)
+
+        self.duplicate_action = QAction(
+            QIconifyIcon("mdi:content-duplicate"), "Duplicate"
         )
-        tb.addAction(
-            QIconifyIcon("mdi:content-duplicate"),
-            "Duplicate",
-            self._on_duplicate_action,
-        )
+        tb.addAction(self.duplicate_action)
+        self.duplicate_action.triggered.connect(self._on_duplicate_action)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._toolbar)
-        layout.addWidget(self.table_view)
+        layout.addWidget(self.view)
 
     def setModel(self, model: QAbstractItemModel | None) -> None:
         """Set the model for the table view."""
-        self.table_view.setModel(model)
+        self.view.setModel(model)
+
+    def sourceModel(self) -> QConfigGroupsModel | None:
+        """Return the source model of the table view."""
+        try:
+            return self.view.sourceModel()
+        except ValueError:  # pragma: no cover
+            return None
 
     def setGroup(self, group_name_or_index: str | QModelIndex) -> None:
         """Set the group to be displayed."""
-        self.table_view.setGroup(group_name_or_index)
+        self.view.setGroup(group_name_or_index)
 
     def _on_remove_action(self) -> None:
-        if self.table_view.isTransposed():
-            ...
-        else:
+        if not self.view.isTransposed():
             source_idx = self._get_selected_preset_index()
-            self.table_view.sourceModel().remove(source_idx)
+            self.view.sourceModel().remove(source_idx)
+        # TODO: handle transposed case
 
     def _on_duplicate_action(self) -> None:
-        if self.table_view.isTransposed():
-            ...
-        else:
+        if not self.view.isTransposed():
             source_idx = self._get_selected_preset_index()
-            self.table_view.sourceModel().duplicate_preset(source_idx)
+            self.view.sourceModel().duplicate_preset(source_idx)
+        # TODO: handle transposed case
 
     def _get_selected_preset_index(self) -> QModelIndex:
         """Get the currently selected preset from the source model."""
-        if sm := self.table_view.selectionModel():
+        if sm := self.view.selectionModel():
             if indices := sm.selectedColumns():
-                pivot_model = self.table_view._get_pivot_model()
+                pivot_model = self.view._get_pivot_model()
                 col = indices[0].column()
                 return pivot_model.get_source_index_for_column(col)
-        return QModelIndex()
+        return QModelIndex()  # pragma: no cover
 
 
 # -----------------------------------------------------------------------------
@@ -200,7 +211,7 @@ class _ConfigGroupPivotModel(QAbstractTableModel):
 
     def setSourceModel(self, src_model: QConfigGroupsModel) -> None:
         """Set the source model and rebuild the matrix."""
-        if not isinstance(src_model, QConfigGroupsModel):
+        if not isinstance(src_model, QConfigGroupsModel):  # pragma: no cover
             raise TypeError("Source model must be an instance of QConfigGroupsModel.")
         self._src = src_model
 
@@ -209,15 +220,16 @@ class _ConfigGroupPivotModel(QAbstractTableModel):
         src_model.rowsInserted.connect(self._rebuild)
         src_model.rowsRemoved.connect(self._rebuild)
         src_model.dataChanged.connect(self._rebuild)
+        src_model.modelReset.connect(self._rebuild)
 
     def setGroup(self, group_name_or_index: str | QModelIndex) -> None:
         """Set the group index to pivot and rebuild the matrix."""
-        if self._src is None:
+        if self._src is None:  # pragma: no cover
             raise ValueError("Source model is not set. Call setSourceModel first.")
         if not isinstance(group_name_or_index, QModelIndex):
             self._gidx = self._src.index_for_group(group_name_or_index)
         else:
-            if not group_name_or_index.isValid():
+            if not group_name_or_index.isValid():  # pragma: no cover
                 raise ValueError("Invalid QModelIndex provided for group selection.")
             self._gidx = group_name_or_index
         self._rebuild()
@@ -268,7 +280,7 @@ class _ConfigGroupPivotModel(QAbstractTableModel):
 
     def _rebuild(self) -> None:  # slot signature is flexible
         if self._gidx is None:  # nothing selected yet
-            return
+            return  # pragma: no cover
         self.beginResetModel()
 
         node = self._gidx.internalPointer()
@@ -308,14 +320,14 @@ class _ConfigGroupPivotModel(QAbstractTableModel):
             if orient == Qt.Orientation.Vertical:
                 try:
                     dev, _prop = self._rows[section]
-                except IndexError:
+                except IndexError:  # pragma: no cover
                     return None
                 if icon := get_device_icon(dev):
                     return icon.pixmap(QSize(16, 16))
         return None
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
-        if not index.isValid():
+        if not index.isValid():  # pragma: no cover
             return None
 
         setting = self._data.get((index.row(), index.column()))
@@ -334,7 +346,7 @@ class _ConfigGroupPivotModel(QAbstractTableModel):
 
     # make editable
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:
-        if not index.isValid():
+        if not index.isValid():  # pragma: no cover
             return Qt.ItemFlag.NoItemFlags
         return (
             Qt.ItemFlag.ItemIsEnabled
@@ -344,9 +356,9 @@ class _ConfigGroupPivotModel(QAbstractTableModel):
 
     def get_source_index_for_column(self, column: int) -> QModelIndex:
         """Get the source index for a given column in the pivot model."""
-        if self._src is None or self._gidx is None:
+        if self._src is None or self._gidx is None:  # pragma: no cover
             raise ValueError("Source model or group index is not set.")
-        if column < 0 or column >= len(self._presets):
+        if column < 0 or column >= len(self._presets):  # pragma: no cover
             raise IndexError("Column index out of range.")
 
         preset = self._presets[column]
