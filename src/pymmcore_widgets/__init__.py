@@ -50,12 +50,12 @@ __all__ = [
 from ._install_widget import InstallWidget
 from ._log import CoreLogWidget
 from .config_presets import (
+    ConfigGroupsEditor,
     ConfigGroupsTree,
     GroupPresetTableWidget,
     ObjectivesPixelConfigurationWidget,
     PixelConfigurationWidget,
 )
-from .config_presets._qmodel._config_views import ConfigGroupsEditor
 from .control import (
     CameraRoiWidget,
     ChannelGroupWidget,

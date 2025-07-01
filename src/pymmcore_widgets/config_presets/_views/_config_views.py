@@ -18,10 +18,13 @@ from qtpy.QtWidgets import (
 from superqt import QIconifyIcon
 
 from pymmcore_widgets._icons import ICONS
-from pymmcore_widgets.config_presets._qmodel._presets_table import PresetsTable
+from pymmcore_widgets.config_presets._qmodel._config_model import (
+    QConfigGroupsModel,
+    _Node,
+)
 from pymmcore_widgets.device_properties import DevicePropertyTable
 
-from ._config_model import QConfigGroupsModel, _Node
+from ._config_presets_table import ConfigPresetsTable
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -345,7 +348,7 @@ class _PropSettings(QSplitter):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(Qt.Orientation.Vertical, parent)
         # 2D table with presets as columns and device properties as rows
-        self._presets_table = PresetsTable(self)
+        self._presets_table = ConfigPresetsTable(self)
 
         # regular property table for editing all device properties
         self._prop_tables = DevicePropertyTable()
