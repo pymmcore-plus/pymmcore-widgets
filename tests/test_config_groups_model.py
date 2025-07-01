@@ -11,6 +11,9 @@ from qtpy.QtGui import QFont, QIcon, QPixmap
 from qtpy.QtWidgets import QMessageBox
 
 from pymmcore_widgets.config_presets import QConfigGroupsModel
+from pymmcore_widgets.config_presets._views._config_presets_table import (
+    _ConfigGroupPivotModel,
+)
 
 if TYPE_CHECKING:
     from pytestqt.modeltest import ModelTester
@@ -238,3 +241,10 @@ def test_standard_item_model(
     model: QConfigGroupsModel, qtmodeltester: ModelTester
 ) -> None:
     qtmodeltester.check(model)
+
+
+def test_pivot_model(model: QConfigGroupsModel, qtmodeltester: ModelTester) -> None:
+    pivot = _ConfigGroupPivotModel()
+    pivot.setSourceModel(model)
+    pivot.setGroup("Channel")
+    qtmodeltester.check(pivot)
