@@ -54,6 +54,10 @@ class DeviceProperty(_BaseModel):
                 }
         return values
 
+    def display_name(self) -> str:
+        """Return a display name for the property."""
+        return f"{self.device_label}-{self.property_name}"
+
 
 class ConfigPreset(_BaseModel):
     """Set of settings in a ConfigGroup."""
