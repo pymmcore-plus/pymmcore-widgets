@@ -9,15 +9,13 @@ from qtpy.QtCore import QModelIndex, Qt
 from qtpy.QtGui import QFont, QIcon, QPixmap
 from qtpy.QtWidgets import QMessageBox
 
-from pymmcore_widgets._models._py_config_model import (
+from pymmcore_widgets._models import (
     ConfigGroup,
+    ConfigGroupPivotModel,
     ConfigPreset,
     DevicePropertySetting,
+    QConfigGroupsModel,
     get_config_groups,
-)
-from pymmcore_widgets._models._q_config_model import QConfigGroupsModel
-from pymmcore_widgets.config_presets._views._config_presets_table import (
-    _ConfigGroupPivotModel,
 )
 
 if TYPE_CHECKING:
@@ -247,7 +245,7 @@ def test_standard_item_model(
 
 
 def test_pivot_model(model: QConfigGroupsModel, qtmodeltester: ModelTester) -> None:
-    pivot = _ConfigGroupPivotModel()
+    pivot = ConfigGroupPivotModel()
     pivot.setSourceModel(model)
     pivot.setGroup("Channel")
     qtmodeltester.check(pivot)
@@ -258,7 +256,7 @@ def test_pivot_model_two_way_sync(
 ) -> None:
     """Test _ConfigGroupPivotModel stays in sync with QConfigGroupsModel."""
     # Create pivot model and set it up
-    pivot = _ConfigGroupPivotModel()
+    pivot = ConfigGroupPivotModel()
     pivot.setSourceModel(model)
     pivot.setGroup("Camera")  # Camera group has 3 presets and 2 settings each
     qtmodeltester.check(pivot)
