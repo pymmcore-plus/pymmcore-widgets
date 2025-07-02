@@ -9,15 +9,13 @@ from qtpy.QtCore import QModelIndex, Qt
 from qtpy.QtGui import QFont, QIcon, QPixmap
 from qtpy.QtWidgets import QMessageBox
 
-from pymmcore_widgets.config_presets import QConfigGroupsModel
-from pymmcore_widgets.config_presets._model._py_config_model import (
+from pymmcore_widgets._models._py_config_model import (
     ConfigGroup,
     ConfigPreset,
+    DevicePropertySetting,
     get_config_groups,
 )
-from pymmcore_widgets.config_presets._model._py_config_model import (
-    DeviceProperty as Setting,
-)
+from pymmcore_widgets._models._q_config_model import QConfigGroupsModel
 from pymmcore_widgets.config_presets._views._config_presets_table import (
     _ConfigGroupPivotModel,
 )
@@ -75,7 +73,7 @@ def test_model_basic_methods(model: QConfigGroupsModel) -> None:
     [
         (Qt.ItemDataRole.DisplayRole, str),
         (Qt.ItemDataRole.EditRole, str),
-        (Qt.ItemDataRole.UserRole, (ConfigGroup, ConfigPreset, Setting)),
+        (Qt.ItemDataRole.UserRole, (ConfigGroup, ConfigPreset, DevicePropertySetting)),
         (Qt.ItemDataRole.FontRole, QFont),
         (Qt.ItemDataRole.DecorationRole, (QIcon, QPixmap)),
     ],
@@ -227,7 +225,9 @@ def test_update_preset_settings(model: QConfigGroupsModel, qtbot: QtBot) -> None
     grp0_index = model.index(0, 0)
     preset0_index = model.index(0, 0, grp0_index)
     new_settings = [
-        Setting(device="NewDevice", property_name="NewProperty", value="NewValue")
+        DevicePropertySetting(
+            device="NewDevice", property_name="NewProperty", value="NewValue"
+        )
     ]
     model.update_preset_settings(preset0_index, new_settings)
 
@@ -286,8 +286,8 @@ def test_pivot_model_two_way_sync(
 
     # Add a setting to the new preset
     test_settings = [
-        Setting(device="Camera", property_name="Binning", value="8"),
-        Setting(device="Camera", property_name="BitDepth", value="14"),
+        DevicePropertySetting(device="Camera", property_name="Binning", value="8"),
+        DevicePropertySetting(device="Camera", property_name="BitDepth", value="14"),
     ]
     model.update_preset_settings(new_preset_idx, test_settings)
 
@@ -340,7 +340,7 @@ def test_pivot_model_two_way_sync(
     # Add a new setting that doesn't exist in other presets
     new_settings = [
         *medres_preset.settings,
-        Setting("Camera", "NewProperty", "NewValue"),
+        DevicePropertySetting("Camera", "NewProperty", "NewValue"),
     ]
     model.update_preset_settings(medres_preset_idx, new_settings)
 

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from qtpy.QtWidgets import QTreeView, QWidget
 
-from pymmcore_widgets.config_presets._model._q_config_model import QConfigGroupsModel
+from pymmcore_widgets._models._q_config_model import QConfigGroupsModel
 from pymmcore_widgets.config_presets._views._property_setting_delegate import (
     PropertySettingDelegate,
 )

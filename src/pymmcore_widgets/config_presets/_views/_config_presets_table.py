@@ -16,17 +16,16 @@ from qtpy.QtWidgets import QTableView, QToolBar, QVBoxLayout, QWidget
 from superqt import QIconifyIcon
 
 from pymmcore_widgets._icons import get_device_icon
-from pymmcore_widgets.config_presets._model._py_config_model import ConfigPreset
-from pymmcore_widgets.config_presets._model._py_config_model import (
-    DeviceProperty as Setting,
-)
-from pymmcore_widgets.config_presets._model._q_config_model import QConfigGroupsModel
+from pymmcore_widgets._models._py_config_model import DevicePropertySetting
+from pymmcore_widgets._models._q_config_model import QConfigGroupsModel
 
 from ._property_setting_delegate import PropertySettingDelegate
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
     from PyQt6.QtGui import QAction
+
+    from pymmcore_widgets._models._py_config_model import ConfigPreset
 else:
     from qtpy.QtGui import QAction
 
@@ -210,7 +209,7 @@ class _ConfigGroupPivotModel(QAbstractTableModel):
         self._gidx: QModelIndex | None = None
         self._presets: list[ConfigPreset] = []
         self._rows: list[tuple[str, str]] = []  # (device_name, property_name)
-        self._data: dict[tuple[int, int], Setting] = {}
+        self._data: dict[tuple[int, int], DevicePropertySetting] = {}
 
     def sourceModel(self) -> QConfigGroupsModel | None:
         """Return the source model."""
@@ -257,10 +256,9 @@ class _ConfigGroupPivotModel(QAbstractTableModel):
         # Get the preset and device/property for this cell
         preset = self._presets[col]
         dev_prop = self._rows[row]
-        breakpoint()
         # Create or update the setting
         # Update our local data
-        self._data[(row, col)] = setting = Setting(
+        self._data[(row, col)] = setting = DevicePropertySetting(
             device=dev_prop[0], property_name=dev_prop[1], value=str(value)
         )
 

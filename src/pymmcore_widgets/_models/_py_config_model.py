@@ -32,7 +32,7 @@ class Device(_BaseModel):
     description: str = Field(default="", frozen=True)
     type: DeviceType = Field(default=DeviceType.Unknown, frozen=True)
 
-    properties: tuple[DeviceProperty, ...] = Field(default_factory=tuple)
+    properties: tuple[DevicePropertySetting, ...] = Field(default_factory=tuple)
 
     @property
     def is_loaded(self) -> bool:
@@ -59,7 +59,7 @@ class Device(_BaseModel):
         return values
 
 
-class DeviceProperty(_BaseModel):
+class DevicePropertySetting(_BaseModel):
     """One property on a device."""
 
     device: Device = Field(..., repr=False, exclude=True)
@@ -108,7 +108,7 @@ class DeviceProperty(_BaseModel):
 
     def __eq__(self, other: Any) -> bool:
         # deal with recursive equality checks
-        if not isinstance(other, DeviceProperty):
+        if not isinstance(other, DevicePropertySetting):
             return False
         return (
             self.device_label == other.device_label
@@ -127,7 +127,7 @@ class ConfigPreset(_BaseModel):
     """Set of settings in a ConfigGroup."""
 
     name: str
-    settings: list[DeviceProperty] = Field(default_factory=list)
+    settings: list[DevicePropertySetting] = Field(default_factory=list)
 
     parent: ConfigGroup | None = Field(default=None, exclude=True, repr=False)
 
@@ -161,7 +161,7 @@ class PixelSizeConfigs(ConfigGroup):
     presets: dict[str, PixelSizePreset] = Field(default_factory=dict)  # type: ignore[assignment]
 
 
-DeviceProperty.model_rebuild()
+DevicePropertySetting.model_rebuild()
 ConfigPreset.model_rebuild()
 ConfigGroup.model_rebuild()
 PixelSizePreset.model_rebuild()
@@ -204,9 +204,9 @@ def get_config_presets(core: CMMCorePlus, group: str) -> Iterable[ConfigPreset]:
 
 def get_preset_settings(
     core: CMMCorePlus, group: str, preset: str
-) -> Iterable[DeviceProperty]:
+) -> Iterable[DevicePropertySetting]:
     for device, prop, value in core.getConfigData(group, preset):
-        prop_model = DeviceProperty(
+        prop_model = DevicePropertySetting(
             device=_get_device(core, device),
             value=value,
             **get_property_info(core, device, prop),
@@ -253,7 +253,7 @@ def get_loaded_devices(core: CMMCorePlus) -> Iterable[Device]:
         props = []
         for prop in core.getDevicePropertyNames(label):
             prop_info = get_property_info(core, label, prop)
-            props.append(DeviceProperty(device=dev, **prop_info))
+            props.append(DevicePropertySetting(device=dev, **prop_info))
         dev.properties = tuple(props)
         yield dev
 

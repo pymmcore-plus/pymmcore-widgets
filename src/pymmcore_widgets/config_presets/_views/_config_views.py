@@ -17,17 +17,13 @@ from qtpy.QtWidgets import (
 from superqt import QIconifyIcon
 
 from pymmcore_widgets._icons import DEVICE_TYPE_ICON
-from pymmcore_widgets.config_presets._model._py_config_model import (
+from pymmcore_widgets._models._py_config_model import (
     ConfigGroup,
     ConfigPreset,
+    DevicePropertySetting,
     get_config_groups,
 )
-from pymmcore_widgets.config_presets._model._py_config_model import (
-    DeviceProperty as Setting,
-)
-from pymmcore_widgets.config_presets._model._q_config_model import (
-    QConfigGroupsModel,
-)
+from pymmcore_widgets._models._q_config_model import QConfigGroupsModel
 from pymmcore_widgets.device_properties import DevicePropertyTable
 
 from ._config_presets_table import ConfigPresetsTable
@@ -38,7 +34,7 @@ if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
     from PyQt6.QtGui import QAction, QActionGroup
 
-    from pymmcore_widgets.config_presets._model._base_tree_model import _Node
+    from pymmcore_widgets._models._base_tree_model import _Node
 
 else:
     from qtpy.QtGui import QAction, QActionGroup
@@ -378,11 +374,13 @@ class _PropSettings(QSplitter):
 
         self._filter_properties()
 
-    def value(self) -> list[Setting]:
+    def value(self) -> list[DevicePropertySetting]:
         """Return the current value of the property table."""
-        return [Setting.model_validate(v) for v in self._prop_tables.value()]
+        return [
+            DevicePropertySetting.model_validate(v) for v in self._prop_tables.value()
+        ]
 
-    def setValue(self, value: list[Setting]) -> None:
+    def setValue(self, value: list[DevicePropertySetting]) -> None:
         """Set the value of the property table."""
         self._prop_tables.setValue([v.as_tuple() for v in value])
 

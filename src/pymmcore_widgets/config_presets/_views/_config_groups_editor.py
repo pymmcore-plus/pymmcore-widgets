@@ -13,12 +13,12 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from pymmcore_widgets.config_presets._model._py_config_model import (
+from pymmcore_widgets._models._py_config_model import (
     ConfigGroup,
     ConfigPreset,
     get_config_groups,
 )
-from pymmcore_widgets.config_presets._model._q_config_model import (
+from pymmcore_widgets._models._q_config_model import (
     QConfigGroupsModel,
 )
 from pymmcore_widgets.device_properties import DevicePropertyTable
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
     from pymmcore_plus import CMMCorePlus
 
-    from pymmcore_widgets.config_presets._model._base_tree_model import _Node
+    from pymmcore_widgets._models._base_tree_model import _Node
 else:
     pass
 

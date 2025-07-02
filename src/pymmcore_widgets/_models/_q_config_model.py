@@ -2,26 +2,20 @@ from __future__ import annotations
 
 from copy import deepcopy
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any, cast, overload
+from typing import TYPE_CHECKING, Any, cast
 
-from qtpy.QtCore import QAbstractItemModel, QModelIndex, Qt
+from qtpy.QtCore import QModelIndex, Qt
 from qtpy.QtGui import QFont, QIcon
 from qtpy.QtWidgets import QMessageBox
 
 from pymmcore_widgets._icons import get_device_icon
 
-# from pymmcore_widgets.config_presets._model._base_tree_model import (
-#     _BaseTreeModel,
-#     _Node,
-# )
+from ._base_tree_model import _BaseTreeModel, _Node
 from ._py_config_model import (
     ConfigGroup,
     ConfigPreset,
-    Device,
+    DevicePropertySetting,
     get_config_groups,
-)
-from ._py_config_model import (
-    DeviceProperty as Setting,
 )
 
 if TYPE_CHECKING:
@@ -41,64 +35,7 @@ class Col(IntEnum):
     Value = 2
 
 
-class _Node:
-    """Generic tree node that wraps a ConfigGroup, ConfigPreset, or Setting."""
-
-    @classmethod
-    def create(
-        cls,
-        payload: ConfigGroup | ConfigPreset | Setting,
-        parent: _Node | None = None,
-        recursive: bool = True,
-    ) -> Self:
-        """Create a new _Node with the given name and payload."""
-        if isinstance(payload, Setting):
-            name = payload.display_name()
-        else:
-            name = payload.name
-
-        node = cls(name, payload, parent)
-        if recursive:
-            if isinstance(payload, ConfigGroup):
-                for p in payload.presets.values():
-                    node.children.append(_Node.create(p, node))
-            elif isinstance(payload, ConfigPreset):
-                for s in payload.settings:
-                    node.children.append(_Node.create(s, node))
-        return node
-
-    def __init__(
-        self,
-        name: str,
-        payload: ConfigGroup | ConfigPreset | Setting | None = None,
-        parent: _Node | None = None,
-    ) -> None:
-        self.name = name
-        self.payload = payload
-        self.parent = parent
-        self.children: list[_Node] = []
-
-    # convenience ------------------------------------------------------------
-
-    def row_in_parent(self) -> int:
-        return -1 if self.parent is None else self.parent.children.index(self)
-
-    # type helpers -----------------------------------------------------------
-
-    @property
-    def is_group(self) -> bool:
-        return isinstance(self.payload, ConfigGroup)
-
-    @property
-    def is_preset(self) -> bool:
-        return isinstance(self.payload, ConfigPreset)
-
-    @property
-    def is_setting(self) -> bool:
-        return isinstance(self.payload, Setting)
-
-
-class QConfigGroupsModel(QAbstractItemModel):
+class QConfigGroupsModel(_BaseTreeModel):
     """Three-level model: root → groups → presets → settings."""
 
     @classmethod
@@ -107,7 +44,6 @@ class QConfigGroupsModel(QAbstractItemModel):
 
     def __init__(self, groups: Iterable[ConfigGroup] | None = None) -> None:
         super().__init__()
-        self._root = _Node("<root>", None)
         if groups:
             self.set_groups(groups)
 
@@ -115,49 +51,9 @@ class QConfigGroupsModel(QAbstractItemModel):
     # Required Qt model overrides
     # ------------------------------------------------------------------
 
-    # structure helpers -------------------------------------------------------
-
-    def rowCount(self, parent: QModelIndex | None = None) -> int:
-        # Only column 0 should have children in tree models
-        if parent is not None and parent.isValid() and parent.column() != 0:
-            return 0
-        return len(self._node_from_index(parent).children)
-
     def columnCount(self, _parent: QModelIndex | None = None) -> int:
         # In most subclasses, the number of columns is independent of the parent.
         return len(Col)
-
-    def index(
-        self, row: int, column: int = 0, parent: QModelIndex | None = None
-    ) -> QModelIndex:
-        """Return the index of the item specified by row, column and parent index."""
-        parent_node = self._node_from_index(parent)
-        if 0 <= row < len(parent_node.children):
-            return self.createIndex(row, column, parent_node.children[row])
-        return QModelIndex()  # pragma: no cover
-
-    @overload
-    def parent(self, child: QModelIndex) -> QModelIndex: ...
-    @overload
-    def parent(self) -> QObject | None: ...
-    def parent(self, child: QModelIndex | None = None) -> QModelIndex | QObject | None:
-        """Return the parent of the model item with the given index.
-
-        If the item has no parent, an invalid QModelIndex is returned.
-        """
-        if child is None:  # pragma: no cover
-            return None
-        node = self._node_from_index(child)
-        if (
-            node is self._root
-            or not (parent_node := node.parent)
-            or parent_node is self._root
-        ):
-            return QModelIndex()
-
-        # A common convention used in models that expose tree data structures is that
-        # only items in the first column have children.
-        return self.createIndex(parent_node.row_in_parent(), 0, parent_node)
 
     # data & editing ----------------------------------------------------------
 
@@ -171,19 +67,20 @@ class QConfigGroupsModel(QAbstractItemModel):
         if role == Qt.ItemDataRole.UserRole:
             return node.payload
 
-        if role == Qt.ItemDataRole.FontRole and index.column() == Col.Item:
+        col = index.column()
+        if role == Qt.ItemDataRole.FontRole and col == Col.Item:
             f = QFont()
             if node.is_group:
                 f.setBold(True)
             return f
 
-        if role == Qt.ItemDataRole.DecorationRole and index.column() == Col.Item:
+        if role == Qt.ItemDataRole.DecorationRole and col == Col.Item:
             if node.is_group:
                 return QIcon.fromTheme("folder")
             if node.is_preset:
                 return QIcon.fromTheme("document")
             if node.is_setting:
-                setting = cast("Setting", node.payload)
+                setting = cast("DevicePropertySetting", node.payload)
                 if icon := get_device_icon(setting.device_label, color="gray"):
                     return icon.pixmap(16, 16)
                 return QIcon.fromTheme("emblem-system")  # pragma: no cover
@@ -191,15 +88,15 @@ class QConfigGroupsModel(QAbstractItemModel):
         if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
             # settings: show Device, Property, Value
             if node.is_setting:
-                setting = cast("Setting", node.payload)
-                if index.column() == Col.Item:
+                setting = cast("DevicePropertySetting", node.payload)
+                if col == Col.Item:
                     return setting.device_label
-                if index.column() == Col.Property:
+                if col == Col.Property:
                     return setting.property_name
-                if index.column() == Col.Value:
+                if col == Col.Value:
                     return setting.value
             # groups / presets: only show name
-            elif index.column() == Col.Item:
+            elif col == Col.Item:
                 return node.name
 
         return None
@@ -216,14 +113,14 @@ class QConfigGroupsModel(QAbstractItemModel):
         if node.is_setting:
             if 0 > index.column() > 3:
                 return False  # pragma: no cover
-            dev, prop, val = cast("Setting", node.payload).as_tuple()
+            dev, prop, val = cast("DevicePropertySetting", node.payload).as_tuple()
 
             # update node in place  # FIXME ... this is hacky
             args = [dev, prop, val]
             args[index.column()] = str(value)
             node.name = f"{args[0]}-{args[1]}"
-            node.payload = new_setting = Setting(
-                device=Device(label=args[0]), property_name=args[1], value=args[2]
+            node.payload = new_setting = DevicePropertySetting(
+                device=args[0], property_name=args[1], value=args[2]
             )
 
             # also update the parent preset.settings list reference
@@ -312,7 +209,7 @@ class QConfigGroupsModel(QAbstractItemModel):
         name = self._unique_child_name(self._root, base_name)
         group = ConfigGroup(name=name)
         row = self.rowCount()
-        if self.insertRows(row, 1, NULL_INDEX, _payloads=[group]):
+        if self.insertRows(row, 1, QModelIndex(), _payloads=[group]):
             return self.index(row, 0)
         return QModelIndex()  # pragma: no cover
 
@@ -326,7 +223,7 @@ class QConfigGroupsModel(QAbstractItemModel):
         new_grp = deepcopy(grp)
         new_grp.name = new_name or self._unique_child_name(self._root, new_grp.name)
         row = idx.row() + 1
-        if self.insertRows(row, 1, NULL_INDEX, _payloads=[new_grp]):
+        if self.insertRows(row, 1, QModelIndex(), _payloads=[new_grp]):
             return self.index(row, 0)
         return QModelIndex()  # pragma: no cover
 
@@ -390,7 +287,9 @@ class QConfigGroupsModel(QAbstractItemModel):
                 if isinstance((p := n.payload), ConfigPreset)
             }
         elif isinstance((preset := parent_node.payload), ConfigPreset):
-            preset.settings = [cast("Setting", n.payload) for n in parent_node.children]
+            preset.settings = [
+                cast("DevicePropertySetting", n.payload) for n in parent_node.children
+            ]
 
         self.endRemoveRows()
         return True
@@ -405,7 +304,7 @@ class QConfigGroupsModel(QAbstractItemModel):
 
     # TODO: feels like this should be replaced with a more canonical method...
     def update_preset_settings(
-        self, preset_idx: QModelIndex, settings: list[Setting]
+        self, preset_idx: QModelIndex, settings: list[DevicePropertySetting]
     ) -> None:
         """Replace settings for `preset_idx` and update the tree safely."""
         preset_node = self._node_from_index(preset_idx)
@@ -461,17 +360,6 @@ class QConfigGroupsModel(QAbstractItemModel):
         """Return All ConfigGroups in the model."""
         return deepcopy([cast("ConfigGroup", n.payload) for n in self._root.children])
 
-    def _node_from_index(self, index: QModelIndex | None) -> _Node:
-        if (
-            index
-            and index.isValid()
-            and isinstance((node := index.internalPointer()), _Node)
-        ):
-            # return the node if index is valid
-            return node
-        # otherwise return the root node
-        return self._root
-
     # insertion ---------------------------------------------------------------
 
     # TODO: use this instead of _insert_node
@@ -485,7 +373,8 @@ class QConfigGroupsModel(QAbstractItemModel):
         count: int,
         parent: QModelIndex = NULL_INDEX,
         *,
-        _payloads: list[ConfigGroup | ConfigPreset | Setting] | None = None,
+        _payloads: list[ConfigGroup | ConfigPreset | DevicePropertySetting]
+        | None = None,
     ) -> bool:
         """Insert *count* rows at *row* under *parent*.
 
@@ -541,7 +430,7 @@ class QConfigGroupsModel(QAbstractItemModel):
         elif isinstance((pre := parent_node.payload), ConfigPreset):
             settings = list(pre.settings)
             for i, payload in enumerate(_payloads):
-                settings.insert(row + i, cast("Setting", payload))
+                settings.insert(row + i, cast("DevicePropertySetting", payload))
             pre.settings = settings
 
         self.endInsertRows()
