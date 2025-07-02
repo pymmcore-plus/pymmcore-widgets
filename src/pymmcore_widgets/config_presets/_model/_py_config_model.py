@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 from pymmcore_plus import CMMCorePlus, DeviceType, PropertyType
 from typing_extensions import TypeAlias  # py310
 
@@ -50,11 +50,19 @@ class Device(_BaseModel):
         """Return a unique key for the device."""
         return (self.library, self.name)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _validate_input(cls, values: Any) -> Any:
+        """Validate the input values."""
+        if isinstance(values, str):
+            return {"label": values}
+        return values
+
 
 class DeviceProperty(_BaseModel):
     """One property on a device."""
 
-    device: Device
+    device: Device = Field(..., repr=False, exclude=True)
     property_name: str
     value: str = ""
 
@@ -65,12 +73,17 @@ class DeviceProperty(_BaseModel):
     property_type: PropertyType = Field(default=PropertyType.Undef, frozen=True)
     sequence_max_length: int = Field(default=0, frozen=True)
 
-    parent: ConfigPreset | None = None
+    parent: ConfigPreset | None = Field(default=None, exclude=True, repr=False)
 
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def device_label(self) -> str:
         """Return the label of the device."""
         return self.device.label
+
+    def key(self) -> tuple[str, str]:
+        """Return a unique key for the Property."""
+        return (self.device_label, self.property_name)
 
     def as_tuple(self) -> tuple[str, str, str]:
         """Return the property as a tuple."""
@@ -93,6 +106,22 @@ class DeviceProperty(_BaseModel):
         """Return a display name for the property."""
         return f"{self.device_label}-{self.property_name}"
 
+    def __eq__(self, other: Any) -> bool:
+        # deal with recursive equality checks
+        if not isinstance(other, DeviceProperty):
+            return False
+        return (
+            self.device_label == other.device_label
+            and self.property_name == other.property_name
+            and self.value == other.value
+            and self.is_read_only == other.is_read_only
+            and self.is_pre_init == other.is_pre_init
+            and self.allowed_values == other.allowed_values
+            and self.limits == other.limits
+            and self.property_type == other.property_type
+            and self.sequence_max_length == other.sequence_max_length
+        )
+
 
 class ConfigPreset(_BaseModel):
     """Set of settings in a ConfigGroup."""
@@ -100,7 +129,15 @@ class ConfigPreset(_BaseModel):
     name: str
     settings: list[DeviceProperty] = Field(default_factory=list)
 
-    parent: ConfigGroup | None = None
+    parent: ConfigGroup | None = Field(default=None, exclude=True, repr=False)
+
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, ConfigPreset):
+            return False
+        return (
+            self.name == value.name
+            and self.settings == value.settings
+        )
 
 
 class ConfigGroup(_BaseModel):

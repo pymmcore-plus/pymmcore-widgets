@@ -3,7 +3,6 @@ from __future__ import annotations
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
-from pymmcore_plus.model import ConfigPreset, Setting
 from qtpy.QtCore import (
     QAbstractItemModel,
     QAbstractTableModel,
@@ -17,13 +16,16 @@ from qtpy.QtWidgets import QTableView, QToolBar, QVBoxLayout, QWidget
 from superqt import QIconifyIcon
 
 from pymmcore_widgets._icons import get_device_icon
+from pymmcore_widgets.config_presets._model._py_config_model import ConfigPreset
+from pymmcore_widgets.config_presets._model._py_config_model import (
+    DeviceProperty as Setting,
+)
 from pymmcore_widgets.config_presets._model._q_config_model import QConfigGroupsModel
 
 from ._property_setting_delegate import PropertySettingDelegate
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
-    from pymmcore_plus.model import ConfigPreset
     from PyQt6.QtGui import QAction
 else:
     from qtpy.QtGui import QAction
@@ -255,10 +257,12 @@ class _ConfigGroupPivotModel(QAbstractTableModel):
         # Get the preset and device/property for this cell
         preset = self._presets[col]
         dev_prop = self._rows[row]
-
+        breakpoint()
         # Create or update the setting
         # Update our local data
-        self._data[(row, col)] = setting = Setting(dev_prop[0], dev_prop[1], str(value))
+        self._data[(row, col)] = setting = Setting(
+            device=dev_prop[0], property_name=dev_prop[1], value=str(value)
+        )
 
         # Update the preset's settings list
         preset_settings = list(preset.settings)
@@ -289,14 +293,14 @@ class _ConfigGroupPivotModel(QAbstractTableModel):
 
         node = self._gidx.internalPointer()
         self._presets = [child.payload for child in node.children]
-        keys = ((dev, prop) for p in self._presets for (dev, prop, *_) in p.settings)
+        keys = (setting.key() for p in self._presets for setting in p.settings)
         self._rows = list(dict.fromkeys(keys, None))  # unique (device, prop) pairs
 
         self._data.clear()
         for col, preset in enumerate(self._presets):
             for row, (device, prop) in enumerate(self._rows):
                 for s in preset.settings:
-                    if (s.device_name, s.property_name) == (device, prop):
+                    if s.key() == (device, prop):
                         self._data[(row, col)] = s
                         break
 
@@ -349,7 +353,7 @@ class _ConfigGroupPivotModel(QAbstractTableModel):
             Qt.ItemDataRole.DisplayRole,
             Qt.ItemDataRole.EditRole,
         ):
-            return setting.property_value if setting else None
+            return setting.value if setting else None
         return None
 
     # make editable

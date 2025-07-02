@@ -5,12 +5,19 @@ from unittest.mock import patch
 
 import pytest
 from pymmcore_plus import CMMCorePlus
-from pymmcore_plus.model import ConfigGroup, ConfigPreset, Setting
 from qtpy.QtCore import QModelIndex, Qt
 from qtpy.QtGui import QFont, QIcon, QPixmap
 from qtpy.QtWidgets import QMessageBox
 
 from pymmcore_widgets.config_presets import QConfigGroupsModel
+from pymmcore_widgets.config_presets._model._py_config_model import (
+    ConfigGroup,
+    ConfigPreset,
+    get_config_groups,
+)
+from pymmcore_widgets.config_presets._model._py_config_model import (
+    DeviceProperty as Setting,
+)
 from pymmcore_widgets.config_presets._views._config_presets_table import (
     _ConfigGroupPivotModel,
 )
@@ -34,7 +41,7 @@ def test_model_initialization() -> None:
     # not using the fixture here, as we want to test the model creation directly
     core = CMMCorePlus()
     core.loadSystemConfiguration()
-    python_info = list(ConfigGroup.all_config_groups(core).values())
+    python_info = list(get_config_groups(core))
     model = QConfigGroupsModel(python_info)
 
     assert isinstance(model, QConfigGroupsModel)
@@ -122,7 +129,7 @@ def test_model_set_data(model: QConfigGroupsModel, qtbot: QtBot) -> None:
     assert preset0.name == "NewPresetName"
     assert setting0.device_label == "NewDevice"
     assert setting0.property_name == "NewProperty"
-    assert setting0.property_value == "NewSettingValue"
+    assert setting0.value == "NewSettingValue"
 
     # setting to the same value should not change the model
     current_name = grp0_index.data(Qt.ItemDataRole.EditRole)
@@ -220,11 +227,7 @@ def test_update_preset_settings(model: QConfigGroupsModel, qtbot: QtBot) -> None
     grp0_index = model.index(0, 0)
     preset0_index = model.index(0, 0, grp0_index)
     new_settings = [
-        Setting(
-            device_name="NewDevice",
-            property_name="NewProperty",
-            property_value="NewValue",
-        )
+        Setting(device="NewDevice", property_name="NewProperty", value="NewValue")
     ]
     model.update_preset_settings(preset0_index, new_settings)
 
@@ -283,8 +286,8 @@ def test_pivot_model_two_way_sync(
 
     # Add a setting to the new preset
     test_settings = [
-        Setting("Camera", "Binning", "8"),
-        Setting("Camera", "BitDepth", "14"),
+        Setting(device="Camera", property_name="Binning", value="8"),
+        Setting(device="Camera", property_name="BitDepth", value="14"),
     ]
     model.update_preset_settings(new_preset_idx, test_settings)
 
@@ -317,7 +320,7 @@ def test_pivot_model_two_way_sync(
     bitdepth_setting = next(
         s for s in lowres_preset.settings if s.property_name == "BitDepth"
     )
-    assert bitdepth_setting.property_value == new_value
+    assert bitdepth_setting.value == new_value
 
     # Test 4: Removing presets from source updates pivot
     # Remove the TestPreset we added
