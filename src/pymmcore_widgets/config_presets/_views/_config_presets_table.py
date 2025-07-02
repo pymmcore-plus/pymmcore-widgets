@@ -17,7 +17,7 @@ from qtpy.QtWidgets import QTableView, QToolBar, QVBoxLayout, QWidget
 from superqt import QIconifyIcon
 
 from pymmcore_widgets._icons import get_device_icon
-from pymmcore_widgets.config_presets._qmodel._config_model import QConfigGroupsModel
+from pymmcore_widgets.config_presets._model._q_config_model import QConfigGroupsModel
 
 from ._property_setting_delegate import PropertySettingDelegate
 

@@ -8,7 +8,7 @@ from qtpy.QtCore import Qt
 
 from pymmcore_widgets import ConfigGroupsTree
 from pymmcore_widgets.config_presets import ConfigPresetsTable
-from pymmcore_widgets.config_presets._qmodel._config_model import QConfigGroupsModel
+from pymmcore_widgets.config_presets._model._q_config_model import QConfigGroupsModel
 from pymmcore_widgets.config_presets._views._property_setting_delegate import (
     PropertySettingDelegate,
 )

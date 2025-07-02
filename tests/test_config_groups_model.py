@@ -120,7 +120,7 @@ def test_model_set_data(model: QConfigGroupsModel, qtbot: QtBot) -> None:
 
     assert group0.name == "NewGroupName"
     assert preset0.name == "NewPresetName"
-    assert setting0.device_name == "NewDevice"
+    assert setting0.device_label == "NewDevice"
     assert setting0.property_name == "NewProperty"
     assert setting0.property_value == "NewSettingValue"
 
@@ -215,7 +215,7 @@ def test_update_preset_settings(model: QConfigGroupsModel, qtbot: QtBot) -> None
     original_data = model.get_groups()
     preset0 = next(iter(original_data[0].presets.values()))
     assert len(preset0.settings) > 1
-    assert preset0.settings[0].device_name != "NewDevice"
+    assert preset0.settings[0].device_label != "NewDevice"
 
     grp0_index = model.index(0, 0)
     preset0_index = model.index(0, 0, grp0_index)

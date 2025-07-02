@@ -250,16 +250,16 @@ class DevicePropertyTable(NoWheelTableWidget):
             if (item := self.item(row, 0)) is None:
                 continue
 
+            if always_show_checked and item.checkState() == Qt.CheckState.Checked:
+                self.showRow(row)
+                continue
+
             prop = cast("DeviceProperty", item.data(self.PROP_ROLE))
             dev_type = prop.deviceType()
             if (include_devices and dev_type not in include_devices) or (
                 exclude_devices and dev_type in exclude_devices
             ):
                 self.hideRow(row)
-                continue
-
-            if always_show_checked and item.checkState() == Qt.CheckState.Checked:
-                self.showRow(row)
                 continue
 
             if (
