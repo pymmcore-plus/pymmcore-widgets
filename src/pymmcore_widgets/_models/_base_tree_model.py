@@ -5,7 +5,7 @@ from typing import overload
 from qtpy.QtCore import QAbstractItemModel, QModelIndex, QObject
 from typing_extensions import Self
 
-from pymmcore_widgets._models import ConfigGroup, ConfigPreset, DevicePropertySetting
+from ._py_config_model import ConfigGroup, ConfigPreset, DevicePropertySetting
 
 NULL_INDEX = QModelIndex()
 

@@ -4,11 +4,9 @@ from qtpy.QtCore import QAbstractTableModel, QModelIndex, QSize, Qt
 from qtpy.QtWidgets import QWidget
 
 from pymmcore_widgets._icons import get_device_icon
-from pymmcore_widgets._models import (
-    ConfigPreset,
-    DevicePropertySetting,
-    QConfigGroupsModel,
-)
+
+from ._py_config_model import ConfigPreset, DevicePropertySetting
+from ._q_config_model import QConfigGroupsModel
 
 
 class ConfigGroupPivotModel(QAbstractTableModel):
