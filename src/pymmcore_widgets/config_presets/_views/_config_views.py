@@ -16,7 +16,7 @@ from qtpy.QtWidgets import (
 )
 from superqt import QIconifyIcon
 
-from pymmcore_widgets._icons import ICONS
+from pymmcore_widgets._icons import DEVICE_TYPE_ICON
 from pymmcore_widgets.config_presets._model._py_config_model import (
     ConfigGroup,
     ConfigPreset,
@@ -27,7 +27,6 @@ from pymmcore_widgets.config_presets._model._py_config_model import (
 )
 from pymmcore_widgets.config_presets._model._q_config_model import (
     QConfigGroupsModel,
-    _Node,
 )
 from pymmcore_widgets.device_properties import DevicePropertyTable
 
@@ -38,6 +37,8 @@ if TYPE_CHECKING:
 
     from pymmcore_plus import CMMCorePlus
     from PyQt6.QtGui import QAction, QActionGroup
+
+    from pymmcore_widgets.config_presets._model._base_tree_model import _Node
 
 else:
     from qtpy.QtGui import QAction, QActionGroup
@@ -415,7 +416,7 @@ class _PropSettings(QSplitter):
             DeviceType.GalvoDevice: False,
             DeviceType.CoreDevice: False,
         }.items():
-            icon = QIconifyIcon(ICONS[dev_type], color="gray")
+            icon = QIconifyIcon(DEVICE_TYPE_ICON[dev_type], color="gray")
             if act := tb.addAction(
                 icon,
                 dev_type.name.replace("Device", ""),

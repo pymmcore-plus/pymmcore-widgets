@@ -3,7 +3,7 @@ from __future__ import annotations
 from pymmcore_plus import CMMCorePlus, DeviceType
 from superqt import QIconifyIcon
 
-ICONS: dict[DeviceType, str] = {
+DEVICE_TYPE_ICON: dict[DeviceType, str] = {
     DeviceType.Any: "mdi:devices",
     DeviceType.AutoFocus: "mdi:focus-auto",
     DeviceType.Camera: "mdi:camera",
@@ -34,6 +34,6 @@ def get_device_icon(
             device_type = DeviceType.Unknown
     else:
         device_type = device_type_or_name
-    if icon_string := ICONS.get(device_type):
+    if icon_string := DEVICE_TYPE_ICON.get(device_type):
         return QIconifyIcon(icon_string, color=color)
     return None

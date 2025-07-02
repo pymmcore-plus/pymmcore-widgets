@@ -3,18 +3,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import DeviceProperty, DeviceType, Keyword
-from qtpy.QtCore import QModelIndex, QSize, Qt, Signal
+from qtpy.QtCore import QModelIndex, Qt, Signal
 from qtpy.QtWidgets import (
-    QGroupBox,
     QHBoxLayout,
-    QLabel,
     QListView,
     QSplitter,
     QToolBar,
     QVBoxLayout,
     QWidget,
 )
-from superqt import QIconifyIcon
 
 from pymmcore_widgets.config_presets._model._py_config_model import (
     ConfigGroup,
@@ -23,7 +20,6 @@ from pymmcore_widgets.config_presets._model._py_config_model import (
 )
 from pymmcore_widgets.config_presets._model._q_config_model import (
     QConfigGroupsModel,
-    _Node,
 )
 from pymmcore_widgets.device_properties import DevicePropertyTable
 
@@ -31,102 +27,15 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
     from pymmcore_plus import CMMCorePlus
-    from PyQt6.QtGui import QAction
+
+    from pymmcore_widgets.config_presets._model._base_tree_model import _Node
 else:
-    from qtpy.QtGui import QAction
+    pass
 
 
 # -----------------------------------------------------------------------------
 # High-level editor widget
 # -----------------------------------------------------------------------------
-
-
-class _NameList(QWidget):
-    """A group box that contains a toolbar and a QListView for cfg groups or presets."""
-
-    def __init__(self, title: str, parent: QWidget | None) -> None:
-        super().__init__(parent)
-        self._title = title
-
-        # toolbar
-        self.list_view = QListView(self)
-
-        self._toolbar = tb = QToolBar()
-        tb.setStyleSheet("QToolBar {background: none; border: none;}")
-        tb.setIconSize(QSize(18, 18))
-        self._toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-
-        self.add_action = QAction(
-            QIconifyIcon("mdi:plus-thick", color="gray"),
-            f"Add {title.rstrip('s')}",
-            self,
-        )
-        tb.addAction(self.add_action)
-        tb.addSeparator()
-        tb.addAction(
-            QIconifyIcon("mdi:remove-bold", color="gray"), "Remove", self._remove
-        )
-        tb.addAction(
-            QIconifyIcon("mdi:content-duplicate", color="gray"), "Duplicate", self._dupe
-        )
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        layout.addWidget(self._toolbar)
-        layout.addWidget(self.list_view)
-
-        if isinstance(self, QGroupBox):
-            self.setTitle(title)
-        else:
-            label = QLabel(self._title, self)
-            font = label.font()
-            font.setBold(True)
-            label.setFont(font)
-            layout.insertWidget(0, label)
-
-    def _is_groups(self) -> bool:
-        """Check if this box is for groups."""
-        return bool(self._title == "Groups")
-
-    def _remove(self) -> None:
-        self._model.remove(self.list_view.currentIndex())
-
-    @property
-    def _model(self) -> QConfigGroupsModel:
-        """Return the model used by this list view."""
-        model = self.list_view.model()
-        if not isinstance(model, QConfigGroupsModel):
-            raise TypeError("Expected a QConfigGroupsModel instance.")
-        return model
-
-    def _dupe(self) -> None: ...
-
-
-class GroupsList(_NameList):
-    def __init__(self, parent: QWidget | None) -> None:
-        super().__init__("Groups", parent)
-
-    def _dupe(self) -> None:
-        idx = self.list_view.currentIndex()
-        if idx.isValid():
-            self.list_view.setCurrentIndex(self._model.duplicate_group(idx))
-
-
-class PresetsList(_NameList):
-    def __init__(self, parent: QWidget | None) -> None:
-        super().__init__("Presets", parent)
-
-        # TODO: we need `_NameList.setCore()` in order to be able to "activate" a preset
-        self._toolbar.addAction(
-            QIconifyIcon("clarity:play-solid", color="gray"),
-            "Activate",
-        )
-
-    def _dupe(self) -> None:
-        idx = self.list_view.currentIndex()
-        if idx.isValid():
-            self.list_view.setCurrentIndex(self._model.duplicate_preset(idx))
 
 
 class ConfigGroupsEditor(QWidget):

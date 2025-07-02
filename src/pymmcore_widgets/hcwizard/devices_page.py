@@ -25,7 +25,7 @@ from qtpy.QtWidgets import (
 from superqt.iconify import QIconifyIcon
 from superqt.utils import exceptions_as_dialog, signals_blocked
 
-from pymmcore_widgets._icons import ICONS
+from pymmcore_widgets._icons import DEVICE_TYPE_ICON
 
 from ._base_page import ConfigWizardPage
 from ._dev_setup_dialog import DeviceSetupDialog
@@ -60,7 +60,7 @@ class _DeviceTable(QTableWidget):
         self.clearContents()
         self.setRowCount(len(model.devices))
         for i, device in enumerate(model.devices):
-            type_icon = ICONS.get(device.device_type, "")
+            type_icon = DEVICE_TYPE_ICON.get(device.device_type, "")
             wdg: QWidget
             if device.device_type == DeviceType.Hub:
                 wdg = QPushButton(QIconifyIcon(type_icon, color="blue"), "")
@@ -355,7 +355,7 @@ class _AvailableDevicesWidget(QWidget):
             self.table.setItem(i, 1, item)
             # -----------
             item = QTableWidgetItem(str(device.device_type))
-            icon_string = ICONS.get(device.device_type, None)
+            icon_string = DEVICE_TYPE_ICON.get(device.device_type, None)
             if icon_string:
                 item.setIcon(QIconifyIcon(icon_string, color="Gray"))
             if device.library_hub:
@@ -370,7 +370,9 @@ class _AvailableDevicesWidget(QWidget):
             _avail = {x.device_type for x in self._model.available_devices}
             avail = sorted(x for x in _avail if x != DeviceType.Any)
             for x in (DeviceType.Any, *avail):
-                self.dev_type.addItem(QIconifyIcon(ICONS.get(x, "")), str(x), x)
+                self.dev_type.addItem(
+                    QIconifyIcon(DEVICE_TYPE_ICON.get(x, "")), str(x), x
+                )
             if current in avail:
                 self.dev_type.setCurrentText(str(current))
 

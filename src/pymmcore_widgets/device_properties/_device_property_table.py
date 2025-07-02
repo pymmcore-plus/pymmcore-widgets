@@ -13,7 +13,7 @@ from qtpy.QtWidgets import QAbstractScrollArea, QTableWidget, QTableWidgetItem, 
 from superqt.iconify import QIconifyIcon
 from superqt.utils import signals_blocked
 
-from pymmcore_widgets._icons import ICONS
+from pymmcore_widgets._icons import DEVICE_TYPE_ICON
 from pymmcore_widgets._util import NoWheelTableWidget
 
 from ._property_widget import PropertyWidget
@@ -159,7 +159,7 @@ class DevicePropertyTable(NoWheelTableWidget):
             extra = " 🅿" if prop.isPreInit() else ""
             item = QTableWidgetItem(f"{prop.device}-{prop.name}{extra}")
             item.setData(self.PROP_ROLE, prop)
-            if icon_string := ICONS.get(prop.deviceType()):
+            if icon_string := DEVICE_TYPE_ICON.get(prop.deviceType()):
                 item.setIcon(QIconifyIcon(icon_string, color="Gray"))
             self.setItem(i, 0, item)
 
