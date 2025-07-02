@@ -13,13 +13,11 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from pymmcore_widgets._models._py_config_model import (
+from pymmcore_widgets._models import (
     ConfigGroup,
     ConfigPreset,
-    get_config_groups,
-)
-from pymmcore_widgets._models._q_config_model import (
     QConfigGroupsModel,
+    get_config_groups,
 )
 from pymmcore_widgets.device_properties import DevicePropertyTable
 

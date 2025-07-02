@@ -14,10 +14,7 @@ from qtpy.QtCore import (
 from qtpy.QtWidgets import QTableView, QToolBar, QVBoxLayout, QWidget
 from superqt import QIconifyIcon
 
-from pymmcore_widgets._models._config_group_pivot_model import (
-    ConfigGroupPivotModel,
-)
-from pymmcore_widgets._models._q_config_model import QConfigGroupsModel
+from pymmcore_widgets._models import ConfigGroupPivotModel, QConfigGroupsModel
 
 from ._property_setting_delegate import PropertySettingDelegate
 

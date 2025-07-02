@@ -11,12 +11,8 @@ from qtpy.QtWidgets import QMessageBox
 from pymmcore_widgets._icons import get_device_icon
 
 from ._base_tree_model import _BaseTreeModel, _Node
-from ._py_config_model import (
-    ConfigGroup,
-    ConfigPreset,
-    DevicePropertySetting,
-    get_config_groups,
-)
+from ._core_functions import get_config_groups
+from ._py_config_model import ConfigGroup, ConfigPreset, DevicePropertySetting
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

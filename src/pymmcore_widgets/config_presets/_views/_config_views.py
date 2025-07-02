@@ -17,13 +17,13 @@ from qtpy.QtWidgets import (
 from superqt import QIconifyIcon
 
 from pymmcore_widgets._icons import DEVICE_TYPE_ICON
-from pymmcore_widgets._models._py_config_model import (
+from pymmcore_widgets._models import (
     ConfigGroup,
     ConfigPreset,
     DevicePropertySetting,
+    QConfigGroupsModel,
     get_config_groups,
 )
-from pymmcore_widgets._models._q_config_model import QConfigGroupsModel
 from pymmcore_widgets.device_properties import DevicePropertyTable
 
 from ._config_presets_table import ConfigPresetsTable
