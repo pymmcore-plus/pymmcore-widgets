@@ -338,7 +338,9 @@ def test_pivot_model_two_way_sync(
     # Add a new setting that doesn't exist in other presets
     new_settings = [
         *medres_preset.settings,
-        DevicePropertySetting("Camera", "NewProperty", "NewValue"),
+        DevicePropertySetting(
+            device="Camera", property_name="NewProperty", value="NewValue"
+        ),
     ]
     model.update_preset_settings(medres_preset_idx, new_settings)
 

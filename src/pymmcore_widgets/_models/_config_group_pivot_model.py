@@ -77,8 +77,12 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         preset_settings = list(preset.settings)
 
         # Find existing setting or add new one
-        for i, (dev, prop, *_) in enumerate(preset_settings):
-            if (dev, prop) == dev_prop:
+        for i, existing_setting in enumerate(preset_settings):
+            existing_key = (
+                existing_setting.device_label,
+                existing_setting.property_name,
+            )
+            if existing_key == dev_prop:
                 preset_settings[i] = setting
                 break
         else:
