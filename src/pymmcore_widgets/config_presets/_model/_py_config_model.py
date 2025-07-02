@@ -134,10 +134,7 @@ class ConfigPreset(_BaseModel):
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, ConfigPreset):
             return False
-        return (
-            self.name == value.name
-            and self.settings == value.settings
-        )
+        return self.name == value.name and self.settings == value.settings
 
 
 class ConfigGroup(_BaseModel):
