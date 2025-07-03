@@ -34,6 +34,11 @@ class Device(_BaseModel):
     properties: tuple[DevicePropertySetting, ...] = Field(default_factory=tuple)
 
     @property
+    def children(self) -> tuple[DevicePropertySetting, ...]:
+        """Return the properties of the device."""
+        return self.properties
+
+    @property
     def is_loaded(self) -> bool:
         """Return True if the device is loaded."""
         return bool(self.label)
@@ -135,12 +140,22 @@ class ConfigPreset(_BaseModel):
             return False
         return self.name == value.name and self.settings == value.settings
 
+    @property
+    def children(self) -> tuple[DevicePropertySetting, ...]:
+        """Return the settings in the preset."""
+        return tuple(self.settings)
+
 
 class ConfigGroup(_BaseModel):
     """A group of ConfigPresets."""
 
     name: str
     presets: dict[str, ConfigPreset] = Field(default_factory=dict)
+
+    @property
+    def children(self) -> tuple[ConfigPreset, ...]:
+        """Return the presets in the group."""
+        return tuple(self.presets.values())
 
 
 class PixelSizePreset(ConfigPreset):
