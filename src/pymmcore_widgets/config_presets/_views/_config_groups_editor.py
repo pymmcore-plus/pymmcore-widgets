@@ -23,6 +23,9 @@ from pymmcore_widgets._models import (
     get_config_groups,
     get_loaded_devices,
 )
+from pymmcore_widgets.config_presets._views._config_presets_table import (
+    ConfigPresetsTable,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -77,6 +80,9 @@ class ConfigGroupsEditor(QWidget):
         if update_configs:
             self.setData(get_config_groups(core))
         self._prop_selector.setAvailableDevices(get_loaded_devices(core))
+        self._preset_table.setModel(self._model)
+        self._preset_table.setGroup("Channel")
+
         # if update_available:
         # self._props._update_device_buttons(core)
         # self._prop_tables.update_options_from_core(core)
@@ -87,6 +93,10 @@ class ConfigGroupsEditor(QWidget):
 
         # widgets --------------------------------------------------------------
         self._tb = QToolBar(self)
+        self._tb.addAction("Add Group")
+        self._tb.addAction("Add Preset")
+        self._tb.addAction("Remove")
+        self._tb.addAction("Duplicate")
 
         self.group_list = QListView(self)
         self.group_list.setModel(self._model)
@@ -98,6 +108,9 @@ class ConfigGroupsEditor(QWidget):
 
         self._prop_selector = DevicePropertySelector()
 
+        self._preset_table = ConfigPresetsTable(self)
+        self._preset_table.setModel(self._model)
+        self._preset_table.setGroup("Channel")
         # layout ------------------------------------------------------------
 
         top = QSplitter(Qt.Orientation.Horizontal, self)
@@ -105,11 +118,16 @@ class ConfigGroupsEditor(QWidget):
         top.addWidget(self.preset_list)
         top.addWidget(self._prop_selector)
 
-        main_splitter = QSplitter(Qt.Orientation.Horizontal, self)
+        top_splitter = QSplitter(Qt.Orientation.Horizontal, self)
+        top_splitter.setHandleWidth(1)
+        top_splitter.setChildrenCollapsible(False)
+        top_splitter.addWidget(top)
+        # top_splitter.addWidget(preset_box)
+
+        main_splitter = QSplitter(Qt.Orientation.Vertical, self)
         main_splitter.setHandleWidth(1)
-        main_splitter.setChildrenCollapsible(False)
-        main_splitter.addWidget(top)
-        # main_splitter.addWidget(preset_box)
+        main_splitter.addWidget(top_splitter)
+        main_splitter.addWidget(self._preset_table)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
