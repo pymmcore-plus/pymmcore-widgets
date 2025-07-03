@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import overload
 
-from qtpy.QtCore import QAbstractItemModel, QModelIndex, QObject
+from qtpy.QtCore import QAbstractItemModel, QModelIndex, QObject, Qt
 from typing_extensions import Self
 
-from ._py_config_model import ConfigGroup, ConfigPreset, DevicePropertySetting
+from ._py_config_model import ConfigGroup, ConfigPreset, Device, DevicePropertySetting
 
 NULL_INDEX = QModelIndex()
 
@@ -14,6 +14,7 @@ class _Node:
     """Generic tree node that wraps a ConfigGroup, ConfigPreset, or Setting."""
 
     __slots__ = (
+        "check_state",
         "children",
         "name",
         "parent",
@@ -23,13 +24,15 @@ class _Node:
     @classmethod
     def create(
         cls,
-        payload: ConfigGroup | ConfigPreset | DevicePropertySetting,
+        payload: ConfigGroup | ConfigPreset | DevicePropertySetting | Device,
         parent: _Node | None = None,
         recursive: bool = True,
     ) -> Self:
         """Create a new _Node with the given name and payload."""
         if isinstance(payload, DevicePropertySetting):
-            name = payload.display_name()
+            name = payload.property_name
+        elif isinstance(payload, Device):
+            name = payload.label
         else:
             name = payload.name
 
@@ -41,17 +44,25 @@ class _Node:
             elif isinstance(payload, ConfigPreset):
                 for s in payload.settings:
                     node.children.append(_Node.create(s, node))
+            elif isinstance(payload, Device):
+                for prop in payload.properties:
+                    node.children.append(_Node.create(prop, node))
         return node
 
     def __init__(
         self,
         name: str,
-        payload: ConfigGroup | ConfigPreset | DevicePropertySetting | None = None,
+        payload: ConfigGroup
+        | ConfigPreset
+        | DevicePropertySetting
+        | Device
+        | None = None,
         parent: _Node | None = None,
     ) -> None:
         self.name = name
         self.payload = payload
         self.parent = parent
+        self.check_state = Qt.CheckState.Unchecked
         self.children: list[_Node] = []
 
     # convenience ------------------------------------------------------------
@@ -75,6 +86,10 @@ class _Node:
     @property
     def is_setting(self) -> bool:
         return isinstance(self.payload, DevicePropertySetting)
+
+    @property
+    def is_device(self) -> bool:
+        return isinstance(self.payload, Device)
 
 
 class _BaseTreeModel(QAbstractItemModel):
