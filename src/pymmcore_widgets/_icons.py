@@ -23,6 +23,11 @@ DEVICE_TYPE_ICON: dict[DeviceType, str] = {
     DeviceType.Serial: "mdi:serial-port",
 }
 
+PROPERTY_FLAG_ICON: dict[str, str] = {
+    "read-only": "mdi:lock-outline",
+    "pre-init": "mdi:alpha-p-box-outline",
+}
+
 
 def get_device_icon(
     device_type_or_name: DeviceType | str, color: str = "gray"

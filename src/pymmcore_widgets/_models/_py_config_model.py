@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
-from pymmcore_plus import DeviceType, PropertyType
+from pymmcore_plus import DeviceType, Keyword, PropertyType
 from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:
@@ -85,6 +85,13 @@ class DevicePropertySetting(_BaseModel):
         """Return the label of the device."""
         return self.device.label
 
+    @property
+    def is_advanced(self) -> bool:
+        """Return True if the property is less likely to be needed usually."""
+        if self.device.type == DeviceType.State and self.property_name == Keyword.State:
+            return True
+        return False
+
     def key(self) -> tuple[str, str]:
         """Return a unique key for the Property."""
         return (self.device_label, self.property_name)
@@ -92,6 +99,17 @@ class DevicePropertySetting(_BaseModel):
     def as_tuple(self) -> tuple[str, str, str]:
         """Return the property as a tuple."""
         return (self.device_label, self.property_name, self.value)
+
+    @property
+    def iconify_key(self) -> str | None:
+        """Return an iconify key for the device type."""
+        from pymmcore_widgets._icons import PROPERTY_FLAG_ICON
+
+        if self.is_read_only:
+            return PROPERTY_FLAG_ICON["read-only"]
+        elif self.is_pre_init:
+            return PROPERTY_FLAG_ICON["pre-init"]
+        return None
 
     @model_validator(mode="before")
     @classmethod

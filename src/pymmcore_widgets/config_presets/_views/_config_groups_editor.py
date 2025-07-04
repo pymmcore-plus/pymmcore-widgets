@@ -1,25 +1,24 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+from enum import Enum, auto
 from typing import TYPE_CHECKING, cast
 
-from pymmcore_plus import DeviceType
-from qtpy.QtCore import QModelIndex, QSortFilterProxyModel, Qt, Signal
+from qtpy.QtCore import QModelIndex, Qt, Signal
 from qtpy.QtWidgets import (
     QListView,
+    QSizePolicy,
     QSplitter,
     QToolBar,
-    QTreeView,
     QVBoxLayout,
     QWidget,
 )
+from superqt import QIconifyIcon
 
 from pymmcore_widgets._models import (
     ConfigGroup,
     ConfigPreset,
-    Device,
-    DevicePropertySetting,
     QConfigGroupsModel,
-    QDevicePropertyModel,
     get_config_groups,
     get_loaded_devices,
 )
@@ -27,14 +26,22 @@ from pymmcore_widgets.config_presets._views._config_presets_table import (
     ConfigPresetsTable,
 )
 
+from ._device_property_selector import DevicePropertySelector
+
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable, Iterator, Sequence
 
     from pymmcore_plus import CMMCorePlus
+    from PyQt6.QtGui import QAction
 
     from pymmcore_widgets._models._base_tree_model import _Node
 else:
-    pass
+    from qtpy.QtGui import QAction
+
+
+class LayoutMode(Enum):
+    FAVOR_PRESETS = auto()  # preset-table full width at bottom
+    FAVOR_PROPERTIES = auto()  # prop-selector full height at right
 
 
 # -----------------------------------------------------------------------------
@@ -98,6 +105,15 @@ class ConfigGroupsEditor(QWidget):
         self._tb.addAction("Remove")
         self._tb.addAction("Duplicate")
 
+        spacer = QWidget(self._tb)
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self._tb.addWidget(spacer)
+
+        icon = QIconifyIcon("mdi:toggle-switch-off-outline")
+        icon.addKey("mdi:toggle-switch-outline", state=QIconifyIcon.State.On)
+        if act := self._tb.addAction(icon, "Wide Layout", self.setLayoutMode):
+            act.setCheckable(True)
+
         self.group_list = QListView(self)
         self.group_list.setModel(self._model)
         self.group_list.setSelectionMode(QListView.SelectionMode.SingleSelection)
@@ -111,29 +127,15 @@ class ConfigGroupsEditor(QWidget):
         self._preset_table = ConfigPresetsTable(self)
         self._preset_table.setModel(self._model)
         self._preset_table.setGroup("Channel")
+
         # layout ------------------------------------------------------------
 
-        top = QSplitter(Qt.Orientation.Horizontal, self)
-        top.addWidget(self.group_list)
-        top.addWidget(self.preset_list)
-        top.addWidget(self._prop_selector)
-
-        top_splitter = QSplitter(Qt.Orientation.Horizontal, self)
-        top_splitter.setHandleWidth(1)
-        top_splitter.setChildrenCollapsible(False)
-        top_splitter.addWidget(top)
-        # top_splitter.addWidget(preset_box)
-
-        main_splitter = QSplitter(Qt.Orientation.Vertical, self)
-        main_splitter.setHandleWidth(1)
-        main_splitter.addWidget(top_splitter)
-        main_splitter.addWidget(self._preset_table)
-
+        self._current_mode: LayoutMode = LayoutMode.FAVOR_PRESETS
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self._tb)
-        layout.addWidget(main_splitter)
+        self.setLayoutMode(mode=LayoutMode.FAVOR_PRESETS)
 
         # signals ------------------------------------------------------------
 
@@ -254,51 +256,146 @@ class ConfigGroupsEditor(QWidget):
         preset = cast("ConfigPreset", node.payload)
         return preset
 
+    def _build_layout(self, mode: LayoutMode) -> QSplitter:
+        """Return a new top-level splitter for the requested layout."""
+        if mode is LayoutMode.FAVOR_PRESETS:
+            # ┌───────────────┬───────────────┬───────────────┐
+            # │     groups    │    presets    │     props     │
+            # ├───────────────┴───────────────┴───────────────┤
+            # │               presets-table                   │
+            # └───────────────────────────────────────────────┘
+            top_splitter = QSplitter(Qt.Orientation.Horizontal)
+            top_splitter.addWidget(self.group_list)
+            top_splitter.addWidget(self.preset_list)
+            top_splitter.addWidget(self._prop_selector)
+            top_splitter.setStretchFactor(2, 1)
 
-# TODO: Allow GUI control of parameters
-class DeviceTypeFilter(QSortFilterProxyModel):
-    def __init__(self, allowed: set[DeviceType], parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.allowed = allowed  # e.g. {"Camera", "Shutter"}
+            main = QSplitter(Qt.Orientation.Vertical)
+            main.setChildrenCollapsible(False)
+            main.addWidget(top_splitter)
+            main.addWidget(self._preset_table)
+            return main
 
-    def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
-        if sm := self.sourceModel():
-            idx = sm.index(source_row, 0, source_parent)
-            if DeviceType.Any in self.allowed:
-                return True
-            data = idx.data(Qt.ItemDataRole.UserRole)
-            if isinstance(obj := data, Device):
-                return obj.type in self.allowed
-            elif isinstance(obj, DevicePropertySetting):
-                if obj.is_pre_init or obj.is_read_only:
-                    return False
-        return True
+        if mode is LayoutMode.FAVOR_PROPERTIES:
+            # ┌───────────────┬───────────────┬───────────────┐
+            # │     groups    │    presets    │               │
+            # ├───────────────┴───────────────┤     props     │
+            # │         presets-table         │               │
+            # └───────────────────────────────┴───────────────┘
+            lists_splitter = QSplitter(Qt.Orientation.Horizontal)
+            lists_splitter.addWidget(self.group_list)
+            lists_splitter.addWidget(self.preset_list)
+
+            left_splitter = QSplitter(Qt.Orientation.Vertical)
+            left_splitter.addWidget(lists_splitter)
+            left_splitter.addWidget(self._preset_table)
+
+            main = QSplitter(Qt.Orientation.Horizontal)
+            main.setChildrenCollapsible(False)
+            main.addWidget(left_splitter)
+            main.addWidget(self._prop_selector)
+            main.setStretchFactor(2, 1)
+            return main
+
+        raise ValueError(f"Unknown layout mode: {mode}")
+
+    def setLayoutMode(self, mode: LayoutMode | None = None) -> None:
+        """Slot connected to the toolbar action."""
+        if not (layout := self.layout()):
+            return
+
+        if mode is None:
+            if not isinstance(sender := self.sender(), QAction):
+                return
+            mode = (
+                LayoutMode.FAVOR_PROPERTIES
+                if sender.isChecked()
+                else LayoutMode.FAVOR_PRESETS
+            )
+        else:
+            mode = LayoutMode(mode)
+
+        sizes = self._get_list_sizes()  # get splitter sizes if available
+
+        with updates_disabled(self):
+            if isinstance(
+                cur_splitter := getattr(self, "_main_splitter", None), QSplitter
+            ):
+                layout.removeWidget(cur_splitter)
+                cur_splitter.setParent(None)
+                cur_splitter.deleteLater()
+
+            # build and insert the replacement
+            self._main_splitter = new_splitter = self._build_layout(mode)
+            layout.addWidget(new_splitter)
+            if sizes is not None:
+                self._set_list_sizes(*sizes, main_splitter=new_splitter)
+            self._current_mode = mode
+
+    def _get_list_sizes(self) -> tuple[list[int], list[int], list[int]] | None:
+        main_splitter = getattr(self, "_main_splitter", None)
+        if not isinstance(main_splitter, QSplitter):
+            return None
+
+        # FAVOR_PRESETS
+        if main_splitter.orientation() == Qt.Orientation.Vertical and isinstance(
+            top_splitter := main_splitter.widget(0), QSplitter
+        ):
+            list_widths = top_splitter.sizes()[:2]
+            left_heights = main_splitter.sizes()
+            sum_width = sum(list_widths) + main_splitter.handleWidth()
+            full_width = top_splitter.size().width()
+            return list_widths, left_heights, [sum_width, full_width - sum_width]
+
+        # FAVOR_PROPERTIES
+        elif (
+            main_splitter.orientation() == Qt.Orientation.Horizontal
+            and isinstance(left_splitter := main_splitter.widget(0), QSplitter)
+            and isinstance(lists_splitter := left_splitter.widget(0), QSplitter)
+        ):
+            list_widths = lists_splitter.sizes()
+            left_heights = left_splitter.sizes()
+            full_width = main_splitter.size().width()
+            return (
+                list_widths,
+                left_heights,
+                [*list_widths, full_width - sum(list_widths)],
+            )
+
+        return None
+
+    def _set_list_sizes(
+        self,
+        list_widths: list[int],
+        left_heights: list[int],
+        top_splits: list[int],
+        main_splitter: QSplitter,
+    ) -> None:
+        """Set the saved sizes of the group and preset lists."""
+        if main_splitter.orientation() == Qt.Orientation.Vertical and isinstance(
+            top_splitter := main_splitter.widget(0), QSplitter
+        ):
+            top_splitter.setSizes(top_splits)
+            main_splitter.setSizes(left_heights)
+
+        # FAVOR_PROPERTIES
+        elif (
+            main_splitter.orientation() == Qt.Orientation.Horizontal
+            and isinstance(left_splitter := main_splitter.widget(0), QSplitter)
+            and isinstance(lists_splitter := left_splitter.widget(0), QSplitter)
+        ):
+            main_splitter.setSizes(top_splits)
+            lists_splitter.setSizes(list_widths)
+            left_splitter.setSizes(left_heights)
 
 
-class DevicePropertySelector(QWidget):
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-
-        tree = QTreeView(self)
-
-        self._model = QDevicePropertyModel()
-        # flat_proxy = FlatPropertyModel()
-        # proxy = DeviceTypeFilter(allowed={DeviceType.Camera}, parent=self)
-        # proxy.setSourceModel(self._model)
-        # flat_proxy.setSourceModel(self._model)
-
-        tree.setModel(self._model)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(tree)
-
-    def clear(self) -> None:
-        """Clear the current selection."""
-        # self.table.setValue([])
-
-    def setChecked(self, settings: Iterable[tuple[str, str, str]]) -> None:
-        """Set the checked state of the properties based on the given settings."""
-        # self.table.setValue(settings)
-
-    def setAvailableDevices(self, devices: Iterable[Device]) -> None:
-        self._model.set_devices(devices)
+@contextmanager
+def updates_disabled(widget: QWidget) -> Iterator[None]:
+    """Check if updates are currently disabled for the widget."""
+    """Context manager to temporarily disable updates for a widget."""
+    was_enabled = widget.updatesEnabled()
+    widget.setUpdatesEnabled(False)
+    try:
+        yield
+    finally:
+        widget.setUpdatesEnabled(was_enabled)

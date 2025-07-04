@@ -3,13 +3,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, cast
 
-from pymmcore_plus import PropertyType
 from qtpy.QtCore import (
-    QAbstractItemModel,
-    QAbstractProxyModel,
     QModelIndex,
-    QObject,
-    QPersistentModelIndex,
     Qt,
 )
 from qtpy.QtGui import QBrush, QFont, QIcon
@@ -49,6 +44,42 @@ class QDevicePropertyModel(_BaseTreeModel):
 
     # data & editing ----------------------------------------------------------
 
+    def _get_device_data(self, device: Device, col: int, role: int) -> Any:
+        if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
+            if col == 1:
+                return device.type.name
+            else:
+                return device.label or f"{device.library}::{device.name}"
+        elif role == Qt.ItemDataRole.DecorationRole:
+            if col == 0:
+                if icon := device.iconify_key:
+                    return QIconifyIcon(icon, color="gray").pixmap(16, 16)
+                return QIcon.fromTheme("emblem-system")  # pragma: no cover
+
+        return None
+
+    def _get_prop_data(self, prop: DevicePropertySetting, col: int, role: int) -> Any:
+        if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
+            if col == 1:
+                return prop.property_type.name
+            else:
+                return prop.property_name
+        elif role == Qt.ItemDataRole.DecorationRole:
+            if col == 0:
+                if icon := prop.iconify_key:
+                    return QIconifyIcon(icon, color="gray").pixmap(16, 16)
+
+        elif role == Qt.ItemDataRole.FontRole:
+            if prop.is_read_only:
+                font = QFont()
+                font.setItalic(True)
+                return font
+        elif role == Qt.ItemDataRole.ForegroundRole:
+            if prop.is_read_only or prop.is_pre_init:
+                return QBrush(Qt.GlobalColor.gray)
+
+        return None
+
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         """Return the data stored for `role` for the item at `index`."""
         node = self._node_from_index(index)
@@ -56,57 +87,19 @@ class QDevicePropertyModel(_BaseTreeModel):
         if node is self._root:
             return None
 
-        if index.column() == 1:
-            if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
-                if isinstance(device := node.payload, Device):
-                    return device.type.name
-                elif isinstance(setting := node.payload, DevicePropertySetting):
-                    return setting.property_type.name
-            elif role == Qt.ItemDataRole.DecorationRole:
-                if isinstance(device := node.payload, Device):
-                    if icon := device.iconify_key:
-                        return QIconifyIcon(icon, color="gray").pixmap(16, 16)
-                    return QIcon.fromTheme("emblem-system")  # pragma: no cover
-                elif isinstance(setting := node.payload, DevicePropertySetting):
-                    if setting.is_read_only:
-                        return QIcon.fromTheme("lock")
-                    elif setting.is_pre_init:
-                        return QIconifyIcon(
-                            "ph:letter-circle-p-duotone", color="gray"
-                        ).pixmap(16, 16)
-                    elif setting.property_type == PropertyType.String:
-                        return QIconifyIcon("mdi:code-string", color="gray").pixmap(
-                            16, 16
-                        )
-                    elif setting.property_type in (
-                        PropertyType.Integer,
-                        PropertyType.Float,
-                    ):
-                        return QIconifyIcon("mdi:numbers", color="gray").pixmap(16, 16)
-            return
-
+        col = index.column()
         # Qt.ItemDataRole.UserRole => return the original python object
         if role == Qt.ItemDataRole.UserRole:
             return node.payload
 
-        if isinstance(device := node.payload, Device):
-            if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
-                return device.name
-        elif isinstance(setting := node.payload, DevicePropertySetting):
-            if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
-                return setting.property_name
-            elif role == Qt.ItemDataRole.FontRole:
-                if setting.is_read_only:
-                    font = QFont()
-                    font.setItalic(True)
-                    return font
-            elif role == Qt.ItemDataRole.CheckStateRole:
-                if not (setting.is_read_only or setting.is_pre_init):
-                    return node.check_state
-            elif role == Qt.ItemDataRole.ForegroundRole:
-                if setting.is_read_only or setting.is_pre_init:
-                    return QBrush(Qt.GlobalColor.gray)
+        elif role == Qt.ItemDataRole.CheckStateRole and col == 0:
+            if isinstance(setting := node.payload, DevicePropertySetting):
+                return node.check_state
 
+        if isinstance(device := node.payload, Device):
+            return self._get_device_data(device, col, role)
+        elif isinstance(setting := node.payload, DevicePropertySetting):
+            return self._get_prop_data(setting, col, role)
         return None
 
     def setData(
@@ -152,87 +145,87 @@ class QDevicePropertyModel(_BaseTreeModel):
         return deepcopy([cast("Device", n.payload) for n in self._root.children])
 
 
-class FlatPropertyModel(QAbstractProxyModel):
-    """Presents every *leaf* of an arbitrary tree model as a top-level row."""
+# class FlatPropertyModel(QAbstractProxyModel):
+#     """Presents every *leaf* of an arbitrary tree model as a top-level row."""
 
-    def __init__(self, parent: QObject | None = None) -> None:
-        super().__init__(parent)
-        self._leaves: list[QPersistentModelIndex] = []
+#     def __init__(self, parent: QObject | None = None) -> None:
+#         super().__init__(parent)
+#         self._leaves: list[QPersistentModelIndex] = []
 
-    def index(self, row: int, column: int, parent: QModelIndex = ...) -> QModelIndex:
-        if not (sm := self.sourceModel()):
-            return QModelIndex()
-        return sm.index(row, column, parent)
+#     def index(self, row: int, column: int, parent: QModelIndex = ...) -> QModelIndex:
+#         if not (sm := self.sourceModel()):
+#             return QModelIndex()
+#         return sm.index(row, column, parent)
 
-    # --------------------------------------------------------------------------------
-    # mandatory proxy plumbing
-    # --------------------------------------------------------------------------------
-    def setSourceModel(self, source_model: QAbstractItemModel | None) -> None:
-        super().setSourceModel(source_model)
-        self._rebuild()
-        # keep list in sync with structural changes
-        source_model.rowsInserted.connect(self._rebuild)
-        source_model.rowsRemoved.connect(self._rebuild)
-        source_model.modelReset.connect(self._rebuild)
+#     # --------------------------------------------------------------------------------
+#     # mandatory proxy plumbing
+#     # --------------------------------------------------------------------------------
+#     def setSourceModel(self, source_model: QAbstractItemModel | None) -> None:
+#         super().setSourceModel(source_model)
+#         self._rebuild()
+#         # keep list in sync with structural changes
+#         source_model.rowsInserted.connect(self._rebuild)
+#         source_model.rowsRemoved.connect(self._rebuild)
+#         source_model.modelReset.connect(self._rebuild)
 
-    # map source ↔ proxy -----------------------------------------------------
-    def mapToSource(self, proxy_index: QModelIndex) -> QModelIndex:
-        return (
-            QModelIndex(self._leaves[proxy_index.row()])
-            if proxy_index.isValid()
-            else QModelIndex()
-        )
+#     # map source ↔ proxy -----------------------------------------------------
+#     def mapToSource(self, proxy_index: QModelIndex) -> QModelIndex:
+#         return (
+#             QModelIndex(self._leaves[proxy_index.row()])
+#             if proxy_index.isValid()
+#             else QModelIndex()
+#         )
 
-    def mapFromSource(self, source_index: QModelIndex) -> QModelIndex:
-        try:
-            row = self._leaves.index(QPersistentModelIndex(source_index))
-            return self.createIndex(row, source_index.column())
-        except ValueError:
-            return QModelIndex()
+#     def mapFromSource(self, source_index: QModelIndex) -> QModelIndex:
+#         try:
+#             row = self._leaves.index(QPersistentModelIndex(source_index))
+#             return self.createIndex(row, source_index.column())
+#         except ValueError:
+#             return QModelIndex()
 
-    # shape ------------------------------------------------------------------
-    def rowCount(self, _parent: QModelIndex = NULL_INDEX) -> int:
-        return len(self._leaves)
+#     # shape ------------------------------------------------------------------
+#     def rowCount(self, _parent: QModelIndex = NULL_INDEX) -> int:
+#         return len(self._leaves)
 
-    def columnCount(self, parent: QModelIndex = NULL_INDEX) -> int:
-        if sm := self.sourceModel():
-            return sm.columnCount(self.mapToSource(parent))
-        return 0
+#     def columnCount(self, parent: QModelIndex = NULL_INDEX) -> int:
+#         if sm := self.sourceModel():
+#             return sm.columnCount(self.mapToSource(parent))
+#         return 0
 
-    # data, flags, setData simply delegate to the source --------------------
-    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
-        if sm := self.sourceModel():
-            return sm.data(self.mapToSource(index), role)
-        return None
+#     # data, flags, setData simply delegate to the source --------------------
+#     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
+#         if sm := self.sourceModel():
+#             return sm.data(self.mapToSource(index), role)
+#         return None
 
-    def flags(self, index: QModelIndex) -> Qt.ItemFlag:
-        if sm := self.sourceModel():
-            return sm.flags(self.mapToSource(index))
-        return Qt.ItemFlag.NoItemFlags
+#     def flags(self, index: QModelIndex) -> Qt.ItemFlag:
+#         if sm := self.sourceModel():
+#             return sm.flags(self.mapToSource(index))
+#         return Qt.ItemFlag.NoItemFlags
 
-    def setData(
-        self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
-    ) -> bool:
-        if sm := self.sourceModel():
-            return sm.setData(self.mapToSource(index), value, role)
-        return False
+#     def setData(
+#         self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
+#     ) -> bool:
+#         if sm := self.sourceModel():
+#             return sm.setData(self.mapToSource(index), value, role)
+#         return False
 
-    # helpers ----------------------------------------------------------------
-    def _rebuild(self) -> None:
-        """Cache every leaf `QModelIndex` of the tree."""
-        if not (sm := self.sourceModel()):
-            return
-        self.beginResetModel()
-        self._leaves.clear()
+#     # helpers ----------------------------------------------------------------
+#     def _rebuild(self) -> None:
+#         """Cache every leaf `QModelIndex` of the tree."""
+#         if not (sm := self.sourceModel()):
+#             return
+#         self.beginResetModel()
+#         self._leaves.clear()
 
-        def walk(parent: QModelIndex) -> None:
-            rows = sm.rowCount(parent)
-            for r in range(rows):
-                idx = sm.index(r, 0, parent)
-                if sm.rowCount(idx):  # branch
-                    walk(idx)
-                else:  # leaf
-                    self._leaves.append(QPersistentModelIndex(idx))
+#         def walk(parent: QModelIndex) -> None:
+#             rows = sm.rowCount(parent)
+#             for r in range(rows):
+#                 idx = sm.index(r, 0, parent)
+#                 if sm.rowCount(idx):  # branch
+#                     walk(idx)
+#                 else:  # leaf
+#                     self._leaves.append(QPersistentModelIndex(idx))
 
-        walk(QModelIndex())
-        self.endResetModel()
+#         walk(QModelIndex())
+#         self.endResetModel()
