@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 
 from qtpy.QtCore import QModelIndex, QSignalBlocker, Qt, Signal
@@ -146,6 +145,25 @@ class GroupPresetSelector(QStackedWidget):
             self.preset_list.setRootIndex(group_idx)
             self.preset_list.setCurrentIndex(preset_idx)
 
+    def _selected_index(self) -> QModelIndex:
+        """Return the currently selected index from the group or preset list."""
+        if self.group_list.hasFocus():
+            return self.group_list.currentIndex()
+        elif self.preset_list.hasFocus():
+            return self.preset_list.currentIndex()
+        return QModelIndex()
+
+    def removeSelected(self) -> None:
+        if self._model:
+            self._model.remove(self._selected_index())
+
+    def duplicateSelected(self) -> None:
+        if self._model:
+            if self.group_list.hasFocus():
+                self._model.duplicate_group(self.group_list.currentIndex())
+            elif self.preset_list.hasFocus():
+                self._model.duplicate_preset(self.preset_list.currentIndex())
+
     def showColumnView(self) -> None:
         """Switch to column view mode (groups and presets side by side)."""
         self.setCurrentIndex(0)
@@ -168,11 +186,6 @@ class GroupPresetSelector(QStackedWidget):
     def setCurrentGroup(self, group: str) -> QModelIndex:
         """Set the currently selected group by name."""
         if not (model := self._model):
-            warnings.warn(
-                "Model is not set. Cannot set current group.",
-                UserWarning,
-                stacklevel=2,
-            )
             return QModelIndex()
 
         idx = model.index_for_group(group)
@@ -190,11 +203,6 @@ class GroupPresetSelector(QStackedWidget):
     def setCurrentPreset(self, group: str, preset: str) -> QModelIndex:
         """Set the currently selected preset by group and preset name."""
         if not (model := self._model):
-            warnings.warn(
-                "Model is not set. Cannot set current preset.",
-                UserWarning,
-                stacklevel=2,
-            )
             return QModelIndex()
 
         group_index = self.setCurrentGroup(group)

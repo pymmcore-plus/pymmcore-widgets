@@ -4,8 +4,14 @@ from contextlib import contextmanager
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
-from qtpy.QtCore import QModelIndex, Qt, Signal
-from qtpy.QtWidgets import QSizePolicy, QSplitter, QToolBar, QVBoxLayout, QWidget
+from qtpy.QtCore import QModelIndex, QSize, Qt, Signal
+from qtpy.QtWidgets import (
+    QSizePolicy,
+    QSplitter,
+    QToolBar,
+    QVBoxLayout,
+    QWidget,
+)
 from superqt import QIconifyIcon
 
 from pymmcore_widgets._models import (
@@ -23,10 +29,10 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
 
     from pymmcore_plus import CMMCorePlus
-    from PyQt6.QtGui import QAction
+    from PyQt6.QtGui import QAction, QActionGroup
 
 else:
-    from qtpy.QtGui import QAction
+    from qtpy.QtGui import QAction, QActionGroup
 
 
 class LayoutMode(Enum):
@@ -94,38 +100,6 @@ class ConfigGroupsEditor(QWidget):
         super().__init__(parent)
         self._model = QConfigGroupsModel()
 
-        # widgets --------------------------------------------------------------
-        self._tb = QToolBar(self)
-        icon = QIconifyIcon("fluent:layout-column-two-16-regular")
-        icon.addKey(
-            "fluent:list-bar-tree-20-regular",
-            state=QIconifyIcon.State.On,
-            color="#666",
-        )
-        if act := self._tb.addAction(icon, "Toggle Tree View", self._toggle_tree_view):
-            act.setCheckable(True)
-            act.setChecked(False)
-
-        self._tb.addAction("Add Group")
-        self._tb.addAction("Add Preset")
-        self._tb.addAction("Remove")
-        self._tb.addAction("Duplicate")
-
-        spacer = QWidget(self._tb)
-        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self._tb.addWidget(spacer)
-
-        icon = QIconifyIcon(
-            "fluent:layout-row-two-split-top-focus-bottom-16-filled", color="#666"
-        )
-        icon.addKey(
-            "fluent:layout-column-two-split-left-focus-right-16-filled",
-            state=QIconifyIcon.State.On,
-            color="#666",
-        )
-        if act := self._tb.addAction(icon, "Wide Layout", self.setLayoutMode):
-            act.setCheckable(True)
-
         # ------------------------------------------------------------------
         # The GroupPresetSelector can switch between 2-list and tree views:
         # ┌───────────────┬───────────────┬───────────────┐
@@ -149,6 +123,68 @@ class ConfigGroupsEditor(QWidget):
         self._preset_table = ConfigPresetsTable(self)
         self._preset_table.setModel(self._model)
         self._preset_table.setGroup("Channel")
+
+        # tool bar --------------------------------------------------------------
+
+        self._tb = QToolBar(self)
+        self._tb.setIconSize(QSize(22, 22))
+        self._tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+
+        # Create exclusive action group for view modes
+        view_action_group = QActionGroup(self)
+
+        # Column View action
+        column_icon = QIconifyIcon("fluent:layout-column-two-24-regular")
+        if column_act := self._tb.addAction(
+            column_icon, "Column View", self._group_preset_sel.showColumnView
+        ):
+            column_act.setCheckable(True)
+            column_act.setChecked(True)
+            view_action_group.addAction(column_act)
+
+        # Tree View action
+        tree_icon = QIconifyIcon("fluent:list-bar-tree-20-regular", color="#666")
+        if tree_act := self._tb.addAction(
+            tree_icon, "Tree View", self._group_preset_sel.showTreeView
+        ):
+            tree_act.setCheckable(True)
+            view_action_group.addAction(tree_act)
+
+        self._tb.addAction(
+            QIconifyIcon("fluent:folder-add-24-regular"),
+            "Add Group",
+            self._model.add_group,
+        )
+        self._tb.addAction(
+            QIconifyIcon("fluent:document-add-24-regular"),
+            "Add Preset",
+            self._add_preset_to_current_group,
+        )
+        self._tb.addAction(
+            QIconifyIcon("fluent:delete-24-regular"),
+            "Remove",
+            self._group_preset_sel.removeSelected,
+        )
+        self._tb.addAction(
+            QIconifyIcon("fluent:save-copy-24-regular"),
+            "Duplicate",
+            self._group_preset_sel.duplicateSelected,
+        )
+
+        spacer = QWidget(self._tb)
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self._tb.addWidget(spacer)
+
+        icon = QIconifyIcon(
+            "fluent:layout-row-two-split-top-focus-bottom-16-filled", color="#666"
+        )
+        icon.addKey(
+            "fluent:layout-column-two-split-left-focus-right-16-filled",
+            state=QIconifyIcon.State.On,
+            color="#666",
+        )
+        if act := self._tb.addAction(icon, "Toggle Layout", self.setLayoutMode):
+            act.setCheckable(True)
 
         # layout ------------------------------------------------------------
 
@@ -182,9 +218,6 @@ class ConfigGroupsEditor(QWidget):
         row = current.row()
         view.selectRow(row) if view.isTransposed() else view.selectColumn(row)
 
-    def _toggle_tree_view(self) -> None:
-        self._group_preset_sel.toggleView()
-
     def setCurrentGroup(self, group: str) -> None:
         """Set the currently selected group in the editor."""
         self._group_preset_sel.setCurrentGroup(group)
@@ -213,6 +246,12 @@ class ConfigGroupsEditor(QWidget):
         """Return the current configuration data as a list of ConfigGroup."""
         return self._model.get_groups()
 
+    def _add_preset_to_current_group(self) -> None:
+        """Add a new preset to the currently selected group."""
+        current_group = self._group_preset_sel.currentGroup()
+        if current_group.isValid():
+            self._model.add_preset(current_group)
+
     # ------------------------------------------------------------------
     # Layout management
     # ------------------------------------------------------------------
@@ -228,7 +267,7 @@ class ConfigGroupsEditor(QWidget):
             top_splitter = QSplitter(Qt.Orientation.Horizontal)
             top_splitter.addWidget(self._group_preset_sel)
             top_splitter.addWidget(self._prop_selector)
-            top_splitter.setStretchFactor(1, 1)
+            # top_splitter.setStretchFactor(1, 1)
 
             main = QSplitter(Qt.Orientation.Vertical)
             main.addWidget(top_splitter)
@@ -249,7 +288,7 @@ class ConfigGroupsEditor(QWidget):
             main = QSplitter(Qt.Orientation.Horizontal)
             main.addWidget(left_splitter)
             main.addWidget(self._prop_selector)
-            main.setStretchFactor(1, 1)
+            # main.setStretchFactor(1, 1)
             return main
 
         raise ValueError(f"Unknown layout mode: {mode}")

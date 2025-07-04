@@ -202,7 +202,7 @@ class QConfigGroupsModel(_BaseTreeModel):
 
     def add_group(self, base_name: str = "Group") -> QModelIndex:
         """Append a *new* empty group and return its QModelIndex."""
-        name = self._unique_child_name(self._root, base_name)
+        name = self._unique_child_name(self._root, base_name, suffix="")
         group = ConfigGroup(name=name)
         row = self.rowCount()
         if self.insertRows(row, 1, QModelIndex(), _payloads=[group]):
@@ -232,7 +232,7 @@ class QConfigGroupsModel(_BaseTreeModel):
         if not isinstance(group_node.payload, ConfigGroup):
             raise ValueError("Reference index is not a ConfigGroup.")
 
-        name = self._unique_child_name(group_node, base_name)
+        name = self._unique_child_name(group_node, base_name, suffix="")
         preset = ConfigPreset(name=name)
         row = len(group_node.children)
         if self.insertRows(row, 1, group_idx, _payloads=[preset]):
