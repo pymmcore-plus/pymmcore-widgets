@@ -5,14 +5,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING, cast
 
 from qtpy.QtCore import QModelIndex, Qt, Signal
-from qtpy.QtWidgets import (
-    QListView,
-    QSizePolicy,
-    QSplitter,
-    QToolBar,
-    QVBoxLayout,
-    QWidget,
-)
+from qtpy.QtWidgets import QSizePolicy, QSplitter, QToolBar, QVBoxLayout, QWidget
 from superqt import QIconifyIcon
 
 from pymmcore_widgets._models import (
@@ -22,11 +15,10 @@ from pymmcore_widgets._models import (
     get_config_groups,
     get_loaded_devices,
 )
-from pymmcore_widgets.config_presets._views._config_presets_table import (
-    ConfigPresetsTable,
-)
 
+from ._config_presets_table import ConfigPresetsTable
 from ._device_property_selector import DevicePropertySelector
+from ._group_preset_selector import GroupPresetSelector
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
@@ -100,6 +92,16 @@ class ConfigGroupsEditor(QWidget):
 
         # widgets --------------------------------------------------------------
         self._tb = QToolBar(self)
+        icon = QIconifyIcon("fluent:layout-column-two-16-regular")
+        icon.addKey(
+            "fluent:list-bar-tree-20-regular",
+            state=QIconifyIcon.State.On,
+            color="#666",
+        )
+        if act := self._tb.addAction(icon, "Toggle Tree View", self._toggle_tree_view):
+            act.setCheckable(True)
+            act.setChecked(False)
+
         self._tb.addAction("Add Group")
         self._tb.addAction("Add Preset")
         self._tb.addAction("Remove")
@@ -109,18 +111,34 @@ class ConfigGroupsEditor(QWidget):
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self._tb.addWidget(spacer)
 
-        icon = QIconifyIcon("mdi:toggle-switch-off-outline")
-        icon.addKey("mdi:toggle-switch-outline", state=QIconifyIcon.State.On)
+        icon = QIconifyIcon(
+            "fluent:layout-row-two-split-top-focus-bottom-16-filled", color="#666"
+        )
+        icon.addKey(
+            "fluent:layout-column-two-split-left-focus-right-16-filled",
+            state=QIconifyIcon.State.On,
+            color="#666",
+        )
         if act := self._tb.addAction(icon, "Wide Layout", self.setLayoutMode):
             act.setCheckable(True)
 
-        self.group_list = QListView(self)
-        self.group_list.setModel(self._model)
-        self.group_list.setSelectionMode(QListView.SelectionMode.SingleSelection)
+        # ------------------------------------------------------------------
+        # The GroupPresetSelector can switch between 2-list and tree views:
+        # ┌───────────────┬───────────────┬───────────────┐
+        # │     groups    │    presets    │      ...      │
+        # ├───────────────┴───────────────┴───────────────┤
+        # │                     ...                       │
+        # └───────────────────────────────────────────────┘
+        # ┌───────────────────────────────┬───────────────┐
+        # │              tree             │               │
+        # ├───────────────────────────────┴───────────────┤
+        # │                     ...                       │
+        # └───────────────────────────────────────────────┘
 
-        self.preset_list = QListView(self)
-        self.preset_list.setModel(self._model)
-        self.preset_list.setSelectionMode(QListView.SelectionMode.SingleSelection)
+        self._group_preset_stack = GroupPresetSelector(self)
+        self._group_preset_stack.setModel(self._model)
+
+        # ------------------------------------------------------------------
 
         self._prop_selector = DevicePropertySelector()
 
@@ -139,35 +157,24 @@ class ConfigGroupsEditor(QWidget):
 
         # signals ------------------------------------------------------------
 
-        if sm := self.group_list.selectionModel():
-            sm.currentChanged.connect(self._on_group_sel)
-        if sm := self.preset_list.selectionModel():
-            sm.currentChanged.connect(self._on_preset_sel)
+        self._group_preset_stack.groupSelectionChanged.connect(self._on_group_sel)
+        self._group_preset_stack.presetSelectionChanged.connect(self._on_preset_sel)
         self._model.dataChanged.connect(self._on_model_data_changed)
         # self._props.valueChanged.connect(self._on_prop_table_changed)
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+    def _toggle_tree_view(self) -> None:
+        self._group_preset_stack.toggleView()
 
     def setCurrentGroup(self, group: str) -> None:
         """Set the currently selected group in the editor."""
-        idx = self._model.index_for_group(group)
-        if idx.isValid():
-            self.group_list.setCurrentIndex(idx)
-        else:
-            self.group_list.clearSelection()
+        self._group_preset_stack.setCurrentGroup(group)
 
     def setCurrentPreset(self, group: str, preset: str) -> None:
         """Set the currently selected preset in the editor."""
-        self.setCurrentGroup(group)
-        group_index = self._model.index_for_group(group)
-        idx = self._model.index_for_preset(group_index, preset)
-        if idx.isValid():
-            self.preset_list.setCurrentIndex(idx)
-            self.preset_list.setFocus()
-        else:
-            self.preset_list.clearSelection()
+        self._group_preset_stack.setCurrentPreset(group, preset)
 
     def setData(self, data: Iterable[ConfigGroup]) -> None:
         """Set the configuration data to be displayed in the editor."""
@@ -176,10 +183,13 @@ class ConfigGroupsEditor(QWidget):
         # self._props.setValue([])
         # Auto-select first group
         if self._model.rowCount():
-            self.group_list.setCurrentIndex(self._model.index(0))
+            idx = self._model.index(0)
+            if hasattr(idx, "internalPointer"):
+                node = idx.internalPointer()
+                if hasattr(node, "name"):
+                    self._group_preset_stack.setCurrentGroup(node.name)
         else:
-            self.preset_list.setRootIndex(QModelIndex())
-            self.preset_list.clearSelection()
+            self._group_preset_stack.clearSelection()
         self.configChanged.emit()
 
     def data(self) -> Sequence[ConfigGroup]:
@@ -189,9 +199,8 @@ class ConfigGroupsEditor(QWidget):
     # selection sync ---------------------------------------------------------
 
     def _on_group_sel(self, current: QModelIndex, _prev: QModelIndex) -> None:
-        self.preset_list.setRootIndex(current)
+        # The GroupPresetSelector already handles updating the preset list root
         # self._props._presets_table.setGroup(current)
-        self.preset_list.clearSelection()
         self._prop_selector.clear()
 
     def _on_preset_sel(self, current: QModelIndex, _prev: QModelIndex) -> None:
@@ -213,14 +222,14 @@ class ConfigGroupsEditor(QWidget):
 
     def _on_prop_table_changed(self) -> None:
         """Write back edits from the table into the underlying ConfigPreset."""
-        idx = self._preset_view.currentIndex()
+        idx = self._group_preset_stack.currentPresetIndex()
         if not idx.isValid():
             return
         node = cast("_Node", idx.internalPointer())
         if not node.is_preset:
             return
-        new_settings = self._props.value()
-        self._model.update_preset_settings(idx, new_settings)
+        # new_settings = self._props.value()
+        # self._model.update_preset_settings(idx, new_settings)
         self.configChanged.emit()
 
     def _on_model_data_changed(
@@ -230,18 +239,18 @@ class ConfigGroupsEditor(QWidget):
         _roles: list[int] | None = None,
     ) -> None:
         """Refresh DevicePropertyTable if a setting in the current preset was edited."""
-        if not (preset := self._our_preset_changed_by_range(topLeft, bottomRight)):
+        if not self._our_preset_changed_by_range(topLeft, bottomRight):
             return
 
-        self._props.blockSignals(True)  # avoid feedback loop
-        self._props.setValue(preset.settings)
-        self._props.blockSignals(False)
+        # self._props.blockSignals(True)  # avoid feedback loop
+        # self._props.setValue(preset.settings)
+        # self._props.blockSignals(False)
 
     def _our_preset_changed_by_range(
         self, topLeft: QModelIndex, bottomRight: QModelIndex
     ) -> ConfigPreset | None:
         """Return our current preset if it was changed in the given range."""
-        cur_preset = self._preset_view.currentIndex()
+        cur_preset = self._group_preset_stack.currentPresetIndex()
         if (
             not cur_preset.isValid()
             or not topLeft.isValid()
@@ -252,49 +261,43 @@ class ConfigGroupsEditor(QWidget):
             return None
 
         # pull updated settings from the model and push to the table
-        node = cast("_Node", self._preset_view.currentIndex().internalPointer())
+        node = cast("_Node", cur_preset.internalPointer())
         preset = cast("ConfigPreset", node.payload)
         return preset
 
     def _build_layout(self, mode: LayoutMode) -> QSplitter:
         """Return a new top-level splitter for the requested layout."""
         if mode is LayoutMode.FAVOR_PRESETS:
-            # ┌───────────────┬───────────────┬───────────────┐
-            # │     groups    │    presets    │     props     │
-            # ├───────────────┴───────────────┴───────────────┤
-            # │               presets-table                   │
-            # └───────────────────────────────────────────────┘
+            # ┌───────────────────────────────┬────────────────┐
+            # │       _group_preset_stack     │ _prop_selector │ <- top_splitter
+            # ├───────────────────────────────┴────────────────┤
+            # │               _preset_table                    │
+            # └────────────────────────────────────────────────┘
             top_splitter = QSplitter(Qt.Orientation.Horizontal)
-            top_splitter.addWidget(self.group_list)
-            top_splitter.addWidget(self.preset_list)
+            top_splitter.addWidget(self._group_preset_stack)
             top_splitter.addWidget(self._prop_selector)
-            top_splitter.setStretchFactor(2, 1)
+            top_splitter.setStretchFactor(1, 1)
 
             main = QSplitter(Qt.Orientation.Vertical)
-            main.setChildrenCollapsible(False)
             main.addWidget(top_splitter)
             main.addWidget(self._preset_table)
             return main
 
         if mode is LayoutMode.FAVOR_PROPERTIES:
-            # ┌───────────────┬───────────────┬───────────────┐
-            # │     groups    │    presets    │               │
-            # ├───────────────┴───────────────┤     props     │
-            # │         presets-table         │               │
-            # └───────────────────────────────┴───────────────┘
-            lists_splitter = QSplitter(Qt.Orientation.Horizontal)
-            lists_splitter.addWidget(self.group_list)
-            lists_splitter.addWidget(self.preset_list)
+            # ┌───────────────────────────────┬────────────────┐
+            # │       _group_preset_stack     │                │
+            # ├───────────────────────────────┤ _prop_selector │
+            # │         _preset_table         │                │
+            # └───────────────────────────────┴────────────────┘
 
             left_splitter = QSplitter(Qt.Orientation.Vertical)
-            left_splitter.addWidget(lists_splitter)
+            left_splitter.addWidget(self._group_preset_stack)
             left_splitter.addWidget(self._preset_table)
 
             main = QSplitter(Qt.Orientation.Horizontal)
-            main.setChildrenCollapsible(False)
             main.addWidget(left_splitter)
             main.addWidget(self._prop_selector)
-            main.setStretchFactor(2, 1)
+            main.setStretchFactor(1, 1)
             return main
 
         raise ValueError(f"Unknown layout mode: {mode}")
@@ -307,91 +310,58 @@ class ConfigGroupsEditor(QWidget):
         if mode is None:
             if not isinstance(sender := self.sender(), QAction):
                 return
-            mode = (
-                LayoutMode.FAVOR_PROPERTIES
-                if sender.isChecked()
-                else LayoutMode.FAVOR_PRESETS
-            )
+            checked = sender.isChecked()
+            mode = LayoutMode.FAVOR_PROPERTIES if checked else LayoutMode.FAVOR_PRESETS
         else:
             mode = LayoutMode(mode)
 
-        sizes = self._get_list_sizes()  # get splitter sizes if available
-
-        with updates_disabled(self):
+        sizes = None
+        with _updates_disabled(self):
             if isinstance(
                 cur_splitter := getattr(self, "_main_splitter", None), QSplitter
             ):
+                sizes = self._get_splitter_sizes(cur_splitter)
                 layout.removeWidget(cur_splitter)
                 cur_splitter.setParent(None)
                 cur_splitter.deleteLater()
 
             # build and insert the replacement
             self._main_splitter = new_splitter = self._build_layout(mode)
-            layout.addWidget(new_splitter)
-            if sizes is not None:
-                self._set_list_sizes(*sizes, main_splitter=new_splitter)
             self._current_mode = mode
+            layout.addWidget(new_splitter)
 
-    def _get_list_sizes(self) -> tuple[list[int], list[int], list[int]] | None:
-        main_splitter = getattr(self, "_main_splitter", None)
-        if not isinstance(main_splitter, QSplitter):
-            return None
+            if sizes is not None:
+                self._set_splitter_sizes(*sizes, new_splitter)
 
-        # FAVOR_PRESETS
-        if main_splitter.orientation() == Qt.Orientation.Vertical and isinstance(
-            top_splitter := main_splitter.widget(0), QSplitter
-        ):
-            list_widths = top_splitter.sizes()[:2]
-            left_heights = main_splitter.sizes()
-            sum_width = sum(list_widths) + main_splitter.handleWidth()
-            full_width = top_splitter.size().width()
-            return list_widths, left_heights, [sum_width, full_width - sum_width]
-
-        # FAVOR_PROPERTIES
-        elif (
-            main_splitter.orientation() == Qt.Orientation.Horizontal
-            and isinstance(left_splitter := main_splitter.widget(0), QSplitter)
-            and isinstance(lists_splitter := left_splitter.widget(0), QSplitter)
-        ):
-            list_widths = lists_splitter.sizes()
-            left_heights = left_splitter.sizes()
-            full_width = main_splitter.size().width()
-            return (
-                list_widths,
-                left_heights,
-                [*list_widths, full_width - sum(list_widths)],
-            )
-
+    def _get_splitter_sizes(
+        self, splitter: QSplitter
+    ) -> tuple[list[int], list[int]] | None:
+        if isinstance(inner_splitter := splitter.widget(0), QSplitter):
+            # FAVOR_PRESETS
+            if splitter.orientation() == Qt.Orientation.Vertical:
+                return inner_splitter.sizes(), splitter.sizes()
+            # FAVOR_PROPERTIES
+            else:
+                return splitter.sizes(), inner_splitter.sizes()
         return None
 
-    def _set_list_sizes(
-        self,
-        list_widths: list[int],
-        left_heights: list[int],
-        top_splits: list[int],
-        main_splitter: QSplitter,
+    def _set_splitter_sizes(
+        self, top_splits: list[int], left_heights: list[int], main_splitter: QSplitter
     ) -> None:
-        """Set the saved sizes of the group and preset lists."""
-        if main_splitter.orientation() == Qt.Orientation.Vertical and isinstance(
-            top_splitter := main_splitter.widget(0), QSplitter
-        ):
-            top_splitter.setSizes(top_splits)
-            main_splitter.setSizes(left_heights)
-
-        # FAVOR_PROPERTIES
-        elif (
-            main_splitter.orientation() == Qt.Orientation.Horizontal
-            and isinstance(left_splitter := main_splitter.widget(0), QSplitter)
-            and isinstance(lists_splitter := left_splitter.widget(0), QSplitter)
-        ):
-            main_splitter.setSizes(top_splits)
-            lists_splitter.setSizes(list_widths)
-            left_splitter.setSizes(left_heights)
+        """Set the saved sizes of the splitters."""
+        if isinstance(inner_splitter := main_splitter.widget(0), QSplitter):
+            # FAVOR_PRESETS
+            if main_splitter.orientation() == Qt.Orientation.Vertical:
+                inner_splitter.setSizes(top_splits)
+                main_splitter.setSizes(left_heights)
+            # FAVOR_PROPERTIES
+            else:
+                main_splitter.setSizes(top_splits)
+                inner_splitter.setSizes(left_heights)
 
 
 @contextmanager
-def updates_disabled(widget: QWidget) -> Iterator[None]:
-    """Check if updates are currently disabled for the widget."""
+def _updates_disabled(widget: QWidget) -> Iterator[None]:
     """Context manager to temporarily disable updates for a widget."""
     was_enabled = widget.updatesEnabled()
     widget.setUpdatesEnabled(False)

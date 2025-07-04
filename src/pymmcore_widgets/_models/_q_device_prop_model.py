@@ -193,7 +193,7 @@ class QDevicePropertyModel(_BaseTreeModel):
 #         return 0
 
 #     # data, flags, setData simply delegate to the source --------------------
-#     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
+#     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) ->Any:
 #         if sm := self.sourceModel():
 #             return sm.data(self.mapToSource(index), role)
 #         return None

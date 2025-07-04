@@ -44,7 +44,7 @@ class DeviceTypeFilter(QSortFilterProxyModel):
 
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
         if (sm := self.sourceModel()) is None:
-            return super().filterAcceptsRow(source_row, source_parent)
+            return super().filterAcceptsRow(source_row, source_parent)  # type: ignore [no-any-return]
 
         idx = sm.index(source_row, 0, source_parent)
 
@@ -83,7 +83,7 @@ class DeviceTypeFilter(QSortFilterProxyModel):
             return False
 
         # 5. For non-Device rows, the decision is simply the text match
-        return text_match
+        return text_match  # type: ignore [no-any-return]
 
     def setReadOnlyVisible(self, show: bool) -> None:
         """Set whether to show read-only properties."""
