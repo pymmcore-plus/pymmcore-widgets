@@ -24,8 +24,8 @@ DEVICE_TYPE_ICON: dict[DeviceType, str] = {
 }
 
 PROPERTY_FLAG_ICON: dict[str, str] = {
-    "read-only": "mdi:lock-outline",
-    "pre-init": "mdi:alpha-p-box-outline",
+    "read-only": "fluent:edit-off-20-regular",
+    "pre-init": "mynaui:letter-p-diamond",
 }
 
 
