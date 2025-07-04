@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from enum import Enum, auto
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from qtpy.QtCore import QModelIndex, Qt, Signal
 from qtpy.QtWidgets import QSizePolicy, QSplitter, QToolBar, QVBoxLayout, QWidget
@@ -10,7 +10,6 @@ from superqt import QIconifyIcon
 
 from pymmcore_widgets._models import (
     ConfigGroup,
-    ConfigPreset,
     QConfigGroupsModel,
     get_config_groups,
     get_loaded_devices,
@@ -26,7 +25,6 @@ if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
     from PyQt6.QtGui import QAction
 
-    from pymmcore_widgets._models._base_tree_model import _Node
 else:
     from qtpy.QtGui import QAction
 
@@ -42,7 +40,17 @@ class LayoutMode(Enum):
 
 
 class ConfigGroupsEditor(QWidget):
-    """Widget composed of two QListViews backed by a single tree model."""
+    """Widget composed of two QListViews backed by a single tree model.
+
+    ```
+    ┌────────────┬────────────┬───────────────┐
+    │      groups/presets     |   prop_sel    │
+    ├────────────┴────────────+ - - - - - - - ┤ (layout toggleable)
+    │     2D Presets Table    |               │
+    └─────────────────────────┴───────────────┘
+    ```
+
+    """
 
     configChanged = Signal()
 
@@ -81,10 +89,6 @@ class ConfigGroupsEditor(QWidget):
         self._prop_selector.setAvailableDevices(get_loaded_devices(core))
         self._preset_table.setModel(self._model)
         self._preset_table.setGroup("Channel")
-
-        # if update_available:
-        # self._props._update_device_buttons(core)
-        # self._prop_tables.update_options_from_core(core)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -135,8 +139,8 @@ class ConfigGroupsEditor(QWidget):
         # │                     ...                       │
         # └───────────────────────────────────────────────┘
 
-        self._group_preset_stack = GroupPresetSelector(self)
-        self._group_preset_stack.setModel(self._model)
+        self._group_preset_sel = GroupPresetSelector(self)
+        self._group_preset_sel.setModel(self._model)
 
         # ------------------------------------------------------------------
 
@@ -157,24 +161,37 @@ class ConfigGroupsEditor(QWidget):
 
         # signals ------------------------------------------------------------
 
-        self._group_preset_stack.groupSelectionChanged.connect(self._on_group_sel)
-        self._group_preset_stack.presetSelectionChanged.connect(self._on_preset_sel)
-        self._model.dataChanged.connect(self._on_model_data_changed)
+        self._group_preset_sel.currentGroupChanged.connect(self._on_group_changed)
+        self._group_preset_sel.currentPresetChanged.connect(self._on_preset_changed)
+        # self._group_preset_stack.presetSelectionChanged.connect(self._on_preset_sel)
+        # self._model.dataChanged.connect(self._on_model_data_changed)
         # self._props.valueChanged.connect(self._on_prop_table_changed)
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+    def _on_group_changed(self, current: QModelIndex, previous: QModelIndex) -> None:
+        """Called when the group selection in the GroupPresetSelector changes."""
+        self._preset_table.setGroup(current)
+
+    def _on_preset_changed(self, current: QModelIndex, previous: QModelIndex) -> None:
+        """Called when the preset selection in the GroupPresetSelector changes."""
+        if not current.isValid():
+            return
+        view = self._preset_table.view
+        row = current.row()
+        view.selectRow(row) if view.isTransposed() else view.selectColumn(row)
+
     def _toggle_tree_view(self) -> None:
-        self._group_preset_stack.toggleView()
+        self._group_preset_sel.toggleView()
 
     def setCurrentGroup(self, group: str) -> None:
         """Set the currently selected group in the editor."""
-        self._group_preset_stack.setCurrentGroup(group)
+        self._group_preset_sel.setCurrentGroup(group)
 
     def setCurrentPreset(self, group: str, preset: str) -> None:
         """Set the currently selected preset in the editor."""
-        self._group_preset_stack.setCurrentPreset(group, preset)
+        self._group_preset_sel.setCurrentPreset(group, preset)
 
     def setData(self, data: Iterable[ConfigGroup]) -> None:
         """Set the configuration data to be displayed in the editor."""
@@ -187,83 +204,18 @@ class ConfigGroupsEditor(QWidget):
             if hasattr(idx, "internalPointer"):
                 node = idx.internalPointer()
                 if hasattr(node, "name"):
-                    self._group_preset_stack.setCurrentGroup(node.name)
+                    self._group_preset_sel.setCurrentGroup(node.name)
         else:
-            self._group_preset_stack.clearSelection()
+            self._group_preset_sel.clearSelection()
         self.configChanged.emit()
 
     def data(self) -> Sequence[ConfigGroup]:
         """Return the current configuration data as a list of ConfigGroup."""
         return self._model.get_groups()
 
-    # selection sync ---------------------------------------------------------
-
-    def _on_group_sel(self, current: QModelIndex, _prev: QModelIndex) -> None:
-        # The GroupPresetSelector already handles updating the preset list root
-        # self._props._presets_table.setGroup(current)
-        self._prop_selector.clear()
-
-    def _on_preset_sel(self, current: QModelIndex, _prev: QModelIndex) -> None:
-        """Populate the DevicePropertyTable whenever the selected preset changes."""
-        if not current.isValid():
-            # clear table when nothing is selected
-            # self._props.setValue([])
-            return
-        node = cast("_Node", current.internalPointer())
-        if not node.is_preset:
-            # self._props.setValue([])
-            return
-        cast("ConfigPreset", node.payload)
-        # self._prop_selector.setChecked(preset.settings)
-
     # ------------------------------------------------------------------
-    # Property-table sync
+    # Layout management
     # ------------------------------------------------------------------
-
-    def _on_prop_table_changed(self) -> None:
-        """Write back edits from the table into the underlying ConfigPreset."""
-        idx = self._group_preset_stack.currentPresetIndex()
-        if not idx.isValid():
-            return
-        node = cast("_Node", idx.internalPointer())
-        if not node.is_preset:
-            return
-        # new_settings = self._props.value()
-        # self._model.update_preset_settings(idx, new_settings)
-        self.configChanged.emit()
-
-    def _on_model_data_changed(
-        self,
-        topLeft: QModelIndex,
-        bottomRight: QModelIndex,
-        _roles: list[int] | None = None,
-    ) -> None:
-        """Refresh DevicePropertyTable if a setting in the current preset was edited."""
-        if not self._our_preset_changed_by_range(topLeft, bottomRight):
-            return
-
-        # self._props.blockSignals(True)  # avoid feedback loop
-        # self._props.setValue(preset.settings)
-        # self._props.blockSignals(False)
-
-    def _our_preset_changed_by_range(
-        self, topLeft: QModelIndex, bottomRight: QModelIndex
-    ) -> ConfigPreset | None:
-        """Return our current preset if it was changed in the given range."""
-        cur_preset = self._group_preset_stack.currentPresetIndex()
-        if (
-            not cur_preset.isValid()
-            or not topLeft.isValid()
-            or topLeft.parent() != cur_preset.parent()
-            or topLeft.internalPointer().payload.name
-            != cur_preset.internalPointer().payload.name
-        ):
-            return None
-
-        # pull updated settings from the model and push to the table
-        node = cast("_Node", cur_preset.internalPointer())
-        preset = cast("ConfigPreset", node.payload)
-        return preset
 
     def _build_layout(self, mode: LayoutMode) -> QSplitter:
         """Return a new top-level splitter for the requested layout."""
@@ -274,7 +226,7 @@ class ConfigGroupsEditor(QWidget):
             # │               _preset_table                    │
             # └────────────────────────────────────────────────┘
             top_splitter = QSplitter(Qt.Orientation.Horizontal)
-            top_splitter.addWidget(self._group_preset_stack)
+            top_splitter.addWidget(self._group_preset_sel)
             top_splitter.addWidget(self._prop_selector)
             top_splitter.setStretchFactor(1, 1)
 
@@ -291,7 +243,7 @@ class ConfigGroupsEditor(QWidget):
             # └───────────────────────────────┴────────────────┘
 
             left_splitter = QSplitter(Qt.Orientation.Vertical)
-            left_splitter.addWidget(self._group_preset_stack)
+            left_splitter.addWidget(self._group_preset_sel)
             left_splitter.addWidget(self._preset_table)
 
             main = QSplitter(Qt.Orientation.Horizontal)
@@ -358,6 +310,55 @@ class ConfigGroupsEditor(QWidget):
             else:
                 main_splitter.setSizes(top_splits)
                 inner_splitter.setSizes(left_heights)
+
+    # ------------------------------------------------------------------
+    # Property-table sync
+    # ------------------------------------------------------------------
+
+    # def _on_prop_table_changed(self) -> None:
+    #     """Write back edits from the table into the underlying ConfigPreset."""
+    #     idx = self._group_preset_sel.currentPresetIndex()
+    #     if not idx.isValid():
+    #         return
+    #     node = cast("_Node", idx.internalPointer())
+    #     if not node.is_preset:
+    #         return
+    #     # new_settings = self._props.value()
+    #     # self._model.update_preset_settings(idx, new_settings)
+    #     self.configChanged.emit()
+
+    # def _on_model_data_changed(
+    #     self,
+    #     topLeft: QModelIndex,
+    #     bottomRight: QModelIndex,
+    #     _roles: list[int] | None = None,
+    # ) -> None:
+    #     """Refresh DevicePropertyTable if the current preset was edited."""
+    #     if not self._our_preset_changed_by_range(topLeft, bottomRight):
+    #         return
+
+    #     # self._props.blockSignals(True)  # avoid feedback loop
+    #     # self._props.setValue(preset.settings)
+    #     # self._props.blockSignals(False)
+
+    # def _our_preset_changed_by_range(
+    #     self, topLeft: QModelIndex, bottomRight: QModelIndex
+    # ) -> ConfigPreset | None:
+    #     """Return our current preset if it was changed in the given range."""
+    #     cur_preset = self._group_preset_sel.currentPresetIndex()
+    #     if (
+    #         not cur_preset.isValid()
+    #         or not topLeft.isValid()
+    #         or topLeft.parent() != cur_preset.parent()
+    #         or topLeft.internalPointer().payload.name
+    #         != cur_preset.internalPointer().payload.name
+    #     ):
+    #         return None
+
+    #     # pull updated settings from the model and push to the table
+    #     node = cast("_Node", cur_preset.internalPointer())
+    #     preset = cast("ConfigPreset", node.payload)
+    #     return preset
 
 
 @contextmanager

@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
-from qtpy.QtCore import QItemSelectionModel, QModelIndex, QSignalBlocker, Qt, Signal
+from qtpy.QtCore import QModelIndex, QSignalBlocker, Qt, Signal
 from qtpy.QtWidgets import QListView, QSplitter, QStackedWidget, QWidget
 
 from pymmcore_widgets._models import QConfigGroupsModel
@@ -15,32 +15,20 @@ if TYPE_CHECKING:
 
 
 class GroupPresetSelector(QStackedWidget):
-    """Widget that switches between list views and tree view for config groups.
+    """Widget that switches between column (2-list) and tree view for config groups.
 
     This widget contains:
     - A splitter with separate list views for groups and presets (index 0)
     - A tree view showing the hierarchical structure (index 1)
-
-    The preset list and tree view share a selection model for consistency,
-    while the group list uses its own selection model to show visual feedback
-    when presets are selected (grayed out parent group selection).
-
-    Signals
-    -------
-    groupSelectionChanged : Signal[QModelIndex, QModelIndex]
-        Emitted when the group selection changes (current, previous)
-    presetSelectionChanged : Signal[QModelIndex, QModelIndex]
-        Emitted when the preset selection changes (current, previous)
     """
 
-    groupSelectionChanged = Signal(QModelIndex, QModelIndex)
-    presetSelectionChanged = Signal(QModelIndex, QModelIndex)
+    currentPresetChanged = Signal(QModelIndex, QModelIndex)
+    currentGroupChanged = Signal(QModelIndex, QModelIndex)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         self._model: QConfigGroupsModel | None = None
-        self._selection_model = QItemSelectionModel()
 
         # STACK_0 : List views for groups and presets ----------------------
 
@@ -58,96 +46,17 @@ class GroupPresetSelector(QStackedWidget):
         # STACK_1 : Tree view for config groups ----------------------------
 
         self.config_groups_tree = ConfigGroupsTree(self)
+        self.config_groups_tree.setSelectionMode(
+            ConfigGroupsTree.SelectionMode.SingleSelection
+        )
+        self.config_groups_tree.setSelectionBehavior(
+            ConfigGroupsTree.SelectionBehavior.SelectRows
+        )
 
         # MAIN STACK  ------------------------------------------------------
 
         self.addWidget(lists_splitter)  # index 0
         self.addWidget(self.config_groups_tree)  # index 1
-
-        self._selection_model.currentChanged.connect(self._on_current_changed)
-
-    def _on_current_changed(self, current: QModelIndex, previous: QModelIndex) -> None:
-        if not current.isValid():
-            return
-
-        is_preset = current.parent().isValid()
-
-        # Emit the same high-level signals your old slots produced.
-        if is_preset:
-            self.presetSelectionChanged.emit(current, previous)
-        else:
-            self.groupSelectionChanged.emit(current, previous)
-
-        # Keep the three views visually in sync.
-        self._sync_to_lists(current)
-        self._sync_to_tree(current)
-
-    def _on_group_selection_changed(
-        self, current: QModelIndex, previous: QModelIndex
-    ) -> None:
-        """Handle group selection changes and emit signal."""
-        # Update preset list root to show presets for the selected group
-        self.preset_list.setRootIndex(current)
-        self.preset_list.clearSelection()
-        self.groupSelectionChanged.emit(current, previous)
-        self._sync_to_tree(current)
-
-    def _on_group_current_changed(
-        self, current: QModelIndex, previous: QModelIndex
-    ) -> None:
-        """Handle group selection changes from the group list."""
-        if not current.isValid():
-            return
-
-        # When group is selected directly, clear preset selection and update views
-        self._selection_model.clearCurrentIndex()
-        self.preset_list.setRootIndex(current)
-        self.preset_list.clearSelection()
-        self.groupSelectionChanged.emit(current, previous)
-        self._sync_to_tree(current)
-
-    # ---------------------------------------------------------------------
-    # Synchronisation helpers
-    # ---------------------------------------------------------------------
-    def _sync_to_tree(self, idx: QModelIndex) -> None:
-        """Select *idx* in the tree view while blocking feedback loops."""
-        if not idx.isValid():
-            return
-        with QSignalBlocker(self.config_groups_tree.selectionModel()):
-            self.config_groups_tree.setCurrentIndex(idx)
-            self.config_groups_tree.scrollTo(idx)
-
-    def _sync_to_lists(self, idx: QModelIndex) -> None:
-        """Reflect *idx* in the list views while blocking feedback loops."""
-        if not idx.isValid():
-            return
-
-        # A group lives at depth-0, a preset at depth-1.
-        is_preset = idx.parent().isValid()
-        group_idx = idx.parent() if is_preset else idx
-
-        # Always set the preset list root to show presets for the current group
-        self.preset_list.setRootIndex(group_idx)
-
-        # Update group list selection (this will show grayed out when not focused)
-        group_sel_model = self.group_list.selectionModel()
-        if group_sel_model is not None:
-            with QSignalBlocker(group_sel_model):
-                group_sel_model.setCurrentIndex(
-                    group_idx, QItemSelectionModel.SelectionFlag.ClearAndSelect
-                )
-        self.group_list.scrollTo(group_idx)
-
-        if is_preset:
-            # Preset is already current in main selection model
-            self.preset_list.scrollTo(idx)
-        else:
-            # For group selection: clear preset selection
-            self.preset_list.clearSelection()
-
-    def selectionModel(self) -> QItemSelectionModel:
-        """Return the shared selection model for this widget."""
-        return self._selection_model
 
     def model(self) -> QConfigGroupsModel | None:
         """Return the currently attached model."""
@@ -159,24 +68,86 @@ class GroupPresetSelector(QStackedWidget):
             raise TypeError("Model must be an instance of QConfigGroupsModel")
 
         self._model = model
-        self._selection_model.setModel(model)
 
         # Set models for all views
         self.group_list.setModel(model)
         self.preset_list.setModel(model)
         self.config_groups_tree.setModel(model)
 
-        # Use shared selection model for preset list and tree
-        self.preset_list.setSelectionModel(self._selection_model)
-        self.config_groups_tree.setSelectionModel(self._selection_model)
+        self._connect_selection_models()
 
-        # Connect to group list's built-in selection model
-        group_sel_model = self.group_list.selectionModel()
-        if group_sel_model is not None:
-            group_sel_model.currentChanged.connect(self._on_group_current_changed)
+    def _connect_selection_models(self) -> None:
+        """Connect all selection model signals to slots."""
+        # TODO: Disconnect
+        if group_sel := self.group_list.selectionModel():
+            group_sel.currentChanged.connect(self._on_group_selection_changed)
 
-    def showListViews(self) -> None:
-        """Switch to list view mode (groups and presets side by side)."""
+        if preset_sel := self.preset_list.selectionModel():
+            preset_sel.currentChanged.connect(self._on_preset_selection_changed)
+
+        if tree_sel := self.config_groups_tree.selectionModel():
+            tree_sel.currentChanged.connect(self._on_tree_selection_changed)
+
+    def _on_group_selection_changed(
+        self, current: QModelIndex, previous: QModelIndex
+    ) -> None:
+        """Handle change in the group_list selection."""
+        prev_preset = self.preset_list.currentIndex()
+        self.preset_list.setRootIndex(current)
+        self.preset_list.setCurrentIndex(QModelIndex())
+        with QSignalBlocker(self.config_groups_tree.selectionModel()):
+            self.config_groups_tree.collapseAll()
+            self.config_groups_tree.setCurrentIndex(current)
+            self.config_groups_tree.expand(current)
+
+        self.currentGroupChanged.emit(current, previous)
+        if prev_preset.isValid():
+            self.currentPresetChanged.emit(QModelIndex(), prev_preset)
+
+    def _on_preset_selection_changed(
+        self, current: QModelIndex, previous: QModelIndex
+    ) -> None:
+        """Handle change in the preset_list selection."""
+        with QSignalBlocker(self.config_groups_tree.selectionModel()):
+            self.config_groups_tree.setCurrentIndex(current)
+        self.currentPresetChanged.emit(current, previous)
+
+    def _group_preset_index(self, idx: QModelIndex) -> tuple[QModelIndex, QModelIndex]:
+        """Extract group and preset indices from a given index."""
+        parent = idx.parent()
+        # idx is a SETTING
+        if (group_idx := parent.parent()).isValid():
+            return group_idx, parent
+        # idx is a PRESET
+        if parent.isValid():
+            return parent, idx
+        # idx is a GROUP
+        return idx, QModelIndex()
+
+    def _on_tree_selection_changed(
+        self, current: QModelIndex, previous: QModelIndex
+    ) -> None:
+        """Handle change in the config_groups_tree selection."""
+        group_idx, preset_idx = self._group_preset_index(current)
+        prev_group, prev_preset = self._group_preset_index(previous)
+
+        if group_idx.row() != prev_group.row():
+            self.currentGroupChanged.emit(group_idx, prev_group)
+            if prev_preset.isValid():
+                self.currentPresetChanged.emit(preset_idx, prev_preset)
+        elif preset_idx.row() != prev_preset.row():
+            self.currentPresetChanged.emit(preset_idx, prev_preset)
+
+        with (
+            QSignalBlocker(self.group_list.selectionModel()),
+            QSignalBlocker(self.preset_list.selectionModel()),
+        ):
+            self.group_list.setCurrentIndex(group_idx)
+            self.preset_list.setRootIndex(group_idx)
+            self.preset_list.setCurrentIndex(preset_idx)
+
+    def showColumnView(self) -> None:
+        """Switch to column view mode (groups and presets side by side)."""
         self.setCurrentIndex(0)
 
     def showTreeView(self) -> None:
@@ -184,11 +155,11 @@ class GroupPresetSelector(QStackedWidget):
         self.setCurrentIndex(1)
 
     def toggleView(self) -> None:
-        """Toggle between list view and tree view modes."""
+        """Toggle between column view and tree view modes."""
         if self.currentIndex() == 0:
             self.showTreeView()
         else:
-            self.showListViews()
+            self.showColumnView()
 
     def isTreeViewActive(self) -> bool:
         """Return True if tree view is currently active."""
@@ -205,17 +176,16 @@ class GroupPresetSelector(QStackedWidget):
             return QModelIndex()
 
         idx = model.index_for_group(group)
-        if idx.isValid():
-            group_sel_model = self.group_list.selectionModel()
-            if group_sel_model is not None:
-                group_sel_model.setCurrentIndex(
-                    idx, QItemSelectionModel.SelectionFlag.ClearAndSelect
-                )
-        else:
-            group_sel_model = self.group_list.selectionModel()
-            if group_sel_model is not None:
-                group_sel_model.clearCurrentIndex()
+        self.group_list.setCurrentIndex(idx)
         return idx
+
+    def currentGroup(self) -> QModelIndex:
+        """Return the currently selected group index."""
+        return self.group_list.currentIndex()
+
+    def currentPreset(self) -> QModelIndex:
+        """Return the currently selected preset index."""
+        return self.preset_list.currentIndex()
 
     def setCurrentPreset(self, group: str, preset: str) -> QModelIndex:
         """Set the currently selected preset by group and preset name."""
@@ -229,32 +199,14 @@ class GroupPresetSelector(QStackedWidget):
 
         group_index = self.setCurrentGroup(group)
         idx = model.index_for_preset(group_index, preset)
-        if idx.isValid():
-            self._selection_model.setCurrentIndex(
-                idx, QItemSelectionModel.SelectionFlag.ClearAndSelect
-            )
-            self.preset_list.setFocus()
-        else:
-            self._selection_model.clearCurrentIndex()
+        self.preset_list.setCurrentIndex(idx)
         return idx
-
-    def currentGroupIndex(self) -> QModelIndex:
-        """Return the currently selected group index."""
-        group_sel_model = self.group_list.selectionModel()
-        if group_sel_model is not None:
-            return group_sel_model.currentIndex()
-        return QModelIndex()
-
-    def currentPresetIndex(self) -> QModelIndex:
-        """Return the currently selected preset index."""
-        return self._selection_model.currentIndex()
 
     def clearSelection(self) -> None:
         """Clear selection in all views."""
         group_sel_model = self.group_list.selectionModel()
         if group_sel_model is not None:
             group_sel_model.clearCurrentIndex()
-        self._selection_model.clearCurrentIndex()
         self.config_groups_tree.clearSelection()
         # Reset preset list root
         self.preset_list.setRootIndex(QModelIndex())
