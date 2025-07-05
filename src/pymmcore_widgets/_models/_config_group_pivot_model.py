@@ -137,11 +137,11 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         orient: Qt.Orientation,
         role: int = Qt.ItemDataRole.DisplayRole,
     ) -> Any:
-        if role == Qt.ItemDataRole.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole and section < len(self._presets):
             if orient == Qt.Orientation.Horizontal:
                 return self._presets[section].name
             return "-".join(self._rows[section])
-        elif role == Qt.ItemDataRole.DecorationRole:
+        elif role == Qt.ItemDataRole.DecorationRole and section < len(self._rows):
             if orient == Qt.Orientation.Vertical:
                 try:
                     dev, _prop = self._rows[section]

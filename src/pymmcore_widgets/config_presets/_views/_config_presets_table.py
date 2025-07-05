@@ -69,6 +69,16 @@ class ConfigPresetsTableView(QTableView):
                     hh.setSectionResizeMode(col, hh.ResizeMode.Stretch)
                 self._have_stretched_headers = True
 
+    def openPersistentEditors(self) -> None:
+        """Open persistent editors for the given index."""
+        """Override to open persistent editors for all items."""
+        if model := self.model():
+            for row in range(model.rowCount()):
+                for col in range(model.columnCount()):
+                    idx = model.index(row, col)
+                    if idx.isValid():
+                        self.openPersistentEditor(idx)
+
     def _get_pivot_model(self) -> ConfigGroupPivotModel:
         model = self.model()
         if isinstance(model, QTransposeProxyModel):

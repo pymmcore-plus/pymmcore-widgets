@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from qtpy.QtCore import QModelIndex, QSize, Qt, Signal
 from qtpy.QtWidgets import (
+    QGroupBox,
     QSizePolicy,
     QSplitter,
     QToolBar,
@@ -209,6 +210,8 @@ class ConfigGroupsEditor(QWidget):
     def _on_group_changed(self, current: QModelIndex, previous: QModelIndex) -> None:
         """Called when the group selection in the GroupPresetSelector changes."""
         self._preset_table.setGroup(current)
+        self._preset_table.view.stretchHeaders()
+        self._preset_table.view.openPersistentEditors()
 
     def _on_preset_changed(self, current: QModelIndex, previous: QModelIndex) -> None:
         """Called when the preset selection in the GroupPresetSelector changes."""
@@ -258,6 +261,22 @@ class ConfigGroupsEditor(QWidget):
 
     def _build_layout(self, mode: LayoutMode) -> QSplitter:
         """Return a new top-level splitter for the requested layout."""
+        margin = 2
+        groups_presets = QGroupBox("Navigate Groups && Presets", self)
+        lay = QVBoxLayout(groups_presets)
+        lay.setContentsMargins(margin, margin, margin, margin)
+        lay.addWidget(self._group_preset_sel)
+
+        prop_sel = QGroupBox("Select Properties", self)
+        lay = QVBoxLayout(prop_sel)
+        lay.setContentsMargins(margin, margin, margin, margin)
+        lay.addWidget(self._prop_selector)
+
+        table_group = QGroupBox("Presets Table", self)
+        lay = QVBoxLayout(table_group)
+        lay.setContentsMargins(margin, margin, margin, margin)
+        lay.addWidget(self._preset_table)
+
         if mode is LayoutMode.FAVOR_PRESETS:
             # ┌───────────────────────────────┬────────────────┐
             # │       _group_preset_stack     │ _prop_selector │ <- top_splitter
@@ -265,13 +284,13 @@ class ConfigGroupsEditor(QWidget):
             # │               _preset_table                    │
             # └────────────────────────────────────────────────┘
             top_splitter = QSplitter(Qt.Orientation.Horizontal)
-            top_splitter.addWidget(self._group_preset_sel)
-            top_splitter.addWidget(self._prop_selector)
+            top_splitter.addWidget(groups_presets)
+            top_splitter.addWidget(prop_sel)
             # top_splitter.setStretchFactor(1, 1)
 
             main = QSplitter(Qt.Orientation.Vertical)
             main.addWidget(top_splitter)
-            main.addWidget(self._preset_table)
+            main.addWidget(table_group)
             return main
 
         if mode is LayoutMode.FAVOR_PROPERTIES:
@@ -282,12 +301,12 @@ class ConfigGroupsEditor(QWidget):
             # └───────────────────────────────┴────────────────┘
 
             left_splitter = QSplitter(Qt.Orientation.Vertical)
-            left_splitter.addWidget(self._group_preset_sel)
-            left_splitter.addWidget(self._preset_table)
+            left_splitter.addWidget(groups_presets)
+            left_splitter.addWidget(table_group)
 
             main = QSplitter(Qt.Orientation.Horizontal)
             main.addWidget(left_splitter)
-            main.addWidget(self._prop_selector)
+            main.addWidget(prop_sel)
             # main.setStretchFactor(1, 1)
             return main
 
