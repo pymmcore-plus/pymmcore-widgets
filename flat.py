@@ -6,7 +6,7 @@ from typing import Any
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 
-class FlattenModel(QtCore.QSortFilterProxyModel):
+class FlattenModel(QtCore.QIdentityProxyModel):
     """A proxy model that flattens a tree model into a table view with expandable rows.
 
     This model allows you to specify a row depth, which determines how many rows are
@@ -23,8 +23,15 @@ class FlattenModel(QtCore.QSortFilterProxyModel):
         # the row depth determines how many rows we show in the flattened view
         # for example, if row_depth=0, we revert to the original model,
         self._row_depth = row_depth
+
         # Store which rows are expandable and their children
         self._expandable_rows: dict[int, list[list[tuple[int, int]]]] = {}
+        # mapping of depth -> (num_rows, num_columns)
+        self._num_leaves_at_depth = defaultdict[int, int](int)
+        # max depth of the tree model
+        self._max_depth = 0
+        # one entry per proxy row
+        self._row_paths: list[list[tuple[int, int]]] = []
 
     def set_row_depth(self, row_depth: int) -> None:
         """Set the row depth for the flattened view."""
@@ -242,11 +249,70 @@ class FlattenModel(QtCore.QSortFilterProxyModel):
 
         return QtCore.QModelIndex()
 
+    def sort(
+        self,
+        column: int,
+        order: QtCore.Qt.SortOrder = QtCore.Qt.SortOrder.AscendingOrder,
+    ) -> None:
+        """Sort the flattened view by the specified column."""
+        print("Sorting by column:", column, "Order:", order)
+        return super().sort(column, order)
+
+    def sort(
+        self,
+        column: int,
+        order: QtCore.Qt.SortOrder = QtCore.Qt.SortOrder.AscendingOrder,
+    ) -> None:
+        """Sort the proxy model by the specified column."""
+        if self._row_depth <= 0:
+            return super().sort(column, order)
+
+        if column < 0 or column >= self.columnCount():
+            return  # Invalid column
+
+        # Emit layoutAboutToBeChanged signal
+        self.layoutAboutToBeChanged.emit()
+
+        # Store current persistent indexes (for advanced proxy models)
+        # For simplicity, we'll skip this for now
+
+        # Sort our _row_paths based on the data in the specified column
+        def get_sort_key(row_index: int) -> str:
+            """Get the sort key for a row at the given index."""
+            proxy_idx = self.index(row_index, column)
+            data = self.data(proxy_idx, QtCore.Qt.ItemDataRole.DisplayRole)
+            return str(data) if data is not None else ""
+
+        # Create list of (original_index, sort_key) pairs
+        indexed_rows = [(i, get_sort_key(i)) for i in range(len(self._row_paths))]
+
+        # Sort by the sort key
+        reverse_order = order == QtCore.Qt.SortOrder.DescendingOrder
+        indexed_rows.sort(key=lambda x: x[1], reverse=reverse_order)
+
+        # Reorder _row_paths and _expandable_rows based on sorted order
+        old_row_paths = self._row_paths.copy()
+        old_expandable_rows = self._expandable_rows.copy()
+
+        self._row_paths = []
+        self._expandable_rows = {}
+
+        for new_index, (old_index, _) in enumerate(indexed_rows):
+            # Copy the row path
+            self._row_paths.append(old_row_paths[old_index])
+
+            # Copy expandable rows mapping with new index
+            if old_index in old_expandable_rows:
+                self._expandable_rows[new_index] = old_expandable_rows[old_index]
+
+        # Emit layoutChanged signal
+        self.layoutChanged.emit()
+
     def _rebuild(self) -> None:
         self.beginResetModel()
         self._max_depth = 0
         # one entry per proxy row
-        self._row_paths: list[list[tuple[int, int]]] = []
+        self._row_paths = []
         # mapping of depth -> (num_rows, num_columns)
         self._num_leaves_at_depth = defaultdict[int, int](int)
         self._expandable_rows = {}
@@ -301,6 +367,53 @@ class FlattenModel(QtCore.QSortFilterProxyModel):
             # Continue if we haven't reached target depth and node has children
             if depth < self._row_depth and model.hasChildren(child):
                 self._collect_model_shape(model, child, depth + 1, pair_path)
+
+    def sort(
+        self,
+        column: int,
+        order: QtCore.Qt.SortOrder = QtCore.Qt.SortOrder.AscendingOrder,
+    ) -> None:
+        """Sort the proxy model by the specified column."""
+        if self._row_depth <= 0:
+            return super().sort(column, order)
+
+        if column < 0 or column >= self.columnCount():
+            return  # Invalid column
+
+        # Emit layoutAboutToBeChanged signal
+        self.layoutAboutToBeChanged.emit()
+
+        # Sort our _row_paths based on the data in the specified column
+        def get_sort_key(row_index: int) -> str:
+            """Get the sort key for a row at the given index."""
+            proxy_idx = self.index(row_index, column)
+            data = self.data(proxy_idx, QtCore.Qt.ItemDataRole.DisplayRole)
+            return str(data) if data is not None else ""
+
+        # Create list of (original_index, sort_key) pairs
+        indexed_rows = [(i, get_sort_key(i)) for i in range(len(self._row_paths))]
+
+        # Sort by the sort key
+        reverse_order = order == QtCore.Qt.SortOrder.DescendingOrder
+        indexed_rows.sort(key=lambda x: x[1], reverse=reverse_order)
+
+        # Reorder _row_paths and _expandable_rows based on sorted order
+        old_row_paths = self._row_paths.copy()
+        old_expandable_rows = self._expandable_rows.copy()
+
+        self._row_paths = []
+        self._expandable_rows = {}
+
+        for new_index, (old_index, _) in enumerate(indexed_rows):
+            # Copy the row path
+            self._row_paths.append(old_row_paths[old_index])
+
+            # Copy expandable rows mapping with new index
+            if old_index in old_expandable_rows:
+                self._expandable_rows[new_index] = old_expandable_rows[old_index]
+
+        # Emit layoutChanged signal
+        self.layoutChanged.emit()
 
 
 def build_tree_model() -> QtGui.QStandardItemModel:
@@ -372,7 +485,7 @@ class MainWindow(QtWidgets.QWidget):
 
         self.tree2 = tree2 = QtWidgets.QTreeView()
         tree2.setAlternatingRowColors(True)
-        # tree2.setSortingEnabled(True)
+        tree2.setSortingEnabled(True)
         tree2.setModel(self.proxy)
         tree1.expandAll()
 
