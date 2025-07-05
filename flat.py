@@ -6,7 +6,7 @@ from typing import Any
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 
-class FlattenModel(QtCore.QIdentityProxyModel):
+class FlattenModel(QtCore.QSortFilterProxyModel):
     """A proxy model that flattens a tree model into a table view with expandable rows.
 
     This model allows you to specify a row depth, which determines how many rows are
@@ -23,7 +23,6 @@ class FlattenModel(QtCore.QIdentityProxyModel):
         # the row depth determines how many rows we show in the flattened view
         # for example, if row_depth=0, we revert to the original model,
         self._row_depth = row_depth
-        self._rows: list[QtCore.QModelIndex] = []
         # Store which rows are expandable and their children
         self._expandable_rows: dict[int, list[list[tuple[int, int]]]] = {}
 
@@ -60,29 +59,15 @@ class FlattenModel(QtCore.QIdentityProxyModel):
             return len(self._row_paths)
 
         # For a parent row, return number of children if expandable
-        parent_row = parent.row()
-        if parent_row in self._expandable_rows:
-            return len(self._expandable_rows[parent_row])
+        if parent.internalId() == 0:  # Top-level row
+            parent_row = parent.row()
+            if parent_row in self._expandable_rows:
+                return len(self._expandable_rows[parent_row])
         return 0
 
     def hasChildren(self, parent: QtCore.QModelIndex | None = None) -> bool:
         """Return whether the given index has children."""
-        if parent is None:
-            parent = QtCore.QModelIndex()
-
-        if self._row_depth <= 0:
-            return super().hasChildren(parent)
-
-        if not parent.isValid():
-            return self.rowCount() > 0
-
-        # Check if this is a top-level row that's expandable
-        if parent.internalId() == 0:
-            parent_row = parent.row()
-            return parent_row in self._expandable_rows
-
-        # Child rows don't have children in this implementation
-        return False
+        return bool(self.rowCount(parent))
 
     def columnCount(self, parent: QtCore.QModelIndex | None = None) -> int:
         """Return the number of columns for the given parent."""
@@ -386,6 +371,8 @@ class MainWindow(QtWidgets.QWidget):
         self.proxy.setSourceModel(src_model)
 
         self.tree2 = tree2 = QtWidgets.QTreeView()
+        tree2.setAlternatingRowColors(True)
+        # tree2.setSortingEnabled(True)
         tree2.setModel(self.proxy)
         tree1.expandAll()
 
@@ -398,7 +385,6 @@ class MainWindow(QtWidgets.QWidget):
                 "Rows = level C (depth 2)",
             ]
         )
-        depth_selector.setCurrentIndex(1)
 
         depth_selector.currentIndexChanged.connect(self.proxy.set_row_depth)
 
