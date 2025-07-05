@@ -58,12 +58,31 @@ class FlattenModel(QtCore.QIdentityProxyModel):
         if not parent.isValid():
             # Top-level: return number of primary flattened rows
             return len(self._row_paths)
-        else:
-            # For a parent row, return number of children if expandable
+
+        # For a parent row, return number of children if expandable
+        parent_row = parent.row()
+        if parent_row in self._expandable_rows:
+            return len(self._expandable_rows[parent_row])
+        return 0
+
+    def hasChildren(self, parent: QtCore.QModelIndex | None = None) -> bool:
+        """Return whether the given index has children."""
+        if parent is None:
+            parent = QtCore.QModelIndex()
+
+        if self._row_depth <= 0:
+            return super().hasChildren(parent)
+
+        if not parent.isValid():
+            return self.rowCount() > 0
+
+        # Check if this is a top-level row that's expandable
+        if parent.internalId() == 0:
             parent_row = parent.row()
-            if parent_row in self._expandable_rows:
-                return len(self._expandable_rows[parent_row])
-            return 0
+            return parent_row in self._expandable_rows
+
+        # Child rows don't have children in this implementation
+        return False
 
     def columnCount(self, parent: QtCore.QModelIndex | None = None) -> int:
         """Return the number of columns for the given parent."""
@@ -237,25 +256,6 @@ class FlattenModel(QtCore.QIdentityProxyModel):
                                     )
 
         return QtCore.QModelIndex()
-
-    def hasChildren(self, parent: QtCore.QModelIndex | None = None) -> bool:
-        """Return whether the given index has children."""
-        if parent is None:
-            parent = QtCore.QModelIndex()
-
-        if self._row_depth <= 0:
-            return super().hasChildren(parent)
-
-        if not parent.isValid():
-            return self.rowCount() > 0
-
-        # Check if this is a top-level row that's expandable
-        if parent.internalId() == 0:
-            parent_row = parent.row()
-            return parent_row in self._expandable_rows
-
-        # Child rows don't have children in this implementation
-        return False
 
     def _rebuild(self) -> None:
         self.beginResetModel()
