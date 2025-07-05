@@ -7,6 +7,15 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 class FlattenModel(QtCore.QIdentityProxyModel):
+    """A proxy model that flattens a tree model into a table view with expandable rows.
+
+    This model allows you to specify a row depth, which determines how many rows are
+    shown in the flattened view. For example, if row_depth=0, it reverts to the original
+    model, while row_depth=1 shows the first level of children, and row_depth=2 shows
+    the second level of children. The model supports expandable rows, allowing users to
+    expand and collapse child rows based on the specified depth.
+    """
+
     def __init__(
         self, row_depth: int = 0, parent: QtCore.QObject | None = None
     ) -> None:
@@ -18,12 +27,20 @@ class FlattenModel(QtCore.QIdentityProxyModel):
         # Store which rows are expandable and their children
         self._expandable_rows: dict[int, list[list[tuple[int, int]]]] = {}
 
+    def set_row_depth(self, row_depth: int) -> None:
+        """Set the row depth for the flattened view."""
+        self._row_depth = row_depth
+        self._rebuild()
+
+    # ------------- QAbstractItemModel interface methods -------------
+
     def headerData(
         self,
         section: int,
         orientation: QtCore.Qt.Orientation,
         role: int = QtCore.Qt.ItemDataRole.DisplayRole,
     ) -> Any:
+        """Return the header data for the given section and orientation."""
         if (
             orientation == QtCore.Qt.Orientation.Horizontal
             and role == QtCore.Qt.ItemDataRole.DisplayRole
@@ -49,78 +66,22 @@ class FlattenModel(QtCore.QIdentityProxyModel):
             return 0
 
     def columnCount(self, parent: QtCore.QModelIndex | None = None) -> int:
+        """Return the number of columns for the given parent."""
         if parent is None:
             parent = QtCore.QModelIndex()
-        # In the flattened view with hierarchical expansion,
-        # we need enough columns to show the deepest child data
         if self._row_depth <= 0:
             return super().columnCount(parent)
 
-        # Calculate the maximum depth needed including children
-        max_child_depth = self._max_depth
-        for children_paths in self._expandable_rows.values():
-            for path in children_paths:
-                max_child_depth = max(max_child_depth, len(path) - 1)
-
-        return max_child_depth + 1
-
-    def set_row_depth(self, row_depth: int) -> None:
-        self._row_depth = row_depth
-        self._rebuild()
+        # For flattened view, show columns up to row_depth + 1
+        # This makes row_depth=1 show 2 columns, row_depth=2 show 3 columns, etc.
+        return self._row_depth + 1
 
     def setSourceModel(self, source_model: QtCore.QAbstractItemModel | None) -> None:
+        """Set the source model and rebuild the flattened view."""
         super().setSourceModel(source_model)
         if source_model:
             source_model.dataChanged.connect(self._rebuild)
         self._rebuild()
-
-    def _rebuild(self) -> None:
-        self.beginResetModel()
-        self._max_depth = 0
-        # one entry per proxy row
-        self._row_paths: list[list[tuple[int, int]]] = []
-        # mapping of depth -> (num_rows, num_columns)
-        self._num_leafs_at_depth = defaultdict[int, int](int)
-        self._expandable_rows = {}
-        if src := self.sourceModel():
-            self._collect_model_shape(src)
-        self.endResetModel()
-
-    def _collect_model_shape(
-        self,
-        model: QtCore.QAbstractItemModel,
-        parent: QtCore.QModelIndex | None = None,
-        depth: int = 0,
-        stack: list[tuple[int, int]] | None = None,
-    ) -> None:
-        if parent is None:
-            parent = QtCore.QModelIndex()
-        if stack is None:
-            stack = []
-
-        rows = model.rowCount(parent)
-        self._num_leafs_at_depth[depth] += rows
-        self._max_depth = max(self._max_depth, depth)
-
-        for r in range(rows):
-            child = model.index(r, 0, parent)  # tree is in column 0
-            pair_path = [*stack, (r, 0)]
-
-            if depth == self._row_depth:
-                # Add the row at the target depth
-                row_index = len(self._row_paths)
-                self._row_paths.append(pair_path)
-
-                # If this row has children, store them for potential expansion
-                if model.hasChildren(child):
-                    children = []
-                    child_rows = model.rowCount(child)
-                    for child_r in range(child_rows):
-                        child_path = [*pair_path, (child_r, 0)]
-                        children.append(child_path)
-                    self._expandable_rows[row_index] = children
-            else:
-                self._collect_model_shape(model, child, depth + 1, pair_path)
 
     def index(
         self,
@@ -138,7 +99,7 @@ class FlattenModel(QtCore.QIdentityProxyModel):
             # Top-level rows (the primary flattened rows)
             if row < 0 or row >= len(self._row_paths):
                 return QtCore.QModelIndex()
-            if column < 0 or column > self._max_depth:
+            if column < 0 or column >= self.columnCount():
                 return QtCore.QModelIndex()
             return self.createIndex(row, column, 0)  # 0 indicates top-level
         else:
@@ -160,7 +121,7 @@ class FlattenModel(QtCore.QIdentityProxyModel):
                 return self.createIndex(row, column, parent_row + 1)
             return QtCore.QModelIndex()
 
-    def parent(self, index: QtCore.QModelIndex) -> QtCore.QModelIndex:
+    def parent(self, index: QtCore.QModelIndex) -> QtCore.QModelIndex:  # type: ignore [override]
         """Returns the parent of the given child index."""
         if self._row_depth <= 0:
             return super().parent(index)
@@ -179,7 +140,8 @@ class FlattenModel(QtCore.QIdentityProxyModel):
             if parent_row < 0 or parent_row >= len(self._row_paths):
                 # Invalid parent row, return invalid index
                 return QtCore.QModelIndex()
-            return self.createIndex(parent_row, 0, 0)  # Parent is always top-level
+            # Return parent at column 0 for tree structure
+            return self.createIndex(parent_row, 0, 0)
 
     def mapToSource(self, proxy_index: QtCore.QModelIndex) -> QtCore.QModelIndex:
         """Map from the flattened view back to the source model."""
@@ -193,12 +155,20 @@ class FlattenModel(QtCore.QIdentityProxyModel):
         internal_ptr = proxy_index.internalId()
 
         if internal_ptr == 0:
-            # Top-level row
+            # Top-level row: navigate to the column depth requested
             if row >= len(self._row_paths):
                 return QtCore.QModelIndex()
             path = self._row_paths[row]
+
+            if col >= len(path):  # beyond recorded depth
+                return QtCore.QModelIndex()
+
+            src = QtCore.QModelIndex()
+            for r, c in path[: col + 1]:
+                src = src_model.index(r, c, src)
+            return src
         else:
-            # Child row
+            # Child row: these are the deeper children (C-level nodes)
             parent_row = internal_ptr - 1
             if parent_row not in self._expandable_rows:
                 return QtCore.QModelIndex()
@@ -207,52 +177,66 @@ class FlattenModel(QtCore.QIdentityProxyModel):
                 return QtCore.QModelIndex()
             path = children[row]
 
-        if col >= len(path):  # beyond recorded depth
+            # For children, we have different behavior per column:
+            if col == 0:
+                # Column 0: Don't show anything for child rows (they should be indented)
+                return QtCore.QModelIndex()
+            elif col == self._row_depth:
+                # Target depth column: show the full child data (navigate the complete path)
+                src = QtCore.QModelIndex()
+                for r, c in path:
+                    src = src_model.index(r, c, src)
+                return src
+            else:
+                # Other columns: no data
+                return QtCore.QModelIndex()
+
+    def mapFromSource(self, source_index: QtCore.QModelIndex) -> QtCore.QModelIndex:
+        """Map from source model back to proxy model."""
+        if self._row_depth <= 0 or not (src_model := self.sourceModel()):
+            return super().mapFromSource(source_index)
+
+        if not source_index.isValid():
             return QtCore.QModelIndex()
 
-        src = QtCore.QModelIndex()
-        for r, c in path[: col + 1]:
-            src = src_model.index(r, c, src)
+        # Build the path from root to this source index
+        path = []
+        current = source_index
+        while current.isValid():
+            path.append((current.row(), current.column()))
+            current = current.parent()
+        path.reverse()  # Now path is from root to source_index
 
-        return src
+        # Check if this path matches any of our top-level rows
+        for proxy_row, row_path in enumerate(self._row_paths):
+            # Check if the source path starts with our row path
+            if len(path) >= len(row_path):
+                matches = True
+                for i, (proxy_r, proxy_c) in enumerate(row_path):
+                    if i >= len(path) or path[i] != (proxy_r, proxy_c):
+                        matches = False
+                        break
 
-    def data(
-        self, index: QtCore.QModelIndex, role: int = QtCore.Qt.ItemDataRole.DisplayRole
-    ) -> Any:
-        """Return data for the given index and role."""
-        if self._row_depth <= 0:
-            return super().data(index, role)
+                if matches:
+                    # This source index corresponds to our proxy row
+                    if len(path) == len(row_path):
+                        # Exact match - this is a top-level item
+                        column = len(path) - 1  # Column based on depth
+                        if column < self.columnCount():
+                            return self.createIndex(proxy_row, column, 0)
+                    elif len(path) == len(row_path) + 1:
+                        # This is a child of our top-level item
+                        if proxy_row in self._expandable_rows:
+                            children = self._expandable_rows[proxy_row]
+                            child_row_in_source = path[-1][0]  # Last element's row
+                            if child_row_in_source < len(children):
+                                column = len(path) - 1  # Column based on depth
+                                if column < self.columnCount():
+                                    return self.createIndex(
+                                        child_row_in_source, column, proxy_row + 1
+                                    )
 
-        if not index.isValid() or not (src_model := self.sourceModel()):
-            return None
-
-        row, col = index.row(), index.column()
-        internal_ptr = index.internalId()
-
-        if internal_ptr == 0:
-            # Top-level row
-            if row >= len(self._row_paths):
-                return None
-            path = self._row_paths[row]
-        else:
-            # Child row
-            parent_row = internal_ptr - 1
-            if parent_row not in self._expandable_rows:
-                return None
-            children = self._expandable_rows[parent_row]
-            if row >= len(children):
-                return None
-            path = children[row]
-
-        if col >= len(path):
-            return None
-
-        # Navigate to the source index for this column
-        src = QtCore.QModelIndex()
-        for _, (r, c) in enumerate(path[: col + 1]):
-            src = src_model.index(r, c, src)
-
-        return src_model.data(src, role) if src.isValid() else None
+        return QtCore.QModelIndex()
 
     def hasChildren(self, parent: QtCore.QModelIndex | None = None) -> bool:
         """Return whether the given index has children."""
@@ -272,6 +256,66 @@ class FlattenModel(QtCore.QIdentityProxyModel):
 
         # Child rows don't have children in this implementation
         return False
+
+    def _rebuild(self) -> None:
+        self.beginResetModel()
+        self._max_depth = 0
+        # one entry per proxy row
+        self._row_paths: list[list[tuple[int, int]]] = []
+        # mapping of depth -> (num_rows, num_columns)
+        self._num_leaves_at_depth = defaultdict[int, int](int)
+        self._expandable_rows = {}
+        if src := self.sourceModel():
+            self._collect_model_shape(src)
+        self.endResetModel()
+
+    def _collect_model_shape(
+        self,
+        model: QtCore.QAbstractItemModel,
+        parent: QtCore.QModelIndex | None = None,
+        depth: int = 0,
+        stack: list[tuple[int, int]] | None = None,
+    ) -> None:
+        if parent is None:
+            parent = QtCore.QModelIndex()
+        if stack is None:
+            stack = []
+
+        rows = model.rowCount(parent)
+        self._num_leaves_at_depth[depth] += rows
+        self._max_depth = max(self._max_depth, depth)
+
+        for r in range(rows):
+            child = model.index(r, 0, parent)  # tree is in column 0
+            pair_path = [*stack, (r, 0)]
+
+            # Add node if we're at target depth OR
+            # if it's a terminal node before target depth
+            should_add_node = (
+                depth == self._row_depth  # At target depth
+                or (
+                    depth < self._row_depth and not model.hasChildren(child)
+                )  # Terminal before target
+            )
+
+            if should_add_node:
+                # Add the row to the flattened view
+                row_index = len(self._row_paths)
+                self._row_paths.append(pair_path)
+
+                # If this row has children and we're at target depth,
+                # store them for expansion
+                if depth == self._row_depth and model.hasChildren(child):
+                    children = []
+                    child_rows = model.rowCount(child)
+                    for child_r in range(child_rows):
+                        child_path = [*pair_path, (child_r, 0)]
+                        children.append(child_path)
+                    self._expandable_rows[row_index] = children
+
+            # Continue if we haven't reached target depth and node has children
+            if depth < self._row_depth and model.hasChildren(child):
+                self._collect_model_shape(model, child, depth + 1, pair_path)
 
 
 def build_tree_model() -> QtGui.QStandardItemModel:
@@ -346,7 +390,7 @@ class MainWindow(QtWidgets.QWidget):
         tree1.expandAll()
 
         # depth selector
-        depth_selector = QtWidgets.QComboBox()
+        self.combo = depth_selector = QtWidgets.QComboBox()
         depth_selector.addItems(
             [
                 "Rows = level A (depth 0)",
@@ -378,80 +422,14 @@ def main() -> None:
     win.show()
 
     # PROGRAMMATICALLY INTERACT HERE
-    print("Testing hierarchical expansion at row_depth=1:")
-    win.proxy.set_row_depth(1)
-    print(f"Row count (top-level): {win.proxy.rowCount()}")
-
-    # Print top-level rows
-    for r in range(win.proxy.rowCount()):
-        row_data = []
-        for c in range(win.proxy.columnCount()):
-            idx = win.proxy.index(r, c)
-            data = win.proxy.data(idx)
-            row_data.append(str(data) if data else "None")
-        has_children = win.proxy.hasChildren(win.proxy.index(r, 0))
-        print(f"  Row {r}: {row_data} (has children: {has_children})")
-
-        # If this row has children, print them too
-        if has_children:
-            parent_idx = win.proxy.index(r, 0)
-            child_count = win.proxy.rowCount(parent_idx)
-            print(f"    Children ({child_count}):")
-            for child_r in range(child_count):
-                child_data = []
-                for c in range(win.proxy.columnCount()):
-                    child_idx = win.proxy.index(child_r, c, parent_idx)
-                    data = win.proxy.data(child_idx)
-                    child_data.append(str(data) if data else "None")
-                print(f"      Child {child_r}: {child_data}")
-
-                # Test bounds checking: try to get parent of child
-                child_parent = win.proxy.parent(child_idx)
-                if child_parent.isValid():
-                    print(f"        Child parent row: {child_parent.row()}")
-
-    print("\nStress testing bounds checking:")
-    # Try to create invalid indexes and see if they handle gracefully
-    invalid_tests = [
-        (999, 0, QtCore.QModelIndex()),  # Invalid top-level row
-        (0, 999, QtCore.QModelIndex()),  # Invalid column
-        (-1, 0, QtCore.QModelIndex()),  # Negative row
-        (0, -1, QtCore.QModelIndex()),  # Negative column
-    ]
-
-    for row, col, parent in invalid_tests:
-        index = win.proxy.index(row, col, parent)
-        print(f"    index({row}, {col}): valid={index.isValid()}")
-        if index.isValid():
-            # Try to get parent, which might trigger the overflow
-            try:
-                parent_index = win.proxy.parent(index)
-                print(f"      parent: valid={parent_index.isValid()}")
-            except Exception as e:
-                print(f"      parent error: {e}")
-
-    # Try to trigger the overflow with corrupted internal pointers
-    print("\nTesting with potentially corrupted indexes:")
-    try:
-        # Create an index with a very large internal pointer manually
-        # This simulates what might happen in edge cases
-        for large_id in [999999, 2**31, 2**63 - 1]:
-            try:
-                fake_index = win.proxy.createIndex(0, 0, large_id)
-                print(f"    Created index with internalId={large_id}")
-                parent_index = win.proxy.parent(fake_index)
-                print(f"      Parent: valid={parent_index.isValid()}")
-            except Exception as e:
-                print(f"      Error with internalId={large_id}: {e}")
-    except Exception as e:
-        print(f"    Exception in corruption test: {e}")
 
     # Expand all in the tree view to show hierarchical structure
+    win.combo.setCurrentIndex(1)  # Set to depth 1 to show the improved layout
     win.tree2.expandAll()
 
     win.grab().save("flatten_proxy_demo.png", "PNG")
-    sys.exit(app.exec())
     # sys.exit(app.processEvents())
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
