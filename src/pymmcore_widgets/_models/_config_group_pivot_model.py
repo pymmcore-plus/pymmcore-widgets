@@ -34,7 +34,7 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         src_model.modelReset.connect(self._rebuild)
         src_model.rowsInserted.connect(self._rebuild)
         src_model.rowsRemoved.connect(self._rebuild)
-        src_model.dataChanged.connect(self._rebuild)
+        src_model.dataChanged.connect(self._on_source_data_changed)
 
     def setGroup(self, group_name_or_index: str | QModelIndex) -> None:
         """Set the group index to pivot and rebuild the matrix."""
@@ -95,6 +95,35 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         self._src.dataChanged.emit(preset_idx, preset_idx, [role])
         return True
 
+    def _on_source_data_changed(
+        self,
+        top_left: QModelIndex,
+        bottom_right: QModelIndex,
+        roles: list[int] | None = None,
+    ) -> None:
+        """Handle dataChanged signals from the source model."""
+        # Only rebuild if the change affects our currently displayed group
+        if self._gidx is None:
+            return
+
+        # Check if any of the changed indices are within our current group
+        current_group_row = self._gidx.row()
+        top_left_parent = top_left.parent()
+        top_left_parent_row = top_left_parent.row()
+
+        # Walk through all changed indices to see if any affect our group
+        for row in range(top_left.row(), bottom_right.row() + 1):
+            # If the change is at the root level (groups)
+            if not top_left_parent.isValid() and row == current_group_row:
+                # Our group's metadata changed (like channel group status)
+                # This doesn't affect the pivot table content, so no rebuild needed
+                return
+
+            # If the change is within a group (presets or preset settings)
+            if top_left_parent_row == current_group_row:
+                # Changes within our current group - need to rebuild
+                self._rebuild()
+
     # ---------------------------------------------------------------- build --
 
     def _rebuild(self) -> None:  # slot signature is flexible
@@ -102,22 +131,26 @@ class ConfigGroupPivotModel(QAbstractTableModel):
             return  # pragma: no cover
         self.beginResetModel()
 
-        node = self._gidx.internalPointer()
-        if not node:
-            return
-        self._presets = [child.payload for child in node.children]
-        keys = (setting.key() for p in self._presets for setting in p.settings)
-        self._rows = list(dict.fromkeys(keys, None))  # unique (device, prop) pairs
-
+        self._presets = []
+        self._rows = []
         self._data.clear()
-        for col, preset in enumerate(self._presets):
-            for row, (device, prop) in enumerate(self._rows):
-                for s in preset.settings:
-                    if s.key() == (device, prop):
-                        self._data[(row, col)] = s
-                        break
+        try:
+            node = self._gidx.internalPointer()
+            if not node:
+                return
+            self._presets = [child.payload for child in node.children]
+            keys = (setting.key() for p in self._presets for setting in p.settings)
+            self._rows = list(dict.fromkeys(keys, None))  # unique (device, prop) pairs
 
-        self.endResetModel()
+            self._data.clear()
+            for col, preset in enumerate(self._presets):
+                for row, (device, prop) in enumerate(self._rows):
+                    for s in preset.settings:
+                        if s.key() == (device, prop):
+                            self._data[(row, col)] = s
+                            break
+        finally:
+            self.endResetModel()
 
     # --------------------------------------------------------- Qt overrides --
 

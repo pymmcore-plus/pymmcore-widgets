@@ -57,6 +57,11 @@ class ConfigPresetsTableView(QTableView):
 
         self._pivot_model = matrix
         super().setModel(matrix)
+
+        # Connect to model signals to ensure persistent editors are always maintained
+        matrix.modelReset.connect(self._ensure_persistent_editors)
+        matrix.dataChanged.connect(self._ensure_persistent_editors)
+
         # this is a bit magical... but it looks better
         # will only happen once
         if not getattr(self, "_have_stretched_headers", False):
@@ -68,6 +73,11 @@ class ConfigPresetsTableView(QTableView):
                 for col in range(hh.count()):
                     hh.setSectionResizeMode(col, hh.ResizeMode.Stretch)
                 self._have_stretched_headers = True
+
+    def _ensure_persistent_editors(self) -> None:
+        """Ensure persistent editors are open for all cells after model changes."""
+        # Use a single-shot timer to avoid opening editors during model updates
+        QTimer.singleShot(0, self.openPersistentEditors)
 
     def openPersistentEditors(self) -> None:
         """Open persistent editors for the given index."""
@@ -98,6 +108,9 @@ class ConfigPresetsTableView(QTableView):
         """Set the group for the pivot model."""
         model = self._get_pivot_model()
         model.setGroup(group_name_or_index)
+        # Ensure persistent editors are reopened after group change
+        # (the model reset from setGroup will close them)
+        QTimer.singleShot(0, self.openPersistentEditors)
 
     def transpose(self) -> None:
         """Transpose the table view."""
@@ -106,11 +119,15 @@ class ConfigPresetsTableView(QTableView):
             self._transpose_proxy = QTransposeProxyModel()
             self._transpose_proxy.setSourceModel(pivot)
             super().setModel(self._transpose_proxy)
+            # Ensure persistent editors are maintained after transposing
+            QTimer.singleShot(0, self.openPersistentEditors)
         elif isinstance(pivot, QTransposeProxyModel):
             # Already transposed, revert to original model
             if self._pivot_model:
                 super().setModel(self._pivot_model)
                 self._transpose_proxy = None
+                # Ensure persistent editors are maintained after un-transposing
+                QTimer.singleShot(0, self.openPersistentEditors)
 
     def isTransposed(self) -> bool:
         """Check if the table view is currently transposed."""

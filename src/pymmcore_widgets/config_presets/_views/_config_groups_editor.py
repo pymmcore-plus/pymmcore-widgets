@@ -237,7 +237,6 @@ class ConfigGroupsEditor(QWidget):
         """Called when the group selection in the GroupPresetSelector changes."""
         self._preset_table.setGroup(current)
         self._preset_table.view.stretchHeaders()
-        self._preset_table.view.openPersistentEditors()
 
         if current.isValid():
             group = current.data(Qt.ItemDataRole.UserRole)
