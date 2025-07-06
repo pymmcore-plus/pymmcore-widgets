@@ -95,35 +95,6 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         self._src.dataChanged.emit(preset_idx, preset_idx, [role])
         return True
 
-    def _on_source_data_changed(
-        self,
-        top_left: QModelIndex,
-        bottom_right: QModelIndex,
-        roles: list[int] | None = None,
-    ) -> None:
-        """Handle dataChanged signals from the source model."""
-        # Only rebuild if the change affects our currently displayed group
-        if self._gidx is None:
-            return
-
-        # Check if any of the changed indices are within our current group
-        current_group_row = self._gidx.row()
-        top_left_parent = top_left.parent()
-        top_left_parent_row = top_left_parent.row()
-
-        # Walk through all changed indices to see if any affect our group
-        for row in range(top_left.row(), bottom_right.row() + 1):
-            # If the change is at the root level (groups)
-            if not top_left_parent.isValid() and row == current_group_row:
-                # Our group's metadata changed (like channel group status)
-                # This doesn't affect the pivot table content, so no rebuild needed
-                return
-
-            # If the change is within a group (presets or preset settings)
-            if top_left_parent_row == current_group_row:
-                # Changes within our current group - need to rebuild
-                self._rebuild()
-
     # ---------------------------------------------------------------- build --
 
     def _rebuild(self) -> None:  # slot signature is flexible
@@ -222,3 +193,54 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         preset = self._presets[column]
         preset_idx = self._src.index_for_preset(self._gidx, preset.name)
         return preset_idx
+
+    def _on_source_data_changed(
+        self,
+        top_left: QModelIndex,
+        bottom_right: QModelIndex,
+        roles: list[int] | None = None,
+    ) -> None:
+        """Handle dataChanged signals from the source model."""
+        if self._should_rebuild_for_changes(top_left, bottom_right):
+            self._rebuild()
+
+    def _should_rebuild_for_changes(
+        self, top_left: QModelIndex, bottom_right: QModelIndex
+    ) -> bool:
+        """Determine if model changes require rebuilding the pivot."""
+        if self._gidx is None or self._src is None:
+            return False
+
+        tl_col = top_left.column()
+        tl_par = top_left.parent()
+        gid_row = self._gidx.row()
+        for row in range(top_left.row(), bottom_right.row() + 1):
+            changed_index = self._src.index(row, tl_col, tl_par)
+            # Skip group metadata changes (at root level with our group row)
+            if tl_par.isValid() or row != gid_row:
+                if self._is_within_current_group(changed_index):
+                    # Preset or setting data changed, rebuild needed
+                    return True
+        return False
+
+    def _is_within_current_group(self, index: QModelIndex) -> bool:
+        """Check if the given index is within the currently displayed group."""
+        current_group_row = self._gidx.row()  # type: ignore[union-attr]
+
+        # Walk up the parent hierarchy
+        check_index = index
+        while check_index.isValid():
+            parent = check_index.parent()
+
+            # At root level: check if this is our group
+            if not parent.isValid():
+                return check_index.row() == current_group_row  # type: ignore[no-any-return]
+
+            # Parent at root level: check if parent is our group
+            if not parent.parent().isValid():
+                return parent.row() == current_group_row  # type: ignore[no-any-return]
+
+            # Move up one level
+            check_index = parent
+
+        return False
