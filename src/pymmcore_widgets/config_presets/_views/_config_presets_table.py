@@ -12,8 +12,8 @@ from qtpy.QtCore import (
     QTransposeProxyModel,
 )
 from qtpy.QtWidgets import QTableView, QToolBar, QVBoxLayout, QWidget
-from superqt import QIconifyIcon
 
+from pymmcore_widgets._icons import StandardIcon
 from pymmcore_widgets._models import ConfigGroupPivotModel, QConfigGroupsModel
 
 from ._property_setting_delegate import PropertySettingDelegate
@@ -147,17 +147,15 @@ class ConfigPresetsTable(QWidget):
         tb.setIconSize(QSize(16, 16))
         tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         if act := tb.addAction(
-            QIconifyIcon("carbon:transpose"), "Transpose", self.view.transpose
+            StandardIcon.TRANSPOSE.icon(), "Transpose", self.view.transpose
         ):
             act.setCheckable(True)
 
-        self.remove_action = QAction(QIconifyIcon("mdi:delete-outline"), "Remove")
+        self.remove_action = QAction(StandardIcon.DELETE.icon(), "Remove")
         tb.addAction(self.remove_action)
         self.remove_action.triggered.connect(self._on_remove_action)
 
-        self.duplicate_action = QAction(
-            QIconifyIcon("mdi:content-duplicate"), "Duplicate"
-        )
+        self.duplicate_action = QAction(StandardIcon.COPY.icon(), "Duplicate")
         tb.addAction(self.duplicate_action)
         self.duplicate_action.triggered.connect(self._on_duplicate_action)
 
@@ -184,7 +182,7 @@ class ConfigPresetsTable(QWidget):
     def _on_remove_action(self) -> None:
         if not self.view.isTransposed():
             source_idx = self._get_selected_preset_index()
-            self.view.sourceModel().remove(source_idx)
+            self.view.sourceModel().remove(source_idx, ask_confirmation=True)
         # TODO: handle transposed case
 
     def _on_duplicate_action(self) -> None:

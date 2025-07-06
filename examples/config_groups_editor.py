@@ -10,7 +10,7 @@ core = CMMCorePlus()
 core.loadSystemConfiguration()
 
 cfg = ConfigGroupsEditor.create_from_core(core)
-cfg.setCurrentPreset("Channel", "FITC")
+# cfg.setCurrentPreset("Channel", "FITC")
 cfg.show()
 cfg.resize(1200, 800)
 

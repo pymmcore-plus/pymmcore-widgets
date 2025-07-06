@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import warnings
 from copy import deepcopy
 from enum import IntEnum
 from typing import TYPE_CHECKING, Any, cast
 
 from qtpy.QtCore import QModelIndex, Qt
 from qtpy.QtGui import QFont, QIcon
-from qtpy.QtWidgets import QMessageBox
+from qtpy.QtWidgets import QMessageBox, QWidget
+from superqt import QIconifyIcon
 
-from pymmcore_widgets._icons import get_device_icon
+from pymmcore_widgets._icons import StandardIcon
 
 from ._base_tree_model import _BaseTreeModel, _Node
 from ._core_functions import get_config_groups
@@ -72,13 +74,16 @@ class QConfigGroupsModel(_BaseTreeModel):
 
         if role == Qt.ItemDataRole.DecorationRole and col == Col.Item:
             if node.is_group:
-                return QIcon.fromTheme("folder")
+                grp = cast("ConfigGroup", node.payload)
+                if grp.is_channel_group:
+                    return StandardIcon.CHANNEL_GROUP.icon().pixmap(16, 16)
+                return StandardIcon.CONFIG_GROUP.icon().pixmap(16, 16)
             if node.is_preset:
-                return QIcon.fromTheme("document")
+                return StandardIcon.CONFIG_PRESET.icon().pixmap(16, 16)
             if node.is_setting:
                 setting = cast("DevicePropertySetting", node.payload)
-                if icon := get_device_icon(setting.device_label, color="gray"):
-                    return icon.pixmap(16, 16)
+                if icon_key := setting.iconify_key:
+                    return QIconifyIcon(icon_key).pixmap(16, 16)
                 return QIcon.fromTheme("emblem-system")  # pragma: no cover
 
         if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
@@ -200,7 +205,7 @@ class QConfigGroupsModel(_BaseTreeModel):
 
     # group-level -------------------------------------------------------------
 
-    def add_group(self, base_name: str = "Group") -> QModelIndex:
+    def add_group(self, base_name: str = "New Group") -> QModelIndex:
         """Append a *new* empty group and return its QModelIndex."""
         name = self._unique_child_name(self._root, base_name, suffix="")
         group = ConfigGroup(name=name)
@@ -226,7 +231,7 @@ class QConfigGroupsModel(_BaseTreeModel):
     # preset-level ------------------------------------------------------------
 
     def add_preset(
-        self, group_idx: QModelIndex, base_name: str = "Preset"
+        self, group_idx: QModelIndex, base_name: str = "New Preset"
     ) -> QModelIndex:
         group_node = self._node_from_index(group_idx)
         if not isinstance(group_node.payload, ConfigGroup):
@@ -254,6 +259,46 @@ class QConfigGroupsModel(_BaseTreeModel):
         if self.insertRows(row, 1, group_idx, _payloads=[pre_copy]):
             return self.index(row, 0, group_idx)
         return QModelIndex()  # pragma: no cover
+
+    def set_channel_group(self, group_idx: QModelIndex | None) -> None:
+        """Set the given group as the channel group.
+
+        If *group_idx* is None or invalid, unset the current channel group.
+        """
+        changed = False
+        if group_idx is None or not group_idx.isValid():
+            # unset existing channel group
+            for group_node in self._root.children:
+                if isinstance((grp := group_node.payload), ConfigGroup):
+                    if grp.is_channel_group:
+                        changed = True
+                    grp.is_channel_group = False
+        else:
+            group_node = self._node_from_index(group_idx)
+            if not isinstance(
+                (grp := group_node.payload), ConfigGroup
+            ):  # pragma: no cover
+                warnings.warn("Reference index is not a ConfigGroup.", stacklevel=2)
+                return
+            if grp.is_channel_group:
+                return  # no change
+
+            grp.is_channel_group = True
+            # unset all other groups
+            for sibling in group_node.siblings:
+                if isinstance((sibling_grp := sibling.payload), ConfigGroup):
+                    if sibling_grp.is_channel_group:
+                        changed = True
+                    sibling_grp.is_channel_group = False
+
+            changed = True
+
+        if changed:
+            self.dataChanged.emit(
+                self.index(0, 0),
+                self.index(self.rowCount() - 1, 0),
+                [Qt.ItemDataRole.DecorationRole],
+            )
 
     # generic remove ----------------------------------------------------------
 
@@ -290,8 +335,26 @@ class QConfigGroupsModel(_BaseTreeModel):
         self.endRemoveRows()
         return True
 
-    def remove(self, idx: QModelIndex) -> None:
+    def remove(
+        self,
+        idx: QModelIndex,
+        *,
+        ask_confirmation: bool = False,
+        parent: QWidget | None = None,
+    ) -> None:
         if idx.isValid():
+            if ask_confirmation:
+                item_name = idx.data(Qt.ItemDataRole.DisplayRole)
+                item_type = type(idx.data(Qt.ItemDataRole.UserRole))
+                type_name = item_type.__name__.replace(("Config"), "Config ")
+                msg = QMessageBox.question(
+                    parent,
+                    "Confirm Deletion",
+                    f"Are you sure you want to delete {type_name} {item_name!r}?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                )
+                if msg != QMessageBox.StandardButton.Yes:
+                    return
             self.removeRows(idx.row(), 1, idx.parent())
 
     # ------------------------------------------------------------------

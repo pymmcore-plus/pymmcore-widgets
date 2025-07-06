@@ -151,11 +151,15 @@ class GroupPresetSelector(QStackedWidget):
             return self.group_list.currentIndex()
         elif self.preset_list.hasFocus():
             return self.preset_list.currentIndex()
+        elif self.config_groups_tree.hasFocus():
+            return self.config_groups_tree.currentIndex()
         return QModelIndex()
 
     def removeSelected(self) -> None:
         if self._model:
-            self._model.remove(self._selected_index())
+            self._model.remove(
+                self._selected_index(), ask_confirmation=True, parent=self
+            )
 
     def duplicateSelected(self) -> None:
         if self._model:
@@ -178,6 +182,11 @@ class GroupPresetSelector(QStackedWidget):
             self.showTreeView()
         else:
             self.showColumnView()
+
+    def setCurrentGroupAsChannelGroup(self) -> None:
+        """Set the currently selected group as the channel group in the model."""
+        if (model := self._model) and (idx := self.currentGroup()).isValid():
+            model.set_channel_group(idx)
 
     def isTreeViewActive(self) -> bool:
         """Return True if tree view is currently active."""

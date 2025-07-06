@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from enum import Enum, auto
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from qtpy.QtCore import QModelIndex, QSize, Qt, Signal
 from qtpy.QtWidgets import (
@@ -15,6 +15,7 @@ from qtpy.QtWidgets import (
 )
 from superqt import QIconifyIcon
 
+from pymmcore_widgets._icons import StandardIcon
 from pymmcore_widgets._models import (
     ConfigGroup,
     QConfigGroupsModel,
@@ -44,6 +45,91 @@ class LayoutMode(Enum):
 # -----------------------------------------------------------------------------
 # High-level editor widget
 # -----------------------------------------------------------------------------
+
+
+class _ConfigEditorToolbar(QToolBar):
+    def __init__(self, parent: ConfigGroupsEditor) -> None:
+        super().__init__(parent)
+        # tool bar --------------------------------------------------------------
+
+        self.setIconSize(QSize(22, 22))
+        self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+
+        # Create exclusive action group for view modes
+        view_action_group = QActionGroup(self)
+
+        # Column View action
+        column_icon = QIconifyIcon("fluent:layout-column-two-24-regular")
+        if column_act := self.addAction(
+            column_icon, "Column View", parent._group_preset_sel.showColumnView
+        ):
+            column_act.setCheckable(True)
+            column_act.setChecked(True)
+            view_action_group.addAction(column_act)
+
+        # Tree View action
+        if tree_act := self.addAction(
+            StandardIcon.TREE.icon(), "Tree View", parent._group_preset_sel.showTreeView
+        ):
+            tree_act.setCheckable(True)
+            view_action_group.addAction(tree_act)
+
+        self.addAction(
+            StandardIcon.FOLDER_ADD.icon(),
+            "Add Group",
+            parent._model.add_group,
+        )
+        self.addAction(
+            StandardIcon.DOCUMENT_ADD.icon(),
+            "Add Preset",
+            parent._add_preset_to_current_group,
+        )
+        self.addAction(
+            StandardIcon.DELETE.icon(),
+            "Remove",
+            parent._group_preset_sel.removeSelected,
+        )
+        self.addAction(
+            StandardIcon.COPY.icon(),
+            "Duplicate",
+            parent._group_preset_sel.duplicateSelected,
+        )
+        self.addSeparator()
+        self.set_channel_action = cast(
+            "QAction",
+            self.addAction(
+                StandardIcon.CHANNEL_GROUP.icon(),
+                "Set Channel Group",
+            ),
+        )
+
+        @self.set_channel_action.triggered.connect  # type: ignore[misc]
+        def _on_set_channel_group() -> None:
+            parent._group_preset_sel.setCurrentGroupAsChannelGroup()
+            self.set_channel_action.setEnabled(False)
+
+        spacer = QWidget(self)
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.addWidget(spacer)
+
+        if act := self.addAction(
+            StandardIcon.HELP.icon(),
+            "Help",
+            parent._show_help,
+        ):
+            act.setToolTip("Show help")
+
+        icon = QIconifyIcon(
+            "fluent:layout-row-two-split-top-focus-bottom-16-filled", color="#666"
+        )
+        icon.addKey(
+            "fluent:layout-column-two-split-left-focus-right-16-filled",
+            state=QIconifyIcon.State.On,
+            color="#666",
+        )
+        if act := self.addAction(icon, "Layout", parent.setLayoutMode):
+            act.setToolTip("Toggle layout mode")
+            act.setCheckable(True)
 
 
 class ConfigGroupsEditor(QWidget):
@@ -101,7 +187,8 @@ class ConfigGroupsEditor(QWidget):
         super().__init__(parent)
         self._model = QConfigGroupsModel()
 
-        # ------------------------------------------------------------------
+        # widgets -------------------------------------------------------------
+
         # The GroupPresetSelector can switch between 2-list and tree views:
         # ┌───────────────┬───────────────┬───────────────┐
         # │     groups    │    presets    │      ...      │
@@ -117,75 +204,14 @@ class ConfigGroupsEditor(QWidget):
         self._group_preset_sel = GroupPresetSelector(self)
         self._group_preset_sel.setModel(self._model)
 
-        # ------------------------------------------------------------------
-
         self._prop_selector = DevicePropertySelector()
 
         self._preset_table = ConfigPresetsTable(self)
         self._preset_table.setModel(self._model)
         self._preset_table.setGroup("Channel")
 
-        # tool bar --------------------------------------------------------------
-
-        self._tb = QToolBar(self)
-        self._tb.setIconSize(QSize(22, 22))
-        self._tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-
-        # Create exclusive action group for view modes
-        view_action_group = QActionGroup(self)
-
-        # Column View action
-        column_icon = QIconifyIcon("fluent:layout-column-two-24-regular")
-        if column_act := self._tb.addAction(
-            column_icon, "Column View", self._group_preset_sel.showColumnView
-        ):
-            column_act.setCheckable(True)
-            column_act.setChecked(True)
-            view_action_group.addAction(column_act)
-
-        # Tree View action
-        tree_icon = QIconifyIcon("fluent:list-bar-tree-20-regular", color="#666")
-        if tree_act := self._tb.addAction(
-            tree_icon, "Tree View", self._group_preset_sel.showTreeView
-        ):
-            tree_act.setCheckable(True)
-            view_action_group.addAction(tree_act)
-
-        self._tb.addAction(
-            QIconifyIcon("fluent:folder-add-24-regular"),
-            "Add Group",
-            self._model.add_group,
-        )
-        self._tb.addAction(
-            QIconifyIcon("fluent:document-add-24-regular"),
-            "Add Preset",
-            self._add_preset_to_current_group,
-        )
-        self._tb.addAction(
-            QIconifyIcon("fluent:delete-24-regular"),
-            "Remove",
-            self._group_preset_sel.removeSelected,
-        )
-        self._tb.addAction(
-            QIconifyIcon("fluent:save-copy-24-regular"),
-            "Duplicate",
-            self._group_preset_sel.duplicateSelected,
-        )
-
-        spacer = QWidget(self._tb)
-        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self._tb.addWidget(spacer)
-
-        icon = QIconifyIcon(
-            "fluent:layout-row-two-split-top-focus-bottom-16-filled", color="#666"
-        )
-        icon.addKey(
-            "fluent:layout-column-two-split-left-focus-right-16-filled",
-            state=QIconifyIcon.State.On,
-            color="#666",
-        )
-        if act := self._tb.addAction(icon, "Toggle Layout", self.setLayoutMode):
-            act.setCheckable(True)
+        # define this after the other widgets so that it can connect to their slots
+        self._tb = _ConfigEditorToolbar(self)
 
         # layout ------------------------------------------------------------
 
@@ -212,6 +238,13 @@ class ConfigGroupsEditor(QWidget):
         self._preset_table.setGroup(current)
         self._preset_table.view.stretchHeaders()
         self._preset_table.view.openPersistentEditors()
+
+        if current.isValid():
+            group = current.data(Qt.ItemDataRole.UserRole)
+            if isinstance(group, ConfigGroup) and group.is_channel_group:
+                self._tb.set_channel_action.setEnabled(False)
+            else:
+                self._tb.set_channel_action.setEnabled(True)
 
     def _on_preset_changed(self, current: QModelIndex, previous: QModelIndex) -> None:
         """Called when the preset selection in the GroupPresetSelector changes."""
@@ -368,6 +401,18 @@ class ConfigGroupsEditor(QWidget):
             else:
                 main_splitter.setSizes(top_splits)
                 inner_splitter.setSizes(left_heights)
+
+    def _show_help(self) -> None:
+        """Show help for this widget."""
+        from pymmcore_widgets._help._config_groups_help import ConfigGroupsHelpDialog
+
+        dialog = ConfigGroupsHelpDialog(self)
+        size = (
+            (self.size() * 0.8).expandedTo(QSize(600, 600)).boundedTo(QSize(800, 800))
+        )
+        dialog.resize(size)
+        dialog.setWindowFlags(Qt.WindowType.Sheet | Qt.WindowType.WindowCloseButtonHint)
+        dialog.exec()
 
     # ------------------------------------------------------------------
     # Property-table sync

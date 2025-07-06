@@ -142,6 +142,19 @@ class QDevicePropertyModel(_BaseTreeModel):
         """Return All Devices in the model."""
         return deepcopy([cast("Device", n.payload) for n in self._root.children])
 
+    def headerData(
+        self,
+        section: int,
+        orientation: Qt.Orientation,
+        role: int = Qt.ItemDataRole.DisplayRole,
+    ) -> Any:
+        if role == Qt.ItemDataRole.DisplayRole:
+            if orientation == Qt.Orientation.Horizontal:
+                return "Device/Property" if section == 0 else "Type"
+            elif orientation == Qt.Orientation.Vertical:
+                return str(section + 1)
+        return None
+
 
 class DevicePropertyFlatProxy(QAbstractItemModel):
     """Flatten `Device → Property` into rows:  Device | Property."""
@@ -234,6 +247,29 @@ class DevicePropertyFlatProxy(QAbstractItemModel):
 
         return None
 
+    def setData(
+        self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
+    ) -> bool:
+        if not index.isValid() or not self._source_model:
+            return False
+
+        row = index.row()
+        if row >= len(self._rows):
+            return False
+
+        drow, prow = self._rows[row]
+        col = index.column()
+
+        if col == 0:
+            device_idx = self._source_model.index(drow, 0)
+            return bool(self._source_model.setData(device_idx, value, role))
+        elif col == 1:
+            device_idx = self._source_model.index(drow, 0)
+            if device_idx.isValid():
+                prop_idx = self._source_model.index(prow, 0, device_idx)
+                return bool(self._source_model.setData(prop_idx, value, role))
+        return False
+
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:
         if not index.isValid() or not self._source_model:
             return Qt.ItemFlag.NoItemFlags
@@ -252,7 +288,9 @@ class DevicePropertyFlatProxy(QAbstractItemModel):
             device_idx = self._source_model.index(drow, 0)
             if device_idx.isValid():
                 prop_idx = self._source_model.index(prow, 0, device_idx)
-                return self._source_model.flags(prop_idx)
+                return (
+                    self._source_model.flags(prop_idx) | Qt.ItemFlag.ItemIsUserCheckable
+                )
 
         return Qt.ItemFlag.NoItemFlags
 

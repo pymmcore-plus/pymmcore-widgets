@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 from pymmcore_plus import DeviceType, Keyword, PropertyType
 from typing_extensions import TypeAlias
+
+from pymmcore_widgets._icons import StandardIcon
 
 if TYPE_CHECKING:
     from collections.abc import Hashable
@@ -101,14 +103,12 @@ class DevicePropertySetting(_BaseModel):
         return (self.device_label, self.property_name, self.value)
 
     @property
-    def iconify_key(self) -> str | None:
+    def iconify_key(self) -> StandardIcon | None:
         """Return an iconify key for the device type."""
-        from pymmcore_widgets._icons import PROPERTY_FLAG_ICON
-
         if self.is_read_only:
-            return PROPERTY_FLAG_ICON["read-only"]
+            return StandardIcon.READ_ONLY
         elif self.is_pre_init:
-            return PROPERTY_FLAG_ICON["pre-init"]
+            return StandardIcon.PRE_INIT
         return None
 
     @model_validator(mode="before")
@@ -170,6 +170,8 @@ class ConfigGroup(_BaseModel):
     name: str
     presets: dict[str, ConfigPreset] = Field(default_factory=dict)
 
+    is_channel_group: bool = False
+
     @property
     def children(self) -> tuple[ConfigPreset, ...]:
         """Return the presets in the group."""
@@ -191,6 +193,8 @@ class PixelSizeConfigs(ConfigGroup):
 
     name: str = "PixelSizeGroup"
     presets: dict[str, PixelSizePreset] = Field(default_factory=dict)  # type: ignore[assignment]
+
+    is_channel_group: Literal[False] = Field(default=False, frozen=True)
 
 
 DevicePropertySetting.model_rebuild()

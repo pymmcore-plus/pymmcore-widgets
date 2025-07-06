@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from enum import Enum
+
 from pymmcore_plus import CMMCorePlus, DeviceType
 from superqt import QIconifyIcon
 
@@ -23,10 +25,29 @@ DEVICE_TYPE_ICON: dict[DeviceType, str] = {
     DeviceType.Serial: "mdi:serial-port",
 }
 
-PROPERTY_FLAG_ICON: dict[str, str] = {
-    "read-only": "fluent:edit-off-20-regular",
-    "pre-init": "mynaui:letter-p-diamond",
-}
+
+class StandardIcon(str, Enum):
+    READ_ONLY = "fluent:edit-off-20-regular"
+    PRE_INIT = "mynaui:letter-p-diamond"
+    EXPAND = "mdi:expand-horizontal"
+    COLLAPSE = "mdi:collapse-horizontal"
+    TABLE = "mdi:table"
+    TREE = "ph:tree-view"
+    FOLDER_ADD = "fluent:folder-add-24-regular"
+    DOCUMENT_ADD = "fluent:document-add-24-regular"
+    DELETE = "fluent:delete-24-regular"
+    COPY = "fluent:save-copy-24-regular"
+    TRANSPOSE = "carbon:transpose"
+    CONFIG_GROUP = "mdi:folder-settings-variant-outline"
+    CONFIG_PRESET = "mdi:file-settings-cog-outline"
+    HELP = "mdi:help-circle-outline"
+    CHANNEL_GROUP = "mynaui:letter-c-waves-solid"
+
+    def icon(self, color: str = "#333") -> QIconifyIcon:
+        return QIconifyIcon(self.value, color=color)
+
+    def __str__(self) -> str:
+        return self.value
 
 
 def get_device_icon(

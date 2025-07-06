@@ -28,8 +28,9 @@ def _get_device(core: CMMCorePlus, label: str) -> Device:
 
 def get_config_groups(core: CMMCorePlus) -> Iterable[ConfigGroup]:
     """Get the model for configuration groups."""
+    channel_group = core.getChannelGroup()
     for group in core.getAvailableConfigGroups():
-        group_model = ConfigGroup(name=group)
+        group_model = ConfigGroup(name=group, is_channel_group=(group == channel_group))
         for preset_model in get_config_presets(core, group):
             preset_model.parent = group_model
             group_model.presets[preset_model.name] = preset_model

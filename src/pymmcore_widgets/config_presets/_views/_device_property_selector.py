@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import DeviceType
-from qtpy.QtCore import QModelIndex, QSize, Signal
+from qtpy.QtCore import QModelIndex, QSize
 from qtpy.QtWidgets import (
     QLineEdit,
     QSizePolicy,
@@ -14,7 +14,7 @@ from qtpy.QtWidgets import (
 )
 from superqt import QIconifyIcon
 
-from pymmcore_widgets._icons import DEVICE_TYPE_ICON, PROPERTY_FLAG_ICON
+from pymmcore_widgets._icons import DEVICE_TYPE_ICON, StandardIcon
 from pymmcore_widgets._models import Device, QDevicePropertyModel
 from pymmcore_widgets._models._q_device_prop_model import DevicePropertyFlatProxy
 
@@ -23,11 +23,13 @@ from ._device_type_filter_proxy import DeviceTypeFilter
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from PyQt6.QtCore import pyqtSignal as Signal
     from PyQt6.QtGui import QAction
+else:
+    from qtpy.QtCore import QModelIndex, Signal
 
 
-# TODO: Allow GUI control of parameters
-class DeviceTypeButtons(QToolBar):
+class _DeviceButtonToolbar(QToolBar):
     checkedDevicesChanged = Signal(set)
     readOnlyToggled = Signal(bool)
     preInitToggled = Signal(bool)
@@ -57,7 +59,7 @@ class DeviceTypeButtons(QToolBar):
         self.act_show_read_only = cast(
             "QAction",
             self.addAction(
-                QIconifyIcon(PROPERTY_FLAG_ICON["read-only"], color="gray"),
+                StandardIcon.READ_ONLY.icon(color="gray"),
                 "Show Read-Only Properties",
                 self.readOnlyToggled,
             ),
@@ -65,7 +67,7 @@ class DeviceTypeButtons(QToolBar):
         self.act_show_pre_init = cast(
             "QAction",
             self.addAction(
-                QIconifyIcon(PROPERTY_FLAG_ICON["pre-init"], color="gray"),
+                StandardIcon.PRE_INIT.icon(color="gray"),
                 "Show Pre-Init Properties",
                 self.preInitToggled,
             ),
@@ -104,32 +106,30 @@ class DeviceTypeButtons(QToolBar):
         }
 
 
-class DeviceFilterButtons(QToolBar):
-    """A toolbar with buttons to filter device types."""
+class _PropertySearchToolbar(QToolBar):
+    """A toolbar with expand/collapse all buttons and a search box."""
 
     expandAllToggled = Signal()
     collapseAllToggled = Signal()
+    viewModeToggled = Signal(bool)  # True for TreeView, False for TableView
 
     filterStringChanged = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.act_expand = cast(
+
+        # Add toggle button for view mode
+        self.act_toggle_view = cast(
             "QAction",
             self.addAction(
-                QIconifyIcon("mdi:expand-horizontal", color="gray"),
-                "Expand all",
-                self.expandAllToggled,
+                StandardIcon.TABLE.icon(color="gray"),
+                "Switch to Tree View",
+                self._toggle_view_mode,
             ),
         )
-        self.act_collapse = cast(
-            "QAction",
-            self.addAction(
-                QIconifyIcon("mdi:collapse-horizontal", color="gray"),
-                "Collapse all",
-                self.collapseAllToggled,
-            ),
-        )
+        self.act_toggle_view.setCheckable(True)
+        self.act_toggle_view.setChecked(False)  # Default to TableView
+
         self._le = QLineEdit(self)
         self._le.setMinimumWidth(160)
         self._le.setClearButtonEnabled(True)
@@ -137,30 +137,66 @@ class DeviceFilterButtons(QToolBar):
         self._le.textChanged.connect(self.filterStringChanged)
         self.addWidget(self._le)
 
+        self.act_expand = cast(
+            "QAction",
+            self.addAction(
+                StandardIcon.EXPAND.icon(),
+                "Expand all",
+                self.expandAllToggled,
+            ),
+        )
+        self.act_collapse = cast(
+            "QAction",
+            self.addAction(
+                StandardIcon.COLLAPSE.icon(),
+                "Collapse all",
+                self.collapseAllToggled,
+            ),
+        )
+        # Initially hide expand/collapse actions (TableView is default)
+        self.act_expand.setVisible(False)
+        self.act_collapse.setVisible(False)
+
+    def _toggle_view_mode(self) -> None:
+        """Toggle between TreeView and TableView."""
+        is_tree_view = self.act_toggle_view.isChecked()
+
+        # Update button icon and tooltip
+        if is_tree_view:
+            self.act_toggle_view.setIcon(StandardIcon.TREE.icon())
+            self.act_toggle_view.setText("Switch to Table View")
+        else:
+            self.act_toggle_view.setIcon(StandardIcon.TABLE.icon())
+            self.act_toggle_view.setText("Switch to Tree View")
+
+        # Show/hide expand/collapse actions
+        self.act_expand.setVisible(is_tree_view)
+        self.act_collapse.setVisible(is_tree_view)
+
+        # Emit signal
+        self.viewModeToggled.emit(is_tree_view)
+
 
 class DevicePropertySelector(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        self._dev_type_btns = DeviceTypeButtons(self)
+        self._dev_type_btns = _DeviceButtonToolbar(self)
         self._dev_type_btns.setIconSize(QSize(16, 16))
-        self._tb2 = DeviceFilterButtons(self)
+        self._tb2 = _PropertySearchToolbar(self)
         self._tb2.setIconSize(QSize(16, 16))
         self.setStyleSheet("QToolBar { border: none; };")
 
-        self.tree = QTreeView(self)
-
         self._model = QDevicePropertyModel()
 
-        # 1. Filter first - keeps device/property semantics intact
-        self._proxy = DeviceTypeFilter(allowed={DeviceType.Any}, parent=self)
-        self._proxy.setSourceModel(self._model)
+        self._filter_proxy = DeviceTypeFilter(allowed={DeviceType.Any}, parent=self)
+        self._filter_proxy.setSourceModel(self._model)
 
-        # 2. Then optionally flatten the (already-filtered) tree
         self._flat_proxy = DevicePropertyFlatProxy()
-        self._flat_proxy.setSourceModel(self._proxy)
+        self._flat_proxy.setSourceModel(self._filter_proxy)
 
-        # 3. The view consumes the flattening proxy
+        self.tree = QTreeView(self)
+        # Start with TableView (flat proxy model)
         self.tree.setModel(self._flat_proxy)
         self.tree.setSortingEnabled(True)
 
@@ -172,17 +208,32 @@ class DevicePropertySelector(QWidget):
         layout.addWidget(self.tree)
 
         self._dev_type_btns.checkedDevicesChanged.connect(
-            self._proxy.setAllowedDeviceTypes
+            self._filter_proxy.setAllowedDeviceTypes
         )
-        self._dev_type_btns.readOnlyToggled.connect(self._proxy.setReadOnlyVisible)
-        self._dev_type_btns.preInitToggled.connect(self._proxy.setPreInitVisible)
+        self._dev_type_btns.readOnlyToggled.connect(
+            self._filter_proxy.setReadOnlyVisible
+        )
+        self._dev_type_btns.preInitToggled.connect(self._filter_proxy.setPreInitVisible)
         self._tb2.expandAllToggled.connect(self._expand_all)
         self._tb2.collapseAllToggled.connect(self.tree.collapseAll)
-        self._tb2.filterStringChanged.connect(self._proxy.setFilterFixedString)
+        self._tb2.filterStringChanged.connect(self._filter_proxy.setFilterFixedString)
+        self._tb2.viewModeToggled.connect(self._toggle_view_mode)
 
     def _expand_all(self) -> None:
         """Expand all items in the tree view."""
         self.tree.expandRecursively(QModelIndex())
+
+    def _toggle_view_mode(self, is_tree_view: bool) -> None:
+        """Toggle between TreeView and TableView modes."""
+        if is_tree_view:
+            # Switch to TreeView: use filter proxy directly
+            self.tree.setModel(self._filter_proxy)
+            self.tree.setColumnHidden(1, True)  # Hide the second column (device type)
+            self.tree.expandAll()
+        else:
+            # Switch to TableView: use flat proxy
+            self.tree.setModel(self._flat_proxy)
+            self.tree.setColumnHidden(1, False)  # Show the second column (property)
 
     def clear(self) -> None:
         """Clear the current selection."""

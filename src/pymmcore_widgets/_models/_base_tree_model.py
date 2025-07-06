@@ -67,6 +67,12 @@ class _Node:
 
     # convenience ------------------------------------------------------------
 
+    @property
+    def siblings(self) -> list[_Node]:
+        if self.parent is None:
+            return []
+        return [x for x in self.parent.children if x is not self]
+
     def num_children(self) -> int:
         return len(self.children)
 
