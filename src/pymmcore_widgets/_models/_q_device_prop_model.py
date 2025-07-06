@@ -81,7 +81,6 @@ class QDevicePropertyModel(_BaseTreeModel):
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         """Return the data stored for `role` for the item at `index`."""
         node = self._node_from_index(index)
-        index.column()
         if node is self._root:
             return None
 
@@ -90,7 +89,7 @@ class QDevicePropertyModel(_BaseTreeModel):
         if role == Qt.ItemDataRole.UserRole:
             return node.payload
 
-        elif role == Qt.ItemDataRole.CheckStateRole and col == 0:
+        elif role == Qt.ItemDataRole.CheckStateRole:
             if isinstance(setting := node.payload, DevicePropertySetting):
                 return node.check_state
 
@@ -114,7 +113,7 @@ class QDevicePropertyModel(_BaseTreeModel):
         if role == Qt.ItemDataRole.CheckStateRole:
             if isinstance(setting := node.payload, DevicePropertySetting):
                 if not (setting.is_read_only or setting.is_pre_init):
-                    node.check_state = value
+                    node.check_state = Qt.CheckState(value)
                     self.dataChanged.emit(index, index, [role])
                     return True
 

@@ -18,6 +18,7 @@ from pymmcore_widgets._icons import DEVICE_TYPE_ICON, StandardIcon
 from pymmcore_widgets._models import Device, QDevicePropertyModel
 from pymmcore_widgets._models._q_device_prop_model import DevicePropertyFlatProxy
 
+from ._checked_properties_proxy import CheckedProxy
 from ._device_type_filter_proxy import DeviceTypeFilter
 
 if TYPE_CHECKING:
@@ -189,34 +190,48 @@ class DevicePropertySelector(QWidget):
 
         self._model = QDevicePropertyModel()
 
-        self._filter_proxy = DeviceTypeFilter(allowed={DeviceType.Any}, parent=self)
-        self._filter_proxy.setSourceModel(self._model)
+        self._filtered_model = DeviceTypeFilter(allowed={DeviceType.Any}, parent=self)
+        self._filtered_model.setSourceModel(self._model)
 
-        self._flat_proxy = DevicePropertyFlatProxy()
-        self._flat_proxy.setSourceModel(self._filter_proxy)
+        self._flat_filtered_model = DevicePropertyFlatProxy()
+        self._flat_filtered_model.setSourceModel(self._filtered_model)
+
+        _checked = CheckedProxy(check_column=1)
+        _checked.setSourceModel(self._model)
+        self._flat_checked_model = DevicePropertyFlatProxy()
+        self._flat_checked_model.setSourceModel(_checked)
+
+        # Selected properties tree (shows only checked items)
+        self.selected_tree = QTreeView(self)
+        self.selected_tree.setModel(self._flat_checked_model)
+        self.selected_tree.setSortingEnabled(True)
+        self.selected_tree.setMaximumHeight(150)  # Limit height
 
         self.tree = QTreeView(self)
         # Start with TableView (flat proxy model)
-        self.tree.setModel(self._flat_proxy)
+        self.tree.setModel(self._flat_filtered_model)
         self.tree.setSortingEnabled(True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        layout.addWidget(self.selected_tree)
         layout.addWidget(self._dev_type_btns)
         layout.addWidget(self._tb2)
         layout.addWidget(self.tree)
 
         self._dev_type_btns.checkedDevicesChanged.connect(
-            self._filter_proxy.setAllowedDeviceTypes
+            self._filtered_model.setAllowedDeviceTypes
         )
         self._dev_type_btns.readOnlyToggled.connect(
-            self._filter_proxy.setReadOnlyVisible
+            self._filtered_model.setReadOnlyVisible
         )
-        self._dev_type_btns.preInitToggled.connect(self._filter_proxy.setPreInitVisible)
+        self._dev_type_btns.preInitToggled.connect(
+            self._filtered_model.setPreInitVisible
+        )
         self._tb2.expandAllToggled.connect(self._expand_all)
         self._tb2.collapseAllToggled.connect(self.tree.collapseAll)
-        self._tb2.filterStringChanged.connect(self._filter_proxy.setFilterFixedString)
+        self._tb2.filterStringChanged.connect(self._filtered_model.setFilterFixedString)
         self._tb2.viewModeToggled.connect(self._toggle_view_mode)
 
     def _expand_all(self) -> None:
@@ -227,12 +242,12 @@ class DevicePropertySelector(QWidget):
         """Toggle between TreeView and TableView modes."""
         if is_tree_view:
             # Switch to TreeView: use filter proxy directly
-            self.tree.setModel(self._filter_proxy)
+            self.tree.setModel(self._filtered_model)
             self.tree.setColumnHidden(1, True)  # Hide the second column (device type)
             self.tree.expandAll()
         else:
             # Switch to TableView: use flat proxy
-            self.tree.setModel(self._flat_proxy)
+            self.tree.setModel(self._flat_filtered_model)
             self.tree.setColumnHidden(1, False)  # Show the second column (property)
 
     def clear(self) -> None:
@@ -246,9 +261,13 @@ class DevicePropertySelector(QWidget):
     def setAvailableDevices(self, devices: Iterable[Device]) -> None:
         devices = list(devices)
         self._model.set_devices(devices)
-        # self.tree.setColumnHidden(1, True)  # Hide the second column (device type)
-        # self.tree.setHeaderHidden(True)
+
+        # Configure main tree view header
         if hh := self.tree.header():
+            hh.setSectionResizeMode(hh.ResizeMode.ResizeToContents)
+
+        # Configure selected properties tree view header
+        if hh := self.selected_tree.header():
             hh.setSectionResizeMode(hh.ResizeMode.ResizeToContents)
 
         dev_types = {d.type for d in devices}
