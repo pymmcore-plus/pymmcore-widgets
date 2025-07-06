@@ -172,6 +172,7 @@ class DevicePropertyFlatProxy(QAbstractItemModel):
                 self._source_model.layoutChanged.disconnect(self._rebuild_rows)
                 self._source_model.rowsInserted.disconnect(self._rebuild_rows)
                 self._source_model.rowsRemoved.disconnect(self._rebuild_rows)
+                self._source_model.dataChanged.disconnect(self._on_source_data_changed)
 
         self._source_model = source_model
 
@@ -181,24 +182,9 @@ class DevicePropertyFlatProxy(QAbstractItemModel):
             source_model.layoutChanged.connect(self._rebuild_rows)
             source_model.rowsInserted.connect(self._rebuild_rows)
             source_model.rowsRemoved.connect(self._rebuild_rows)
+            source_model.dataChanged.connect(self._on_source_data_changed)
 
         self._rebuild_rows()
-
-    def _rebuild_rows(self) -> None:
-        """Rebuild the flattened row structure."""
-        self.beginResetModel()
-        self._rows.clear()
-
-        if self._source_model is not None:
-            for drow in range(self._source_model.rowCount()):
-                device_idx = self._source_model.index(drow, 0)
-                if device_idx.isValid():
-                    for prow in range(self._source_model.rowCount(device_idx)):
-                        prop_idx = self._source_model.index(prow, 0, device_idx)
-                        if prop_idx.isValid():
-                            self._rows.append((drow, prow))
-
-        self.endResetModel()
 
     def sourceModel(self) -> QAbstractItemModel | None:
         """Return the source model."""
@@ -225,26 +211,11 @@ class DevicePropertyFlatProxy(QAbstractItemModel):
         return 2
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
-        if not index.isValid() or not self._source_model:
+        if not index.isValid():
             return None
 
-        row = index.row()
-        if row >= len(self._rows):
-            return None
-
-        drow, prow = self._rows[row]
-        col = index.column()
-
-        if col == 0:  # Device column
-            device_idx = self._source_model.index(drow, 0)
-            return self._source_model.data(device_idx, role)
-        elif col == 1:  # Property column
-            device_idx = self._source_model.index(drow, 0)
-            if device_idx.isValid():
-                prop_idx = self._source_model.index(prow, 0, device_idx)
-                return self._source_model.data(prop_idx, role)
-
-        return None
+        source_idx = self._mapped_index(index.row(), index.column())
+        return source_idx.data(role) if source_idx.isValid() else None
 
     def setData(
         self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
@@ -252,46 +223,23 @@ class DevicePropertyFlatProxy(QAbstractItemModel):
         if not index.isValid() or not self._source_model:
             return False
 
-        row = index.row()
-        if row >= len(self._rows):
-            return False
-
-        drow, prow = self._rows[row]
-        col = index.column()
-
-        if col == 0:
-            device_idx = self._source_model.index(drow, 0)
-            return bool(self._source_model.setData(device_idx, value, role))
-        elif col == 1:
-            device_idx = self._source_model.index(drow, 0)
-            if device_idx.isValid():
-                prop_idx = self._source_model.index(prow, 0, device_idx)
-                return bool(self._source_model.setData(prop_idx, value, role))
+        source_idx = self._mapped_index(index.row(), index.column())
+        if source_idx.isValid():
+            return bool(self._source_model.setData(source_idx, value, role))
         return False
 
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:
         if not index.isValid() or not self._source_model:
             return Qt.ItemFlag.NoItemFlags
 
-        row = index.row()
-        if row >= len(self._rows):
+        source_idx = self._mapped_index(index.row(), index.column())
+        if not source_idx.isValid():
             return Qt.ItemFlag.NoItemFlags
 
-        drow, prow = self._rows[row]
-        col = index.column()
-
-        if col == 0:  # Device column
-            device_idx = self._source_model.index(drow, 0)
-            return self._source_model.flags(device_idx)
-        elif col == 1:  # Property column
-            device_idx = self._source_model.index(drow, 0)
-            if device_idx.isValid():
-                prop_idx = self._source_model.index(prow, 0, device_idx)
-                return (
-                    self._source_model.flags(prop_idx) | Qt.ItemFlag.ItemIsUserCheckable
-                )
-
-        return Qt.ItemFlag.NoItemFlags
+        flags = self._source_model.flags(source_idx)
+        if index.column() == 1:
+            flags |= Qt.ItemFlag.ItemIsUserCheckable
+        return flags
 
     def headerData(
         self,
@@ -324,3 +272,104 @@ class DevicePropertyFlatProxy(QAbstractItemModel):
         self.layoutAboutToBeChanged.emit()
         self._rows.sort(key=_key, reverse=order == Qt.SortOrder.DescendingOrder)
         self.layoutChanged.emit()
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _mapped_index(self, flat_row: int, column: int) -> QModelIndex:
+        """Return the corresponding source QModelIndex for a given flat row/column.
+
+        Parameters
+        ----------
+        flat_row : int
+            Row in the *flattened* proxy model.
+        column : int
+            Column in the *flattened* proxy model (0=device, 1=property).
+
+        Returns
+        -------
+        QModelIndex
+            The matching index in the source model, or an invalid index
+            when the mapping is impossible.
+        """
+        if (
+            self._source_model is None
+            or column not in (0, 1)
+            or flat_row < 0
+            or flat_row >= len(self._rows)
+        ):
+            return QModelIndex()
+
+        drow, prow = self._rows[flat_row]
+        device_idx = self._source_model.index(drow, 0)
+        if column == 0:
+            return device_idx
+
+        # column 1 - property
+        if device_idx.isValid():
+            return self._source_model.index(prow, 0, device_idx)
+        return QModelIndex()
+
+    def _rebuild_rows(self) -> None:
+        """Rebuild the flattened row structure."""
+        self.beginResetModel()
+        self._rows.clear()
+
+        if self._source_model is not None:
+            for drow in range(self._source_model.rowCount()):
+                device_idx = self._source_model.index(drow, 0)
+                if device_idx.isValid():
+                    for prow in range(self._source_model.rowCount(device_idx)):
+                        prop_idx = self._source_model.index(prow, 0, device_idx)
+                        if prop_idx.isValid():
+                            self._rows.append((drow, prow))
+
+        self.endResetModel()
+
+    def _on_source_data_changed(
+        self, top_left: QModelIndex, bottom_right: QModelIndex, roles: list[int]
+    ) -> None:
+        """Handle dataChanged signal from source model and emit signals."""
+        if not self._source_model:
+            return
+
+        # Find which flat proxy rows correspond to changed indices in source model
+        changed_rows: set[int] = set()
+
+        # Check if any of our flattened rows correspond to the changed indices
+        for flat_row, (drow, prow) in enumerate(self._rows):
+            # Check if this flat row corresponds to a changed device or property
+            device_idx = self._source_model.index(drow, 0)
+            if device_idx.isValid():
+                prop_idx = self._source_model.index(prow, 0, device_idx)
+
+                # Check if the changed range includes our device or property
+                if self._index_in_range(
+                    device_idx, top_left, bottom_right
+                ) or self._index_in_range(prop_idx, top_left, bottom_right):
+                    changed_rows.add(flat_row)
+
+        # Emit dataChanged for all affected flat proxy rows
+        for flat_row in changed_rows:
+            top_left_flat = self.index(flat_row, 0)
+            bottom_right_flat = self.index(flat_row, 1)
+            if top_left_flat.isValid() and bottom_right_flat.isValid():
+                self.dataChanged.emit(top_left_flat, bottom_right_flat, roles)
+
+    def _index_in_range(
+        self, index: QModelIndex, top_left: QModelIndex, bottom_right: QModelIndex
+    ) -> bool:
+        """Check if an index falls within the given range."""
+        if not index.isValid() or not top_left.isValid() or not bottom_right.isValid():
+            return False
+
+        # Check if parent matches
+        if index.parent() != top_left.parent():
+            return False
+
+        # Check if row and column are in range
+        return bool(
+            top_left.row() <= index.row() <= bottom_right.row()
+            and top_left.column() <= index.column() <= bottom_right.column()
+        )

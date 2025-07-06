@@ -52,7 +52,7 @@ class _ConfigEditorToolbar(QToolBar):
         super().__init__(parent)
         # tool bar --------------------------------------------------------------
 
-        self.setIconSize(QSize(22, 22))
+        self.setIconSize(QSize(20, 20))
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
 
         # Create exclusive action group for view modes
@@ -185,6 +185,8 @@ class ConfigGroupsEditor(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setStyleSheet("QToolBar { border: none; };")
+
         self._model = QConfigGroupsModel()
 
         # widgets -------------------------------------------------------------
@@ -217,10 +219,10 @@ class ConfigGroupsEditor(QWidget):
 
         self._current_mode: LayoutMode = LayoutMode.FAVOR_PRESETS
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(0)
         layout.addWidget(self._tb)
-        self.setLayoutMode(mode=LayoutMode.FAVOR_PRESETS)
+        self.setLayoutMode(mode=LayoutMode.FAVOR_PROPERTIES)
 
         # signals ------------------------------------------------------------
 
@@ -339,10 +341,14 @@ class ConfigGroupsEditor(QWidget):
             main = QSplitter(Qt.Orientation.Horizontal)
             main.addWidget(left_splitter)
             main.addWidget(prop_sel)
-            # main.setStretchFactor(1, 1)
+            main.setSizes([800, 420])
             return main
 
         raise ValueError(f"Unknown layout mode: {mode}")
+
+    def sizeHint(self) -> QSize:
+        """Suggest a size for the widget."""
+        return QSize(1200, 800)
 
     def setLayoutMode(self, mode: LayoutMode | None = None) -> None:
         """Slot connected to the toolbar action."""

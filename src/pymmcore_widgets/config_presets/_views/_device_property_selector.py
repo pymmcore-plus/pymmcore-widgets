@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import DeviceType
-from qtpy.QtCore import QModelIndex, QSize
+from qtpy.QtCore import QAbstractItemModel, QModelIndex, QSize
 from qtpy.QtWidgets import (
     QLineEdit,
     QSizePolicy,
@@ -37,6 +37,8 @@ class _DeviceButtonToolbar(QToolBar):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setIconSize(QSize(16, 16))
+
         for device_type, icon_key in sorted(
             DEVICE_TYPE_ICON.items(), key=lambda x: x[0].name
         ):
@@ -118,6 +120,7 @@ class _PropertySearchToolbar(QToolBar):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setIconSize(QSize(16, 16))
 
         # Add toggle button for view mode
         self.act_toggle_view = cast(
@@ -182,11 +185,10 @@ class DevicePropertySelector(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        self._dev_type_btns = _DeviceButtonToolbar(self)
-        self._dev_type_btns.setIconSize(QSize(16, 16))
+        # WIDGETS ------------------------
+
+        self._dev_type_btns = dev_btns = _DeviceButtonToolbar(self)
         self._tb2 = _PropertySearchToolbar(self)
-        self._tb2.setIconSize(QSize(16, 16))
-        self.setStyleSheet("QToolBar { border: none; };")
 
         self._model = QDevicePropertyModel()
 
@@ -202,10 +204,8 @@ class DevicePropertySelector(QWidget):
         self._flat_checked_model.setSourceModel(_checked)
 
         # Selected properties tree (shows only checked items)
-        self.selected_tree = QTreeView(self)
+        self.selected_tree = _ShrinkingQTreeView(self)
         self.selected_tree.setModel(self._flat_checked_model)
-        self.selected_tree.setSortingEnabled(True)
-        self.selected_tree.setMaximumHeight(150)  # Limit height
 
         self.tree = QTreeView(self)
         # Start with TableView (flat proxy model)
@@ -216,19 +216,15 @@ class DevicePropertySelector(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self.selected_tree)
-        layout.addWidget(self._dev_type_btns)
+        layout.addWidget(dev_btns)
         layout.addWidget(self._tb2)
-        layout.addWidget(self.tree)
+        layout.addWidget(self.tree, 2)
 
-        self._dev_type_btns.checkedDevicesChanged.connect(
+        dev_btns.checkedDevicesChanged.connect(
             self._filtered_model.setAllowedDeviceTypes
         )
-        self._dev_type_btns.readOnlyToggled.connect(
-            self._filtered_model.setReadOnlyVisible
-        )
-        self._dev_type_btns.preInitToggled.connect(
-            self._filtered_model.setPreInitVisible
-        )
+        dev_btns.readOnlyToggled.connect(self._filtered_model.setReadOnlyVisible)
+        dev_btns.preInitToggled.connect(self._filtered_model.setPreInitVisible)
         self._tb2.expandAllToggled.connect(self._expand_all)
         self._tb2.collapseAllToggled.connect(self.tree.collapseAll)
         self._tb2.filterStringChanged.connect(self._filtered_model.setFilterFixedString)
@@ -265,10 +261,7 @@ class DevicePropertySelector(QWidget):
         # Configure main tree view header
         if hh := self.tree.header():
             hh.setSectionResizeMode(hh.ResizeMode.ResizeToContents)
-
-        # Configure selected properties tree view header
-        if hh := self.selected_tree.header():
-            hh.setSectionResizeMode(hh.ResizeMode.ResizeToContents)
+            self.selected_tree.setColumnWidth(0, self.tree.columnWidth(0))
 
         dev_types = {d.type for d in devices}
         self._dev_type_btns.setVisibleDeviceTypes(dev_types)
@@ -278,3 +271,30 @@ class DevicePropertySelector(QWidget):
         #     {DeviceType.AutoFocus, DeviceType.Core, DeviceType.Camera}
         # )
         # self._device_type_buttons.setCheckedDeviceTypes(dev_types)
+
+
+class _ShrinkingQTreeView(QTreeView):
+    """A QTreeView that shrinks to fit its contents."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        self.updateGeometry()
+        self.setHeaderHidden(True)
+        self.setRootIsDecorated(False)
+
+    def sizeHint(self) -> QSize:
+        """Return the size hint based on the contents."""
+        size = super().sizeHint()
+        size.setHeight(50)
+        if (model := self.model()) and (nrows := model.rowCount()) > 0:
+            size.setHeight(self.sizeHintForRow(0) * nrows + 2 * self.frameWidth() + 20)
+        return size.boundedTo(QSize(10000, 220))
+
+    def setModel(self, model: QAbstractItemModel | None) -> None:
+        """Set the model and connect signals to update geometry."""
+        super().setModel(model)
+        if model is not None:
+            model.modelReset.connect(self.updateGeometry)
+            model.rowsInserted.connect(self.updateGeometry)
+            model.rowsRemoved.connect(self.updateGeometry)

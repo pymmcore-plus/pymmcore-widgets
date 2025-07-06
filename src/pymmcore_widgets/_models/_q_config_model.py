@@ -352,6 +352,7 @@ class QConfigGroupsModel(_BaseTreeModel):
                     "Confirm Deletion",
                     f"Are you sure you want to delete {type_name} {item_name!r}?",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes,
                 )
                 if msg != QMessageBox.StandardButton.Yes:
                     return
