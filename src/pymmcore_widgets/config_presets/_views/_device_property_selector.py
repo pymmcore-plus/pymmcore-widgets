@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import DeviceType
-from qtpy.QtCore import QModelIndex, QSize, QSortFilterProxyModel, Qt, Signal
+from qtpy.QtCore import QModelIndex, QSize, Signal
 from qtpy.QtWidgets import (
     QLineEdit,
     QSizePolicy,
@@ -15,7 +15,10 @@ from qtpy.QtWidgets import (
 from superqt import QIconifyIcon
 
 from pymmcore_widgets._icons import DEVICE_TYPE_ICON, PROPERTY_FLAG_ICON
-from pymmcore_widgets._models import Device, DevicePropertySetting, QDevicePropertyModel
+from pymmcore_widgets._models import Device, QDevicePropertyModel
+from pymmcore_widgets._models._q_device_prop_model import DevicePropertyFlatProxy
+
+from ._device_type_filter_proxy import DeviceTypeFilter
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -24,86 +27,6 @@ if TYPE_CHECKING:
 
 
 # TODO: Allow GUI control of parameters
-class DeviceTypeFilter(QSortFilterProxyModel):
-    def __init__(self, allowed: set[DeviceType], parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setFilterCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        self.setRecursiveFilteringEnabled(True)
-        self.allowed = allowed  # e.g. {"Camera", "Shutter"}
-        self.show_read_only = False
-        self.show_pre_init = False
-
-    def _device_allowed_for_index(self, idx: QModelIndex) -> bool:
-        """Walk up to the closest Device ancestor and check its type."""
-        while idx.isValid():
-            data = idx.data(Qt.ItemDataRole.UserRole)
-            if isinstance(data, Device):
-                return DeviceType.Any in self.allowed or data.type in self.allowed
-            idx = idx.parent()  # keep climbing
-        return True  # no Device ancestor (root rows etc.)
-
-    def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
-        if (sm := self.sourceModel()) is None:
-            return super().filterAcceptsRow(source_row, source_parent)  # type: ignore [no-any-return]
-
-        idx = sm.index(source_row, 0, source_parent)
-
-        # 1. Bail out whole subtree when its Device type is disallowed
-        if not self._device_allowed_for_index(idx):
-            return False
-
-        data = idx.data(Qt.ItemDataRole.UserRole)
-
-        # 2. Per-property flags
-        if isinstance(data, DevicePropertySetting):
-            if data.is_read_only and not self.show_read_only:
-                return False
-            if data.is_pre_init and not self.show_pre_init:
-                return False
-            if data.is_advanced:
-                return False
-
-        # 3. Text / regex filter (superclass logic)
-        text_match = super().filterAcceptsRow(source_row, source_parent)
-
-        # 4. Special rule for Device rows: hide when it ends up child-less
-        if isinstance(data, Device):
-            # If the device name itself matches, keep it only if at least
-            # one child survives *after all rules above*.
-            if text_match:
-                for i in range(sm.rowCount(idx)):
-                    if self.filterAcceptsRow(i, idx):  # child survives
-                        return True
-                # no surviving children -> drop the device row
-                return False
-
-            # If the device row didn't match the text filter, just return
-            # False here; Qt will re-accept it automatically if any child
-            # is accepted (thanks to recursiveFilteringEnabled).
-            return False
-
-        # 5. For non-Device rows, the decision is simply the text match
-        return text_match  # type: ignore [no-any-return]
-
-    def setReadOnlyVisible(self, show: bool) -> None:
-        """Set whether to show read-only properties."""
-        if self.show_read_only != show:
-            self.show_read_only = show
-            self.invalidate()
-
-    def setPreInitVisible(self, show: bool) -> None:
-        """Set whether to show pre-init properties."""
-        if self.show_pre_init != show:
-            self.show_pre_init = show
-            self.invalidate()
-
-    def setAllowedDeviceTypes(self, allowed: set[DeviceType]) -> None:
-        """Set the allowed device types."""
-        if self.allowed != allowed:
-            self.allowed = allowed
-            self.invalidate()
-
-
 class DeviceTypeButtons(QToolBar):
     checkedDevicesChanged = Signal(set)
     readOnlyToggled = Signal(bool)
@@ -218,16 +141,28 @@ class DeviceFilterButtons(QToolBar):
 class DevicePropertySelector(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._model = model = QDevicePropertyModel()
-        self._proxy = proxy = DeviceTypeFilter(allowed={DeviceType.Any}, parent=self)
-        proxy.setSourceModel(model)
+
         self._dev_type_btns = DeviceTypeButtons(self)
         self._dev_type_btns.setIconSize(QSize(16, 16))
         self._tb2 = DeviceFilterButtons(self)
         self._tb2.setIconSize(QSize(16, 16))
         self.setStyleSheet("QToolBar { border: none; };")
+
         self.tree = QTreeView(self)
-        self.tree.setModel(proxy)
+
+        self._model = QDevicePropertyModel()
+
+        # 1. Filter first - keeps device/property semantics intact
+        self._proxy = DeviceTypeFilter(allowed={DeviceType.Any}, parent=self)
+        self._proxy.setSourceModel(self._model)
+
+        # 2. Then optionally flatten the (already-filtered) tree
+        self._flat_proxy = DevicePropertyFlatProxy()
+        self._flat_proxy.setSourceModel(self._proxy)
+
+        # 3. The view consumes the flattening proxy
+        self.tree.setModel(self._flat_proxy)
+        self.tree.setSortingEnabled(True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -236,12 +171,14 @@ class DevicePropertySelector(QWidget):
         layout.addWidget(self._tb2)
         layout.addWidget(self.tree)
 
-        self._dev_type_btns.checkedDevicesChanged.connect(proxy.setAllowedDeviceTypes)
+        self._dev_type_btns.checkedDevicesChanged.connect(
+            self._proxy.setAllowedDeviceTypes
+        )
         self._dev_type_btns.readOnlyToggled.connect(self._proxy.setReadOnlyVisible)
         self._dev_type_btns.preInitToggled.connect(self._proxy.setPreInitVisible)
         self._tb2.expandAllToggled.connect(self._expand_all)
         self._tb2.collapseAllToggled.connect(self.tree.collapseAll)
-        self._tb2.filterStringChanged.connect(proxy.setFilterFixedString)
+        self._tb2.filterStringChanged.connect(self._proxy.setFilterFixedString)
 
     def _expand_all(self) -> None:
         """Expand all items in the tree view."""
@@ -258,11 +195,14 @@ class DevicePropertySelector(QWidget):
     def setAvailableDevices(self, devices: Iterable[Device]) -> None:
         devices = list(devices)
         self._model.set_devices(devices)
-        self.tree.setColumnHidden(1, True)  # Hide the second column (device type)
-        self.tree.setHeaderHidden(True)
+        # self.tree.setColumnHidden(1, True)  # Hide the second column (device type)
+        # self.tree.setHeaderHidden(True)
+        if hh := self.tree.header():
+            hh.setSectionResizeMode(hh.ResizeMode.ResizeToContents)
 
         dev_types = {d.type for d in devices}
         self._dev_type_btns.setVisibleDeviceTypes(dev_types)
+
         # # hide some types that are often not immediately useful in this context
         # dev_types.difference_update(
         #     {DeviceType.AutoFocus, DeviceType.Core, DeviceType.Camera}

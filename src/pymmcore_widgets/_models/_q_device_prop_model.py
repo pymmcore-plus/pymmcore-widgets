@@ -1,12 +1,10 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, cast
 
-from qtpy.QtCore import (
-    QModelIndex,
-    Qt,
-)
+from qtpy.QtCore import QAbstractItemModel, QModelIndex, QObject, Qt
 from qtpy.QtGui import QBrush, QFont, QIcon
 from superqt import QIconifyIcon
 
@@ -145,87 +143,147 @@ class QDevicePropertyModel(_BaseTreeModel):
         return deepcopy([cast("Device", n.payload) for n in self._root.children])
 
 
-# class FlatPropertyModel(QAbstractProxyModel):
-#     """Presents every *leaf* of an arbitrary tree model as a top-level row."""
+class DevicePropertyFlatProxy(QAbstractItemModel):
+    """Flatten `Device → Property` into rows:  Device | Property."""
 
-#     def __init__(self, parent: QObject | None = None) -> None:
-#         super().__init__(parent)
-#         self._leaves: list[QPersistentModelIndex] = []
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._source_model: QAbstractItemModel | None = None
+        self._rows: list[tuple[int, int]] = []
 
-#     def index(self, row: int, column: int, parent: QModelIndex = ...) -> QModelIndex:
-#         if not (sm := self.sourceModel()):
-#             return QModelIndex()
-#         return sm.index(row, column, parent)
+    def setSourceModel(self, source_model: QAbstractItemModel | None) -> None:
+        """Set the source model and connect to its signals."""
+        # Disconnect from old model
+        if self._source_model is not None:
+            with suppress(RuntimeError):
+                self._source_model.modelReset.disconnect(self._rebuild_rows)
+                self._source_model.layoutChanged.disconnect(self._rebuild_rows)
+                self._source_model.rowsInserted.disconnect(self._rebuild_rows)
+                self._source_model.rowsRemoved.disconnect(self._rebuild_rows)
 
-#     # --------------------------------------------------------------------------------
-#     # mandatory proxy plumbing
-#     # --------------------------------------------------------------------------------
-#     def setSourceModel(self, source_model: QAbstractItemModel | None) -> None:
-#         super().setSourceModel(source_model)
-#         self._rebuild()
-#         # keep list in sync with structural changes
-#         source_model.rowsInserted.connect(self._rebuild)
-#         source_model.rowsRemoved.connect(self._rebuild)
-#         source_model.modelReset.connect(self._rebuild)
+        self._source_model = source_model
 
-#     # map source ↔ proxy -----------------------------------------------------
-#     def mapToSource(self, proxy_index: QModelIndex) -> QModelIndex:
-#         return (
-#             QModelIndex(self._leaves[proxy_index.row()])
-#             if proxy_index.isValid()
-#             else QModelIndex()
-#         )
+        # Connect to new model
+        if source_model is not None:
+            source_model.modelReset.connect(self._rebuild_rows)
+            source_model.layoutChanged.connect(self._rebuild_rows)
+            source_model.rowsInserted.connect(self._rebuild_rows)
+            source_model.rowsRemoved.connect(self._rebuild_rows)
 
-#     def mapFromSource(self, source_index: QModelIndex) -> QModelIndex:
-#         try:
-#             row = self._leaves.index(QPersistentModelIndex(source_index))
-#             return self.createIndex(row, source_index.column())
-#         except ValueError:
-#             return QModelIndex()
+        self._rebuild_rows()
 
-#     # shape ------------------------------------------------------------------
-#     def rowCount(self, _parent: QModelIndex = NULL_INDEX) -> int:
-#         return len(self._leaves)
+    def _rebuild_rows(self) -> None:
+        """Rebuild the flattened row structure."""
+        self.beginResetModel()
+        self._rows.clear()
 
-#     def columnCount(self, parent: QModelIndex = NULL_INDEX) -> int:
-#         if sm := self.sourceModel():
-#             return sm.columnCount(self.mapToSource(parent))
-#         return 0
+        if self._source_model is not None:
+            for drow in range(self._source_model.rowCount()):
+                device_idx = self._source_model.index(drow, 0)
+                if device_idx.isValid():
+                    for prow in range(self._source_model.rowCount(device_idx)):
+                        prop_idx = self._source_model.index(prow, 0, device_idx)
+                        if prop_idx.isValid():
+                            self._rows.append((drow, prow))
 
-#     # data, flags, setData simply delegate to the source --------------------
-#     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) ->Any:
-#         if sm := self.sourceModel():
-#             return sm.data(self.mapToSource(index), role)
-#         return None
+        self.endResetModel()
 
-#     def flags(self, index: QModelIndex) -> Qt.ItemFlag:
-#         if sm := self.sourceModel():
-#             return sm.flags(self.mapToSource(index))
-#         return Qt.ItemFlag.NoItemFlags
+    def sourceModel(self) -> QAbstractItemModel | None:
+        """Return the source model."""
+        return self._source_model
 
-#     def setData(
-#         self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
-#     ) -> bool:
-#         if sm := self.sourceModel():
-#             return sm.setData(self.mapToSource(index), value, role)
-#         return False
+    def index(
+        self, row: int, column: int, parent: QModelIndex | None = None
+    ) -> QModelIndex:
+        if parent and parent.isValid():
+            return QModelIndex()
+        if 0 <= row < len(self._rows) and 0 <= column < 2:
+            return self.createIndex(row, column)
+        return QModelIndex()
 
-#     # helpers ----------------------------------------------------------------
-#     def _rebuild(self) -> None:
-#         """Cache every leaf `QModelIndex` of the tree."""
-#         if not (sm := self.sourceModel()):
-#             return
-#         self.beginResetModel()
-#         self._leaves.clear()
+    def parent(self, index: QModelIndex) -> QModelIndex:
+        return QModelIndex()  # Flat model has no hierarchy
 
-#         def walk(parent: QModelIndex) -> None:
-#             rows = sm.rowCount(parent)
-#             for r in range(rows):
-#                 idx = sm.index(r, 0, parent)
-#                 if sm.rowCount(idx):  # branch
-#                     walk(idx)
-#                 else:  # leaf
-#                     self._leaves.append(QPersistentModelIndex(idx))
+    def rowCount(self, parent: QModelIndex | None = None) -> int:
+        if parent and parent.isValid():
+            return 0
+        return len(self._rows)
 
-#         walk(QModelIndex())
-#         self.endResetModel()
+    def columnCount(self, parent: QModelIndex | None = None) -> int:
+        return 2
+
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
+        if not index.isValid() or not self._source_model:
+            return None
+
+        row = index.row()
+        if row >= len(self._rows):
+            return None
+
+        drow, prow = self._rows[row]
+        col = index.column()
+
+        if col == 0:  # Device column
+            device_idx = self._source_model.index(drow, 0)
+            return self._source_model.data(device_idx, role)
+        elif col == 1:  # Property column
+            device_idx = self._source_model.index(drow, 0)
+            if device_idx.isValid():
+                prop_idx = self._source_model.index(prow, 0, device_idx)
+                return self._source_model.data(prop_idx, role)
+
+        return None
+
+    def flags(self, index: QModelIndex) -> Qt.ItemFlag:
+        if not index.isValid() or not self._source_model:
+            return Qt.ItemFlag.NoItemFlags
+
+        row = index.row()
+        if row >= len(self._rows):
+            return Qt.ItemFlag.NoItemFlags
+
+        drow, prow = self._rows[row]
+        col = index.column()
+
+        if col == 0:  # Device column
+            device_idx = self._source_model.index(drow, 0)
+            return self._source_model.flags(device_idx)
+        elif col == 1:  # Property column
+            device_idx = self._source_model.index(drow, 0)
+            if device_idx.isValid():
+                prop_idx = self._source_model.index(prow, 0, device_idx)
+                return self._source_model.flags(prop_idx)
+
+        return Qt.ItemFlag.NoItemFlags
+
+    def headerData(
+        self,
+        section: int,
+        orientation: Qt.Orientation,
+        role: int = Qt.ItemDataRole.DisplayRole,
+    ) -> Any:
+        if role == Qt.ItemDataRole.DisplayRole:
+            if orientation == Qt.Orientation.Horizontal:
+                return "Device" if section == 0 else "Property"
+            elif orientation == Qt.Orientation.Vertical:
+                return str(section + 1)
+        elif role == Qt.ItemDataRole.FontRole:
+            if orientation == Qt.Orientation.Horizontal:
+                font = QFont()
+                font.setBold(True)
+                return font
+        return None
+
+    def sort(
+        self, column: int, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder
+    ) -> None:
+        if column not in (0, 1) or not (sm := self._source_model):
+            return
+
+        def _key(x: tuple[int, int]) -> Any:
+            par = sm.index(x[0], 0) if column == 1 else NULL_INDEX
+            return sm.index(x[column], 0, par).data() or ""
+
+        self.layoutAboutToBeChanged.emit()
+        self._rows.sort(key=_key, reverse=order == Qt.SortOrder.DescendingOrder)
+        self.layoutChanged.emit()
