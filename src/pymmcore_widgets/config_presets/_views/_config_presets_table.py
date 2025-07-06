@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
@@ -24,6 +25,8 @@ if TYPE_CHECKING:
 
 else:
     from qtpy.QtGui import QAction
+
+NOT_TESTING = "PYTEST_VERSION" not in os.environ
 
 
 class ConfigPresetsTableView(QTableView):
@@ -197,10 +200,8 @@ class ConfigPresetsTable(QWidget):
         self.view.setGroup(group_name_or_index)
 
     def _on_remove_action(self) -> None:
-        if not self.view.isTransposed():
-            source_idx = self._get_selected_preset_index()
-            self.view.sourceModel().remove(source_idx, ask_confirmation=True)
-        # TODO: handle transposed case
+        source_idx = self._get_selected_preset_index()
+        self.view.sourceModel().remove(source_idx, ask_confirmation=NOT_TESTING)
 
     def _on_duplicate_action(self) -> None:
         if not self.view.isTransposed():
@@ -210,6 +211,9 @@ class ConfigPresetsTable(QWidget):
 
     def _get_selected_preset_index(self) -> QModelIndex:
         """Get the currently selected preset from the source model."""
+        if self.view.isTransposed():
+            return QModelIndex()  # TODO
+
         if sm := self.view.selectionModel():
             if indices := sm.selectedColumns():
                 pivot_model = self.view._get_pivot_model()
