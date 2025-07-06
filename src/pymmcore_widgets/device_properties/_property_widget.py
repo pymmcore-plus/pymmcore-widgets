@@ -77,7 +77,7 @@ class FloatWidget(QDoubleSpinBox):
         if dec > self.decimals():
             self.setDecimals(dec)
         return super().setValue(  # type: ignore [no-any-return]
-            _stretch_range_to_contain(self, float(v))
+            _stretch_range_to_contain(self, float(v or 0))
         )
 
 
@@ -123,7 +123,7 @@ class IntBoolWidget(QCheckBox):
 
     def setValue(self, val: str | int) -> None:
         """Set value."""
-        return self.setChecked(bool(int(val)))  # type: ignore [no-any-return]
+        return self.setChecked(bool(int(val or 0)))  # type: ignore [no-any-return]
 
 
 class ChoiceWidget(QComboBox):

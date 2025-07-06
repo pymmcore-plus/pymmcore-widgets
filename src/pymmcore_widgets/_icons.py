@@ -42,8 +42,11 @@ class StandardIcon(str, Enum):
     CONFIG_PRESET = "mdi:file-settings-cog-outline"
     HELP = "mdi:help-circle-outline"
     CHANNEL_GROUP = "mynaui:letter-c-waves-solid"
+    SYSTEM_GROUP = "mdi:power"
+    STARTUP = "ic:baseline-power"
+    SHUTDOWN = "ic:baseline-power-off"
 
-    def icon(self, color: str = "#333") -> QIconifyIcon:
+    def icon(self, color: str = "gray") -> QIconifyIcon:
         return QIconifyIcon(self.value, color=color)
 
     def __str__(self) -> str:

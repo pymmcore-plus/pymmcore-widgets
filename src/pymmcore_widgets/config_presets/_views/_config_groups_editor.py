@@ -165,7 +165,9 @@ class ConfigGroupsEditor(QWidget):
         # group is already a channel group
         group = current.data(Qt.ItemDataRole.UserRole)
         if isinstance(group, ConfigGroup):
-            self._tb.set_channel_action.setEnabled(not group.is_channel_group)
+            self._tb.set_channel_action.setEnabled(
+                not group.is_channel_group and not group.is_system_group
+            )
 
     def _on_preset_changed(self, current: QModelIndex, previous: QModelIndex) -> None:
         """Called when the preset selection in the GroupPresetSelector changes."""

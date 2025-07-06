@@ -77,8 +77,15 @@ class QConfigGroupsModel(_BaseTreeModel):
                 grp = cast("ConfigGroup", node.payload)
                 if grp.is_channel_group:
                     return StandardIcon.CHANNEL_GROUP.icon().pixmap(16, 16)
+                if grp.is_system_group:
+                    return StandardIcon.SYSTEM_GROUP.icon().pixmap(16, 16)
                 return StandardIcon.CONFIG_GROUP.icon().pixmap(16, 16)
             if node.is_preset:
+                preset = cast("ConfigPreset", node.payload)
+                if preset.is_system_startup:
+                    return StandardIcon.STARTUP.icon().pixmap(16, 16)
+                if preset.is_system_shutdown:
+                    return StandardIcon.SHUTDOWN.icon().pixmap(16, 16)
                 return StandardIcon.CONFIG_PRESET.icon().pixmap(16, 16)
             if node.is_setting:
                 setting = cast("DevicePropertySetting", node.payload)
@@ -154,6 +161,9 @@ class QConfigGroupsModel(_BaseTreeModel):
             return Qt.ItemFlag.NoItemFlags
 
         fl = Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled
+        if isinstance((grp := node.payload), ConfigGroup) and grp.is_system_group:
+            # system group name cannot be changed
+            return fl
         if node.is_setting and index.column() == Col.Value:
             fl |= Qt.ItemFlag.ItemIsEditable
         elif not node.is_setting and index.column() == Col.Item:
@@ -238,7 +248,7 @@ class QConfigGroupsModel(_BaseTreeModel):
             raise ValueError("Reference index is not a ConfigGroup.")
 
         name = self._unique_child_name(group_node, base_name, suffix="")
-        preset = ConfigPreset(name=name)
+        preset = ConfigPreset(name=name, parent=group_node.payload)
         row = len(group_node.children)
         if self.insertRows(row, 1, group_idx, _payloads=[preset]):
             return self.index(row, 0, group_idx)
@@ -483,10 +493,10 @@ class QConfigGroupsModel(_BaseTreeModel):
         if _payloads is None:
             _payloads = []
             for _ in range(count):
-                if isinstance(parent_node.payload, ConfigGroup):
+                if isinstance((grp := parent_node.payload), ConfigGroup):
                     # inserting a new ConfigPreset
                     name = self._unique_child_name(parent_node, "Preset")
-                    _payloads.append(ConfigPreset(name=name))
+                    _payloads.append(ConfigPreset(name=name, parent=grp))
                 elif isinstance(parent_node.payload, ConfigPreset):
                     raise NotImplementedError(
                         "Inserting a Setting is not supported in this context."

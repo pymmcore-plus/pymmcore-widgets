@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from pymmcore_plus import DeviceType
-from qtpy.QtCore import QAbstractItemModel, QModelIndex, QSize, Qt
+from qtpy.QtCore import QAbstractItemModel, QAbstractProxyModel, QModelIndex, QSize, Qt
 from qtpy.QtWidgets import (
     QLineEdit,
     QSizePolicy,
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from PyQt6.QtCore import pyqtSignal as Signal
-    from PyQt6.QtGui import QAction
+    from PyQt6.QtGui import QAction, QKeyEvent
 else:
     from qtpy.QtCore import QModelIndex, Signal
 
@@ -215,7 +215,7 @@ class DevicePropertySelector(QWidget):
         self.selected_tree = _ShrinkingQTreeView(self)
         self.selected_tree.setModel(self._flat_checked_model)
 
-        self.tree = QTreeView(self)
+        self.tree = _CheckableTreeView(self)
         self._toggle_view_mode(False)  # Start with TableView (flat proxy model)
 
         layout = QVBoxLayout(self)
@@ -367,8 +367,61 @@ class DevicePropertySelector(QWidget):
         self._dev_type_btns.setCheckedDeviceTypes(dev_types)
 
 
-class _ShrinkingQTreeView(QTreeView):
+class _CheckableTreeView(QTreeView):
+    """A QTreeView that allows toggling check state with Return/Enter key."""
+
+    ACTION_KEYS: ClassVar[set[int]] = {Qt.Key.Key_Return, Qt.Key.Key_Enter}
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Handle key press events, specifically Return/Enter to toggle check state."""
+        if event.key() in self.ACTION_KEYS:
+            current_index = self.currentIndex()
+            if current_index.isValid():
+                self._toggle_check_state(current_index)
+                return
+        super().keyPressEvent(event)
+
+    def _toggle_check_state(self, index: QModelIndex) -> None:
+        """Toggle the check state of the given index if it's a checkable property."""
+        if not index.isValid():
+            return
+
+        # Get the data to check if this is a property item (not a device header)
+        user_data = index.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(user_data, DevicePropertySetting):
+            return
+
+        # Get current check state
+        current_state = index.data(Qt.ItemDataRole.CheckStateRole)
+        if current_state is None:
+            return
+
+        # Toggle the state
+        new_state = (
+            Qt.CheckState.Unchecked
+            if current_state == Qt.CheckState.Checked
+            else Qt.CheckState.Checked
+        )
+
+        # If we're working with a proxy model, we need to map to the source model
+        model = index.model()
+        if model is not None:
+            # Try to get the source model if this is a proxy
+            source_index = index
+            if isinstance(model, QAbstractProxyModel):
+                source_index = model.mapToSource(source_index)
+                model = model.sourceModel()
+                if model is None:
+                    return
+
+            # Set the new state on the source model
+            model.setData(source_index, new_state, Qt.ItemDataRole.CheckStateRole)
+
+
+class _ShrinkingQTreeView(_CheckableTreeView):
     """A QTreeView that shrinks to fit its contents."""
+
+    ACTION_KEYS: ClassVar[set[int]] = {Qt.Key.Key_Backspace}
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)

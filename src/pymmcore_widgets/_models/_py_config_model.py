@@ -163,6 +163,24 @@ class ConfigPreset(_BaseModel):
         """Return the settings in the preset."""
         return tuple(self.settings)
 
+    @property
+    def is_system_startup(self) -> bool:
+        """Return True if the preset is the system startup preset."""
+        return (
+            self.name.lower() == "startup"
+            and self.parent is not None
+            and self.parent.is_system_group
+        )
+
+    @property
+    def is_system_shutdown(self) -> bool:
+        """Return True if the preset is the system shutdown preset."""
+        return (
+            self.name.lower() == "shutdown"
+            and self.parent is not None
+            and self.parent.is_system_group
+        )
+
 
 class ConfigGroup(_BaseModel):
     """A group of ConfigPresets."""
@@ -171,6 +189,11 @@ class ConfigGroup(_BaseModel):
     presets: dict[str, ConfigPreset] = Field(default_factory=dict)
 
     is_channel_group: bool = False
+
+    @property
+    def is_system_group(self) -> bool:
+        """Return True if the group is a system group."""
+        return self.name.lower() == "system"
 
     @property
     def children(self) -> tuple[ConfigPreset, ...]:
