@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import DeviceType
-from qtpy.QtCore import QAbstractItemModel, QModelIndex, QSize
+from qtpy.QtCore import QAbstractItemModel, QModelIndex, QSize, Qt
 from qtpy.QtWidgets import (
     QLineEdit,
     QSizePolicy,
@@ -16,6 +17,7 @@ from superqt import QIconifyIcon
 
 from pymmcore_widgets._icons import DEVICE_TYPE_ICON, StandardIcon
 from pymmcore_widgets._models import Device, QDevicePropertyModel
+from pymmcore_widgets._models._py_config_model import DevicePropertySetting
 from pymmcore_widgets._models._q_device_prop_model import DevicePropertyFlatProxy
 
 from ._checked_properties_proxy import CheckedProxy
@@ -182,6 +184,8 @@ class _PropertySearchToolbar(QToolBar):
 
 
 class DevicePropertySelector(QWidget):
+    checkedPropertiesChanged = Signal(tuple)  # tuple[DevicePropertySetting, ...]
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
@@ -191,6 +195,10 @@ class DevicePropertySelector(QWidget):
         self._tb2 = _PropertySearchToolbar(self)
 
         self._model = QDevicePropertyModel()
+        self._model.dataChanged.connect(self._on_model_data_changed)
+
+        # Track currently-checked (device_label, property_name) pairs
+        self._checked_props: set[tuple[str, str]] = set()
 
         self._filtered_model = DeviceTypeFilter(allowed={DeviceType.Any}, parent=self)
         self._filtered_model.setSourceModel(self._model)
@@ -208,17 +216,15 @@ class DevicePropertySelector(QWidget):
         self.selected_tree.setModel(self._flat_checked_model)
 
         self.tree = QTreeView(self)
-        # Start with TableView (flat proxy model)
-        self.tree.setModel(self._flat_filtered_model)
-        self.tree.setSortingEnabled(True)
+        self._toggle_view_mode(False)  # Start with TableView (flat proxy model)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(self.selected_tree)
         layout.addWidget(dev_btns)
         layout.addWidget(self._tb2)
         layout.addWidget(self.tree, 2)
+        layout.addWidget(self.selected_tree)
 
         dev_btns.checkedDevicesChanged.connect(
             self._filtered_model.setAllowedDeviceTypes
@@ -234,6 +240,50 @@ class DevicePropertySelector(QWidget):
         """Expand all items in the tree view."""
         self.tree.expandRecursively(QModelIndex())
 
+    def _on_model_data_changed(
+        self, topLeft: QModelIndex, bottomRight: QModelIndex, roles: list[int]
+    ) -> None:
+        """Incrementally update the checke-property cache and emit when it changes."""
+        if Qt.ItemDataRole.CheckStateRole not in roles:
+            return
+
+        changed = False
+
+        # Helper to update the cache for a single index
+        def _update(idx: QModelIndex) -> None:
+            nonlocal changed
+            prop = idx.data(Qt.ItemDataRole.UserRole)
+            if not isinstance(prop, DevicePropertySetting):
+                return
+            is_checked = (
+                self._model.data(idx, Qt.ItemDataRole.CheckStateRole)
+                == Qt.CheckState.Checked
+            )
+            key = prop.key()
+            if is_checked and key not in self._checked_props:
+                self._checked_props.add(key)
+                changed = True
+            elif not is_checked and key in self._checked_props:
+                self._checked_props.remove(key)
+                changed = True
+
+        # Iterate through all rows in the changed range
+        parent = topLeft.parent()
+        for row in range(topLeft.row(), bottomRight.row() + 1):
+            idx = self._model.index(row, 0, parent)
+            if not idx.isValid():
+                continue
+            _update(idx)
+            # If idx is a device row, also inspect its children
+            if not isinstance(
+                idx.data(Qt.ItemDataRole.UserRole), DevicePropertySetting
+            ):
+                for child_row in range(self._model.rowCount(idx)):
+                    _update(self._model.index(child_row, 0, idx))
+
+        if changed:
+            self.checkedPropertiesChanged.emit(tuple(self._checked_props))
+
     def _toggle_view_mode(self, is_tree_view: bool) -> None:
         """Toggle between TreeView and TableView modes."""
         if is_tree_view:
@@ -241,18 +291,62 @@ class DevicePropertySelector(QWidget):
             self.tree.setModel(self._filtered_model)
             self.tree.setColumnHidden(1, True)  # Hide the second column (device type)
             self.tree.expandAll()
+            self.tree.setRootIsDecorated(True)
+            self.tree.setSortingEnabled(False)
         else:
             # Switch to TableView: use flat proxy
             self.tree.setModel(self._flat_filtered_model)
             self.tree.setColumnHidden(1, False)  # Show the second column (property)
+            self.tree.setRootIsDecorated(False)
+            self.tree.setSortingEnabled(True)
 
     def clear(self) -> None:
         """Clear the current selection."""
         # self.table.setValue([])
 
-    def setChecked(self, settings: Iterable[tuple[str, str, str]]) -> None:
+    def clearCheckedProperties(self) -> None:
+        """Clear all checked properties."""
+        # clear all checks
+        for row in range(self._model.rowCount()):
+            dev_idx = self._model.index(row, 0)
+            for prop_row in range(self._model.rowCount(dev_idx)):
+                prop_idx = self._model.index(prop_row, 0, dev_idx)
+                self._model.setData(
+                    prop_idx,
+                    Qt.CheckState.Unchecked,
+                    Qt.ItemDataRole.CheckStateRole,
+                )
+        self._checked_props.clear()
+        self.checkedPropertiesChanged.emit(())
+        return
+
+    def setCheckedProperties(self, props: Iterable[DevicePropertySetting]) -> None:
         """Set the checked state of the properties based on the given settings."""
-        # self.table.setValue(settings)
+        self.clearCheckedProperties()
+        props = list(props)
+
+        to_check = defaultdict(set)
+        for prop in props:
+            to_check[prop.device_label].add(prop.property_name)
+
+        for row in range(self._model.rowCount()):
+            dev_idx = self._model.index(row, 0)
+            dev = dev_idx.data(Qt.ItemDataRole.UserRole)
+            if isinstance(dev, Device) and dev.label in to_check:
+                for prop_row in range(self._model.rowCount(dev_idx)):
+                    prop_idx = self._model.index(prop_row, 0, dev_idx)
+                    prop = prop_idx.data(Qt.ItemDataRole.UserRole)
+                    if (
+                        isinstance(prop, DevicePropertySetting)
+                        and prop.property_name in to_check[dev.label]
+                    ):
+                        self._model.setData(
+                            prop_idx,
+                            Qt.CheckState.Checked,
+                            Qt.ItemDataRole.CheckStateRole,
+                        )
+        self._checked_props = {p.key() for p in props}
+        self.checkedPropertiesChanged.emit(tuple(self._checked_props))
 
     def setAvailableDevices(self, devices: Iterable[Device]) -> None:
         devices = list(devices)
@@ -266,11 +360,11 @@ class DevicePropertySelector(QWidget):
         dev_types = {d.type for d in devices}
         self._dev_type_btns.setVisibleDeviceTypes(dev_types)
 
-        # # hide some types that are often not immediately useful in this context
-        # dev_types.difference_update(
-        #     {DeviceType.AutoFocus, DeviceType.Core, DeviceType.Camera}
-        # )
-        # self._device_type_buttons.setCheckedDeviceTypes(dev_types)
+        # hide some types that are often not immediately useful in this context
+        dev_types.difference_update(
+            {DeviceType.AutoFocus, DeviceType.Core, DeviceType.Camera}
+        )
+        self._dev_type_btns.setCheckedDeviceTypes(dev_types)
 
 
 class _ShrinkingQTreeView(QTreeView):

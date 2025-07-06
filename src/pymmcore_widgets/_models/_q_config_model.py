@@ -384,6 +384,36 @@ class QConfigGroupsModel(_BaseTreeModel):
                 preset_node.children.append(_Node.create(s, preset_node))
             self.endInsertRows()
 
+    def update_preset_properties(
+        self, preset_idx: QModelIndex, settings: Iterable[tuple[str, str]]
+    ) -> None:
+        """Update the preset to only include properties that match the given keys.
+
+        Missing properties will be added as placeholder settings with empty values.
+        """
+        preset_node = self._node_from_index(preset_idx)
+        if not isinstance((preset := preset_node.payload), ConfigPreset):
+            raise ValueError("Reference index is not a ConfigPreset.")
+
+        setting_keys = set(settings)
+
+        # Create a dict of existing settings keyed by (device, property_name)
+        existing_settings = {s.key(): s for s in preset.settings}
+
+        # Build the final list of settings
+        final_settings = []
+
+        for key in setting_keys:
+            if key in existing_settings:
+                final_settings.append(existing_settings[key])
+            else:
+                final_settings.append(
+                    DevicePropertySetting(device=key[0], property_name=key[1])
+                )
+
+        # Use the existing method to update the preset with the final settings
+        self.update_preset_settings(preset_idx, final_settings)
+
     # name uniqueness ---------------------------------------------------------
 
     @staticmethod

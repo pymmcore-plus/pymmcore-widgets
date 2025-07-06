@@ -10,6 +10,7 @@ core = CMMCorePlus()
 core.loadSystemConfiguration()
 
 cfg = ConfigGroupsEditor.create_from_core(core)
+cfg.setCurrentPreset("Channel", "FITC")
 cfg.show()
 
 app.exec()
