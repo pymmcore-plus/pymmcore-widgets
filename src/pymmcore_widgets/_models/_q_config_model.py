@@ -233,6 +233,7 @@ class QConfigGroupsModel(_BaseTreeModel):
             raise ValueError("Reference index is not a ConfigGroup.")
 
         new_grp = deepcopy(grp)
+        new_grp.is_channel_group = False  # this never gets duplicated
         new_grp.name = new_name or self._unique_child_name(self._root, new_grp.name)
         row = idx.row() + 1
         if self.insertRows(row, 1, QModelIndex(), _payloads=[new_grp]):

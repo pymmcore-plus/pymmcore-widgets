@@ -32,7 +32,7 @@ class AddGroupCommand(QUndoCommand):
         parent: QUndoCommand | None = None,
     ) -> None:
         # the \n separates ActionText from text used in QUndoStackView
-        super().__init__(f"Add Group '{name}'\nAdd Group", parent)
+        super().__init__(f"Add Group '{name}'\n", parent)
         self._model = model
         self._name = name
         self._group_index: QModelIndex | None = None
@@ -58,7 +58,7 @@ class RemoveGroupCommand(QUndoCommand):
     ) -> None:
         group_name = group_index.data() or "Group"
         # the \n separates ActionText from text used in QUndoStackView
-        super().__init__(f"Remove Group '{group_name}'\nRemove Group", parent)
+        super().__init__(f"Remove Group '{group_name}'\n", parent)
         self._model = model
         self._group_index = group_index
         self._row = group_index.row()
@@ -91,7 +91,7 @@ class DuplicateGroupCommand(QUndoCommand):
     ) -> None:
         group_name = group_index.data() or "Group"
         # the \n separates ActionText from text used in QUndoStackView
-        super().__init__(f"Duplicate Group '{group_name}'\nDuplicate Group", parent)
+        super().__init__(f"Duplicate Group '{group_name}'\n", parent)
         self._model = model
         self._group_index = group_index
         self._new_name = new_name
@@ -121,9 +121,7 @@ class RenameGroupCommand(QUndoCommand):
     ) -> None:
         old_name = group_index.data() or "Group"
         # the \n separates ActionText from text used in QUndoStackView
-        super().__init__(
-            f"Rename Group '{old_name}' to '{new_name}'\nRename Group", parent
-        )
+        super().__init__(f"Rename Group '{old_name}' to '{new_name}'\n", parent)
         self._model = model
         self._group_index = group_index
         self._old_name = old_name
@@ -150,7 +148,7 @@ class AddPresetCommand(QUndoCommand):
     ) -> None:
         group_name = group_index.data() or "Group"
         # the \n separates ActionText from text used in QUndoStackView
-        super().__init__(f"Add Preset '{name}' to '{group_name}'\nAdd Preset", parent)
+        super().__init__(f"Add Preset '{name}' to '{group_name}'\n", parent)
         self._model = model
         self._group_index = group_index
         self._name = name
@@ -178,9 +176,7 @@ class RemovePresetCommand(QUndoCommand):
         preset_name = preset_index.data() or "Preset"
         group_name = preset_index.parent().data() or "Group"
         # the \n separates ActionText from text used in QUndoStackView
-        super().__init__(
-            f"Remove Preset '{preset_name}' from '{group_name}'\nRemove Preset", parent
-        )
+        super().__init__(f"Remove Preset '{preset_name}' from '{group_name}'\n", parent)
         self._model = model
         self._preset_index = preset_index
         self._group_index = preset_index.parent()
@@ -214,7 +210,7 @@ class DuplicatePresetCommand(QUndoCommand):
     ) -> None:
         preset_name = preset_index.data() or "Preset"
         # the \n separates ActionText from text used in QUndoStackView
-        super().__init__(f"Duplicate Preset '{preset_name}'\nDuplicate Preset", parent)
+        super().__init__(f"Duplicate Preset '{preset_name}'\n", parent)
         self._model = model
         self._preset_index = preset_index
         self._new_name = new_name
@@ -245,9 +241,7 @@ class RenamePresetCommand(QUndoCommand):
     ) -> None:
         old_name = preset_index.data() or "Preset"
         # the \n separates ActionText from text used in QUndoStackView
-        super().__init__(
-            f"Rename Preset '{old_name}' to '{new_name}'\nRename Preset", parent
-        )
+        super().__init__(f"Rename Preset '{old_name}' to '{new_name}'\n", parent)
         self._model = model
         self._preset_index = preset_index
         self._old_name = old_name
@@ -274,9 +268,7 @@ class UpdatePresetPropertiesCommand(QUndoCommand):
     ) -> None:
         preset_name = preset_index.data() or "Preset"
         # the \n separates ActionText from text used in QUndoStackView
-        super().__init__(
-            f"Update Properties in '{preset_name}'\nUpdate Properties", parent
-        )
+        super().__init__(f"Update Properties in '{preset_name}'\n", parent)
         self._model = model
         self._preset_index = preset_index
         self._new_properties = list(new_properties)
@@ -310,7 +302,7 @@ class UpdatePresetSettingsCommand(QUndoCommand):
     ) -> None:
         preset_name = preset_index.data() or "Preset"
         # the \n separates ActionText from text used in QUndoStackView
-        super().__init__(f"Update Settings in '{preset_name}'\nUpdate Settings", parent)
+        super().__init__(f"Update Settings in '{preset_name}'\n", parent)
         self._model = model
         self._preset_index = preset_index
         self._new_settings = deepcopy(new_settings)
@@ -345,9 +337,7 @@ class ChangePropertyValueCommand(QUndoCommand):
         preset_index = property_index.parent()
         preset_name = preset_index.data() or "Preset"
         # the \n separates ActionText from text used in QUndoStackView
-        super().__init__(
-            f"Change Property Value in '{preset_name}'\nChange Property Value", parent
-        )
+        super().__init__(f"Change Property Value in '{preset_name}'\n", parent)
         self._model = model
         self._property_index = property_index
         self._new_value = new_value

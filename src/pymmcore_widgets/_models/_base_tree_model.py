@@ -77,7 +77,12 @@ class _Node:
         return len(self.children)
 
     def row_in_parent(self) -> int:
-        return -1 if self.parent is None else self.parent.children.index(self)
+        if self.parent is None:
+            return -1
+        try:
+            return self.parent.children.index(self)
+        except ValueError:  # pragma: no cover
+            return -1
 
     # type helpers -----------------------------------------------------------
 

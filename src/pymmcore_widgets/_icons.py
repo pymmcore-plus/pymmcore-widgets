@@ -45,6 +45,8 @@ class StandardIcon(str, Enum):
     SYSTEM_GROUP = "mdi:power"
     STARTUP = "ic:baseline-power"
     SHUTDOWN = "ic:baseline-power-off"
+    UNDO = "mdi:undo"
+    REDO = "mdi:redo"
 
     def icon(self, color: str = "gray") -> QIconifyIcon:
         return QIconifyIcon(self.value, color=color)

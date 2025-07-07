@@ -5,7 +5,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING, cast
 
 from qtpy.QtCore import QModelIndex, QSignalBlocker, QSize, Qt, Signal
-from qtpy.QtGui import QUndoStack
+from qtpy.QtGui import QKeySequence, QUndoStack
 from qtpy.QtWidgets import (
     QGroupBox,
     QSizePolicy,
@@ -173,6 +173,7 @@ class ConfigGroupsEditor(QWidget):
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
     def _on_group_changed(self, current: QModelIndex, previous: QModelIndex) -> None:
         """Called when the group selection in the GroupPresetSelector changes."""
         # Show this group in the preset table
@@ -447,6 +448,20 @@ class ConfigGroupsEditor(QWidget):
         dialog.setWindowFlags(Qt.WindowType.Sheet | Qt.WindowType.WindowCloseButtonHint)
         dialog.exec()
 
+    def _show_undo_view(self) -> None:
+        """Show a dialog with the undo stack view."""
+        from qtpy.QtWidgets import QUndoView
+
+        # TODO
+        if self._undo_stack is not None:
+            dialog = QUndoView(self._undo_stack, self)
+            dialog.setCleanIcon(StandardIcon.UNDO.icon())
+            dialog.setEmptyLabel("<start of stack>")
+            dialog.setWindowFlags(
+                Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint
+            )
+            dialog.show()
+
     # ------------------------------------------------------------------
     # Property-table sync
     # ------------------------------------------------------------------
@@ -549,16 +564,17 @@ class _ConfigEditorToolbar(QToolBar):
         # Undo/Redo actions
         self.undo_action = parent._undo_stack.createUndoAction(self, "Undo")
         if self.undo_action:
-            self.undo_action.setIcon(QIconifyIcon("fluent:arrow-undo-24-regular"))
-            self.undo_action.setShortcut("Ctrl+Z")
+            self.undo_action.setIcon(StandardIcon.UNDO.icon())
+            self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
             self.addAction(self.undo_action)
 
         self.redo_action = parent._undo_stack.createRedoAction(self, "Redo")
         if self.redo_action:
-            self.redo_action.setIcon(QIconifyIcon("fluent:arrow-redo-24-regular"))
-            self.redo_action.setShortcut("Ctrl+Y")
+            self.redo_action.setIcon(StandardIcon.REDO.icon())
+            self.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
             self.addAction(self.redo_action)
 
+        self.addAction("Show Undo/Redo History...", parent._show_undo_view)
         self.addSeparator()
         self.set_channel_action = cast(
             "QAction",
