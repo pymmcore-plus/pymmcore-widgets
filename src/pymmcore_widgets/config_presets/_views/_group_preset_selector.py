@@ -8,9 +8,11 @@ from qtpy.QtWidgets import QListView, QSplitter, QStackedWidget, QWidget
 from pymmcore_widgets._models import QConfigGroupsModel
 
 from ._config_groups_tree import ConfigGroupsTree
+from ._undo_delegates import GroupPresetRenameDelegate
 
 if TYPE_CHECKING:
     from qtpy.QtCore import QAbstractItemModel
+    from qtpy.QtGui import QUndoStack
 
 
 class GroupPresetSelector(QStackedWidget):
@@ -28,6 +30,7 @@ class GroupPresetSelector(QStackedWidget):
         super().__init__(parent)
 
         self._model: QConfigGroupsModel | None = None
+        self._undo_stack: QUndoStack | None = None
 
         # STACK_0 : List views for groups and presets ----------------------
 
@@ -56,6 +59,21 @@ class GroupPresetSelector(QStackedWidget):
 
         self.addWidget(lists_splitter)  # index 0
         self.addWidget(self.config_groups_tree)  # index 1
+
+    def setUndoStack(self, undo_stack: QUndoStack) -> None:
+        """Set the undo stack and configure delegates for undo/redo."""
+        self._undo_stack = undo_stack
+
+        # Set up undo-aware delegates for the list views
+        # The list views handle group/preset renaming
+        if undo_stack is not None:
+            rename_delegate = GroupPresetRenameDelegate(undo_stack, self)
+            self.group_list.setItemDelegate(rename_delegate)
+            self.preset_list.setItemDelegate(rename_delegate)
+
+            # The tree view already has PropertySettingDelegate set up,
+            # but we need to update it to use undo commands
+            self.config_groups_tree.setUndoStack(undo_stack)
 
     def model(self) -> QConfigGroupsModel | None:
         """Return the currently attached model."""
@@ -147,26 +165,77 @@ class GroupPresetSelector(QStackedWidget):
 
     def _selected_index(self) -> QModelIndex:
         """Return the currently selected index from the group or preset list."""
+        # First check focus-based selection
         if self.group_list.hasFocus():
             return self.group_list.currentIndex()
         elif self.preset_list.hasFocus():
             return self.preset_list.currentIndex()
         elif self.config_groups_tree.hasFocus():
             return self.config_groups_tree.currentIndex()
+
+        # If no view has focus, check for valid current selections
+        # This handles cases where focus has moved to toolbar buttons
+        if self.currentIndex() == 0:  # Column view is active
+            # Check preset list first since presets are more commonly operated on
+            preset_idx = self.preset_list.currentIndex()
+            if preset_idx.isValid():
+                return preset_idx
+            # Fall back to group list
+            group_idx = self.group_list.currentIndex()
+            if group_idx.isValid():
+                return group_idx
+        else:  # Tree view is active
+            tree_idx = self.config_groups_tree.currentIndex()
+            if tree_idx.isValid():
+                return tree_idx
+
         return QModelIndex()
 
     def removeSelected(self) -> None:
         if self._model:
-            self._model.remove(
-                self._selected_index(), ask_confirmation=True, parent=self
-            )
+            selected_idx = self._selected_index()
+            if self._undo_stack is not None:
+                from pymmcore_widgets.config_presets._views._undo_commands import (
+                    RemoveGroupCommand,
+                    RemovePresetCommand,
+                )
+
+                node = self._model._node_from_index(selected_idx)
+                if node.is_group:
+                    command = RemoveGroupCommand(self._model, selected_idx)
+                    self._undo_stack.push(command)
+                elif node.is_preset:
+                    command = RemovePresetCommand(self._model, selected_idx)
+                    self._undo_stack.push(command)
+            else:
+                # Fall back to direct model operation
+                self._model.remove(selected_idx, ask_confirmation=True, parent=self)
 
     def duplicateSelected(self) -> None:
         if self._model:
-            if self.group_list.hasFocus():
-                self._model.duplicate_group(self.group_list.currentIndex())
-            elif self.preset_list.hasFocus():
-                self._model.duplicate_preset(self.preset_list.currentIndex())
+            if self._undo_stack is not None:
+                from pymmcore_widgets.config_presets._views._undo_commands import (
+                    DuplicateGroupCommand,
+                    DuplicatePresetCommand,
+                )
+
+                selected_idx = self._selected_index()
+                if not selected_idx.isValid():
+                    return
+
+                node = self._model._node_from_index(selected_idx)
+                if node.is_group:
+                    command = DuplicateGroupCommand(self._model, selected_idx)
+                    self._undo_stack.push(command)
+                elif node.is_preset:
+                    command = DuplicatePresetCommand(self._model, selected_idx)
+                    self._undo_stack.push(command)
+            else:
+                # Fall back to direct model operations
+                if self.group_list.hasFocus():
+                    self._model.duplicate_group(self.group_list.currentIndex())
+                elif self.preset_list.hasFocus():
+                    self._model.duplicate_preset(self.preset_list.currentIndex())
 
     def showColumnView(self) -> None:
         """Switch to column view mode (groups and presets side by side)."""

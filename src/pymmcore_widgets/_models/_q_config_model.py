@@ -12,13 +12,6 @@ from superqt import QIconifyIcon
 
 from pymmcore_widgets._icons import StandardIcon
 
-# Create appropriate undo command based on what's being edited
-from pymmcore_widgets.config_presets._views._undo_commands import (
-    ChangePropertyValueCommand,
-    RenameGroupCommand,
-    RenamePresetCommand,
-)
-
 from ._base_tree_model import _BaseTreeModel, _Node
 from ._core_functions import get_config_groups
 from ._py_config_model import ConfigGroup, ConfigPreset, DevicePropertySetting
@@ -49,13 +42,8 @@ class QConfigGroupsModel(_BaseTreeModel):
 
     def __init__(self, groups: Iterable[ConfigGroup] | None = None) -> None:
         super().__init__()
-        self._undo_stack = None  # Will be set by ConfigGroupsEditor
         if groups:
             self.set_groups(groups)
-
-    def setUndoStack(self, undo_stack) -> None:
-        """Set the undo stack for this model to enable undo/redo operations."""
-        self._undo_stack = undo_stack
 
     # ------------------------------------------------------------------
     # Required Qt model overrides
@@ -127,37 +115,7 @@ class QConfigGroupsModel(_BaseTreeModel):
         value: Any,
         role: int = Qt.ItemDataRole.EditRole,
     ) -> bool:
-        """Set data for the given index, creating undo commands if available."""
-        if self._undo_stack is not None:
-            node = self._node_from_index(index)
-            if node is self._root or role != Qt.ItemDataRole.EditRole:
-                return False
-
-            # Editing a property value
-            if node.is_setting:
-                command = ChangePropertyValueCommand(self, index, value)
-                self._undo_stack.push(command)
-                return True
-            # Editing a group or preset name
-            elif node.is_group:
-                command = RenameGroupCommand(self, index, str(value))
-                self._undo_stack.push(command)
-                return True
-            elif node.is_preset:
-                command = RenamePresetCommand(self, index, str(value))
-                self._undo_stack.push(command)
-                return True
-
-        # Fall back to raw implementation if no undo stack
-        return self._raw_setData(index, value, role)
-
-    def _raw_setData(
-        self,
-        index: QModelIndex,
-        value: Any,
-        role: int = Qt.ItemDataRole.EditRole,
-    ) -> bool:
-        """Perform the actual data change without creating undo commands."""
+        """Set data for the given index."""
         node = self._node_from_index(index)
         if node is self._root or role != Qt.ItemDataRole.EditRole:
             return False  # pragma: no cover

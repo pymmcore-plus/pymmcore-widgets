@@ -119,9 +119,6 @@ class ConfigGroupsEditor(QWidget):
         self._model = QConfigGroupsModel()
         self._undo_stack = QUndoStack(self)
 
-        # Set up undo stack integration
-        self._model.setUndoStack(self._undo_stack)
-
         # widgets -------------------------------------------------------------
 
         # The GroupPresetSelector can switch between 2-list and tree views:
@@ -144,6 +141,11 @@ class ConfigGroupsEditor(QWidget):
         self._preset_table = ConfigPresetsTable(self)
         self._preset_table.setModel(self._model)
         self._preset_table.setGroup("Channel")
+
+        # Set up undo/redo integration
+        self._group_preset_sel.setUndoStack(self._undo_stack)
+        self._preset_table.setUndoStack(self._undo_stack)
+        self._preset_table.view.setUndoStack(self._undo_stack)
 
         # define this after the other widgets so that it can connect to their slots
         self._tb = _ConfigEditorToolbar(self)
@@ -292,14 +294,14 @@ class ConfigGroupsEditor(QWidget):
 
     def _duplicate_selected(self) -> None:
         """Duplicate the currently selected group or preset."""
-        if self._group_preset_sel.group_list.hasFocus():
-            idx = self._group_preset_sel.group_list.currentIndex()
-            if idx.isValid():
+        idx = self._group_preset_sel._selected_index()
+        if idx.isValid():
+            # Determine if it's a group or preset and create appropriate command
+            node = idx.internalPointer()
+            if hasattr(node, "is_group") and node.is_group:
                 command = DuplicateGroupCommand(self._model, idx)
                 self._undo_stack.push(command)
-        elif self._group_preset_sel.preset_list.hasFocus():
-            idx = self._group_preset_sel.preset_list.currentIndex()
-            if idx.isValid():
+            elif hasattr(node, "is_preset") and node.is_preset:
                 command = DuplicatePresetCommand(self._model, idx)
                 self._undo_stack.push(command)
 
