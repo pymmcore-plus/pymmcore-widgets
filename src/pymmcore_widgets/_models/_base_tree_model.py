@@ -70,7 +70,7 @@ class _Node:
     @property
     def siblings(self) -> list[_Node]:
         if self.parent is None:
-            return []
+            return []  # pragma: no cover
         return [x for x in self.parent.children if x is not self]
 
     def num_children(self) -> int:
@@ -78,7 +78,7 @@ class _Node:
 
     def row_in_parent(self) -> int:
         if self.parent is None:
-            return -1
+            return -1  # pragma: no cover
         try:
             return self.parent.children.index(self)
         except ValueError:  # pragma: no cover

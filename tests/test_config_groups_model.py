@@ -270,6 +270,7 @@ def test_pivot_model(model: QConfigGroupsModel, qtmodeltester: ModelTester) -> N
     pivot = ConfigGroupPivotModel()
     pivot.setSourceModel(model)
     pivot.setGroup("Channel")
+    pivot.setGroup(pivot.index(1, 0))  # set by index
     qtmodeltester.check(pivot)
 
 

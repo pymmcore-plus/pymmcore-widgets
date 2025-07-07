@@ -112,7 +112,7 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         try:
             node = self._gidx.internalPointer()
             if not node:
-                return
+                return  # pragma: no cover
             self._presets = [child.payload for child in node.children]
             keys = (setting.key() for p in self._presets for setting in p.settings)
             self._rows = list(dict.fromkeys(keys, None))  # unique (device, prop) pairs
@@ -213,7 +213,7 @@ class ConfigGroupPivotModel(QAbstractTableModel):
     ) -> bool:
         """Determine if model changes require rebuilding the pivot."""
         if self._gidx is None or self._src is None:
-            return False
+            return False  # pragma: no cover
 
         tl_col = top_left.column()
         tl_par = top_left.parent()
