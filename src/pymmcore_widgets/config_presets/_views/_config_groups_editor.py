@@ -5,6 +5,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING, cast
 
 from qtpy.QtCore import QModelIndex, QSignalBlocker, QSize, Qt, Signal
+from qtpy.QtGui import QUndoStack
 from qtpy.QtWidgets import (
     QGroupBox,
     QSizePolicy,
@@ -29,6 +30,16 @@ from pymmcore_widgets._models._py_config_model import (
 from ._config_presets_table import ConfigPresetsTable
 from ._device_property_selector import DevicePropertySelector
 from ._group_preset_selector import GroupPresetSelector
+from ._undo_commands import (
+    AddGroupCommand,
+    AddPresetCommand,
+    DuplicateGroupCommand,
+    DuplicatePresetCommand,
+    RemoveGroupCommand,
+    RemovePresetCommand,
+    SetChannelGroupCommand,
+    UpdatePresetPropertiesCommand,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
@@ -106,6 +117,10 @@ class ConfigGroupsEditor(QWidget):
         self.setStyleSheet("QToolBar { border: none; };")
 
         self._model = QConfigGroupsModel()
+        self._undo_stack = QUndoStack(self)
+
+        # Set up undo stack integration
+        self._model.setUndoStack(self._undo_stack)
 
         # widgets -------------------------------------------------------------
 
@@ -148,6 +163,7 @@ class ConfigGroupsEditor(QWidget):
         self._prop_selector.checkedPropertiesChanged.connect(
             self._on_prop_selection_changed
         )
+        self._model.dataChanged.connect(self._on_model_data_changed)
         # self._group_preset_stack.presetSelectionChanged.connect(self._on_preset_sel)
         # self._model.dataChanged.connect(self._on_model_data_changed)
         # self._props.valueChanged.connect(self._on_prop_table_changed)
@@ -196,7 +212,8 @@ class ConfigGroupsEditor(QWidget):
         """
         idx = self._group_preset_sel.currentPreset()
         if idx.isValid():
-            self._model.update_preset_properties(idx, props)
+            command = UpdatePresetPropertiesCommand(self._model, idx, props)
+            self._undo_stack.push(command)
 
     def setCurrentGroup(self, group: str) -> None:
         """Set the currently selected group in the editor."""
@@ -226,11 +243,76 @@ class ConfigGroupsEditor(QWidget):
         """Return the current configuration data as a list of ConfigGroup."""
         return self._model.get_groups()
 
+    def undoStack(self) -> QUndoStack:
+        """Return the undo stack for this editor."""
+        return self._undo_stack
+
     def _add_preset_to_current_group(self) -> None:
         """Add a new preset to the currently selected group."""
         current_group = self._group_preset_sel.currentGroup()
         if current_group.isValid():
-            self._model.add_preset(current_group)
+            command = AddPresetCommand(self._model, current_group)
+            self._undo_stack.push(command)
+
+    def _add_group(self) -> None:
+        """Add a new group."""
+        command = AddGroupCommand(self._model)
+        self._undo_stack.push(command)
+
+    def _remove_selected(self) -> None:
+        """Remove the currently selected group or preset."""
+        idx = self._group_preset_sel._selected_index()
+        if idx.isValid():
+            # Show confirmation dialog
+            from qtpy.QtWidgets import QMessageBox
+
+            item_name = idx.data(Qt.ItemDataRole.DisplayRole)
+            item_type = type(idx.data(Qt.ItemDataRole.UserRole))
+            type_name = item_type.__name__.replace("Config", "Config ")
+            msg = QMessageBox.question(
+                self,
+                "Confirm Deletion",
+                f"Are you sure you want to delete {type_name} {item_name!r}?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes,
+            )
+            if msg != QMessageBox.StandardButton.Yes:
+                return
+
+            # Determine if it's a group or preset and create appropriate command
+            node = idx.internalPointer()
+            if hasattr(node, "is_group") and node.is_group:
+                command = RemoveGroupCommand(self._model, idx)
+            elif hasattr(node, "is_preset") and node.is_preset:
+                command = RemovePresetCommand(self._model, idx)
+            else:
+                return  # Unknown item type
+
+            self._undo_stack.push(command)
+
+    def _duplicate_selected(self) -> None:
+        """Duplicate the currently selected group or preset."""
+        if self._group_preset_sel.group_list.hasFocus():
+            idx = self._group_preset_sel.group_list.currentIndex()
+            if idx.isValid():
+                command = DuplicateGroupCommand(self._model, idx)
+                self._undo_stack.push(command)
+        elif self._group_preset_sel.preset_list.hasFocus():
+            idx = self._group_preset_sel.preset_list.currentIndex()
+            if idx.isValid():
+                command = DuplicatePresetCommand(self._model, idx)
+                self._undo_stack.push(command)
+
+    def _on_model_data_changed(
+        self,
+        topLeft: QModelIndex,
+        bottomRight: QModelIndex,
+        roles: list[int] | None = None,
+    ) -> None:
+        """Handle model data changes to potentially create undo commands."""
+        # For now, we'll just emit the configChanged signal
+        # In the future, we might want to create undo commands for direct model edits
+        self.configChanged.emit()
 
     # ------------------------------------------------------------------
     # Layout management
@@ -443,7 +525,7 @@ class _ConfigEditorToolbar(QToolBar):
         self.addAction(
             StandardIcon.FOLDER_ADD.icon(),
             "Add Group",
-            parent._model.add_group,
+            parent._add_group,
         )
         self.addAction(
             StandardIcon.DOCUMENT_ADD.icon(),
@@ -453,13 +535,28 @@ class _ConfigEditorToolbar(QToolBar):
         self.addAction(
             StandardIcon.DELETE.icon(),
             "Remove",
-            parent._group_preset_sel.removeSelected,
+            parent._remove_selected,
         )
         self.addAction(
             StandardIcon.COPY.icon(),
             "Duplicate",
-            parent._group_preset_sel.duplicateSelected,
+            parent._duplicate_selected,
         )
+        self.addSeparator()
+
+        # Undo/Redo actions
+        self.undo_action = parent._undo_stack.createUndoAction(self, "Undo")
+        if self.undo_action:
+            self.undo_action.setIcon(QIconifyIcon("fluent:arrow-undo-24-regular"))
+            self.undo_action.setShortcut("Ctrl+Z")
+            self.addAction(self.undo_action)
+
+        self.redo_action = parent._undo_stack.createRedoAction(self, "Redo")
+        if self.redo_action:
+            self.redo_action.setIcon(QIconifyIcon("fluent:arrow-redo-24-regular"))
+            self.redo_action.setShortcut("Ctrl+Y")
+            self.addAction(self.redo_action)
+
         self.addSeparator()
         self.set_channel_action = cast(
             "QAction",
@@ -471,8 +568,11 @@ class _ConfigEditorToolbar(QToolBar):
 
         @self.set_channel_action.triggered.connect  # type: ignore[misc]
         def _on_set_channel_group() -> None:
-            parent._group_preset_sel.setCurrentGroupAsChannelGroup()
-            self.set_channel_action.setEnabled(False)
+            current_group = parent._group_preset_sel.currentGroup()
+            if current_group.isValid():
+                command = SetChannelGroupCommand(parent._model, current_group)
+                parent._undo_stack.push(command)
+                self.set_channel_action.setEnabled(False)
 
         spacer = QWidget(self)
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)

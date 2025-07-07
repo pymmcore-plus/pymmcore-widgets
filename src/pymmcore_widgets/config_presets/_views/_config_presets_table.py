@@ -201,12 +201,46 @@ class ConfigPresetsTable(QWidget):
 
     def _on_remove_action(self) -> None:
         source_idx = self._get_selected_preset_index()
-        self.view.sourceModel().remove(source_idx, ask_confirmation=NOT_TESTING)
+        if not source_idx.isValid():
+            return
+
+        source_model = self.view.sourceModel()
+        # Check if the model has an undo stack, if so use undo commands
+        if (
+            hasattr(source_model, "_undo_stack")
+            and source_model._undo_stack is not None
+        ):
+            from pymmcore_widgets.config_presets._views._undo_commands import (
+                RemovePresetCommand,
+            )
+
+            command = RemovePresetCommand(source_model, source_idx)
+            source_model._undo_stack.push(command)
+        else:
+            # Fall back to direct model operation
+            source_model.remove(source_idx, ask_confirmation=NOT_TESTING)
 
     def _on_duplicate_action(self) -> None:
         if not self.view.isTransposed():
             source_idx = self._get_selected_preset_index()
-            self.view.sourceModel().duplicate_preset(source_idx)
+            if not source_idx.isValid():
+                return
+
+            source_model = self.view.sourceModel()
+            # Check if the model has an undo stack, if so use undo commands
+            if (
+                hasattr(source_model, "_undo_stack")
+                and source_model._undo_stack is not None
+            ):
+                from pymmcore_widgets.config_presets._views._undo_commands import (
+                    DuplicatePresetCommand,
+                )
+
+                command = DuplicatePresetCommand(source_model, source_idx)
+                source_model._undo_stack.push(command)
+            else:
+                # Fall back to direct model operation
+                source_model.duplicate_preset(source_idx)
         # TODO: handle transposed case
 
     def _get_selected_preset_index(self) -> QModelIndex:
