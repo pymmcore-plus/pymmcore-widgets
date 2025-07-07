@@ -5,26 +5,6 @@ from enum import Enum
 from pymmcore_plus import CMMCorePlus, DeviceType
 from superqt import QIconifyIcon
 
-DEVICE_TYPE_ICON: dict[DeviceType, str] = {
-    DeviceType.Any: "mdi:devices",
-    DeviceType.AutoFocus: "mdi:focus-auto",
-    DeviceType.Camera: "mdi:camera",
-    DeviceType.Core: "mdi:heart-cog-outline",
-    DeviceType.Galvo: "mdi:mirror-variant",
-    DeviceType.Generic: "mdi:dev-to",
-    DeviceType.Hub: "mdi:hubspot",
-    DeviceType.ImageProcessor: "mdi:image-auto-adjust",
-    DeviceType.Magnifier: "mdi:magnify",
-    DeviceType.Shutter: "mdi:camera-iris",
-    DeviceType.SignalIO: "fa6-solid:wave-square",
-    DeviceType.SLM: "mdi:view-comfy",
-    DeviceType.Stage: "mdi:arrow-up-down",
-    DeviceType.State: "mdi:state-machine",
-    DeviceType.Unknown: "mdi:question-mark-rhombus",
-    DeviceType.XYStage: "mdi:arrow-all",
-    DeviceType.Serial: "mdi:serial-port",
-}
-
 
 class StandardIcon(str, Enum):
     READ_ONLY = "fluent:edit-off-20-regular"
@@ -48,23 +28,62 @@ class StandardIcon(str, Enum):
     UNDO = "mdi:undo"
     REDO = "mdi:redo"
 
+    DEVICE_ANY = "mdi:devices"
+    DEVICE_AUTOFOCUS = "mdi:focus-auto"
+    DEVICE_CAMERA = "mdi:camera"
+    DEVICE_CORE = "mdi:heart-cog-outline"
+    DEVICE_GALVO = "mdi:mirror-variant"
+    DEVICE_GENERIC = "mdi:dev-to"
+    DEVICE_HUB = "mdi:hubspot"
+    DEVICE_IMAGEPROCESSOR = "mdi:image-auto-adjust"
+    DEVICE_MAGNIFIER = "mdi:magnify"
+    DEVICE_SHUTTER = "mdi:camera-iris"
+    DEVICE_SIGNALIO = "fa6-solid:wave-square"
+    DEVICE_SLM = "mdi:view-comfy"
+    DEVICE_STAGE = "mdi:arrow-up-down"
+    DEVICE_STATE = "mdi:state-machine"
+    DEVICE_UNKNOWN = "mdi:question-mark-rhombus"
+    DEVICE_XYSTAGE = "mdi:arrow-all"
+    DEVICE_SERIAL = "mdi:serial-port"
+
     def icon(self, color: str = "gray") -> QIconifyIcon:
         return QIconifyIcon(self.value, color=color)
 
     def __str__(self) -> str:
         return self.value
 
+    @classmethod
+    def for_device_type(cls, device_type: DeviceType | str) -> StandardIcon:
+        """Return an icon for a specific device type.
 
-def get_device_icon(
-    device_type_or_name: DeviceType | str, color: str = "gray"
-) -> QIconifyIcon | None:
-    if isinstance(device_type_or_name, str):
-        try:
-            device_type = CMMCorePlus.instance().getDeviceType(device_type_or_name)
-        except Exception:
-            device_type = DeviceType.Unknown
-    else:
-        device_type = device_type_or_name
-    if icon_string := DEVICE_TYPE_ICON.get(device_type):
-        return QIconifyIcon(icon_string, color=color)
-    return None
+        If a string is provided, it will be resolved to a DeviceType using the
+        CMMCorePlus.instance.
+        """
+        if isinstance(device_type, str):  # device label
+            try:
+                device_type = CMMCorePlus.instance().getDeviceType(device_type)
+            except Exception:  # pragma: no cover
+                device_type = DeviceType.Unknown
+
+        return _DEVICE_TYPE_MAP.get(device_type, StandardIcon.DEVICE_UNKNOWN)
+
+
+_DEVICE_TYPE_MAP: dict[DeviceType, StandardIcon] = {
+    DeviceType.Any: StandardIcon.DEVICE_ANY,
+    DeviceType.AutoFocus: StandardIcon.DEVICE_AUTOFOCUS,
+    DeviceType.Camera: StandardIcon.DEVICE_CAMERA,
+    DeviceType.Core: StandardIcon.DEVICE_CORE,
+    DeviceType.Galvo: StandardIcon.DEVICE_GALVO,
+    DeviceType.Generic: StandardIcon.DEVICE_GENERIC,
+    DeviceType.Hub: StandardIcon.DEVICE_HUB,
+    DeviceType.ImageProcessor: StandardIcon.DEVICE_IMAGEPROCESSOR,
+    DeviceType.Magnifier: StandardIcon.DEVICE_MAGNIFIER,
+    DeviceType.Shutter: StandardIcon.DEVICE_SHUTTER,
+    DeviceType.SignalIO: StandardIcon.DEVICE_SIGNALIO,
+    DeviceType.SLM: StandardIcon.DEVICE_SLM,
+    DeviceType.Stage: StandardIcon.DEVICE_STAGE,
+    DeviceType.State: StandardIcon.DEVICE_STATE,
+    DeviceType.Unknown: StandardIcon.DEVICE_UNKNOWN,
+    DeviceType.XYStage: StandardIcon.DEVICE_XYSTAGE,
+    DeviceType.Serial: StandardIcon.DEVICE_SERIAL,
+}

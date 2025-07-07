@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 from qtpy.QtCore import QAbstractTableModel, QModelIndex, QSize, Qt
 
-from pymmcore_widgets._icons import get_device_icon
+from pymmcore_widgets._icons import StandardIcon
 
 from ._py_config_model import ConfigPreset, DevicePropertySetting
 from ._q_config_model import QConfigGroupsModel
@@ -155,8 +155,8 @@ class ConfigGroupPivotModel(QAbstractTableModel):
                     dev, _prop = self._rows[section]
                 except IndexError:  # pragma: no cover
                     return None
-                if icon := get_device_icon(dev):
-                    return icon.pixmap(QSize(16, 16))
+                if icon := StandardIcon.for_device_type(dev):
+                    return icon.icon().pixmap(QSize(16, 16))
         return None
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:

@@ -82,9 +82,9 @@ class QConfigGroupsModel(_BaseTreeModel):
                 return StandardIcon.CONFIG_GROUP.icon().pixmap(16, 16)
             if node.is_preset:
                 preset = cast("ConfigPreset", node.payload)
-                if preset.is_system_startup:
+                if preset.is_system_startup:  # pragma: no cover
                     return StandardIcon.STARTUP.icon().pixmap(16, 16)
-                if preset.is_system_shutdown:
+                if preset.is_system_shutdown:  # pragma: no cover
                     return StandardIcon.SHUTDOWN.icon().pixmap(16, 16)
                 return StandardIcon.CONFIG_PRESET.icon().pixmap(16, 16)
             if node.is_setting:

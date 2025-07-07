@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 from pymmcore_plus import DeviceType, Keyword, PropertyType
 from typing_extensions import TypeAlias
 
-from pymmcore_widgets._icons import DEVICE_TYPE_ICON, StandardIcon
+from pymmcore_widgets._icons import StandardIcon
 
 if TYPE_CHECKING:
     from collections.abc import Hashable
@@ -43,7 +43,7 @@ class Device(_BaseModel):
     @property
     def iconify_key(self) -> str | None:
         """Return an iconify key for the device type."""
-        return DEVICE_TYPE_ICON.get(self.type, None)
+        return StandardIcon.for_device_type(self.type)
 
     def key(self) -> Hashable:
         """Return a unique key for the device."""
