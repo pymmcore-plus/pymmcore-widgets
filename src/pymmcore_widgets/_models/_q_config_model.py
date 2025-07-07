@@ -144,9 +144,6 @@ class QConfigGroupsModel(_BaseTreeModel):
                 return False
 
             if self._name_exists(node.parent, new_name):
-                QMessageBox.warning(
-                    None, "Duplicate name", f"Name '{new_name}' already exists."
-                )
                 return False
 
             node.name = new_name
@@ -347,6 +344,7 @@ class QConfigGroupsModel(_BaseTreeModel):
         self.endRemoveRows()
         return True
 
+    # TODO: probably remove the QWidget logic from here
     def remove(
         self,
         idx: QModelIndex,
@@ -369,6 +367,34 @@ class QConfigGroupsModel(_BaseTreeModel):
                 if msg != QMessageBox.StandardButton.Yes:
                     return
             self.removeRows(idx.row(), 1, idx.parent())
+
+    # ------------------------------------------------------------------
+    # Validation helpers
+    # ------------------------------------------------------------------
+
+    def is_name_change_valid(self, index: QModelIndex, new_name: str) -> str | None:
+        """Validate a name change.
+
+        Returns
+        -------
+        str | None
+            error_message: Error message if invalid, None if valid
+        """
+        node = self._node_from_index(index)
+        if node is self._root:
+            return "Cannot rename root node"
+
+        new_name = new_name.strip()
+        if not new_name:
+            return "Name cannot be empty"
+
+        if new_name == node.name:
+            return None  # No change
+
+        if self._name_exists(node.parent, new_name):
+            return f"Name '{new_name}' already exists"
+
+        return None
 
     # ------------------------------------------------------------------
     # Public mutator helpers

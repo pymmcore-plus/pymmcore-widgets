@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from qtpy.QtCore import QModelIndex, QObject, Qt
-from qtpy.QtWidgets import QStyledItemDelegate, QWidget
+from qtpy.QtWidgets import QMessageBox, QStyledItemDelegate, QWidget
 
 from pymmcore_widgets._models import QConfigGroupsModel
 from pymmcore_widgets.device_properties import PropertyWidget
@@ -44,16 +44,13 @@ class GroupPresetRenameDelegate(QStyledItemDelegate):
             return super().setModelData(editor, model, index)  # type: ignore [no-any-return]
 
         # Get the new value from the editor
-        new_value = None
-        try:
-            if hasattr(editor, "text"):
-                new_value = editor.text()
-            elif hasattr(editor, "currentText"):
-                new_value = editor.currentText()
-            elif hasattr(editor, "value"):
-                new_value = editor.value()
-        except (AttributeError, TypeError):
-            pass
+        new_value: str | None = None
+        if hasattr(editor, "text"):
+            new_value = editor.text()
+        elif hasattr(editor, "currentText"):
+            new_value = editor.currentText()
+        elif hasattr(editor, "value"):
+            new_value = editor.value()
 
         if new_value is None:
             return
@@ -63,7 +60,14 @@ class GroupPresetRenameDelegate(QStyledItemDelegate):
         if old_value == new_value:
             return  # No change
 
-        # Create rename commands for groups/presets
+        # Validate the name change before creating commands
+        error_msg = model.is_name_change_valid(index, str(new_value))
+        if error_msg:
+            # Show validation error to user
+            QMessageBox.warning(None, "Cannot Rename.", error_msg)
+            return
+
+        # Create rename commands for groups/presets if validation passes
         node = model._node_from_index(index)
         if node.is_group:
             self._undo_stack.push(RenameGroupCommand(model, index, str(new_value)))
