@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 from pymmcore_plus import DeviceType, Keyword, PropertyType
 from typing_extensions import TypeAlias
 
-from pymmcore_widgets._icons import StandardIcon
+from pymmcore_widgets._icons import DEVICE_TYPE_ICON, StandardIcon
 
 if TYPE_CHECKING:
     from collections.abc import Hashable
@@ -36,11 +36,6 @@ class Device(_BaseModel):
     properties: tuple[DevicePropertySetting, ...] = Field(default_factory=tuple)
 
     @property
-    def children(self) -> tuple[DevicePropertySetting, ...]:
-        """Return the properties of the device."""
-        return self.properties
-
-    @property
     def is_loaded(self) -> bool:
         """Return True if the device is loaded."""
         return bool(self.label)
@@ -48,8 +43,6 @@ class Device(_BaseModel):
     @property
     def iconify_key(self) -> str | None:
         """Return an iconify key for the device type."""
-        from pymmcore_widgets._icons import DEVICE_TYPE_ICON
-
         return DEVICE_TYPE_ICON.get(self.type, None)
 
     def key(self) -> Hashable:
@@ -130,7 +123,7 @@ class DevicePropertySetting(_BaseModel):
 
     def __eq__(self, other: Any) -> bool:
         # deal with recursive equality checks
-        if not isinstance(other, DevicePropertySetting):
+        if not isinstance(other, DevicePropertySetting):  # pragma: no cover
             return False
         return (
             self.device_label == other.device_label
@@ -154,14 +147,9 @@ class ConfigPreset(_BaseModel):
     parent: ConfigGroup | None = Field(default=None, exclude=True, repr=False)
 
     def __eq__(self, value: object) -> bool:
-        if not isinstance(value, ConfigPreset):
+        if not isinstance(value, ConfigPreset):  # pragma: no cover
             return False
         return self.name == value.name and self.settings == value.settings
-
-    @property
-    def children(self) -> tuple[DevicePropertySetting, ...]:
-        """Return the settings in the preset."""
-        return tuple(self.settings)
 
     @property
     def is_system_startup(self) -> bool:
@@ -194,11 +182,6 @@ class ConfigGroup(_BaseModel):
     def is_system_group(self) -> bool:
         """Return True if the group is a system group."""
         return self.name.lower() == "system"
-
-    @property
-    def children(self) -> tuple[ConfigPreset, ...]:
-        """Return the presets in the group."""
-        return tuple(self.presets.values())
 
 
 class PixelSizePreset(ConfigPreset):

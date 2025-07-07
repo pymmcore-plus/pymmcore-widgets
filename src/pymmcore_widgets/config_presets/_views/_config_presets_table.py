@@ -83,7 +83,6 @@ class ConfigPresetsTableView(QTableView):
         QTimer.singleShot(0, self.openPersistentEditors)
 
     def openPersistentEditors(self) -> None:
-        """Open persistent editors for the given index."""
         """Override to open persistent editors for all items."""
         if model := self.model():
             for row in range(model.rowCount()):
