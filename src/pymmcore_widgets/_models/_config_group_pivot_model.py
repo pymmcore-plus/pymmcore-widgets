@@ -1,12 +1,16 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from qtpy.QtCore import QAbstractTableModel, QModelIndex, QSize, Qt
-from qtpy.QtWidgets import QWidget
 
 from pymmcore_widgets._icons import get_device_icon
 
 from ._py_config_model import ConfigPreset, DevicePropertySetting
 from ._q_config_model import QConfigGroupsModel
+
+if TYPE_CHECKING:
+    from qtpy.QtWidgets import QWidget
 
 
 class ConfigGroupPivotModel(QAbstractTableModel):

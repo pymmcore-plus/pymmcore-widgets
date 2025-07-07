@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 from pymmcore_plus import DeviceType, Keyword, PropertyType
@@ -17,7 +17,7 @@ AffineTuple: TypeAlias = tuple[float, float, float, float, float, float]
 class _BaseModel(BaseModel):
     """Base model for configuration presets."""
 
-    model_config: ClassVar = ConfigDict(
+    model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="forbid",
         validate_assignment=True,
     )
@@ -68,11 +68,11 @@ class DevicePropertySetting(_BaseModel):
     is_read_only: bool = Field(default=False, frozen=True)
     is_pre_init: bool = Field(default=False, frozen=True)
     allowed_values: tuple[str, ...] = Field(default_factory=tuple, frozen=True)
-    limits: tuple[float, float] | None = Field(default=None, frozen=True)
+    limits: Optional[tuple[float, float]] = Field(default=None, frozen=True)  # noqa
     property_type: PropertyType = Field(default=PropertyType.Undef, frozen=True)
     sequence_max_length: int = Field(default=0, frozen=True)
 
-    parent: ConfigPreset | None = Field(default=None, exclude=True, repr=False)
+    parent: Optional[ConfigPreset] = Field(default=None, exclude=True, repr=False)  # noqa
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -144,7 +144,7 @@ class ConfigPreset(_BaseModel):
     name: str
     settings: list[DevicePropertySetting] = Field(default_factory=list)
 
-    parent: ConfigGroup | None = Field(default=None, exclude=True, repr=False)
+    parent: Optional[ConfigGroup] = Field(default=None, exclude=True, repr=False)  # noqa
 
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, ConfigPreset):  # pragma: no cover
