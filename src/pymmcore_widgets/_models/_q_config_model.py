@@ -144,6 +144,10 @@ class QConfigGroupsModel(_BaseTreeModel):
                 return False
 
             if self._name_exists(node.parent, new_name):
+                warnings.warn(
+                    f"Not adding duplicate name '{new_name}'. It already exists.",
+                    stacklevel=2,
+                )
                 return False
 
             node.name = new_name

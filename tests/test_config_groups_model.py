@@ -133,7 +133,12 @@ def test_model_set_data(model: QConfigGroupsModel, qtbot: QtBot) -> None:
     # setting to a value that already exists should show a warning
     existing_name = model.index(1).data(Qt.ItemDataRole.EditRole)  # next row down
     # existing name should not modify the model
-    assert model.setData(grp0_index, existing_name) is False
+    with pytest.warns(
+        UserWarning,
+        match=f"Not adding duplicate name '{existing_name}'. It already exists.",
+    ):
+        # this should not change the model
+        assert model.setData(grp0_index, existing_name) is False
 
 
 def test_index_queries(model: QConfigGroupsModel) -> None:
