@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
@@ -25,8 +24,6 @@ if TYPE_CHECKING:
 
 else:
     from qtpy.QtGui import QAction
-
-NOT_TESTING = "PYTEST_VERSION" not in os.environ
 
 
 class ConfigPresetsTableView(QTableView):
@@ -205,7 +202,7 @@ class ConfigPresetsTable(QWidget):
             return
 
         source_model = self.view.sourceModel()
-        source_model.remove(source_idx, ask_confirmation=NOT_TESTING)
+        source_model.remove(source_idx)
 
     def _on_duplicate_action(self) -> None:
         if not self.view.isTransposed():

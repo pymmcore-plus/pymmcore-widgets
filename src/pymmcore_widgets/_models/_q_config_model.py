@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any, cast
 
 from qtpy.QtCore import QModelIndex, Qt
 from qtpy.QtGui import QFont, QIcon
-from qtpy.QtWidgets import QMessageBox, QWidget
 from superqt import QIconifyIcon
 
 from pymmcore_widgets._icons import StandardIcon
@@ -353,28 +352,8 @@ class QConfigGroupsModel(_BaseTreeModel):
         self.endRemoveRows()
         return True
 
-    # TODO: probably remove the QWidget logic from here
-    def remove(
-        self,
-        idx: QModelIndex,
-        *,
-        ask_confirmation: bool = False,
-        parent: QWidget | None = None,
-    ) -> None:
+    def remove(self, idx: QModelIndex) -> None:
         if idx.isValid():
-            if ask_confirmation:
-                item_name = idx.data(Qt.ItemDataRole.DisplayRole)
-                item_type = type(idx.data(Qt.ItemDataRole.UserRole))
-                type_name = item_type.__name__.replace(("Config"), "Config ")
-                msg = QMessageBox.question(
-                    parent,
-                    "Confirm Deletion",
-                    f"Are you sure you want to delete {type_name} {item_name!r}?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.Yes,
-                )
-                if msg != QMessageBox.StandardButton.Yes:
-                    return  # pragma: no cover
             self.removeRows(idx.row(), 1, idx.parent())
 
     # ------------------------------------------------------------------
