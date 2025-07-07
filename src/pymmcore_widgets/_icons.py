@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from enum import Enum
+
 from pymmcore_plus import CMMCorePlus, DeviceType
 from superqt import QIconifyIcon
 
-ICONS: dict[DeviceType, str] = {
+DEVICE_TYPE_ICON: dict[DeviceType, str] = {
     DeviceType.Any: "mdi:devices",
     DeviceType.AutoFocus: "mdi:focus-auto",
     DeviceType.Camera: "mdi:camera",
@@ -24,6 +26,35 @@ ICONS: dict[DeviceType, str] = {
 }
 
 
+class StandardIcon(str, Enum):
+    READ_ONLY = "fluent:edit-off-20-regular"
+    PRE_INIT = "mynaui:letter-p-diamond"
+    EXPAND = "mdi:expand-horizontal"
+    COLLAPSE = "mdi:collapse-horizontal"
+    TABLE = "mdi:table"
+    TREE = "ph:tree-view"
+    FOLDER_ADD = "fluent:folder-add-24-regular"
+    DOCUMENT_ADD = "fluent:document-add-24-regular"
+    DELETE = "fluent:delete-24-regular"
+    COPY = "fluent:save-copy-24-regular"
+    TRANSPOSE = "carbon:transpose"
+    CONFIG_GROUP = "mdi:folder-settings-variant-outline"
+    CONFIG_PRESET = "mdi:file-settings-cog-outline"
+    HELP = "mdi:help-circle-outline"
+    CHANNEL_GROUP = "mynaui:letter-c-waves-solid"
+    SYSTEM_GROUP = "mdi:power"
+    STARTUP = "ic:baseline-power"
+    SHUTDOWN = "ic:baseline-power-off"
+    UNDO = "mdi:undo"
+    REDO = "mdi:redo"
+
+    def icon(self, color: str = "gray") -> QIconifyIcon:
+        return QIconifyIcon(self.value, color=color)
+
+    def __str__(self) -> str:
+        return self.value
+
+
 def get_device_icon(
     device_type_or_name: DeviceType | str, color: str = "gray"
 ) -> QIconifyIcon | None:
@@ -34,6 +65,6 @@ def get_device_icon(
             device_type = DeviceType.Unknown
     else:
         device_type = device_type_or_name
-    if icon_string := ICONS.get(device_type):
+    if icon_string := DEVICE_TYPE_ICON.get(device_type):
         return QIconifyIcon(icon_string, color=color)
     return None

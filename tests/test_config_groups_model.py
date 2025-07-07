@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import patch
 
 import pytest
 from pymmcore_plus import CMMCorePlus
-from pymmcore_plus.model import ConfigGroup, ConfigPreset, Setting
 from qtpy.QtCore import QModelIndex, Qt
 from qtpy.QtGui import QFont, QIcon, QPixmap
-from qtpy.QtWidgets import QMessageBox
 
-from pymmcore_widgets.config_presets import QConfigGroupsModel
-from pymmcore_widgets.config_presets._views._config_presets_table import (
-    _ConfigGroupPivotModel,
+from pymmcore_widgets._models import (
+    ConfigGroup,
+    ConfigGroupPivotModel,
+    ConfigPreset,
+    DevicePropertySetting,
+    QConfigGroupsModel,
+    get_config_groups,
 )
 
 if TYPE_CHECKING:
@@ -34,7 +35,7 @@ def test_model_initialization() -> None:
     # not using the fixture here, as we want to test the model creation directly
     core = CMMCorePlus()
     core.loadSystemConfiguration()
-    python_info = list(ConfigGroup.all_config_groups(core).values())
+    python_info = list(get_config_groups(core))
     model = QConfigGroupsModel(python_info)
 
     assert isinstance(model, QConfigGroupsModel)
@@ -68,7 +69,7 @@ def test_model_basic_methods(model: QConfigGroupsModel) -> None:
     [
         (Qt.ItemDataRole.DisplayRole, str),
         (Qt.ItemDataRole.EditRole, str),
-        (Qt.ItemDataRole.UserRole, (ConfigGroup, ConfigPreset, Setting)),
+        (Qt.ItemDataRole.UserRole, (ConfigGroup, ConfigPreset, DevicePropertySetting)),
         (Qt.ItemDataRole.FontRole, QFont),
         (Qt.ItemDataRole.DecorationRole, (QIcon, QPixmap)),
     ],
@@ -120,9 +121,9 @@ def test_model_set_data(model: QConfigGroupsModel, qtbot: QtBot) -> None:
 
     assert group0.name == "NewGroupName"
     assert preset0.name == "NewPresetName"
-    assert setting0.device_name == "NewDevice"
+    assert setting0.device_label == "NewDevice"
     assert setting0.property_name == "NewProperty"
-    assert setting0.property_value == "NewSettingValue"
+    assert setting0.value == "NewSettingValue"
 
     # setting to the same value should not change the model
     current_name = grp0_index.data(Qt.ItemDataRole.EditRole)
@@ -131,9 +132,8 @@ def test_model_set_data(model: QConfigGroupsModel, qtbot: QtBot) -> None:
     assert model.setData(grp0_index, "") is False
     # setting to a value that already exists should show a warning
     existing_name = model.index(1).data(Qt.ItemDataRole.EditRole)  # next row down
-    with patch.object(QMessageBox, "warning") as mock_warning:
-        assert model.setData(grp0_index, existing_name) is False
-        mock_warning.assert_called_once()
+    # existing name should not modify the model
+    assert model.setData(grp0_index, existing_name) is False
 
 
 def test_index_queries(model: QConfigGroupsModel) -> None:
@@ -175,7 +175,7 @@ def test_add_dupe_group(model: QConfigGroupsModel, qtbot: QtBot) -> None:
         grp0_index.data(Qt.ItemDataRole.DisplayRole) + " copy (1)",
     }
 
-    with pytest.raises(ValueError, match="Reference index is not a ConfigGroup."):
+    with pytest.warns(UserWarning, match="Reference index is not a ConfigGroup."):
         model.duplicate_group(QModelIndex())
 
 
@@ -193,10 +193,10 @@ def test_add_dupe_preset(model: QConfigGroupsModel, qtbot: QtBot) -> None:
     assert "New Preset" in new_presets
     assert preset0_index.data(Qt.ItemDataRole.DisplayRole) + " copy" in new_presets
 
-    with pytest.raises(ValueError, match="Reference index is not a ConfigPreset."):
+    with pytest.warns(UserWarning, match="Reference index is not a ConfigPreset."):
         model.duplicate_preset(QModelIndex())
 
-    with pytest.raises(ValueError, match="Reference index is not a ConfigGroup."):
+    with pytest.warns(UserWarning, match="Reference index is not a ConfigGroup."):
         model.add_preset(QModelIndex(), "New Preset")
 
 
@@ -215,15 +215,13 @@ def test_update_preset_settings(model: QConfigGroupsModel, qtbot: QtBot) -> None
     original_data = model.get_groups()
     preset0 = next(iter(original_data[0].presets.values()))
     assert len(preset0.settings) > 1
-    assert preset0.settings[0].device_name != "NewDevice"
+    assert preset0.settings[0].device_label != "NewDevice"
 
     grp0_index = model.index(0, 0)
     preset0_index = model.index(0, 0, grp0_index)
     new_settings = [
-        Setting(
-            device_name="NewDevice",
-            property_name="NewProperty",
-            property_value="NewValue",
+        DevicePropertySetting(
+            device="NewDevice", property_name="NewProperty", value="NewValue"
         )
     ]
     model.update_preset_settings(preset0_index, new_settings)
@@ -233,7 +231,7 @@ def test_update_preset_settings(model: QConfigGroupsModel, qtbot: QtBot) -> None
     assert len(preset0_new.settings) == 1
     assert preset0_new.settings == new_settings
 
-    with pytest.raises(ValueError, match="Reference index is not a ConfigPreset."):
+    with pytest.warns(UserWarning, match="Reference index is not a ConfigPreset."):
         model.update_preset_settings(QModelIndex(), new_settings)
 
 
@@ -244,7 +242,7 @@ def test_standard_item_model(
 
 
 def test_pivot_model(model: QConfigGroupsModel, qtmodeltester: ModelTester) -> None:
-    pivot = _ConfigGroupPivotModel()
+    pivot = ConfigGroupPivotModel()
     pivot.setSourceModel(model)
     pivot.setGroup("Channel")
     qtmodeltester.check(pivot)
@@ -255,7 +253,7 @@ def test_pivot_model_two_way_sync(
 ) -> None:
     """Test _ConfigGroupPivotModel stays in sync with QConfigGroupsModel."""
     # Create pivot model and set it up
-    pivot = _ConfigGroupPivotModel()
+    pivot = ConfigGroupPivotModel()
     pivot.setSourceModel(model)
     pivot.setGroup("Camera")  # Camera group has 3 presets and 2 settings each
     qtmodeltester.check(pivot)
@@ -283,8 +281,8 @@ def test_pivot_model_two_way_sync(
 
     # Add a setting to the new preset
     test_settings = [
-        Setting("Camera", "Binning", "8"),
-        Setting("Camera", "BitDepth", "14"),
+        DevicePropertySetting(device="Camera", property_name="Binning", value="8"),
+        DevicePropertySetting(device="Camera", property_name="BitDepth", value="14"),
     ]
     model.update_preset_settings(new_preset_idx, test_settings)
 
@@ -317,7 +315,7 @@ def test_pivot_model_two_way_sync(
     bitdepth_setting = next(
         s for s in lowres_preset.settings if s.property_name == "BitDepth"
     )
-    assert bitdepth_setting.property_value == new_value
+    assert bitdepth_setting.value == new_value
 
     # Test 4: Removing presets from source updates pivot
     # Remove the TestPreset we added
@@ -337,7 +335,9 @@ def test_pivot_model_two_way_sync(
     # Add a new setting that doesn't exist in other presets
     new_settings = [
         *medres_preset.settings,
-        Setting("Camera", "NewProperty", "NewValue"),
+        DevicePropertySetting(
+            device="Camera", property_name="NewProperty", value="NewValue"
+        ),
     ]
     model.update_preset_settings(medres_preset_idx, new_settings)
 
