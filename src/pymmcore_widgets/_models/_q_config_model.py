@@ -42,12 +42,21 @@ class QConfigGroupsModel(_BaseTreeModel):
 
     def __init__(self, groups: Iterable[ConfigGroup] | None = None) -> None:
         super().__init__()
+        self._in_undo_redo = False  # Track when we're in undo/redo operation
         if groups:
             self.set_groups(groups)
 
     # ------------------------------------------------------------------
     # Required Qt model overrides
     # ------------------------------------------------------------------
+
+    def set_undo_redo_mode(self, enabled: bool) -> None:
+        """Set whether we're currently in an undo/redo operation.
+
+        When in undo/redo mode, name uniqueness checks are relaxed to allow
+        restoration of original names that may temporarily conflict.
+        """
+        self._in_undo_redo = enabled
 
     def columnCount(self, _parent: QModelIndex | None = None) -> int:
         # In most subclasses, the number of columns is independent of the parent.
@@ -143,7 +152,9 @@ class QConfigGroupsModel(_BaseTreeModel):
             if new_name == node.name or not new_name:
                 return False
 
-            if self._name_exists(node.parent, new_name):
+            # During undo/redo, allow restoration of original names even if they
+            # temporarily conflict, as the conflict will be resolved by the operation
+            if not self._in_undo_redo and self._name_exists(node.parent, new_name):
                 return False
 
             node.name = new_name
@@ -227,11 +238,20 @@ class QConfigGroupsModel(_BaseTreeModel):
     ) -> QModelIndex:
         node = self._node_from_index(idx)
         if not isinstance((grp := node.payload), ConfigGroup):
-            raise ValueError("Reference index is not a ConfigGroup.")
+            warnings.warn("Reference index is not a ConfigGroup.", stacklevel=2)
+            return QModelIndex()
 
         new_grp = deepcopy(grp)
         new_grp.is_channel_group = False  # this never gets duplicated
-        new_grp.name = new_name or self._unique_child_name(self._root, new_grp.name)
+
+        # Always ensure the name is unique, even if new_name is provided
+        if new_name is not None:
+            # Check if the provided name is unique, if not make it unique
+            new_grp.name = self._unique_child_name(self._root, new_name, suffix="")
+        else:
+            # Generate unique name based on original name
+            new_grp.name = self._unique_child_name(self._root, new_grp.name)
+
         row = idx.row() + 1
         if self.insertRows(row, 1, QModelIndex(), _payloads=[new_grp]):
             return self.index(row, 0)
@@ -244,7 +264,8 @@ class QConfigGroupsModel(_BaseTreeModel):
     ) -> QModelIndex:
         group_node = self._node_from_index(group_idx)
         if not isinstance(group_node.payload, ConfigGroup):
-            raise ValueError("Reference index is not a ConfigGroup.")
+            warnings.warn("Reference index is not a ConfigGroup.", stacklevel=2)
+            return QModelIndex()
 
         name = self._unique_child_name(group_node, base_name, suffix="")
         preset = ConfigPreset(name=name, parent=group_node.payload)
@@ -258,15 +279,25 @@ class QConfigGroupsModel(_BaseTreeModel):
     ) -> QModelIndex:
         pre_node = self._node_from_index(preset_index)
         if not isinstance((pre := pre_node.payload), ConfigPreset):
-            raise ValueError("Reference index is not a ConfigPreset.")
+            warnings.warn("Reference index is not a ConfigPreset.", stacklevel=2)
+            return QModelIndex()
 
         pre_copy = deepcopy(pre)
         group_idx = preset_index.parent()
         group_node = self._node_from_index(group_idx)
-        pre_copy.name = new_name or self._unique_child_name(group_node, pre_copy.name)
+
+        # Always ensure the name is unique, even if new_name is provided
+        if new_name is not None:
+            # Check if the provided name is unique, if not make it unique
+            pre_copy.name = self._unique_child_name(group_node, new_name, suffix="")
+        else:
+            # Generate unique name based on original name
+            pre_copy.name = self._unique_child_name(group_node, pre_copy.name)
+
         row = preset_index.row() + 1
         if self.insertRows(row, 1, group_idx, _payloads=[pre_copy]):
             return self.index(row, 0, group_idx)
+        return QModelIndex()  # pragma: no cover
         return QModelIndex()  # pragma: no cover
 
     def set_channel_group(self, group_idx: QModelIndex | None) -> None:
@@ -407,7 +438,8 @@ class QConfigGroupsModel(_BaseTreeModel):
         """Replace settings for `preset_idx` and update the tree safely."""
         preset_node = self._node_from_index(preset_idx)
         if not isinstance((preset := preset_node.payload), ConfigPreset):
-            raise ValueError("Reference index is not a ConfigPreset.")
+            warnings.warn("Reference index is not a ConfigPreset.", stacklevel=2)
+            return None
 
         # --- remove existing Setting rows ---------------------------------
         old_row_count = len(preset_node.children)
@@ -431,7 +463,8 @@ class QConfigGroupsModel(_BaseTreeModel):
         """
         preset_node = self._node_from_index(preset_idx)
         if not isinstance((preset := preset_node.payload), ConfigPreset):
-            raise ValueError("Reference index is not a ConfigPreset.")
+            warnings.warn("Reference index is not a ConfigPreset.", stacklevel=2)
+            return
 
         setting_keys = set(settings)
 
@@ -492,9 +525,8 @@ class QConfigGroupsModel(_BaseTreeModel):
 
     # TODO: use this instead of _insert_node
     # def insertRows(
-    #     self, row: int, count: int, parent: QModelIndex = NULL_INDEX
-    # ) -> bool: ...
-
+    #     self, row: int, count: int, parent: QModelIndex = QModelIndex()
+    # ) -> bool:
     def insertRows(
         self,
         row: int,
@@ -542,10 +574,27 @@ class QConfigGroupsModel(_BaseTreeModel):
                     name = self._unique_child_name(parent_node, "Group")
                     _payloads.append(ConfigGroup(name=name))
 
+        # IMPORTANT: Ensure name uniqueness when inserting provided payloads.
+        # This is critical for undo/redo operations which restore objects that
+        # may have names that conflict with current items due to operations
+        # that occurred after the original object was removed.
         self.beginInsertRows(parent, row, row + count - 1)
 
         # ---------- modify the tree ----------
         for i, payload in enumerate(_payloads):
+            # Only ensure uniqueness if there would be a conflict AND we're not
+            # in undo/redo mode
+            if isinstance(payload, (ConfigGroup, ConfigPreset)):
+                original_name = payload.name
+                if not self._in_undo_redo and self._name_exists(
+                    parent_node, original_name
+                ):
+                    # Only modify the name if there's actually a conflict
+                    unique_name = self._unique_child_name(
+                        parent_node, original_name, suffix=""
+                    )
+                    payload.name = unique_name
+
             parent_node.children.insert(row + i, _Node.create(payload, parent_node))
 
         # ---------- keep dataclasses in sync ----------

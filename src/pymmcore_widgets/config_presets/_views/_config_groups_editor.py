@@ -550,14 +550,14 @@ class _ConfigEditorToolbar(QToolBar):
             parent._add_preset_to_current_group,
         )
         self.addAction(
-            StandardIcon.DELETE.icon(),
-            "Remove",
-            parent._remove_selected,
-        )
-        self.addAction(
             StandardIcon.COPY.icon(),
             "Duplicate",
             parent._duplicate_selected,
+        )
+        self.addAction(
+            StandardIcon.DELETE.icon(),
+            "Remove",
+            parent._remove_selected,
         )
         self.addSeparator()
 
