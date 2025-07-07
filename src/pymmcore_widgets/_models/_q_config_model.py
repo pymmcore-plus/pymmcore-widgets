@@ -226,9 +226,7 @@ class QConfigGroupsModel(_BaseTreeModel):
             return self.index(row, 0)
         return QModelIndex()  # pragma: no cover
 
-    def duplicate_group(
-        self, idx: QModelIndex, new_name: str | None = None
-    ) -> QModelIndex:
+    def duplicate_group(self, idx: QModelIndex) -> QModelIndex:
         node = self._node_from_index(idx)
         if not isinstance((grp := node.payload), ConfigGroup):
             warnings.warn("Reference index is not a ConfigGroup.", stacklevel=2)
@@ -237,13 +235,8 @@ class QConfigGroupsModel(_BaseTreeModel):
         new_grp = deepcopy(grp)
         new_grp.is_channel_group = False  # this never gets duplicated
 
-        # Always ensure the name is unique, even if new_name is provided
-        if new_name is not None:
-            # Check if the provided name is unique, if not make it unique
-            new_grp.name = self._unique_child_name(self._root, new_name, suffix="")
-        else:
-            # Generate unique name based on original name
-            new_grp.name = self._unique_child_name(self._root, new_grp.name)
+        # Generate unique name based on original name
+        new_grp.name = self._unique_child_name(self._root, new_grp.name)
 
         row = idx.row() + 1
         if self.insertRows(row, 1, QModelIndex(), _payloads=[new_grp]):
@@ -267,9 +260,7 @@ class QConfigGroupsModel(_BaseTreeModel):
             return self.index(row, 0, group_idx)
         return QModelIndex()  # pragma: no cover
 
-    def duplicate_preset(
-        self, preset_index: QModelIndex, new_name: str | None = None
-    ) -> QModelIndex:
+    def duplicate_preset(self, preset_index: QModelIndex) -> QModelIndex:
         pre_node = self._node_from_index(preset_index)
         if not isinstance((pre := pre_node.payload), ConfigPreset):
             warnings.warn("Reference index is not a ConfigPreset.", stacklevel=2)
@@ -279,18 +270,12 @@ class QConfigGroupsModel(_BaseTreeModel):
         group_idx = preset_index.parent()
         group_node = self._node_from_index(group_idx)
 
-        # Always ensure the name is unique, even if new_name is provided
-        if new_name is not None:
-            # Check if the provided name is unique, if not make it unique
-            pre_copy.name = self._unique_child_name(group_node, new_name, suffix="")
-        else:
-            # Generate unique name based on original name
-            pre_copy.name = self._unique_child_name(group_node, pre_copy.name)
+        # Generate unique name based on original name
+        pre_copy.name = self._unique_child_name(group_node, pre_copy.name)
 
         row = preset_index.row() + 1
         if self.insertRows(row, 1, group_idx, _payloads=[pre_copy]):
             return self.index(row, 0, group_idx)
-        return QModelIndex()  # pragma: no cover
         return QModelIndex()  # pragma: no cover
 
     def set_channel_group(self, group_idx: QModelIndex | None) -> None:
@@ -389,7 +374,7 @@ class QConfigGroupsModel(_BaseTreeModel):
                     QMessageBox.StandardButton.Yes,
                 )
                 if msg != QMessageBox.StandardButton.Yes:
-                    return
+                    return  # pragma: no cover
             self.removeRows(idx.row(), 1, idx.parent())
 
     # ------------------------------------------------------------------

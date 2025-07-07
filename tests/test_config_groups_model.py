@@ -240,6 +240,26 @@ def test_update_preset_settings(model: QConfigGroupsModel, qtbot: QtBot) -> None
         model.update_preset_settings(QModelIndex(), new_settings)
 
 
+def test_set_channel_Group(model: QConfigGroupsModel, qtbot: QtBot) -> None:
+    channel_group = {g.name for g in model.get_groups() if g.is_channel_group}
+    assert channel_group == {"Channel"}
+
+    with qtbot.waitSignal(model.dataChanged):
+        model.set_channel_group(model.index(0, 0))
+    new_channel_group = {g.name for g in model.get_groups() if g.is_channel_group}
+    assert new_channel_group == {"Camera"}
+
+    with qtbot.assertNotEmitted(model.dataChanged):
+        model.set_channel_group(model.index(0, 0))  # set to the same thing again
+    new_channel_group = {g.name for g in model.get_groups() if g.is_channel_group}
+    assert new_channel_group == {"Camera"}
+
+    with qtbot.waitSignal(model.dataChanged):
+        model.set_channel_group(QModelIndex())  # reset to no channel group
+    reset_channel_group = {g.name for g in model.get_groups() if g.is_channel_group}
+    assert reset_channel_group == set()
+
+
 def test_standard_item_model(
     model: QConfigGroupsModel, qtmodeltester: ModelTester
 ) -> None:
