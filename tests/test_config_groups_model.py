@@ -240,7 +240,20 @@ def test_update_preset_settings(model: QConfigGroupsModel, qtbot: QtBot) -> None
         model.update_preset_settings(QModelIndex(), new_settings)
 
 
-def test_set_channel_Group(model: QConfigGroupsModel, qtbot: QtBot) -> None:
+def test_name_change_valid(model: QConfigGroupsModel, qtbot: QtBot) -> None:
+    assert model.is_name_change_valid(model.index(0), "Camera") is None  # same name
+    assert model.is_name_change_valid(model.index(0), "  ") == "Name cannot be empty"
+    assert model.is_name_change_valid(model.index(0), "New Group Name") is None
+    assert (
+        model.is_name_change_valid(model.index(0), "Channel")
+        == "Name 'Channel' already exists"
+    )
+    assert (
+        model.is_name_change_valid(QModelIndex(), "Camera") == "Cannot rename root node"
+    )
+
+
+def test_set_channel_group(model: QConfigGroupsModel, qtbot: QtBot) -> None:
     channel_group = {g.name for g in model.get_groups() if g.is_channel_group}
     assert channel_group == {"Channel"}
 
