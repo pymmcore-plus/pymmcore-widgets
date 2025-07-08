@@ -72,7 +72,7 @@ Documentation = "https://pymmcore-plus.github.io/pymmcore-widgets"
 test = [
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
-    "pytest-qt>=4.4.0",
+    "pytest-qt==4.4.0",
     "pyyaml>=6.0.2",
     "zarr >=2.15,<3",
     "numcodecs >0.14.0,<0.16; python_version >= '3.13'",
@@ -85,7 +85,7 @@ dev = [
     "mypy>=1.15.0",
     "pdbpp>=0.11.6 ; sys_platform != 'win32'",
     "pre-commit-uv >=4.1.0",
-    # "pyqt6>=6.9.0",
+    "pyqt6>=6.9.0",
     "rich>=14.0.0",
     "ruff>=0.11.8",
     "types-shapely>=2.1.0.20250512",
