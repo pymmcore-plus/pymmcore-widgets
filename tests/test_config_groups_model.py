@@ -240,6 +240,59 @@ def test_update_preset_settings(model: QConfigGroupsModel, qtbot: QtBot) -> None
         model.update_preset_settings(QModelIndex(), new_settings)
 
 
+def test_update_preset_properties(model: QConfigGroupsModel, qtbot: QtBot) -> None:
+    """Test updating preset properties."""
+    # Get original data
+    original_data = model.get_groups()
+    preset0 = next(iter(original_data[0].presets.values()))
+    original_settings_count = len(preset0.settings)
+    assert original_settings_count > 1
+
+    # Get the first two existing settings as (device, property_name) tuples
+    existing_setting1 = preset0.settings[0]
+    existing_setting2 = preset0.settings[1]
+    existing_key1 = existing_setting1.key()
+    existing_key2 = existing_setting2.key()
+
+    grp0_index = model.index(0, 0)
+    preset0_index = model.index(0, 0, grp0_index)
+
+    # Test updating with a mix of existing and new properties
+    new_properties = [
+        existing_key1,  # Keep existing setting
+        existing_key2,  # Keep another existing setting
+        ("NewDevice", "NewProperty"),  # Add new placeholder setting
+    ]
+
+    model.update_preset_properties(preset0_index, new_properties)
+
+    # Verify the changes
+    new_data = model.get_groups()
+    preset0_new = next(iter(new_data[0].presets.values()))
+
+    # Should have exactly 3 settings now
+    assert len(preset0_new.settings) == 3
+
+    # Check that existing settings are preserved with their values
+    settings_by_key = {s.key(): s for s in preset0_new.settings}
+    assert existing_key1 in settings_by_key
+    assert existing_key2 in settings_by_key
+    assert ("NewDevice", "NewProperty") in settings_by_key
+
+    # Verify existing settings kept their values
+    assert settings_by_key[existing_key1].value == existing_setting1.value
+    assert settings_by_key[existing_key2].value == existing_setting2.value
+
+    # Verify new setting has empty value
+    assert settings_by_key[("NewDevice", "NewProperty")].value == ""
+    assert settings_by_key[("NewDevice", "NewProperty")].device_label == "NewDevice"
+    assert settings_by_key[("NewDevice", "NewProperty")].property_name == "NewProperty"
+
+    # Test with invalid index
+    with pytest.warns(UserWarning, match="Reference index is not a ConfigPreset."):
+        model.update_preset_properties(QModelIndex(), new_properties)
+
+
 def test_name_change_valid(model: QConfigGroupsModel, qtbot: QtBot) -> None:
     assert model.is_name_change_valid(model.index(0), "Camera") is None  # same name
     assert model.is_name_change_valid(model.index(0), "  ") == "Name cannot be empty"
