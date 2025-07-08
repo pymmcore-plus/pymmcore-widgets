@@ -1,12 +1,16 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from qtpy.QtCore import QAbstractTableModel, QModelIndex, QSize, Qt
-from qtpy.QtWidgets import QWidget
 
-from pymmcore_widgets._icons import get_device_icon
+from pymmcore_widgets._icons import StandardIcon
 
 from ._py_config_model import ConfigPreset, DevicePropertySetting
 from ._q_config_model import QConfigGroupsModel
+
+if TYPE_CHECKING:
+    from qtpy.QtWidgets import QWidget
 
 
 class ConfigGroupPivotModel(QAbstractTableModel):
@@ -108,7 +112,7 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         try:
             node = self._gidx.internalPointer()
             if not node:
-                return
+                return  # pragma: no cover
             self._presets = [child.payload for child in node.children]
             keys = (setting.key() for p in self._presets for setting in p.settings)
             self._rows = list(dict.fromkeys(keys, None))  # unique (device, prop) pairs
@@ -151,8 +155,8 @@ class ConfigGroupPivotModel(QAbstractTableModel):
                     dev, _prop = self._rows[section]
                 except IndexError:  # pragma: no cover
                     return None
-                if icon := get_device_icon(dev):
-                    return icon.pixmap(QSize(16, 16))
+                if icon := StandardIcon.for_device_type(dev):
+                    return icon.icon().pixmap(QSize(16, 16))
         return None
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
@@ -209,7 +213,7 @@ class ConfigGroupPivotModel(QAbstractTableModel):
     ) -> bool:
         """Determine if model changes require rebuilding the pivot."""
         if self._gidx is None or self._src is None:
-            return False
+            return False  # pragma: no cover
 
         tl_col = top_left.column()
         tl_par = top_left.parent()

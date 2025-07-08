@@ -5,13 +5,9 @@ from typing import TYPE_CHECKING
 from qtpy.QtWidgets import QTreeView, QWidget
 
 from pymmcore_widgets._models import QConfigGroupsModel
-from pymmcore_widgets.config_presets._views._property_setting_delegate import (
-    PropertySettingDelegate,
-)
-from pymmcore_widgets.config_presets._views._undo_delegates import (
-    GroupPresetRenameDelegate,
-    PropertyValueDelegate,
-)
+
+from ._property_setting_delegate import PropertySettingDelegate
+from ._undo_delegates import GroupPresetRenameDelegate, PropertyValueDelegate
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus

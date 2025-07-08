@@ -13,9 +13,8 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt import QIconifyIcon
 
-from pymmcore_widgets._icons import DEVICE_TYPE_ICON, StandardIcon
+from pymmcore_widgets._icons import StandardIcon
 from pymmcore_widgets._models import Device, QDevicePropertyModel
 from pymmcore_widgets._models._py_config_model import DevicePropertySetting
 from pymmcore_widgets._models._q_device_prop_model import DevicePropertyFlatProxy
@@ -40,18 +39,15 @@ class _DeviceButtonToolbar(QToolBar):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setIconSize(QSize(16, 16))
+        for device_type in sorted(DeviceType, key=lambda x: x.name):
+            if device_type in (DeviceType.Any, DeviceType.Unknown):
+                continue
 
-        for device_type, icon_key in sorted(
-            DEVICE_TYPE_ICON.items(), key=lambda x: x[0].name
-        ):
             tooltip = device_type.name.replace("Device", " Devices")
+            icon = StandardIcon.for_device_type(device_type)
             action = cast(
                 "QAction",
-                self.addAction(
-                    QIconifyIcon(icon_key, color="gray"),
-                    f"Show {tooltip}",
-                    self._emit_selection,
-                ),
+                self.addAction(icon.icon(), f"Show {tooltip}", self._emit_selection),
             )
             action.setCheckable(True)
             action.setChecked(True)

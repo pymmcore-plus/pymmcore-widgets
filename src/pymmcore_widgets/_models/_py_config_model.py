@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 from pymmcore_plus import DeviceType, Keyword, PropertyType
@@ -17,7 +17,7 @@ AffineTuple: TypeAlias = tuple[float, float, float, float, float, float]
 class _BaseModel(BaseModel):
     """Base model for configuration presets."""
 
-    model_config: ClassVar = ConfigDict(
+    model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="forbid",
         validate_assignment=True,
     )
@@ -36,11 +36,6 @@ class Device(_BaseModel):
     properties: tuple[DevicePropertySetting, ...] = Field(default_factory=tuple)
 
     @property
-    def children(self) -> tuple[DevicePropertySetting, ...]:
-        """Return the properties of the device."""
-        return self.properties
-
-    @property
     def is_loaded(self) -> bool:
         """Return True if the device is loaded."""
         return bool(self.label)
@@ -48,9 +43,7 @@ class Device(_BaseModel):
     @property
     def iconify_key(self) -> str | None:
         """Return an iconify key for the device type."""
-        from pymmcore_widgets._icons import DEVICE_TYPE_ICON
-
-        return DEVICE_TYPE_ICON.get(self.type, None)
+        return StandardIcon.for_device_type(self.type)
 
     def key(self) -> Hashable:
         """Return a unique key for the device."""
@@ -75,11 +68,11 @@ class DevicePropertySetting(_BaseModel):
     is_read_only: bool = Field(default=False, frozen=True)
     is_pre_init: bool = Field(default=False, frozen=True)
     allowed_values: tuple[str, ...] = Field(default_factory=tuple, frozen=True)
-    limits: tuple[float, float] | None = Field(default=None, frozen=True)
+    limits: Optional[tuple[float, float]] = Field(default=None, frozen=True)  # noqa
     property_type: PropertyType = Field(default=PropertyType.Undef, frozen=True)
     sequence_max_length: int = Field(default=0, frozen=True)
 
-    parent: ConfigPreset | None = Field(default=None, exclude=True, repr=False)
+    parent: Optional[ConfigPreset] = Field(default=None, exclude=True, repr=False)  # noqa
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -130,7 +123,7 @@ class DevicePropertySetting(_BaseModel):
 
     def __eq__(self, other: Any) -> bool:
         # deal with recursive equality checks
-        if not isinstance(other, DevicePropertySetting):
+        if not isinstance(other, DevicePropertySetting):  # pragma: no cover
             return False
         return (
             self.device_label == other.device_label
@@ -151,17 +144,12 @@ class ConfigPreset(_BaseModel):
     name: str
     settings: list[DevicePropertySetting] = Field(default_factory=list)
 
-    parent: ConfigGroup | None = Field(default=None, exclude=True, repr=False)
+    parent: Optional[ConfigGroup] = Field(default=None, exclude=True, repr=False)  # noqa
 
     def __eq__(self, value: object) -> bool:
-        if not isinstance(value, ConfigPreset):
+        if not isinstance(value, ConfigPreset):  # pragma: no cover
             return False
         return self.name == value.name and self.settings == value.settings
-
-    @property
-    def children(self) -> tuple[DevicePropertySetting, ...]:
-        """Return the settings in the preset."""
-        return tuple(self.settings)
 
     @property
     def is_system_startup(self) -> bool:
@@ -194,11 +182,6 @@ class ConfigGroup(_BaseModel):
     def is_system_group(self) -> bool:
         """Return True if the group is a system group."""
         return self.name.lower() == "system"
-
-    @property
-    def children(self) -> tuple[ConfigPreset, ...]:
-        """Return the presets in the group."""
-        return tuple(self.presets.values())
 
 
 class PixelSizePreset(ConfigPreset):

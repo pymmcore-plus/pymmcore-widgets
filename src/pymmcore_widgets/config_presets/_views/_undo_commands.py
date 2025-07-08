@@ -102,7 +102,6 @@ class DuplicateGroupCommand(QUndoCommand):
         self,
         model: QConfigGroupsModel,
         group_index: QModelIndex,
-        new_name: str | None = None,
         parent: QUndoCommand | None = None,
     ) -> None:
         group_name = group_index.data() or "Group"
@@ -110,15 +109,12 @@ class DuplicateGroupCommand(QUndoCommand):
         super().__init__(f"Duplicate Group '{group_name}'\n", parent)
         self._model = model
         self._group_index = QPersistentModelIndex(group_index)
-        self._new_name = new_name
         self._new_group_index: QPersistentModelIndex | None = None
 
     def redo(self) -> None:
         """Execute the duplicate group operation."""
         if self._group_index.isValid():
-            new_index = self._model.duplicate_group(
-                QModelIndex(self._group_index), self._new_name
-            )
+            new_index = self._model.duplicate_group(QModelIndex(self._group_index))
             if new_index.isValid():
                 self._new_group_index = QPersistentModelIndex(new_index)
 
@@ -257,7 +253,6 @@ class DuplicatePresetCommand(QUndoCommand):
         self,
         model: QConfigGroupsModel,
         preset_index: QModelIndex,
-        new_name: str | None = None,
         parent: QUndoCommand | None = None,
     ) -> None:
         preset_name = preset_index.data() or "Preset"
@@ -265,14 +260,13 @@ class DuplicatePresetCommand(QUndoCommand):
         super().__init__(f"Duplicate Preset '{preset_name}'\n", parent)
         self._model = model
         self._preset_index = QPersistentModelIndex(preset_index)
-        self._new_name = new_name
         self._new_preset_index: QPersistentModelIndex | None = None
 
     def redo(self) -> None:
         """Execute the duplicate preset operation."""
         if self._preset_index.isValid():
             new_preset_index = self._model.duplicate_preset(
-                QModelIndex(self._preset_index), self._new_name
+                QModelIndex(self._preset_index)
             )
             if new_preset_index.isValid():
                 self._new_preset_index = QPersistentModelIndex(new_preset_index)

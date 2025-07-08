@@ -10,10 +10,9 @@ from pymmcore_plus.model import Setting
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QAbstractScrollArea, QTableWidget, QTableWidgetItem, QWidget
-from superqt.iconify import QIconifyIcon
 from superqt.utils import signals_blocked
 
-from pymmcore_widgets._icons import DEVICE_TYPE_ICON
+from pymmcore_widgets._icons import StandardIcon
 from pymmcore_widgets._util import NoWheelTableWidget
 
 from ._property_widget import PropertyWidget
@@ -159,8 +158,8 @@ class DevicePropertyTable(NoWheelTableWidget):
             extra = " 🅿" if prop.isPreInit() else ""
             item = QTableWidgetItem(f"{prop.device}-{prop.name}{extra}")
             item.setData(self.PROP_ROLE, prop)
-            if icon_string := DEVICE_TYPE_ICON.get(prop.deviceType()):
-                item.setIcon(QIconifyIcon(icon_string, color="Gray"))
+            if icon := StandardIcon.for_device_type(prop.deviceType()):
+                item.setIcon(icon.icon())
             self.setItem(i, 0, item)
 
             try:

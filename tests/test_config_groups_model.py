@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import patch
 
 import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QModelIndex, Qt
 from qtpy.QtGui import QFont, QIcon, QPixmap
-from qtpy.QtWidgets import QMessageBox
 
 from pymmcore_widgets._models import (
     ConfigGroup,
@@ -134,9 +132,13 @@ def test_model_set_data(model: QConfigGroupsModel, qtbot: QtBot) -> None:
     assert model.setData(grp0_index, "") is False
     # setting to a value that already exists should show a warning
     existing_name = model.index(1).data(Qt.ItemDataRole.EditRole)  # next row down
-    with patch.object(QMessageBox, "warning") as mock_warning:
+    # existing name should not modify the model
+    with pytest.warns(
+        UserWarning,
+        match=f"Not adding duplicate name '{existing_name}'. It already exists.",
+    ):
+        # this should not change the model
         assert model.setData(grp0_index, existing_name) is False
-        mock_warning.assert_called_once()
 
 
 def test_index_queries(model: QConfigGroupsModel) -> None:
@@ -178,7 +180,7 @@ def test_add_dupe_group(model: QConfigGroupsModel, qtbot: QtBot) -> None:
         grp0_index.data(Qt.ItemDataRole.DisplayRole) + " copy (1)",
     }
 
-    with pytest.raises(ValueError, match="Reference index is not a ConfigGroup."):
+    with pytest.warns(UserWarning, match="Reference index is not a ConfigGroup."):
         model.duplicate_group(QModelIndex())
 
 
@@ -196,10 +198,10 @@ def test_add_dupe_preset(model: QConfigGroupsModel, qtbot: QtBot) -> None:
     assert "New Preset" in new_presets
     assert preset0_index.data(Qt.ItemDataRole.DisplayRole) + " copy" in new_presets
 
-    with pytest.raises(ValueError, match="Reference index is not a ConfigPreset."):
+    with pytest.warns(UserWarning, match="Reference index is not a ConfigPreset."):
         model.duplicate_preset(QModelIndex())
 
-    with pytest.raises(ValueError, match="Reference index is not a ConfigGroup."):
+    with pytest.warns(UserWarning, match="Reference index is not a ConfigGroup."):
         model.add_preset(QModelIndex(), "New Preset")
 
 
@@ -234,8 +236,94 @@ def test_update_preset_settings(model: QConfigGroupsModel, qtbot: QtBot) -> None
     assert len(preset0_new.settings) == 1
     assert preset0_new.settings == new_settings
 
-    with pytest.raises(ValueError, match="Reference index is not a ConfigPreset."):
+    with pytest.warns(UserWarning, match="Reference index is not a ConfigPreset."):
         model.update_preset_settings(QModelIndex(), new_settings)
+
+
+def test_update_preset_properties(model: QConfigGroupsModel, qtbot: QtBot) -> None:
+    """Test updating preset properties."""
+    # Get original data
+    original_data = model.get_groups()
+    preset0 = next(iter(original_data[0].presets.values()))
+    original_settings_count = len(preset0.settings)
+    assert original_settings_count > 1
+
+    # Get the first two existing settings as (device, property_name) tuples
+    existing_setting1 = preset0.settings[0]
+    existing_setting2 = preset0.settings[1]
+    existing_key1 = existing_setting1.key()
+    existing_key2 = existing_setting2.key()
+
+    grp0_index = model.index(0, 0)
+    preset0_index = model.index(0, 0, grp0_index)
+
+    # Test updating with a mix of existing and new properties
+    new_properties = [
+        existing_key1,  # Keep existing setting
+        existing_key2,  # Keep another existing setting
+        ("NewDevice", "NewProperty"),  # Add new placeholder setting
+    ]
+
+    model.update_preset_properties(preset0_index, new_properties)
+
+    # Verify the changes
+    new_data = model.get_groups()
+    preset0_new = next(iter(new_data[0].presets.values()))
+
+    # Should have exactly 3 settings now
+    assert len(preset0_new.settings) == 3
+
+    # Check that existing settings are preserved with their values
+    settings_by_key = {s.key(): s for s in preset0_new.settings}
+    assert existing_key1 in settings_by_key
+    assert existing_key2 in settings_by_key
+    assert ("NewDevice", "NewProperty") in settings_by_key
+
+    # Verify existing settings kept their values
+    assert settings_by_key[existing_key1].value == existing_setting1.value
+    assert settings_by_key[existing_key2].value == existing_setting2.value
+
+    # Verify new setting has empty value
+    assert settings_by_key[("NewDevice", "NewProperty")].value == ""
+    assert settings_by_key[("NewDevice", "NewProperty")].device_label == "NewDevice"
+    assert settings_by_key[("NewDevice", "NewProperty")].property_name == "NewProperty"
+
+    # Test with invalid index
+    with pytest.warns(UserWarning, match="Reference index is not a ConfigPreset."):
+        model.update_preset_properties(QModelIndex(), new_properties)
+
+
+def test_name_change_valid(model: QConfigGroupsModel, qtbot: QtBot) -> None:
+    assert model.is_name_change_valid(model.index(0), "Camera") is None  # same name
+    assert model.is_name_change_valid(model.index(0), "  ") == "Name cannot be empty"
+    assert model.is_name_change_valid(model.index(0), "New Group Name") is None
+    assert (
+        model.is_name_change_valid(model.index(0), "Channel")
+        == "Name 'Channel' already exists"
+    )
+    assert (
+        model.is_name_change_valid(QModelIndex(), "Camera") == "Cannot rename root node"
+    )
+
+
+def test_set_channel_group(model: QConfigGroupsModel, qtbot: QtBot) -> None:
+    channel_group = {g.name for g in model.get_groups() if g.is_channel_group}
+    assert channel_group == {"Channel"}
+
+    with qtbot.waitSignal(model.dataChanged):
+        model.set_channel_group(model.index(0, 0))
+    new_channel_group = {g.name for g in model.get_groups() if g.is_channel_group}
+    assert new_channel_group == {"Camera"}
+
+    with qtbot.assertNotEmitted(model.dataChanged):
+        model.set_channel_group(model.index(0, 0))  # set to the same thing again
+    new_channel_group = {g.name for g in model.get_groups() if g.is_channel_group}
+    assert new_channel_group == {"Camera"}
+
+    with qtbot.waitSignal(model.dataChanged):
+        model.set_channel_group(QModelIndex())  # reset to no channel group
+    reset_channel_group = {g.name for g in model.get_groups() if g.is_channel_group}
+    assert reset_channel_group == set()
 
 
 def test_standard_item_model(
@@ -248,6 +336,7 @@ def test_pivot_model(model: QConfigGroupsModel, qtmodeltester: ModelTester) -> N
     pivot = ConfigGroupPivotModel()
     pivot.setSourceModel(model)
     pivot.setGroup("Channel")
+    pivot.setGroup(pivot.index(1, 0))  # set by index
     qtmodeltester.check(pivot)
 
 
