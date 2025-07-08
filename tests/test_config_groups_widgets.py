@@ -3,12 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
-from pymmcore_plus.model import ConfigGroup
 from qtpy.QtCore import Qt
 
 from pymmcore_widgets import ConfigGroupsTree
+from pymmcore_widgets._models import ConfigGroup, QConfigGroupsModel
 from pymmcore_widgets.config_presets import ConfigPresetsTable
-from pymmcore_widgets.config_presets._qmodel._config_model import QConfigGroupsModel
 from pymmcore_widgets.config_presets._views._property_setting_delegate import (
     PropertySettingDelegate,
 )
@@ -46,7 +45,7 @@ def test_config_groups_tree(qtbot: QtBot) -> None:
     assert model.data(setting_value) == "2"
     group0 = model.get_groups()[0]
     preset0 = next(iter(group0.presets.values()))
-    assert preset0.settings[0].property_value == "2"
+    assert preset0.settings[0].value == "2"
 
 
 def test_config_presets_table(qtbot: QtBot) -> None:

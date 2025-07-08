@@ -25,7 +25,7 @@ from qtpy.QtWidgets import (
 from superqt.iconify import QIconifyIcon
 from superqt.utils import exceptions_as_dialog, signals_blocked
 
-from pymmcore_widgets._icons import ICONS
+from pymmcore_widgets._icons import StandardIcon
 
 from ._base_page import ConfigWizardPage
 from ._dev_setup_dialog import DeviceSetupDialog
@@ -60,10 +60,10 @@ class _DeviceTable(QTableWidget):
         self.clearContents()
         self.setRowCount(len(model.devices))
         for i, device in enumerate(model.devices):
-            type_icon = ICONS.get(device.device_type, "")
+            type_icon = StandardIcon.for_device_type(device.device_type)
             wdg: QWidget
             if device.device_type == DeviceType.Hub:
-                wdg = QPushButton(QIconifyIcon(type_icon, color="blue"), "")
+                wdg = QPushButton(type_icon.icon(color="blue"), "")
                 wdg.setToolTip("Add peripheral device")
                 wdg.setCursor(Qt.CursorShape.PointingHandCursor)
                 wdg.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -74,7 +74,7 @@ class _DeviceTable(QTableWidget):
 
             else:
                 wdg = QLabel()
-                wdg.setPixmap(QIconifyIcon(type_icon, color="gray").pixmap(16, 16))
+                wdg.setPixmap(type_icon.icon(color="gray").pixmap(16, 16))
 
             container = QWidget()
             layout = QHBoxLayout(container)
@@ -355,9 +355,8 @@ class _AvailableDevicesWidget(QWidget):
             self.table.setItem(i, 1, item)
             # -----------
             item = QTableWidgetItem(str(device.device_type))
-            icon_string = ICONS.get(device.device_type, None)
-            if icon_string:
-                item.setIcon(QIconifyIcon(icon_string, color="Gray"))
+            icon = StandardIcon.for_device_type(device.device_type)
+            item.setIcon(icon.icon())
             if device.library_hub:
                 item.setFlags(Qt.ItemFlag.NoItemFlags)
             self.table.setItem(i, 2, item)
@@ -370,7 +369,8 @@ class _AvailableDevicesWidget(QWidget):
             _avail = {x.device_type for x in self._model.available_devices}
             avail = sorted(x for x in _avail if x != DeviceType.Any)
             for x in (DeviceType.Any, *avail):
-                self.dev_type.addItem(QIconifyIcon(ICONS.get(x, "")), str(x), x)
+                icon = StandardIcon.for_device_type(x).icon()
+                self.dev_type.addItem(icon, str(x), x)
             if current in avail:
                 self.dev_type.setCurrentText(str(current))
 
