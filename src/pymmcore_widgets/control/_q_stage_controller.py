@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import weakref
 from typing import ClassVar
 
 from pymmcore_plus import AbstractChangeAccumulator, CMMCorePlus, core
@@ -45,6 +46,7 @@ class QStageMoveAccumulator(QObject):
                 )
             accum = dev_obj.getPositionAccumulator()
             cls._CACHE[key] = QStageMoveAccumulator(accum)
+            weakref.finalize(mmcore, cls._CACHE.pop, key, None)
         return cls._CACHE[key]
 
     _CACHE: ClassVar[dict[tuple[int, str], QStageMoveAccumulator]] = {}
@@ -71,16 +73,21 @@ class QStageMoveAccumulator(QObject):
             self._timer_id = self.startTimer(self._poll_ms)
 
     def timerEvent(self, event: QTimerEvent | None) -> None:
-        if self._accum.poll_done() is True:
+        try:
+            done_polling = self._accum.poll_done()
+        except RuntimeError:
+            # If an error occurs while polling, stop the timer.
+            done_polling = True
+
+        if done_polling is True:
             if self._timer_id is not None:
                 self.killTimer(self._timer_id)
                 self._timer_id = None
 
             if self.snap_on_finish:
                 core = getattr(self._accum, "_mmcore", None)
-                if not isinstance(core, CMMCorePlus):
-                    core = CMMCorePlus.instance()
-                core.snapImage()
+                if isinstance(core, CMMCorePlus):
+                    core.snapImage()
                 self.snap_on_finish = False
 
             self.moveFinished.emit()

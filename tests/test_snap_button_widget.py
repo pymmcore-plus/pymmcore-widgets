@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from qtpy.QtCore import QSize
 
 from pymmcore_widgets.control._snap_button_widget import SnapButton
+from tests._utils import wait_signal
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -21,11 +22,9 @@ def test_snap_button_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     global_mmcore.startContinuousSequenceAcquisition(0)
 
-    with qtbot.waitSignals(
-        [
-            global_mmcore.events.sequenceAcquisitionStopped,
-            global_mmcore.events.imageSnapped,
-        ]
+    with (
+        wait_signal(qtbot, global_mmcore.events.sequenceAcquisitionStopped),
+        wait_signal(qtbot, global_mmcore.events.imageSnapped),
     ):
         snap_btn.click()
         assert not global_mmcore.isSequenceRunning()
