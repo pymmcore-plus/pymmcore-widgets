@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest
 from pymmcore_plus import CMMCorePlus
+from pymmcore_plus._accumulator import DeviceAccumulator
 from pymmcore_plus.core import _mmcore_plus
 
 if TYPE_CHECKING:
@@ -22,6 +23,11 @@ def global_mmcore() -> Iterator[CMMCorePlus]:
     mmc.loadSystemConfiguration(TEST_CONFIG)
     with patch.object(_mmcore_plus, "_instance", mmc):
         yield mmc
+    # FIXME: would be better if this wasn't needed, or was fixed upstream
+    DeviceAccumulator._CACHE.clear()
+    mmc.reset()
+    mmc.__del__()
+    del mmc
 
 
 @pytest.fixture(autouse=True)

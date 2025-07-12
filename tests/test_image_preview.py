@@ -5,6 +5,8 @@ from pymmcore_plus import CMMCorePlus
 
 from pymmcore_widgets import ImagePreview
 
+from ._utils import wait_signal
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
@@ -16,11 +18,11 @@ def test_image_preview(qtbot: "QtBot"):
     qtbot.addWidget(widget)
     assert widget._mmc is mmcore
 
-    with qtbot.waitSignal(mmcore.events.imageSnapped):
+    with wait_signal(qtbot, mmcore.events.imageSnapped):
         mmcore.snap()
     img = widget._canvas.render()
 
-    with qtbot.waitSignal(mmcore.events.imageSnapped):
+    with wait_signal(qtbot, mmcore.events.imageSnapped):
         mmcore.snap()
     img2 = widget._canvas.render()
 
