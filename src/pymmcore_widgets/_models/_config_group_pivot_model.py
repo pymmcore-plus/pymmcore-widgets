@@ -6,7 +6,7 @@ from qtpy.QtCore import QAbstractTableModel, QModelIndex, QSize, Qt
 
 from pymmcore_widgets._icons import StandardIcon
 
-from ._py_config_model import ConfigPreset, DevicePropertySetting
+from ._py_config_model import ConfigGroup, ConfigPreset, DevicePropertySetting
 from ._q_config_model import QConfigGroupsModel
 
 if TYPE_CHECKING:
@@ -47,9 +47,8 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         if not isinstance(group_name_or_index, QModelIndex):
             self._gidx = self._src.index_for_group(group_name_or_index)
         else:
-            if not group_name_or_index.isValid():  # pragma: no cover
-                raise ValueError("Invalid QModelIndex provided for group selection.")
-            self._gidx = group_name_or_index
+            if group_name_or_index.isValid():  # pragma: no cover
+                self._gidx = group_name_or_index
         self._rebuild()
 
     def setData(
@@ -102,22 +101,22 @@ class ConfigGroupPivotModel(QAbstractTableModel):
     # ---------------------------------------------------------------- build --
 
     def _rebuild(self) -> None:  # slot signature is flexible
-        if self._gidx is None:  # nothing selected yet
-            return  # pragma: no cover
         self.beginResetModel()
-
-        self._presets = []
-        self._rows = []
+        self._presets.clear()
+        self._rows.clear()
         self._data.clear()
+        if self._gidx is None:  # nothing selected yet
+            self.endResetModel()
+            return  # pragma: no cover
+
         try:
-            node = self._gidx.internalPointer()
-            if not node:
+            group = self._gidx.data(Qt.ItemDataRole.UserRole)
+            if not isinstance(group, ConfigGroup):
                 return  # pragma: no cover
-            self._presets = [child.payload for child in node.children]
+            self._presets = list(group.presets.values())
             keys = (setting.key() for p in self._presets for setting in p.settings)
             self._rows = list(dict.fromkeys(keys, None))  # unique (device, prop) pairs
 
-            self._data.clear()
             for col, preset in enumerate(self._presets):
                 for row, (device, prop) in enumerate(self._rows):
                     for s in preset.settings:

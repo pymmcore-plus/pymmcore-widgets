@@ -9,8 +9,8 @@ app = QApplication([])
 core = CMMCorePlus()
 core.loadSystemConfiguration()
 
-cfg = ConfigGroupsEditor.create_from_core(core)
-cfg.setCurrentPreset("Channel", "FITC")
+cfg = ConfigGroupsEditor()
+cfg.update_from_core(core, update_configs=False)
 cfg.show()
 
 app.exec()

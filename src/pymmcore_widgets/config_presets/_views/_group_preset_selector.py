@@ -15,12 +15,12 @@ if TYPE_CHECKING:
     from qtpy.QtGui import QUndoStack
 
 
-class GroupPresetSelector(QStackedWidget):
-    """Widget that switches between column (2-list) and tree view for config groups.
+class GroupsPresetFinder(QStackedWidget):
+    """Widget that switches between column and tree view for config groups.
 
-    This widget contains:
-    - A splitter with separate list views for groups and presets (index 0)
-    - A tree view showing the hierarchical structure (index 1)
+    This mimics the macOS Finder's behavior with two main views:
+    - Column view: Groups/presets/settings side by side (index 0)
+    - Tree view: Hierarchical structure of groups and presets (index 1)
     """
 
     currentPresetChanged = Signal(QModelIndex, QModelIndex)
@@ -40,10 +40,15 @@ class GroupPresetSelector(QStackedWidget):
         self.preset_list = QListView(self)
         self.preset_list.setSelectionMode(QListView.SelectionMode.SingleSelection)
 
+        self.settings_table = ConfigGroupsTree(self)
+        self.settings_table.setSelectionMode(QListView.SelectionMode.SingleSelection)
+
         # Create the splitter for the list views
         lists_splitter = QSplitter(Qt.Orientation.Horizontal)
         lists_splitter.addWidget(self.group_list)
         lists_splitter.addWidget(self.preset_list)
+        lists_splitter.addWidget(self.settings_table)
+        lists_splitter.setStretchFactor(2, 2)
 
         # STACK_1 : Tree view for config groups ----------------------------
 
@@ -88,8 +93,11 @@ class GroupPresetSelector(QStackedWidget):
 
         # Set models for all views
         self.group_list.setModel(model)
-        self.preset_list.setModel(model)
         self.config_groups_tree.setModel(model)
+
+        # We'll set later when selections are made
+        self.preset_list.setModel(None)
+        self.settings_table.setModel(None)
 
         self._connect_selection_models()
 
@@ -110,8 +118,17 @@ class GroupPresetSelector(QStackedWidget):
     ) -> None:
         """Handle change in the group_list selection."""
         prev_preset = self.preset_list.currentIndex()
-        self.preset_list.setRootIndex(current)
-        self.preset_list.setCurrentIndex(QModelIndex())
+
+        # Ensure preset_list has a model when a group is selected
+        if current.isValid():
+            if self.preset_list.model() is None:
+                self.preset_list.setModel(self._model)
+
+            self.preset_list.setRootIndex(current)
+            self.preset_list.setCurrentIndex(QModelIndex())
+        else:
+            self.preset_list.setModel(None)
+
         with QSignalBlocker(self.config_groups_tree.selectionModel()):
             self.config_groups_tree.collapseAll()
             self.config_groups_tree.setCurrentIndex(current)
@@ -125,6 +142,15 @@ class GroupPresetSelector(QStackedWidget):
         self, current: QModelIndex, previous: QModelIndex
     ) -> None:
         """Handle change in the preset_list selection."""
+        # Ensure settings_table has a model when a preset is selected
+        if current.isValid():
+            if self.settings_table.model() is None:
+                self.settings_table.setModel(self._model)
+            self.settings_table.setRootIndex(current)
+            self.settings_table.setCurrentIndex(QModelIndex())
+        else:
+            self.settings_table.setModel(None)
+
         with QSignalBlocker(self.config_groups_tree.selectionModel()):
             self.config_groups_tree.setCurrentIndex(current)
         self.currentPresetChanged.emit(current, previous)
@@ -160,8 +186,15 @@ class GroupPresetSelector(QStackedWidget):
             QSignalBlocker(self.preset_list.selectionModel()),
         ):
             self.group_list.setCurrentIndex(group_idx)
-            self.preset_list.setRootIndex(group_idx)
-            self.preset_list.setCurrentIndex(preset_idx)
+
+            # Ensure preset_list has a model when updating from tree selection
+            if group_idx.isValid():
+                if self.preset_list.model() is None:
+                    self.preset_list.setModel(self._model)
+                self.preset_list.setRootIndex(group_idx)
+                self.preset_list.setCurrentIndex(preset_idx)
+            else:
+                self.preset_list.setModel(None)
 
     def _selected_index(self) -> QModelIndex:
         """Return the currently selected index from the group or preset list."""
@@ -294,5 +327,7 @@ class GroupPresetSelector(QStackedWidget):
         if group_sel_model is not None:
             group_sel_model.clearCurrentIndex()
         self.config_groups_tree.clearSelection()
-        # Reset preset list root
-        self.preset_list.setRootIndex(QModelIndex())
+
+        # Clear the preset and settings views completely
+        self.preset_list.setModel(None)
+        self.settings_table.setModel(None)

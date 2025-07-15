@@ -8,6 +8,7 @@ from qtpy.QtCore import QModelIndex, QSignalBlocker, QSize, Qt, Signal
 from qtpy.QtGui import QKeySequence, QUndoStack
 from qtpy.QtWidgets import (
     QGroupBox,
+    QMessageBox,
     QSizePolicy,
     QSplitter,
     QToolBar,
@@ -29,7 +30,7 @@ from pymmcore_widgets._models._py_config_model import (
 
 from ._config_presets_table import ConfigPresetsTable
 from ._device_property_selector import DevicePropertySelector
-from ._group_preset_selector import GroupPresetSelector
+from ._group_preset_selector import GroupsPresetFinder
 from ._undo_commands import (
     AddGroupCommand,
     AddPresetCommand,
@@ -108,9 +109,8 @@ class ConfigGroupsEditor(QWidget):
         """
         if update_configs:
             self.setData(get_config_groups(core))
-        self._prop_selector.setAvailableDevices(get_loaded_devices(core))
-        self._preset_table.setModel(self._model)
-        self._preset_table.setGroup("Channel")
+        if update_available:
+            self._prop_selector.setAvailableDevices(get_loaded_devices(core))
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -133,14 +133,14 @@ class ConfigGroupsEditor(QWidget):
         # │                     ...                       │
         # └───────────────────────────────────────────────┘
 
-        self._group_preset_sel = GroupPresetSelector(self)
+        self._group_preset_sel = GroupsPresetFinder(self)
         self._group_preset_sel.setModel(self._model)
 
         self._prop_selector = DevicePropertySelector()
+        self._prop_selector.hide()
 
         self._preset_table = ConfigPresetsTable(self)
         self._preset_table.setModel(self._model)
-        self._preset_table.setGroup("Channel")
 
         # Set up undo/redo integration
         self._group_preset_sel.setUndoStack(self._undo_stack)
@@ -179,11 +179,15 @@ class ConfigGroupsEditor(QWidget):
         # Show this group in the preset table
         self._preset_table.setGroup(current)
         self._preset_table.view.stretchHeaders()
+        self._tb.add_preset_action.setEnabled(current.isValid())
+        self._tb.duplicate_action.setEnabled(current.isValid())
+        self._tb.remove_action.setEnabled(current.isValid())
 
-        # Enable/disable "set channel group" action depending on whether the selected
-        # group is already a channel group
+        # Enable/disable actions based on the selected group
         group = current.data(Qt.ItemDataRole.UserRole)
         if isinstance(group, ConfigGroup):
+            # Enable/disable "set channel group" action depending on whether
+            # the selected group is already a channel group
             self._tb.set_channel_action.setEnabled(
                 not group.is_channel_group and not group.is_system_group
             )
@@ -240,6 +244,8 @@ class ConfigGroupsEditor(QWidget):
                     self._group_preset_sel.setCurrentGroup(node.name)
         else:
             self._group_preset_sel.clearSelection()
+            # Ensure "add preset" action is disabled when no groups exist
+            self._tb.add_preset_action.setEnabled(False)
         self.configChanged.emit()
 
     def data(self) -> Sequence[ConfigGroup]:
@@ -267,8 +273,6 @@ class ConfigGroupsEditor(QWidget):
         idx = self._group_preset_sel._selected_index()
         if idx.isValid():
             # Show confirmation dialog
-            from qtpy.QtWidgets import QMessageBox
-
             item_name = idx.data(Qt.ItemDataRole.DisplayRole)
             item_type = type(idx.data(Qt.ItemDataRole.UserRole))
             type_name = item_type.__name__.replace("Config", "Config ")
@@ -329,10 +333,10 @@ class ConfigGroupsEditor(QWidget):
         lay.setContentsMargins(margin, margin, margin, margin)
         lay.addWidget(self._group_preset_sel)
 
-        prop_sel = QGroupBox("Select Properties", self)
-        lay = QVBoxLayout(prop_sel)
-        lay.setContentsMargins(margin, margin, margin, margin)
-        lay.addWidget(self._prop_selector)
+        # prop_sel = QGroupBox("Select Properties", self)
+        # lay = QVBoxLayout(prop_sel)
+        # lay.setContentsMargins(margin, margin, margin, margin)
+        # lay.addWidget(self._prop_selector)
 
         table_group = QGroupBox("Presets Table", self)
         lay = QVBoxLayout(table_group)
@@ -347,7 +351,7 @@ class ConfigGroupsEditor(QWidget):
             # └────────────────────────────────────────────────┘
             top_splitter = QSplitter(Qt.Orientation.Horizontal)
             top_splitter.addWidget(groups_presets)
-            top_splitter.addWidget(prop_sel)
+            # top_splitter.addWidget(prop_sel)
             # top_splitter.setStretchFactor(1, 1)
 
             main = QSplitter(Qt.Orientation.Vertical)
@@ -368,7 +372,7 @@ class ConfigGroupsEditor(QWidget):
 
             main = QSplitter(Qt.Orientation.Horizontal)
             main.addWidget(left_splitter)
-            main.addWidget(prop_sel)
+            # main.addWidget(prop_sel)
             main.setSizes([800, 420])
             return main
 
@@ -544,21 +548,24 @@ class _ConfigEditorToolbar(QToolBar):
             "Add Group",
             parent._add_group,
         )
-        self.addAction(
+        self.add_preset_action = self.addAction(
             StandardIcon.DOCUMENT_ADD.icon(),
             "Add Preset",
             parent._add_preset_to_current_group,
         )
-        self.addAction(
+        self.add_preset_action.setEnabled(False)
+        self.duplicate_action = self.addAction(
             StandardIcon.COPY.icon(),
             "Duplicate",
             parent._duplicate_selected,
         )
-        self.addAction(
+        self.duplicate_action.setEnabled(False)
+        self.remove_action = self.addAction(
             StandardIcon.DELETE.icon(),
             "Remove",
             parent._remove_selected,
         )
+        self.remove_action.setEnabled(False)
         self.addSeparator()
 
         # Undo/Redo actions

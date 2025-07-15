@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any, cast
 from qtpy.QtCore import QModelIndex, Qt
 from qtpy.QtGui import QFont, QIcon
 from qtpy.QtWidgets import QMessageBox, QWidget
-from superqt import QIconifyIcon
 
 from pymmcore_widgets._icons import StandardIcon
 
@@ -99,7 +98,7 @@ class QConfigGroupsModel(_BaseTreeModel):
             if node.is_setting:
                 setting = cast("DevicePropertySetting", node.payload)
                 if icon_key := setting.iconify_key:
-                    return QIconifyIcon(icon_key).pixmap(16, 16)
+                    return icon_key.icon().pixmap(16, 16)
                 return QIcon.fromTheme("emblem-system")  # pragma: no cover
 
         if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
