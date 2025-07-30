@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pymmcore_widgets
 
+ISINSTANCE_RE = re.compile(r"isinstance\s*\(\s*[^,]+,\s*CMMCore", re.MULTILINE)
+
 
 def test_no_direct_isinstance() -> None:
     # grep the entire codebase for `isinstance(obj, CMMCorePlus)`
@@ -10,7 +12,7 @@ def test_no_direct_isinstance() -> None:
     ROOT = Path(pymmcore_widgets.__file__).parent
     for path in ROOT.rglob("*.py"):
         content = path.read_text(encoding="utf-8")
-        if match := re.search(r"isinstance\s*\(\s*[^,]+,\s*CMMCore", content):
+        if match := ISINSTANCE_RE.search(content):
             line_no = content.count("\n", 0, match.start()) + 1
             raise AssertionError(
                 f"Direct isinstance check for CMMCore[Plus] found in {path} at line "
