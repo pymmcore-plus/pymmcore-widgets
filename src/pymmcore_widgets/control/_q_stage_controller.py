@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import weakref
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from pymmcore_plus import AbstractChangeAccumulator, CMMCorePlus, core
 from qtpy.QtCore import QObject, QTimerEvent, Signal
@@ -85,9 +85,8 @@ class QStageMoveAccumulator(QObject):
                 self._timer_id = None
 
             if self.snap_on_finish:
-                core = getattr(self._accum, "_mmcore", None)
-                if isinstance(core, CMMCorePlus):
-                    core.snapImage()
+                if (core := getattr(self._accum, "_mmcore", None)) is not None:
+                    cast("CMMCorePlus", core).snapImage()
                 self.snap_on_finish = False
 
             self.moveFinished.emit()
