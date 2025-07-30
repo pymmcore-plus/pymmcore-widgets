@@ -62,14 +62,14 @@ class MoveStageButton(QPushButton):
             MoveStageButton {{
                 border: none;
                 width: 38px;
-                image: url({svg_path(glyph, color="rgb(0, 180, 0)")});
+                image: url({svg_path(glyph, color="rgb(0, 180, 0)").as_posix()});
                 font-size: 38px;
             }}
             MoveStageButton:hover:!pressed {{
-                image: url({svg_path(glyph, color="lime")});
+                image: url({svg_path(glyph, color="lime").as_posix()});
             }}
             MoveStageButton:pressed {{
-                image: url({svg_path(glyph, color="green")});
+                image: url({svg_path(glyph, color="green").as_posix()});
             }}
             """
         )
