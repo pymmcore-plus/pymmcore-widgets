@@ -1,0 +1,19 @@
+import re
+from pathlib import Path
+
+import pymmcore_widgets
+
+
+def test_no_direct_isinstance() -> None:
+    # grep the entire codebase for `isinstance(obj, CMMCorePlus)`
+    # and ensure that it is not used directly.
+    ROOT = Path(pymmcore_widgets.__file__).parent
+    for path in ROOT.rglob("*.py"):
+        content = path.read_text(encoding="utf-8")
+        if match := re.search(r"isinstance\s*\(\s*[^,]+,\s*CMMCorePlus", content):
+            line_no = content.count("\n", 0, match.start()) + 1
+            raise AssertionError(
+                f"Direct isinstance check for CMMCorePlus found in {path} at line "
+                f"{line_no}.\n Use structural checks instead... or open an issue to "
+                "discuss."
+            )
