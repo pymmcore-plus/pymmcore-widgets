@@ -4,8 +4,10 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, ClassVar, cast
 
 from pymmcore_plus import DeviceType
-from qtpy.QtCore import QAbstractItemModel, QAbstractProxyModel, QModelIndex, QSize, Qt
+from qtpy.QtCore import QAbstractProxyModel, QModelIndex, QSize, Qt
 from qtpy.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
     QLineEdit,
     QSizePolicy,
     QToolBar,
@@ -194,7 +196,7 @@ class DevicePropertySelector(QWidget):
         self._model.dataChanged.connect(self._on_model_data_changed)
 
         # Track currently-checked (device_label, property_name) pairs
-        self._checked_props: set[tuple[str, str]] = set()
+        self._checked_settings: list[DevicePropertySetting] = []
 
         self._filtered_model = DeviceTypeFilter(allowed={DeviceType.Any}, parent=self)
         self._filtered_model.setSourceModel(self._model)
@@ -207,10 +209,6 @@ class DevicePropertySelector(QWidget):
         self._flat_checked_model = DevicePropertyFlatProxy()
         self._flat_checked_model.setSourceModel(_checked)
 
-        # Selected properties tree (shows only checked items)
-        self.selected_tree = _ShrinkingQTreeView(self)
-        self.selected_tree.setModel(self._flat_checked_model)
-
         self.tree = _CheckableTreeView(self)
         self._toggle_view_mode(False)  # Start with TableView (flat proxy model)
 
@@ -220,7 +218,6 @@ class DevicePropertySelector(QWidget):
         layout.addWidget(dev_btns)
         layout.addWidget(self._tb2)
         layout.addWidget(self.tree, 2)
-        layout.addWidget(self.selected_tree)
 
         dev_btns.checkedDevicesChanged.connect(
             self._filtered_model.setAllowedDeviceTypes
@@ -256,11 +253,12 @@ class DevicePropertySelector(QWidget):
                 == Qt.CheckState.Checked
             )
             key = prop.key()
-            if is_checked and key not in self._checked_props:
-                self._checked_props.add(key)
+            checked_keys = {p.key() for p in self._checked_settings}
+            if is_checked and key not in checked_keys:
+                self._checked_settings.append(prop)
                 changed = True
-            elif not is_checked and key in self._checked_props:
-                self._checked_props.remove(key)
+            elif not is_checked and key in checked_keys:
+                self._checked_settings.remove(prop)
                 changed = True
 
         # Iterate through all rows in the changed range
@@ -278,7 +276,7 @@ class DevicePropertySelector(QWidget):
                     _update(self._model.index(child_row, 0, idx))
 
         if changed:
-            self.checkedPropertiesChanged.emit(tuple(self._checked_props))
+            self.checkedPropertiesChanged.emit(tuple(self._checked_settings))
 
     def _toggle_view_mode(self, is_tree_view: bool) -> None:
         """Toggle between TreeView and TableView modes."""
@@ -300,6 +298,9 @@ class DevicePropertySelector(QWidget):
         """Clear the current selection."""
         # self.table.setValue([])
 
+    def checkedProperties(self) -> tuple[DevicePropertySetting, ...]:
+        return tuple(self._checked_settings)
+
     def clearCheckedProperties(self) -> None:
         """Clear all checked properties."""
         # clear all checks
@@ -312,7 +313,7 @@ class DevicePropertySelector(QWidget):
                     Qt.CheckState.Unchecked,
                     Qt.ItemDataRole.CheckStateRole,
                 )
-        self._checked_props.clear()
+        self._checked_settings.clear()
         self.checkedPropertiesChanged.emit(())
         return
 
@@ -341,8 +342,8 @@ class DevicePropertySelector(QWidget):
                             Qt.CheckState.Checked,
                             Qt.ItemDataRole.CheckStateRole,
                         )
-        self._checked_props = {p.key() for p in props}
-        self.checkedPropertiesChanged.emit(tuple(self._checked_props))
+        self._checked_settings = list(props)
+        self.checkedPropertiesChanged.emit(tuple({p.key() for p in props}))
 
     def setAvailableDevices(self, devices: Iterable[Device]) -> None:
         devices = list(devices)
@@ -351,7 +352,6 @@ class DevicePropertySelector(QWidget):
         # Configure main tree view header
         if hh := self.tree.header():
             hh.setSectionResizeMode(hh.ResizeMode.ResizeToContents)
-            self.selected_tree.setColumnWidth(0, self.tree.columnWidth(0))
 
         dev_types = {d.type for d in devices}
         self._dev_type_btns.setVisibleDeviceTypes(dev_types)
@@ -361,6 +361,47 @@ class DevicePropertySelector(QWidget):
             {DeviceType.AutoFocus, DeviceType.Core, DeviceType.Camera}
         )
         self._dev_type_btns.setCheckedDeviceTypes(dev_types)
+
+    @classmethod
+    def promptForProperties(
+        cls, parent: QWidget | None = None, devices: Iterable[Device] | None = None
+    ) -> tuple[DevicePropertySetting, ...]:
+        """Prompt the user to select properties from a dialog."""
+        dialog = QDialog(
+            parent,
+            Qt.WindowType.Sheet
+            | Qt.WindowType.Window
+            | Qt.WindowType.WindowCloseButtonHint
+            | Qt.WindowType.FramelessWindowHint,
+        )
+        dialog.setWindowTitle("Select Properties")
+        dialog.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        dialog.setModal(True)
+
+        btns = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
+            dialog,
+        )
+        btns.accepted.connect(dialog.accept)
+        btns.rejected.connect(dialog.reject)
+
+        selector = cls(dialog)
+        if devices:
+            selector.setAvailableDevices(devices)
+
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(selector)
+        layout.addWidget(btns)
+
+        dialog.setLayout(layout)
+        # resize the dialog to fill 80% of the parent's size
+        if parent:
+            size = parent.size()
+            dialog.resize(int(size.width() * 0.8), int(size.height() * 0.8))
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            return tuple(selector.checkedProperties())
+        return ()
 
 
 class _CheckableTreeView(QTreeView):
@@ -412,32 +453,3 @@ class _CheckableTreeView(QTreeView):
 
             # Set the new state on the source model
             model.setData(source_index, new_state, Qt.ItemDataRole.CheckStateRole)
-
-
-class _ShrinkingQTreeView(_CheckableTreeView):
-    """A QTreeView that shrinks to fit its contents."""
-
-    ACTION_KEYS: ClassVar[set[int]] = {Qt.Key.Key_Backspace}
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
-        self.updateGeometry()
-        self.setHeaderHidden(True)
-        self.setRootIsDecorated(False)
-
-    def sizeHint(self) -> QSize:
-        """Return the size hint based on the contents."""
-        size = super().sizeHint()
-        size.setHeight(50)
-        if (model := self.model()) and (nrows := model.rowCount()) > 0:
-            size.setHeight(self.sizeHintForRow(0) * nrows + 2 * self.frameWidth() + 20)
-        return size.boundedTo(QSize(10000, 220))
-
-    def setModel(self, model: QAbstractItemModel | None) -> None:
-        """Set the model and connect signals to update geometry."""
-        super().setModel(model)
-        if model is not None:
-            model.modelReset.connect(self.updateGeometry)
-            model.rowsInserted.connect(self.updateGeometry)
-            model.rowsRemoved.connect(self.updateGeometry)

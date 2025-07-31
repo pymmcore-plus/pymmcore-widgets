@@ -42,6 +42,9 @@ class GroupsPresetFinder(QStackedWidget):
 
         self.settings_table = ConfigGroupsTree(self)
         self.settings_table.setSelectionMode(QListView.SelectionMode.SingleSelection)
+        self.settings_table.setSelectionBehavior(
+            ConfigGroupsTree.SelectionBehavior.SelectRows
+        )
 
         # Create the splitter for the list views
         lists_splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -123,6 +126,11 @@ class GroupsPresetFinder(QStackedWidget):
         if current.isValid():
             if self.preset_list.model() is None:
                 self.preset_list.setModel(self._model)
+                if preset_sel := self.preset_list.selectionModel():
+                    preset_sel.currentChanged.connect(
+                        self._on_preset_selection_changed,
+                        Qt.ConnectionType.UniqueConnection,
+                    )
 
             self.preset_list.setRootIndex(current)
             self.preset_list.setCurrentIndex(QModelIndex())
@@ -143,6 +151,7 @@ class GroupsPresetFinder(QStackedWidget):
     ) -> None:
         """Handle change in the preset_list selection."""
         # Ensure settings_table has a model when a preset is selected
+        print("CHANGED PRESET", current, previous)
         if current.isValid():
             if self.settings_table.model() is None:
                 self.settings_table.setModel(self._model)

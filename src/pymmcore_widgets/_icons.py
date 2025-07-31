@@ -15,6 +15,7 @@ class StandardIcon(str, Enum):
     TREE = "ph:tree-view"
     FOLDER_ADD = "fluent:folder-add-24-regular"
     DOCUMENT_ADD = "fluent:document-add-24-regular"
+    PROPERTY_ADD = "fluent:form-new-24-regular"
     DELETE = "fluent:delete-24-regular"
     COPY = "fluent:save-copy-24-regular"
     TRANSPOSE = "carbon:transpose"

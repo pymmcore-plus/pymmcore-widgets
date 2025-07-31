@@ -63,9 +63,11 @@ class IntegerWidget(QSpinBox):
     """Slider suited to managing integer values."""
 
     def setValue(self, v: Any) -> None:
-        return super().setValue(  # type: ignore [no-any-return]
-            _stretch_range_to_contain(self, int(v))
-        )
+        try:
+            val = int(v)
+        except (ValueError, TypeError):
+            val = 0
+        return super().setValue(_stretch_range_to_contain(self, val))  # type: ignore [no-any-return]
 
 
 class FloatWidget(QDoubleSpinBox):

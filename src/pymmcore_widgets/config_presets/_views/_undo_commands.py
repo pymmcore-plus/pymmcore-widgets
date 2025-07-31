@@ -322,7 +322,7 @@ class UpdatePresetPropertiesCommand(QUndoCommand):
         self,
         model: QConfigGroupsModel,
         preset_index: QModelIndex,
-        new_properties: Sequence[tuple[str, str]],
+        new_properties: Sequence[DevicePropertySetting],
         parent: QUndoCommand | None = None,
     ) -> None:
         preset_name = preset_index.data() or "Preset"
@@ -344,7 +344,7 @@ class UpdatePresetPropertiesCommand(QUndoCommand):
                 self._old_settings = deepcopy(preset_data.settings)
 
         if self._preset_index.isValid():
-            self._model.update_preset_properties(
+            self._model.update_preset_settings(
                 QModelIndex(self._preset_index), self._new_properties
             )
 
