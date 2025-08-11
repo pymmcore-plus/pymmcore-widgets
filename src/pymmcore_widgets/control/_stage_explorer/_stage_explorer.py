@@ -344,9 +344,7 @@ class StageExplorer(QWidget):
             return
         active_roi = active_rois[0]
         if plan := active_roi.create_grid_plan(*self._fov_w_h()):
-            # for now, we expand the grid plan to a list of positions because
-            # useq grid_plan= doesn't yet support our custom polygon ROIs
-            seq = useq.MDASequence(stage_positions=list(plan))
+            seq = useq.MDASequence(grid_plan=plan)
             if not self._mmc.mda.is_running():
                 self._our_mda_running = True
                 self._mmc.run_mda(seq)
