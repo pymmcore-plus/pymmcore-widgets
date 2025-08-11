@@ -429,7 +429,6 @@ class StageExplorer(QWidget):
     def _on_poll_stage_action(self, checked: bool) -> None:
         """Set the poll stage position property based on the state of the action."""
         self._stage_pos_marker.visible = checked
-        print("Stage position marker visible:", self._stage_pos_marker.visible)
         self._poll_stage_position = checked
         if checked:
             self._timer_id = self.startTimer(20)
