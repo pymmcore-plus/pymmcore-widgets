@@ -152,6 +152,13 @@ class SceneROIManager(QObject):
             index.internalPointer() for index in self.selection_model.selectedIndexes()
         ]
 
+    def all_rois(self) -> list[ROI]:
+        """Return a list of all ROIs."""
+        return [
+            self.roi_model.index(row).internalPointer()
+            for row in range(self.roi_model.rowCount())
+    ]
+
     def delete_selected_rois(self) -> None:
         """Delete the selected ROIs from the model."""
         for roi in self.selected_rois():
