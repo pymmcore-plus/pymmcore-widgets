@@ -339,7 +339,7 @@ class StageExplorer(QWidget):
             self._stage_pos_marker.set_marker_visible(pi.show_marker)
 
     def _on_scan_action(self) -> None:
-        """Scan the selected ROIs."""
+        """Scan the selected ROI."""
         if not (active_rois := self.roi_manager.selected_rois()):
             return
         active_roi = active_rois[0]
@@ -581,7 +581,7 @@ class StageExplorerToolbar(QToolBar):
         self.addSeparator()
         self.scan_action = self.addAction(
             QIconifyIcon("ph:path-duotone", color=GRAY),
-            "Scan Selected ROIs",
+            "Scan Selected ROI",
         )
 
 
