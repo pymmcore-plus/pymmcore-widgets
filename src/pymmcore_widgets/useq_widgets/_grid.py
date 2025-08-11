@@ -29,10 +29,7 @@ if TYPE_CHECKING:
     from typing import Literal, TypeAlias
 
     GridPlan: TypeAlias = (
-        useq.GridFromEdges
-        | useq.GridRowsColumns
-        | useq.GridWidthHeight
-        | useq.GridFromPolygon
+        useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
     )
 
     class ValueWidget(Protocol, QWidget):  # pyright: ignore
@@ -58,7 +55,6 @@ class Mode(Enum):
     NUMBER = "number"
     AREA = "area"
     BOUNDS = "bounds"
-    POLYGON = "polygon"
 
     def __str__(self) -> str:
         return self.value
@@ -74,8 +70,6 @@ class Mode(Enum):
             return cls.BOUNDS
         elif isinstance(plan, useq.GridWidthHeight):
             return cls.AREA
-        elif isinstance(plan, useq.GridFromPolygon):
-            return cls.POLYGON
         raise TypeError(f"Unknown grid plan type: {type(plan)}")  # pragma: no cover
 
 
@@ -83,7 +77,6 @@ _MODE_TO_USEQ: dict[Mode, type[GridPlan]] = {
     Mode.NUMBER: useq.GridRowsColumns,
     Mode.BOUNDS: useq.GridFromEdges,
     Mode.AREA: useq.GridWidthHeight,
-    Mode.POLYGON: useq.GridFromPolygon,
 }
 
 
