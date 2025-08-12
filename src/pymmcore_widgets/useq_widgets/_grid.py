@@ -4,14 +4,18 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol
 
 import useq
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import QPointF, QRectF, Qt, Signal
+from qtpy.QtGui import QBrush, QPainter, QPainterPath, QPen, QPolygonF, QTransform
 from qtpy.QtWidgets import (
     QAbstractButton,
     QButtonGroup,
     QDoubleSpinBox,
     QFormLayout,
+    QGraphicsEllipseItem,
+    QGraphicsPathItem,
+    QGraphicsRectItem,
+    QGraphicsScene,
+    QGraphicsView,
     QHBoxLayout,
     QLabel,
     QRadioButton,
@@ -22,6 +26,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from shapely.geometry import Point
 from superqt import QEnumComboBox
 from superqt.utils import signals_blocked
 
@@ -260,15 +265,16 @@ class GridPlanWidget(QScrollArea):
                 self.setMode(mode)
 
             # ensure the correct QRadioButton is checked
-            if mode == Mode.NUMBER:
-                self._mode_number_radio.setChecked(True)
-            elif mode == Mode.AREA:
-                self._mode_area_radio.setChecked(True)
-            elif mode == Mode.BOUNDS:
-                self._mode_bounds_radio.setChecked(True)
-            elif mode == Mode.POLYGON:
-                self._mode_polygon_radio.show()
-                self._mode_polygon_radio.setChecked(True)
+            with signals_blocked(self._mode_btn_group):
+                if mode == Mode.NUMBER:
+                    self._mode_number_radio.setChecked(True)
+                elif mode == Mode.AREA:
+                    self._mode_area_radio.setChecked(True)
+                elif mode == Mode.BOUNDS:
+                    self._mode_bounds_radio.setChecked(True)
+                elif mode == Mode.POLYGON:
+                    self._mode_polygon_radio.show()
+                    self._mode_polygon_radio.setChecked(True)
 
         self._on_change()
 
@@ -421,18 +427,39 @@ class _BoundsWidget(QWidget):
 
 
 class _PolygonWidget(QWidget):
-    """A Simple widget to display the useq.GridFromPolygon."""
+    """Qt widget that draws a useq.GridFromPolygon similar to its matplotlib `plot()`."""
 
-    def __init__(self) -> None:
+    # tune these to match your matplotlib aesthetics
+    _VERTEX_RADIUS = 0.12
+    _CENTER_RADIUS = 0.08
+    _POLY_PEN = QPen(Qt.GlobalColor.black, 0.1)
+    _POLY_BRUSH = QBrush(Qt.BrushStyle.NoBrush)
+    _BB_PEN = QPen(Qt.GlobalColor.black, 0.1, Qt.PenStyle.DashLine)
+    _VERTEX_PEN = QPen(Qt.GlobalColor.red, 0)
+    _VERTEX_BRUSH = QBrush(Qt.GlobalColor.red)
+    _CENTER_PEN = QPen(Qt.GlobalColor.darkBlue, 0)
+    _CENTER_BRUSH = QBrush(Qt.GlobalColor.darkBlue)
+    _FOV_PEN = QPen(Qt.GlobalColor.blue, 0.1)
+    _FOV_BRUSH = QBrush(Qt.BrushStyle.NoBrush)  # or a translucent brush if you like
+
+    def __init__(self, show_fovs: bool = True, show_centers: bool = True) -> None:
         super().__init__()
-
         self._polygon: useq.GridFromPolygon | None = None
+        self._show_fovs = show_fovs
+        self._show_centers = show_centers
 
-        # create a matplotlib figure and canvas
-        self.plot_widget = FigureCanvas(Figure())
+        self.scene = QGraphicsScene()
+        self.view = QGraphicsView(self.scene)
+        self.view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        # y-up like matplotlib
+        self.view.setTransform(QTransform.fromScale(1, -1))
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.plot_widget)
+        layout.addWidget(self.view)
+
+    # --- public API ---------------------------------------------------------
 
     def value(self) -> dict[str, list[tuple[float, float]]]:
         vertices = self._polygon.vertices if self._polygon else []
@@ -441,13 +468,186 @@ class _PolygonWidget(QWidget):
         return {"vertices": vertices}
 
     def setValue(self, plan: useq.GridFromPolygon) -> None:
-        """Set the polygon to display."""
+        """Set and render the polygon/grid plan."""
         self._polygon = plan
-        self.plot_widget.figure.clear()
-        ax = self.plot_widget.figure.subplots()
-        ax.clear()
-        self._polygon.plot(axes=ax, hide_axes=True)
-        self.plot_widget.draw()
+        self._redraw()
+
+    # --- internals ----------------------------------------------------------
+
+    def _redraw(self) -> None:
+        self.scene.clear()
+        if not self._polygon:
+            return
+
+        poly = self._polygon.poly  # shapely Polygon (already in your snippet)
+        verts: list[tuple[float, float]] = list(self._polygon.vertices or [])
+
+        # 1) Draw polygon outline (support holes)
+        poly_item = self._make_polygon_item(poly)
+        poly_item.setPen(self._POLY_PEN)
+        poly_item.setBrush(self._POLY_BRUSH)
+        self.scene.addItem(poly_item)
+
+        # 2) Draw vertices as red dots
+        for x, y in verts:
+            self._add_dot(
+                x, y, self._VERTEX_RADIUS, self._VERTEX_PEN, self._VERTEX_BRUSH
+            )
+
+        # 3) Draw dashed bounding box
+        min_x, min_y, max_x, max_y = poly.bounds
+        bb = QGraphicsRectItem(min_x, min_y, max_x - min_x, max_y - min_y)
+        bb.setPen(self._BB_PEN)
+        self.scene.addItem(bb)
+
+        # 4) Draw grid centers and FOV rectangles (computed like the mpl plot)
+        centers = self._compute_centers(self._polygon)
+        if self._show_fovs:
+            fw, fh = self._get_fov(self._polygon)
+            if fw > 0 and fh > 0:
+                hw, hh = fw / 2.0, fh / 2.0
+                for cx, cy in centers:
+                    rect = QGraphicsRectItem(cx - hw, cy - hh, fw, fh)
+                    rect.setPen(self._FOV_PEN)
+                    rect.setBrush(self._FOV_BRUSH)
+                    self.scene.addItem(rect)
+
+        if self._show_centers:
+            for cx, cy in centers:
+                self._add_dot(
+                    cx, cy, self._CENTER_RADIUS, self._CENTER_PEN, self._CENTER_BRUSH
+                )
+
+        # 5) Fit everything nicely
+        self._fit_view_to_items(pad=0.1)
+
+    def _make_polygon_item(self, shapely_poly) -> QGraphicsPathItem:
+        """Create a QGraphicsPathItem for a shapely Polygon with holes."""
+        path = QPainterPath()
+        # exterior
+        ext = [QPointF(x, y) for (x, y) in shapely_poly.exterior.coords]
+        if ext:
+            path.addPolygon(QPolygonF(ext))
+        # holes
+        for interior in shapely_poly.interiors:
+            pts = [QPointF(x, y) for (x, y) in interior.coords]
+            if pts:
+                path.addPolygon(QPolygonF(pts))
+        item = QGraphicsPathItem(path)
+        return item
+
+    def _add_dot(
+        self, x: float, y: float, r: float, pen: QPen, brush: QBrush
+    ) -> QGraphicsEllipseItem:
+        d = 2 * r
+        ell = self.scene.addEllipse(x - r, y - r, d, d, pen, brush)
+        ell.setZValue(10)  # keep dots above outlines
+        return ell
+
+    def _fit_view_to_items(self, pad: float = 0.05) -> None:
+        rect = self.scene.itemsBoundingRect()
+        if rect.isNull():
+            return
+        # small padding (in scene units)
+        padded = QRectF(
+            rect.x() - rect.width() * pad,
+            rect.y() - rect.height() * pad,
+            rect.width() * (1 + 2 * pad),
+            rect.height() * (1 + 2 * pad),
+        )
+        self.scene.setSceneRect(padded)
+        # keep transform (y-up) while fitting
+        self.view.transform()
+        self.view.resetTransform()
+        self.view.setTransform(QTransform())  # reset
+        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self.view.setTransform(QTransform.fromScale(1, -1) * self.view.transform())
+
+    def resizeEvent(self, ev) -> None:  # keep fitted on resize
+        super().resizeEvent(ev)
+        self._fit_view_to_items(pad=0.1)
+
+    # --- grid center computation (parallels what mpl plot visualizes) -------
+
+    def _get_fov(self, plan) -> Tuple[float, float]:
+        """Return FOV width/height with safe fallbacks."""
+        fw = float(getattr(plan, "fov_width", 0.0) or 0.0)
+        fh = float(getattr(plan, "fov_height", fw) or fw)  # fallback: square FOV
+        return fw, fh
+
+    def _get_step(self, plan, fw: float, fh: float) -> Tuple[float, float]:
+        """Compute step from overlap, mimicking useq logic: step = fov * (1 - overlap)."""
+        ov = getattr(plan, "overlap", (0.0, 0.0)) or (0.0, 0.0)
+        try:
+            ox, oy = float(ov[0]), float(ov[1])
+        except Exception:
+            ox, oy = 0.0, 0.0
+        sx = fw * (1.0 - ox)
+        sy = fh * (1.0 - oy)
+        # keep sensible defaults if something is missing
+        if sx <= 0:
+            sx = fw if fw > 0 else 1.0
+        if sy <= 0:
+            sy = fh if fh > 0 else sx
+        return sx, sy
+
+    def _compute_centers(self, plan) -> list[tuple[float, float]]:
+        """
+        Try to use any available attribute from the plan first (if it exposes centers).
+        Otherwise, generate a rectilinear lattice over the polygon bounds and keep
+        points whose centers fall inside the polygon.
+        """
+        # 1) Use exposed centers if the plan provides them (future-proof)
+        for attr_name in ("centers", "sites", "tile_centers", "points", "grid_points"):
+            pts = getattr(plan, attr_name, None)
+            if callable(pts):
+                try:
+                    got = list(pts())
+                    if got:
+                        return [(float(x), float(y)) for x, y in got]
+                except Exception:
+                    pass
+            elif isinstance(pts, (list, tuple)) and pts:
+                try:
+                    return [(float(x), float(y)) for x, y in pts]  # type: ignore[arg-type]
+                except Exception:
+                    pass
+
+        # 2) Fallback: lattice inside polygon
+        poly = plan.poly
+        fw, fh = self._get_fov(plan)
+        if fw <= 0 or fh <= 0:  # no FOV info -> just return vertices as a hint
+            return [(float(x), float(y)) for x, y in getattr(plan, "vertices", [])]
+
+        sx, sy = self._get_step(plan, fw, fh)
+        min_x, min_y, max_x, max_y = poly.bounds
+
+        # center grid roughly on polygon centroid to match mpl plot "feel"
+        cx, cy = poly.centroid.x, poly.centroid.y
+        # anchor the first node on the nearest lattice intersection to the centroid
+        import math
+
+        start_x = cx - math.floor((cx - (min_x - fw)) / sx) * sx
+        start_y = cy - math.floor((cy - (min_y - fh)) / sy) * sy
+
+        pts: list[tuple[float, float]] = []
+        y = start_y
+        # extend slightly beyond bounds to ensure edge coverage
+        while y <= max_y + fh:
+            x = start_x
+            while x <= max_x + fw:
+                if Point is None:
+                    # coarse check without shapely Point.contains
+                    if poly.buffer(1e-12).contains(
+                        poly.__class__([(x, y)])
+                    ):  # very defensive
+                        pts.append((x, y))
+                else:
+                    if poly.contains(Point(x, y)):
+                        pts.append((x, y))
+                x += sx
+            y += sy
+        return pts
 
 
 class _ResizableStackedWidget(QStackedWidget):
