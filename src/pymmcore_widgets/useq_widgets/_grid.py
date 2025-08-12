@@ -4,6 +4,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol
 
 import useq
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QAbstractButton,
@@ -29,7 +31,10 @@ if TYPE_CHECKING:
     from typing import Literal, TypeAlias
 
     GridPlan: TypeAlias = (
-        useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
+        useq.GridFromEdges
+        | useq.GridRowsColumns
+        | useq.GridWidthHeight
+        | useq.GridFromPolygon
     )
 
     class ValueWidget(Protocol, QWidget):  # pyright: ignore
@@ -55,6 +60,7 @@ class Mode(Enum):
     NUMBER = "number"
     AREA = "area"
     BOUNDS = "bounds"
+    POLYGON = "polygon"
 
     def __str__(self) -> str:
         return self.value
@@ -70,6 +76,8 @@ class Mode(Enum):
             return cls.BOUNDS
         elif isinstance(plan, useq.GridWidthHeight):
             return cls.AREA
+        elif isinstance(plan, useq.GridFromPolygon):
+            return cls.POLYGON
         raise TypeError(f"Unknown grid plan type: {type(plan)}")  # pragma: no cover
 
 
@@ -77,6 +85,7 @@ _MODE_TO_USEQ: dict[Mode, type[GridPlan]] = {
     Mode.NUMBER: useq.GridRowsColumns,
     Mode.BOUNDS: useq.GridFromEdges,
     Mode.AREA: useq.GridWidthHeight,
+    Mode.POLYGON: useq.GridFromPolygon,
 }
 
 
@@ -97,21 +106,28 @@ class GridPlanWidget(QScrollArea):
         self._mode_number_radio = QRadioButton("Fields of View")
         self._mode_area_radio = QRadioButton("Width && Height")
         self._mode_bounds_radio = QRadioButton("Absolute Bounds")
+        self._mode_polygon_radio = QRadioButton("Polygon")
+        # by default, hide the polygon mode. Will be visible only if required using
+        # the setMode method.
+        self._mode_polygon_radio.hide()
         # group the radio buttons together
         self._mode_btn_group = QButtonGroup()
         self._mode_btn_group.addButton(self._mode_number_radio)
         self._mode_btn_group.addButton(self._mode_area_radio)
         self._mode_btn_group.addButton(self._mode_bounds_radio)
+        self._mode_btn_group.addButton(self._mode_polygon_radio)
         self._mode_btn_group.buttonToggled.connect(self.setMode)
 
         self.row_col_wdg = _RowsColsWidget()
         self.width_height_wdg = _WidthHeightWidget()
         self.bounds_wdg = _BoundsWidget()
+        self.polygon_wdg = _PolygonWidget()
         # ease of lookup
         self._mode_to_widget: dict[Mode, ValueWidget] = {
             Mode.NUMBER: self.row_col_wdg,
             Mode.AREA: self.width_height_wdg,
             Mode.BOUNDS: self.bounds_wdg,
+            Mode.POLYGON: self.polygon_wdg,
         }
 
         self._bottom_stuff = _BottomStuff()
@@ -128,12 +144,14 @@ class GridPlanWidget(QScrollArea):
         btns_row.addWidget(self._mode_number_radio)
         btns_row.addWidget(self._mode_area_radio)
         btns_row.addWidget(self._mode_bounds_radio)
+        btns_row.addWidget(self._mode_polygon_radio)
 
         # stack the different mode widgets on top of each other
         self._stack = _ResizableStackedWidget(self)
         self._stack.addWidget(self.row_col_wdg)
         self._stack.addWidget(self.width_height_wdg)
         self._stack.addWidget(self.bounds_wdg)
+        self._stack.addWidget(self.polygon_wdg)
 
         # wrap the whole thing in an inner widget so we can put it in this ScrollArea
         inner_widget = QWidget(self)
@@ -170,12 +188,14 @@ class GridPlanWidget(QScrollArea):
         """Return the current mode, one of "number", "area", or "bounds"."""
         return self._mode
 
-    def setMode(self, mode: Mode | Literal["number", "area", "bounds"]) -> None:
-        """Set the current mode, one of "number", "area", or "bounds".
+    def setMode(
+        self, mode: Mode | Literal["number", "area", "bounds", "polygon"]
+    ) -> None:
+        """Set the current mode, one of "number", "area", "bounds", or "polygon".
 
         Parameters
         ----------
-        mode : Mode | Literal["number", "area", "bounds"]
+        mode : Mode | Literal["number", "area", "bounds", "polygon"]
             The mode to set.
         """
         if isinstance(mode, QRadioButton):
@@ -183,6 +203,7 @@ class GridPlanWidget(QScrollArea):
                 self._mode_number_radio: Mode.NUMBER,
                 self._mode_area_radio: Mode.AREA,
                 self._mode_bounds_radio: Mode.BOUNDS,
+                self._mode_polygon_radio: Mode.POLYGON,
             }
             mode = btn_map[mode]
         elif isinstance(mode, str):
@@ -212,6 +233,7 @@ class GridPlanWidget(QScrollArea):
         }
         if self._mode not in {Mode.NUMBER, Mode.AREA}:
             kwargs.pop("relative_to", None)
+
         return self._mode.to_useq_cls()(**kwargs)
 
     def setValue(self, value: GridPlan) -> None:
@@ -219,10 +241,10 @@ class GridPlanWidget(QScrollArea):
 
         Parameters
         ----------
-        value : useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
+        value : useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromPolygon
             The [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
             to set.
-        """
+        """  # noqa: E501
         mode = Mode.for_grid_plan(value)
 
         with signals_blocked(self):
@@ -236,6 +258,17 @@ class GridPlanWidget(QScrollArea):
             with signals_blocked(self._bottom_stuff):
                 self._bottom_stuff.setValue(value)
                 self.setMode(mode)
+
+            # ensure the correct QRadioButton is checked
+            if mode == Mode.NUMBER:
+                self._mode_number_radio.setChecked(True)
+            elif mode == Mode.AREA:
+                self._mode_area_radio.setChecked(True)
+            elif mode == Mode.BOUNDS:
+                self._mode_bounds_radio.setChecked(True)
+            elif mode == Mode.POLYGON:
+                self._mode_polygon_radio.show()
+                self._mode_polygon_radio.setChecked(True)
 
         self._on_change()
 
@@ -385,6 +418,36 @@ class _BoundsWidget(QWidget):
         self.top.setValue(plan.top)
         self.right.setValue(plan.right)
         self.bottom.setValue(plan.bottom)
+
+
+class _PolygonWidget(QWidget):
+    """A Simple widget to display the useq.GridFromPolygon."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._polygon: useq.GridFromPolygon | None = None
+
+        # create a matplotlib figure and canvas
+        self.plot_widget = FigureCanvas(Figure())
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.plot_widget)
+
+    def value(self) -> dict[str, list[tuple[float, float]]]:
+        vertices = self._polygon.vertices if self._polygon else []
+        if not vertices:
+            return {"vertices": [(0, 0), (0, 0), (0, 0)]}
+        return {"vertices": vertices}
+
+    def setValue(self, plan: useq.GridFromPolygon) -> None:
+        """Set the polygon to display."""
+        self._polygon = plan
+        self.plot_widget.figure.clear()
+        ax = self.plot_widget.figure.subplots()
+        ax.clear()
+        self._polygon.plot(axes=ax, hide_axes=True)
+        self.plot_widget.draw()
 
 
 class _ResizableStackedWidget(QStackedWidget):
