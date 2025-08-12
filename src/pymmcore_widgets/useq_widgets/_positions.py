@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import useq
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -70,6 +72,20 @@ class _MDAPopup(QDialog):
                 break
             par = par.parent()
 
+        # if the grid plan is a GridFromPolygon, replace the grid plan tab with an
+        # empty tab where we show the result of GridFromPolygon.plot()
+        if value and (gp := value.grid_plan) and isinstance(gp, useq.GridFromPolygon):
+            self.mda_tabs.removeTab(self.mda_tabs.indexOf(self.mda_tabs.grid_plan))
+            self.mda_tabs.addTab(
+                _PolygonViewer(parent=self, polygon=gp),  # Pass the correct parameter
+                "Polygon Viewer",
+                checked=True,
+            )
+            # hide the checkbox
+            self.mda_tabs._cboxes[-1].setVisible(False)
+            # remove grid plan from value
+            value = value.replace(grid_plan=None)
+
         # set the value if provided
         if value:
             self.mda_tabs.setValue(value)
@@ -83,6 +99,29 @@ class _MDAPopup(QDialog):
         layout = QVBoxLayout(self)
         layout.addWidget(self.mda_tabs)
         layout.addWidget(self._btns)
+
+
+class _PolygonViewer(QWidget):
+    """A Simple widget to display the useq.GridFromPolygon."""
+
+    def __init__(
+        self,
+        parent: QWidget | None,
+        polygon: useq.GridFromPolygon,
+    ) -> None:
+        super().__init__(parent)
+
+        # create a matplotlib figure and canvas
+        self.plot_widget = FigureCanvas(Figure())
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.plot_widget)
+
+        # plot the polygon using the provided plot method
+        ax = self.plot_widget.figure.subplots()
+        ax.clear()
+        polygon.plot(axes=ax, hide_axes=True)
+        self.plot_widget.draw()
 
 
 class MDAButton(QWidget):
@@ -113,6 +152,10 @@ class MDAButton(QWidget):
         self.setValue(None)
 
     def _on_click(self) -> None:
+
+        from rich import print
+        print(self._value)
+
         dialog = _MDAPopup(self._value, self)
         if dialog.exec():
             self.setValue(dialog.mda_tabs.value())

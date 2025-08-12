@@ -30,7 +30,12 @@ from pymmcore_widgets.useq_widgets._column_info import (
     TextColumn,
     parse_timedelta,
 )
-from pymmcore_widgets.useq_widgets._positions import MDAButton, QFileDialog, _MDAPopup
+from pymmcore_widgets.useq_widgets._positions import (
+    MDAButton,
+    QFileDialog,
+    _MDAPopup,
+    _PolygonViewer,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -552,3 +557,22 @@ def test_autofocus_with_z_plans(qtbot: QtBot) -> None:
 
     assert wdg.af_axis.isEnabled()
     assert wdg.stage_positions.af_per_position.isEnabled()
+
+
+def test_mda_popup_with_polygon(qtbot: QtBot) -> None:
+    polygon = useq.GridFromPolygon(
+        vertices=[(-10, 0), (12, -5), (10, 20), (0, 10)],
+        fov_height=1,
+        fov_width=1,
+    )
+    seq = useq.MDASequence(channels=["DAPI", "GFP"], grid_plan=polygon)
+    pop = _MDAPopup(seq)
+    qtbot.addWidget(pop)
+    # assert grid plan tab is hidden
+    assert pop.mda_tabs.grid_plan.isHidden()
+    # get the _polygon viewer
+    polygon = pop.mda_tabs.children()[0].widget(3)
+    # make sure it is a _PolygonViewer
+    assert isinstance(polygon, _PolygonViewer)
+    # make sure the plot is visible
+    assert polygon.plot_widget.figure is not None
