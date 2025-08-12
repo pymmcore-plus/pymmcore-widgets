@@ -152,10 +152,6 @@ class MDAButton(QWidget):
         self.setValue(None)
 
     def _on_click(self) -> None:
-
-        from rich import print
-        print(self._value)
-
         dialog = _MDAPopup(self._value, self)
         if dialog.exec():
             self.setValue(dialog.mda_tabs.value())
