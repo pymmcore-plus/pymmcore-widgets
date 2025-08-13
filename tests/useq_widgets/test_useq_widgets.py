@@ -587,4 +587,5 @@ def test_mda_popup_with_polygon(qtbot: QtBot) -> None:
     gp = pop.mda_tabs.grid_plan
     assert pop.mda_tabs.isChecked(gp)
     assert gp._mode_btn_group.checkedButton().text() == "Polygon"
-    assert gp.polygon_wdg.plot_widget.figure is not None
+    assert gp.polygon_wdg.scene is not None
+    assert gp.polygon_wdg.scene.items()

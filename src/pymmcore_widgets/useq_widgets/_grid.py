@@ -585,8 +585,8 @@ class _PolygonWidget(QWidget):
             centers.append((float(x), float(y)))
         return centers
 
-    def resizeEvent(self, ev: QResizeEvent) -> None:
-        super().resizeEvent(ev)
+    def resizeEvent(self, a0: QResizeEvent | None) -> None:
+        super().resizeEvent(a0)
         self._fit_view_to_items()
 
 
@@ -595,10 +595,10 @@ class _ResizableStackedWidget(QStackedWidget):
         super().__init__(parent=parent)
         self.currentChanged.connect(self.onCurrentChanged)
 
-    def addWidget(self, wdg: QWidget | None) -> int:
-        if wdg is not None:
-            wdg.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
-        return super().addWidget(wdg)  # type: ignore [no-any-return]
+    def addWidget(self, w: QWidget | None) -> int:
+        if w is not None:
+            w.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+        return super().addWidget(w)  # type: ignore [no-any-return]
 
     def onCurrentChanged(self, idx: int) -> None:
         for i in range(self.count()):
