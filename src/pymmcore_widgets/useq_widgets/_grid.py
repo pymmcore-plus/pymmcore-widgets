@@ -311,7 +311,7 @@ class GridPlanWidget(QScrollArea):
         if (val := self.value()) is None:
             return  # pragma: no cover
         if isinstance(val, useq.GridFromPolygon):
-            self.polygon_wdg._redraw(val)
+            self.polygon_wdg.setValue(val)
         self.valueChanged.emit(val)
 
 
@@ -435,6 +435,43 @@ class _BoundsWidget(QWidget):
         self.top.setValue(plan.top)
         self.right.setValue(plan.right)
         self.bottom.setValue(plan.bottom)
+
+
+# class _PolygonWidget(QWidget):
+#     def __init__(self, parent=None):
+#         from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as Canvas
+#         from matplotlib.figure import Figure
+
+#         super().__init__(parent)
+
+#         self._fig = Figure(constrained_layout=True)
+#         self._ax = self._fig.add_subplot(111)
+#         self._canvas = Canvas(self._fig)
+
+#         self._polygon: useq.GridFromPolygon | None = None
+
+#         lay = QVBoxLayout(self)
+#         lay.setContentsMargins(0, 0, 0, 0)
+#         lay.addWidget(self._canvas)
+
+#     def value(self) -> dict[str, Any]:
+#         vertices = self._polygon.vertices if self._polygon else []
+#         convex_hull = self._polygon.convex_hull if self._polygon else False
+#         offset = self._polygon.offset if self._polygon else 0
+#         if not vertices:
+#             return {
+#                 "vertices": [(0, 0), (0, 0), (0, 0)],
+#                 "convex_hull": False,
+#                 "offset": 0,
+#             }
+#         return {"vertices": vertices, "convex_hull": convex_hull, "offset": offset}
+
+#     def setValue(self, plan: useq.GridFromPolygon) -> None:
+#         self._polygon = plan
+#         self._ax.clear()
+#         plan.plot(axes=self._ax)       # <— direct reuse
+#         self._ax.set_aspect("equal") # usually desirable for XY
+#         self._canvas.draw_idle()
 
 
 class _PolygonWidget(QWidget):
