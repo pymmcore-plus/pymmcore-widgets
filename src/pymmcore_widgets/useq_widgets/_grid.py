@@ -438,13 +438,13 @@ class _BoundsWidget(QWidget):
 
 
 class _PolygonWidget(QWidget):
-    """QWidget that draws a useq.GridFromPolygon similar to its matplotlib `plot()`."""
+    """QWidget that draws a useq.GridFromPolygon."""
 
     VERTEX_RADIUS = 0
     CENTER_RADIUS = 0
     POLY_PEN = QPen(Qt.GlobalColor.darkMagenta)
     POLY_BRUSH = QBrush(Qt.BrushStyle.NoBrush)
-    BB_PEN = QPen(Qt.GlobalColor.darkGray, 0, Qt.PenStyle.DashLine)
+    BB_PEN = QPen(Qt.GlobalColor.darkGray, 0, Qt.PenStyle.DotLine)
     VERTEX_PEN = QPen(Qt.GlobalColor.magenta, 0)
     VERTEX_BRUSH = QBrush(Qt.GlobalColor.magenta)
     CENTER_PEN = QPen(Qt.GlobalColor.darkGreen, 0)
@@ -519,6 +519,20 @@ class _PolygonWidget(QWidget):
 
         # draw grid centers and FOV rectangles
         centers = self._compute_centers(self._polygon)
+
+        # connect centers
+        if len(centers) >= 2:
+            path = QPainterPath(QPointF(*centers[0]))
+            for x, y in centers[1:]:
+                path.lineTo(x, y)
+            path_item = QGraphicsPathItem(path)
+            path_pen = QPen(self.CENTER_PEN)
+            path_pen.setWidth(pen_size)
+            path_pen.setStyle(Qt.PenStyle.DashLine)
+            path_item.setPen(path_pen)
+            path_item.setZValue(0.5)
+            self.scene.addItem(path_item)
+
         if fw > 0 and fh > 0:
             hw, hh = fw / 2.0, fh / 2.0
             for cx, cy in centers:
