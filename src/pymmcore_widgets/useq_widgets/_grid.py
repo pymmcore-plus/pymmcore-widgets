@@ -440,16 +440,16 @@ class _BoundsWidget(QWidget):
 class _PolygonWidget(QWidget):
     """QWidget that draws a useq.GridFromPolygon similar to its matplotlib `plot()`."""
 
-    VERTEX_RADIUS = 0.12
-    CENTER_RADIUS = 0.12
-    POLY_PEN = QPen(Qt.GlobalColor.darkMagenta, 0.08)
+    VERTEX_RADIUS = 0
+    CENTER_RADIUS = 0
+    POLY_PEN = QPen(Qt.GlobalColor.darkMagenta)
     POLY_BRUSH = QBrush(Qt.BrushStyle.NoBrush)
-    BB_PEN = QPen(Qt.GlobalColor.darkGray, 0.08, Qt.PenStyle.DashLine)
+    BB_PEN = QPen(Qt.GlobalColor.darkGray, 0, Qt.PenStyle.DashLine)
     VERTEX_PEN = QPen(Qt.GlobalColor.magenta, 0)
     VERTEX_BRUSH = QBrush(Qt.GlobalColor.magenta)
     CENTER_PEN = QPen(Qt.GlobalColor.darkGreen, 0)
     CENTER_BRUSH = QBrush(Qt.GlobalColor.darkGreen)
-    FOV_PEN = QPen(Qt.GlobalColor.darkGray, 0.08)
+    FOV_PEN = QPen(Qt.GlobalColor.darkGray)
     FOV_BRUSH = QBrush(Qt.BrushStyle.NoBrush)
 
     def __init__(self, show_fovs: bool = True, show_centers: bool = True) -> None:
@@ -491,12 +491,17 @@ class _PolygonWidget(QWidget):
         if not self._polygon and plan is None:
             return
 
+        fw, fh = plan.fov_width or 0, plan.fov_height or 0
+        pen_size = int(fw * 0.04) if fw > 0 else 1
+        self.VERTEX_RADIUS = self.CENTER_RADIUS = pen_size
+
         self._polygon = plan
         poly = self._polygon.poly
         verts: list[tuple[float, float]] = list(self._polygon.vertices or [])
 
         # draw polygon outline
         poly_item = self._make_polygon_item(poly)
+        self.POLY_PEN.setWidth(pen_size)
         poly_item.setPen(self.POLY_PEN)
         poly_item.setBrush(self.POLY_BRUSH)
         self.scene.addItem(poly_item)
@@ -508,16 +513,17 @@ class _PolygonWidget(QWidget):
         # draw dashed bounding box
         min_x, min_y, max_x, max_y = poly.bounds
         bb = QGraphicsRectItem(min_x, min_y, max_x - min_x, max_y - min_y)
+        self.BB_PEN.setWidth(pen_size)
         bb.setPen(self.BB_PEN)
         self.scene.addItem(bb)
 
         # draw grid centers and FOV rectangles
         centers = self._compute_centers(self._polygon)
-        fw, fh = plan.fov_width or 0, plan.fov_height or 0
         if fw > 0 and fh > 0:
             hw, hh = fw / 2.0, fh / 2.0
             for cx, cy in centers:
                 rect = QGraphicsRectItem(cx - hw, cy - hh, fw, fh)
+                self.FOV_PEN.setWidth(pen_size)
                 rect.setPen(self.FOV_PEN)
                 rect.setBrush(self.FOV_BRUSH)
                 self.scene.addItem(rect)
