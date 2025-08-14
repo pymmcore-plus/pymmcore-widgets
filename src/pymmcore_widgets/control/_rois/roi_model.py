@@ -23,7 +23,8 @@ class ROI:
     font_size: int = 12
 
     fov_size: tuple[float, float] | None = None  # (width, height)
-    fov_overlap: tuple[float, float] | None = None  # frac (width, height) 0..1
+    fov_overlap: tuple[float, float] = (0.0, 0.0)  # (width, height)
+    acq_mode: useq.OrderMode = useq.OrderMode.row_wise_snake
 
     def translate(self, dx: float, dy: float) -> None:
         """Translate the ROI in place by (dx, dy)."""
@@ -90,6 +91,8 @@ class ROI:
         self,
         fov_w: float | None = None,
         fov_h: float | None = None,
+        overlap: float | tuple[float, float] = 0.0,
+        mode: useq.OrderMode = useq.OrderMode.row_wise_snake,
     ) -> useq._grid._GridPlan | None:
         """Return a useq.AbsolutePosition object that covers the ROI."""
         if fov_w is None or fov_h is None:
@@ -103,6 +106,7 @@ class ROI:
         # a single position at the center of the roi is sufficient, otherwise create a
         # grid plan that covers the roi
         if abs(right - left) > fov_w or abs(bottom - top) > fov_h:
+            overlap = overlap if isinstance(overlap, tuple) else (overlap, overlap)
             if type(self) is not RectangleROI:
                 if len(self.vertices) < 3:
                     return None
@@ -110,6 +114,8 @@ class ROI:
                     vertices=list(self.vertices),
                     fov_width=fov_w,
                     fov_height=fov_h,
+                    mode=mode,
+                    overlap=overlap,
                 )
             else:
                 return useq.GridFromEdges(
@@ -119,6 +125,8 @@ class ROI:
                     right=right,
                     fov_width=fov_w,
                     fov_height=fov_h,
+                    mode=mode,
+                    overlap=overlap,
                 )
         return None
 
@@ -129,7 +137,9 @@ class ROI:
         z_pos: float = 0.0,
     ) -> useq.AbsolutePosition:
         """Return a useq.AbsolutePosition object that covers the ROI."""
-        grid_plan = self.create_grid_plan(fov_w=fov_w, fov_h=fov_h)
+        grid_plan = self.create_grid_plan(
+            fov_w=fov_w, fov_h=fov_h, overlap=self.fov_overlap, mode=self.acq_mode
+        )
         x, y = self.center()
         pos = useq.AbsolutePosition(x=x, y=y, z=z_pos)
         if grid_plan is None:

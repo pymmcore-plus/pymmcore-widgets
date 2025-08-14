@@ -47,7 +47,11 @@ class RoiPolygon(Compound):
 
         centers: list[tuple[float, float]] = []
         try:
-            if (grid := self._roi.create_grid_plan()) is not None:
+            if (
+                grid := self._roi.create_grid_plan(
+                    overlap=self._roi.fov_overlap, mode=self._roi.acq_mode
+                )
+            ) is not None:
                 for p in grid:
                     centers.append((p.x, p.y))
         except Exception as e:
