@@ -606,6 +606,7 @@ class _PolygonWidget(QWidget):
         d = 2 * r
         ell = self.scene.addEllipse(x - r, y - r, d, d, pen, brush)
         ell = cast("QGraphicsEllipseItem", ell)
+        ell.setZValue(1.0)
         return ell
 
     def _fit_view_to_items(self, pad: float = 0.01) -> None:
