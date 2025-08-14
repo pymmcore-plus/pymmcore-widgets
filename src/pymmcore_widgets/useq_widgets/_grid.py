@@ -469,8 +469,7 @@ class _BoundsWidget(QWidget):
 #     def setValue(self, plan: useq.GridFromPolygon) -> None:
 #         self._polygon = plan
 #         self._ax.clear()
-#         plan.plot(axes=self._ax)       # <— direct reuse
-#         self._ax.set_aspect("equal") # usually desirable for XY
+#         plan.plot(axes=self._ax)
 #         self._canvas.draw_idle()
 
 
