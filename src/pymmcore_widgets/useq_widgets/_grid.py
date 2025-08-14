@@ -493,8 +493,9 @@ class _PolygonWidget(QWidget):
     # below this size.
     MAX_FOV_PIXELS = 50
 
-    def __init__(self, show_fovs: bool = True, show_centers: bool = True) -> None:
+    def __init__(self) -> None:
         super().__init__()
+
         self._polygon: useq.GridFromPolygon | None = None
 
         self.scene = QGraphicsScene()
