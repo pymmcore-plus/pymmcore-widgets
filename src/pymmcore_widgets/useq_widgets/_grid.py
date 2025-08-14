@@ -437,6 +437,7 @@ class _BoundsWidget(QWidget):
         self.bottom.setValue(plan.bottom)
 
 
+# TODO: remove, this is to test using the GridFromPolygon.plot() method
 # class _PolygonWidget(QWidget):
 #     def __init__(self, parent=None):
 #         from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as Canvas
@@ -487,6 +488,10 @@ class _PolygonWidget(QWidget):
     CENTER_BRUSH = QBrush(Qt.GlobalColor.darkGreen)
     FOV_PEN = QPen(Qt.GlobalColor.darkGray)
     FOV_BRUSH = QBrush(Qt.BrushStyle.NoBrush)
+    # maximum allowed FOV rectangle size in pixels; if an FOV would be larger
+    # than this when rendered, the view will be zoomed out to keep it at or
+    # below this size.
+    MAX_FOV_PIXELS = 50
 
     def __init__(self, show_fovs: bool = True, show_centers: bool = True) -> None:
         super().__init__()
@@ -564,7 +569,7 @@ class _PolygonWidget(QWidget):
             path_item = QGraphicsPathItem(path)
             path_pen = QPen(self.CENTER_PEN)
             path_pen.setWidth(pen_size)
-            path_pen.setStyle(Qt.PenStyle.DashLine)
+            path_pen.setStyle(Qt.PenStyle.DotLine)
             path_item.setPen(path_pen)
             path_item.setZValue(0.5)
             self.scene.addItem(path_item)
@@ -624,6 +629,20 @@ class _PolygonWidget(QWidget):
         # keep transform (y-up) while fitting
         self.view.resetTransform()
         self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        # after fitting, ensure that individual FOV rectangles are not rendered
+        # larger than MAX_FOV_PIXELS. If they are, scale the view down.
+        try:
+            current_scale = float(self.view.transform().m11())
+            print(current_scale)
+        except Exception:
+            current_scale = 1.0
+        if self._polygon is not None:
+            if (fw := self._polygon.fov_width) and fw > 0:
+                fov_pixel = current_scale * fw
+                if fov_pixel > self.MAX_FOV_PIXELS:
+                    max_allowed = self.MAX_FOV_PIXELS / fw
+                    factor = max_allowed / current_scale
+                    self.view.scale(factor, factor)
         self.view.setTransform(QTransform.fromScale(1, -1) * self.view.transform())
 
     def _compute_centers(self, plan: useq.GridFromPolygon) -> list[tuple[float, float]]:
