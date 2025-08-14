@@ -633,7 +633,6 @@ class _PolygonWidget(QWidget):
         # larger than MAX_FOV_PIXELS. If they are, scale the view down.
         try:
             current_scale = float(self.view.transform().m11())
-            print(current_scale)
         except Exception:
             current_scale = 1.0
         if self._polygon is not None:
