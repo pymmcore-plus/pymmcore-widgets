@@ -49,7 +49,7 @@ class RoiPolygon(Compound):
         try:
             if (
                 grid := self._roi.create_grid_plan(
-                    overlap=self._roi.fov_overlap, mode=self._roi.acq_mode
+                    overlap=self._roi.fov_overlap, mode=self._roi.scan_order
                 )
             ) is not None:
                 for p in grid:

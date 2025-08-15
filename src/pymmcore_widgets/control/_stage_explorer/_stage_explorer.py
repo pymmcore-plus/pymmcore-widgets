@@ -391,7 +391,7 @@ class StageExplorer(QWidget):
         # update ROIs and emit model dataChanged so visuals update
         for roi in self.roi_manager.all_rois():
             roi.fov_overlap = (self._grid_overlap, self._grid_overlap)
-            roi.acq_mode = self._grid_mode
+            roi.scan_order = self._grid_mode
             self.roi_manager.roi_model.emitDataChange(roi)
 
     def _on_roi_rows_inserted(self, parent: QModelIndex, first: int, last: int) -> None:

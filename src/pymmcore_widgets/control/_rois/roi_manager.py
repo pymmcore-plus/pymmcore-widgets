@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Literal
 
 from qtpy.QtCore import (
     QEvent,
@@ -122,7 +122,7 @@ class SceneROIManager(QObject):
         """Update the FOVs of all ROIs."""
         self._fov_size = fov
         for row in range(self.roi_model.rowCount()):
-            roi = cast("ROI", self.roi_model.index(row).internalPointer())
+            roi = self.roi_model.getRoi(row)
             roi.fov_size = fov
             self.roi_model.emitDataChange(roi)
 
@@ -149,15 +149,13 @@ class SceneROIManager(QObject):
     def selected_rois(self) -> list[ROI]:
         """Return a list of selected ROIs."""
         return [
-            index.internalPointer() for index in self.selection_model.selectedIndexes()
+            index.data(QROIModel.ROI_ROLE)
+            for index in self.selection_model.selectedIndexes()
         ]
 
     def all_rois(self) -> list[ROI]:
         """Return a list of all ROIs."""
-        return [
-            self.roi_model.index(row).internalPointer()
-            for row in range(self.roi_model.rowCount())
-        ]
+        return [self.roi_model.getRoi(row) for row in range(self.roi_model.rowCount())]
 
     def delete_selected_rois(self) -> None:
         """Delete the selected ROIs from the model."""
@@ -175,7 +173,7 @@ class SceneROIManager(QObject):
     ) -> None:
         # Remove the ROIs from the canvas
         for row in range(first, last + 1):
-            roi = self.roi_model.index(row).internalPointer()
+            roi = self.roi_model.getRoi(row)
             self._remove_roi_from_canvas(roi)
 
     def _on_data_changed(
@@ -188,24 +186,24 @@ class SceneROIManager(QObject):
 
         # Update the ROI on the canvas
         for row in range(top_left.row(), bottom_right.row() + 1):
-            roi = self.roi_model.index(row).internalPointer()
+            roi = self.roi_model.getRoi(row)
             do_update(roi)
 
     def _on_selection_changed(
         self, selected: QItemSelection, deselected: QItemSelection
     ) -> None:
         for index in deselected.indexes():
-            roi = cast("ROI", self.roi_model.index(index.row()).internalPointer())
+            roi = self.roi_model.getRoi(index.row())
             if visual := self._roi_visuals.get(roi):
                 visual.set_selected(False)
         for index in selected.indexes():
-            roi = cast("ROI", self.roi_model.index(index.row()).internalPointer())
+            roi = self.roi_model.getRoi(index.row())
             if visual := self._roi_visuals.get(roi):
                 visual.set_selected(True)
 
     def _on_rows_inserted(self, parent: QModelIndex, first: int, last: int) -> None:
         for row in range(first, last + 1):
-            roi = self.roi_model.index(row).internalPointer()
+            roi = self.roi_model.getRoi(row)
             self._add_roi_to_scene(roi)
 
     def _add_roi_to_scene(self, roi: ROI) -> None:
