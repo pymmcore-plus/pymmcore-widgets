@@ -379,9 +379,9 @@ class StageExplorer(QWidget):
         """
         overlap, mode = self._toolbar.scan_menu.value()
         for row in range(first, last + 1):
-            roi = self.roi_manager.roi_model.index(row).internalPointer()
+            roi = self.roi_manager.roi_model.getRoi(row)
             roi.fov_overlap = (overlap, overlap)
-            roi.acq_mode = mode
+            roi.scan_order = mode
             self.roi_manager.roi_model.emitDataChange(roi)
 
     def keyPressEvent(self, a0: QKeyEvent | None) -> None:

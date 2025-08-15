@@ -493,11 +493,6 @@ class _PolygonWidget(QWidget):
         self.scene.clear()
         if (plan := self._polygon) is None:
             return
-        try:
-            poly = plan.poly
-        except ValueError:
-            # likely a self-intersecting polygon that cannot be scanned...
-            return
 
         fw, fh = plan.fov_width or 0, plan.fov_height or 0
         pen_size = int(fw * 0.04) if fw > 0 else 1
@@ -506,6 +501,7 @@ class _PolygonWidget(QWidget):
         verts: list[tuple[float, float]] = list(plan.vertices or [])
 
         # draw polygon outline
+        poly = plan.poly
         poly_item = self._make_polygon_item(poly)
         self.POLY_PEN.setWidth(pen_size)
         poly_item.setPen(self.POLY_PEN)
