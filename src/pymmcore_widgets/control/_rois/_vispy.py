@@ -47,13 +47,13 @@ class RoiPolygon(Compound):
 
         centers: list[tuple[float, float]] = []
         try:
-            if (
-                grid := self._roi.create_grid_plan(
-                    overlap=self._roi.fov_overlap, mode=self._roi.scan_order
-                )
-            ) is not None:
+            grid = self._roi.create_grid_plan(
+                overlap=self._roi.fov_overlap, mode=self._roi.scan_order
+            )
+            if grid is not None:
                 for p in grid:
-                    centers.append((p.x, p.y))
+                    if p.x is not None and p.y is not None:
+                        centers.append((p.x, p.y))
         except Exception as e:
             raise
             print(e)

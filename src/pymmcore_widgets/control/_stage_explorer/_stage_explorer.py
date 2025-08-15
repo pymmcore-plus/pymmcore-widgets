@@ -300,28 +300,11 @@ class StageExplorer(QWidget):
         x_bounds, y_bounds, *_ = get_vispy_scene_bounds(visuals)
         self._stage_viewer.view.camera.set_range(x=x_bounds, y=y_bounds, margin=margin)
 
-    def rois_to_useq_positions(self) -> list[useq.AbsolutePosition] | None:
-        if not (rois := self.roi_manager.all_rois()):
-            return None
-
-        positions: list[useq.AbsolutePosition] = []
-        for idx, roi in enumerate(rois):
-            overlap, mode = self._toolbar.scan_menu.value()
-            if plan := roi.create_grid_plan(*self._fov_w_h(), overlap, mode):
-                p: useq.AbsolutePosition = next(iter(plan.iter_grid_positions()))
-                pos = useq.AbsolutePosition(
-                    name=f"ROI_{idx}",
-                    x=p.x,
-                    y=p.y,
-                    z=p.z,
-                    sequence=useq.MDASequence(grid_plan=plan),
-                )
-                positions.append(pos)
-
-        if not positions:
-            return None
-
-        return positions
+    def rois_to_useq_positions(self) -> list[useq.AbsolutePosition]:
+        return [
+            roi.create_useq_position(*self._fov_w_h())
+            for roi in self.roi_manager.all_rois()
+        ]
 
     # -----------------------------PRIVATE METHODS------------------------------------
 

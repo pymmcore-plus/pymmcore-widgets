@@ -186,7 +186,7 @@ class SceneROIManager(QObject):
 
         # Update the ROI on the canvas
         for row in range(top_left.row(), bottom_right.row() + 1):
-            roi = self.roi_model.getRoi(row)
+            roi = self.roi_model.index(row).internalPointer()
             do_update(roi)
 
     def _on_selection_changed(

@@ -93,7 +93,7 @@ class ROI:
         fov_h: float | None = None,
         overlap: float | tuple[float, float] = 0.0,
         mode: useq.OrderMode = useq.OrderMode.row_wise_snake,
-    ) -> useq._grid._GridPlan | None:
+    ) -> useq.GridFromPolygon | useq.GridFromEdges | None:
         """Return a useq.AbsolutePosition object that covers the ROI."""
         if fov_w is None or fov_h is None:
             if self.fov_size is None:
@@ -110,13 +110,17 @@ class ROI:
             if type(self) is not RectangleROI:
                 if len(self.vertices) < 3:
                     return None
-                return useq.GridFromPolygon(
-                    vertices=list(self.vertices),
-                    fov_width=fov_w,
-                    fov_height=fov_h,
-                    mode=mode,
-                    overlap=overlap,
-                )
+                try:
+                    return useq.GridFromPolygon(
+                        vertices=list(self.vertices),
+                        fov_width=fov_w,
+                        fov_height=fov_h,
+                        mode=mode,
+                        overlap=overlap,
+                    )
+                except ValueError:
+                    # likely a self-intersecting polygon that cannot be scanned...
+                    return None
             else:
                 return useq.GridFromEdges(
                     top=top,
@@ -141,18 +145,14 @@ class ROI:
             fov_w=fov_w, fov_h=fov_h, overlap=self.fov_overlap, mode=self.scan_order
         )
         x, y = self.center()
-        pos = useq.AbsolutePosition(x=x, y=y, z=z_pos)
+        pos = useq.AbsolutePosition(
+            x=x, y=y, z=z_pos, name=f"{self.text} {str(id(self))[-4:]}"
+        )
         if grid_plan is None:
             return pos
 
         return pos.model_copy(
-            update={
-                "sequence": useq.MDASequence(
-                    grid_plan=grid_plan,
-                    fov_width=fov_w,
-                    fov_height=fov_h,
-                )
-            }
+            update={"sequence": useq.MDASequence(grid_plan=grid_plan)}
         )
 
 
