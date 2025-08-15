@@ -30,7 +30,11 @@ from pymmcore_widgets.useq_widgets._column_info import (
     TextColumn,
     parse_timedelta,
 )
-from pymmcore_widgets.useq_widgets._positions import MDAButton, QFileDialog, _MDAPopup
+from pymmcore_widgets.useq_widgets._positions import (
+    MDAButton,
+    QFileDialog,
+    _MDAPopup,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -412,6 +416,9 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     qtbot.addWidget(wdg)
     wdg.show()
 
+    with pytest.raises(ValueError):
+        wdg.setMode("polygon")
+    assert isinstance(wdg.value(), useq.GridFromPolygon)
     wdg.setMode("bounds")
     assert isinstance(wdg.value(), useq.GridFromEdges)
     wdg.setMode("number")
@@ -424,24 +431,36 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.NUMBER
     assert wdg.value() == plan
+    assert wdg._mode_btn_group.checkedButton().text() == "Fields of View"
 
     plan = useq.GridFromEdges(left=1, right=2, top=3, bottom=4, overlap=10)
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.BOUNDS
     assert wdg.value() == plan
+    assert wdg._mode_btn_group.checkedButton().text() == "Absolute Bounds"
 
     plan = useq.GridWidthHeight(width=1000, height=2000, fov_height=3, fov_width=4)
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.AREA
     assert wdg.value() == plan
+    assert wdg._mode_btn_group.checkedButton().text() == "Width && Height"
 
-    assert wdg._fov_height == 3
+    plan = useq.GridFromPolygon(
+        vertices=[(-4, 0), (5, -5), (5, 9), (0, 10)], fov_height=1, fov_width=1
+    )
+    with qtbot.waitSignal(wdg.valueChanged):
+        wdg.setValue(plan)
+    assert wdg.mode() == _grid.Mode.POLYGON
+    assert wdg.value().model_dump() == plan.model_dump()
+    assert wdg._mode_btn_group.checkedButton().text() == "Polygon"
+
+    assert wdg._fov_height == 1
     wdg.setFovHeight(5)
     assert wdg.fovHeight() == 5
 
-    assert wdg._fov_width == 4
+    assert wdg._fov_width == 1
     wdg.setFovWidth(6)
     assert wdg.fovWidth() == 6
 
@@ -552,3 +571,22 @@ def test_autofocus_with_z_plans(qtbot: QtBot) -> None:
 
     assert wdg.af_axis.isEnabled()
     assert wdg.stage_positions.af_per_position.isEnabled()
+
+
+def test_mda_popup_with_polygon(qtbot: QtBot) -> None:
+    polygon = useq.GridFromPolygon(
+        vertices=[(-10, 0), (12, -5), (10, 20), (0, 10)],
+        fov_height=1,
+        fov_width=1,
+    )
+    seq = useq.MDASequence(channels=["DAPI", "GFP"], grid_plan=polygon)
+    pop = _MDAPopup(seq)
+    qtbot.addWidget(pop)
+
+    assert pop.mda_tabs.isChecked(pop.mda_tabs.channels)
+
+    gp = pop.mda_tabs.grid_plan
+    assert pop.mda_tabs.isChecked(gp)
+    assert gp._mode_btn_group.checkedButton().text() == "Polygon"
+    assert gp.polygon_wdg.scene is not None
+    assert gp.polygon_wdg.scene.items()
