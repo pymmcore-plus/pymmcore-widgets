@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, Protocol
 
 import useq
-from qtpy.QtCore import QPointF, QRectF, Qt, Signal
+from qtpy.QtCore import QPointF, Qt, Signal
 from qtpy.QtGui import (
     QBrush,
     QPainter,
@@ -19,7 +19,6 @@ from qtpy.QtWidgets import (
     QButtonGroup,
     QDoubleSpinBox,
     QFormLayout,
-    QGraphicsEllipseItem,
     QGraphicsPathItem,
     QGraphicsRectItem,
     QGraphicsScene,
@@ -154,7 +153,7 @@ class GridPlanWidget(QScrollArea):
 
         # radio buttons on the top row
         btns_row = QHBoxLayout()
-        btns_row.addWidget(QLabel("Create Grid Using:"))
+        btns_row.addWidget(QLabel("Mode:"))
         btns_row.addWidget(self._mode_number_radio)
         btns_row.addWidget(self._mode_area_radio)
         btns_row.addWidget(self._mode_bounds_radio)
@@ -310,8 +309,6 @@ class GridPlanWidget(QScrollArea):
     def _on_change(self) -> None:
         if (val := self.value()) is None:
             return  # pragma: no cover
-        if isinstance(val, useq.GridFromPolygon):
-            self.polygon_wdg.setValue(val)
         self.valueChanged.emit(val)
 
 
@@ -437,48 +434,9 @@ class _BoundsWidget(QWidget):
         self.bottom.setValue(plan.bottom)
 
 
-# TODO: remove, this is to test using the GridFromPolygon.plot() method
-# class _PolygonWidget(QWidget):
-#     def __init__(self, parent=None):
-#         from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as Canvas
-#         from matplotlib.figure import Figure
-
-#         super().__init__(parent)
-
-#         self._fig = Figure(constrained_layout=True)
-#         self._ax = self._fig.add_subplot(111)
-#         self._canvas = Canvas(self._fig)
-
-#         self._polygon: useq.GridFromPolygon | None = None
-
-#         lay = QVBoxLayout(self)
-#         lay.setContentsMargins(0, 0, 0, 0)
-#         lay.addWidget(self._canvas)
-
-#     def value(self) -> dict[str, Any]:
-#         vertices = self._polygon.vertices if self._polygon else []
-#         convex_hull = self._polygon.convex_hull if self._polygon else False
-#         offset = self._polygon.offset if self._polygon else 0
-#         if not vertices:
-#             return {
-#                 "vertices": [(0, 0), (0, 0), (0, 0)],
-#                 "convex_hull": False,
-#                 "offset": 0,
-#             }
-#         return {"vertices": vertices, "convex_hull": convex_hull, "offset": offset}
-
-#     def setValue(self, plan: useq.GridFromPolygon) -> None:
-#         self._polygon = plan
-#         self._ax.clear()
-#         plan.plot(axes=self._ax)
-#         self._canvas.draw_idle()
-
-
 class _PolygonWidget(QWidget):
     """QWidget that draws a useq.GridFromPolygon."""
 
-    VERTEX_RADIUS = 0
-    CENTER_RADIUS = 0
     POLY_PEN = QPen(Qt.GlobalColor.darkMagenta)
     POLY_BRUSH = QBrush(Qt.BrushStyle.NoBrush)
     BB_PEN = QPen(Qt.GlobalColor.darkGray, 0, Qt.PenStyle.DotLine)
@@ -524,22 +482,22 @@ class _PolygonWidget(QWidget):
 
     def setValue(self, plan: useq.GridFromPolygon) -> None:
         """Set and render the polygon/grid plan."""
-        self._redraw(plan)
+        self._polygon = plan
+        self._redraw()
 
     # ----------------------------PRIVATE METHODS----------------------------
 
-    def _redraw(self, plan: useq.GridFromPolygon) -> None:
+    def _redraw(self) -> None:
         self.scene.clear()
-        if not self._polygon and plan is None:
+        if (plan := self._polygon) is None:
             return
 
         fw, fh = plan.fov_width or 0, plan.fov_height or 0
         pen_size = int(fw * 0.04) if fw > 0 else 1
-        self.VERTEX_RADIUS = self.CENTER_RADIUS = pen_size
+        vertex_radius = center_radius = pen_size
 
-        self._polygon = plan
-        poly = self._polygon.poly
-        verts: list[tuple[float, float]] = list(self._polygon.vertices or [])
+        poly = plan.poly
+        verts: list[tuple[float, float]] = list(plan.vertices or [])
 
         # draw polygon outline
         poly_item = self._make_polygon_item(poly)
@@ -550,7 +508,7 @@ class _PolygonWidget(QWidget):
 
         # draw vertices
         for x, y in verts:
-            self._add_dot(x, y, self.VERTEX_RADIUS, self.VERTEX_PEN, self.VERTEX_BRUSH)
+            self._add_dot(x, y, vertex_radius, self.VERTEX_PEN, self.VERTEX_BRUSH)
 
         # draw dashed bounding box
         min_x, min_y, max_x, max_y = poly.bounds
@@ -560,7 +518,7 @@ class _PolygonWidget(QWidget):
         self.scene.addItem(bb)
 
         # draw grid centers and FOV rectangles
-        centers = self._compute_centers(self._polygon)
+        centers = self._compute_centers(plan)
 
         # connect centers
         if len(centers) >= 2:
@@ -585,9 +543,7 @@ class _PolygonWidget(QWidget):
                 self.scene.addItem(rect)
 
         for cx, cy in centers:
-            self._add_dot(
-                cx, cy, self.CENTER_RADIUS, self.CENTER_PEN, self.CENTER_BRUSH
-            )
+            self._add_dot(cx, cy, center_radius, self.CENTER_PEN, self.CENTER_BRUSH)
 
         self._fit_view_to_items()
 
@@ -606,43 +562,33 @@ class _PolygonWidget(QWidget):
         item = QGraphicsPathItem(path)
         return item
 
-    def _add_dot(
-        self, x: float, y: float, r: float, pen: QPen, brush: QBrush
-    ) -> QGraphicsEllipseItem:
+    def _add_dot(self, x: float, y: float, r: float, pen: QPen, brush: QBrush) -> None:
         d = 2 * r
-        ell = self.scene.addEllipse(x - r, y - r, d, d, pen, brush)
-        ell = cast("QGraphicsEllipseItem", ell)
-        ell.setZValue(1.0)
-        return ell
+        if ell := self.scene.addEllipse(x - r, y - r, d, d, pen, brush):
+            ell.setZValue(1.0)
 
-    def _fit_view_to_items(self, pad: float = 0.01) -> None:
+    def _fit_view_to_items(self, pad: int = 10) -> None:
         rect = self.scene.itemsBoundingRect()
         if rect.isNull():
             return
         # add padding
-        padded = QRectF(
-            rect.x() - rect.width() * pad,
-            rect.y() - rect.height() * pad,
-            rect.width() * (1 + 2 * pad),
-            rect.height() * (1 + 2 * pad),
-        )
+        padded = rect.adjusted(-pad, -pad, pad, pad)
         self.scene.setSceneRect(padded)
         # keep transform (y-up) while fitting
         self.view.resetTransform()
-        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self.view.fitInView(padded, Qt.AspectRatioMode.KeepAspectRatio)
         # after fitting, ensure that individual FOV rectangles are not rendered
         # larger than MAX_FOV_PIXELS. If they are, scale the view down.
-        try:
-            current_scale = float(self.view.transform().m11())
-        except Exception:
-            current_scale = 1.0
-        if self._polygon is not None:
-            if (fw := self._polygon.fov_width) and fw > 0:
-                fov_pixel = current_scale * fw
-                if fov_pixel > self.MAX_FOV_PIXELS:
-                    max_allowed = self.MAX_FOV_PIXELS / fw
-                    factor = max_allowed / current_scale
-                    self.view.scale(factor, factor)
+        current_scale = self.view.transform().m11()
+        if (
+            self._polygon is not None
+            and (fw := self._polygon.fov_width)
+            and fw > 0
+            and (current_scale * fw) > self.MAX_FOV_PIXELS
+        ):
+            max_allowed = self.MAX_FOV_PIXELS / fw
+            factor = max_allowed / current_scale
+            self.view.scale(factor, factor)
         self.view.setTransform(QTransform.fromScale(1, -1) * self.view.transform())
 
     def _compute_centers(self, plan: useq.GridFromPolygon) -> list[tuple[float, float]]:

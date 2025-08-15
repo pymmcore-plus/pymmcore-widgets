@@ -5,7 +5,7 @@ ci:
 
 repos:
   - repo: https://github.com/crate-ci/typos
-    rev: v1
+    rev: v1.35.4
     hooks:
       - id: typos
         args: [--force-exclude] # omitting --write-changes
@@ -29,4 +29,4 @@ repos:
         files: "^src/"
         additional_dependencies:
           - pymmcore-plus >=0.15.0
-          - useq-schema >=0.5.0
+          - useq-schema >=0.8.0

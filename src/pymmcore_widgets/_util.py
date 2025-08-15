@@ -4,7 +4,6 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import useq
 from psygnal import SignalInstance
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QEvent, QMarginsF, QObject, Qt
@@ -142,20 +141,6 @@ def block_core(obj: Any) -> AbstractContextManager:
     if isinstance(obj, SignalInstance):
         return obj.blocked()
     raise TypeError(f"Cannot block signals for {obj}")
-
-
-def cast_grid_plan(
-    grid: dict | useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromEdges,
-) -> useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromEdges | None:
-    """Get the grid type from the grid_plan."""
-    if not grid or isinstance(grid, useq.RandomPoints):
-        return None
-    if isinstance(grid, dict):
-        _grid = useq.MDASequence(grid_plan=grid).grid_plan
-        if isinstance(_grid, useq.RelativePosition):  # pragma: no cover
-            raise ValueError("Grid plan cannot be a single Relative position.")
-        return None if isinstance(_grid, useq.RandomPoints) else _grid
-    return grid
 
 
 def fov_kwargs(core: CMMCorePlus) -> dict:

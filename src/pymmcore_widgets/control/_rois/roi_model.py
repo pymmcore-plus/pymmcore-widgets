@@ -106,7 +106,7 @@ class ROI:
             if type(self) is not RectangleROI:
                 if len(self.vertices) < 3:
                     return None
-                return useq.GridFromPolygon(  # type: ignore[no-any-return]
+                return useq.GridFromPolygon(
                     vertices=list(self.vertices),
                     fov_width=fov_w,
                     fov_height=fov_h,

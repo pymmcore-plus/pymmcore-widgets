@@ -30,11 +30,7 @@ from pymmcore_widgets.useq_widgets._column_info import (
     TextColumn,
     parse_timedelta,
 )
-from pymmcore_widgets.useq_widgets._positions import (
-    MDAButton,
-    QFileDialog,
-    _MDAPopup,
-)
+from pymmcore_widgets.useq_widgets._positions import MDAButton, QFileDialog, _MDAPopup
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -416,15 +412,14 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     qtbot.addWidget(wdg)
     wdg.show()
 
-    with pytest.raises(ValueError):
-        wdg.setMode("polygon")
-    assert isinstance(wdg.value(), useq.GridFromPolygon)
     wdg.setMode("bounds")
     assert isinstance(wdg.value(), useq.GridFromEdges)
     wdg.setMode("number")
     assert isinstance(wdg.value(), useq.GridRowsColumns)
     wdg.setMode("area")
     assert isinstance(wdg.value(), useq.GridWidthHeight)
+    wdg.setMode("polygon")
+    assert isinstance(wdg.value(), useq.GridFromPolygon)
 
     plan = useq.GridRowsColumns(rows=3, columns=3, mode="spiral", overlap=10)
     with qtbot.waitSignal(wdg.valueChanged):
