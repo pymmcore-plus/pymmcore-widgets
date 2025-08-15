@@ -300,12 +300,6 @@ class StageExplorer(QWidget):
         x_bounds, y_bounds, *_ = get_vispy_scene_bounds(visuals)
         self._stage_viewer.view.camera.set_range(x=x_bounds, y=y_bounds, margin=margin)
 
-    def rois_to_useq_positions(self) -> list[useq.AbsolutePosition]:
-        return [
-            roi.create_useq_position(*self._fov_w_h())
-            for roi in self.roi_manager.all_rois()
-        ]
-
     # -----------------------------PRIVATE METHODS------------------------------------
 
     # ACTIONS ----------------------------------------------------------------------
