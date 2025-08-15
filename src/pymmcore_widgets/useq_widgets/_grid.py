@@ -222,6 +222,12 @@ class GridPlanWidget(QScrollArea):
         elif isinstance(mode, str):
             mode = Mode(mode)
 
+        if mode is Mode.POLYGON and not self.polygon_wdg._polygon:
+            raise ValueError(
+                "Polygon mode may not be selected programmatically without a "
+                " pre-assigned GridFromPolygon Plan."
+            )
+
         previous, self._mode = getattr(self, "_mode", None), mode
         if previous != self._mode:
             current_wdg = self._mode_to_widget[self._mode]
@@ -459,7 +465,6 @@ class _PolygonWidget(QWidget):
         self.scene = QGraphicsScene()
         self.view = QGraphicsView(self.scene)
         self.view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-
         self.view.setTransform(QTransform.fromScale(1, -1))  # y-up
 
         layout = QVBoxLayout(self)
@@ -469,16 +474,13 @@ class _PolygonWidget(QWidget):
     # ----------------------------PUBLIC METHODS----------------------------
 
     def value(self) -> dict[str, Any]:
-        vertices = self._polygon.vertices if self._polygon else []
-        convex_hull = self._polygon.convex_hull if self._polygon else False
-        offset = self._polygon.offset if self._polygon else 0
-        if not vertices:
-            return {
-                "vertices": [(0, 0), (0, 0), (0, 0)],
-                "convex_hull": False,
-                "offset": 0,
-            }
-        return {"vertices": vertices, "convex_hull": convex_hull, "offset": offset}
+        if not self._polygon:  # pragma: no cover
+            return {}
+        return {
+            "vertices": self._polygon.vertices,
+            "convex_hull": self._polygon.convex_hull,
+            "offset": self._polygon.offset,
+        }
 
     def setValue(self, plan: useq.GridFromPolygon) -> None:
         """Set and render the polygon/grid plan."""
@@ -496,10 +498,10 @@ class _PolygonWidget(QWidget):
         pen_size = int(fw * 0.04) if fw > 0 else 1
         vertex_radius = center_radius = pen_size
 
-        poly = plan.poly
         verts: list[tuple[float, float]] = list(plan.vertices or [])
 
         # draw polygon outline
+        poly = plan.poly
         poly_item = self._make_polygon_item(poly)
         self.POLY_PEN.setWidth(pen_size)
         poly_item.setPen(self.POLY_PEN)
