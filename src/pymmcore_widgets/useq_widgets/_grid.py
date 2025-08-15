@@ -474,7 +474,7 @@ class _PolygonWidget(QWidget):
     # ----------------------------PUBLIC METHODS----------------------------
 
     def value(self) -> dict[str, Any]:
-        if not self._polygon:
+        if not self._polygon:  # pragma: no cover
             return {}
         return {
             "vertices": self._polygon.vertices,
