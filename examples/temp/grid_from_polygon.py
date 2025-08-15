@@ -1,0 +1,37 @@
+import useq
+from pymmcore_plus import CMMCorePlus
+from qtpy.QtWidgets import QApplication
+
+from pymmcore_widgets import MDAWidget
+
+mmc = CMMCorePlus.instance()
+mmc.loadSystemConfiguration()
+
+app = QApplication([])
+
+poly1 = useq.GridFromPolygon(
+    vertices=[(-400, 0), (1000, -500), (500, 1200), (0, 100)],
+    fov_height=100,
+    fov_width=100,
+    overlap=(10, 10),
+)
+poly2 = useq.GridFromPolygon(
+    vertices=[(0, 0), (300, 0), (300, 100), (100, 100), (100, 300), (0, 300)],
+    fov_height=100,
+    fov_width=100,
+    overlap=(10, 10),
+)
+pos1 = useq.AbsolutePosition(
+    x=1, y=2, z=3, name="pos1", sequence=useq.MDASequence(grid_plan=poly1)
+)
+pos2 = useq.AbsolutePosition(
+    x=4, y=5, z=6, name="pos2", sequence=useq.MDASequence(grid_plan=poly2)
+)
+
+seq = useq.MDASequence(stage_positions=[pos1, pos2])
+
+m = MDAWidget()
+m.setValue(seq)
+m.show()
+
+app.exec()

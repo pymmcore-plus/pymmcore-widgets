@@ -4,12 +4,25 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol
 
 import useq
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import QPointF, Qt, Signal
+from qtpy.QtGui import (
+    QBrush,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPolygonF,
+    QResizeEvent,
+    QTransform,
+)
 from qtpy.QtWidgets import (
     QAbstractButton,
     QButtonGroup,
     QDoubleSpinBox,
     QFormLayout,
+    QGraphicsPathItem,
+    QGraphicsRectItem,
+    QGraphicsScene,
+    QGraphicsView,
     QHBoxLayout,
     QLabel,
     QRadioButton,
@@ -28,8 +41,13 @@ from pymmcore_widgets._util import SeparatorWidget
 if TYPE_CHECKING:
     from typing import Literal, TypeAlias
 
+    from shapely import Polygon
+
     GridPlan: TypeAlias = (
-        useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
+        useq.GridFromEdges
+        | useq.GridRowsColumns
+        | useq.GridWidthHeight
+        | useq.GridFromPolygon
     )
 
     class ValueWidget(Protocol, QWidget):  # pyright: ignore
@@ -55,6 +73,7 @@ class Mode(Enum):
     NUMBER = "number"
     AREA = "area"
     BOUNDS = "bounds"
+    POLYGON = "polygon"
 
     def __str__(self) -> str:
         return self.value
@@ -70,6 +89,8 @@ class Mode(Enum):
             return cls.BOUNDS
         elif isinstance(plan, useq.GridWidthHeight):
             return cls.AREA
+        elif isinstance(plan, useq.GridFromPolygon):
+            return cls.POLYGON
         raise TypeError(f"Unknown grid plan type: {type(plan)}")  # pragma: no cover
 
 
@@ -77,6 +98,7 @@ _MODE_TO_USEQ: dict[Mode, type[GridPlan]] = {
     Mode.NUMBER: useq.GridRowsColumns,
     Mode.BOUNDS: useq.GridFromEdges,
     Mode.AREA: useq.GridWidthHeight,
+    Mode.POLYGON: useq.GridFromPolygon,
 }
 
 
@@ -97,21 +119,28 @@ class GridPlanWidget(QScrollArea):
         self._mode_number_radio = QRadioButton("Fields of View")
         self._mode_area_radio = QRadioButton("Width && Height")
         self._mode_bounds_radio = QRadioButton("Absolute Bounds")
+        self._mode_polygon_radio = QRadioButton("Polygon")
+        # by default, hide the polygon mode. Will be visible only if required using
+        # the setMode method.
+        self._mode_polygon_radio.hide()
         # group the radio buttons together
         self._mode_btn_group = QButtonGroup()
         self._mode_btn_group.addButton(self._mode_number_radio)
         self._mode_btn_group.addButton(self._mode_area_radio)
         self._mode_btn_group.addButton(self._mode_bounds_radio)
+        self._mode_btn_group.addButton(self._mode_polygon_radio)
         self._mode_btn_group.buttonToggled.connect(self.setMode)
 
         self.row_col_wdg = _RowsColsWidget()
         self.width_height_wdg = _WidthHeightWidget()
         self.bounds_wdg = _BoundsWidget()
+        self.polygon_wdg = _PolygonWidget()
         # ease of lookup
         self._mode_to_widget: dict[Mode, ValueWidget] = {
             Mode.NUMBER: self.row_col_wdg,
             Mode.AREA: self.width_height_wdg,
             Mode.BOUNDS: self.bounds_wdg,
+            Mode.POLYGON: self.polygon_wdg,
         }
 
         self._bottom_stuff = _BottomStuff()
@@ -124,16 +153,18 @@ class GridPlanWidget(QScrollArea):
 
         # radio buttons on the top row
         btns_row = QHBoxLayout()
-        btns_row.addWidget(QLabel("Create Grid Using:"))
+        btns_row.addWidget(QLabel("Mode:"))
         btns_row.addWidget(self._mode_number_radio)
         btns_row.addWidget(self._mode_area_radio)
         btns_row.addWidget(self._mode_bounds_radio)
+        btns_row.addWidget(self._mode_polygon_radio)
 
         # stack the different mode widgets on top of each other
         self._stack = _ResizableStackedWidget(self)
         self._stack.addWidget(self.row_col_wdg)
         self._stack.addWidget(self.width_height_wdg)
         self._stack.addWidget(self.bounds_wdg)
+        self._stack.addWidget(self.polygon_wdg)
 
         # wrap the whole thing in an inner widget so we can put it in this ScrollArea
         inner_widget = QWidget(self)
@@ -170,12 +201,14 @@ class GridPlanWidget(QScrollArea):
         """Return the current mode, one of "number", "area", or "bounds"."""
         return self._mode
 
-    def setMode(self, mode: Mode | Literal["number", "area", "bounds"]) -> None:
-        """Set the current mode, one of "number", "area", or "bounds".
+    def setMode(
+        self, mode: Mode | Literal["number", "area", "bounds", "polygon"]
+    ) -> None:
+        """Set the current mode, one of "number", "area", "bounds", or "polygon".
 
         Parameters
         ----------
-        mode : Mode | Literal["number", "area", "bounds"]
+        mode : Mode | Literal["number", "area", "bounds", "polygon"]
             The mode to set.
         """
         if isinstance(mode, QRadioButton):
@@ -183,6 +216,7 @@ class GridPlanWidget(QScrollArea):
                 self._mode_number_radio: Mode.NUMBER,
                 self._mode_area_radio: Mode.AREA,
                 self._mode_bounds_radio: Mode.BOUNDS,
+                self._mode_polygon_radio: Mode.POLYGON,
             }
             mode = btn_map[mode]
         elif isinstance(mode, str):
@@ -212,6 +246,7 @@ class GridPlanWidget(QScrollArea):
         }
         if self._mode not in {Mode.NUMBER, Mode.AREA}:
             kwargs.pop("relative_to", None)
+
         return self._mode.to_useq_cls()(**kwargs)
 
     def setValue(self, value: GridPlan) -> None:
@@ -219,10 +254,10 @@ class GridPlanWidget(QScrollArea):
 
         Parameters
         ----------
-        value : useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight
+        value : useq.GridFromEdges | useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromPolygon
             The [`useq-schema` GridPlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#grid-plans)
             to set.
-        """
+        """  # noqa: E501
         mode = Mode.for_grid_plan(value)
 
         with signals_blocked(self):
@@ -236,6 +271,18 @@ class GridPlanWidget(QScrollArea):
             with signals_blocked(self._bottom_stuff):
                 self._bottom_stuff.setValue(value)
                 self.setMode(mode)
+
+            # ensure the correct QRadioButton is checked
+            with signals_blocked(self._mode_btn_group):
+                if mode == Mode.NUMBER:
+                    self._mode_number_radio.setChecked(True)
+                elif mode == Mode.AREA:
+                    self._mode_area_radio.setChecked(True)
+                elif mode == Mode.BOUNDS:
+                    self._mode_bounds_radio.setChecked(True)
+                elif mode == Mode.POLYGON:
+                    self._mode_polygon_radio.show()
+                    self._mode_polygon_radio.setChecked(True)
 
         self._on_change()
 
@@ -387,15 +434,187 @@ class _BoundsWidget(QWidget):
         self.bottom.setValue(plan.bottom)
 
 
+class _PolygonWidget(QWidget):
+    """QWidget that draws a useq.GridFromPolygon."""
+
+    POLY_PEN = QPen(Qt.GlobalColor.darkMagenta)
+    POLY_BRUSH = QBrush(Qt.BrushStyle.NoBrush)
+    BB_PEN = QPen(Qt.GlobalColor.darkGray, 0, Qt.PenStyle.DotLine)
+    VERTEX_PEN = QPen(Qt.GlobalColor.magenta, 0)
+    VERTEX_BRUSH = QBrush(Qt.GlobalColor.magenta)
+    CENTER_PEN = QPen(Qt.GlobalColor.darkGreen, 0)
+    CENTER_BRUSH = QBrush(Qt.GlobalColor.darkGreen)
+    FOV_PEN = QPen(Qt.GlobalColor.darkGray)
+    FOV_BRUSH = QBrush(Qt.BrushStyle.NoBrush)
+    # maximum allowed FOV rectangle size in pixels; if an FOV would be larger
+    # than this when rendered, the view will be zoomed out to keep it at or
+    # below this size.
+    MAX_FOV_PIXELS = 50
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._polygon: useq.GridFromPolygon | None = None
+
+        self.scene = QGraphicsScene()
+        self.view = QGraphicsView(self.scene)
+        self.view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        self.view.setTransform(QTransform.fromScale(1, -1))  # y-up
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.view)
+
+    # ----------------------------PUBLIC METHODS----------------------------
+
+    def value(self) -> dict[str, Any]:
+        vertices = self._polygon.vertices if self._polygon else []
+        convex_hull = self._polygon.convex_hull if self._polygon else False
+        offset = self._polygon.offset if self._polygon else 0
+        if not vertices:
+            return {
+                "vertices": [(0, 0), (0, 0), (0, 0)],
+                "convex_hull": False,
+                "offset": 0,
+            }
+        return {"vertices": vertices, "convex_hull": convex_hull, "offset": offset}
+
+    def setValue(self, plan: useq.GridFromPolygon) -> None:
+        """Set and render the polygon/grid plan."""
+        self._polygon = plan
+        self._redraw()
+
+    # ----------------------------PRIVATE METHODS----------------------------
+
+    def _redraw(self) -> None:
+        self.scene.clear()
+        if (plan := self._polygon) is None:
+            return
+
+        fw, fh = plan.fov_width or 0, plan.fov_height or 0
+        pen_size = int(fw * 0.04) if fw > 0 else 1
+        vertex_radius = center_radius = pen_size
+
+        poly = plan.poly
+        verts: list[tuple[float, float]] = list(plan.vertices or [])
+
+        # draw polygon outline
+        poly_item = self._make_polygon_item(poly)
+        self.POLY_PEN.setWidth(pen_size)
+        poly_item.setPen(self.POLY_PEN)
+        poly_item.setBrush(self.POLY_BRUSH)
+        self.scene.addItem(poly_item)
+
+        # draw vertices
+        for x, y in verts:
+            self._add_dot(x, y, vertex_radius, self.VERTEX_PEN, self.VERTEX_BRUSH)
+
+        # draw dashed bounding box
+        min_x, min_y, max_x, max_y = poly.bounds
+        bb = QGraphicsRectItem(min_x, min_y, max_x - min_x, max_y - min_y)
+        self.BB_PEN.setWidth(pen_size)
+        bb.setPen(self.BB_PEN)
+        self.scene.addItem(bb)
+
+        # draw grid centers and FOV rectangles
+        centers = self._compute_centers(plan)
+
+        # connect centers
+        if len(centers) >= 2:
+            path = QPainterPath(QPointF(*centers[0]))
+            for x, y in centers[1:]:
+                path.lineTo(x, y)
+            path_item = QGraphicsPathItem(path)
+            path_pen = QPen(self.CENTER_PEN)
+            path_pen.setWidth(pen_size)
+            path_pen.setStyle(Qt.PenStyle.DotLine)
+            path_item.setPen(path_pen)
+            path_item.setZValue(0.5)
+            self.scene.addItem(path_item)
+
+        if fw > 0 and fh > 0:
+            hw, hh = fw / 2.0, fh / 2.0
+            for cx, cy in centers:
+                rect = QGraphicsRectItem(cx - hw, cy - hh, fw, fh)
+                self.FOV_PEN.setWidth(pen_size)
+                rect.setPen(self.FOV_PEN)
+                rect.setBrush(self.FOV_BRUSH)
+                self.scene.addItem(rect)
+
+        for cx, cy in centers:
+            self._add_dot(cx, cy, center_radius, self.CENTER_PEN, self.CENTER_BRUSH)
+
+        self._fit_view_to_items()
+
+    def _make_polygon_item(self, shapely_poly: Polygon) -> QGraphicsPathItem:
+        """Create a QGraphicsPathItem for a shapely Polygon with holes."""
+        path = QPainterPath()
+        # exterior
+        ext = [QPointF(x, y) for (x, y) in shapely_poly.exterior.coords]
+        if ext:
+            path.addPolygon(QPolygonF(ext))
+        # holes
+        for interior in shapely_poly.interiors:
+            pts = [QPointF(x, y) for (x, y) in interior.coords]
+            if pts:
+                path.addPolygon(QPolygonF(pts))
+        item = QGraphicsPathItem(path)
+        return item
+
+    def _add_dot(self, x: float, y: float, r: float, pen: QPen, brush: QBrush) -> None:
+        d = 2 * r
+        if ell := self.scene.addEllipse(x - r, y - r, d, d, pen, brush):
+            ell.setZValue(1.0)
+
+    def _fit_view_to_items(self, pad: int = 10) -> None:
+        rect = self.scene.itemsBoundingRect()
+        if rect.isNull():
+            return
+        # add padding
+        padded = rect.adjusted(-pad, -pad, pad, pad)
+        self.scene.setSceneRect(padded)
+        # keep transform (y-up) while fitting
+        self.view.resetTransform()
+        self.view.fitInView(padded, Qt.AspectRatioMode.KeepAspectRatio)
+        # after fitting, ensure that individual FOV rectangles are not rendered
+        # larger than MAX_FOV_PIXELS. If they are, scale the view down.
+        current_scale = self.view.transform().m11()
+        if (
+            self._polygon is not None
+            and (fw := self._polygon.fov_width)
+            and fw > 0
+            and (current_scale * fw) > self.MAX_FOV_PIXELS
+        ):
+            max_allowed = self.MAX_FOV_PIXELS / fw
+            factor = max_allowed / current_scale
+            self.view.scale(factor, factor)
+        self.view.setTransform(QTransform.fromScale(1, -1) * self.view.transform())
+
+    def _compute_centers(self, plan: useq.GridFromPolygon) -> list[tuple[float, float]]:
+        """Compute grid center points within the polygon."""
+        centers: list[tuple[float, float]] = []
+        for item in plan:
+            x, y = item.x, item.y
+            if x is None or y is None:
+                continue
+            centers.append((float(x), float(y)))
+        return centers
+
+    def resizeEvent(self, a0: QResizeEvent | None) -> None:
+        super().resizeEvent(a0)
+        self._fit_view_to_items()
+
+
 class _ResizableStackedWidget(QStackedWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
         self.currentChanged.connect(self.onCurrentChanged)
 
-    def addWidget(self, wdg: QWidget | None) -> int:
-        if wdg is not None:
-            wdg.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
-        return super().addWidget(wdg)  # type: ignore [no-any-return]
+    def addWidget(self, w: QWidget | None) -> int:
+        if w is not None:
+            w.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+        return super().addWidget(w)  # type: ignore [no-any-return]
 
     def onCurrentChanged(self, idx: int) -> None:
         for i in range(self.count()):
