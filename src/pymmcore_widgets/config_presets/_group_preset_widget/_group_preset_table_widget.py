@@ -257,9 +257,9 @@ class GroupPresetTableWidget(QGroupBox):
         device, prop, _, dev_prop_val_count = self._get_cfg_data(group, presets[0])
 
         if len(presets) > 1 or dev_prop_val_count > 1 or dev_prop_val_count == 0:
-            return PresetsWidget(group)
+            return PresetsWidget(group, mmcore=self._mmc)
         else:
-            return PropertyWidget(device, prop)
+            return PropertyWidget(device, prop, mmcore=self._mmc)
 
     def _close_if_hasattr(self) -> None:
         attr_list = [
