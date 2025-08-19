@@ -314,6 +314,27 @@ class QQuantityValidator(QValidator):
     def text_to_quant(self, text: str | None) -> pint.Quantity | None:
         if not text:
             return None  # pragma: no cover
+        # handle human-friendly compound formats like "1 h 1 min"
+        # which pint.parse_expression may interpret as multiplication
+        # (e.g. hour * minute). Parse value+unit pairs and sum them.
+        pair_pattern = re.compile(r"([+-]?\d+(?:[.,]\d+)?)\s*([A-Za-zμμ]+)")
+        if pair_pattern.search(text):
+            parts = pair_pattern.findall(text)
+            if parts:
+                total: pint.Quantity | None = None
+                with contextlib.suppress(Exception):
+                    for val_str, unit in parts:
+                        val = float(val_str.replace(",", "."))
+                        q = self.ureg.Quantity(val, unit)
+                        if total is None:
+                            total = q
+                        else:
+                            total = total + q
+                    if total is not None and (
+                        not self.dimensionality
+                        or bool(total.is_compatible_with(self.dimensionality))
+                    ):
+                        return total
 
         with contextlib.suppress(pint.UndefinedUnitError, AssertionError):
             q = self.ureg.parse_expression(text)
@@ -410,6 +431,12 @@ class QQuantityLineEdit(QLineEdit):
             self.setText(self._last_val)
 
     def quantity(self) -> pint.Quantity | int | float:
+        # prefer the validator's parser which understands compound
+        # value+unit pairs (e.g., "1 h 1 min"). Fall back to
+        # parse_expression for backward compatibility.
+        q = self._validator.text_to_quant(self.text())
+        if q is not None:
+            return q
         return self._validator.ureg.parse_expression(self.text())
 
 
@@ -439,37 +466,47 @@ class QTimeLineEdit(QQuantityLineEdit):
         if isinstance(value, timedelta):
             value = value.total_seconds()
 
-        # format seconds into a human-readable time string
-        # choose the most appropriate unit based on value to avoid rounding
-        # 1 day or more
-        if value >= 86400:
-            days = value / 86400
-            text = f"{days:.1f} d" if days != int(days) else f"{int(days)} d"
-        # 1 hour or more
-        elif value >= 3600:
-            hours = value / 3600
-            minutes = value / 60
-            # Only use hours if it's a clean conversion
-            if value % 3600 == 0:  # Exact hours
-                text = f"{int(hours)} h"
-            else:
-                # Show in minutes for better clarity
-                text = (
-                    f"{minutes:.1f} min"
-                    if minutes != int(minutes)
-                    else f"{int(minutes)} min"
+        # format seconds into a human-readable compound time string
+        # produce outputs like "2 d 3 h", "1 h 32 min", "49 min 50 s", "5.5 s"
+        total = float(value)
+        days = int(total // 86400)
+        rem = total - days * 86400
+        hours = int(rem // 3600)
+        rem = rem - hours * 3600
+        minutes = int(rem // 60)
+        seconds = rem - minutes * 60
+
+        parts: list[str] = []
+        if days:
+            parts.append(f"{days} d")
+            if hours:
+                parts.append(f"{hours} h")
+        elif hours:
+            # include hours and minutes if present
+            parts.append(f"{hours} h")
+            if minutes:
+                parts.append(f"{minutes} min")
+        elif minutes:
+            # include minutes and seconds if seconds present
+            if seconds and seconds >= 1:
+                # show integer seconds if whole, otherwise one decimal
+                sec_text = (
+                    f"{round(seconds):.0f} s"
+                    if abs(seconds - round(seconds)) < 1e-6
+                    else f"{seconds:.1f} s"
                 )
-        # 1 minute or more
-        elif value >= 60:
-            minutes = value / 60
-            text = (
-                f"{minutes:.1f} min"
-                if minutes != int(minutes)
-                else f"{int(minutes)} min"
-            )
-        # less than 1 minute
+                parts.append(f"{minutes} min")
+                parts.append(sec_text)
+            else:
+                parts.append(f"{minutes} min")
         else:
-            text = f"{value:.1f} s" if value != int(value) else f"{int(value)} s"
+            # seconds only (may be fractional)
+            if abs(seconds - round(seconds)) < 1e-6:
+                parts.append(f"{round(seconds):.0f} s")
+            else:
+                parts.append(f"{seconds:.1f} s")
+
+        text = " ".join(parts)
 
         super(QQuantityLineEdit, self).setText(text)
         self._last_val = text

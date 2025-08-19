@@ -223,14 +223,15 @@ def test_qtime_line_edit_formatting(qtbot: QtBot) -> None:
         (5.5, "5.5 s"),  # Decimal seconds
         (30, "30 s"),  # Seconds under 1 minute
         (60, "1 min"),  # Exact 1 minute
-        (75, "1.2 min"),  # Decimal minutes
+        (75, "1 min 15 s"),  # 1 minute 15 seconds
         (300, "5 min"),  # Integer minutes
         (3600, "1 h"),  # Exact 1 hour
-        (3660, "61 min"),  # 1 hour 1 minute - show as minutes for clarity
+        (3660, "1 h 1 min"),  # 1 hour 1 minute
         (7200, "2 h"),  # 2 hours
-        (7320, "122 min"),  # 2 hours 2 minutes - can show as hours since > 2h
+        (7320, "2 h 2 min"),  # 2 hours 2 minutes
         (86400, "1 d"),  # 1 day
-        (90000, "1.0 d"),  # 1.04 days
+        (90000, "1 d 1 h"),  # 1 day + 1 hour
+        (4600, "1 h 16 min"),  # 1 hour 16 minutes
         ("200 min", "200 min"),
     ]
 
@@ -242,7 +243,7 @@ def test_qtime_line_edit_formatting(qtbot: QtBot) -> None:
 
     # Test with timedelta objects
     wdg.setValue(timedelta(seconds=2990))
-    assert wdg.text() == "49.8 min"
+    assert wdg.text() == "49 min 50 s"
 
     # Test with string input (should pass through unchanged)
     wdg.setValue("0 s")
