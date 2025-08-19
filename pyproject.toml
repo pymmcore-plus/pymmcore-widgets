@@ -48,7 +48,7 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    'pymmcore-plus[cli] >=0.14.0',
+    'pymmcore-plus[cli] @ git+https://github.com/pymmcore-plus/pymmcore-plus.git@main',
     'qtpy >=2.0',
     'superqt[quantity,cmap,iconify] >=0.7.1',
     'useq-schema >=0.8.0',
