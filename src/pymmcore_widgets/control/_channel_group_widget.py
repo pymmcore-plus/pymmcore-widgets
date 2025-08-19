@@ -59,8 +59,7 @@ class ChannelGroupWidget(QComboBox):
             self.adjustSize()
             if ch_group := self._mmc.getChannelGroup():
                 # remove NO_MATCH if it exists
-                no_match_index = self.findText(NO_MATCH)
-                if no_match_index >= 0:
+                if (no_match_index := self.findText(NO_MATCH)) >= 0:
                     self.removeItem(no_match_index)
                 self.setCurrentText(ch_group)
             else:
@@ -76,8 +75,7 @@ class ChannelGroupWidget(QComboBox):
         with signals_blocked(self):
             if value:
                 # remove NO_MATCH if it exists
-                no_match_index = self.findText(NO_MATCH)
-                if no_match_index >= 0:
+                if (no_match_index := self.findText(NO_MATCH)) >= 0:
                     self.removeItem(no_match_index)
                 self.setCurrentText(value)
             else:

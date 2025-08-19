@@ -112,8 +112,7 @@ class PresetsWidget(QWidget):
                     break
             if _set_combo:
                 # remove NO_MATCH if it exists
-                no_match_index = self._combo.findText(NO_MATCH)
-                if no_match_index >= 0:
+                if (no_match_index := self._combo.findText(NO_MATCH)) >= 0:
                     self._combo.removeItem(no_match_index)
                 with signals_blocked(self._combo):
                     self._combo.setCurrentText(preset)
