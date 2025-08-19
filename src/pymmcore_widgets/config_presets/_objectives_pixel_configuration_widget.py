@@ -316,7 +316,7 @@ class ObjectivesPixelConfigurationWidget(QDialog):
                     item.setStyleSheet("")
                 else:
                     item.setReadOnly(True)
-                    item.setStyleSheet("color:magenta")
+                    item.setStyleSheet("font-weight: bold;")
 
     def _on_sys_cfg_loaded(self) -> None:
         self.objective_device = guess_objective_or_prompt(parent=self)

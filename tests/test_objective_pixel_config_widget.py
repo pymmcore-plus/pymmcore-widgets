@@ -56,7 +56,7 @@ def test_pixel_size_table(qtbot: QtBot):
     assert cam_px.graphicsEffect().opacity() == 1.00
     assert img_px.text() == "0.2500"
     assert img_px.graphicsEffect().opacity() == 1.00
-    assert img_px.styleSheet() == "color:magenta"
+    assert img_px.styleSheet() == "font-weight: bold;"
 
     for r in range(table.rowCount()):
         _cam_px = table.cellWidget(r, CAMERA_PX_SIZE).text()
@@ -119,7 +119,7 @@ def test_change_img_pixel_size(qtbot: QtBot):
     _, _, mag, cam_px, img_px = _get_wdg(table)
     assert cam_px.text() == "10.00"
     assert mag.text() == str(10 / 1)
-    assert mag.styleSheet() == "color:magenta"
+    assert mag.styleSheet() == "font-weight: bold;"
     assert "Res40x" in mmc.getAvailablePixelSizeConfigs()
     assert mmc.getPixelSizeUmByID("Res40x") == 1
 
