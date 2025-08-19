@@ -501,10 +501,16 @@ class QTimeLineEdit(QQuantityLineEdit):
                 parts.append(f"{minutes} min")
         else:
             # seconds only (may be fractional)
+            # for sub-second values, show millisecond precision so we don't
+            # round small durations to 0 (e.g., 0.01 s -> "0.010 s"). For
+            # values >= 1s show one decimal unless it's an integer.
             if abs(seconds - round(seconds)) < 1e-6:
                 parts.append(f"{round(seconds):.0f} s")
             else:
-                parts.append(f"{seconds:.1f} s")
+                if seconds < 1.0:
+                    parts.append(f"{seconds:.3f} s")
+                else:
+                    parts.append(f"{seconds:.1f} s")
 
         text = " ".join(parts)
 
