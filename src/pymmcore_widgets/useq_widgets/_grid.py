@@ -11,6 +11,7 @@ from qtpy.QtGui import (
     QPainterPath,
     QPen,
     QPolygonF,
+    QResizeEvent,
     QTransform,
 )
 from qtpy.QtWidgets import (
@@ -606,6 +607,10 @@ class _PolygonWidget(QWidget):
                 continue
             centers.append((float(x), float(y)))
         return centers
+
+    def resizeEvent(self, a0: QResizeEvent | None) -> None:
+        super().resizeEvent(a0)
+        self._fit_view_to_items()
 
 
 class _ResizableStackedWidget(QStackedWidget):
