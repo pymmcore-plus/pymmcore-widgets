@@ -6,7 +6,7 @@ from qtpy.QtWidgets import QComboBox
 
 from pymmcore_widgets._util import block_core
 from pymmcore_widgets.control._channel_widget import ChannelWidget
-from pymmcore_widgets.control._presets_widget import PresetsWidget
+from pymmcore_widgets.control._presets_widget import NO_MATCH, PresetsWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -29,7 +29,7 @@ def test_channel_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg.channel_wdg.value() == "FITC"
 
     global_mmcore.setProperty("Emission", "Label", "Chroma-HQ700")
-    assert wdg.channel_wdg._combo.styleSheet() == "color: magenta;"
+    assert wdg.channel_wdg._combo.currentText() == NO_MATCH
 
     with qtbot.waitSignal(global_mmcore.events.channelGroupChanged):
         global_mmcore.setChannelGroup("")

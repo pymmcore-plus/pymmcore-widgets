@@ -3,12 +3,12 @@ from __future__ import annotations
 import warnings
 
 from pymmcore_plus import CMMCorePlus, DeviceType
-from qtpy.QtCore import Qt
-from qtpy.QtGui import QBrush
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QWidget
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets._util import block_core
+
+NO_MATCH = "<no match>"
 
 
 class PresetsWidget(QWidget):
@@ -57,7 +57,7 @@ class PresetsWidget(QWidget):
         self._combo.addItems(self._presets)
         self._combo.setCurrentText(self._mmc.getCurrentConfig(self._group))
 
-        self._set_style_if_props_not_match_preset()
+        self._update_if_props_not_match_preset()
 
         self.setLayout(QHBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
@@ -93,14 +93,14 @@ class PresetsWidget(QWidget):
 
     def _on_text_activate(self, text: str) -> None:
         # used if there is only 1 preset and you want to set it
-        self._mmc.setConfig(self._group, text)
-        self._combo.setStyleSheet("")
+        if text != NO_MATCH:
+            self._mmc.setConfig(self._group, text)
 
     def _on_combo_changed(self, text: str) -> None:
-        self._mmc.setConfig(self._group, text)
-        self._combo.setStyleSheet("")
+        if text != NO_MATCH:
+            self._mmc.setConfig(self._group, text)
 
-    def _set_style_if_props_not_match_preset(self) -> None:
+    def _update_if_props_not_match_preset(self) -> None:
         if not self._mmc.getAvailableConfigs(self._group):
             return
         for preset in self._presets:
@@ -111,38 +111,29 @@ class PresetsWidget(QWidget):
                     _set_combo = False
                     break
             if _set_combo:
+                # remove NO_MATCH if it exists
+                no_match_index = self._combo.findText(NO_MATCH)
+                if no_match_index >= 0:
+                    self._combo.removeItem(no_match_index)
                 with signals_blocked(self._combo):
                     self._combo.setCurrentText(preset)
-                    self._combo.setStyleSheet("")
                     return
         # if None of the presets match the current system state
-        self._combo.setStyleSheet("color: magenta;")
-        # FIXME:
-        # for some reason the above method of setting the color leaves a top level
-        # widget uncleaned.  The code below fixes it, but then breaks a lot of tests
-        # that were looking for the stylesheet.
-        # p = self._combo.palette()
-        # p.setColor(self._combo.foregroundRole(), Qt.magenta)
-        # self._combo.setPalette(p)
-
-    def _set_text_color_if_diff_presets(self) -> None:
-        for preset in self._presets:
-            dev_prop = self._get_preset_dev_prop(self._group, preset)
-            if len(dev_prop) != len(self.dev_prop):
-                idx = self._presets.index(preset)
-                self._combo.setItemData(
-                    idx, QBrush(Qt.GlobalColor.magenta), Qt.ItemDataRole.ForegroundRole
-                )
+        # add NO_MATCH to combo if not already there
+        current_items = [self._combo.itemText(i) for i in range(self._combo.count())]
+        if NO_MATCH not in current_items:
+            self._combo.addItem(NO_MATCH)
+        with signals_blocked(self._combo):
+            self._combo.setCurrentText(NO_MATCH)
 
     def _on_cfg_set(self, group: str, preset: str) -> None:
         if group == self._group and self._combo.currentText() != preset:
             with signals_blocked(self._combo):
                 self._combo.setCurrentText(preset)
-                self._combo.setStyleSheet("")
         else:
             dev_prop_list = self._get_preset_dev_prop(self._group, self._presets[0])
             if any(dev_prop for dev_prop in dev_prop_list if dev_prop in self.dev_prop):
-                self._set_style_if_props_not_match_preset()
+                self._update_if_props_not_match_preset()
 
     def _on_property_changed(self, device: str, property: str, value: str) -> None:
         if (device, property) not in self.dev_prop:
@@ -152,7 +143,7 @@ class PresetsWidget(QWidget):
             # in dev_prop, we check if the property "State" is in dev_prop.
             if (device, "State") not in self.dev_prop:
                 return
-        self._set_style_if_props_not_match_preset()
+        self._update_if_props_not_match_preset()
 
     def _get_preset_dev_prop(self, group: str, preset: str) -> list:
         """Return a list with (device, property) for the selected group preset."""
@@ -174,10 +165,20 @@ class PresetsWidget(QWidget):
             self.dev_prop = self._get_preset_dev_prop(self._group, self._presets[0])
         self._combo.addItems(self._presets)
         self._combo.setEnabled(True)
-        self._combo.setCurrentText(self._mmc.getCurrentConfig(self._group))
 
-        self._set_style_if_props_not_match_preset()
-        self._set_text_color_if_diff_presets()
+        # check if current state matches any preset
+        current_config = self._mmc.getCurrentConfig(self._group)
+        if current_config in self._presets:
+            self._combo.setCurrentText(current_config)
+        else:
+            # add NO_MATCH if not already there
+            current_items = [
+                self._combo.itemText(i) for i in range(self._combo.count())
+            ]
+            if NO_MATCH not in current_items:
+                self._combo.addItem(NO_MATCH)
+
+        self._update_if_props_not_match_preset()
 
     def value(self) -> str:
         """Get current value."""
@@ -185,6 +186,9 @@ class PresetsWidget(QWidget):
 
     def setValue(self, value: str) -> None:
         """Set the combobox to the given value."""
+        if value == NO_MATCH:
+            self._combo.setCurrentText(value)
+            return
         if value not in self._mmc.getAvailableConfigs(self._group):
             raise ValueError(
                 f"{value!r} must be one of {self._mmc.getAvailableConfigs(self._group)}"
@@ -193,12 +197,17 @@ class PresetsWidget(QWidget):
 
     def allowedValues(self) -> tuple[str, ...]:
         """Return the allowed values for this widget."""
-        return tuple(self._combo.itemText(i) for i in range(self._combo.count()))
+        values = tuple(self._combo.itemText(i) for i in range(self._combo.count()))
+        # filter out NO_MATCH as it's not a real preset value
+        return tuple(v for v in values if v != NO_MATCH)
 
     def _update_tooltip(self, preset: str) -> None:
-        self._combo.setToolTip(
-            str(self._mmc.getConfigData(self._group, preset)) if preset else ""
-        )
+        if preset == NO_MATCH:
+            self._combo.setToolTip("No preset matches the current system state.")
+        else:
+            self._combo.setToolTip(
+                str(self._mmc.getConfigData(self._group, preset)) if preset else ""
+            )
 
     def _on_group_deleted(self, group: str) -> None:
         if group != self._group:
