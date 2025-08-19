@@ -327,10 +327,38 @@ class DeviceSetupDialog(QDialog):
         if port_dev_label not in self._core.getLoadedDevices():
             return
 
-        for prop_name, prop_value in self.com_table.iterRows():
-            self._core.setProperty(port_dev_label, prop_name, prop_value)
+        # Check if the port device is already initialized
+        # This prevents conflicts when multiple devices share the same COM port
+        try:
+            if self._core.getDeviceInitializationState(port_dev_label):
+                logger.debug(f"Port device {port_dev_label} already initialized")
+                return
+        except RuntimeError:
+            # If we can't check the state, proceed with initialization
+            pass
 
-        self._core.initializeDevice(port_dev_label)
+        # Set properties only if the device is not already initialized
+        # to avoid conflicts when multiple devices share the same COM port
+        for prop_name, prop_value in self.com_table.iterRows():
+            try:
+                self._core.setProperty(port_dev_label, prop_name, prop_value)
+            except RuntimeError as e:
+                # If setting properties fails because the device is busy/in use, log it
+                if "in use" in str(e).lower() or "busy" in str(e).lower():
+                    logger.debug(f"Could not set property {prop_name} on {port_dev_label}: {e}")
+                else:
+                    # Re-raise unexpected errors
+                    raise
+
+        try:
+            self._core.initializeDevice(port_dev_label)
+        except RuntimeError as e:
+            # If initialization fails because device is already initialized, that's okay
+            if "already initialized" in str(e).lower():
+                logger.debug(f"Port device {port_dev_label} already initialized: {e}")
+            else:
+                # Re-raise unexpected errors
+                raise
 
     def _show_help(self) -> None:  # pragma: no cover
         from webbrowser import open
@@ -363,7 +391,18 @@ class ComTable(PropTable):
         if port_dev_name not in self._core.getLoadedDevices():
             if not port_library_name:
                 return
-            self._core.loadDevice(port_dev_name, port_library_name, port_dev_name)
+            # Check if a device with this label already exists before loading
+            # This prevents COM port conflicts when multiple devices share the same port
+            try:
+                self._core.loadDevice(port_dev_name, port_library_name, port_dev_name)
+            except RuntimeError as e:
+                # If the device is already loaded, this is expected behavior for shared COM ports
+                # Log the error but continue, as the port device should already be available
+                if "already in use" in str(e).lower() or "already loaded" in str(e).lower():
+                    logger.debug(f"Port device {port_dev_name} already loaded or in use: {e}")
+                else:
+                    # Re-raise unexpected errors
+                    raise
         prop_names = self._core.getDevicePropertyNames(port_dev_name)
         return super().rebuild([(port_dev_name, p) for p in prop_names])
 
