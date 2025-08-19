@@ -418,8 +418,8 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     assert isinstance(wdg.value(), useq.GridRowsColumns)
     wdg.setMode("area")
     assert isinstance(wdg.value(), useq.GridWidthHeight)
-    wdg.setMode("polygon")
-    assert isinstance(wdg.value(), useq.GridFromPolygon)
+    with pytest.raises(ValueError, match="Polygon mode may not be selected"):
+        wdg.setMode("polygon")
 
     plan = useq.GridRowsColumns(rows=3, columns=3, mode="spiral", overlap=10)
     with qtbot.waitSignal(wdg.valueChanged):
