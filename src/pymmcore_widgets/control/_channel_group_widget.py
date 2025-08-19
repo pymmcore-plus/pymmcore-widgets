@@ -4,6 +4,8 @@ from pymmcore_plus import CMMCorePlus
 from qtpy.QtWidgets import QComboBox, QWidget
 from superqt.utils import signals_blocked
 
+NO_MATCH = "<no match>"
+
 
 class ChannelGroupWidget(QComboBox):
     """A QComboBox to follow and control Micro-Manager ChannelGroup.
@@ -39,11 +41,16 @@ class ChannelGroupWidget(QComboBox):
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
         self._mmc.events.configDefined.connect(self._update_channel_group_combo)
 
-        self.textActivated.connect(self._mmc.setChannelGroup)
+        self.textActivated.connect(self._on_text_activated)
 
         self.destroyed.connect(self._disconnect)
 
         self._update_channel_group_combo()
+
+    def _on_text_activated(self, text: str) -> None:
+        """Handle text activation, ignoring '<no match>' selections."""
+        if text != NO_MATCH:
+            self._mmc.setChannelGroup(text)
 
     def _update_channel_group_combo(self) -> None:
         with signals_blocked(self):
@@ -51,24 +58,37 @@ class ChannelGroupWidget(QComboBox):
             self.addItems(self._mmc.getAvailableConfigGroups())
             self.adjustSize()
             if ch_group := self._mmc.getChannelGroup():
+                # remove NO_MATCH if it exists
+                no_match_index = self.findText(NO_MATCH)
+                if no_match_index >= 0:
+                    self.removeItem(no_match_index)
                 self.setCurrentText(ch_group)
-                self.setStyleSheet("")
             else:
-                self.setStyleSheet("color: magenta;")
+                # add NO_MATCH if not already there
+                current_items = [self.itemText(i) for i in range(self.count())]
+                if NO_MATCH not in current_items:
+                    self.addItem(NO_MATCH)
+                self.setCurrentText(NO_MATCH)
 
     def _on_property_changed(self, device: str, property: str, value: str) -> None:
         if device != "Core" or property != "ChannelGroup":
             return
         with signals_blocked(self):
             if value:
+                # remove NO_MATCH if it exists
+                no_match_index = self.findText(NO_MATCH)
+                if no_match_index >= 0:
+                    self.removeItem(no_match_index)
                 self.setCurrentText(value)
-                self.setStyleSheet("")
             else:
-                self.setStyleSheet("color: magenta;")
+                # add NO_MATCH if not already there
+                current_items = [self.itemText(i) for i in range(self.count())]
+                if NO_MATCH not in current_items:
+                    self.addItem(NO_MATCH)
+                self.setCurrentText(NO_MATCH)
 
     def _on_channel_group_changed(self, group: str) -> None:
         if group == self.currentText():
-            self.setStyleSheet("")
             return
         self._update_channel_group_combo()
 
