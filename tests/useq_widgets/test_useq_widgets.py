@@ -211,6 +211,44 @@ def test_qquant_line_edit(qtbot: QtBot) -> None:
     assert wdg.text() == "1.0 s"
 
 
+def test_qtime_line_edit_formatting(qtbot: QtBot) -> None:
+    """Test that QTimeLineEdit formats time values in human-readable units."""
+    wdg = QTimeLineEdit()
+    qtbot.addWidget(wdg)
+
+    # Test formatting of different time values
+    test_cases = [
+        # (input_seconds, expected_display)
+        (5, "5 s"),  # Integer seconds
+        (5.5, "5.5 s"),  # Decimal seconds
+        (30, "30 s"),  # Seconds under 1 minute
+        (60, "1 min"),  # Exact 1 minute
+        (75, "1.2 min"),  # Decimal minutes
+        (300, "5 min"),  # Integer minutes
+        (3600, "1 h"),  # Exact 1 hour
+        (3660, "61 min"),  # 1 hour 1 minute - show as minutes for clarity
+        (7200, "2 h"),  # 2 hours
+        (7320, "122 min"),  # 2 hours 2 minutes - can show as hours since > 2h
+        (86400, "1 d"),  # 1 day
+        (90000, "1.0 d"),  # 1.04 days
+        ("200 min", "200 min"),
+    ]
+
+    for seconds, expected in test_cases:
+        wdg.setValue(seconds)
+        assert wdg.text() == expected, (
+            f"Failed for {seconds}s: got '{wdg.text()}', expected '{expected}'"
+        )
+
+    # Test with timedelta objects
+    wdg.setValue(timedelta(seconds=2990))
+    assert wdg.text() == "49.8 min"
+
+    # Test with string input (should pass through unchanged)
+    wdg.setValue("0 s")
+    assert wdg.text() == "0 s"
+
+
 def test_position_table(qtbot: QtBot):
     wdg = PositionTable()
     qtbot.addWidget(wdg)

@@ -422,13 +422,57 @@ class QTimeLineEdit(QQuantityLineEdit):
         self.setStyleSheet("QLineEdit { border: none; }")
 
     def value(self) -> float:
+        """Return the current value as a float in seconds."""
         q = self.quantity()
         if isinstance(q, (int, float)):
             q = self._validator.ureg.Quantity(q, "second")
         return q.to("second").magnitude  # type: ignore
 
-    def setValue(self, value: float) -> None:
-        self.setText(str(value))
+    def setValue(self, value: float | str | timedelta) -> None:
+        # handle string input (like default values)
+        if isinstance(value, str):
+            super(QQuantityLineEdit, self).setText(value)
+            self._last_val = value
+            return
+
+        # handle timedelta objects from useq
+        if isinstance(value, timedelta):
+            value = value.total_seconds()
+
+        # format seconds into a human-readable time string
+        # choose the most appropriate unit based on value to avoid rounding
+        # 1 day or more
+        if value >= 86400:
+            days = value / 86400
+            text = f"{days:.1f} d" if days != int(days) else f"{int(days)} d"
+        # 1 hour or more
+        elif value >= 3600:
+            hours = value / 3600
+            minutes = value / 60
+            # Only use hours if it's a clean conversion
+            if value % 3600 == 0:  # Exact hours
+                text = f"{int(hours)} h"
+            else:
+                # Show in minutes for better clarity
+                text = (
+                    f"{minutes:.1f} min"
+                    if minutes != int(minutes)
+                    else f"{int(minutes)} min"
+                )
+        # 1 minute or more
+        elif value >= 60:
+            minutes = value / 60
+            text = (
+                f"{minutes:.1f} min"
+                if minutes != int(minutes)
+                else f"{int(minutes)} min"
+            )
+        # less than 1 minute
+        else:
+            text = f"{value:.1f} s" if value != int(value) else f"{int(value)} s"
+
+        super(QQuantityLineEdit, self).setText(text)
+        self._last_val = text
 
 
 TableTimeWidget = WdgGetSet(
