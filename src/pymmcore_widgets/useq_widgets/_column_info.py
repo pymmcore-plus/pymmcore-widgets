@@ -470,7 +470,6 @@ class QTimeLineEdit(QQuantityLineEdit):
         # handle string input
         if isinstance(value, str):
             self.setText(value)
-            self._last_val = value
             return
 
         # handle timedelta objects from useq
@@ -495,9 +494,30 @@ class QTimeLineEdit(QQuantityLineEdit):
 
         for long_form, short_form in abbreviations.items():
             text = text.replace(long_form, short_form)
-
         self.setText(text)
-        self._last_val = text
+
+    def setText(self, value: str | None) -> None:
+        """Set the text value."""
+        if value is None:
+            value = ""
+        # Use the parent's parent setText to bypass QQuantityLineEdit.setText
+        # which would re-format our humanized text using pint
+        super(QQuantityLineEdit, self).setText(value)
+        self._last_val = value
+
+    def _on_editing_finished(self) -> None:
+        """Override parent's _on_editing_finished to preserve human-readable format."""
+        before, final_text = self._last_val, self.text()
+        valid_q = self._validator.text_to_quant(final_text)
+        if valid_q is not None:
+            # For QTimeLineEdit, preserve the human-readable input format
+            # instead of reformatting with pint
+            if before != final_text:
+                self.setText(final_text)
+                self.textModified.emit(before, final_text)
+        else:
+            # Invalid input, restore the last valid value
+            self.setText(self._last_val)
 
 
 TableTimeWidget = WdgGetSet(
