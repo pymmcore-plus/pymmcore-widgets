@@ -33,11 +33,26 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 try:
-    from pint import Quantity
+    import humanize
 
     def _format_duration(duration: float) -> str:
-        d = Quantity(duration, "s").to_compact()
-        return f"{d:.1f~#P}" if d else ""
+        if not duration:
+            return ""
+        formatted = humanize.precisedelta(int(duration), minimum_unit="seconds")
+        abbreviations = {
+            " seconds": " s",
+            " second": " s",
+            " minutes": " min",
+            " minute": " min",
+            " hours": " h",
+            " hour": " h",
+            " days": " d",
+            " day": " d",
+        }
+        for full, abbrev in abbreviations.items():
+            formatted = formatted.replace(full, abbrev)
+
+        return formatted  # type: ignore
 
 except ImportError:  # pragma: no cover
 
