@@ -444,8 +444,7 @@ class QQuantityLineEdit(QLineEdit):
 
     def quantity(self) -> pint.Quantity | int | float:
         # prefer the validator's parser which understands compound
-        # value+unit pairs (e.g., "1 h 1 min"). Fall back to
-        # parse_expression for backward compatibility.
+        # value+unit pairs (e.g., "1 h 1 min").
         q = self._validator.text_to_quant(self.text())
         if q is not None:
             return q
@@ -468,9 +467,9 @@ class QTimeLineEdit(QQuantityLineEdit):
         return q.to("second").magnitude  # type: ignore
 
     def setValue(self, value: float | str | timedelta) -> None:
-        # handle string input (like default values)
+        # handle string input
         if isinstance(value, str):
-            super(QQuantityLineEdit, self).setText(value)
+            self.setText(value)
             self._last_val = value
             return
 
@@ -478,9 +477,7 @@ class QTimeLineEdit(QQuantityLineEdit):
         if isinstance(value, timedelta):
             value = value.total_seconds()
 
-        # use humanize to format seconds into human-readable text
-        # precisedelta gives exact values like "1 hr and 16 min" that can be
-        # parsed back accurately
+        # use humanize to format seconds into human-readable text (e.g. "1 h and 3 min")
         td = timedelta(seconds=value)
         text = humanize.precisedelta(td, minimum_unit="seconds")
 
@@ -499,7 +496,7 @@ class QTimeLineEdit(QQuantityLineEdit):
         for long_form, short_form in abbreviations.items():
             text = text.replace(long_form, short_form)
 
-        super(QQuantityLineEdit, self).setText(text)
+        self.setText(text)
         self._last_val = text
 
 
