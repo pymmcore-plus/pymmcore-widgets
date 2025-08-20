@@ -500,6 +500,9 @@ class QTimeLineEdit(QQuantityLineEdit):
         """Set the text value."""
         if value is None:
             value = ""
+        # Validate the input first - this will raise ValueError for invalid values
+        if value and self._validator.text_to_quant(value) is None:
+            raise ValueError(f"Invalid value: {value!r}")
         # Use the parent's parent setText to bypass QQuantityLineEdit.setText
         # which would re-format our humanized text using pint
         super(QQuantityLineEdit, self).setText(value)
