@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Callable, ClassVar, Generic, TypeVar, cast
 
+import humanize
 import pint
 from qtpy.QtCore import Qt, Signal, SignalInstance
 from qtpy.QtGui import QFocusEvent, QKeyEvent, QValidator
@@ -314,9 +315,11 @@ class QQuantityValidator(QValidator):
     def text_to_quant(self, text: str | None) -> pint.Quantity | None:
         if not text:
             return None  # pragma: no cover
-        # handle human-friendly compound formats like "1 h 1 min"
-        # which pint.parse_expression may interpret as multiplication
-        # (e.g. hour * minute). Parse value+unit pairs and sum them.
+
+        # handle human-friendly compound formats like "1 hr 1 min" or
+        # "1 hr and 1 min" which pint.parse_expression may interpret as
+        # multiplication (e.g. hour * minute). Parse value+unit pairs and sum them.
+        # Updated pattern to handle both full and abbreviated units
         pair_pattern = re.compile(r"([+-]?\d+(?:[.,]\d+)?)\s*([A-Za-zμμ]+)")
         if pair_pattern.search(text):
             parts = pair_pattern.findall(text)
@@ -325,7 +328,16 @@ class QQuantityValidator(QValidator):
                 with contextlib.suppress(Exception):
                     for val_str, unit in parts:
                         val = float(val_str.replace(",", "."))
-                        q = self.ureg.Quantity(val, unit)
+                        # Map abbreviated units to full units for pint
+                        unit_mapping = {
+                            "s": "second",
+                            "min": "minute",
+                            "h": "hour",
+                            "d": "day",
+                        }
+                        # Use mapped unit if it's an abbreviation, otherwise use as-is
+                        pint_unit = unit_mapping.get(unit, unit)
+                        q = self.ureg.Quantity(val, pint_unit)
                         if total is None:
                             total = q
                         else:
@@ -466,53 +478,26 @@ class QTimeLineEdit(QQuantityLineEdit):
         if isinstance(value, timedelta):
             value = value.total_seconds()
 
-        # format seconds into a human-readable compound time string
-        # produce outputs like "2 d 3 h", "1 h 32 min", "49 min 50 s", "5.5 s"
-        total = float(value)
-        days = int(total // 86400)
-        rem = total - days * 86400
-        hours = int(rem // 3600)
-        rem = rem - hours * 3600
-        minutes = int(rem // 60)
-        seconds = rem - minutes * 60
+        # use humanize to format seconds into human-readable text
+        # precisedelta gives exact values like "1 hr and 16 min" that can be
+        # parsed back accurately
+        td = timedelta(seconds=value)
+        text = humanize.precisedelta(td, minimum_unit="seconds")
 
-        parts: list[str] = []
-        if days:
-            parts.append(f"{days} d")
-            if hours:
-                parts.append(f"{hours} h")
-        elif hours:
-            # include hours and minutes if present
-            parts.append(f"{hours} h")
-            if minutes:
-                parts.append(f"{minutes} min")
-        elif minutes:
-            # include minutes and seconds if seconds present
-            if seconds and seconds >= 1:
-                # show integer seconds if whole, otherwise one decimal
-                sec_text = (
-                    f"{round(seconds):.0f} s"
-                    if abs(seconds - round(seconds)) < 1e-6
-                    else f"{seconds:.1f} s"
-                )
-                parts.append(f"{minutes} min")
-                parts.append(sec_text)
-            else:
-                parts.append(f"{minutes} min")
-        else:
-            # seconds only (may be fractional)
-            # for sub-second values, show millisecond precision so we don't
-            # round small durations to 0 (e.g., 0.01 s -> "0.010 s"). For
-            # values >= 1s show one decimal unless it's an integer.
-            if abs(seconds - round(seconds)) < 1e-6:
-                parts.append(f"{round(seconds):.0f} s")
-            else:
-                if seconds < 1.0:
-                    parts.append(f"{seconds:.3f} s")
-                else:
-                    parts.append(f"{seconds:.1f} s")
+        # abbreviate unit names for more compact display
+        abbreviations = {
+            " seconds": " s",
+            " second": " s",
+            " minutes": " min",
+            " minute": " min",
+            " hours": " h",
+            " hour": " h",
+            " days": " d",
+            " day": " d",
+        }
 
-        text = " ".join(parts)
+        for long_form, short_form in abbreviations.items():
+            text = text.replace(long_form, short_form)
 
         super(QQuantityLineEdit, self).setText(text)
         self._last_val = text

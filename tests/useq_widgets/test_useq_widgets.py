@@ -216,22 +216,22 @@ def test_qtime_line_edit_formatting(qtbot: QtBot) -> None:
     wdg = QTimeLineEdit()
     qtbot.addWidget(wdg)
 
-    # Test formatting of different time values
+    # Test formatting of different time values (using abbreviated humanize output)
     test_cases = [
         # (input_seconds, expected_display)
         (5, "5 s"),  # Integer seconds
-        (5.5, "5.5 s"),  # Decimal seconds
+        (5.5, "5.50 s"),  # Decimal seconds
         (30, "30 s"),  # Seconds under 1 minute
         (60, "1 min"),  # Exact 1 minute
-        (75, "1 min 15 s"),  # 1 minute 15 seconds
+        (75, "1 min and 15 s"),  # 1 minute 15 seconds
         (300, "5 min"),  # Integer minutes
         (3600, "1 h"),  # Exact 1 hour
-        (3660, "1 h 1 min"),  # 1 hour 1 minute
+        (3660, "1 h and 1 min"),  # 1 hour 1 minute
         (7200, "2 h"),  # 2 hours
-        (7320, "2 h 2 min"),  # 2 hours 2 minutes
+        (7320, "2 h and 2 min"),  # 2 hours 2 minutes
         (86400, "1 d"),  # 1 day
-        (90000, "1 d 1 h"),  # 1 day + 1 hour
-        (4600, "1 h 16 min"),  # 1 hour 16 minutes
+        (90000, "1 d and 1 h"),  # 1 day + 1 hour
+        (4600, "1 h, 16 min and 40 s"),  # 1 hour 16 minutes 40 seconds
         ("200 min", "200 min"),
     ]
 
@@ -243,9 +243,9 @@ def test_qtime_line_edit_formatting(qtbot: QtBot) -> None:
 
     # Test with timedelta objects
     wdg.setValue(timedelta(seconds=2990))
-    assert wdg.text() == "49 min 50 s"
+    assert wdg.text() == "49 min and 50 s"
 
-    # Test with string input (should pass through unchanged)
+    # Test with string input (should pass though unchanged)
     wdg.setValue("0 s")
     assert wdg.text() == "0 s"
 
