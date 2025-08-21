@@ -22,6 +22,7 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 
 import pymmcore_widgets
+from pymmcore_widgets._util import canonicalize_time
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
 from pymmcore_widgets.useq_widgets._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
@@ -31,33 +32,6 @@ from pymmcore_widgets.useq_widgets._z import Mode, ZPlanWidget
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-
-try:
-    import humanize
-
-    def _format_duration(duration: float) -> str:
-        if not duration:
-            return ""
-        formatted = humanize.precisedelta(int(duration), minimum_unit="seconds")
-        abbreviations = {
-            " seconds": " s",
-            " second": " s",
-            " minutes": " min",
-            " minute": " min",
-            " hours": " h",
-            " hour": " h",
-            " days": " d",
-            " day": " d",
-        }
-        for full, abbrev in abbreviations.items():
-            formatted = formatted.replace(full, abbrev)
-
-        return formatted  # type: ignore
-
-except ImportError:  # pragma: no cover
-
-    def _format_duration(duration: float) -> str:
-        return f"{duration:.3f} s" if duration else ""
 
 
 def _check_order(x: str, first: str, second: str) -> bool:
@@ -612,7 +586,7 @@ class MDASequenceWidget(QWidget):
 
         self._time_warning.setVisible(self._time_estimate.time_interval_exceeded)
 
-        d = _format_duration(self._time_estimate.total_duration)
+        d = canonicalize_time(self._time_estimate.total_duration)
         d = f"Estimated duration: {d}" if d else ""
         self._duration_label.setText(d)
 

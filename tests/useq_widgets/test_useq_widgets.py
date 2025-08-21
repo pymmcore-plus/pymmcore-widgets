@@ -208,7 +208,7 @@ def test_qquant_line_edit(qtbot: QtBot) -> None:
     with qtbot.waitSignal(wdg.editingFinished):
         qtbot.keyPress(wdg, Qt.Key.Key_Enter)
     assert not wdg.hasFocus()
-    assert wdg.text() == "1.0 s"
+    assert wdg.text() == "1 s"
 
 
 def test_qtime_line_edit_formatting(qtbot: QtBot) -> None:
@@ -232,7 +232,7 @@ def test_qtime_line_edit_formatting(qtbot: QtBot) -> None:
         (86400, "1 d"),  # 1 day
         (90000, "1 d and 1 h"),  # 1 day + 1 hour
         (4600, "1 h, 16 min and 40 s"),  # 1 hour 16 minutes 40 seconds
-        ("200 min", "200 min"),
+        ("200 min", "3 h and 20 min"),
     ]
 
     for seconds, expected in test_cases:

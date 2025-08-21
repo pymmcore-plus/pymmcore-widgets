@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Callable, ClassVar, Generic, TypeVar, cast
 
-import humanize
 import pint
 from qtpy.QtCore import Qt, Signal, SignalInstance
 from qtpy.QtGui import QFocusEvent, QKeyEvent, QValidator
@@ -24,6 +23,8 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.iconify import QIconifyIcon
+
+from pymmcore_widgets._util import canonicalize_time
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -69,6 +70,13 @@ class ColumnInfo:
     ) -> None:
         pass  # pragma: no cover
 
+
+# pattern that detects value and unit pairs
+PAIR_PATTERN = re.compile(
+    r"([+-]?\d+(?:[.,]\d+)?)(?# numeric value: optional sign, digits, optional frac)"
+    r"\s*(?# optional whitespace between value and unit)"
+    r"([A-Za-zμμ]+)(?# unit: letters, includes 'μ')"
+)
 
 CHECKABLE_FLAGS = (
     Qt.ItemFlag.ItemIsUserCheckable
@@ -285,7 +293,7 @@ class _RangeColumn(WidgetColumn, Generic[W, T]):
 class IntColumn(_RangeColumn):
     data_type: WdgGetSet = TableIntWidget
     minimum: int = 0
-    maximum: int = 99_999
+    maximum: int = 999_999_999
 
 
 @dataclass(frozen=True)
@@ -320,33 +328,32 @@ class QQuantityValidator(QValidator):
         # "1 hr and 1 min" which pint.parse_expression may interpret as
         # multiplication (e.g. hour * minute). Parse value+unit pairs and sum them.
         # Updated pattern to handle both full and abbreviated units
-        pair_pattern = re.compile(r"([+-]?\d+(?:[.,]\d+)?)\s*([A-Za-zμμ]+)")
-        if pair_pattern.search(text):
-            parts = pair_pattern.findall(text)
-            if parts:
-                total: pint.Quantity | None = None
-                with contextlib.suppress(Exception):
-                    for val_str, unit in parts:
-                        val = float(val_str.replace(",", "."))
-                        # Map abbreviated units to full units for pint
-                        unit_mapping = {
-                            "s": "second",
-                            "min": "minute",
-                            "h": "hour",
-                            "d": "day",
-                        }
-                        # Use mapped unit if it's an abbreviation, otherwise use as-is
-                        pint_unit = unit_mapping.get(unit, unit)
-                        q = self.ureg.Quantity(val, pint_unit)
-                        if total is None:
-                            total = q
-                        else:
-                            total = total + q
-                    if total is not None and (
-                        not self.dimensionality
-                        or bool(total.is_compatible_with(self.dimensionality))
-                    ):
-                        return total
+        total: pint.Quantity | None = None
+        for val_str, unit in PAIR_PATTERN.findall(text):
+            val = float(val_str.replace(",", "."))
+            # Map abbreviated units to full units for pint
+            unit_mapping = {
+                "s": "second",
+                "min": "minute",
+                "h": "hour",
+                "d": "day",
+            }
+            # Use mapped unit if it's an abbreviation, otherwise use as-is
+            pint_unit = unit_mapping.get(unit, unit)
+            try:
+                q = self.ureg.Quantity(val, pint_unit)
+                if total is None:
+                    total = q
+                else:
+                    total = total + q
+            except Exception:
+                return None
+
+        if total is not None and (
+            not self.dimensionality
+            or bool(total.is_compatible_with(self.dimensionality))
+        ):
+            return total
 
         with contextlib.suppress(pint.UndefinedUnitError, AssertionError):
             q = self.ureg.parse_expression(text)
@@ -467,33 +474,7 @@ class QTimeLineEdit(QQuantityLineEdit):
         return q.to("second").magnitude  # type: ignore
 
     def setValue(self, value: float | str | timedelta) -> None:
-        # handle string input
-        if isinstance(value, str):
-            self.setText(value)
-            return
-
-        # handle timedelta objects from useq
-        if isinstance(value, timedelta):
-            value = value.total_seconds()
-
-        # use humanize to format seconds into human-readable text (e.g. "1 h and 3 min")
-        td = timedelta(seconds=value)
-        text = humanize.precisedelta(td, minimum_unit="seconds")
-
-        # abbreviate unit names for more compact display
-        abbreviations = {
-            " seconds": " s",
-            " second": " s",
-            " minutes": " min",
-            " minute": " min",
-            " hours": " h",
-            " hour": " h",
-            " days": " d",
-            " day": " d",
-        }
-
-        for long_form, short_form in abbreviations.items():
-            text = text.replace(long_form, short_form)
+        text = canonicalize_time(value)
         self.setText(text)
 
     def setText(self, value: str | None) -> None:
@@ -513,11 +494,9 @@ class QTimeLineEdit(QQuantityLineEdit):
         before, final_text = self._last_val, self.text()
         valid_q = self._validator.text_to_quant(final_text)
         if valid_q is not None:
-            # For QTimeLineEdit, preserve the human-readable input format
-            # instead of reformatting with pint
-            if before != final_text:
-                self.setText(final_text)
-                self.textModified.emit(before, final_text)
+            final_text = canonicalize_time(valid_q)
+            self.setText(final_text)
+            self.textModified.emit(before, final_text)
         else:
             # Invalid input, restore the last valid value
             self.setText(self._last_val)
