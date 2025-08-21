@@ -58,15 +58,9 @@ class ChannelGroupWidget(QComboBox):
             self.addItems(self._mmc.getAvailableConfigGroups())
             self.adjustSize()
             if ch_group := self._mmc.getChannelGroup():
-                # remove NO_MATCH if it exists
-                if (no_match_index := self.findText(NO_MATCH)) >= 0:
-                    self.removeItem(no_match_index)
                 self.setCurrentText(ch_group)
             else:
-                # add NO_MATCH if not already there
-                current_items = [self.itemText(i) for i in range(self.count())]
-                if NO_MATCH not in current_items:
-                    self.addItem(NO_MATCH)
+                self.addItem(NO_MATCH)
                 self.setCurrentText(NO_MATCH)
 
     def _on_property_changed(self, device: str, property: str, value: str) -> None:
@@ -80,7 +74,7 @@ class ChannelGroupWidget(QComboBox):
                 self.setCurrentText(value)
             else:
                 # add NO_MATCH if not already there
-                current_items = [self.itemText(i) for i in range(self.count())]
+                current_items = {self.itemText(i) for i in range(self.count())}
                 if NO_MATCH not in current_items:
                     self.addItem(NO_MATCH)
                 self.setCurrentText(NO_MATCH)
