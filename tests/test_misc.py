@@ -42,7 +42,7 @@ PUBLIC_WIDGETS = [
 
 
 @pytest.mark.parametrize("widget_cls", PUBLIC_WIDGETS)
-def test_using_existing_mmcore(
+def test_widget_creation_propagates_core_instance(
     qtbot: QtBot, widget_cls: type, core_instance_mock: Mock
 ) -> None:
     instance = CMMCorePlus()
