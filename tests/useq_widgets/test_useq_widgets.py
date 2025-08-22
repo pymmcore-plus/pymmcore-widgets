@@ -220,7 +220,7 @@ def test_qtime_line_edit_formatting(qtbot: QtBot) -> None:
     test_cases = [
         # (input_seconds, expected_display)
         (5, "5 s"),  # Integer seconds
-        (5.5, "5.50 s"),  # Decimal seconds
+        (5.5, "5.5 s"),  # Decimal seconds
         (30, "30 s"),  # Seconds under 1 minute
         (60, "1 min"),  # Exact 1 minute
         (75, "1 min and 15 s"),  # 1 minute 15 seconds

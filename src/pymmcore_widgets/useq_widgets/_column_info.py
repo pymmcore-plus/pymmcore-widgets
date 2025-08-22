@@ -24,11 +24,13 @@ from qtpy.QtWidgets import (
 )
 from superqt.iconify import QIconifyIcon
 
-from pymmcore_widgets._humanize import humanize_time
+from pymmcore_widgets._humanize import humanize_time, parse_time_string
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from typing import Any
+
+    from pint.facets.plain import PlainQuantity
 
 
 @dataclass(frozen=True)
@@ -320,52 +322,15 @@ class QQuantityValidator(QValidator):
             return (QValidator.State.Acceptable, a0 or "", a1)
         return (QValidator.State.Intermediate, a0 or "", a1)
 
-    def text_to_quant(self, text: str | None) -> pint.Quantity | None:
-        if not text:
-            return None  # pragma: no cover
+    def text_to_quant(self, text: str | None) -> PlainQuantity | None:
+        if text:
+            with contextlib.suppress(ValueError, pint.errors.UndefinedUnitError):
+                return parse_time_string(text, self.ureg.Quantity)
 
-        # handle human-friendly compound formats like "1 hr 1 min" or
-        # "1 hr and 1 min" which pint.parse_expression may interpret as
-        # multiplication (e.g. hour * minute). Parse value+unit pairs and sum them.
-        # Updated pattern to handle both full and abbreviated units
-        total: pint.Quantity | None = None
-        for val_str, unit in PAIR_PATTERN.findall(text):
-            val = float(val_str.replace(",", "."))
-            # Map abbreviated units to full units for pint
-            unit_mapping = {
-                "s": "second",
-                "min": "minute",
-                "h": "hour",
-                "d": "day",
-            }
-            # Use mapped unit if it's an abbreviation, otherwise use as-is
-            pint_unit = unit_mapping.get(unit, unit)
-            try:
-                q = self.ureg.Quantity(val, pint_unit)
-                if total is None:
-                    total = q
-                else:
-                    total = total + q
-            except Exception:
-                return None
+            with contextlib.suppress(ValueError):
+                td = parse_timedelta(text)
+                return self.ureg.Quantity(td.total_seconds(), "second")
 
-        if total is not None and (
-            not self.dimensionality
-            or bool(total.is_compatible_with(self.dimensionality))
-        ):
-            return total
-
-        with contextlib.suppress(pint.UndefinedUnitError, AssertionError):
-            q = self.ureg.parse_expression(text)
-            if self.dimensionality and (
-                isinstance(q, pint.Quantity)
-                and bool(q.is_compatible_with(self.dimensionality))
-            ):
-                return q
-        # try to parse as timedelta
-        with contextlib.suppress(ValueError):
-            td = parse_timedelta(text)
-            return self.ureg.Quantity(td.total_seconds(), "second")
         return None  # pragma: no cover
 
 
