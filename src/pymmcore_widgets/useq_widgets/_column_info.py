@@ -32,6 +32,8 @@ if TYPE_CHECKING:
 
     from pint.facets.plain import PlainQuantity
 
+    from pymmcore_widgets._humanize import Unit
+
 
 @dataclass(frozen=True)
 class ColumnInfo:
@@ -412,8 +414,12 @@ class QQuantityLineEdit(QLineEdit):
 
 class QTimeLineEdit(QQuantityLineEdit):
     def __init__(
-        self, contents: str | None = None, parent: QWidget | None = None
+        self,
+        contents: str | None = None,
+        minimum_unit: Unit = "seconds",
+        parent: QWidget | None = None,
     ) -> None:
+        self._minimum_unit: Unit = minimum_unit
         super().__init__(contents, parent)
         self.setDimensionality("second")
         self.setStyleSheet("QLineEdit { border: none; }")
@@ -426,7 +432,7 @@ class QTimeLineEdit(QQuantityLineEdit):
         return q.to("second").magnitude  # type: ignore
 
     def setValue(self, value: float | str | timedelta) -> None:
-        text = humanize_time(value)
+        text = humanize_time(value, self._minimum_unit)
         QLineEdit.setText(self, text)
         self._last_val = text
 
@@ -448,7 +454,7 @@ class QTimeLineEdit(QQuantityLineEdit):
         before, final_text = self._last_val, self.text()
         valid_q = self._validator.text_to_quant(final_text)
         if valid_q is not None:
-            final_text = humanize_time(valid_q)
+            final_text = humanize_time(valid_q, self._minimum_unit)
             self.setText(final_text)
             self.textModified.emit(before, final_text)
         else:
@@ -467,6 +473,11 @@ TableTimeWidget = WdgGetSet(
 @dataclass(frozen=True)
 class TimeDeltaColumn(WidgetColumn):
     data_type: WdgGetSet[QTimeLineEdit, float] = TableTimeWidget
+    minimum_unit: Unit = "seconds"
+
+    def _init_widget(self) -> QTimeLineEdit:
+        """Override to create widget with custom minimum_unit."""
+        return QTimeLineEdit(minimum_unit=self.minimum_unit)
 
 
 class CheckableCombo(QWidget):

@@ -19,6 +19,7 @@ CASES: list[tuple[SupportsDuration, Unit, str]] = [
     (timedelta(microseconds=1500), "milliseconds", "1.5 ms"),
     (timedelta(milliseconds=5), "microseconds", "5 ms"),
     (0.005, "microseconds", "5 ms"),
+    (1.1, "microseconds", "1.1 s"),
     (360.00512, "milliseconds", "6 min and 5.12 ms"),
     (360.00000512, "microseconds", "6 min and 5.12 µs"),
     (360.005000045, "milliseconds", "6 min and 5 ms"),

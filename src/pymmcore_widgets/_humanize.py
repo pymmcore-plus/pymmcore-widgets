@@ -45,6 +45,87 @@ _IDX = {u: i for i, u in enumerate(UNIT_ORDER)}
 _TIME_PARTS = re.compile(r"[-+]?\d*\.?\d+(?:e[-+]?\d+)?\s*[^\d,+-]+")
 
 
+def humanize_time(
+    duration: SupportsDuration,
+    minimum_unit: Unit = "seconds",
+    format: str = "%.2f",
+) -> str:
+    """Convert a duration to a human-readable string.
+
+    Parameters
+    ----------
+    duration
+        Seconds as int or float, a timedelta, a time-like pint Quantity, or a string.
+        Strings are parsed additively, e.g. "1 day 3 min 4 s".
+    minimum_unit
+        The smallest unit to display. One of "microseconds", "milliseconds", "seconds",
+        "minutes", "hours", "days".
+    format
+        A format string for the fractional part of `minimum_unit`. When
+        `minimum_unit == "seconds"`, fractional seconds are shown even when
+        larger units are present.
+
+    Returns
+    -------
+    str
+        Human-readable duration string.
+    """
+    if minimum_unit not in _IDX:  # pragma: no cover
+        raise ValueError(f"Invalid minimum_unit, must be one of {UNIT_ORDER}")
+
+    total = abs(_to_seconds(duration))
+
+    # Pure subsecond path when total < 1 s
+    if total < 1 and minimum_unit in {"milliseconds", "microseconds"}:
+        parts = _subsecond_tail(total, minimum_unit, format, whole_under_one_sec=True)
+        return " and ".join(parts) if parts else f"0 {ABBR[minimum_unit]}"
+
+    # Fractional minutes under 1 hour
+    if minimum_unit == "minutes" and total < 3600:
+        return _fmt(total / 60.0, ABBR["minutes"], format)
+
+    # General path
+    parts, secs_i, frac = _split_major(total)
+
+    # Prefer a single fractional seconds token when it reads cleaner
+    # (e.g., 1.1 s instead of "1 s and 100000 µs") when no major units
+    # (days/hours/minutes) are present and the requested minimum unit is
+    # finer than seconds.
+    if (
+        minimum_unit in {"milliseconds", "microseconds"}
+        and not parts
+        and (secs_i or frac)
+    ):
+        sec_val = secs_i + frac
+        if not sec_val.is_integer():
+            return _fmt(sec_val, ABBR["seconds"], format)
+
+    _append_seconds(parts, secs_i, frac, minimum_unit, format)
+
+    # Subsecond tail for higher precision requests
+    if minimum_unit in {"milliseconds", "microseconds"}:
+        parts.extend(
+            _subsecond_tail(frac, minimum_unit, format, whole_under_one_sec=False)
+        )
+
+    if not parts:
+        return f"0 {ABBR[minimum_unit]}"
+    if len(parts) <= 2:
+        return " and ".join(parts)
+    return f"{', '.join(parts[:-1])} and {parts[-1]}"
+
+
+def parse_time_string(
+    time_string: str, quant_cls: type[pint.Quantity] = pint.Quantity
+) -> PlainQuantity:
+    """Parse additive strings like '1 day, 3 min and 4 s' into a pint Quantity."""
+    time_string = time_string.replace(",", "").replace("and", " ")
+    if not (parts := _TIME_PARTS.findall(time_string)):
+        raise ValueError(f"Invalid time string: {time_string}")
+    total = sum([quant_cls(part) for part in parts], quant_cls("0 s"))
+    return total
+
+
 def _fmt(val: float, unit_abbr: str, fmt: str) -> str:
     return f"{(fmt % val).rstrip('0').rstrip('.')} {unit_abbr}"
 
@@ -125,75 +206,3 @@ def _subsecond_tail(
     if v.is_integer():
         return [f"{int(v)} {abbr}"] if v else []
     return [_fmt(v, abbr, fmt)]
-
-
-def humanize_time(
-    duration: SupportsDuration,
-    minimum_unit: Unit = "milliseconds",
-    format: str = "%.2f",
-) -> str:
-    """Convert a duration to a human-readable string.
-
-    Parameters
-    ----------
-    duration
-        Seconds as int or float, a timedelta, a time-like pint Quantity, or a string.
-        Strings are parsed additively, e.g. "1 day 3 min 4 s".
-    minimum_unit
-        The smallest unit to display. One of "microseconds", "milliseconds", "seconds",
-        "minutes", "hours", "days".
-    format
-        A format string for the fractional part of `minimum_unit`. When
-        `minimum_unit == "seconds"`, fractional seconds are shown even when
-        larger units are present.
-
-    Returns
-    -------
-    str
-        Human-readable duration string.
-    """
-    if minimum_unit not in _IDX:  # pragma: no cover
-        raise ValueError(f"Invalid minimum_unit, must be one of {UNIT_ORDER}")
-
-    total = abs(_to_seconds(duration))
-
-    # Pure subsecond path when total < 1 s
-    if total < 1 and minimum_unit in {"milliseconds", "microseconds"}:
-        parts = _subsecond_tail(total, minimum_unit, format, whole_under_one_sec=True)
-        return " and ".join(parts) if parts else f"0 {ABBR[minimum_unit]}"
-
-    # Fractional minutes under 1 hour
-    if minimum_unit == "minutes" and total < 3600:
-        return _fmt(total / 60.0, ABBR["minutes"], format)
-
-    # General path
-    parts, secs_i, frac = _split_major(total)
-    _append_seconds(parts, secs_i, frac, minimum_unit, format)
-
-    # Subsecond tail for higher precision requests
-    if minimum_unit in {"milliseconds", "microseconds"}:
-        parts.extend(
-            _subsecond_tail(frac, minimum_unit, format, whole_under_one_sec=False)
-        )
-
-    if not parts:
-        return f"0 {ABBR[minimum_unit]}"
-    if len(parts) <= 2:
-        return " and ".join(parts)
-    return f"{', '.join(parts[:-1])} and {parts[-1]}"
-
-
-def parse_time_string(
-    time_string: str, quant_cls: type[pint.Quantity] = pint.Quantity
-) -> PlainQuantity:
-    """Parse additive strings like '1 day, 3 min and 4 s' into a pint Quantity."""
-    print("parse", time_string)
-    import inspect
-
-    # show who called us
-    print("called from", inspect.stack()[1].function, inspect.stack()[2].function)
-    time_string = time_string.replace(",", "").replace("and", " ")
-    if not (parts := _TIME_PARTS.findall(time_string)):
-        raise ValueError(f"Invalid time string: {time_string}")
-    total = sum([quant_cls(part) for part in parts], quant_cls("0 s"))
-    return total
