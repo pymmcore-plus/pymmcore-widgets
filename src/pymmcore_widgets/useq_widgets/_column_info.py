@@ -484,7 +484,7 @@ class QTimeLineEdit(QQuantityLineEdit):
         # Validate the input first - this will raise ValueError for invalid values
         if value and self._validator.text_to_quant(value) is None:
             raise ValueError(f"Invalid value: {value!r}")
-        super().setText(value)
+        QLineEdit.setText(self, value)
         self._last_val = value
 
     def _on_editing_finished(self) -> None:
