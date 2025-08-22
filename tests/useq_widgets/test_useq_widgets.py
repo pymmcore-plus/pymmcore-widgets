@@ -208,7 +208,46 @@ def test_qquant_line_edit(qtbot: QtBot) -> None:
     with qtbot.waitSignal(wdg.editingFinished):
         qtbot.keyPress(wdg, Qt.Key.Key_Enter)
     assert not wdg.hasFocus()
-    assert wdg.text() == "1.0 s"
+    assert wdg.text() == "1 s"
+
+
+def test_qtime_line_edit_formatting(qtbot: QtBot) -> None:
+    """Test that QTimeLineEdit formats time values in human-readable units."""
+    wdg = QTimeLineEdit()
+    qtbot.addWidget(wdg)
+
+    # Test formatting of different time values (using abbreviated humanize output)
+    test_cases = [
+        # (input_seconds, expected_display)
+        (5, "5 s"),  # Integer seconds
+        (5.5, "5.5 s"),  # Decimal seconds
+        (30, "30 s"),  # Seconds under 1 minute
+        (60, "1 min"),  # Exact 1 minute
+        (75, "1 min and 15 s"),  # 1 minute 15 seconds
+        (300, "5 min"),  # Integer minutes
+        (3600, "1 h"),  # Exact 1 hour
+        (3660, "1 h and 1 min"),  # 1 hour 1 minute
+        (7200, "2 h"),  # 2 hours
+        (7320, "2 h and 2 min"),  # 2 hours 2 minutes
+        (86400, "1 d"),  # 1 day
+        (90000, "1 d and 1 h"),  # 1 day + 1 hour
+        (4600, "1 h, 16 min and 40 s"),  # 1 hour 16 minutes 40 seconds
+        ("200 min", "3 h and 20 min"),
+    ]
+
+    for seconds, expected in test_cases:
+        wdg.setValue(seconds)
+        assert wdg.text() == expected, (
+            f"Failed for {seconds}s: got '{wdg.text()}', expected '{expected}'"
+        )
+
+    # Test with timedelta objects
+    wdg.setValue(timedelta(seconds=2990))
+    assert wdg.text() == "49 min and 50 s"
+
+    # Test with string input (should pass though unchanged)
+    wdg.setValue("0 s")
+    assert wdg.text() == "0 s"
 
 
 def test_position_table(qtbot: QtBot):
@@ -418,8 +457,8 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     assert isinstance(wdg.value(), useq.GridRowsColumns)
     wdg.setMode("area")
     assert isinstance(wdg.value(), useq.GridWidthHeight)
-    wdg.setMode("polygon")
-    assert isinstance(wdg.value(), useq.GridFromPolygon)
+    with pytest.raises(ValueError, match="Polygon mode may not be selected"):
+        wdg.setMode("polygon")
 
     plan = useq.GridRowsColumns(rows=3, columns=3, mode="spiral", overlap=10)
     with qtbot.waitSignal(wdg.valueChanged):

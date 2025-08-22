@@ -31,19 +31,16 @@ def test_preset_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
 
         if group == "Camera":
             global_mmcore.setProperty("Camera", "Binning", "8")
-            assert wdg._combo.styleSheet() == "color: magenta;"
+            assert wdg._combo.currentText() == "<no match>"
             global_mmcore.setProperty("Camera", "Binning", "1")
-            assert wdg._combo.styleSheet() == ""
+            assert wdg._combo.currentText() != "<no match>"
 
             global_mmcore.setConfig("Camera", "HighRes")
             assert wdg._combo.currentText() == "HighRes"
-            assert wdg._combo.styleSheet() == ""
             global_mmcore.setProperty("Camera", "Binning", "2")
-            assert wdg._combo.currentText() == "HighRes"
-            assert wdg._combo.styleSheet() == "color: magenta;"
+            assert wdg._combo.currentText() == "<no match>"
             global_mmcore.setProperty("Camera", "BitDepth", "10")
             assert wdg._combo.currentText() == "MedRes"
-            assert wdg._combo.styleSheet() == ""
 
             warning_string = (
                 "'test' preset is missing the following properties:"
