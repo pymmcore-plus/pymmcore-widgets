@@ -203,7 +203,7 @@ def test_delete_group(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
 
 def test_add_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    add_prs = AddPresetWidget("Channel")
+    add_prs = AddPresetWidget("Channel", mmcore=global_mmcore)
     qtbot.addWidget(add_prs)
     gp = GroupPresetTableWidget()
     qtbot.addWidget(gp)

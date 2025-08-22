@@ -24,10 +24,16 @@ from ._cfg_table import _CfgTable
 class AddPresetWidget(QDialog):
     """A widget to add presets to a specified group."""
 
-    def __init__(self, group: str, *, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        group: str,
+        *,
+        mmcore: CMMCorePlus | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent=parent)
 
-        self._mmc = CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._group = group
 
         self._create_gui()

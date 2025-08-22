@@ -558,7 +558,7 @@ class _PropertySelector(QWidget):
         self._filter_text.textChanged.connect(self._update_filter)
 
         self._prop_table = DevicePropertyTable(
-            connect_core=False, enable_property_widgets=False
+            mmcore=self._mmc, connect_core=False, enable_property_widgets=False
         )
         self._prop_table.setRowsCheckable(True)
 

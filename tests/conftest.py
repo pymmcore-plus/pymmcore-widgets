@@ -1,17 +1,66 @@
+from __future__ import annotations
+
+import inspect
+import sys
 import warnings
-from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
+import pymmcore_plus
 import pytest
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus._accumulator import DeviceAccumulator
 from pymmcore_plus.core import _mmcore_plus
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from pytest import FixtureRequest
     from qtpy.QtWidgets import QApplication
+
+# ###################################################
+
+# This section of code MUST run before pymmcore_widgets is imported
+# It patches the CMMCorePlus class to track calls to CMMCorePlus.instance()
+# Because CMMCorePlus is a C-extension, it's not possible to use `patch.object` as
+# usual to monkeypatch, which necessitates this workaround.
+
+if "pymmcore_widgets" in sys.modules:
+    warnings.warn(
+        "pymmcore-widgets has been imported before conftest.py. "
+        "core_instance_mock will not work correctly.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+
+
+instance_mock = Mock()
+
+
+# Create a wrapper class that tracks instantiation
+class CMMCorePlusTracker(CMMCorePlus):
+    @classmethod
+    def instance(cls) -> CMMCorePlus:
+        # get filename and line of calling function
+        caller = inspect.stack()[1]
+        instance_mock(filename=caller.filename, lineno=caller.lineno)
+        return super().instance()
+
+
+# patches the original object
+pymmcore_plus.CMMCorePlus = CMMCorePlusTracker  # type: ignore[misc]
+_mmcore_plus.CMMCorePlus = CMMCorePlusTracker  # type: ignore[misc]
+
+
+@pytest.fixture
+def core_instance_mock() -> Iterator[Mock]:
+    """Fixture that may be used to assert calls to CMMCorePlus.instance()"""
+    yield instance_mock
+
+
+# ###################################################
+
 
 TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")
 
@@ -31,9 +80,7 @@ def global_mmcore() -> Iterator[CMMCorePlus]:
 
 
 @pytest.fixture(autouse=True)
-def _run_after_each_test(
-    request: "FixtureRequest", qapp: "QApplication"
-) -> Iterator[None]:
+def _run_after_each_test(request: FixtureRequest, qapp: QApplication) -> Iterator[None]:
     """Run after each test to ensure no widgets have been left around.
 
     When this test fails, it means that a widget being tested has an issue closing
