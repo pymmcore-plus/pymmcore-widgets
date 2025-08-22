@@ -30,4 +30,3 @@ repos:
         additional_dependencies:
           - pymmcore-plus >=0.15.0
           - useq-schema >=0.8.0
-          - humanize
