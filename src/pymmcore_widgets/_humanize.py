@@ -53,7 +53,7 @@ def _to_seconds(duration: SupportsDuration) -> float:
     if isinstance(duration, str):
         duration = parse_time_string(duration)
     if isinstance(duration, pint.Quantity):
-        if not duration.check("[time]"):
+        if not duration.check("[time]"):  # pragma: no cover
             raise ValueError(f"{duration!r} is not a temporal quantity.")
         duration = timedelta(seconds=float(duration.to("s").magnitude))
     if isinstance(duration, timedelta):
