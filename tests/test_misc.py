@@ -45,6 +45,12 @@ PUBLIC_WIDGETS = [
 def test_widget_creation_propagates_core_instance(
     qtbot: QtBot, widget_cls: type, core_instance_mock: Mock
 ) -> None:
+    """Test that all public widgets can be instantiated.
+
+    and core_instance_mock ensures that they pass through the mmcore instance
+    to any subwidgets.  (see also the `assert_max_instance_depth` fixture
+    in conftest.py)
+    """
     instance = CMMCorePlus()
     instance.loadSystemConfiguration()
 

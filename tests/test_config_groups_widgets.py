@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
 
@@ -49,7 +48,6 @@ def test_config_groups_tree(qtbot: QtBot) -> None:
     assert preset0.settings[0].value == "2"
 
 
-@pytest.mark.filterwarnings("ignore:CMMCorePlus.instance\\(\\) called")
 def test_config_presets_table(qtbot: QtBot) -> None:
     core = CMMCorePlus()
     core.loadSystemConfiguration()
