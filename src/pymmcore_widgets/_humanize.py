@@ -185,6 +185,11 @@ def parse_time_string(
     time_string: str, quant_cls: type[pint.Quantity] = pint.Quantity
 ) -> PlainQuantity:
     """Parse additive strings like '1 day, 3 min and 4 s' into a pint Quantity."""
+    print("parse", time_string)
+    import inspect
+
+    # show who called us
+    print("called from", inspect.stack()[1].function, inspect.stack()[2].function)
     time_string = time_string.replace(",", "").replace("and", " ")
     if not (parts := _TIME_PARTS.findall(time_string)):
         raise ValueError(f"Invalid time string: {time_string}")

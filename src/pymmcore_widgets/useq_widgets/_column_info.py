@@ -357,7 +357,6 @@ class QQuantityLineEdit(QLineEdit):
         super().__init__(contents, parent)
         self._validator = QQuantityValidator(parent=self)
         self.setValidator(self._validator)
-        self._last_valid: str = self.text()
         self.editingFinished.connect(self._on_editing_finished)
         self._last_val: str = self.text()
 
@@ -428,7 +427,8 @@ class QTimeLineEdit(QQuantityLineEdit):
 
     def setValue(self, value: float | str | timedelta) -> None:
         text = humanize_time(value)
-        self.setText(text)
+        QLineEdit.setText(self, text)
+        self._last_val = text
 
     def setText(self, value: str | None) -> None:
         """Set the text value."""
