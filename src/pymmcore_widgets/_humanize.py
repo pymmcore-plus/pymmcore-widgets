@@ -128,7 +128,9 @@ def _subsecond_tail(
 
 
 def humanize_time(
-    duration: SupportsDuration, minimum_unit: Unit = "seconds", format: str = "%.2f"
+    duration: SupportsDuration,
+    minimum_unit: Unit = "milliseconds",
+    format: str = "%.2f",
 ) -> str:
     """Convert a duration to a human-readable string.
 

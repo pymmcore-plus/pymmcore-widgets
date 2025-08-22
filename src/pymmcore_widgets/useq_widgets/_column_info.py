@@ -317,7 +317,7 @@ class QQuantityValidator(QValidator):
 
     def text_to_quant(self, text: str | None) -> PlainQuantity | None:
         if text:
-            with contextlib.suppress(ValueError, pint.errors.UndefinedUnitError):
+            with contextlib.suppress(Exception):
                 return parse_time_string(text, self.ureg.Quantity)
 
             with contextlib.suppress(ValueError):
