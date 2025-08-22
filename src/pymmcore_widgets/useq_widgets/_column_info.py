@@ -24,7 +24,7 @@ from qtpy.QtWidgets import (
 )
 from superqt.iconify import QIconifyIcon
 
-from pymmcore_widgets._util import canonicalize_time
+from pymmcore_widgets._humanize import humanize_time
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -474,7 +474,7 @@ class QTimeLineEdit(QQuantityLineEdit):
         return q.to("second").magnitude  # type: ignore
 
     def setValue(self, value: float | str | timedelta) -> None:
-        text = canonicalize_time(value)
+        text = humanize_time(value)
         self.setText(text)
 
     def setText(self, value: str | None) -> None:
@@ -492,7 +492,7 @@ class QTimeLineEdit(QQuantityLineEdit):
         before, final_text = self._last_val, self.text()
         valid_q = self._validator.text_to_quant(final_text)
         if valid_q is not None:
-            final_text = canonicalize_time(valid_q)
+            final_text = humanize_time(valid_q)
             self.setText(final_text)
             self.textModified.emit(before, final_text)
         else:

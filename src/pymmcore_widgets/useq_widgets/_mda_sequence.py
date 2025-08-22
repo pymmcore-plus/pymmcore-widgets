@@ -22,7 +22,7 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 
 import pymmcore_widgets
-from pymmcore_widgets._util import canonicalize_time
+from pymmcore_widgets._humanize import humanize_time
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
 from pymmcore_widgets.useq_widgets._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
@@ -586,7 +586,7 @@ class MDASequenceWidget(QWidget):
 
         self._time_warning.setVisible(self._time_estimate.time_interval_exceeded)
 
-        d = canonicalize_time(self._time_estimate.total_duration)
+        d = humanize_time(self._time_estimate.total_duration)
         d = f"Estimated duration: {d}" if d else ""
         self._duration_label.setText(d)
 

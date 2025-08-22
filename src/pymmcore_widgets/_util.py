@@ -1,12 +1,9 @@
 from __future__ import annotations
 
 import re
-from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import humanize
-import pint
 from psygnal import SignalInstance
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QEvent, QMarginsF, QObject, Qt
@@ -256,37 +253,3 @@ def load_system_config(config: str = "", mmcore: CMMCorePlus | None = None) -> N
     mmc = mmcore or CMMCorePlus.instance()
     mmc.unloadAllDevices()
     mmc.loadSystemConfiguration(config or "MMConfig_demo.cfg")
-
-
-def canonicalize_time(value: float | str | timedelta | pint.Quantity) -> str:
-    # handle timedelta objects from useq
-    if isinstance(value, str):
-        value = pint.Quantity(value)
-
-    if isinstance(value, pint.Quantity):
-        if not value.check("[time]"):
-            raise ValueError(f"{value!r} is not a temporal quantity.")
-        value = timedelta(seconds=value.to_base_units().magnitude)
-
-    if not isinstance(value, timedelta):
-        value = timedelta(seconds=value)
-
-    # use humanize to format seconds into human-readable text (e.g. "1 h and 3 min")
-    text = humanize.precisedelta(value, minimum_unit="seconds")
-
-    # abbreviate unit names for more compact display
-    abbreviations = {
-        " seconds": " s",
-        " second": " s",
-        " minutes": " min",
-        " minute": " min",
-        " hours": " h",
-        " hour": " h",
-        " days": " d",
-        " day": " d",
-    }
-
-    for long_form, short_form in abbreviations.items():
-        text = text.replace(long_form, short_form)
-
-    return text
