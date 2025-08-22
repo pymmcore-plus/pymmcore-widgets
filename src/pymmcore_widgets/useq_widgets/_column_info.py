@@ -73,13 +73,6 @@ class ColumnInfo:
         pass  # pragma: no cover
 
 
-# pattern that detects value and unit pairs
-PAIR_PATTERN = re.compile(
-    r"([+-]?\d+(?:[.,]\d+)?)(?# numeric value: optional sign, digits, optional frac)"
-    r"\s*(?# optional whitespace between value and unit)"
-    r"([A-Za-zμμ]+)(?# unit: letters, includes 'μ')"
-)
-
 CHECKABLE_FLAGS = (
     Qt.ItemFlag.ItemIsUserCheckable
     | Qt.ItemFlag.ItemIsEnabled
@@ -414,12 +407,7 @@ class QQuantityLineEdit(QLineEdit):
         else:
             self.setText(self._last_val)
 
-    def quantity(self) -> pint.Quantity | int | float:
-        # prefer the validator's parser which understands compound
-        # value+unit pairs (e.g., "1 h 1 min").
-        q = self._validator.text_to_quant(self.text())
-        if q is not None:
-            return q
+    def quantity(self) -> PlainQuantity:
         return self._validator.ureg.parse_expression(self.text())
 
 
@@ -451,6 +439,9 @@ class QTimeLineEdit(QQuantityLineEdit):
             raise ValueError(f"Invalid value: {value!r}")
         QLineEdit.setText(self, value)
         self._last_val = value
+
+    def quantity(self) -> PlainQuantity:
+        return parse_time_string(self.text())
 
     def _on_editing_finished(self) -> None:
         """Override parent's _on_editing_finished to preserve human-readable format."""
