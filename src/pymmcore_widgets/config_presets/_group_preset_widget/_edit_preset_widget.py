@@ -159,7 +159,7 @@ class EditPresetWidget(QDialog):
             for k in self._mmc.getConfigData(self._group, self._preset)
         ]
 
-        self.table.populate_table(dev_prop_val)
+        self.table.populate_table(dev_prop_val, mmcore=self._mmc)
 
     def _on_combo_changed(self, preset: str) -> None:
         self._preset = preset

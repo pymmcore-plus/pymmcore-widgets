@@ -4,7 +4,7 @@ import inspect
 import sys
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 from unittest.mock import Mock, patch
 
 import pymmcore_plus
@@ -43,8 +43,12 @@ class CMMCorePlusTracker(CMMCorePlus):
     @classmethod
     def instance(cls) -> CMMCorePlus:
         # get filename and line of calling function
-        caller = inspect.stack()[1]
-        instance_mock(filename=caller.filename, lineno=caller.lineno)
+        call_stack = []
+        for fi in inspect.stack()[1:]:
+            if "_pytest" in fi.filename:
+                break
+            call_stack.append(f"{fi.filename}:{fi.lineno}")
+        instance_mock(call_stack)
         return super().instance()
 
 
@@ -65,6 +69,37 @@ def core_instance_mock() -> Iterator[Mock]:
 TEST_CONFIG = str(Path(__file__).parent / "test_config.cfg")
 
 
+@pytest.fixture
+def assert_max_instance_depth(
+    request: FixtureRequest, core_instance_mock: Mock
+) -> Iterator[Callable]:
+    """Fixture that may be used to assert calls to CMMCorePlus.instance()
+
+    This ensures that no calls to `CMMCorePlus.instance()` are made at a stack depth
+    greater than the specified value (relative to the test itself)
+
+    def some_test(assert_max_instance_depth: Callable):
+        ...
+        assert_max_instance_depth(2)
+
+    """
+
+    def func(depth: int = 2) -> None:
+        args = [call.args[0] for call in core_instance_mock.call_args_list]
+        if any(len(arg) > depth for arg in args):
+            callers = ["\n  ".join(arg) + "\n" for arg in args]
+            warnings.warn(
+                f"CMMCorePlus.instance() called {core_instance_mock.call_count} times\n"
+                f"In test {request.node.nodeid}\n"
+                f"Callers:\n" + "\n".join(callers),
+                RuntimeWarning,
+                stacklevel=2,
+            )
+
+    core_instance_mock.reset_mock()
+    yield func
+
+
 # to create a new CMMCorePlus() for every test
 @pytest.fixture(autouse=True)
 def global_mmcore() -> Iterator[CMMCorePlus]:
@@ -77,6 +112,13 @@ def global_mmcore() -> Iterator[CMMCorePlus]:
     mmc.reset()
     mmc.__del__()
     del mmc
+
+    # This is a VERY strict test, which can be used to ensure that the test using
+    # this fixture always passes through the mmcore instance to all created subwidgets.
+    # There are a couple failures for now
+    # in test_useq_core_widgets.py and test_config_groups_widgets.py
+    # so it remains commented out... but can be uncommented locally for testing.
+    # assert_max_instance_depth(2)
 
 
 @pytest.fixture(autouse=True)

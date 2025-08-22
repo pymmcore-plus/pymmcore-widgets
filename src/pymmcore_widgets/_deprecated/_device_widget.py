@@ -85,27 +85,34 @@ class DeviceWidget(QWidget):
         return self._mmc.getDeviceType(self._device_label)
 
     @classmethod
-    def for_device(cls, device_label: str) -> DeviceWidget:
+    def for_device(
+        cls, device_label: str, *, mmcore: CMMCorePlus | None = None
+    ) -> DeviceWidget:
         """Create a type-appropriate subclass for device with label `device_label`.
 
         Parameters
         ----------
         device_label : str
             A deviceLabel for which to create a widget.
+        mmcore : CMMCorePlus | None
+            Optional micromanager core. If not specified, the widget will use the active
+            (or create a new)
+            [`CMMCorePlus.instance`][pymmcore_plus.core._mmcore_plus.CMMCorePlus.instance].
 
         Returns
         -------
         DeviceWidget
             Appropriate DeviceWidget subclass instance.
         """
-        dev_type = CMMCorePlus.instance().getDeviceType(device_label)
+        core = mmcore or CMMCorePlus.instance()
+        dev_type = core.getDeviceType(device_label)
         _map = {DeviceType.StateDevice: StateDeviceWidget}
         if dev_type not in _map:
             raise NotImplementedError(
                 "No DeviceWidget subclass has been implemented for devices of "
                 f"type {dev_type.name!r}"
             )
-        return _map[dev_type](device_label)
+        return _map[dev_type](device_label, mmcore=mmcore)
 
 
 class StateDeviceWidget(DeviceWidget):

@@ -127,7 +127,7 @@ class AddPresetWidget(QDialog):
                     if (k[0], k[1]) not in dev_prop
                 ]
             )
-        self.table.populate_table(dev_prop)
+        self.table.populate_table(dev_prop, mmcore=self._mmc)
 
     def _add_preset(self) -> None:
         preset_name = self.preset_name_lineedit.text()

@@ -38,7 +38,7 @@ class AddFirstPresetWidget(QDialog):
 
         self._create_gui()
 
-        self.table.populate_table(self._dev_prop_val_list)
+        self.table.populate_table(self._dev_prop_val_list, mmcore=self._mmc)
 
     def _create_gui(self) -> None:
         self.setWindowTitle(f"Add the first Preset to the new '{self._group}' Group")

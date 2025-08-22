@@ -255,7 +255,7 @@ def test_add_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
 
 def test_edit_preset(global_mmcore: CMMCorePlus, qtbot: QtBot):
-    edit_ps = EditPresetWidget("Objective", "10X")
+    edit_ps = EditPresetWidget("Objective", "10X", mmcore=global_mmcore)
     qtbot.addWidget(edit_ps)
     mmc = global_mmcore
 
