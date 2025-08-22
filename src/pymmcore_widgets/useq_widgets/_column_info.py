@@ -24,9 +24,15 @@ from qtpy.QtWidgets import (
 )
 from superqt.iconify import QIconifyIcon
 
+from pymmcore_widgets._humanize import humanize_time, parse_time_string
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from typing import Any
+
+    from pint.facets.plain import PlainQuantity
+
+    from pymmcore_widgets._humanize import Unit
 
 
 @dataclass(frozen=True)
@@ -284,7 +290,7 @@ class _RangeColumn(WidgetColumn, Generic[W, T]):
 class IntColumn(_RangeColumn):
     data_type: WdgGetSet = TableIntWidget
     minimum: int = 0
-    maximum: int = 99_999
+    maximum: int = 999_999_999
 
 
 @dataclass(frozen=True)
@@ -311,21 +317,15 @@ class QQuantityValidator(QValidator):
             return (QValidator.State.Acceptable, a0 or "", a1)
         return (QValidator.State.Intermediate, a0 or "", a1)
 
-    def text_to_quant(self, text: str | None) -> pint.Quantity | None:
-        if not text:
-            return None  # pragma: no cover
+    def text_to_quant(self, text: str | None) -> PlainQuantity | None:
+        if text:
+            with contextlib.suppress(Exception):
+                return parse_time_string(text, self.ureg.Quantity)
 
-        with contextlib.suppress(pint.UndefinedUnitError, AssertionError):
-            q = self.ureg.parse_expression(text)
-            if self.dimensionality and (
-                isinstance(q, pint.Quantity)
-                and bool(q.is_compatible_with(self.dimensionality))
-            ):
-                return q
-        # try to parse as timedelta
-        with contextlib.suppress(ValueError):
-            td = parse_timedelta(text)
-            return self.ureg.Quantity(td.total_seconds(), "second")
+            with contextlib.suppress(ValueError):
+                td = parse_timedelta(text)
+                return self.ureg.Quantity(td.total_seconds(), "second")
+
         return None  # pragma: no cover
 
 
@@ -359,7 +359,6 @@ class QQuantityLineEdit(QLineEdit):
         super().__init__(contents, parent)
         self._validator = QQuantityValidator(parent=self)
         self.setValidator(self._validator)
-        self._last_valid: str = self.text()
         self.editingFinished.connect(self._on_editing_finished)
         self._last_val: str = self.text()
 
@@ -409,26 +408,58 @@ class QQuantityLineEdit(QLineEdit):
         else:
             self.setText(self._last_val)
 
-    def quantity(self) -> pint.Quantity | int | float:
+    def quantity(self) -> PlainQuantity:
         return self._validator.ureg.parse_expression(self.text())
 
 
 class QTimeLineEdit(QQuantityLineEdit):
     def __init__(
-        self, contents: str | None = None, parent: QWidget | None = None
+        self,
+        contents: str | None = None,
+        minimum_unit: Unit = "seconds",
+        parent: QWidget | None = None,
     ) -> None:
+        self._minimum_unit: Unit = minimum_unit
         super().__init__(contents, parent)
         self.setDimensionality("second")
         self.setStyleSheet("QLineEdit { border: none; }")
 
     def value(self) -> float:
+        """Return the current value as a float in seconds."""
         q = self.quantity()
         if isinstance(q, (int, float)):
             q = self._validator.ureg.Quantity(q, "second")
         return q.to("second").magnitude  # type: ignore
 
-    def setValue(self, value: float) -> None:
-        self.setText(str(value))
+    def setValue(self, value: float | str | timedelta) -> None:
+        text = humanize_time(value, self._minimum_unit)
+        QLineEdit.setText(self, text)
+        self._last_val = text
+
+    def setText(self, value: str | None) -> None:
+        """Set the text value."""
+        if value is None:
+            value = ""
+        # Validate the input first - this will raise ValueError for invalid values
+        if value and self._validator.text_to_quant(value) is None:
+            raise ValueError(f"Invalid value: {value!r}")
+        QLineEdit.setText(self, value)
+        self._last_val = value
+
+    def quantity(self) -> PlainQuantity:
+        return parse_time_string(self.text())
+
+    def _on_editing_finished(self) -> None:
+        """Override parent's _on_editing_finished to preserve human-readable format."""
+        before, final_text = self._last_val, self.text()
+        valid_q = self._validator.text_to_quant(final_text)
+        if valid_q is not None:
+            final_text = humanize_time(valid_q, self._minimum_unit)
+            self.setText(final_text)
+            self.textModified.emit(before, final_text)
+        else:
+            # Invalid input, restore the last valid value
+            self.setText(self._last_val)
 
 
 TableTimeWidget = WdgGetSet(
@@ -442,6 +473,11 @@ TableTimeWidget = WdgGetSet(
 @dataclass(frozen=True)
 class TimeDeltaColumn(WidgetColumn):
     data_type: WdgGetSet[QTimeLineEdit, float] = TableTimeWidget
+    minimum_unit: Unit = "seconds"
+
+    def _init_widget(self) -> QTimeLineEdit:
+        """Override to create widget with custom minimum_unit."""
+        return QTimeLineEdit(minimum_unit=self.minimum_unit)
 
 
 class CheckableCombo(QWidget):
