@@ -274,7 +274,7 @@ class GroupPresetTableWidget(QGroupBox):
 
     def _add_group(self) -> None:
         self._close_if_hasattr()
-        self._add_group_wdg = AddGroupWidget(parent=self)
+        self._add_group_wdg = AddGroupWidget(mmcore=self._mmc, parent=self)
         self._add_group_wdg.show()
 
     def _delete_group(self) -> None:
@@ -316,7 +316,7 @@ class GroupPresetTableWidget(QGroupBox):
         row = next(iter(selected_rows))
         group = self.table_wdg.item(row, 0).text()
         self._close_if_hasattr()
-        self._edit_group_wdg = EditGroupWidget(group, parent=self)
+        self._edit_group_wdg = EditGroupWidget(group, mmcore=self._mmc, parent=self)
         self._edit_group_wdg.show()
 
     def _add_preset(self) -> None:
@@ -332,7 +332,7 @@ class GroupPresetTableWidget(QGroupBox):
             return
 
         self._close_if_hasattr()
-        self._add_preset_wdg = AddPresetWidget(group, parent=self)
+        self._add_preset_wdg = AddPresetWidget(group, mmcore=self._mmc, parent=self)
         self._add_preset_wdg.show()
 
     def _delete_preset(self) -> None:
@@ -381,7 +381,9 @@ class GroupPresetTableWidget(QGroupBox):
         if isinstance(wdg, PresetsWidget):
             preset = wdg._combo.currentText()
         self._close_if_hasattr()
-        self._edit_preset_wgd = EditPresetWidget(group, preset, parent=self)
+        self._edit_preset_wgd = EditPresetWidget(
+            group, preset, mmcore=self._mmc, parent=self
+        )
         self._edit_preset_wgd.show()
 
     def _save_cfg(self) -> None:

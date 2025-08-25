@@ -40,7 +40,7 @@ class ObjectivesWidget(QWidget):
         super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
         self._objective_device = objective_device or guess_objective_or_prompt(
-            parent=self
+            self._mmc, parent=self
         )
         self._combo = self._create_objective_combo(objective_device)
 
@@ -66,7 +66,9 @@ class ObjectivesWidget(QWidget):
             self._objective_device = None
         if len(loaded) > 1:
             if not self._objective_device:
-                self._objective_device = guess_objective_or_prompt(parent=self)
+                self._objective_device = guess_objective_or_prompt(
+                    self._mmc, parent=self
+                )
             self._combo.setParent(QWidget())
             self._combo = self._create_objective_combo(self._objective_device)
             self.layout().addWidget(self._combo)

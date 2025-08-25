@@ -24,10 +24,16 @@ from ._cfg_table import _CfgTable
 class AddPresetWidget(QDialog):
     """A widget to add presets to a specified group."""
 
-    def __init__(self, group: str, *, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        group: str,
+        *,
+        mmcore: CMMCorePlus | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent=parent)
 
-        self._mmc = CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._group = group
 
         self._create_gui()
@@ -121,7 +127,7 @@ class AddPresetWidget(QDialog):
                     if (k[0], k[1]) not in dev_prop
                 ]
             )
-        self.table.populate_table(dev_prop)
+        self.table.populate_table(dev_prop, mmcore=self._mmc)
 
     def _add_preset(self) -> None:
         preset_name = self.preset_name_lineedit.text()
