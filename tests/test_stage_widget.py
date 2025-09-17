@@ -194,24 +194,16 @@ def test_z_stage_snap_on_click(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None
     with qtbot.waitSignal(global_mmcore.events.imageSnapped):
         z_up_2.widget().click()
 
+    # Assert snap does NOT occur during acquisition
+    global_mmcore.startContinuousSequenceAcquisition(1)
+    with qtbot.assert_not_emitted(global_mmcore.events.imageSnapped):
+        with qtbot.waitSignal(stage_z._stage_controller.moveFinished):
+            z_up_2.widget().click()
+    global_mmcore.stopSequenceAcquisition()
+
     # disconnect
     assert global_mmcore.getFocusDevice() == "Z"
     assert stage_z._set_as_default_btn.isChecked()
-
-
-def test_snap_on_click_during_sequence(
-    qtbot: QtBot, global_mmcore: CMMCorePlus
-) -> None:
-    stage_z = StageWidget("Z", levels=3)
-    qtbot.addWidget(stage_z)
-
-    stage_z.snap_checkbox.setChecked(True)
-    z_up_2 = stage_z._move_btns.layout().itemAtPosition(1, 3)
-    global_mmcore.startContinuousSequenceAcquisition(1)
-    global_mmcore.waitForDeviceType(DeviceType.Stage)
-    z_up_2.widget().click()
-    global_mmcore.waitForDeviceType(DeviceType.Stage)
-    global_mmcore.stopSequenceAcquisition()
 
 
 def test_enable_position_buttons(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
