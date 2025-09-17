@@ -86,7 +86,9 @@ class QStageMoveAccumulator(QObject):
 
             if self.snap_on_finish:
                 if (core := getattr(self._accum, "_mmcore", None)) is not None:
-                    cast("CMMCorePlus", core).snapImage()
+                    _core = cast("CMMCorePlus", core)
+                    if not _core.isSequenceRunning():
+                        _core.snapImage()
                 self.snap_on_finish = False
 
             self.moveFinished.emit()
