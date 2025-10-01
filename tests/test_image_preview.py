@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -53,10 +54,8 @@ SEQ = [
 
 @pytest.mark.parametrize("seq", SEQ)
 @pytest.mark.parametrize("use_with_mda", [True, False])
-def test_image_preview_with_mda_sequences(
-    qtbot: "QtBot", seq: useq.MDASequence, use_with_mda: bool
-):
-    """Test ImagePreview widget MDA frame updates based on use_with_mda setting."""
+def test_integration_snap_and_mda_behavior(qtbot: "QtBot", seq, use_with_mda):
+    """Test integrated behavior of both _on_image_snapped and _on_frame_ready."""
     mmcore = CMMCorePlus.instance()
     widget = ImagePreview(use_with_mda=use_with_mda)
     qtbot.addWidget(widget)
@@ -64,33 +63,58 @@ def test_image_preview_with_mda_sequences(
     assert mmcore.mda.engine is not None
     assert mmcore.mda.engine.use_hardware_sequencing
 
-    assert mmcore.mda.engine.use_hardware_sequencing
+    # Test 1: mmcore.snap() when MDA is NOT running
+    with patch.object(widget, "_update_image") as mock_update:
+        # Ensure MDA is not running
+        assert not mmcore.mda.is_running()
 
-    # Get initial image state
+        with wait_signal(qtbot, mmcore.events.imageSnapped):
+            mmcore.snap()
+
+        # _update_image should ALWAYS be called when MDA is not running,
+        # regardless of use_with_mda setting or sequence type
+        mock_update.assert_called_once()
+
+    # Test 2: mmcore.snap() when MDA IS running (simulated)
+    with patch.object(widget, "_update_image") as mock_update:
+        with patch.object(mmcore.mda, "is_running", return_value=True):
+            with wait_signal(qtbot, mmcore.events.imageSnapped):
+                mmcore.snap()
+
+            # _update_image should NEVER be called when MDA is running,
+            # regardless of use_with_mda setting or sequence type
+            mock_update.assert_not_called()
+
+    # Test 3: MDA sequence behavior based on use_with_mda setting
+    # Get initial image state before MDA
     with wait_signal(qtbot, mmcore.events.imageSnapped):
         mmcore.snap()
     initial_image = widget._canvas.render()
     assert widget.image is not None
 
-    # Run MDA sequence and wait for it to complete
+    # Run the MDA sequence (actual MDA execution)
     with wait_signal(qtbot, mmcore.mda.events.sequenceFinished):
         mmcore.mda.run(seq)
 
-    # Get final image state
+    # Get final image state after MDA
     final_image = widget._canvas.render()
 
-    # Test behavior based on use_with_mda setting
+    # Test behavior based on use_with_mda setting during actual MDA
     if use_with_mda:
-        # When use_with_mda=True, _on_frame_ready should update the image
+        # When use_with_mda=True, _on_frame_ready should update the image during MDA
         # The image should be different from initial (updated during MDA)
+        # This applies to both sequencable and non-sequencable sequences
         assert not np.allclose(initial_image, final_image), (
-            "Image should be updated during MDA when use_with_mda=True"
+            f"Image should be updated during MDA when use_with_mda=True "
+            f"(seq: {seq.time_plan})"
         )
     else:
         # When use_with_mda=False, _on_frame_ready should NOT update the image
-        # The image should remain the same as initial snap
+        # during MDA. The image should remain the same as initial snap
+        # This applies to both sequencable and non-sequencable sequences
         assert np.allclose(initial_image, final_image), (
-            "Image should NOT be updated during MDA when use_with_mda=False"
+            f"Image should NOT be updated during MDA when use_with_mda=False "
+            f"(seq: {seq.time_plan})"
         )
 
     assert widget.use_with_mda is use_with_mda
