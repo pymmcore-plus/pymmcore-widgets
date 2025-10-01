@@ -27,17 +27,18 @@ class AddFirstPresetWidget(QDialog):
         group: str,
         dev_prop_val_list: list,
         *,
+        mmcore: CMMCorePlus | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent=parent)
 
-        self._mmc = CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._group = group
         self._dev_prop_val_list = dev_prop_val_list
 
         self._create_gui()
 
-        self.table.populate_table(self._dev_prop_val_list)
+        self.table.populate_table(self._dev_prop_val_list, mmcore=self._mmc)
 
     def _create_gui(self) -> None:
         self.setWindowTitle(f"Add the first Preset to the new '{self._group}' Group")
