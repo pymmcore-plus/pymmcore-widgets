@@ -123,13 +123,21 @@ class ImagePreview(QWidget):
             self._update_image(self._mmc.getLastImage())
 
     def _on_image_snapped(self) -> None:
-        if self._mmc.mda.is_running() and not self._use_with_mda:
+        """Update the image when a new image is snapped.
+
+        Only triggered if not acquiring an MDASequence.
+        """
+        if self._mmc.mda.is_running():
             return
         self._update_image(self._mmc.getImage())
 
     def _on_frame_ready(
         self, image: np.ndarray, event: useq.MDAEvent, metadata: FrameMetaV1
     ) -> None:
+        """Update the image when a new frame is ready during an MDASequence acquisition.
+
+        Only works if use_with_mda is True.
+        """
         if self._use_with_mda:
             self._update_image(image)
 
