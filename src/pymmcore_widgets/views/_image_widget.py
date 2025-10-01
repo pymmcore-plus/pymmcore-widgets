@@ -11,6 +11,8 @@ if TYPE_CHECKING:
     from typing import Literal
 
     import numpy as np
+    import useq
+    from pymmcore_plus.metadata import FrameMetaV1
 
 _DEFAULT_WAIT = 10
 
@@ -74,6 +76,8 @@ class ImagePreview(QWidget):
         ev.sequenceAcquisitionStopped.connect(self._on_streaming_stop)
         ev.exposureChanged.connect(self._on_exposure_changed)
 
+        self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
+
         self.image: scene.visuals.Image | None = None
         self.setLayout(QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
@@ -103,6 +107,7 @@ class ImagePreview(QWidget):
         ev.continuousSequenceAcquisitionStarted.disconnect(self._on_streaming_start)
         ev.sequenceAcquisitionStopped.disconnect(self._on_streaming_stop)
         ev.exposureChanged.disconnect(self._on_exposure_changed)
+        self._mmc.mda.events.frameReady.disconnect(self._on_frame_ready)
 
     def _on_streaming_start(self) -> None:
         self.streaming_timer.start()
@@ -121,6 +126,12 @@ class ImagePreview(QWidget):
         if self._mmc.mda.is_running() and not self._use_with_mda:
             return
         self._update_image(self._mmc.getImage())
+
+    def _on_frame_ready(
+        self, image: np.ndarray, event: useq.MDAEvent, metadata: FrameMetaV1
+    ) -> None:
+        if self._use_with_mda:
+            self._update_image(image)
 
     def _update_image(self, img: np.ndarray) -> None:
         clim = (img.min(), img.max()) if self._clims == "auto" else self._clims
