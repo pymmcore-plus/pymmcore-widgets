@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from qtpy.QtCore import QModelIndex, Qt
 from qtpy.QtGui import QFont, QIcon
+from qtpy.QtWidgets import QMessageBox, QWidget
 from superqt import QIconifyIcon
 
 from pymmcore_widgets._icons import StandardIcon
@@ -41,12 +42,21 @@ class QConfigGroupsModel(_BaseTreeModel):
 
     def __init__(self, groups: Iterable[ConfigGroup] | None = None) -> None:
         super().__init__()
+        self._in_undo_redo = False  # Track when we're in undo/redo operation
         if groups:
             self.set_groups(groups)
 
     # ------------------------------------------------------------------
     # Required Qt model overrides
     # ------------------------------------------------------------------
+
+    def set_undo_redo_mode(self, enabled: bool) -> None:
+        """Set whether we're currently in an undo/redo operation.
+
+        When in undo/redo mode, name uniqueness checks are relaxed to allow
+        restoration of original names that may temporarily conflict.
+        """
+        self._in_undo_redo = enabled
 
     def columnCount(self, _parent: QModelIndex | None = None) -> int:
         # In most subclasses, the number of columns is independent of the parent.
@@ -142,12 +152,14 @@ class QConfigGroupsModel(_BaseTreeModel):
             if new_name == node.name or not new_name:
                 return False
 
-            if self._name_exists(node.parent, new_name):
+            # During undo/redo, allow restoration of original names even if they
+            # temporarily conflict, as the conflict will be resolved by the operation
+            if not self._in_undo_redo and self._name_exists(node.parent, new_name):
                 warnings.warn(
                     f"Not adding duplicate name '{new_name}'. It already exists.",
                     stacklevel=2,
                 )
-                return False
+                return False  # pragma: no cover
 
             node.name = new_name
             if isinstance(node.payload, (ConfigGroup, ConfigPreset)):
@@ -352,8 +364,28 @@ class QConfigGroupsModel(_BaseTreeModel):
         self.endRemoveRows()
         return True
 
-    def remove(self, idx: QModelIndex) -> None:
+    # TODO: probably remove the QWidget logic from here
+    def remove(
+        self,
+        idx: QModelIndex,
+        *,
+        ask_confirmation: bool = False,
+        parent: QWidget | None = None,
+    ) -> None:
         if idx.isValid():
+            if ask_confirmation:
+                item_name = idx.data(Qt.ItemDataRole.DisplayRole)
+                item_type = type(idx.data(Qt.ItemDataRole.UserRole))
+                type_name = item_type.__name__.replace(("Config"), "Config ")
+                msg = QMessageBox.question(
+                    parent,
+                    "Confirm Deletion",
+                    f"Are you sure you want to delete {type_name} {item_name!r}?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes,
+                )
+                if msg != QMessageBox.StandardButton.Yes:
+                    return
             self.removeRows(idx.row(), 1, idx.parent())
 
     # ------------------------------------------------------------------
@@ -539,9 +571,13 @@ class QConfigGroupsModel(_BaseTreeModel):
 
         # ---------- modify the tree ----------
         for i, payload in enumerate(_payloads):
+            # Only ensure uniqueness if there would be a conflict AND we're not
+            # in undo/redo mode
             if isinstance(payload, (ConfigGroup, ConfigPreset)):
                 original_name = payload.name
-                if self._name_exists(parent_node, original_name):
+                if not self._in_undo_redo and self._name_exists(
+                    parent_node, original_name
+                ):
                     # Only modify the name if there's actually a conflict
                     unique_name = self._unique_child_name(
                         parent_node, original_name, suffix=""

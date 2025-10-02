@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
@@ -17,13 +18,18 @@ from pymmcore_widgets._icons import StandardIcon
 from pymmcore_widgets._models import ConfigGroupPivotModel, QConfigGroupsModel
 
 from ._property_setting_delegate import PropertySettingDelegate
+from ._undo_commands import DuplicatePresetCommand, RemovePresetCommand
+from ._undo_delegates import PropertyValueDelegate
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
     from PyQt6.QtGui import QAction
+    from qtpy.QtGui import QUndoStack
 
 else:
     from qtpy.QtGui import QAction
+
+NOT_TESTING = "PYTEST_VERSION" not in os.environ
 
 
 class ConfigPresetsTableView(QTableView):
@@ -41,6 +47,15 @@ class ConfigPresetsTableView(QTableView):
         self.setItemDelegate(PropertySettingDelegate(self))
         self._transpose_proxy: QTransposeProxyModel | None = None
         self._pivot_model: ConfigGroupPivotModel | None = None
+        self._undo_stack: QUndoStack | None = None
+
+    def setUndoStack(self, undo_stack: QUndoStack) -> None:
+        """Set the undo stack and configure undo-aware delegates."""
+        self._undo_stack = undo_stack
+
+        if undo_stack is not None:
+            # Replace the delegate with an undo-aware one
+            self.setItemDelegate(PropertyValueDelegate(undo_stack, self))
 
     def setModel(self, model: QAbstractItemModel | None) -> None:
         """Set the model for the table view."""
@@ -159,6 +174,7 @@ class ConfigPresetsTable(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.view = ConfigPresetsTableView(self)
+        self._undo_stack: QUndoStack | None = None
 
         self._toolbar = tb = QToolBar(self)
         tb.setIconSize(QSize(16, 16))
@@ -196,13 +212,24 @@ class ConfigPresetsTable(QWidget):
         """Set the group to be displayed."""
         self.view.setGroup(group_name_or_index)
 
+    def setUndoStack(self, undo_stack: QUndoStack) -> None:
+        """Set the undo stack for remove/duplicate operations."""
+        self._undo_stack = undo_stack
+        self.view.setUndoStack(undo_stack)
+
     def _on_remove_action(self) -> None:
         source_idx = self._get_selected_preset_index()
         if not source_idx.isValid():
             return
 
         source_model = self.view.sourceModel()
-        source_model.remove(source_idx)
+        # Use undo stack if available, otherwise fall back to direct operation
+        if self._undo_stack is not None:
+            command = RemovePresetCommand(source_model, source_idx)
+            self._undo_stack.push(command)
+        else:
+            # Fall back to direct model operation
+            source_model.remove(source_idx, ask_confirmation=NOT_TESTING)
 
     def _on_duplicate_action(self) -> None:
         if not self.view.isTransposed():
@@ -211,7 +238,13 @@ class ConfigPresetsTable(QWidget):
                 return
 
             source_model = self.view.sourceModel()
-            source_model.duplicate_preset(source_idx)
+            # Use undo stack if available, otherwise fall back to direct operation
+            if self._undo_stack is not None:
+                command = DuplicatePresetCommand(source_model, source_idx)
+                self._undo_stack.push(command)
+            else:
+                # Fall back to direct model operation
+                source_model.duplicate_preset(source_idx)
         # TODO: handle transposed case
 
     def _get_selected_preset_index(self) -> QModelIndex:
