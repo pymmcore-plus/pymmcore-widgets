@@ -238,7 +238,7 @@ def test_shutter_widget_UserWarning(qtbot: QtBot, global_mmcore: CMMCorePlus):
 @pytest.mark.xfail(reason="flaky test")
 def test_multi_shutter_state_changed(qtbot: QtBot, global_mmcore: CMMCorePlus):
     mmc = global_mmcore
-    shutter, shutter1, multi_shutter = _make_shutters(qtbot)
+    shutter, _shutter1, multi_shutter = _make_shutters(qtbot)
 
     with (
         wait_signal(qtbot, mmc.events.propertyChanged),

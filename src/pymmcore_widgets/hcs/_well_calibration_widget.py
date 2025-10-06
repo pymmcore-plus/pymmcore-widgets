@@ -300,9 +300,9 @@ class WellCalibrationWidget(QWidget):
         try:
             # TODO: allow additional sanity checks for min/max radius, width/height
             if self.circularWell():
-                x, y, radius = find_circle_center(points)
+                x, y, _radius = find_circle_center(points)
             else:
-                x, y, width, height = find_rectangle_center(points)
+                x, y, _width, _height = find_rectangle_center(points)
         except Exception as e:  # pragma: no cover
             self.setWellCenter(None)
             QMessageBox.critical(
