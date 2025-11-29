@@ -8,6 +8,7 @@ import pytest
 from pymmcore_widgets.hcs._well_calibration_widget import (
     COMBO_ROLE,
     MODES,
+    Mode,
     WellCalibrationWidget,
 )
 
@@ -56,17 +57,15 @@ def test_well_calibration_widget_modes(
     assert wdg.circularWell() == circular
     # get the modes form the combobox
     combo = wdg._calibration_mode_wdg
-    modes = [combo.itemData(i, COMBO_ROLE) for i in range(combo.count())]
+    modes = [Mode(*combo.itemData(i, COMBO_ROLE)) for i in range(combo.count())]
     # make sure the modes are correct
-    expected = [(mode.text, mode.points) for mode in MODES[circular]]
-    actual = [(m[0], m[1]) for m in modes]
-    assert actual == expected
+    assert modes == MODES[circular]
     # make sure that the correct number of rows are displayed when the mode is changed
     for idx, mode in enumerate(modes):
         # set the mode
         combo.setCurrentIndex(idx)
         # get the number of rows
-        assert wdg._table.rowCount() == mode[1]
+        assert wdg._table.rowCount() == mode.points
 
 
 def test_well_calibration_widget_positions(
