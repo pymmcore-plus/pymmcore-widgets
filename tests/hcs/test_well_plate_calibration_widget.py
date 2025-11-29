@@ -206,9 +206,10 @@ def test_plate_calibration_test_positions(global_mmcore: CMMCorePlus, qtbot) -> 
     assert data == expected_data
 
 
-def test_small_plate_calibration() -> None:
+def test_small_plate_calibration(qtbot) -> None:
     """Test calibration for plates with fewer than 3 wells."""
     wdg = PlateCalibrationWidget()
+    qtbot.addWidget(wdg)
 
     # Test 1x1 plate
     plate_1x1 = useq.WellPlate(
