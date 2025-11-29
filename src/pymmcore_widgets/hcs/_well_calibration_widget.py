@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QItemSelection, QSize, Qt, Signal
@@ -90,7 +90,15 @@ class _CalibrationModeWidget(QComboBox):
 
     def currentMode(self) -> Mode:
         """Return the selected calibration mode."""
-        return cast("Mode", self.itemData(self.currentIndex(), COMBO_ROLE))
+        data = self.itemData(self.currentIndex(), COMBO_ROLE)
+        # needed because data in pysede6 is a list with 3 elements
+        # (text, points, icon) when retrieving a NamedTuple stored via setItemData
+        if isinstance(data, Mode):
+            return data
+        elif isinstance(data, (list, tuple)) and len(data) == 3:
+            return Mode(*data)
+        else:
+            raise ValueError(f"Invalid data for mode: {data}")
 
 
 class _CalibrationTable(QTableWidget):
