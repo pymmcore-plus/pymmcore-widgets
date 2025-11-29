@@ -66,7 +66,7 @@ def test_well_calibration_widget_modes(
         # set the mode
         combo.setCurrentIndex(idx)
         # get the number of rows
-        assert wdg._table.rowCount() == mode.points
+        assert wdg._table.rowCount() == mode[1]
 
 
 def test_well_calibration_widget_positions(
