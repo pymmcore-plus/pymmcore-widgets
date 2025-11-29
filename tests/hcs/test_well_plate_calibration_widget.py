@@ -204,3 +204,33 @@ def test_plate_calibration_test_positions(global_mmcore: CMMCorePlus, qtbot) -> 
         data.append((hover_item_data.x, hover_item_data.y, hover_item_data.name))
 
     assert data == expected_data
+
+
+def test_small_plate_calibration() -> None:
+    """Test calibration for plates with fewer than 3 wells."""
+    wdg = PlateCalibrationWidget()
+
+    # Test 1x1 plate
+    plate_1x1 = useq.WellPlate(
+        rows=1, columns=1, well_size=(5, 5), well_spacing=(10, 10)
+    )
+    wdg.setValue(plate_1x1)
+    assert wdg._min_wells_required == 1
+
+    # Simulate calibrating the single well
+    wdg._calibrated_wells = {(0, 0): (100.0, 200.0)}
+    result = wdg._origin_spacing_rotation()
+    assert result == ((100.0, 200.0), (10, 10), 0.0)
+
+    # Test 1x2 plate
+    plate_1x2 = useq.WellPlate(
+        rows=1, columns=2, well_size=(5, 5), well_spacing=(10, 10)
+    )
+    wdg.setValue(plate_1x2)
+    assert wdg._min_wells_required == 2
+
+    # Simulate calibrating two wells
+    wdg._calibrated_wells = {(0, 0): (100.0, 200.0), (0, 1): (10100.0, 200.0)}
+    result = wdg._origin_spacing_rotation()
+    # Spacing should be calculated as distance / dc = 10000 / 1 / 1000 = 10 mm
+    assert result == ((100.0, 200.0), (10.0, 10.0), 0.0)
