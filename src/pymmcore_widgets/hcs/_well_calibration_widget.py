@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple
 
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QItemSelection, QSize, Qt, Signal
@@ -45,6 +45,11 @@ class Mode(NamedTuple):
     text: str
     points: int
     icon: QIcon | None = None
+
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, Mode):
+            return NotImplemented
+        return (self.text, self.points) == (value.text, value.points)
 
 
 # mapping of Circular well -> [Modes]
@@ -90,7 +95,7 @@ class _CalibrationModeWidget(QComboBox):
 
     def currentMode(self) -> Mode:
         """Return the selected calibration mode."""
-        return cast("Mode", self.itemData(self.currentIndex(), COMBO_ROLE))
+        return Mode(*self.itemData(self.currentIndex(), COMBO_ROLE))
 
 
 class _CalibrationTable(QTableWidget):
