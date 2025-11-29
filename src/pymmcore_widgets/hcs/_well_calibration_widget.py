@@ -91,7 +91,7 @@ class _CalibrationModeWidget(QComboBox):
     def currentMode(self) -> Mode:
         """Return the selected calibration mode."""
         data = self.itemData(self.currentIndex(), COMBO_ROLE)
-        # needed because data in pysede6 is a list with 3 elements
+        # needed because data in PySide6 is a list with 3 elements
         # (text, points, icon) when retrieving a NamedTuple stored via setItemData
         if isinstance(data, Mode):
             return data

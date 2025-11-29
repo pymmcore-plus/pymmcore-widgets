@@ -374,7 +374,7 @@ class WellPlateView(ResizingGraphicsView):
 
     def selectedIndices(self) -> tuple[tuple[int, int], ...]:
         """Return the indices of the selected wells."""
-        # tuple of tuple(item.data(DATA_INDEX)) because pyside returns lists
+        # tuple of tuple(item.data(DATA_INDEX)) because PySide6 returns lists
         return tuple(
             sorted(tuple(item.data(DATA_INDEX)) for item in self._selected_items)
         )
@@ -392,7 +392,7 @@ class WellPlateView(ResizingGraphicsView):
         select = set()
         deselect = set()
         for item in self._well_items.values():
-            # tuple required because pyside returns lists
+            # tuple required because PySide6 returns lists
             if tuple(item.data(DATA_INDEX)) in _indices:
                 select.add(item)
             else:
