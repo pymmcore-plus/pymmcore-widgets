@@ -46,6 +46,11 @@ class Mode(NamedTuple):
     points: int
     icon: QIcon | None = None
 
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, Mode):
+            return NotImplemented
+        return (self.text, self.points) == (value.text, value.points)
+
 
 # mapping of Circular well -> [Modes]
 MODES: dict[bool, list[Mode]] = {
@@ -90,15 +95,7 @@ class _CalibrationModeWidget(QComboBox):
 
     def currentMode(self) -> Mode:
         """Return the selected calibration mode."""
-        data = self.itemData(self.currentIndex(), COMBO_ROLE)
-        # needed because data in pysede6 is a list with 3 elements
-        # (text, points, icon) when retrieving a NamedTuple stored via setItemData
-        if isinstance(data, Mode):
-            return data
-        elif isinstance(data, (list, tuple)) and len(data) == 3:
-            return Mode(*data)
-        else:
-            raise ValueError(f"Invalid data for mode: {data}")
+        return Mode(*self.itemData(self.currentIndex(), COMBO_ROLE))
 
 
 class _CalibrationTable(QTableWidget):
@@ -308,9 +305,9 @@ class WellCalibrationWidget(QWidget):
         try:
             # TODO: allow additional sanity checks for min/max radius, width/height
             if self.circularWell():
-                x, y, radius = find_circle_center(points)
+                x, y, _radius = find_circle_center(points)
             else:
-                x, y, width, height = find_rectangle_center(points)
+                x, y, _width, _height = find_rectangle_center(points)
         except Exception as e:  # pragma: no cover
             self.setWellCenter(None)
             QMessageBox.critical(
