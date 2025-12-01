@@ -20,7 +20,7 @@ from ._grid_row_column_widget import GridRowColumnWidget
 from ._random_points_widget import RandomPointWidget
 
 if TYPE_CHECKING:
-    from typing_extensions import TypeAlias
+    from typing import TypeAlias
 
     # excluding useq.GridWidthHeight even though it's also a relative multi point plan
     RelativePointPlan: TypeAlias = (

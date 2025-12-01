@@ -4,7 +4,7 @@ import inspect
 import sys
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pymmcore_plus
@@ -14,7 +14,7 @@ from pymmcore_plus._accumulator import DeviceAccumulator
 from pymmcore_plus.core import _mmcore_plus
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     from pytest import FixtureRequest
     from qtpy.QtWidgets import QApplication
@@ -138,11 +138,7 @@ def _run_after_each_test(request: FixtureRequest, qapp: QApplication) -> Iterato
         return
     remaining = qapp.topLevelWidgets()
     if len(remaining) > nbefore:
-        if (
-            # os.name == "nt"
-            # and sys.version_info[:2] <= (3, 9)
-            type(remaining[0]).__name__ in {"ImagePreview", "SnapButton"}
-        ):
+        if type(remaining[0]).__name__ in {"ImagePreview", "SnapButton"}:
             # I have no idea why, but the ImagePreview widget is leaking.
             # And it only came with a seemingly unrelated
             # https://github.com/pymmcore-plus/pymmcore-widgets/pull/90

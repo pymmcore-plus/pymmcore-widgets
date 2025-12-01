@@ -4,7 +4,7 @@ import contextlib
 import re
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Callable, ClassVar, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar, cast
 
 import pint
 from qtpy.QtCore import Qt, Signal, SignalInstance
@@ -27,7 +27,7 @@ from superqt.iconify import QIconifyIcon
 from pymmcore_widgets._humanize import humanize_time, parse_time_string
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
     from typing import Any
 
     from pint.facets.plain import PlainQuantity
