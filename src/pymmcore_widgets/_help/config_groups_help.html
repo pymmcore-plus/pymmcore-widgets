@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Micro-Manager Configuration Groups and Presets - Quick Guide</title>
+  </head>
+  <body>
+    <h1>Configuration Groups and Presets</h1>
+
+    <p>
+      Micro-Manager lets you bundle hardware settings into
+      <a
+        href="https://micro-manager.org/Micro-Manager_User%27s_Guide#controlling-devices"
+        ><strong>Groups of Configuration Presets</strong></a
+      >.
+    </p>
+
+    <p>
+      Each <strong>Group</strong> contains named <strong>Presets</strong> that
+      define a set of <strong>Device Property values</strong> to be applied to
+      the hardware.
+    </p>
+
+    <h2>Typical Workflow</h2>
+
+    <ol>
+      <li>
+        <strong>Add a configuration group</strong> (e.g. "Channel") using the
+        <em>Add Group</em> button at the top.
+      </li>
+      <li>
+        <strong>Add a preset to the group</strong> (e.g. "DAPI"), by selecting
+        the group and clicking the <em>Add Preset</em> button.
+      </li>
+      <li>
+        <strong>Select device properties to include in the preset</strong> (e.g.
+        "Filter Wheel Position", "Light Source Power") using the device property
+        selector at the right.
+      </li>
+      <li>
+        <strong>Set the device properties to desired values</strong> for the
+        currently selected preset in the Presets Table at the bottom.
+      </li>
+      <li>
+        <strong>Repeat steps 2-4 to add more presets to the group</strong> (e.g.
+        "FITC", "Cy3", "Cy5"). You may <em>Duplicate</em> an existing preset to
+        copy its device property values if another preset is similar.
+      </li>
+    </ol>
+
+    <h2>Key Building Blocks</h2>
+
+    <h3>1. Devices</h3>
+    <p>
+      Physical hardware (camera, filter wheel, stage, light source). Each device
+      exposes one or more <strong>properties</strong> that can be changed or
+      read.
+    </p>
+
+    <h3>2. Device Properties</h3>
+    <p>
+      A single adjustable parameter on a device (e.g.
+      <code>Exposure</code>, <code>Position</code>).
+    </p>
+
+    <h3>3. Configuration Presets</h3>
+    <p>
+      A preset is a snapshot of <em>specific</em> values for a set of device
+      <strong>properties</strong>. Activating a preset sets each device property
+      to its stored value.
+    </p>
+    <p>
+      For example, you might have a <em>FITC</em> preset that sets the
+      appropriate filter wheel positions and light sources for imaging the FITC
+      channel.
+    </p>
+
+    <h3>4. Configuration Groups</h3>
+    <p>
+      A configuration group is a <strong>collection of presets</strong>. It is
+      customary (<em>but not mandatory</em>) for each preset in a group to share
+      the same set of device properties.
+    </p>
+    <p>
+      For example, you might have a <em>Channel</em> group that includes presets
+      for each optical configuration preset (<em>DAPI</em>, <em>FITC</em>,
+      <em>Cy3</em>, <em>Cy5</em>).
+    </p>
+  </body>
+</html>

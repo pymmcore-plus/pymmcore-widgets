@@ -16,6 +16,7 @@ from ._py_config_model import (
     PixelSizePreset,
 )
 from ._q_config_model import QConfigGroupsModel
+from ._q_device_prop_model import QDevicePropertyModel
 
 __all__ = [
     "ConfigGroup",
@@ -26,6 +27,7 @@ __all__ = [
     "PixelSizeConfigs",
     "PixelSizePreset",
     "QConfigGroupsModel",
+    "QDevicePropertyModel",
     "get_available_devices",
     "get_config_groups",
     "get_config_presets",

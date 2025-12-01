@@ -623,7 +623,7 @@ class _PropertySelector(QWidget):
             List of (device, property, value) to be checked in the DevicePropertyTable.
         """
         return [
-            Setting(dev, prop, val)
+            Setting(device_name=dev, property_name=prop, property_value=val)
             for dev, prop, val in self._prop_table.getCheckedProperties()
         ]
 
