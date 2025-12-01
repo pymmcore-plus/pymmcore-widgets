@@ -61,7 +61,6 @@ test-matrix pythons=default_pythons backends=default_backends resolutions=defaul
                    UV_PROJECT_ENVIRONMENT="${venv_path}" \
                    PYTEST_ADDOPTS="${PYTEST_ADDOPTS:-$default_opts}" \
                    uv run \
-                    --frozen \
                     --no-dev \
                     --python "${py_version}" \
                     --extra "${backend}" \
