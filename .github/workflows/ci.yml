@@ -23,7 +23,7 @@ jobs:
       - run: uvx check-manifest
 
   test:
-    name: ${{ matrix.os }} py${{ matrix.python-version }} ${{ matrix.backend }}
+    name: ${{ matrix.os }} py${{ matrix.python-version }} ${{ matrix.backend }} ${{ matrix.resolution }}
     runs-on: ${{ matrix.os }}
     env:
       UV_NO_SYNC: "1"
@@ -31,9 +31,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13, windows-latest]
+        os: [macos-latest, windows-latest]
         python-version: ["3.10", "3.14"]
         backend: [PySide6, PyQt6]
+        resolution: ["highest", "lowest-direct"]
+        exclude:
+          - os: macos-latest
+            resolution: lowest-direct
         include:
           - os: windows-latest
             python-version: "3.11"
@@ -61,11 +65,13 @@ jobs:
 
       - name: Test
         run: uv run coverage run -p -m pytest -v --color=yes
+        env:
+          PYTEST_ADDOPTS: ${{ matrix.resolution == 'lowest-direct' && '-W ignore' || '' }}
 
       - name: Upload coverage
         uses: actions/upload-artifact@v5
         with:
-          name: covreport-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.backend }}
+          name: covreport-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.backend }}-${{ matrix.resolution }}
           path: ./.coverage*
           include-hidden-files: true
 
