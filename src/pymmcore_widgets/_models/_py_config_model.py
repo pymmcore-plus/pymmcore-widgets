@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Optional, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 from pymmcore_plus import DeviceType, Keyword, PropertyType
-from typing_extensions import TypeAlias
 
 from pymmcore_widgets._icons import StandardIcon
 

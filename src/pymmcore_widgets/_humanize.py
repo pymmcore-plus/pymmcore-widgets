@@ -7,10 +7,9 @@ from typing import TYPE_CHECKING, Literal
 import pint
 
 if TYPE_CHECKING:
-    from typing import SupportsFloat
+    from typing import SupportsFloat, TypeAlias
 
     from pint.facets.plain import PlainQuantity
-    from typing_extensions import TypeAlias
 
     SupportsDuration: TypeAlias = SupportsFloat | timedelta | str | PlainQuantity
     Unit: TypeAlias = Literal[

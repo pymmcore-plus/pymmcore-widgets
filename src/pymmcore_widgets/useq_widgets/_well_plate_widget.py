@@ -145,7 +145,7 @@ class WellPlateWidget(QWidget):
             plate=self._plate or useq.WellPlate.from_str(self.plate_name.currentText()),
             a1_center_xy=self._a1_center_xy,
             rotation=self._rotation,
-            selected_wells=tuple(zip(*self.currentSelection())),
+            selected_wells=tuple(zip(*self.currentSelection(), strict=False)),
         )
 
     def setValue(self, value: useq.WellPlatePlan | useq.WellPlate | Mapping) -> None:
@@ -440,7 +440,7 @@ class WellPlateView(ResizingGraphicsView):
 
         self.clear()
         indices = plan.all_well_indices.reshape(-1, 2)
-        for idx, pos in zip(indices, plan.all_well_positions):
+        for idx, pos in zip(indices, plan.all_well_positions, strict=False):
             # invert y-axis for screen coordinates
             screen_x, screen_y = pos.x, -cast("float", pos.y)
             rect = well_rect.translated(screen_x, screen_y)

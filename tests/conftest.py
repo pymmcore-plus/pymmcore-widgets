@@ -4,7 +4,7 @@ import inspect
 import sys
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pymmcore_plus
@@ -14,7 +14,7 @@ from pymmcore_plus._accumulator import DeviceAccumulator
 from pymmcore_plus.core import _mmcore_plus
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     from pytest import FixtureRequest
     from qtpy.QtWidgets import QApplication

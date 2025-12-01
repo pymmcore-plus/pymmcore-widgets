@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import Any, Callable, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceType, Keyword, PropertyType
 from qtpy.QtCore import Qt, Signal
@@ -16,6 +16,9 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QLabeledDoubleSlider, QLabeledSlider, utils
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 STATE = Keyword.State.value
 LABEL = Keyword.Label.value
