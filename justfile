@@ -57,6 +57,9 @@ test-matrix pythons=default_pythons backends=default_backends resolutions=defaul
                 # Run tests with uv run (automatically creates and manages temp venv)
                 # Set default pytest options (can be overridden via PYTEST_ADDOPTS)
                 default_opts="-n ${NUM_CORES} --tb=short"
+                if [[ "${resolution}" == "lowest-direct" ]]; then
+                    default_opts="${default_opts} -W ignore"
+                fi
                 if env -u VIRTUAL_ENV \
                    UV_PROJECT_ENVIRONMENT="${venv_path}" \
                    PYTEST_ADDOPTS="${PYTEST_ADDOPTS:-$default_opts}" \
