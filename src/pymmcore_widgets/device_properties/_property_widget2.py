@@ -8,11 +8,18 @@ an appropriate widget based on the property type and constraints.
 from __future__ import annotations
 
 import contextlib
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from pymmcore_plus import CMMCorePlus, DeviceType, Keyword, PropertyType
+from pymmcore_plus import (
+    CMMCorePlus,
+    DeviceInitializationState,
+    DeviceType,
+    Keyword,
+    PropertyType,
+)
 from qtpy.QtCore import QEvent, QObject, Qt, Signal
 from qtpy.QtWidgets import (
+    QAbstractSpinBox,
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
@@ -23,6 +30,20 @@ from qtpy.QtWidgets import (
     QSpinBox,
     QWidget,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    class PPropValueWidget(QWidget):
+        """The protocol expected of a ValueWidget."""
+
+        valueChanged = Signal()
+
+        def value(self) -> str | float: ...
+        def setValue(self, val: str | float) -> None: ...
+        def setEnabled(self, enabled: bool) -> None: ...
+        def deleteLater(self) -> None: ...
+
 
 STATE = Keyword.State.value
 LABEL = Keyword.Label.value
@@ -36,7 +57,7 @@ DEFAULT_FLOAT_MAX = 1e12
 
 
 class _WheelBlocker(QObject):
-    """Singleton event filter that blocks wheel events on unfocused widgets."""
+    """Event filter that blocks wheel events on unfocused widgets."""
 
     def eventFilter(self, a0: Any, a1: Any) -> bool:
         if a1.type() == QEvent.Type.Wheel:
@@ -49,7 +70,7 @@ class _WheelBlocker(QObject):
 def _block_wheel(widget: QWidget) -> None:
     """Install event filter to block wheel events on an unfocused widget."""
     widget.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-    widget._wheel_blocker = blocker = _WheelBlocker()
+    widget._wheel_blocker = blocker = _WheelBlocker(widget)  # parent to widget
     widget.installEventFilter(blocker)
 
 
@@ -102,6 +123,18 @@ class FloatSpinBox(QDoubleSpinBox):
         super().setValue(val)
 
 
+@contextlib.contextmanager
+def _update_blocker(obj: Any) -> Iterator[None]:
+    if obj._updating:
+        yield
+        return
+    obj._updating = True
+    try:
+        yield
+    finally:
+        obj._updating = False
+
+
 class LabeledSlider(QWidget):
     """A slider with an attached spinbox showing the value.
 
@@ -121,15 +154,19 @@ class LabeledSlider(QWidget):
         self._is_float = is_float
         self._scale = 1.0  # Calculated in setRange for floats
 
-        self._slider = QSlider(Qt.Orientation.Horizontal)
+        self._slider = QSlider(Qt.Orientation.Horizontal, self)
         _block_wheel(self._slider)
 
         if is_float:
-            self._spinbox: QSpinBox | QDoubleSpinBox = FloatSpinBox()
+            self._spinbox: QSpinBox | QDoubleSpinBox = FloatSpinBox(self)
         else:
-            self._spinbox = IntSpinBox()
+            self._spinbox = IntSpinBox(self)
 
-        self._spinbox.setFixedWidth(80)
+        # get width of '888888.8888' from font metrics for consistent sizing
+        fm = self._spinbox.fontMetrics()
+        width = fm.horizontalAdvance("888888.8888") + 2  # + some padding
+        self._spinbox.setFixedWidth(width)
+        self._spinbox.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -159,50 +196,35 @@ class LabeledSlider(QWidget):
 
     def setValue(self, value: float | str) -> None:
         """Set the value."""
-        if self._updating:
-            return
-        self._updating = True
-        try:
+        with _update_blocker(self):
             # Convert from string (core always returns strings)
             value = float(value) if self._is_float else int(float(value))
-            self._spinbox.setValue(value)
+            self._spinbox.setValue(value)  # pyright: ignore
             if self._is_float:
                 self._slider.setValue(int(value * self._scale))
             else:
-                self._slider.setValue(int(value))
-        finally:
-            self._updating = False
+                self._slider.setValue(value)
 
     def value(self) -> int | float:
         """Get the current value."""
         return self._spinbox.value()  # type: ignore[no-any-return]
 
     def _on_slider_changed(self, slider_val: int) -> None:
-        if self._updating:
-            return
-        self._updating = True
-        try:
+        with _update_blocker(self):
             if self._is_float:
                 val = slider_val / self._scale
             else:
                 val = slider_val
             self._spinbox.setValue(val)
             self.valueChanged.emit(val)
-        finally:
-            self._updating = False
 
     def _on_spinbox_changed(self, val: float) -> None:
-        if self._updating:
-            return
-        self._updating = True
-        try:
+        with _update_blocker(self):
             if self._is_float:
                 self._slider.setValue(int(val * self._scale))
             else:
-                self._slider.setValue(int(val))
+                self._slider.setValue(val)
             self.valueChanged.emit(val)
-        finally:
-            self._updating = False
 
 
 class ChoiceComboBox(QComboBox):
@@ -219,17 +241,19 @@ class ChoiceComboBox(QComboBox):
         """Set the available choices."""
         current = self.currentText()
         self.blockSignals(True)
-        self.clear()
-        # Sort numerically if possible
         try:
-            sorted_choices = sorted(choices, key=float)
-        except ValueError:
-            sorted_choices = list(choices)
-        self.addItems(sorted_choices)
-        # Restore previous selection if still valid
-        if current in choices:
-            self.setCurrentText(current)
-        self.blockSignals(False)
+            self.clear()
+            # Sort numerically if possible
+            try:
+                sorted_choices = sorted(choices, key=float)
+            except ValueError:
+                sorted_choices = list(choices)
+            self.addItems(sorted_choices)
+            # Restore previous selection if still valid
+            if current in choices:
+                self.setCurrentText(current)
+        finally:
+            self.blockSignals(False)
 
     def setValue(self, value: str) -> None:
         """Set the current value."""
@@ -317,7 +341,9 @@ def _get_allowed_values(mmc: CMMCorePlus, device: str, prop: str) -> tuple[str, 
     return ()
 
 
-def create_property_widget(mmc: CMMCorePlus, device: str, prop: str) -> QWidget:
+def create_inner_property_widget(
+    mmc: CMMCorePlus, device: str, prop: str
+) -> PPropValueWidget:
     """Create an appropriate widget for a device property.
 
     Parameters
@@ -334,42 +360,41 @@ def create_property_widget(mmc: CMMCorePlus, device: str, prop: str) -> QWidget:
     QWidget
         A widget appropriate for the property type.
     """
-    ptype = mmc.getPropertyType(device, prop)
-    is_readonly = mmc.isPropertyReadOnly(device, prop)
-    has_limits = mmc.hasPropertyLimits(device, prop)
-    allowed = _get_allowed_values(mmc, device, prop)
-
     # Read-only: just a label
-    if is_readonly:
-        return ReadOnlyLabel()
+    if mmc.isPropertyReadOnly(device, prop):
+        return cast("PPropValueWidget", ReadOnlyLabel())
+
+    ptype = mmc.getPropertyType(device, prop)
+    allowed = _get_allowed_values(mmc, device, prop)
 
     # Boolean: checkbox for Integer with allowed = {'0', '1'}
     if ptype is PropertyType.Integer and set(allowed) == {"0", "1"}:
-        return BoolCheckBox()
+        return cast("PPropValueWidget", BoolCheckBox())
 
     # Enum/Choice: combobox when there are allowed values
     if allowed:
         wdg = ChoiceComboBox()
         wdg.setChoices(allowed)
-        return wdg
+        return cast("PPropValueWidget", wdg)
 
     # Numeric with limits: slider + spinbox
+    has_limits = mmc.hasPropertyLimits(device, prop)
     if ptype in (PropertyType.Integer, PropertyType.Float) and has_limits:
         lower = mmc.getPropertyLowerLimit(device, prop)
         upper = mmc.getPropertyUpperLimit(device, prop)
         is_float = ptype is PropertyType.Float
         wdg = LabeledSlider(is_float=is_float)
         wdg.setRange(lower, upper)
-        return wdg
+        return cast("PPropValueWidget", wdg)
 
     # Numeric without limits: just spinbox
     if ptype is PropertyType.Integer:
-        return IntSpinBox()
+        return cast("PPropValueWidget", IntSpinBox())
     if ptype is PropertyType.Float:
-        return FloatSpinBox()
+        return cast("PPropValueWidget", FloatSpinBox())
 
     # Fallback: string entry
-    return StringLineEdit()
+    return cast("PPropValueWidget", StringLineEdit())
 
 
 # ---------------------------------------------------------------------------
@@ -422,76 +447,22 @@ class PropertyWidget(QWidget):
                 f"Available: {names}"
             )
 
+        # Create the inner widget
+        self._inner = create_inner_property_widget(self._mmc, device_label, prop_name)
+
+        # Set initial value
+        self._try_update_from_core()
+
+        self._inner.valueChanged.connect(self._on_widget_changed)
+        self._mmc.events.propertyChanged.connect(self._on_core_changed)
+        self._mmc.events.systemConfigurationLoaded.connect(self._on_config_loaded)
+
         # Create layout
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-
-        # Create the inner widget
-        self._inner = create_property_widget(self._mmc, device_label, prop_name)
         layout.addWidget(self._inner)
 
-        # Set initial value
-        self._sync_from_core()
-
-        # Connect signals
-        if hasattr(self._inner, "valueChanged"):
-            self._inner.valueChanged.connect(self._on_widget_changed)
-
-        self._mmc.events.propertyChanged.connect(self._on_core_changed)
-        self._mmc.events.systemConfigurationLoaded.connect(self._on_config_loaded)
-        self.destroyed.connect(self._disconnect)
-
-        # Handle pre-init properties
-        if self._is_pre_init_and_initialized():
-            self.setEnabled(False)
-
-    def _is_pre_init_and_initialized(self) -> bool:
-        """Check if property is pre-init and device is initialized."""
-        if not self._mmc.isPropertyPreInit(self._device, self._prop):
-            return False
-        if not hasattr(self._mmc, "getDeviceInitializationState"):
-            return False
-        return bool(self._mmc.getDeviceInitializationState(self._device))
-
-    def _sync_from_core(self) -> None:
-        """Update widget value from core."""
-        with contextlib.suppress(RuntimeError, ValueError):
-            value = self._mmc.getProperty(self._device, self._prop)
-            self._inner.setValue(value)
-
-    def _on_widget_changed(self, value: Any) -> None:
-        """Handle widget value changes."""
-        if self._connect_core:
-            try:
-                self._mmc.setProperty(self._device, self._prop, value)
-            except (RuntimeError, ValueError):
-                # Reset to core value on error
-                self._sync_from_core()
-                return
-        self.valueChanged.emit(value)
-
-    def _on_core_changed(self, device: str, prop: str, value: Any) -> None:
-        """Handle core property changes."""
-        if device == self._device and prop == self._prop:
-            self._inner.blockSignals(True)
-            self._inner.setValue(value)
-            self._inner.blockSignals(False)
-
-    def _on_config_loaded(self) -> None:
-        """Handle system configuration reload."""
-        # Refresh choices for choice widgets
-        if isinstance(self._inner, ChoiceComboBox):
-            allowed = _get_allowed_values(self._mmc, self._device, self._prop)
-            self._inner.setChoices(allowed)
-        self._sync_from_core()
-
-    def _disconnect(self) -> None:
-        """Disconnect from core signals."""
-        with contextlib.suppress(RuntimeError):
-            self._mmc.events.propertyChanged.disconnect(self._on_core_changed)
-            self._mmc.events.systemConfigurationLoaded.disconnect(
-                self._on_config_loaded
-            )
+    # Public methods -----------------------------------------------------
 
     def value(self) -> Any:
         """Get the current widget value."""
@@ -502,10 +473,16 @@ class PropertyWidget(QWidget):
         self._inner.setValue(value)
 
     def refresh(self) -> None:
-        """Force refresh from core."""
+        """Update the value of the widget from mmcore.
+
+        (If all goes well this shouldn't be necessary, but if a propertyChanged
+        event is missed, this can be used).
+        """
         self._inner.blockSignals(True)
-        self._sync_from_core()
-        self._inner.blockSignals(False)
+        try:
+            self._try_update_from_core()
+        finally:
+            self._inner.blockSignals(False)
 
     def propertyType(self) -> PropertyType:
         """Return the property type."""
@@ -523,7 +500,53 @@ class PropertyWidget(QWidget):
         """Return allowed values if property has constraints."""
         return _get_allowed_values(self._mmc, self._device, self._prop)
 
-    @property
-    def _dp(self) -> tuple[str, str]:
-        """Return (device, property) tuple."""
-        return self._device, self._prop
+    # Private methods ----------------------------------------------------
+
+    def _is_pre_init_and_initialized(self) -> bool:
+        """Check if property is pre-init and device is initialized."""
+        return bool(
+            self._mmc.isPropertyPreInit(self._device, self._prop)
+            and hasattr(self._mmc, "getDeviceInitializationState")
+            and self._mmc.getDeviceInitializationState(self._device)
+            != DeviceInitializationState.Uninitialized
+        )
+
+    def _try_update_from_core(self) -> Any:
+        """Update widget value from core."""
+        value = ""
+        with contextlib.suppress(RuntimeError, ValueError):
+            value = self._mmc.getProperty(self._device, self._prop)
+            self._inner.setValue(value)
+
+        # disable for any device init state besides 0 (Uninitialized)
+        if self._is_pre_init_and_initialized():
+            self.setEnabled(False)
+
+        return value
+
+    def _on_widget_changed(self, value: Any) -> None:
+        """Handle widget value changes."""
+        if self._connect_core:
+            try:
+                self._mmc.setProperty(self._device, self._prop, value)
+            except (RuntimeError, ValueError):
+                # Reset to core value on error
+                value = self._try_update_from_core()
+        self.valueChanged.emit(value)
+
+    def _on_core_changed(self, device: str, prop: str, value: Any) -> None:
+        """Handle core property changes."""
+        if device == self._device and prop == self._prop:
+            self._inner.blockSignals(True)
+            try:
+                self._inner.setValue(value)
+            finally:
+                self._inner.blockSignals(False)
+
+    def _on_config_loaded(self) -> None:
+        """Handle system configuration reload."""
+        # Refresh choices for choice widgets
+        if isinstance(self._inner, ChoiceComboBox):
+            allowed = _get_allowed_values(self._mmc, self._device, self._prop)
+            self._inner.setChoices(allowed)
+        self._try_update_from_core()
