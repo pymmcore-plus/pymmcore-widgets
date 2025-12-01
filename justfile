@@ -98,6 +98,7 @@ test-matrix pythons=default_pythons backends=default_backends resolutions=defaul
         for test in "${failed_tests[@]}"; do
             echo -e "  ${RED} ${test}${NC}"
         done
+        echo -e "${GREEN}Passed tests:${NC}"
         for test in "${passed_tests[@]}"; do
             echo -e "  ${GREEN} ${test}${NC}"
         done
@@ -105,6 +106,9 @@ test-matrix pythons=default_pythons backends=default_backends resolutions=defaul
         exit 1
     else
         echo -e "${GREEN}All tests passed!${NC}"
+        for test in "${passed_tests[@]}"; do
+            echo -e "  ${GREEN} ${test}${NC}"
+        done
         exit 0
     fi
 
