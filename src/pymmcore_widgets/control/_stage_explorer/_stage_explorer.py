@@ -586,10 +586,7 @@ class StageExplorerToolbar(QToolBar):
         )
 
 
-SLOTS = {"slots": True} if sys.version_info >= (3, 10) else {}
-
-
-@dataclass(**SLOTS)
+@dataclass(slots=True)
 class AffineState:
     """Cached state for the affine transformation of the stage viewer.
 

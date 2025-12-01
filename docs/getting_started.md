@@ -33,7 +33,7 @@ pip install PyQt6
     Widgets are tested on:
 
     * macOS & Windows
-    * Python 3.9 and above
+    * Python 3.10 and above
     * PyQt5, PyQt6, PySide2 & PySide6(==6.7)
 
 ### Installing Micro-Manager
