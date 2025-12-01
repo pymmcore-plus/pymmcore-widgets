@@ -42,7 +42,9 @@ def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> Non
     global_mmcore.logMessage(new_message)
 
     def wait_for_update() -> None:
-        # Process any pending Qt events to ensure signals/slots are processed
+        QApplication.processEvents()
+        # Manually trigger a read to handle cases where file isn't flushed yet
+        wdg._reader._read_new()
         QApplication.processEvents()
         # Check if our new message appears in the log view
         if f"[IFO,App] {new_message}" not in wdg._log_view.toPlainText():
