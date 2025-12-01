@@ -57,9 +57,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-PySide2 = ["PySide2 >=5.15.2.1", "numpy<2; python_version < '3.13'", "numpy"]
 PySide6 = ["PySide6 >=6.9.0"]
-PyQt5 = ["PyQt5 >=5.15.11"]
 PyQt6 = ["PyQt6 >=6.4.2"]
 
 [project.urls]
@@ -76,6 +74,7 @@ test = [
     "zarr >=2.15,<3",
     "numcodecs >0.14.0,<0.16; python_version >= '3.13'",
     "numcodecs >0.12.0,<0.16",
+    "pytest-xdist>=3.8.0",
 ]
 dev = [
     { include-group = "docs" },
