@@ -8,7 +8,7 @@ import pytest
 from pymmcore_plus import CMMCorePlus, DeviceType, PropertyType
 from qtpy.QtCore import Qt
 
-from pymmcore_widgets.device_properties._property_widget2 import (
+from pymmcore_widgets.device_properties._property_widget import (
     BoolCheckBox,
     ChoiceComboBox,
     FloatSpinBox,
@@ -408,7 +408,7 @@ def test_property_widget_value_changed_signal(
     qtbot.addWidget(widget)
 
     with qtbot.waitSignal(widget.valueChanged, timeout=1000) as blocker:
-        widget._inner.valueChanged.emit("4")
+        widget._value_widget.valueChanged.emit("4")
 
     assert blocker.args[0] == "4"
 
@@ -419,9 +419,9 @@ def test_property_widget_refresh(mmcore: CMMCorePlus, qtbot: QtBot) -> None:
     qtbot.addWidget(widget)
 
     # Set widget value without updating core
-    widget._inner.blockSignals(True)
-    widget._inner.setValue("1")
-    widget._inner.blockSignals(False)
+    widget._value_widget.blockSignals(True)
+    widget._value_widget.setValue("1")
+    widget._value_widget.blockSignals(False)
     assert widget.value() == "1"
 
     # Core has different value
@@ -525,7 +525,7 @@ def test_property_widget_error_recovery(mmcore: CMMCorePlus, qtbot: QtBot) -> No
     mmcore.setProperty = failing_setProperty
     try:
         # This should trigger error recovery
-        widget._inner.valueChanged.emit("invalid")
+        widget._value_widget.valueChanged.emit("invalid")
         qtbot.wait(50)
 
         # Widget should reset to core value
@@ -617,7 +617,7 @@ def test_all_properties_create_widget(
     widget = PropertyWidget(device, prop, mmcore=global_mmcore)
     qtbot.addWidget(widget)
     assert widget is not None
-    assert widget._inner is not None
+    assert widget._value_widget is not None
 
 
 @pytest.mark.parametrize(

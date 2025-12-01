@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from pymmcore_widgets.device_properties._property_widget2 import PropertyWidget
+from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 
 
 class PropertyBrowser2(QDialog):

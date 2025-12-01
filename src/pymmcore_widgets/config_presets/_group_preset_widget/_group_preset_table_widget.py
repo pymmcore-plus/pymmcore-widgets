@@ -229,7 +229,7 @@ class GroupPresetTableWidget(QGroupBox):
                 if isinstance(wdg, PresetsWidget):
                     wdg = wdg._combo
                 elif isinstance(wdg, PropertyWidget):
-                    wdg = wdg._value_widget  # type: ignore
+                    wdg = wdg.inner_widget
 
         # resize to contents the table
         self.table_wdg.resizeColumnToContents(0)
