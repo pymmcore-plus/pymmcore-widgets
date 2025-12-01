@@ -191,6 +191,7 @@ ignore = [
     "examples/**/*",
     "CHANGELOG.md",
     "uv.lock",
+    "justfile",
 ]
 
 [tool.typos.default]
