@@ -8,10 +8,10 @@ an appropriate widget based on the property type and constraints.
 from __future__ import annotations
 
 import contextlib
-from typing import Any
+from typing import Any, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceType, Keyword, PropertyType
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import QEvent, Qt, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -46,12 +46,10 @@ class _WheelBlocker(QWidget):
             cls._instance = cls()
         return cls._instance
 
-    def eventFilter(self, obj: Any, event: Any) -> bool:
-        from qtpy.QtCore import QEvent
-
-        if event.type() == QEvent.Type.Wheel:
-            if hasattr(obj, "hasFocus") and not obj.hasFocus():
-                event.ignore()
+    def eventFilter(self, a0: Any, a1: Any) -> bool:
+        if a1.type() == QEvent.Type.Wheel:
+            if hasattr(a0, "hasFocus") and not a0.hasFocus():
+                a1.ignore()
                 return True
         return False
 
@@ -76,11 +74,11 @@ class IntSpinBox(QSpinBox):
         self.setRange(DEFAULT_INT_MIN, DEFAULT_INT_MAX)
         _block_wheel(self)
 
-    def setValue(self, value: int | str) -> None:
+    def setValue(self, val: int | str) -> None:
         """Set value, accepting strings from core."""
-        if isinstance(value, str):
-            value = int(float(value))
-        super().setValue(value)
+        if isinstance(val, str):
+            val = int(float(val))
+        super().setValue(val)
 
 
 class FloatSpinBox(QDoubleSpinBox):
@@ -149,12 +147,12 @@ class LabeledSlider(QWidget):
     def setRange(self, minimum: float, maximum: float) -> None:
         """Set the range for both slider and spinbox."""
         if self._is_float:
-            self._spinbox.setRange(minimum, maximum)
+            cast("FloatSpinBox", self._spinbox).setRange(minimum, maximum)
             smin, smax = int(minimum * self._scale), int(maximum * self._scale)
             self._slider.setRange(smin, smax)
         else:
             # Core returns floats even for integer properties
-            self._spinbox.setRange(int(minimum), int(maximum))
+            cast("IntSpinBox", self._spinbox).setRange(int(minimum), int(maximum))
             self._slider.setRange(int(minimum), int(maximum))
 
     def setValue(self, value: float | str) -> None:
@@ -178,7 +176,7 @@ class LabeledSlider(QWidget):
 
     def value(self) -> int | float:
         """Get the current value."""
-        return self._spinbox.value()
+        return self._spinbox.value()  # type: ignore[no-any-return]
 
     def _on_slider_changed(self, slider_val: int) -> None:
         if self._updating:
@@ -240,7 +238,7 @@ class ChoiceComboBox(QComboBox):
 
     def value(self) -> str:
         """Get the current value."""
-        return self.currentText()
+        return self.currentText()  # type: ignore[no-any-return]
 
 
 class BoolCheckBox(QCheckBox):
@@ -282,7 +280,7 @@ class StringLineEdit(QLineEdit):
 
     def value(self) -> str:
         """Get the value."""
-        return self.text()
+        return self.text()  # type: ignore[no-any-return]
 
 
 class ReadOnlyLabel(QLabel):
@@ -296,7 +294,7 @@ class ReadOnlyLabel(QLabel):
 
     def value(self) -> str:
         """Get the displayed value."""
-        return self.text()
+        return self.text()  # type: ignore[no-any-return]
 
 
 # ---------------------------------------------------------------------------

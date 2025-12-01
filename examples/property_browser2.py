@@ -104,6 +104,7 @@ class PropertyBrowser2(QDialog):
 
 
 def main() -> None:
+    """Entry point for the example script."""
     app = QApplication(sys.argv)
 
     # Load demo configuration
