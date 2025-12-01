@@ -11,7 +11,7 @@ import contextlib
 from typing import Any, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceType, Keyword, PropertyType
-from qtpy.QtCore import QEvent, Qt, Signal
+from qtpy.QtCore import QEvent, QObject, Qt, Signal
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -35,16 +35,8 @@ DEFAULT_FLOAT_MIN = -1e12
 DEFAULT_FLOAT_MAX = 1e12
 
 
-class _WheelBlocker(QWidget):
+class _WheelBlocker(QObject):
     """Singleton event filter that blocks wheel events on unfocused widgets."""
-
-    _instance: _WheelBlocker | None = None
-
-    @classmethod
-    def instance(cls) -> _WheelBlocker:
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
 
     def eventFilter(self, a0: Any, a1: Any) -> bool:
         if a1.type() == QEvent.Type.Wheel:
@@ -57,7 +49,8 @@ class _WheelBlocker(QWidget):
 def _block_wheel(widget: QWidget) -> None:
     """Install event filter to block wheel events on an unfocused widget."""
     widget.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-    widget.installEventFilter(_WheelBlocker.instance())
+    widget._wheel_blocker = blocker = _WheelBlocker()
+    widget.installEventFilter(blocker)
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +84,11 @@ class FloatSpinBox(QDoubleSpinBox):
         self.setDecimals(4)
         _block_wheel(self)
 
+    def textFromValue(self, v: float) -> str:
+        # Format with precision, strip trailing zeros
+        text = f"{v:.{self.decimals()}f}".rstrip("0").rstrip(".")
+        return text
+
     def setValue(self, val: float | str) -> None:
         """Set value, accepting strings from core."""
         if isinstance(val, str):
@@ -112,6 +110,7 @@ class LabeledSlider(QWidget):
     """
 
     valueChanged = Signal(object)  # int or float
+    _INT32_MAX = 2**31 - 1
 
     def __init__(
         self,
@@ -120,7 +119,7 @@ class LabeledSlider(QWidget):
     ) -> None:
         super().__init__(parent)
         self._is_float = is_float
-        self._scale = 1000 if is_float else 1  # For float precision in slider
+        self._scale = 1.0  # Calculated in setRange for floats
 
         self._slider = QSlider(Qt.Orientation.Horizontal)
         _block_wheel(self._slider)
@@ -148,6 +147,9 @@ class LabeledSlider(QWidget):
         """Set the range for both slider and spinbox."""
         if self._is_float:
             cast("FloatSpinBox", self._spinbox).setRange(minimum, maximum)
+            # Calculate scale to fit within int32 while maximizing slider precision
+            max_abs = max(abs(minimum), abs(maximum), 1e-10)
+            self._scale = min(10000.0, self._INT32_MAX / max_abs)
             smin, smax = int(minimum * self._scale), int(maximum * self._scale)
             self._slider.setRange(smin, smax)
         else:
@@ -161,11 +163,8 @@ class LabeledSlider(QWidget):
             return
         self._updating = True
         try:
-            # Convert from string if needed (core always returns strings)
-            if isinstance(value, str):
-                value = float(value) if self._is_float else int(float(value))
-            # Clamp to range if needed
-            value = max(self._spinbox.minimum(), min(self._spinbox.maximum(), value))
+            # Convert from string (core always returns strings)
+            value = float(value) if self._is_float else int(float(value))
             self._spinbox.setValue(value)
             if self._is_float:
                 self._slider.setValue(int(value * self._scale))
