@@ -660,7 +660,7 @@ class _PropertySelector(QWidget):
                     # get the value of the PropertyWidget from value
                     val = value_dict[(dev_prop.device, dev_prop.name)]
                     # update the value of the PropertyWidget
-                    with signals_blocked(val_wdg._value_widget):
+                    with signals_blocked(val_wdg.inner_widget):
                         val_wdg.setValue(val)
 
                     self._prop_table.item(row, 0).setCheckState(Qt.CheckState.Checked)
@@ -701,7 +701,7 @@ class _PropertySelector(QWidget):
             # connect the valueChanged signal of the PropertyWidget to the
             # _update_property_table method that will update the value of the
             # PropertyWidget in the DevicePropertyTable when the PropertyWidget changes.
-            wdg._value_widget.valueChanged.connect(self._update_property_table)
+            wdg.inner_widget.valueChanged.connect(self._update_property_table)
             # to_view_table.append((dev, prop, val, wdg))
             to_view_table.append((dev, prop, wdg))
 
@@ -726,7 +726,7 @@ class _PropertySelector(QWidget):
         table_prop_row = table_prop_item[0].row()
         # get property widget and update the value
         wdg = cast("PropertyWidget", self._prop_table.cellWidget(table_prop_row, 1))
-        with signals_blocked(wdg._value_widget):
+        with signals_blocked(wdg.inner_widget):
             wdg.setValue(value)
 
         self.valueChanged.emit(self.value())
