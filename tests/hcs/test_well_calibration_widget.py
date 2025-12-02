@@ -59,13 +59,15 @@ def test_well_calibration_widget_modes(
     combo = wdg._calibration_mode_wdg
     modes = [Mode(*combo.itemData(i, COMBO_ROLE)) for i in range(combo.count())]
     # make sure the modes are correct
-    assert modes == MODES[circular]
+    expected = [(mode.text, mode.points) for mode in MODES[circular]]
+    actual = [(m[0], m[1]) for m in modes]
+    assert actual == expected
     # make sure that the correct number of rows are displayed when the mode is changed
     for idx, mode in enumerate(modes):
         # set the mode
         combo.setCurrentIndex(idx)
         # get the number of rows
-        assert wdg._table.rowCount() == mode.points
+        assert wdg._table.rowCount() == mode[1]
 
 
 def test_well_calibration_widget_positions(
