@@ -517,6 +517,10 @@ class PropertyWidget(QWidget):
         """Return True if the property is read-only."""
         return self._mmc.isPropertyReadOnly(self._device, self._prop)
 
+    def isPreInit(self) -> bool:
+        """Return True if the property is pre-initialization."""
+        return self._mmc.isPropertyPreInit(self._device, self._prop)
+
     def allowedValues(self) -> tuple[str, ...]:
         """Return allowed values if property has constraints."""
         return _get_allowed_values(self._mmc, self._device, self._prop)
@@ -527,12 +531,12 @@ class PropertyWidget(QWidget):
         """Check if property is pre-init and device is initialized."""
         with contextlib.suppress(RuntimeError):
             return bool(
-                self._mmc.isPropertyPreInit(self._device, self._prop)
+                self.isPreInit()
                 and hasattr(self._mmc, "getDeviceInitializationState")
                 and self._mmc.getDeviceInitializationState(self._device)
                 != DeviceInitializationState.Uninitialized
             )
-        return False
+        return False  # pragma: no cover
 
     def _try_update_from_core(self) -> Any:
         """Update widget value from core."""
