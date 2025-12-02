@@ -20,7 +20,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from pymmcore_widgets._util import NoWheelTableWidget, block_core, load_system_config
+from pymmcore_widgets._util import block_core, load_system_config
 from pymmcore_widgets.control._presets_widget import PresetsWidget
 from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 
@@ -32,7 +32,7 @@ from ._edit_preset_widget import EditPresetWidget
 UNNAMED_PRESET = "NewPreset"
 
 
-class _MainTable(NoWheelTableWidget):
+class _MainTable(QTableWidget):
     """Set table properties for Group and Preset TableWidget."""
 
     def __init__(self) -> None:
