@@ -24,10 +24,11 @@ See complete list of available widgets in the [documentation](https://pymmcore-p
 pip install pymmcore-widgets
 
 # note that this package does NOT include a Qt backend
-# you must install one yourself, for example:
-pip install PyQt5
+# you must install manually, or using an extra, e.g.:
+pip install pymmcore-widgets[PyQt6]
+pip install pymmcore-widgets[PySide6]
 
-# package is tested against PyQt5, PyQt6, PySide2, and PySide6(==6.7)
+# package is tested against PyQt6, and PySide6, we no longer test PyQt5/PySide2
 ```
 
 ## Development

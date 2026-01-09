@@ -194,6 +194,13 @@ def test_z_stage_snap_on_click(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None
     with qtbot.waitSignal(global_mmcore.events.imageSnapped):
         z_up_2.widget().click()
 
+    # Assert snap does NOT occur during acquisition
+    global_mmcore.startContinuousSequenceAcquisition(1)
+    with qtbot.assert_not_emitted(global_mmcore.events.imageSnapped):
+        with qtbot.waitSignal(stage_z._stage_controller.moveFinished):
+            z_up_2.widget().click()
+    global_mmcore.stopSequenceAcquisition()
+
     # disconnect
     assert global_mmcore.getFocusDevice() == "Z"
     assert stage_z._set_as_default_btn.isChecked()

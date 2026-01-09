@@ -241,7 +241,7 @@ class ObjectivesPixelConfigurationWidget(QDialog):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self.objective_device = guess_objective_or_prompt(parent=self)
+        self.objective_device = guess_objective_or_prompt(self._mmc, parent=self)
 
         self._create_wdg()
 
@@ -316,10 +316,10 @@ class ObjectivesPixelConfigurationWidget(QDialog):
                     item.setStyleSheet("")
                 else:
                     item.setReadOnly(True)
-                    item.setStyleSheet("color:magenta")
+                    item.setStyleSheet("font-weight: bold;")
 
     def _on_sys_cfg_loaded(self) -> None:
-        self.objective_device = guess_objective_or_prompt(parent=self)
+        self.objective_device = guess_objective_or_prompt(self._mmc, parent=self)
         self._rebuild()
 
     def _on_px_set(self, value: float) -> None:

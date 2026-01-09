@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from inspect import signature
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -54,6 +55,8 @@ def test_core_state_unchanged(
 ) -> None:
     before = _full_state(global_mmcore)
     kwargs = {**ALL_WIDGETS[widget]}
+    if "mmcore" in signature(widget).parameters:
+        kwargs["mmcore"] = global_mmcore
     w = widget(**kwargs)
     qtbot.addWidget(w)
     after = _full_state(global_mmcore)
