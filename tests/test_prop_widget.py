@@ -53,6 +53,10 @@ def test_property_widget(global_mmcore: CMMCorePlus, qtbot) -> None:
                 val = allowed[-1]
             elif wdg.propertyType() in {PropertyType.Integer, PropertyType.Float}:
                 val = _vals.get(prop, 1)
+                if core.hasPropertyLimits(dev, prop):
+                    lo = core.getPropertyLowerLimit(dev, prop)
+                    hi = core.getPropertyUpperLimit(dev, prop)
+                    val = max(lo, min(hi, val))
             else:
                 val = "some string"
 

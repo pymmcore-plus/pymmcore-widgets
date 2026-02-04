@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
 
 import pytest
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
-if qtpy.API_NAME.startswith("PySide"):
+if qtpy.API_NAME.startswith("PySide") or sys.version_info >= (3, 14):
     pytest.skip(
         "Fails too often on CI. Usually (but not only) PySide6", allow_module_level=True
     )

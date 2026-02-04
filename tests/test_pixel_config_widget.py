@@ -175,8 +175,15 @@ def test_pixel_config_wdg_prop_change(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert viewer_wdg.value() == "Nikon 10X S Fluor"
     assert wdg._props_selector.value() == [("Objective", "Label", "Nikon 10X S Fluor")]
 
-    # row 67 is the ("Objective", "Label") property
-    prop_wdg = wdg._props_selector._prop_table.cellWidget(67, 1)
+    # find the row for ("Objective", "Label") dynamically
+    prop_table = wdg._props_selector._prop_table
+    obj_row = next(
+        r
+        for r in range(prop_table.rowCount())
+        if (p := prop_table.item(r, 0).data(prop_table.PROP_ROLE))
+        and (p.device, p.name) == ("Objective", "Label")
+    )
+    prop_wdg = prop_table.cellWidget(obj_row, 1)
     assert prop_wdg.value() == "Nikon 10X S Fluor"
 
     viewer_wdg.setValue("Nikon 40X Plan Fluor ELWD")
