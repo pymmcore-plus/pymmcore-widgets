@@ -138,7 +138,7 @@ def _run_after_each_test(request: FixtureRequest, qapp: QApplication) -> Iterato
         return
     remaining = qapp.topLevelWidgets()
     if len(remaining) > nbefore:
-        if type(remaining[0]).__name__ in {"ImagePreview", "SnapButton"}:
+        if any(type(w).__name__ in {"ImagePreview", "SnapButton"} for w in remaining):
             # I have no idea why, but the ImagePreview widget is leaking.
             # And it only came with a seemingly unrelated
             # https://github.com/pymmcore-plus/pymmcore-widgets/pull/90
