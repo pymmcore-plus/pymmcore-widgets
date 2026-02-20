@@ -46,7 +46,6 @@ for x in list(ALLOWED_ORDERS):
     for first, second in (
         ("t", "z"),  # t cannot come after z
         ("p", "g"),  # p cannot come after g
-        ("p", "c"),  # p cannot come after c
         ("p", "z"),  # p cannot come after z
         ("g", "z"),  # g cannot come after z
     ):
