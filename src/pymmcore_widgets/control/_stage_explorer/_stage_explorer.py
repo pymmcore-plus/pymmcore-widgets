@@ -8,9 +8,11 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import useq
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import QModelIndex, QSize, Qt, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
+    QDoubleSpinBox,
+    QFormLayout,
     QLabel,
     QMenu,
     QSizePolicy,
@@ -18,8 +20,10 @@ from qtpy.QtWidgets import (
     QToolButton,
     QVBoxLayout,
     QWidget,
+    QWidgetAction,
 )
-from superqt import QIconifyIcon
+from superqt import QEnumComboBox, QIconifyIcon
+from useq import OrderMode
 
 from pymmcore_widgets.control._q_stage_controller import QStageMoveAccumulator
 from pymmcore_widgets.control._rois.roi_manager import GRAY, SceneROIManager
@@ -149,6 +153,8 @@ class StageExplorer(QWidget):
         self._snap_on_double_click: bool = True
         self._poll_stage_position: bool = True
         self._our_mda_running: bool = False
+        self._grid_overlap: float = 0.0
+        self._grid_mode: OrderMode = OrderMode.row_wise_snake
 
         # timer for polling stage position
         self._timer_id: int | None = None
@@ -189,6 +195,9 @@ class StageExplorer(QWidget):
         tb.delete_rois_action.triggered.connect(self.roi_manager.clear)
         tb.scan_action.triggered.connect(self._on_scan_action)
         tb.marker_mode_action_group.triggered.connect(self._update_marker_mode)
+        tb.scan_menu.valueChanged.connect(self._on_scan_options_changed)
+        # ensure newly-created ROIs inherit the current scan menu settings
+        self.roi_manager.roi_model.rowsInserted.connect(self._on_roi_rows_inserted)
 
         # main layout
         main_layout = QVBoxLayout(self)
@@ -338,17 +347,41 @@ class StageExplorer(QWidget):
             self._stage_pos_marker.set_marker_visible(pi.show_marker)
 
     def _on_scan_action(self) -> None:
-        """Scan the selected ROIs."""
+        """Scan the selected ROI."""
         if not (active_rois := self.roi_manager.selected_rois()):
             return
         active_roi = active_rois[0]
-        if plan := active_roi.create_grid_plan(*self._fov_w_h()):
-            # for now, we expand the grid plan to a list of positions because
-            # useq grid_plan= doesn't yet support our custom polygon ROIs
-            seq = useq.MDASequence(stage_positions=list(plan))
+
+        overlap, mode = self._toolbar.scan_menu.value()
+        if plan := active_roi.create_grid_plan(*self._fov_w_h(), overlap, mode):
+            seq = useq.MDASequence(grid_plan=plan)
             if not self._mmc.mda.is_running():
                 self._our_mda_running = True
                 self._mmc.run_mda(seq)
+
+    def _on_scan_options_changed(self, value: tuple[float, OrderMode]) -> None:
+        """Update all ROIs with the new overlap so the vispy visuals refresh."""
+        # store locally in case callers want to use it
+        self._grid_overlap, self._grid_mode = value
+
+        # update ROIs and emit model dataChanged so visuals update
+        for roi in self.roi_manager.all_rois():
+            roi.fov_overlap = (self._grid_overlap, self._grid_overlap)
+            roi.scan_order = self._grid_mode
+            self.roi_manager.roi_model.emitDataChange(roi)
+
+    def _on_roi_rows_inserted(self, parent: QModelIndex, first: int, last: int) -> None:
+        """Initialize newly-inserted ROIs with the current scan menu values.
+
+        This ensures ROIs created after adjusting the scan options start with the
+        chosen overlap and acquisition order.
+        """
+        overlap, mode = self._toolbar.scan_menu.value()
+        for row in range(first, last + 1):
+            roi = self.roi_manager.roi_model.getRoi(row)
+            roi.fov_overlap = (overlap, overlap)
+            roi.scan_order = mode
+            self.roi_manager.roi_model.emitDataChange(roi)
 
     def keyPressEvent(self, a0: QKeyEvent | None) -> None:
         if a0 is None:
@@ -581,8 +614,57 @@ class StageExplorerToolbar(QToolBar):
         self.addSeparator()
         self.scan_action = self.addAction(
             QIconifyIcon("ph:path-duotone", color=GRAY),
-            "Scan Selected ROIs",
+            "Scan Selected ROI",
         )
+        scan_btn = cast("QToolButton", self.widgetForAction(self.scan_action))
+        self.scan_menu = ScanMenu(self)
+        scan_btn.setMenu(self.scan_menu)
+        scan_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+
+
+class ScanMenu(QMenu):
+    """Menu widget that exposes scan grid options."""
+
+    valueChanged = Signal(object)
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setTitle("Scan Selected ROI")
+
+        # container widget for form layout
+        opts_widget = QWidget(self)
+        form = QFormLayout(opts_widget)
+        form.setContentsMargins(8, 8, 8, 8)
+        form.setSpacing(6)
+
+        # overlap spinbox
+        self._overlap_spin = QDoubleSpinBox(opts_widget)
+        self._overlap_spin.setDecimals(2)
+        self._overlap_spin.setRange(-100, 100)
+        self._overlap_spin.setSingleStep(1)
+        form.addRow("Overlap", self._overlap_spin)
+
+        # acquisition mode combo
+        self._mode_cbox = QEnumComboBox(self, OrderMode)
+        self._mode_cbox.setCurrentEnum(OrderMode.row_wise_snake)
+        form.addRow("Order", self._mode_cbox)
+
+        # wrap in a QWidgetAction so it shows as a menu panel
+        self.opts_action = QWidgetAction(self)
+        self.opts_action.setDefaultWidget(opts_widget)
+        self.addAction(self.opts_action)
+
+        self._overlap_spin.valueChanged.connect(self._on_value_changed)
+        self._mode_cbox.currentTextChanged.connect(self._on_value_changed)
+
+    def value(self) -> tuple[float, useq.OrderMode]:
+        """Return the current grid overlap and order mode."""
+        return self._overlap_spin.value(), cast(
+            "OrderMode", self._mode_cbox.currentEnum()
+        )
+
+    def _on_value_changed(self) -> None:
+        self.valueChanged.emit(self.value())
 
 
 @dataclass(slots=True)
@@ -647,7 +729,7 @@ class AffineState:
             S[0, 0] *= -1
         if flip_y:
             S[1, 1] *= -1
-        return R @ S  # type: ignore[no-any-return]
+        return R @ S
 
     def _pixel_config_is_identity(self) -> bool:
         return np.allclose(self.pixel_size_affine, (1.0, 0.0, 0.0, 0.0, 1.0, 0.0))

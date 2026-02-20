@@ -46,9 +46,14 @@ class RoiPolygon(Compound):
         self._handles.set_data(pos=vertices)
 
         centers: list[tuple[float, float]] = []
-        if (grid := self._roi.create_grid_plan()) is not None:
+
+        grid = self._roi.create_grid_plan(
+            overlap=self._roi.fov_overlap, mode=self._roi.scan_order
+        )
+        if grid is not None:
             for p in grid:
-                centers.append((p.x, p.y))
+                if p.x is not None and p.y is not None:
+                    centers.append((p.x, p.y))
 
         if centers and (fov_size := self._roi.fov_size):
             edges = []
