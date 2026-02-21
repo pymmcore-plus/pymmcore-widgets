@@ -45,6 +45,22 @@ class StackViewer(QtWidgets.QWidget):
     transform: (int, bool, bool) rotation mirror_x mirror_y.
     """
 
+    @classmethod
+    def _unsupported_reason(cls) -> str | None:
+        import sys
+
+        import pymmcore_plus
+
+        version_parts = pymmcore_plus.__version__.split(".")[:3]
+        pymm_version = tuple(int(part) for part in version_parts if part.isdigit())
+        if pymm_version > (0, 17, 3):
+            return "StackViewer is unsupported on pymmcore-plus versions above 0.17.3"
+        if sys.version_info >= (3, 14):
+            return "StackViewer is unsupported on Python 3.14 and above"
+        if qtpy.API_NAME.startswith("PySide"):
+            return "StackViewer is not tested on PySide, it may not work as expected."
+        return None
+
     def __init__(
         self,
         datastore: QOMEZarrDatastore | None = None,
@@ -56,12 +72,8 @@ class StackViewer(QtWidgets.QWidget):
         save_button: bool = True,
     ):
         super().__init__(parent=parent)
-        if qtpy.API_NAME.startswith("PySide"):
-            warnings.warn(
-                "StackViewer is not tested on PySide, it may not work as expected. "
-                "You can disable this warning by setting `warn_on_pyside6=False`.",
-                stacklevel=2,
-            )
+        if reason := self._unsupported_reason():
+            warnings.warn(reason, stacklevel=2)
 
         self._reload_position()
         self.sequence = sequence

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
 
 import pytest
@@ -18,11 +17,8 @@ from pymmcore_widgets.views._stack_viewer import CMAPS
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
-
-if qtpy.API_NAME.startswith("PySide") or sys.version_info >= (3, 14):
-    pytest.skip(
-        "Fails too often on CI. Usually (but not only) PySide6", allow_module_level=True
-    )
+if reason := StackViewer._unsupported_reason():
+    pytest.skip(reason, allow_module_level=True)
 
 sequence = MDASequence(
     channels=[{"config": "DAPI", "exposure": 10}, {"config": "FITC", "exposure": 10}],
