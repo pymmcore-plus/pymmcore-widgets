@@ -51,7 +51,7 @@ dependencies = [
     'pymmcore-plus[cli] >=0.15.4',
     'qtpy >=2.0',
     'superqt[quantity,cmap,iconify] >=0.7.1',
-    'useq-schema >=0.8.0',
+    'useq-schema >=0.8.1',
     'vispy >=0.15.1',
     "pyopengl >=3.1.9; platform_system == 'Darwin'",
     "shapely>=2.1.2; python_version >= '3.14'",

@@ -315,6 +315,11 @@ class GridPlanWidget(QScrollArea):
     def _on_change(self) -> None:
         if (val := self.value()) is None:
             return  # pragma: no cover
+        # here we are calling setValue on the polygon widget only because
+        # we want to be able to change parameters such as the overlap or acquisition
+        # order from the gui.
+        if isinstance(val, useq.GridFromPolygon):
+            self.polygon_wdg.setValue(val)
         self.valueChanged.emit(val)
 
 
