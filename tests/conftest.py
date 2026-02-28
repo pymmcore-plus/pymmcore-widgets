@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import inspect
 import sys
 import warnings
@@ -110,8 +111,8 @@ def global_mmcore() -> Iterator[CMMCorePlus]:
     # FIXME: would be better if this wasn't needed, or was fixed upstream
     DeviceAccumulator._CACHE.clear()
     mmc.reset()
-    mmc.__del__()
     del mmc
+    gc.collect()
 
     # This is a VERY strict test, which can be used to ensure that the test using
     # this fixture always passes through the mmcore instance to all created subwidgets.
