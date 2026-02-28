@@ -102,13 +102,23 @@ jobs:
         with:
           enable-cache: true
 
-      - uses: pymmcore-plus/setup-mm-test-adapters@main
       - uses: pyvista/setup-headless-display-action@v4
 
       - name: Install dependencies
         run: |
           uv sync
           uv pip install ./pymmcore-widgets
+
+      - name: Get pymmcore version (env)
+        shell: bash
+        run: |
+          ver=$(uv run python -c 'from pymmcore_plus import _pymmcore;print(_pymmcore.version_info.device_interface)')
+          echo "PYMM_VERSION=$ver" >> $GITHUB_ENV
+
+      - name: Setup MM test adapters
+        uses: pymmcore-plus/setup-mm-test-adapters@main
+        with:
+          version: ${{ env.PYMM_VERSION }}
 
       - name: Run pymmcore-gui tests
         run: uv run pytest -v --color=yes -W ignore
