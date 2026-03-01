@@ -5,7 +5,7 @@ import sys
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pymmcore_plus
 import pytest
@@ -20,11 +20,10 @@ if TYPE_CHECKING:
     from qtpy.QtWidgets import QApplication
 
 # ###################################################
-
-# This section of code MUST run before pymmcore_widgets is imported
-# It patches the CMMCorePlus class to track calls to CMMCorePlus.instance()
-# Because CMMCorePlus is a C-extension, it's not possible to use `patch.object` as
-# usual to monkeypatch, which necessitates this workaround.
+# This section of code MUST run before pymmcore_widgets is imported.
+# It replaces CMMCorePlus with a subclass that tracks calls to instance().
+# Because CMMCorePlus is a C-extension, its attributes are read-only,
+# which necessitates this subclass workaround.
 
 if "pymmcore_widgets" in sys.modules:
     warnings.warn(
@@ -36,6 +35,7 @@ if "pymmcore_widgets" in sys.modules:
 
 
 instance_mock = Mock()
+_fixed_instance: CMMCorePlus | None = None
 
 
 # Create a wrapper class that tracks instantiation
@@ -49,6 +49,8 @@ class CMMCorePlusTracker(CMMCorePlus):
                 break
             call_stack.append(f"{fi.filename}:{fi.lineno}")
         instance_mock(call_stack)
+        if _fixed_instance is not None:
+            return _fixed_instance
         return super().instance()
 
 
@@ -105,8 +107,13 @@ def assert_max_instance_depth(
 def global_mmcore() -> Iterator[CMMCorePlus]:
     mmc = CMMCorePlus()
     mmc.loadSystemConfiguration(TEST_CONFIG)
-    with patch.object(_mmcore_plus, "_instance", mmc):
+
+    global _fixed_instance
+    _fixed_instance = mmc
+    try:
         yield mmc
+    finally:
+        _fixed_instance = None
     # FIXME: would be better if this wasn't needed, or was fixed upstream
     DeviceAccumulator._CACHE.clear()
     mmc.unloadAllDevices()
