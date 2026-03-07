@@ -15,6 +15,7 @@ from pymmcore_widgets.control._camera_roi_widget import (
     CameraInfo,
     CameraRoiWidget,
 )
+from tests._utils import wait_signal
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -75,7 +76,8 @@ def test_load_camera_roi_widget(qtbot: QtBot, multi_cam_cfg: Path):
     cam = CameraRoiWidget()
     qtbot.addWidget(cam)
     mmc = cam._mmc
-    mmc.loadSystemConfiguration(multi_cam_cfg)
+    with wait_signal(qtbot, mmc.events.systemConfigurationLoaded):
+        mmc.loadSystemConfiguration(multi_cam_cfg)
 
     cam_combo, roi_combo, x, y, w, h, cbox, snap, crop = _get_wdgs(cam)
 
@@ -130,7 +132,8 @@ def test_preset_crop_mode(qtbot: QtBot, multi_cam_cfg: Path):
     cam = CameraRoiWidget()
     qtbot.addWidget(cam)
     mmc = cam._mmc
-    mmc.loadSystemConfiguration(multi_cam_cfg)
+    with wait_signal(qtbot, mmc.events.systemConfigurationLoaded):
+        mmc.loadSystemConfiguration(multi_cam_cfg)
     with qtbot.waitSignal(mmc.events.pixelSizeChanged):
         mmc.setConfig("Objective", "20X")
 
@@ -175,7 +178,8 @@ def test_custom_crop_mode(qtbot: QtBot, multi_cam_cfg: Path):
     cam = CameraRoiWidget()
     qtbot.addWidget(cam)
     mmc = cam._mmc
-    mmc.loadSystemConfiguration(multi_cam_cfg)
+    with wait_signal(qtbot, mmc.events.systemConfigurationLoaded):
+        mmc.loadSystemConfiguration(multi_cam_cfg)
     with qtbot.waitSignal(mmc.events.pixelSizeChanged):
         mmc.setConfig("Objective", "40X")
 
@@ -250,7 +254,8 @@ def test_core_setROI(qtbot: QtBot, multi_cam_cfg: Path):
     cam = CameraRoiWidget()
     qtbot.addWidget(cam)
     mmc = cam._mmc
-    mmc.loadSystemConfiguration(multi_cam_cfg)
+    with wait_signal(qtbot, mmc.events.systemConfigurationLoaded):
+        mmc.loadSystemConfiguration(multi_cam_cfg)
 
     assert cam.camera == "Camera"
 
