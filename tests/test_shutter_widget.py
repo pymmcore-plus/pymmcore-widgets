@@ -51,12 +51,13 @@ def test_shutter_state_change(qtbot: QtBot, global_mmcore: CMMCorePlus):
     shutter = _make_shutter(qtbot, mmc, "Shutter")
 
     # Explicitly set to closed, then open
-    with wait_signal(qtbot, mmc.events.propertyChanged):
-        mmc.setShutterOpen("Shutter", False)
+    # shutterOpenChanged fires asynchronously from C++ callbacks
+    mmc.setShutterOpen("Shutter", False)
+    qtbot.waitUntil(lambda: not shutter._is_open, timeout=2000)
     assert shutter.shutter_button.text() == "Shutter closed"
 
-    with wait_signal(qtbot, mmc.events.propertyChanged):
-        mmc.setShutterOpen("Shutter", True)
+    mmc.setShutterOpen("Shutter", True)
+    qtbot.waitUntil(lambda: shutter._is_open, timeout=2000)
     assert shutter.shutter_button.text() == "Shutter opened"
 
 
@@ -109,13 +110,13 @@ def test_button_click_toggles(qtbot: QtBot, global_mmcore: CMMCorePlus):
     # Set a known state first
     mmc.setShutterOpen("Shutter", True)
 
-    with wait_signal(qtbot, mmc.events.propertyChanged):
-        shutter.shutter_button.click()
+    shutter.shutter_button.click()
+    qtbot.waitUntil(lambda: not shutter._is_open, timeout=2000)
     assert shutter.shutter_button.text() == "Shutter closed"
     assert not mmc.getShutterOpen("Shutter")
 
-    with wait_signal(qtbot, mmc.events.propertyChanged):
-        shutter.shutter_button.click()
+    shutter.shutter_button.click()
+    qtbot.waitUntil(lambda: shutter._is_open, timeout=2000)
     assert shutter.shutter_button.text() == "Shutter opened"
     assert mmc.getShutterOpen("Shutter")
 
@@ -150,3 +151,32 @@ def test_core_shutter_device_change(qtbot: QtBot, global_mmcore: CMMCorePlus):
         mmc.setProperty("Core", "Shutter", "Shutter")
     assert not shutter.shutter_button.isEnabled()
     assert multi.shutter_button.isEnabled()
+
+
+def test_multi_shutter_propagates(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    """When Multi Shutter opens, individual sub-shutter widgets should update."""
+    mmc = global_mmcore
+    mmc.setAutoShutter(False)
+
+    # Configure Multi Shutter to include Shutter as a sub-shutter
+    mmc.setProperty("Multi Shutter", "Physical Shutter 1", "Shutter")
+
+    # Create widgets for a physical shutter and the Multi Shutter
+    phys = _make_shutter(qtbot, mmc, "Shutter")
+    multi = _make_shutter(qtbot, mmc, "Multi Shutter")
+
+    # Ensure both start closed
+    mmc.setShutterOpen("Shutter", False)
+    mmc.setShutterOpen("Multi Shutter", False)
+
+    # Open Multi Shutter — C++ emits shutterOpenChanged for each sub-shutter
+    mmc.setShutterOpen("Multi Shutter", True)
+    qtbot.waitUntil(lambda: phys._is_open and multi._is_open, timeout=2000)
+    assert multi.shutter_button.text() == "Multi Shutter opened"
+    assert phys.shutter_button.text() == "Shutter opened"
+
+    # Close Multi Shutter — sub-shutter widget should update too
+    mmc.setShutterOpen("Multi Shutter", False)
+    qtbot.waitUntil(lambda: not phys._is_open and not multi._is_open, timeout=2000)
+    assert multi.shutter_button.text() == "Multi Shutter closed"
+    assert phys.shutter_button.text() == "Shutter closed"

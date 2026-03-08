@@ -112,7 +112,8 @@ class ShuttersWidget(QWidget):
 
         self._mmc.events.systemConfigurationLoaded.connect(self._refresh)
         self._mmc.events.autoShutterSet.connect(self._on_autoshutter_changed)
-        self._mmc.events.propertyChanged.connect(self._on_property_changed)
+        self._mmc.events.shutterOpenChanged.connect(self._on_shutter_open_changed)
+        self._mmc.events.propertyChanged.connect(self._on_core_property_changed)
         self._mmc.events.configSet.connect(self._on_config_set)
 
         self.destroyed.connect(self._disconnect)
@@ -159,15 +160,16 @@ class ShuttersWidget(QWidget):
         else:
             self.shutter_button.setEnabled(True)
 
-    def _on_property_changed(self, dev: str, prop: str, value: Any) -> None:
+    def _on_shutter_open_changed(self, dev: str, is_open: bool) -> None:
+        if self._initializing or dev != self.shutter_device:
+            return
+        self._is_open = is_open
+        self._update_ui()
+
+    def _on_core_property_changed(self, dev: str, prop: str, value: Any) -> None:
         if self._initializing:
             return
-        if dev == self.shutter_device and prop == "State":
-            # Re-query C++ rather than trusting the callback value, which
-            # can be stale due to deferred delivery of earlier callbacks.
-            self._is_open = self._mmc.getShutterOpen(self.shutter_device)
-            self._update_ui()
-        elif dev == "Core" and prop == "Shutter":
+        if dev == "Core" and prop == "Shutter":
             self._update_button_enabled()
 
     def _on_autoshutter_changed(self, state: bool) -> None:
@@ -193,5 +195,6 @@ class ShuttersWidget(QWidget):
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._refresh)
         self._mmc.events.autoShutterSet.disconnect(self._on_autoshutter_changed)
-        self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
+        self._mmc.events.shutterOpenChanged.disconnect(self._on_shutter_open_changed)
+        self._mmc.events.propertyChanged.disconnect(self._on_core_property_changed)
         self._mmc.events.configSet.disconnect(self._on_config_set)
