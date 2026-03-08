@@ -48,7 +48,7 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    "pymmcore-plus[cli]>=0.15.4",
+    'pymmcore-plus[cli] >=0.15.4',
     'qtpy >=2.0',
     'superqt[quantity,cmap,iconify] >=0.7.1',
     'useq-schema >=0.8.0',
@@ -103,7 +103,6 @@ docs = [
 
 [tool.uv.sources]
 pymmcore-widgets = { workspace = true }
-pymmcore-plus = { path = "../pymmcore-plus" }
 
 [tool.ruff]
 line-length = 88
