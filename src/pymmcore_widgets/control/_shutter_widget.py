@@ -112,7 +112,13 @@ class ShuttersWidget(QWidget):
 
         self._mmc.events.systemConfigurationLoaded.connect(self._refresh)
         self._mmc.events.autoShutterSet.connect(self._on_autoshutter_changed)
+        # shutterOpenChanged is relayed from the C++ OnShutterOpenChanged callback,
+        # which fires for ALL shutter state changes: direct setShutterOpen calls,
+        # Multi Shutter sub-shutter propagation, and autoShutter open/close during
+        # sequence acquisition. propertyChanged only fires from the Python-level
+        # setShutterOpen override, missing the latter two cases.
         self._mmc.events.shutterOpenChanged.connect(self._on_shutter_open_changed)
+        # propertyChanged is still needed for Core/Shutter device reassignment.
         self._mmc.events.propertyChanged.connect(self._on_core_property_changed)
         self._mmc.events.configSet.connect(self._on_config_set)
 
