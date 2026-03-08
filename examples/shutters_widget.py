@@ -24,9 +24,12 @@ shutter_dev_list = list(mmc.getLoadedDevicesOfType(DeviceType.Shutter))
 for idx, shutter_dev in enumerate(shutter_dev_list):
     # bool to display the autoshutter checkbox only with the last shutter
     autoshutter = bool(idx >= len(shutter_dev_list) - 1)
-    shutter = ShuttersWidget(shutter_dev, autoshutter=autoshutter)
-    shutter.button_text_open = shutter_dev
-    shutter.button_text_closed = shutter_dev
+    shutter = ShuttersWidget(
+        shutter_dev,
+        autoshutter=autoshutter,
+        button_text_open=shutter_dev,
+        button_text_closed=shutter_dev,
+    )
     wdg.layout().addWidget(shutter)
 
 wdg.show()
