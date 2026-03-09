@@ -110,7 +110,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 PORT_SLEEP = 0.05  # revisit this  # TODO
-DEFAULT_FLAGS = Qt.WindowType.Sheet | Qt.WindowType.MSWindowsFixedSizeDialogHint
+DEFAULT_FLAGS = Qt.WindowType.Sheet
 
 
 class DeviceSetupDialog(QDialog):
