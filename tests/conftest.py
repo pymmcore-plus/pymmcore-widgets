@@ -5,7 +5,7 @@ import sys
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pymmcore_plus
 import pytest
@@ -20,11 +20,10 @@ if TYPE_CHECKING:
     from qtpy.QtWidgets import QApplication
 
 # ###################################################
-
-# This section of code MUST run before pymmcore_widgets is imported
-# It patches the CMMCorePlus class to track calls to CMMCorePlus.instance()
-# Because CMMCorePlus is a C-extension, it's not possible to use `patch.object` as
-# usual to monkeypatch, which necessitates this workaround.
+# This section of code MUST run before pymmcore_widgets is imported.
+# It replaces CMMCorePlus with a subclass that tracks calls to instance().
+# Because CMMCorePlus is a C-extension, its attributes are read-only,
+# which necessitates this subclass workaround.
 
 if "pymmcore_widgets" in sys.modules:
     warnings.warn(
@@ -36,6 +35,7 @@ if "pymmcore_widgets" in sys.modules:
 
 
 instance_mock = Mock()
+_fixed_instance: CMMCorePlus | None = None
 
 
 # Create a wrapper class that tracks instantiation
@@ -49,6 +49,8 @@ class CMMCorePlusTracker(CMMCorePlus):
                 break
             call_stack.append(f"{fi.filename}:{fi.lineno}")
         instance_mock(call_stack)
+        if _fixed_instance is not None:
+            return _fixed_instance
         return super().instance()
 
 
@@ -105,13 +107,16 @@ def assert_max_instance_depth(
 def global_mmcore() -> Iterator[CMMCorePlus]:
     mmc = CMMCorePlus()
     mmc.loadSystemConfiguration(TEST_CONFIG)
-    with patch.object(_mmcore_plus, "_instance", mmc):
+
+    global _fixed_instance
+    _fixed_instance = mmc
+    try:
         yield mmc
+    finally:
+        _fixed_instance = None
     # FIXME: would be better if this wasn't needed, or was fixed upstream
     DeviceAccumulator._CACHE.clear()
-    mmc.reset()
-    mmc.__del__()
-    del mmc
+    mmc.unloadAllDevices()
 
     # This is a VERY strict test, which can be used to ensure that the test using
     # this fixture always passes through the mmcore instance to all created subwidgets.
@@ -119,6 +124,42 @@ def global_mmcore() -> Iterator[CMMCorePlus]:
     # in test_useq_core_widgets.py and test_config_groups_widgets.py
     # so it remains commented out... but can be uncommented locally for testing.
     # assert_max_instance_depth(2)
+
+
+@pytest.fixture(autouse=True)
+def _mock_pyconify(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Mock pyconify.svg_path to avoid network requests in tests."""
+    svg_dir = tmp_path / "icons"
+    svg_dir.mkdir()
+    _counter = 0
+
+    def mock_svg_path(*key: str, color: str | None = None, **kwargs: object) -> Path:
+        nonlocal _counter
+        fill = color or "currentColor"
+        svg_content = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+            f'<rect width="24" height="24" fill="{fill}"/></svg>'
+        )
+        svg_file = svg_dir / f"icon_{_counter}.svg"
+        _counter += 1
+        svg_file.write_text(svg_content)
+        return svg_file
+
+    monkeypatch.setattr(
+        "pymmcore_widgets.control._stage_widget.svg_path", mock_svg_path
+    )
+    monkeypatch.setattr("superqt.iconify.svg_path", mock_svg_path)
+    yield
+
+
+@pytest.fixture(autouse=True)
+def _mock_available_versions(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Mock pymmcore_plus available_versions to avoid network requests."""
+    monkeypatch.setattr(
+        "pymmcore_widgets._install_widget.available_versions",
+        lambda: {"20250101": "https://example.com/mm.dmg"},
+    )
+    yield
 
 
 @pytest.fixture(autouse=True)
