@@ -56,7 +56,6 @@ dependencies = [
     "pyopengl >=3.1.9; platform_system == 'Darwin'",
     "shapely>=2.1.2; python_version >= '3.14'",
     "shapely>=2.0.7",
-    "pymmcore==12.2.0.75.0rc1",
 ]
 
 [project.optional-dependencies]
