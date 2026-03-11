@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock, call, patch
 
 import pytest
-from qtpy.QtWidgets import QDialog
+from qtpy.QtWidgets import QApplication, QDialog
 
 from pymmcore_widgets._util import ComboMessageBox
 from pymmcore_widgets.control._objective_widget import ObjectivesWidget
@@ -20,6 +20,8 @@ def test_objective_widget_changes_objective(global_mmcore: CMMCorePlus, qtbot: Q
 
     start_z = 100.0
     global_mmcore.setPosition("Z", start_z)
+    # Flush any pending async signals before connecting the mock
+    QApplication.processEvents()
     stage_mock = Mock()
     obj_wdg._mmc.events.stagePositionChanged.connect(stage_mock)
 
