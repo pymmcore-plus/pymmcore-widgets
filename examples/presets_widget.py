@@ -23,4 +23,4 @@ for group in mmc.getAvailableConfigGroups():
 
 wdg.show()
 
-app.exec_()
+app.exec()

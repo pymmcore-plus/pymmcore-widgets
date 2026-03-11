@@ -23,4 +23,4 @@ for d in mmc.getLoadedDevicesOfType(DeviceType.StateDevice):
 
 wdg.show()
 
-app.exec_()
+app.exec()
