@@ -67,7 +67,7 @@ def test_save_box_autowriter_selection(qtbot: QtBot) -> None:
 
     # and it goes both ways
     wdg._writer_combo.setCurrentText(OME_ZARR)
-    assert wdg.save_name.text() == "name.ome.zarr"
+    qtbot.waitUntil(lambda: wdg.save_name.text() == "name.ome.zarr")
 
 
 @pytest.mark.parametrize("writer", WRITERS)
@@ -80,5 +80,5 @@ def test_writer_combo_text_changed(qtbot: QtBot, writer: str) -> None:
 
     assert wdg._writer_combo.currentText() == writer
     expected_label = SUBFOLDER if writer in DIRECTORY_WRITERS else FILE_NAME
-    assert wdg.name_label.text() == expected_label
-    assert wdg.save_name.text() == f"name{WRITERS[writer][0]}"
+    qtbot.waitUntil(lambda: wdg.name_label.text() == expected_label)
+    qtbot.waitUntil(lambda: wdg.save_name.text() == f"name{WRITERS[writer][0]}")

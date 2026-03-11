@@ -131,7 +131,7 @@ def test_pixel_config_wdg_enabled(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg._props_selector.isEnabled()
 
     wdg._px_table._table.clearSelection()
-    assert not wdg._props_selector.isEnabled()
+    qtbot.waitUntil(lambda: not wdg._props_selector.isEnabled())
 
 
 def test_pixel_config_wdg_prop_selection(qtbot: QtBot, global_mmcore: CMMCorePlus):
@@ -139,9 +139,10 @@ def test_pixel_config_wdg_prop_selection(qtbot: QtBot, global_mmcore: CMMCorePlu
     qtbot.addWidget(wdg)
 
     wdg._px_table._table.selectRow(1)
-    assert wdg._props_selector.value() == [
-        ("Objective", "Label", "Nikon 20X Plan Fluor ELWD")
-    ]
+    qtbot.waitUntil(
+        lambda: wdg._props_selector.value()
+        == [("Objective", "Label", "Nikon 20X Plan Fluor ELWD")]
+    )
 
     # set checked ("Camera", "AllowMultiROI", "0")
     row_checkbox = wdg._props_selector._prop_table.item(0, 0)
@@ -201,10 +202,14 @@ def test_pixel_config_wdg_px_table(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert wdg._props_selector.value() == [("Objective", "Label", "Nikon 10X S Fluor")]
 
     wdg._px_table._table.selectRow(1)
-    assert wdg._px_table._table.selectedItems()[0].text() == "Res20x"
-    assert wdg._props_selector.value() == [
-        ("Objective", "Label", "Nikon 20X Plan Fluor ELWD")
-    ]
+    qtbot.waitUntil(
+        lambda: wdg._px_table._table.selectedItems()
+        and wdg._px_table._table.selectedItems()[0].text() == "Res20x"
+    )
+    qtbot.waitUntil(
+        lambda: wdg._props_selector.value()
+        == [("Objective", "Label", "Nikon 20X Plan Fluor ELWD")]
+    )
 
     assert wdg._resID_map[1].pixel_size_um == 0.5
     spin = wdg._px_table._table.cellWidget(1, 1)
@@ -260,7 +265,10 @@ def p_delete_resID(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert len(wdg._resID_map) == 3
 
     wdg._px_table._table.selectRow(1)
-    assert wdg._px_table._table.selectedItems()[0].text() == "Res20x"
+    qtbot.waitUntil(
+        lambda: wdg._px_table._table.selectedItems()
+        and wdg._px_table._table.selectedItems()[0].text() == "Res20x"
+    )
 
     wdg._px_table._remove_selected()
 
