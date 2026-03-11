@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from PyQt6.QtGui import QAction
 from qtpy.QtCore import QModelIndex, QSize, Qt, Signal
-from qtpy.QtGui import QKeySequence, QUndoStack
+from qtpy.QtGui import QAction, QKeySequence, QUndoStack
 from qtpy.QtWidgets import (
     QButtonGroup,
     QDialog,
