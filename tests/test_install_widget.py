@@ -47,7 +47,7 @@ def test_install_widget(qtbot: QtBot, tmp_path: Path):
 
             # test reveal
             wdg.table.selectRow(0)
-            assert wdg._act_reveal.isEnabled()
+            qtbot.waitUntil(wdg._act_reveal.isEnabled)
             wdg.table.reveal()
             rev_mock.assert_called_once_with(str(dest))
 

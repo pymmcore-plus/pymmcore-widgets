@@ -104,6 +104,9 @@ class _LogReader(QObject):
         """Read and emit any new lines."""
         if not self._file:
             return
+        # Seek to current position to clear Python's internal read buffers,
+        # ensuring we see data written externally since the last read.
+        self._file.seek(self._file.tell())
         for line in self._file:
             self.new_lines.emit(line.rstrip("\n"))
 
