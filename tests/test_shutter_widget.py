@@ -107,8 +107,9 @@ def test_button_click_toggles(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     shutter = _make_shutter(qtbot, mmc, "Shutter")
 
-    # Set a known state first
-    mmc.setShutterOpen("Shutter", True)
+    # Set a known state first — wait for async callback delivery
+    with wait_signal(qtbot, mmc.events.shutterOpenChanged):
+        mmc.setShutterOpen("Shutter", True)
 
     shutter.shutter_button.click()
     qtbot.waitUntil(lambda: not shutter._is_open, timeout=2000)
