@@ -17,4 +17,4 @@ mmc.loadSystemConfiguration()
 live_btn = LiveButton()
 live_btn.show()
 
-app.exec_()
+app.exec()

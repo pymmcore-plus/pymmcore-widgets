@@ -416,7 +416,7 @@ class StageWidget(QWidget):
         # with the one we want to generate. So we intercept the event here >:)
         # See https://stackoverflow.com/a/71126504
         if obj in self._pos_boxes and isinstance(event, QContextMenuEvent):
-            self._pos_menu.exec_(event.globalPos())
+            self._pos_menu.exec(event.globalPos())
             return True
         return super().eventFilter(obj, event)  # type: ignore [no-any-return]
 
