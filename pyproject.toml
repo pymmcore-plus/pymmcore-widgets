@@ -103,7 +103,6 @@ docs = [
 
 [tool.uv.sources]
 pymmcore-widgets = { workspace = true }
-pymmcore-plus = { path = "../pymmcore-plus", editable = true }
 
 [tool.ruff]
 line-length = 88
