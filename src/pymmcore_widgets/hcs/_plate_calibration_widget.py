@@ -158,6 +158,12 @@ class PlateCalibrationWidget(QWidget):
         self._current_plate = plate
         self._plate_view.drawPlate(plate)
 
+        # Set minimum wells required based on plate size
+        if plate:
+            self._min_wells_required = min(3, plate.rows * plate.columns)
+        else:
+            self._min_wells_required = 3
+
         # clear existing calibration widgets
         while self._calibration_widgets:
             wdg = self._calibration_widgets.popitem()[1]
@@ -274,18 +280,46 @@ class PlateCalibrationWidget(QWidget):
             # not enough wells calibrated
             return None
 
-        try:
-            params = well_coords_affine(self._calibrated_wells)
-        except ValueError:
-            # collinear points
+        if self._current_plate is None:
             return None
 
-        a, b, ty, c, d, tx = params
-        unit_y = np.hypot(a, c) / 1000  # convert to mm
-        unit_x = np.hypot(b, d) / 1000  # convert to mm
-        rotation = round(np.rad2deg(np.arctan2(c, a)), 2)
+        num_calibrated = len(self._calibrated_wells)
+        if num_calibrated == 1:
+            # For single well, assume it's A1, use plate spacing, no rotation
+            center = next(iter(self._calibrated_wells.values()))
+            return center, self._current_plate.well_spacing, 0.0
+        elif num_calibrated == 2:
+            # For two wells, calculate spacing assuming they are adjacent, no rotation
+            indices = list(self._calibrated_wells.keys())
+            centers = list(self._calibrated_wells.values())
+            idx1, idx2 = indices
+            c1, c2 = centers
+            dr = abs(idx2[0] - idx1[0])
+            dc = abs(idx2[1] - idx1[1])
+            if dr == 0 and dc == 0:
+                return None  # same well
+            dist = np.hypot(c2[0] - c1[0], c2[1] - c1[1])
+            spacing_val = dist / max(dr, dc) / 1000  # to mm
+            spacing = (spacing_val, spacing_val)
+            # Set A1 center to the calibrated well with smallest index
+            sorted_indices = sorted(self._calibrated_wells.keys())
+            a1_idx = sorted_indices[0]
+            a1_center = self._calibrated_wells[a1_idx]
+            return a1_center, spacing, 0.0
+        else:
+            # For 3 or more wells, use full affine transformation
+            try:
+                params = well_coords_affine(self._calibrated_wells)
+            except ValueError:
+                # collinear points
+                return None
 
-        return (round(tx, 4), round(ty, 4)), (unit_x, unit_y), rotation
+            a, b, ty, c, d, tx = params
+            unit_y = np.hypot(a, c) / 1000  # convert to mm
+            unit_x = np.hypot(b, d) / 1000  # convert to mm
+            rotation = round(np.rad2deg(np.arctan2(c, a)), 2)
+
+            return (round(tx, 4), round(ty, 4)), (unit_x, unit_y), rotation
 
     def _get_or_create_well_calibration_widget(
         self, idx: tuple[int, int]
