@@ -36,8 +36,10 @@ def test_objective_widget_changes_objective(global_mmcore: CMMCorePlus, qtbot: Q
     obj_wdg._combo.setCurrentText(new_val)
 
     # signals are now delivered asynchronously via the Qt event loop
-    qtbot.waitUntil(lambda: stage_mock.call_count >= 2, timeout=2000)
-    qtbot.waitUntil(lambda: px_size_mock.call_count >= 1, timeout=2000)
+    qtbot.waitUntil(
+        lambda: stage_mock.call_count >= 2 and px_size_mock.call_count >= 1,
+        timeout=2000,
+    )
 
     px_size_mock.assert_has_calls([call(0.25)])
     stage_mock.assert_has_calls([call("Z", 0), call("Z", start_z)])

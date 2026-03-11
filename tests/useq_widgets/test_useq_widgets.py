@@ -129,6 +129,14 @@ MDA_CP = useq.MDASequence(
     axis_order="tcpz",
 )
 
+MDA_ZT = useq.MDASequence(
+    time_plan=useq.TIntervalLoops(interval=timedelta(seconds=2), loops=100),
+    stage_positions=[(0, 0), (100, 100)],
+    channels=[{"config": "DAPI", "exposure": 42}, {"config": "FITC", "exposure": 20}],
+    z_plan=useq.ZRangeAround(range=4, step=0.5),
+    axis_order="pczt",
+)
+
 
 def test_mda_wdg(qtbot: QtBot):
     wdg = MDASequenceWidget()
@@ -143,6 +151,9 @@ def test_mda_wdg(qtbot: QtBot):
 
     wdg.setValue(MDA_CP)
     assert wdg.value().replace(metadata={}) == MDA_CP
+
+    wdg.setValue(MDA_ZT)
+    assert wdg.value().replace(metadata={}) == MDA_ZT
 
 
 @pytest.mark.parametrize("ext", ["json", "yaml", "foo"])

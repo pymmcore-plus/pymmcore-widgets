@@ -268,7 +268,8 @@ class ConfigPresetsTableView(QTableView):
 
         idx = self.indexAt(event.pos())
         if not idx.isValid():
-            return super().contextMenuEvent(event)
+            super().contextMenuEvent(event)
+            return
 
         has_data = idx.data(Qt.ItemDataRole.UserRole) is not None
         menu = QMenu(self)

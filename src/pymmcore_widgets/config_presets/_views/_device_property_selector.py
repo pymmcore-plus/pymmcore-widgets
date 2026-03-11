@@ -236,7 +236,7 @@ class DevicePropertySelector(QWidget):
     def _on_model_data_changed(
         self, topLeft: QModelIndex, bottomRight: QModelIndex, roles: list[int]
     ) -> None:
-        """Incrementally update the checke-property cache and emit when it changes."""
+        """Incrementally update the check-property cache and emit when it changes."""
         if Qt.ItemDataRole.CheckStateRole not in roles:
             return
 
