@@ -186,14 +186,14 @@ class ConfigPresetsTableView(QTableView):
             self._transpose_proxy = QTransposeProxyModel()
             self._transpose_proxy.setSourceModel(pivot)
             super().setModel(self._transpose_proxy)
-            # Ensure persistent editors are maintained after transposing
+            self._update_section_sizes()
             QTimer.singleShot(0, self.openPersistentEditors)
         elif isinstance(pivot, QTransposeProxyModel):
             # Already transposed, revert to original model
             if self._pivot_model:
                 super().setModel(self._pivot_model)
                 self._transpose_proxy = None
-                # Ensure persistent editors are maintained after un-transposing
+                self._update_section_sizes()
                 QTimer.singleShot(0, self.openPersistentEditors)
 
     def isTransposed(self) -> bool:

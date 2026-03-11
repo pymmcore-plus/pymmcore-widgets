@@ -26,6 +26,11 @@ class PropertySettingDelegate(QStyledItemDelegate):
         widget.setValue(setting.value)  # avoids commitData warnings
         widget.valueChanged.connect(lambda: self.commitData.emit(widget))
         widget.setAutoFillBackground(True)
+        # Let right-clicks pass through to the table view's contextMenuEvent
+        no_ctx = Qt.ContextMenuPolicy.NoContextMenu
+        widget.setContextMenuPolicy(no_ctx)
+        for child in widget.findChildren(QWidget):
+            child.setContextMenuPolicy(no_ctx)
         return widget
 
     def setEditorData(self, editor: QWidget | None, index: QModelIndex) -> None:

@@ -285,7 +285,10 @@ class GroupsPresetFinder(QStackedWidget):
         return bool(self.currentIndex() == 1)
 
     def setCurrentGroup(self, group: str) -> QModelIndex:
-        """Set the currently selected group by name."""
+        """Set the currently selected group by name.
+
+        Returns the index of the selected group, or an invalid index if not found.
+        """
         if not (model := self._model):
             return QModelIndex()
 
@@ -302,7 +305,10 @@ class GroupsPresetFinder(QStackedWidget):
         return self.preset_list.currentIndex()
 
     def setCurrentPreset(self, group: str, preset: str) -> QModelIndex:
-        """Set the currently selected preset by group and preset name."""
+        """Set the currently selected preset by group and preset name.
+
+        Returns the index of the selected preset, or an invalid index if not found.
+        """
         if not (model := self._model):
             return QModelIndex()
 

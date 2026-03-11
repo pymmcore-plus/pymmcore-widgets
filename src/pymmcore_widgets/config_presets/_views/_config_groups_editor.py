@@ -2,13 +2,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from PyQt6.QtGui import QAction
 from qtpy.QtCore import QModelIndex, QSize, Qt, Signal
 from qtpy.QtGui import QKeySequence, QUndoStack
 from qtpy.QtWidgets import (
+    QButtonGroup,
     QDialog,
     QDialogButtonBox,
     QGroupBox,
+    QHBoxLayout,
     QMessageBox,
+    QRadioButton,
     QSizePolicy,
     QSplitter,
     QToolBar,
@@ -73,25 +77,28 @@ class ConfigGroupsEditor(QWidget):
         self,
         core: CMMCorePlus,
         *,
+        update_devices: bool = True,
         update_configs: bool = True,
-        update_available: bool = True,
     ) -> None:
-        """Update the editor's data from the core.
+        """Refresh the editor from the current state of the core.
 
         Parameters
         ----------
         core : CMMCorePlus
-            The core instance to pull configuration data from.
+            The core instance to pull data from.
+        update_devices : bool
+            If True, refresh the list of loaded devices and their properties.
+            This determines which devices and properties appear in the "Edit Properties"
+            and "Add Property" dialogs.
         update_configs : bool
-            If True, update the entire list and states of config groups (i.e. make the
-            editor reflect the current state of config groups in the core).
-        update_available : bool
-            If True, update the available options in the property tables (for things
-            like "current device" comboboxes and other things that select from
-            available devices).
+            If True, replace the current editor contents with config groups, presets,
+            and their settings from the core. If False, the current groups/presets will
+            be left unchanged (meaning you will have an empty editor until you add
+            groups/presets manually).
         """
-        self._loaded_devices = tuple(get_loaded_devices(core))
-        self._preset_table.view._loaded_devices = self._loaded_devices
+        if update_devices:
+            self._loaded_devices = tuple(get_loaded_devices(core))
+            self._preset_table.view._loaded_devices = self._loaded_devices
         if update_configs:
             self.setData(get_config_groups(core))
 
@@ -107,22 +114,25 @@ class ConfigGroupsEditor(QWidget):
         # widgets -------------------------------------------------------------
 
         # The GroupPresetSelector can switch between 2-list and tree views:
-        # ┌───────────────┬───────────────┬───────────────┐
-        # │     groups    │    presets    │      ...      │
-        # ├───────────────┴───────────────┴───────────────┤
-        # │                     ...                       │
-        # └───────────────────────────────────────────────┘
-        # ┌───────────────────────────────┬───────────────┐
-        # │              tree             │               │
-        # ├───────────────────────────────┴───────────────┤
-        # │                     ...                       │
-        # └───────────────────────────────────────────────┘
+        # ┌───────────────┬───────────────┐
+        # │     groups    │    presets    │
+        # ├───────────────┴───────────────┤
+        # │              ...              │
+        # └───────────────────────────────┘
+        # ┌───────────────────────────────┐
+        # │              tree             │
+        # ├───────────────────────────────┤
+        # │              ...              │
+        # └───────────────────────────────┘
 
         self._group_preset_sel = GroupsPresetFinder(self)
         self._group_preset_sel.setModel(self._model)
 
         self._preset_table = ConfigPresetsTable(self)
         self._preset_table.setModel(self._model)
+        # Hide remove/duplicate in the table toolbar — the main toolbar has these
+        self._preset_table.remove_action.setVisible(False)
+        self._preset_table.duplicate_action.setVisible(False)
 
         # Set up undo/redo integration
         self._group_preset_sel.setUndoStack(self._undo_stack)
@@ -161,6 +171,8 @@ class ConfigGroupsEditor(QWidget):
         self._group_preset_sel.currentPresetChanged.connect(self._on_preset_changed)
 
         self._model.dataChanged.connect(self._on_model_data_changed)
+        self._model.rowsInserted.connect(self._update_edit_properties_enabled)
+        self._model.rowsRemoved.connect(self._update_edit_properties_enabled)
 
         # Sync table selection back to preset list
         self._preset_table.view.selectionModel().selectionChanged.connect(
@@ -171,14 +183,57 @@ class ConfigGroupsEditor(QWidget):
     # Public API
     # ------------------------------------------------------------------
 
+    def setCurrentGroup(self, group: str) -> QModelIndex:
+        """Set the currently selected group in the editor.
+
+        Returns the index of the group that was selected, or an invalid index if no such
+        group exists.
+        """
+        return self._group_preset_sel.setCurrentGroup(group)
+
+    def setCurrentPreset(self, group: str, preset: str) -> QModelIndex:
+        """Set the currently selected preset in the editor.
+
+        Returns the index of the preset that was selected, or an invalid index if no
+        such preset exists.
+        """
+        return self._group_preset_sel.setCurrentPreset(group, preset)
+
+    def setData(self, data: Iterable[ConfigGroup]) -> None:
+        """Set the configuration data to be displayed in the editor."""
+        data = list(data)  # ensure we can iterate multiple times
+        self._model.set_groups(data)
+        # Auto-select first group
+        if self._model.rowCount():
+            idx = self._model.index(0)
+            if name := idx.data(Qt.ItemDataRole.DisplayRole):
+                self._group_preset_sel.setCurrentGroup(name)
+        else:
+            self._group_preset_sel.clearSelection()
+            # Ensure "add preset" action is disabled when no groups exist
+            self._tb.add_preset_action.setEnabled(False)
+        self.configChanged.emit()
+
+    def data(self) -> Sequence[ConfigGroup]:
+        """Return the current configuration data as a list of ConfigGroup."""
+        return self._model.get_groups()
+
+    def undoStack(self) -> QUndoStack:
+        """Return the undo stack for this editor."""
+        return self._undo_stack
+
+    # ------------------------------------------------------------------
+    # Private methods and slots
+    # ------------------------------------------------------------------
+
     def _on_group_changed(self, current: QModelIndex, previous: QModelIndex) -> None:
         """Called when the group selection in the GroupPresetSelector changes."""
         # Show this group in the preset table
         self._preset_table.setGroup(current)
         self._tb.add_preset_action.setEnabled(current.isValid())
-        self._tb.edit_properties_action.setEnabled(current.isValid())
         self._tb.duplicate_action.setEnabled(current.isValid())
         self._tb.remove_action.setEnabled(current.isValid())
+        self._update_edit_properties_enabled()
 
         # Enable/disable actions based on the selected group
         group = current.data(Qt.ItemDataRole.UserRole)
@@ -234,37 +289,6 @@ class ConfigGroupsEditor(QWidget):
             finally:
                 self._syncing_selection = False
 
-    def setCurrentGroup(self, group: str) -> None:
-        """Set the currently selected group in the editor."""
-        self._group_preset_sel.setCurrentGroup(group)
-
-    def setCurrentPreset(self, group: str, preset: str) -> None:
-        """Set the currently selected preset in the editor."""
-        self._group_preset_sel.setCurrentPreset(group, preset)
-
-    def setData(self, data: Iterable[ConfigGroup]) -> None:
-        """Set the configuration data to be displayed in the editor."""
-        data = list(data)  # ensure we can iterate multiple times
-        self._model.set_groups(data)
-        # Auto-select first group
-        if self._model.rowCount():
-            idx = self._model.index(0)
-            if name := idx.data(Qt.ItemDataRole.DisplayRole):
-                self._group_preset_sel.setCurrentGroup(name)
-        else:
-            self._group_preset_sel.clearSelection()
-            # Ensure "add preset" action is disabled when no groups exist
-            self._tb.add_preset_action.setEnabled(False)
-        self.configChanged.emit()
-
-    def data(self) -> Sequence[ConfigGroup]:
-        """Return the current configuration data as a list of ConfigGroup."""
-        return self._model.get_groups()
-
-    def undoStack(self) -> QUndoStack:
-        """Return the undo stack for this editor."""
-        return self._undo_stack
-
     def _add_preset_to_current_group(self) -> None:
         """Add a new preset to the currently selected group and select it."""
         current_group = self._group_preset_sel.currentGroup()
@@ -277,8 +301,6 @@ class ConfigGroupsEditor(QWidget):
 
     def _edit_group_properties(self) -> None:
         """Edit properties for the group or current preset."""
-        from qtpy.QtWidgets import QButtonGroup, QHBoxLayout, QRadioButton
-
         current_group = self._group_preset_sel.currentGroup()
         if not current_group.isValid():
             return
@@ -288,9 +310,6 @@ class ConfigGroupsEditor(QWidget):
             return
 
         current_preset = self._group_preset_sel.currentPreset()
-
-        # Determine default mode from focus
-        preset_focused = self._group_preset_sel.preset_list.hasFocus()
 
         # Build dialog
         dialog = QDialog(
@@ -305,19 +324,13 @@ class ConfigGroupsEditor(QWidget):
 
         # Mode toggle
         group_radio = QRadioButton("All presets in group")
-        preset_radio = QRadioButton("Current preset only")
+        preset_name = current_preset.data(Qt.ItemDataRole.DisplayRole) or ""
+        preset_radio = QRadioButton(f"Preset {preset_name!r} only")
         preset_radio.setEnabled(current_preset.isValid())
         mode_group = QButtonGroup(dialog)
         mode_group.addButton(group_radio)
         mode_group.addButton(preset_radio)
-        if preset_focused and current_preset.isValid():
-            preset_radio.setChecked(True)
-        else:
-            group_radio.setChecked(True)
-
-        mode_layout = QHBoxLayout()
-        mode_layout.addWidget(group_radio)
-        mode_layout.addWidget(preset_radio)
+        group_radio.setChecked(True)
 
         selector = DevicePropertySelector(dialog)
         selector.setAvailableDevices(self._loaded_devices)
@@ -351,10 +364,15 @@ class ConfigGroupsEditor(QWidget):
         btns.accepted.connect(dialog.accept)
         btns.rejected.connect(dialog.reject)
 
+        bottom_row = QHBoxLayout()
+        bottom_row.addWidget(group_radio)
+        bottom_row.addWidget(preset_radio)
+        bottom_row.addStretch()
+        bottom_row.addWidget(btns)
+
         lay = QVBoxLayout(dialog)
-        lay.addLayout(mode_layout)
         lay.addWidget(selector)
-        lay.addWidget(btns)
+        lay.addLayout(bottom_row)
         dialog.resize(int(self.width() * 0.8), int(self.height() * 0.8))
 
         if dialog.exec() != QDialog.DialogCode.Accepted:
@@ -424,6 +442,12 @@ class ConfigGroupsEditor(QWidget):
             elif isinstance(payload, ConfigPreset):
                 command = DuplicatePresetCommand(self._model, idx)
                 self._undo_stack.push(command)
+
+    def _update_edit_properties_enabled(self) -> None:
+        """Enable 'Edit Properties' only when the selected group has presets."""
+        group_idx = self._group_preset_sel.currentGroup()
+        has_presets = group_idx.isValid() and self._model.rowCount(group_idx) > 0
+        self._tb.edit_properties_action.setEnabled(has_presets)
 
     def _on_model_data_changed(
         self,

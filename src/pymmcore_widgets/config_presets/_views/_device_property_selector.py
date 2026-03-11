@@ -4,7 +4,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, ClassVar, cast
 
 from pymmcore_plus import DeviceType
-from qtpy.QtCore import QAbstractProxyModel, QModelIndex, QSize, Qt
+from qtpy.QtCore import QAbstractProxyModel, QModelIndex, QSignalBlocker, QSize, Qt
 from qtpy.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -15,6 +15,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt.iconify import QIconifyIcon
 
 from pymmcore_widgets._icons import StandardIcon
 from pymmcore_widgets._models import Device, QDevicePropertyModel
@@ -41,19 +42,24 @@ class _DeviceButtonToolbar(QToolBar):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setIconSize(QSize(16, 16))
+        self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         for device_type in sorted(DeviceType, key=lambda x: x.name):
             if device_type in (DeviceType.Any, DeviceType.Unknown):
                 continue
 
-            tooltip = device_type.name.replace("Device", " Devices")
+            label = device_type.name.replace("Device", "")
             icon = StandardIcon.for_device_type(device_type)
             action = cast(
                 "QAction",
-                self.addAction(icon.icon(), f"Show {tooltip}", self._emit_selection),
+                self.addAction(icon.icon(), label, self._emit_selection),
             )
             action.setCheckable(True)
             action.setChecked(True)
             action.setData(device_type)
+
+        self.addSeparator()
+        self.addAction("All", self._select_all)
+        self.addAction("None", self._select_none)
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -79,6 +85,10 @@ class _DeviceButtonToolbar(QToolBar):
         self.act_show_pre_init.setCheckable(True)
         self.act_show_read_only.setChecked(False)
         self.act_show_pre_init.setChecked(False)
+        # Show these two as icon-only
+        for act in (self.act_show_read_only, self.act_show_pre_init):
+            if btn := self.widgetForAction(act):
+                btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
 
     def _emit_selection(self) -> None:
         """Emit the checkedDevicesChanged signal."""
@@ -108,6 +118,20 @@ class _DeviceButtonToolbar(QToolBar):
             if isinstance(data := action.data(), DeviceType)
         }
 
+    def _select_all(self) -> None:
+        """Check all visible device type buttons."""
+        for action in self.actions():
+            if isinstance(action.data(), DeviceType) and action.isVisible():
+                action.setChecked(True)
+        self._emit_selection()
+
+    def _select_none(self) -> None:
+        """Uncheck all device type buttons."""
+        for action in self.actions():
+            if isinstance(action.data(), DeviceType):
+                action.setChecked(False)
+        self._emit_selection()
+
 
 class _PropertySearchToolbar(QToolBar):
     """A toolbar with expand/collapse all buttons and a search box."""
@@ -115,6 +139,7 @@ class _PropertySearchToolbar(QToolBar):
     expandAllToggled = Signal()
     collapseAllToggled = Signal()
     viewModeToggled = Signal(bool)  # True for TreeView, False for TableView
+    checkedOnlyToggled = Signal(bool)
 
     filterStringChanged = Signal(str)
 
@@ -133,6 +158,18 @@ class _PropertySearchToolbar(QToolBar):
         )
         self.act_toggle_view.setCheckable(True)
         self.act_toggle_view.setChecked(False)  # Default to TableView
+
+        # Show checked only toggle
+        self.act_checked_only = cast(
+            "QAction",
+            self.addAction(
+                QIconifyIcon("mdi:filter-check-outline", color="gray"),
+                "Show Checked Only",
+                self._toggle_checked_only,
+            ),
+        )
+        self.act_checked_only.setCheckable(True)
+        self.act_checked_only.setChecked(False)
 
         self._le = QLineEdit(self)
         self._le.setMinimumWidth(160)
@@ -180,6 +217,10 @@ class _PropertySearchToolbar(QToolBar):
         # Emit signal
         self.viewModeToggled.emit(is_tree_view)
 
+    def _toggle_checked_only(self) -> None:
+        """Toggle between showing all properties and checked-only."""
+        self.checkedOnlyToggled.emit(self.act_checked_only.isChecked())
+
 
 class DevicePropertySelector(QWidget):
     checkedPropertiesChanged = Signal(tuple)  # tuple[DevicePropertySetting, ...]
@@ -204,10 +245,12 @@ class DevicePropertySelector(QWidget):
         self._flat_filtered_model = DevicePropertyFlatProxy()
         self._flat_filtered_model.setSourceModel(self._filtered_model)
 
-        _checked = CheckedProxy(check_column=1)
-        _checked.setSourceModel(self._model)
+        self._checked_proxy = CheckedProxy(check_column=1, parent=self)
+        self._checked_proxy.setSourceModel(self._model)
         self._flat_checked_model = DevicePropertyFlatProxy()
-        self._flat_checked_model.setSourceModel(_checked)
+        self._flat_checked_model.setSourceModel(self._checked_proxy)
+
+        self._showing_checked_only = False
 
         self.tree = _CheckableTreeView(self)
         self._toggle_view_mode(False)  # Start with TableView (flat proxy model)
@@ -228,6 +271,7 @@ class DevicePropertySelector(QWidget):
         self._tb2.collapseAllToggled.connect(self.tree.collapseAll)
         self._tb2.filterStringChanged.connect(self._filtered_model.setFilterFixedString)
         self._tb2.viewModeToggled.connect(self._toggle_view_mode)
+        self._tb2.checkedOnlyToggled.connect(self._toggle_checked_only)
 
     def _expand_all(self) -> None:
         """Expand all items in the tree view."""
@@ -258,7 +302,9 @@ class DevicePropertySelector(QWidget):
                 self._checked_settings.append(prop)
                 changed = True
             elif not is_checked and key in checked_keys:
-                self._checked_settings.remove(prop)
+                self._checked_settings = [
+                    p for p in self._checked_settings if p.key() != key
+                ]
                 changed = True
 
         # Iterate through all rows in the changed range
@@ -280,19 +326,45 @@ class DevicePropertySelector(QWidget):
 
     def _toggle_view_mode(self, is_tree_view: bool) -> None:
         """Toggle between TreeView and TableView modes."""
+        if self._showing_checked_only:
+            return  # checked-only always uses flat checked model
+        self._apply_view_mode(is_tree_view)
+
+    def _apply_view_mode(self, is_tree_view: bool) -> None:
+        """Apply the tree/table view mode to the tree widget."""
         if is_tree_view:
-            # Switch to TreeView: use filter proxy directly
             self.tree.setModel(self._filtered_model)
-            self.tree.setColumnHidden(1, True)  # Hide the second column (device type)
+            self.tree.setColumnHidden(1, True)
             self.tree.expandAll()
             self.tree.setRootIsDecorated(True)
             self.tree.setSortingEnabled(False)
         else:
-            # Switch to TableView: use flat proxy
             self.tree.setModel(self._flat_filtered_model)
-            self.tree.setColumnHidden(1, False)  # Show the second column (property)
+            self.tree.setColumnHidden(1, False)
             self.tree.setRootIsDecorated(False)
             self.tree.setSortingEnabled(True)
+
+    def _toggle_checked_only(self, checked_only: bool) -> None:
+        """Toggle between showing all properties and checked-only."""
+        self._showing_checked_only = checked_only
+        if checked_only:
+            self.tree.setModel(self._flat_checked_model)
+            self.tree.setColumnHidden(1, False)
+            self.tree.setRootIsDecorated(False)
+            self.tree.setSortingEnabled(True)
+            # Disable controls that don't apply to checked-only view
+            self._tb2.act_toggle_view.setEnabled(False)
+            self._tb2.act_expand.setEnabled(False)
+            self._tb2.act_collapse.setEnabled(False)
+            self._dev_type_btns.setEnabled(False)
+        else:
+            # Restore the previous view mode
+            is_tree = self._tb2.act_toggle_view.isChecked()
+            self._apply_view_mode(is_tree)
+            self._tb2.act_toggle_view.setEnabled(True)
+            self._tb2.act_expand.setEnabled(True)
+            self._tb2.act_collapse.setEnabled(True)
+            self._dev_type_btns.setEnabled(True)
 
     def clear(self) -> None:
         """Clear the current selection."""
@@ -303,47 +375,66 @@ class DevicePropertySelector(QWidget):
 
     def clearCheckedProperties(self) -> None:
         """Clear all checked properties."""
-        # clear all checks
-        for row in range(self._model.rowCount()):
-            dev_idx = self._model.index(row, 0)
-            for prop_row in range(self._model.rowCount(dev_idx)):
-                prop_idx = self._model.index(prop_row, 0, dev_idx)
-                self._model.setData(
-                    prop_idx,
-                    Qt.CheckState.Unchecked,
-                    Qt.ItemDataRole.CheckStateRole,
-                )
+        with QSignalBlocker(self._model):
+            for row in range(self._model.rowCount()):
+                dev_idx = self._model.index(row, 0)
+                for prop_row in range(self._model.rowCount(dev_idx)):
+                    prop_idx = self._model.index(prop_row, 0, dev_idx)
+                    self._model.setData(
+                        prop_idx,
+                        Qt.CheckState.Unchecked,
+                        Qt.ItemDataRole.CheckStateRole,
+                    )
         self._checked_settings.clear()
+        self._emit_model_data_changed()
         self.checkedPropertiesChanged.emit(())
-        return
 
     def setCheckedProperties(self, props: Iterable[DevicePropertySetting]) -> None:
         """Set the checked state of the properties based on the given settings."""
-        self.clearCheckedProperties()
         props = list(props)
-
-        to_check = defaultdict(set)
+        to_check: dict[str, set[str]] = defaultdict(set)
         for prop in props:
             to_check[prop.device_label].add(prop.property_name)
 
-        for row in range(self._model.rowCount()):
-            dev_idx = self._model.index(row, 0)
-            dev = dev_idx.data(Qt.ItemDataRole.UserRole)
-            if isinstance(dev, Device) and dev.label in to_check:
+        with QSignalBlocker(self._model):
+            # Uncheck all
+            for row in range(self._model.rowCount()):
+                dev_idx = self._model.index(row, 0)
                 for prop_row in range(self._model.rowCount(dev_idx)):
                     prop_idx = self._model.index(prop_row, 0, dev_idx)
-                    prop = prop_idx.data(Qt.ItemDataRole.UserRole)
-                    if (
-                        isinstance(prop, DevicePropertySetting)
-                        and prop.property_name in to_check[dev.label]
-                    ):
-                        self._model.setData(
-                            prop_idx,
-                            Qt.CheckState.Checked,
-                            Qt.ItemDataRole.CheckStateRole,
-                        )
+                    self._model.setData(
+                        prop_idx,
+                        Qt.CheckState.Unchecked,
+                        Qt.ItemDataRole.CheckStateRole,
+                    )
+            # Check desired
+            for row in range(self._model.rowCount()):
+                dev_idx = self._model.index(row, 0)
+                dev = dev_idx.data(Qt.ItemDataRole.UserRole)
+                if isinstance(dev, Device) and dev.label in to_check:
+                    for prop_row in range(self._model.rowCount(dev_idx)):
+                        prop_idx = self._model.index(prop_row, 0, dev_idx)
+                        prop = prop_idx.data(Qt.ItemDataRole.UserRole)
+                        if (
+                            isinstance(prop, DevicePropertySetting)
+                            and prop.property_name in to_check[dev.label]
+                        ):
+                            self._model.setData(
+                                prop_idx,
+                                Qt.CheckState.Checked,
+                                Qt.ItemDataRole.CheckStateRole,
+                            )
         self._checked_settings = list(props)
-        self.checkedPropertiesChanged.emit(tuple({p.key() for p in props}))
+        self._emit_model_data_changed()
+        self.checkedPropertiesChanged.emit(tuple(self._checked_settings))
+
+    def _emit_model_data_changed(self) -> None:
+        """Emit a single dataChanged covering all properties."""
+        n = self._model.rowCount()
+        if n > 0:
+            top = self._model.index(0, 0)
+            bottom = self._model.index(n - 1, 0)
+            self._model.dataChanged.emit(top, bottom, [Qt.ItemDataRole.CheckStateRole])
 
     def setAvailableDevices(self, devices: Iterable[Device]) -> None:
         devices = list(devices)
