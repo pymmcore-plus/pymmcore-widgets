@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock, call, patch
 
 import pytest
-from qtpy.QtWidgets import QDialog
+from qtpy.QtWidgets import QApplication, QDialog
 
 from pymmcore_widgets._util import ComboMessageBox
 from pymmcore_widgets.control._objective_widget import ObjectivesWidget
@@ -20,6 +20,8 @@ def test_objective_widget_changes_objective(global_mmcore: CMMCorePlus, qtbot: Q
 
     start_z = 100.0
     global_mmcore.setPosition("Z", start_z)
+    # Flush any pending async signals before connecting the mock
+    QApplication.processEvents()
     stage_mock = Mock()
     obj_wdg._mmc.events.stagePositionChanged.connect(stage_mock)
 
@@ -33,10 +35,13 @@ def test_objective_widget_changes_objective(global_mmcore: CMMCorePlus, qtbot: Q
     assert global_mmcore.getCurrentPixelSizeConfig() == "Res10x"
 
     new_val = "Nikon 40X Plan Fluor ELWD"
-    with qtbot.waitSignals(
-        [global_mmcore.events.propertyChanged, global_mmcore.events.pixelSizeChanged]
-    ):
-        obj_wdg._combo.setCurrentText(new_val)
+    obj_wdg._combo.setCurrentText(new_val)
+
+    # signals are now delivered asynchronously via the Qt event loop
+    qtbot.waitUntil(
+        lambda: stage_mock.call_count >= 2 and px_size_mock.call_count >= 1,
+        timeout=2000,
+    )
 
     px_size_mock.assert_has_calls([call(0.25)])
     stage_mock.assert_has_calls([call("Z", 0), call("Z", start_z)])
@@ -47,7 +52,7 @@ def test_objective_widget_changes_objective(global_mmcore: CMMCorePlus, qtbot: Q
     assert global_mmcore.getPosition("Z") == start_z
 
 
-@patch.object(ComboMessageBox, "exec_")
+@patch.object(ComboMessageBox, "exec")
 def test_guess_objectve(dialog_mock, global_mmcore: CMMCorePlus, qtbot: QtBot):
     dialog_mock.return_value = QDialog.DialogCode.Accepted
     with patch.object(global_mmcore, "guessObjectiveDevices") as mock:
