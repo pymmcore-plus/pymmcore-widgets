@@ -171,13 +171,12 @@ class ConfigGroupsEditor(QWidget):
         self._group_preset_sel.currentPresetChanged.connect(self._on_preset_changed)
 
         self._model.dataChanged.connect(self._on_model_data_changed)
-        self._model.rowsInserted.connect(self._update_edit_properties_enabled)
-        self._model.rowsRemoved.connect(self._update_edit_properties_enabled)
+        self._model.rowsInserted.connect(self._on_model_structure_changed)
+        self._model.rowsRemoved.connect(self._on_model_structure_changed)
 
         # Sync table selection back to preset list
-        self._preset_table.view.selectionModel().selectionChanged.connect(
-            self._on_table_selection_changed
-        )
+        if model := self._preset_table.view.selectionModel():
+            model.selectionChanged.connect(self._on_table_selection_changed)
 
     # ------------------------------------------------------------------
     # Public API
@@ -449,13 +448,13 @@ class ConfigGroupsEditor(QWidget):
         has_presets = group_idx.isValid() and self._model.rowCount(group_idx) > 0
         self._tb.edit_properties_action.setEnabled(has_presets)
 
-    def _on_model_data_changed(
-        self,
-        topLeft: QModelIndex,
-        bottomRight: QModelIndex,
-        roles: list[int] | None = None,
-    ) -> None:
-        """Handle model data changes to potentially create undo commands."""
+    def _on_model_structure_changed(self) -> None:
+        """Handle rows inserted/removed in the model."""
+        self._update_edit_properties_enabled()
+        self.configChanged.emit()
+
+    def _on_model_data_changed(self) -> None:
+        """Handle model dataChanged (renames, value edits, etc.)."""
         # For now, we'll just emit the configChanged signal
         # In the future, we might want to create undo commands for direct model edits
         self.configChanged.emit()
@@ -496,6 +495,11 @@ class ConfigGroupsEditor(QWidget):
 
 
 class _ConfigEditorToolbar(QToolBar):
+    """Toolbar for the ConfigGroupsEditor.
+
+    Has actions for adding/removing/duplicating groups and presets.
+    """
+
     def __init__(self, parent: ConfigGroupsEditor) -> None:
         super().__init__(parent)
         # tool bar --------------------------------------------------------------
@@ -527,28 +531,40 @@ class _ConfigEditorToolbar(QToolBar):
             "Add Group",
             parent._add_group,
         )
-        self.add_preset_action = self.addAction(
-            StandardIcon.DOCUMENT_ADD.icon(),
-            "Add Preset",
-            parent._add_preset_to_current_group,
+        self.add_preset_action = cast(
+            "QAction",
+            self.addAction(
+                StandardIcon.DOCUMENT_ADD.icon(),
+                "Add Preset",
+                parent._add_preset_to_current_group,
+            ),
         )
         self.add_preset_action.setEnabled(False)
-        self.edit_properties_action = self.addAction(
-            StandardIcon.PROPERTY_ADD.icon(),
-            "Edit Properties",
-            parent._edit_group_properties,
+        self.edit_properties_action = cast(
+            "QAction",
+            self.addAction(
+                StandardIcon.PROPERTY_ADD.icon(),
+                "Edit Properties",
+                parent._edit_group_properties,
+            ),
         )
         self.edit_properties_action.setEnabled(False)
-        self.duplicate_action = self.addAction(
-            StandardIcon.COPY.icon(),
-            "Duplicate",
-            parent._duplicate_selected,
+        self.duplicate_action = cast(
+            "QAction",
+            self.addAction(
+                StandardIcon.COPY.icon(),
+                "Duplicate",
+                parent._duplicate_selected,
+            ),
         )
         self.duplicate_action.setEnabled(False)
-        self.remove_action = self.addAction(
-            StandardIcon.DELETE.icon(),
-            "Remove",
-            parent._remove_selected,
+        self.remove_action = cast(
+            "QAction",
+            self.addAction(
+                StandardIcon.DELETE.icon(),
+                "Remove",
+                parent._remove_selected,
+            ),
         )
         self.remove_action.setEnabled(False)
         self.addSeparator()
@@ -582,11 +598,7 @@ class _ConfigEditorToolbar(QToolBar):
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.addWidget(spacer)
 
-        if act := self.addAction(
-            StandardIcon.HELP.icon(),
-            "Help",
-            parent._show_help,
-        ):
+        if act := self.addAction(StandardIcon.HELP.icon(), "Help", parent._show_help):
             act.setToolTip("Show help")
 
     def _on_set_channel_group(self) -> None:
