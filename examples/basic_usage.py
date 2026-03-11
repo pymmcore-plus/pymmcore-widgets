@@ -20,4 +20,4 @@ gp_widget = GroupPresetTableWidget()
 cfg_widget.show()
 gp_widget.show()
 
-app.exec_()
+app.exec()
