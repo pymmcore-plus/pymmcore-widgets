@@ -552,13 +552,7 @@ class _ConfigEditorToolbar(QToolBar):
             ),
         )
 
-        @self.set_channel_action.triggered.connect  # type: ignore[untyped-decorator]
-        def _on_set_channel_group() -> None:
-            current_group = parent._group_preset_sel.currentGroup()
-            if current_group.isValid():
-                command = SetChannelGroupCommand(parent._model, current_group)
-                parent._undo_stack.push(command)
-                self.set_channel_action.setEnabled(False)
+        self.set_channel_action.triggered.connect(self._on_set_channel_group)
 
         spacer = QWidget(self)
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -570,3 +564,11 @@ class _ConfigEditorToolbar(QToolBar):
             parent._show_help,
         ):
             act.setToolTip("Show help")
+
+    def _on_set_channel_group(self) -> None:
+        parent = cast("ConfigGroupsEditor", self.parent())
+        current_group = parent._group_preset_sel.currentGroup()
+        if current_group.isValid():
+            command = SetChannelGroupCommand(parent._model, current_group)
+            parent._undo_stack.push(command)
+            self.set_channel_action.setEnabled(False)
