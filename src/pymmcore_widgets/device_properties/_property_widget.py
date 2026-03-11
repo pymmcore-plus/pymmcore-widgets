@@ -34,6 +34,8 @@ from qtpy.QtWidgets import (
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from pymmcore_widgets._models._py_config_model import DevicePropertySetting
+
     class PPropValueWidget(QWidget):
         """The protocol expected of a ValueWidget."""
 
@@ -41,7 +43,7 @@ if TYPE_CHECKING:
 
         def value(self) -> str | float: ...
         def setValue(self, val: str | float) -> None: ...
-        def setEnabled(self, enabled: bool) -> None: ...
+        def setEnabled(self, a0: bool) -> None: ...
         def deleteLater(self) -> None: ...
 
 
@@ -353,6 +355,41 @@ def _get_allowed_values(mmc: CMMCorePlus, device: str, prop: str) -> tuple[str, 
             return tuple(str(i) for i in range(n_states))
 
     return ()
+
+
+def create_property_editor(setting: DevicePropertySetting) -> PPropValueWidget:
+    """Create an appropriate editor widget from a DevicePropertySetting.
+
+    Uses the metadata already stored on the setting (property_type,
+    allowed_values, limits, is_read_only) — no core instance needed.
+    """
+    if setting.is_read_only:
+        return cast("PPropValueWidget", ReadOnlyLabel())
+
+    ptype = setting.property_type
+    allowed = setting.allowed_values
+
+    if ptype is PropertyType.Integer and set(allowed) == {"0", "1"}:
+        return cast("PPropValueWidget", BoolCheckBox())
+
+    if allowed:
+        wdg = ChoiceComboBox()
+        wdg.setChoices(allowed)
+        return cast("PPropValueWidget", wdg)
+
+    if ptype in (PropertyType.Integer, PropertyType.Float) and setting.limits:
+        lower, upper = setting.limits
+        is_float = ptype is PropertyType.Float
+        wdg = LabeledSlider(is_float=is_float)
+        wdg.setRange(lower, upper)
+        return cast("PPropValueWidget", wdg)
+
+    if ptype is PropertyType.Integer:
+        return cast("PPropValueWidget", IntSpinBox())
+    if ptype is PropertyType.Float:
+        return cast("PPropValueWidget", FloatSpinBox())
+
+    return cast("PPropValueWidget", StringLineEdit())
 
 
 def create_inner_property_widget(

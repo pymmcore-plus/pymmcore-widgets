@@ -67,7 +67,7 @@ class ConfigGroupPivotModel(QAbstractTableModel):
 
         # Reject writes to empty cells (no existing setting)
         if (row, col) not in self._data:
-            return False
+            return False  # pragma: no cover
 
         # Get the preset and device/property for this cell
         preset = self._presets[col]
@@ -198,7 +198,7 @@ class ConfigGroupPivotModel(QAbstractTableModel):
             or col >= len(self._presets)
             or (row, col) in self._data
         ):
-            return False
+            return False  # pragma: no cover
 
         preset = self._presets[col]
         dev, prop = self._rows[row]

@@ -8,7 +8,6 @@ from qtpy.QtCore import QModelIndex, QObject, Qt
 from qtpy.QtWidgets import QMessageBox, QStyledItemDelegate, QWidget
 
 from pymmcore_widgets._models import QConfigGroupsModel
-from pymmcore_widgets.device_properties import PropertyWidget
 
 from ._property_setting_delegate import PropertySettingDelegate
 from ._undo_commands import (
@@ -76,7 +75,7 @@ class GroupPresetRenameDelegate(QStyledItemDelegate):
 
 
 class PropertyValueDelegate(PropertySettingDelegate):
-    """Delegate that uses PropertyWidgets and handles undo/redo for property values."""
+    """Delegate that creates editors from setting metadata with undo/redo."""
 
     def __init__(self, undo_stack: QUndoStack, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -93,12 +92,12 @@ class PropertyValueDelegate(PropertySettingDelegate):
             not index.isValid()
             or editor is None
             or not isinstance(model, QConfigGroupsModel)
-            or not isinstance(editor, PropertyWidget)
+            or not hasattr(editor, "value")
         ):
             # Fall back to parent implementation for non-property editors
             return super().setModelData(editor, model, index)
 
-        # Get the new value from the PropertyWidget
+        # Get the new value from the editor
         new_value = editor.value()
 
         # Get the current value before changing it

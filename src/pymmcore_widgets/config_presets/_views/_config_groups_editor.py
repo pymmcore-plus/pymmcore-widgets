@@ -15,6 +15,7 @@ from qtpy.QtWidgets import (
     QSizePolicy,
     QSplitter,
     QToolBar,
+    QUndoView,
     QVBoxLayout,
     QWidget,
 )
@@ -480,8 +481,6 @@ class ConfigGroupsEditor(QWidget):
 
     def _show_undo_view(self) -> None:
         """Show a dialog with the undo stack view."""
-        from qtpy.QtWidgets import QUndoView
-
         # TODO
         if self._undo_stack is not None:
             dialog = QUndoView(self._undo_stack, self)

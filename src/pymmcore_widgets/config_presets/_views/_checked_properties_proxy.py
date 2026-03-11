@@ -33,7 +33,7 @@ class CheckedProxy(QSortFilterProxyModel):
 
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
         src = self.sourceModel()
-        if src is None:
+        if src is None:  # pragma: no cover
             return False
 
         # 1. Check the current row

@@ -4,7 +4,7 @@ from qtpy.QtCore import QAbstractItemModel, QModelIndex, Qt
 from qtpy.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QWidget
 
 from pymmcore_widgets._models import DevicePropertySetting
-from pymmcore_widgets.device_properties import PropertyWidget
+from pymmcore_widgets.device_properties._property_widget import create_property_editor
 
 
 class PropertySettingDelegate(QStyledItemDelegate):
@@ -17,12 +17,8 @@ class PropertySettingDelegate(QStyledItemDelegate):
             (setting := index.data(Qt.ItemDataRole.UserRole)), DevicePropertySetting
         ):
             return super().createEditor(parent, option, index)  # pragma: no cover
-        widget = PropertyWidget(
-            setting.device_label,
-            setting.property_name,
-            parent=parent,
-            connect_core=False,
-        )
+        widget = create_property_editor(setting)
+        widget.setParent(parent)
         widget.setValue(setting.value)  # avoids commitData warnings
         widget.valueChanged.connect(lambda: self.commitData.emit(widget))
         widget.setAutoFillBackground(True)
@@ -35,8 +31,10 @@ class PropertySettingDelegate(QStyledItemDelegate):
 
     def setEditorData(self, editor: QWidget | None, index: QModelIndex) -> None:
         setting = index.data(Qt.ItemDataRole.UserRole)
-        if isinstance(setting, DevicePropertySetting) and isinstance(
-            editor, PropertyWidget
+        if (
+            isinstance(setting, DevicePropertySetting)
+            and editor
+            and hasattr(editor, "setValue")
         ):
             editor.setValue(setting.value)
         else:  # pragma: no cover
@@ -48,7 +46,7 @@ class PropertySettingDelegate(QStyledItemDelegate):
         model: QAbstractItemModel | None,
         index: QModelIndex,
     ) -> None:
-        if model and isinstance(editor, PropertyWidget):
+        if model and editor and hasattr(editor, "value"):
             model.setData(index, editor.value(), Qt.ItemDataRole.EditRole)
         else:  # pragma: no cover
             super().setModelData(editor, model, index)

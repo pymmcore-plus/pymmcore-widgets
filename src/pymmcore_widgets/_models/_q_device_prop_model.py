@@ -97,7 +97,7 @@ class QDevicePropertyModel(_BaseTreeModel):
             return self._get_device_data(device, col, role)
         elif isinstance(setting := node.payload, DevicePropertySetting):
             return self._get_prop_data(setting, col, role)
-        return None
+        return None  # pragma: no cover
 
     def setData(
         self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
@@ -108,7 +108,7 @@ class QDevicePropertyModel(_BaseTreeModel):
 
         node = self._node_from_index(index)
         if node is self._root:
-            return False
+            return False  # pragma: no cover
 
         if role == Qt.ItemDataRole.CheckStateRole:
             if isinstance(setting := node.payload, DevicePropertySetting):
@@ -153,7 +153,7 @@ class QDevicePropertyModel(_BaseTreeModel):
                 return "Device/Property" if section == 0 else "Type"
             elif orientation == Qt.Orientation.Vertical:
                 return str(section + 1)
-        return None
+        return None  # pragma: no cover
 
 
 class DevicePropertyFlatProxy(QAbstractItemModel):

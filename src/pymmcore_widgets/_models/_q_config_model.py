@@ -362,7 +362,6 @@ class QConfigGroupsModel(_BaseTreeModel):
         self.endRemoveRows()
         return True
 
-    # TODO: probably remove the QWidget logic from here
     def remove(
         self,
         idx: QModelIndex,
@@ -371,7 +370,7 @@ class QConfigGroupsModel(_BaseTreeModel):
         parent: QWidget | None = None,
     ) -> None:
         if idx.isValid():
-            if ask_confirmation:
+            if ask_confirmation:  # pragma: no cover
                 item_name = idx.data(Qt.ItemDataRole.DisplayRole)
                 item_type = type(idx.data(Qt.ItemDataRole.UserRole))
                 type_name = item_type.__name__.replace(("Config"), "Config ")
