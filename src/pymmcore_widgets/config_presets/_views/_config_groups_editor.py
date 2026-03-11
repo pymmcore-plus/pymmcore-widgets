@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
-from enum import Enum, auto
 from typing import TYPE_CHECKING, cast
 
 from qtpy.QtCore import QModelIndex, QSize, Qt, Signal
 from qtpy.QtGui import QKeySequence, QUndoStack
 from qtpy.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
     QGroupBox,
     QMessageBox,
     QSizePolicy,
@@ -37,22 +37,16 @@ from ._undo_commands import (
     RemoveGroupCommand,
     RemovePresetCommand,
     SetChannelGroupCommand,
-    UpdatePresetPropertiesCommand,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator, Sequence
+    from collections.abc import Iterable, Sequence
 
     from pymmcore_plus import CMMCorePlus
     from PyQt6.QtGui import QAction, QActionGroup
 
 else:
     from qtpy.QtGui import QAction, QActionGroup
-
-
-class LayoutMode(Enum):
-    FAVOR_PRESETS = auto()  # preset-table full width at bottom
-    FAVOR_PROPERTIES = auto()  # prop-selector full height at right
 
 
 # -----------------------------------------------------------------------------
@@ -96,6 +90,7 @@ class ConfigGroupsEditor(QWidget):
             available devices).
         """
         self._loaded_devices = tuple(get_loaded_devices(core))
+        self._preset_table.view._loaded_devices = self._loaded_devices
         if update_configs:
             self.setData(get_config_groups(core))
 
@@ -106,6 +101,7 @@ class ConfigGroupsEditor(QWidget):
         self._loaded_devices = ()
         self._model = QConfigGroupsModel()
         self._undo_stack = QUndoStack(self)
+        self._syncing_selection = False
 
         # widgets -------------------------------------------------------------
 
@@ -164,9 +160,11 @@ class ConfigGroupsEditor(QWidget):
         self._group_preset_sel.currentPresetChanged.connect(self._on_preset_changed)
 
         self._model.dataChanged.connect(self._on_model_data_changed)
-        # self._group_preset_stack.presetSelectionChanged.connect(self._on_preset_sel)
-        # self._model.dataChanged.connect(self._on_model_data_changed)
-        # self._props.valueChanged.connect(self._on_prop_table_changed)
+
+        # Sync table selection back to preset list
+        self._preset_table.view.selectionModel().selectionChanged.connect(
+            self._on_table_selection_changed
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -176,8 +174,8 @@ class ConfigGroupsEditor(QWidget):
         """Called when the group selection in the GroupPresetSelector changes."""
         # Show this group in the preset table
         self._preset_table.setGroup(current)
-        self._preset_table.view.stretchHeaders()
         self._tb.add_preset_action.setEnabled(current.isValid())
+        self._tb.edit_properties_action.setEnabled(current.isValid())
         self._tb.duplicate_action.setEnabled(current.isValid())
         self._tb.remove_action.setEnabled(current.isValid())
 
@@ -192,24 +190,48 @@ class ConfigGroupsEditor(QWidget):
 
     def _on_preset_changed(self, current: QModelIndex, previous: QModelIndex) -> None:
         """Called when the preset selection in the GroupPresetSelector changes."""
-        print("CHANGED PRESET", current, previous)
-        self._tb.add_properties_action.setEnabled(current.isValid())
-        if not current.isValid():
+        if not current.isValid() or self._syncing_selection:
             return
 
         # highlight the selected preset in the table
-        table = self._preset_table.view
-        row = current.row()
-        table.selectRow(row) if table.isTransposed() else table.selectColumn(row)
+        self._syncing_selection = True
+        try:
+            table = self._preset_table.view
+            row = current.row()
+            table.selectRow(row) if table.isTransposed() else table.selectColumn(row)
+        finally:
+            self._syncing_selection = False
 
-    def _on_prop_selection_changed(
-        self, props: Sequence[DevicePropertySetting]
-    ) -> None:
-        """Called when the selection in the DevicePropertySelector changes."""
-        idx = self._group_preset_sel.currentPreset()
-        if idx.isValid():
-            command = UpdatePresetPropertiesCommand(self._model, idx, props)
-            self._undo_stack.push(command)
+    def _on_table_selection_changed(self) -> None:
+        """Sync the table's selected column back to the preset list."""
+        if self._syncing_selection:
+            return
+
+        view = self._preset_table.view
+        sm = view.selectionModel()
+        if sm is None:
+            return
+
+        indices = sm.selectedIndexes()
+        if not indices:
+            return
+
+        # Get the column of the first selected cell
+        idx = indices[0]
+        col = idx.row() if view.isTransposed() else idx.column()
+
+        try:
+            pivot = view._get_pivot_model()
+            src_idx = pivot.get_source_index_for_column(col)
+        except (ValueError, IndexError):
+            return
+
+        if src_idx.isValid():
+            self._syncing_selection = True
+            try:
+                self._group_preset_sel.preset_list.setCurrentIndex(src_idx)
+            finally:
+                self._syncing_selection = False
 
     def setCurrentGroup(self, group: str) -> None:
         """Set the currently selected group in the editor."""
@@ -245,28 +267,123 @@ class ConfigGroupsEditor(QWidget):
         return self._undo_stack
 
     def _add_preset_to_current_group(self) -> None:
-        """Add a new preset to the currently selected group."""
+        """Add a new preset to the currently selected group and select it."""
         current_group = self._group_preset_sel.currentGroup()
         if current_group.isValid():
             command = AddPresetCommand(self._model, current_group)
             self._undo_stack.push(command)
+            if command._preset_index and command._preset_index.isValid():
+                idx = QModelIndex(command._preset_index)
+                self._group_preset_sel.preset_list.setCurrentIndex(idx)
 
-    def _add_properties_to_current_preset(self) -> None:
-        """Add properties to the currently selected preset."""
+    def _edit_group_properties(self) -> None:
+        """Edit properties for the group or current preset."""
+        from qtpy.QtWidgets import QButtonGroup, QHBoxLayout, QRadioButton
+
+        current_group = self._group_preset_sel.currentGroup()
+        if not current_group.isValid():
+            return
+
+        group = current_group.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(group, ConfigGroup):
+            return
+
         current_preset = self._group_preset_sel.currentPreset()
-        if current_preset.isValid():
-            if properties := DevicePropertySelector.promptForProperties(
-                self, self._loaded_devices
-            ):
-                command = UpdatePresetPropertiesCommand(
-                    self._model, current_preset, properties
-                )
-                self._undo_stack.push(command)
+
+        # Determine default mode from focus
+        preset_focused = self._group_preset_sel.preset_list.hasFocus()
+
+        # Build dialog
+        dialog = QDialog(
+            self,
+            Qt.WindowType.Sheet
+            | Qt.WindowType.Window
+            | Qt.WindowType.WindowCloseButtonHint
+            | Qt.WindowType.FramelessWindowHint,
+        )
+        dialog.setWindowTitle("Edit Properties")
+        dialog.setModal(True)
+
+        # Mode toggle
+        group_radio = QRadioButton("All presets in group")
+        preset_radio = QRadioButton("Current preset only")
+        preset_radio.setEnabled(current_preset.isValid())
+        mode_group = QButtonGroup(dialog)
+        mode_group.addButton(group_radio)
+        mode_group.addButton(preset_radio)
+        if preset_focused and current_preset.isValid():
+            preset_radio.setChecked(True)
+        else:
+            group_radio.setChecked(True)
+
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(group_radio)
+        mode_layout.addWidget(preset_radio)
+
+        selector = DevicePropertySelector(dialog)
+        selector.setAvailableDevices(self._loaded_devices)
+
+        def _update_checked() -> None:
+            if preset_radio.isChecked() and current_preset.isValid():
+                preset_data = current_preset.data(Qt.ItemDataRole.UserRole)
+                settings = preset_data.settings if preset_data else []
+            else:
+                settings = [s for p in group.presets.values() for s in p.settings]
+            # Deduplicate by key
+            seen: set[tuple[str, str]] = set()
+            unique: list[DevicePropertySetting] = []
+            for s in settings:
+                if s.key() not in seen:
+                    seen.add(s.key())
+                    unique.append(
+                        DevicePropertySetting(
+                            device=s.device_label, property_name=s.property_name
+                        )
+                    )
+            selector.setCheckedProperties(unique)
+
+        mode_group.buttonToggled.connect(lambda *_: _update_checked())
+        _update_checked()
+
+        btns = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
+            dialog,
+        )
+        btns.accepted.connect(dialog.accept)
+        btns.rejected.connect(dialog.reject)
+
+        lay = QVBoxLayout(dialog)
+        lay.addLayout(mode_layout)
+        lay.addWidget(selector)
+        lay.addWidget(btns)
+        dialog.resize(int(self.width() * 0.8), int(self.height() * 0.8))
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        selected = selector.checkedProperties()
+        selected_keys = {s.key() for s in selected}
+
+        if preset_radio.isChecked() and current_preset.isValid():
+            # Update only the current preset
+            self._undo_stack.beginMacro("Update Preset Properties")
+            self._model.update_preset_properties(current_preset, selected_keys)
+            self._undo_stack.endMacro()
+        else:
+            # Update all presets in the group
+            self._undo_stack.beginMacro("Update Group Properties")
+            for i in range(self._model.rowCount(current_group)):
+                preset_idx = self._model.index(i, 0, current_group)
+                self._model.update_preset_properties(preset_idx, selected_keys)
+            self._undo_stack.endMacro()
 
     def _add_group(self) -> None:
-        """Add a new group."""
+        """Add a new group and select it."""
         command = AddGroupCommand(self._model)
         self._undo_stack.push(command)
+        if command._group_index and command._group_index.isValid():
+            idx = QModelIndex(command._group_index)
+            self._group_preset_sel.group_list.setCurrentIndex(idx)
 
     def _remove_selected(self) -> None:
         """Remove the currently selected group or preset."""
@@ -328,32 +445,6 @@ class ConfigGroupsEditor(QWidget):
     def sizeHint(self) -> QSize:
         """Suggest a size for the widget."""
         return QSize(1200, 800)
-
-    def _get_splitter_sizes(
-        self, splitter: QSplitter
-    ) -> tuple[list[int], list[int]] | None:
-        if isinstance(inner_splitter := splitter.widget(0), QSplitter):
-            # FAVOR_PRESETS
-            if splitter.orientation() == Qt.Orientation.Vertical:
-                return inner_splitter.sizes(), splitter.sizes()
-            # FAVOR_PROPERTIES
-            else:
-                return splitter.sizes(), inner_splitter.sizes()
-        return None
-
-    def _set_splitter_sizes(
-        self, top_splits: list[int], left_heights: list[int], main_splitter: QSplitter
-    ) -> None:
-        """Set the saved sizes of the splitters."""
-        if isinstance(inner_splitter := main_splitter.widget(0), QSplitter):
-            # FAVOR_PRESETS
-            if main_splitter.orientation() == Qt.Orientation.Vertical:
-                inner_splitter.setSizes(top_splits)
-                main_splitter.setSizes(left_heights)
-            # FAVOR_PROPERTIES
-            else:
-                main_splitter.setSizes(top_splits)
-                inner_splitter.setSizes(left_heights)
 
     def _show_help(self) -> None:
         """Show help for this widget."""
@@ -420,12 +511,12 @@ class _ConfigEditorToolbar(QToolBar):
             parent._add_preset_to_current_group,
         )
         self.add_preset_action.setEnabled(False)
-        self.add_properties_action = self.addAction(
+        self.edit_properties_action = self.addAction(
             StandardIcon.PROPERTY_ADD.icon(),
-            "Add Properties",
-            parent._add_properties_to_current_preset,
+            "Edit Properties",
+            parent._edit_group_properties,
         )
-        self.add_properties_action.setEnabled(False)
+        self.edit_properties_action.setEnabled(False)
         self.duplicate_action = self.addAction(
             StandardIcon.COPY.icon(),
             "Duplicate",
@@ -481,23 +572,3 @@ class _ConfigEditorToolbar(QToolBar):
             parent._show_help,
         ):
             act.setToolTip("Show help")
-
-        icon = QIconifyIcon(
-            "fluent:layout-row-two-split-top-focus-bottom-16-filled", color="#666"
-        )
-        icon.addKey(
-            "fluent:layout-column-two-split-left-focus-right-16-filled",
-            state=QIconifyIcon.State.On,
-            color="#666",
-        )
-
-
-@contextmanager
-def _updates_disabled(widget: QWidget) -> Iterator[None]:
-    """Context manager to temporarily disable updates for a widget."""
-    was_enabled = widget.updatesEnabled()
-    widget.setUpdatesEnabled(False)
-    try:
-        yield
-    finally:
-        widget.setUpdatesEnabled(was_enabled)

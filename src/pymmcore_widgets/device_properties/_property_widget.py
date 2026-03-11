@@ -91,7 +91,7 @@ class IntSpinBox(QSpinBox):
     def setValue(self, val: int | str) -> None:
         """Set value, accepting strings from core."""
         if isinstance(val, str):
-            val = int(float(val))
+            val = int(float(val or 0))
         super().setValue(val)
 
 
@@ -113,7 +113,7 @@ class FloatSpinBox(QDoubleSpinBox):
     def setValue(self, val: float | str) -> None:
         """Set value, accepting strings from core."""
         if isinstance(val, str):
-            val = float(val)
+            val = float(val or 0)
         # Auto-adjust decimals to show value properly
         val_str = f"{val:.10f}".rstrip("0").rstrip(".")
         if "." in val_str:
@@ -202,7 +202,7 @@ class LabeledSlider(QWidget):
         """Set the value."""
         with _update_blocker(self):
             # Convert from string (core always returns strings)
-            typed_val = float(value) if self._is_float else int(float(value))
+            typed_val = float(value or 0) if self._is_float else int(float(value or 0))
             self._value = typed_val  # Store exact value
             self._spinbox.setValue(typed_val)  # pyright: ignore
             if self._is_float:
@@ -291,7 +291,7 @@ class BoolCheckBox(QCheckBox):
 
     def setValue(self, value: str | int) -> None:
         """Set the value (0 or 1)."""
-        self.setChecked(bool(int(value)))
+        self.setChecked(bool(int(value or 0)))
 
     def value(self) -> int:
         """Get the value (0 or 1)."""

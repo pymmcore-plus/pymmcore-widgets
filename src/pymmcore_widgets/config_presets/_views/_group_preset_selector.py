@@ -40,18 +40,10 @@ class GroupsPresetFinder(QStackedWidget):
         self.preset_list = QListView(self)
         self.preset_list.setSelectionMode(QListView.SelectionMode.SingleSelection)
 
-        self.settings_table = ConfigGroupsTree(self)
-        self.settings_table.setSelectionMode(QListView.SelectionMode.SingleSelection)
-        self.settings_table.setSelectionBehavior(
-            ConfigGroupsTree.SelectionBehavior.SelectRows
-        )
-
         # Create the splitter for the list views
         lists_splitter = QSplitter(Qt.Orientation.Horizontal)
         lists_splitter.addWidget(self.group_list)
         lists_splitter.addWidget(self.preset_list)
-        lists_splitter.addWidget(self.settings_table)
-        lists_splitter.setStretchFactor(2, 2)
 
         # STACK_1 : Tree view for config groups ----------------------------
 
@@ -100,7 +92,6 @@ class GroupsPresetFinder(QStackedWidget):
 
         # We'll set later when selections are made
         self.preset_list.setModel(None)
-        self.settings_table.setModel(None)
 
         self._connect_selection_models()
 
@@ -150,16 +141,6 @@ class GroupsPresetFinder(QStackedWidget):
         self, current: QModelIndex, previous: QModelIndex
     ) -> None:
         """Handle change in the preset_list selection."""
-        # Ensure settings_table has a model when a preset is selected
-        print("CHANGED PRESET", current, previous)
-        if current.isValid():
-            if self.settings_table.model() is None:
-                self.settings_table.setModel(self._model)
-            self.settings_table.setRootIndex(current)
-            self.settings_table.setCurrentIndex(QModelIndex())
-        else:
-            self.settings_table.setModel(None)
-
         with QSignalBlocker(self.config_groups_tree.selectionModel()):
             self.config_groups_tree.setCurrentIndex(current)
         self.currentPresetChanged.emit(current, previous)
@@ -337,6 +318,5 @@ class GroupsPresetFinder(QStackedWidget):
             group_sel_model.clearCurrentIndex()
         self.config_groups_tree.clearSelection()
 
-        # Clear the preset and settings views completely
+        # Clear the preset view completely
         self.preset_list.setModel(None)
-        self.settings_table.setModel(None)

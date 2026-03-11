@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from contextlib import suppress
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from qtpy.QtCore import (
     QAbstractItemModel,
@@ -12,7 +12,7 @@ from qtpy.QtCore import (
     QTimer,
     QTransposeProxyModel,
 )
-from qtpy.QtWidgets import QTableView, QToolBar, QVBoxLayout, QWidget
+from qtpy.QtWidgets import QHeaderView, QTableView, QToolBar, QVBoxLayout, QWidget
 
 from pymmcore_widgets._icons import StandardIcon
 from pymmcore_widgets._models import ConfigGroupPivotModel, QConfigGroupsModel
@@ -42,12 +42,23 @@ class ConfigPresetsTableView(QTableView):
     `setGroup` with the name or index of the group you want to view.
     """
 
+    MIN_COL_WIDTH = 120
+    MAX_COL_WIDTH = 340
+    MIN_ROW_HEIGHT = 26
+    MAX_ROW_HEIGHT = 48
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setItemDelegate(PropertySettingDelegate(self))
         self._transpose_proxy: QTransposeProxyModel | None = None
         self._pivot_model: ConfigGroupPivotModel | None = None
         self._undo_stack: QUndoStack | None = None
+        self._loaded_devices: tuple[Any, ...] = ()
+
+        # Right-click on column headers for per-preset property management
+        if hh := self.horizontalHeader():
+            hh.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            hh.customContextMenuRequested.connect(self._on_header_context_menu)
 
     def setUndoStack(self, undo_stack: QUndoStack) -> None:
         """Set the undo stack and configure undo-aware delegates."""
@@ -75,19 +86,52 @@ class ConfigPresetsTableView(QTableView):
 
         # Connect to model signals to ensure persistent editors are always maintained
         matrix.modelReset.connect(self._ensure_persistent_editors)
+        matrix.modelReset.connect(self._update_section_sizes)
         matrix.dataChanged.connect(self._ensure_persistent_editors)
 
-        # this is a bit magical... but it looks better
-        # will only happen once
-        if not getattr(self, "_have_stretched_headers", False):
-            QTimer.singleShot(0, self.stretchHeaders)
+    def resizeEvent(self, event: Any) -> None:
+        """Adaptive column/row sizing based on available viewport space."""
+        super().resizeEvent(event)
+        self._update_section_sizes()
 
-    def stretchHeaders(self) -> None:
-        with suppress(RuntimeError):
-            if hh := self.horizontalHeader():
-                for col in range(hh.count()):
-                    hh.setSectionResizeMode(col, hh.ResizeMode.Stretch)
-                self._have_stretched_headers = True
+    def _update_section_sizes(self) -> None:
+        """Recalculate column widths and row heights for the current viewport."""
+        model = self.model()
+        if model is None:
+            return
+
+        hh = self.horizontalHeader()
+        vh = self.verticalHeader()
+        if hh is None or vh is None:
+            return
+
+        col_count = model.columnCount()
+        row_count = model.rowCount()
+        vp_width = self.viewport().width()
+
+        # Columns:
+        # - Too many to fit at MIN_COL_WIDTH → fixed at MIN_COL_WIDTH (scrollbar)
+        # - Natural stretch would exceed MAX_COL_WIDTH → fixed at MAX_COL_WIDTH
+        # - Otherwise → stretch to fill
+        if col_count > 0:
+            natural_width = vp_width // col_count
+            if natural_width < self.MIN_COL_WIDTH:
+                hh.setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+                hh.setDefaultSectionSize(self.MIN_COL_WIDTH)
+            elif natural_width > self.MAX_COL_WIDTH:
+                hh.setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+                hh.setDefaultSectionSize(self.MAX_COL_WIDTH)
+            else:
+                hh.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+
+        # Rows: fill vertical space, clamped to [MIN_ROW_HEIGHT, MAX_ROW_HEIGHT]
+        if row_count > 0:
+            vp_height = self.viewport().height()
+            row_h = max(
+                self.MIN_ROW_HEIGHT,
+                min(vp_height // row_count, self.MAX_ROW_HEIGHT),
+            )
+            vh.setDefaultSectionSize(row_h)
 
     def _ensure_persistent_editors(self) -> None:
         """Ensure persistent editors are open for all cells after model changes."""
@@ -95,13 +139,21 @@ class ConfigPresetsTableView(QTableView):
         QTimer.singleShot(0, self.openPersistentEditors)
 
     def openPersistentEditors(self) -> None:
-        """Override to open persistent editors for all items."""
+        """Open persistent editors only for cells that have data."""
+        UserRole = Qt.ItemDataRole.UserRole
         with suppress(RuntimeError):  # since this may be a slot
             if model := self.model():
+                # Close all existing persistent editors first
                 for row in range(model.rowCount()):
                     for col in range(model.columnCount()):
                         idx = model.index(row, col)
                         if idx.isValid():
+                            self.closePersistentEditor(idx)
+                # Reopen only for cells with data
+                for row in range(model.rowCount()):
+                    for col in range(model.columnCount()):
+                        idx = model.index(row, col)
+                        if idx.isValid() and idx.data(UserRole) is not None:
                             self.openPersistentEditor(idx)
 
     def _get_pivot_model(self) -> ConfigGroupPivotModel:
@@ -147,6 +199,152 @@ class ConfigPresetsTableView(QTableView):
     def isTransposed(self) -> bool:
         """Check if the table view is currently transposed."""
         return isinstance(self.model(), QTransposeProxyModel)
+
+    def _pivot_coords(self, idx: QModelIndex) -> tuple[int, int]:
+        """Map a view index to pivot (row, col), accounting for transpose."""
+        if self.isTransposed():
+            return idx.column(), idx.row()
+        return idx.row(), idx.column()
+
+    # --- header context menu ------------------------------------------------
+
+    def _on_header_context_menu(self, pos: Any) -> None:
+        """Show context menu on column header for per-preset property actions."""
+        from qtpy.QtWidgets import QMenu
+
+        hh = self.horizontalHeader()
+        if hh is None:
+            return
+
+        col = hh.logicalIndexAt(pos)
+        if col < 0:
+            return
+
+        model = self.model()
+        if model is None:
+            return
+
+        preset_name = model.headerData(
+            col, Qt.Orientation.Horizontal, Qt.ItemDataRole.DisplayRole
+        )
+
+        menu = QMenu(self)
+        add_action = menu.addAction(f"Add property to '{preset_name}'...")
+        action = menu.exec(hh.mapToGlobal(pos))
+        if action == add_action:
+            self._add_property_to_preset_column(col)
+
+    def _add_property_to_preset_column(self, col: int) -> None:
+        """Add properties to a single preset via dialog."""
+        pivot = self._get_pivot_model()
+        src_idx = pivot.get_source_index_for_column(col)
+        if not src_idx.isValid() or not self._loaded_devices:
+            return
+
+        from ._device_property_selector import DevicePropertySelector
+
+        props = DevicePropertySelector.promptForProperties(self, self._loaded_devices)
+        if props and self._undo_stack is not None:
+            from ._undo_commands import UpdatePresetPropertiesCommand
+
+            cmd = UpdatePresetPropertiesCommand(
+                self.sourceModel(), src_idx, list(props)
+            )
+            self._undo_stack.push(cmd)
+
+    # --- cell-level interactions --------------------------------------------
+
+    def mouseDoubleClickEvent(self, event: Any) -> None:
+        """Double-click on an empty cell adds the property to that preset."""
+        idx = self.indexAt(event.pos())
+        if idx.isValid() and idx.data(Qt.ItemDataRole.UserRole) is None:
+            self._add_cell_setting(idx)
+            return
+        super().mouseDoubleClickEvent(event)
+
+    def contextMenuEvent(self, event: Any) -> None:
+        """Right-click context menu: add/remove property for a single cell."""
+        from qtpy.QtWidgets import QMenu
+
+        idx = self.indexAt(event.pos())
+        if not idx.isValid():
+            return super().contextMenuEvent(event)
+
+        has_data = idx.data(Qt.ItemDataRole.UserRole) is not None
+        menu = QMenu(self)
+        if has_data:
+            remove_act = menu.addAction("Remove property from this preset")
+            add_act = None
+        else:
+            add_act = menu.addAction("Add property to this preset")
+            remove_act = None
+
+        chosen = menu.exec(event.globalPos())
+        if chosen is not None:
+            if chosen == add_act:
+                self._add_cell_setting(idx)
+            elif chosen == remove_act:
+                self._remove_cell_setting(idx)
+
+    def keyPressEvent(self, event: Any) -> None:
+        """Handle Delete/Backspace to remove property from one preset."""
+        if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+            sm = self.selectionModel()
+            if sm:
+                for idx in sm.selectedIndexes():
+                    if idx.data(Qt.ItemDataRole.UserRole) is not None:
+                        self._remove_cell_setting(idx)
+                        break
+        else:
+            super().keyPressEvent(event)
+
+    def _add_cell_setting(self, idx: QModelIndex) -> None:
+        """Add a placeholder setting for the cell at *idx*."""
+        pivot = self._get_pivot_model()
+        p_row, p_col = self._pivot_coords(idx)
+        src_idx = pivot.get_source_index_for_column(p_col)
+        if not src_idx.isValid():
+            return
+
+        if self._undo_stack is not None:
+            from copy import deepcopy
+
+            from pymmcore_widgets._models import DevicePropertySetting
+
+            from ._undo_commands import UpdatePresetSettingsCommand
+
+            preset = src_idx.data(Qt.ItemDataRole.UserRole)
+            if preset is None:
+                return
+            dev, prop = pivot._rows[p_row]
+            new_settings = list(deepcopy(preset.settings))
+            new_settings.append(DevicePropertySetting(device=dev, property_name=prop))
+            cmd = UpdatePresetSettingsCommand(self.sourceModel(), src_idx, new_settings)
+            self._undo_stack.push(cmd)
+        else:
+            pivot.add_setting_at(p_row, p_col)
+
+    def _remove_cell_setting(self, idx: QModelIndex) -> None:
+        """Remove the setting at *idx* from its preset."""
+        pivot = self._get_pivot_model()
+        p_row, p_col = self._pivot_coords(idx)
+        src_idx = pivot.get_source_index_for_column(p_col)
+        if not src_idx.isValid() or p_row >= len(pivot._rows):
+            return
+
+        target_key = pivot._rows[p_row]
+        preset = src_idx.data(Qt.ItemDataRole.UserRole)
+        if preset is None:
+            return
+        filtered = [s for s in preset.settings if s.key() != target_key]
+
+        if self._undo_stack is not None:
+            from ._undo_commands import UpdatePresetSettingsCommand
+
+            cmd = UpdatePresetSettingsCommand(self.sourceModel(), src_idx, filtered)
+            self._undo_stack.push(cmd)
+        else:
+            pivot.remove_setting_at(p_row, p_col)
 
 
 class ConfigPresetsTable(QWidget):

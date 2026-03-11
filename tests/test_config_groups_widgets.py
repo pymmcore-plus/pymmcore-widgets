@@ -60,7 +60,6 @@ def test_config_presets_table(qtbot: QtBot) -> None:
     table.setGroup("Channel")
     qtbot.addWidget(table)
     table.show()
-    view.stretchHeaders()
     assert isinstance(table.sourceModel(), QConfigGroupsModel)
 
     assert not view.isTransposed()

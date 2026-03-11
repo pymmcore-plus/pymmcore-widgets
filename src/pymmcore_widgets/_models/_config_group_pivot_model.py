@@ -65,6 +65,10 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         ):
             return False  # pragma: no cover
 
+        # Reject writes to empty cells (no existing setting)
+        if (row, col) not in self._data:
+            return False
+
         # Get the preset and device/property for this cell
         preset = self._presets[col]
         dev_prop = self._rows[row]
@@ -115,7 +119,7 @@ class ConfigGroupPivotModel(QAbstractTableModel):
                 return  # pragma: no cover
             self._presets = list(group.presets.values())
             keys = (setting.key() for p in self._presets for setting in p.settings)
-            self._rows = list(dict.fromkeys(keys, None))  # unique (device, prop) pairs
+            self._rows = sorted(dict.fromkeys(keys, None))
 
             for col, preset in enumerate(self._presets):
                 for row, (device, prop) in enumerate(self._rows):
@@ -144,10 +148,11 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         orient: Qt.Orientation,
         role: int = Qt.ItemDataRole.DisplayRole,
     ) -> Any:
-        if role == Qt.ItemDataRole.DisplayRole and section < len(self._presets):
-            if orient == Qt.Orientation.Horizontal:
+        if role == Qt.ItemDataRole.DisplayRole:
+            if orient == Qt.Orientation.Horizontal and section < len(self._presets):
                 return self._presets[section].name
-            return "-".join(self._rows[section])
+            if orient == Qt.Orientation.Vertical and section < len(self._rows):
+                return "-".join(self._rows[section])
         elif role == Qt.ItemDataRole.DecorationRole and section < len(self._rows):
             if orient == Qt.Orientation.Vertical:
                 try:
@@ -176,15 +181,58 @@ class ConfigGroupPivotModel(QAbstractTableModel):
             return setting.value if setting else None
         return None
 
-    # make editable
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:
         if not index.isValid():  # pragma: no cover
             return Qt.ItemFlag.NoItemFlags
-        return (
-            Qt.ItemFlag.ItemIsEnabled
-            | Qt.ItemFlag.ItemIsSelectable
-            | Qt.ItemFlag.ItemIsEditable
-        )
+        base = Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
+        if self._data.get((index.row(), index.column())) is not None:
+            base |= Qt.ItemFlag.ItemIsEditable
+        return base
+
+    def add_setting_at(self, row: int, col: int) -> bool:
+        """Add a placeholder setting at (row, col) if the cell is empty."""
+        if (
+            self._src is None
+            or self._gidx is None
+            or row >= len(self._rows)
+            or col >= len(self._presets)
+            or (row, col) in self._data
+        ):
+            return False
+
+        preset = self._presets[col]
+        dev, prop = self._rows[row]
+        new_setting = DevicePropertySetting(device=dev, property_name=prop)
+
+        preset_settings = list(preset.settings)
+        preset_settings.append(new_setting)
+
+        preset_idx = self._src.index_for_preset(self._gidx, preset.name)
+        if preset_idx.isValid():
+            self._src.update_preset_settings(preset_idx, preset_settings)
+            return True
+        return False  # pragma: no cover
+
+    def remove_setting_at(self, row: int, col: int) -> bool:
+        """Remove the setting at (row, col) if it exists."""
+        if (
+            self._src is None
+            or self._gidx is None
+            or row >= len(self._rows)
+            or col >= len(self._presets)
+            or (row, col) not in self._data
+        ):
+            return False
+
+        preset = self._presets[col]
+        target_key = self._rows[row]
+        filtered = [s for s in preset.settings if s.key() != target_key]
+
+        preset_idx = self._src.index_for_preset(self._gidx, preset.name)
+        if preset_idx.isValid():
+            self._src.update_preset_settings(preset_idx, filtered)
+            return True
+        return False  # pragma: no cover
 
     def get_source_index_for_column(self, column: int) -> QModelIndex:
         """Get the source index for a given column in the pivot model."""
