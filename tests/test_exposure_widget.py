@@ -18,13 +18,11 @@ def test_exposure_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     # check that it get's whatever core is set to.
     assert wdg.spinBox.value() == 15
-    with qtbot.waitSignal(global_mmcore.events.exposureChanged):
-        global_mmcore.setExposure(30)
-    assert wdg.spinBox.value() == 30
+    global_mmcore.setExposure(30)
+    qtbot.waitUntil(lambda: wdg.spinBox.value() == 30)
 
-    with qtbot.wait_signal(global_mmcore.events.exposureChanged):
-        wdg.spinBox.setValue(45)
-    assert global_mmcore.getExposure() == 45
+    wdg.spinBox.setValue(45)
+    qtbot.waitUntil(lambda: global_mmcore.getExposure() == 45)
 
     # test updating cameraDevice
     global_mmcore.setProperty("Core", "Camera", "")
@@ -40,6 +38,5 @@ def test_exposure_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
 
     # reset the camera to a working one
     global_mmcore.setProperty("Core", "Camera", "Camera")
-    with qtbot.wait_signal(global_mmcore.events.exposureChanged):
-        wdg.spinBox.setValue(0.1)
-    assert global_mmcore.getExposure() == 0.1
+    wdg.spinBox.setValue(0.1)
+    qtbot.waitUntil(lambda: global_mmcore.getExposure() == 0.1)
