@@ -11,4 +11,4 @@ mmc.loadSystemConfiguration()
 exp_wdg = DefaultCameraExposureWidget()
 exp_wdg.show()
 
-app.exec_()
+app.exec()

@@ -18,4 +18,4 @@ pos_wdg = PositionTable(rows=3)
 pos_wdg.resize(570, 200)
 pos_wdg.show()
 
-app.exec_()
+app.exec()
