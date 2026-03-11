@@ -30,9 +30,11 @@ if TYPE_CHECKING:
 class AddGroupWidget(QDialog):
     """Widget to create a new group."""
 
-    def __init__(self, *, parent: QWidget | None = None) -> None:
+    def __init__(
+        self, *, mmcore: CMMCorePlus | None = None, parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent=parent)
-        self._mmc = CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._mmc.events.systemConfigurationLoaded.connect(self._update_filter)
 
         self._create_gui()
@@ -93,7 +95,9 @@ class AddGroupWidget(QDialog):
         self._filter_text.setPlaceholderText("Filter by device or property name...")
         self._filter_text.textChanged.connect(self._update_filter)
 
-        self._prop_table = DevicePropertyTable(enable_property_widgets=False)
+        self._prop_table = DevicePropertyTable(
+            mmcore=self._mmc, enable_property_widgets=False
+        )
         self._prop_table.setRowsCheckable(True)
         self._device_filters = DeviceTypeFilters()
         self._device_filters.filtersChanged.connect(self._update_filter)
@@ -175,7 +179,7 @@ class AddGroupWidget(QDialog):
         if hasattr(self, "_first_preset_wdg"):
             self._first_preset_wdg.close()  # type: ignore
         self._first_preset_wdg = AddFirstPresetWidget(
-            group, dev_prop_val_list, parent=self
+            group, dev_prop_val_list, mmcore=self._mmc, parent=self
         )
         self._first_preset_wdg.show()
 

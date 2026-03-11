@@ -20,7 +20,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from pymmcore_widgets._util import NoWheelTableWidget, block_core, load_system_config
+from pymmcore_widgets._util import block_core, load_system_config
 from pymmcore_widgets.control._presets_widget import PresetsWidget
 from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 
@@ -32,7 +32,7 @@ from ._edit_preset_widget import EditPresetWidget
 UNNAMED_PRESET = "NewPreset"
 
 
-class _MainTable(NoWheelTableWidget):
+class _MainTable(QTableWidget):
     """Set table properties for Group and Preset TableWidget."""
 
     def __init__(self) -> None:
@@ -229,7 +229,7 @@ class GroupPresetTableWidget(QGroupBox):
                 if isinstance(wdg, PresetsWidget):
                     wdg = wdg._combo
                 elif isinstance(wdg, PropertyWidget):
-                    wdg = wdg._value_widget  # type: ignore
+                    wdg = wdg.inner_widget
 
         # resize to contents the table
         self.table_wdg.resizeColumnToContents(0)
@@ -257,9 +257,9 @@ class GroupPresetTableWidget(QGroupBox):
         device, prop, _, dev_prop_val_count = self._get_cfg_data(group, presets[0])
 
         if len(presets) > 1 or dev_prop_val_count > 1 or dev_prop_val_count == 0:
-            return PresetsWidget(group)
+            return PresetsWidget(group, mmcore=self._mmc)
         else:
-            return PropertyWidget(device, prop)
+            return PropertyWidget(device, prop, mmcore=self._mmc)
 
     def _close_if_hasattr(self) -> None:
         attr_list = [
@@ -274,7 +274,7 @@ class GroupPresetTableWidget(QGroupBox):
 
     def _add_group(self) -> None:
         self._close_if_hasattr()
-        self._add_group_wdg = AddGroupWidget(parent=self)
+        self._add_group_wdg = AddGroupWidget(mmcore=self._mmc, parent=self)
         self._add_group_wdg.show()
 
     def _delete_group(self) -> None:
@@ -316,7 +316,7 @@ class GroupPresetTableWidget(QGroupBox):
         row = next(iter(selected_rows))
         group = self.table_wdg.item(row, 0).text()
         self._close_if_hasattr()
-        self._edit_group_wdg = EditGroupWidget(group, parent=self)
+        self._edit_group_wdg = EditGroupWidget(group, mmcore=self._mmc, parent=self)
         self._edit_group_wdg.show()
 
     def _add_preset(self) -> None:
@@ -332,7 +332,7 @@ class GroupPresetTableWidget(QGroupBox):
             return
 
         self._close_if_hasattr()
-        self._add_preset_wdg = AddPresetWidget(group, parent=self)
+        self._add_preset_wdg = AddPresetWidget(group, mmcore=self._mmc, parent=self)
         self._add_preset_wdg.show()
 
     def _delete_preset(self) -> None:
@@ -381,7 +381,9 @@ class GroupPresetTableWidget(QGroupBox):
         if isinstance(wdg, PresetsWidget):
             preset = wdg._combo.currentText()
         self._close_if_hasattr()
-        self._edit_preset_wgd = EditPresetWidget(group, preset, parent=self)
+        self._edit_preset_wgd = EditPresetWidget(
+            group, preset, mmcore=self._mmc, parent=self
+        )
         self._edit_preset_wgd.show()
 
     def _save_cfg(self) -> None:

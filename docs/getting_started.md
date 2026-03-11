@@ -4,37 +4,21 @@
 
 ### Installing pymmcore-widgets
 
-You can install the latest release of [pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/) using pip:
+You can install the latest release of [pymmcore-widgets](https://pypi.org/project/pymmcore-widgets/)
+using uv/pip.  Note that you must manually select a Qt backend using an extra:
 
 ```sh
-pip install pymmcore-widgets
-```
-
-### Installing PyQt or PySide
-
-Since [pymmcore-widgets](./index.md) relies on either the
-[PyQt](https://riverbankcomputing.com/software/pyqt/) or
-[PySide](https://www.qt.io/qt-for-python) libraries, you also **need** to
-install one of these packages. You can use any of the available versions of
-these libraries: [PyQt5](https://pypi.org/project/PyQt5/),
-[PyQt6](https://pypi.org/project/PyQt6/),
-[PySide2](https://pypi.org/project/PySide2/) or
-[PySide6](https://pypi.org/project/PySide6/).  We strongly recommend using PyQt6
-if possible.  If you must use a specific backend version and run into problems,
-please open an issue
-
-For example, to install [PyQt6](https://riverbankcomputing.com/software/pyqt/download), you can use:
-
-```sh
-pip install PyQt6
+pip install pymmcore-widgets[PyQt6]
+# or 
+pip install pymmcore-widgets[PySide6]
 ```
 
 !!! Note
     Widgets are tested on:
 
     * macOS & Windows
-    * Python 3.9 and above
-    * PyQt5, PyQt6, PySide2 & PySide6(==6.7)
+    * Python 3.10 and above
+    * PyQt6 & PySide6 (we no longer test PyQt5/PySide2)
 
 ### Installing Micro-Manager
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## [v0.10.1](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.10.1) (2025-07-30)
+
+[Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.10.0...v0.10.1)
+
+**Implemented enhancements:**
+
+- feat: add 2d ConfigPresetsTable [\#449](https://github.com/pymmcore-plus/pymmcore-widgets/pull/449) ([tlambert03](https://github.com/tlambert03))
+- feat: add ConfigGroupsTree [\#448](https://github.com/pymmcore-plus/pymmcore-widgets/pull/448) ([tlambert03](https://github.com/tlambert03))
+- feat: add `QConfigGroupsModel`, a QAbstractItemModel to manage configs and presets [\#447](https://github.com/pymmcore-plus/pymmcore-widgets/pull/447) ([tlambert03](https://github.com/tlambert03))
+- feat: add rectangular and polygon rois to stage explorer [\#431](https://github.com/pymmcore-plus/pymmcore-widgets/pull/431) ([tlambert03](https://github.com/tlambert03))
+
+**Fixed bugs:**
+
+- fix: don't check isinstance in stage controller [\#456](https://github.com/pymmcore-plus/pymmcore-widgets/pull/456) ([tlambert03](https://github.com/tlambert03))
+- fix: fix pyside6 tests [\#455](https://github.com/pymmcore-plus/pymmcore-widgets/pull/455) ([tlambert03](https://github.com/tlambert03))
+- fix: fix prop widgets with no range [\#445](https://github.com/pymmcore-plus/pymmcore-widgets/pull/445) ([tlambert03](https://github.com/tlambert03))
+- fix: increase spin range of StageWidget [\#443](https://github.com/pymmcore-plus/pymmcore-widgets/pull/443) ([fdrgsp](https://github.com/fdrgsp))
+
+**Merged pull requests:**
+
+- refactor: pull in just the model from 451 [\#453](https://github.com/pymmcore-plus/pymmcore-widgets/pull/453) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#452](https://github.com/pymmcore-plus/pymmcore-widgets/pull/452) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- refactor: misc cleanup on stage explorer [\#442](https://github.com/pymmcore-plus/pymmcore-widgets/pull/442) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.10.0](https://github.com/pymmcore-plus/pymmcore-widgets/tree/v0.10.0) (2025-06-10)
 
 [Full Changelog](https://github.com/pymmcore-plus/pymmcore-widgets/compare/v0.9.1...v0.10.0)

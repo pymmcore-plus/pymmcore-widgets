@@ -18,8 +18,10 @@ class TimePlanWidget(DataTableWidget):
     """Table to edit a [useq.TimePlan](https://pymmcore-plus.github.io/useq-schema/schema/axes/#time-plans)."""
 
     PHASE = TextColumn(key="phase", default=None, is_row_selector=True)
-    INTERVAL = TimeDeltaColumn(key="interval", default="1 s")
-    DURATION = TimeDeltaColumn(key="duration", default="0 s")
+    INTERVAL = TimeDeltaColumn(
+        key="interval", default="1 s", minimum_unit="milliseconds"
+    )
+    DURATION = TimeDeltaColumn(key="duration", default="0 s", minimum_unit="seconds")
     LOOPS = IntColumn(key="loops", default=1, minimum=1)
 
     def __init__(self, rows: int = 0, parent: QWidget | None = None):

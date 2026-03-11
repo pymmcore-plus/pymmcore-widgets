@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -586,10 +585,7 @@ class StageExplorerToolbar(QToolBar):
         )
 
 
-SLOTS = {"slots": True} if sys.version_info >= (3, 10) else {}
-
-
-@dataclass(**SLOTS)
+@dataclass(slots=True)
 class AffineState:
     """Cached state for the affine transformation of the stage viewer.
 
@@ -651,7 +647,7 @@ class AffineState:
             S[0, 0] *= -1
         if flip_y:
             S[1, 1] *= -1
-        return R @ S  # type: ignore[no-any-return]
+        return R @ S
 
     def _pixel_config_is_identity(self) -> bool:
         return np.allclose(self.pixel_size_affine, (1.0, 0.0, 0.0, 0.0, 1.0, 0.0))

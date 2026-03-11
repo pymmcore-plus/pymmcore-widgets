@@ -1,3 +1,6 @@
+import math
+
+import numpy as np
 import useq
 from pymmcore_plus import CMMCorePlus
 
@@ -130,7 +133,7 @@ def test_plate_calibration_items(global_mmcore: CMMCorePlus, qtbot) -> None:
 
 
 def test_plate_calibration_well_test(global_mmcore: CMMCorePlus, qtbot) -> None:
-    import math
+    np.random.seed(42)
 
     wdg = PlateCalibrationWidget(mmcore=global_mmcore)
     wdg.show()
@@ -154,7 +157,7 @@ def test_plate_calibration_well_test(global_mmcore: CMMCorePlus, qtbot) -> None:
     r = w * 1000 / 2
     distance_squared = (x - cx) ** 2 + (y - cy) ** 2
     # assert that the current position is on the circumference of the well
-    assert math.isclose(distance_squared, r**2, abs_tol=100)
+    assert math.isclose(distance_squared, r**2, rel_tol=0.0001)
 
     # rectangular plate
     wdg.setValue("384-well")

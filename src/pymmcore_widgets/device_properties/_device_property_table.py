@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from logging import getLogger
 from re import Pattern
-from typing import TYPE_CHECKING, Callable, cast
+from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType
 from pymmcore_plus.model import Setting
@@ -13,17 +13,16 @@ from qtpy.QtWidgets import QAbstractScrollArea, QTableWidget, QTableWidgetItem, 
 from superqt.utils import signals_blocked
 
 from pymmcore_widgets._icons import StandardIcon
-from pymmcore_widgets._util import NoWheelTableWidget
 
 from ._property_widget import PropertyWidget
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
 logger = getLogger(__name__)
 
 
-class DevicePropertyTable(NoWheelTableWidget):
+class DevicePropertyTable(QTableWidget):
     """Table of all currently loaded device properties.
 
     This table is used by `PropertyBrowser` to display all properties in the system,

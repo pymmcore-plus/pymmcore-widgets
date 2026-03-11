@@ -1,118 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from functools import cached_property
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import Any
 from uuid import UUID, uuid4
 
 import numpy as np
 import useq
 import useq._grid
-from pydantic import Field, PrivateAttr
-from shapely import Polygon, box, prepared
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-
-class GridFromPolygon(useq._grid._GridPlan[useq.AbsolutePosition]):
-    vertices: Annotated[
-        list[tuple[float, float]],
-        Field(
-            min_length=3,
-            description="List of points that define the polygon",
-            frozen=True,
-        ),
-    ]
-
-    def num_positions(self) -> int:
-        """Return the number of positions in the grid."""
-        if self.fov_width is None or self.fov_height is None:
-            raise ValueError("fov_width and fov_height must be set")
-        return len(
-            self._cached_tiles(
-                fov=(self.fov_width, self.fov_height), overlap=self.overlap
-            )
-        )
-
-    def iter_grid_positions(
-        self,
-        fov_width: float | None = None,
-        fov_height: float | None = None,
-        *,
-        order: useq.OrderMode | None = None,
-    ) -> Iterator[useq.AbsolutePosition]:
-        """Iterate over all grid positions, given a field of view size."""
-        try:
-            pos = self._cached_tiles(
-                fov=(
-                    fov_width or self.fov_width or 1,
-                    fov_height or self.fov_height or 1,
-                ),
-                overlap=self.overlap,
-                order=order,
-            )
-        except ValueError:
-            pos = []
-        for x, y in pos:
-            yield useq.AbsolutePosition(x=x, y=y)
-
-    @cached_property
-    def poly(self) -> Polygon:
-        """Return the polygon vertices as a list of (x, y) tuples."""
-        return Polygon(self.vertices)
-
-    @cached_property
-    def prepared_poly(self) -> prepared.PreparedGeometry:
-        """Return the prepared polygon for faster intersection tests."""
-        return prepared.prep(self.poly)
-
-    _poly_cache: dict[tuple, list[tuple[float, float]]] = PrivateAttr(
-        default_factory=dict
-    )
-
-    def _cached_tiles(
-        self,
-        *,
-        fov: tuple[float, float],
-        overlap: tuple[float, float],
-        order: useq.OrderMode | None = None,
-    ) -> list[tuple[float, float]]:
-        """Compute an ordered list of (x, y) stage positions that cover the ROI."""
-        # Compute grid spacing and half-extents
-        mode = useq.OrderMode(order) if order is not None else self.mode
-        key = (fov, overlap, mode)
-
-        if key not in self._poly_cache:
-            w, h = fov
-            dx = w * (1 - overlap[0])
-            dy = h * (1 - overlap[1])
-            half_w, half_h = w / 2, h / 2
-
-            # Expand bounds to ensure full coverage
-            minx, miny, maxx, maxy = self.poly.bounds
-            minx -= half_w
-            miny -= half_h
-            maxx += half_w
-            maxy += half_h
-
-            # Determine grid dimensions
-            n_cols = int(np.ceil((maxx - minx) / dx))
-            n_rows = int(np.ceil((maxy - miny) / dy))
-
-            # Generate grid positions
-            positions: list[tuple[float, float]] = []
-            prepared_poly = self.prepared_poly
-
-            for r, c in mode.generate_indices(n_rows, n_cols):
-                x = c + minx + (c + 0.5) * dx + half_w
-                y = maxy - (r + 0.5) * dy - half_h
-                tile = box(x - half_w, y - half_h, x + half_w, y + half_h)
-                if prepared_poly.intersects(tile):
-                    positions.append((x, y))
-
-            self._poly_cache[key] = positions
-        return self._poly_cache[key]
 
 
 @dataclass(eq=False)
@@ -212,8 +106,8 @@ class ROI:
             if type(self) is not RectangleROI:
                 if len(self.vertices) < 3:
                     return None
-                return GridFromPolygon(
-                    vertices=self.vertices,
+                return useq.GridFromPolygon(
+                    vertices=list(self.vertices),
                     fov_width=fov_w,
                     fov_height=fov_h,
                 )

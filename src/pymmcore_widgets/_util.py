@@ -4,22 +4,17 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import useq
 from psygnal import SignalInstance
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QEvent, QMarginsF, QObject, Qt
-from qtpy.QtGui import QPainter, QPaintEvent, QPen, QResizeEvent, QWheelEvent
+from qtpy.QtCore import QMarginsF, QObject, Qt
+from qtpy.QtGui import QPainter, QPaintEvent, QPen, QResizeEvent
 from qtpy.QtWidgets import (
-    QAbstractSlider,
-    QAbstractSpinBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QGraphicsScene,
     QGraphicsView,
     QLabel,
-    QScrollBar,
-    QTableWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -29,41 +24,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from contextlib import AbstractContextManager
     from typing import Any
-
-
-class NoWheelTableWidget(QTableWidget):
-    """QTableWidget that prevents scrolling behavior of child widgets."""
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        if view := self.viewport():
-            view.installEventFilter(self)
-
-    def setCellWidget(self, row: int, column: int, widget: QWidget | None) -> None:
-        if widget is not None:
-            # Note that PySide does not allow a tuple as an arg to findChildren
-            for widget_type in (QAbstractSpinBox, QAbstractSlider, QComboBox):
-                for child in widget.findChildren(widget_type):
-                    child.installEventFilter(self)
-            widget.installEventFilter(self)
-        super().setCellWidget(row, column, widget)
-
-    def eventFilter(self, object: QObject | None, event: QEvent | None) -> bool:
-        # Many "value widgets" (e.g. Combo boxes, sliders) use scroll events to
-        # change their value. The purpose of this widget is to prevent that.
-        # Note that if that widget provides a scrollbar (e.g. the ListView
-        # dropdown of a Combo Box), scroll events going to that scrollbar should
-        # be let through.
-        if isinstance(event, QWheelEvent) and not isinstance(object, QScrollBar):
-            # Scroll the vertical scrollbar manually, to avoid recursion error.
-            if sb := self.verticalScrollBar():
-                delta = event.angleDelta().y()
-                sb.setValue(sb.value() - delta)
-            # Consume the event so child widgets don't process it
-            return True
-
-        # otherwise process normally
-        return False
 
 
 class ComboMessageBox(QDialog):
@@ -142,20 +102,6 @@ def block_core(obj: Any) -> AbstractContextManager:
     if isinstance(obj, SignalInstance):
         return obj.blocked()
     raise TypeError(f"Cannot block signals for {obj}")
-
-
-def cast_grid_plan(
-    grid: dict | useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromEdges,
-) -> useq.GridRowsColumns | useq.GridWidthHeight | useq.GridFromEdges | None:
-    """Get the grid type from the grid_plan."""
-    if not grid or isinstance(grid, useq.RandomPoints):
-        return None
-    if isinstance(grid, dict):
-        _grid = useq.MDASequence(grid_plan=grid).grid_plan
-        if isinstance(_grid, useq.RelativePosition):  # pragma: no cover
-            raise ValueError("Grid plan cannot be a single Relative position.")
-        return None if isinstance(_grid, useq.RandomPoints) else _grid
-    return grid
 
 
 def fov_kwargs(core: CMMCorePlus) -> dict:

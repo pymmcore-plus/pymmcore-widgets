@@ -20,6 +20,7 @@ from superqt import QIconifyIcon
 from pymmcore_widgets._icons import StandardIcon
 from pymmcore_widgets._models import (
     ConfigGroup,
+    DevicePropertySetting,
     QConfigGroupsModel,
     get_config_groups,
     get_loaded_devices,
@@ -201,13 +202,10 @@ class ConfigGroupsEditor(QWidget):
         row = current.row()
         table.selectRow(row) if table.isTransposed() else table.selectColumn(row)
 
-    def _on_prop_selection_changed(self, props: Sequence[tuple[str, str]]) -> None:
-        """Called when the selection in the DevicePropertySelector changes.
-
-        value is a tuple of (device_label, property_name) pairs.
-        We need to update the device properties in the currently selected preset.
-        to match
-        """
+    def _on_prop_selection_changed(
+        self, props: Sequence[DevicePropertySetting]
+    ) -> None:
+        """Called when the selection in the DevicePropertySelector changes."""
         idx = self._group_preset_sel.currentPreset()
         if idx.isValid():
             command = UpdatePresetPropertiesCommand(self._model, idx, props)
@@ -465,7 +463,7 @@ class _ConfigEditorToolbar(QToolBar):
             ),
         )
 
-        @self.set_channel_action.triggered.connect  # type: ignore[misc]
+        @self.set_channel_action.triggered.connect  # type: ignore[untyped-decorator]
         def _on_set_channel_group() -> None:
             current_group = parent._group_preset_sel.currentGroup()
             if current_group.isValid():

@@ -121,6 +121,14 @@ MDA = useq.MDASequence(
     keep_shutter_open_across=("z",),
 )
 
+MDA_CP = useq.MDASequence(
+    time_plan=useq.TIntervalLoops(interval=timedelta(seconds=2), loops=2),
+    stage_positions=[(0, 0), (100, 100)],
+    channels=[{"config": "DAPI", "exposure": 42}, {"config": "FITC", "exposure": 20}],
+    z_plan=useq.ZRangeAround(range=4, step=0.5),
+    axis_order="tcpz",
+)
+
 
 def test_mda_wdg(qtbot: QtBot):
     wdg = MDASequenceWidget()
@@ -132,6 +140,9 @@ def test_mda_wdg(qtbot: QtBot):
 
     wdg.setValue(SUB_SEQ)
     assert wdg.value().replace(metadata={}) == SUB_SEQ
+
+    wdg.setValue(MDA_CP)
+    assert wdg.value().replace(metadata={}) == MDA_CP
 
 
 @pytest.mark.parametrize("ext", ["json", "yaml", "foo"])
@@ -208,7 +219,46 @@ def test_qquant_line_edit(qtbot: QtBot) -> None:
     with qtbot.waitSignal(wdg.editingFinished):
         qtbot.keyPress(wdg, Qt.Key.Key_Enter)
     assert not wdg.hasFocus()
-    assert wdg.text() == "1.0 s"
+    assert wdg.text() == "1 s"
+
+
+def test_qtime_line_edit_formatting(qtbot: QtBot) -> None:
+    """Test that QTimeLineEdit formats time values in human-readable units."""
+    wdg = QTimeLineEdit()
+    qtbot.addWidget(wdg)
+
+    # Test formatting of different time values (using abbreviated humanize output)
+    test_cases = [
+        # (input_seconds, expected_display)
+        (5, "5 s"),  # Integer seconds
+        (5.5, "5.5 s"),  # Decimal seconds
+        (30, "30 s"),  # Seconds under 1 minute
+        (60, "1 min"),  # Exact 1 minute
+        (75, "1 min and 15 s"),  # 1 minute 15 seconds
+        (300, "5 min"),  # Integer minutes
+        (3600, "1 h"),  # Exact 1 hour
+        (3660, "1 h and 1 min"),  # 1 hour 1 minute
+        (7200, "2 h"),  # 2 hours
+        (7320, "2 h and 2 min"),  # 2 hours 2 minutes
+        (86400, "1 d"),  # 1 day
+        (90000, "1 d and 1 h"),  # 1 day + 1 hour
+        (4600, "1 h, 16 min and 40 s"),  # 1 hour 16 minutes 40 seconds
+        ("200 min", "3 h and 20 min"),
+    ]
+
+    for seconds, expected in test_cases:
+        wdg.setValue(seconds)
+        assert wdg.text() == expected, (
+            f"Failed for {seconds}s: got '{wdg.text()}', expected '{expected}'"
+        )
+
+    # Test with timedelta objects
+    wdg.setValue(timedelta(seconds=2990))
+    assert wdg.text() == "49 min and 50 s"
+
+    # Test with string input (should pass though unchanged)
+    wdg.setValue("0 s")
+    assert wdg.text() == "0 s"
 
 
 def test_position_table(qtbot: QtBot):
@@ -418,30 +468,44 @@ def test_grid_plan_widget(qtbot: QtBot) -> None:
     assert isinstance(wdg.value(), useq.GridRowsColumns)
     wdg.setMode("area")
     assert isinstance(wdg.value(), useq.GridWidthHeight)
+    with pytest.raises(ValueError, match="Polygon mode may not be selected"):
+        wdg.setMode("polygon")
 
     plan = useq.GridRowsColumns(rows=3, columns=3, mode="spiral", overlap=10)
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.NUMBER
     assert wdg.value() == plan
+    assert wdg._mode_btn_group.checkedButton().text() == "Fields of View"
 
     plan = useq.GridFromEdges(left=1, right=2, top=3, bottom=4, overlap=10)
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.BOUNDS
     assert wdg.value() == plan
+    assert wdg._mode_btn_group.checkedButton().text() == "Absolute Bounds"
 
     plan = useq.GridWidthHeight(width=1000, height=2000, fov_height=3, fov_width=4)
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.setValue(plan)
     assert wdg.mode() == _grid.Mode.AREA
     assert wdg.value() == plan
+    assert wdg._mode_btn_group.checkedButton().text() == "Width && Height"
 
-    assert wdg._fov_height == 3
+    plan = useq.GridFromPolygon(
+        vertices=[(-4, 0), (5, -5), (5, 9), (0, 10)], fov_height=1, fov_width=1
+    )
+    with qtbot.waitSignal(wdg.valueChanged):
+        wdg.setValue(plan)
+    assert wdg.mode() == _grid.Mode.POLYGON
+    assert wdg.value().model_dump() == plan.model_dump()
+    assert wdg._mode_btn_group.checkedButton().text() == "Polygon"
+
+    assert wdg._fov_height == 1
     wdg.setFovHeight(5)
     assert wdg.fovHeight() == 5
 
-    assert wdg._fov_width == 4
+    assert wdg._fov_width == 1
     wdg.setFovWidth(6)
     assert wdg.fovWidth() == 6
 
@@ -552,3 +616,22 @@ def test_autofocus_with_z_plans(qtbot: QtBot) -> None:
 
     assert wdg.af_axis.isEnabled()
     assert wdg.stage_positions.af_per_position.isEnabled()
+
+
+def test_mda_popup_with_polygon(qtbot: QtBot) -> None:
+    polygon = useq.GridFromPolygon(
+        vertices=[(-10, 0), (12, -5), (10, 20), (0, 10)],
+        fov_height=1,
+        fov_width=1,
+    )
+    seq = useq.MDASequence(channels=["DAPI", "GFP"], grid_plan=polygon)
+    pop = _MDAPopup(seq)
+    qtbot.addWidget(pop)
+
+    assert pop.mda_tabs.isChecked(pop.mda_tabs.channels)
+
+    gp = pop.mda_tabs.grid_plan
+    assert pop.mda_tabs.isChecked(gp)
+    assert gp._mode_btn_group.checkedButton().text() == "Polygon"
+    assert gp.polygon_wdg.scene is not None
+    assert gp.polygon_wdg.scene.items()

@@ -82,7 +82,9 @@ class ChannelWidget(QWidget):
 
     def _create_channel_widget(self, channel_group: str | None) -> None:
         if channel_group:
-            self.channel_wdg = PresetsWidget(channel_group, parent=self)
+            self.channel_wdg = PresetsWidget(
+                channel_group, parent=self, mmcore=self._mmc
+            )
             self._mmc.setChannelGroup(channel_group)
         else:
             self.channel_wdg = QComboBox()

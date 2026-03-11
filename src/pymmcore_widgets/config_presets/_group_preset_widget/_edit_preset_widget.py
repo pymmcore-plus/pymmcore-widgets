@@ -27,11 +27,16 @@ class EditPresetWidget(QDialog):
     """A widget to edit a specified group's presets."""
 
     def __init__(
-        self, group: str, preset: str, *, parent: QWidget | None = None
+        self,
+        group: str,
+        preset: str,
+        *,
+        mmcore: CMMCorePlus | None = None,
+        parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent=parent)
 
-        self._mmc = CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
         self._group = group
         self._preset = preset
 
@@ -154,7 +159,7 @@ class EditPresetWidget(QDialog):
             for k in self._mmc.getConfigData(self._group, self._preset)
         ]
 
-        self.table.populate_table(dev_prop_val)
+        self.table.populate_table(dev_prop_val, mmcore=self._mmc)
 
     def _on_combo_changed(self, preset: str) -> None:
         self._preset = preset

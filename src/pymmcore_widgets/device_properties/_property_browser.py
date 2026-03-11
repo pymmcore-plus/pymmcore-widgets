@@ -27,7 +27,7 @@ class PropertyBrowser(QDialog):
         super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self._prop_table = DevicePropertyTable(mmcore=mmcore)
+        self._prop_table = DevicePropertyTable(mmcore=self._mmc)
         self._device_filters = DeviceTypeFilters()
         self._device_filters.filtersChanged.connect(self._update_filter)
 

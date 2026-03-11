@@ -119,7 +119,9 @@ def get_available_devices(
         dev_names = core.getAvailableDevices(library)
         types = core.getAvailableDeviceTypes(library)
         descriptions = core.getAvailableDeviceDescriptions(library)
-        for dev_name, description, dev_type in zip(dev_names, descriptions, types):
+        for dev_name, description, dev_type in zip(
+            dev_names, descriptions, types, strict=False
+        ):
             if (library, dev_name) not in exclude:
                 yield Device(
                     name=dev_name,

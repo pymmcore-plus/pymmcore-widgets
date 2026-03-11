@@ -23,9 +23,15 @@ from pymmcore_widgets.device_properties._device_type_filter import DeviceTypeFil
 class EditGroupWidget(QDialog):
     """Widget to edit the specified Group."""
 
-    def __init__(self, group: str, *, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        group: str,
+        *,
+        mmcore: CMMCorePlus | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent=parent)
-        self._mmc = CMMCorePlus.instance()
+        self._mmc = mmcore or CMMCorePlus.instance()
 
         self._group = group
 
@@ -88,7 +94,9 @@ class EditGroupWidget(QDialog):
         self._filter_text.setPlaceholderText("Filter by device or property name...")
         self._filter_text.textChanged.connect(self._update_filter)
 
-        self._prop_table = DevicePropertyTable(enable_property_widgets=False)
+        self._prop_table = DevicePropertyTable(
+            mmcore=self._mmc, enable_property_widgets=False
+        )
         self._prop_table.setRowsCheckable(True)
         self._prop_table.checkGroup(self._group)
         self._device_filters = DeviceTypeFilters()

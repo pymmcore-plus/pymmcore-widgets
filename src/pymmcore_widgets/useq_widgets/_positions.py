@@ -42,7 +42,6 @@ class _MDAPopup(QDialog):
         self,
         value: useq.MDASequence | None = None,
         parent: QWidget | None = None,
-        core_connected: bool = False,
     ) -> None:
         from ._mda_sequence import MDATabs
 
@@ -62,11 +61,17 @@ class _MDAPopup(QDialog):
         self.mda_tabs = tab_type(self)
         self.mda_tabs.removeTab(self.mda_tabs.indexOf(self.mda_tabs.stage_positions))
 
-        # use the parent's channel groups if possible
+        # use the parent's channel groups if possible, but only for non-core-connected
+        # channel tables. Core-connected tables manage their own channel groups.
         par = self.parent()
         while par:
             if isinstance(par, MDATabs):
-                self.mda_tabs.channels.setChannelGroups(par.channels.channelGroups())
+                # Only set channel groups if the channel table is not core-connected
+                # Core-connected tables have _mmc attribute and manage their own groups
+                if not hasattr(self.mda_tabs.channels, "_mmc"):
+                    self.mda_tabs.channels.setChannelGroups(
+                        par.channels.channelGroups()
+                    )
                 break
             par = par.parent()
 

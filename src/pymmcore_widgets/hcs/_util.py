@@ -33,7 +33,7 @@ def find_circle_center(
     B = np.sum(points**2, axis=1).reshape(-1, 1)
 
     # Solve the least squares problem
-    params, _residuals, rank, s = np.linalg.lstsq(A, B, rcond=None)
+    params, _residuals, rank, _s = np.linalg.lstsq(A, B, rcond=None)
 
     if rank < 3:  # pragma: no cover
         raise ValueError("The points are collinear or nearly collinear")

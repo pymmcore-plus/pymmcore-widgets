@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import DeviceType
+from qtpy.QtWidgets import QGridLayout
 
-from pymmcore_widgets.control._stage_widget import StageWidget
+from pymmcore_widgets.control._stage_widget import MoveStageButton, StageWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -191,6 +194,13 @@ def test_z_stage_snap_on_click(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None
     with qtbot.waitSignal(global_mmcore.events.imageSnapped):
         z_up_2.widget().click()
 
+    # Assert snap does NOT occur during acquisition
+    global_mmcore.startContinuousSequenceAcquisition(1)
+    with qtbot.assert_not_emitted(global_mmcore.events.imageSnapped):
+        with qtbot.waitSignal(stage_z._stage_controller.moveFinished):
+            z_up_2.widget().click()
+    global_mmcore.stopSequenceAcquisition()
+
     # disconnect
     assert global_mmcore.getFocusDevice() == "Z"
     assert stage_z._set_as_default_btn.isChecked()
@@ -285,3 +295,20 @@ def test_invert_axis(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     z_up_2.widget().click()
 
     assert global_mmcore.getPosition() == 20.0
+
+
+def test_button_paths(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
+    """Tests that Windows paths are never present in stylesheet urls."""
+    stage_xy = StageWidget("Z", levels=1)
+    qtbot.addWidget(stage_xy)
+    btn_grid = stage_xy._move_btns.layout()
+    assert isinstance(btn_grid, QGridLayout)
+    # For each button in the grid...
+    for child in btn_grid.children():
+        if not isinstance(child, MoveStageButton):
+            continue
+        # ...ensure each url...
+        for match in re.finditer(r"(?<=url\().*?(?=\);)", child.styleSheet()):
+            # ...is a valid path without backslashes.
+            assert "\\" not in match.group(0), "Backslashes shouldn't be in stylesheets"
+            assert Path(match.group(0)).is_file(), f"Invalid path: {match.group(0)}"

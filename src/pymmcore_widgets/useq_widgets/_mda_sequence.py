@@ -22,6 +22,7 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 
 import pymmcore_widgets
+from pymmcore_widgets._humanize import humanize_time
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
 from pymmcore_widgets.useq_widgets._checkable_tabwidget_widget import CheckableTabWidget
 from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
@@ -31,18 +32,6 @@ from pymmcore_widgets.useq_widgets._z import Mode, ZPlanWidget
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-
-try:
-    from pint import Quantity
-
-    def _format_duration(duration: float) -> str:
-        d = Quantity(duration, "s").to_compact()
-        return f"{d:.1f~#P}" if d else ""
-
-except ImportError:  # pragma: no cover
-
-    def _format_duration(duration: float) -> str:
-        return f"{duration:.3f} s" if duration else ""
 
 
 def _check_order(x: str, first: str, second: str) -> bool:
@@ -57,7 +46,6 @@ for x in list(ALLOWED_ORDERS):
     for first, second in (
         ("t", "z"),  # t cannot come after z
         ("p", "g"),  # p cannot come after g
-        ("p", "c"),  # p cannot come after c
         ("p", "z"),  # p cannot come after z
         ("g", "z"),  # g cannot come after z
     ):
@@ -597,7 +585,7 @@ class MDASequenceWidget(QWidget):
 
         self._time_warning.setVisible(self._time_estimate.time_interval_exceeded)
 
-        d = _format_duration(self._time_estimate.total_duration)
+        d = humanize_time(self._time_estimate.total_duration)
         d = f"Estimated duration: {d}" if d else ""
         self._duration_label.setText(d)
 

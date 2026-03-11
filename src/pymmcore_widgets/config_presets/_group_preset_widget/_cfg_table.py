@@ -10,6 +10,8 @@ from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from pymmcore_plus import CMMCorePlus
+
 DEV_PROP_ROLE = Qt.ItemDataRole.UserRole + 1
 
 
@@ -29,13 +31,15 @@ class _CfgTable(QTableWidget):
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Device-Property", "Value"])
 
-    def populate_table(self, dev_prop_val: Sequence[Sequence[Any]]) -> None:
+    def populate_table(
+        self, dev_prop_val: Sequence[Sequence[Any]], mmcore: CMMCorePlus | None = None
+    ) -> None:
         self.clearContents()
         self.setRowCount(len(dev_prop_val))
         for idx, (dev, prop, *_) in enumerate(dev_prop_val):
             item = QTableWidgetItem(f"{dev}-{prop}")
             item.setData(DEV_PROP_ROLE, (dev, prop))
-            wdg = PropertyWidget(dev, prop, connect_core=False)
+            wdg = PropertyWidget(dev, prop, connect_core=False, mmcore=mmcore)
             self.setItem(idx, 0, item)
             self.setCellWidget(idx, 1, wdg)
 
