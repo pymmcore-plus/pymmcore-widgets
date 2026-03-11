@@ -20,6 +20,7 @@ from superqt import QIconifyIcon
 from pymmcore_widgets._icons import StandardIcon
 from pymmcore_widgets._models import (
     ConfigGroup,
+    ConfigPreset,
     DevicePropertySetting,
     QConfigGroupsModel,
     get_config_groups,
@@ -248,10 +249,8 @@ class ConfigGroupsEditor(QWidget):
         # Auto-select first group
         if self._model.rowCount():
             idx = self._model.index(0)
-            if hasattr(idx, "internalPointer"):
-                node = idx.internalPointer()
-                if hasattr(node, "name"):
-                    self._group_preset_sel.setCurrentGroup(node.name)
+            if name := idx.data(Qt.ItemDataRole.DisplayRole):
+                self._group_preset_sel.setCurrentGroup(name)
         else:
             self._group_preset_sel.clearSelection()
             # Ensure "add preset" action is disabled when no groups exist
@@ -404,13 +403,13 @@ class ConfigGroupsEditor(QWidget):
                 return
 
             # Determine if it's a group or preset and create appropriate command
-            node = idx.internalPointer()
-            if hasattr(node, "is_group") and node.is_group:
+            payload = idx.data(Qt.ItemDataRole.UserRole)
+            if isinstance(payload, ConfigGroup):
                 command = RemoveGroupCommand(self._model, idx)
-            elif hasattr(node, "is_preset") and node.is_preset:
+            elif isinstance(payload, ConfigPreset):
                 command = RemovePresetCommand(self._model, idx)
             else:
-                return  # Unknown item type
+                return
 
             self._undo_stack.push(command)
 
@@ -418,12 +417,11 @@ class ConfigGroupsEditor(QWidget):
         """Duplicate the currently selected group or preset."""
         idx = self._group_preset_sel._selected_index()
         if idx.isValid():
-            # Determine if it's a group or preset and create appropriate command
-            node = idx.internalPointer()
-            if hasattr(node, "is_group") and node.is_group:
+            payload = idx.data(Qt.ItemDataRole.UserRole)
+            if isinstance(payload, ConfigGroup):
                 command = DuplicateGroupCommand(self._model, idx)
                 self._undo_stack.push(command)
-            elif hasattr(node, "is_preset") and node.is_preset:
+            elif isinstance(payload, ConfigPreset):
                 command = DuplicatePresetCommand(self._model, idx)
                 self._undo_stack.push(command)
 

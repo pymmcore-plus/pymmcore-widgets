@@ -8,7 +8,7 @@ from qtpy.QtCore import QAbstractItemModel, QModelIndex, QObject, Qt
 from qtpy.QtGui import QBrush, QFont, QIcon
 from superqt import QIconifyIcon
 
-from ._base_tree_model import _BaseTreeModel, _Node
+from ._base_tree_model import _BaseTreeModel
 from ._core_functions import get_loaded_devices
 from ._py_config_model import Device, DevicePropertySetting
 
@@ -133,8 +133,9 @@ class QDevicePropertyModel(_BaseTreeModel):
         """Clear model and set new devices."""
         self.beginResetModel()
         self._root.children.clear()
+        self._node_registry.clear()
         for d in devices:
-            self._root.children.append(_Node.create(d, self._root))
+            self._root.children.append(self._create_node(d, self._root))
         self.endResetModel()
 
     def get_devices(self) -> list[Device]:

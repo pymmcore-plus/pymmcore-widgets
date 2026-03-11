@@ -128,7 +128,7 @@ class QConfigGroupsModel(_BaseTreeModel):
         if node is self._root or role != Qt.ItemDataRole.EditRole:
             return False  # pragma: no cover
         if node.is_setting:
-            if 0 > index.column() > 3:
+            if not (0 <= index.column() < 3):
                 return False  # pragma: no cover
             dev, prop, val = cast("DevicePropertySetting", node.payload).as_tuple()
 
@@ -204,7 +204,7 @@ class QConfigGroupsModel(_BaseTreeModel):
         """Return the QModelIndex for the group with the given name."""
         for i, node in enumerate(self._root.children):
             if node.is_group and node.name == group_name:
-                return self.createIndex(i, 0, node)
+                return self.createIndex(i, 0, node._id)
         return QModelIndex()
 
     def index_for_preset(
@@ -222,7 +222,7 @@ class QConfigGroupsModel(_BaseTreeModel):
 
         for i, node in enumerate(group_node.children):
             if node.is_preset and node.name == preset_name:
-                return self.createIndex(i, 0, node)
+                return self.createIndex(i, 0, node._id)
         return QModelIndex()
 
     # group-level -------------------------------------------------------------
@@ -345,11 +345,6 @@ class QConfigGroupsModel(_BaseTreeModel):
 
         self.beginRemoveRows(parent, row, row + count - 1)
 
-        # Keep removed nodes alive until after endRemoveRows() returns.
-        # Views may still hold QModelIndex objects whose internalPointer references
-        # these nodes; if the nodes are garbage-collected, those pointers dangle
-        # and signal handlers triggered by endRemoveRows() will segfault.
-        _removed = parent_node.children[row : row + count]
         del parent_node.children[row : row + count]
 
         # keep the owning dataclass in sync with the new order
@@ -365,7 +360,6 @@ class QConfigGroupsModel(_BaseTreeModel):
             ]
 
         self.endRemoveRows()
-        del _removed  # safe to release now
         return True
 
     # TODO: probably remove the QWidget logic from here
@@ -444,7 +438,7 @@ class QConfigGroupsModel(_BaseTreeModel):
         if n_rows := len(preset.settings):
             self.beginInsertRows(preset_idx, 0, n_rows - 1)
             for s in preset.settings:
-                preset_node.children.append(_Node.create(s, preset_node))
+                preset_node.children.append(self._create_node(s, preset_node))
             self.endInsertRows()
 
     def update_preset_properties(
@@ -506,8 +500,9 @@ class QConfigGroupsModel(_BaseTreeModel):
         """Clear model and set new groups."""
         self.beginResetModel()
         self._root.children.clear()
+        self._node_registry.clear()  # reset invalidates all indices
         for g in groups:
-            self._root.children.append(_Node.create(g, self._root))
+            self._root.children.append(self._create_node(g, self._root))
         self.endResetModel()
 
     def get_groups(self) -> list[ConfigGroup]:
@@ -588,7 +583,9 @@ class QConfigGroupsModel(_BaseTreeModel):
                     )
                     payload.name = unique_name
 
-            parent_node.children.insert(row + i, _Node.create(payload, parent_node))
+            parent_node.children.insert(
+                row + i, self._create_node(payload, parent_node)
+            )
 
         # ---------- keep dataclasses in sync ----------
         if isinstance((grp := parent_node.payload), ConfigGroup):
