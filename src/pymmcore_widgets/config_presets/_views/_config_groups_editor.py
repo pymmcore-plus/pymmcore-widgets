@@ -544,7 +544,7 @@ class _ConfigEditorToolbar(QToolBar):
             self.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
             self.addAction(self.redo_action)
 
-        self.addAction("Show Undo/Redo History...", parent._show_undo_view)
+        # self.addAction("Show Undo/Redo History...", parent._show_undo_view)
         self.addSeparator()
         self.set_channel_action = cast(
             "QAction",

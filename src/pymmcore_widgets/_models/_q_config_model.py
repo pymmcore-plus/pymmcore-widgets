@@ -345,7 +345,11 @@ class QConfigGroupsModel(_BaseTreeModel):
 
         self.beginRemoveRows(parent, row, row + count - 1)
 
-        # drop the slice from the tree
+        # Keep removed nodes alive until after endRemoveRows() returns.
+        # Views may still hold QModelIndex objects whose internalPointer references
+        # these nodes; if the nodes are garbage-collected, those pointers dangle
+        # and signal handlers triggered by endRemoveRows() will segfault.
+        _removed = parent_node.children[row : row + count]
         del parent_node.children[row : row + count]
 
         # keep the owning dataclass in sync with the new order
@@ -361,6 +365,7 @@ class QConfigGroupsModel(_BaseTreeModel):
             ]
 
         self.endRemoveRows()
+        del _removed  # safe to release now
         return True
 
     # TODO: probably remove the QWidget logic from here
