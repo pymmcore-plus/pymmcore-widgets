@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import pytest
@@ -11,14 +12,40 @@ from useq import MDAEvent, MDASequence
 from vispy.app.canvas import MouseEvent
 from vispy.scene.events import SceneMouseEvent
 
-from pymmcore_widgets.experimental import StackViewer
-from pymmcore_widgets.views._stack_viewer import CMAPS
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    from pymmcore_widgets.experimental import StackViewer
+    from pymmcore_widgets.views._stack_viewer import CMAPS
+    from pymmcore_widgets.views._stack_viewer._datastore import QOMEZarrDatastore
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 if reason := StackViewer._unsupported_reason():
     pytest.skip(reason, allow_module_level=True)
+
+
+def test_reception(qtbot) -> None:
+    mmcore = CMMCorePlus.instance()
+
+    seq = MDASequence(
+        channels=[{"config": "DAPI", "exposure": 10}],
+        time_plan={"interval": 0.3, "loops": 3},
+    )
+
+    datastore = QOMEZarrDatastore()
+    mmcore.mda.events.frameReady.connect(datastore.frameReady)
+    mmcore.mda.events.sequenceFinished.connect(datastore.sequenceFinished)
+    mmcore.mda.events.sequenceStarted.connect(datastore.sequenceStarted)
+
+    with qtbot.waitSignal(datastore.frame_ready, timeout=5000):
+        mmcore.run_mda(seq, block=False)
+    with qtbot.waitSignal(datastore.frame_ready, timeout=5000):
+        pass
+
+    assert datastore.get_frame(MDAEvent(index={"c": 0, "t": 0})).flatten()[0] != 0
+    qtbot.wait(1000)
+
 
 sequence = MDASequence(
     channels=[{"config": "DAPI", "exposure": 10}, {"config": "FITC", "exposure": 10}],
