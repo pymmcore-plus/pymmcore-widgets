@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock, call, patch
 
 import pytest
-from qtpy.QtWidgets import QApplication, QDialog
+from qtpy.QtWidgets import QDialog
 
 from pymmcore_widgets._util import ComboMessageBox
 from pymmcore_widgets.control._objective_widget import ObjectivesWidget
@@ -20,10 +20,6 @@ def test_objective_widget_changes_objective(global_mmcore: CMMCorePlus, qtbot: Q
 
     start_z = 100.0
     global_mmcore.setPosition("Z", start_z)
-    # Flush any pending async signals before connecting the mock
-    QApplication.processEvents()
-    stage_mock = Mock()
-    obj_wdg._mmc.events.stagePositionChanged.connect(stage_mock)
 
     px_size_mock = Mock()
     obj_wdg._mmc.events.pixelSizeChanged.connect(px_size_mock)
@@ -35,20 +31,24 @@ def test_objective_widget_changes_objective(global_mmcore: CMMCorePlus, qtbot: Q
     assert global_mmcore.getCurrentPixelSizeConfig() == "Res10x"
 
     new_val = "Nikon 40X Plan Fluor ELWD"
-    obj_wdg._combo.setCurrentText(new_val)
 
-    # signals are now delivered asynchronously via the Qt event loop
-    qtbot.waitUntil(
-        lambda: stage_mock.call_count >= 2 and px_size_mock.call_count >= 1,
-        timeout=2000,
-    )
+    # Track setPosition calls synchronously via wrapping instead of relying on
+    # stagePositionChanged signals, which are emitted from short-lived C++
+    # background threads and suffer unreliable cross-thread Qt event delivery.
+    with patch.object(
+        global_mmcore, "setPosition", wraps=global_mmcore.setPosition
+    ) as sp_mock:
+        obj_wdg._combo.setCurrentText(new_val)
 
+    # The hooks call setPosition synchronously: Z drops to 0, then restores.
+    sp_mock.assert_has_calls([call("Z", 0), call("Z", start_z)])
+
+    # pixelSizeChanged is emitted synchronously from the main thread
     px_size_mock.assert_has_calls([call(0.25)])
-    stage_mock.assert_has_calls([call("Z", 0), call("Z", start_z)])
-    assert obj_wdg._combo.currentText() == new_val
+
+    qtbot.waitUntil(lambda: obj_wdg._combo.currentText() == new_val)
     assert global_mmcore.getStateLabel(obj_wdg._objective_device) == new_val
     assert global_mmcore.getCurrentPixelSizeConfig() == "Res40x"
-
     assert global_mmcore.getPosition("Z") == start_z
 
 
