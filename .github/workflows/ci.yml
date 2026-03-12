@@ -35,6 +35,7 @@ jobs:
         python-version: ["3.10", "3.14"]
         backend: [PySide6, PyQt6]
         resolution: ["highest", "lowest-direct"]
+        nano: [false]
         exclude:
           - os: macos-latest
             resolution: lowest-direct
@@ -46,8 +47,16 @@ jobs:
             python-version: "3.12"
             backend: PyQt6
           - os: windows-latest
+            python-version: "3.12"
+            backend: PyQt6
+          - os: windows-latest
             python-version: "3.13"
             backend: PyQt6
+            nano: true
+          - os: macos-latest
+            python-version: "3.13"
+            backend: PySide6
+            nano: true
 
     steps:
       - uses: actions/checkout@v6
@@ -57,11 +66,17 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
 
-      - uses: pymmcore-plus/setup-mm-test-adapters@main
       - uses: pyvista/setup-headless-display-action@v4
 
       - name: Install dependencies
         run: uv sync --no-dev --group test --extra ${{ matrix.backend }}
+
+      - if: matrix.nano == 'true'
+        run: |
+          uv pip uninstall pymmcore
+          uv pip install pymmcore-nano
+
+      - uses: pymmcore-plus/setup-mm-test-adapters@main
 
       - name: Test
         run: uv run coverage run -p -m pytest -v --color=yes
@@ -109,16 +124,7 @@ jobs:
           uv sync
           uv pip install ./pymmcore-widgets
 
-      - name: Get pymmcore version (env)
-        shell: bash
-        run: |
-          ver=$(uv run python -c 'from pymmcore_plus import _pymmcore;print(_pymmcore.version_info.device_interface)')
-          echo "PYMM_VERSION=$ver" >> $GITHUB_ENV
-
-      - name: Setup MM test adapters
-        uses: pymmcore-plus/setup-mm-test-adapters@main
-        with:
-          version: ${{ env.PYMM_VERSION }}
+      - uses: pymmcore-plus/setup-mm-test-adapters@main
 
       - name: Run pymmcore-gui tests
         run: uv run pytest -v --color=yes -W ignore
@@ -142,7 +148,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - uses: pymmcore-plus/setup-mm-test-adapters@main
       - uses: pyvista/setup-headless-display-action@v4
 
       - name: Install dependencies
@@ -150,6 +155,8 @@ jobs:
           python -m pip install -U pip
           python -m pip install -e ./pymmcore-widgets[PyQt6]
           python -m pip install -e ./napari-micromanager[test]
+
+      - uses: pymmcore-plus/setup-mm-test-adapters@main
 
       - name: Run napari-micromanager tests
         run: python -m pytest -v --color=yes -W ignore
