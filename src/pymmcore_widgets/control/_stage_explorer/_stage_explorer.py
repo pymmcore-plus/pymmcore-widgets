@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import useq
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import QSize, Qt, QThread, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QLabel,
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from PyQt6.QtGui import QAction, QActionGroup, QKeyEvent
-    from qtpy.QtCore import QTimerEvent
+    from qtpy.QtGui import QCloseEvent
     from vispy.app.canvas import MouseEvent
 
     from ._stage_viewer import VisualNode
@@ -40,6 +40,42 @@ else:
 
 # suppress scientific notation when printing numpy arrays
 np.set_printoptions(suppress=True)
+
+STAGE_POLL_INTERVAL_MS = 100
+STAGE_POS_TOLERANCE_UM_SQ = 0.01  # 0.1 µm squared
+
+
+class _StagePoller(QThread):
+    """Background thread that polls the XY stage position."""
+
+    positionChanged = Signal(float, float)
+
+    def __init__(self, mmc: CMMCorePlus, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._mmc = mmc
+
+    def run(self) -> None:
+        """Poll the stage position.
+
+        If the stage position has changed by more than the tolerance since the last
+        poll, emit the positionChanged signal with the new stage position.
+        """
+        last: tuple[float, float] | None = None
+        while not self.isInterruptionRequested():
+            if self._mmc.getXYStageDevice():
+                x, y = self._mmc.getXYPosition()
+                if last is not None:
+                    dx, dy = x - last[0], y - last[1]
+                    if dx * dx + dy * dy < STAGE_POS_TOLERANCE_UM_SQ:
+                        self.msleep(STAGE_POLL_INTERVAL_MS)
+                        continue
+                last = (x, y)
+                self.positionChanged.emit(x, y)
+            self.msleep(STAGE_POLL_INTERVAL_MS)
+
+    def stop(self) -> None:
+        self.requestInterruption()
+        self.wait()
 
 
 # this might belong in _stage_position_marker.py
@@ -150,8 +186,9 @@ class StageExplorer(QWidget):
         self._poll_stage_position: bool = True
         self._our_mda_running: bool = False
 
-        # timer for polling stage position
-        self._timer_id: int | None = None
+        # background thread for polling stage position
+        self._stage_poller = _StagePoller(self._mmc)
+        self._stage_poller.positionChanged.connect(self._on_stage_position_polled)
 
         # marker for stage position
         w, h = self._mmc.getImageWidth(), self._mmc.getImageHeight()
@@ -217,6 +254,17 @@ class StageExplorer(QWidget):
         self._toolbar.snap_action.setChecked(self._snap_on_double_click)
         self._toolbar.poll_stage_action.trigger()
         self.zoom_to_fit()
+
+    def closeEvent(self, a0: QCloseEvent | None) -> None:
+        self._stop_poller()
+        super().closeEvent(a0)
+
+    def __del__(self) -> None:
+        self._stop_poller()
+
+    def _stop_poller(self) -> None:
+        if self._stage_poller.isRunning():
+            self._stage_poller.stop()
 
     # -----------------------------PUBLIC METHODS-------------------------------------
 
@@ -432,23 +480,16 @@ class StageExplorer(QWidget):
         self._stage_pos_marker.visible = checked
         self._poll_stage_position = checked
         if checked:
-            self._timer_id = self.startTimer(20)
-        elif self._timer_id is not None:
-            self.killTimer(self._timer_id)
-            self._timer_id = None
+            self._stage_poller.start()
+        else:
+            self._stage_poller.stop()
 
     def _on_show_grid_action(self, checked: bool) -> None:
         """Set the show grid property based on the state of the action."""
         self._stage_viewer.set_grid_visible(checked)
 
-    def timerEvent(self, event: QTimerEvent | None) -> None:
-        """Poll the stage position."""
-        if not self._mmc.getXYStageDevice():
-            self._stage_pos_label.setText("No XY stage device")
-            return
-
-        # update the stage position label
-        stage_x, stage_y = self._mmc.getXYPosition()
+    def _on_stage_position_polled(self, stage_x: float, stage_y: float) -> None:
+        """Update the marker and label with the polled stage position."""
         self._stage_pos_label.setText(f"X: {stage_x:.2f} µm  Y: {stage_y:.2f} µm")
 
         # fast path: copy cached rotation/scale part and just update translation
@@ -456,7 +497,6 @@ class StageExplorer(QWidget):
         self._stage_pos_marker.apply_transform(matrix.T)
 
         # zoom_to_fit only if auto _auto_zoom_to_fit property is set to True.
-        # NOTE: this could be slightly annoying...  might need a sub-option?
         if self._auto_zoom_to_fit:
             self.zoom_to_fit()
 

@@ -138,9 +138,9 @@ def test_stage_explorer_position_indicator(qtbot: QtBot) -> None:
 
     poll_action = explorer._toolbar.poll_stage_action
     assert explorer._poll_stage_position is True
-    assert explorer._timer_id is not None
+    assert explorer._stage_poller.isRunning()
 
-    # wait for timerEvent to be triggered
+    # wait for the poller to emit at least once
     qtbot.waitUntil(lambda: explorer._stage_pos_marker is not None, timeout=1000)
     assert explorer._stage_pos_marker is not None
     assert explorer._stage_pos_marker.visible
@@ -149,7 +149,7 @@ def test_stage_explorer_position_indicator(qtbot: QtBot) -> None:
         poll_action.trigger()
 
     assert explorer._poll_stage_position is False
-    assert explorer._timer_id is None
+    assert not explorer._stage_poller.isRunning()
 
 
 def test_mouse_hover_shows_position(qtbot: QtBot) -> None:
