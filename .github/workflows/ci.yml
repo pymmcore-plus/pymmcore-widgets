@@ -72,6 +72,7 @@ jobs:
         run: uv sync --no-dev --group test --extra ${{ matrix.backend }}
 
       - if: matrix.nano == 'true'
+        name: Install pymmcore-nano
         run: |
           uv pip uninstall pymmcore
           uv pip install pymmcore-nano
@@ -86,7 +87,7 @@ jobs:
       - name: Upload coverage
         uses: actions/upload-artifact@v6
         with:
-          name: covreport-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.backend }}-${{ matrix.resolution }}${{ matrix.nano && '-nano' || '' }}
+          name: covreport-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.backend }}-${{ matrix.resolution }}-${{ matrix.nano && 'nano' || 'standard' }}
           path: ./.coverage*
           include-hidden-files: true
 
