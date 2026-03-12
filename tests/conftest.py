@@ -104,9 +104,10 @@ def assert_max_instance_depth(
 
 # to create a new CMMCorePlus() for every test
 @pytest.fixture(autouse=True)
-def global_mmcore() -> Iterator[CMMCorePlus]:
+def global_mmcore(qapp: QApplication) -> Iterator[CMMCorePlus]:
     mmc = CMMCorePlus()
     mmc.loadSystemConfiguration(TEST_CONFIG)
+    qapp.processEvents()
 
     global _fixed_instance
     _fixed_instance = mmc
@@ -117,6 +118,7 @@ def global_mmcore() -> Iterator[CMMCorePlus]:
     # FIXME: would be better if this wasn't needed, or was fixed upstream
     DeviceAccumulator._CACHE.clear()
     mmc.unloadAllDevices()
+    qapp.processEvents()
 
     # This is a VERY strict test, which can be used to ensure that the test using
     # this fixture always passes through the mmcore instance to all created subwidgets.

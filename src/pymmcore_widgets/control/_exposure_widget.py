@@ -171,4 +171,4 @@ if __name__ == "__main__":  # pragma: no cover
     app = QApplication(sys.argv)
     win = DefaultCameraExposureWidget()
     win.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

@@ -65,7 +65,7 @@ def test_well_calibration_widget_modes(
         # set the mode
         combo.setCurrentIndex(idx)
         # get the number of rows
-        assert wdg._table.rowCount() == mode.points
+        qtbot.waitUntil(lambda _m=mode: wdg._table.rowCount() == _m.points)
 
 
 def test_well_calibration_widget_positions(
@@ -98,7 +98,7 @@ def test_well_calibration_widget_positions(
 
     # set 3 points mode
     wdg._calibration_mode_wdg.setCurrentIndex(1)
-    assert wdg._table.rowCount() == 3
+    qtbot.waitUntil(lambda: wdg._table.rowCount() == 3)
     assert not list(wdg._table.positions())
 
     # icon should be yellow since we changed the mode
@@ -145,6 +145,7 @@ def test_well_calibration_widget_clear(
 
     wdg.setCircularWell(True)
     wdg._calibration_mode_wdg.setCurrentIndex(1)
+    qtbot.waitUntil(lambda: wdg._table.rowCount() == 3)
 
     values = [(0, 0), (10, 10), (10, -10)]
     for r in range(3):

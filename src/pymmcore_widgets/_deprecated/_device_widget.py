@@ -143,6 +143,7 @@ class StateDeviceWidget(DeviceWidget):
 
         self._combo = QComboBox()
         self._combo.currentIndexChanged.connect(self._on_combo_changed)
+        self._changing = False
         self._refresh_choices()
         self._combo.setCurrentText(self._mmc.getStateLabel(self._device_label))
 
@@ -175,12 +176,18 @@ class StateDeviceWidget(DeviceWidget):
 
     def _on_combo_changed(self, index: int) -> None:
         """Update core state when the combobox changes."""
-        self._pre_change_hook()
-        self._mmc.setState(self._device_label, index)
-        self._post_change_hook()
+        self._changing = True
+        try:
+            self._pre_change_hook()
+            self._mmc.setState(self._device_label, index)
+            self._post_change_hook()
+        finally:
+            self._changing = False
 
     def _on_prop_change(self, dev_label: str, prop: str, value: Any) -> None:
         """Update the combobox when the state changes."""
+        if self._changing:
+            return
         if dev_label == self._device_label and prop == LABEL:
             with signals_blocked(self._combo):
                 self._combo.setCurrentText(value)

@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from psygnal import SignalInstance
+from psygnal import SignalGroup, SignalInstance
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import QMarginsF, QObject, Qt
 from qtpy.QtGui import QPainter, QPaintEvent, QPen, QResizeEvent
@@ -71,7 +71,7 @@ def guess_channel_group(
         return candidates[0]
     elif candidates:
         dialog = ComboMessageBox(candidates, "Select Channel Group:", parent=parent)
-        if dialog.exec_() == dialog.DialogCode.Accepted:
+        if dialog.exec() == dialog.DialogCode.Accepted:
             return dialog.currentText()
     return None
 
@@ -90,7 +90,7 @@ def guess_objective_or_prompt(
         return candidates[0]
     elif candidates:
         dialog = ComboMessageBox(candidates, "Select Objective Device:", parent=parent)
-        if dialog.exec_() == dialog.DialogCode.Accepted:
+        if dialog.exec() == dialog.DialogCode.Accepted:
             return dialog.currentText()
     return None
 
@@ -99,8 +99,9 @@ def block_core(obj: Any) -> AbstractContextManager:
     """Block core signals."""
     if isinstance(obj, QObject):
         return signals_blocked(obj)  # type: ignore [no-any-return]
-    if isinstance(obj, SignalInstance):
-        return obj.blocked()
+    if isinstance(obj, (SignalInstance, SignalGroup)):
+        # (error in psygnal stubs)
+        return obj.blocked()  # type: ignore [return-value]
     raise TypeError(f"Cannot block signals for {obj}")
 
 
