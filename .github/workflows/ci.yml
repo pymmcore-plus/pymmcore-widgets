@@ -47,9 +47,6 @@ jobs:
             python-version: "3.12"
             backend: PyQt6
           - os: windows-latest
-            python-version: "3.12"
-            backend: PyQt6
-          - os: windows-latest
             python-version: "3.13"
             backend: PyQt6
             nano: true
