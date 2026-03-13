@@ -346,11 +346,7 @@ class ConfigGroupsEditor(QWidget):
             for s in settings:
                 if s.key() not in seen:
                     seen.add(s.key())
-                    unique.append(
-                        DevicePropertySetting(
-                            device=s.device_label, property_name=s.property_name
-                        )
-                    )
+                    unique.append(s)
             selector.setCheckedProperties(unique)
 
         mode_group.buttonToggled.connect(lambda *_: _update_checked())
@@ -378,19 +374,18 @@ class ConfigGroupsEditor(QWidget):
             return
 
         selected = selector.checkedProperties()
-        selected_keys = {s.key() for s in selected}
 
         if preset_radio.isChecked() and current_preset.isValid():
             # Update only the current preset
             self._undo_stack.beginMacro("Update Preset Properties")
-            self._model.update_preset_properties(current_preset, selected_keys)
+            self._model.update_preset_properties(current_preset, selected)
             self._undo_stack.endMacro()
         else:
             # Update all presets in the group
             self._undo_stack.beginMacro("Update Group Properties")
             for i in range(self._model.rowCount(current_group)):
                 preset_idx = self._model.index(i, 0, current_group)
-                self._model.update_preset_properties(preset_idx, selected_keys)
+                self._model.update_preset_properties(preset_idx, selected)
             self._undo_stack.endMacro()
 
     def _add_group(self) -> None:

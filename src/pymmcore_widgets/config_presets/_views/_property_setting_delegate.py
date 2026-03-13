@@ -36,7 +36,14 @@ class PropertySettingDelegate(QStyledItemDelegate):
             and editor
             and hasattr(editor, "setValue")
         ):
-            editor.setValue(setting.value)
+            # Block signals: Qt calls setEditorData before registering the editor
+            # in its internal hash, so any valueChanged → commitData emission
+            # would warn "editor does not belong to this view".
+            editor.blockSignals(True)
+            try:
+                editor.setValue(setting.value)
+            finally:
+                editor.blockSignals(False)
         else:  # pragma: no cover
             super().setEditorData(editor, index)
 

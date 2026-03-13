@@ -314,8 +314,10 @@ class StringLineEdit(QLineEdit):
 
     def setValue(self, value: str) -> None:
         """Set the value."""
-        self.setText(str(value))
-        self.valueChanged.emit(self.text())
+        text = str(value)
+        if text != self.text():
+            self.setText(text)
+            self.valueChanged.emit(text)
 
     def value(self) -> str:
         """Get the value."""

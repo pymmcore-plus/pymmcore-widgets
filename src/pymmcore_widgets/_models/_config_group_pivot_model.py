@@ -69,29 +69,14 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         if (row, col) not in self._data:
             return False  # pragma: no cover
 
-        # Get the preset and device/property for this cell
+        # Update value on the existing setting (preserves metadata like
+        # allowed_values, property_type, limits, etc.)
         preset = self._presets[col]
-        dev_prop = self._rows[row]
-        # Create or update the setting
-        # Update our local data
-        self._data[(row, col)] = setting = DevicePropertySetting(
-            device=dev_prop[0], property_name=dev_prop[1], value=str(value)
-        )
+        setting = self._data[(row, col)]
+        setting.value = str(value)
 
         # Update the preset's settings list
         preset_settings = list(preset.settings)
-
-        # Find existing setting or add new one
-        for i, existing_setting in enumerate(preset_settings):
-            existing_key = (
-                existing_setting.device_label,
-                existing_setting.property_name,
-            )
-            if existing_key == dev_prop:
-                preset_settings[i] = setting
-                break
-        else:
-            preset_settings.append(setting)
 
         # Find the preset index in the source model and update it
         preset_idx = self._src.index_for_preset(self._gidx, preset.name)
@@ -129,6 +114,16 @@ class ConfigGroupPivotModel(QAbstractTableModel):
                             break
         finally:
             self.endResetModel()
+
+    def _empty_setting_for_row(self, row: int) -> DevicePropertySetting:
+        """Create an empty setting for the given row, preserving metadata."""
+        # Try to copy metadata from an existing setting in another column
+        for col in range(len(self._presets)):
+            if (row, col) in self._data:
+                src = self._data[(row, col)]
+                return src.model_copy(update={"value": src.default_value})
+        dev, prop = self._rows[row]
+        return DevicePropertySetting(device=dev, property_name=prop)
 
     # --------------------------------------------------------- Qt overrides --
 
@@ -201,8 +196,7 @@ class ConfigGroupPivotModel(QAbstractTableModel):
             return False  # pragma: no cover
 
         preset = self._presets[col]
-        dev, prop = self._rows[row]
-        new_setting = DevicePropertySetting(device=dev, property_name=prop)
+        new_setting = self._empty_setting_for_row(row)
 
         preset_settings = list(preset.settings)
         preset_settings.append(new_setting)

@@ -130,21 +130,27 @@ class QConfigGroupsModel(_BaseTreeModel):
         if node.is_setting:
             if not (0 <= index.column() < 3):
                 return False  # pragma: no cover
-            dev, prop, val = cast("DevicePropertySetting", node.payload).as_tuple()
-
-            # update node in place  # FIXME ... this is hacky
-            args = [dev, prop, val]
-            args[index.column()] = str(value)
-            node.name = f"{args[0]}-{args[1]}"
-            node.payload = new_setting = DevicePropertySetting(
-                device=args[0], property_name=args[1], value=args[2]
-            )
+            setting = cast("DevicePropertySetting", node.payload)
+            old_key = setting.key()
+            col = index.column()
+            if col == Col.Value:
+                setting.value = str(value)
+            else:
+                # Device or property name changed — need a new setting object
+                dev, prop, val = setting.as_tuple()
+                args = [dev, prop, val]
+                args[col] = str(value)
+                setting = DevicePropertySetting(
+                    device=args[0], property_name=args[1], value=args[2]
+                )
+                node.payload = setting
+                node.name = f"{args[0]}-{args[1]}"
 
             # also update the parent preset.settings list reference
             parent_preset = cast("ConfigPreset", node.parent.payload)  # type: ignore
             for i, s in enumerate(parent_preset.settings):
-                if s.as_tuple()[0:2] == (dev, prop):
-                    parent_preset.settings[i] = new_setting
+                if s.key() == old_key:
+                    parent_preset.settings[i] = setting
                     break
         else:
             new_name = str(value).strip()
@@ -441,34 +447,33 @@ class QConfigGroupsModel(_BaseTreeModel):
             self.endInsertRows()
 
     def update_preset_properties(
-        self, preset_idx: QModelIndex, settings: Iterable[tuple[str, str]]
+        self,
+        preset_idx: QModelIndex,
+        settings: Iterable[DevicePropertySetting],
     ) -> None:
-        """Update the preset to only include properties that match the given keys.
+        """Update the preset to only include the given properties.
 
-        Missing properties will be added as placeholder settings with empty values.
+        Existing settings already in the preset are kept as-is. New settings
+        are added using metadata from the provided DevicePropertySetting objects.
         """
         preset_node = self._node_from_index(preset_idx)
         if not isinstance((preset := preset_node.payload), ConfigPreset):
             warnings.warn("Reference index is not a ConfigPreset.", stacklevel=2)
             return
 
-        setting_keys = set(settings)
+        templates = {s.key(): s for s in settings}
+        existing = {s.key(): s for s in preset.settings}
 
-        # Create a dict of existing settings keyed by (device, property_name)
-        existing_settings = {s.key(): s for s in preset.settings}
-
-        # Build the final list of settings
-        final_settings = []
-
-        for key in setting_keys:
-            if key in existing_settings:
-                final_settings.append(existing_settings[key])
+        final_settings: list[DevicePropertySetting] = []
+        for key in templates:
+            if key in existing:
+                final_settings.append(existing[key])
             else:
+                tmpl = templates[key]
                 final_settings.append(
-                    DevicePropertySetting(device=key[0], property_name=key[1])
+                    tmpl.model_copy(update={"value": tmpl.default_value})
                 )
 
-        # Use the existing method to update the preset with the final settings
         self.update_preset_settings(preset_idx, final_settings)
 
     # name uniqueness ---------------------------------------------------------

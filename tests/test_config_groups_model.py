@@ -251,7 +251,6 @@ def test_update_preset_properties(model: QConfigGroupsModel, qtbot: QtBot) -> No
     original_settings_count = len(preset0.settings)
     assert original_settings_count > 1
 
-    # Get the first two existing settings as (device, property_name) tuples
     existing_setting1 = preset0.settings[0]
     existing_setting2 = preset0.settings[1]
     existing_key1 = existing_setting1.key()
@@ -260,12 +259,8 @@ def test_update_preset_properties(model: QConfigGroupsModel, qtbot: QtBot) -> No
     grp0_index = model.index(0, 0)
     preset0_index = model.index(0, 0, grp0_index)
 
-    # Test updating with a mix of existing and new properties
-    new_properties = [
-        existing_key1,  # Keep existing setting
-        existing_key2,  # Keep another existing setting
-        ("NewDevice", "NewProperty"),  # Add new placeholder setting
-    ]
+    new_setting = DevicePropertySetting(device="NewDevice", property_name="NewProp")
+    new_properties = [existing_setting1, existing_setting2, new_setting]
 
     model.update_preset_properties(preset0_index, new_properties)
 
@@ -280,16 +275,16 @@ def test_update_preset_properties(model: QConfigGroupsModel, qtbot: QtBot) -> No
     settings_by_key = {s.key(): s for s in preset0_new.settings}
     assert existing_key1 in settings_by_key
     assert existing_key2 in settings_by_key
-    assert ("NewDevice", "NewProperty") in settings_by_key
+    assert ("NewDevice", "NewProp") in settings_by_key
 
     # Verify existing settings kept their values
     assert settings_by_key[existing_key1].value == existing_setting1.value
     assert settings_by_key[existing_key2].value == existing_setting2.value
 
     # Verify new setting has empty value
-    assert settings_by_key[("NewDevice", "NewProperty")].value == ""
-    assert settings_by_key[("NewDevice", "NewProperty")].device_label == "NewDevice"
-    assert settings_by_key[("NewDevice", "NewProperty")].property_name == "NewProperty"
+    assert settings_by_key[("NewDevice", "NewProp")].value == ""
+    assert settings_by_key[("NewDevice", "NewProp")].device_label == "NewDevice"
+    assert settings_by_key[("NewDevice", "NewProp")].property_name == "NewProp"
 
     # Test with invalid index
     with pytest.warns(UserWarning, match="Reference index is not a ConfigPreset."):

@@ -310,16 +310,13 @@ class ConfigPresetsTableView(QTableView):
         if self._undo_stack is not None:
             from copy import deepcopy
 
-            from pymmcore_widgets._models import DevicePropertySetting
-
             from ._undo_commands import UpdatePresetSettingsCommand
 
             preset = src_idx.data(Qt.ItemDataRole.UserRole)
             if preset is None:
                 return
-            dev, prop = pivot._rows[p_row]
             new_settings = list(deepcopy(preset.settings))
-            new_settings.append(DevicePropertySetting(device=dev, property_name=prop))
+            new_settings.append(pivot._empty_setting_for_row(p_row))
             cmd = UpdatePresetSettingsCommand(self.sourceModel(), src_idx, new_settings)
             self._undo_stack.push(cmd)
         else:
