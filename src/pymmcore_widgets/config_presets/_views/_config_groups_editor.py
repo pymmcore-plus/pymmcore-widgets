@@ -43,6 +43,7 @@ from ._undo_commands import (
     RemovePresetCommand,
     SetChannelGroupCommand,
     UpdatePresetPropertiesCommand,
+    _ModelCommand,
 )
 
 if TYPE_CHECKING:
@@ -111,6 +112,7 @@ class ConfigGroupsEditor(QWidget):
         self._model = QConfigGroupsModel()
         self._undo_stack = QUndoStack(self)
         self._syncing_selection = False
+        self._prev_undo_index = 0
 
         # widgets -------------------------------------------------------------
 
@@ -176,6 +178,7 @@ class ConfigGroupsEditor(QWidget):
         self._model.dataChanged.connect(self._on_model_data_changed)
         self._model.rowsInserted.connect(self._on_model_structure_changed)
         self._model.rowsRemoved.connect(self._on_model_structure_changed)
+        self._undo_stack.indexChanged.connect(self._on_undo_index_changed)
 
         # Sync table selection back to preset list
         if model := self._preset_table.view.selectionModel():
@@ -301,14 +304,10 @@ class ConfigGroupsEditor(QWidget):
                 self._syncing_selection = False
 
     def _add_preset_to_current_group(self) -> None:
-        """Add a new preset to the currently selected group and select it."""
+        """Add a new preset to the currently selected group."""
         current_group = self._group_preset_sel.currentGroup()
         if current_group.isValid():
-            command = AddPresetCommand(self._model, current_group)
-            self._undo_stack.push(command)
-            if command._preset_index and command._preset_index.isValid():
-                idx = QModelIndex(command._preset_index)
-                self._group_preset_sel.preset_list.setCurrentIndex(idx)
+            self._undo_stack.push(AddPresetCommand(self._model, current_group))
 
     def _edit_group_properties(self) -> None:
         """Edit properties for the group or current preset."""
@@ -409,12 +408,8 @@ class ConfigGroupsEditor(QWidget):
             self._undo_stack.endMacro()
 
     def _add_group(self) -> None:
-        """Add a new group and select it."""
-        command = AddGroupCommand(self._model)
-        self._undo_stack.push(command)
-        if command._group_index and command._group_index.isValid():
-            idx = QModelIndex(command._group_index)
-            self._group_preset_sel.group_list.setCurrentIndex(idx)
+        """Add a new group."""
+        self._undo_stack.push(AddGroupCommand(self._model))
 
     def _remove_selected(self) -> None:
         """Remove the currently selected group or preset."""
@@ -470,9 +465,43 @@ class ConfigGroupsEditor(QWidget):
 
     def _on_model_data_changed(self) -> None:
         """Handle model dataChanged (renames, value edits, etc.)."""
-        # For now, we'll just emit the configChanged signal
-        # In the future, we might want to create undo commands for direct model edits
         self.configChanged.emit()
+
+    def _on_undo_index_changed(self, idx: int) -> None:
+        """Navigate to the item affected by the last undo/redo command."""
+        self._prev_undo_index, prev = idx, self._prev_undo_index
+        # Determine which command just ran
+        if idx > prev:
+            # Redo: the command at idx-1 just executed redo()
+            cmd = self._undo_stack.command(idx - 1)
+        elif idx < prev:
+            # Undo: the command at idx just executed undo()
+            cmd = self._undo_stack.command(idx)
+        else:
+            return
+
+        # For macros, look at the first child command
+        if cmd and not isinstance(cmd, _ModelCommand) and cmd.childCount() > 0:
+            cmd = cmd.child(0)
+        if not isinstance(cmd, _ModelCommand):
+            return
+
+        target = cmd.affected_index()
+        if not target.isValid():
+            return
+
+        self._navigate_to_index(target)
+
+    def _navigate_to_index(self, index: QModelIndex) -> None:
+        """Select the given model index in the appropriate view."""
+        parent = index.parent()
+        if not parent.isValid():
+            # It's a group — select it in the group list
+            self._group_preset_sel.group_list.setCurrentIndex(index)
+        else:
+            # It's a preset — select its group first, then the preset
+            self._group_preset_sel.group_list.setCurrentIndex(parent)
+            self._group_preset_sel.preset_list.setCurrentIndex(index)
 
     # ------------------------------------------------------------------
     # Layout management
