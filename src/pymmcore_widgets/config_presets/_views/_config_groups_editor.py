@@ -498,13 +498,16 @@ class ConfigGroupsEditor(QWidget):
     def _navigate_to_index(self, index: QModelIndex) -> None:
         """Select the given model index in the appropriate view."""
         parent = index.parent()
+        tree = self._group_preset_sel.config_groups_tree
         if not parent.isValid():
             # It's a group — select it in the group list
             self._group_preset_sel.group_list.setCurrentIndex(index)
+            tree.expand(index)
         else:
             # It's a preset — select its group first, then the preset
             self._group_preset_sel.group_list.setCurrentIndex(parent)
             self._group_preset_sel.preset_list.setCurrentIndex(index)
+            tree.expand(parent)
 
     # ------------------------------------------------------------------
     # Layout management

@@ -83,8 +83,6 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         if preset_idx.isValid():
             self._src.update_preset_settings(preset_idx, preset_settings)
 
-        # Emit dataChanged signal for the specific cell
-        self._src.dataChanged.emit(preset_idx, preset_idx, [role])
         return True
 
     # ---------------------------------------------------------------- build --
