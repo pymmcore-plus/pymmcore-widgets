@@ -245,6 +245,15 @@ class PositionTable(DataTableWidget):
                     # update the sub-sequence dict in the record
                     r["sequence"] = sub_seq
 
+            # If a sub-sequence uses an absolute grid plan, x/y on the
+            # position are meaningless (the grid defines them). Clear them
+            # to avoid useq validation warnings.
+            sub = r.get("sequence")
+            if isinstance(sub, useq.MDASequence) and sub.grid_plan is not None:
+                if not sub.grid_plan.is_relative:
+                    r.pop("x", None)
+                    r.pop("y", None)
+
             pos = useq.Position(**r)
             out.append(pos)
 
