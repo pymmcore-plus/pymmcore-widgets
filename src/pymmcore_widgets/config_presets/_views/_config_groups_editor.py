@@ -169,6 +169,8 @@ class ConfigGroupsEditor(QWidget):
 
         self._group_preset_sel.currentGroupChanged.connect(self._on_group_changed)
         self._group_preset_sel.currentPresetChanged.connect(self._on_preset_changed)
+        if tree_sel := self._group_preset_sel.config_groups_tree.selectionModel():
+            tree_sel.currentChanged.connect(self._on_tree_current_changed)
 
         self._model.dataChanged.connect(self._on_model_data_changed)
         self._model.rowsInserted.connect(self._on_model_structure_changed)
@@ -224,6 +226,15 @@ class ConfigGroupsEditor(QWidget):
     # ------------------------------------------------------------------
     # Private methods and slots
     # ------------------------------------------------------------------
+
+    def _on_tree_current_changed(
+        self, current: QModelIndex, previous: QModelIndex
+    ) -> None:
+        """Update toolbar actions based on what's selected in the tree view."""
+        payload = current.data(Qt.ItemDataRole.UserRole) if current.isValid() else None
+        is_group_or_preset = isinstance(payload, (ConfigGroup, ConfigPreset))
+        self._tb.duplicate_action.setEnabled(is_group_or_preset)
+        self._tb.remove_action.setEnabled(is_group_or_preset)
 
     def _on_group_changed(self, current: QModelIndex, previous: QModelIndex) -> None:
         """Called when the group selection in the GroupPresetSelector changes."""
