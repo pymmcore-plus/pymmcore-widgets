@@ -266,10 +266,25 @@ class GroupsPresetFinder(QStackedWidget):
     def showColumnView(self) -> None:
         """Switch to column view mode (groups and presets side by side)."""
         self.setCurrentIndex(0)
+        # Give focus to the most-specific selected list
+        if self.preset_list.currentIndex().isValid():
+            self.preset_list.setFocus()
+        else:
+            self.group_list.setFocus()
 
     def showTreeView(self) -> None:
         """Switch to tree view mode (hierarchical view)."""
+        # Sync tree selection from column view before switching
+        preset_idx = self.preset_list.currentIndex()
+        if preset_idx.isValid():
+            target = preset_idx
+        else:
+            target = self.group_list.currentIndex()
+        if target.isValid():
+            with QSignalBlocker(self.config_groups_tree.selectionModel()):
+                self.config_groups_tree.setCurrentIndex(target)
         self.setCurrentIndex(1)
+        self.config_groups_tree.setFocus()
 
     def toggleView(self) -> None:
         """Toggle between column view and tree view modes."""
