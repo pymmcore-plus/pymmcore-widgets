@@ -12,7 +12,14 @@ from qtpy.QtCore import (
     QTimer,
     QTransposeProxyModel,
 )
-from qtpy.QtWidgets import QHeaderView, QTableView, QToolBar, QVBoxLayout, QWidget
+from qtpy.QtWidgets import (
+    QApplication,
+    QHeaderView,
+    QTableView,
+    QToolBar,
+    QVBoxLayout,
+    QWidget,
+)
 
 from pymmcore_widgets._icons import StandardIcon
 from pymmcore_widgets._models import (
@@ -155,6 +162,9 @@ class ConfigPresetsTableView(QTableView):
         UserRole = Qt.ItemDataRole.UserRole
         with suppress(RuntimeError):  # since this may be a slot
             if model := self.model():
+                # Preserve focus: opening persistent editors (e.g. combo boxes)
+                # can steal focus from the active view.
+                focused = QApplication.focusWidget()
                 # Close all existing persistent editors first
                 for row in range(model.rowCount()):
                     for col in range(model.columnCount()):
@@ -167,6 +177,8 @@ class ConfigPresetsTableView(QTableView):
                         idx = model.index(row, col)
                         if idx.isValid() and idx.data(UserRole) is not None:
                             self.openPersistentEditor(idx)
+                if focused is not None:
+                    focused.setFocus()
 
     def _get_pivot_model(self) -> ConfigGroupPivotModel:
         model = self.model()
@@ -187,9 +199,6 @@ class ConfigPresetsTableView(QTableView):
         """Set the group for the pivot model."""
         model = self._get_pivot_model()
         model.setGroup(group_name_or_index)
-        # Ensure persistent editors are reopened after group change
-        # (the model reset from setGroup will close them)
-        QTimer.singleShot(0, self.openPersistentEditors)
 
     def transpose(self) -> None:
         """Transpose the table view."""
