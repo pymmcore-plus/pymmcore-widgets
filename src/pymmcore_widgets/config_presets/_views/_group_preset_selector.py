@@ -67,9 +67,12 @@ class GroupsPresetFinder(QStackedWidget):
         # Set up undo-aware delegates for the list views
         # The list views handle group/preset renaming
         if undo_stack is not None:
-            rename_delegate = GroupPresetRenameDelegate(undo_stack, self)
-            self.group_list.setItemDelegate(rename_delegate)
-            self.preset_list.setItemDelegate(rename_delegate)
+            self.group_list.setItemDelegate(
+                GroupPresetRenameDelegate(undo_stack, self.group_list)
+            )
+            self.preset_list.setItemDelegate(
+                GroupPresetRenameDelegate(undo_stack, self.preset_list)
+            )
 
             # The tree view already has PropertySettingDelegate set up,
             # but we need to update it to use undo commands

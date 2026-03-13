@@ -611,7 +611,7 @@ class _ConfigEditorToolbar(QToolBar):
         self.remove_action.setEnabled(False)
         self.addSeparator()
 
-        # Undo/Redo actions
+        # Undo/Redo actions — icon-only with descriptive tooltips
         self.undo_action = parent._undo_stack.createUndoAction(self, "Undo")
         if self.undo_action:
             self.undo_action.setIcon(StandardIcon.UNDO.icon())
@@ -623,6 +623,12 @@ class _ConfigEditorToolbar(QToolBar):
             self.redo_action.setIcon(StandardIcon.REDO.icon())
             self.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
             self.addAction(self.redo_action)
+
+        # Override undo/redo buttons to icon-only (avoid layout thrash from
+        # changing action text like "Undo Rename Group")
+        for action in (self.undo_action, self.redo_action):
+            if btn := self.widgetForAction(action):
+                btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
 
         # self.addAction("Show Undo/Redo History...", parent._show_undo_view)
         self.addSeparator()
