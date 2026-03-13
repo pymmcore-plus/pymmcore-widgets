@@ -247,7 +247,7 @@ class ConfigGroupsEditor(QWidget):
         self._tb.add_preset_action.setEnabled(current.isValid())
         self._tb.duplicate_action.setEnabled(current.isValid())
         self._tb.remove_action.setEnabled(current.isValid())
-        self._update_edit_properties_enabled()
+        self._update_edit_properties_enabled(current)
 
         # Enable/disable actions based on the selected group
         group = current.data(Qt.ItemDataRole.UserRole)
@@ -452,9 +452,12 @@ class ConfigGroupsEditor(QWidget):
                 command = DuplicatePresetCommand(self._model, idx)
                 self._undo_stack.push(command)
 
-    def _update_edit_properties_enabled(self) -> None:
+    def _update_edit_properties_enabled(
+        self, group_idx: QModelIndex | None = None
+    ) -> None:
         """Enable 'Edit Properties' only when the selected group has presets."""
-        group_idx = self._group_preset_sel.currentGroup()
+        if group_idx is None:
+            group_idx = self._group_preset_sel.currentGroup()
         has_presets = group_idx.isValid() and self._model.rowCount(group_idx) > 0
         self._tb.edit_properties_action.setEnabled(has_presets)
 
