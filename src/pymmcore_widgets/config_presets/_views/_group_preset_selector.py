@@ -89,18 +89,17 @@ class GroupsPresetFinder(QStackedWidget):
 
         self._model = model
 
-        # Set models for all views
+        # Set models for all views.  preset_list gets the same model but is
+        # hidden until a group is selected (otherwise it would show groups at
+        # the root level, not presets).
         self.group_list.setModel(model)
+        self.preset_list.setModel(model)
         self.config_groups_tree.setModel(model)
-
-        # We'll set later when selections are made
-        self.preset_list.setModel(None)
 
         self._connect_selection_models()
 
     def _connect_selection_models(self) -> None:
         """Connect all selection model signals to slots."""
-        # TODO: Disconnect
         if group_sel := self.group_list.selectionModel():
             group_sel.currentChanged.connect(self._on_group_selection_changed)
 
@@ -116,20 +115,8 @@ class GroupsPresetFinder(QStackedWidget):
         """Handle change in the group_list selection."""
         prev_preset = self.preset_list.currentIndex()
 
-        # Ensure preset_list has a model when a group is selected
-        if current.isValid():
-            if self.preset_list.model() is None:
-                self.preset_list.setModel(self._model)
-                if preset_sel := self.preset_list.selectionModel():
-                    preset_sel.currentChanged.connect(
-                        self._on_preset_selection_changed,
-                        Qt.ConnectionType.UniqueConnection,
-                    )
-
-            self.preset_list.setRootIndex(current)
-            self.preset_list.setCurrentIndex(QModelIndex())
-        else:
-            self.preset_list.setModel(None)
+        self.preset_list.setRootIndex(current if current.isValid() else QModelIndex())
+        self.preset_list.setCurrentIndex(QModelIndex())
 
         with QSignalBlocker(self.config_groups_tree.selectionModel()):
             self.config_groups_tree.collapseAll()
@@ -179,15 +166,10 @@ class GroupsPresetFinder(QStackedWidget):
             QSignalBlocker(self.preset_list.selectionModel()),
         ):
             self.group_list.setCurrentIndex(group_idx)
-
-            # Ensure preset_list has a model when updating from tree selection
-            if group_idx.isValid():
-                if self.preset_list.model() is None:
-                    self.preset_list.setModel(self._model)
-                self.preset_list.setRootIndex(group_idx)
-                self.preset_list.setCurrentIndex(preset_idx)
-            else:
-                self.preset_list.setModel(None)
+            self.preset_list.setRootIndex(
+                group_idx if group_idx.isValid() else QModelIndex()
+            )
+            self.preset_list.setCurrentIndex(preset_idx)
 
     def _selected_index(self) -> QModelIndex:
         """Return the currently selected index from the group or preset list."""
@@ -341,6 +323,5 @@ class GroupsPresetFinder(QStackedWidget):
         if group_sel_model is not None:
             group_sel_model.clearCurrentIndex()
         self.config_groups_tree.clearSelection()
-
-        # Clear the preset view completely
-        self.preset_list.setModel(None)
+        self.preset_list.setRootIndex(QModelIndex())
+        self.preset_list.setCurrentIndex(QModelIndex())
