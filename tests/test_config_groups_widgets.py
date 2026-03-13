@@ -302,6 +302,45 @@ def test_undo_update_preset_properties(
     assert len(restored.settings) == old_count
 
 
+def test_undo_redo_across_add_and_rename(
+    undo_model: tuple[QConfigGroupsModel, QUndoStack],
+) -> None:
+    """Redo of rename must work after the target was removed and re-added."""
+    model, stack = undo_model
+    initial = model.rowCount()
+
+    # add group 0
+    stack.push(AddGroupCommand(model, "G0"))
+    assert model.rowCount() == initial + 1
+
+    # add group 1
+    stack.push(AddGroupCommand(model, "G1"))
+    assert model.rowCount() == initial + 2
+    g1_idx = model.index(initial + 1, 0)
+    assert g1_idx.data(Qt.ItemDataRole.DisplayRole) == "G1"
+
+    # rename group 1 -> "asdf"
+    stack.push(RenameGroupCommand(model, g1_idx, "asdf"))
+    assert model.index(initial + 1, 0).data(Qt.ItemDataRole.DisplayRole) == "asdf"
+
+    # undo rename
+    stack.undo()
+    assert model.index(initial + 1, 0).data(Qt.ItemDataRole.DisplayRole) == "G1"
+
+    # undo add group 1
+    stack.undo()
+    assert model.rowCount() == initial + 1
+
+    # redo add group 1
+    stack.redo()
+    assert model.rowCount() == initial + 2
+    assert model.index(initial + 1, 0).data(Qt.ItemDataRole.DisplayRole) == "G1"
+
+    # redo rename -> should rename group 1 to "asdf"
+    stack.redo()
+    assert model.index(initial + 1, 0).data(Qt.ItemDataRole.DisplayRole) == "asdf"
+
+
 def test_undo_set_channel_group(
     undo_model: tuple[QConfigGroupsModel, QUndoStack],
 ) -> None:

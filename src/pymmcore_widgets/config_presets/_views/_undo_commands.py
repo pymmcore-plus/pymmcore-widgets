@@ -1,9 +1,9 @@
 """Undo/Redo command classes for ConfigGroupsEditor operations.
 
-IMPORTANT: This implementation uses QPersistentModelIndex instead of QModelIndex
-to avoid stale index issues during rapid undo/redo operations. QPersistentModelIndex
-automatically updates when the model structure changes, preventing crashes from
-accessing invalid nodes.
+Uses QPersistentModelIndex with row-path fallback: persistent indices go stale
+when the target row is removed and re-inserted (e.g. undo add → redo add).  We
+store the original row path (tuple of row indices from root) at construction
+time and reconstruct from it when the persistent index is no longer valid.
 """
 
 from __future__ import annotations
@@ -26,6 +26,32 @@ if TYPE_CHECKING:
     )
 else:
     from qtpy.QtGui import QUndoCommand
+
+
+def _row_path(index: QModelIndex) -> tuple[int, ...]:
+    """Extract the row path from root to *index*."""
+    path: list[int] = []
+    idx = index
+    while idx.isValid():
+        path.append(idx.row())
+        idx = idx.parent()
+    path.reverse()
+    return tuple(path)
+
+
+def _resolve(
+    model: QConfigGroupsModel,
+    persistent: QPersistentModelIndex,
+    path: tuple[int, ...],
+) -> tuple[QModelIndex, QPersistentModelIndex]:
+    """Return a live QModelIndex, refreshing *persistent* from *path* if stale."""
+    if persistent.isValid():
+        return QModelIndex(persistent), persistent
+    idx = QModelIndex()
+    for row in path:
+        idx = model.index(row, 0, idx)
+    new_persistent = QPersistentModelIndex(idx) if idx.isValid() else persistent
+    return idx, new_persistent
 
 
 class AddGroupCommand(QUndoCommand):
@@ -109,12 +135,16 @@ class DuplicateGroupCommand(QUndoCommand):
         super().__init__(f"Duplicate Group '{group_name}'\n", parent)
         self._model = model
         self._group_index = QPersistentModelIndex(group_index)
+        self._group_path = _row_path(group_index)
         self._new_group_index: QPersistentModelIndex | None = None
 
     def redo(self) -> None:
         """Execute the duplicate group operation."""
-        if self._group_index.isValid():
-            new_index = self._model.duplicate_group(QModelIndex(self._group_index))
+        idx, self._group_index = _resolve(
+            self._model, self._group_index, self._group_path
+        )
+        if idx.isValid():
+            new_index = self._model.duplicate_group(idx)
             if new_index.isValid():
                 self._new_group_index = QPersistentModelIndex(new_index)
 
@@ -139,24 +169,31 @@ class RenameGroupCommand(QUndoCommand):
         super().__init__(f"Rename Group '{old_name}' to '{new_name}'\n", parent)
         self._model = model
         self._group_index = QPersistentModelIndex(group_index)
+        self._group_path = _row_path(group_index)
         self._old_name = old_name
         self._new_name = new_name
 
     def redo(self) -> None:
         """Execute the rename group operation."""
-        if self._group_index.isValid():
+        idx, self._group_index = _resolve(
+            self._model, self._group_index, self._group_path
+        )
+        if idx.isValid():
             self._model.set_undo_redo_mode(True)
             try:
-                self._model.setData(QModelIndex(self._group_index), self._new_name)
+                self._model.setData(idx, self._new_name)
             finally:
                 self._model.set_undo_redo_mode(False)
 
     def undo(self) -> None:
         """Undo the rename group operation."""
-        if self._group_index.isValid():
+        idx, self._group_index = _resolve(
+            self._model, self._group_index, self._group_path
+        )
+        if idx.isValid():
             self._model.set_undo_redo_mode(True)
             try:
-                self._model.setData(QModelIndex(self._group_index), self._old_name)
+                self._model.setData(idx, self._old_name)
             finally:
                 self._model.set_undo_redo_mode(False)
 
@@ -176,28 +213,27 @@ class AddPresetCommand(QUndoCommand):
         super().__init__(f"Add Preset '{name}' to '{group_name}'\n", parent)
         self._model = model
         self._group_index = QPersistentModelIndex(group_index)
+        self._group_path = _row_path(group_index)
         self._name = name
         self._preset_index: QPersistentModelIndex | None = None
 
     def redo(self) -> None:
         """Execute the add preset operation."""
-        if self._group_index.isValid():
-            preset_index = self._model.add_preset(
-                QModelIndex(self._group_index), self._name
-            )
+        group_idx, self._group_index = _resolve(
+            self._model, self._group_index, self._group_path
+        )
+        if group_idx.isValid():
+            preset_index = self._model.add_preset(group_idx, self._name)
             if preset_index.isValid():
                 self._preset_index = QPersistentModelIndex(preset_index)
 
     def undo(self) -> None:
         """Undo the add preset operation."""
-        if (
-            self._preset_index
-            and self._preset_index.isValid()
-            and self._group_index.isValid()
-        ):
-            self._model.removeRows(
-                self._preset_index.row(), 1, QModelIndex(self._group_index)
-            )
+        group_idx, self._group_index = _resolve(
+            self._model, self._group_index, self._group_path
+        )
+        if self._preset_index and self._preset_index.isValid() and group_idx.isValid():
+            self._model.removeRows(self._preset_index.row(), 1, group_idx)
 
 
 class RemovePresetCommand(QUndoCommand):
@@ -216,31 +252,37 @@ class RemovePresetCommand(QUndoCommand):
         self._model = model
         self._preset_index = QPersistentModelIndex(preset_index)
         self._group_index = QPersistentModelIndex(preset_index.parent())
+        self._group_path = _row_path(preset_index.parent())
         self._row = preset_index.row()
         self._preset_data: ConfigPreset | None = None
 
     def redo(self) -> None:
         """Execute the remove preset operation."""
-        # Store the preset data before removing
-        if self._preset_index.isValid():
+        preset_idx, self._preset_index = _resolve(
+            self._model, self._preset_index, (*self._group_path, self._row)
+        )
+        if preset_idx.isValid():
             from qtpy.QtCore import Qt
 
             self._preset_data = deepcopy(
-                self._preset_index.data(Qt.ItemDataRole.UserRole)
+                preset_idx.data(Qt.ItemDataRole.UserRole)
             )
-            if self._group_index.isValid():
-                self._model.removeRows(self._row, 1, QModelIndex(self._group_index))
+            group_idx, self._group_index = _resolve(
+                self._model, self._group_index, self._group_path
+            )
+            if group_idx.isValid():
+                self._model.removeRows(self._row, 1, group_idx)
 
     def undo(self) -> None:
         """Undo the remove preset operation."""
-        if self._preset_data and self._group_index.isValid():
+        group_idx, self._group_index = _resolve(
+            self._model, self._group_index, self._group_path
+        )
+        if self._preset_data and group_idx.isValid():
             self._model.set_undo_redo_mode(True)
             try:
                 self._model.insertRows(
-                    self._row,
-                    1,
-                    QModelIndex(self._group_index),
-                    _payloads=[self._preset_data],
+                    self._row, 1, group_idx, _payloads=[self._preset_data]
                 )
             finally:
                 self._model.set_undo_redo_mode(False)
@@ -260,14 +302,16 @@ class DuplicatePresetCommand(QUndoCommand):
         super().__init__(f"Duplicate Preset '{preset_name}'\n", parent)
         self._model = model
         self._preset_index = QPersistentModelIndex(preset_index)
+        self._preset_path = _row_path(preset_index)
         self._new_preset_index: QPersistentModelIndex | None = None
 
     def redo(self) -> None:
         """Execute the duplicate preset operation."""
-        if self._preset_index.isValid():
-            new_preset_index = self._model.duplicate_preset(
-                QModelIndex(self._preset_index)
-            )
+        idx, self._preset_index = _resolve(
+            self._model, self._preset_index, self._preset_path
+        )
+        if idx.isValid():
+            new_preset_index = self._model.duplicate_preset(idx)
             if new_preset_index.isValid():
                 self._new_preset_index = QPersistentModelIndex(new_preset_index)
 
@@ -293,24 +337,31 @@ class RenamePresetCommand(QUndoCommand):
         super().__init__(f"Rename Preset '{old_name}' to '{new_name}'\n", parent)
         self._model = model
         self._preset_index = QPersistentModelIndex(preset_index)
+        self._preset_path = _row_path(preset_index)
         self._old_name = old_name
         self._new_name = new_name
 
     def redo(self) -> None:
         """Execute the rename preset operation."""
-        if self._preset_index.isValid():
+        idx, self._preset_index = _resolve(
+            self._model, self._preset_index, self._preset_path
+        )
+        if idx.isValid():
             self._model.set_undo_redo_mode(True)
             try:
-                self._model.setData(QModelIndex(self._preset_index), self._new_name)
+                self._model.setData(idx, self._new_name)
             finally:
                 self._model.set_undo_redo_mode(False)
 
     def undo(self) -> None:
         """Undo the rename preset operation."""
-        if self._preset_index.isValid():
+        idx, self._preset_index = _resolve(
+            self._model, self._preset_index, self._preset_path
+        )
+        if idx.isValid():
             self._model.set_undo_redo_mode(True)
             try:
-                self._model.setData(QModelIndex(self._preset_index), self._old_name)
+                self._model.setData(idx, self._old_name)
             finally:
                 self._model.set_undo_redo_mode(False)
 
@@ -330,30 +381,39 @@ class UpdatePresetPropertiesCommand(QUndoCommand):
         super().__init__(f"Update Properties in '{preset_name}'\n", parent)
         self._model = model
         self._preset_index = QPersistentModelIndex(preset_index)
-        self._new_properties = list(new_properties)
+        self._preset_path = _row_path(preset_index)
+        self._new_properties = deepcopy(list(new_properties))
         self._old_settings: list[DevicePropertySetting] | None = None
 
     def redo(self) -> None:
         """Execute the update preset properties operation."""
-        # Store the old settings before updating
-        if self._preset_index.isValid():
+        idx, self._preset_index = _resolve(
+            self._model, self._preset_index, self._preset_path
+        )
+        if idx.isValid():
             from qtpy.QtCore import Qt
 
-            preset_data = self._preset_index.data(Qt.ItemDataRole.UserRole)
+            preset_data = idx.data(Qt.ItemDataRole.UserRole)
             if preset_data:
                 self._old_settings = deepcopy(preset_data.settings)
 
-        if self._preset_index.isValid():
-            self._model.update_preset_settings(
-                QModelIndex(self._preset_index), self._new_properties
-            )
+            self._model.set_undo_redo_mode(True)
+            try:
+                self._model.update_preset_properties(idx, self._new_properties)
+            finally:
+                self._model.set_undo_redo_mode(False)
 
     def undo(self) -> None:
         """Undo the update preset properties operation."""
-        if self._old_settings is not None and self._preset_index.isValid():
-            self._model.update_preset_settings(
-                QModelIndex(self._preset_index), self._old_settings
-            )
+        idx, self._preset_index = _resolve(
+            self._model, self._preset_index, self._preset_path
+        )
+        if self._old_settings is not None and idx.isValid():
+            self._model.set_undo_redo_mode(True)
+            try:
+                self._model.update_preset_settings(idx, self._old_settings)
+            finally:
+                self._model.set_undo_redo_mode(False)
 
 
 class UpdatePresetSettingsCommand(QUndoCommand):
@@ -371,30 +431,39 @@ class UpdatePresetSettingsCommand(QUndoCommand):
         super().__init__(f"Update Settings in '{preset_name}'\n", parent)
         self._model = model
         self._preset_index = QPersistentModelIndex(preset_index)
+        self._preset_path = _row_path(preset_index)
         self._new_settings = deepcopy(new_settings)
         self._old_settings: list[DevicePropertySetting] | None = None
 
     def redo(self) -> None:
         """Execute the update preset settings operation."""
-        # Store the old settings before updating
-        if self._preset_index.isValid():
+        idx, self._preset_index = _resolve(
+            self._model, self._preset_index, self._preset_path
+        )
+        if idx.isValid():
             from qtpy.QtCore import Qt
 
-            preset_data = self._preset_index.data(Qt.ItemDataRole.UserRole)
+            preset_data = idx.data(Qt.ItemDataRole.UserRole)
             if preset_data:
                 self._old_settings = deepcopy(preset_data.settings)
 
-        if self._preset_index.isValid():
-            self._model.update_preset_settings(
-                QModelIndex(self._preset_index), self._new_settings
-            )
+            self._model.set_undo_redo_mode(True)
+            try:
+                self._model.update_preset_settings(idx, self._new_settings)
+            finally:
+                self._model.set_undo_redo_mode(False)
 
     def undo(self) -> None:
         """Undo the update preset settings operation."""
-        if self._old_settings is not None and self._preset_index.isValid():
-            self._model.update_preset_settings(
-                QModelIndex(self._preset_index), self._old_settings
-            )
+        idx, self._preset_index = _resolve(
+            self._model, self._preset_index, self._preset_path
+        )
+        if self._old_settings is not None and idx.isValid():
+            self._model.set_undo_redo_mode(True)
+            try:
+                self._model.update_preset_settings(idx, self._old_settings)
+            finally:
+                self._model.set_undo_redo_mode(False)
 
 
 class ChangePropertyValueCommand(QUndoCommand):
@@ -413,22 +482,26 @@ class ChangePropertyValueCommand(QUndoCommand):
         super().__init__(f"Change Property Value in '{preset_name}'\n", parent)
         self._model = model
         self._property_index = QPersistentModelIndex(property_index)
+        self._property_path = _row_path(property_index)
         self._new_value = new_value
         self._old_value: Any = None
 
     def redo(self) -> None:
         """Execute the change property value operation."""
-        # Store the old value before changing
-        if self._property_index.isValid():
-            self._old_value = self._property_index.data()
-
-        if self._property_index.isValid():
-            self._model.setData(QModelIndex(self._property_index), self._new_value)
+        idx, self._property_index = _resolve(
+            self._model, self._property_index, self._property_path
+        )
+        if idx.isValid():
+            self._old_value = idx.data()
+            self._model.setData(idx, self._new_value)
 
     def undo(self) -> None:
         """Undo the change property value operation."""
-        if self._old_value is not None and self._property_index.isValid():
-            self._model.setData(QModelIndex(self._property_index), self._old_value)
+        idx, self._property_index = _resolve(
+            self._model, self._property_index, self._property_path
+        )
+        if self._old_value is not None and idx.isValid():
+            self._model.setData(idx, self._old_value)
 
 
 class SetChannelGroupCommand(QUndoCommand):
@@ -450,16 +523,19 @@ class SetChannelGroupCommand(QUndoCommand):
         self._new_group_index = (
             QPersistentModelIndex(group_index) if group_index else None
         )
+        self._new_group_path = _row_path(group_index) if group_index else ()
         self._old_channel_group_index: QPersistentModelIndex | None = None
+        self._old_channel_group_path: tuple[int, ...] = ()
 
     def redo(self) -> None:
         """Execute the set channel group operation."""
+        from qtpy.QtCore import Qt
+
         # Find and store the current channel group
         self._old_channel_group_index = None
+        self._old_channel_group_path = ()
         for i in range(self._model.rowCount()):
             idx = self._model.index(i, 0)
-            from qtpy.QtCore import Qt
-
             group_data = idx.data(Qt.ItemDataRole.UserRole)
             if (
                 group_data
@@ -467,18 +543,27 @@ class SetChannelGroupCommand(QUndoCommand):
                 and group_data.is_channel_group
             ):
                 self._old_channel_group_index = QPersistentModelIndex(idx)
+                self._old_channel_group_path = _row_path(idx)
                 break
 
-        new_index = (
-            QModelIndex(self._new_group_index) if self._new_group_index else None
-        )
-        self._model.set_channel_group(new_index)
+        if self._new_group_index is not None:
+            new_idx, self._new_group_index = _resolve(
+                self._model, self._new_group_index, self._new_group_path
+            )
+        else:
+            new_idx = None
+        self._model.set_channel_group(new_idx if new_idx and new_idx.isValid() else None)
 
     def undo(self) -> None:
         """Undo the set channel group operation."""
-        old_index = (
-            QModelIndex(self._old_channel_group_index)
-            if self._old_channel_group_index
-            else None
+        if self._old_channel_group_index is not None:
+            old_idx, self._old_channel_group_index = _resolve(
+                self._model,
+                self._old_channel_group_index,
+                self._old_channel_group_path,
+            )
+        else:
+            old_idx = None
+        self._model.set_channel_group(
+            old_idx if old_idx and old_idx.isValid() else None
         )
-        self._model.set_channel_group(old_index)

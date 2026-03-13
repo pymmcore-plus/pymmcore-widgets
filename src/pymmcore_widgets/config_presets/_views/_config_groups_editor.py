@@ -42,6 +42,7 @@ from ._undo_commands import (
     RemoveGroupCommand,
     RemovePresetCommand,
     SetChannelGroupCommand,
+    UpdatePresetPropertiesCommand,
 )
 
 if TYPE_CHECKING:
@@ -98,7 +99,7 @@ class ConfigGroupsEditor(QWidget):
         """
         if update_devices:
             self._loaded_devices = tuple(get_loaded_devices(core))
-            self._preset_table.view._loaded_devices = self._loaded_devices
+            self._preset_table.setAvailableDevices(self._loaded_devices)
         if update_configs:
             self.setData(get_config_groups(core))
 
@@ -389,14 +390,22 @@ class ConfigGroupsEditor(QWidget):
         if preset_radio.isChecked() and current_preset.isValid():
             # Update only the current preset
             self._undo_stack.beginMacro("Update Preset Properties")
-            self._model.update_preset_properties(current_preset, selected)
+            self._undo_stack.push(
+                UpdatePresetPropertiesCommand(
+                    self._model, current_preset, list(selected)
+                )
+            )
             self._undo_stack.endMacro()
         else:
             # Update all presets in the group
             self._undo_stack.beginMacro("Update Group Properties")
             for i in range(self._model.rowCount(current_group)):
                 preset_idx = self._model.index(i, 0, current_group)
-                self._model.update_preset_properties(preset_idx, selected)
+                self._undo_stack.push(
+                    UpdatePresetPropertiesCommand(
+                        self._model, preset_idx, list(selected)
+                    )
+                )
             self._undo_stack.endMacro()
 
     def _add_group(self) -> None:

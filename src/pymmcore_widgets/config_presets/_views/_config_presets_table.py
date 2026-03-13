@@ -15,16 +15,24 @@ from qtpy.QtCore import (
 from qtpy.QtWidgets import QHeaderView, QTableView, QToolBar, QVBoxLayout, QWidget
 
 from pymmcore_widgets._icons import StandardIcon
-from pymmcore_widgets._models import ConfigGroupPivotModel, QConfigGroupsModel
+from pymmcore_widgets._models import (
+    ConfigGroupPivotModel,
+    QConfigGroupsModel,
+    get_loaded_devices,
+)
 
 from ._property_setting_delegate import PropertySettingDelegate
 from ._undo_commands import DuplicatePresetCommand, RemovePresetCommand
 from ._undo_delegates import PropertyValueDelegate
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pymmcore_plus import CMMCorePlus
     from PyQt6.QtGui import QAction
     from qtpy.QtGui import QUndoStack
+
+    from pymmcore_widgets._models import Device
 
 else:
     from qtpy.QtGui import QAction
@@ -53,12 +61,16 @@ class ConfigPresetsTableView(QTableView):
         self._transpose_proxy: QTransposeProxyModel | None = None
         self._pivot_model: ConfigGroupPivotModel | None = None
         self._undo_stack: QUndoStack | None = None
-        self._loaded_devices: tuple[Any, ...] = ()
+        self._loaded_devices: tuple[Device, ...] = ()
 
         # Right-click on column headers for per-preset property management
         if hh := self.horizontalHeader():
             hh.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             hh.customContextMenuRequested.connect(self._on_header_context_menu)
+
+    def setAvailableDevices(self, devices: Sequence[Device]) -> None:
+        """Set the available devices for property selection dialogs."""
+        self._loaded_devices = tuple(devices)
 
     def setUndoStack(self, undo_stack: QUndoStack) -> None:
         """Set the undo stack and configure undo-aware delegates."""
@@ -365,6 +377,7 @@ class ConfigPresetsTable(QWidget):
         obj = cls(parent)
         model = QConfigGroupsModel.create_from_core(core)
         obj.setModel(model)
+        obj.setAvailableDevices(list(get_loaded_devices(core)))
         return obj
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -392,6 +405,10 @@ class ConfigPresetsTable(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._toolbar)
         layout.addWidget(self.view)
+
+    def setAvailableDevices(self, devices: Sequence[Device]) -> None:
+        """Set the available devices for property selection dialogs."""
+        self.view.setAvailableDevices(devices)
 
     def setModel(self, model: QAbstractItemModel | None) -> None:
         """Set the model for the table view."""
