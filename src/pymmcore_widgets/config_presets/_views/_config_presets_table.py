@@ -59,6 +59,8 @@ class ConfigPresetsTableView(QTableView):
         self._undo_stack: QUndoStack | None = None
         self._loaded_devices: tuple[Device, ...] = ()
 
+        self.setSelectionMode(QTableView.SelectionMode.ExtendedSelection)
+
         # Only open editors on explicit user gestures handled below
         self.setEditTriggers(
             QTableView.EditTrigger.DoubleClicked | QTableView.EditTrigger.EditKeyPressed
@@ -266,7 +268,9 @@ class ConfigPresetsTableView(QTableView):
     def mousePressEvent(self, event: Any) -> None:
         """Single left-click on a cell opens the editor (spreadsheet-like)."""
         super().mousePressEvent(event)
-        if event.button() == Qt.MouseButton.LeftButton:
+        mods = event.modifiers()
+        extend = Qt.KeyboardModifier.ShiftModifier | Qt.KeyboardModifier.ControlModifier
+        if event.button() == Qt.MouseButton.LeftButton and not (mods & extend):
             idx = self.indexAt(event.pos())
             if idx.isValid() and self.state() != QTableView.State.EditingState:
                 self.edit(idx)
@@ -437,49 +441,66 @@ class ConfigPresetsTable(QWidget):
         self.view.setUndoStack(undo_stack)
 
     def _on_remove_action(self) -> None:
-        source_idx = self._get_selected_preset_index()
-        if not source_idx.isValid():
+        source_indices = self._get_selected_preset_indices()
+        if not source_indices:
             return
 
         source_model = self.view.sourceModel()
-        # Use undo stack if available, otherwise fall back to direct operation
         if self._undo_stack is not None:
-            command = RemovePresetCommand(source_model, source_idx)
-            self._undo_stack.push(command)
+            if len(source_indices) == 1:
+                self._undo_stack.push(
+                    RemovePresetCommand(source_model, source_indices[0])
+                )
+            else:
+                self._undo_stack.beginMacro(f"Remove {len(source_indices)} Presets")
+                # Remove in reverse row order so indices stay valid
+                for idx in sorted(source_indices, key=lambda i: i.row(), reverse=True):
+                    self._undo_stack.push(RemovePresetCommand(source_model, idx))
+                self._undo_stack.endMacro()
         else:
-            # Fall back to direct model operation
-            source_model.remove(source_idx, ask_confirmation=NOT_TESTING)
+            for idx in sorted(source_indices, key=lambda i: i.row(), reverse=True):
+                source_model.remove(idx, ask_confirmation=NOT_TESTING)
 
     def _on_duplicate_action(self) -> None:
-        source_idx = self._get_selected_preset_index()
-        if not source_idx.isValid():
+        source_indices = self._get_selected_preset_indices()
+        if not source_indices:
             return
 
         source_model = self.view.sourceModel()
-        # Use undo stack if available, otherwise fall back to direct operation
         if self._undo_stack is not None:
-            command = DuplicatePresetCommand(source_model, source_idx)
-            self._undo_stack.push(command)
+            if len(source_indices) == 1:
+                self._undo_stack.push(
+                    DuplicatePresetCommand(source_model, source_indices[0])
+                )
+            else:
+                self._undo_stack.beginMacro(f"Duplicate {len(source_indices)} Presets")
+                for idx in source_indices:
+                    self._undo_stack.push(DuplicatePresetCommand(source_model, idx))
+                self._undo_stack.endMacro()
         else:
-            # Fall back to direct model operation
-            source_model.duplicate_preset(source_idx)
+            for idx in source_indices:
+                source_model.duplicate_preset(idx)
 
-    def _get_selected_preset_index(self) -> QModelIndex:
-        """Get the currently selected preset from the source model."""
+    def _get_selected_preset_indices(self) -> list[QModelIndex]:
+        """Get all selected presets from the source model."""
         sm = self.view.selectionModel()
         if sm is None:
-            return QModelIndex()  # pragma: no cover
+            return []  # pragma: no cover
 
         if self.view.isTransposed():
-            indices = sm.selectedRows()
-            if not indices:
-                return QModelIndex()
-            col = indices[0].row()
+            view_indices = sm.selectedRows()
+            cols = [idx.row() for idx in view_indices]
         else:
-            indices = sm.selectedColumns()
-            if not indices:
-                return QModelIndex()
-            col = indices[0].column()
+            view_indices = sm.selectedColumns()
+            cols = [idx.column() for idx in view_indices]
+
+        if not cols:
+            return []
 
         pivot_model = self.view._get_pivot_model()
-        return pivot_model.get_source_index_for_column(col)
+        result = []
+        for col in cols:
+            src_idx = pivot_model.get_source_index_for_column(col)
+            if src_idx.isValid():
+                result.append(src_idx)
+        return result

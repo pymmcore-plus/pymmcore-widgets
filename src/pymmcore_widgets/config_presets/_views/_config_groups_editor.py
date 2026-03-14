@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from qtpy.QtCore import QModelIndex, QSize, Qt, Signal
+from qtpy.QtCore import (
+    QItemSelection,
+    QItemSelectionModel,
+    QModelIndex,
+    QSize,
+    Qt,
+    Signal,
+)
 from qtpy.QtGui import QAction, QKeySequence, QUndoStack
 from qtpy.QtWidgets import (
     QButtonGroup,
@@ -171,7 +178,9 @@ class ConfigGroupsEditor(QWidget):
         # signals ------------------------------------------------------------
 
         self._group_preset_sel.currentGroupChanged.connect(self._on_group_changed)
-        self._group_preset_sel.currentPresetChanged.connect(self._on_preset_changed)
+        self._group_preset_sel.presetSelectionChanged.connect(
+            self._on_preset_selection_changed
+        )
         if tree_sel := self._group_preset_sel.config_groups_tree.selectionModel():
             tree_sel.currentChanged.connect(self._on_tree_current_changed)
 
@@ -260,27 +269,43 @@ class ConfigGroupsEditor(QWidget):
                 not group.is_channel_group and not group.is_system_group
             )
 
-    def _on_preset_changed(self, current: QModelIndex, previous: QModelIndex) -> None:
-        """Called when the preset selection in the GroupPresetSelector changes."""
-        if not current.isValid() or self._syncing_selection:
+    def _on_preset_selection_changed(self, indices: list[QModelIndex]) -> None:
+        """Sync the preset list selection to the table highlight."""
+        if self._syncing_selection:
             return
 
-        # highlight the selected preset in the table
         self._syncing_selection = True
         try:
             table = self._preset_table.view
-            row = current.row()
-            table.selectRow(row) if table.isTransposed() else table.selectColumn(row)
+            sm = table.selectionModel()
+            model = table.model()
+            if sm is None or model is None:
+                return
+
+            selection = QItemSelection()
+            for idx in indices:
+                r = idx.row()
+                if table.isTransposed():
+                    cols = model.columnCount()
+                    if cols > 0:
+                        selection.select(model.index(r, 0), model.index(r, cols - 1))
+                else:
+                    rows = model.rowCount()
+                    if rows > 0:
+                        selection.select(model.index(0, r), model.index(rows - 1, r))
+            sm.select(selection, QItemSelectionModel.SelectionFlag.ClearAndSelect)
         finally:
             self._syncing_selection = False
 
     def _connect_table_selection(self) -> None:
-        """(Re)connect the table's selection model to sync back to preset list."""
+        """(Re)connect the table's selection model and re-apply preset selection."""
         if sm := self._preset_table.view.selectionModel():
             sm.selectionChanged.connect(self._on_table_selection_changed)
+        # Re-apply the current preset list selection to the (possibly transposed) table
+        self._on_preset_selection_changed(self._group_preset_sel.selectedPresets())
 
     def _on_table_selection_changed(self) -> None:
-        """Sync the table's selected column back to the preset list."""
+        """Sync the table's selected columns back to the preset list."""
         if self._syncing_selection:
             return
 
@@ -293,22 +318,43 @@ class ConfigGroupsEditor(QWidget):
         if not indices:
             return
 
-        # Get the column of the first selected cell
-        idx = indices[0]
-        col = idx.row() if view.isTransposed() else idx.column()
+        # Collect unique columns (preset indices) from selection
+        seen_cols: set[int] = set()
+        for idx in indices:
+            col = idx.row() if view.isTransposed() else idx.column()
+            seen_cols.add(col)
 
         try:
             pivot = view._get_pivot_model()
-            src_idx = pivot.get_source_index_for_column(col)
+            src_indices = [
+                pivot.get_source_index_for_column(c) for c in sorted(seen_cols)
+            ]
         except (ValueError, IndexError):
             return
 
-        if src_idx.isValid():
-            self._syncing_selection = True
-            try:
-                self._group_preset_sel.preset_list.setCurrentIndex(src_idx)
-            finally:
-                self._syncing_selection = False
+        valid = [i for i in src_indices if i.isValid()]
+        if not valid:
+            return
+
+        self._syncing_selection = True
+        try:
+            preset_list = self._group_preset_sel.preset_list
+            preset_sm = preset_list.selectionModel()
+            if preset_sm is None:
+                return
+
+            selection = QItemSelection()
+            for src_idx in valid:
+                selection.select(src_idx, src_idx)
+            preset_sm.select(
+                selection, QItemSelectionModel.SelectionFlag.ClearAndSelect
+            )
+            # Set current to the last selected for keyboard navigation
+            preset_sm.setCurrentIndex(
+                valid[-1], QItemSelectionModel.SelectionFlag.NoUpdate
+            )
+        finally:
+            self._syncing_selection = False
 
     def _add_preset_to_current_group(self) -> None:
         """Add a new preset to the currently selected group."""
@@ -419,45 +465,70 @@ class ConfigGroupsEditor(QWidget):
         self._undo_stack.push(AddGroupCommand(self._model))
 
     def _remove_selected(self) -> None:
-        """Remove the currently selected group or preset."""
-        idx = self._group_preset_sel._selected_index()
-        if idx.isValid():
-            # Show confirmation dialog
-            item_name = idx.data(Qt.ItemDataRole.DisplayRole)
-            item_type = type(idx.data(Qt.ItemDataRole.UserRole))
-            type_name = item_type.__name__.replace("Config", "Config ")
+        """Remove the currently selected group or preset(s)."""
+        # Check for multi-select presets first
+        presets = self._group_preset_sel.selectedPresets()
+        if len(presets) > 1:
+            names = ", ".join(
+                i.data(Qt.ItemDataRole.DisplayRole) or "?" for i in presets
+            )
             msg = QMessageBox.question(
                 self,
                 "Confirm Deletion",
-                f"Are you sure you want to delete {type_name} {item_name!r}?",
+                f"Delete {len(presets)} presets ({names})?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.Yes,
             )
             if msg != QMessageBox.StandardButton.Yes:
                 return
+            self._undo_stack.beginMacro(f"Remove {len(presets)} Presets")
+            for idx in sorted(presets, key=lambda i: i.row(), reverse=True):
+                self._undo_stack.push(RemovePresetCommand(self._model, idx))
+            self._undo_stack.endMacro()
+            return
 
-            # Determine if it's a group or preset and create appropriate command
-            payload = idx.data(Qt.ItemDataRole.UserRole)
-            if isinstance(payload, ConfigGroup):
-                command = RemoveGroupCommand(self._model, idx)
-            elif isinstance(payload, ConfigPreset):
-                command = RemovePresetCommand(self._model, idx)
-            else:
-                return
+        idx = self._group_preset_sel._selected_index()
+        if not idx.isValid():
+            return
 
-            self._undo_stack.push(command)
+        item_name = idx.data(Qt.ItemDataRole.DisplayRole)
+        item_type = type(idx.data(Qt.ItemDataRole.UserRole))
+        type_name = item_type.__name__.replace("Config", "Config ")
+        msg = QMessageBox.question(
+            self,
+            "Confirm Deletion",
+            f"Are you sure you want to delete {type_name} {item_name!r}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if msg != QMessageBox.StandardButton.Yes:
+            return
+
+        payload = idx.data(Qt.ItemDataRole.UserRole)
+        if isinstance(payload, ConfigGroup):
+            self._undo_stack.push(RemoveGroupCommand(self._model, idx))
+        elif isinstance(payload, ConfigPreset):
+            self._undo_stack.push(RemovePresetCommand(self._model, idx))
 
     def _duplicate_selected(self) -> None:
-        """Duplicate the currently selected group or preset."""
+        """Duplicate the currently selected group or preset(s)."""
+        # Check for multi-select presets first
+        presets = self._group_preset_sel.selectedPresets()
+        if len(presets) > 1:
+            self._undo_stack.beginMacro(f"Duplicate {len(presets)} Presets")
+            for idx in presets:
+                self._undo_stack.push(DuplicatePresetCommand(self._model, idx))
+            self._undo_stack.endMacro()
+            return
+
         idx = self._group_preset_sel._selected_index()
-        if idx.isValid():
-            payload = idx.data(Qt.ItemDataRole.UserRole)
-            if isinstance(payload, ConfigGroup):
-                command = DuplicateGroupCommand(self._model, idx)
-                self._undo_stack.push(command)
-            elif isinstance(payload, ConfigPreset):
-                command = DuplicatePresetCommand(self._model, idx)
-                self._undo_stack.push(command)
+        if not idx.isValid():
+            return
+        payload = idx.data(Qt.ItemDataRole.UserRole)
+        if isinstance(payload, ConfigGroup):
+            self._undo_stack.push(DuplicateGroupCommand(self._model, idx))
+        elif isinstance(payload, ConfigPreset):
+            self._undo_stack.push(DuplicatePresetCommand(self._model, idx))
 
     def _update_edit_properties_enabled(
         self, group_idx: QModelIndex | None = None

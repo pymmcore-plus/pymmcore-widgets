@@ -25,6 +25,7 @@ class GroupsPresetFinder(QStackedWidget):
 
     currentPresetChanged = Signal(QModelIndex, QModelIndex)
     currentGroupChanged = Signal(QModelIndex, QModelIndex)
+    presetSelectionChanged = Signal(list)  # list[QModelIndex]
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -38,7 +39,7 @@ class GroupsPresetFinder(QStackedWidget):
         self.group_list.setSelectionMode(QListView.SelectionMode.SingleSelection)
 
         self.preset_list = QListView(self)
-        self.preset_list.setSelectionMode(QListView.SelectionMode.SingleSelection)
+        self.preset_list.setSelectionMode(QListView.SelectionMode.ExtendedSelection)
 
         # Create the splitter for the list views
         lists_splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -104,7 +105,8 @@ class GroupsPresetFinder(QStackedWidget):
             group_sel.currentChanged.connect(self._on_group_selection_changed)
 
         if preset_sel := self.preset_list.selectionModel():
-            preset_sel.currentChanged.connect(self._on_preset_selection_changed)
+            preset_sel.currentChanged.connect(self._on_preset_current_changed)
+            preset_sel.selectionChanged.connect(self._on_preset_selection_changed)
 
         if tree_sel := self.config_groups_tree.selectionModel():
             tree_sel.currentChanged.connect(self._on_tree_selection_changed)
@@ -127,13 +129,18 @@ class GroupsPresetFinder(QStackedWidget):
         if prev_preset.isValid():
             self.currentPresetChanged.emit(QModelIndex(), prev_preset)
 
-    def _on_preset_selection_changed(
+    def _on_preset_current_changed(
         self, current: QModelIndex, previous: QModelIndex
     ) -> None:
-        """Handle change in the preset_list selection."""
+        """Handle change in the preset_list current item."""
         with QSignalBlocker(self.config_groups_tree.selectionModel()):
             self.config_groups_tree.setCurrentIndex(current)
         self.currentPresetChanged.emit(current, previous)
+
+    def _on_preset_selection_changed(self) -> None:
+        """Handle change in the preset_list selection (multi-select)."""
+        if sm := self.preset_list.selectionModel():
+            self.presetSelectionChanged.emit(sm.selectedIndexes())
 
     def _group_preset_index(self, idx: QModelIndex) -> tuple[QModelIndex, QModelIndex]:
         """Extract group and preset indices from a given index."""
@@ -169,6 +176,8 @@ class GroupsPresetFinder(QStackedWidget):
             self.preset_list.setRootIndex(
                 group_idx if group_idx.isValid() else QModelIndex()
             )
+            # clearSelection + setCurrentIndex to avoid stale multi-select
+            self.preset_list.clearSelection()
             self.preset_list.setCurrentIndex(preset_idx)
 
     def _selected_index(self) -> QModelIndex:
@@ -303,6 +312,12 @@ class GroupsPresetFinder(QStackedWidget):
     def currentPreset(self) -> QModelIndex:
         """Return the currently selected preset index."""
         return self.preset_list.currentIndex()
+
+    def selectedPresets(self) -> list[QModelIndex]:
+        """Return all selected preset indices."""
+        if sm := self.preset_list.selectionModel():
+            return sm.selectedIndexes()  # type: ignore[no-any-return]
+        return []
 
     def setCurrentPreset(self, group: str, preset: str) -> QModelIndex:
         """Set the currently selected preset by group and preset name.
