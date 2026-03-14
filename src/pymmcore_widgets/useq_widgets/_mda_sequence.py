@@ -16,6 +16,7 @@ from qtpy.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSizePolicy,
+    QTabBar,
     QVBoxLayout,
     QWidget,
 )
@@ -348,8 +349,10 @@ class MDASequenceWidget(QWidget):
         self.channels.valueChanged.connect(self.valueChanged)
         self.time_plan.valueChanged.connect(self.valueChanged)
         self.stage_positions.valueChanged.connect(self.valueChanged)
+        self.stage_positions.valueChanged.connect(self._update_grid_absolute_modes)
         self.z_plan.valueChanged.connect(self._validate_af_with_z_plan)
         self.grid_plan.valueChanged.connect(self.valueChanged)
+        self.grid_plan.valueChanged.connect(self._update_position_tab_checkable)
         self.tab_wdg.tabChecked.connect(self._on_tab_checked)
         self.axis_order.currentTextChanged.connect(self.valueChanged)
         self.valueChanged.connect(self._update_time_estimate)
@@ -562,7 +565,46 @@ class MDASequenceWidget(QWidget):
             else:
                 self._enable_af(True)
 
+        if tab_idx == self.tab_wdg.indexOf(self.stage_positions):
+            self._update_grid_absolute_modes()
+
+        if tab_idx in (
+            self.tab_wdg.indexOf(self.grid_plan),
+            self.tab_wdg.indexOf(self.stage_positions),
+        ):
+            self._update_position_tab_checkable()
+
         self._update_available_axis_orders()
+
+    def _has_global_absolute_grid(self) -> bool:
+        """Return True if the global grid tab is checked with an absolute grid."""
+        return bool(
+            self.tab_wdg.isChecked(self.grid_plan)
+            and not self.grid_plan.value().is_relative
+        )
+
+    def _update_grid_absolute_modes(self) -> None:
+        """Disable absolute grid modes when positions are present."""
+        has_positions = (
+            self.tab_wdg.isChecked(self.stage_positions)
+            and self.stage_positions.table().rowCount() > 0
+        )
+        self.grid_plan.setAbsoluteModesEnabled(not has_positions)
+
+    def _update_position_tab_checkable(self) -> None:
+        """Disable the position tab checkbox when a global absolute grid is active."""
+        disabled = self._has_global_absolute_grid()
+        pos_idx = self.tab_wdg.indexOf(self.stage_positions)
+        if not (tab_bar := self.tab_wdg.tabBar()):
+            return  # pragma: no cover
+        cbox = tab_bar.tabButton(pos_idx, QTabBar.ButtonPosition.LeftSide)
+        if cbox:
+            cbox.setEnabled(not disabled)
+            cbox.setToolTip(
+                "Cannot use stage positions with a global absolute grid plan."
+                if disabled
+                else ""
+            )
 
     def _on_af_toggled(self) -> None:
         # if the 'af_per_position' checkbox in the PositionTable is checked, set checked

@@ -310,6 +310,26 @@ class GridPlanWidget(QScrollArea):
         """Return the current field of view height."""
         return self._fov_height
 
+    def setAbsoluteModesEnabled(self, enabled: bool) -> None:
+        """Enable or disable absolute grid modes (Bounds, Polygon).
+
+        When disabled, a tooltip explains why.  If the current mode is absolute,
+        it is switched to the default relative mode (Fields of View).
+        """
+        tip = (
+            ""
+            if enabled
+            else "Absolute grid modes are unavailable when stage positions are set."
+        )
+        self._mode_bounds_radio.setEnabled(enabled)
+        self._mode_bounds_radio.setToolTip(tip)
+        self._mode_polygon_radio.setEnabled(enabled)
+        self._mode_polygon_radio.setToolTip(tip)
+
+        # if currently on an absolute mode, switch to relative
+        if not enabled and self._mode in (Mode.BOUNDS, Mode.POLYGON):
+            self._mode_number_radio.setChecked(True)
+
     # ------------------------- Private API -------------------------
 
     def _on_change(self) -> None:

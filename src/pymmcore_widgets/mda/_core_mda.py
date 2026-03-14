@@ -189,7 +189,11 @@ class MDAWidget(MDASequenceWidget):
 
         # if there are no stage positions, use the current stage position
         if not val.stage_positions:
-            replace["stage_positions"] = (self._get_current_stage_position(),)
+            pos = self._get_current_stage_position()
+            # clear x/y if using an absolute global grid (they're meaningless)
+            if val.grid_plan is not None and not val.grid_plan.is_relative:
+                pos = pos.replace(x=None, y=None)
+            replace["stage_positions"] = (pos,)
             # if "p" is not in the axis order, we need to add it or the position will
             # not be in the event
             if "p" not in val.axis_order:
