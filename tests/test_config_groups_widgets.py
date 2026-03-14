@@ -198,6 +198,7 @@ def test_table_transposed_operations(table: ConfigPresetsTable) -> None:
     assert model.rowCount(group_idx) == n - 1
 
 
+@pytest.mark.skip(reason="Corresponding code commented out for now")
 def test_table_key_delete(table: ConfigPresetsTable) -> None:
     """Delete key removes a setting; undo restores it."""
     view = table.view

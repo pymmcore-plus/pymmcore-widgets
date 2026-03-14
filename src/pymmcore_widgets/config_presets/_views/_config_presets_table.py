@@ -308,17 +308,17 @@ class ConfigPresetsTableView(QTableView):
             elif chosen == remove_act:
                 self._remove_cell_setting(idx)
 
-    def keyPressEvent(self, event: Any) -> None:
-        """Handle Delete/Backspace to remove property from one preset."""
-        if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
-            sm = self.selectionModel()
-            if sm:
-                for idx in sm.selectedIndexes():
-                    if idx.data(Qt.ItemDataRole.UserRole) is not None:
-                        self._remove_cell_setting(idx)
-                        break
-        else:
-            super().keyPressEvent(event)
+    # def keyPressEvent(self, event: Any) -> None:
+    #     """Handle Delete/Backspace to remove property from one preset."""
+    #     if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+    #         sm = self.selectionModel()
+    #         if sm:
+    #             for idx in sm.selectedIndexes():
+    #                 if idx.data(Qt.ItemDataRole.UserRole) is not None:
+    #                     self._remove_cell_setting(idx)
+    #                     break
+    #     else:
+    #         super().keyPressEvent(event)
 
     def _add_cell_setting(self, idx: QModelIndex) -> None:
         """Add a placeholder setting for the cell at *idx*."""
