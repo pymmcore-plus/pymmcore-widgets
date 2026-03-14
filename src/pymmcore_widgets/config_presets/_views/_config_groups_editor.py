@@ -701,8 +701,18 @@ class _ConfigEditorToolbar(QToolBar):
             ),
         )
         self.remove_action.setEnabled(False)
-        self.addSeparator()
 
+        self.addSeparator()
+        self.set_channel_action = cast(
+            "QAction",
+            self.addAction(
+                StandardIcon.CHANNEL_GROUP.icon(),
+                "Set Channel Group",
+            ),
+        )
+        self.set_channel_action.triggered.connect(self._on_set_channel_group)
+
+        self.addSeparator()
         # Undo/Redo actions — icon-only with descriptive tooltips
         self.undo_action = parent._undo_stack.createUndoAction(self, "Undo")
         if self.undo_action:
@@ -723,16 +733,6 @@ class _ConfigEditorToolbar(QToolBar):
                 btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
 
         # self.addAction("Show Undo/Redo History...", parent._show_undo_view)
-        self.addSeparator()
-        self.set_channel_action = cast(
-            "QAction",
-            self.addAction(
-                StandardIcon.CHANNEL_GROUP.icon(),
-                "Set Channel Group",
-            ),
-        )
-
-        self.set_channel_action.triggered.connect(self._on_set_channel_group)
 
         spacer = QWidget(self)
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
