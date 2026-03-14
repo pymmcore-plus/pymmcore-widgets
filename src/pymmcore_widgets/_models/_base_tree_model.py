@@ -146,6 +146,12 @@ class _BaseTreeModel(QAbstractItemModel):
         for child in node.children:
             self._register_tree(child)
 
+    def _unregister_tree(self, node: _Node) -> None:
+        """Remove *node* and all its descendants from the node registry."""
+        self._node_registry.pop(node._id, None)
+        for child in node.children:
+            self._unregister_tree(child)
+
     def _node_from_index(self, index: QModelIndex | None) -> _Node:
         if index and index.isValid():
             node = self._node_registry.get(index.internalId())

@@ -10,7 +10,7 @@ from qtpy.QtCore import (
     Qt,
     Signal,
 )
-from qtpy.QtGui import QAction, QKeySequence, QUndoStack
+from qtpy.QtGui import QKeySequence, QUndoStack
 from qtpy.QtWidgets import (
     QButtonGroup,
     QDialog,

@@ -351,6 +351,8 @@ class QConfigGroupsModel(_BaseTreeModel):
 
         self.beginRemoveRows(parent, row, row + count - 1)
 
+        for child in parent_node.children[row : row + count]:
+            self._unregister_tree(child)
         del parent_node.children[row : row + count]
 
         # keep the owning dataclass in sync with the new order

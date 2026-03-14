@@ -665,3 +665,79 @@ def test_property_value_delegate_undo(table: ConfigPresetsTable) -> None:
     assert setting_idx.data(Qt.ItemDataRole.DisplayRole) == "NEW"
     stack.undo()
     assert setting_idx.data(Qt.ItemDataRole.DisplayRole) == old_value
+
+
+def test_property_value_delegate_undo_via_pivot(table: ConfigPresetsTable) -> None:
+    """Delegate resolves pivot model indices and pushes undo commands."""
+    from pymmcore_widgets.config_presets._views._undo_delegates import (
+        PropertyValueDelegate,
+    )
+
+    view = table.view
+    delegate = view.itemDelegate()
+    assert isinstance(delegate, PropertyValueDelegate)
+    stack = table._undo_stack
+    assert stack is not None
+
+    pivot = view._get_pivot_model()
+    src_model = view.sourceModel()
+
+    # Find a cell with data in the pivot model
+    pivot_idx = pivot.index(0, 0)
+    assert pivot_idx.isValid()
+    setting = pivot_idx.data(Qt.ItemDataRole.UserRole)
+    assert isinstance(setting, DevicePropertySetting)
+    old_value = setting.value
+
+    # Simulate what the delegate does: resolve through pivot to source
+    resolved_model, resolved_idx = pivot.mapToSourceSettingIndex(pivot_idx)
+    assert resolved_model is src_model
+    assert resolved_idx.isValid()
+
+    # Push command via the resolved source model/index
+    stack.push(ChangePropertyValueCommand(resolved_model, resolved_idx, "TEST_VAL"))
+    assert setting.value == "TEST_VAL"
+    assert pivot_idx.data(Qt.ItemDataRole.EditRole) == "TEST_VAL"
+
+    stack.undo()
+    assert setting.value == old_value
+    assert pivot_idx.data(Qt.ItemDataRole.EditRole) == old_value
+
+
+def test_property_value_delegate_undo_via_transpose(table: ConfigPresetsTable) -> None:
+    """Delegate resolves transposed pivot indices and pushes undo commands."""
+    from pymmcore_widgets.config_presets._views._undo_delegates import (
+        _resolve_source,
+    )
+
+    view = table.view
+    stack = table._undo_stack
+    assert stack is not None
+
+    pivot = view._get_pivot_model()
+    src_model = view.sourceModel()
+
+    # Get a reference value before transposing
+    pivot_idx = pivot.index(0, 0)
+    setting = pivot_idx.data(Qt.ItemDataRole.UserRole)
+    assert isinstance(setting, DevicePropertySetting)
+    old_value = setting.value
+
+    # Transpose the view
+    view.transpose()
+    assert view.isTransposed()
+
+    # In transposed view, rows and columns are swapped
+    transposed_model = view.model()
+    transposed_idx = transposed_model.index(0, 0)
+
+    # _resolve_source should unwrap transpose -> pivot -> source
+    resolved_model, resolved_idx = _resolve_source(transposed_model, transposed_idx)
+    assert resolved_model is src_model
+    assert resolved_idx.isValid()
+
+    stack.push(ChangePropertyValueCommand(resolved_model, resolved_idx, "TRANSPOSED"))
+    assert setting.value == "TRANSPOSED"
+
+    stack.undo()
+    assert setting.value == old_value

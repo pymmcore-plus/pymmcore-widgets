@@ -249,6 +249,36 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         preset_idx = self._src.index_for_preset(self._gidx, preset.name)
         return preset_idx
 
+    def mapToSourceSettingIndex(
+        self, index: QModelIndex
+    ) -> tuple[QConfigGroupsModel | None, QModelIndex]:
+        """Map a pivot index to the corresponding (source_model, setting_index).
+
+        Returns (None, invalid) if the mapping cannot be made.
+        """
+        if (
+            self._src is None
+            or self._gidx is None
+            or not index.isValid()
+            or (row := index.row()) >= len(self._rows)
+            or (col := index.column()) >= len(self._presets)
+        ):
+            return None, QModelIndex()
+
+        setting = self._data.get((row, col))
+        if setting is None:
+            return None, QModelIndex()
+
+        preset = self._presets[col]
+        preset_idx = self._src.index_for_preset(self._gidx, preset.name)
+        if preset_idx.isValid():
+            for i in range(self._src.rowCount(preset_idx)):
+                src_idx = self._src.index(i, 2, preset_idx)
+                if src_idx.data(Qt.ItemDataRole.UserRole) is setting:
+                    return self._src, src_idx
+
+        return None, QModelIndex()
+
     def _on_source_data_changed(
         self,
         top_left: QModelIndex,

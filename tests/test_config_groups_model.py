@@ -218,6 +218,22 @@ def test_remove(model: QConfigGroupsModel, qtbot: QtBot) -> None:
     assert grp0_name not in {x.name for x in model.get_groups()}
 
 
+def test_node_registry_cleanup(model: QConfigGroupsModel) -> None:
+    """Removing rows should clean up the node registry to prevent leaks."""
+    registry_before = len(model._node_registry)
+    assert registry_before > 0
+
+    # Count nodes in first group (group + presets + settings)
+    grp0 = model._root.children[0]
+    node_count = 1  # group node itself
+    for preset in grp0.children:
+        node_count += 1  # preset node
+        node_count += len(preset.children)  # setting nodes
+
+    model.removeRows(0, 1, QModelIndex())
+    assert len(model._node_registry) == registry_before - node_count
+
+
 def test_update_preset_settings(model: QConfigGroupsModel, qtbot: QtBot) -> None:
     """Test updating preset settings."""
     original_data = model.get_groups()
