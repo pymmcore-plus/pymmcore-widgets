@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from qtpy.QtCore import (
@@ -9,17 +8,9 @@ from qtpy.QtCore import (
     QModelIndex,
     QSize,
     Qt,
-    QTimer,
     QTransposeProxyModel,
 )
-from qtpy.QtWidgets import (
-    QApplication,
-    QHeaderView,
-    QTableView,
-    QToolBar,
-    QVBoxLayout,
-    QWidget,
-)
+from qtpy.QtWidgets import QHeaderView, QTableView, QToolBar, QVBoxLayout, QWidget
 
 from pymmcore_widgets._icons import StandardIcon
 from pymmcore_widgets._models import (
@@ -70,6 +61,11 @@ class ConfigPresetsTableView(QTableView):
         self._undo_stack: QUndoStack | None = None
         self._loaded_devices: tuple[Device, ...] = ()
 
+        # Only open editors on explicit user gestures handled below
+        self.setEditTriggers(
+            QTableView.EditTrigger.DoubleClicked | QTableView.EditTrigger.EditKeyPressed
+        )
+
         # Right-click on column headers for per-preset property management
         if hh := self.horizontalHeader():
             hh.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -103,10 +99,7 @@ class ConfigPresetsTableView(QTableView):
         self._pivot_model = matrix
         super().setModel(matrix)
 
-        # Connect to model signals to ensure persistent editors are always maintained
-        matrix.modelReset.connect(self._ensure_persistent_editors)
         matrix.modelReset.connect(self._update_section_sizes)
-        matrix.dataChanged.connect(self._ensure_persistent_editors)
 
     def resizeEvent(self, event: Any) -> None:
         """Adaptive column/row sizing based on available viewport space."""
@@ -152,34 +145,6 @@ class ConfigPresetsTableView(QTableView):
             )
             vh.setDefaultSectionSize(row_h)
 
-    def _ensure_persistent_editors(self) -> None:
-        """Ensure persistent editors are open for all cells after model changes."""
-        # Use a single-shot timer to avoid opening editors during model updates
-        QTimer.singleShot(0, self.openPersistentEditors)
-
-    def openPersistentEditors(self) -> None:
-        """Open persistent editors only for cells that have data."""
-        UserRole = Qt.ItemDataRole.UserRole
-        with suppress(RuntimeError):  # since this may be a slot
-            if model := self.model():
-                # Preserve focus: opening persistent editors (e.g. combo boxes)
-                # can steal focus from the active view.
-                focused = QApplication.focusWidget()
-                # Close all existing persistent editors first
-                for row in range(model.rowCount()):
-                    for col in range(model.columnCount()):
-                        idx = model.index(row, col)
-                        if idx.isValid():
-                            self.closePersistentEditor(idx)
-                # Reopen only for cells with data
-                for row in range(model.rowCount()):
-                    for col in range(model.columnCount()):
-                        idx = model.index(row, col)
-                        if idx.isValid() and idx.data(UserRole) is not None:
-                            self.openPersistentEditor(idx)
-                if focused is not None:
-                    focused.setFocus()
-
     def _get_pivot_model(self) -> ConfigGroupPivotModel:
         model = self.model()
         if isinstance(model, QTransposeProxyModel):
@@ -208,14 +173,12 @@ class ConfigPresetsTableView(QTableView):
             self._transpose_proxy.setSourceModel(pivot)
             super().setModel(self._transpose_proxy)
             self._update_section_sizes()
-            QTimer.singleShot(0, self.openPersistentEditors)
         elif isinstance(pivot, QTransposeProxyModel):
             # Already transposed, revert to original model
             if self._pivot_model:
                 super().setModel(self._pivot_model)
                 self._transpose_proxy = None
                 self._update_section_sizes()
-                QTimer.singleShot(0, self.openPersistentEditors)
 
     def isTransposed(self) -> bool:
         """Check if the table view is currently transposed."""
@@ -274,6 +237,14 @@ class ConfigPresetsTableView(QTableView):
             self._undo_stack.push(cmd)
 
     # --- cell-level interactions --------------------------------------------
+
+    def mousePressEvent(self, event: Any) -> None:
+        """Single left-click on a cell opens the editor (spreadsheet-like)."""
+        super().mousePressEvent(event)
+        if event.button() == Qt.MouseButton.LeftButton:
+            idx = self.indexAt(event.pos())
+            if idx.isValid() and self.state() != QTableView.State.EditingState:
+                self.edit(idx)
 
     def mouseDoubleClickEvent(self, event: Any) -> None:
         """Double-click on an empty cell adds the property to that preset."""

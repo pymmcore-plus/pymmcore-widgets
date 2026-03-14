@@ -23,6 +23,7 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         self._presets: list[ConfigPreset] = []
         self._rows: list[tuple[str, str]] = []  # (device_name, property_name)
         self._data: dict[tuple[int, int], DevicePropertySetting] = {}
+        self._in_set_data = False  # guard to prevent rebuild during setData
 
     def sourceModel(self) -> QConfigGroupsModel | None:
         """Return the source model."""
@@ -69,20 +70,31 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         if (row, col) not in self._data:
             return False  # pragma: no cover
 
-        # Update value on the existing setting (preserves metadata like
-        # allowed_values, property_type, limits, etc.)
-        preset = self._presets[col]
         setting = self._data[(row, col)]
-        setting.value = str(value)
+        new_value = str(value)
+        if setting.value == new_value:
+            return True  # no change
 
-        # Update the preset's settings list
-        preset_settings = list(preset.settings)
+        # Mutate in-place (the setting object is shared with the source model)
+        setting.value = new_value
 
-        # Find the preset index in the source model and update it
-        preset_idx = self._src.index_for_preset(self._gidx, preset.name)
-        if preset_idx.isValid():
-            self._src.update_preset_settings(preset_idx, preset_settings)
+        # Notify the source model so other views update, but guard against
+        # the source's dataChanged triggering a full pivot rebuild.
+        self._in_set_data = True
+        try:
+            preset = self._presets[col]
+            preset_idx = self._src.index_for_preset(self._gidx, preset.name)
+            if preset_idx.isValid():
+                src = self._src
+                for i in range(src.rowCount(preset_idx)):
+                    src_idx = src.index(i, 2, preset_idx)
+                    if src_idx.data(Qt.ItemDataRole.UserRole) is setting:
+                        src.setData(src_idx, new_value)
+                        break
+        finally:
+            self._in_set_data = False
 
+        self.dataChanged.emit(index, index, [])
         return True
 
     # ---------------------------------------------------------------- build --
@@ -244,7 +256,9 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         roles: list[int] | None = None,
     ) -> None:
         """Handle dataChanged signals from the source model."""
-        if self._should_rebuild_for_changes(top_left, bottom_right):
+        if not self._in_set_data and self._should_rebuild_for_changes(
+            top_left, bottom_right
+        ):
             self._rebuild()
 
     def _should_rebuild_for_changes(

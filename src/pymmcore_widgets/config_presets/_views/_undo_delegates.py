@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from qtpy.QtCore import QModelIndex, QObject, Qt
+from qtpy.QtCore import QAbstractItemModel, QEvent, QModelIndex, QObject, Qt
 from qtpy.QtWidgets import QMessageBox, QStyledItemDelegate, QWidget
 
-from pymmcore_widgets._models import QConfigGroupsModel
+from pymmcore_widgets._models import DevicePropertySetting, QConfigGroupsModel
 
-from ._property_setting_delegate import PropertySettingDelegate
+from ._property_setting_delegate import (
+    ControlType,
+    PropertySettingDelegate,
+    _control_type,
+)
 from ._undo_commands import (
     ChangePropertyValueCommand,
     RenameGroupCommand,
@@ -17,8 +21,8 @@ from ._undo_commands import (
 )
 
 if TYPE_CHECKING:
-    from qtpy.QtCore import QAbstractItemModel
     from qtpy.QtGui import QUndoStack
+    from qtpy.QtWidgets import QStyleOptionViewItem
 
 
 class GroupPresetRenameDelegate(QStyledItemDelegate):
@@ -109,3 +113,23 @@ class PropertyValueDelegate(PropertySettingDelegate):
         node = model._node_from_index(index)
         if node.is_setting:
             self._undo_stack.push(ChangePropertyValueCommand(model, index, new_value))
+
+    def editorEvent(
+        self,
+        event: QEvent,
+        model: QAbstractItemModel,
+        option: QStyleOptionViewItem,
+        index: QModelIndex,
+    ) -> bool:
+        """Toggle checkboxes via undo stack on single click."""
+        setting = index.data(Qt.ItemDataRole.UserRole)
+        if (
+            isinstance(setting, DevicePropertySetting)
+            and _control_type(setting) is ControlType.CHECKBOX
+            and event.type() == QEvent.Type.MouseButtonRelease
+            and isinstance(model, QConfigGroupsModel)
+        ):
+            new_val = "0" if setting.value == "1" else "1"
+            self._undo_stack.push(ChangePropertyValueCommand(model, index, new_val))
+            return True
+        return super().editorEvent(event, model, option, index)

@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, cast
 from qtpy.QtCore import QModelIndex, QSize, Qt, Signal
 from qtpy.QtGui import QAction, QKeySequence, QUndoStack
 from qtpy.QtWidgets import (
-    QApplication,
     QButtonGroup,
     QDialog,
     QDialogButtonBox,
@@ -269,13 +268,7 @@ class ConfigGroupsEditor(QWidget):
         try:
             table = self._preset_table.view
             row = current.row()
-            # Preserve focus: selectColumn/selectRow can steal focus to a
-            # persistent editor widget (e.g. a combo box) in the table,
-            # which breaks keyboard navigation in the tree/list views.
-            focused = QApplication.focusWidget()
             table.selectRow(row) if table.isTransposed() else table.selectColumn(row)
-            if focused is not None:
-                focused.setFocus()
         finally:
             self._syncing_selection = False
 
