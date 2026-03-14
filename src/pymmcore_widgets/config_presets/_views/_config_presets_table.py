@@ -64,6 +64,11 @@ class ConfigPresetsTableView(QTableView):
             QTableView.EditTrigger.DoubleClicked | QTableView.EditTrigger.EditKeyPressed
         )
 
+        # In normal mode, presets are columns — only allow column selection
+        self.setSelectionBehavior(QTableView.SelectionBehavior.SelectColumns)
+        if vh := self.verticalHeader():
+            vh.setSectionsClickable(False)
+
         # Right-click on column headers for per-preset property management
         if hh := self.horizontalHeader():
             hh.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -159,6 +164,13 @@ class ConfigPresetsTableView(QTableView):
         External code that connects to selectionModel().selectionChanged should
         reconnect after calling this method.
         """
+        # Remember which preset index was selected
+        selected: int | None = None
+        if sm := self.selectionModel():
+            if indices := sm.selectedIndexes():
+                idx = indices[0]
+                selected = idx.row() if self.isTransposed() else idx.column()
+
         pivot = self.model()
         if isinstance(pivot, ConfigGroupPivotModel):
             self._transpose_proxy = QTransposeProxyModel()
@@ -172,9 +184,30 @@ class ConfigPresetsTableView(QTableView):
                 self._transpose_proxy = None
                 self._update_section_sizes()
 
+        self._update_selection_behavior()
+
+        # Restore selection in the new orientation
+        if selected is not None:
+            if self.isTransposed():
+                self.selectRow(selected)
+            else:
+                self.selectColumn(selected)
+
     def isTransposed(self) -> bool:
         """Check if the table view is currently transposed."""
         return isinstance(self.model(), QTransposeProxyModel)
+
+    def _update_selection_behavior(self) -> None:
+        """Set selection to follow presets: columns normally, rows when transposed."""
+        transposed = self.isTransposed()
+        if transposed:
+            self.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
+        else:
+            self.setSelectionBehavior(QTableView.SelectionBehavior.SelectColumns)
+        if hh := self.horizontalHeader():
+            hh.setSectionsClickable(not transposed)
+        if vh := self.verticalHeader():
+            vh.setSectionsClickable(transposed)
 
     def _pivot_coords(self, idx: QModelIndex) -> tuple[int, int]:
         """Map a view index to pivot (row, col), accounting for transpose."""
@@ -418,29 +451,35 @@ class ConfigPresetsTable(QWidget):
             source_model.remove(source_idx, ask_confirmation=NOT_TESTING)
 
     def _on_duplicate_action(self) -> None:
-        if not self.view.isTransposed():
-            source_idx = self._get_selected_preset_index()
-            if not source_idx.isValid():
-                return
+        source_idx = self._get_selected_preset_index()
+        if not source_idx.isValid():
+            return
 
-            source_model = self.view.sourceModel()
-            # Use undo stack if available, otherwise fall back to direct operation
-            if self._undo_stack is not None:
-                command = DuplicatePresetCommand(source_model, source_idx)
-                self._undo_stack.push(command)
-            else:
-                # Fall back to direct model operation
-                source_model.duplicate_preset(source_idx)
-        # TODO: handle transposed case
+        source_model = self.view.sourceModel()
+        # Use undo stack if available, otherwise fall back to direct operation
+        if self._undo_stack is not None:
+            command = DuplicatePresetCommand(source_model, source_idx)
+            self._undo_stack.push(command)
+        else:
+            # Fall back to direct model operation
+            source_model.duplicate_preset(source_idx)
 
     def _get_selected_preset_index(self) -> QModelIndex:
         """Get the currently selected preset from the source model."""
-        if self.view.isTransposed():
-            return QModelIndex()  # TODO
+        sm = self.view.selectionModel()
+        if sm is None:
+            return QModelIndex()  # pragma: no cover
 
-        if sm := self.view.selectionModel():
-            if indices := sm.selectedColumns():
-                pivot_model = self.view._get_pivot_model()
-                col = indices[0].column()
-                return pivot_model.get_source_index_for_column(col)
-        return QModelIndex()  # pragma: no cover
+        if self.view.isTransposed():
+            indices = sm.selectedRows()
+            if not indices:
+                return QModelIndex()
+            col = indices[0].row()
+        else:
+            indices = sm.selectedColumns()
+            if not indices:
+                return QModelIndex()
+            col = indices[0].column()
+
+        pivot_model = self.view._get_pivot_model()
+        return pivot_model.get_source_index_for_column(col)
