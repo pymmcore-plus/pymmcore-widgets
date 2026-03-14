@@ -75,11 +75,19 @@ class ConfigGroupsEditor(QWidget):
 
     @classmethod
     def create_from_core(
-        cls, core: CMMCorePlus, parent: QWidget | None = None
+        cls,
+        core: CMMCorePlus,
+        parent: QWidget | None = None,
+        *,
+        load_configs: bool = True,
     ) -> ConfigGroupsEditor:
-        """Create a ConfigGroupsEditor from a CMMCorePlus instance."""
+        """Create a ConfigGroupsEditor from a CMMCorePlus instance.
+
+        Available devices are loaded from the core, and if `load_configs` is True,
+        config groups/presets are also loaded.
+        """
         obj = cls(parent)
-        obj.update_from_core(core)
+        obj.update_from_core(core, update_configs=load_configs)
         return obj
 
     def update_from_core(
@@ -87,7 +95,7 @@ class ConfigGroupsEditor(QWidget):
         core: CMMCorePlus,
         *,
         update_devices: bool = True,
-        update_configs: bool = True,
+        update_configs: bool = False,
     ) -> None:
         """Refresh the editor from the current state of the core.
 
