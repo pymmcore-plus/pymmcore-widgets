@@ -1052,6 +1052,39 @@ def test_grid_plan_subsequence_fov_update(
     assert sp.value()[0].sequence.grid_plan.fov_height == 75
 
 
+def test_core_position_table_absolute_grid_disables_xy_btn(qtbot: QtBot) -> None:
+    """Test that an absolute grid sub-sequence disables the XY button."""
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    pos_table = wdg.stage_positions
+    assert isinstance(pos_table, CoreConnectedPositionTable)
+
+    abs_grid = useq.GridFromEdges(top=10, bottom=0, left=0, right=10)
+    positions = [
+        useq.Position(z=0, sequence=useq.MDASequence(grid_plan=abs_grid)),
+        useq.Position(x=1, y=1, z=1),
+    ]
+    wdg.tab_wdg.setChecked(wdg.stage_positions, True)
+    pos_table.setValue(positions)
+
+    table = pos_table.table()
+    xy_btn_col = table.indexOf(pos_table._xy_btn_col)
+    x_col = table.indexOf(pos_table.X)
+    y_col = table.indexOf(pos_table.Y)
+
+    # row 0 has absolute grid: XY button and x/y cells should be disabled
+    assert not table.cellWidget(0, xy_btn_col).isEnabled()
+    assert not table.cellWidget(0, x_col).isEnabled()
+    assert not table.cellWidget(0, y_col).isEnabled()
+
+    # row 1 has no grid: XY button and x/y cells should be enabled
+    assert table.cellWidget(1, xy_btn_col).isEnabled()
+    assert table.cellWidget(1, x_col).isEnabled()
+    assert table.cellWidget(1, y_col).isEnabled()
+
+
 def test_sub_wdg_channel_tab(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     wdg = MDAWidget()
     qtbot.addWidget(wdg)

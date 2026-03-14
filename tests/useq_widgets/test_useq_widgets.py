@@ -629,6 +629,213 @@ def test_autofocus_with_z_plans(qtbot: QtBot) -> None:
     assert wdg.stage_positions.af_per_position.isEnabled()
 
 
+def test_nullable_float_column(qtbot: QtBot) -> None:
+    """Test that nullable FloatColumn shows None and handles sentinel values."""
+    from pymmcore_widgets.useq_widgets._column_info import TableDoubleSpinBox
+
+    wdg = DataTableWidget()
+    qtbot.addWidget(wdg)
+    table = wdg.table()
+
+    col = FloatColumn(key="val", default=None, minimum=-100, maximum=100, nullable=True)
+    table.addColumn(col, position=-1)
+    table.setRowCount(1)
+
+    spin = table.cellWidget(0, table.indexOf(col))
+    assert isinstance(spin, TableDoubleSpinBox)
+
+    # default is None for nullable column
+    assert spin.value() is None
+    assert spin.text() == "None"
+
+    # setting a real value works
+    spin.setValue(42.0)
+    assert spin.value() == 42.0
+
+    # setting None goes back to sentinel
+    spin.setValue(None)
+    assert spin.value() is None
+
+    # set_cell_data with None works (no guard)
+    col.set_cell_data(table, 0, table.indexOf(col), 5.0)
+    assert spin.value() == 5.0
+    col.set_cell_data(table, 0, table.indexOf(col), None)
+    assert spin.value() is None
+
+
+def test_position_table_nullable_xy(qtbot: QtBot) -> None:
+    """Test that PositionTable x/y show None when positions have no x/y set."""
+    wdg = PositionTable()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    # set a position with only z
+    wdg.setValue([useq.Position(z=5.0)])
+    positions = wdg.value()
+    assert len(positions) == 1
+    assert positions[0].x is None
+    assert positions[0].y is None
+    assert positions[0].z == 5.0
+
+    # set a position with x, y, z
+    wdg.setValue([useq.Position(x=1.0, y=2.0, z=3.0)])
+    positions = wdg.value()
+    assert positions[0].x == 1.0
+    assert positions[0].y == 2.0
+
+
+def test_position_table_absolute_grid_disables_xy(qtbot: QtBot) -> None:
+    """Test that sub-sequence with absolute grid disables x/y and shows grid pos."""
+    wdg = PositionTable()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    abs_grid = useq.GridFromEdges(top=10, bottom=0, left=0, right=10)
+    # create position without x/y (as useq now warns if x/y set with absolute grid)
+    pos = useq.Position(
+        z=3.0,
+        sequence=useq.MDASequence(grid_plan=abs_grid),
+    )
+    wdg.setValue([pos])
+
+    table = wdg.table()
+    x_col = table.indexOf(wdg.X)
+    y_col = table.indexOf(wdg.Y)
+
+    # x/y widgets should be disabled
+    x_wdg = table.cellWidget(0, x_col)
+    y_wdg = table.cellWidget(0, y_col)
+    assert not x_wdg.isEnabled()
+    assert not y_wdg.isEnabled()
+
+    # x/y should show the first grid position
+    first_pos = next(iter(abs_grid))
+    assert x_wdg.value() == first_pos.x
+    assert y_wdg.value() == first_pos.y
+
+    # value() should clear x/y for absolute grid sub-sequence
+    positions = wdg.value()
+    assert positions[0].x is None
+    assert positions[0].y is None
+
+
+def test_position_table_relative_grid_keeps_xy(qtbot: QtBot) -> None:
+    """Test that sub-sequence with relative grid keeps x/y enabled."""
+    wdg = PositionTable()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    rel_grid = useq.GridRowsColumns(rows=2, columns=2)
+    pos = useq.Position(
+        x=50.0,
+        y=60.0,
+        z=3.0,
+        sequence=useq.MDASequence(grid_plan=rel_grid),
+    )
+    wdg.setValue([pos])
+
+    table = wdg.table()
+    x_col = table.indexOf(wdg.X)
+    y_col = table.indexOf(wdg.Y)
+
+    # x/y widgets should stay enabled for relative grid
+    assert table.cellWidget(0, x_col).isEnabled()
+    assert table.cellWidget(0, y_col).isEnabled()
+
+    # value() should keep x/y
+    positions = wdg.value()
+    assert positions[0].x == 50.0
+    assert positions[0].y == 60.0
+
+
+def test_position_table_sub_seq_change_toggles_xy(qtbot: QtBot) -> None:
+    """Test that changing sub-sequence toggles x/y enabled state."""
+    from pymmcore_widgets.useq_widgets._positions import MDAButton
+
+    wdg = PositionTable()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    wdg.table().setRowCount(1)
+    table = wdg.table()
+    seq_col = table.indexOf(wdg.SEQ)
+    x_col = table.indexOf(wdg.X)
+    y_col = table.indexOf(wdg.Y)
+
+    btn = table.cellWidget(0, seq_col)
+    assert isinstance(btn, MDAButton)
+
+    # initially x/y should be enabled
+    assert table.cellWidget(0, x_col).isEnabled()
+    assert table.cellWidget(0, y_col).isEnabled()
+
+    # set an absolute grid sub-sequence
+    abs_grid = useq.GridFromEdges(top=10, bottom=0, left=0, right=10)
+    btn.setValue(useq.MDASequence(grid_plan=abs_grid))
+
+    # x/y should now be disabled
+    assert not table.cellWidget(0, x_col).isEnabled()
+    assert not table.cellWidget(0, y_col).isEnabled()
+
+    # clear the sub-sequence
+    btn.setValue(None)
+
+    # x/y should be re-enabled
+    assert table.cellWidget(0, x_col).isEnabled()
+    assert table.cellWidget(0, y_col).isEnabled()
+
+
+def test_has_absolute_grid_helper(qtbot: QtBot) -> None:
+    """Test the _has_absolute_grid helper method."""
+    wdg = PositionTable()
+    qtbot.addWidget(wdg)
+
+    assert not wdg._has_absolute_grid(None)
+    assert not wdg._has_absolute_grid(useq.MDASequence())
+    assert not wdg._has_absolute_grid(
+        useq.MDASequence(grid_plan=useq.GridRowsColumns(rows=2, columns=2))
+    )
+    assert wdg._has_absolute_grid(
+        useq.MDASequence(grid_plan=useq.GridFromEdges(top=1, bottom=0, left=0, right=1))
+    )
+
+
+def test_first_grid_xy_helper() -> None:
+    """Test the _first_grid_xy static method."""
+    grid = useq.GridFromEdges(top=10, bottom=0, left=0, right=10)
+    result = PositionTable._first_grid_xy(grid)
+    assert result is not None
+    first = next(iter(grid))
+    assert result == (first.x, first.y)
+
+    # invalid input returns None
+    assert PositionTable._first_grid_xy(None) is None
+    assert PositionTable._first_grid_xy("not a grid") is None
+
+
+def test_mda_value_clears_xy_for_absolute_grid(qtbot: QtBot) -> None:
+    """Test that MDATabs.value() clears x/y when a global absolute grid is used."""
+    wdg = MDASequenceWidget()
+    qtbot.addWidget(wdg)
+    wdg.show()
+
+    # set positions with x/y first (no grid yet)
+    pos_seq = useq.MDASequence(stage_positions=[useq.Position(x=50, y=60, z=3)])
+    wdg.setValue(pos_seq)
+
+    # then enable and set an absolute grid plan
+    abs_grid = useq.GridFromEdges(top=10, bottom=0, left=0, right=10)
+    wdg.tab_wdg.setChecked(wdg.grid_plan, True)
+    wdg.grid_plan.setValue(abs_grid)
+
+    result = wdg.value()
+
+    # x/y should be cleared because the global grid is absolute
+    for pos in result.stage_positions:
+        assert pos.x is None
+        assert pos.y is None
+
+
 def test_mda_popup_with_polygon(qtbot: QtBot) -> None:
     polygon = useq.GridFromPolygon(
         vertices=[(-10, 0), (12, -5), (10, 20), (0, 10)],

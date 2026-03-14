@@ -161,15 +161,23 @@ class SubSeqColumn(WidgetColumn):
 class PositionTable(DataTableWidget):
     """Table to edit a list of [useq.Position](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Position)."""
 
+    # fmt: off
     NAME = TextColumn(key="name", default=None, is_row_selector=True)
-    X = FloatColumn(key="x", header="X [µm]", default=0.0, maximum=MAX, minimum=-MAX)
-    Y = FloatColumn(key="y", header="Y [µm]", default=0.0, maximum=MAX, minimum=-MAX)
-    Z = FloatColumn(key="z", header="Z [µm]", default=0.0, maximum=MAX, minimum=-MAX)
+    X = FloatColumn(key="x", header="X [µm]", default=None, maximum=MAX, minimum=-MAX, nullable=True)  # noqa: E501
+    Y = FloatColumn(key="y", header="Y [µm]", default=None, maximum=MAX, minimum=-MAX, nullable=True)  # noqa: E501
+    Z = FloatColumn(key="z", header="Z [µm]", default=None, maximum=MAX, minimum=-MAX, nullable=True)  # noqa: E501
     AF = FloatColumn(key="af", header="AF", default=0.0, maximum=MAX, minimum=-MAX)
     SEQ = SubSeqColumn(key="sequence", header="Sub-Sequence", default=None)
+    # fmt: on
 
     def __init__(self, rows: int = 0, parent: QWidget | None = None):
         super().__init__(rows, parent)
+
+        # when a sub-sequence changes, clear x/y if it has an absolute grid
+        self.table().model().rowsInserted.connect(self._connect_sub_seq)
+        # connect any rows that were created during super().__init__()
+        if (rows := self.table().rowCount()) > 0:
+            self._connect_sub_seq(None, 0, rows - 1)
 
         self.include_z = QCheckBox("Include Z")
         self.include_z.setChecked(True)
@@ -345,6 +353,66 @@ class PositionTable(DataTableWidget):
             self.setValue([useq.Position(**d) for d in data])
         except Exception as e:  # pragma: no cover
             raise ValueError(f"Failed to load MDASequence file: {src}") from e
+
+    def _connect_sub_seq(self, _parent: object, start: int, end: int) -> None:
+        """Connect MDAButton.valueChanged to _on_sub_seq_changed for new rows."""
+        table = self.table()
+        seq_col = table.indexOf(self.SEQ)
+        for row in range(start, end + 1):
+            wdg = table.cellWidget(row, seq_col)
+            if isinstance(wdg, MDAButton):
+                wdg.valueChanged.connect(self._on_sub_seq_changed)
+
+    def _on_sub_seq_changed(self) -> None:
+        """Update x/y state when a sub-sequence changes."""
+        btn = self.sender()
+        if not isinstance(btn, MDAButton):
+            return
+        table = self.table()
+        seq_col = table.indexOf(self.SEQ)
+        for row in range(table.rowCount()):
+            if table.cellWidget(row, seq_col) is btn:
+                self._update_row_xy_enabled(row, btn.value())
+                break
+
+    def _has_absolute_grid(self, seq: useq.MDASequence | None) -> bool:
+        """Return True if the sequence has an absolute (non-relative) grid plan."""
+        return (
+            seq is not None
+            and seq.grid_plan is not None
+            and not seq.grid_plan.is_relative
+        )
+
+    def _update_row_xy_enabled(self, row: int, seq: useq.MDASequence | None) -> None:
+        """Disable x/y and show first grid position if absolute grid, else re-enable."""
+        table = self.table()
+        x_col = table.indexOf(self.X)
+        y_col = table.indexOf(self.Y)
+        disabled = self._has_absolute_grid(seq)
+        if disabled:
+            xy = self._first_grid_xy(seq.grid_plan)  # type: ignore [union-attr]
+            self.X.set_cell_data(table, row, x_col, xy[0] if xy else None)
+            self.Y.set_cell_data(table, row, y_col, xy[1] if xy else None)
+        tip = (
+            "XY positions are defined by the absolute grid plan in the sub-sequence."
+            if disabled
+            else ""
+        )
+        if x_wdg := table.cellWidget(row, x_col):
+            x_wdg.setEnabled(not disabled)
+            x_wdg.setToolTip(tip)
+        if y_wdg := table.cellWidget(row, y_col):
+            y_wdg.setEnabled(not disabled)
+            y_wdg.setToolTip(tip)
+
+    @staticmethod
+    def _first_grid_xy(grid_plan: object) -> tuple[float, float] | None:
+        """Return (x, y) of the first position in a grid plan, or None."""
+        try:
+            first = next(iter(grid_plan))  # type: ignore [call-overload]
+            return (first.x, first.y)
+        except Exception:
+            return None
 
     # ------------------------- Private API -------------------------
 

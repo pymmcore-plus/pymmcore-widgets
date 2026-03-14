@@ -133,9 +133,11 @@ class MDATabs(CheckableTabWidget):
         # validation warnings.
         if grid_plan is not None and not grid_plan.is_relative and positions:
             positions = tuple(
-                pos.replace(x=None, y=None)
-                if pos.x is not None or pos.y is not None
-                else pos
+                (
+                    pos.replace(x=None, y=None)
+                    if pos.x is not None or pos.y is not None
+                    else pos
+                )
                 for pos in positions
             )
 

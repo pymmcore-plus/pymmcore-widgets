@@ -247,7 +247,43 @@ class TableSpinBox(_TableSpinboxMixin, QSpinBox):
 
 
 class TableDoubleSpinBox(_TableSpinboxMixin, QDoubleSpinBox):
-    pass
+    """A QDoubleSpinBox for table cells, with optional nullable support.
+
+    When nullable, the spinbox can represent None (shows blank). A sentinel
+    value one step below the real minimum is used internally.
+    """
+
+    _nullable: bool = False
+
+    def setNullable(self, nullable: bool) -> None:
+        """Enable or disable nullable mode."""
+        self._nullable = nullable
+        if nullable:
+            self.setSpecialValueText("None")
+            # adjust current minimum to add sentinel, then set value to sentinel
+            self.setMinimum(self.minimum())
+            super().setValue(self.minimum())
+
+    def _sentinel(self) -> float:
+        return float(self.minimum())
+
+    def value(self) -> float | None:
+        if self._nullable and super().value() == self._sentinel():
+            return None
+        return float(super().value())
+
+    def setValue(self, value: float | None) -> None:
+        if value is None and self._nullable:
+            super().setValue(self._sentinel())
+        else:
+            super().setValue(value)
+
+    def setMinimum(self, minimum: float) -> None:
+        if self._nullable:
+            # reserve one extra step below the real minimum as the sentinel
+            super().setMinimum(minimum - 1)
+        else:
+            super().setMinimum(minimum)
 
 
 TableIntWidget = WdgGetSet(
@@ -296,6 +332,27 @@ class IntColumn(_RangeColumn):
 @dataclass(frozen=True)
 class FloatColumn(_RangeColumn):
     data_type: WdgGetSet = TableFloatWidget
+    nullable: bool = False
+
+    def _init_widget(self) -> TableDoubleSpinBox:
+        wdg: TableDoubleSpinBox = self.data_type.widget()
+        # set min/max/decimals before enabling nullable,
+        # so the sentinel is based on the correct minimum
+        if self.minimum is not None:
+            wdg.setMinimum(self.minimum)
+        if self.maximum is not None:
+            wdg.setMaximum(self.maximum)
+        if self.decimals is not None:
+            wdg.setDecimals(self.decimals)
+        if self.nullable:
+            wdg.setNullable(True)
+        return wdg
+
+    def set_cell_data(
+        self, table: QTableWidget, row: int, col: int, value: Any
+    ) -> None:
+        if wdg := table.cellWidget(row, col):
+            self.data_type.setter(cast("TableDoubleSpinBox", wdg), value)
 
 
 # ########################  Timepoints  ################################
