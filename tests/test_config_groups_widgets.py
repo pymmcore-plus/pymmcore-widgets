@@ -17,7 +17,7 @@ from pymmcore_widgets._models import (
     get_loaded_devices,
 )
 from pymmcore_widgets._models._q_device_prop_model import DevicePropertyFlatProxy
-from pymmcore_widgets.config_presets import ConfigPresetsTable
+from pymmcore_widgets.config_presets import ConfigPresetsTable, GroupsPresetFinder
 from pymmcore_widgets.config_presets._views._checked_properties_proxy import (
     CheckedProxy,
 )
@@ -26,9 +26,6 @@ from pymmcore_widgets.config_presets._views._device_property_selector import (
 )
 from pymmcore_widgets.config_presets._views._device_type_filter_proxy import (
     DeviceTypeFilter,
-)
-from pymmcore_widgets.config_presets._views._group_preset_selector import (
-    GroupsPresetFinder,
 )
 from pymmcore_widgets.config_presets._views._property_setting_delegate import (
     PropertySettingDelegate,
