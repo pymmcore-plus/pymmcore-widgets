@@ -50,8 +50,6 @@ class ConfigPresetsTableView(QTableView):
 
     MIN_COL_WIDTH = 120
     MAX_COL_WIDTH = 340
-    MIN_ROW_HEIGHT = 26
-    MAX_ROW_HEIGHT = 48
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -102,23 +100,21 @@ class ConfigPresetsTableView(QTableView):
         matrix.modelReset.connect(self._update_section_sizes)
 
     def resizeEvent(self, event: Any) -> None:
-        """Adaptive column/row sizing based on available viewport space."""
+        """Adaptive column sizing based on available viewport space."""
         super().resizeEvent(event)
         self._update_section_sizes()
 
     def _update_section_sizes(self) -> None:
-        """Recalculate column widths and row heights for the current viewport."""
+        """Recalculate column widths for the current viewport."""
         model = self.model()
         if model is None:
             return
 
         hh = self.horizontalHeader()
-        vh = self.verticalHeader()
-        if hh is None or vh is None:
+        if hh is None:
             return
 
         col_count = model.columnCount()
-        row_count = model.rowCount()
         vp_width = self.viewport().width()
 
         # Columns:
@@ -135,15 +131,6 @@ class ConfigPresetsTableView(QTableView):
                 hh.setDefaultSectionSize(self.MAX_COL_WIDTH)
             else:
                 hh.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-
-        # Rows: fill vertical space, clamped to [MIN_ROW_HEIGHT, MAX_ROW_HEIGHT]
-        if row_count > 0:
-            vp_height = self.viewport().height()
-            row_h = max(
-                self.MIN_ROW_HEIGHT,
-                min(vp_height // row_count, self.MAX_ROW_HEIGHT),
-            )
-            vh.setDefaultSectionSize(row_h)
 
     def _get_pivot_model(self) -> ConfigGroupPivotModel:
         model = self.model()

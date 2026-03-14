@@ -8,6 +8,8 @@ from qtpy.QtCore import QAbstractItemModel, QModelIndex, QObject, Qt
 from qtpy.QtGui import QBrush, QFont, QIcon
 from superqt import QIconifyIcon
 
+from pymmcore_widgets._icons import StandardIcon
+
 from ._base_tree_model import _BaseTreeModel
 from ._core_functions import get_loaded_devices
 from ._py_config_model import Device, DevicePropertySetting
@@ -64,8 +66,10 @@ class QDevicePropertyModel(_BaseTreeModel):
                 return prop.property_name
         elif role == Qt.ItemDataRole.DecorationRole:
             if col == 0:
-                if icon := prop.iconify_key:
-                    return QIconifyIcon(icon, color="gray").pixmap(16, 16)
+                icon = StandardIcon.for_property_type(
+                    prop.property_type, prop.allowed_values
+                )
+                return icon.icon().pixmap(16, 16)
 
         elif role == Qt.ItemDataRole.FontRole:
             if prop.is_read_only:
@@ -213,6 +217,18 @@ class DevicePropertyFlatProxy(QAbstractItemModel):
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         if not index.isValid():
+            return None
+
+        # Property column: show property-type icon instead of device icon
+        if index.column() == 1 and role == Qt.ItemDataRole.DecorationRole:
+            source_idx = self._mapped_index(index.row(), 1)
+            if source_idx.isValid():
+                prop = source_idx.data(Qt.ItemDataRole.UserRole)
+                if isinstance(prop, DevicePropertySetting):
+                    icon = StandardIcon.for_property_type(
+                        prop.property_type, prop.allowed_values
+                    )
+                    return icon.icon().pixmap(16, 16)
             return None
 
         source_idx = self._mapped_index(index.row(), index.column())
