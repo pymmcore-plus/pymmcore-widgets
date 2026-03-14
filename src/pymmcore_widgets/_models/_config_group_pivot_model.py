@@ -6,7 +6,7 @@ from qtpy.QtCore import QAbstractTableModel, QModelIndex, QSize, Qt
 
 from pymmcore_widgets._icons import StandardIcon
 
-from ._py_config_model import ConfigPreset, DevicePropertySetting
+from ._py_config_model import ConfigGroup, ConfigPreset, DevicePropertySetting
 from ._q_config_model import QConfigGroupsModel
 
 if TYPE_CHECKING:
@@ -23,6 +23,7 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         self._presets: list[ConfigPreset] = []
         self._rows: list[tuple[str, str]] = []  # (device_name, property_name)
         self._data: dict[tuple[int, int], DevicePropertySetting] = {}
+        self._in_set_data = False  # guard to prevent rebuild during setData
 
     def sourceModel(self) -> QConfigGroupsModel | None:
         """Return the source model."""
@@ -47,9 +48,8 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         if not isinstance(group_name_or_index, QModelIndex):
             self._gidx = self._src.index_for_group(group_name_or_index)
         else:
-            if not group_name_or_index.isValid():  # pragma: no cover
-                raise ValueError("Invalid QModelIndex provided for group selection.")
-            self._gidx = group_name_or_index
+            if group_name_or_index.isValid():  # pragma: no cover
+                self._gidx = group_name_or_index
         self._rebuild()
 
     def setData(
@@ -66,58 +66,56 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         ):
             return False  # pragma: no cover
 
-        # Get the preset and device/property for this cell
-        preset = self._presets[col]
-        dev_prop = self._rows[row]
-        # Create or update the setting
-        # Update our local data
-        self._data[(row, col)] = setting = DevicePropertySetting(
-            device=dev_prop[0], property_name=dev_prop[1], value=str(value)
-        )
+        # Reject writes to empty cells (no existing setting)
+        if (row, col) not in self._data:
+            return False  # pragma: no cover
 
-        # Update the preset's settings list
-        preset_settings = list(preset.settings)
+        setting = self._data[(row, col)]
+        new_value = str(value)
+        if setting.value == new_value:
+            return True  # no change
 
-        # Find existing setting or add new one
-        for i, existing_setting in enumerate(preset_settings):
-            existing_key = (
-                existing_setting.device_label,
-                existing_setting.property_name,
-            )
-            if existing_key == dev_prop:
-                preset_settings[i] = setting
-                break
-        else:
-            preset_settings.append(setting)
+        # Mutate in-place (the setting object is shared with the source model)
+        setting.value = new_value
 
-        # Find the preset index in the source model and update it
-        preset_idx = self._src.index_for_preset(self._gidx, preset.name)
-        if preset_idx.isValid():
-            self._src.update_preset_settings(preset_idx, preset_settings)
+        # Notify the source model so other views update, but guard against
+        # the source's dataChanged triggering a full pivot rebuild.
+        self._in_set_data = True
+        try:
+            preset = self._presets[col]
+            preset_idx = self._src.index_for_preset(self._gidx, preset.name)
+            if preset_idx.isValid():
+                src = self._src
+                for i in range(src.rowCount(preset_idx)):
+                    src_idx = src.index(i, 2, preset_idx)
+                    if src_idx.data(Qt.ItemDataRole.UserRole) is setting:
+                        src.setData(src_idx, new_value)
+                        break
+        finally:
+            self._in_set_data = False
 
-        # Emit dataChanged signal for the specific cell
-        self._src.dataChanged.emit(preset_idx, preset_idx, [role])
+        self.dataChanged.emit(index, index, [])
         return True
 
     # ---------------------------------------------------------------- build --
 
     def _rebuild(self) -> None:  # slot signature is flexible
-        if self._gidx is None:  # nothing selected yet
-            return  # pragma: no cover
         self.beginResetModel()
-
-        self._presets = []
-        self._rows = []
+        self._presets.clear()
+        self._rows.clear()
         self._data.clear()
-        try:
-            node = self._gidx.internalPointer()
-            if not node:
-                return  # pragma: no cover
-            self._presets = [child.payload for child in node.children]
-            keys = (setting.key() for p in self._presets for setting in p.settings)
-            self._rows = list(dict.fromkeys(keys, None))  # unique (device, prop) pairs
+        if self._gidx is None:  # nothing selected yet
+            self.endResetModel()
+            return  # pragma: no cover
 
-            self._data.clear()
+        try:
+            group = self._gidx.data(Qt.ItemDataRole.UserRole)
+            if not isinstance(group, ConfigGroup):
+                return  # pragma: no cover
+            self._presets = list(group.presets.values())
+            keys = (setting.key() for p in self._presets for setting in p.settings)
+            self._rows = sorted(dict.fromkeys(keys, None))
+
             for col, preset in enumerate(self._presets):
                 for row, (device, prop) in enumerate(self._rows):
                     for s in preset.settings:
@@ -126,6 +124,16 @@ class ConfigGroupPivotModel(QAbstractTableModel):
                             break
         finally:
             self.endResetModel()
+
+    def _empty_setting_for_row(self, row: int) -> DevicePropertySetting:
+        """Create an empty setting for the given row, preserving metadata."""
+        # Try to copy metadata from an existing setting in another column
+        for col in range(len(self._presets)):
+            if (row, col) in self._data:
+                src = self._data[(row, col)]
+                return src.model_copy(update={"value": src.default_value})
+        dev, prop = self._rows[row]
+        return DevicePropertySetting(device=dev, property_name=prop)
 
     # --------------------------------------------------------- Qt overrides --
 
@@ -145,10 +153,11 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         orient: Qt.Orientation,
         role: int = Qt.ItemDataRole.DisplayRole,
     ) -> Any:
-        if role == Qt.ItemDataRole.DisplayRole and section < len(self._presets):
-            if orient == Qt.Orientation.Horizontal:
+        if role == Qt.ItemDataRole.DisplayRole:
+            if orient == Qt.Orientation.Horizontal and section < len(self._presets):
                 return self._presets[section].name
-            return "-".join(self._rows[section])
+            if orient == Qt.Orientation.Vertical and section < len(self._rows):
+                return "-".join(self._rows[section])
         elif role == Qt.ItemDataRole.DecorationRole and section < len(self._rows):
             if orient == Qt.Orientation.Vertical:
                 try:
@@ -177,15 +186,57 @@ class ConfigGroupPivotModel(QAbstractTableModel):
             return setting.value if setting else None
         return None
 
-    # make editable
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:
         if not index.isValid():  # pragma: no cover
             return Qt.ItemFlag.NoItemFlags
-        return (
-            Qt.ItemFlag.ItemIsEnabled
-            | Qt.ItemFlag.ItemIsSelectable
-            | Qt.ItemFlag.ItemIsEditable
-        )
+        base = Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
+        if self._data.get((index.row(), index.column())) is not None:
+            base |= Qt.ItemFlag.ItemIsEditable
+        return base
+
+    def add_setting_at(self, row: int, col: int) -> bool:
+        """Add a placeholder setting at (row, col) if the cell is empty."""
+        if (
+            self._src is None
+            or self._gidx is None
+            or row >= len(self._rows)
+            or col >= len(self._presets)
+            or (row, col) in self._data
+        ):
+            return False  # pragma: no cover
+
+        preset = self._presets[col]
+        new_setting = self._empty_setting_for_row(row)
+
+        preset_settings = list(preset.settings)
+        preset_settings.append(new_setting)
+
+        preset_idx = self._src.index_for_preset(self._gidx, preset.name)
+        if preset_idx.isValid():
+            self._src.update_preset_settings(preset_idx, preset_settings)
+            return True
+        return False  # pragma: no cover
+
+    def remove_setting_at(self, row: int, col: int) -> bool:
+        """Remove the setting at (row, col) if it exists."""
+        if (
+            self._src is None
+            or self._gidx is None
+            or row >= len(self._rows)
+            or col >= len(self._presets)
+            or (row, col) not in self._data
+        ):
+            return False
+
+        preset = self._presets[col]
+        target_key = self._rows[row]
+        filtered = [s for s in preset.settings if s.key() != target_key]
+
+        preset_idx = self._src.index_for_preset(self._gidx, preset.name)
+        if preset_idx.isValid():
+            self._src.update_preset_settings(preset_idx, filtered)
+            return True
+        return False  # pragma: no cover
 
     def get_source_index_for_column(self, column: int) -> QModelIndex:
         """Get the source index for a given column in the pivot model."""
@@ -198,6 +249,36 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         preset_idx = self._src.index_for_preset(self._gidx, preset.name)
         return preset_idx
 
+    def mapToSourceSettingIndex(
+        self, index: QModelIndex
+    ) -> tuple[QConfigGroupsModel | None, QModelIndex]:
+        """Map a pivot index to the corresponding (source_model, setting_index).
+
+        Returns (None, invalid) if the mapping cannot be made.
+        """
+        if (
+            self._src is None
+            or self._gidx is None
+            or not index.isValid()
+            or (row := index.row()) >= len(self._rows)
+            or (col := index.column()) >= len(self._presets)
+        ):
+            return None, QModelIndex()
+
+        setting = self._data.get((row, col))
+        if setting is None:
+            return None, QModelIndex()
+
+        preset = self._presets[col]
+        preset_idx = self._src.index_for_preset(self._gidx, preset.name)
+        if preset_idx.isValid():
+            for i in range(self._src.rowCount(preset_idx)):
+                src_idx = self._src.index(i, 2, preset_idx)
+                if src_idx.data(Qt.ItemDataRole.UserRole) is setting:
+                    return self._src, src_idx
+
+        return None, QModelIndex()
+
     def _on_source_data_changed(
         self,
         top_left: QModelIndex,
@@ -205,7 +286,9 @@ class ConfigGroupPivotModel(QAbstractTableModel):
         roles: list[int] | None = None,
     ) -> None:
         """Handle dataChanged signals from the source model."""
-        if self._should_rebuild_for_changes(top_left, bottom_right):
+        if not self._in_set_data and self._should_rebuild_for_changes(
+            top_left, bottom_right
+        ):
             self._rebuild()
 
     def _should_rebuild_for_changes(

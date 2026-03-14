@@ -34,6 +34,8 @@ from qtpy.QtWidgets import (
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from pymmcore_widgets._models._py_config_model import DevicePropertySetting
+
     class PPropValueWidget(QWidget):
         """The protocol expected of a ValueWidget."""
 
@@ -41,7 +43,7 @@ if TYPE_CHECKING:
 
         def value(self) -> str | float: ...
         def setValue(self, val: str | float) -> None: ...
-        def setEnabled(self, enabled: bool) -> None: ...
+        def setEnabled(self, a0: bool) -> None: ...
         def deleteLater(self) -> None: ...
 
 
@@ -91,7 +93,7 @@ class IntSpinBox(QSpinBox):
     def setValue(self, val: int | str) -> None:
         """Set value, accepting strings from core."""
         if isinstance(val, str):
-            val = int(float(val))
+            val = int(float(val or 0))
         super().setValue(val)
 
 
@@ -113,7 +115,7 @@ class FloatSpinBox(QDoubleSpinBox):
     def setValue(self, val: float | str) -> None:
         """Set value, accepting strings from core."""
         if isinstance(val, str):
-            val = float(val)
+            val = float(val or 0)
         # Auto-adjust decimals to show value properly
         val_str = f"{val:.10f}".rstrip("0").rstrip(".")
         if "." in val_str:
@@ -202,7 +204,7 @@ class LabeledSlider(QWidget):
         """Set the value."""
         with _update_blocker(self):
             # Convert from string (core always returns strings)
-            typed_val = float(value) if self._is_float else int(float(value))
+            typed_val = float(value or 0) if self._is_float else int(float(value or 0))
             self._value = typed_val  # Store exact value
             self._spinbox.setValue(typed_val)  # pyright: ignore
             if self._is_float:
@@ -291,7 +293,7 @@ class BoolCheckBox(QCheckBox):
 
     def setValue(self, value: str | int) -> None:
         """Set the value (0 or 1)."""
-        self.setChecked(bool(int(value)))
+        self.setChecked(bool(int(value or 0)))
 
     def value(self) -> int:
         """Get the value (0 or 1)."""
@@ -312,8 +314,10 @@ class StringLineEdit(QLineEdit):
 
     def setValue(self, value: str) -> None:
         """Set the value."""
-        self.setText(str(value))
-        self.valueChanged.emit(self.text())
+        text = str(value)
+        if text != self.text():
+            self.setText(text)
+            self.valueChanged.emit(text)
 
     def value(self) -> str:
         """Get the value."""
@@ -353,6 +357,41 @@ def _get_allowed_values(mmc: CMMCorePlus, device: str, prop: str) -> tuple[str, 
             return tuple(str(i) for i in range(n_states))
 
     return ()
+
+
+def create_property_editor(setting: DevicePropertySetting) -> PPropValueWidget:
+    """Create an appropriate editor widget from a DevicePropertySetting.
+
+    Uses the metadata already stored on the setting (property_type,
+    allowed_values, limits, is_read_only) — no core instance needed.
+    """
+    if setting.is_read_only:
+        return cast("PPropValueWidget", ReadOnlyLabel())
+
+    ptype = setting.property_type
+    allowed = setting.allowed_values
+
+    if ptype is PropertyType.Integer and set(allowed) == {"0", "1"}:
+        return cast("PPropValueWidget", BoolCheckBox())
+
+    if allowed:
+        wdg = ChoiceComboBox()
+        wdg.setChoices(allowed)
+        return cast("PPropValueWidget", wdg)
+
+    if ptype in (PropertyType.Integer, PropertyType.Float) and setting.limits:
+        lower, upper = setting.limits
+        is_float = ptype is PropertyType.Float
+        wdg = LabeledSlider(is_float=is_float)
+        wdg.setRange(lower, upper)
+        return cast("PPropValueWidget", wdg)
+
+    if ptype is PropertyType.Integer:
+        return cast("PPropValueWidget", IntSpinBox())
+    if ptype is PropertyType.Float:
+        return cast("PPropValueWidget", FloatSpinBox())
+
+    return cast("PPropValueWidget", StringLineEdit())
 
 
 def create_inner_property_widget(

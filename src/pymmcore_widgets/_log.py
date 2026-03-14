@@ -122,7 +122,7 @@ class CoreLogWidget(QWidget):
         mmcore: CMMCorePlus | None = None,
     ) -> None:
         super().__init__(parent)
-        self._mmcore = mmcore or CMMCorePlus().instance()
+        self._mmcore = mmcore or CMMCorePlus.instance()
         self.setWindowTitle("Log Console")
 
         # --- Log path ---
