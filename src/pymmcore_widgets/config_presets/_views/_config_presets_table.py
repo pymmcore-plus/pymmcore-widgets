@@ -153,7 +153,12 @@ class ConfigPresetsTableView(QTableView):
         model.setGroup(group_name_or_index)
 
     def transpose(self) -> None:
-        """Transpose the table view."""
+        """Transpose the table view.
+
+        Note: this replaces the model, which creates a new selectionModel().
+        External code that connects to selectionModel().selectionChanged should
+        reconnect after calling this method.
+        """
         pivot = self.model()
         if isinstance(pivot, ConfigGroupPivotModel):
             self._transpose_proxy = QTransposeProxyModel()
@@ -355,10 +360,11 @@ class ConfigPresetsTable(QWidget):
         self._toolbar = tb = QToolBar(self)
         tb.setIconSize(QSize(16, 16))
         tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        if act := tb.addAction(
+        self.transpose_action = tb.addAction(
             StandardIcon.TRANSPOSE.icon(), "Transpose", self.view.transpose
-        ):
-            act.setCheckable(True)
+        )
+        if self.transpose_action:
+            self.transpose_action.setCheckable(True)
 
         self.remove_action = QAction(StandardIcon.DELETE.icon(), "Remove")
         tb.addAction(self.remove_action)

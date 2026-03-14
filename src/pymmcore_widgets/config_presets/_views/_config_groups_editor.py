@@ -181,8 +181,10 @@ class ConfigGroupsEditor(QWidget):
         self._undo_stack.indexChanged.connect(self._on_undo_index_changed)
 
         # Sync table selection back to preset list
-        if model := self._preset_table.view.selectionModel():
-            model.selectionChanged.connect(self._on_table_selection_changed)
+        self._connect_table_selection()
+        # Transpose replaces the model (and selection model), so reconnect
+        if act := self._preset_table.transpose_action:
+            act.triggered.connect(self._connect_table_selection)
 
     # ------------------------------------------------------------------
     # Public API
@@ -271,6 +273,11 @@ class ConfigGroupsEditor(QWidget):
             table.selectRow(row) if table.isTransposed() else table.selectColumn(row)
         finally:
             self._syncing_selection = False
+
+    def _connect_table_selection(self) -> None:
+        """(Re)connect the table's selection model to sync back to preset list."""
+        if sm := self._preset_table.view.selectionModel():
+            sm.selectionChanged.connect(self._on_table_selection_changed)
 
     def _on_table_selection_changed(self) -> None:
         """Sync the table's selected column back to the preset list."""
