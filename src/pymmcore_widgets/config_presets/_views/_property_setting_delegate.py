@@ -10,6 +10,7 @@ from qtpy.QtCore import (
     QEvent,
     QModelIndex,
     QRect,
+    QSignalBlocker,
     QSize,
     Qt,
     QTimer,
@@ -34,11 +35,6 @@ if TYPE_CHECKING:
     from qtpy.QtGui import QPainter
 
 
-# ---------------------------------------------------------------------------
-# Control-type classification
-# ---------------------------------------------------------------------------
-
-
 class ControlType(Enum):
     READ_ONLY = auto()
     CHECKBOX = auto()
@@ -48,10 +44,7 @@ class ControlType(Enum):
 
 
 def _control_type(setting: DevicePropertySetting) -> ControlType:
-    """Classify a setting into the visual control it should be painted as.
-
-    Mirrors the logic in ``create_property_editor`` without creating a widget.
-    """
+    """Classify a setting into the control type it should be painted as."""
     if setting.is_read_only:
         return ControlType.READ_ONLY
     ptype = setting.property_type
@@ -63,11 +56,6 @@ def _control_type(setting: DevicePropertySetting) -> ControlType:
     if ptype in (PropertyType.Integer, PropertyType.Float):
         return ControlType.SPINBOX
     return ControlType.LINE_EDIT
-
-
-# ---------------------------------------------------------------------------
-# Delegate
-# ---------------------------------------------------------------------------
 
 
 class PropertySettingDelegate(QStyledItemDelegate):
@@ -82,41 +70,40 @@ class PropertySettingDelegate(QStyledItemDelegate):
         index: QModelIndex,
     ) -> None:
         setting = index.data(Qt.ItemDataRole.UserRole)
-        if not isinstance(setting, DevicePropertySetting):
-            super().paint(painter, option, index)
-            return
-
         opt = QStyleOptionViewItem(option)
         self.initStyleOption(opt, index)
         style = opt.widget.style() if opt.widget else QApplication.style()
+        if not style or not isinstance(setting, DevicePropertySetting):
+            super().paint(painter, option, index)
+            return
 
         # Draw selection / hover background
         style.drawPrimitive(
             QStyle.PrimitiveElement.PE_PanelItemViewItem, opt, painter, opt.widget
         )
 
+        value = str(setting.value)
         ctrl = _control_type(setting)
         if ctrl is ControlType.CHECKBOX:
-            self._paint_checkbox(painter, opt, setting, style)
+            self._paint_checkbox(painter, opt, value, style)
         elif ctrl is ControlType.COMBOBOX:
-            self._paint_combobox(painter, opt, setting, style)
+            self._paint_combobox(painter, opt, value, style)
         elif ctrl is ControlType.SPINBOX:
-            self._paint_spinbox(painter, opt, setting, style)
+            self._paint_spinbox(painter, opt, value, style)
         else:
-            # READ_ONLY and LINE_EDIT — just draw text
-            self._paint_text(painter, opt, str(setting.value), style)
+            self._draw_text(painter, opt.rect.adjusted(4, 0, -4, 0), value, opt)
 
     def _paint_checkbox(
         self,
         painter: QPainter,
         option: QStyleOptionViewItem,
-        setting: DevicePropertySetting,
+        value: str,
         style: QStyle,
     ) -> None:
         cb = QStyleOptionButton()
         cb.state = option.state | QStyle.StateFlag.State_Enabled
         try:
-            checked = bool(int(setting.value))
+            checked = bool(int(value))
         except (ValueError, TypeError):
             checked = False
         cb.state |= QStyle.StateFlag.State_On if checked else QStyle.StateFlag.State_Off
@@ -134,13 +121,13 @@ class PropertySettingDelegate(QStyledItemDelegate):
         self,
         painter: QPainter,
         option: QStyleOptionViewItem,
-        setting: DevicePropertySetting,
+        value: str,
         style: QStyle,
     ) -> None:
         cb = QStyleOptionComboBox()
         cb.rect = option.rect
         cb.state = option.state | QStyle.StateFlag.State_Enabled
-        cb.currentText = str(setting.value)
+        cb.currentText = value
         cb.editable = False
         cb.frame = True
 
@@ -155,7 +142,7 @@ class PropertySettingDelegate(QStyledItemDelegate):
         self,
         painter: QPainter,
         option: QStyleOptionViewItem,
-        setting: DevicePropertySetting,
+        value: str,
         style: QStyle,
     ) -> None:
         sb = QStyleOptionSpinBox()
@@ -167,40 +154,28 @@ class PropertySettingDelegate(QStyledItemDelegate):
             QAbstractSpinBox.StepEnabledFlag.StepUpEnabled
             | QAbstractSpinBox.StepEnabledFlag.StepDownEnabled
         )
-
         style.drawComplexControl(
             QStyle.ComplexControl.CC_SpinBox, sb, painter, option.widget
         )
-
         text_rect = style.subControlRect(
             QStyle.ComplexControl.CC_SpinBox,
             sb,
             QStyle.SubControl.SC_SpinBoxEditField,
             option.widget,
         )
-        painter.save()
-        painter.setPen(option.palette.text().color())
-        painter.drawText(
-            text_rect,
-            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-            str(setting.value),
-        )
-        painter.restore()
+        self._draw_text(painter, text_rect, value, option)
 
-    def _paint_text(
-        self,
+    @staticmethod
+    def _draw_text(
         painter: QPainter,
-        option: QStyleOptionViewItem,
+        rect: QRect,
         text: str,
-        style: QStyle,
+        option: QStyleOptionViewItem,
     ) -> None:
-        text_rect = option.rect.adjusted(4, 0, -4, 0)
         painter.save()
         painter.setPen(option.palette.text().color())
         painter.drawText(
-            text_rect,
-            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-            text,
+            rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, text
         )
         painter.restore()
 
@@ -208,8 +183,7 @@ class PropertySettingDelegate(QStyledItemDelegate):
 
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
         hint = super().sizeHint(option, index)
-        setting = index.data(Qt.ItemDataRole.UserRole)
-        if isinstance(setting, DevicePropertySetting):
+        if isinstance(index.data(Qt.ItemDataRole.UserRole), DevicePropertySetting):
             hint = hint.expandedTo(QSize(hint.width(), 26))
         return hint
 
@@ -222,11 +196,8 @@ class PropertySettingDelegate(QStyledItemDelegate):
         if not isinstance(setting, DevicePropertySetting):
             return super().createEditor(parent, option, index)  # pragma: no cover
 
-        ctrl = _control_type(setting)
-        if ctrl is ControlType.READ_ONLY:
-            return None  # not editable
-        if ctrl is ControlType.CHECKBOX:
-            return None  # handled entirely by editorEvent
+        if _control_type(setting) in (ControlType.READ_ONLY, ControlType.CHECKBOX):
+            return None
 
         widget = create_property_editor(setting)
         widget.setParent(parent)
@@ -262,14 +233,10 @@ class PropertySettingDelegate(QStyledItemDelegate):
             and editor
             and hasattr(editor, "setValue")
         ):
-            # Block signals: Qt calls setEditorData before registering the editor
-            # in its internal hash, so any valueChanged → commitData emission
-            # would warn "editor does not belong to this view".
-            editor.blockSignals(True)
-            try:
+            # Block signals so valueChanged -> commitData doesn't fire before
+            # the view registers the editor in its internal hash.
+            with QSignalBlocker(editor):
                 editor.setValue(setting.value)
-            finally:
-                editor.blockSignals(False)
         else:  # pragma: no cover
             super().setEditorData(editor, index)
 
