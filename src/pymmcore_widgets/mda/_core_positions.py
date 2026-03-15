@@ -441,6 +441,15 @@ class CoreConnectedPositionTable(PositionTable):
         self._mmc.waitForSystem()
         _perform_full_focus()
 
+    def _set_row_xy_enabled(self, row: int, enabled: bool, tip: str = "") -> None:
+        """Enable/disable the XY columns and button for a specific row."""
+        super()._set_row_xy_enabled(row, enabled, tip)
+        table = self.table()
+        xy_btn_col = table.indexOf(self._xy_btn_col)
+        if xy_btn := table.cellWidget(row, xy_btn_col):
+            xy_btn.setEnabled(enabled)
+            xy_btn.setToolTip(tip)
+
     def _on_include_z_toggled(self, checked: bool) -> None:
         z_btn_col = self.table().indexOf(self._z_btn_col)
         self.table().setColumnHidden(z_btn_col, not checked)
