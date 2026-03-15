@@ -4,7 +4,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol
 
 import useq
-from qtpy.QtCore import QPointF, Qt, Signal
+from qtpy.QtCore import QPointF, Qt, QTimer, Signal
 from qtpy.QtGui import (
     QBrush,
     QPainter,
@@ -171,9 +171,8 @@ class GridPlanWidget(QScrollArea):
         main_layout = QVBoxLayout(inner_widget)
         main_layout.addLayout(btns_row)
         main_layout.addWidget(SeparatorWidget())
-        main_layout.addWidget(self._stack)
+        main_layout.addWidget(self._stack, 1)
         main_layout.addWidget(self._bottom_stuff)
-        main_layout.addStretch(1)
 
         self.setWidget(inner_widget)
         self.setWidgetResizable(True)
@@ -605,7 +604,9 @@ class _PolygonWidget(QWidget):
 
     def resizeEvent(self, a0: QResizeEvent | None) -> None:
         super().resizeEvent(a0)
-        self._fit_view_to_items()
+        # Defer fitting to the next event loop iteration so the QGraphicsView's
+        # viewport has been resized before we call fitInView.
+        QTimer.singleShot(0, self._fit_view_to_items)
 
 
 class _ResizableStackedWidget(QStackedWidget):
@@ -620,7 +621,9 @@ class _ResizableStackedWidget(QStackedWidget):
 
     def onCurrentChanged(self, idx: int) -> None:
         for i in range(self.count()):
-            plc = QSizePolicy.Policy.Minimum if i == idx else QSizePolicy.Policy.Ignored
+            plc = (
+                QSizePolicy.Policy.Expanding if i == idx else QSizePolicy.Policy.Ignored
+            )
             if wdg := self.widget(i):
                 wdg.setSizePolicy(plc, plc)
                 wdg.adjustSize()

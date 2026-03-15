@@ -687,7 +687,7 @@ class AffineState:
             S[0, 0] *= -1
         if flip_y:
             S[1, 1] *= -1
-        return R @ S
+        return R @ S  #  type: ignore
 
     def _pixel_config_is_identity(self) -> bool:
         return np.allclose(self.pixel_size_affine, (1.0, 0.0, 0.0, 0.0, 1.0, 0.0))
