@@ -28,6 +28,7 @@ from qtpy.QtWidgets import (
 )
 from superqt import QIconifyIcon
 
+from pymmcore_widgets._help._config_groups_help import ConfigGroupsHelpDialog
 from pymmcore_widgets._icons import StandardIcon
 from pymmcore_widgets._models import (
     ConfigGroup,
@@ -51,6 +52,7 @@ from ._undo_commands import (
     SetChannelGroupCommand,
     UpdatePresetPropertiesCommand,
     _ModelCommand,
+    undo_macro,
 )
 
 if TYPE_CHECKING:
@@ -261,18 +263,16 @@ class ConfigGroupsEditor(QWidget):
 
     def _on_group_changed(self, current: QModelIndex, previous: QModelIndex) -> None:
         """Called when the group selection in the GroupPresetSelector changes."""
-        # Show this group in the preset table
         self._preset_table.setGroup(current)
-        self._tb.add_preset_action.setEnabled(current.isValid())
-        self._tb.duplicate_action.setEnabled(current.isValid())
-        self._tb.remove_action.setEnabled(current.isValid())
+
+        valid = current.isValid()
+        self._tb.add_preset_action.setEnabled(valid)
+        self._tb.duplicate_action.setEnabled(valid)
+        self._tb.remove_action.setEnabled(valid)
         self._update_edit_properties_enabled(current)
 
-        # Enable/disable actions based on the selected group
         group = current.data(Qt.ItemDataRole.UserRole)
         if isinstance(group, ConfigGroup):
-            # Enable/disable "set channel group" action depending on whether
-            # the selected group is already a channel group
             self._tb.set_channel_action.setEnabled(
                 not group.is_channel_group and not group.is_system_group
             )
@@ -290,17 +290,16 @@ class ConfigGroupsEditor(QWidget):
             if sm is None or model is None:
                 return
 
+            transposed = table.isTransposed()
+            span = model.columnCount() if transposed else model.rowCount()
             selection = QItemSelection()
-            for idx in indices:
-                r = idx.row()
-                if table.isTransposed():
-                    cols = model.columnCount()
-                    if cols > 0:
-                        selection.select(model.index(r, 0), model.index(r, cols - 1))
-                else:
-                    rows = model.rowCount()
-                    if rows > 0:
-                        selection.select(model.index(0, r), model.index(rows - 1, r))
+            if span > 0:
+                for idx in indices:
+                    r = idx.row()
+                    if transposed:
+                        selection.select(model.index(r, 0), model.index(r, span - 1))
+                    else:
+                        selection.select(model.index(0, r), model.index(span - 1, r))
             sm.select(selection, QItemSelectionModel.SelectionFlag.ClearAndSelect)
         finally:
             self._syncing_selection = False
@@ -327,10 +326,8 @@ class ConfigGroupsEditor(QWidget):
             return
 
         # Collect unique columns (preset indices) from selection
-        seen_cols: set[int] = set()
-        for idx in indices:
-            col = idx.row() if view.isTransposed() else idx.column()
-            seen_cols.add(col)
+        transposed = view.isTransposed()
+        seen_cols = {idx.row() if transposed else idx.column() for idx in indices}
 
         try:
             pivot = view._get_pivot_model()
@@ -412,14 +409,11 @@ class ConfigGroupsEditor(QWidget):
                 settings = preset_data.settings if preset_data else []
             else:
                 settings = [s for p in group.presets.values() for s in p.settings]
-            # Deduplicate by key
-            seen: set[tuple[str, str]] = set()
-            unique: list[DevicePropertySetting] = []
+            # Deduplicate by key, preserving first occurrence
+            deduped: dict[tuple[str, str], DevicePropertySetting] = {}
             for s in settings:
-                if s.key() not in seen:
-                    seen.add(s.key())
-                    unique.append(s)
-            selector.setCheckedProperties(unique)
+                deduped.setdefault(s.key(), s)
+            selector.setCheckedProperties(list(deduped.values()))
 
         mode_group.buttonToggled.connect(lambda *_: _update_checked())
         _update_checked()
@@ -448,25 +442,21 @@ class ConfigGroupsEditor(QWidget):
         selected = selector.checkedProperties()
 
         if preset_radio.isChecked() and current_preset.isValid():
-            # Update only the current preset
-            self._undo_stack.beginMacro("Update Preset Properties")
             self._undo_stack.push(
                 UpdatePresetPropertiesCommand(
                     self._model, current_preset, list(selected)
                 )
             )
-            self._undo_stack.endMacro()
         else:
             # Update all presets in the group
-            self._undo_stack.beginMacro("Update Group Properties")
-            for i in range(self._model.rowCount(current_group)):
-                preset_idx = self._model.index(i, 0, current_group)
-                self._undo_stack.push(
-                    UpdatePresetPropertiesCommand(
-                        self._model, preset_idx, list(selected)
+            with undo_macro(self._undo_stack, "Update Group Properties"):
+                for i in range(self._model.rowCount(current_group)):
+                    preset_idx = self._model.index(i, 0, current_group)
+                    self._undo_stack.push(
+                        UpdatePresetPropertiesCommand(
+                            self._model, preset_idx, list(selected)
+                        )
                     )
-                )
-            self._undo_stack.endMacro()
 
     def _add_group(self) -> None:
         """Add a new group."""
@@ -489,19 +479,18 @@ class ConfigGroupsEditor(QWidget):
             )
             if msg != QMessageBox.StandardButton.Yes:
                 return
-            self._undo_stack.beginMacro(f"Remove {len(presets)} Presets")
-            for idx in sorted(presets, key=lambda i: i.row(), reverse=True):
-                self._undo_stack.push(RemovePresetCommand(self._model, idx))
-            self._undo_stack.endMacro()
+            with undo_macro(self._undo_stack, f"Remove {len(presets)} Presets"):
+                for idx in sorted(presets, key=lambda i: i.row(), reverse=True):
+                    self._undo_stack.push(RemovePresetCommand(self._model, idx))
             return
 
         idx = self._group_preset_sel._selected_index()
         if not idx.isValid():
             return
 
+        payload = idx.data(Qt.ItemDataRole.UserRole)
         item_name = idx.data(Qt.ItemDataRole.DisplayRole)
-        item_type = type(idx.data(Qt.ItemDataRole.UserRole))
-        type_name = item_type.__name__.replace("Config", "Config ")
+        type_name = type(payload).__name__.replace("Config", "Config ")
         msg = QMessageBox.question(
             self,
             "Confirm Deletion",
@@ -512,7 +501,6 @@ class ConfigGroupsEditor(QWidget):
         if msg != QMessageBox.StandardButton.Yes:
             return
 
-        payload = idx.data(Qt.ItemDataRole.UserRole)
         if isinstance(payload, ConfigGroup):
             self._undo_stack.push(RemoveGroupCommand(self._model, idx))
         elif isinstance(payload, ConfigPreset):
@@ -523,10 +511,9 @@ class ConfigGroupsEditor(QWidget):
         # Check for multi-select presets first
         presets = self._group_preset_sel.selectedPresets()
         if len(presets) > 1:
-            self._undo_stack.beginMacro(f"Duplicate {len(presets)} Presets")
-            for idx in presets:
-                self._undo_stack.push(DuplicatePresetCommand(self._model, idx))
-            self._undo_stack.endMacro()
+            with undo_macro(self._undo_stack, f"Duplicate {len(presets)} Presets"):
+                for idx in presets:
+                    self._undo_stack.push(DuplicatePresetCommand(self._model, idx))
             return
 
         idx = self._group_preset_sel._selected_index()
@@ -605,8 +592,6 @@ class ConfigGroupsEditor(QWidget):
 
     def _show_help(self) -> None:
         """Show help for this widget."""
-        from pymmcore_widgets._help._config_groups_help import ConfigGroupsHelpDialog
-
         dialog = ConfigGroupsHelpDialog(self)
         size = (
             (self.size() * 0.8).expandedTo(QSize(600, 600)).boundedTo(QSize(800, 800))
@@ -617,15 +602,13 @@ class ConfigGroupsEditor(QWidget):
 
     def _show_undo_view(self) -> None:
         """Show a dialog with the undo stack view."""
-        # TODO
-        if self._undo_stack is not None:
-            dialog = QUndoView(self._undo_stack, self)
-            dialog.setCleanIcon(StandardIcon.UNDO.icon())
-            dialog.setEmptyLabel("<start of stack>")
-            dialog.setWindowFlags(
-                Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint
-            )
-            dialog.show()
+        dialog = QUndoView(self._undo_stack, self)
+        dialog.setCleanIcon(StandardIcon.UNDO.icon())
+        dialog.setEmptyLabel("<start of stack>")
+        dialog.setWindowFlags(
+            Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint
+        )
+        dialog.show()
 
 
 class _ConfigEditorToolbar(QToolBar):
@@ -636,8 +619,6 @@ class _ConfigEditorToolbar(QToolBar):
 
     def __init__(self, parent: ConfigGroupsEditor) -> None:
         super().__init__(parent)
-        # tool bar --------------------------------------------------------------
-
         self.setIconSize(QSize(20, 20))
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
 
@@ -732,8 +713,6 @@ class _ConfigEditorToolbar(QToolBar):
             if btn := self.widgetForAction(action):
                 btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
 
-        # self.addAction("Show Undo/Redo History...", parent._show_undo_view)
-
         spacer = QWidget(self)
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.addWidget(spacer)
@@ -745,6 +724,7 @@ class _ConfigEditorToolbar(QToolBar):
         parent = cast("ConfigGroupsEditor", self.parent())
         current_group = parent._group_preset_sel.currentGroup()
         if current_group.isValid():
-            command = SetChannelGroupCommand(parent._model, current_group)
-            parent._undo_stack.push(command)
+            parent._undo_stack.push(
+                SetChannelGroupCommand(parent._model, current_group)
+            )
             self.set_channel_action.setEnabled(False)

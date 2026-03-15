@@ -35,6 +35,7 @@ from ._undo_commands import (
     RemovePresetCommand,
     UpdatePresetPropertiesCommand,
     UpdatePresetSettingsCommand,
+    undo_macro,
 )
 from ._undo_delegates import PropertyValueDelegate
 
@@ -446,11 +447,14 @@ class ConfigPresetsTable(QWidget):
                     RemovePresetCommand(source_model, source_indices[0])
                 )
             else:
-                self._undo_stack.beginMacro(f"Remove {len(source_indices)} Presets")
-                # Remove in reverse row order so indices stay valid
-                for idx in sorted(source_indices, key=lambda i: i.row(), reverse=True):
-                    self._undo_stack.push(RemovePresetCommand(source_model, idx))
-                self._undo_stack.endMacro()
+                with undo_macro(
+                    self._undo_stack, f"Remove {len(source_indices)} Presets"
+                ):
+                    # Remove in reverse row order so indices stay valid
+                    for idx in sorted(
+                        source_indices, key=lambda i: i.row(), reverse=True
+                    ):
+                        self._undo_stack.push(RemovePresetCommand(source_model, idx))
         else:
             for idx in sorted(source_indices, key=lambda i: i.row(), reverse=True):
                 source_model.remove(idx, ask_confirmation=NOT_TESTING)
@@ -461,16 +465,13 @@ class ConfigPresetsTable(QWidget):
             return
 
         source_model = self.view.sourceModel()
-        if self._undo_stack is not None:
+        if (stack := self._undo_stack) is not None:
             if len(source_indices) == 1:
-                self._undo_stack.push(
-                    DuplicatePresetCommand(source_model, source_indices[0])
-                )
+                stack.push(DuplicatePresetCommand(source_model, source_indices[0]))
             else:
-                self._undo_stack.beginMacro(f"Duplicate {len(source_indices)} Presets")
-                for idx in source_indices:
-                    self._undo_stack.push(DuplicatePresetCommand(source_model, idx))
-                self._undo_stack.endMacro()
+                with undo_macro(stack, f"Duplicate {len(source_indices)} Presets"):
+                    for idx in source_indices:
+                        stack.push(DuplicatePresetCommand(source_model, idx))
         else:
             for idx in source_indices:
                 source_model.duplicate_preset(idx)

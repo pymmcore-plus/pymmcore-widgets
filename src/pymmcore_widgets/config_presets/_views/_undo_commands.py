@@ -11,6 +11,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 from qtpy.QtCore import QModelIndex, QPersistentModelIndex, Qt
+from qtpy.QtGui import QUndoStack
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -30,6 +31,16 @@ else:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+@contextmanager
+def undo_macro(undo_stack: QUndoStack, text: str) -> Iterator[None]:
+    """Context manager to group multiple commands into a single undo step."""
+    undo_stack.beginMacro(text)
+    try:
+        yield
+    finally:
+        undo_stack.endMacro()
 
 
 class _TrackedIndex:
