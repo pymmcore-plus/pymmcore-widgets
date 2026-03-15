@@ -915,6 +915,8 @@ def test_table_context_menu_remove(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Right-click context menu on a data cell shows remove action."""
+    import pymmcore_widgets.config_presets._views._config_presets_table as _table_mod
+
     view = table.view
     stack = table._undo_stack
     assert stack is not None
@@ -927,11 +929,12 @@ def test_table_context_menu_remove(
     rect = view.visualRect(idx)
     pos = rect.center()
 
-    # Monkeypatch QMenu.exec to simulate choosing "Remove"
-    def fake_exec(self: QMenu, *_: object) -> object:
-        return self.actions()[0]
+    # Subclass QMenu so .exec() is a Python method (patchable on PySide6)
+    class _AutoSelectMenu(QMenu):
+        def exec(self, *_: object) -> object:  # type: ignore[override]
+            return self.actions()[0]
 
-    monkeypatch.setattr(QMenu, "exec", fake_exec)
+    monkeypatch.setattr(_table_mod, "QMenu", _AutoSelectMenu)
 
     gpos = view.mapToGlobal(pos)
     event = QContextMenuEvent(QContextMenuEvent.Reason.Mouse, pos, gpos)
@@ -948,6 +951,8 @@ def test_table_context_menu_add(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Right-click context menu on an empty cell shows add action."""
+    import pymmcore_widgets.config_presets._views._config_presets_table as _table_mod
+
     view = table.view
     stack = table._undo_stack
     assert stack is not None
@@ -963,10 +968,11 @@ def test_table_context_menu_add(
     rect = view.visualRect(idx)
     pos = rect.center()
 
-    def fake_exec(self: QMenu, *_: object) -> object:
-        return self.actions()[0]
+    class _AutoSelectMenu(QMenu):
+        def exec(self, *_: object) -> object:  # type: ignore[override]
+            return self.actions()[0]
 
-    monkeypatch.setattr(QMenu, "exec", fake_exec)
+    monkeypatch.setattr(_table_mod, "QMenu", _AutoSelectMenu)
 
     gpos = view.mapToGlobal(pos)
     event = QContextMenuEvent(QContextMenuEvent.Reason.Mouse, pos, gpos)
