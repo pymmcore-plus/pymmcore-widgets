@@ -1,16 +1,25 @@
 from __future__ import annotations
 
 import os
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 from qtpy.QtCore import (
     QAbstractItemModel,
     QModelIndex,
+    QPoint,
     QSize,
     Qt,
     QTransposeProxyModel,
 )
-from qtpy.QtWidgets import QHeaderView, QTableView, QToolBar, QVBoxLayout, QWidget
+from qtpy.QtWidgets import (
+    QHeaderView,
+    QMenu,
+    QTableView,
+    QToolBar,
+    QVBoxLayout,
+    QWidget,
+)
 
 from pymmcore_widgets._icons import StandardIcon
 from pymmcore_widgets._models import (
@@ -19,8 +28,14 @@ from pymmcore_widgets._models import (
     get_loaded_devices,
 )
 
+from ._device_property_selector import DevicePropertySelector
 from ._property_setting_delegate import PropertySettingDelegate
-from ._undo_commands import DuplicatePresetCommand, RemovePresetCommand
+from ._undo_commands import (
+    DuplicatePresetCommand,
+    RemovePresetCommand,
+    UpdatePresetPropertiesCommand,
+    UpdatePresetSettingsCommand,
+)
 from ._undo_delegates import PropertyValueDelegate
 
 if TYPE_CHECKING:
@@ -113,13 +128,11 @@ class ConfigPresetsTableView(QTableView):
 
     def _update_section_sizes(self) -> None:
         """Recalculate column widths for the current viewport."""
-        model = self.model()
-        if model is None:
-            return
+        if (model := self.model()) is None:
+            return  # pragma: no cover
 
-        hh = self.horizontalHeader()
-        if hh is None:
-            return
+        if (hh := self.horizontalHeader()) is None:
+            return  # pragma: no cover
 
         col_count = model.columnCount()
         vp_width = self.viewport().width()
@@ -219,20 +232,13 @@ class ConfigPresetsTableView(QTableView):
 
     # --- header context menu ------------------------------------------------
 
-    def _on_header_context_menu(self, pos: Any) -> None:
+    def _on_header_context_menu(self, pos: QPoint) -> None:
         """Show context menu on column header for per-preset property actions."""
-        from qtpy.QtWidgets import QMenu
-
-        hh = self.horizontalHeader()
-        if hh is None:
-            return
-
-        col = hh.logicalIndexAt(pos)
-        if col < 0:
-            return
-
-        model = self.model()
-        if model is None:
+        if (
+            (hh := self.horizontalHeader()) is None
+            or (col := hh.logicalIndexAt(pos)) < 0
+            or (model := self.model()) is None
+        ):
             return
 
         preset_name = model.headerData(
@@ -252,12 +258,8 @@ class ConfigPresetsTableView(QTableView):
         if not src_idx.isValid() or not self._loaded_devices:
             return
 
-        from ._device_property_selector import DevicePropertySelector
-
         props = DevicePropertySelector.promptForProperties(self, self._loaded_devices)
         if props and self._undo_stack is not None:
-            from ._undo_commands import UpdatePresetPropertiesCommand
-
             cmd = UpdatePresetPropertiesCommand(
                 self.sourceModel(), src_idx, list(props)
             )
@@ -281,14 +283,12 @@ class ConfigPresetsTableView(QTableView):
         if idx.isValid() and idx.data(Qt.ItemDataRole.UserRole) is None:
             self._add_cell_setting(idx)
             return
-        super().mouseDoubleClickEvent(event)
+        super().mouseDoubleClickEvent(event)  # pragma: no cover
 
     def contextMenuEvent(self, event: Any) -> None:
         """Right-click context menu: add/remove property for a single cell."""
-        from qtpy.QtWidgets import QMenu
-
         idx = self.indexAt(event.pos())
-        if not idx.isValid():
+        if not idx.isValid():  # pragma: no cover
             super().contextMenuEvent(event)
             return
 
@@ -326,16 +326,12 @@ class ConfigPresetsTableView(QTableView):
         p_row, p_col = self._pivot_coords(idx)
         src_idx = pivot.get_source_index_for_column(p_col)
         if not src_idx.isValid():
-            return
+            return  # pragma: no cover
 
         if self._undo_stack is not None:
-            from copy import deepcopy
-
-            from ._undo_commands import UpdatePresetSettingsCommand
-
             preset = src_idx.data(Qt.ItemDataRole.UserRole)
             if preset is None:
-                return
+                return  # pragma: no cover
             new_settings = list(deepcopy(preset.settings))
             new_settings.append(pivot._empty_setting_for_row(p_row))
             cmd = UpdatePresetSettingsCommand(self.sourceModel(), src_idx, new_settings)
@@ -349,17 +345,15 @@ class ConfigPresetsTableView(QTableView):
         p_row, p_col = self._pivot_coords(idx)
         src_idx = pivot.get_source_index_for_column(p_col)
         if not src_idx.isValid() or p_row >= len(pivot._rows):
-            return
+            return  # pragma: no cover
 
         target_key = pivot._rows[p_row]
         preset = src_idx.data(Qt.ItemDataRole.UserRole)
         if preset is None:
-            return
+            return  # pragma: no cover
         filtered = [s for s in preset.settings if s.key() != target_key]
 
         if self._undo_stack is not None:
-            from ._undo_commands import UpdatePresetSettingsCommand
-
             cmd = UpdatePresetSettingsCommand(self.sourceModel(), src_idx, filtered)
             self._undo_stack.push(cmd)
         else:

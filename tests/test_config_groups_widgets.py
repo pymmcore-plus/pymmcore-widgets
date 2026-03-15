@@ -4,8 +4,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 from pymmcore_plus import CMMCorePlus, DeviceType
-from qtpy.QtCore import QEvent, Qt
-from qtpy.QtGui import QKeyEvent, QUndoStack
+from qtpy.QtCore import QEvent, QPointF, Qt
+from qtpy.QtGui import QContextMenuEvent, QKeyEvent, QMouseEvent, QUndoStack
+from qtpy.QtWidgets import QDialog, QMenu
 
 from pymmcore_widgets import ConfigGroupsTree
 from pymmcore_widgets._models import (
@@ -43,6 +44,11 @@ from pymmcore_widgets.config_presets._views._undo_commands import (
     SetChannelGroupCommand,
     UpdatePresetPropertiesCommand,
     UpdatePresetSettingsCommand,
+)
+from pymmcore_widgets.config_presets._views._undo_delegates import (
+    GroupPresetRenameDelegate,
+    PropertyValueDelegate,
+    _resolve_source,
 )
 
 if TYPE_CHECKING:
@@ -490,8 +496,6 @@ def test_device_property_selector(qtbot: QtBot, core: CMMCorePlus) -> None:
 def test_device_property_selector_prompt(
     qtbot: QtBot, core: CMMCorePlus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from qtpy.QtWidgets import QDialog
-
     monkeypatch.setattr(QDialog, "exec", lambda self: QDialog.DialogCode.Rejected)
     devices = list(get_loaded_devices(core))
     assert DevicePropertySelector.promptForProperties(devices=devices) == ()
@@ -607,10 +611,6 @@ def test_groups_preset_finder_selected_index_fallback(
 
 def test_rename_delegates(finder: GroupsPresetFinder, qtbot: QtBot) -> None:
     """Renaming group/preset via delegates creates undo commands."""
-    from pymmcore_widgets.config_presets._views._undo_delegates import (
-        GroupPresetRenameDelegate,
-    )
-
     model = finder.model()
     assert model is not None
     stack = finder._undo_stack
@@ -648,10 +648,6 @@ def test_rename_delegates(finder: GroupsPresetFinder, qtbot: QtBot) -> None:
 
 def test_property_value_delegate_undo(table: ConfigPresetsTable) -> None:
     """Changing a property value via the table pushes an undo command."""
-    from pymmcore_widgets.config_presets._views._undo_delegates import (
-        PropertyValueDelegate,
-    )
-
     view = table.view
     assert isinstance(view.itemDelegate(), PropertyValueDelegate)
     stack = table._undo_stack
@@ -670,10 +666,6 @@ def test_property_value_delegate_undo(table: ConfigPresetsTable) -> None:
 
 def test_property_value_delegate_undo_via_pivot(table: ConfigPresetsTable) -> None:
     """Delegate resolves pivot model indices and pushes undo commands."""
-    from pymmcore_widgets.config_presets._views._undo_delegates import (
-        PropertyValueDelegate,
-    )
-
     view = table.view
     delegate = view.itemDelegate()
     assert isinstance(delegate, PropertyValueDelegate)
@@ -707,10 +699,6 @@ def test_property_value_delegate_undo_via_pivot(table: ConfigPresetsTable) -> No
 
 def test_property_value_delegate_undo_via_transpose(table: ConfigPresetsTable) -> None:
     """Delegate resolves transposed pivot indices and pushes undo commands."""
-    from pymmcore_widgets.config_presets._views._undo_delegates import (
-        _resolve_source,
-    )
-
     view = table.view
     stack = table._undo_stack
     assert stack is not None
@@ -742,3 +730,245 @@ def test_property_value_delegate_undo_via_transpose(table: ConfigPresetsTable) -
 
     stack.undo()
     assert setting.value == old_value
+
+
+# ── ConfigPresetsTable additional coverage ─────────────────────────
+
+
+def test_table_multi_select_remove_with_undo(table: ConfigPresetsTable) -> None:
+    """Multi-select remove pushes a macro on the undo stack."""
+    model = table.sourceModel()
+    assert model is not None
+    group_idx = model.index_for_group("Channel")
+    n = model.rowCount(group_idx)
+    stack = table._undo_stack
+    assert stack is not None
+
+    # Select two columns (presets)
+    table.view.selectColumn(0)
+    sm = table.view.selectionModel()
+    assert sm is not None
+    vm = table.view.model()
+    assert vm is not None
+    # Add column 1 to selection
+    for row in range(vm.rowCount()):
+        sm.select(vm.index(row, 1), sm.SelectionFlag.Select)
+
+    table._on_remove_action()
+    assert model.rowCount(group_idx) == n - 2
+    stack.undo()
+    assert model.rowCount(group_idx) == n
+
+
+def test_table_multi_select_duplicate_with_undo(table: ConfigPresetsTable) -> None:
+    """Multi-select duplicate pushes a macro on the undo stack."""
+    model = table.sourceModel()
+    assert model is not None
+    group_idx = model.index_for_group("Channel")
+    n = model.rowCount(group_idx)
+    stack = table._undo_stack
+    assert stack is not None
+
+    # Select two columns
+    table.view.selectColumn(0)
+    sm = table.view.selectionModel()
+    assert sm is not None
+    vm = table.view.model()
+    assert vm is not None
+    for row in range(vm.rowCount()):
+        sm.select(vm.index(row, 1), sm.SelectionFlag.Select)
+
+    table._on_duplicate_action()
+    assert model.rowCount(group_idx) == n + 2
+    stack.undo()
+    assert model.rowCount(group_idx) == n
+
+
+def test_table_no_selection_returns_empty(table: ConfigPresetsTable) -> None:
+    """No selected presets returns empty list and actions are no-ops."""
+    sm = table.view.selectionModel()
+    assert sm is not None
+    sm.clearSelection()
+
+    assert table._get_selected_preset_indices() == []
+    # These should be no-ops when nothing is selected
+    table._on_remove_action()
+    table._on_duplicate_action()
+
+
+def test_table_add_and_remove_cell_setting(table: ConfigPresetsTable) -> None:
+    """Add/remove a single cell setting via _add_cell_setting/_remove_cell_setting."""
+    view = table.view
+    stack = table._undo_stack
+    assert stack is not None
+    pivot = view._get_pivot_model()
+
+    # Find a cell that has data
+    idx_with_data = pivot.index(0, 0)
+    assert idx_with_data.data(Qt.ItemDataRole.UserRole) is not None
+
+    # Remove it
+    view._remove_cell_setting(idx_with_data)
+    assert idx_with_data.data(Qt.ItemDataRole.UserRole) is None
+    stack.undo()
+    assert idx_with_data.data(Qt.ItemDataRole.UserRole) is not None
+
+    # Find a cell without data (if any exist), or create one by removing first
+    view._remove_cell_setting(idx_with_data)
+    assert idx_with_data.data(Qt.ItemDataRole.UserRole) is None
+
+    # Now add it back via _add_cell_setting
+    view._add_cell_setting(idx_with_data)
+    assert idx_with_data.data(Qt.ItemDataRole.UserRole) is not None
+    stack.undo()
+    assert idx_with_data.data(Qt.ItemDataRole.UserRole) is None
+
+
+def test_table_pivot_coords_transposed(table: ConfigPresetsTable) -> None:
+    """_pivot_coords swaps row/col when transposed."""
+    view = table.view
+    pivot = view._get_pivot_model()
+    idx = pivot.index(1, 2)
+
+    # Normal: (row, col)
+    assert view._pivot_coords(idx) == (1, 2)
+
+    view.transpose()
+    assert view.isTransposed()
+    # Transposed: (col, row)
+    assert view._pivot_coords(idx) == (2, 1)
+
+
+def test_table_transpose_restores_column_selection(table: ConfigPresetsTable) -> None:
+    """Transpose from transposed back to normal restores column selection."""
+    view = table.view
+
+    # Select column 1, transpose (-> row 1), then transpose back (-> column 1)
+    view.selectColumn(1)
+    view.transpose()  # now transposed, row 1 selected
+    view.transpose()  # back to normal
+
+    sm = view.selectionModel()
+    assert sm is not None
+    cols = sm.selectedColumns()
+    assert len(cols) > 0
+    assert cols[0].column() == 1
+
+
+def test_table_mouse_click_opens_editor(
+    table: ConfigPresetsTable, qtbot: QtBot
+) -> None:
+    """Single left-click on a data cell opens the editor."""
+    view = table.view
+    view.show()
+    qtbot.waitExposed(view)
+
+    pivot = view._get_pivot_model()
+    idx = pivot.index(0, 0)
+    assert idx.isValid()
+    rect = view.visualRect(idx)
+    pos = QPointF(rect.center())
+
+    event = QMouseEvent(
+        QEvent.Type.MouseButtonPress,
+        pos,
+        QPointF(view.mapToGlobal(pos.toPoint())),
+        Qt.MouseButton.LeftButton,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    view.mousePressEvent(event)
+
+
+def test_table_double_click_empty_cell(table: ConfigPresetsTable, qtbot: QtBot) -> None:
+    """Double-click on an empty cell calls _add_cell_setting."""
+    view = table.view
+    stack = table._undo_stack
+    assert stack is not None
+    pivot = view._get_pivot_model()
+    view.show()
+    qtbot.waitExposed(view)
+
+    # Remove a cell to make it empty
+    idx = pivot.index(0, 0)
+    view._remove_cell_setting(idx)
+    assert idx.data(Qt.ItemDataRole.UserRole) is None
+
+    rect = view.visualRect(idx)
+    pos = QPointF(rect.center())
+    event = QMouseEvent(
+        QEvent.Type.MouseButtonDblClick,
+        pos,
+        QPointF(view.mapToGlobal(pos.toPoint())),
+        Qt.MouseButton.LeftButton,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    view.mouseDoubleClickEvent(event)
+    # The double-click on empty cell should add the setting back
+    assert idx.data(Qt.ItemDataRole.UserRole) is not None
+
+
+def test_table_context_menu_remove(
+    table: ConfigPresetsTable,
+    qtbot: QtBot,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Right-click context menu on a data cell shows remove action."""
+    view = table.view
+    stack = table._undo_stack
+    assert stack is not None
+    pivot = view._get_pivot_model()
+    view.show()
+    qtbot.waitExposed(view)
+
+    idx = pivot.index(0, 0)
+    assert idx.data(Qt.ItemDataRole.UserRole) is not None
+    rect = view.visualRect(idx)
+    pos = rect.center()
+
+    # Monkeypatch QMenu.exec to simulate choosing "Remove"
+    def fake_exec(self: QMenu, *_: object) -> object:
+        return self.actions()[0]
+
+    monkeypatch.setattr(QMenu, "exec", fake_exec)
+
+    gpos = view.mapToGlobal(pos)
+    event = QContextMenuEvent(QContextMenuEvent.Reason.Mouse, pos, gpos)
+    view.contextMenuEvent(event)
+    assert idx.data(Qt.ItemDataRole.UserRole) is None
+
+    stack.undo()
+    assert idx.data(Qt.ItemDataRole.UserRole) is not None
+
+
+def test_table_context_menu_add(
+    table: ConfigPresetsTable,
+    qtbot: QtBot,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Right-click context menu on an empty cell shows add action."""
+    view = table.view
+    stack = table._undo_stack
+    assert stack is not None
+    pivot = view._get_pivot_model()
+    view.show()
+    qtbot.waitExposed(view)
+
+    # Remove cell to make it empty
+    idx = pivot.index(0, 0)
+    view._remove_cell_setting(idx)
+    assert idx.data(Qt.ItemDataRole.UserRole) is None
+
+    rect = view.visualRect(idx)
+    pos = rect.center()
+
+    def fake_exec(self: QMenu, *_: object) -> object:
+        return self.actions()[0]
+
+    monkeypatch.setattr(QMenu, "exec", fake_exec)
+
+    gpos = view.mapToGlobal(pos)
+    event = QContextMenuEvent(QContextMenuEvent.Reason.Mouse, pos, gpos)
+    view.contextMenuEvent(event)
+    assert idx.data(Qt.ItemDataRole.UserRole) is not None

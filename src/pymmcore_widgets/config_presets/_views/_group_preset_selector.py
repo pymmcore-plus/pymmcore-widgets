@@ -8,6 +8,12 @@ from qtpy.QtWidgets import QListView, QSplitter, QStackedWidget, QWidget
 from pymmcore_widgets._models import QConfigGroupsModel
 
 from ._config_groups_tree import ConfigGroupsTree
+from ._undo_commands import (
+    DuplicateGroupCommand,
+    DuplicatePresetCommand,
+    RemoveGroupCommand,
+    RemovePresetCommand,
+)
 from ._undo_delegates import GroupPresetRenameDelegate
 
 if TYPE_CHECKING:
@@ -212,11 +218,6 @@ class GroupsPresetFinder(QStackedWidget):
         if self._model:
             selected_idx = self._selected_index()
             if self._undo_stack is not None:
-                from pymmcore_widgets.config_presets._views._undo_commands import (
-                    RemoveGroupCommand,
-                    RemovePresetCommand,
-                )
-
                 node = self._model._node_from_index(selected_idx)
                 if node.is_group:
                     command = RemoveGroupCommand(self._model, selected_idx)
@@ -231,11 +232,6 @@ class GroupsPresetFinder(QStackedWidget):
     def duplicateSelected(self) -> None:
         if self._model:
             if self._undo_stack is not None:
-                from pymmcore_widgets.config_presets._views._undo_commands import (
-                    DuplicateGroupCommand,
-                    DuplicatePresetCommand,
-                )
-
                 selected_idx = self._selected_index()
                 if not selected_idx.isValid():
                     return
