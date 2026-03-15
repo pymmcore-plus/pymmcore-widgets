@@ -375,14 +375,6 @@ class PositionTable(DataTableWidget):
                 self._update_row_xy_enabled(row, btn.value())
                 break
 
-    def _has_absolute_grid(self, seq: useq.MDASequence | None) -> bool:
-        """Return True if the sequence has an absolute (non-relative) grid plan."""
-        return (
-            seq is not None
-            and seq.grid_plan is not None
-            and not seq.grid_plan.is_relative
-        )
-
     def _update_row_xy_enabled(self, row: int, seq: useq.MDASequence | None) -> None:
         """Disable x/y and show first grid position if absolute grid, else re-enable."""
         table = self.table()
@@ -390,7 +382,7 @@ class PositionTable(DataTableWidget):
         y_col = table.indexOf(self.Y)
         disabled = self._has_absolute_grid(seq)
         if disabled:
-            xy = self._first_grid_xy(seq.grid_plan)  # type: ignore [union-attr]
+            xy = self._get_grid_xy(seq)
             self.X.set_cell_data(table, row, x_col, xy[0] if xy else None)
             self.Y.set_cell_data(table, row, y_col, xy[1] if xy else None)
         tip = (
@@ -405,14 +397,23 @@ class PositionTable(DataTableWidget):
             y_wdg.setEnabled(not disabled)
             y_wdg.setToolTip(tip)
 
-    @staticmethod
-    def _first_grid_xy(grid_plan: object) -> tuple[float, float] | None:
-        """Return (x, y) of the first position in a grid plan, or None."""
-        try:
-            first = next(iter(grid_plan))  # type: ignore [call-overload]
-            return (first.x, first.y)
-        except Exception:
-            return None
+    def _has_absolute_grid(self, seq: useq.MDASequence | None) -> bool:
+        """Return True if the sequence has an absolute (non-relative) grid plan."""
+        return (
+            seq is not None
+            and seq.grid_plan is not None
+            and not seq.grid_plan.is_relative
+        )
+
+    def _get_grid_xy(
+        self, seq: useq.MDASequence | None
+    ) -> tuple[float | None, float | None]:
+        """Get the x/y position of the first position in the grid plan."""
+        if seq is not None and seq.grid_plan is not None:
+            first_pos = next(iter(seq.grid_plan), None)
+            if first_pos is not None:
+                return first_pos.x, first_pos.y
+        return None, None
 
     # ------------------------- Private API -------------------------
 

@@ -800,19 +800,6 @@ def test_has_absolute_grid_helper(qtbot: QtBot) -> None:
     )
 
 
-def test_first_grid_xy_helper() -> None:
-    """Test the _first_grid_xy static method."""
-    grid = useq.GridFromEdges(top=10, bottom=0, left=0, right=10)
-    result = PositionTable._first_grid_xy(grid)
-    assert result is not None
-    first = next(iter(grid))
-    assert result == (first.x, first.y)
-
-    # invalid input returns None
-    assert PositionTable._first_grid_xy(None) is None
-    assert PositionTable._first_grid_xy("not a grid") is None
-
-
 def test_mda_value_clears_xy_for_absolute_grid(qtbot: QtBot) -> None:
     """Test that MDATabs.value() clears x/y when a global absolute grid is used."""
     wdg = MDASequenceWidget()
