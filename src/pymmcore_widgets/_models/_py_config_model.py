@@ -40,7 +40,7 @@ class Device(_BaseModel):
         return bool(self.label)
 
     @property
-    def iconify_key(self) -> str | None:
+    def iconify_key(self) -> StandardIcon | None:
         """Return an iconify key for the device type."""
         return StandardIcon.for_device_type(self.type)
 
@@ -95,12 +95,27 @@ class DevicePropertySetting(_BaseModel):
         return (self.device_label, self.property_name, self.value)
 
     @property
+    def default_value(self) -> str:
+        """Return a sensible default value based on metadata."""
+        if self.allowed_values:
+            return self.allowed_values[0]
+        if self.property_type == PropertyType.Float:
+            lo = self.limits[0] if self.limits else 0.0
+            return str(lo)
+        if self.property_type == PropertyType.Integer:
+            lo = int(self.limits[0]) if self.limits else 0
+            return str(lo)
+        return ""
+
+    @property
     def iconify_key(self) -> StandardIcon | None:
         """Return an iconify key for the device type."""
         if self.is_read_only:
             return StandardIcon.READ_ONLY
-        elif self.is_pre_init:
+        if self.is_pre_init:
             return StandardIcon.PRE_INIT
+        if self.device:
+            return self.device.iconify_key
         return None
 
     @model_validator(mode="before")

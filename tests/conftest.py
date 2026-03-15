@@ -12,6 +12,7 @@ import pytest
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus._accumulator import DeviceAccumulator
 from pymmcore_plus.core import _mmcore_plus
+from qtpy.QtCore import QEvent
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -176,6 +177,8 @@ def _run_after_each_test(request: FixtureRequest, qapp: QApplication) -> Iterato
     nbefore = len(qapp.topLevelWidgets())
     failures_before = request.session.testsfailed
     yield
+    qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete.value)
+
     # if the test failed, don't worry about checking widgets
     if request.session.testsfailed - failures_before:
         return

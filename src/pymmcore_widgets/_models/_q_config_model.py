@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from qtpy.QtCore import QModelIndex, Qt
 from qtpy.QtGui import QFont, QIcon
-from superqt import QIconifyIcon
+from qtpy.QtWidgets import QMessageBox, QWidget
 
 from pymmcore_widgets._icons import StandardIcon
 
@@ -41,12 +41,21 @@ class QConfigGroupsModel(_BaseTreeModel):
 
     def __init__(self, groups: Iterable[ConfigGroup] | None = None) -> None:
         super().__init__()
+        self._in_undo_redo = False  # Track when we're in undo/redo operation
         if groups:
             self.set_groups(groups)
 
     # ------------------------------------------------------------------
     # Required Qt model overrides
     # ------------------------------------------------------------------
+
+    def set_undo_redo_mode(self, enabled: bool) -> None:
+        """Set whether we're currently in an undo/redo operation.
+
+        When in undo/redo mode, name uniqueness checks are relaxed to allow
+        restoration of original names that may temporarily conflict.
+        """
+        self._in_undo_redo = enabled
 
     def columnCount(self, _parent: QModelIndex | None = None) -> int:
         # In most subclasses, the number of columns is independent of the parent.
@@ -89,7 +98,7 @@ class QConfigGroupsModel(_BaseTreeModel):
             if node.is_setting:
                 setting = cast("DevicePropertySetting", node.payload)
                 if icon_key := setting.iconify_key:
-                    return QIconifyIcon(icon_key).pixmap(16, 16)
+                    return icon_key.icon().pixmap(16, 16)
                 return QIcon.fromTheme("emblem-system")  # pragma: no cover
 
         if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
@@ -119,35 +128,43 @@ class QConfigGroupsModel(_BaseTreeModel):
         if node is self._root or role != Qt.ItemDataRole.EditRole:
             return False  # pragma: no cover
         if node.is_setting:
-            if 0 > index.column() > 3:
+            if not (0 <= index.column() < 3):
                 return False  # pragma: no cover
-            dev, prop, val = cast("DevicePropertySetting", node.payload).as_tuple()
-
-            # update node in place  # FIXME ... this is hacky
-            args = [dev, prop, val]
-            args[index.column()] = str(value)
-            node.name = f"{args[0]}-{args[1]}"
-            node.payload = new_setting = DevicePropertySetting(
-                device=args[0], property_name=args[1], value=args[2]
-            )
+            setting = cast("DevicePropertySetting", node.payload)
+            old_key = setting.key()
+            col = index.column()
+            if col == Col.Value:
+                setting.value = str(value)
+            else:
+                # Device or property name changed — need a new setting object
+                dev, prop, val = setting.as_tuple()
+                args = [dev, prop, val]
+                args[col] = str(value)
+                setting = DevicePropertySetting(
+                    device=args[0], property_name=args[1], value=args[2]
+                )
+                node.payload = setting
+                node.name = f"{args[0]}-{args[1]}"
 
             # also update the parent preset.settings list reference
             parent_preset = cast("ConfigPreset", node.parent.payload)  # type: ignore
             for i, s in enumerate(parent_preset.settings):
-                if s.as_tuple()[0:2] == (dev, prop):
-                    parent_preset.settings[i] = new_setting
+                if s.key() == old_key:
+                    parent_preset.settings[i] = setting
                     break
         else:
             new_name = str(value).strip()
             if new_name == node.name or not new_name:
                 return False
 
-            if self._name_exists(node.parent, new_name):
+            # During undo/redo, allow restoration of original names even if they
+            # temporarily conflict, as the conflict will be resolved by the operation
+            if not self._in_undo_redo and self._name_exists(node.parent, new_name):
                 warnings.warn(
                     f"Not adding duplicate name '{new_name}'. It already exists.",
                     stacklevel=2,
                 )
-                return False
+                return False  # pragma: no cover
 
             node.name = new_name
             if isinstance(node.payload, (ConfigGroup, ConfigPreset)):
@@ -193,7 +210,7 @@ class QConfigGroupsModel(_BaseTreeModel):
         """Return the QModelIndex for the group with the given name."""
         for i, node in enumerate(self._root.children):
             if node.is_group and node.name == group_name:
-                return self.createIndex(i, 0, node)
+                return self.createIndex(i, 0, node._id)
         return QModelIndex()
 
     def index_for_preset(
@@ -211,7 +228,7 @@ class QConfigGroupsModel(_BaseTreeModel):
 
         for i, node in enumerate(group_node.children):
             if node.is_preset and node.name == preset_name:
-                return self.createIndex(i, 0, node)
+                return self.createIndex(i, 0, node._id)
         return QModelIndex()
 
     # group-level -------------------------------------------------------------
@@ -334,7 +351,8 @@ class QConfigGroupsModel(_BaseTreeModel):
 
         self.beginRemoveRows(parent, row, row + count - 1)
 
-        # drop the slice from the tree
+        for child in parent_node.children[row : row + count]:
+            self._unregister_tree(child)
         del parent_node.children[row : row + count]
 
         # keep the owning dataclass in sync with the new order
@@ -352,8 +370,27 @@ class QConfigGroupsModel(_BaseTreeModel):
         self.endRemoveRows()
         return True
 
-    def remove(self, idx: QModelIndex) -> None:
+    def remove(
+        self,
+        idx: QModelIndex,
+        *,
+        ask_confirmation: bool = False,
+        parent: QWidget | None = None,
+    ) -> None:
         if idx.isValid():
+            if ask_confirmation:  # pragma: no cover
+                item_name = idx.data(Qt.ItemDataRole.DisplayRole)
+                item_type = type(idx.data(Qt.ItemDataRole.UserRole))
+                type_name = item_type.__name__.replace(("Config"), "Config ")
+                msg = QMessageBox.question(
+                    parent,
+                    "Confirm Deletion",
+                    f"Are you sure you want to delete {type_name} {item_name!r}?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes,
+                )
+                if msg != QMessageBox.StandardButton.Yes:
+                    return
             self.removeRows(idx.row(), 1, idx.parent())
 
     # ------------------------------------------------------------------
@@ -408,38 +445,37 @@ class QConfigGroupsModel(_BaseTreeModel):
         if n_rows := len(preset.settings):
             self.beginInsertRows(preset_idx, 0, n_rows - 1)
             for s in preset.settings:
-                preset_node.children.append(_Node.create(s, preset_node))
+                preset_node.children.append(self._create_node(s, preset_node))
             self.endInsertRows()
 
     def update_preset_properties(
-        self, preset_idx: QModelIndex, settings: Iterable[tuple[str, str]]
+        self,
+        preset_idx: QModelIndex,
+        settings: Iterable[DevicePropertySetting],
     ) -> None:
-        """Update the preset to only include properties that match the given keys.
+        """Update the preset to only include the given properties.
 
-        Missing properties will be added as placeholder settings with empty values.
+        Existing settings already in the preset are kept as-is. New settings
+        are added using metadata from the provided DevicePropertySetting objects.
         """
         preset_node = self._node_from_index(preset_idx)
         if not isinstance((preset := preset_node.payload), ConfigPreset):
             warnings.warn("Reference index is not a ConfigPreset.", stacklevel=2)
             return
 
-        setting_keys = set(settings)
+        templates = {s.key(): s for s in settings}
+        existing = {s.key(): s for s in preset.settings}
 
-        # Create a dict of existing settings keyed by (device, property_name)
-        existing_settings = {s.key(): s for s in preset.settings}
-
-        # Build the final list of settings
-        final_settings = []
-
-        for key in setting_keys:
-            if key in existing_settings:
-                final_settings.append(existing_settings[key])
+        final_settings: list[DevicePropertySetting] = []
+        for key in templates:
+            if key in existing:
+                final_settings.append(existing[key])
             else:
+                tmpl = templates[key]
                 final_settings.append(
-                    DevicePropertySetting(device=key[0], property_name=key[1])
+                    tmpl.model_copy(update={"value": tmpl.default_value})
                 )
 
-        # Use the existing method to update the preset with the final settings
         self.update_preset_settings(preset_idx, final_settings)
 
     # name uniqueness ---------------------------------------------------------
@@ -470,8 +506,9 @@ class QConfigGroupsModel(_BaseTreeModel):
         """Clear model and set new groups."""
         self.beginResetModel()
         self._root.children.clear()
+        self._node_registry.clear()  # reset invalidates all indices
         for g in groups:
-            self._root.children.append(_Node.create(g, self._root))
+            self._root.children.append(self._create_node(g, self._root))
         self.endResetModel()
 
     def get_groups(self) -> list[ConfigGroup]:
@@ -539,16 +576,22 @@ class QConfigGroupsModel(_BaseTreeModel):
 
         # ---------- modify the tree ----------
         for i, payload in enumerate(_payloads):
+            # Only ensure uniqueness if there would be a conflict AND we're not
+            # in undo/redo mode
             if isinstance(payload, (ConfigGroup, ConfigPreset)):
                 original_name = payload.name
-                if self._name_exists(parent_node, original_name):
+                if not self._in_undo_redo and self._name_exists(
+                    parent_node, original_name
+                ):
                     # Only modify the name if there's actually a conflict
                     unique_name = self._unique_child_name(
                         parent_node, original_name, suffix=""
                     )
                     payload.name = unique_name
 
-            parent_node.children.insert(row + i, _Node.create(payload, parent_node))
+            parent_node.children.insert(
+                row + i, self._create_node(payload, parent_node)
+            )
 
         # ---------- keep dataclasses in sync ----------
         if isinstance((grp := parent_node.payload), ConfigGroup):

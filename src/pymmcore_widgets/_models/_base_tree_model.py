@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 from typing import overload
 
 from qtpy.QtCore import QAbstractItemModel, QModelIndex, QObject, Qt
@@ -9,11 +10,14 @@ from ._py_config_model import ConfigGroup, ConfigPreset, Device, DevicePropertyS
 
 NULL_INDEX = QModelIndex()
 
+_node_id_counter = itertools.count()
+
 
 class _Node:
     """Generic tree node that wraps a ConfigGroup, ConfigPreset, or Setting."""
 
     __slots__ = (
+        "_id",
         "check_state",
         "children",
         "name",
@@ -59,6 +63,7 @@ class _Node:
         | None = None,
         parent: _Node | None = None,
     ) -> None:
+        self._id: int = next(_node_id_counter)
         self.name = name
         self.payload = payload
         self.parent = parent
@@ -104,7 +109,12 @@ class _Node:
 
 
 class _BaseTreeModel(QAbstractItemModel):
-    """Thin abstract tree model.
+    """Thin abstract tree model using integer IDs for createIndex.
+
+    Uses the integer-ID pattern: each _Node gets a unique int ID, stored in a
+    registry dict.  createIndex() receives the int (not the Python object), so
+    stale QModelIndex / QPersistentModelIndex objects resolve to a safe dict
+    lookup instead of a dangling void* pointer.
 
     Sub-classes should implement at least the following methods:
 
@@ -117,16 +127,36 @@ class _BaseTreeModel(QAbstractItemModel):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._root = _Node("<root>", None)
+        self._node_registry: dict[int, _Node] = {}
+
+    def _create_node(
+        self,
+        payload: ConfigGroup | ConfigPreset | DevicePropertySetting | Device,
+        parent: _Node | None = None,
+        recursive: bool = True,
+    ) -> _Node:
+        """Create a _Node, register it and all descendants, and return it."""
+        node = _Node.create(payload, parent, recursive=recursive)
+        self._register_tree(node)
+        return node
+
+    def _register_tree(self, node: _Node) -> None:
+        """Register *node* and all its descendants in the node registry."""
+        self._node_registry[node._id] = node
+        for child in node.children:
+            self._register_tree(child)
+
+    def _unregister_tree(self, node: _Node) -> None:
+        """Remove *node* and all its descendants from the node registry."""
+        self._node_registry.pop(node._id, None)
+        for child in node.children:
+            self._unregister_tree(child)
 
     def _node_from_index(self, index: QModelIndex | None) -> _Node:
-        if (
-            index
-            and index.isValid()
-            and isinstance((node := index.internalPointer()), _Node)
-        ):
-            # return the node if index is valid
-            return node
-        # otherwise return the root node
+        if index and index.isValid():
+            node = self._node_registry.get(index.internalId())
+            if node is not None:
+                return node
         return self._root
 
     # # ---------- Qt plumbing ----------------------------------------------
@@ -143,7 +173,8 @@ class _BaseTreeModel(QAbstractItemModel):
         """Return the index of the item specified by row, column and parent index."""
         parent_node = self._node_from_index(parent)
         if 0 <= row < len(parent_node.children):
-            return self.createIndex(row, column, parent_node.children[row])
+            child = parent_node.children[row]
+            return self.createIndex(row, column, child._id)
         return QModelIndex()  # pragma: no cover
 
     @overload
@@ -167,4 +198,4 @@ class _BaseTreeModel(QAbstractItemModel):
 
         # A common convention used in models that expose tree data structures is that
         # only items in the first column have children.
-        return self.createIndex(parent_node.row_in_parent(), 0, parent_node)
+        return self.createIndex(parent_node.row_in_parent(), 0, parent_node._id)
