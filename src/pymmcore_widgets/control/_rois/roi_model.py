@@ -143,20 +143,8 @@ class ROI:
         grid_plan = self.create_grid_plan(
             fov_w=fov_w, fov_h=fov_h, overlap=self.fov_overlap, mode=self.scan_order
         )
+        pos = useq.AbsolutePosition(z=z_pos, name=f"{self.text}_{self._uuid.hex[-4:]}")
 
-        # grid plan is always absolute, we use the first pos as x/y if it exists
-        # otherwise fall back to the center of the roi
-        x, y = self.center()
-        if grid_plan is not None:
-            if (
-                (fp := next(iter(grid_plan), None))
-                and fp.x is not None
-                and fp.y is not None
-            ):
-                x, y = fp.x, fp.y
-        pos = useq.AbsolutePosition(
-            x=x, y=y, z=z_pos, name=f"{self.text}_{self._uuid.hex[-4:]}"
-        )
         if grid_plan is None:
             return pos
 

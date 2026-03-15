@@ -87,20 +87,15 @@ def test_position_name_contains_uuid(large_rect: RectangleROI) -> None:
     assert pos.name.endswith(large_rect._uuid.hex[-4:])
 
 
-def test_position_xy_from_first_grid_position(large_rect: RectangleROI) -> None:
+def test_position_has_grid_plan_when_large(large_rect: RectangleROI) -> None:
     pos = large_rect.create_useq_position()
-    plan = large_rect.create_grid_plan()
-    assert plan is not None
-    first = next(iter(plan))
-    assert pos.x == first.x
-    assert pos.y == first.y
+    assert pos.sequence is not None
+    assert pos.sequence.grid_plan is not None
 
 
-def test_position_xy_falls_back_to_center(small_rect: RectangleROI) -> None:
+def test_position_has_no_sequence_when_small(small_rect: RectangleROI) -> None:
     pos = small_rect.create_useq_position()
-    cx, cy = small_rect.center()
-    assert pos.x == cx
-    assert pos.y == cy
+    assert pos.sequence is None
 
 
 def test_position_forwards_overlap_and_scan_order() -> None:
