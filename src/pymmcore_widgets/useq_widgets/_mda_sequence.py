@@ -125,14 +125,26 @@ class MDATabs(CheckableTabWidget):
 
     def value(self) -> useq.MDASequence:
         """Return the current sequence as a [`useq.MDASequence`][]."""
+        grid_plan = self.grid_plan.value() if self.isAxisUsed("g") else None
+        positions = self.stage_positions.value() if self.isAxisUsed("p") else ()
+
+        # If a global absolute grid plan is used, x/y on positions are
+        # meaningless (the grid defines them). Clear them to avoid useq
+        # validation warnings.
+        if grid_plan is not None and not grid_plan.is_relative and positions:
+            positions = tuple(
+                pos.replace(x=None, y=None)
+                if pos.x is not None or pos.y is not None
+                else pos
+                for pos in positions
+            )
+
         return useq.MDASequence(
             z_plan=self.z_plan.value() if self.isAxisUsed("z") else None,
             time_plan=self.time_plan.value() if self.isAxisUsed("t") else None,
-            stage_positions=(
-                self.stage_positions.value() if self.isAxisUsed("p") else ()
-            ),
+            stage_positions=positions,
             channels=self.channels.value() if self.isAxisUsed("c") else (),
-            grid_plan=self.grid_plan.value() if self.isAxisUsed("g") else None,
+            grid_plan=grid_plan,
             metadata={PYMMCW_METADATA_KEY: {"version": pymmcore_widgets.__version__}},
         )
 
