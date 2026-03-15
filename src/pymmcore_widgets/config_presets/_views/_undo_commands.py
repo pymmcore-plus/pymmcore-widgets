@@ -119,7 +119,7 @@ class AddGroupCommand(_ModelCommand):
         name: str = "New Group",
         parent: QUndoCommand | None = None,
     ) -> None:
-        super().__init__(model, f"Add Group '{name}'", parent)
+        super().__init__(model=model, text=f"Add Group '{name}'", parent=parent)
         self._name = name
         self._group_index: QPersistentModelIndex | None = None
 
@@ -145,7 +145,9 @@ class RemoveGroupCommand(_ModelCommand):
         parent: QUndoCommand | None = None,
     ) -> None:
         super().__init__(
-            model, f"Remove Group '{group_index.data() or 'Group'}'", parent
+            model=model,
+            text=f"Remove Group '{group_index.data() or 'Group'}'",
+            parent=parent,
         )
         self._group_index = QPersistentModelIndex(group_index)
         self._row = group_index.row()
@@ -178,7 +180,9 @@ class DuplicateGroupCommand(_ModelCommand):
         parent: QUndoCommand | None = None,
     ) -> None:
         super().__init__(
-            model, f"Duplicate Group '{group_index.data() or 'Group'}'", parent
+            model=model,
+            text=f"Duplicate Group '{group_index.data() or 'Group'}'",
+            parent=parent,
         )
         self._source = _TrackedIndex(group_index)
         self._new_group_index: QPersistentModelIndex | None = None
@@ -215,7 +219,11 @@ class AddPresetCommand(_ModelCommand):
         parent: QUndoCommand | None = None,
     ) -> None:
         group_name = group_index.data() or "Group"
-        super().__init__(model, f"Add Preset '{name}' to '{group_name}'", parent)
+        super().__init__(
+            model=model,
+            text=f"Add Preset '{name}' to '{group_name}'",
+            parent=parent,
+        )
         self._group = _TrackedIndex(group_index)
         self._name = name
         self._preset_index: QPersistentModelIndex | None = None
@@ -249,7 +257,9 @@ class RemovePresetCommand(_ModelCommand):
         preset_name = preset_index.data() or "Preset"
         group_name = preset_index.parent().data() or "Group"
         super().__init__(
-            model, f"Remove Preset '{preset_name}' from '{group_name}'", parent
+            model=model,
+            text=f"Remove Preset '{preset_name}' from '{group_name}'",
+            parent=parent,
         )
         self._preset = _TrackedIndex(preset_index)
         self._group = _TrackedIndex(preset_index.parent())
@@ -287,7 +297,9 @@ class DuplicatePresetCommand(_ModelCommand):
         parent: QUndoCommand | None = None,
     ) -> None:
         super().__init__(
-            model, f"Duplicate Preset '{preset_index.data() or 'Preset'}'", parent
+            model=model,
+            text=f"Duplicate Preset '{preset_index.data() or 'Preset'}'",
+            parent=parent,
         )
         self._source = _TrackedIndex(preset_index)
         self._new_preset_index: QPersistentModelIndex | None = None
@@ -314,7 +326,43 @@ class DuplicatePresetCommand(_ModelCommand):
 # ---------------------------------------------------------------------------
 
 
-class RenameGroupCommand(_ModelCommand):
+class _RenameCommand(_ModelCommand):
+    """Base for rename commands (shared redo/undo logic)."""
+
+    def __init__(
+        self,
+        model: QConfigGroupsModel,
+        index: QModelIndex,
+        new_name: str,
+        kind: str,
+        parent: QUndoCommand | None = None,
+    ) -> None:
+        old_name = index.data() or kind
+        super().__init__(
+            model=model,
+            text=f"Rename {kind} '{old_name}' to '{new_name}'",
+            parent=parent,
+        )
+        self._target = _TrackedIndex(index)
+        self._old_name = old_name
+        self._new_name = new_name
+
+    def redo(self) -> None:
+        idx = self._target.resolve(self._model)
+        if idx.isValid():
+            with self._undo_mode():
+                self._model.setData(idx, self._new_name)
+        self._last_affected = idx
+
+    def undo(self) -> None:
+        idx = self._target.resolve(self._model)
+        if idx.isValid():
+            with self._undo_mode():
+                self._model.setData(idx, self._old_name)
+        self._last_affected = idx
+
+
+class RenameGroupCommand(_RenameCommand):
     """Rename a config group."""
 
     def __init__(
@@ -324,28 +372,16 @@ class RenameGroupCommand(_ModelCommand):
         new_name: str,
         parent: QUndoCommand | None = None,
     ) -> None:
-        old_name = group_index.data() or "Group"
-        super().__init__(model, f"Rename Group '{old_name}' to '{new_name}'", parent)
-        self._target = _TrackedIndex(group_index)
-        self._old_name = old_name
-        self._new_name = new_name
-
-    def redo(self) -> None:
-        idx = self._target.resolve(self._model)
-        if idx.isValid():
-            with self._undo_mode():
-                self._model.setData(idx, self._new_name)
-        self._last_affected = idx
-
-    def undo(self) -> None:
-        idx = self._target.resolve(self._model)
-        if idx.isValid():
-            with self._undo_mode():
-                self._model.setData(idx, self._old_name)
-        self._last_affected = idx
+        super().__init__(
+            model=model,
+            index=group_index,
+            new_name=new_name,
+            kind="Group",
+            parent=parent,
+        )
 
 
-class RenamePresetCommand(_ModelCommand):
+class RenamePresetCommand(_RenameCommand):
     """Rename a preset."""
 
     def __init__(
@@ -355,25 +391,13 @@ class RenamePresetCommand(_ModelCommand):
         new_name: str,
         parent: QUndoCommand | None = None,
     ) -> None:
-        old_name = preset_index.data() or "Preset"
-        super().__init__(model, f"Rename Preset '{old_name}' to '{new_name}'", parent)
-        self._target = _TrackedIndex(preset_index)
-        self._old_name = old_name
-        self._new_name = new_name
-
-    def redo(self) -> None:
-        idx = self._target.resolve(self._model)
-        if idx.isValid():
-            with self._undo_mode():
-                self._model.setData(idx, self._new_name)
-        self._last_affected = idx
-
-    def undo(self) -> None:
-        idx = self._target.resolve(self._model)
-        if idx.isValid():
-            with self._undo_mode():
-                self._model.setData(idx, self._old_name)
-        self._last_affected = idx
+        super().__init__(
+            model=model,
+            index=preset_index,
+            new_name=new_name,
+            kind="Preset",
+            parent=parent,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -381,8 +405,46 @@ class RenamePresetCommand(_ModelCommand):
 # ---------------------------------------------------------------------------
 
 
-class UpdatePresetPropertiesCommand(_ModelCommand):
+class _UpdatePresetCommand(_ModelCommand):
+    """Base for commands that swap a preset's settings, with undo support."""
+
+    _redo_model_method: str  # model method name called in redo
+
+    def __init__(
+        self,
+        model: QConfigGroupsModel,
+        preset_index: QModelIndex,
+        new_data: Sequence[DevicePropertySetting],
+        text: str,
+        parent: QUndoCommand | None = None,
+    ) -> None:
+        super().__init__(model=model, text=text, parent=parent)
+        self._target = _TrackedIndex(preset_index)
+        self._new_data = deepcopy(list(new_data))
+        self._old_settings: list[DevicePropertySetting] | None = None
+
+    def redo(self) -> None:
+        idx = self._target.resolve(self._model)
+        if idx.isValid():
+            preset_data = idx.data(Qt.ItemDataRole.UserRole)
+            if preset_data:
+                self._old_settings = deepcopy(preset_data.settings)
+            with self._undo_mode():
+                getattr(self._model, self._redo_model_method)(idx, self._new_data)
+        self._last_affected = idx
+
+    def undo(self) -> None:
+        idx = self._target.resolve(self._model)
+        if self._old_settings is not None and idx.isValid():
+            with self._undo_mode():
+                self._model.update_preset_settings(idx, self._old_settings)
+        self._last_affected = idx
+
+
+class UpdatePresetPropertiesCommand(_UpdatePresetCommand):
     """Update which properties a preset contains (merge with existing)."""
+
+    _redo_model_method = "update_preset_properties"
 
     def __init__(
         self,
@@ -392,61 +454,35 @@ class UpdatePresetPropertiesCommand(_ModelCommand):
         parent: QUndoCommand | None = None,
     ) -> None:
         name = preset_index.data() or "Preset"
-        super().__init__(model, f"Update Properties in '{name}'", parent)
-        self._target = _TrackedIndex(preset_index)
-        self._new_properties = deepcopy(list(new_properties))
-        self._old_settings: list[DevicePropertySetting] | None = None
-
-    def redo(self) -> None:
-        idx = self._target.resolve(self._model)
-        if idx.isValid():
-            preset_data = idx.data(Qt.ItemDataRole.UserRole)
-            if preset_data:
-                self._old_settings = deepcopy(preset_data.settings)
-            with self._undo_mode():
-                self._model.update_preset_properties(idx, self._new_properties)
-        self._last_affected = idx
-
-    def undo(self) -> None:
-        idx = self._target.resolve(self._model)
-        if self._old_settings is not None and idx.isValid():
-            with self._undo_mode():
-                self._model.update_preset_settings(idx, self._old_settings)
-        self._last_affected = idx
+        super().__init__(
+            model,
+            preset_index=preset_index,
+            new_data=new_properties,
+            text=f"Update Properties in '{name}'",
+            parent=parent,
+        )
 
 
-class UpdatePresetSettingsCommand(_ModelCommand):
+class UpdatePresetSettingsCommand(_UpdatePresetCommand):
     """Replace all settings in a preset (wholesale)."""
+
+    _redo_model_method = "update_preset_settings"
 
     def __init__(
         self,
         model: QConfigGroupsModel,
         preset_index: QModelIndex,
-        new_settings: list[DevicePropertySetting],
+        new_settings: Sequence[DevicePropertySetting],
         parent: QUndoCommand | None = None,
     ) -> None:
         name = preset_index.data() or "Preset"
-        super().__init__(model, f"Update Settings in '{name}'", parent)
-        self._target = _TrackedIndex(preset_index)
-        self._new_settings = deepcopy(new_settings)
-        self._old_settings: list[DevicePropertySetting] | None = None
-
-    def redo(self) -> None:
-        idx = self._target.resolve(self._model)
-        if idx.isValid():
-            preset_data = idx.data(Qt.ItemDataRole.UserRole)
-            if preset_data:
-                self._old_settings = deepcopy(preset_data.settings)
-            with self._undo_mode():
-                self._model.update_preset_settings(idx, self._new_settings)
-        self._last_affected = idx
-
-    def undo(self) -> None:
-        idx = self._target.resolve(self._model)
-        if self._old_settings is not None and idx.isValid():
-            with self._undo_mode():
-                self._model.update_preset_settings(idx, self._old_settings)
-        self._last_affected = idx
+        super().__init__(
+            model=model,
+            preset_index=preset_index,
+            new_data=new_settings,
+            text=f"Update Settings in '{name}'",
+            parent=parent,
+        )
 
 
 class ChangePropertyValueCommand(_ModelCommand):
@@ -460,7 +496,11 @@ class ChangePropertyValueCommand(_ModelCommand):
         parent: QUndoCommand | None = None,
     ) -> None:
         preset_name = property_index.parent().data() or "Preset"
-        super().__init__(model, f"Change Property Value in '{preset_name}'", parent)
+        super().__init__(
+            model=model,
+            text=f"Change Property Value in '{preset_name}'",
+            parent=parent,
+        )
         self._target = _TrackedIndex(property_index)
         self._new_value = new_value
         self._old_value: Any = None
@@ -497,12 +537,18 @@ class SetChannelGroupCommand(_ModelCommand):
             text = f"Set '{group_index.data() or 'Group'}' as Channel Group"
         else:
             text = "Unset Channel Group"
-        super().__init__(model, text, parent)
+        super().__init__(model=model, text=text, parent=parent)
         self._new_target = _TrackedIndex(group_index) if group_index else None
         self._old_target: _TrackedIndex | None = None
 
+    def _apply(self, target: _TrackedIndex | None) -> None:
+        idx = target.resolve(self._model) if target else None
+        valid = idx if idx and idx.isValid() else None
+        self._model.set_channel_group(valid)
+        self._last_affected = QModelIndex(valid) if valid else QModelIndex()
+
     def redo(self) -> None:
-        # Find and store the current channel group
+        # Find and store the current channel group before overwriting
         self._old_target = None
         for i in range(self._model.rowCount()):
             idx = self._model.index(i, 0)
@@ -510,20 +556,7 @@ class SetChannelGroupCommand(_ModelCommand):
             if data and getattr(data, "is_channel_group", False):
                 self._old_target = _TrackedIndex(idx)
                 break
-
-        new_idx = self._new_target.resolve(self._model) if self._new_target else None
-        self._model.set_channel_group(
-            new_idx if new_idx and new_idx.isValid() else None
-        )
-        self._last_affected = (
-            new_idx if new_idx and new_idx.isValid() else QModelIndex()
-        )
+        self._apply(self._new_target)
 
     def undo(self) -> None:
-        old_idx = self._old_target.resolve(self._model) if self._old_target else None
-        self._model.set_channel_group(
-            old_idx if old_idx and old_idx.isValid() else None
-        )
-        self._last_affected = (
-            old_idx if old_idx and old_idx.isValid() else QModelIndex()
-        )
+        self._apply(self._old_target)
