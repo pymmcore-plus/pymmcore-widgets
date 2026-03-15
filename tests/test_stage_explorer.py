@@ -219,8 +219,6 @@ def test_scan_options_propagate_to_rois(qtbot: QtBot) -> None:
 
     assert roi.fov_overlap == (5.0, 5.0)
     assert roi.scan_order == useq.OrderMode.spiral
-    assert explorer._grid_overlap == 5.0
-    assert explorer._grid_mode == useq.OrderMode.spiral
 
 
 def test_new_rois_inherit_scan_options(qtbot: QtBot) -> None:

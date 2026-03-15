@@ -1,10 +1,3 @@
-"""Tests for new roi_model features added in this PR.
-
-Covers: overlap/mode params in create_grid_plan, self-intersecting polygon
-handling, create_useq_position x/y logic, uuid-based naming, and the new
-fov_overlap/scan_order default fields.
-"""
-
 from __future__ import annotations
 
 import numpy as np
@@ -79,9 +72,7 @@ def test_polygon_grid_plan_mode_forwarded(
 def test_self_intersecting_polygon_returns_none() -> None:
     """A self-intersecting (bowtie) polygon should return None, not crash."""
     verts = np.array([(0.0, 0.0), (100.0, 100.0), (100.0, 0.0), (0.0, 100.0)])
-    roi = ROI(vertices=verts, fov_size=(10.0, 10.0))
-    result = roi.create_grid_plan()
-    assert result is None or isinstance(result, useq.GridFromPolygon)
+    assert ROI(vertices=verts, fov_size=(10.0, 10.0)).create_grid_plan() is None
 
 
 # ---------------------------------------------------------------------------

@@ -148,10 +148,12 @@ class ROI:
         # otherwise fall back to the center of the roi
         x, y = self.center()
         if grid_plan is not None:
-            if (first_pos := next(iter(grid_plan), None)) is not None:
-                if first_pos.x is not None and first_pos.y is not None:
-                    x, y = first_pos.x, first_pos.y
-
+            if (
+                (fp := next(iter(grid_plan), None))
+                and fp.x is not None
+                and fp.y is not None
+            ):
+                x, y = fp.x, fp.y
         pos = useq.AbsolutePosition(
             x=x, y=y, z=z_pos, name=f"{self.text}_{self._uuid.hex[-4:]}"
         )

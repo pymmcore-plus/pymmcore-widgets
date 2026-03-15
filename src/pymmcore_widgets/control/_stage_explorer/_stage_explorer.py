@@ -189,8 +189,6 @@ class StageExplorer(QWidget):
         self._snap_on_double_click: bool = True
         self._poll_stage_position: bool = True
         self._our_mda_running: bool = False
-        self._grid_overlap: float = 0.0
-        self._grid_mode: OrderMode = OrderMode.row_wise_snake
 
         # background thread for polling stage position
         self._stage_poller = _StagePoller(self._mmc)
@@ -233,7 +231,6 @@ class StageExplorer(QWidget):
         tb.scan_action.triggered.connect(self._on_scan_action)
         tb.marker_mode_action_group.triggered.connect(self._update_marker_mode)
         tb.scan_menu.valueChanged.connect(self._on_scan_options_changed)
-        # ensure newly-created ROIs inherit the current scan menu settings
         self.roi_manager.roi_model.rowsInserted.connect(self._on_roi_rows_inserted)
 
         # main layout
@@ -408,22 +405,15 @@ class StageExplorer(QWidget):
                 self._mmc.run_mda(seq)
 
     def _on_scan_options_changed(self, value: tuple[float, OrderMode]) -> None:
-        """Update all ROIs with the new overlap so the vispy visuals refresh."""
-        # store locally in case callers want to use it
-        self._grid_overlap, self._grid_mode = value
-
-        # update ROIs and emit model dataChanged so visuals update
+        """Update all ROIs with the new overlap/scan-order so visuals refresh."""
+        overlap, mode = value
         for roi in self.roi_manager.all_rois():
-            roi.fov_overlap = (self._grid_overlap, self._grid_overlap)
-            roi.scan_order = self._grid_mode
+            roi.fov_overlap = (overlap, overlap)
+            roi.scan_order = mode
             self.roi_manager.roi_model.emitDataChange(roi)
 
     def _on_roi_rows_inserted(self, parent: QModelIndex, first: int, last: int) -> None:
-        """Initialize newly-inserted ROIs with the current scan menu values.
-
-        This ensures ROIs created after adjusting the scan options start with the
-        chosen overlap and acquisition order.
-        """
+        """Initialize newly-inserted ROIs with the current scan settings."""
         overlap, mode = self._toolbar.scan_menu.value()
         for row in range(first, last + 1):
             roi = self.roi_manager.roi_model.getRoi(row)
@@ -663,45 +653,36 @@ class StageExplorerToolbar(QToolBar):
 
 
 class ScanMenu(QMenu):
-    """Menu widget that exposes scan grid options."""
+    """Menu widget that exposes scan grid options (overlap + scan order)."""
 
     valueChanged = Signal(object)
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setTitle("Scan Selected ROI")
-
-        # container widget for form layout
         opts_widget = QWidget(self)
         form = QFormLayout(opts_widget)
         form.setContentsMargins(8, 8, 8, 8)
-        form.setSpacing(6)
 
-        # overlap spinbox
         self._overlap_spin = QDoubleSpinBox(opts_widget)
-        self._overlap_spin.setDecimals(2)
         self._overlap_spin.setRange(-100, 100)
-        self._overlap_spin.setSingleStep(1)
         form.addRow("Overlap", self._overlap_spin)
 
-        # acquisition mode combo
         self._mode_cbox = QEnumComboBox(self, OrderMode)
         self._mode_cbox.setCurrentEnum(OrderMode.row_wise_snake)
         form.addRow("Order", self._mode_cbox)
 
-        # wrap in a QWidgetAction so it shows as a menu panel
-        self.opts_action = QWidgetAction(self)
-        self.opts_action.setDefaultWidget(opts_widget)
-        self.addAction(self.opts_action)
+        action = QWidgetAction(self)
+        action.setDefaultWidget(opts_widget)
+        self.addAction(action)
 
-        self._overlap_spin.valueChanged.connect(self._on_value_changed)
-        self._mode_cbox.currentTextChanged.connect(self._on_value_changed)
+        self._overlap_spin.valueChanged.connect(self._emit)
+        self._mode_cbox.currentTextChanged.connect(self._emit)
 
     def value(self) -> tuple[float, useq.OrderMode]:
-        """Return the current grid overlap and order mode."""
+        """Return (overlap, order_mode)."""
         return self._overlap_spin.value(), self._mode_cbox.currentEnum()
 
-    def _on_value_changed(self) -> None:
+    def _emit(self) -> None:
         self.valueChanged.emit(self.value())
 
 

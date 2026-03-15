@@ -1,5 +1,3 @@
-"""Tests for QROIModel.getRoi and ROI_ROLE added in this PR."""
-
 from __future__ import annotations
 
 import numpy as np
