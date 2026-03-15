@@ -130,8 +130,9 @@ class TestCreateUseqPosition:
 
     def test_position_center(self, large_rect: RectangleROI) -> None:
         pos = large_rect.create_useq_position()
-        assert pos.x == pytest.approx(50.0)
-        assert pos.y == pytest.approx(50.0)
+        # x/y are None because the absolute grid plan defines the coordinates
+        assert pos.x is None
+        assert pos.y is None
 
     def test_position_with_grid_has_sequence(self, large_rect: RectangleROI) -> None:
         pos = large_rect.create_useq_position()
