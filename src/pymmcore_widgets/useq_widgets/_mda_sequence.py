@@ -347,7 +347,7 @@ class MDASequenceWidget(QWidget):
         self.time_plan.valueChanged.connect(self.valueChanged)
         self.stage_positions.valueChanged.connect(self.valueChanged)
         self.z_plan.valueChanged.connect(self._validate_af_with_z_plan)
-        self.grid_plan.valueChanged.connect(self.valueChanged)
+        self.grid_plan.valueChanged.connect(self._on_grid_plan_value_changed)
         self.tab_wdg.tabChecked.connect(self._on_tab_checked)
         self.axis_order.currentTextChanged.connect(self.valueChanged)
         self.valueChanged.connect(self._update_time_estimate)
@@ -560,7 +560,21 @@ class MDASequenceWidget(QWidget):
             else:
                 self._enable_af(True)
 
+        if tab_idx in (
+            self.tab_wdg.indexOf(self.grid_plan),
+            self.tab_wdg.indexOf(self.stage_positions),
+        ):
+            with signals_blocked(self):
+                self._on_grid_plan_value_changed()
+
         self._update_available_axis_orders()
+
+    def _on_grid_plan_value_changed(self) -> None:
+        """Disable position X/Y when a global absolute grid is active."""
+        gp = self.grid_plan
+        has_abs_grid = self.tab_wdg.isChecked(gp) and not gp.value().is_relative
+        self.stage_positions.setXYEnabled(not has_abs_grid)
+        self.valueChanged.emit()
 
     def _on_af_toggled(self) -> None:
         # if the 'af_per_position' checkbox in the PositionTable is checked, set checked
