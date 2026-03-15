@@ -144,10 +144,7 @@ class ROI:
         grid_plan = self.create_grid_plan(
             fov_w=fov_w, fov_h=fov_h, overlap=self.fov_overlap, mode=self.scan_order
         )
-        x, y = self.center()
-        pos = useq.AbsolutePosition(
-            x=x, y=y, z=z_pos, name=f"{self.text} {str(id(self))[-4:]}"
-        )
+        pos = useq.AbsolutePosition(z=z_pos, name=f"{self.text} {str(id(self))[-4:]}")
         if grid_plan is None:
             return pos
 
