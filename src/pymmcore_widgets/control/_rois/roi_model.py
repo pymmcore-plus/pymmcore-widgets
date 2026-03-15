@@ -6,7 +6,6 @@ from uuid import UUID, uuid4
 
 import numpy as np
 import useq
-import useq._grid
 
 
 @dataclass(eq=False)
@@ -94,7 +93,7 @@ class ROI:
         overlap: float | tuple[float, float] = 0.0,
         mode: useq.OrderMode = useq.OrderMode.row_wise_snake,
     ) -> useq.GridFromPolygon | useq.GridFromEdges | None:
-        """Return a useq.AbsolutePosition object that covers the ROI."""
+        """Return a grid plan that covers this ROI, or None if it fits in one FOV."""
         if fov_w is None or fov_h is None:
             if self.fov_size is None:
                 raise ValueError("fov_size must be set or fov_w and fov_h must be set")
@@ -154,7 +153,7 @@ class ROI:
                     x, y = first_pos.x, first_pos.y
 
         pos = useq.AbsolutePosition(
-            x=x, y=y, z=z_pos, name=f"{self.text} {str(id(self))[-4:]}"
+            x=x, y=y, z=z_pos, name=f"{self.text} {self._uuid.hex[-4:]}"
         )
         if grid_plan is None:
             return pos

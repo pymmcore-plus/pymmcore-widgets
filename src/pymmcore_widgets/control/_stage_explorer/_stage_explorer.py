@@ -699,9 +699,7 @@ class ScanMenu(QMenu):
 
     def value(self) -> tuple[float, useq.OrderMode]:
         """Return the current grid overlap and order mode."""
-        return self._overlap_spin.value(), cast(
-            "OrderMode", self._mode_cbox.currentEnum()
-        )
+        return self._overlap_spin.value(), self._mode_cbox.currentEnum()
 
     def _on_value_changed(self) -> None:
         self.valueChanged.emit(self.value())

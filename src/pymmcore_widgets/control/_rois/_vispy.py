@@ -45,15 +45,12 @@ class RoiPolygon(Compound):
         self._polygon.pos = vertices
         self._handles.set_data(pos=vertices)
 
-        centers: list[tuple[float, float]] = []
-
         grid = self._roi.create_grid_plan(
             overlap=self._roi.fov_overlap, mode=self._roi.scan_order
         )
-        if grid is not None:
-            for p in grid:
-                if p.x is not None and p.y is not None:
-                    centers.append((p.x, p.y))
+        centers = [
+            (p.x, p.y) for p in (grid or ()) if p.x is not None and p.y is not None
+        ]
 
         if centers and (fov_size := self._roi.fov_size):
             edges = []
