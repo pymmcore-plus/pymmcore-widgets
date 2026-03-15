@@ -1071,8 +1071,6 @@ def test_sub_wdg_channel_tab(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
         ),
         stage_positions=(
             useq.AbsolutePosition(
-                x=1,
-                y=2,
                 z=3,
                 name="pos1",
                 sequence=useq.MDASequence(grid_plan=poly1),
