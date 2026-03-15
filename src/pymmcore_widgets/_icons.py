@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pymmcore_plus import CMMCorePlus, DeviceType
+from pymmcore_plus import CMMCorePlus, DeviceType, PropertyType
 from superqt import QIconifyIcon
 
 
@@ -15,6 +15,7 @@ class StandardIcon(str, Enum):
     TREE = "ph:tree-view"
     FOLDER_ADD = "fluent:folder-add-24-regular"
     DOCUMENT_ADD = "fluent:document-add-24-regular"
+    PROPERTY_ADD = "fluent:form-new-24-regular"
     DELETE = "fluent:delete-24-regular"
     COPY = "fluent:save-copy-24-regular"
     TRANSPOSE = "carbon:transpose"
@@ -27,6 +28,13 @@ class StandardIcon(str, Enum):
     SHUTDOWN = "ic:baseline-power-off"
     UNDO = "mdi:undo"
     REDO = "mdi:redo"
+
+    PROP_STRING = "mdi:alphabetical-variant"
+    PROP_INTEGER = "mdi:numeric"
+    PROP_FLOAT = "mdi:decimal"
+    PROP_ENUM = "mdi:format-list-bulleted"
+    PROP_BOOLEAN = "mdi:toggle-switch-outline"
+    PROP_UNDEF = "mdi:help-circle-outline"
 
     DEVICE_ANY = "mdi:devices"
     DEVICE_AUTOFOCUS = "mdi:focus-auto"
@@ -67,6 +75,28 @@ class StandardIcon(str, Enum):
 
         return _DEVICE_TYPE_MAP.get(device_type, StandardIcon.DEVICE_UNKNOWN)
 
+    @classmethod
+    def for_property_type(
+        cls,
+        prop_type: PropertyType,
+        allowed: tuple[str, ...] = (),
+    ) -> StandardIcon:
+        """Return an icon for a specific property type."""
+        if prop_type is PropertyType.Integer and set(allowed) == {"0", "1"}:
+            return StandardIcon.PROP_BOOLEAN
+        if allowed:
+            return StandardIcon.PROP_ENUM
+        return _PROPERTY_TYPE_MAP.get(prop_type, StandardIcon.PROP_UNDEF)
+
+
+_PROPERTY_TYPE_MAP: dict[PropertyType, StandardIcon] = {
+    PropertyType.String: StandardIcon.PROP_STRING,
+    PropertyType.Integer: StandardIcon.PROP_INTEGER,
+    PropertyType.Float: StandardIcon.PROP_FLOAT,
+    PropertyType.Enum: StandardIcon.PROP_ENUM,
+    PropertyType.Boolean: StandardIcon.PROP_BOOLEAN,
+    PropertyType.Undef: StandardIcon.PROP_UNDEF,
+}
 
 _DEVICE_TYPE_MAP: dict[DeviceType, StandardIcon] = {
     DeviceType.Any: StandardIcon.DEVICE_ANY,

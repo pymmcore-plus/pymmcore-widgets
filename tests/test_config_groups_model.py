@@ -11,10 +11,13 @@ from pymmcore_widgets._models import (
     ConfigGroup,
     ConfigGroupPivotModel,
     ConfigPreset,
+    Device,
     DevicePropertySetting,
     QConfigGroupsModel,
+    QDevicePropertyModel,
     get_config_groups,
 )
+from pymmcore_widgets._models._q_device_prop_model import DevicePropertyFlatProxy
 
 if TYPE_CHECKING:
     from pytestqt.modeltest import ModelTester
@@ -215,6 +218,22 @@ def test_remove(model: QConfigGroupsModel, qtbot: QtBot) -> None:
     assert grp0_name not in {x.name for x in model.get_groups()}
 
 
+def test_node_registry_cleanup(model: QConfigGroupsModel) -> None:
+    """Removing rows should clean up the node registry to prevent leaks."""
+    registry_before = len(model._node_registry)
+    assert registry_before > 0
+
+    # Count nodes in first group (group + presets + settings)
+    grp0 = model._root.children[0]
+    node_count = 1  # group node itself
+    for preset in grp0.children:
+        node_count += 1  # preset node
+        node_count += len(preset.children)  # setting nodes
+
+    model.removeRows(0, 1, QModelIndex())
+    assert len(model._node_registry) == registry_before - node_count
+
+
 def test_update_preset_settings(model: QConfigGroupsModel, qtbot: QtBot) -> None:
     """Test updating preset settings."""
     original_data = model.get_groups()
@@ -248,7 +267,6 @@ def test_update_preset_properties(model: QConfigGroupsModel, qtbot: QtBot) -> No
     original_settings_count = len(preset0.settings)
     assert original_settings_count > 1
 
-    # Get the first two existing settings as (device, property_name) tuples
     existing_setting1 = preset0.settings[0]
     existing_setting2 = preset0.settings[1]
     existing_key1 = existing_setting1.key()
@@ -257,12 +275,8 @@ def test_update_preset_properties(model: QConfigGroupsModel, qtbot: QtBot) -> No
     grp0_index = model.index(0, 0)
     preset0_index = model.index(0, 0, grp0_index)
 
-    # Test updating with a mix of existing and new properties
-    new_properties = [
-        existing_key1,  # Keep existing setting
-        existing_key2,  # Keep another existing setting
-        ("NewDevice", "NewProperty"),  # Add new placeholder setting
-    ]
+    new_setting = DevicePropertySetting(device="NewDevice", property_name="NewProp")
+    new_properties = [existing_setting1, existing_setting2, new_setting]
 
     model.update_preset_properties(preset0_index, new_properties)
 
@@ -277,16 +291,16 @@ def test_update_preset_properties(model: QConfigGroupsModel, qtbot: QtBot) -> No
     settings_by_key = {s.key(): s for s in preset0_new.settings}
     assert existing_key1 in settings_by_key
     assert existing_key2 in settings_by_key
-    assert ("NewDevice", "NewProperty") in settings_by_key
+    assert ("NewDevice", "NewProp") in settings_by_key
 
     # Verify existing settings kept their values
     assert settings_by_key[existing_key1].value == existing_setting1.value
     assert settings_by_key[existing_key2].value == existing_setting2.value
 
     # Verify new setting has empty value
-    assert settings_by_key[("NewDevice", "NewProperty")].value == ""
-    assert settings_by_key[("NewDevice", "NewProperty")].device_label == "NewDevice"
-    assert settings_by_key[("NewDevice", "NewProperty")].property_name == "NewProperty"
+    assert settings_by_key[("NewDevice", "NewProp")].value == ""
+    assert settings_by_key[("NewDevice", "NewProp")].device_label == "NewDevice"
+    assert settings_by_key[("NewDevice", "NewProp")].property_name == "NewProp"
 
     # Test with invalid index
     with pytest.warns(UserWarning, match="Reference index is not a ConfigPreset."):
@@ -452,3 +466,198 @@ def test_pivot_model_two_way_sync(
     pivot.setGroup("Camera")
     assert pivot.rowCount() == 3  # Should reflect the state we left it in
     assert pivot.columnCount() == 3
+
+
+# ── QDevicePropertyModel tests ─────────────────────────────────────
+
+
+@pytest.fixture
+def device_model() -> QDevicePropertyModel:
+    core = CMMCorePlus()
+    core.loadSystemConfiguration()
+    return QDevicePropertyModel.create_from_core(core)
+
+
+def test_device_property_model_init(
+    device_model: QDevicePropertyModel, qtmodeltester: ModelTester
+) -> None:
+    qtmodeltester.check(device_model)
+    assert device_model.rowCount() > 0
+    assert device_model.columnCount() == 2
+    assert device_model.data(QModelIndex()) is None
+    assert device_model.flags(QModelIndex()) == Qt.ItemFlag.NoItemFlags
+
+    # Headers
+    assert device_model.headerData(0, Qt.Orientation.Horizontal) == "Device/Property"
+    assert device_model.headerData(1, Qt.Orientation.Horizontal) == "Type"
+
+
+def test_device_property_model_data_roles(
+    device_model: QDevicePropertyModel,
+) -> None:
+    # Find a device with properties
+    dev_idx = QModelIndex()
+    for i in range(device_model.rowCount()):
+        idx = device_model.index(i, 0)
+        if device_model.rowCount(idx) > 0:
+            dev_idx = idx
+            break
+    assert dev_idx.isValid(), "No device with properties found"
+
+    # Device-level data
+    assert isinstance(dev_idx.data(Qt.ItemDataRole.DisplayRole), str)
+    assert isinstance(dev_idx.data(Qt.ItemDataRole.UserRole), Device)
+    # DecorationRole on device col 0 returns a pixmap or icon
+    deco = dev_idx.data(Qt.ItemDataRole.DecorationRole)
+    assert deco is not None
+
+    # Property-level data
+    prop_idx = device_model.index(0, 0, dev_idx)
+    assert isinstance(prop_idx.data(Qt.ItemDataRole.DisplayRole), str)
+    assert isinstance(prop_idx.data(Qt.ItemDataRole.UserRole), DevicePropertySetting)
+
+    # CheckStateRole on property
+    cs = device_model.data(prop_idx, Qt.ItemDataRole.CheckStateRole)
+    assert cs == Qt.CheckState.Unchecked
+
+    # Type column for property
+    prop_type_idx = device_model.index(0, 1, dev_idx)
+    assert isinstance(prop_type_idx.data(Qt.ItemDataRole.DisplayRole), str)
+
+
+def test_device_property_model_check_state(
+    device_model: QDevicePropertyModel, qtbot: QtBot
+) -> None:
+    # Find a non-read-only, non-pre-init property to check
+    prop_idx = None
+    for dev_row in range(device_model.rowCount()):
+        dev_idx = device_model.index(dev_row, 0)
+        for row in range(device_model.rowCount(dev_idx)):
+            idx = device_model.index(row, 0, dev_idx)
+            prop = idx.data(Qt.ItemDataRole.UserRole)
+            if isinstance(prop, DevicePropertySetting):
+                if not prop.is_read_only and not prop.is_pre_init:
+                    prop_idx = idx
+                    break
+        if prop_idx is not None:
+            break
+    assert prop_idx is not None, "No checkable property found"
+
+    with qtbot.waitSignal(device_model.dataChanged):
+        assert device_model.setData(
+            prop_idx, Qt.CheckState.Checked, Qt.ItemDataRole.CheckStateRole
+        )
+    assert (
+        device_model.data(prop_idx, Qt.ItemDataRole.CheckStateRole)
+        == Qt.CheckState.Checked
+    )
+
+    with qtbot.waitSignal(device_model.dataChanged):
+        assert device_model.setData(
+            prop_idx, Qt.CheckState.Unchecked, Qt.ItemDataRole.CheckStateRole
+        )
+
+    # Invalid index returns False
+    assert not device_model.setData(
+        QModelIndex(), Qt.CheckState.Checked, Qt.ItemDataRole.CheckStateRole
+    )
+
+    # Flags include checkable on col 0
+    flags = device_model.flags(prop_idx)
+    assert flags & Qt.ItemFlag.ItemIsUserCheckable
+
+
+def test_device_property_model_set_get_devices(
+    device_model: QDevicePropertyModel,
+) -> None:
+    original_devices = device_model.get_devices()
+    assert len(original_devices) > 0
+
+    device_model.set_devices([])
+    assert device_model.rowCount() == 0
+
+    device_model.set_devices(original_devices)
+    assert device_model.rowCount() == len(original_devices)
+
+    # get_devices returns a deep copy
+    copy = device_model.get_devices()
+    assert copy == original_devices
+    assert copy is not original_devices
+
+
+def test_device_property_flat_proxy(
+    device_model: QDevicePropertyModel, qtmodeltester: ModelTester
+) -> None:
+    proxy = DevicePropertyFlatProxy()
+    proxy.setSourceModel(device_model)
+    qtmodeltester.check(proxy)
+
+    assert proxy.columnCount() == 2
+    # rowCount should be total number of properties across all devices
+    total_props = sum(
+        device_model.rowCount(device_model.index(i, 0))
+        for i in range(device_model.rowCount())
+    )
+    assert proxy.rowCount() == total_props
+    assert not proxy.parent(proxy.index(0, 0)).isValid()  # flat
+
+    # Column 0 = device label, Column 1 = property name
+    first = proxy.index(0, 0)
+    assert isinstance(first.data(Qt.ItemDataRole.DisplayRole), str)
+    second = proxy.index(0, 1)
+    assert isinstance(second.data(Qt.ItemDataRole.DisplayRole), str)
+
+    # Headers
+    assert proxy.headerData(0, Qt.Orientation.Horizontal) == "Device"
+    assert proxy.headerData(1, Qt.Orientation.Horizontal) == "Property"
+
+
+def test_device_property_flat_proxy_check_propagation(
+    device_model: QDevicePropertyModel, qtbot: QtBot
+) -> None:
+    proxy = DevicePropertyFlatProxy()
+    proxy.setSourceModel(device_model)
+
+    # Find a checkable property
+    for row in range(proxy.rowCount()):
+        idx = proxy.index(row, 1)
+        prop = idx.data(Qt.ItemDataRole.UserRole)
+        if isinstance(prop, DevicePropertySetting):
+            if not prop.is_read_only and not prop.is_pre_init:
+                break
+    else:
+        pytest.skip("No checkable property found in flat proxy")
+
+    # Set check via proxy
+    assert proxy.setData(idx, Qt.CheckState.Checked, Qt.ItemDataRole.CheckStateRole)
+
+    # Verify source model has the check
+    dev_idx = device_model.index(0, 0)
+    for r in range(device_model.rowCount(dev_idx)):
+        src_idx = device_model.index(r, 0, dev_idx)
+        src_prop = src_idx.data(Qt.ItemDataRole.UserRole)
+        if isinstance(src_prop, DevicePropertySetting) and src_prop.key() == prop.key():
+            assert (
+                device_model.data(src_idx, Qt.ItemDataRole.CheckStateRole)
+                == Qt.CheckState.Checked
+            )
+            break
+
+
+def test_device_property_flat_proxy_sort(
+    device_model: QDevicePropertyModel,
+) -> None:
+    proxy = DevicePropertyFlatProxy()
+    proxy.setSourceModel(device_model)
+
+    proxy.sort(0, Qt.SortOrder.AscendingOrder)
+    if proxy.rowCount() >= 2:
+        first = proxy.index(0, 0).data() or ""
+        second = proxy.index(1, 0).data() or ""
+        assert first <= second
+
+    proxy.sort(0, Qt.SortOrder.DescendingOrder)
+    if proxy.rowCount() >= 2:
+        first = proxy.index(0, 0).data() or ""
+        second = proxy.index(1, 0).data() or ""
+        assert first >= second
