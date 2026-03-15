@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from PyQt6.QtCore import pyqtSignal as Signal
     from PyQt6.QtGui import QAction, QKeyEvent
 else:
-    from qtpy.QtCore import QModelIndex, Signal
+    from qtpy.QtCore import Signal
 
 
 class _DeviceButtonToolbar(QToolBar):
@@ -200,22 +200,16 @@ class _PropertySearchToolbar(QToolBar):
 
     def _toggle_view_mode(self) -> None:
         """Toggle between TreeView and TableView."""
-        is_tree_view = self.act_toggle_view.isChecked()
-
-        # Update button icon and tooltip
-        if is_tree_view:
+        is_tree = self.act_toggle_view.isChecked()
+        if is_tree:
             self.act_toggle_view.setIcon(StandardIcon.TREE.icon())
             self.act_toggle_view.setText("Switch to Table View")
         else:
             self.act_toggle_view.setIcon(StandardIcon.TABLE.icon())
             self.act_toggle_view.setText("Switch to Tree View")
-
-        # Show/hide expand/collapse actions
-        self.act_expand.setVisible(is_tree_view)
-        self.act_collapse.setVisible(is_tree_view)
-
-        # Emit signal
-        self.viewModeToggled.emit(is_tree_view)
+        self.act_expand.setVisible(is_tree)
+        self.act_collapse.setVisible(is_tree)
+        self.viewModeToggled.emit(is_tree)
 
     def _toggle_checked_only(self) -> None:
         """Toggle between showing all properties and checked-only."""
@@ -227,8 +221,6 @@ class DevicePropertySelector(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-
-        # WIDGETS ------------------------
 
         self._dev_type_btns = dev_btns = _DeviceButtonToolbar(self)
         self._tb2 = _PropertySearchToolbar(self)
@@ -284,9 +276,9 @@ class DevicePropertySelector(QWidget):
         if Qt.ItemDataRole.CheckStateRole not in roles:
             return
 
+        checked_keys = {p.key() for p in self._checked_settings}
         changed = False
 
-        # Helper to update the cache for a single index
         def _update(idx: QModelIndex) -> None:
             nonlocal changed
             prop = idx.data(Qt.ItemDataRole.UserRole)
@@ -297,14 +289,15 @@ class DevicePropertySelector(QWidget):
                 == Qt.CheckState.Checked
             )
             key = prop.key()
-            checked_keys = {p.key() for p in self._checked_settings}
             if is_checked and key not in checked_keys:
                 self._checked_settings.append(prop)
+                checked_keys.add(key)
                 changed = True
             elif not is_checked and key in checked_keys:
                 self._checked_settings = [
                     p for p in self._checked_settings if p.key() != key
                 ]
+                checked_keys.discard(key)
                 changed = True
 
         # Iterate through all rows in the changed range
@@ -352,23 +345,13 @@ class DevicePropertySelector(QWidget):
             self.tree.setColumnHidden(1, False)
             self.tree.setRootIsDecorated(False)
             self.tree.setSortingEnabled(True)
-            # Disable controls that don't apply to checked-only view
-            self._tb2.act_toggle_view.setEnabled(False)
-            self._tb2.act_expand.setEnabled(False)
-            self._tb2.act_collapse.setEnabled(False)
-            self._dev_type_btns.setEnabled(False)
         else:
-            # Restore the previous view mode
-            is_tree = self._tb2.act_toggle_view.isChecked()
-            self._apply_view_mode(is_tree)
-            self._tb2.act_toggle_view.setEnabled(True)
-            self._tb2.act_expand.setEnabled(True)
-            self._tb2.act_collapse.setEnabled(True)
-            self._dev_type_btns.setEnabled(True)
-
-    def clear(self) -> None:
-        """Clear the current selection."""
-        # self.table.setValue([])
+            self._apply_view_mode(self._tb2.act_toggle_view.isChecked())
+        enabled = not checked_only
+        self._tb2.act_toggle_view.setEnabled(enabled)
+        self._tb2.act_expand.setEnabled(enabled)
+        self._tb2.act_collapse.setEnabled(enabled)
+        self._dev_type_btns.setEnabled(enabled)
 
     def checkedProperties(self) -> tuple[DevicePropertySetting, ...]:
         return tuple(self._checked_settings)
@@ -397,33 +380,22 @@ class DevicePropertySelector(QWidget):
             to_check[prop.device_label].add(prop.property_name)
 
         with QSignalBlocker(self._model):
-            # Uncheck all
-            for row in range(self._model.rowCount()):
-                dev_idx = self._model.index(row, 0)
-                for prop_row in range(self._model.rowCount(dev_idx)):
-                    prop_idx = self._model.index(prop_row, 0, dev_idx)
-                    self._model.setData(
-                        prop_idx,
-                        Qt.CheckState.Unchecked,
-                        Qt.ItemDataRole.CheckStateRole,
-                    )
-            # Check desired
             for row in range(self._model.rowCount()):
                 dev_idx = self._model.index(row, 0)
                 dev = dev_idx.data(Qt.ItemDataRole.UserRole)
-                if isinstance(dev, Device) and dev.label in to_check:
-                    for prop_row in range(self._model.rowCount(dev_idx)):
-                        prop_idx = self._model.index(prop_row, 0, dev_idx)
-                        prop = prop_idx.data(Qt.ItemDataRole.UserRole)
-                        if (
-                            isinstance(prop, DevicePropertySetting)
-                            and prop.property_name in to_check[dev.label]
-                        ):
-                            self._model.setData(
-                                prop_idx,
-                                Qt.CheckState.Checked,
-                                Qt.ItemDataRole.CheckStateRole,
-                            )
+                dev_props = (
+                    to_check.get(dev.label, set()) if isinstance(dev, Device) else set()
+                )
+                for prop_row in range(self._model.rowCount(dev_idx)):
+                    prop_idx = self._model.index(prop_row, 0, dev_idx)
+                    prop = prop_idx.data(Qt.ItemDataRole.UserRole)
+                    state = (
+                        Qt.CheckState.Checked
+                        if isinstance(prop, DevicePropertySetting)
+                        and prop.property_name in dev_props
+                        else Qt.CheckState.Unchecked
+                    )
+                    self._model.setData(prop_idx, state, Qt.ItemDataRole.CheckStateRole)
         self._checked_settings = list(props)
         self._emit_model_data_changed()
         self.checkedPropertiesChanged.emit(tuple(self._checked_settings))
@@ -484,7 +456,6 @@ class DevicePropertySelector(QWidget):
         layout.addWidget(selector)
         layout.addWidget(btns)
 
-        dialog.setLayout(layout)
         # resize the dialog to fill 80% of the parent's size
         if parent:
             size = parent.size()
@@ -514,33 +485,24 @@ class _CheckableTreeView(QTreeView):
         if not index.isValid():
             return
 
-        # Get the data to check if this is a property item (not a device header)
-        user_data = index.data(Qt.ItemDataRole.UserRole)
-        if not isinstance(user_data, DevicePropertySetting):
+        if not isinstance(index.data(Qt.ItemDataRole.UserRole), DevicePropertySetting):
             return
 
-        # Get current check state
         current_state = index.data(Qt.ItemDataRole.CheckStateRole)
         if current_state is None:
             return
 
-        # Toggle the state
         new_state = (
             Qt.CheckState.Unchecked
             if current_state == Qt.CheckState.Checked
             else Qt.CheckState.Checked
         )
 
-        # If we're working with a proxy model, we need to map to the source model
+        # Unwrap proxy models to reach the source
         model = index.model()
+        source_index = index
+        while isinstance(model, QAbstractProxyModel):
+            source_index = model.mapToSource(source_index)
+            model = model.sourceModel()
         if model is not None:
-            # Try to get the source model if this is a proxy
-            source_index = index
-            if isinstance(model, QAbstractProxyModel):
-                source_index = model.mapToSource(source_index)
-                model = model.sourceModel()
-                if model is None:
-                    return
-
-            # Set the new state on the source model
             model.setData(source_index, new_state, Qt.ItemDataRole.CheckStateRole)
