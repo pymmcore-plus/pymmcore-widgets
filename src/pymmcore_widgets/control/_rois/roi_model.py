@@ -153,7 +153,7 @@ class ROI:
                     x, y = first_pos.x, first_pos.y
 
         pos = useq.AbsolutePosition(
-            x=x, y=y, z=z_pos, name=f"{self.text} {self._uuid.hex[-4:]}"
+            x=x, y=y, z=z_pos, name=f"{self.text}_{self._uuid.hex[-4:]}"
         )
         if grid_plan is None:
             return pos
