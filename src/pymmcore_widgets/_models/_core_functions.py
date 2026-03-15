@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from functools import cache
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus, DeviceType
@@ -14,7 +13,6 @@ if TYPE_CHECKING:
 # ----------------------------------
 
 
-@cache
 def _get_device(core: CMMCorePlus, label: str) -> Device:
     """Get a Device model for the given label."""
     return Device(
@@ -88,13 +86,7 @@ def get_property_info(core: CMMCorePlus, device_label: str, property_name: str) 
 def get_loaded_devices(core: CMMCorePlus) -> Iterable[Device]:
     """Get the model for all devices."""
     for label in core.getLoadedDevices():
-        dev = Device(
-            label=label,
-            name=core.getDeviceName(label),
-            description=core.getDeviceDescription(label),
-            library=core.getDeviceLibrary(label),
-            type=core.getDeviceType(label),
-        )
+        dev = _get_device(core, label)
         props = []
         for prop in core.getDevicePropertyNames(label):
             prop_info = get_property_info(core, label, prop)
