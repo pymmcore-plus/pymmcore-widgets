@@ -6,7 +6,6 @@ from uuid import UUID, uuid4
 
 import numpy as np
 import useq
-import useq._grid
 
 
 @dataclass(eq=False)
@@ -23,7 +22,6 @@ class ROI:
     font_size: int = 12
 
     fov_size: tuple[float, float] | None = None  # (width, height)
-    fov_overlap: tuple[float, float] | None = None  # frac (width, height) 0..1
 
     def translate(self, dx: float, dy: float) -> None:
         """Translate the ROI in place by (dx, dy)."""
@@ -90,8 +88,10 @@ class ROI:
         self,
         fov_w: float | None = None,
         fov_h: float | None = None,
-    ) -> useq._grid._GridPlan | None:
-        """Return a useq.AbsolutePosition object that covers the ROI."""
+        overlap: float | tuple[float, float] = 0.0,
+        mode: useq.OrderMode = useq.OrderMode.row_wise_snake,
+    ) -> useq.GridFromPolygon | useq.GridFromEdges | None:
+        """Return a grid plan that covers this ROI, or None if it fits in one FOV."""
         if fov_w is None or fov_h is None:
             if self.fov_size is None:
                 raise ValueError("fov_size must be set or fov_w and fov_h must be set")
@@ -103,14 +103,21 @@ class ROI:
         # a single position at the center of the roi is sufficient, otherwise create a
         # grid plan that covers the roi
         if abs(right - left) > fov_w or abs(bottom - top) > fov_h:
+            overlap = overlap if isinstance(overlap, tuple) else (overlap, overlap)
             if type(self) is not RectangleROI:
                 if len(self.vertices) < 3:
                     return None
-                return useq.GridFromPolygon(
-                    vertices=list(self.vertices),
-                    fov_width=fov_w,
-                    fov_height=fov_h,
-                )
+                try:
+                    return useq.GridFromPolygon(
+                        vertices=list(self.vertices),
+                        fov_width=fov_w,
+                        fov_height=fov_h,
+                        mode=mode,
+                        overlap=overlap,
+                    )
+                except ValueError:
+                    # likely a self-intersecting polygon that cannot be scanned...
+                    return None
             else:
                 return useq.GridFromEdges(
                     top=top,
@@ -119,6 +126,8 @@ class ROI:
                     right=right,
                     fov_width=fov_w,
                     fov_height=fov_h,
+                    mode=mode,
+                    overlap=overlap,
                 )
         return None
 
@@ -126,23 +135,21 @@ class ROI:
         self,
         fov_w: float | None = None,
         fov_h: float | None = None,
-        z_pos: float = 0.0,
+        z_pos: float | None = None,
+        overlap: float | tuple[float, float] = 0.0,
+        mode: useq.OrderMode = useq.OrderMode.row_wise_snake,
     ) -> useq.AbsolutePosition:
         """Return a useq.AbsolutePosition object that covers the ROI."""
-        grid_plan = self.create_grid_plan(fov_w=fov_w, fov_h=fov_h)
-        x, y = self.center()
-        pos = useq.AbsolutePosition(x=x, y=y, z=z_pos)
+        grid_plan = self.create_grid_plan(
+            fov_w=fov_w, fov_h=fov_h, overlap=overlap, mode=mode
+        )
+        pos = useq.AbsolutePosition(z=z_pos, name=f"{self.text}_{self._uuid.hex[-4:]}")
+
         if grid_plan is None:
             return pos
 
         return pos.model_copy(
-            update={
-                "sequence": useq.MDASequence(
-                    grid_plan=grid_plan,
-                    fov_width=fov_w,
-                    fov_height=fov_h,
-                )
-            }
+            update={"sequence": useq.MDASequence(grid_plan=grid_plan)}
         )
 
 
