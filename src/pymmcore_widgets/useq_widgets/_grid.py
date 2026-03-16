@@ -4,7 +4,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol
 
 import useq
-from qtpy.QtCore import QPointF, Qt, QTimer, Signal
+from qtpy.QtCore import QPointF, Qt, Signal
 from qtpy.QtGui import (
     QBrush,
     QPainter,
@@ -604,9 +604,7 @@ class _PolygonWidget(QWidget):
 
     def resizeEvent(self, a0: QResizeEvent | None) -> None:
         super().resizeEvent(a0)
-        # Defer fitting to the next event loop iteration so the QGraphicsView's
-        # viewport has been resized before we call fitInView.
-        QTimer.singleShot(0, self._fit_view_to_items)
+        self._fit_view_to_items()
 
 
 class _ResizableStackedWidget(QStackedWidget):
