@@ -20,7 +20,7 @@ sources = ["src"]
 name = "pymmcore-widgets"
 description = "A set of Qt-based widgets onto the pymmcore-plus model"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "BSD 3-Clause License" }
 authors = [
     { email = "federico.gasparoli@gmail.com", name = "Federico Gasparoli" },
@@ -34,11 +34,11 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: BSD License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python",
     "Topic :: Software Development :: Widget Sets",
     "Topic :: System :: Hardware :: Hardware Drivers",
@@ -48,19 +48,18 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    'pymmcore-plus[cli] >=0.15.4',
+    "pymmcore-plus[cli]>=0.15.4",
     'qtpy >=2.0',
     'superqt[quantity,cmap,iconify] >=0.7.1',
     'useq-schema >=0.8.0',
-    'vispy >=0.15.0',
+    'vispy >=0.15.1',
     "pyopengl >=3.1.9; platform_system == 'Darwin'",
+    "shapely>=2.1.2; python_version >= '3.14'",
     "shapely>=2.0.7",
 ]
 
 [project.optional-dependencies]
-PySide2 = ["PySide2 >=5.15.2.1", "numpy<2; python_version < '3.13'", "numpy"]
 PySide6 = ["PySide6 >=6.9.0"]
-PyQt5 = ["PyQt5 >=5.15.11"]
 PyQt6 = ["PyQt6 >=6.4.2"]
 
 [project.urls]
@@ -72,11 +71,12 @@ Documentation = "https://pymmcore-plus.github.io/pymmcore-widgets"
 test = [
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
-    "pytest-qt==4.4.0",
+    "pytest-qt>=4.5.0",
     "pyyaml>=6.0.2",
     "zarr >=2.15,<3",
     "numcodecs >0.14.0,<0.16; python_version >= '3.13'",
     "numcodecs >0.12.0,<0.16",
+    "pytest-xdist>=3.8.0",
 ]
 dev = [
     { include-group = "docs" },
@@ -84,7 +84,7 @@ dev = [
     "ipython>=8.18.1",
     "mypy>=1.15.0",
     "pdbpp>=0.11.6 ; sys_platform != 'win32'",
-    "pre-commit-uv >=4.1.0",
+    "prek>=0.3.1",
     "pyqt6>=6.9.0",
     "rich>=14.0.0",
     "ruff>=0.11.8",
@@ -105,7 +105,7 @@ pymmcore-widgets = { workspace = true }
 
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py310"
 src = ["src", "tests"]
 fix = true
 unsafe-fixes = true
@@ -193,6 +193,7 @@ ignore = [
     "examples/**/*",
     "CHANGELOG.md",
     "uv.lock",
+    "justfile",
 ]
 
 [tool.typos.default]

@@ -65,4 +65,4 @@ if __name__ == "__main__":
     widget = SaveButton(datastore)
     mmc.run_mda(seq)
     widget.show()
-    app.exec_()
+    app.exec()

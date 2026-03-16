@@ -12,7 +12,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: macos-13
+    runs-on: macos-latest
     env:
       UV_NO_SYNC: "1"
     steps:

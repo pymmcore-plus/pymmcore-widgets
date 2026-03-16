@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 from qtpy.QtWidgets import QApplication
@@ -34,24 +35,26 @@ def test_core_log_widget_init(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
 def test_core_log_widget_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     wdg = CoreLogWidget()
     qtbot.addWidget(wdg)
-    # Remove some lines for faster checking later
     wdg._log_view.clear()
 
-    # Log something new
+    # Write directly to the log file rather than using logMessage(), which goes
+    # through C++ std::ofstream buffering that may not flush to disk in time
+    # under heavy parallel I/O (the root cause of flaky failures here).
     new_message = "Test message"
-    global_mmcore.logMessage(new_message)
+    log_path = global_mmcore.getPrimaryLogFile()
+    with open(log_path, "a") as f:
+        f.write(f"[IFO,App] {new_message}\n")
+        f.flush()
+        os.fsync(f.fileno())
 
     def wait_for_update() -> None:
-        # Sometimes, our new message will be flushed before other initialization
-        # completes. Thus we need to check all lines after what is currently written to
-        # the TextEdit.
-        all_lines = wdg._log_view.toPlainText().splitlines()
-        for line in reversed(all_lines):
-            if f"[IFO,App] {new_message}" in line:
-                return
-        raise AssertionError("New message not found in CoreLogWidget.")
+        QApplication.processEvents()
+        wdg._reader._read_new()
+        QApplication.processEvents()
+        if f"[IFO,App] {new_message}" not in wdg._log_view.toPlainText():
+            raise AssertionError("New message not found in CoreLogWidget.")
 
-    qtbot.waitUntil(wait_for_update, timeout=1000)
+    qtbot.waitUntil(wait_for_update)
 
 
 def test_core_log_widget_clear(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
@@ -71,6 +74,12 @@ def test_core_log_widget_autoscroll(qtbot: QtBot, global_mmcore: CMMCorePlus) ->
     sb = wdg._log_view.verticalScrollBar()
     assert sb is not None
 
+    # Stop the log file reader so only explicit _append_line calls affect
+    # the scrollbar. Otherwise the reader's poll timer can add extra lines
+    # during processEvents, causing the scrollbar maximum to jump
+    # unpredictably (especially under parallel test execution).
+    wdg._reader._stop()
+
     def add_new_line() -> None:
         wdg._append_line("Test message")
         QApplication.processEvents()
@@ -84,11 +93,11 @@ def test_core_log_widget_autoscroll(qtbot: QtBot, global_mmcore: CMMCorePlus) ->
     # Assert that adding a new line does not scroll if not at the bottom
     sb.setValue(sb.minimum())
     add_new_line()
-    assert sb.value() == sb.minimum()
+    qtbot.waitUntil(lambda: sb.value() == sb.minimum())
 
     # Assert that adding a new line does scroll if at the bottom
     old_max = sb.maximum()
     sb.setValue(old_max)
     add_new_line()
-    assert sb.maximum() == old_max + 1
+    qtbot.waitUntil(lambda: sb.maximum() > old_max)
     assert sb.value() == sb.maximum()

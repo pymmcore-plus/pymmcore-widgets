@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, patch
 
 import pytest
@@ -34,6 +34,8 @@ from pymmcore_widgets.useq_widgets._positions import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
@@ -1069,8 +1071,6 @@ def test_sub_wdg_channel_tab(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
         ),
         stage_positions=(
             useq.AbsolutePosition(
-                x=1,
-                y=2,
                 z=3,
                 name="pos1",
                 sequence=useq.MDASequence(grid_plan=poly1),

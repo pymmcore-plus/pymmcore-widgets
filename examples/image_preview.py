@@ -60,4 +60,4 @@ if __name__ == "__main__":
     frame = ImageFrame()
     frame.show()
     mmc.snap()
-    app.exec_()
+    app.exec()

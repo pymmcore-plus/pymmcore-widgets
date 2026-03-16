@@ -11,4 +11,4 @@ mmc.loadSystemConfiguration()
 group_preset_wdg = GroupPresetTableWidget()
 group_preset_wdg.show()
 
-app.exec_()
+app.exec()

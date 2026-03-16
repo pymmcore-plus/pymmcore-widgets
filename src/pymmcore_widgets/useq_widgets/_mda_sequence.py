@@ -44,9 +44,7 @@ AXES = "tpgcz"
 ALLOWED_ORDERS = {"".join(p) for x in range(1, 6) for p in permutations(AXES, x)}
 for x in list(ALLOWED_ORDERS):
     for first, second in (
-        ("t", "z"),  # t cannot come after z
         ("p", "g"),  # p cannot come after g
-        ("p", "c"),  # p cannot come after c
         ("p", "z"),  # p cannot come after z
         ("g", "z"),  # g cannot come after z
     ):
@@ -127,14 +125,26 @@ class MDATabs(CheckableTabWidget):
 
     def value(self) -> useq.MDASequence:
         """Return the current sequence as a [`useq.MDASequence`][]."""
+        grid_plan = self.grid_plan.value() if self.isAxisUsed("g") else None
+        positions = self.stage_positions.value() if self.isAxisUsed("p") else ()
+
+        # If a global absolute grid plan is used, x/y on positions are
+        # meaningless (the grid defines them). Clear them to avoid useq
+        # validation warnings.
+        if grid_plan is not None and not grid_plan.is_relative and positions:
+            positions = tuple(
+                pos.replace(x=None, y=None)
+                if pos.x is not None or pos.y is not None
+                else pos
+                for pos in positions
+            )
+
         return useq.MDASequence(
             z_plan=self.z_plan.value() if self.isAxisUsed("z") else None,
             time_plan=self.time_plan.value() if self.isAxisUsed("t") else None,
-            stage_positions=(
-                self.stage_positions.value() if self.isAxisUsed("p") else ()
-            ),
+            stage_positions=positions,
             channels=self.channels.value() if self.isAxisUsed("c") else (),
-            grid_plan=self.grid_plan.value() if self.isAxisUsed("g") else None,
+            grid_plan=grid_plan,
             metadata={PYMMCW_METADATA_KEY: {"version": pymmcore_widgets.__version__}},
         )
 
@@ -337,7 +347,7 @@ class MDASequenceWidget(QWidget):
         self.time_plan.valueChanged.connect(self.valueChanged)
         self.stage_positions.valueChanged.connect(self.valueChanged)
         self.z_plan.valueChanged.connect(self._validate_af_with_z_plan)
-        self.grid_plan.valueChanged.connect(self.valueChanged)
+        self.grid_plan.valueChanged.connect(self._on_grid_plan_value_changed)
         self.tab_wdg.tabChecked.connect(self._on_tab_checked)
         self.axis_order.currentTextChanged.connect(self.valueChanged)
         self.valueChanged.connect(self._update_time_estimate)
@@ -550,7 +560,21 @@ class MDASequenceWidget(QWidget):
             else:
                 self._enable_af(True)
 
+        if tab_idx in (
+            self.tab_wdg.indexOf(self.grid_plan),
+            self.tab_wdg.indexOf(self.stage_positions),
+        ):
+            with signals_blocked(self):
+                self._on_grid_plan_value_changed()
+
         self._update_available_axis_orders()
+
+    def _on_grid_plan_value_changed(self) -> None:
+        """Disable position X/Y when a global absolute grid is active."""
+        gp = self.grid_plan
+        has_abs_grid = self.tab_wdg.isChecked(gp) and not gp.value().is_relative
+        self.stage_positions.setXYEnabled(not has_abs_grid)
+        self.valueChanged.emit()
 
     def _on_af_toggled(self) -> None:
         # if the 'af_per_position' checkbox in the PositionTable is checked, set checked

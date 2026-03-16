@@ -1,8 +1,11 @@
 """A set of widgets for the pymmcore-plus module."""
 
+import os
 import warnings
 from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING
+
+os.environ.setdefault("PYMM_SIGNALS_BACKEND", "qt")
 
 try:
     __version__ = version("pymmcore-widgets")
@@ -14,6 +17,7 @@ __all__ = [
     "ChannelGroupWidget",
     "ChannelTable",
     "ChannelWidget",
+    "ConfigGroupsEditor",
     "ConfigGroupsTree",
     "ConfigWizard",
     "ConfigurationWidget",
@@ -49,6 +53,7 @@ __all__ = [
 from ._install_widget import InstallWidget
 from ._log import CoreLogWidget
 from .config_presets import (
+    ConfigGroupsEditor,
     ConfigGroupsTree,
     GroupPresetTableWidget,
     ObjectivesPixelConfigurationWidget,

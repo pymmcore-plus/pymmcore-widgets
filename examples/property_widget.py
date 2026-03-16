@@ -23,4 +23,4 @@ for dev, prop in devs_pros:
 
 wdg.show()
 
-app.exec_()
+app.exec()

@@ -171,6 +171,15 @@ class PositionTable(DataTableWidget):
     def __init__(self, rows: int = 0, parent: QWidget | None = None):
         super().__init__(rows, parent)
 
+        # track whether a global absolute grid disables all x/y
+        self._global_xy_disabled = False
+
+        # when a sub-sequence changes, update x/y enabled state for that row
+        if model := self.table().model():
+            model.rowsInserted.connect(self._on_table_rows_inserted)
+            if (rows := self.table().rowCount()) > 0:
+                self._on_table_rows_inserted(None, 0, rows - 1)
+
         self.include_z = QCheckBox("Include Z")
         self.include_z.setChecked(True)
         self.include_z.toggled.connect(self._on_include_z_toggled)
@@ -244,6 +253,15 @@ class PositionTable(DataTableWidget):
                     )
                     # update the sub-sequence dict in the record
                     r["sequence"] = sub_seq
+
+            # If a sub-sequence uses an absolute grid plan, x/y on the
+            # position are meaningless (the grid defines them). Clear them
+            # to avoid useq validation warnings.
+            sub = r.get("sequence")
+            if isinstance(sub, useq.MDASequence) and sub.grid_plan is not None:
+                if not sub.grid_plan.is_relative:
+                    r.pop("x", None)
+                    r.pop("y", None)
 
             pos = useq.Position(**r)
             out.append(pos)
@@ -337,6 +355,64 @@ class PositionTable(DataTableWidget):
         except Exception as e:  # pragma: no cover
             raise ValueError(f"Failed to load MDASequence file: {src}") from e
 
+    def setXYEnabled(self, enabled: bool) -> None:
+        """Disable or enable X/Y columns for all rows (e.g. global absolute grid)."""
+        self._global_xy_disabled = not enabled
+        table = self.table()
+        seq_col = table.indexOf(self.SEQ)
+        tip = "X/Y defined by the global absolute grid plan." if not enabled else ""
+        for row in range(table.rowCount()):
+            # skip rows that have their own absolute sub-sequence grid
+            if enabled:
+                wdg = table.cellWidget(row, seq_col)
+                if isinstance(wdg, MDAButton) and _seq_has_absolute_grid(wdg.value()):
+                    continue
+            self._set_row_xy_enabled(row, enabled, tip)
+
+    # ------------------- sub-sequence grid helpers -------------------
+
+    def _on_table_rows_inserted(self, parent: object, start: int, end: int) -> None:
+        """Connect MDAButton.valueChanged for newly inserted rows."""
+        table = self.table()
+        seq_col = table.indexOf(self.SEQ)
+        tip = "X/Y defined by the global absolute grid plan."
+        for row in range(start, end + 1):
+            wdg = table.cellWidget(row, seq_col)
+            if isinstance(wdg, MDAButton):
+                wdg.valueChanged.connect(self._on_sub_seq_changed)
+            # apply global disable to newly added rows
+            if self._global_xy_disabled:
+                self._set_row_xy_enabled(row, False, tip)
+
+    def _on_sub_seq_changed(self) -> None:
+        """Disable x/y for the row if its sub-sequence has an absolute grid."""
+        btn = self.sender()
+        if not isinstance(btn, MDAButton):
+            return
+        table = self.table()
+        seq_col = table.indexOf(self.SEQ)
+        for row in range(table.rowCount()):
+            if table.cellWidget(row, seq_col) is btn:
+                has_abs = _seq_has_absolute_grid(btn.value())
+                # global disable takes precedence
+                if self._global_xy_disabled and not has_abs:
+                    return
+                tip = (
+                    "X/Y defined by the absolute grid in the sub-sequence."
+                    if has_abs
+                    else ""
+                )
+                self._set_row_xy_enabled(row, not has_abs, tip)
+                break
+
+    def _set_row_xy_enabled(self, row: int, enabled: bool, tip: str = "") -> None:
+        """Enable/disable x/y widgets for a single row."""
+        table = self.table()
+        for col_info in (self.X, self.Y):
+            if wdg := table.cellWidget(row, table.indexOf(col_info)):
+                wdg.setEnabled(enabled)
+                wdg.setToolTip(tip)
+
     # ------------------------- Private API -------------------------
 
     def _on_include_z_toggled(self, checked: bool) -> None:
@@ -348,3 +424,8 @@ class PositionTable(DataTableWidget):
         af_col = self.table().indexOf(self.AF)
         self.table().setColumnHidden(af_col, not checked)
         self.valueChanged.emit()
+
+
+def _seq_has_absolute_grid(seq: useq.MDASequence | None) -> bool:
+    """Return True if the sequence has an absolute grid plan."""
+    return bool(seq and seq.grid_plan and not seq.grid_plan.is_relative)

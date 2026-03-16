@@ -51,7 +51,7 @@ class ConfigWizard(QWizard):
         self._core = core or CMMCorePlus.instance()
         self._model = Microscope()
         self._model.load_available_devices(self._core)
-        # self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
+        self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
 
         self.setWindowTitle("Hardware Configuration Wizard")
         self.addPage(IntroPage(self._model, self._core))
@@ -141,8 +141,6 @@ class ConfigWizard(QWizard):
             font = label.font()
             if i == current_index:
                 font.setBold(True)
-                label.setStyleSheet("color: black;")
             else:
                 font.setBold(False)
-                label.setStyleSheet("color: gray;")
             label.setFont(font)
