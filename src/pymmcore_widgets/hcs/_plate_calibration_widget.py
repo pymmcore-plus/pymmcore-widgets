@@ -275,7 +275,7 @@ class PlateCalibrationWidget(QWidget):
         rotation : float
             The rotation angle in degrees (anti-clockwise) of the plate.
         """
-        if not len(self._calibrated_wells) >= self._min_wells_required:
+        if len(self._calibrated_wells) < self._min_wells_required:
             return None
 
         if self._current_plate is None:
@@ -333,68 +333,50 @@ class PlateCalibrationWidget(QWidget):
         centers = np.array(list(wells.values()))
         xs, ys = centers[:, 0], centers[:, 1]
 
+        # Build the varying-axis indices and identify the fixed-axis index
         if is_single_row:
-            # Wells vary by column: fit x = d*col + tx, y = b*col + ty
-            row0 = indices[0][0]
-            cols = np.array([c for _, c in indices], dtype=float)
-            A = np.column_stack([cols, np.ones(len(cols))])
-            (d, tx), *_ = np.linalg.lstsq(A, xs, rcond=None)
-            (b, ty), *_ = np.linalg.lstsq(A, ys, rcond=None)
-
-            # Column spacing from calibration data
-            unit_x = np.hypot(b, d) / 1000  # mm
-
-            # Degenerate: wells are coincident (zero spacing)
-            if unit_x < 1e-6:
-                return None
-
-            # Column axis direction is (d, b) in world (x, y).
-            # Plate rotation = arctan2(y_component, x_component) of col axis.
-            rot_rad = np.arctan2(b, d)
-            rotation = round(float(np.rad2deg(rot_rad)), 2)
-
-            # Row spacing from plate spec (cannot be determined from data)
-            unit_y = plate.well_spacing[1] if plate.well_spacing[1] > 0 else 0.0
-
-            # Extrapolate A1 center to row=0 if calibrated wells are not in row 0
-            if row0 != 0:
-                row_spacing_um = plate.well_spacing[1] * 1000
-                a = row_spacing_um * np.cos(rot_rad)
-                c = row_spacing_um * np.sin(rot_rad)
-                ty = ty + a * row0
-                tx = tx + c * row0
+            varying = np.array([c for _, c in indices], dtype=float)
+            fixed_idx = indices[0][0]
+            other_spacing = plate.well_spacing[1]
         else:
-            # Wells vary by row: fit x = c*(-row) + tx, y = a*(-row) + ty
-            col0 = indices[0][1]
-            rows = np.array([r for r, _ in indices], dtype=float)
-            neg_rows = -rows
-            A = np.column_stack([neg_rows, np.ones(len(rows))])
-            (c, tx), *_ = np.linalg.lstsq(A, xs, rcond=None)
-            (a, ty), *_ = np.linalg.lstsq(A, ys, rcond=None)
+            varying = np.array([-r for r, _ in indices], dtype=float)
+            fixed_idx = indices[0][1]
+            other_spacing = plate.well_spacing[0]
 
-            # Row spacing from calibration data
-            unit_y = np.hypot(a, c) / 1000  # mm
+        # Fit linear model: x = slope_x * v + tx,  y = slope_y * v + ty
+        design = np.column_stack([varying, np.ones(len(varying))])
+        (slope_x, tx), *_ = np.linalg.lstsq(design, xs, rcond=None)
+        (slope_y, ty), *_ = np.linalg.lstsq(design, ys, rcond=None)
 
-            # Degenerate: wells are coincident (zero spacing)
-            if unit_y < 1e-6:
-                return None
+        # Measured spacing along the varying axis
+        measured_spacing = np.hypot(slope_y, slope_x) / 1000  # mm
+        if measured_spacing < 1e-6:
+            return None  # degenerate: wells are coincident
 
-            # Rotation directly from row axis (same formula as full affine)
-            theta_row = np.arctan2(c, a)
-            rotation = round(float(np.rad2deg(theta_row)), 2)
+        # Compute rotation and assign spacings per axis
+        if is_single_row:
+            # Column axis direction is (slope_x, slope_y) in world (x, y)
+            rot_rad = np.arctan2(slope_y, slope_x)
+            unit_x, unit_y = measured_spacing, max(other_spacing, 0.0)
 
-            # Column spacing from plate spec (cannot be determined from data)
-            unit_x = plate.well_spacing[0] if plate.well_spacing[0] > 0 else 0.0
+            # Extrapolate A1 center to row=0
+            if fixed_idx != 0:
+                other_um = other_spacing * 1000
+                ty += other_um * np.cos(rot_rad) * fixed_idx
+                tx += other_um * np.sin(rot_rad) * fixed_idx
+        else:
+            # Row axis direction is (slope_x, slope_y) in world (x, y)
+            rot_rad = np.arctan2(slope_x, slope_y)
+            unit_x, unit_y = max(other_spacing, 0.0), measured_spacing
 
-            # Extrapolate A1 center to col=0 if calibrated wells are not in col 0
-            if col0 != 0:
-                theta_col = theta_row + np.pi / 2
-                col_spacing_um = plate.well_spacing[0] * 1000
-                b = col_spacing_um * np.cos(theta_col)
-                d = col_spacing_um * np.sin(theta_col)
-                ty = ty - b * col0
-                tx = tx - d * col0
+            # Extrapolate A1 center to col=0
+            if fixed_idx != 0:
+                theta_col = rot_rad + np.pi / 2
+                other_um = other_spacing * 1000
+                ty -= other_um * np.cos(theta_col) * fixed_idx
+                tx -= other_um * np.sin(theta_col) * fixed_idx
 
+        rotation = round(float(np.rad2deg(rot_rad)), 2)
         return (round(float(tx), 4), round(float(ty), 4)), (unit_x, unit_y), rotation
 
     def _get_or_create_well_calibration_widget(

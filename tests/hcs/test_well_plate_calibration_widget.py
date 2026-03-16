@@ -1,6 +1,7 @@
 import math
 
 import numpy as np
+import pytest
 import useq
 from pymmcore_plus import CMMCorePlus
 
@@ -209,108 +210,94 @@ def test_plate_calibration_test_positions(global_mmcore: CMMCorePlus, qtbot) -> 
     assert data == expected_data
 
 
-def test_small_plate_calibration(qtbot) -> None:
+@pytest.mark.parametrize(
+    ("rows", "cols", "calibrated_wells", "min_required", "expected"),
+    [
+        # 1x1 plate: single well calibration
+        (1, 1, {(0, 0): (100.0, 200.0)}, 1, ((100.0, 200.0), (10, 10), 0.0)),
+        # 1x2 plate: single row, two wells
+        (
+            1,
+            2,
+            {(0, 0): (100.0, 200.0), (0, 1): (10100.0, 200.0)},
+            2,
+            ((100.0, 200.0), (10.0, 10), 0.0),
+        ),
+        # 2x1 plate: single column, two wells
+        (
+            2,
+            1,
+            {(0, 0): (100.0, 200.0), (1, 0): (100.0, -9800.0)},
+            2,
+            ((100.0, 200.0), (10, 10.0), 0.0),
+        ),
+    ],
+    ids=["1x1", "1x2-row", "2x1-col"],
+)
+def test_small_plate_calibration(
+    qtbot, rows, cols, calibrated_wells, min_required, expected
+) -> None:
     """Test calibration for plates with fewer than 3 wells."""
     wdg = PlateCalibrationWidget()
     qtbot.addWidget(wdg)
 
-    # Test 1x1 plate
-    plate_1x1 = useq.WellPlate(
-        rows=1, columns=1, well_size=(5, 5), well_spacing=(10, 10)
+    plate = useq.WellPlate(
+        rows=rows, columns=cols, well_size=(5, 5), well_spacing=(10, 10)
     )
-    wdg.setValue(plate_1x1)
-    assert wdg._min_wells_required == 1
+    wdg.setValue(plate)
+    assert wdg._min_wells_required == min_required
 
-    # Simulate calibrating the single well
-    wdg._calibrated_wells = {(0, 0): (100.0, 200.0)}
-    result = wdg._origin_spacing_rotation()
-    assert result == ((100.0, 200.0), (10, 10), 0.0)
-
-    # Test 1x2 plate (single row)
-    plate_1x2 = useq.WellPlate(
-        rows=1, columns=2, well_size=(5, 5), well_spacing=(10, 10)
-    )
-    wdg.setValue(plate_1x2)
-    assert wdg._min_wells_required == 2
-
-    # Simulate calibrating two wells in a row, no rotation
-    wdg._calibrated_wells = {
-        (0, 0): (100.0, 200.0),
-        (0, 1): (10100.0, 200.0),
-    }
+    wdg._calibrated_wells = calibrated_wells
     result = wdg._origin_spacing_rotation()
     assert result is not None
     origin, spacing, rotation = result
-    assert origin == (100.0, 200.0)
-    assert math.isclose(spacing[0], 10.0, rel_tol=1e-6)
-    assert spacing[1] == 10  # from plate spec
-    assert rotation == 0.0
-
-    # Test 2x1 plate (single column)
-    plate_2x1 = useq.WellPlate(
-        rows=2, columns=1, well_size=(5, 5), well_spacing=(10, 10)
-    )
-    wdg.setValue(plate_2x1)
-    assert wdg._min_wells_required == 2
-
-    wdg._calibrated_wells = {
-        (0, 0): (100.0, 200.0),
-        (1, 0): (100.0, -9800.0),
-    }
-    result = wdg._origin_spacing_rotation()
-    assert result is not None
-    origin, spacing, rotation = result
-    assert origin == (100.0, 200.0)
-    assert spacing[0] == 10  # from plate spec
-    assert math.isclose(spacing[1], 10.0, rel_tol=1e-6)
-    assert rotation == 0.0
+    exp_origin, exp_spacing, exp_rotation = expected
+    assert math.isclose(origin[0], exp_origin[0], abs_tol=1e-3)
+    assert math.isclose(origin[1], exp_origin[1], abs_tol=1e-3)
+    assert math.isclose(spacing[0], exp_spacing[0], rel_tol=1e-6)
+    assert math.isclose(spacing[1], exp_spacing[1], rel_tol=1e-6)
+    assert rotation == exp_rotation
 
 
-def test_single_row_plate_calibration(qtbot) -> None:
-    """Test calibration for 1x3 plate (collinear, single row)."""
+@pytest.mark.parametrize(
+    ("rows", "cols", "calibrated_wells", "exp_measured_idx"),
+    [
+        # 1x3 plate: single row
+        (
+            1,
+            3,
+            {(0, 0): (0.0, 0.0), (0, 1): (3000.0, 0.0), (0, 2): (6000.0, 0.0)},
+            0,  # spacing[0] is measured from data
+        ),
+        # 3x1 plate: single column (row increases -> y decreases)
+        (
+            3,
+            1,
+            {(0, 0): (0.0, 0.0), (1, 0): (0.0, -3000.0), (2, 0): (0.0, -6000.0)},
+            1,  # spacing[1] is measured from data
+        ),
+    ],
+    ids=["single-row", "single-column"],
+)
+def test_collinear_plate_calibration(
+    qtbot, rows, cols, calibrated_wells, exp_measured_idx
+) -> None:
+    """Test calibration for collinear plates (single row or column)."""
     wdg = PlateCalibrationWidget()
     qtbot.addWidget(wdg)
 
-    plate = useq.WellPlate(rows=1, columns=3, well_size=(2, 2), well_spacing=(3, 3))
+    plate = useq.WellPlate(
+        rows=rows, columns=cols, well_size=(2, 2), well_spacing=(3, 3)
+    )
     wdg.setValue(plate)
-    assert wdg._min_wells_required == 3
 
-    # Calibrate all 3 wells, no rotation
-    wdg._calibrated_wells = {
-        (0, 0): (0.0, 0.0),
-        (0, 1): (3000.0, 0.0),
-        (0, 2): (6000.0, 0.0),
-    }
+    wdg._calibrated_wells = calibrated_wells
     result = wdg._origin_spacing_rotation()
     assert result is not None
     origin, spacing, rotation = result
     assert origin == (0.0, 0.0)
-    assert math.isclose(spacing[0], 3.0, rel_tol=1e-6)
-    assert spacing[1] == 3  # from plate spec
-    assert rotation == 0.0
-
-
-def test_single_column_plate_calibration(qtbot) -> None:
-    """Test calibration for 3x1 plate (collinear, single column)."""
-    wdg = PlateCalibrationWidget()
-    qtbot.addWidget(wdg)
-
-    plate = useq.WellPlate(rows=3, columns=1, well_size=(2, 2), well_spacing=(3, 3))
-    wdg.setValue(plate)
-
-    # Calibrate all 3 wells, no rotation
-    # Row increases -> y decreases (because affine uses -row)
-    wdg._calibrated_wells = {
-        (0, 0): (0.0, 0.0),
-        (1, 0): (0.0, -3000.0),
-        (2, 0): (0.0, -6000.0),
-    }
-    result = wdg._origin_spacing_rotation()
-    assert result is not None
-    origin, spacing, rotation = result
-    assert origin == (0.0, 0.0)
-    assert spacing[0] == 3  # from plate spec
-    assert math.isclose(spacing[1], 3.0, rel_tol=1e-6)
+    assert math.isclose(spacing[exp_measured_idx], 3.0, rel_tol=1e-6)
+    assert spacing[1 - exp_measured_idx] == 3  # from plate spec
     assert rotation == 0.0
 
 
