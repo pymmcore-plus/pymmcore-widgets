@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import useq
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QModelIndex, QSize, Qt, QThread, Signal
+from qtpy.QtCore import QSize, Qt, QThread, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QDoubleSpinBox,
@@ -231,7 +231,6 @@ class StageExplorer(QWidget):
         tb.scan_action.triggered.connect(self._on_scan_action)
         tb.marker_mode_action_group.triggered.connect(self._update_marker_mode)
         tb.scan_menu.valueChanged.connect(self._on_scan_options_changed)
-        self.roi_manager.roi_model.rowsInserted.connect(self._on_roi_rows_inserted)
 
         # main layout
         main_layout = QVBoxLayout(self)
@@ -405,21 +404,9 @@ class StageExplorer(QWidget):
                 self._mmc.run_mda(seq)
 
     def _on_scan_options_changed(self, value: tuple[float, OrderMode]) -> None:
-        """Update all ROIs with the new overlap/scan-order so visuals refresh."""
+        """Update scan settings on the ROI manager so visuals refresh."""
         overlap, mode = value
-        for roi in self.roi_manager.all_rois():
-            roi.fov_overlap = (overlap, overlap)
-            roi.scan_order = mode
-            self.roi_manager.roi_model.emitDataChange(roi)
-
-    def _on_roi_rows_inserted(self, parent: QModelIndex, first: int, last: int) -> None:
-        """Initialize newly-inserted ROIs with the current scan settings."""
-        overlap, mode = self._toolbar.scan_menu.value()
-        for row in range(first, last + 1):
-            roi = self.roi_manager.roi_model.getRoi(row)
-            roi.fov_overlap = (overlap, overlap)
-            roi.scan_order = mode
-            self.roi_manager.roi_model.emitDataChange(roi)
+        self.roi_manager.set_scan_options(overlap, mode)
 
     def keyPressEvent(self, a0: QKeyEvent | None) -> None:
         if a0 is None:
@@ -748,7 +735,7 @@ class AffineState:
             S[0, 0] *= -1
         if flip_y:
             S[1, 1] *= -1
-        return R @ S  # type: ignore
+        return R @ S
 
     def _pixel_config_is_identity(self) -> bool:
         return np.allclose(self.pixel_size_affine, (1.0, 0.0, 0.0, 0.0, 1.0, 0.0))

@@ -103,27 +103,10 @@ def test_position_forwards_overlap_and_scan_order() -> None:
         (0.0, 0.0),
         (100.0, 100.0),
         fov_size=(10.0, 10.0),
-        fov_overlap=(0.2, 0.2),
-        scan_order=useq.OrderMode.spiral,
     )
-    pos = roi.create_useq_position()
+    pos = roi.create_useq_position(overlap=(0.2, 0.2), mode=useq.OrderMode.spiral)
     assert pos.sequence is not None
     grid = pos.sequence.grid_plan
     assert grid is not None
     assert grid.overlap == (0.2, 0.2)
     assert grid.mode == useq.OrderMode.spiral
-
-
-# ---------------------------------------------------------------------------
-# New default field values
-# ---------------------------------------------------------------------------
-
-
-def test_default_fov_overlap() -> None:
-    roi = ROI(vertices=np.array([(0.0, 0.0), (1.0, 0.0), (1.0, 1.0)]))
-    assert roi.fov_overlap == (0.0, 0.0)
-
-
-def test_default_scan_order() -> None:
-    roi = ROI(vertices=np.array([(0.0, 0.0), (1.0, 0.0), (1.0, 1.0)]))
-    assert roi.scan_order == useq.OrderMode.row_wise_snake

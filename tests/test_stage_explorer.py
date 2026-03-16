@@ -206,35 +206,27 @@ def test_scan_menu_mode_change(qtbot: QtBot) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_scan_options_propagate_to_rois(qtbot: QtBot) -> None:
-    """Changing scan menu options updates overlap/mode on all ROIs."""
+def test_scan_options_propagate_to_manager(qtbot: QtBot) -> None:
+    """Changing scan menu options updates overlap/mode on the ROI manager."""
     explorer = StageExplorer()
     qtbot.addWidget(explorer)
 
-    roi = RectangleROI((0.0, 0.0), (100.0, 100.0), fov_size=(10.0, 10.0))
-    explorer.roi_manager.add_roi(roi)
-
-    # simulate scan menu value change
     explorer._on_scan_options_changed((5.0, useq.OrderMode.spiral))
 
-    assert roi.fov_overlap == (5.0, 5.0)
-    assert roi.scan_order == useq.OrderMode.spiral
+    assert explorer.roi_manager.scan_overlap == 5.0
+    assert explorer.roi_manager.scan_mode == useq.OrderMode.spiral
 
 
-def test_new_rois_inherit_scan_options(qtbot: QtBot) -> None:
-    """ROIs created after adjusting scan options should inherit them."""
+def test_scan_options_available_via_manager(qtbot: QtBot) -> None:
+    """ROI manager exposes scan settings for use when building positions."""
     explorer = StageExplorer()
     qtbot.addWidget(explorer)
 
-    # set scan options before creating ROIs
     explorer._toolbar.scan_menu._overlap_spin.setValue(3.0)
     explorer._toolbar.scan_menu._mode_cbox.setCurrentEnum(useq.OrderMode.spiral)
 
-    roi = RectangleROI((0.0, 0.0), (100.0, 100.0), fov_size=(10.0, 10.0))
-    explorer.roi_manager.add_roi(roi)
-
-    assert roi.fov_overlap == (3.0, 3.0)
-    assert roi.scan_order == useq.OrderMode.spiral
+    assert explorer.roi_manager.scan_overlap == 3.0
+    assert explorer.roi_manager.scan_mode == useq.OrderMode.spiral
 
 
 # ---------------------------------------------------------------------------

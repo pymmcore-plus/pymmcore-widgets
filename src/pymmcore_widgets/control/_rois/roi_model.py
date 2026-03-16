@@ -22,8 +22,6 @@ class ROI:
     font_size: int = 12
 
     fov_size: tuple[float, float] | None = None  # (width, height)
-    fov_overlap: tuple[float, float] = (0.0, 0.0)  # (width, height)
-    scan_order: useq.OrderMode = useq.OrderMode.row_wise_snake
 
     def translate(self, dx: float, dy: float) -> None:
         """Translate the ROI in place by (dx, dy)."""
@@ -138,10 +136,12 @@ class ROI:
         fov_w: float | None = None,
         fov_h: float | None = None,
         z_pos: float | None = None,
+        overlap: float | tuple[float, float] = 0.0,
+        mode: useq.OrderMode = useq.OrderMode.row_wise_snake,
     ) -> useq.AbsolutePosition:
         """Return a useq.AbsolutePosition object that covers the ROI."""
         grid_plan = self.create_grid_plan(
-            fov_w=fov_w, fov_h=fov_h, overlap=self.fov_overlap, mode=self.scan_order
+            fov_w=fov_w, fov_h=fov_h, overlap=overlap, mode=mode
         )
         pos = useq.AbsolutePosition(z=z_pos, name=f"{self.text}_{self._uuid.hex[-4:]}")
 

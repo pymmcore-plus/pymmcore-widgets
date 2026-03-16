@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal
 
+import useq
 from qtpy.QtCore import (
     QEvent,
     QItemSelection,
@@ -62,6 +63,8 @@ class SceneROIManager(QObject):
         self._roi_visuals: dict[ROI, RoiPolygon] = {}
 
         self._fov_size: tuple[float, float] | None = None
+        self._scan_overlap: float | tuple[float, float] = 0.0
+        self._scan_mode: useq.OrderMode = useq.OrderMode.row_wise_snake
 
         self.roi_model = QROIModel()
         self.selection_model = QItemSelectionModel(self.roi_model)
@@ -157,6 +160,27 @@ class SceneROIManager(QObject):
         """Return a list of all ROIs."""
         return [self.roi_model.getRoi(row) for row in range(self.roi_model.rowCount())]
 
+    @property
+    def scan_overlap(self) -> float | tuple[float, float]:
+        """Return the current scan overlap."""
+        return self._scan_overlap
+
+    @property
+    def scan_mode(self) -> useq.OrderMode:
+        """Return the current scan order mode."""
+        return self._scan_mode
+
+    def set_scan_options(
+        self,
+        overlap: float | tuple[float, float],
+        mode: useq.OrderMode,
+    ) -> None:
+        """Set scan overlap and mode, then refresh all ROI visuals."""
+        self._scan_overlap = overlap
+        self._scan_mode = mode
+        for roi in self.all_rois():
+            self.roi_model.emitDataChange(roi)
+
     def delete_selected_rois(self) -> None:
         """Delete the selected ROIs from the model."""
         for roi in self.selected_rois():
@@ -219,12 +243,16 @@ class SceneROIManager(QObject):
     def _update_roi_visual(self, roi: ROI) -> None:
         # Update the the full ROI visual already on the canvas
         if visual := self._roi_visuals.get(roi):
-            visual.update_from_roi(roi)
+            visual.update_from_roi(
+                roi, overlap=self._scan_overlap, mode=self._scan_mode
+            )
 
     def _update_roi_vertices(self, roi: ROI) -> None:
         # Update the only vertices of the ROI visual
         if visual := self._roi_visuals.get(roi):
-            visual.update_vertices(roi.vertices)
+            visual.update_vertices(
+                roi.vertices, overlap=self._scan_overlap, mode=self._scan_mode
+            )
 
 
 class ROIScene(QWidget):

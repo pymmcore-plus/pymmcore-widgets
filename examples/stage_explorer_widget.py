@@ -38,7 +38,11 @@ cam_roi = CameraRoiWidget()
 # As an example...
 # When ROIs are edited or destroyed, update the MDA widget's stage positions.
 def _on_data_changed(top_left: QModelIndex, bottom_right: QModelIndex) -> None:
-    positions = [roi.create_useq_position() for roi in explorer.roi_manager.all_rois()]
+    mgr = explorer.roi_manager
+    positions = [
+        roi.create_useq_position(overlap=mgr.scan_overlap, mode=mgr.scan_mode)
+        for roi in mgr.all_rois()
+    ]
     # optional: skip positions that don't actually have a valid sequence (grid plan)
     positions = [pos for pos in positions if pos.sequence is not None]
     mda_widget.stage_positions.setValue(positions)
