@@ -273,53 +273,129 @@ class PlateCalibrationWidget(QWidget):
             The center-to-center distance in mm (pitch) between wells in the x and y
             directions.
         rotation : float
-                a1_center_xy : tuple[float, float]
             The rotation angle in degrees (anti-clockwise) of the plate.
         """
         if not len(self._calibrated_wells) >= self._min_wells_required:
-            # not enough wells calibrated
             return None
 
         if self._current_plate is None:
             return None
 
-        num_calibrated = len(self._calibrated_wells)
-        if num_calibrated == 1:
-            # For single well, assume it's A1, use plate spacing, no rotation
+        n = len(self._calibrated_wells)
+        if n == 1:
+            # Single well: use center, plate spacing, no rotation
             center = next(iter(self._calibrated_wells.values()))
             return center, self._current_plate.well_spacing, 0.0
-        elif num_calibrated == 2:
-            # For two wells, calculate spacing assuming they are adjacent, no rotation
-            indices = list(self._calibrated_wells.keys())
-            centers = list(self._calibrated_wells.values())
-            idx1, idx2 = indices
-            c1, c2 = centers
-            dr = abs(idx2[0] - idx1[0])
-            dc = abs(idx2[1] - idx1[1])
-            if dr == 0 and dc == 0:
-                return None  # same well
-            dist = np.hypot(c2[0] - c1[0], c2[1] - c1[1])
-            spacing_val = dist / max(dr, dc) / 1000  # to mm
-            spacing = (spacing_val, spacing_val)
-            # Set A1 center to the calibrated well with smallest index
-            sorted_indices = sorted(self._calibrated_wells.keys())
-            a1_idx = sorted_indices[0]
-            a1_center = self._calibrated_wells[a1_idx]
-            return a1_center, spacing, 0.0
-        else:
-            # For 3 or more wells, use full affine transformation
-            try:
-                params = well_coords_affine(self._calibrated_wells)
-            except ValueError:
-                # collinear points
+
+        # Check if all calibrated wells are collinear (single row or column)
+        indices = list(self._calibrated_wells.keys())
+        rows_set = {r for r, _ in indices}
+        cols_set = {c for _, c in indices}
+
+        if len(rows_set) == 1 or len(cols_set) == 1:
+            # Collinear: 2+ wells all in one row or one column
+            return self._fit_collinear(len(rows_set) == 1)
+
+        # Non-collinear: 3+ wells, use full affine transformation
+        try:
+            params = well_coords_affine(self._calibrated_wells)
+        except ValueError:
+            return None  # collinear points (e.g. diagonal)
+
+        a, b, ty, c, d, tx = params
+        unit_y = np.hypot(a, c) / 1000  # convert to mm
+        unit_x = np.hypot(b, d) / 1000  # convert to mm
+        rotation = round(np.rad2deg(np.arctan2(c, a)), 2)
+
+        return (round(tx, 4), round(ty, 4)), (unit_x, unit_y), rotation
+
+    def _fit_collinear(
+        self, is_single_row: bool
+    ) -> tuple[tuple[float, float], tuple[float, float], float] | None:
+        """Fit calibration parameters when all calibrated wells are collinear.
+
+        Uses a reduced linear model (4 parameters) for the varying axis, and derives
+        the missing axis parameters from the plate spec assuming a rigid plate
+        (orthogonal axes).
+
+        Parameters
+        ----------
+        is_single_row : bool
+            True if all calibrated wells share the same row (varying column),
+            False if they share the same column (varying row).
+        """
+        plate = self._current_plate
+        if plate is None:  # pragma: no cover
+            return None
+
+        wells = self._calibrated_wells
+        indices = list(wells.keys())
+        centers = np.array(list(wells.values()))
+        xs, ys = centers[:, 0], centers[:, 1]
+
+        if is_single_row:
+            # Wells vary by column: fit x = d*col + tx, y = b*col + ty
+            row0 = indices[0][0]
+            cols = np.array([c for _, c in indices], dtype=float)
+            A = np.column_stack([cols, np.ones(len(cols))])
+            (d, tx), *_ = np.linalg.lstsq(A, xs, rcond=None)
+            (b, ty), *_ = np.linalg.lstsq(A, ys, rcond=None)
+
+            # Column spacing from calibration data
+            unit_x = np.hypot(b, d) / 1000  # mm
+
+            # Degenerate: wells are coincident (zero spacing)
+            if unit_x < 1e-6:
                 return None
 
-            a, b, ty, c, d, tx = params
-            unit_y = np.hypot(a, c) / 1000  # convert to mm
-            unit_x = np.hypot(b, d) / 1000  # convert to mm
-            rotation = round(np.rad2deg(np.arctan2(c, a)), 2)
+            # Column axis direction is (d, b) in world (x, y).
+            # Plate rotation = arctan2(y_component, x_component) of col axis.
+            rot_rad = np.arctan2(b, d)
+            rotation = round(float(np.rad2deg(rot_rad)), 2)
 
-            return (round(tx, 4), round(ty, 4)), (unit_x, unit_y), rotation
+            # Row spacing from plate spec (cannot be determined from data)
+            unit_y = plate.well_spacing[1] if plate.well_spacing[1] > 0 else 0.0
+
+            # Extrapolate A1 center to row=0 if calibrated wells are not in row 0
+            if row0 != 0:
+                row_spacing_um = plate.well_spacing[1] * 1000
+                a = row_spacing_um * np.cos(rot_rad)
+                c = row_spacing_um * np.sin(rot_rad)
+                ty = ty + a * row0
+                tx = tx + c * row0
+        else:
+            # Wells vary by row: fit x = c*(-row) + tx, y = a*(-row) + ty
+            col0 = indices[0][1]
+            rows = np.array([r for r, _ in indices], dtype=float)
+            neg_rows = -rows
+            A = np.column_stack([neg_rows, np.ones(len(rows))])
+            (c, tx), *_ = np.linalg.lstsq(A, xs, rcond=None)
+            (a, ty), *_ = np.linalg.lstsq(A, ys, rcond=None)
+
+            # Row spacing from calibration data
+            unit_y = np.hypot(a, c) / 1000  # mm
+
+            # Degenerate: wells are coincident (zero spacing)
+            if unit_y < 1e-6:
+                return None
+
+            # Rotation directly from row axis (same formula as full affine)
+            theta_row = np.arctan2(c, a)
+            rotation = round(float(np.rad2deg(theta_row)), 2)
+
+            # Column spacing from plate spec (cannot be determined from data)
+            unit_x = plate.well_spacing[0] if plate.well_spacing[0] > 0 else 0.0
+
+            # Extrapolate A1 center to col=0 if calibrated wells are not in col 0
+            if col0 != 0:
+                theta_col = theta_row + np.pi / 2
+                col_spacing_um = plate.well_spacing[0] * 1000
+                b = col_spacing_um * np.cos(theta_col)
+                d = col_spacing_um * np.sin(theta_col)
+                ty = ty - b * col0
+                tx = tx - d * col0
+
+        return (round(float(tx), 4), round(float(ty), 4)), (unit_x, unit_y), rotation
 
     def _get_or_create_well_calibration_widget(
         self, idx: tuple[int, int]
@@ -393,16 +469,20 @@ class PlateCalibrationWidget(QWidget):
             spacing = self._well_spacing or (0, 0)
             txt = "<strong>Plate calibrated.</strong>"
             ico = QIconifyIcon(CALIBRATED_ICON, color=GREEN)
-            if self._current_plate is not None:
-                spacing_diff = abs(spacing[0] - self._current_plate.well_spacing[0])
-                # if spacing is more than 5% different from the plate spacing...
-                if spacing_diff > 0.05 * self._current_plate.well_spacing[0]:
-                    txt += (
-                        "<font color='red'>   Expected well spacing of "
-                        f"{self._current_plate.well_spacing[0]:.2f} mm, "
-                        f"calibrated at {spacing[0]:.2f}</font>"
-                    )
-                    ico = style.standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning)
+            if (plate := self._current_plate) is not None:
+                plate_sp = plate.well_spacing[0]
+                if plate_sp > 0:
+                    spacing_diff = abs(spacing[0] - plate_sp)
+                    # if spacing is more than 5% different from plate spacing
+                    if spacing_diff > 0.05 * plate_sp:
+                        txt += (
+                            "<font color='red'>   Expected well spacing"
+                            f" of {plate_sp:.2f} mm, "
+                            f"calibrated at {spacing[0]:.2f}</font>"
+                        )
+                        ico = style.standardIcon(
+                            QStyle.StandardPixmap.SP_MessageBoxWarning
+                        )
             txt += "<br>"
             x0, y0 = self._a1_center_xy
             txt += f"\nA1 Center [mm]: ({x0 / 1000:.2f}, {y0 / 1000:.2f}),   "

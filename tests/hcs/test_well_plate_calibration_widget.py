@@ -226,15 +226,117 @@ def test_small_plate_calibration(qtbot) -> None:
     result = wdg._origin_spacing_rotation()
     assert result == ((100.0, 200.0), (10, 10), 0.0)
 
-    # Test 1x2 plate
+    # Test 1x2 plate (single row)
     plate_1x2 = useq.WellPlate(
         rows=1, columns=2, well_size=(5, 5), well_spacing=(10, 10)
     )
     wdg.setValue(plate_1x2)
     assert wdg._min_wells_required == 2
 
-    # Simulate calibrating two wells
-    wdg._calibrated_wells = {(0, 0): (100.0, 200.0), (0, 1): (10100.0, 200.0)}
+    # Simulate calibrating two wells in a row, no rotation
+    wdg._calibrated_wells = {
+        (0, 0): (100.0, 200.0),
+        (0, 1): (10100.0, 200.0),
+    }
     result = wdg._origin_spacing_rotation()
-    # Spacing should be calculated as distance / dc = 10000 / 1 / 1000 = 10 mm
-    assert result == ((100.0, 200.0), (10.0, 10.0), 0.0)
+    assert result is not None
+    origin, spacing, rotation = result
+    assert origin == (100.0, 200.0)
+    assert math.isclose(spacing[0], 10.0, rel_tol=1e-6)
+    assert spacing[1] == 10  # from plate spec
+    assert rotation == 0.0
+
+    # Test 2x1 plate (single column)
+    plate_2x1 = useq.WellPlate(
+        rows=2, columns=1, well_size=(5, 5), well_spacing=(10, 10)
+    )
+    wdg.setValue(plate_2x1)
+    assert wdg._min_wells_required == 2
+
+    wdg._calibrated_wells = {
+        (0, 0): (100.0, 200.0),
+        (1, 0): (100.0, -9800.0),
+    }
+    result = wdg._origin_spacing_rotation()
+    assert result is not None
+    origin, spacing, rotation = result
+    assert origin == (100.0, 200.0)
+    assert spacing[0] == 10  # from plate spec
+    assert math.isclose(spacing[1], 10.0, rel_tol=1e-6)
+    assert rotation == 0.0
+
+
+def test_single_row_plate_calibration(qtbot) -> None:
+    """Test calibration for 1x3 plate (collinear, single row)."""
+    wdg = PlateCalibrationWidget()
+    qtbot.addWidget(wdg)
+
+    plate = useq.WellPlate(rows=1, columns=3, well_size=(2, 2), well_spacing=(3, 3))
+    wdg.setValue(plate)
+    assert wdg._min_wells_required == 3
+
+    # Calibrate all 3 wells, no rotation
+    wdg._calibrated_wells = {
+        (0, 0): (0.0, 0.0),
+        (0, 1): (3000.0, 0.0),
+        (0, 2): (6000.0, 0.0),
+    }
+    result = wdg._origin_spacing_rotation()
+    assert result is not None
+    origin, spacing, rotation = result
+    assert origin == (0.0, 0.0)
+    assert math.isclose(spacing[0], 3.0, rel_tol=1e-6)
+    assert spacing[1] == 3  # from plate spec
+    assert rotation == 0.0
+
+
+def test_single_column_plate_calibration(qtbot) -> None:
+    """Test calibration for 3x1 plate (collinear, single column)."""
+    wdg = PlateCalibrationWidget()
+    qtbot.addWidget(wdg)
+
+    plate = useq.WellPlate(rows=3, columns=1, well_size=(2, 2), well_spacing=(3, 3))
+    wdg.setValue(plate)
+
+    # Calibrate all 3 wells, no rotation
+    # Row increases -> y decreases (because affine uses -row)
+    wdg._calibrated_wells = {
+        (0, 0): (0.0, 0.0),
+        (1, 0): (0.0, -3000.0),
+        (2, 0): (0.0, -6000.0),
+    }
+    result = wdg._origin_spacing_rotation()
+    assert result is not None
+    origin, spacing, rotation = result
+    assert origin == (0.0, 0.0)
+    assert spacing[0] == 3  # from plate spec
+    assert math.isclose(spacing[1], 3.0, rel_tol=1e-6)
+    assert rotation == 0.0
+
+
+def test_collinear_plate_with_rotation(qtbot) -> None:
+    """Test collinear calibration with a rotated plate."""
+    wdg = PlateCalibrationWidget()
+    qtbot.addWidget(wdg)
+
+    plate = useq.WellPlate(rows=1, columns=3, well_size=(2, 2), well_spacing=(3, 3))
+    wdg.setValue(plate)
+
+    # Calibrate 3 wells in a row with ~5 degree CCW rotation
+    # Column axis in world (x, y) = (sp*cos(θ), sp*sin(θ))
+    angle_rad = np.deg2rad(5)
+    sp = 3000  # 3mm spacing in µm
+    dx = sp * np.cos(angle_rad)
+    dy = sp * np.sin(angle_rad)
+    wdg._calibrated_wells = {
+        (0, 0): (0.0, 0.0),
+        (0, 1): (dx, dy),
+        (0, 2): (2 * dx, 2 * dy),
+    }
+    result = wdg._origin_spacing_rotation()
+    assert result is not None
+    origin, spacing, rotation = result
+    assert math.isclose(origin[0], 0.0, abs_tol=1e-3)
+    assert math.isclose(origin[1], 0.0, abs_tol=1e-3)
+    assert math.isclose(spacing[0], 3.0, rel_tol=1e-4)
+    assert math.isclose(rotation, 5.0, abs_tol=0.1)
