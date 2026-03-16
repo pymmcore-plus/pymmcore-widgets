@@ -652,6 +652,7 @@ class ScanMenu(QMenu):
 
         self._overlap_spin = QDoubleSpinBox(opts_widget)
         self._overlap_spin.setRange(-100, 100)
+        self._overlap_spin.setSuffix(" %")
         form.addRow("Overlap", self._overlap_spin)
 
         self._mode_cbox = QEnumComboBox(self, OrderMode)
