@@ -451,20 +451,17 @@ class PlateCalibrationWidget(QWidget):
             spacing = self._well_spacing or (0, 0)
             txt = "<strong>Plate calibrated.</strong>"
             ico = QIconifyIcon(CALIBRATED_ICON, color=GREEN)
-            if (plate := self._current_plate) is not None:
-                plate_sp = plate.well_spacing[0]
-                if plate_sp > 0:
-                    spacing_diff = abs(spacing[0] - plate_sp)
-                    # if spacing is more than 5% different from plate spacing
-                    if spacing_diff > 0.05 * plate_sp:
-                        txt += (
-                            "<font color='red'>   Expected well spacing"
-                            f" of {plate_sp:.2f} mm, "
-                            f"calibrated at {spacing[0]:.2f}</font>"
-                        )
-                        ico = style.standardIcon(
-                            QStyle.StandardPixmap.SP_MessageBoxWarning
-                        )
+            if self._current_plate is not None:
+                plate_sp = self._current_plate.well_spacing[0]
+                spacing_diff = abs(spacing[0] - plate_sp)
+                # if spacing is more than 5% different from the plate spacing...
+                if plate_sp > 0 and spacing_diff > 0.05 * plate_sp:
+                    txt += (
+                        "<font color='red'>   Expected well spacing of "
+                        f"{plate_sp:.2f} mm, "
+                        f"calibrated at {spacing[0]:.2f}</font>"
+                    )
+                    ico = style.standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning)
             txt += "<br>"
             x0, y0 = self._a1_center_xy
             txt += f"\nA1 Center [mm]: ({x0 / 1000:.2f}, {y0 / 1000:.2f}),   "
