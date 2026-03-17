@@ -4,6 +4,7 @@ from ._camera_roi_widget import CameraRoiWidget
 from ._channel_group_widget import ChannelGroupWidget
 from ._channel_widget import ChannelWidget
 from ._exposure_widget import DefaultCameraExposureWidget, ExposureWidget
+from ._joystick import StageJoystick
 from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
 from ._objective_widget import ObjectivesWidget
@@ -26,5 +27,6 @@ __all__ = [
     "ShuttersWidget",
     "SnapButton",
     "StageExplorer",
+    "StageJoystick",
     "StageWidget",
 ]
