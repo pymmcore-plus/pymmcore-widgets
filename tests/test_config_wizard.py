@@ -14,7 +14,6 @@ from pymmcore_widgets.hcwizard._dev_setup_dialog import DeviceSetupDialog
 from pymmcore_widgets.hcwizard._peripheral_setup_dialog import PeripheralSetupDlg
 from pymmcore_widgets.hcwizard.config_wizard import (
     ConfigWizard,
-    QFileDialog,
     QMessageBox,
 )
 from pymmcore_widgets.hcwizard.finish_page import DEST_CONFIG
@@ -67,12 +66,12 @@ def test_config_wizard(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):
     assert st1 == st2
     wiz._model.devices.pop()
 
+    # Closing with unsaved changes and confirming discard should reject
     with patch.object(
-        QMessageBox, "question", lambda *_: QMessageBox.StandardButton.Save
+        QMessageBox, "question", lambda *_: QMessageBox.StandardButton.Yes
     ):
-        with patch.object(QFileDialog, "getSaveFileName", lambda *_: (str(out), "")):
-            with qtbot.waitSignal(wiz.accepted):
-                wiz.closeEvent(QCloseEvent())
+        with qtbot.waitSignal(wiz.rejected):
+            wiz.closeEvent(QCloseEvent())
 
 
 def test_config_wizard_rejection(global_mmcore: CMMCorePlus, qtbot, tmp_path: Path):

@@ -224,6 +224,13 @@ class _CurrentDevicesWidget(QWidget):
         )
         idx = self._model.devices.index(device)
         self._model.devices[idx] = dev
+
+        # If a hub was re-initialized, rediscover peripherals
+        if dev.device_type == DeviceType.Hub:
+            self._model.load_available_devices(self._core)
+            dlg2 = PeripheralSetupDlg(dev, self._model, self._core, self)
+            dlg2.exec()
+
         self.rebuild_table()
 
 
@@ -459,13 +466,82 @@ class DevicesPage(ConfigWizardPage):
 
     def initializePage(self) -> None:
         """Called to prepare the page just before it is shown."""
-        err = {}
-        # TODO: there are errors that occur outside of this call that could also be
-        # shown in the tooltip above...
-        self._model.initialize(
-            self._core, on_fail=lambda d, e: err.update({d.name: str(e)})
-        )
+        err = self._two_pass_initialize()
         self._model.mark_clean()
         self.current.rebuild_table(err)
         self.available.rebuild_table()
-        return
+
+    def _two_pass_initialize(self) -> dict[str, str]:
+        """Initialize devices using a two-pass approach.
+
+        Pass 1: Serial ports, then hub devices (discovering peripherals after
+        each hub). Pass 2: Remaining devices with parent labels set before
+        initialization.
+        """
+        err: dict[str, str] = {}
+        seen: set[str] = set()
+
+        serial_devs: list[Device] = []
+        hub_devs: list[Device] = []
+        other_devs: list[Device] = []
+
+        for device in (*self._model.assigned_com_ports, *self._model.devices):
+            if device.name in seen or device.device_type == DeviceType.Core:
+                continue
+            seen.add(device.name)
+            if device.device_type == DeviceType.Serial:
+                serial_devs.append(device)
+            elif device.device_type == DeviceType.Hub:
+                hub_devs.append(device)
+            else:
+                other_devs.append(device)
+
+        # Pass 1a: Initialize serial ports
+        for device in serial_devs:
+            try:
+                device.initialize(self._core, reload=True, apply_pre_init=True)
+            except Exception as e:
+                err[device.name] = str(e)
+
+        # Pass 1b: Initialize hub devices, discover peripherals after each
+        for device in hub_devs:
+            try:
+                device.initialize(self._core, reload=True, apply_pre_init=True)
+            except Exception as e:
+                err[device.name] = str(e)
+            # Reload available devices so hub children become discoverable
+            self._model.load_available_devices(self._core)
+
+        # Pass 2: Initialize remaining devices with parent label set before init
+        for device in other_devs:
+            try:
+                device.load(self._core, reload=True)
+                if device.parent_label:
+                    self._core.setParentLabel(device.name, device.parent_label)
+                for prop in device.properties:
+                    if prop.is_pre_init:
+                        prop.apply_to_core(self._core, then_update=False)
+                self._core.initializeDevice(device.name)
+                device.initialized = True
+                device.apply_to_core(self._core)
+            except Exception as e:
+                err[device.name] = str(e)
+
+        return err
+
+    def validatePage(self) -> bool:
+        """Validate the page when the user clicks Next.
+
+        Refreshes parent hub references from core for devices that may have had
+        their parent set during hub initialization but not in the config file.
+        """
+        for dev in self._model.devices:
+            if dev.name not in self._core.getLoadedDevices():
+                continue
+            try:
+                parent = self._core.getParentLabel(dev.name)
+                if parent and not dev.parent_label:
+                    dev.parent_label = parent
+            except RuntimeError:
+                pass
+        return super().validatePage()  # type: ignore

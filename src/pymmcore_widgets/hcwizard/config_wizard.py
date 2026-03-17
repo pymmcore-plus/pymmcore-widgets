@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -7,7 +8,6 @@ from pymmcore_plus import CMMCorePlus
 from pymmcore_plus.model import Microscope
 from qtpy.QtCore import QSize
 from qtpy.QtWidgets import (
-    QFileDialog,
     QLabel,
     QMessageBox,
     QVBoxLayout,
@@ -49,6 +49,7 @@ class ConfigWizard(QWizard):
     ):
         super().__init__(parent)
         self._core = core or CMMCorePlus.instance()
+        self._original_config = self._core.systemConfigurationFile() or ""
         self._model = Microscope()
         self._model.load_available_devices(self._core)
         self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
@@ -98,27 +99,14 @@ class ConfigWizard(QWizard):
         if self._model.is_dirty():
             answer = QMessageBox.question(
                 self,
-                "Save changes?",
-                "Would you like to save your changes before exiting?",
-                QMessageBox.StandardButton.Save
-                | QMessageBox.StandardButton.Discard
-                | QMessageBox.StandardButton.Cancel,
+                "Discard changes?",
+                "You have unsaved changes. Discard and close?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
-            if answer == QMessageBox.StandardButton.Cancel:
+            if answer == QMessageBox.StandardButton.No:
                 event.ignore()
                 return
-            elif answer == QMessageBox.StandardButton.Save:
-                (fname, _) = QFileDialog.getSaveFileName(
-                    self, "Select Destination", "", "Config Files (*.cfg)"
-                )
-                if fname:
-                    self.setField(DEST_CONFIG, fname)
-                    self.accept()
-                else:
-                    event.ignore()
-                    return
-            else:
-                self.reject()
+        self.reject()
         super().closeEvent(event)
 
     def accept(self) -> None:
@@ -129,11 +117,17 @@ class ConfigWizard(QWizard):
         super().accept()
 
     def reject(self) -> None:
-        """Reject the wizard and reload the prior configuration."""
+        """Reject the wizard and restore the prior core state."""
         super().reject()
-        last_config_file = self._core.systemConfigurationFile()
-        if last_config_file is not None:
-            self._core.loadSystemConfiguration(last_config_file)
+        try:
+            self._core.unloadAllDevices()
+        except Exception:
+            pass
+        if self._original_config and os.path.isfile(self._original_config):
+            try:
+                self._core.loadSystemConfiguration(self._original_config)
+            except Exception:
+                pass
 
     def _update_step(self, current_index: int) -> None:
         """Change text on the left when the page changes."""
