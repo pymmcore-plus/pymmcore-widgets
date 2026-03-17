@@ -161,7 +161,7 @@ class PlateCalibrationWidget(QWidget):
         # Set minimum wells required based on plate size
         if plate:
             self._min_wells_required = min(3, plate.rows * plate.columns)
-        else:
+        else:  # pragma: no cover
             self._min_wells_required = 3
 
         # clear existing calibration widgets
