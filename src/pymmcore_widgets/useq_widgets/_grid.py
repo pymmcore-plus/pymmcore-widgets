@@ -171,9 +171,8 @@ class GridPlanWidget(QScrollArea):
         main_layout = QVBoxLayout(inner_widget)
         main_layout.addLayout(btns_row)
         main_layout.addWidget(SeparatorWidget())
-        main_layout.addWidget(self._stack)
+        main_layout.addWidget(self._stack, 1)
         main_layout.addWidget(self._bottom_stuff)
-        main_layout.addStretch(1)
 
         self.setWidget(inner_widget)
         self.setWidgetResizable(True)
@@ -625,7 +624,9 @@ class _ResizableStackedWidget(QStackedWidget):
 
     def onCurrentChanged(self, idx: int) -> None:
         for i in range(self.count()):
-            plc = QSizePolicy.Policy.Minimum if i == idx else QSizePolicy.Policy.Ignored
+            plc = (
+                QSizePolicy.Policy.Expanding if i == idx else QSizePolicy.Policy.Ignored
+            )
             if wdg := self.widget(i):
                 wdg.setSizePolicy(plc, plc)
                 wdg.adjustSize()
