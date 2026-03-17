@@ -328,17 +328,16 @@ class PlateCalibrationWidget(QWidget):
         if plate is None:  # pragma: no cover
             return None
 
-        wells = self._calibrated_wells
-        indices = list(wells.keys())
-        centers = np.array(list(wells.values()))
+        indices = list(self._calibrated_wells.keys())
+        centers = np.array(list(self._calibrated_wells.values()))
         xs, ys = centers[:, 0], centers[:, 1]
 
         # Build the varying-axis indices and identify the fixed-axis index
-        if is_single_row:
+        if is_single_row:  # varying column, fixed row
             varying = np.array([c for _, c in indices], dtype=float)
             fixed_idx = indices[0][0]
             other_spacing = plate.well_spacing[1]
-        else:
+        else:  # varying row, fixed column
             varying = np.array([-r for r, _ in indices], dtype=float)
             fixed_idx = indices[0][1]
             other_spacing = plate.well_spacing[0]
@@ -351,7 +350,7 @@ class PlateCalibrationWidget(QWidget):
         # Measured spacing along the varying axis
         measured_spacing = np.hypot(slope_y, slope_x) / 1000  # mm
         if measured_spacing < 1e-6:
-            return None  # degenerate: wells are coincident
+            return None  # wells are coincident
 
         # Compute rotation and assign spacings per axis
         if is_single_row:
@@ -377,6 +376,7 @@ class PlateCalibrationWidget(QWidget):
                 tx -= other_um * np.sin(theta_col) * fixed_idx
 
         rotation = round(float(np.rad2deg(rot_rad)), 2)
+
         return (round(float(tx), 4), round(float(ty), 4)), (unit_x, unit_y), rotation
 
     def _get_or_create_well_calibration_widget(
