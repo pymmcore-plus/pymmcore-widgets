@@ -152,7 +152,7 @@ class RolesPage(ConfigWizardPage):
             # read current direction from model
             try:
                 idx = _FOCUS_DIR_VALUES.index(dev.focus_direction)
-            except ValueError:
+            except ValueError:  # pragma: no cover
                 idx = 0
             combo.setCurrentIndex(idx)
             combo.currentIndexChanged.connect(

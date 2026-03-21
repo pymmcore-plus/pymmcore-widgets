@@ -128,11 +128,11 @@ class ConfigWizard(QWizard):
         # ConfigMenu.runHardwareWizard() post-wizard reload step.
         try:
             self._core.unloadAllDevices()
-        except Exception:
+        except Exception:  # pragma: no cover
             logger.exception("Failed to unload devices after save")
         try:
             self._core.loadSystemConfiguration(str(dest_path))
-        except Exception:
+        except Exception:  # pragma: no cover
             logger.exception("Failed to reload saved configuration")
 
         super().accept()
@@ -142,12 +142,12 @@ class ConfigWizard(QWizard):
         super().reject()
         try:
             self._core.unloadAllDevices()
-        except Exception:
+        except Exception:  # pragma: no cover
             pass
         if self._original_config and os.path.isfile(self._original_config):
             try:
                 self._core.loadSystemConfiguration(self._original_config)
-            except Exception:
+            except Exception:  # pragma: no cover
                 pass
 
     def _check_configurations(self) -> None:

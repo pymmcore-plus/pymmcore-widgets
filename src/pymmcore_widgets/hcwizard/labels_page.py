@@ -113,7 +113,7 @@ class LabelsPage(ConfigWizardPage):
 
         try:
             hw_labels = self._core.getStateLabels(dev_name)
-        except Exception:
+        except Exception:  # pragma: no cover
             logger.exception("Failed to read labels from hardware for %s", dev_name)
             return
 
