@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pymmcore_plus import CMMCorePlus
+from pymmcore_plus import CMMCorePlus, Keyword
 from pymmcore_plus.model import Microscope
 from qtpy.QtCore import QSize
 from qtpy.QtWidgets import (
@@ -24,6 +25,8 @@ from .roles_page import RolesPage
 
 if TYPE_CHECKING:
     from qtpy.QtGui import QCloseEvent
+
+logger = logging.getLogger(__name__)
 
 
 class ConfigWizard(QWizard):
@@ -113,7 +116,25 @@ class ConfigWizard(QWizard):
         """Accept the wizard and save the configuration to a file."""
         dest = self.field(DEST_CONFIG)
         dest_path = Path(dest)
+
+        # Remove stale config entries referencing devices no longer in the model.
+        # Matches Java's MicroscopeModel.checkConfigurations().
+        self._check_configurations()
+
         self._model.save(dest_path)
+
+        # Unload all devices and reload from the saved file so that the core
+        # state cleanly matches the file on disk.  This matches the Java
+        # ConfigMenu.runHardwareWizard() post-wizard reload step.
+        try:
+            self._core.unloadAllDevices()
+        except Exception:
+            logger.exception("Failed to unload devices after save")
+        try:
+            self._core.loadSystemConfiguration(str(dest_path))
+        except Exception:
+            logger.exception("Failed to reload saved configuration")
+
         super().accept()
 
     def reject(self) -> None:
@@ -128,6 +149,46 @@ class ConfigWizard(QWizard):
                 self._core.loadSystemConfiguration(self._original_config)
             except Exception:
                 pass
+
+    def _check_configurations(self) -> None:
+        """Remove stale settings from config groups and pixel size presets.
+
+        Mirrors Java MicroscopeModel.checkConfigurations(): for every config
+        group / pixel-size preset, drop any Setting whose device_name does not
+        match a device currently in the model.  Empty presets and empty groups
+        are removed entirely.
+        """
+        device_names = {d.name for d in self._model.devices}
+        device_names.add(Keyword.CoreDevice.value)
+
+        # --- config groups ---
+        groups_to_remove: list[str] = []
+        for group in self._model.config_groups.values():
+            presets_to_remove: list[str] = []
+            for preset in group.presets.values():
+                preset.settings = [
+                    s for s in preset.settings if s.device_name in device_names
+                ]
+                if not preset.settings:
+                    presets_to_remove.append(preset.name)
+            for name in presets_to_remove:
+                del group.presets[name]
+            if not group.presets:
+                groups_to_remove.append(group.name)
+        for name in groups_to_remove:
+            del self._model.config_groups[name]
+
+        # --- pixel size presets ---
+        px = self._model.pixel_size_group
+        px_presets_to_remove: list[str] = []
+        for preset in px.presets.values():
+            preset.settings = [
+                s for s in preset.settings if s.device_name in device_names
+            ]
+            if not preset.settings:
+                px_presets_to_remove.append(preset.name)
+        for name in px_presets_to_remove:
+            del px.presets[name]
 
     def _update_step(self, current_index: int) -> None:
         """Change text on the left when the page changes."""
