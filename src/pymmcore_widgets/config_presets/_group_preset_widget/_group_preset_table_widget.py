@@ -6,7 +6,6 @@ from qtpy.QtWidgets import (
     QAbstractScrollArea,
     QDialog,
     QFileDialog,
-    QGroupBox,
     QHBoxLayout,
     QPushButton,
     QSizePolicy,
@@ -42,7 +41,7 @@ class _MainTable(QTableWidget):
         self.setMinimumHeight(200)
 
 
-class GroupPresetTableWidget(QGroupBox):
+class GroupPresetTableWidget(QWidget):
     """A Widget to create, edit, delete and set micromanager group presets.
 
     Parameters
