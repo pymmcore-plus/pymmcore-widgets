@@ -75,6 +75,11 @@ class QROIModel(QAbstractListModel):
 
     # editable stuff ------------------------------
 
+    def getRoi(self, index: int) -> ROI:
+        if 0 <= index < len(self._rois):
+            return self._rois[index]
+        raise IndexError("Index out of bounds")
+
     def setData(
         self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
     ) -> bool:

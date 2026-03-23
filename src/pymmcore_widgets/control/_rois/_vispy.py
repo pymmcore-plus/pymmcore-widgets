@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+import useq
 from vispy.scene import Compound
 from vispy.visuals import LineVisual, MarkersVisual, PolygonVisual
 
@@ -40,15 +41,20 @@ class RoiPolygon(Compound):
         self.set_gl_state(depth_test=False)
         self.update_vertices(roi.vertices)
 
-    def update_vertices(self, vertices: np.ndarray) -> None:
+    def update_vertices(
+        self,
+        vertices: np.ndarray,
+        overlap: float | tuple[float, float] = 0.0,
+        mode: useq.OrderMode = useq.OrderMode.row_wise_snake,
+    ) -> None:
         """Update the vertices of the polygon."""
         self._polygon.pos = vertices
         self._handles.set_data(pos=vertices)
 
-        centers: list[tuple[float, float]] = []
-        if (grid := self._roi.create_grid_plan()) is not None:
-            for p in grid:
-                centers.append((p.x, p.y))
+        grid = self._roi.create_grid_plan(overlap=overlap, mode=mode)
+        centers = [
+            (p.x, p.y) for p in (grid or ()) if p.x is not None and p.y is not None
+        ]
 
         if centers and (fov_size := self._roi.fov_size):
             edges = []
@@ -73,12 +79,17 @@ class RoiPolygon(Compound):
             self._fov_centers.visible = False
             self._fov_lines.visible = False
 
-    def update_from_roi(self, roi: ROI) -> None:
+    def update_from_roi(
+        self,
+        roi: ROI,
+        overlap: float | tuple[float, float] = 0.0,
+        mode: useq.OrderMode = useq.OrderMode.row_wise_snake,
+    ) -> None:
         self._polygon.color = roi.fill_color
         self._polygon.border_color = roi.border_color
         self._polygon._border_width = roi.border_width
 
-        self.update_vertices(roi.vertices)
+        self.update_vertices(roi.vertices, overlap=overlap, mode=mode)
         self.set_selected(roi.selected)
 
     def set_selected(self, selected: bool) -> None:
