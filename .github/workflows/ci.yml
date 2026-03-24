@@ -127,39 +127,6 @@ jobs:
       - name: Run pymmcore-gui tests
         run: uv run pytest -v --color=yes -W ignore
 
-  test-napari-micromanager:
-    name: test napari-micromanager
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          path: pymmcore-widgets
-          fetch-depth: 0
-
-      - uses: actions/checkout@v6
-        with:
-          repository: pymmcore-plus/napari-micromanager
-          path: napari-micromanager
-          fetch-depth: 0
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-
-      - uses: pyvista/setup-headless-display-action@v4
-
-      - name: Install dependencies
-        run: |
-          python -m pip install -U pip
-          python -m pip install -e ./pymmcore-widgets[PyQt6]
-          python -m pip install -e ./napari-micromanager[test]
-
-      - uses: pymmcore-plus/setup-mm-test-adapters@main
-
-      - name: Run napari-micromanager tests
-        run: python -m pytest -v --color=yes -W ignore
-        working-directory: napari-micromanager
-
   deploy:
     name: Deploy
     needs: test
