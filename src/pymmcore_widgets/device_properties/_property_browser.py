@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QDialog, QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
+from qtpy.QtWidgets import QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
 
 from ._device_property_table import DevicePropertyTable
 from ._device_type_filter import DeviceTypeFilters
 
 
-class PropertyBrowser(QDialog):
+class PropertyBrowser(QWidget):
     """A Widget to browse and change properties of all devices.
 
     Parameters
