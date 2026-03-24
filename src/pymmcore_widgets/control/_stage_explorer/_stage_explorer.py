@@ -11,6 +11,8 @@ from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import QSize, Qt, QThread, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
+    QDoubleSpinBox,
+    QFormLayout,
     QLabel,
     QMenu,
     QSizePolicy,
@@ -18,8 +20,10 @@ from qtpy.QtWidgets import (
     QToolButton,
     QVBoxLayout,
     QWidget,
+    QWidgetAction,
 )
-from superqt import QIconifyIcon
+from superqt import QEnumComboBox, QIconifyIcon
+from useq import OrderMode
 
 from pymmcore_widgets.control._q_stage_controller import QStageMoveAccumulator
 from pymmcore_widgets.control._rois.roi_manager import GRAY, SceneROIManager
@@ -226,6 +230,7 @@ class StageExplorer(QWidget):
         tb.delete_rois_action.triggered.connect(self.roi_manager.clear)
         tb.scan_action.triggered.connect(self._on_scan_action)
         tb.marker_mode_action_group.triggered.connect(self._update_marker_mode)
+        tb.scan_menu.valueChanged.connect(self._on_scan_options_changed)
 
         # main layout
         main_layout = QVBoxLayout(self)
@@ -386,17 +391,22 @@ class StageExplorer(QWidget):
             self._stage_pos_marker.set_marker_visible(pi.show_marker)
 
     def _on_scan_action(self) -> None:
-        """Scan the selected ROIs."""
+        """Scan the selected ROI."""
         if not (active_rois := self.roi_manager.selected_rois()):
             return
         active_roi = active_rois[0]
-        if plan := active_roi.create_grid_plan(*self._fov_w_h()):
-            # for now, we expand the grid plan to a list of positions because
-            # useq grid_plan= doesn't yet support our custom polygon ROIs
-            seq = useq.MDASequence(stage_positions=list(plan))
+
+        overlap, mode = self._toolbar.scan_menu.value()
+        if plan := active_roi.create_grid_plan(*self._fov_w_h(), overlap, mode):
+            seq = useq.MDASequence(grid_plan=plan)
             if not self._mmc.mda.is_running():
                 self._our_mda_running = True
                 self._mmc.run_mda(seq)
+
+    def _on_scan_options_changed(self, value: tuple[float, OrderMode]) -> None:
+        """Update scan settings on the ROI manager so visuals refresh."""
+        overlap, mode = value
+        self.roi_manager.set_scan_options(overlap, mode)
 
     def keyPressEvent(self, a0: QKeyEvent | None) -> None:
         if a0 is None:
@@ -621,8 +631,47 @@ class StageExplorerToolbar(QToolBar):
         self.addSeparator()
         self.scan_action = self.addAction(
             QIconifyIcon("ph:path-duotone", color=GRAY),
-            "Scan Selected ROIs",
+            "Scan Selected ROI",
         )
+        scan_btn = cast("QToolButton", self.widgetForAction(self.scan_action))
+        self.scan_menu = ScanMenu(self)
+        scan_btn.setMenu(self.scan_menu)
+        scan_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+
+
+class ScanMenu(QMenu):
+    """Menu widget that exposes scan grid options (overlap + scan order)."""
+
+    valueChanged = Signal(object)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        opts_widget = QWidget(self)
+        form = QFormLayout(opts_widget)
+        form.setContentsMargins(8, 8, 8, 8)
+
+        self._overlap_spin = QDoubleSpinBox(opts_widget)
+        self._overlap_spin.setRange(-100, 100)
+        self._overlap_spin.setSuffix(" %")
+        form.addRow("Overlap", self._overlap_spin)
+
+        self._mode_cbox = QEnumComboBox(self, OrderMode)
+        self._mode_cbox.setCurrentEnum(OrderMode.row_wise_snake)
+        form.addRow("Order", self._mode_cbox)
+
+        action = QWidgetAction(self)
+        action.setDefaultWidget(opts_widget)
+        self.addAction(action)
+
+        self._overlap_spin.valueChanged.connect(self._emit)
+        self._mode_cbox.currentTextChanged.connect(self._emit)
+
+    def value(self) -> tuple[float, useq.OrderMode]:
+        """Return (overlap, order_mode)."""
+        return self._overlap_spin.value(), self._mode_cbox.currentEnum()
+
+    def _emit(self) -> None:
+        self.valueChanged.emit(self.value())
 
 
 @dataclass(slots=True)

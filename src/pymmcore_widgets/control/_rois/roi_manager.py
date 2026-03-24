@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Literal
 
+import useq
 from qtpy.QtCore import (
     QEvent,
     QItemSelection,
@@ -62,6 +63,8 @@ class SceneROIManager(QObject):
         self._roi_visuals: dict[ROI, RoiPolygon] = {}
 
         self._fov_size: tuple[float, float] | None = None
+        self._scan_overlap: float | tuple[float, float] = 0.0
+        self._scan_mode: useq.OrderMode = useq.OrderMode.row_wise_snake
 
         self.roi_model = QROIModel()
         self.selection_model = QItemSelectionModel(self.roi_model)
@@ -122,7 +125,7 @@ class SceneROIManager(QObject):
         """Update the FOVs of all ROIs."""
         self._fov_size = fov
         for row in range(self.roi_model.rowCount()):
-            roi = cast("ROI", self.roi_model.index(row).internalPointer())
+            roi = self.roi_model.getRoi(row)
             roi.fov_size = fov
             self.roi_model.emitDataChange(roi)
 
@@ -149,8 +152,34 @@ class SceneROIManager(QObject):
     def selected_rois(self) -> list[ROI]:
         """Return a list of selected ROIs."""
         return [
-            index.internalPointer() for index in self.selection_model.selectedIndexes()
+            index.data(QROIModel.ROI_ROLE)
+            for index in self.selection_model.selectedIndexes()
         ]
+
+    def all_rois(self) -> list[ROI]:
+        """Return a list of all ROIs."""
+        return [self.roi_model.getRoi(row) for row in range(self.roi_model.rowCount())]
+
+    @property
+    def scan_overlap(self) -> float | tuple[float, float]:
+        """Return the current scan overlap."""
+        return self._scan_overlap
+
+    @property
+    def scan_mode(self) -> useq.OrderMode:
+        """Return the current scan order mode."""
+        return self._scan_mode
+
+    def set_scan_options(
+        self,
+        overlap: float | tuple[float, float],
+        mode: useq.OrderMode,
+    ) -> None:
+        """Set scan overlap and mode, then refresh all ROI visuals."""
+        self._scan_overlap = overlap
+        self._scan_mode = mode
+        for roi in self.all_rois():
+            self.roi_model.emitDataChange(roi)
 
     def delete_selected_rois(self) -> None:
         """Delete the selected ROIs from the model."""
@@ -168,7 +197,7 @@ class SceneROIManager(QObject):
     ) -> None:
         # Remove the ROIs from the canvas
         for row in range(first, last + 1):
-            roi = self.roi_model.index(row).internalPointer()
+            roi = self.roi_model.getRoi(row)
             self._remove_roi_from_canvas(roi)
 
     def _on_data_changed(
@@ -181,24 +210,24 @@ class SceneROIManager(QObject):
 
         # Update the ROI on the canvas
         for row in range(top_left.row(), bottom_right.row() + 1):
-            roi = self.roi_model.index(row).internalPointer()
-            do_update(roi)
+            if roi := self.roi_model.index(row).data(QROIModel.ROI_ROLE):
+                do_update(roi)
 
     def _on_selection_changed(
         self, selected: QItemSelection, deselected: QItemSelection
     ) -> None:
         for index in deselected.indexes():
-            roi = cast("ROI", self.roi_model.index(index.row()).internalPointer())
+            roi = self.roi_model.getRoi(index.row())
             if visual := self._roi_visuals.get(roi):
                 visual.set_selected(False)
         for index in selected.indexes():
-            roi = cast("ROI", self.roi_model.index(index.row()).internalPointer())
+            roi = self.roi_model.getRoi(index.row())
             if visual := self._roi_visuals.get(roi):
                 visual.set_selected(True)
 
     def _on_rows_inserted(self, parent: QModelIndex, first: int, last: int) -> None:
         for row in range(first, last + 1):
-            roi = self.roi_model.index(row).internalPointer()
+            roi = self.roi_model.getRoi(row)
             self._add_roi_to_scene(roi)
 
     def _add_roi_to_scene(self, roi: ROI) -> None:
@@ -214,12 +243,16 @@ class SceneROIManager(QObject):
     def _update_roi_visual(self, roi: ROI) -> None:
         # Update the the full ROI visual already on the canvas
         if visual := self._roi_visuals.get(roi):
-            visual.update_from_roi(roi)
+            visual.update_from_roi(
+                roi, overlap=self._scan_overlap, mode=self._scan_mode
+            )
 
     def _update_roi_vertices(self, roi: ROI) -> None:
         # Update the only vertices of the ROI visual
         if visual := self._roi_visuals.get(roi):
-            visual.update_vertices(roi.vertices)
+            visual.update_vertices(
+                roi.vertices, overlap=self._scan_overlap, mode=self._scan_mode
+            )
 
 
 class ROIScene(QWidget):
