@@ -15,6 +15,7 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QSizePolicy,
+    QVBoxLayout,
     QWidget,
 )
 from superqt.iconify import QIconifyIcon
@@ -63,36 +64,6 @@ ICONS_MARK: dict[str, tuple[str, Flip | None]] = {
     "bottom_right": ("mdi:border-style", "horizontal,vertical"),
 }
 
-BTN_STYLE = f"""
-QPushButton {{
-    border-radius: {RADIUS}px;
-    border: 0.5px solid #DCDCDC;
-    background-color: #FFF;
-    padding: 2px 6px;
-}}
-QPushButton:hover {{
-    background-color: #EEE;
-}}
-QPushButton:pressed {{
-    background-color: #AAA;
-}}
-"""
-# styles for paired buttons
-SS = """
-QPushButton {{
-    border-top-{side}-radius: {radius}px;
-    border-bottom-{side}-radius: {radius}px;
-    border: 1px solid #A3A3A3;
-    padding: 2px 6px;
-}}
-QPushButton:hover {{
-    background-color: #ABABAB;
-}}
-QPushButton:pressed {{
-    background-color: #8C8C8C;
-}}
-"""
-
 
 class XYBoundsControl(QWidget):
     """Buttons to mark and visit bounds on the XY stage."""
@@ -137,12 +108,16 @@ class XYBoundsControl(QWidget):
         top_layout = QHBoxLayout()
         top_layout.setContentsMargins(0, 0, 0, 0)
         top_layout.setSpacing(15)
-        top_layout.addWidget(grid)
-        top_layout.addWidget(self._bounds_wdg)
+        top_layout.addWidget(grid, 0, Qt.AlignmentFlag.AlignVCenter)
+        top_layout.addWidget(self._bounds_wdg, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self.setLayout(top_layout)
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        main_layout.addLayout(top_layout)
+        main_layout.addStretch()
+        self.setLayout(main_layout)
         self.setWindowTitle("Mark XY Boundaries")
-        self.show()
 
     def _update_buttons_icon(self, state: bool) -> None:
         """Switch the icon of the buttons between `mark` and `visit`."""
@@ -240,7 +215,6 @@ class _MarkVisitButton(QPushButton):
         self.setIcon(self._mark_icon)
         self.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.setStyleSheet(BTN_STYLE)
         self.setToolTip(f"Mark the {self._name} bound.")
 
     def setMark(self) -> None:
@@ -276,14 +250,9 @@ class MarkVisit(QWidget):
         self.visit.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.visit.setToolTip(f"Move to {mode}.")
 
-        left_style = SS.format(side="left", radius=radius)
-        right_style = SS.format(side="right", radius=radius)
-
         layout = QHBoxLayout(self)
         layout.setSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
-        self.mark.setStyleSheet(left_style)
-        self.visit.setStyleSheet(right_style)
         layout.addWidget(self.mark)
         layout.addWidget(self.visit)
 

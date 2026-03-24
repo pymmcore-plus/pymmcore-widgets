@@ -104,36 +104,6 @@ class PositionIndicator(str, Enum):
         return self in (self.CENTER, self.BOTH)
 
 
-SS_TOOLBUTTON = """
-    QToolButton:checked {
-        background-color: rgba(51, 170, 51, 180);
-        border: 1px solid rgba(102, 102, 102, 80);
-        border-radius: 5px;
-    }
-    QToolButton:!checked {
-        border: 1px solid rgba(102, 102, 102, 80);
-        border-radius: 5px;
-    }
-    QToolButton:checked:hover {
-        background-color: rgba(51, 170, 51, 180);
-    }
-    QToolButton:!checked:hover {
-        background-color: rgba(102, 102, 102, 80);
-    }
-    QToolButton[popupMode="1"] {
-        padding-right: 8px;
-    }
-    QToolButton::menu-button {
-        border: 3px solid transparent;
-        border-left: 1px solid  rgba(102, 102, 102, 80);
-        width: 8px;
-    }
-    QToolButton::menu-arrow {
-        width: 8px;
-    }
-"""
-
-
 class StageExplorer(QWidget):
     """A stage positions explorer widget.
 
@@ -585,7 +555,6 @@ class StageExplorerToolbar(QToolBar):
         self.setIconSize(QSize(22, 22))
         # self.setMovable(False)
         self.setContentsMargins(0, 0, 8, 0)
-        self.setStyleSheet(SS_TOOLBUTTON)
 
         self.clear_action = self.addAction(
             QIconifyIcon("mdi:close", color=GRAY),
