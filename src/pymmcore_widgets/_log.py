@@ -10,7 +10,6 @@ from qtpy.QtCore import (
     QFileSystemWatcher,
     QObject,
     QSize,
-    QTimer,
     QTimerEvent,
     QUrl,
     Signal,
@@ -181,13 +180,6 @@ class CoreLogWidget(QWidget):
         self._clear_btn.clicked.connect(self.clear)
         self._log_btn.clicked.connect(self._open_native)
         self._reader.start()
-
-        # scroll left to begin
-        def _scroll_left() -> None:
-            if sb := self._log_view.horizontalScrollBar():
-                sb.setValue(0)
-
-        QTimer.singleShot(0, _scroll_left)
 
     def clear(self) -> None:
         """Clear the log view."""
