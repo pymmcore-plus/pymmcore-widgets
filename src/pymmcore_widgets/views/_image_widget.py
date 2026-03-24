@@ -4,7 +4,7 @@ from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt, QTimer
+from qtpy.QtCore import Qt, QTimer, Slot
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
 if TYPE_CHECKING:
@@ -109,19 +109,24 @@ class ImagePreview(QWidget):
         ev.exposureChanged.disconnect(self._on_exposure_changed)
         self._mmc.mda.events.frameReady.disconnect(self._on_frame_ready)
 
+    @Slot()
     def _on_streaming_start(self) -> None:
         self.streaming_timer.start()
 
+    @Slot()
     def _on_streaming_stop(self) -> None:
         self.streaming_timer.stop()
 
+    @Slot(str, float)
     def _on_exposure_changed(self, device: str, value: str) -> None:
         self.streaming_timer.setInterval(int(value))
 
+    @Slot()
     def _on_streaming_timeout(self) -> None:
         with suppress(RuntimeError, IndexError):
             self._update_image(self._mmc.getLastImage())
 
+    @Slot()
     def _on_image_snapped(self) -> None:
         """Update the image when a new image is snapped.
 
@@ -131,6 +136,7 @@ class ImagePreview(QWidget):
             return
         self._update_image(self._mmc.getImage())
 
+    @Slot(object, object, object)
     def _on_frame_ready(
         self, image: np.ndarray, event: useq.MDAEvent, metadata: FrameMetaV1
     ) -> None:

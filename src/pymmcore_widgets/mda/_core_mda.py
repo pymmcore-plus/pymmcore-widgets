@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import QSize, Qt, Slot
 from qtpy.QtWidgets import (
     QBoxLayout,
     QHBoxLayout,
@@ -296,6 +296,7 @@ class MDAWidget(MDASequenceWidget):
 
     # ------------------- private Methods ----------------------
 
+    @Slot()
     def _on_sys_config_loaded(self) -> None:
         self.stage_positions._update_xy_enablement()
         self.stage_positions._update_z_enablement()
@@ -303,6 +304,7 @@ class MDAWidget(MDASequenceWidget):
         # TODO: connect objective change event to update suggested step
         self.z_plan.setSuggestedStep(_guess_NA(self._mmc) or 0.5)
 
+    @Slot(str, str, object)
     def _on_property_changed(self, device: str, prop: str, _val: str = "") -> None:
         if device != "Core":
             return
@@ -434,9 +436,11 @@ class MDAWidget(MDASequenceWidget):
             elif child is not self.control_btns and hasattr(child, "setEnabled"):
                 child.setEnabled(enable)
 
+    @Slot()
     def _on_mda_started(self) -> None:
         self._enable_widgets(False)
 
+    @Slot(object)
     def _on_mda_finished(self, sequence: MDASequence) -> None:
         self._enable_widgets(True)
         # update the save name in the gui with the next available path
@@ -506,17 +510,20 @@ class _MDAControlButtons(QWidget):
 
         self.destroyed.connect(self._disconnect)
 
+    @Slot()
     def _on_mda_started(self) -> None:
         self.run_btn.hide()
         self.pause_btn.show()
         self.cancel_btn.show()
 
+    @Slot()
     def _on_mda_finished(self) -> None:
         self.run_btn.show()
         self.pause_btn.hide()
         self.cancel_btn.hide()
         self._on_mda_paused(False)
 
+    @Slot(bool)
     def _on_mda_paused(self, paused: bool) -> None:
         if paused:
             self.pause_btn.setIcon(

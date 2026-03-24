@@ -6,7 +6,7 @@ from pathlib import Path
 
 import useq
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QSize
+from qtpy.QtCore import QSize, Slot
 from qtpy.QtWidgets import QFileDialog, QVBoxLayout, QWidget, QWizard, QWizardPage
 from useq import WellPlatePlan
 
@@ -106,6 +106,7 @@ class HCSWizard(QWizard):
             )
         self.points_plan_page.widget.setValue(point_plan)
 
+    @Slot()
     def save(self, path: str | None = None) -> None:
         """Save the current well plate plan to disk."""
         if not isinstance(path, str):
@@ -118,6 +119,7 @@ class HCSWizard(QWizard):
             txt = value.model_dump_json(exclude_unset=True, indent=2)
             Path(path).write_text(txt)
 
+    @Slot()
     def load(self, path: str | None = None) -> None:
         """Load a well plate plan from disk."""
         if not isinstance(path, str):
@@ -127,6 +129,7 @@ class HCSWizard(QWizard):
         if path:
             self.setValue(WellPlatePlan.from_file(path))
 
+    @Slot(object)
     def _on_plate_changed(self, plate_plan: useq.WellPlatePlan) -> None:
         """Synchronize the points plan with the well size/shape."""
         # update the calibration widget with the new plate if it's different
@@ -158,6 +161,7 @@ class HCSWizard(QWizard):
         random_wdg.max_height.setMaximum(well_height * 1000)
         random_wdg.max_height.setValue(well_height * 1000 - fovh / 1.4)
 
+    @Slot(bool)
     def _on_calibration_changed(self, calibrated: bool) -> None:
         self._calibrated = calibrated
         self.button(QWizard.WizardButton.CustomButton1).setEnabled(calibrated)
@@ -194,6 +198,7 @@ class _PlateCalibrationPage(QWizardPage):
     def isComplete(self) -> bool:
         return self._is_complete
 
+    @Slot(bool)
     def _on_calibration_changed(self, calibrated: bool) -> None:
         self._is_complete = calibrated
         self.completeChanged.emit()
@@ -216,6 +221,7 @@ class _PointsPlanPage(QWizardPage):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_px_size_changed)
         self._on_px_size_changed()
 
+    @Slot()
     def _on_px_size_changed(self) -> None:
         val = self.widget.value()
         val.fov_width, val.fov_height = self._get_fov_size()

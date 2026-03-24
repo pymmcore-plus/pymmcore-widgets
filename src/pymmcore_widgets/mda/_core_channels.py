@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Slot
 
 from pymmcore_widgets.useq_widgets import ChannelTable
 
@@ -47,6 +48,7 @@ class CoreConnectedChannelTable(ChannelTable):
 
         self._update_channel_groups()
 
+    @Slot()
     def _update_channel_groups(self) -> None:
         """Update the channel groups when the system configuration is loaded."""
         self.setChannelGroups(

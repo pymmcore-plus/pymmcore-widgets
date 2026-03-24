@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Slot
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QLabel, QSizePolicy, QWidget
 
 from pymmcore_widgets._deprecated._device_widget import StateDeviceWidget
@@ -59,6 +60,7 @@ class ObjectivesWidget(QWidget):
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
 
+    @Slot()
     def _on_sys_cfg_loaded(self) -> None:
         """When config is loaded, check objective still exists, recreate combo."""
         loaded = self._mmc.getLoadedDevices()
@@ -87,6 +89,7 @@ class ObjectivesWidget(QWidget):
             combo.setEnabled(False)
         return combo
 
+    @Slot()
     def _on_obj_changed(self) -> None:
         self._mmc.events.pixelSizeChanged.emit(self._mmc.getPixelSizeUm() or 0.0)
 
