@@ -238,7 +238,7 @@ class StageExplorer(QWidget):
         try:
             if self._stage_poller.isRunning():
                 self._stage_poller.stop()
-        except RuntimeError:
+        except RuntimeError:  # pragma: no cover
             pass
 
     # -----------------------------PUBLIC METHODS-------------------------------------
