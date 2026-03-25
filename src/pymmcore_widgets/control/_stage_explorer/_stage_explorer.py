@@ -399,9 +399,9 @@ class StageExplorer(QWidget):
     def _on_auto_contrast_toggled(self, checked: bool) -> None:
         """Toggle auto-contrast mode."""
         if checked:
-            self._stage_viewer.global_autoscale()
             sv = self._stage_viewer
             self._contrast_slider.autoscale(sv._global_min, sv._global_max)
+            sv.set_clims((sv._global_min, sv._global_max))
 
     def _on_scan_action(self) -> None:
         """Scan the selected ROI."""
@@ -586,6 +586,37 @@ class StageExplorer(QWidget):
         return all(view_rect.contains(*vertex) for vertex in vertices)
 
 
+_CLIM_SLIDER_SS = """
+QSlider::groove:horizontal {
+    height: 15px;
+    background: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(128, 128, 128, 0.25),
+        stop:1 rgba(128, 128, 128, 0.1)
+    );
+    border-radius: 3px;
+}
+QSlider::handle:horizontal {
+    width: 38px;
+    background: #999999;
+    border-radius: 3px;
+}
+QSlider::sub-page:horizontal {
+    background: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(100, 100, 100, 0.25),
+        stop:1 rgba(100, 100, 100, 0.1)
+    );
+}
+QRangeSlider { qproperty-barColor: qlineargradient(
+    x1:0, y1:0, x2:0, y2:1,
+    stop:0 rgba(100, 80, 120, 0.2),
+    stop:1 rgba(100, 80, 120, 0.4)
+)}
+SliderLabel { font-size: 10px; color: white; }
+"""
+
+
 class ContrastSlider(QWidget):
     """A contrast range slider with an auto-contrast toggle button."""
 
@@ -600,16 +631,21 @@ class ContrastSlider(QWidget):
         self._updating: bool = False
 
         self._slider = QLabeledRangeSlider(Qt.Orientation.Horizontal, self)
+        self._slider.setStyleSheet(_CLIM_SLIDER_SS)
+        self._slider.setHandleLabelPosition(
+            QLabeledRangeSlider.LabelPosition.LabelsOnHandle
+        )
+        self._slider.setEdgeLabelMode(QLabeledRangeSlider.EdgeLabelMode.NoLabel)
         self._slider.valueChanged.connect(self._on_slider_changed)
 
         self._auto_btn = QPushButton("Auto", self)
         self._auto_btn.setCheckable(True)
         self._auto_btn.setChecked(True)
-        self._auto_btn.setFixedWidth(42)
+        # self._auto_btn.setMaximumWidth(42)
         self._auto_btn.toggled.connect(self._on_auto_toggled)
 
         layout = QHBoxLayout(self)
-        layout.setSpacing(4)
+        layout.setSpacing(5)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._slider, 1)
         layout.addWidget(self._auto_btn, 0)
