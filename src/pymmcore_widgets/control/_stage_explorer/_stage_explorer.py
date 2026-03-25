@@ -13,8 +13,10 @@ from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QDoubleSpinBox,
     QFormLayout,
+    QHBoxLayout,
     QLabel,
     QMenu,
+    QPushButton,
     QSizePolicy,
     QToolBar,
     QToolButton,
@@ -192,12 +194,11 @@ class StageExplorer(QWidget):
         tb.marker_mode_action_group.triggered.connect(self._update_marker_mode)
         tb.scan_menu.valueChanged.connect(self._on_scan_options_changed)
 
-        # contrast slider (double-handle range slider for global clim)
-        self._contrast_slider = QLabeledRangeSlider(Qt.Orientation.Horizontal, self)
+        self._contrast_slider = ContrastSlider(self)
         self._contrast_slider.setVisible(False)
-        # edge labels show the bit-depth range and are not editable
         self._stage_viewer.climRangeChanged.connect(self._on_clim_range_changed)
         self._contrast_slider.valueChanged.connect(self._on_contrast_slider_changed)
+        self._contrast_slider.autoToggled.connect(self._on_auto_contrast_toggled)
 
         # main layout
         main_layout = QVBoxLayout(self)
@@ -238,7 +239,7 @@ class StageExplorer(QWidget):
         try:
             if self._stage_poller.isRunning():
                 self._stage_poller.stop()
-        except RuntimeError:
+        except RuntimeError:  # pragma: no cover
             pass
 
     # -----------------------------PUBLIC METHODS-------------------------------------
@@ -388,17 +389,19 @@ class StageExplorer(QWidget):
         self, data_min: float, data_max: float, dtype_max: float
     ) -> None:
         """Update the contrast slider when the global data range expands."""
-        was_hidden = not self._contrast_slider.isVisible()
-        # edge labels always reflect the full bit-depth range
-        self._contrast_slider.setRange(0, int(dtype_max))
         self._contrast_slider.setVisible(True)
-        # only auto-set handle values on the first image
-        if was_hidden:
-            self._contrast_slider.setValue((int(data_min), int(data_max)))
+        self._contrast_slider.update_range(data_min, data_max, dtype_max)
 
-    def _on_contrast_slider_changed(self, value: tuple[int, int]) -> None:
+    def _on_contrast_slider_changed(self, value: tuple[float, float]) -> None:
         """Apply the contrast slider values to all images."""
-        self._stage_viewer.set_clims((float(value[0]), float(value[1])))
+        self._stage_viewer.set_clims(value)
+
+    def _on_auto_contrast_toggled(self, checked: bool) -> None:
+        """Toggle auto-contrast mode."""
+        if checked:
+            self._stage_viewer.global_autoscale()
+            sv = self._stage_viewer
+            self._contrast_slider.autoscale(sv._global_min, sv._global_max)
 
     def _on_scan_action(self) -> None:
         """Scan the selected ROI."""
@@ -581,6 +584,67 @@ class StageExplorer(QWidget):
             (x + half_width, y + half_height),  # top-right
         ]
         return all(view_rect.contains(*vertex) for vertex in vertices)
+
+
+class ContrastSlider(QWidget):
+    """A contrast range slider with an auto-contrast toggle button."""
+
+    valueChanged = Signal(tuple)
+    """Emitted as (min, max) floats whenever the effective clim changes."""
+    autoToggled = Signal(bool)
+    """Emitted when the auto-contrast button is toggled."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._auto: bool = True
+        self._updating: bool = False
+
+        self._slider = QLabeledRangeSlider(Qt.Orientation.Horizontal, self)
+        self._slider.valueChanged.connect(self._on_slider_changed)
+
+        self._auto_btn = QPushButton("Auto", self)
+        self._auto_btn.setCheckable(True)
+        self._auto_btn.setChecked(True)
+        self._auto_btn.setFixedWidth(42)
+        self._auto_btn.toggled.connect(self._on_auto_toggled)
+
+        layout = QHBoxLayout(self)
+        layout.setSpacing(4)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._slider, 1)
+        layout.addWidget(self._auto_btn, 0)
+
+    @property
+    def auto(self) -> bool:
+        """Whether auto-contrast is enabled."""
+        return self._auto
+
+    def update_range(self, data_min: float, data_max: float, dtype_max: float) -> None:
+        """Update the slider range and, if auto, the handle values."""
+        self._slider.setRange(0, int(dtype_max))
+        if self._auto:
+            self._updating = True
+            try:
+                self._slider.setValue((int(data_min), int(data_max)))
+            finally:
+                self._updating = False
+
+    def autoscale(self, data_min: float, data_max: float) -> None:
+        """Force the slider handles to the given data range."""
+        self._updating = True
+        try:
+            self._slider.setValue((int(data_min), int(data_max)))
+        finally:
+            self._updating = False
+
+    def _on_slider_changed(self, value: tuple[int, int]) -> None:
+        if not self._updating and self._auto_btn.isChecked():
+            self._auto_btn.setChecked(False)
+        self.valueChanged.emit((float(value[0]), float(value[1])))
+
+    def _on_auto_toggled(self, checked: bool) -> None:
+        self._auto = checked
+        self.autoToggled.emit(checked)
 
 
 class PositionIndicatorMenu(QMenu):
