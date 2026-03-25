@@ -362,9 +362,11 @@ class ComTable(PropTable):
         self._port_dev_name = port_dev_name
         if port_dev_name not in self._core.getLoadedDevices():
             if not port_library_name:
+                self.hide()
                 return
             self._core.loadDevice(port_dev_name, port_library_name, port_dev_name)
         prop_names = self._core.getDevicePropertyNames(port_dev_name)
+        self.show()
         return super().rebuild([(port_dev_name, p) for p in prop_names])
 
 
