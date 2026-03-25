@@ -22,7 +22,7 @@ from qtpy.QtWidgets import (
     QWidget,
     QWidgetAction,
 )
-from superqt import QEnumComboBox, QIconifyIcon
+from superqt import QEnumComboBox, QIconifyIcon, QLabeledRangeSlider
 from useq import OrderMode
 
 from pymmcore_widgets.control._q_stage_controller import QStageMoveAccumulator
@@ -32,13 +32,9 @@ from ._stage_position_marker import StagePositionMarker
 from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
     from PyQt6.QtGui import QAction, QActionGroup, QKeyEvent
     from qtpy.QtGui import QCloseEvent
     from vispy.app.canvas import MouseEvent
-
-    from ._stage_viewer import VisualNode
 else:
     from qtpy.QtWidgets import QAction, QActionGroup
 
@@ -147,8 +143,8 @@ class StageExplorer(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
         self._mmc.events.roiSet.connect(self._on_roi_changed)
 
-        xy_device = self._mmc.getXYStageDevice()
-        self._stage_controller = QStageMoveAccumulator.for_device(xy_device, self._mmc)
+        self._stage_controller: QStageMoveAccumulator | None = None
+        self._set_stage_controller()
 
         self._stage_viewer = StageViewer(self)
         self._stage_viewer.setCursor(Qt.CursorShape.CrossCursor)
@@ -157,22 +153,16 @@ class StageExplorer(QWidget):
         # properties
         self._auto_zoom_to_fit: bool = False
         self._snap_on_double_click: bool = True
-        self._poll_stage_position: bool = True
+        self._poll_stage_position: bool = self._has_devices()
         self._our_mda_running: bool = False
 
         # background thread for polling stage position
         self._stage_poller = _StagePoller(self._mmc)
         self._stage_poller.positionChanged.connect(self._on_stage_position_polled)
 
-        # marker for stage position
-        w, h = self._mmc.getImageWidth(), self._mmc.getImageHeight()
-        self._stage_pos_marker: StagePositionMarker = StagePositionMarker(
-            parent=self._stage_viewer.view.scene,
-            rect_width=w,
-            rect_height=h,
-            marker_symbol_size=min((w, h)) / 10,
-        )
-        self._stage_pos_marker.visible = False
+        # marker for stage position (created when a camera is available)
+        self._stage_pos_marker: StagePositionMarker | None = None
+        self._create_stage_pos_marker()
 
         # --- cached parameters for efficient affine calculations ---
         self._affine_state = AffineState(self._mmc)
@@ -191,7 +181,7 @@ class StageExplorer(QWidget):
         self._toolbar.addWidget(self._stage_pos_label)
 
         # connect actions to methods
-        tb.clear_action.triggered.connect(self._stage_viewer.clear)
+        tb.clear_action.triggered.connect(self._on_clear_action)
         tb.zoom_to_fit_action.triggered.connect(self._on_zoom_to_fit_action)
         tb.auto_zoom_to_fit_action.triggered.connect(self._on_auto_zoom_to_fit_action)
         tb.snap_action.triggered.connect(self._on_snap_action)
@@ -202,21 +192,27 @@ class StageExplorer(QWidget):
         tb.marker_mode_action_group.triggered.connect(self._update_marker_mode)
         tb.scan_menu.valueChanged.connect(self._on_scan_options_changed)
 
+        # contrast slider (double-handle range slider for global clim)
+        self._contrast_slider = QLabeledRangeSlider(Qt.Orientation.Horizontal, self)
+        self._contrast_slider.setVisible(False)
+        # edge labels show the bit-depth range and are not editable
+        self._stage_viewer.climRangeChanged.connect(self._on_clim_range_changed)
+        self._contrast_slider.valueChanged.connect(self._on_contrast_slider_changed)
+
         # main layout
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self._toolbar, 0)
         main_layout.addWidget(self._stage_viewer, 1)
+        main_layout.addWidget(self._contrast_slider, 0)
 
         # connections core events
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
-        self._mmc.events.pixelSizeAffineChanged.connect(
-            self._on_pixel_size_affine_changed
-        )
+        self._mmc.events.pixelSizeAffineChanged.connect(self._on_pixel_size_changed)
 
         # connections vispy events
         self._stage_viewer.canvas.events.mouse_double_click.connect(
@@ -224,10 +220,11 @@ class StageExplorer(QWidget):
         )
 
         # initial setup
-        self._on_sys_config_loaded()
         self._on_roi_changed()
         self._toolbar.snap_action.setChecked(self._snap_on_double_click)
-        self._toolbar.poll_stage_action.trigger()
+        self._update_actions_enabled()
+        if self._poll_stage_position:
+            self._toolbar.poll_stage_action.trigger()
         self.zoom_to_fit()
 
     def closeEvent(self, a0: QCloseEvent | None) -> None:
@@ -238,8 +235,11 @@ class StageExplorer(QWidget):
         self._stop_poller()
 
     def _stop_poller(self) -> None:
-        if self._stage_poller.isRunning():
-            self._stage_poller.stop()
+        try:
+            if self._stage_poller.isRunning():
+                self._stage_poller.stop()
+        except RuntimeError:
+            pass
 
     # -----------------------------PUBLIC METHODS-------------------------------------
 
@@ -306,21 +306,42 @@ class StageExplorer(QWidget):
 
         ...also considering the stage position marker.
         """
-        visuals: Iterable[VisualNode] = [
-            *self._stage_viewer._get_images(),  # pyright: ignore
-            self._stage_pos_marker,
-        ]
+        visuals: list = list(self._stage_viewer._get_images())  # pyright: ignore
+        if self._stage_pos_marker is not None:
+            visuals.append(self._stage_pos_marker)
         x_bounds, y_bounds, *_ = get_vispy_scene_bounds(visuals)
         self._stage_viewer.view.camera.set_range(x=x_bounds, y=y_bounds, margin=margin)
 
     # -----------------------------PRIVATE METHODS------------------------------------
 
+    def _has_devices(self) -> bool:
+        """Return True if devices (beyond the core) are loaded."""
+        return len(self._mmc.getLoadedDevices()) > 1
+
+    def _update_actions_enabled(self) -> None:
+        """Enable/disable toolbar actions based on loaded devices."""
+        has_devices = self._has_devices()
+        tb = self._toolbar
+        tb.snap_action.setEnabled(has_devices)
+        tb.poll_stage_action.setEnabled(has_devices)
+        tb.scan_action.setEnabled(has_devices)
+        tb.delete_rois_action.setEnabled(has_devices)
+        for action in self.roi_manager.mode_actions.actions():
+            action.setEnabled(has_devices)
+
     # ACTIONS ----------------------------------------------------------------------
+
+    def _on_clear_action(self) -> None:
+        """Clear the scene and hide the contrast slider."""
+        self._stage_viewer.clear()
+        self._contrast_slider.setVisible(False)
 
     def _on_roi_changed(self) -> None:
         """Update the ROI manager when a new ROI is set."""
         img_w = self._mmc.getImageWidth()
         img_h = self._mmc.getImageHeight()
+        if not img_w or not img_h:
+            return
         px = self._mmc.getPixelSizeUm()
         self.roi_manager.update_fovs((img_w * px, img_h * px))
 
@@ -331,7 +352,8 @@ class StageExplorer(QWidget):
         self._half_img_shift = np.eye(4)
         self._half_img_shift[0:2, 3] = (-img_w / 2, -img_h / 2)
 
-        self._stage_pos_marker.set_rect_size(img_w, img_h)
+        if self._stage_pos_marker is not None:
+            self._stage_pos_marker.set_rect_size(img_w, img_h)
 
     def _on_snap_action(self, checked: bool) -> None:
         """Update the stage viewer settings based on the state of the action."""
@@ -355,10 +377,28 @@ class StageExplorer(QWidget):
         Usually, the sender will be the action_group on the PositionIndicatorMenu.
         """
         sender = self.sender()
+        if self._stage_pos_marker is None:
+            return
         if isinstance(sender, QActionGroup) and (action := sender.checkedAction()):
             pi = PositionIndicator(action.text())
             self._stage_pos_marker.set_rect_visible(pi.show_rect)
             self._stage_pos_marker.set_marker_visible(pi.show_marker)
+
+    def _on_clim_range_changed(
+        self, data_min: float, data_max: float, dtype_max: float
+    ) -> None:
+        """Update the contrast slider when the global data range expands."""
+        was_hidden = not self._contrast_slider.isVisible()
+        # edge labels always reflect the full bit-depth range
+        self._contrast_slider.setRange(0, int(dtype_max))
+        self._contrast_slider.setVisible(True)
+        # only auto-set handle values on the first image
+        if was_hidden:
+            self._contrast_slider.setValue((int(data_min), int(data_max)))
+
+    def _on_contrast_slider_changed(self, value: tuple[int, int]) -> None:
+        """Apply the contrast slider values to all images."""
+        self._stage_viewer.set_clims((float(value[0]), float(value[1])))
 
     def _on_scan_action(self) -> None:
         """Scan the selected ROI."""
@@ -396,33 +436,54 @@ class StageExplorer(QWidget):
         fov_h = self._mmc.getImageHeight() * px
         return fov_w, fov_h
 
-    def _half_img_translation_mtx(self, img_w: int, img_h: int) -> np.ndarray:
-        """Return the transformation matrix to translate half the size of the image."""
-        # by default, vispy add the images from the bottom-left corner. We need to
-        # translate by -w/2 and -h/2 so the position corresponds to the center of the
-        # images. In addition, this make sure the rotation (if any) is applied around
-        # the center of the image.
-        T_center = np.eye(4)
-        T_center[0, 3] = -img_w / 2
-        T_center[1, 3] = -img_h / 2
-        return T_center
-
     def _on_sys_config_loaded(self) -> None:
-        """Clear the scene when the system configuration is loaded."""
+        """Clear the scene and reinitialize when the system configuration is loaded."""
         self._stage_viewer.clear()
-
-    def _on_pixel_size_changed(self, value: float) -> None:
-        """Update scene when the pixel size changes."""
+        self._contrast_slider.setVisible(False)
+        self._set_stage_controller()
         self._affine_state.refresh()
 
-    def _on_pixel_size_affine_changed(self) -> None:
-        """Handle updates to the 2 x 3 pixel size affine."""
-        self._pixel_size_affine = self._mmc.getPixelSizeAffine()
+        self._create_stage_pos_marker()
+        self._on_roi_changed()
+        self._update_actions_enabled()
+
+        # start/stop the poller based on whether an XY stage is available
+        has_xy = bool(self._mmc.getXYStageDevice())
+        if has_xy and not self._stage_poller.isRunning():
+            self._toolbar.poll_stage_action.setChecked(True)
+            self._on_poll_stage_action(True)
+            self.zoom_to_fit()
+        elif not has_xy and self._stage_poller.isRunning():
+            self._toolbar.poll_stage_action.setChecked(False)
+            self._on_poll_stage_action(False)
+
+    def _create_stage_pos_marker(self) -> None:
+        """(Re)create the stage position marker if a camera is available."""
+        w, h = self._mmc.getImageWidth(), self._mmc.getImageHeight()
+        if not w or not h:
+            return
+        if self._stage_pos_marker is not None:
+            self._stage_pos_marker.parent = None
+        self._stage_pos_marker = StagePositionMarker(
+            parent=self._stage_viewer.view.scene,
+            rect_width=w,
+            rect_height=h,
+            marker_symbol_size=min(w, h) / 10,
+        )
+        self._stage_pos_marker.visible = False
+
+    def _set_stage_controller(self) -> None:
+        self._stage_controller = None
+        if xy_dev := self._mmc.getXYStageDevice():
+            self._stage_controller = QStageMoveAccumulator.for_device(xy_dev, self._mmc)
+
+    def _on_pixel_size_changed(self, *args: object) -> None:
+        """Refresh the affine state when pixel size or affine changes."""
         self._affine_state.refresh()
 
     def _on_mouse_double_click(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
-        if not self._mmc.getXYStageDevice():
+        if not self._mmc.getXYStageDevice() or self._stage_controller is None:
             return
         if self.roi_manager.mode == "create-poly":
             return
@@ -457,12 +518,13 @@ class StageExplorer(QWidget):
 
     def _on_poll_stage_action(self, checked: bool) -> None:
         """Set the poll stage position property based on the state of the action."""
-        self._stage_pos_marker.visible = checked
+        if self._stage_pos_marker is not None:
+            self._stage_pos_marker.visible = checked
         self._poll_stage_position = checked
-        if checked:
+        if checked and self._mmc.getXYStageDevice():
             self._stage_poller.start()
         else:
-            self._stage_poller.stop()
+            self._stop_poller()
 
     def _on_show_grid_action(self, checked: bool) -> None:
         """Set the show grid property based on the state of the action."""
@@ -473,8 +535,9 @@ class StageExplorer(QWidget):
         self._stage_pos_label.setText(f"X: {stage_x:.2f} µm  Y: {stage_y:.2f} µm")
 
         # fast path: copy cached rotation/scale part and just update translation
-        matrix = self._affine_state.system_affine_translated(stage_x, stage_y)
-        self._stage_pos_marker.apply_transform(matrix.T)
+        if self._stage_pos_marker is not None:
+            matrix = self._affine_state.system_affine_translated(stage_x, stage_y)
+            self._stage_pos_marker.apply_transform(matrix.T)
 
         # zoom_to_fit only if auto _auto_zoom_to_fit property is set to True.
         if self._auto_zoom_to_fit:
