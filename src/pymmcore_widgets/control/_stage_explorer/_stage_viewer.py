@@ -7,7 +7,7 @@ import numpy as np
 import vispy
 import vispy.scene
 import vispy.visuals
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import QLabel, QVBoxLayout, QWidget
 from vispy import scene
 from vispy.scene.visuals import Image
@@ -25,6 +25,9 @@ if TYPE_CHECKING:
 class StageViewer(QWidget):
     """A widget to add images with a transform to a vispy canves."""
 
+    climRangeChanged = Signal(float, float, float)
+    """Emitted as (data_min, data_max, dtype_max) when global data range changes."""
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Stage Explorer")
@@ -32,6 +35,10 @@ class StageViewer(QWidget):
 
         self._clims: tuple[float, float] | None = None
         self._cmap: cmap.Colormap = cmap.Colormap("gray")
+        # running global data range across all images
+        self._global_min: float = float("inf")
+        self._global_max: float = float("-inf")
+        self._dtype_max: float = 65535.0
 
         self.canvas = vispy.scene.SceneCanvas(show=True)
 
@@ -128,6 +135,24 @@ class StageViewer(QWidget):
             if np.allclose(transform[-1], (0, 0, 0, 1)):
                 transform = transform.T
 
+        # update running global data range
+        img_min, img_max = float(img.min()), float(img.max())
+        if np.issubdtype(img.dtype, np.integer):
+            self._dtype_max = float(np.iinfo(img.dtype).max)
+        else:
+            self._dtype_max = 1.0
+        changed = False
+        if img_min < self._global_min:
+            self._global_min = img_min
+            changed = True
+        if img_max > self._global_max:
+            self._global_max = img_max
+            changed = True
+        if changed:
+            self.climRangeChanged.emit(
+                self._global_min, self._global_max, self._dtype_max
+            )
+
         # add the image to the scene with the transform
         frame = Image(
             img,
@@ -145,6 +170,8 @@ class StageViewer(QWidget):
         for child in reversed(self.view.scene.children):
             if isinstance(child, Image):
                 child.parent = None
+        self._global_min = float("inf")
+        self._global_max = float("-inf")
 
     def zoom_to_fit(self, *, margin: float = 0.05) -> None:
         """Recenter the view to the center of all images.

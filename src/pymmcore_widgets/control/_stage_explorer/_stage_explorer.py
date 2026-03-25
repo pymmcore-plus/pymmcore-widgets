@@ -22,7 +22,7 @@ from qtpy.QtWidgets import (
     QWidget,
     QWidgetAction,
 )
-from superqt import QEnumComboBox, QIconifyIcon
+from superqt import QEnumComboBox, QIconifyIcon, QLabeledRangeSlider
 from useq import OrderMode
 
 from pymmcore_widgets.control._q_stage_controller import QStageMoveAccumulator
@@ -202,12 +202,24 @@ class StageExplorer(QWidget):
         tb.marker_mode_action_group.triggered.connect(self._update_marker_mode)
         tb.scan_menu.valueChanged.connect(self._on_scan_options_changed)
 
+        # contrast slider (double-handle range slider for global clim)
+        self._contrast_slider = QLabeledRangeSlider(Qt.Orientation.Horizontal, self)
+        self._contrast_slider.setRange(0, 65535)
+        self._contrast_slider.setValue((0, 65535))
+        self._contrast_slider.setEnabled(False)
+        # edge labels show the bit-depth range and are not editable
+        self._contrast_slider._min_label.setReadOnly(True)
+        self._contrast_slider._max_label.setReadOnly(True)
+        self._stage_viewer.climRangeChanged.connect(self._on_clim_range_changed)
+        self._contrast_slider.valueChanged.connect(self._on_contrast_slider_changed)
+
         # main layout
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self._toolbar, 0)
         main_layout.addWidget(self._stage_viewer, 1)
+        main_layout.addWidget(self._contrast_slider, 0)
 
         # connections core events
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
@@ -359,6 +371,22 @@ class StageExplorer(QWidget):
             pi = PositionIndicator(action.text())
             self._stage_pos_marker.set_rect_visible(pi.show_rect)
             self._stage_pos_marker.set_marker_visible(pi.show_marker)
+
+    def _on_clim_range_changed(
+        self, data_min: float, data_max: float, dtype_max: float
+    ) -> None:
+        """Update the contrast slider when the global data range expands."""
+        was_disabled = not self._contrast_slider.isEnabled()
+        # edge labels always reflect the full bit-depth range
+        self._contrast_slider.setRange(0, int(dtype_max))
+        self._contrast_slider.setEnabled(True)
+        # only auto-set handle values on the first image
+        if was_disabled:
+            self._contrast_slider.setValue((int(data_min), int(data_max)))
+
+    def _on_contrast_slider_changed(self, value: tuple[int, int]) -> None:
+        """Apply the contrast slider values to all images."""
+        self._stage_viewer.set_clims((float(value[0]), float(value[1])))
 
     def _on_scan_action(self) -> None:
         """Scan the selected ROI."""
