@@ -153,7 +153,7 @@ class StageExplorer(QWidget):
         # properties
         self._auto_zoom_to_fit: bool = False
         self._snap_on_double_click: bool = True
-        self._poll_stage_position: bool = len(self._mmc.getLoadedDevices()) > 1
+        self._poll_stage_position: bool = self._has_devices()
         self._our_mda_running: bool = False
 
         # background thread for polling stage position
@@ -196,8 +196,6 @@ class StageExplorer(QWidget):
         self._contrast_slider = QLabeledRangeSlider(Qt.Orientation.Horizontal, self)
         self._contrast_slider.setVisible(False)
         # edge labels show the bit-depth range and are not editable
-        self._contrast_slider._min_label.setReadOnly(True)
-        self._contrast_slider._max_label.setReadOnly(True)
         self._stage_viewer.climRangeChanged.connect(self._on_clim_range_changed)
         self._contrast_slider.valueChanged.connect(self._on_contrast_slider_changed)
 
@@ -214,9 +212,7 @@ class StageExplorer(QWidget):
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
-        self._mmc.events.pixelSizeAffineChanged.connect(
-            self._on_pixel_size_affine_changed
-        )
+        self._mmc.events.pixelSizeAffineChanged.connect(self._on_pixel_size_changed)
 
         # connections vispy events
         self._stage_viewer.canvas.events.mouse_double_click.connect(
@@ -318,9 +314,13 @@ class StageExplorer(QWidget):
 
     # -----------------------------PRIVATE METHODS------------------------------------
 
+    def _has_devices(self) -> bool:
+        """Return True if devices (beyond the core) are loaded."""
+        return len(self._mmc.getLoadedDevices()) > 1
+
     def _update_actions_enabled(self) -> None:
         """Enable/disable toolbar actions based on loaded devices."""
-        has_devices = len(self._mmc.getLoadedDevices()) > 1
+        has_devices = self._has_devices()
         tb = self._toolbar
         tb.snap_action.setEnabled(has_devices)
         tb.poll_stage_action.setEnabled(has_devices)
@@ -436,20 +436,10 @@ class StageExplorer(QWidget):
         fov_h = self._mmc.getImageHeight() * px
         return fov_w, fov_h
 
-    def _half_img_translation_mtx(self, img_w: int, img_h: int) -> np.ndarray:
-        """Return the transformation matrix to translate half the size of the image."""
-        # by default, vispy add the images from the bottom-left corner. We need to
-        # translate by -w/2 and -h/2 so the position corresponds to the center of the
-        # images. In addition, this make sure the rotation (if any) is applied around
-        # the center of the image.
-        T_center = np.eye(4)
-        T_center[0, 3] = -img_w / 2
-        T_center[1, 3] = -img_h / 2
-        return T_center
-
     def _on_sys_config_loaded(self) -> None:
         """Clear the scene and reinitialize when the system configuration is loaded."""
         self._stage_viewer.clear()
+        self._contrast_slider.setVisible(False)
         self._set_stage_controller()
         self._affine_state.refresh()
 
@@ -487,13 +477,8 @@ class StageExplorer(QWidget):
         if xy_dev := self._mmc.getXYStageDevice():
             self._stage_controller = QStageMoveAccumulator.for_device(xy_dev, self._mmc)
 
-    def _on_pixel_size_changed(self, value: float) -> None:
-        """Update scene when the pixel size changes."""
-        self._affine_state.refresh()
-
-    def _on_pixel_size_affine_changed(self) -> None:
-        """Handle updates to the 2 x 3 pixel size affine."""
-        self._pixel_size_affine = self._mmc.getPixelSizeAffine()
+    def _on_pixel_size_changed(self, *args: object) -> None:
+        """Refresh the affine state when pixel size or affine changes."""
         self._affine_state.refresh()
 
     def _on_mouse_double_click(self, event: MouseEvent) -> None:

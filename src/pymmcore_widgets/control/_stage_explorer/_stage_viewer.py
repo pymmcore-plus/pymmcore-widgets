@@ -141,14 +141,10 @@ class StageViewer(QWidget):
             self._dtype_max = float(np.iinfo(img.dtype).max)
         else:
             self._dtype_max = 1.0
-        changed = False
-        if img_min < self._global_min:
-            self._global_min = img_min
-            changed = True
-        if img_max > self._global_max:
-            self._global_max = img_max
-            changed = True
-        if changed:
+        old_min, old_max = self._global_min, self._global_max
+        self._global_min = min(self._global_min, img_min)
+        self._global_max = max(self._global_max, img_max)
+        if self._global_min != old_min or self._global_max != old_max:
             self.climRangeChanged.emit(
                 self._global_min, self._global_max, self._dtype_max
             )
