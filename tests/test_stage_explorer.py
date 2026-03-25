@@ -11,6 +11,7 @@ from vispy.scene.visuals import Image
 
 from pymmcore_widgets.control._rois.roi_model import RectangleROI
 from pymmcore_widgets.control._stage_explorer._stage_explorer import (
+    ContrastSlider,
     ScanMenu,
     StageExplorer,
 )
@@ -411,7 +412,7 @@ def test_stage_explorer_contrast_slider_values_set_on_first_image(
     qtbot.addWidget(explorer)
     img = np.array([[10, 200]], dtype=np.uint8)
     explorer.add_image(img, 0.0, 0.0)
-    lo, hi = explorer._contrast_slider.value()
+    lo, hi = explorer._contrast_slider._slider.value()
     assert lo == 10
     assert hi == 200
 
@@ -426,13 +427,13 @@ def test_stage_explorer_contrast_slider_not_reset_by_second_image(
     img1 = np.array([[10, 200]], dtype=np.uint8)
     explorer.add_image(img1, 0.0, 0.0)
     # manually change slider values after first image
-    explorer._contrast_slider.setValue((50, 150))
+    explorer._contrast_slider._slider.setValue((50, 150))
 
     img2 = np.array([[0, 255]], dtype=np.uint8)  # wider range
     explorer.add_image(img2, 10.0, 0.0)
 
     # slider handles should still reflect the manually set values
-    lo, hi = explorer._contrast_slider.value()
+    lo, hi = explorer._contrast_slider._slider.value()
     assert lo == 50
     assert hi == 150
 
@@ -447,6 +448,51 @@ def test_stage_explorer_contrast_slider_applies_clims(qtbot: QtBot) -> None:
     explorer._on_contrast_slider_changed((30, 220))
 
     assert explorer._stage_viewer._clims == (30.0, 220.0)
+
+
+# ---------------------------------------------------------------------------
+# ContrastSlider - auto button toggles off on manual slider interaction
+# ---------------------------------------------------------------------------
+
+
+def test_contrast_slider_auto_off_on_user_interaction(qtbot: QtBot) -> None:
+    """Manually moving the slider turns the auto button off."""
+    widget = ContrastSlider()
+    qtbot.addWidget(widget)
+    widget._slider.setRange(0, 255)
+    assert widget._auto_btn.isChecked()
+
+    widget._slider.setValue((50, 200))
+
+    assert not widget._auto_btn.isChecked()
+    assert not widget.auto
+
+
+def test_contrast_slider_auto_stays_on_during_programmatic_update(
+    qtbot: QtBot,
+) -> None:
+    """Programmatic update_range does NOT disable the auto button."""
+    widget = ContrastSlider()
+    qtbot.addWidget(widget)
+    assert widget._auto_btn.isChecked()
+
+    widget.update_range(10, 200, 255)
+
+    assert widget._auto_btn.isChecked()
+    assert widget.auto
+
+
+def test_contrast_slider_autoscale_does_not_disable_auto(qtbot: QtBot) -> None:
+    """autoscale() is a programmatic call and must not turn auto off."""
+    widget = ContrastSlider()
+    qtbot.addWidget(widget)
+    widget._slider.setRange(0, 255)
+    assert widget._auto_btn.isChecked()
+
+    widget.autoscale(20, 180)
+
+    assert widget._auto_btn.isChecked()
+    assert widget.auto
 
 
 def test_stage_explorer_clear_action_hides_contrast_slider(qtbot: QtBot) -> None:
