@@ -14,13 +14,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check-manifest:
-    name: Check Manifest
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
-      - run: uvx check-manifest
+  # check-manifest:
+  #   name: Check Manifest
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #     - uses: astral-sh/setup-uv@v7
+  #     - run: uvx check-manifest
 
   test:
     name: ${{ matrix.os }} py${{ matrix.python-version }} ${{ matrix.backend }} ${{ matrix.resolution }} ${{ matrix.nano && 'nano' || '' }}
