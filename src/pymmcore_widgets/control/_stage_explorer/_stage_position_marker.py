@@ -43,7 +43,7 @@ class StagePositionMarker(Compound):
             edge_color=Color(marker_symbol_color),
             size=marker_symbol_size,
             edge_width=marker_symbol_edge_width,
-            scaling="fixed",
+            scaling="scene",
         )
 
         super().__init__([self._marker, self._rect])
