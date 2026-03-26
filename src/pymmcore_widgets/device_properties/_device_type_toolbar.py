@@ -28,10 +28,24 @@ class DeviceButtonToolbar(QToolBar):
         super().__init__(parent)
         self.setIconSize(QSize(16, 16))
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-        for device_type in sorted(DeviceType, key=lambda x: x.name):
-            if device_type in (DeviceType.Any, DeviceType.Unknown):
-                continue
-
+        _priority = [
+            DeviceType.Core,
+            DeviceType.CameraDevice,
+            DeviceType.StageDevice,
+            DeviceType.XYStageDevice,
+            DeviceType.StateDevice,
+            DeviceType.ShutterDevice,
+        ]
+        _priority_set = set(_priority)
+        _rest = sorted(
+            (
+                d
+                for d in DeviceType
+                if d not in _priority_set | {DeviceType.Any, DeviceType.Unknown}
+            ),
+            key=lambda x: x.name,
+        )
+        for device_type in _priority + _rest:
             label = device_type.name.replace("Device", "")
             icon = StandardIcon.for_device_type(device_type)
             action = cast(
