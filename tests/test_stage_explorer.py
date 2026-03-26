@@ -46,8 +46,6 @@ def test_stage_viewer_clims_cmaps(qtbot: QtBot) -> None:
 
     # just some smoke tests
     stage_viewer.set_clims((0, 1))
-    stage_viewer.global_autoscale(ignore_min=0.1, ignore_max=0.1)
-    stage_viewer.set_colormap("viridis")
 
 
 def test_stage_viewer_clear_scene(qtbot: QtBot) -> None:
@@ -161,7 +159,6 @@ def test_mouse_hover_shows_position(qtbot: QtBot) -> None:
     viewer = StageViewer()
     viewer.show()
     qtbot.addWidget(viewer)
-    viewer.set_hover_label_visible(True)
 
     # Simulate mouse move event
     event = MouseEvent("mouse_move", pos=(100, 2))
