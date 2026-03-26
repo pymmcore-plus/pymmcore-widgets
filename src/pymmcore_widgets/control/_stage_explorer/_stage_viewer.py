@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import cmap
 import numpy as np
@@ -8,7 +8,7 @@ import vispy
 import vispy.scene
 import vispy.visuals
 from qtpy.QtCore import Qt, Signal
-from qtpy.QtWidgets import QLabel, QVBoxLayout, QWidget
+from qtpy.QtWidgets import QLabel, QMenu, QVBoxLayout, QWidget
 from vispy import scene
 from vispy.scene.visuals import Image
 
@@ -44,6 +44,7 @@ class StageViewer(QWidget):
 
         self.view = cast("ViewBox", self.canvas.central_widget.add_view())
         self.view.camera = scene.PanZoomCamera(aspect=1)
+        self.view.camera.flip = (True, True)
 
         self._grid_lines = vispy.scene.GridLines(
             parent=self.view.scene,
@@ -64,6 +65,10 @@ class StageViewer(QWidget):
             Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
         )
         self.canvas.events.mouse_move.connect(self._on_mouse_move)
+
+        # context menu
+        self.canvas.native.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.canvas.native.customContextMenuRequested.connect(self._show_context_menu)
 
     # --------------------PUBLIC METHODS--------------------
 
@@ -171,6 +176,31 @@ class StageViewer(QWidget):
         return canvas_x, canvas_y
 
     # --------------------PRIVATE METHODS--------------------
+
+    def _show_context_menu(self, pos: Any) -> None:
+        menu = QMenu(self)
+
+        flip_x, flip_y, *_ = self.view.camera.flip
+
+        flip_x_action = menu.addAction("Flip X")
+        flip_x_action.setCheckable(True)
+        flip_x_action.setChecked(flip_x)
+        flip_x_action.toggled.connect(lambda checked: self._set_flip(x=checked))
+
+        flip_y_action = menu.addAction("Flip Y")
+        flip_y_action.setCheckable(True)
+        flip_y_action.setChecked(flip_y)
+        flip_y_action.toggled.connect(lambda checked: self._set_flip(y=checked))
+
+        menu.exec(self.canvas.native.mapToGlobal(pos))
+
+    def _set_flip(self, x: bool | None = None, y: bool | None = None) -> None:
+        cur_x, cur_y, cur_z = self.view.camera.flip
+        self.view.camera.flip = (
+            x if x is not None else cur_x,
+            y if y is not None else cur_y,
+            cur_z,
+        )
 
     def _get_images(self) -> Iterator[Image]:
         """Yield images in the scene."""
