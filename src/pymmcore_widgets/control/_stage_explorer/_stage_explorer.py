@@ -295,12 +295,20 @@ class StageExplorer(QWidget):
         self, image: np.ndarray, stage_x_um: float, stage_y_um: float
     ) -> None:
         """Add an image to the scene at a give (x, y) stage position in microns."""
+        # compute half-image shift from actual image dimensions so it's always
+        # correct regardless of camera property changes.
+        h, w = image.shape[:2]
+        half_img_shift = np.eye(4)
+        half_img_shift[0:2, 3] = (-w / 2, -h / 2)
+
         stage_shift = np.eye(4)
         stage_shift[0:2, 3] = (stage_x_um, stage_y_um)
-        # TODO: it's a little odd we apply half_img_shift here, but not in the
-        # stage position marker... figure that out.
-        matrix = stage_shift @ self._affine_state.system_affine @ self._half_img_shift
+        matrix = stage_shift @ self._affine_state.system_affine @ half_img_shift
         self._stage_viewer.add_image(image, transform=matrix.T)
+
+        # update the stage position marker size to match the actual image
+        if self._stage_pos_marker is not None:
+            self._stage_pos_marker.set_rect_size(w, h)
 
     def zoom_to_fit(self, *, margin: float = 0.05) -> None:
         """Zoom to fit the current view to the images in the scene.
@@ -345,13 +353,6 @@ class StageExplorer(QWidget):
             return
         px = self._mmc.getPixelSizeUm()
         self.roi_manager.update_fovs((img_w * px, img_h * px))
-
-        # by default, vispy add the images from the bottom-left corner. We need to
-        # translate by -w/2 and -h/2 so the position corresponds to the center of the
-        # images. In addition, this makes sure the rotation (if any) is applied around
-        # the center of the image.
-        self._half_img_shift = np.eye(4)
-        self._half_img_shift[0:2, 3] = (-img_w / 2, -img_h / 2)
 
         if self._stage_pos_marker is not None:
             self._stage_pos_marker.set_rect_size(img_w, img_h)
