@@ -641,7 +641,7 @@ class ContrastSlider(QWidget):
         self._auto_btn = QPushButton("Auto", self)
         self._auto_btn.setCheckable(True)
         self._auto_btn.setChecked(True)
-        # self._auto_btn.setMaximumWidth(42)
+        self._auto_btn.setMaximumWidth(42)
         self._auto_btn.toggled.connect(self._on_auto_toggled)
 
         layout = QHBoxLayout(self)
