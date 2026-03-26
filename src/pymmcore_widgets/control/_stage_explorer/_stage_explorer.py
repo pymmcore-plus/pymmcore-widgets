@@ -646,7 +646,7 @@ class ContrastSlider(QWidget):
         self._auto_btn = QPushButton("Auto", self)
         self._auto_btn.setCheckable(True)
         self._auto_btn.setChecked(True)
-        # self._auto_btn.setMaximumWidth(42)
+        self._auto_btn.setMaximumWidth(42)
         self._auto_btn.toggled.connect(self._on_auto_toggled)
 
         layout = QHBoxLayout(self)
@@ -793,7 +793,7 @@ class ScanMenu(QMenu):
         form.addRow("Overlap", self._overlap_spin)
 
         self._mode_cbox = QEnumComboBox(self, OrderMode)
-        self._mode_cbox.setCurrentEnum(OrderMode.row_wise_snake)
+        self._mode_cbox.setCurrentEnum(OrderMode.spiral)
         form.addRow("Order", self._mode_cbox)
 
         action = QWidgetAction(self)
