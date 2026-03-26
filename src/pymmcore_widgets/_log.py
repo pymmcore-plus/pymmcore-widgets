@@ -14,7 +14,13 @@ from qtpy.QtCore import (
     QUrl,
     Signal,
 )
-from qtpy.QtGui import QCloseEvent, QDesktopServices, QFontDatabase, QPalette
+from qtpy.QtGui import (
+    QCloseEvent,
+    QDesktopServices,
+    QFontDatabase,
+    QPalette,
+    QTextCursor,
+)
 from qtpy.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -152,13 +158,18 @@ class CoreLogWidget(QWidget):
 
         path = path or self._mmcore.getPrimaryLogFile()
         self._log_path.setText(path)
-        # Load the last `max_lines` from file
+        # Load the last `max_lines` from file...
         try:
             with open(path, encoding="utf-8", errors="replace") as f:
                 for line in deque(f, maxlen=max_lines):
                     self._log_view.appendPlainText(line.rstrip("\n"))
         except Exception:
             pass
+        # ...and then move the cursor back to the beginning
+        # QPlainTextEdit's default behavior is to keep the cursor in view
+        # on resizes, so this is an indirect way getting the view in the widget
+        # to start at the left edge of the text.
+        self._log_view.moveCursor(QTextCursor.MoveOperation.Start)
 
         # --- Reader thread setup ---
         self._reader = _LogReader(path)
