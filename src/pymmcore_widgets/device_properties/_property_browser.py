@@ -59,6 +59,7 @@ class PropertyBrowser(QWidget):
 
         self._mmc.events.systemConfigurationLoaded.connect(self._update_filter)
         self.destroyed.connect(self._disconnect)
+        self._update_filter()
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._update_filter)
