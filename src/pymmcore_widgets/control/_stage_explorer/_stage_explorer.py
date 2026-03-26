@@ -297,6 +297,10 @@ class StageExplorer(QWidget):
         """Add an image to the scene at a give (x, y) stage position in microns."""
         # compute half-image shift from actual image dimensions so it's always
         # correct regardless of camera property changes.
+        # by default, vispy add the images from the bottom-left corner. We need to
+        # translate by -w/2 and -h/2 so the position corresponds to the center of the
+        # images. In addition, this makes sure the rotation (if any) is applied around
+        # the center of the image.
         h, w = image.shape[:2]
         half_img_shift = np.eye(4)
         half_img_shift[0:2, 3] = (-w / 2, -h / 2)
