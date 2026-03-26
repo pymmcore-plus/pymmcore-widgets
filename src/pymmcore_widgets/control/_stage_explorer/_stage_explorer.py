@@ -788,7 +788,7 @@ class ScanMenu(QMenu):
         form.addRow("Overlap", self._overlap_spin)
 
         self._mode_cbox = QEnumComboBox(self, OrderMode)
-        self._mode_cbox.setCurrentEnum(OrderMode.row_wise_snake)
+        self._mode_cbox.setCurrentEnum(OrderMode.spiral)
         form.addRow("Order", self._mode_cbox)
 
         action = QWidgetAction(self)
