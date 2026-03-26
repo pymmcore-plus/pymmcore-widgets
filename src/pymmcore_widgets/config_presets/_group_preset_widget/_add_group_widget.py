@@ -4,6 +4,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Slot
 from qtpy.QtWidgets import (
     QDialog,
     QGroupBox,
@@ -143,6 +144,7 @@ class AddGroupWidget(QDialog):
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._update_filter)
 
+    @Slot()
     def _update_filter(self) -> None:
         filt = self._filter_text.text().lower()
         self._prop_table.filterDevices(
@@ -152,6 +154,7 @@ class AddGroupWidget(QDialog):
             include_pre_init=self._device_filters.showPreInitProps(),
         )
 
+    @Slot()
     def _add_group(self) -> None:
         group = self.group_lineedit.text()
 

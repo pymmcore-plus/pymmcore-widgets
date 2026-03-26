@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from pymmcore_plus import CMMCorePlus
 from pymmcore_plus._logger import logger
 from pymmcore_plus._util import retry
-from qtpy.QtCore import QEvent, QObject, Qt
+from qtpy.QtCore import QEvent, QObject, Qt, Slot
 from qtpy.QtWidgets import (
     QCheckBox,
     QMessageBox,
@@ -178,6 +178,7 @@ class CoreConnectedPositionTable(PositionTable):
             self._hcs_wizard.accepted.connect(self._on_hcs_accepted)
         return self._hcs_wizard
 
+    @Slot()
     def _on_hcs_accepted(self) -> None:
         """Add the positions from the HCS wizard to the stage positions."""
         self._plate_plan = self._hcs.value()
@@ -280,12 +281,14 @@ class CoreConnectedPositionTable(PositionTable):
                     )
                 name_item.setFlags(flags)
 
+    @Slot()
     def _on_sys_config_loaded(self) -> None:
         """Update the table when the system configuration is loaded."""
         self._update_xy_enablement()
         self._update_z_enablement()
         self._update_autofocus_enablement()
 
+    @Slot(str, str, object)
     def _on_property_changed(self, device: str, prop: str, _val: str = "") -> None:
         """Enable/Disable stages columns."""
         if device == "Core":
@@ -380,6 +383,7 @@ class CoreConnectedPositionTable(PositionTable):
             data = {self.AF.key: self._mmc.getAutoFocusOffset()}
             self.table().setRowData(row, data)
 
+    @Slot()
     def _on_selection_change(self) -> None:
         if not self.move_to_selection.isChecked():
             return
@@ -466,6 +470,7 @@ class CoreConnectedPositionTable(PositionTable):
         )
         self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
 
+    @Slot()
     def _update_fov_size(self) -> None:
         """Update the FOV size of any grid plan subsequence."""
         if not (pos_list := self.value()):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Slot
 from qtpy.QtWidgets import QApplication, QDoubleSpinBox, QHBoxLayout, QLabel, QWidget
 from superqt.utils import signals_blocked
 
@@ -80,6 +80,7 @@ class ExposureWidget(QWidget):
         if orig_cam != self._camera:
             self._on_load()
 
+    @Slot()
     def _on_load(self) -> None:
         with signals_blocked(self.spinBox):
             if self._camera and self._camera in self._mmc.getLoadedDevices():
@@ -88,6 +89,7 @@ class ExposureWidget(QWidget):
             else:
                 self.setEnabled(False)
 
+    @Slot(str, float)
     def _on_exp_changed(self, camera: str, exposure: float) -> None:
         if camera == self._camera:
             with signals_blocked(self.spinBox):
@@ -154,6 +156,7 @@ class DefaultCameraExposureWidget(ExposureWidget):
             )
         return super().setCamera(camera)
 
+    @Slot(str)
     def _camera_updated(self, value: str) -> None:
         # This will not always fire
         # see https://github.com/micro-manager/mmCoreAndDevices/issues/181

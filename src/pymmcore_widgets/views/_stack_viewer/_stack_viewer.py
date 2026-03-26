@@ -8,7 +8,7 @@ import numpy as np
 import qtpy
 import superqt
 from qtpy import QtCore, QtWidgets
-from qtpy.QtCore import QTimer
+from qtpy.QtCore import QTimer, Slot
 from superqt.iconify import QIconifyIcon
 from useq import MDAEvent, MDASequence, _channel
 
@@ -183,7 +183,7 @@ class StackViewer(QtWidgets.QWidget):
         self.layout().addLayout(self.slider_layout)
         self.sliders: dict[str, LabeledVisibilitySlider] = {}
 
-    @superqt.ensure_main_thread  # type: ignore
+    @superqt.ensure_main_thread
     def add_slider(self, dim: str) -> None:
         slider = LabeledVisibilitySlider(
             dim, orientation=QtCore.Qt.Orientation.Horizontal
@@ -193,7 +193,7 @@ class StackViewer(QtWidgets.QWidget):
         self.slider_layout.addWidget(slider)
         self.sliders[dim] = slider
 
-    @superqt.ensure_main_thread  # type: ignore
+    @superqt.ensure_main_thread
     def add_image(self, event: MDAEvent) -> None:
         image = scene.visuals.Image(
             np.zeros(self._canvas.size).astype(np.uint16),
@@ -213,6 +213,7 @@ class StackViewer(QtWidgets.QWidget):
         g = event.index.get("g", 0)
         self.images[(("c", c), ("g", g))] = image
 
+    @Slot(object)
     def sequenceStarted(self, sequence: MDASequence) -> None:
         """Sequence started by the mmcore. Adjust our settings, make layers etc."""
         self.ready = False
@@ -225,6 +226,7 @@ class StackViewer(QtWidgets.QWidget):
         self._collapse_view()
         self.ready = True
 
+    @Slot(object)
     def frameReady(self, event: MDAEvent) -> None:
         """Frame received from acquisition, display the image, update sliders etc."""
         if not self.ready:
@@ -274,6 +276,7 @@ class StackViewer(QtWidgets.QWidget):
         if sum([event.index.get("t", 0), event.index.get("z", 0)]) == 0:
             self._collapse_view()
 
+    @Slot(object, int)
     def _handle_channel_clim(
         self, values: tuple[int, int], channel: int, set_autoscale: bool = True
     ) -> None:
@@ -285,6 +288,7 @@ class StackViewer(QtWidgets.QWidget):
             )
         self._canvas.update()
 
+    @Slot(object, int)
     def _handle_channel_cmap(self, colormap: cmap.Colormap, channel: int) -> None:
         for g in range(self.ng):
             try:
@@ -296,6 +300,7 @@ class StackViewer(QtWidgets.QWidget):
         self.cmap_names[channel] = colormap.name
         self._canvas.update()
 
+    @Slot(bool, int)
     def _handle_channel_visibility(self, state: bool, channel: int) -> None:
         for g in range(self.ng):
             checked = self.channel_row.boxes[channel].show_channel.isChecked()
@@ -308,6 +313,7 @@ class StackViewer(QtWidgets.QWidget):
             )
         self._canvas.update()
 
+    @Slot(bool, int)
     def _handle_channel_autoscale(self, state: bool, channel: int) -> None:
         slider = self.channel_row.boxes[channel].slider
         if state == 0:
@@ -319,9 +325,11 @@ class StackViewer(QtWidgets.QWidget):
             )
             self._handle_channel_clim(clim, channel, set_autoscale=False)
 
+    @Slot(int)
     def _handle_channel_choice(self, channel: int) -> None:
         self.current_channel = channel
 
+    @Slot(object)
     def on_mouse_move(self, event: SceneMouseEvent) -> None:
         """Mouse moved on the canvas, display the pixel value and position."""
         # https://groups.google.com/g/vispy/c/sUNKoDL1Gc0/m/E5AG7lgPFQAJ
@@ -361,6 +369,7 @@ class StackViewer(QtWidgets.QWidget):
             info = f"[{p[0]}, {p[1]}]"
             self.info_bar.setText(info)
 
+    @Slot()
     def on_display_timer(self) -> None:
         """Update display, usually triggered by QTimer started by slider click."""
         old_index = self.display_index.copy()
@@ -482,6 +491,7 @@ class StackViewer(QtWidgets.QWidget):
         self.move(self.qt_settings.value("pos", QtCore.QPoint(50, 50)))
         self.cmap_names = self.qt_settings.value("cmaps", ["gray", "cyan", "magenta"])
 
+    @Slot()
     def _collapse_view(self) -> None:
         view_rect = (
             (
@@ -496,7 +506,7 @@ class StackViewer(QtWidgets.QWidget):
         while self.missed_events:
             self.frameReady(self.missed_events.pop(0))
 
-    @superqt.ensure_main_thread  # type: ignore
+    @superqt.ensure_main_thread
     def _redisplay(self, event: MDAEvent) -> None:
         self.missed_events.append(event)
         QTimer.singleShot(0, self._reemit_missed_events)
