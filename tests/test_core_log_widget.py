@@ -66,6 +66,18 @@ def test_core_log_widget_clear(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None
     assert wdg._log_view.toPlainText() == ""
 
 
+def test_core_log_widget_debug(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
+    wdg = CoreLogWidget()
+    qtbot.addWidget(wdg)
+
+    is_debug_enabled = global_mmcore.debugLogEnabled()
+    assert wdg._debug_btn.isChecked() == is_debug_enabled
+    wdg._debug_btn.click()
+    assert global_mmcore.debugLogEnabled() != is_debug_enabled
+    wdg._debug_btn.click()
+    assert global_mmcore.debugLogEnabled() == is_debug_enabled
+
+
 def test_core_log_widget_autoscroll(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     wdg = CoreLogWidget()
     qtbot.addWidget(wdg)
