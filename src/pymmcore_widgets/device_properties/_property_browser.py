@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-from pymmcore_plus import CMMCorePlus
-from qtpy.QtWidgets import QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
+from typing import TYPE_CHECKING
+
+from pymmcore_plus import CMMCorePlus, DeviceType
+from qtpy.QtWidgets import QLineEdit, QVBoxLayout, QWidget
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 from ._device_property_table import DevicePropertyTable
-from ._device_type_filter import DeviceTypeFilters
+from ._device_type_toolbar import DeviceButtonToolbar
 
 
 class PropertyBrowser(QWidget):
@@ -22,48 +27,56 @@ class PropertyBrowser(QWidget):
     """
 
     def __init__(
-        self, *, parent: QWidget | None = None, mmcore: CMMCorePlus | None = None
+        self,
+        *,
+        parent: QWidget | None = None,
+        mmcore: CMMCorePlus | None = None,
+        exclude_device_types: Iterable[DeviceType] = (),
     ):
         super().__init__(parent=parent)
         self._mmc = mmcore or CMMCorePlus.instance()
 
         self._prop_table = DevicePropertyTable(mmcore=self._mmc)
-        self._device_filters = DeviceTypeFilters()
-        self._device_filters.filtersChanged.connect(self._update_filter)
+        self._device_toolbar = DeviceButtonToolbar()
+        if exclude_device_types:
+            self._device_toolbar.setVisibleDeviceTypes(
+                set(DeviceType) - set(exclude_device_types)
+            )
+        self._device_toolbar.checkedDevicesChanged.connect(self._update_filter)
+        self._device_toolbar.readOnlyToggled.connect(self._update_filter)
+        self._device_toolbar.preInitToggled.connect(self._update_filter)
 
         self._filter_text = QLineEdit()
         self._filter_text.setClearButtonEnabled(True)
         self._filter_text.setPlaceholderText("Filter by device or property name...")
         self._filter_text.textChanged.connect(self._update_filter)
 
-        right = QWidget()
-        right.setLayout(QVBoxLayout())
-        right.layout().addWidget(self._filter_text)
-        right.layout().addWidget(self._prop_table)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.addWidget(self._device_toolbar)
+        layout.addWidget(self._filter_text)
+        layout.addWidget(self._prop_table)
 
-        left = QWidget()
-        left.setLayout(QVBoxLayout())
-        left.layout().addWidget(self._device_filters)
-
-        self.setLayout(QHBoxLayout())
-        self.layout().setContentsMargins(6, 12, 12, 12)
-        self.layout().setSpacing(0)
-        self.layout().addWidget(left)
-        self.layout().addWidget(right)
         self._mmc.events.systemConfigurationLoaded.connect(self._update_filter)
-
         self.destroyed.connect(self._disconnect)
+        self._update_filter()
 
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._update_filter)
 
     def _update_filter(self) -> None:
+        included = self._device_toolbar.checkedDeviceTypes()
+        if not included:
+            # no device types selected -> hide all rows
+            for row in range(self._prop_table.rowCount()):
+                self._prop_table.hideRow(row)
+            return
         filt = self._filter_text.text().lower()
         self._prop_table.filterDevices(
             filt,
-            exclude_devices=self._device_filters.filters(),
-            include_read_only=self._device_filters.showReadOnly(),
-            include_pre_init=self._device_filters.showPreInitProps(),
+            include_devices=included,
+            include_read_only=self._device_toolbar.act_show_read_only.isChecked(),
+            include_pre_init=self._device_toolbar.act_show_pre_init.isChecked(),
         )
 
 
