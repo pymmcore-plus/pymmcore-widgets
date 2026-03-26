@@ -671,8 +671,9 @@ def test_get_next_available_paths_special_cases(tmp_path: Path) -> None:
     # if we explicitly ask for a higher number, we should get it
     assert get_next_available_path(tmp_path / "test_010.txt").name == "test_010.txt"
 
-    # only 3+ digit numbers are considered as counters
-    assert get_next_available_path(tmp_path / "test_02.txt").name == "test_02_005.txt"
+    # only 3+ digit numbers are considered as counters, so test_02 is a distinct stem
+    # unrelated to test_004.txt — it should be returned as-is since it doesn't exist
+    assert get_next_available_path(tmp_path / "test_02.txt").name == "test_02.txt"
 
     # we go to the next number of digits if need be
     (tmp_path / "test_999.txt").touch()
