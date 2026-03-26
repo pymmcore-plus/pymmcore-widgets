@@ -671,8 +671,9 @@ def test_get_next_available_paths_special_cases(tmp_path: Path) -> None:
     # if we explicitly ask for a higher number, we should get it
     assert get_next_available_path(tmp_path / "test_010.txt").name == "test_010.txt"
 
-    # only 3+ digit numbers are considered as counters
-    assert get_next_available_path(tmp_path / "test_02.txt").name == "test_02_005.txt"
+    # only 3+ digit numbers are considered as counters, so test_02 is a distinct stem
+    # unrelated to test_004.txt — it should be returned as-is since it doesn't exist
+    assert get_next_available_path(tmp_path / "test_02.txt").name == "test_02.txt"
 
     # we go to the next number of digits if need be
     (tmp_path / "test_999.txt").touch()
@@ -682,6 +683,24 @@ def test_get_next_available_paths_special_cases(tmp_path: Path) -> None:
     high = tmp_path / "test_12345.txt"
     high.touch()
     assert get_next_available_path(high).name == "test_12346.txt"
+
+
+def test_get_next_available_paths_unrelated_files(tmp_path: Path) -> None:
+    """Unrelated files with the same extension should not affect the counter."""
+    # create an unrelated file with a high counter
+    (tmp_path / "other_009.ome.tiff").touch()
+
+    # requesting a new "test.ome.tiff" should return it as-is (no counter)
+    path = tmp_path / "test.ome.tiff"
+    assert get_next_available_path(path) == path
+
+    # even after creating test.ome.tiff, the counter should start from 001
+    path.touch()
+    assert get_next_available_path(path) == tmp_path / "test_001.ome.tiff"
+
+    # create test_002, next should be 003 (not influenced by other_009)
+    (tmp_path / "test_002.ome.tiff").touch()
+    assert get_next_available_path(path) == tmp_path / "test_003.ome.tiff"
 
 
 def test_core_mda_with_hcs_value(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
