@@ -14,6 +14,7 @@ app = QApplication([])
 
 mmc = CMMCorePlus.instance()
 mmc.loadSystemConfiguration()
+mmc.setProperty("Camera", "BitDepth", "12")
 
 # set camera roi (rectangular helps confirm orientation)
 mmc.setROI(0, 0, 600, 400)

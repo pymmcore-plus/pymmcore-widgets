@@ -18,6 +18,7 @@ from qtpy.QtWidgets import (
     QMenu,
     QPushButton,
     QSizePolicy,
+    QSpinBox,
     QToolBar,
     QToolButton,
     QVBoxLayout,
@@ -196,9 +197,7 @@ class StageExplorer(QWidget):
 
         self._contrast_slider = ContrastSlider(self)
         self._contrast_slider.setVisible(False)
-        self._stage_viewer.climRangeChanged.connect(self._on_clim_range_changed)
         self._contrast_slider.valueChanged.connect(self._on_contrast_slider_changed)
-        self._contrast_slider.autoToggled.connect(self._on_auto_contrast_toggled)
 
         # main layout
         main_layout = QVBoxLayout(self)
@@ -304,6 +303,13 @@ class StageExplorer(QWidget):
         matrix = stage_shift @ self._affine_state.system_affine @ self._half_img_shift
         self._stage_viewer.add_image(image, transform=matrix.T)
 
+        if not self._contrast_slider.isVisible():
+            self._contrast_slider.setVisible(True)
+            self._contrast_slider._max_spin._set_from_camera()
+        min_ = np.min(image)
+        max_ = np.max(image)
+        self._contrast_slider.update_data_range(min_, max_)
+
     def zoom_to_fit(self, *, margin: float = 0.05) -> None:
         """Zoom to fit the current view to the images in the scene.
 
@@ -338,6 +344,7 @@ class StageExplorer(QWidget):
     def _on_clear_action(self) -> None:
         """Clear the scene and hide the contrast slider."""
         self._stage_viewer.clear()
+        self._contrast_slider.reset_data_range()
         self._contrast_slider.setVisible(False)
 
     @Slot()
@@ -393,26 +400,10 @@ class StageExplorer(QWidget):
             self._stage_pos_marker.set_rect_visible(pi.show_rect)
             self._stage_pos_marker.set_marker_visible(pi.show_marker)
 
-    @Slot(float, float, float)
-    def _on_clim_range_changed(
-        self, data_min: float, data_max: float, dtype_max: float
-    ) -> None:
-        """Update the contrast slider when the global data range expands."""
-        self._contrast_slider.setVisible(True)
-        self._contrast_slider.update_range(data_min, data_max, dtype_max)
-
-    @Slot(object)
+    @Slot(tuple)
     def _on_contrast_slider_changed(self, value: tuple[float, float]) -> None:
         """Apply the contrast slider values to all images."""
         self._stage_viewer.set_clims(value)
-
-    @Slot(bool)
-    def _on_auto_contrast_toggled(self, checked: bool) -> None:
-        """Toggle auto-contrast mode."""
-        if checked:
-            sv = self._stage_viewer
-            self._contrast_slider.autoscale(sv._global_min, sv._global_max)
-            sv.set_clims((sv._global_min, sv._global_max))
 
     @Slot()
     def _on_scan_action(self) -> None:
@@ -456,6 +447,7 @@ class StageExplorer(QWidget):
     def _on_sys_config_loaded(self) -> None:
         """Clear the scene and reinitialize when the system configuration is loaded."""
         self._stage_viewer.clear()
+        self._contrast_slider.reset_data_range()
         self._contrast_slider.setVisible(False)
         self._set_stage_controller()
         self._affine_state.refresh()
@@ -643,6 +635,47 @@ SliderLabel { font-size: 10px; color: white; }
 """
 
 
+class _MaxSpinBox(QSpinBox):
+    """Frameless spinbox for the contrast slider maximum, with a context menu."""
+
+    _DEFAULT_MAX = 2**16 - 1
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setRange(1, self._DEFAULT_MAX)
+        self.setValue(self._DEFAULT_MAX)
+        self.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setKeyboardTracking(False)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
+        font = self.font()
+        font.setPointSize(11)
+        self.setFont(font)
+        self.setFixedWidth(self.fontMetrics().horizontalAdvance("888888"))
+        self.setStyleSheet("_MaxSpinBox { background: transparent; border: none; }")
+
+    def _core(self) -> CMMCorePlus | None:
+        """Walk up the widget tree to find the CMMCorePlus instance."""
+        widget = self.parent()
+        while widget is not None:
+            if hasattr(widget, "_mmc"):
+                return widget._mmc  # type: ignore [no-any-return]
+            widget = widget.parent()
+        return None
+
+    def _show_context_menu(self, pos: QWidget) -> None:
+        menu = QMenu(self)
+        if action := menu.addAction("Set to camera bit depth"):
+            action.setEnabled(self._core() is not None)
+            action.triggered.connect(self._set_from_camera)
+            menu.exec(self.mapToGlobal(pos))
+
+    def _set_from_camera(self) -> None:
+        if (mmc := self._core()) is not None:
+            self.setValue(2 ** mmc.getImageBitDepth() - 1)
+
+
 class ContrastSlider(QWidget):
     """A contrast range slider with an auto-contrast toggle button."""
 
@@ -655,8 +688,11 @@ class ContrastSlider(QWidget):
         super().__init__(parent)
         self._auto: bool = True
         self._updating: bool = False
+        self._data_min: float = float("inf")
+        self._data_max: float = float("-inf")
 
         self._slider = QLabeledRangeSlider(Qt.Orientation.Horizontal, self)
+        self._slider.setRange(0, _MaxSpinBox._DEFAULT_MAX)
         self._slider.setStyleSheet(_CLIM_SLIDER_SS)
         self._slider.setHandleLabelPosition(
             QLabeledRangeSlider.LabelPosition.LabelsOnHandle
@@ -664,16 +700,19 @@ class ContrastSlider(QWidget):
         self._slider.setEdgeLabelMode(QLabeledRangeSlider.EdgeLabelMode.NoLabel)
         self._slider.valueChanged.connect(self._on_slider_changed)
 
+        self._max_spin = _MaxSpinBox(self)
+        self._max_spin.valueChanged.connect(self._on_max_spin_changed)
+
         self._auto_btn = QPushButton("Auto", self)
         self._auto_btn.setCheckable(True)
         self._auto_btn.setChecked(True)
-        # self._auto_btn.setMaximumWidth(42)
         self._auto_btn.toggled.connect(self._on_auto_toggled)
 
         layout = QHBoxLayout(self)
         layout.setSpacing(5)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._slider, 1)
+        layout.addWidget(self._max_spin, 0)
         layout.addWidget(self._auto_btn, 0)
 
     @property
@@ -681,21 +720,26 @@ class ContrastSlider(QWidget):
         """Whether auto-contrast is enabled."""
         return self._auto
 
-    def update_range(self, data_min: float, data_max: float, dtype_max: float) -> None:
-        """Update the slider range and, if auto, the handle values."""
-        self._slider.setRange(0, int(dtype_max))
-        if self._auto:
-            self._updating = True
-            try:
-                self._slider.setValue((int(data_min), int(data_max)))
-            finally:
-                self._updating = False
+    def set_maximum(self, value: int) -> None:
+        """Set the slider and spinbox maximum."""
+        self._max_spin.setValue(value)
 
-    def autoscale(self, data_min: float, data_max: float) -> None:
-        """Force the slider handles to the given data range."""
+    def update_data_range(self, img_min: float, img_max: float) -> None:
+        """Expand the running data range and, if auto, update the handles."""
+        self._data_min = min(self._data_min, img_min)
+        self._data_max = max(self._data_max, img_max)
+        if self._auto:
+            self._set_handles(self._data_min, self._data_max)
+
+    def reset_data_range(self) -> None:
+        """Reset the running data range (e.g. after clearing the scene)."""
+        self._data_min = float("inf")
+        self._data_max = float("-inf")
+
+    def _set_handles(self, lo: float, hi: float) -> None:
         self._updating = True
         try:
-            self._slider.setValue((int(data_min), int(data_max)))
+            self._slider.setValue((int(lo), int(hi)))
         finally:
             self._updating = False
 
@@ -704,8 +748,14 @@ class ContrastSlider(QWidget):
             self._auto_btn.setChecked(False)
         self.valueChanged.emit((float(value[0]), float(value[1])))
 
+    def _on_max_spin_changed(self, value: int) -> None:
+        self._slider.setRange(0, value)
+
     def _on_auto_toggled(self, checked: bool) -> None:
         self._auto = checked
+        if checked and self._data_min < self._data_max:
+            self._set_handles(self._data_min, self._data_max)
+            self.valueChanged.emit((self._data_min, self._data_max))
         self.autoToggled.emit(checked)
 
 

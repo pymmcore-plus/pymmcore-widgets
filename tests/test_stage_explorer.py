@@ -259,81 +259,46 @@ def test_selected_rois(qtbot: QtBot) -> None:
 
 
 # ---------------------------------------------------------------------------
-# StageViewer - climRangeChanged signal and global range tracking
+# ContrastSlider - data range tracking
 # ---------------------------------------------------------------------------
 
 
-def test_stage_viewer_clim_range_changed_on_first_image(qtbot: QtBot) -> None:
-    """climRangeChanged is emitted when the first image expands the global range."""
-    viewer = StageViewer()
-    qtbot.addWidget(viewer)
-    T = _build_transform_matrix(0, 0)
-    img = np.array([[0, 100], [200, 255]], dtype=np.uint8)
+def test_contrast_slider_data_range_expands(qtbot: QtBot) -> None:
+    """update_data_range expands the running data range and auto-sets handles."""
+    widget = ContrastSlider()
+    qtbot.addWidget(widget)
 
-    signals: list[tuple[float, float, float]] = []
-    viewer.climRangeChanged.connect(lambda a, b, c: signals.append((a, b, c)))
-    viewer.add_image(img, T.T)
+    widget.update_data_range(10, 200)
+    assert widget._slider.value() == (10, 200)
 
-    assert len(signals) == 1
-    data_min, data_max, dtype_max = signals[0]
-    assert data_min == 0.0
-    assert data_max == 255.0
-    assert dtype_max == 255.0  # uint8
+    widget.update_data_range(5, 180)  # expands min, not max
+    assert widget._slider.value() == (5, 200)
 
 
-def test_stage_viewer_clim_range_not_emitted_when_range_unchanged(
-    qtbot: QtBot,
-) -> None:
-    """climRangeChanged is not re-emitted when a new image fits within the existing
-    range."""
-    viewer = StageViewer()
-    qtbot.addWidget(viewer)
-    T = _build_transform_matrix(0, 0)
-    img_full = np.array([[0, 255]], dtype=np.uint8)
-    img_subset = np.array([[50, 100]], dtype=np.uint8)
+def test_contrast_slider_data_range_no_clobber_when_auto_off(qtbot: QtBot) -> None:
+    """update_data_range does not move handles when auto is off."""
+    widget = ContrastSlider()
+    qtbot.addWidget(widget)
 
-    viewer.add_image(img_full, T.T)
+    widget.update_data_range(0, 255)
+    widget._slider.setValue((50, 150))  # user manually adjusts (turns auto off)
 
-    signals: list[tuple] = []
-    viewer.climRangeChanged.connect(lambda a, b, c: signals.append((a, b, c)))
-    viewer.add_image(img_subset, T.T)
-
-    assert len(signals) == 0  # range didn't expand
+    widget.update_data_range(0, 300)  # range expands
+    lo, hi = widget._slider.value()
+    assert lo == 50
+    assert hi == 150
 
 
-def test_stage_viewer_float_image_dtype_max(qtbot: QtBot) -> None:
-    """Float images use dtype_max of 1.0 instead of an integer iinfo max."""
-    viewer = StageViewer()
-    qtbot.addWidget(viewer)
-    T = _build_transform_matrix(0, 0)
+def test_contrast_slider_reset_data_range(qtbot: QtBot) -> None:
+    """reset_data_range clears the running range."""
+    widget = ContrastSlider()
+    qtbot.addWidget(widget)
 
-    signals: list[tuple] = []
-    viewer.climRangeChanged.connect(lambda a, b, c: signals.append((a, b, c)))
-    img = np.array([[0.1, 0.9]], dtype=np.float32)
-    viewer.add_image(img, T.T)
+    widget.update_data_range(0, 255)
+    widget.reset_data_range()
 
-    assert len(signals) == 1
-    _, _, dtype_max = signals[0]
-    assert dtype_max == 1.0
-
-
-def test_stage_viewer_clear_resets_global_range(qtbot: QtBot) -> None:
-    """clear() resets the running global min/max so climRangeChanged fires again."""
-    viewer = StageViewer()
-    qtbot.addWidget(viewer)
-    T = _build_transform_matrix(0, 0)
-    img = np.array([[0, 255]], dtype=np.uint8)
-
-    viewer.add_image(img, T.T)
-    viewer.clear()
-
-    assert viewer._global_min == float("inf")
-    assert viewer._global_max == float("-inf")
-
-    signals: list[tuple] = []
-    viewer.climRangeChanged.connect(lambda a, b, c: signals.append((a, b, c)))
-    viewer.add_image(img, T.T)
-    assert len(signals) == 1
+    assert widget._data_min == float("inf")
+    assert widget._data_max == float("-inf")
 
 
 # ---------------------------------------------------------------------------
@@ -467,28 +432,29 @@ def test_contrast_slider_auto_off_on_user_interaction(qtbot: QtBot) -> None:
 def test_contrast_slider_auto_stays_on_during_programmatic_update(
     qtbot: QtBot,
 ) -> None:
-    """Programmatic update_range does NOT disable the auto button."""
+    """Programmatic update_data_range does NOT disable the auto button."""
     widget = ContrastSlider()
     qtbot.addWidget(widget)
     assert widget._auto_btn.isChecked()
 
-    widget.update_range(10, 200, 255)
+    widget.update_data_range(10, 200)
 
     assert widget._auto_btn.isChecked()
     assert widget.auto
 
 
-def test_contrast_slider_autoscale_does_not_disable_auto(qtbot: QtBot) -> None:
-    """autoscale() is a programmatic call and must not turn auto off."""
+def test_contrast_slider_auto_toggle_restores_handles(qtbot: QtBot) -> None:
+    """Re-enabling auto restores handles to the tracked data range."""
     widget = ContrastSlider()
     qtbot.addWidget(widget)
-    widget._slider.setRange(0, 255)
-    assert widget._auto_btn.isChecked()
 
-    widget.autoscale(20, 180)
+    widget.update_data_range(10, 200)
+    widget._slider.setValue((50, 150))  # turns auto off
+    assert not widget.auto
 
-    assert widget._auto_btn.isChecked()
+    widget._auto_btn.setChecked(True)
     assert widget.auto
+    assert widget._slider.value() == (10, 200)
 
 
 def test_stage_explorer_clear_action_hides_contrast_slider(qtbot: QtBot) -> None:
