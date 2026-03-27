@@ -71,12 +71,12 @@ def test_core_log_widget_debug(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None
     qtbot.addWidget(wdg)
 
     # The default state should be whatever the core is currently set to
-    is_debug_enabled = wdg._debug_btn.isChecked()
+    is_debug_enabled = wdg._debug_box.isChecked()
     assert global_mmcore.debugLogEnabled() == is_debug_enabled
     # and it should toggle as the button is clicked
-    wdg._debug_btn.click()
+    wdg._debug_box.toggle()
     assert global_mmcore.debugLogEnabled() != is_debug_enabled
-    wdg._debug_btn.click()
+    wdg._debug_box.toggle()
     assert global_mmcore.debugLogEnabled() == is_debug_enabled
 
 
