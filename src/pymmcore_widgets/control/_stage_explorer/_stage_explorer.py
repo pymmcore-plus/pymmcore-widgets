@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import useq
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Qt, QThread, Signal, Slot
+from qtpy.QtCore import QSignalBlocker, QSize, Qt, QThread, Signal, Slot
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QDoubleSpinBox,
@@ -687,7 +687,6 @@ class ContrastSlider(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._auto: bool = True
-        self._updating: bool = False
         self._data_min: float = float("inf")
         self._data_max: float = float("-inf")
 
@@ -730,6 +729,7 @@ class ContrastSlider(QWidget):
         self._data_max = max(self._data_max, img_max)
         if self._auto:
             self._set_handles(self._data_min, self._data_max)
+            self.valueChanged.emit((self._data_min, self._data_max))
 
     def reset_data_range(self) -> None:
         """Reset the running data range (e.g. after clearing the scene)."""
@@ -737,14 +737,11 @@ class ContrastSlider(QWidget):
         self._data_max = float("-inf")
 
     def _set_handles(self, lo: float, hi: float) -> None:
-        self._updating = True
-        try:
+        with QSignalBlocker(self._slider):
             self._slider.setValue((int(lo), int(hi)))
-        finally:
-            self._updating = False
 
     def _on_slider_changed(self, value: tuple[int, int]) -> None:
-        if not self._updating and self._auto_btn.isChecked():
+        if self._auto_btn.isChecked():
             self._auto_btn.setChecked(False)
         self.valueChanged.emit((float(value[0]), float(value[1])))
 
