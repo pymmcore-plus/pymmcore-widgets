@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Union
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import QSize, Qt, Slot
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QPushButton, QSizePolicy, QWidget
 from superqt.iconify import QIconifyIcon
@@ -74,6 +74,7 @@ class SnapButton(QPushButton):
         self.setIconSize(QSize(30, 30))
         self.clicked.connect(self._snap)
 
+    @Slot()
     def _snap(self) -> None:
         if self._mmc.isSequenceRunning():
             self._mmc.stopSequenceAcquisition()
@@ -98,6 +99,7 @@ class SnapButton(QPushButton):
 
         create_worker(snap_with_shutter, _start_thread=True)
 
+    @Slot()
     def _on_system_cfg_loaded(self) -> None:
         self.setEnabled(bool(self._mmc.getCameraDevice()))
 

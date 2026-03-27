@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import useq
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Qt, QThread, Signal
+from qtpy.QtCore import QSize, Qt, QThread, Signal, Slot
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QDoubleSpinBox,
@@ -347,6 +347,7 @@ class StageExplorer(QWidget):
 
     # ACTIONS ----------------------------------------------------------------------
 
+    @Slot()
     def _on_roi_changed(self) -> None:
         """Update the ROI manager when a new ROI is set."""
         img_w = self._mmc.getImageWidth()
@@ -363,22 +364,26 @@ class StageExplorer(QWidget):
 
         self._stage_pos_marker.set_rect_size(img_w, img_h)
 
+    @Slot(bool)
     def _on_snap_action(self, checked: bool) -> None:
         """Update the stage viewer settings based on the state of the action."""
         self.snap_on_double_click = checked
 
+    @Slot(bool)
     def _on_zoom_to_fit_action(self, checked: bool) -> None:
         """Set the zoom to fit property based on the state of the action."""
         # self._toolbar.zoom_to_fit_action.setChecked(checked)
         self._auto_zoom_to_fit = False
         self.zoom_to_fit()
 
+    @Slot(bool)
     def _on_auto_zoom_to_fit_action(self, checked: bool) -> None:
         """Set the auto zoom to fit property based on the state of the action."""
         self._auto_zoom_to_fit = checked
         if checked:
             self.zoom_to_fit()
 
+    @Slot()
     def _update_marker_mode(self) -> None:
         """Update the poll mode and show/hide the required stage position marker.
 
@@ -390,6 +395,7 @@ class StageExplorer(QWidget):
             self._stage_pos_marker.set_rect_visible(pi.show_rect)
             self._stage_pos_marker.set_marker_visible(pi.show_marker)
 
+    @Slot()
     def _on_scan_action(self) -> None:
         """Scan the selected ROI."""
         if not (active_rois := self.roi_manager.selected_rois()):
@@ -403,6 +409,7 @@ class StageExplorer(QWidget):
                 self._our_mda_running = True
                 self._mmc.run_mda(seq)
 
+    @Slot(object)
     def _on_scan_options_changed(self, value: tuple[float, OrderMode]) -> None:
         """Update scan settings on the ROI manager so visuals refresh."""
         overlap, mode = value
@@ -437,19 +444,23 @@ class StageExplorer(QWidget):
         T_center[1, 3] = -img_h / 2
         return T_center
 
+    @Slot()
     def _on_sys_config_loaded(self) -> None:
         """Clear the scene when the system configuration is loaded."""
         self._stage_viewer.clear()
 
+    @Slot(float)
     def _on_pixel_size_changed(self, value: float) -> None:
         """Update scene when the pixel size changes."""
         self._affine_state.refresh()
 
+    @Slot()
     def _on_pixel_size_affine_changed(self) -> None:
         """Handle updates to the 2 x 3 pixel size affine."""
         self._pixel_size_affine = self._mmc.getPixelSizeAffine()
         self._affine_state.refresh()
 
+    @Slot(object)
     def _on_mouse_double_click(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
         if not self._mmc.getXYStageDevice():
@@ -466,6 +477,7 @@ class StageExplorer(QWidget):
         self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
         # snap an image if the snap on double click property is set
 
+    @Slot()
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
         if self._mmc.mda.is_running():
@@ -476,6 +488,7 @@ class StageExplorer(QWidget):
         x, y = self._mmc.getXYPosition()
         self._add_image_and_update_widget(img, x, y)
 
+    @Slot(object, object)
     def _on_frame_ready(self, image: np.ndarray, event: useq.MDAEvent) -> None:
         """Add the image to the scene when frameReady event is emitted."""
         # TODO: better handle c and z (e.g. multi-channels?, max projection?)
@@ -485,6 +498,7 @@ class StageExplorer(QWidget):
 
     # STAGE POSITION MARKER -----------------------------------------------------
 
+    @Slot(bool)
     def _on_poll_stage_action(self, checked: bool) -> None:
         """Set the poll stage position property based on the state of the action."""
         self._stage_pos_marker.visible = checked
@@ -494,10 +508,12 @@ class StageExplorer(QWidget):
         else:
             self._stage_poller.stop()
 
+    @Slot(bool)
     def _on_show_grid_action(self, checked: bool) -> None:
         """Set the show grid property based on the state of the action."""
         self._stage_viewer.set_grid_visible(checked)
 
+    @Slot(float, float)
     def _on_stage_position_polled(self, stage_x: float, stage_y: float) -> None:
         """Update the marker and label with the polled stage position."""
         self._stage_pos_label.setText(f"X: {stage_x:.2f} µm  Y: {stage_y:.2f} µm")
@@ -670,6 +686,7 @@ class ScanMenu(QMenu):
         """Return (overlap, order_mode)."""
         return self._overlap_spin.value(), self._mode_cbox.currentEnum()
 
+    @Slot()
     def _emit(self) -> None:
         self.valueChanged.emit(self.value())
 

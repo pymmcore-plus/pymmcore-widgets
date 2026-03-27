@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Slot
 
 from pymmcore_widgets.useq_widgets._grid import GridPlanWidget, Mode
 
@@ -48,6 +49,7 @@ class CoreConnectedGridPlanWidget(GridPlanWidget):
         self._mmc.events.roiSet.connect(self._update_fov_size)
         self._update_fov_size()
 
+    @Slot()
     def _update_fov_size(self) -> None:
         """Update the FOV size in the grid plan widget."""
         if px := self._mmc.getPixelSizeUm():

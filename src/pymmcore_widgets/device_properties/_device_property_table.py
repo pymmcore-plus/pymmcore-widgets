@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty, DeviceType
 from pymmcore_plus.model import Setting
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QAbstractScrollArea, QTableWidget, QTableWidgetItem, QWidget
 from superqt.utils import signals_blocked
@@ -90,6 +90,7 @@ class DevicePropertyTable(QTableWidget):
         self.resize(500, 500)
         self._rebuild_table()
 
+    @Slot(QTableWidgetItem)
     def _on_item_changed(self, item: QTableWidgetItem) -> None:
         if self._rows_checkable:
             # set item style based on check state
@@ -141,6 +142,7 @@ class DevicePropertyTable(QTableWidget):
                 flags &= ~Qt.ItemFlag.ItemIsUserCheckable
             self.item(row, 0).setFlags(flags)
 
+    @Slot()
     def _rebuild_table(self) -> None:
         self.blockSignals(True)
         try:

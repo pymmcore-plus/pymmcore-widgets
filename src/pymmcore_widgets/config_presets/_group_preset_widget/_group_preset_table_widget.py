@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Slot
 from qtpy.QtWidgets import (
     QAbstractScrollArea,
     QFileDialog,
@@ -158,6 +158,7 @@ class GroupPresetTableWidget(QGroupBox):
 
         return save_btn_wdg
 
+    @Slot()
     def _on_table_selection_changed(self) -> None:
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
         if not selected_rows:
@@ -179,6 +180,7 @@ class GroupPresetTableWidget(QGroupBox):
     def _on_system_cfg_loaded(self) -> None:
         self._populate_table()
 
+    @Slot(str, str, str, str, str)
     def _on_new_group_preset(
         self, group: str, preset: str, device: str, property: str, value: str
     ) -> None:
@@ -218,6 +220,7 @@ class GroupPresetTableWidget(QGroupBox):
             if isinstance(wdg, PresetsWidget):
                 wdg._disconnect()
 
+    @Slot()
     def _populate_table(self) -> None:
         self._reset_table()
         if groups := self._mmc.getAvailableConfigGroups():
@@ -272,11 +275,13 @@ class GroupPresetTableWidget(QGroupBox):
             if hasattr(self, i):
                 getattr(self, i).close()
 
+    @Slot()
     def _add_group(self) -> None:
         self._close_if_hasattr()
         self._add_group_wdg = AddGroupWidget(mmcore=self._mmc, parent=self)
         self._add_group_wdg.show()
 
+    @Slot()
     def _delete_group(self) -> None:
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
 
@@ -304,10 +309,12 @@ class GroupPresetTableWidget(QGroupBox):
         )
         return msgBox.exec()
 
+    @Slot(str)
     def _on_group_deleted(self, group: str) -> None:
         if matching_item := self.table_wdg.findItems(group, Qt.MatchFlag.MatchExactly):
             self.table_wdg.removeRow(matching_item[0].row())
 
+    @Slot()
     def _edit_group(self) -> None:
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
         if not selected_rows or len(selected_rows) > 1:
@@ -319,6 +326,7 @@ class GroupPresetTableWidget(QGroupBox):
         self._edit_group_wdg = EditGroupWidget(group, mmcore=self._mmc, parent=self)
         self._edit_group_wdg.show()
 
+    @Slot()
     def _add_preset(self) -> None:
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
         if not selected_rows or len(selected_rows) > 1:
@@ -335,6 +343,7 @@ class GroupPresetTableWidget(QGroupBox):
         self._add_preset_wdg = AddPresetWidget(group, mmcore=self._mmc, parent=self)
         self._add_preset_wdg.show()
 
+    @Slot()
     def _delete_preset(self) -> None:
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
 
@@ -368,6 +377,7 @@ class GroupPresetTableWidget(QGroupBox):
                 elif isinstance(wdg, PropertyWidget):
                     self._mmc.deleteConfigGroup(group)
 
+    @Slot()
     def _edit_preset(self) -> None:
         selected_rows = {r.row() for r in self.table_wdg.selectedIndexes()}
         if not selected_rows or len(selected_rows) > 1:
@@ -386,6 +396,7 @@ class GroupPresetTableWidget(QGroupBox):
         )
         self._edit_preset_wgd.show()
 
+    @Slot()
     def _save_cfg(self) -> None:
         (filename, _) = QFileDialog.getSaveFileName(
             self, "Save Micro-Manager Configuration."
@@ -395,6 +406,7 @@ class GroupPresetTableWidget(QGroupBox):
                 filename if str(filename).endswith(".cfg") else f"{filename}.cfg"
             )
 
+    @Slot()
     def _load_cfg(self) -> None:
         """Open file dialog to select a config file."""
         (filename, _) = QFileDialog.getOpenFileName(
