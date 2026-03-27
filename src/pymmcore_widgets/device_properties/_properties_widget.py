@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Slot
 from qtpy.QtWidgets import QGridLayout, QLabel, QWidget
 
 from ._property_widget import PropertyWidget
@@ -77,6 +78,7 @@ class PropertiesWidget(QWidget):
         self.destroyed.connect(self._disconnect)
         self.rebuild()
 
+    @Slot()
     def rebuild(self) -> None:
         """Rebuild the layout, populating based on current filters."""
         # clear
