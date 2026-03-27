@@ -137,7 +137,7 @@ class ConfigGroupsEditor(QWidget):
         self._undo_stack = QUndoStack(self)
         self._syncing_selection = False
         self._prev_undo_index = 0
-        self._dirty = False
+        self._current_state: Sequence[ConfigGroup] = []
 
         # widgets -------------------------------------------------------------
 
@@ -642,15 +642,18 @@ class ConfigGroupsEditor(QWidget):
     # Dirty state tracking and apply-to-core
     # ------------------------------------------------------------------
 
+    @property
+    def _dirty(self) -> bool:
+        """Whether the current data differs from the last-applied snapshot."""
+        return list(self.data()) != list(self._current_state)
+
     def _mark_dirty(self) -> None:
-        """Mark the editor as having unapplied changes."""
-        if not self._dirty:
-            self._dirty = True
-            self._update_status_indicator()
+        """Re-evaluate dirty state and update the status indicator."""
+        self._update_status_indicator()
 
     def _clear_dirty(self) -> None:
-        """Mark the editor as clean (no unapplied changes)."""
-        self._dirty = False
+        """Snapshot the current data as the 'clean' baseline."""
+        self._current_state = list(self.data())
         self._update_status_indicator()
 
     def _update_status_indicator(self) -> None:

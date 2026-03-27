@@ -253,12 +253,11 @@ def test_editor_dirty_state_and_status_indicator(
     assert editor._status_label.text() == "No changes"
     assert not editor._apply_btn.isEnabled()
 
-    # Undo after clearing still marks dirty via configChanged
+    # Undo reverts data to match snapshot, so dirty becomes False
     editor._add_group()
     assert editor._dirty
     editor.undoStack().undo()
-    # Still dirty because undo triggers configChanged
-    assert editor._dirty
+    assert not editor._dirty
 
 
 def test_editor_dirty_without_core(qtbot: QtBot) -> None:
@@ -268,9 +267,10 @@ def test_editor_dirty_without_core(qtbot: QtBot) -> None:
     assert editor._core is None
     assert not editor._apply_btn.isEnabled()
 
-    # Even after marking dirty, Apply stays disabled without a core
-    editor._mark_dirty()
+    # Make an actual change so dirty is True
+    editor._add_group()
     assert editor._dirty
+    # Apply stays disabled without a core
     assert not editor._apply_btn.isEnabled()
 
 
