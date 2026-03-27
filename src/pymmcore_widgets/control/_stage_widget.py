@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, cast
 
 from pyconify import svg_path
 from pymmcore_plus import CMMCorePlus, DeviceType, Keyword
-from qtpy.QtCore import QEvent, QObject, QSize, Qt, QTimerEvent, Signal
+from qtpy.QtCore import QEvent, QObject, QSize, Qt, QTimerEvent, Signal, Slot
 from qtpy.QtGui import QContextMenuEvent
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -111,6 +111,7 @@ class HaltButton(QPushButton):
         self.setText("STOP!")
         self.clicked.connect(self._on_clicked)
 
+    @Slot()
     def _on_clicked(self) -> None:
         self._core.stop(self._device)
 
@@ -170,10 +171,12 @@ class StageMovementButtons(QWidget):
             btn.clicked.connect(self._on_move_btn_clicked)
             btn_grid.addWidget(btn, row, col)
 
+    @Slot()
     def _on_move_btn_clicked(self) -> None:
         btn = cast("MoveStageButton", self.sender())
         self.moveRequested.emit(self._scale(btn.xmag), self._scale(btn.ymag))
 
+    @Slot()
     def _update_tooltips(self) -> None:
         """Update tooltips for the move buttons."""
         for btn in self.findChildren(MoveStageButton):
@@ -339,6 +342,7 @@ class StageWidget(QWidget):
         """Set the step size."""
         self._step.setValue(step)
 
+    @Slot(bool)
     def enable_absolute_positioning(self, enabled: bool) -> None:
         """Toggles whether the position spinboxes can be edited by the user.
 
@@ -361,6 +365,7 @@ class StageWidget(QWidget):
         self._set_as_default_btn.setEnabled(enabled)
         self._poll_cb.setEnabled(enabled)
 
+    @Slot()
     def _on_system_cfg(self) -> None:
         if self._device in self._mmc.getLoadedDevicesOfType(self._dtype):
             self._enable_wdg(True)
@@ -377,6 +382,7 @@ class StageWidget(QWidget):
             if self._mmc.getFocusDevice() == self._device:
                 self._set_as_default_btn.setChecked(True)
 
+    @Slot(bool)
     def _on_radiobutton_toggled(self, state: bool) -> None:
         prop = XY_STAGE if self._is_2axis else FOCUS
         if state:
@@ -387,6 +393,7 @@ class StageWidget(QWidget):
         else:
             self._mmc.setProperty(CORE, prop, "")
 
+    @Slot(str, str, object)
     def _on_prop_changed(self, dev: str, prop: str, val: str) -> None:
         if (
             (dev != CORE)
@@ -397,6 +404,7 @@ class StageWidget(QWidget):
         with signals_blocked(self._set_as_default_btn):
             self._set_as_default_btn.setChecked(val == self._device)
 
+    @Slot(bool)
     def _toggle_poll_timer(self, on: bool) -> None:
         if on:
             if self._poll_timer_id is None:
@@ -420,6 +428,7 @@ class StageWidget(QWidget):
             return True
         return super().eventFilter(obj, event)  # type: ignore [no-any-return]
 
+    @Slot()
     def _update_position_from_core(self) -> None:
         if self._device not in self._mmc.getLoadedDevicesOfType(self._dtype):
             return
@@ -431,6 +440,7 @@ class StageWidget(QWidget):
             y = self._mmc.getPosition(self._device)
             self._y_pos.setValue(y)
 
+    @Slot(float, float)
     def _on_move_requested(self, xmag: float, ymag: float) -> None:
         if self._invert_x.isChecked():
             xmag *= -1
