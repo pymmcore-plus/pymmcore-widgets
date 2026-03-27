@@ -3,6 +3,7 @@ from __future__ import annotations
 import warnings
 
 from pymmcore_plus import CMMCorePlus, DeviceType
+from qtpy.QtCore import Slot
 from qtpy.QtWidgets import QComboBox, QHBoxLayout, QWidget
 from superqt.utils import signals_blocked
 
@@ -91,11 +92,13 @@ class PresetsWidget(QWidget):
 
             self._presets = list(self._mmc.getAvailableConfigs(self._group))
 
+    @Slot(str)
     def _on_text_activate(self, text: str) -> None:
         # used if there is only 1 preset and you want to set it
         if text != NO_MATCH:
             self._mmc.setConfig(self._group, text)
 
+    @Slot(str)
     def _on_combo_changed(self, text: str) -> None:
         if text != NO_MATCH:
             self._mmc.setConfig(self._group, text)
@@ -125,6 +128,7 @@ class PresetsWidget(QWidget):
         with signals_blocked(self._combo):
             self._combo.setCurrentText(NO_MATCH)
 
+    @Slot(str, str)
     def _on_cfg_set(self, group: str, preset: str) -> None:
         if group == self._group and self._combo.currentText() != preset:
             with signals_blocked(self._combo):
@@ -134,6 +138,7 @@ class PresetsWidget(QWidget):
             if any(dev_prop for dev_prop in dev_prop_list if dev_prop in self.dev_prop):
                 self._update_if_props_not_match_preset()
 
+    @Slot(str, str, object)
     def _on_property_changed(self, device: str, property: str, value: str) -> None:
         if (device, property) not in self.dev_prop:
             if self._mmc.getDeviceType(device) != DeviceType.StateDevice:
@@ -148,6 +153,7 @@ class PresetsWidget(QWidget):
         """Return a list with (device, property) for the selected group preset."""
         return [(k[0], k[1]) for k in self._mmc.getConfigData(group, preset)]
 
+    @Slot()
     def _refresh(self) -> None:
         """Refresh widget based on mmcore."""
         with signals_blocked(self._combo):
@@ -200,6 +206,7 @@ class PresetsWidget(QWidget):
         # filter out NO_MATCH as it's not a real preset value
         return tuple(v for v in values if v != NO_MATCH)
 
+    @Slot(str)
     def _update_tooltip(self, preset: str) -> None:
         if preset == NO_MATCH:
             self._combo.setToolTip("No preset matches the current system state.")
@@ -208,12 +215,14 @@ class PresetsWidget(QWidget):
                 str(self._mmc.getConfigData(self._group, preset)) if preset else ""
             )
 
+    @Slot(str)
     def _on_group_deleted(self, group: str) -> None:
         if group != self._group:
             return
         self._disconnect()
         self.close()
 
+    @Slot(str, str)
     def _on_preset_deleted(self, group: str, preset: str) -> None:
         if group != self._group:
             return
@@ -235,6 +244,7 @@ class PresetsWidget(QWidget):
                     break
         return _to_delete
 
+    @Slot(str, str, str, str, str)
     def _on_new_group_preset(
         self, group: str, preset: str, device: str, property: str, value: str
     ) -> None:

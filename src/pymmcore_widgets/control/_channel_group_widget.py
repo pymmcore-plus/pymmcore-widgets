@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Slot
 from qtpy.QtWidgets import QComboBox, QWidget
 from superqt.utils import signals_blocked
 
@@ -47,11 +48,13 @@ class ChannelGroupWidget(QComboBox):
 
         self._update_channel_group_combo()
 
+    @Slot(str)
     def _on_text_activated(self, text: str) -> None:
         """Handle text activation, ignoring '<no match>' selections."""
         if text != NO_MATCH:
             self._mmc.setChannelGroup(text)
 
+    @Slot()
     def _update_channel_group_combo(self) -> None:
         with signals_blocked(self):
             self.clear()
@@ -63,6 +66,7 @@ class ChannelGroupWidget(QComboBox):
                 self.addItem(NO_MATCH)
                 self.setCurrentText(NO_MATCH)
 
+    @Slot(str, str, object)
     def _on_property_changed(self, device: str, property: str, value: str) -> None:
         if device != "Core" or property != "ChannelGroup":
             return
@@ -79,6 +83,7 @@ class ChannelGroupWidget(QComboBox):
                     self.addItem(NO_MATCH)
                 self.setCurrentText(NO_MATCH)
 
+    @Slot(str)
     def _on_channel_group_changed(self, group: str) -> None:
         if group == self.currentText():
             return
