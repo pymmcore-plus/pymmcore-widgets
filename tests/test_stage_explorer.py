@@ -629,13 +629,12 @@ def test_stage_explorer_stage_controller_set_with_xy_device(
 # ---------------------------------------------------------------------------
 
 
-def test_stage_explorer_on_pixel_size_changed_accepts_extra_args(
+def test_stage_explorer_pixel_size_handlers_refresh_affine(
     qtbot: QtBot,
 ) -> None:
-    """_on_pixel_size_changed accepts arbitrary extra arguments (both core events)."""
+    """Both pixel size handlers call _affine_state.refresh()."""
     explorer = StageExplorer()
     qtbot.addWidget(explorer)
-    # should not raise regardless of argument count
-    explorer._on_pixel_size_changed()
+    # neither should raise
     explorer._on_pixel_size_changed(0.065)
-    explorer._on_pixel_size_changed(0.065, 1, 2, 3)
+    explorer._on_pixel_size_affine_changed()
