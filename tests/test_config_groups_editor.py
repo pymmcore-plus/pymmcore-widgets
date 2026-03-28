@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from qtpy.QtCore import QItemSelectionModel, Qt
-from qtpy.QtWidgets import QDialog, QMessageBox
+from qtpy.QtWidgets import QDialog, QFileDialog, QMessageBox
 
 from pymmcore_widgets import ConfigGroupsEditor
 from pymmcore_widgets._help._config_groups_help import ConfigGroupsHelpDialog
@@ -230,6 +230,213 @@ def test_editor_dialogs(
     editor._show_undo_view()
     editor.setCurrentGroup("Channel")
     editor._edit_group_properties()
+
+
+def test_editor_dirty_state_and_status_indicator(
+    editor: ConfigGroupsEditor, qtbot: QtBot
+) -> None:
+    """Dirty flag, status indicator text, and Apply button enabled state."""
+    # After creation from core, editor should be clean
+    assert not editor._dirty
+    assert editor._status_label.text() == "No changes"
+    assert not editor._apply_btn.isEnabled()
+
+    # Making a change marks dirty
+    editor._add_group()
+    assert editor._dirty
+    assert editor._status_label.text() == "Changes not applied"
+    assert editor._apply_btn.isEnabled()
+
+    # setData clears dirty
+    editor.setData(editor.data())
+    assert not editor._dirty
+    assert editor._status_label.text() == "No changes"
+    assert not editor._apply_btn.isEnabled()
+
+    # Undo reverts data to match snapshot, so dirty becomes False
+    editor._add_group()
+    assert editor._dirty
+    editor.undoStack().undo()
+    assert not editor._dirty
+
+
+def test_editor_dirty_without_core(qtbot: QtBot) -> None:
+    """Apply button stays disabled when no core is set."""
+    editor = ConfigGroupsEditor()
+    qtbot.addWidget(editor)
+    assert editor._core is None
+    assert not editor._apply_btn.isEnabled()
+
+    # Make an actual change so dirty is True
+    editor._add_group()
+    assert editor._dirty
+    # Apply stays disabled without a core
+    assert not editor._apply_btn.isEnabled()
+
+
+def test_editor_apply_to_core(
+    editor: ConfigGroupsEditor,
+    global_mmcore: CMMCorePlus,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Apply writes config groups back to core and clears dirty state."""
+    # Decline save dialog so apply completes without file dialog
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No
+    )
+
+    # Rename an existing group to verify changes propagate to core
+    groups = editor.data()
+    old_name = groups[0].name
+
+    # Rename via the model
+    idx = editor._model.index(0)
+    editor._model.setData(idx, f"{old_name}_renamed", Qt.ItemDataRole.EditRole)
+    assert editor._dirty
+
+    # Apply to core
+    editor._apply_to_core()
+
+    # Dirty should be cleared
+    assert not editor._dirty
+    assert editor._status_label.text() == "No changes"
+    assert not editor._apply_btn.isEnabled()
+
+    # Core should reflect the rename
+    new_core_groups = set(global_mmcore.getAvailableConfigGroups())
+    assert f"{old_name}_renamed" in new_core_groups
+    assert old_name not in new_core_groups
+
+    # Restore original name and re-apply
+    editor._model.setData(idx, old_name, Qt.ItemDataRole.EditRole)
+    editor._apply_to_core()
+    assert old_name in set(global_mmcore.getAvailableConfigGroups())
+
+
+def test_editor_apply_preserves_channel_group(
+    editor: ConfigGroupsEditor,
+    global_mmcore: CMMCorePlus,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Apply preserves the channel group designation."""
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No
+    )
+
+    original_channel = global_mmcore.getChannelGroup()
+    assert original_channel  # demo config has a channel group
+
+    # Make a change (rename a non-channel group) and apply
+    idx = editor._model.index(0)
+    old_name = idx.data(Qt.ItemDataRole.DisplayRole)
+    editor._model.setData(idx, f"{old_name}_tmp", Qt.ItemDataRole.EditRole)
+    editor._apply_to_core()
+
+    assert global_mmcore.getChannelGroup() == original_channel
+
+    # Cleanup: restore name
+    editor._model.setData(idx, old_name, Qt.ItemDataRole.EditRole)
+    editor._apply_to_core()
+
+
+def test_editor_apply_prompt_save_decline(
+    editor: ConfigGroupsEditor,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Declining the save prompt does not open a file dialog."""
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No
+    )
+    save_called = False
+
+    def mock_save(*a: object, **k: object) -> tuple[str, str]:
+        nonlocal save_called
+        save_called = True
+        return ("", "")
+
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", staticmethod(mock_save))
+
+    # Make a real change so dirty is set
+    idx = editor._model.index(0)
+    old_name = idx.data(Qt.ItemDataRole.DisplayRole)
+    editor._model.setData(idx, f"{old_name}_tmp", Qt.ItemDataRole.EditRole)
+    editor._apply_to_core()
+    assert not save_called
+
+    # Cleanup: restore name
+    editor._model.setData(idx, old_name, Qt.ItemDataRole.EditRole)
+    editor._apply_to_core()
+
+
+def test_editor_apply_prompt_save_accept(
+    editor: ConfigGroupsEditor,
+    global_mmcore: CMMCorePlus,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: object,
+) -> None:
+    """Accepting save prompt calls saveSystemConfiguration."""
+    import pathlib
+
+    save_path = pathlib.Path(str(tmp_path)) / "test_config.cfg"
+
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes
+    )
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        staticmethod(lambda *a, **k: (str(save_path), "")),
+    )
+
+    # Make a real change so dirty is set
+    idx = editor._model.index(0)
+    old_name = idx.data(Qt.ItemDataRole.DisplayRole)
+    editor._model.setData(idx, f"{old_name}_tmp", Qt.ItemDataRole.EditRole)
+    editor._apply_to_core()
+
+    assert save_path.exists()
+
+    # Cleanup: restore name
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No
+    )
+    editor._model.setData(idx, old_name, Qt.ItemDataRole.EditRole)
+    editor._apply_to_core()
+
+
+def test_editor_apply_prompt_save_appends_cfg(
+    editor: ConfigGroupsEditor,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: object,
+) -> None:
+    """Save dialog result without .cfg extension gets .cfg appended."""
+    import pathlib
+
+    save_path = pathlib.Path(str(tmp_path)) / "test_config"
+
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes
+    )
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        staticmethod(lambda *a, **k: (str(save_path), "")),
+    )
+
+    # Make a real change so dirty is set
+    idx = editor._model.index(0)
+    old_name = idx.data(Qt.ItemDataRole.DisplayRole)
+    editor._model.setData(idx, f"{old_name}_tmp", Qt.ItemDataRole.EditRole)
+    editor._apply_to_core()
+
+    assert (save_path.parent / "test_config.cfg").exists()
+
+    # Cleanup: restore name
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No
+    )
+    editor._model.setData(idx, old_name, Qt.ItemDataRole.EditRole)
+    editor._apply_to_core()
 
 
 def test_config_groups_help_dialog(qtbot: QtBot) -> None:
