@@ -158,6 +158,44 @@ def test_stage_explorer_position_indicator(qtbot: QtBot) -> None:
     assert not explorer._stage_poller.isRunning()
 
 
+def test_stage_viewer_context_menu_flip(qtbot: QtBot) -> None:
+    viewer = StageViewer()
+    qtbot.addWidget(viewer)
+
+    # initially no flip
+    assert viewer.view.camera.flip == (False, False, False)
+
+    # open context menu - use QTimer to dismiss exec() from within its event loop
+    from qtpy.QtCore import QPoint, QTimer
+    from qtpy.QtWidgets import QMenu
+
+    def _close_menu() -> None:
+        if m := viewer.findChild(QMenu):
+            m.close()
+
+    QTimer.singleShot(0, _close_menu)
+    viewer._show_context_menu(QPoint(10, 10))
+    menu = viewer.findChild(QMenu)
+    assert menu is not None
+    actions = menu.actions()
+    assert len(actions) == 2
+    assert actions[0].text() == "Flip X"
+    assert actions[1].text() == "Flip Y"
+
+    # test flipping
+    viewer._set_flip(x=True)
+    assert viewer.view.camera.flip == (True, False, False)
+
+    viewer._set_flip(y=True)
+    assert viewer.view.camera.flip == (True, True, False)
+
+    viewer._set_flip(x=False)
+    assert viewer.view.camera.flip == (False, True, False)
+
+    viewer._set_flip(y=False)
+    assert viewer.view.camera.flip == (False, False, False)
+
+
 def test_mouse_hover_shows_position(qtbot: QtBot) -> None:
     viewer = StageViewer()
     viewer.show()
