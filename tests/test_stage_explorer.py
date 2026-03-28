@@ -169,7 +169,8 @@ def test_stage_viewer_context_menu_flip(qtbot: QtBot) -> None:
     from qtpy.QtCore import QPoint
     from qtpy.QtWidgets import QMenu
 
-    viewer._show_context_menu(QPoint(10, 10))
+    with patch.object(QMenu, "exec", return_value=None):
+        viewer._show_context_menu(QPoint(10, 10))
     menu = viewer.findChild(QMenu)
     assert menu is not None
     actions = menu.actions()
