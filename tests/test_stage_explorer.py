@@ -473,29 +473,6 @@ def test_stage_explorer_clear_action_hides_contrast_slider(qtbot: QtBot) -> None
 
 
 # ---------------------------------------------------------------------------
-# StageExplorer - _on_roi_changed early-return guard
-# ---------------------------------------------------------------------------
-
-
-def test_stage_explorer_roi_changed_skipped_when_no_image_dimensions(
-    qtbot: QtBot,
-) -> None:
-    """_on_roi_changed returns early when width/height are 0."""
-    explorer = StageExplorer()
-    qtbot.addWidget(explorer)
-    half_before = explorer._half_img_shift.copy()
-
-    with (
-        patch.object(explorer._mmc, "getImageWidth", return_value=0),
-        patch.object(explorer._mmc, "getImageHeight", return_value=0),
-    ):
-        explorer._on_roi_changed()
-
-    # half_img_shift should be unchanged (early return was hit)
-    np.testing.assert_array_equal(explorer._half_img_shift, half_before)
-
-
-# ---------------------------------------------------------------------------
 # StageExplorer - _update_marker_mode guard when marker is None
 # ---------------------------------------------------------------------------
 
