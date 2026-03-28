@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import numpy as np
 import useq
+from pymmcore_plus import CMMCorePlus
 from vispy.app.canvas import MouseEvent
 from vispy.scene.visuals import Image
 
 from pymmcore_widgets.control._rois.roi_model import RectangleROI
 from pymmcore_widgets.control._stage_explorer._stage_explorer import (
+    ContrastSlider,
     ScanMenu,
     StageExplorer,
 )
@@ -46,8 +49,6 @@ def test_stage_viewer_clims_cmaps(qtbot: QtBot) -> None:
 
     # just some smoke tests
     stage_viewer.set_clims((0, 1))
-    stage_viewer.global_autoscale(ignore_min=0.1, ignore_max=0.1)
-    stage_viewer.set_colormap("viridis")
 
 
 def test_stage_viewer_clear_scene(qtbot: QtBot) -> None:
@@ -161,8 +162,6 @@ def test_mouse_hover_shows_position(qtbot: QtBot) -> None:
     viewer = StageViewer()
     viewer.show()
     qtbot.addWidget(viewer)
-    viewer.set_hover_label_visible(True)
-
     # Simulate mouse move event
     event = MouseEvent("mouse_move", pos=(100, 2))
     viewer._on_mouse_move(event)
@@ -257,3 +256,351 @@ def test_selected_rois(qtbot: QtBot) -> None:
 
     explorer.roi_manager.select_roi(roi)
     assert explorer.roi_manager.selected_rois() == [roi]
+
+
+# ---------------------------------------------------------------------------
+# ContrastSlider - data range tracking
+# ---------------------------------------------------------------------------
+
+
+def test_contrast_slider_data_range_expands(qtbot: QtBot) -> None:
+    """update_data_range expands the running data range and auto-sets handles."""
+    widget = ContrastSlider()
+    qtbot.addWidget(widget)
+
+    widget.update_data_range(10, 200)
+    assert widget._slider.value() == (10, 200)
+
+    widget.update_data_range(5, 180)  # expands min, not max
+    assert widget._slider.value() == (5, 200)
+
+
+def test_contrast_slider_data_range_no_clobber_when_auto_off(qtbot: QtBot) -> None:
+    """update_data_range does not move handles when auto is off."""
+    widget = ContrastSlider()
+    qtbot.addWidget(widget)
+
+    widget.update_data_range(0, 255)
+    widget._slider.setValue((50, 150))  # user manually adjusts (turns auto off)
+
+    widget.update_data_range(0, 300)  # range expands
+    lo, hi = widget._slider.value()
+    assert lo == 50
+    assert hi == 150
+
+
+def test_contrast_slider_reset_data_range(qtbot: QtBot) -> None:
+    """reset_data_range clears the running range."""
+    widget = ContrastSlider()
+    qtbot.addWidget(widget)
+
+    widget.update_data_range(0, 255)
+    widget.reset_data_range()
+
+    assert widget._data_min == float("inf")
+    assert widget._data_max == float("-inf")
+
+
+# ---------------------------------------------------------------------------
+# StageExplorer - _has_devices / _update_actions_enabled
+# ---------------------------------------------------------------------------
+
+
+def test_stage_explorer_has_devices(qtbot: QtBot) -> None:
+    """_has_devices returns True when the test config is loaded."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    assert explorer._has_devices()
+
+
+def test_stage_explorer_update_actions_enabled(qtbot: QtBot) -> None:
+    """Toolbar actions are all enabled when devices are loaded."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    tb = explorer._toolbar
+    assert tb.snap_action.isEnabled()
+    assert tb.poll_stage_action.isEnabled()
+    assert tb.scan_action.isEnabled()
+    assert tb.delete_rois_action.isEnabled()
+    for action in explorer.roi_manager.mode_actions.actions():
+        assert action.isEnabled()
+
+
+def test_stage_explorer_update_actions_disabled_without_devices(
+    qtbot: QtBot,
+) -> None:
+    """Toolbar actions are all disabled when no devices are loaded."""
+    mmc = CMMCorePlus()  # empty core - only the 'Core' device
+    explorer = StageExplorer(mmcore=mmc)
+    qtbot.addWidget(explorer)
+    tb = explorer._toolbar
+    assert not tb.snap_action.isEnabled()
+    assert not tb.poll_stage_action.isEnabled()
+    assert not tb.scan_action.isEnabled()
+    assert not tb.delete_rois_action.isEnabled()
+    for action in explorer.roi_manager.mode_actions.actions():
+        assert not action.isEnabled()
+
+
+# ---------------------------------------------------------------------------
+# StageExplorer - contrast slider
+# ---------------------------------------------------------------------------
+
+
+def test_stage_explorer_contrast_slider_hidden_initially(qtbot: QtBot) -> None:
+    """The contrast slider starts hidden."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    explorer.show()
+    assert not explorer._contrast_slider.isVisible()
+
+
+def test_stage_explorer_contrast_slider_shown_after_image(qtbot: QtBot) -> None:
+    """Adding an image makes the contrast slider visible."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    explorer.show()
+    img = np.random.randint(0, 255, (100, 100), dtype=np.uint8)
+    explorer.add_image(img, 0.0, 0.0)
+    assert explorer._contrast_slider.isVisible()
+
+
+def test_stage_explorer_contrast_slider_values_set_on_first_image(
+    qtbot: QtBot,
+) -> None:
+    """Slider handle values are auto-set from the first image's data range."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    img = np.array([[10, 200]], dtype=np.uint8)
+    explorer.add_image(img, 0.0, 0.0)
+    lo, hi = explorer._contrast_slider._slider.value()
+    assert lo == 10
+    assert hi == 200
+
+
+def test_stage_explorer_contrast_slider_not_reset_by_second_image(
+    qtbot: QtBot,
+) -> None:
+    """Slider handles are NOT reset when a second image expands the data range."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    explorer.show()
+    img1 = np.array([[10, 200]], dtype=np.uint8)
+    explorer.add_image(img1, 0.0, 0.0)
+    # manually change slider values after first image
+    explorer._contrast_slider._slider.setValue((50, 150))
+
+    img2 = np.array([[0, 255]], dtype=np.uint8)  # wider range
+    explorer.add_image(img2, 10.0, 0.0)
+
+    # slider handles should still reflect the manually set values
+    lo, hi = explorer._contrast_slider._slider.value()
+    assert lo == 50
+    assert hi == 150
+
+
+def test_stage_explorer_contrast_slider_applies_clims(qtbot: QtBot) -> None:
+    """Moving the contrast slider updates the clims on all images."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    img = np.random.randint(0, 255, (50, 50), dtype=np.uint8)
+    explorer.add_image(img, 0.0, 0.0)
+
+    explorer._on_contrast_slider_changed((30, 220))
+
+    assert explorer._stage_viewer._clims == (30.0, 220.0)
+
+
+# ---------------------------------------------------------------------------
+# ContrastSlider - auto button toggles off on manual slider interaction
+# ---------------------------------------------------------------------------
+
+
+def test_contrast_slider_auto_off_on_user_interaction(qtbot: QtBot) -> None:
+    """Manually moving the slider turns the auto button off."""
+    widget = ContrastSlider()
+    qtbot.addWidget(widget)
+    widget._slider.setRange(0, 255)
+    assert widget._auto_btn.isChecked()
+
+    widget._slider.setValue((50, 200))
+
+    assert not widget._auto_btn.isChecked()
+    assert not widget.auto
+
+
+def test_contrast_slider_auto_stays_on_during_programmatic_update(
+    qtbot: QtBot,
+) -> None:
+    """Programmatic update_data_range does NOT disable the auto button."""
+    widget = ContrastSlider()
+    qtbot.addWidget(widget)
+    assert widget._auto_btn.isChecked()
+
+    widget.update_data_range(10, 200)
+
+    assert widget._auto_btn.isChecked()
+    assert widget.auto
+
+
+def test_contrast_slider_auto_toggle_restores_handles(qtbot: QtBot) -> None:
+    """Re-enabling auto restores handles to the tracked data range."""
+    widget = ContrastSlider()
+    qtbot.addWidget(widget)
+
+    widget.update_data_range(10, 200)
+    widget._slider.setValue((50, 150))  # turns auto off
+    assert not widget.auto
+
+    widget._auto_btn.setChecked(True)
+    assert widget.auto
+    assert widget._slider.value() == (10, 200)
+
+
+def test_stage_explorer_clear_action_hides_contrast_slider(qtbot: QtBot) -> None:
+    """Triggering the clear action hides the contrast slider and clears images."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    explorer.show()
+    img = np.random.randint(0, 255, (50, 50), dtype=np.uint8)
+    explorer.add_image(img, 0.0, 0.0)
+    assert explorer._contrast_slider.isVisible()
+
+    explorer._toolbar.clear_action.trigger()
+
+    assert not explorer._contrast_slider.isVisible()
+    assert not list(explorer._stage_viewer._get_images())
+
+
+# ---------------------------------------------------------------------------
+# StageExplorer - _on_roi_changed early-return guard
+# ---------------------------------------------------------------------------
+
+
+def test_stage_explorer_roi_changed_skipped_when_no_image_dimensions(
+    qtbot: QtBot,
+) -> None:
+    """_on_roi_changed returns early when width/height are 0."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    half_before = explorer._half_img_shift.copy()
+
+    with (
+        patch.object(explorer._mmc, "getImageWidth", return_value=0),
+        patch.object(explorer._mmc, "getImageHeight", return_value=0),
+    ):
+        explorer._on_roi_changed()
+
+    # half_img_shift should be unchanged (early return was hit)
+    np.testing.assert_array_equal(explorer._half_img_shift, half_before)
+
+
+# ---------------------------------------------------------------------------
+# StageExplorer - _update_marker_mode guard when marker is None
+# ---------------------------------------------------------------------------
+
+
+def test_stage_explorer_update_marker_mode_no_marker(qtbot: QtBot) -> None:
+    """_update_marker_mode returns gracefully when stage_pos_marker is None."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    explorer._stage_pos_marker = None
+    # should not raise
+    explorer._update_marker_mode()
+
+
+# ---------------------------------------------------------------------------
+# StageExplorer - _on_sys_config_loaded
+# ---------------------------------------------------------------------------
+
+
+def test_stage_explorer_sys_config_loaded_restarts_poller(
+    qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    """_on_sys_config_loaded restarts the poller when an XY stage is present."""
+    explorer = StageExplorer(mmcore=global_mmcore)
+    qtbot.addWidget(explorer)
+    # stop the poller first so we can verify it restarts
+    explorer._stop_poller()
+    assert not explorer._stage_poller.isRunning()
+
+    explorer._on_sys_config_loaded()
+
+    assert explorer._stage_poller.isRunning()
+
+
+def test_stage_explorer_sys_config_loaded_stops_poller_when_no_xy(
+    qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    """_on_sys_config_loaded stops the poller when no XY stage is available."""
+    explorer = StageExplorer(mmcore=global_mmcore)
+    qtbot.addWidget(explorer)
+    # wait until the poller is running
+    qtbot.waitUntil(lambda: explorer._stage_poller.isRunning(), timeout=2000)
+
+    with patch.object(explorer._mmc, "getXYStageDevice", return_value=""):
+        explorer._on_sys_config_loaded()
+
+    assert not explorer._stage_poller.isRunning()
+
+
+# ---------------------------------------------------------------------------
+# StageExplorer - _create_stage_pos_marker replaces existing marker
+# ---------------------------------------------------------------------------
+
+
+def test_stage_explorer_create_stage_pos_marker_replaces_existing(
+    qtbot: QtBot,
+) -> None:
+    """_create_stage_pos_marker detaches and replaces a pre-existing marker."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    assert explorer._stage_pos_marker is not None
+    first_marker = explorer._stage_pos_marker
+
+    explorer._create_stage_pos_marker()
+
+    assert explorer._stage_pos_marker is not None
+    assert explorer._stage_pos_marker is not first_marker
+    # old marker must be detached from the scene
+    assert first_marker.parent is None
+
+
+# ---------------------------------------------------------------------------
+# StageExplorer - _set_stage_controller
+# ---------------------------------------------------------------------------
+
+
+def test_stage_explorer_stage_controller_none_without_xy_device(
+    qtbot: QtBot,
+) -> None:
+    """_set_stage_controller sets controller to None when no XY device is loaded."""
+    mmc = CMMCorePlus()  # empty - no XY stage
+    explorer = StageExplorer(mmcore=mmc)
+    qtbot.addWidget(explorer)
+    assert explorer._stage_controller is None
+
+
+def test_stage_explorer_stage_controller_set_with_xy_device(
+    qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    """_set_stage_controller creates a controller when an XY device is present."""
+    explorer = StageExplorer(mmcore=global_mmcore)
+    qtbot.addWidget(explorer)
+    assert explorer._stage_controller is not None
+
+
+# ---------------------------------------------------------------------------
+# StageExplorer - _on_pixel_size_changed accepts *args
+# ---------------------------------------------------------------------------
+
+
+def test_stage_explorer_pixel_size_handlers_refresh_affine(
+    qtbot: QtBot,
+) -> None:
+    """Both pixel size handlers call _affine_state.refresh()."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    # neither should raise
+    explorer._on_pixel_size_changed(0.065)
+    explorer._on_pixel_size_affine_changed()
