@@ -15,9 +15,12 @@ from qtpy.QtWidgets import (
     QButtonGroup,
     QDialog,
     QDialogButtonBox,
+    QFileDialog,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QMessageBox,
+    QPushButton,
     QRadioButton,
     QSizePolicy,
     QSplitter,
@@ -38,6 +41,7 @@ from pymmcore_widgets._models import (
     get_config_groups,
     get_loaded_devices,
 )
+from pymmcore_widgets._util import block_core
 
 from ._config_presets_table import ConfigPresetsTable
 from ._device_property_selector import DevicePropertySelector
@@ -74,6 +78,7 @@ class ConfigGroupsEditor(QWidget):
     """Widget composed of two QListViews backed by a single tree model."""
 
     configChanged = Signal()
+    _core: CMMCorePlus | None
 
     @classmethod
     def create_from_core(
@@ -115,6 +120,7 @@ class ConfigGroupsEditor(QWidget):
             be left unchanged (meaning you will have an empty editor until you add
             groups/presets manually).
         """
+        self._core = core
         if update_devices:
             self._loaded_devices = tuple(get_loaded_devices(core))
             self._preset_table.setAvailableDevices(self._loaded_devices)
@@ -125,11 +131,15 @@ class ConfigGroupsEditor(QWidget):
         super().__init__(parent)
         self.setStyleSheet("QToolBar { border: none; };")
 
+        self._core = None
         self._loaded_devices = ()
         self._model = QConfigGroupsModel()
         self._undo_stack = QUndoStack(self)
         self._syncing_selection = False
         self._prev_undo_index = 0
+        self._current_state: Sequence[ConfigGroup] = []
+        self._dirty_icon = QIconifyIcon("mdi:alert-circle-outline", color="orange")
+        self._clean_icon = QIconifyIcon("mdi:check-circle-outline", color="green")
 
         # widgets -------------------------------------------------------------
 
@@ -179,11 +189,26 @@ class ConfigGroupsEditor(QWidget):
         main.addWidget(groups_presets)
         main.addWidget(table_group)
 
+        # Bottom bar: status indicator (left) + Apply button (right)
+        self._status_icon = QLabel(self)
+        self._status_label = QLabel(self)
+        self._apply_btn = QPushButton("Apply", self)
+        self._apply_btn.setEnabled(False)
+
+        bottom_bar = QHBoxLayout()
+        bottom_bar.setContentsMargins(5, 5, 5, 5)
+        bottom_bar.setSpacing(5)
+        bottom_bar.addWidget(self._status_icon)
+        bottom_bar.addWidget(self._status_label)
+        bottom_bar.addStretch()
+        bottom_bar.addWidget(self._apply_btn)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(0)
         layout.addWidget(self._tb)
         layout.addWidget(main)
+        layout.addLayout(bottom_bar)
 
         # signals ------------------------------------------------------------
 
@@ -204,6 +229,10 @@ class ConfigGroupsEditor(QWidget):
         # Transpose replaces the model (and selection model), so reconnect
         if act := self._preset_table.transpose_action:
             act.triggered.connect(self._connect_table_selection)
+
+        self.configChanged.connect(self._mark_dirty)
+        self._apply_btn.clicked.connect(self._apply_to_core)
+        self._update_status_indicator()
 
     # ------------------------------------------------------------------
     # Public API
@@ -239,6 +268,7 @@ class ConfigGroupsEditor(QWidget):
             # Ensure "add preset" action is disabled when no groups exist
             self._tb.add_preset_action.setEnabled(False)
         self.configChanged.emit()
+        self._clear_dirty()
 
     def data(self) -> Sequence[ConfigGroup]:
         """Return the current configuration data as a list of ConfigGroup."""
@@ -609,6 +639,94 @@ class ConfigGroupsEditor(QWidget):
             Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint
         )
         dialog.show()
+
+    # ------------------------------------------------------------------
+    # Dirty state tracking and apply-to-core
+    # ------------------------------------------------------------------
+
+    @property
+    def _dirty(self) -> bool:
+        """Whether the current data differs from the last-applied snapshot."""
+        return list(self.data()) != self._current_state
+
+    def _mark_dirty(self) -> None:
+        """Re-evaluate dirty state and update the status indicator."""
+        self._update_status_indicator()
+
+    def _clear_dirty(self) -> None:
+        """Snapshot the current data as the 'clean' baseline."""
+        self._current_state = list(self.data())
+        self._update_status_indicator()
+
+    def _update_status_indicator(self) -> None:
+        """Update the status icon, label, and Apply button to reflect dirty state."""
+        if self._dirty:
+            self._status_icon.setPixmap(self._dirty_icon.pixmap(16, 16))
+            self._status_label.setText("Changes not applied")
+            self._apply_btn.setEnabled(self._core is not None)
+        else:
+            self._status_icon.setPixmap(self._clean_icon.pixmap(16, 16))
+            self._status_label.setText("No changes")
+            self._apply_btn.setEnabled(False)
+
+    def _apply_to_core(self) -> None:
+        """Apply the current editor configuration to the core."""
+        if self._core is None:
+            return
+
+        groups = self.data()
+
+        with block_core(self._core.events):
+            # Delete all existing config groups from core
+            for group_name in self._core.getAvailableConfigGroups():
+                self._core.deleteConfigGroup(group_name)
+
+            # Re-define all groups/presets/settings
+            for group in groups:
+                for preset in group.presets.values():
+                    for setting in preset.settings:
+                        self._core.defineConfig(
+                            group.name,
+                            preset.name,
+                            setting.device_label,
+                            setting.property_name,
+                            setting.value,
+                        )
+
+            # Restore channel group
+            for group in groups:
+                if group.is_channel_group:
+                    self._core.setChannelGroup(group.name)
+                    break
+
+        self._clear_dirty()
+        self._prompt_save_to_file()
+
+    def _prompt_save_to_file(self) -> None:
+        """Ask the user whether to save the configuration to a .cfg file."""
+        if self._core is None:
+            return
+
+        result = QMessageBox.question(
+            self,
+            "Save Configuration",
+            "Configuration applied. Would you like to save to a file?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if result != QMessageBox.StandardButton.Yes:
+            return
+
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Micro-Manager Configuration",
+            "",
+            "Config Files (*.cfg)",
+        )
+        if filename:
+            if not filename.endswith(".cfg"):
+                filename = f"{filename}.cfg"
+            self._core.saveSystemConfiguration(filename)
 
 
 class _ConfigEditorToolbar(QToolBar):
