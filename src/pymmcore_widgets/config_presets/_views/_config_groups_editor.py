@@ -78,7 +78,7 @@ class ConfigGroupsEditor(QWidget):
     """Widget composed of two QListViews backed by a single tree model."""
 
     configChanged = Signal()
-    _core: CMMCorePlus | None = None
+    _core: CMMCorePlus | None
 
     @classmethod
     def create_from_core(
@@ -138,6 +138,8 @@ class ConfigGroupsEditor(QWidget):
         self._syncing_selection = False
         self._prev_undo_index = 0
         self._current_state: Sequence[ConfigGroup] = []
+        self._dirty_icon = QIconifyIcon("mdi:alert-circle-outline", color="orange")
+        self._clean_icon = QIconifyIcon("mdi:check-circle-outline", color="green")
 
         # widgets -------------------------------------------------------------
 
@@ -645,7 +647,7 @@ class ConfigGroupsEditor(QWidget):
     @property
     def _dirty(self) -> bool:
         """Whether the current data differs from the last-applied snapshot."""
-        return list(self.data()) != list(self._current_state)
+        return list(self.data()) != self._current_state
 
     def _mark_dirty(self) -> None:
         """Re-evaluate dirty state and update the status indicator."""
@@ -659,13 +661,11 @@ class ConfigGroupsEditor(QWidget):
     def _update_status_indicator(self) -> None:
         """Update the status icon, label, and Apply button to reflect dirty state."""
         if self._dirty:
-            icon = QIconifyIcon("mdi:alert-circle-outline", color="orange")
-            self._status_icon.setPixmap(icon.pixmap(16, 16))
+            self._status_icon.setPixmap(self._dirty_icon.pixmap(16, 16))
             self._status_label.setText("Changes not applied")
             self._apply_btn.setEnabled(self._core is not None)
         else:
-            icon = QIconifyIcon("mdi:check-circle-outline", color="green")
-            self._status_icon.setPixmap(icon.pixmap(16, 16))
+            self._status_icon.setPixmap(self._clean_icon.pixmap(16, 16))
             self._status_label.setText("No changes")
             self._apply_btn.setEnabled(False)
 
@@ -724,7 +724,7 @@ class ConfigGroupsEditor(QWidget):
             "Config Files (*.cfg)",
         )
         if filename:
-            if not str(filename).endswith(".cfg"):
+            if not filename.endswith(".cfg"):
                 filename = f"{filename}.cfg"
             self._core.saveSystemConfiguration(filename)
 
