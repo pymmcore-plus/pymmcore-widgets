@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Slot
 from qtpy.QtWidgets import (
     QAbstractScrollArea,
     QDialog,
@@ -118,6 +118,7 @@ class GroupPresetTableWidget(QWidget):
             if isinstance(wdg, PresetsWidget):
                 wdg._disconnect()
 
+    @Slot()
     def _populate_table(self) -> None:
         self._reset_table()
         if groups := self._mmc.getAvailableConfigGroups():
@@ -161,10 +162,12 @@ class GroupPresetTableWidget(QWidget):
         else:
             return PropertyWidget(device, prop, mmcore=self._mmc)
 
+    @Slot(str)
     def _on_group_deleted(self, group: str) -> None:
         if matching_item := self.table_wdg.findItems(group, Qt.MatchFlag.MatchExactly):
             self.table_wdg.removeRow(matching_item[0].row())
 
+    @Slot(str, str, str, str, str)
     def _on_config_defined(
         self, group: str, preset: str, device: str, property: str, value: str
     ) -> None:
@@ -184,6 +187,7 @@ class GroupPresetTableWidget(QWidget):
         dlg.resize(800, 600)
         dlg.show()
 
+    @Slot()
     def _save_cfg(self) -> None:
         (filename, _) = QFileDialog.getSaveFileName(
             self, "Save Micro-Manager Configuration."
@@ -193,6 +197,7 @@ class GroupPresetTableWidget(QWidget):
                 filename if str(filename).endswith(".cfg") else f"{filename}.cfg"
             )
 
+    @Slot()
     def _load_cfg(self) -> None:
         """Open file dialog to select a config file."""
         (filename, _) = QFileDialog.getOpenFileName(

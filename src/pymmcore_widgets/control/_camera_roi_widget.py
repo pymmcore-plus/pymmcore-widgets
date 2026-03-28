@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, NamedTuple
 
 from pymmcore_plus import CMMCorePlus, DeviceType
-from qtpy.QtCore import QSize, Qt, Signal
+from qtpy.QtCore import QSize, Qt, Signal, Slot
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QCheckBox,
@@ -224,6 +224,7 @@ class CameraRoiWidget(QWidget):
 
     # ________________________________CORE CONNECTIONS________________________________
 
+    @Slot()
     def _on_sys_cfg_loaded(self) -> None:
         cameras = self._get_loaded_cameras()
         self.snap_checkbox.hide()
@@ -267,6 +268,7 @@ class CameraRoiWidget(QWidget):
         # update the info label
         self._update_lbl_info()
 
+    @Slot(str, str, object)
     def _on_property_changed(self, device: str, prop: str, value: str) -> None:
         """Handle the property changed event."""
         if device != "Core" or prop != "Camera":
@@ -274,6 +276,7 @@ class CameraRoiWidget(QWidget):
         # show auto snap checkbox only if the selected camera is the core active camera
         self.snap_checkbox.show() if value == self.camera else self.snap_checkbox.hide()
 
+    @Slot(str, int, int, int, int)
     def _on_roi_set(self, camera: str, x: int, y: int, width: int, height: int) -> None:
         """Handle the ROI set event."""
         # if the roi values are out of bounds, do not update, keep the current values
@@ -352,6 +355,7 @@ class CameraRoiWidget(QWidget):
             else:
                 spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.PlusMinus)
 
+    @Slot(str)
     def _on_camera_changed(self, camera: str) -> None:
         """Update the ROI When the camera combo box changes."""
         self._update_roi_values()
@@ -364,6 +368,7 @@ class CameraRoiWidget(QWidget):
         else:
             self.snap_checkbox.hide()
 
+    @Slot(str)
     def _on_crop_roi_mode_change(self, value: str) -> None:
         """Handle the crop mode change."""
         if value == FULL:
@@ -399,6 +404,7 @@ class CameraRoiWidget(QWidget):
 
         self._update_lbl_info()
 
+    @Slot(bool)
     def _on_center_checkbox(self, state: bool) -> None:
         """Handle the center checkbox state change."""
         self.start_x.setEnabled(not state)
@@ -434,6 +440,7 @@ class CameraRoiWidget(QWidget):
 
         self.roiChanged.emit(start_x, start_y, width, height, CUSTOM_ROI)
 
+    @Slot()
     def _on_start_spinbox_changed(self) -> None:
         """Handle the start_x and start_y spinbox value change."""
         if not self.start_x.isEnabled() and not self.start_y.isEnabled():
@@ -442,6 +449,7 @@ class CameraRoiWidget(QWidget):
             return
         self._emit_roi_changed_signal()
 
+    @Slot()
     def _on_roi_width_height_changed(self) -> None:
         """Handle the roi width and height spinbox value change."""
         if self.camera_roi_combo.currentText() != CUSTOM_ROI:
@@ -449,6 +457,7 @@ class CameraRoiWidget(QWidget):
         self._update_start_max_value()
         self._emit_roi_changed_signal()
 
+    @Slot()
     def _on_crop_button_clicked(self) -> None:
         """Handle the crop button click event."""
         start_x, start_y, width, height = self._get_roi_values()
@@ -499,6 +508,7 @@ class CameraRoiWidget(QWidget):
             items.append(f"{width} x {height}")
         return items
 
+    @Slot()
     def _update_lbl_info(self) -> None:
         """Update the info label with the current ROI information."""
         start_x, start_y, width, height = self._get_roi_values()

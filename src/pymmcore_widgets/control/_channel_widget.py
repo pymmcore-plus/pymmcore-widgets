@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pymmcore_plus import CMMCorePlus
+from qtpy.QtCore import Slot
 from qtpy.QtWidgets import QComboBox, QVBoxLayout, QWidget
 
 from pymmcore_widgets._util import ComboMessageBox
@@ -90,6 +91,7 @@ class ChannelWidget(QWidget):
             self.channel_wdg = QComboBox()
             self.channel_wdg.setEnabled(False)
 
+    @Slot()
     def _on_sys_cfg_loaded(self) -> None:
         channel_group = self._channel_group or self._get_channel_group()
         if channel_group is not None:
@@ -99,6 +101,7 @@ class ChannelWidget(QWidget):
             # signal is not emitted and we get a ValueError. So we need to call:
             self._on_channel_group_changed(channel_group)
 
+    @Slot(str)
     def _on_channel_group_changed(self, new_channel_group: str) -> None:
         """When Channel group is changed, recreate combo."""
         _wdg = QWidget()
@@ -106,6 +109,7 @@ class ChannelWidget(QWidget):
         self.channel_wdg.deleteLater()
         self._update_widget(new_channel_group)
 
+    @Slot(str)
     def _on_new_group_preset(self, group: str) -> None:
         if group == self._channel_group:
             self._on_channel_group_changed(group)
@@ -115,6 +119,7 @@ class ChannelWidget(QWidget):
             else:
                 self._on_channel_group_changed("")
 
+    @Slot(str)
     def _on_group_deleted(self, group: str) -> None:
         if group == self._channel_group:
             self._on_channel_group_changed("")

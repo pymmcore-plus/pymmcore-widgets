@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import useq
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Qt, QThread, Signal
+from qtpy.QtCore import QSignalBlocker, QSize, Qt, QThread, Signal, Slot
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QDoubleSpinBox,
@@ -18,6 +18,7 @@ from qtpy.QtWidgets import (
     QMenu,
     QPushButton,
     QSizePolicy,
+    QSpinBox,
     QToolBar,
     QToolButton,
     QVBoxLayout,
@@ -196,9 +197,7 @@ class StageExplorer(QWidget):
 
         self._contrast_slider = ContrastSlider(self)
         self._contrast_slider.setVisible(False)
-        self._stage_viewer.climRangeChanged.connect(self._on_clim_range_changed)
         self._contrast_slider.valueChanged.connect(self._on_contrast_slider_changed)
-        self._contrast_slider.autoToggled.connect(self._on_auto_contrast_toggled)
 
         # main layout
         main_layout = QVBoxLayout(self)
@@ -213,7 +212,9 @@ class StageExplorer(QWidget):
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
-        self._mmc.events.pixelSizeAffineChanged.connect(self._on_pixel_size_changed)
+        self._mmc.events.pixelSizeAffineChanged.connect(
+            self._on_pixel_size_affine_changed
+        )
 
         # connections vispy events
         self._stage_viewer.canvas.events.mouse_double_click.connect(
@@ -314,6 +315,13 @@ class StageExplorer(QWidget):
         if self._stage_pos_marker is not None:
             self._stage_pos_marker.set_rect_size(w, h)
 
+        if not self._contrast_slider.isVisible():
+            self._contrast_slider.setVisible(True)
+            self._contrast_slider._max_spin._set_from_camera()
+        min_ = np.min(image)
+        max_ = np.max(image)
+        self._contrast_slider.update_data_range(min_, max_)
+
     def zoom_to_fit(self, *, margin: float = 0.05) -> None:
         """Zoom to fit the current view to the images in the scene.
 
@@ -344,11 +352,14 @@ class StageExplorer(QWidget):
 
     # ACTIONS ----------------------------------------------------------------------
 
+    @Slot()
     def _on_clear_action(self) -> None:
         """Clear the scene and hide the contrast slider."""
         self._stage_viewer.clear()
+        self._contrast_slider.reset_data_range()
         self._contrast_slider.setVisible(False)
 
+    @Slot()
     def _on_roi_changed(self) -> None:
         """Update the ROI manager when a new ROI is set."""
         img_w = self._mmc.getImageWidth()
@@ -361,22 +372,26 @@ class StageExplorer(QWidget):
         if self._stage_pos_marker is not None:
             self._stage_pos_marker.set_rect_size(img_w, img_h)
 
+    @Slot(bool)
     def _on_snap_action(self, checked: bool) -> None:
         """Update the stage viewer settings based on the state of the action."""
         self.snap_on_double_click = checked
 
+    @Slot(bool)
     def _on_zoom_to_fit_action(self, checked: bool) -> None:
         """Set the zoom to fit property based on the state of the action."""
         # self._toolbar.zoom_to_fit_action.setChecked(checked)
         self._auto_zoom_to_fit = False
         self.zoom_to_fit()
 
+    @Slot(bool)
     def _on_auto_zoom_to_fit_action(self, checked: bool) -> None:
         """Set the auto zoom to fit property based on the state of the action."""
         self._auto_zoom_to_fit = checked
         if checked:
             self.zoom_to_fit()
 
+    @Slot()
     def _update_marker_mode(self) -> None:
         """Update the poll mode and show/hide the required stage position marker.
 
@@ -390,24 +405,12 @@ class StageExplorer(QWidget):
             self._stage_pos_marker.set_rect_visible(pi.show_rect)
             self._stage_pos_marker.set_marker_visible(pi.show_marker)
 
-    def _on_clim_range_changed(
-        self, data_min: float, data_max: float, dtype_max: float
-    ) -> None:
-        """Update the contrast slider when the global data range expands."""
-        self._contrast_slider.setVisible(True)
-        self._contrast_slider.update_range(data_min, data_max, dtype_max)
-
+    @Slot(tuple)
     def _on_contrast_slider_changed(self, value: tuple[float, float]) -> None:
         """Apply the contrast slider values to all images."""
         self._stage_viewer.set_clims(value)
 
-    def _on_auto_contrast_toggled(self, checked: bool) -> None:
-        """Toggle auto-contrast mode."""
-        if checked:
-            sv = self._stage_viewer
-            self._contrast_slider.autoscale(sv._global_min, sv._global_max)
-            sv.set_clims((sv._global_min, sv._global_max))
-
+    @Slot()
     def _on_scan_action(self) -> None:
         """Scan the selected ROI."""
         if not (active_rois := self.roi_manager.selected_rois()):
@@ -421,6 +424,7 @@ class StageExplorer(QWidget):
                 self._our_mda_running = True
                 self._mmc.run_mda(seq)
 
+    @Slot(object)
     def _on_scan_options_changed(self, value: tuple[float, OrderMode]) -> None:
         """Update scan settings on the ROI manager so visuals refresh."""
         overlap, mode = value
@@ -444,9 +448,11 @@ class StageExplorer(QWidget):
         fov_h = self._mmc.getImageHeight() * px
         return fov_w, fov_h
 
+    @Slot()
     def _on_sys_config_loaded(self) -> None:
         """Clear the scene and reinitialize when the system configuration is loaded."""
         self._stage_viewer.clear()
+        self._contrast_slider.reset_data_range()
         self._contrast_slider.setVisible(False)
         self._set_stage_controller()
         self._affine_state.refresh()
@@ -485,10 +491,17 @@ class StageExplorer(QWidget):
         if xy_dev := self._mmc.getXYStageDevice():
             self._stage_controller = QStageMoveAccumulator.for_device(xy_dev, self._mmc)
 
-    def _on_pixel_size_changed(self, *args: object) -> None:
-        """Refresh the affine state when pixel size or affine changes."""
+    @Slot(float)
+    def _on_pixel_size_changed(self, value: float) -> None:
+        """Refresh the affine state when pixel size changes."""
         self._affine_state.refresh()
 
+    @Slot()
+    def _on_pixel_size_affine_changed(self) -> None:
+        """Refresh the affine state when pixel size affine changes."""
+        self._affine_state.refresh()
+
+    @Slot(object)
     def _on_mouse_double_click(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
         if not self._mmc.getXYStageDevice() or self._stage_controller is None:
@@ -505,6 +518,7 @@ class StageExplorer(QWidget):
         self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
         # snap an image if the snap on double click property is set
 
+    @Slot()
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
         if self._mmc.mda.is_running():
@@ -515,6 +529,7 @@ class StageExplorer(QWidget):
         x, y = self._mmc.getXYPosition()
         self._add_image_and_update_widget(img, x, y)
 
+    @Slot(object, object)
     def _on_frame_ready(self, image: np.ndarray, event: useq.MDAEvent) -> None:
         """Add the image to the scene when frameReady event is emitted."""
         # TODO: better handle c and z (e.g. multi-channels?, max projection?)
@@ -524,6 +539,7 @@ class StageExplorer(QWidget):
 
     # STAGE POSITION MARKER -----------------------------------------------------
 
+    @Slot(bool)
     def _on_poll_stage_action(self, checked: bool) -> None:
         """Set the poll stage position property based on the state of the action."""
         if self._stage_pos_marker is not None:
@@ -534,10 +550,12 @@ class StageExplorer(QWidget):
         else:
             self._stop_poller()
 
+    @Slot(bool)
     def _on_show_grid_action(self, checked: bool) -> None:
         """Set the show grid property based on the state of the action."""
         self._stage_viewer.set_grid_visible(checked)
 
+    @Slot(float, float)
     def _on_stage_position_polled(self, stage_x: float, stage_y: float) -> None:
         """Update the marker and label with the polled stage position."""
         self._stage_pos_label.setText(f"X: {stage_x:.2f} µm  Y: {stage_y:.2f} µm")
@@ -622,6 +640,47 @@ SliderLabel { font-size: 10px; color: white; }
 """
 
 
+class _MaxSpinBox(QSpinBox):
+    """Frameless spinbox for the contrast slider maximum, with a context menu."""
+
+    _DEFAULT_MAX = 2**16 - 1
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setRange(1, self._DEFAULT_MAX)
+        self.setValue(self._DEFAULT_MAX)
+        self.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setKeyboardTracking(False)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
+        font = self.font()
+        font.setPointSize(11)
+        self.setFont(font)
+        self.setFixedWidth(self.fontMetrics().horizontalAdvance("888888") + 4)
+        self.setStyleSheet("_MaxSpinBox { background: transparent; border: none; }")
+
+    def _core(self) -> CMMCorePlus | None:
+        """Walk up the widget tree to find the CMMCorePlus instance."""
+        widget = self.parent()
+        while widget is not None:
+            if hasattr(widget, "_mmc"):
+                return widget._mmc  # type: ignore [no-any-return]
+            widget = widget.parent()
+        return None
+
+    def _show_context_menu(self, pos: QWidget) -> None:
+        menu = QMenu(self)
+        if action := menu.addAction("Set to camera bit depth"):
+            action.setEnabled(self._core() is not None)
+            action.triggered.connect(self._set_from_camera)
+            menu.exec(self.mapToGlobal(pos))
+
+    def _set_from_camera(self) -> None:
+        if (mmc := self._core()) is not None:
+            self.setValue(2 ** mmc.getImageBitDepth() - 1)
+
+
 class ContrastSlider(QWidget):
     """A contrast range slider with an auto-contrast toggle button."""
 
@@ -633,9 +692,11 @@ class ContrastSlider(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._auto: bool = True
-        self._updating: bool = False
+        self._data_min: float = float("inf")
+        self._data_max: float = float("-inf")
 
         self._slider = QLabeledRangeSlider(Qt.Orientation.Horizontal, self)
+        self._slider.setRange(0, _MaxSpinBox._DEFAULT_MAX)
         self._slider.setStyleSheet(_CLIM_SLIDER_SS)
         self._slider.setHandleLabelPosition(
             QLabeledRangeSlider.LabelPosition.LabelsOnHandle
@@ -643,16 +704,19 @@ class ContrastSlider(QWidget):
         self._slider.setEdgeLabelMode(QLabeledRangeSlider.EdgeLabelMode.NoLabel)
         self._slider.valueChanged.connect(self._on_slider_changed)
 
+        self._max_spin = _MaxSpinBox(self)
+        self._max_spin.valueChanged.connect(self._on_max_spin_changed)
+
         self._auto_btn = QPushButton("Auto", self)
         self._auto_btn.setCheckable(True)
         self._auto_btn.setChecked(True)
-        self._auto_btn.setMaximumWidth(42)
         self._auto_btn.toggled.connect(self._on_auto_toggled)
 
         layout = QHBoxLayout(self)
         layout.setSpacing(5)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._slider, 1)
+        layout.addWidget(self._max_spin, 0)
         layout.addWidget(self._auto_btn, 0)
 
     @property
@@ -660,31 +724,40 @@ class ContrastSlider(QWidget):
         """Whether auto-contrast is enabled."""
         return self._auto
 
-    def update_range(self, data_min: float, data_max: float, dtype_max: float) -> None:
-        """Update the slider range and, if auto, the handle values."""
-        self._slider.setRange(0, int(dtype_max))
-        if self._auto:
-            self._updating = True
-            try:
-                self._slider.setValue((int(data_min), int(data_max)))
-            finally:
-                self._updating = False
+    def set_maximum(self, value: int) -> None:
+        """Set the slider and spinbox maximum."""
+        self._max_spin.setValue(value)
 
-    def autoscale(self, data_min: float, data_max: float) -> None:
-        """Force the slider handles to the given data range."""
-        self._updating = True
-        try:
-            self._slider.setValue((int(data_min), int(data_max)))
-        finally:
-            self._updating = False
+    def update_data_range(self, img_min: float, img_max: float) -> None:
+        """Expand the running data range and, if auto, update the handles."""
+        self._data_min = min(self._data_min, img_min)
+        self._data_max = max(self._data_max, img_max)
+        if self._auto:
+            self._set_handles(self._data_min, self._data_max)
+            self.valueChanged.emit((self._data_min, self._data_max))
+
+    def reset_data_range(self) -> None:
+        """Reset the running data range (e.g. after clearing the scene)."""
+        self._data_min = float("inf")
+        self._data_max = float("-inf")
+
+    def _set_handles(self, lo: float, hi: float) -> None:
+        with QSignalBlocker(self._slider):
+            self._slider.setValue((int(lo), int(hi)))
 
     def _on_slider_changed(self, value: tuple[int, int]) -> None:
-        if not self._updating and self._auto_btn.isChecked():
+        if self._auto_btn.isChecked():
             self._auto_btn.setChecked(False)
         self.valueChanged.emit((float(value[0]), float(value[1])))
 
+    def _on_max_spin_changed(self, value: int) -> None:
+        self._slider.setRange(0, value)
+
     def _on_auto_toggled(self, checked: bool) -> None:
         self._auto = checked
+        if checked and self._data_min < self._data_max:
+            self._set_handles(self._data_min, self._data_max)
+            self.valueChanged.emit((self._data_min, self._data_max))
         self.autoToggled.emit(checked)
 
 
@@ -807,6 +880,7 @@ class ScanMenu(QMenu):
         """Return (overlap, order_mode)."""
         return self._overlap_spin.value(), self._mode_cbox.currentEnum()
 
+    @Slot()
     def _emit(self) -> None:
         self.valueChanged.emit(self.value())
 

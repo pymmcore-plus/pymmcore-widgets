@@ -7,7 +7,7 @@ import numpy as np
 import vispy
 import vispy.scene
 import vispy.visuals
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QLabel, QMenu, QVBoxLayout, QWidget
 from vispy import scene
 from vispy.scene.visuals import Image
@@ -25,9 +25,6 @@ if TYPE_CHECKING:
 class StageViewer(QWidget):
     """A widget to add images with a transform to a vispy canves."""
 
-    climRangeChanged = Signal(float, float, float)
-    """Emitted as (data_min, data_max, dtype_max) when global data range changes."""
-
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Stage Explorer")
@@ -35,10 +32,6 @@ class StageViewer(QWidget):
 
         self._clims: tuple[float, float] | None = None
         self._cmap: cmap.Colormap = cmap.Colormap("gray")
-        # running global data range across all images
-        self._global_min: float = float("inf")
-        self._global_max: float = float("-inf")
-        self._dtype_max: float = 65535.0
 
         self.canvas = vispy.scene.SceneCanvas(show=True)
 
@@ -70,18 +63,12 @@ class StageViewer(QWidget):
         self.canvas.native.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.canvas.native.customContextMenuRequested.connect(self._show_context_menu)
 
-    # --------------------PUBLIC METHODS--------------------
-
     def set_clims(self, clim: tuple[float, float] | None) -> None:
         """Set the color limits of the images in the scene."""
         self._clims = clim
         value = "auto" if clim is None else clim
-        # Suppress per-image canvas redraws; repaint once at the end.
-        self.canvas._update_pending = True
         for child in self._get_images():
             child.clim = value
-        self.canvas._update_pending = False
-        self.canvas.update()
 
     def set_grid_visible(self, visible: bool) -> None:
         self._grid_lines.visible = visible
@@ -112,20 +99,6 @@ class StageViewer(QWidget):
             if np.allclose(transform[-1], (0, 0, 0, 1)):
                 transform = transform.T
 
-        # update running global data range
-        img_min, img_max = float(img.min()), float(img.max())
-        if np.issubdtype(img.dtype, np.integer):
-            self._dtype_max = float(np.iinfo(img.dtype).max)
-        else:
-            self._dtype_max = 1.0
-        old_min, old_max = self._global_min, self._global_max
-        self._global_min = min(self._global_min, img_min)
-        self._global_max = max(self._global_max, img_max)
-        if self._global_min != old_min or self._global_max != old_max:
-            self.climRangeChanged.emit(
-                self._global_min, self._global_max, self._dtype_max
-            )
-
         # add the image to the scene with the transform
         # texture_format="auto" uses GPUScaledTexture2D so that clim changes
         # only update a shader uniform instead of re-uploading the texture.
@@ -142,12 +115,9 @@ class StageViewer(QWidget):
 
     def clear(self) -> None:
         """Clear the scene."""
-        # remove all images from the scene
         for child in reversed(self.view.scene.children):
             if isinstance(child, Image):
                 child.parent = None
-        self._global_min = float("inf")
-        self._global_max = float("-inf")
 
     def zoom_to_fit(self, *, margin: float = 0.05) -> None:
         """Recenter the view to the center of all images.

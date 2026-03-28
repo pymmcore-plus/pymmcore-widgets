@@ -17,7 +17,7 @@ from pymmcore_plus import (
     Keyword,
     PropertyType,
 )
-from qtpy.QtCore import QEvent, QObject, Qt, Signal
+from qtpy.QtCore import QEvent, QObject, Qt, Signal, Slot
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QCheckBox,
@@ -216,6 +216,7 @@ class LabeledSlider(QWidget):
         """Get the current value."""
         return self._value
 
+    @Slot(int)
     def _on_slider_changed(self, slider_val: int) -> None:
         # Don't update if parent signals are blocked (being set programmatically)
         if self.signalsBlocked():
@@ -229,6 +230,8 @@ class LabeledSlider(QWidget):
             self._spinbox.setValue(val)
             self.valueChanged.emit(val)
 
+    @Slot(int)
+    @Slot(float)
     def _on_spinbox_changed(self, val: float) -> None:
         # Don't update if parent signals are blocked (being set programmatically)
         if self.signalsBlocked():
@@ -288,6 +291,7 @@ class BoolCheckBox(QCheckBox):
         super().__init__(parent)
         self.toggled.connect(self._on_toggled)
 
+    @Slot(bool)
     def _on_toggled(self, checked: bool) -> None:
         self.valueChanged.emit(int(checked))
 
@@ -309,6 +313,7 @@ class StringLineEdit(QLineEdit):
         super().__init__(parent)
         self.editingFinished.connect(self._on_editing_finished)
 
+    @Slot()
     def _on_editing_finished(self) -> None:
         self.valueChanged.emit(self.text())
 
@@ -590,6 +595,11 @@ class PropertyWidget(QWidget):
 
         return value
 
+    @Slot()
+    @Slot(int)
+    @Slot(float)
+    @Slot(str)
+    @Slot(object)
     def _on_widget_changed(self, value: Any) -> None:
         """Handle widget value changes."""
         if self._connect_core:
@@ -600,6 +610,7 @@ class PropertyWidget(QWidget):
                 value = self._try_update_from_core()
         self.valueChanged.emit(value)
 
+    @Slot(str, str, object)
     def _on_core_changed(self, device: str, prop: str, value: Any) -> None:
         """Handle core property changes."""
         if device == self._device and prop == self._prop:
@@ -609,6 +620,7 @@ class PropertyWidget(QWidget):
             finally:
                 self._value_widget.blockSignals(False)
 
+    @Slot()
     def _on_config_loaded(self) -> None:
         """Handle system configuration reload."""
         # Device may have been unloaded during config reload, handle gracefully

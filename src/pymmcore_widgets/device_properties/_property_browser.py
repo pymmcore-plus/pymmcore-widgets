@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus, DeviceType
+from qtpy.QtCore import Slot
 from qtpy.QtWidgets import QLineEdit, QVBoxLayout, QWidget
 
 if TYPE_CHECKING:
@@ -64,6 +65,7 @@ class PropertyBrowser(QWidget):
     def _disconnect(self) -> None:
         self._mmc.events.systemConfigurationLoaded.disconnect(self._update_filter)
 
+    @Slot()
     def _update_filter(self) -> None:
         included = self._device_toolbar.checkedDeviceTypes()
         if not included:
