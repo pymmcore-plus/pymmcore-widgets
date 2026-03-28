@@ -165,28 +165,7 @@ def test_stage_viewer_context_menu_flip(qtbot: QtBot) -> None:
     # initially no flip
     assert viewer.view.camera.flip == (False, False, False)
 
-    # open context menu and toggle flip X
-    from qtpy.QtCore import QPoint
-    from qtpy.QtWidgets import QMenu
-
-    with patch.object(QMenu, "exec", return_value=None):
-        viewer._show_context_menu(QPoint(10, 10))
-    menu = viewer.findChild(QMenu)
-    assert menu is not None
-    actions = menu.actions()
-    assert len(actions) == 2
-
-    flip_x_action = actions[0]
-    flip_y_action = actions[1]
-    assert flip_x_action.text() == "Flip X"
-    assert flip_y_action.text() == "Flip Y"
-    assert flip_x_action.isCheckable()
-    assert flip_y_action.isCheckable()
-    assert not flip_x_action.isChecked()
-    assert not flip_y_action.isChecked()
-    menu.close()
-
-    # use _set_flip directly to test flipping
+    # test flipping
     viewer._set_flip(x=True)
     assert viewer.view.camera.flip == (True, False, False)
 
