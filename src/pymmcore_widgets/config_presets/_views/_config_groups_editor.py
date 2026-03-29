@@ -10,7 +10,7 @@ from qtpy.QtCore import (
     Qt,
     Signal,
 )
-from qtpy.QtGui import QKeySequence, QUndoStack
+from qtpy.QtGui import QCloseEvent, QKeySequence, QUndoStack
 from qtpy.QtWidgets import (
     QButtonGroup,
     QDialog,
@@ -669,8 +669,53 @@ class ConfigGroupsEditor(QWidget):
             self._status_label.setText("No changes")
             self._apply_btn.setEnabled(False)
 
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Intercept close to ask about unsaved changes."""
+        if not self._dirty:
+            event.accept()
+            return
+
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Unsaved Changes")
+        msg.setText("You have changes that have not been applied to the core.")
+        msg.setInformativeText("What would you like to do?")
+        msg.setIcon(QMessageBox.Icon.Warning)
+
+        discard_btn = msg.addButton("Discard", QMessageBox.ButtonRole.DestructiveRole)
+        cancel_btn = msg.addButton(QMessageBox.StandardButton.Cancel)
+
+        if self._core is not None:
+            apply_btn = msg.addButton("Apply", QMessageBox.ButtonRole.AcceptRole)
+            apply_save_btn = msg.addButton(
+                "Apply and Save", QMessageBox.ButtonRole.AcceptRole
+            )
+        else:
+            apply_btn = None
+            apply_save_btn = None
+
+        msg.setDefaultButton(cancel_btn)
+        msg.exec()
+
+        clicked = msg.clickedButton()
+        if clicked is discard_btn:
+            event.accept()
+        elif clicked is apply_btn:
+            self._do_apply()
+            event.accept()
+        elif clicked is apply_save_btn:
+            self._do_apply()
+            self._save_to_file()
+            event.accept()
+        else:  # Cancel or dialog closed via X
+            event.ignore()
+
     def _apply_to_core(self) -> None:
         """Apply the current editor configuration to the core."""
+        self._do_apply()
+        self._prompt_save_to_file()
+
+    def _do_apply(self) -> None:
+        """Apply the current editor configuration to the core (no save prompt)."""
         if self._core is None:
             return
 
@@ -700,7 +745,6 @@ class ConfigGroupsEditor(QWidget):
                     break
 
         self._clear_dirty()
-        self._prompt_save_to_file()
 
     def _prompt_save_to_file(self) -> None:
         """Ask the user whether to save the configuration to a .cfg file."""
@@ -715,6 +759,13 @@ class ConfigGroupsEditor(QWidget):
             QMessageBox.StandardButton.No,
         )
         if result != QMessageBox.StandardButton.Yes:
+            return
+
+        self._save_to_file()
+
+    def _save_to_file(self) -> None:
+        """Open a file dialog to save the configuration to a .cfg file."""
+        if self._core is None:
             return
 
         filename, _ = QFileDialog.getSaveFileName(
