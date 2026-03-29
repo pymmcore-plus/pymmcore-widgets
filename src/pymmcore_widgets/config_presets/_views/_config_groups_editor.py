@@ -675,52 +675,12 @@ class ConfigGroupsEditor(QWidget):
             event.accept()
             return
 
-        dlg = QDialog(self)
-        dlg.setWindowTitle("Unsaved Changes")
-
-        label = QLabel(
-            "You have changes that have not been applied to the core.\n"
-            "What would you like to do?"
-        )
-
-        discard_btn = QPushButton("Discard")
-        apply_btn = QPushButton("Apply") if self._core is not None else None
-        apply_save_btn = (
-            QPushButton("Apply and Save") if self._core is not None else None
-        )
-
-        btn_row = QHBoxLayout()
-        btn_row.setContentsMargins(0, 0, 0, 0)
-        btn_row.setSpacing(7)
-        btn_row.addStretch()
-        if apply_btn:
-            btn_row.addWidget(apply_btn)
-        if apply_save_btn:
-            btn_row.addWidget(apply_save_btn)
-        btn_row.addWidget(discard_btn)
-
-        lay = QVBoxLayout(dlg)
-        lay.addWidget(label)
-        lay.addLayout(btn_row)
-
-        choice: str | None = None
-
-        def _set(val: str) -> None:
-            nonlocal choice
-            choice = val
-            dlg.accept()
-
-        discard_btn.clicked.connect(dlg.accept)
-        if apply_btn:
-            apply_btn.clicked.connect(lambda: _set("apply"))
-        if apply_save_btn:
-            apply_save_btn.clicked.connect(lambda: _set("apply_save"))
-
+        dlg = _UnsavedChangesDialog(has_core=self._core is not None, parent=self)
         dlg.exec()
 
-        if choice == "apply":
+        if dlg.choice == "apply":
             self._do_apply()
-        elif choice == "apply_save":
+        elif dlg.choice == "apply_save":
             self._do_apply()
             self._save_to_file()
         event.accept()
@@ -794,6 +754,48 @@ class ConfigGroupsEditor(QWidget):
             if not filename.endswith(".cfg"):
                 filename = f"{filename}.cfg"
             self._core.saveSystemConfiguration(filename)
+
+
+class _UnsavedChangesDialog(QDialog):
+    """Dialog shown when the user tries to close the editor with unapplied changes."""
+
+    def __init__(self, has_core: bool, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Unsaved Changes")
+        self.choice: str | None = None
+
+        label = QLabel(
+            "You have changes that have not been applied to the core.\n"
+            "What would you like to do?"
+        )
+
+        discard_btn = QPushButton("Discard")
+        apply_btn = QPushButton("Apply") if has_core else None
+        apply_save_btn = QPushButton("Apply and Save") if has_core else None
+
+        btn_row = QHBoxLayout()
+        btn_row.setContentsMargins(0, 0, 0, 0)
+        btn_row.setSpacing(7)
+        btn_row.addStretch()
+        if apply_btn:
+            btn_row.addWidget(apply_btn)
+        if apply_save_btn:
+            btn_row.addWidget(apply_save_btn)
+        btn_row.addWidget(discard_btn)
+
+        lay = QVBoxLayout(self)
+        lay.addWidget(label)
+        lay.addLayout(btn_row)
+
+        discard_btn.clicked.connect(self.accept)
+        if apply_btn:
+            apply_btn.clicked.connect(lambda: self._set("apply"))
+        if apply_save_btn:
+            apply_save_btn.clicked.connect(lambda: self._set("apply_save"))
+
+    def _set(self, val: str) -> None:
+        self.choice = val
+        self.accept()
 
 
 class _ConfigEditorToolbar(QToolBar):
