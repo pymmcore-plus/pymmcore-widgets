@@ -439,6 +439,175 @@ def test_editor_apply_prompt_save_appends_cfg(
     editor._apply_to_core()
 
 
+def test_editor_close_event_clean(editor: ConfigGroupsEditor) -> None:
+    """closeEvent accepts immediately when the editor is not dirty."""
+    from qtpy.QtGui import QCloseEvent
+
+    assert not editor._dirty
+    event = QCloseEvent()
+    editor.closeEvent(event)
+    assert event.isAccepted()
+
+
+def test_editor_close_event_not_visible(
+    editor: ConfigGroupsEditor,
+) -> None:
+    """closeEvent accepts immediately when the widget is not visible (even if dirty)."""
+    from qtpy.QtGui import QCloseEvent
+
+    editor._add_group()
+    assert editor._dirty
+    assert not editor.isVisible()
+
+    event = QCloseEvent()
+    editor.closeEvent(event)
+    assert event.isAccepted()
+
+
+def test_editor_close_event_discard(
+    editor: ConfigGroupsEditor,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Clicking Discard in the close dialog accepts the event without applying."""
+    from qtpy.QtGui import QCloseEvent
+    from qtpy.QtWidgets import QPushButton
+
+    editor.show()
+    editor._add_group()
+    assert editor._dirty
+
+    def mock_exec(dlg_self: QDialog) -> None:
+        for btn in dlg_self.findChildren(QPushButton):
+            if btn.text() == "Discard":
+                btn.click()
+                return
+
+    monkeypatch.setattr(QDialog, "exec", mock_exec)
+    apply_called: list[bool] = []
+    monkeypatch.setattr(editor, "_do_apply", lambda: apply_called.append(True))
+
+    event = QCloseEvent()
+    editor.closeEvent(event)
+
+    assert event.isAccepted()
+    assert not apply_called
+
+
+def test_editor_close_event_apply(
+    editor: ConfigGroupsEditor,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Clicking Apply in the close dialog calls _do_apply."""
+    from qtpy.QtGui import QCloseEvent
+    from qtpy.QtWidgets import QPushButton
+
+    editor.show()
+    editor._add_group()
+    assert editor._dirty
+
+    def mock_exec(dlg_self: QDialog) -> None:
+        for btn in dlg_self.findChildren(QPushButton):
+            if btn.text() == "Apply":
+                btn.click()
+                return
+
+    monkeypatch.setattr(QDialog, "exec", mock_exec)
+    apply_called: list[bool] = []
+    monkeypatch.setattr(editor, "_do_apply", lambda: apply_called.append(True))
+
+    event = QCloseEvent()
+    editor.closeEvent(event)
+
+    assert event.isAccepted()
+    assert apply_called
+
+
+def test_editor_close_event_apply_and_save(
+    editor: ConfigGroupsEditor,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Clicking Apply and Save in the close dialog calls _do_apply then _save_to_file."""  # noqa: E501
+    from qtpy.QtGui import QCloseEvent
+    from qtpy.QtWidgets import QPushButton
+
+    editor.show()
+    editor._add_group()
+    assert editor._dirty
+
+    def mock_exec(dlg_self: QDialog) -> None:
+        for btn in dlg_self.findChildren(QPushButton):
+            if btn.text() == "Apply and Save":
+                btn.click()
+                return
+
+    monkeypatch.setattr(QDialog, "exec", mock_exec)
+    calls: list[str] = []
+    monkeypatch.setattr(editor, "_do_apply", lambda: calls.append("apply"))
+    monkeypatch.setattr(editor, "_save_to_file", lambda: calls.append("save"))
+
+    event = QCloseEvent()
+    editor.closeEvent(event)
+
+    assert event.isAccepted()
+    assert calls == ["apply", "save"]
+
+
+def test_editor_close_event_no_apply_buttons_without_core(
+    qtbot: QtBot,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without a core, the close dialog shows only Discard (no Apply buttons)."""
+    from qtpy.QtGui import QCloseEvent
+    from qtpy.QtWidgets import QPushButton
+
+    editor = ConfigGroupsEditor()
+    qtbot.addWidget(editor)
+    editor.show()
+    editor._add_group()
+    assert editor._dirty
+    assert editor._core is None
+
+    button_texts: list[str] = []
+
+    def mock_exec(dlg_self: QDialog) -> None:
+        button_texts.extend(btn.text() for btn in dlg_self.findChildren(QPushButton))
+        dlg_self.accept()
+
+    monkeypatch.setattr(QDialog, "exec", mock_exec)
+
+    event = QCloseEvent()
+    editor.closeEvent(event)
+
+    assert event.isAccepted()
+    assert "Discard" in button_texts
+    assert "Apply" not in button_texts
+    assert "Apply and Save" not in button_texts
+
+
+def test_editor_do_apply_no_core(qtbot: QtBot) -> None:
+    """_do_apply is a no-op when no core is set."""
+    editor = ConfigGroupsEditor()
+    qtbot.addWidget(editor)
+    editor._add_group()
+    assert editor._dirty
+    editor._do_apply()
+    assert editor._dirty  # still dirty — no core to apply to
+
+
+def test_editor_prompt_save_no_core(qtbot: QtBot) -> None:
+    """_prompt_save_to_file is a no-op when no core is set."""
+    editor = ConfigGroupsEditor()
+    qtbot.addWidget(editor)
+    editor._prompt_save_to_file()  # should not raise
+
+
+def test_editor_save_to_file_no_core(qtbot: QtBot) -> None:
+    """_save_to_file is a no-op when no core is set."""
+    editor = ConfigGroupsEditor()
+    qtbot.addWidget(editor)
+    editor._save_to_file()  # should not raise
+
+
 def test_config_groups_help_dialog(qtbot: QtBot) -> None:
     """Smoke test ConfigGroupsHelpDialog."""
     dialog = ConfigGroupsHelpDialog()
