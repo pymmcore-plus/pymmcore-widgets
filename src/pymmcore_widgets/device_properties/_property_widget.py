@@ -356,9 +356,12 @@ def _get_allowed_values(mmc: CMMCorePlus, device: str, prop: str) -> tuple[str, 
     # Special handling for state device Label/State properties
     if mmc.getDeviceType(device) == DeviceType.StateDevice:
         if prop == LABEL:
-            return mmc.getStateLabels(device)
+            with contextlib.suppress(RuntimeError):
+                return mmc.getStateLabels(device)
         if prop == STATE:
             n_states = mmc.getNumberOfStates(device)
+            if n_states > 1024:  # guard against adapters reporting INT_MAX
+                return ()
             return tuple(str(i) for i in range(n_states))
 
     return ()
